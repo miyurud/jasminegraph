@@ -1,0 +1,6 @@
+#This is the file that indicates which files need to be batch uploaded to Acacia
+#This is essentially a KV pair. Key is the graph name. Value is the file's path.
+
+#simple_graph:/nfs/home/miyuru/Developments/Acacia/datasets/simple_graph-no-header.dl
+#internet_graph:/nfs/home/miyuru/Developments/Acacia/datasets/internet.dl
+#powergrid:/nfs/home/miyuru/Developments/Acacia/datasets/powergrid.dl
