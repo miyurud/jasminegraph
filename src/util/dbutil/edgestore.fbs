@@ -1,0 +1,13 @@
+namespace JasminGraph.Edgestore;
+
+table EdgeStore {
+    entries:[EdgeStoreEntry];
+}
+
+table EdgeStoreEntry {
+    key:long (key);
+    value:[long];
+}
+
+root_type EdgeStore;
+
