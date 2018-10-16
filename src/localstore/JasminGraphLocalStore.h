@@ -21,7 +21,7 @@ using std::map;
 using std::unordered_set;
 using std::string;
 
-class JasminGraohLocalStore {
+class JasminGraphLocalStore {
 private:
 public:
     virtual bool loadGraph() = 0;

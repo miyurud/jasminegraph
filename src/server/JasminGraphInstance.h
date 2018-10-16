@@ -21,7 +21,7 @@ using std::map;
 
 class JasminGraphInstance {
 private:
-    map<std::string, JasminGraohLocalStore> graphDBMapLocalStores;
+    map<std::string, JasminGraphLocalStore> graphDBMapLocalStores;
 public:
     void start_running();
     void registerShutdownHook();
