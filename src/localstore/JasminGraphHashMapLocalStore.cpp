@@ -95,8 +95,8 @@ void JasminGraphHashMapLocalStore::toLocalSubGraphMap(const EdgeStore *edgeStore
         long key = entry->key();
         auto value = entry->value();
         const flatbuffers::Vector<long>& vector = *value;
-        unordered_set<long> test(vector.begin(),vector.end());
-        localSubGraphMap.insert(std::make_pair(key,test));
+        unordered_set<long> valueSet(vector.begin(),vector.end());
+        localSubGraphMap.insert(std::make_pair(key,valueSet));
     }
 }
 
@@ -116,7 +116,47 @@ long JasminGraphHashMapLocalStore::getEdgeCount() {
 unordered_set<long> JasminGraphHashMapLocalStore::getVertexSet() {
     unordered_set<long> vertexSet;
 
-    
+    for(map<long,unordered_set<long>>::iterator it = localSubGraphMap.begin(); it != localSubGraphMap.end(); ++it) {
+        vertexSet.insert(it->first);
+    }
 
     return vertexSet;
+}
+
+int* JasminGraphHashMapLocalStore::getOutDegreeDistribution() {
+    int distributionArray[vertexCount];
+    int counter = 0;
+
+    for(map<long,unordered_set<long>>::iterator it = localSubGraphMap.begin(); it != localSubGraphMap.end(); ++it) {
+        distributionArray[counter] = (it->second).size();
+        counter++;
+    }
+    return distributionArray;
+}
+
+map<long, long> JasminGraphHashMapLocalStore::getOutDegreeDistributionHashMap() {
+    map<long,long> distributionHashMap;
+
+    for(map<long,unordered_set<long>>::iterator it = localSubGraphMap.begin(); it != localSubGraphMap.end(); ++it) {
+        long distribution = (it->second).size();
+        distributionHashMap.insert(std::make_pair(it->first,distribution));
+    }
+    return distributionHashMap;
+}
+
+long JasminGraphHashMapLocalStore::getVertexCount() {
+    if (vertexCount == 0 ) {
+        vertexCount = localSubGraphMap.size();
+    }
+
+    return vertexCount;
+}
+
+void JasminGraphHashMapLocalStore::addEdge(long startVid, long endVid) {
+    map<long,unordered_set<long>>::iterator entryIterator = localSubGraphMap.find(startVid);
+    if (entryIterator != localSubGraphMap.end()) {
+        unordered_set<long> neighbours = entryIterator->second;
+        neighbours.insert(endVid);
+        entryIterator->second = neighbours;
+    }
 }

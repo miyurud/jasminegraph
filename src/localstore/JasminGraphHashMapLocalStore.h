@@ -35,7 +35,11 @@ public:
     bool loadGraph();
     bool storeGraph();
     long getEdgeCount();
+    long getVertexCount();
+    void addEdge(long startVid, long endVid);
     unordered_set<long> getVertexSet();
+    int* getOutDegreeDistribution();
+    map<long, long> getOutDegreeDistributionHashMap();
 };
 
 
