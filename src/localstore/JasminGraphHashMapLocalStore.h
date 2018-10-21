@@ -7,7 +7,7 @@
 
 #include "JasminGraphLocalStore.h"
 #include "../util/dbutil/edgestore_generated.h"
-#include "flatbuffers/util.h"
+#include <flatbuffers/util.h>
 
 using namespace JasminGraph::Edgestore;
 
@@ -32,14 +32,17 @@ private:
 public:
     JasminGraphHashMapLocalStore(int graphid, int partitionid);
     JasminGraphHashMapLocalStore(std::string folderLocation);
-    bool loadGraph();
-    bool storeGraph();
-    long getEdgeCount();
-    long getVertexCount();
-    void addEdge(long startVid, long endVid);
+    inline bool loadGraph() override;
+    bool storeGraph() override;
+    long getEdgeCount() override;
+    long getVertexCount() override;
+    void addEdge(long startVid, long endVid) override;
     unordered_set<long> getVertexSet();
     int* getOutDegreeDistribution();
-    map<long, long> getOutDegreeDistributionHashMap();
+    map<long, long> getOutDegreeDistributionHashMap() override;
+    map<long, unordered_set<long>> getUnderlyingHashMap() override;
+    void initialize() override;
+    void addVertex(string* attributes) override;
 };
 
 
