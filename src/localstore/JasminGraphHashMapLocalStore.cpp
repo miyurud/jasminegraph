@@ -7,6 +7,7 @@
 #include <fstream>
 
 
+
 JasminGraphHashMapLocalStore::JasminGraphHashMapLocalStore(int graphid, int partitionid) {
     graphId = graphid;
     partitionId = partitionid;
@@ -159,4 +160,17 @@ void JasminGraphHashMapLocalStore::addEdge(long startVid, long endVid) {
         neighbours.insert(endVid);
         entryIterator->second = neighbours;
     }
+}
+
+map<long, unordered_set<long>> JasminGraphHashMapLocalStore::getUnderlyingHashMap() {
+    map<long, unordered_set<long>> result;
+    return result;
+}
+
+void JasminGraphHashMapLocalStore::initialize() {
+
+}
+
+void JasminGraphHashMapLocalStore::addVertex(string *attributes) {
+
 }
