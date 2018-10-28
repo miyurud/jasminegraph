@@ -13,6 +13,7 @@ limitations under the License.
 #ifndef JASMINGRAPH_UTILS_H
 #define JASMINGRAPH_UTILS_H
 
+#include <vector>
 #include <map>
 #include <iostream>
 #include <fstream>
@@ -21,10 +22,14 @@ using std::map;
 
 class Utils {
 public:
-    map<std::string, std::string> getBatchUploadFileList();
-
-    map<std::string, std::string>* getFileContentAsMap(std::string);
+    map<std::string, std::string> getBatchUploadFileList(std::string file);
+    std::string getJasminGraphProperty(std::string key);
+    std::vector<std::string> getFileContent(std::string);
+    std::vector<std::string> split(const std::string& s, char delimiter);
+    static std::string trim_copy(const std::string&,
+                          const std::string& );
 };
+
 
 
 #endif //JASMINGRAPH_UTILS_H

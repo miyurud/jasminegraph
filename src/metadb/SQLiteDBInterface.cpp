@@ -13,6 +13,7 @@ limitations under the License.
 
 #include <string>
 #include "SQLiteDBInterface.h"
+#include "../util/Utils.h"
 
 using namespace std;
 
@@ -26,8 +27,104 @@ int SQLiteDBInterface::init()
          "AGE            INT     NOT NULL," \
          "ADDRESS        CHAR(50)," \
          "SALARY         REAL );";
+
+    Utils utils;
+    int rc = sqlite3_open(utils.getJasminGraphProperty("org.jasmingraph.db.location").c_str(), &database);
+
+    if (rc)
+    {
+        fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(database));
+        return(-1);
+    } else {
+        fprintf(stderr, "Opened database successfully\n");
+    }
+}
+
+int SQLiteDBInterface::finalize(){
+    sqlite3_close(database);
 }
 
 SQLiteDBInterface::SQLiteDBInterface() {
 
+}
+
+static int callback(void *data, int argc, char **argv, char **azColName){
+    int i;
+    fprintf(stderr, "%s: ", (const char*)data);
+
+    for(i = 0; i<argc; i++){
+        printf("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
+    }
+
+    printf("\n");
+    return 0;
+}
+
+vector<std::string>  SQLiteDBInterface::runSelect(std::string query)
+{
+    char *zErrMsg = 0;
+    int rc;
+    const char* data = "Callback function called";
+    sqlite3_stmt * stmt;
+
+    rc = sqlite3_exec(database, query.c_str(), callback, (void*)data, &zErrMsg);
+
+    if( rc != SQLITE_OK ) {
+        fprintf(stderr, "SQL error: %s\n", zErrMsg);
+        sqlite3_free(zErrMsg);
+    } else {
+        fprintf(stdout, "Operation done successfully\n");
+    }
+}
+
+int SQLiteDBInterface::RunSqlNoCallback(const char * zSql)
+{
+    sqlite3_stmt *stmt = NULL;
+    int rc = sqlite3_prepare_v2(database, zSql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK)
+        return rc;
+
+    int rowCount = 0;
+    rc = sqlite3_step(stmt);
+    while (rc != SQLITE_DONE && rc != SQLITE_OK)
+    {
+        rowCount++;
+        int colCount = sqlite3_column_count(stmt);
+        for (int colIndex = 0; colIndex < colCount; colIndex++)
+        {
+            int type = sqlite3_column_type(stmt, colIndex);
+            const char * columnName = sqlite3_column_name(stmt, colIndex);
+            if (type == SQLITE_INTEGER)
+            {
+                int valInt = sqlite3_column_int(stmt, colIndex);
+                printf("columnName = %s, Integer val = %d", columnName, valInt);
+            }
+            else if (type == SQLITE_FLOAT)
+            {
+                double valDouble = sqlite3_column_double(stmt, colIndex);
+                printf("columnName = %s,Double val = %f", columnName, valDouble);
+            }
+            else if (type == SQLITE_TEXT)
+            {
+                const unsigned char * valChar = sqlite3_column_text(stmt, colIndex);
+                printf("columnName = %s,Text val = %s", columnName, valChar);
+                //free((void *) valChar);
+            }
+            else if (type == SQLITE_BLOB)
+            {
+                printf("columnName = %s,BLOB", columnName);
+            }
+            else if (type == SQLITE_NULL)
+            {
+                printf("columnName = %s,NULL", columnName);
+            }
+        }
+        printf("Line %d, rowCount = %d", rowCount, colCount);
+
+        rc = sqlite3_step(stmt);
+    }
+
+    rc = sqlite3_finalize(stmt);
+
+    return rc;
 }

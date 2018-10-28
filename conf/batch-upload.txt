@@ -3,4 +3,4 @@
 
 #simple_graph:/nfs/home/miyuru/Developments/Acacia/datasets/simple_graph-no-header.dl
 #internet_graph:/nfs/home/miyuru/Developments/Acacia/datasets/internet.dl
-#powergrid:/nfs/home/miyuru/Developments/Acacia/datasets/powergrid.dl
+powergrid:/home/miyurud/Acacia/graphs/powergrid.dl

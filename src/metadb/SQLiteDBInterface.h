@@ -15,13 +15,16 @@ limitations under the License.
 #define JASMINGRAPH_SQLITEDBINTERFACE_H
 
 #include "../util/sqlite3/sqlite3.h"
+#include <vector>
 
 class SQLiteDBInterface {
 private:
     sqlite3 *database;
 public:
     int init();
-
+    int finalize();
+    std::vector<std::string> runSelect(std::string);
+    int RunSqlNoCallback(const char * zSql);
     SQLiteDBInterface();
 };
 

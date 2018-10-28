@@ -12,3 +12,9 @@ limitations under the License.
  */
 
 #include "Conts.h"
+
+int Conts::JASMINGRAPH_FRONTEND_PORT = 7777;
+int Conts::JASMINGRAPH_BACKEND_PORT = 7778;
+int Conts::JASMINGRAPH_VERTEXCOUNTER_PORT = 7779;
+int Conts::JASMINGRAPH_INSTANCE_PORT = 7780;
+int Conts::JASMINGRAPH_INSTANCE_DATA_PORT = 7781;

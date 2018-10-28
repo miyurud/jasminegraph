@@ -17,9 +17,18 @@ limitations under the License.
 #include "main.h"
 
 unsigned int microseconds = 10000000;
+JasminGraphServer* server;
+
+void fnExit3 (void)
+{
+    delete(server);
+    puts ("Shutting down the server.");
+}
+
 
 int main() {
-    JasminGraphServer* server = new JasminGraphServer();
+    atexit(fnExit3);
+    server = new JasminGraphServer();
     server->run();
 
     while (server->isRunning())

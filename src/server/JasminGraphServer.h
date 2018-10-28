@@ -14,10 +14,22 @@ limitations under the License.
 #ifndef JASMINGRAPH_JASMINGRAPHSERVER_H
 #define JASMINGRAPH_JASMINGRAPHSERVER_H
 
+#include <map>
+#include "../frontend/JasminGraphFrontEnd.h"
+#include "../backend/JasminGraphBackend.h"
+#include "../metadb/SQLiteDBInterface.h"
+
+using std::map;
+
 class JasminGraphServer {
 private:
-
+    map<std::string, long> hostPlaceMap;
+    SQLiteDBInterface sqlite;
+    JasminGraphFrontEnd* frontend;
+    JasminGraphBackend* backend;
+    bool IS_DISTRIBUTED;
 public:
+    ~JasminGraphServer();
     JasminGraphServer();
     void init();
     int run();

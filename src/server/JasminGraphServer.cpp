@@ -23,25 +23,19 @@ JasminGraphServer::JasminGraphServer()
 
 }
 
+JasminGraphServer::~JasminGraphServer()
+{
+    puts ("Freeing up server resources.");
+    sqlite.finalize();
+}
+
 int JasminGraphServer::run()
 {
     std::cout << "Running the server..." << std::endl;
-    sqlite3 *database;
-    int rc = sqlite3_open("acacia_meta.db", &database);
 
-    if (rc)
-    {
-        fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(database));
-        return(-1);
-    } else {
-        fprintf(stderr, "Opened database successfully\n");
-    }
-
-    SQLiteDBInterface *sqlite = new SQLiteDBInterface();
-    sqlite->init();
+    this->sqlite = *new SQLiteDBInterface();
+    this->sqlite.init();
     init();
-
-    sqlite3_close(database);
     return 0;
 }
 
@@ -52,5 +46,18 @@ bool JasminGraphServer::isRunning() {
 void JasminGraphServer::init()
 {
     Utils utils;
-    std::map<string, string> map = utils.getBatchUploadFileList();
+    std::map<string, string> result = utils.getBatchUploadFileList(utils.getJasminGraphProperty("org.jasmingraph.batchupload.file.path"));
+
+    if (result.size() != 0) {
+        std::map<std::string, std::string>::iterator iterator1 = result.begin();
+        while (iterator1 != result.end()) {
+            std::string fileName = iterator1->first;
+            std::string filePath = iterator1->second;
+            //Next, we need to implement the batch upload logic here.
+            iterator1++;
+        }
+    }
+
+    this->frontend = new JasminGraphFrontEnd(sqlite);
+    this->frontend->run();
 }
