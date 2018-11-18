@@ -4,9 +4,10 @@
 
 #include "MetisPartitioner.h"
 
-void MetisPartitioner::loadDataSet(string filePath) {
+void MetisPartitioner::loadDataSet(string inputFilePath, string outputFilePath) {
+    this->outputFilePath = outputFilePath;
     std::ifstream dbFile;
-    dbFile.open(filePath,std::ios::binary | std::ios::in);
+    dbFile.open(inputFilePath,std::ios::binary | std::ios::in);
 
     int firstVertex = -1;
     int secondVertex = -1;
@@ -39,14 +40,18 @@ void MetisPartitioner::loadDataSet(string filePath) {
         std::set<int> firstEdgeSet = graphStorageMap[firstVertex];
         std::set<int> secondEdgeSet = graphStorageMap[secondVertex];
 
+        std::set<int> vertexEdgeSet = graphEdgeMap[firstVertex];
+
         if (firstEdgeSet.empty()) {
             vertexCount++;
             edgeCount++;
             firstEdgeSet.insert(secondVertex);
+            vertexEdgeSet.insert(secondVertex);
 
         } else {
             if (firstEdgeSet.find(secondVertex) == firstEdgeSet.end()) {
                 firstEdgeSet.insert(secondVertex);
+                vertexEdgeSet.insert(secondVertex);
                 edgeCount++;
             }
         }
@@ -63,6 +68,7 @@ void MetisPartitioner::loadDataSet(string filePath) {
 
         graphStorageMap[firstVertex] = firstEdgeSet;
         graphStorageMap[secondVertex] = secondEdgeSet;
+        graphEdgeMap[firstVertex] = vertexEdgeSet;
 
 
         if (firstVertex > largestVertex) {
@@ -118,4 +124,97 @@ void MetisPartitioner::partitionGraph() {
     /*for(unsigned part_i = 0; part_i < vertexCount; part_i++){
         std::cout << part_i << " " << part[part_i] << std::endl;
     }*/
+}
+
+void MetisPartitioner::createPartitionFiles(idx_t *part) {
+    for (int vertex = 0;vertex<vertexCount;vertex++) {
+        std::cout << vertex << " " << part[vertex] << std::endl;
+        idx_t vertexPart = part[vertex];
+
+        std::set<int> partVertexSet = partVertexMap[vertexPart];
+
+        partVertexSet.insert(vertex);
+
+        partVertexMap[vertexPart] = partVertexSet;
+    }
+
+    for (int vertex = 0;vertex<vertexCount;vertex++) {
+        std::set<int> vertexEdgeSet = graphEdgeMap[vertex];
+        idx_t firstVertexPart = part[vertex];
+
+        if (!vertexEdgeSet.empty()) {
+            std::set<int>::iterator it;
+            for (it = vertexEdgeSet.begin(); it != vertexEdgeSet.end(); ++it) {
+                int secondVertex = *it;
+                int secondVertexPart = part[secondVertex];
+
+                if (firstVertexPart == secondVertexPart) {
+                    std::map<int,std::set<int>> partEdgesSet = partitionedLocalGraphStorageMap[firstVertexPart];
+                    std::set<int> edgeSet = partEdgesSet[vertex];
+                    edgeSet.insert(secondVertex);
+                    partEdgesSet[vertex] = edgeSet;
+                    partitionedLocalGraphStorageMap[firstVertexPart] = partEdgesSet;
+                } else {
+                    std::map<int,std::set<int>> partMasterEdgesSet = masterGraphStorageMap[firstVertexPart];
+                    std::set<int> edgeSet = partMasterEdgesSet[vertex];
+                    edgeSet.insert(secondVertex);
+                    partMasterEdgesSet[vertex] = edgeSet;
+                    masterGraphStorageMap[firstVertexPart] = partMasterEdgesSet;
+                }
+            }
+        }
+
+    }
+
+    for (int part = 0;part<nParts;part++) {
+        string outputFilePart = outputFilePath+std::to_string(part);
+        string outputFilePartMaster = outputFilePath+std::to_string(part);
+
+        std::map<int,std::set<int>> partEdgeMap = partitionedLocalGraphStorageMap[part];
+        std::map<int,std::set<int>> partMasterEdgeMap = masterGraphStorageMap[part];
+
+        if (!partEdgeMap.empty()) {
+            std::ofstream localFile(outputFilePart);
+
+            if (localFile.is_open()) {
+                for (int vertex = 0; vertex < vertexCount;vertex++) {
+                    std::set<int> destinationSet = partEdgeMap[vertex];
+                    if (!destinationSet.empty()) {
+                        for (std::set<int>::iterator itr = destinationSet.begin(); itr != destinationSet.end(); ++itr) {
+                            string edge = std::to_string(vertex) + " " + std::to_string((*itr));
+                            localFile<<edge;
+                            localFile<<"\n";
+
+                        }
+                    }
+                }
+            }
+
+            localFile.close();
+
+        }
+
+        if (!partEdgeMap.empty()) {
+            std::ofstream masterFile(outputFilePartMaster);
+
+            if (masterFile.is_open()) {
+                for (int vertex = 0; vertex < vertexCount;vertex++) {
+                    std::set<int> destinationSet = partMasterEdgeMap[vertex];
+                    if (!destinationSet.empty()) {
+                        for (std::set<int>::iterator itr = destinationSet.begin(); itr != destinationSet.end(); ++itr) {
+                            string edge = vertex + " " + (*itr);
+                            masterFile<<edge;
+                            masterFile<<"\n";
+
+                        }
+                    }
+                }
+            }
+
+            masterFile.close();
+
+        }
+
+
+    }
 }

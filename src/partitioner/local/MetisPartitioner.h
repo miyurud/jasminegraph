@@ -21,7 +21,7 @@ using std::string;
 
 class MetisPartitioner {
 public:
-    void loadDataSet(string filePath);
+    void loadDataSet(string inputFilePath, string outputFilePath);
     void partitionGraph();
 
 private:
@@ -31,13 +31,19 @@ private:
     idx_t nWeights = 1;
     idx_t nParts = 3;
     idx_t objVal;
+    string outputFilePath;
 
 
     std::map<int,std::set<int>> graphStorageMap;
+    std::map<int,std::set<int>> graphEdgeMap;
+    std::map<int,std::set<int>> partVertexMap;
+    std::map<int,std::map<int,std::set<int>>> partitionedLocalGraphStorageMap;
+    std::map<int,std::map<int,std::set<int>>> masterGraphStorageMap;
     std::vector<int> xadj;
     std::vector<int> adjncy;
 
     void constructMetisFormat();
+    void createPartitionFiles(idx_t part[]);
 };
 
 
