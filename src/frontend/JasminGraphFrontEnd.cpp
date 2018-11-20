@@ -52,8 +52,16 @@ int JasminGraphFrontEnd::run() {
     svrAdd.sin_addr.s_addr = INADDR_ANY;
     svrAdd.sin_port = htons(portNo);
 
+    int yes=1;
+
+    if (setsockopt(listenFd,SOL_SOCKET,SO_REUSEADDR,&yes,sizeof yes) == -1) {
+        perror("setsockopt");
+        exit(1);
+    }
+
+
     //bind socket
-    if(bind(listenFd, (struct sockaddr *)&svrAdd, sizeof(svrAdd)) < 0)
+    if(bind(listenFd, (struct sockaddr *) &svrAdd, sizeof(svrAdd)) < 0)
     {
         cerr << "Cannot bind" << endl;
         return 0;
@@ -117,15 +125,16 @@ void *task1(void *dummyPt)
         }
         else if (line.compare(LIST) == 0)
         {
-            cout << "LIST Items" << endl;
             SQLiteDBInterface* sqlite = (SQLiteDBInterface*) dummyPt;
-            int i = sqlite->RunSqlNoCallback("SELECT idgraph, name, upload_path, upload_start_time, upload_end_time, "
+            std::vector<std::string> v = sqlite->runSelect("SELECT idgraph, name, upload_path, upload_start_time, upload_end_time, "
                               "graph_status_idgraph_status, vertexcount, centralpartitioncount, edgecount FROM graph;");
-            cout << i << endl;
+            for(std::vector<std::string>::iterator it = v.begin(); it != v.end(); ++it) {
+                std::cout << *it << endl;
+            }
         }
         else if (line.compare(SHTDN) == 0)
         {
-            //close(connFd);
+            close(connFd);
             exit(0);
         }
     }

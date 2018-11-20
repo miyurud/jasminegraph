@@ -16,6 +16,7 @@ limitations under the License.
 #include "JasminGraphServer.h"
 #include "../metadb/SQLiteDBInterface.h"
 #include "JasminGraphInstance.h"
+#include "../frontend/JasminGraphFrontEnd.h"
 #include "../util/Utils.h"
 
 JasminGraphServer::JasminGraphServer()
@@ -58,6 +59,6 @@ void JasminGraphServer::init()
         }
     }
 
-    this->frontend = new JasminGraphFrontEnd(sqlite);
+    this->frontend = new JasminGraphFrontEnd(this->sqlite);
     this->frontend->run();
 }
