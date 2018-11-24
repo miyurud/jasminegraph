@@ -1,14 +1,14 @@
-# Jesmingraph
+# Jasminegraph
 
 ## 1. Introduction
-Jesmingraph is a C/C++ based distributed graph database server. It has been developed following the [Acacia](https://github.com/miyurud/Acacia) graph database server architecture.
+Jasminegraph is a C/C++ based distributed graph database server. It has been developed following the [Acacia](https://github.com/miyurud/Acacia) graph database server architecture.
 
 ## 2. Contact Information
 
-Please contact [Miyuru Dayarathna](miyurud at yahoo dot co dot uk) for further information. Please let us know about bug reports or any further improvements you wish to have in Acacia.
+Please contact [Miyuru Dayarathna](miyurud at yahoo dot co dot uk) for further information. Please let us know about bug reports or any further improvements you wish to have in Jasminegraph.
 
 ## Open Source License
-Jesmingraph is licensed under the [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0).
+Jasminegraph is licensed under the [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0).
 
 ## References
 More details of Jesmingraph/Acacia architecture is available from the following list of papers.
