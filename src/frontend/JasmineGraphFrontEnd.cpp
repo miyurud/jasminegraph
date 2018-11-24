@@ -11,24 +11,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
-#include "JasminGraphFrontEnd.h"
+#include "JasmineGraphFrontEnd.h"
 #include "../util/Conts.h"
 #include "../util/Utils.h"
-#include "JasminGraphFrontEndProtocol.h"
+#include "JasmineGraphFrontEndProtocol.h"
 #include "../metadb/SQLiteDBInterface.h"
 
 using namespace std;
 
 static int connFd;
 
-JasminGraphFrontEnd::JasminGraphFrontEnd(SQLiteDBInterface db)
+JasmineGraphFrontEnd::JasmineGraphFrontEnd(SQLiteDBInterface db)
 {
     this->sqlite = db;
 }
 
-int JasminGraphFrontEnd::run() {
+int JasmineGraphFrontEnd::run() {
     int pId;
-    int portNo = Conts::JASMINGRAPH_FRONTEND_PORT;;
+    int portNo = Conts::JASMINEGRAPH_FRONTEND_PORT;;
     int listenFd;
     socklen_t len;
     bool loop = false;

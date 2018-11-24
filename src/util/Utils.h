@@ -1,5 +1,5 @@
 /**
-Copyright 2018 JasminGraph Team
+Copyright 2018 JasmineGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -10,8 +10,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
  */
-#ifndef JASMINGRAPH_UTILS_H
-#define JASMINGRAPH_UTILS_H
+#ifndef JASMINEGRAPH_UTILS_H
+#define JASMINEGRAPH_UTILS_H
 
 #include <vector>
 #include <map>
@@ -23,7 +23,7 @@ using std::map;
 class Utils {
 public:
     map<std::string, std::string> getBatchUploadFileList(std::string file);
-    std::string getJasminGraphProperty(std::string key);
+    std::string getJasmineGraphProperty(std::string key);
     std::vector<std::string> getFileContent(std::string);
     std::vector<std::string> split(const std::string& s, char delimiter);
     static std::string trim_copy(const std::string&,
@@ -32,4 +32,4 @@ public:
 
 
 
-#endif //JASMINGRAPH_UTILS_H
+#endif //JASMINEGRAPH_UTILS_H

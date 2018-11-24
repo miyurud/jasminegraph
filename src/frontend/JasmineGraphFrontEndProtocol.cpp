@@ -2,7 +2,7 @@
 // Created by miyurud on 9/22/18.
 //
 
-#include "JasminGraphFrontEndProtocol.h"
+#include "JasmineGraphFrontEndProtocol.h"
 
 const string ADGR  = "adgr";
 const string EXIT = "exit";

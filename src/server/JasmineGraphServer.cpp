@@ -1,5 +1,5 @@
 /**
-Copyright 2018 JasminGraph Team
+Copyright 2018 JasmineGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -13,24 +13,24 @@ limitations under the License.
 
 #include <iostream>
 #include <map>
-#include "JasminGraphServer.h"
+#include "JasmineGraphServer.h"
 #include "../metadb/SQLiteDBInterface.h"
-#include "JasminGraphInstance.h"
-#include "../frontend/JasminGraphFrontEnd.h"
+#include "JasmineGraphInstance.h"
+#include "../frontend/JasmineGraphFrontEnd.h"
 #include "../util/Utils.h"
 
-JasminGraphServer::JasminGraphServer()
+JasmineGraphServer::JasmineGraphServer()
 {
 
 }
 
-JasminGraphServer::~JasminGraphServer()
+JasmineGraphServer::~JasmineGraphServer()
 {
     puts ("Freeing up server resources.");
     sqlite.finalize();
 }
 
-int JasminGraphServer::run()
+int JasmineGraphServer::run()
 {
     std::cout << "Running the server..." << std::endl;
 
@@ -40,14 +40,14 @@ int JasminGraphServer::run()
     return 0;
 }
 
-bool JasminGraphServer::isRunning() {
+bool JasmineGraphServer::isRunning() {
     return true;
 }
 
-void JasminGraphServer::init()
+void JasmineGraphServer::init()
 {
     Utils utils;
-    std::map<string, string> result = utils.getBatchUploadFileList(utils.getJasminGraphProperty("org.jasmingraph.batchupload.file.path"));
+    std::map<string, string> result = utils.getBatchUploadFileList(utils.getJasmineGraphProperty("org.jasminegraph.batchupload.file.path"));
 
     if (result.size() != 0) {
         std::map<std::string, std::string>::iterator iterator1 = result.begin();
@@ -59,6 +59,6 @@ void JasminGraphServer::init()
         }
     }
 
-    this->frontend = new JasminGraphFrontEnd(this->sqlite);
+    this->frontend = new JasmineGraphFrontEnd(this->sqlite);
     this->frontend->run();
 }

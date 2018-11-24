@@ -1,5 +1,5 @@
 /**
-Copyright 2018 JasminGraph Team
+Copyright 2018 JasmineGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -17,7 +17,7 @@ limitations under the License.
 #include "main.h"
 
 unsigned int microseconds = 10000000;
-JasminGraphServer* server;
+JasmineGraphServer* server;
 
 void fnExit3 (void)
 {
@@ -28,7 +28,7 @@ void fnExit3 (void)
 
 int main() {
     atexit(fnExit3);
-    server = new JasminGraphServer();
+    server = new JasmineGraphServer();
     server->run();
 
     while (server->isRunning())

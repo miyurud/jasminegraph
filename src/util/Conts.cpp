@@ -1,5 +1,5 @@
 /**
-Copyright 2018 JasminGraph Team
+Copyright 2018 JasmineGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -13,8 +13,8 @@ limitations under the License.
 
 #include "Conts.h"
 
-int Conts::JASMINGRAPH_FRONTEND_PORT = 7777;
-int Conts::JASMINGRAPH_BACKEND_PORT = 7778;
-int Conts::JASMINGRAPH_VERTEXCOUNTER_PORT = 7779;
-int Conts::JASMINGRAPH_INSTANCE_PORT = 7780;
-int Conts::JASMINGRAPH_INSTANCE_DATA_PORT = 7781;
+int Conts::JASMINEGRAPH_FRONTEND_PORT = 7777;
+int Conts::JASMINEGRAPH_BACKEND_PORT = 7778;
+int Conts::JASMINEGRAPH_VERTEXCOUNTER_PORT = 7779;
+int Conts::JASMINEGRAPH_INSTANCE_PORT = 7780;
+int Conts::JASMINEGRAPH_INSTANCE_DATA_PORT = 7781;

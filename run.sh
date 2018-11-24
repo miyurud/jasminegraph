@@ -1,1 +1,1 @@
-/home/miyurud/Lab/GCN/git/jesmingraph/cmake-build-debug/JasminGraph
+/home/miyurud/Lab/GCN/git/jasminegraph/cmake-build-debug/JasmineGraph

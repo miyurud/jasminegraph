@@ -1,5 +1,5 @@
 /**
-Copyright 2018 JasminGraph Team
+Copyright 2018 JasmineGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -11,8 +11,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
-#ifndef JASMINGRAPH_JASMINGRAOHLOCALSTORE_H
-#define JASMINGRAPH_JASMINGRAOHLOCALSTORE_H
+#ifndef JASMINEGRAPH_JASMINEGRAPHLOCALSTORE_H
+#define JASMINEGRAPH_JASMINEGRAPHLOCALSTORE_H
 
 #include <map>
 #include <unordered_set>
@@ -21,7 +21,7 @@ using std::map;
 using std::unordered_set;
 using std::string;
 
-class JasminGraphLocalStore {
+class JasmineGraphLocalStore {
 private:
 public:
     virtual bool loadGraph() = 0;
@@ -36,4 +36,4 @@ public:
 };
 
 
-#endif //JASMINGRAPH_JASMINGRAOHLOCALSTORE_H
+#endif //JASMINEGRAPH_JASMINEGRAPHLOCALSTORE_H

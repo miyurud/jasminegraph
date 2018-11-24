@@ -2,17 +2,17 @@
 // Created by chinthaka on 9/19/18.
 //
 
-#ifndef JASMINGRAPH_JASMINGRAPHHASHMAPLOCALSTORE_H
-#define JASMINGRAPH_JASMINGRAPHHASHMAPLOCALSTORE_H
+#ifndef JASMINEGRAPH_JASMINEGRAPHHASHMAPLOCALSTORE_H
+#define JASMINEGRAPH_JASMINEGRAPHHASHMAPLOCALSTORE_H
 
-#include "JasminGraphLocalStore.h"
+#include "JasmineGraphLocalStore.h"
 #include "../util/dbutil/edgestore_generated.h"
 #include <flatbuffers/util.h>
 
-using namespace JasminGraph::Edgestore;
+using namespace JasmineGraph::Edgestore;
 
 
-class JasminGraphHashMapLocalStore:public JasminGraphLocalStore {
+class JasmineGraphHashMapLocalStore:public JasmineGraphLocalStore {
 private:
     std::string VERTEX_STORE_NAME = "acacia.nodestore.db";
     std::string EDGE_STORE_NAME = "acacia.edgestore.db";
@@ -25,13 +25,14 @@ private:
 
     long vertexCount;
     long edgeCount;
+    int *distributionArray;
 
 
     std::string getFileSeparator();
     void toLocalSubGraphMap(const EdgeStore *edgeStoreData);
 public:
-    JasminGraphHashMapLocalStore(int graphid, int partitionid);
-    JasminGraphHashMapLocalStore(std::string folderLocation);
+    JasmineGraphHashMapLocalStore(int graphid, int partitionid);
+    JasmineGraphHashMapLocalStore(std::string folderLocation);
     inline bool loadGraph() override;
     bool storeGraph() override;
     long getEdgeCount() override;
@@ -46,4 +47,4 @@ public:
 };
 
 
-#endif //JASMINGRAPH_JASMINGRAPHHASHMAPLOCALSTORE_H
+#endif //JASMINEGRAPH_JASMINEGRAPHHASHMAPLOCALSTORE_H

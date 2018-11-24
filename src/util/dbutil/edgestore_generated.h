@@ -6,7 +6,7 @@
 
 #include "flatbuffers/flatbuffers.h"
 
-namespace JasminGraph {
+namespace JasmineGraph {
 namespace Edgestore {
 
 struct EdgeStore;
@@ -58,7 +58,7 @@ inline flatbuffers::Offset<EdgeStore> CreateEdgeStore(
 inline flatbuffers::Offset<EdgeStore> CreateEdgeStoreDirect(
     flatbuffers::FlatBufferBuilder &_fbb,
     const std::vector<flatbuffers::Offset<EdgeStoreEntry>> *entries = nullptr) {
-  return JasminGraph::Edgestore::CreateEdgeStore(
+  return JasmineGraph::Edgestore::CreateEdgeStore(
       _fbb,
       entries ? _fbb.CreateVector<flatbuffers::Offset<EdgeStoreEntry>>(*entries) : 0);
 }
@@ -124,39 +124,39 @@ inline flatbuffers::Offset<EdgeStoreEntry> CreateEdgeStoreEntryDirect(
     flatbuffers::FlatBufferBuilder &_fbb,
     int64_t key = 0,
     const std::vector<int64_t> *value = nullptr) {
-  return JasminGraph::Edgestore::CreateEdgeStoreEntry(
+  return JasmineGraph::Edgestore::CreateEdgeStoreEntry(
       _fbb,
       key,
       value ? _fbb.CreateVector<int64_t>(*value) : 0);
 }
 
-inline const JasminGraph::Edgestore::EdgeStore *GetEdgeStore(const void *buf) {
-  return flatbuffers::GetRoot<JasminGraph::Edgestore::EdgeStore>(buf);
+inline const JasmineGraph::Edgestore::EdgeStore *GetEdgeStore(const void *buf) {
+  return flatbuffers::GetRoot<JasmineGraph::Edgestore::EdgeStore>(buf);
 }
 
-inline const JasminGraph::Edgestore::EdgeStore *GetSizePrefixedEdgeStore(const void *buf) {
-  return flatbuffers::GetSizePrefixedRoot<JasminGraph::Edgestore::EdgeStore>(buf);
+inline const JasmineGraph::Edgestore::EdgeStore *GetSizePrefixedEdgeStore(const void *buf) {
+  return flatbuffers::GetSizePrefixedRoot<JasmineGraph::Edgestore::EdgeStore>(buf);
 }
 
 inline bool VerifyEdgeStoreBuffer(
     flatbuffers::Verifier &verifier) {
-  return verifier.VerifyBuffer<JasminGraph::Edgestore::EdgeStore>(nullptr);
+  return verifier.VerifyBuffer<JasmineGraph::Edgestore::EdgeStore>(nullptr);
 }
 
 inline bool VerifySizePrefixedEdgeStoreBuffer(
     flatbuffers::Verifier &verifier) {
-  return verifier.VerifySizePrefixedBuffer<JasminGraph::Edgestore::EdgeStore>(nullptr);
+  return verifier.VerifySizePrefixedBuffer<JasmineGraph::Edgestore::EdgeStore>(nullptr);
 }
 
 inline void FinishEdgeStoreBuffer(
     flatbuffers::FlatBufferBuilder &fbb,
-    flatbuffers::Offset<JasminGraph::Edgestore::EdgeStore> root) {
+    flatbuffers::Offset<JasmineGraph::Edgestore::EdgeStore> root) {
   fbb.Finish(root);
 }
 
 inline void FinishSizePrefixedEdgeStoreBuffer(
     flatbuffers::FlatBufferBuilder &fbb,
-    flatbuffers::Offset<JasminGraph::Edgestore::EdgeStore> root) {
+    flatbuffers::Offset<JasmineGraph::Edgestore::EdgeStore> root) {
   fbb.FinishSizePrefixed(root);
 }
 

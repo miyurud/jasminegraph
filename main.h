@@ -1,5 +1,5 @@
 /**
-Copyright 2018 JasminGraph Team
+Copyright 2018 JasmineGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -11,10 +11,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
-#ifndef JASMINGRAPH_MAIN_H
-#define JASMINGRAPH_MAIN_H
+#ifndef JASMINEGRAPH_MAIN_H
+#define JASMINEGRAPH_MAIN_H
 
-#endif //JASMINGRAPH_MAIN_H
+#endif //JASMINEGRAPH_MAIN_H
 
-#include "src/server/JasminGraphServer.h"
+#include "src/server/JasmineGraphServer.h"
 #include "src/util/sqlite3/sqlite3.h"

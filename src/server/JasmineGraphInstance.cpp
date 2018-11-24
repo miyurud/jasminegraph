@@ -1,5 +1,5 @@
 /**
-Copyright 2018 JasminGraph Team
+Copyright 2018 JasmineGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -11,23 +11,4 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
-#ifndef JASMINGRAPH_JASMINGRAPHINSTANCE_H
-#define JASMINGRAPH_JASMINGRAPHINSTANCE_H
-
-#include <map>
-#include "../localstore/JasminGraphLocalStore.h"
-
-using std::map;
-
-class JasminGraphInstance {
-private:
-    map<std::string, JasminGraphLocalStore> graphDBMapLocalStores;
-public:
-    void start_running();
-    void registerShutdownHook();
-    void truncate();
-    void shutdown();
-};
-
-
-#endif //JASMINGRAPH_JASMINGRAPHINSTANCE_H
+#include "JasmineGraphInstance.h"

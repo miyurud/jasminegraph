@@ -11,13 +11,4 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
-#ifndef JASMINGRAPH_JASMINGRAPHBACKEND_H
-#define JASMINGRAPH_JASMINGRAPHBACKEND_H
-
-
-class JasminGraphBackend {
-
-};
-
-
-#endif //JASMINGRAPH_JASMINGRAPHBACKEND_H
+#include "JasmineGraphBackend.h"

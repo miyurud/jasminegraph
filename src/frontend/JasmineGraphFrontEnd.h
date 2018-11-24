@@ -11,30 +11,34 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
-#ifndef JASMINGRAPH_JASMINGRAPHSERVER_H
-#define JASMINGRAPH_JASMINGRAPHSERVER_H
+#ifndef JASMINEGRAPH_JASMINEGRAPHFRONTEND_H
+#define JASMINEGRAPH_JASMINEGRAPHFRONTEND_H
 
-#include <map>
-#include "../frontend/JasminGraphFrontEnd.h"
-#include "../backend/JasminGraphBackend.h"
+
+#include <string.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <netdb.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <iostream>
+#include <fstream>
+#include <strings.h>
+#include <stdlib.h>
+#include <string>
+#include <pthread.h>
 #include "../metadb/SQLiteDBInterface.h"
 
-using std::map;
+void *task1(void *);
 
-class JasminGraphServer {
-private:
-    map<std::string, long> hostPlaceMap;
-    SQLiteDBInterface sqlite;
-    JasminGraphFrontEnd* frontend;
-    JasminGraphBackend* backend;
-    bool IS_DISTRIBUTED;
+class JasmineGraphFrontEnd {
 public:
-    ~JasminGraphServer();
-    JasminGraphServer();
-    void init();
+    JasmineGraphFrontEnd(SQLiteDBInterface db);
     int run();
-    bool isRunning();
+private:
+    SQLiteDBInterface sqlite;
 };
 
 
-#endif //JASMINGRAPH_JASMINGRAPHSERVER_H
+#endif //JASMINGRAPH_JASMINGRAPHFRONTEND_H

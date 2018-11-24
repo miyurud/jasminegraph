@@ -11,4 +11,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
-#include "JasminGraphLocalStore.h"
+#ifndef JASMINEGRAPH_JASMINEGRAPHBACKEND_H
+#define JASMINEGRAPH_JASMINEGRAPHBACKEND_H
+
+
+class JasmineGraphBackend {
+
+};
+
+
+#endif //JASMINEGRAPH_JASMINEGRAPHBACKEND_H

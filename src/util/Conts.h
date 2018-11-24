@@ -1,5 +1,5 @@
 /**
-Copyright 2018 JasminGraph Team
+Copyright 2018 JasmineGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -11,8 +11,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
-#ifndef JASMINGRAPH_CONTS_H
-#define JASMINGRAPH_CONTS_H
+#ifndef JASMINEGRAPH_CONTS_H
+#define JASMINEGRAPH_CONTS_H
 
 
 #include <string>
@@ -20,17 +20,17 @@ limitations under the License.
 class Conts {
 public:
     std::string BATCH_UPLOAD_FILE_LIST = "conf/batch-upload.txt";
-    std::string JASMINGRAPH_SERVER_PROPS_FILE = "conf/acacia-server.properties";
-    std::string JASMINGRAPH_SERVER_PUBLIC_HOSTS_FILE = "machines_public.txt";
-    std::string JASMINGRAPH_SERVER_PRIVATE_HOSTS_FILE = "machines.txt";
+    std::string JASMINEGRAPH_SERVER_PROPS_FILE = "conf/acacia-server.properties";
+    std::string JASMINEGRAPH_SERVER_PUBLIC_HOSTS_FILE = "machines_public.txt";
+    std::string JASMINEGRAPH_SERVER_PRIVATE_HOSTS_FILE = "machines.txt";
 
-    int JASMINGRAPH_PARTITION_INDEX_PORT;
-    static int JASMINGRAPH_FRONTEND_PORT;
-    static int JASMINGRAPH_BACKEND_PORT;
-    static int JASMINGRAPH_VERTEXCOUNTER_PORT;
-    static int JASMINGRAPH_INSTANCE_PORT;
-    static int JASMINGRAPH_INSTANCE_DATA_PORT;
+    int JASMINEGRAPH_PARTITION_INDEX_PORT;
+    static int JASMINEGRAPH_FRONTEND_PORT;
+    static int JASMINEGRAPH_BACKEND_PORT;
+    static int JASMINEGRAPH_VERTEXCOUNTER_PORT;
+    static int JASMINEGRAPH_INSTANCE_PORT;
+    static int JASMINEGRAPH_INSTANCE_DATA_PORT;
 };
 
 
-#endif //JASMINGRAPH_CONTS_H
+#endif //JASMINEGRAPH_CONTS_H

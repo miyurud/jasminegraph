@@ -1,5 +1,5 @@
 /**
-Copyright 2018 JasminGraph Team
+Copyright 2018 JasmineGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -29,7 +29,7 @@ int SQLiteDBInterface::init()
          "SALARY         REAL );";
 
     Utils utils;
-    int rc = sqlite3_open(utils.getJasminGraphProperty("org.jasmingraph.db.location").c_str(), &database);
+    int rc = sqlite3_open(utils.getJasmineGraphProperty("org.jasminegraph.db.location").c_str(), &database);
 
     if (rc)
     {

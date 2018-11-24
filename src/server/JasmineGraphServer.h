@@ -1,5 +1,5 @@
 /**
-Copyright 2018 JasminGraph Team
+Copyright 2018 JasmineGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -11,34 +11,30 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
-#ifndef JASMINGRAPH_JASMINGRAPHFRONTEND_H
-#define JASMINGRAPH_JASMINGRAPHFRONTEND_H
+#ifndef JASMINEGRAPH_JASMINEGRAPHSERVER_H
+#define JASMINEGRAPH_JASMINEGRAPHSERVER_H
 
-
-#include <string.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <netdb.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <iostream>
-#include <fstream>
-#include <strings.h>
-#include <stdlib.h>
-#include <string>
-#include <pthread.h>
+#include <map>
+#include "../frontend/JasmineGraphFrontEnd.h"
+#include "../backend/JasmineGraphBackend.h"
 #include "../metadb/SQLiteDBInterface.h"
 
-void *task1(void *);
+using std::map;
 
-class JasminGraphFrontEnd {
-public:
-    JasminGraphFrontEnd(SQLiteDBInterface db);
-    int run();
+class JasmineGraphServer {
 private:
+    map<std::string, long> hostPlaceMap;
     SQLiteDBInterface sqlite;
+    JasmineGraphFrontEnd* frontend;
+    JasmineGraphBackend* backend;
+    bool IS_DISTRIBUTED;
+public:
+    ~JasmineGraphServer();
+    JasmineGraphServer();
+    void init();
+    int run();
+    bool isRunning();
 };
 
 
-#endif //JASMINGRAPH_JASMINGRAPHFRONTEND_H
+#endif //JASMINEGRAPH_JASMINEGRAPHSERVER_H

@@ -1,5 +1,5 @@
 /**
-Copyright 2018 JasminGraph Team
+Copyright 2018 JasmineGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -86,10 +86,11 @@ std::vector<std::string> Utils::getFileContent(std::string file)
     return *vec;
 };
 
-std::string Utils::getJasminGraphProperty(std::string key)
+std::string Utils::getJasmineGraphProperty(std::string key)
 {
     std::vector<std::string>::iterator it;
-    vector<std::string> vec = getFileContent("/home/miyurud/Lab/GCN/git/jesmingraph/conf/jasmingraph-server.properties");
+    //TODO: Need to remove this hardcoded link
+    vector<std::string> vec = getFileContent("/home/miyurud/git/jasminegraph/conf/jasminegraph-server.properties");
     it = vec.begin();
 
     for (it=vec.begin(); it<vec.end(); it++)
