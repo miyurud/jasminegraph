@@ -46,32 +46,32 @@ void MetisPartitioner::loadDataSet(string inputFilePath, string outputFilePath) 
         firstVertex = atoi(vertexOne.c_str());
         secondVertex = atoi(vertexTwo.c_str());
 
-        std::set<int> firstEdgeSet = graphStorageMap[firstVertex];
-        std::set<int> secondEdgeSet = graphStorageMap[secondVertex];
+        std::vector<int> firstEdgeSet = graphStorageMap[firstVertex];
+        std::vector<int> secondEdgeSet = graphStorageMap[secondVertex];
 
-        std::set<int> vertexEdgeSet = graphEdgeMap[firstVertex];
+        std::vector<int> vertexEdgeSet = graphEdgeMap[firstVertex];
 
         if (firstEdgeSet.empty()) {
             vertexCount++;
             edgeCount++;
-            firstEdgeSet.insert(secondVertex);
-            vertexEdgeSet.insert(secondVertex);
+            firstEdgeSet.push_back(secondVertex);
+            vertexEdgeSet.push_back(secondVertex);
 
         } else {
-            if (firstEdgeSet.find(secondVertex) == firstEdgeSet.end()) {
-                firstEdgeSet.insert(secondVertex);
-                vertexEdgeSet.insert(secondVertex);
+            if (std::find(firstEdgeSet.begin(),firstEdgeSet.end(),secondVertex) == firstEdgeSet.end()) {
+                firstEdgeSet.push_back(secondVertex);
+                vertexEdgeSet.push_back(secondVertex);
                 edgeCount++;
             }
         }
 
         if (secondEdgeSet.empty()){
             vertexCount++;
-            secondEdgeSet.insert(firstVertex);
+            secondEdgeSet.push_back(firstVertex);
 
         } else {
-            if (secondEdgeSet.find(firstVertex) == secondEdgeSet.end()) {
-                secondEdgeSet.insert(firstVertex);
+            if (std::find(secondEdgeSet.begin(),secondEdgeSet.end(),firstVertex) == secondEdgeSet.end()) {
+                secondEdgeSet.push_back(firstVertex);
             }
         }
 
@@ -99,7 +99,8 @@ void MetisPartitioner::constructMetisFormat() {
     int adjacencyIndex = 0;
     xadj.push_back(adjacencyIndex);
     for (int vertexNum = 0; vertexNum <= largestVertex; vertexNum++) {
-        std::set<int> vertexSet = graphStorageMap[vertexNum];
+        std::vector<int> vertexSet = graphStorageMap[vertexNum];
+        std::sort(vertexSet.begin(),vertexSet.end());
 
         int edgeSize = vertexSet.size();
         if (edgeSize == 0) {
@@ -140,33 +141,33 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
         std::cout << vertex << " " << part[vertex] << std::endl;
         idx_t vertexPart = part[vertex];
 
-        std::set<int> partVertexSet = partVertexMap[vertexPart];
+        std::vector<int> partVertexSet = partVertexMap[vertexPart];
 
-        partVertexSet.insert(vertex);
+        partVertexSet.push_back(vertex);
 
         partVertexMap[vertexPart] = partVertexSet;
     }
 
     for (int vertex = 0;vertex<vertexCount;vertex++) {
-        std::set<int> vertexEdgeSet = graphEdgeMap[vertex];
+        std::vector<int> vertexEdgeSet = graphEdgeMap[vertex];
         idx_t firstVertexPart = part[vertex];
 
         if (!vertexEdgeSet.empty()) {
-            std::set<int>::iterator it;
+            std::vector<int>::iterator it;
             for (it = vertexEdgeSet.begin(); it != vertexEdgeSet.end(); ++it) {
                 int secondVertex = *it;
                 int secondVertexPart = part[secondVertex];
 
                 if (firstVertexPart == secondVertexPart) {
-                    std::map<int,std::set<int>> partEdgesSet = partitionedLocalGraphStorageMap[firstVertexPart];
-                    std::set<int> edgeSet = partEdgesSet[vertex];
-                    edgeSet.insert(secondVertex);
+                    std::map<int,std::vector<int>> partEdgesSet = partitionedLocalGraphStorageMap[firstVertexPart];
+                    std::vector<int> edgeSet = partEdgesSet[vertex];
+                    edgeSet.push_back(secondVertex);
                     partEdgesSet[vertex] = edgeSet;
                     partitionedLocalGraphStorageMap[firstVertexPart] = partEdgesSet;
                 } else {
-                    std::map<int,std::set<int>> partMasterEdgesSet = masterGraphStorageMap[firstVertexPart];
-                    std::set<int> edgeSet = partMasterEdgesSet[vertex];
-                    edgeSet.insert(secondVertex);
+                    std::map<int,std::vector<int>> partMasterEdgesSet = masterGraphStorageMap[firstVertexPart];
+                    std::vector<int> edgeSet = partMasterEdgesSet[vertex];
+                    edgeSet.push_back(secondVertex);
                     partMasterEdgesSet[vertex] = edgeSet;
                     masterGraphStorageMap[firstVertexPart] = partMasterEdgesSet;
                 }
@@ -179,17 +180,17 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
         string outputFilePart = outputFilePath+std::to_string(part);
         string outputFilePartMaster = outputFilePath+std::to_string(part);
 
-        std::map<int,std::set<int>> partEdgeMap = partitionedLocalGraphStorageMap[part];
-        std::map<int,std::set<int>> partMasterEdgeMap = masterGraphStorageMap[part];
+        std::map<int,std::vector<int>> partEdgeMap = partitionedLocalGraphStorageMap[part];
+        std::map<int,std::vector<int>> partMasterEdgeMap = masterGraphStorageMap[part];
 
         if (!partEdgeMap.empty()) {
             std::ofstream localFile(outputFilePart);
 
             if (localFile.is_open()) {
                 for (int vertex = 0; vertex < vertexCount;vertex++) {
-                    std::set<int> destinationSet = partEdgeMap[vertex];
+                    std::vector<int> destinationSet = partEdgeMap[vertex];
                     if (!destinationSet.empty()) {
-                        for (std::set<int>::iterator itr = destinationSet.begin(); itr != destinationSet.end(); ++itr) {
+                        for (std::vector<int>::iterator itr = destinationSet.begin(); itr != destinationSet.end(); ++itr) {
                             string edge = std::to_string(vertex) + " " + std::to_string((*itr));
                             localFile<<edge;
                             localFile<<"\n";
@@ -208,9 +209,9 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
 
             if (masterFile.is_open()) {
                 for (int vertex = 0; vertex < vertexCount;vertex++) {
-                    std::set<int> destinationSet = partMasterEdgeMap[vertex];
+                    std::vector<int> destinationSet = partMasterEdgeMap[vertex];
                     if (!destinationSet.empty()) {
-                        for (std::set<int>::iterator itr = destinationSet.begin(); itr != destinationSet.end(); ++itr) {
+                        for (std::vector<int>::iterator itr = destinationSet.begin(); itr != destinationSet.end(); ++itr) {
                             string edge = vertex + " " + (*itr);
                             masterFile<<edge;
                             masterFile<<"\n";
