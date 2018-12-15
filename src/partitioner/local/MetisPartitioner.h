@@ -24,6 +24,7 @@ limitations under the License.
 #include <set>
 #include "metis.h"
 #include <cstddef>
+#include <algorithm>
 
 using std::string;
 
@@ -43,11 +44,11 @@ private:
     string outputFilePath;
 
 
-    std::map<int,std::set<int>> graphStorageMap;
-    std::map<int,std::set<int>> graphEdgeMap;
-    std::map<int,std::set<int>> partVertexMap;
-    std::map<int,std::map<int,std::set<int>>> partitionedLocalGraphStorageMap;
-    std::map<int,std::map<int,std::set<int>>> masterGraphStorageMap;
+    std::map<int,std::vector<int>> graphStorageMap;
+    std::map<int,std::vector<int>> graphEdgeMap;
+    std::map<int,std::vector<int>> partVertexMap;
+    std::map<int,std::map<int,std::vector<int>>> partitionedLocalGraphStorageMap;
+    std::map<int,std::map<int,std::vector<int>>> masterGraphStorageMap;
     std::vector<int> xadj;
     std::vector<int> adjncy;
 
