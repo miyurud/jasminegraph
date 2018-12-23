@@ -89,8 +89,7 @@ std::vector<std::string> Utils::getFileContent(std::string file)
 std::string Utils::getJasmineGraphProperty(std::string key)
 {
     std::vector<std::string>::iterator it;
-    //TODO: Need to remove this hardcoded link
-    vector<std::string> vec = getFileContent("/home/dinika/FYP/jasminegraph/conf/jasminegraph-server.properties");
+    vector<std::string> vec = getFileContent("conf/jasminegraph-server.properties");
     it = vec.begin();
 
     for (it=vec.begin(); it<vec.end(); it++)

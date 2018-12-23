@@ -19,18 +19,8 @@ using namespace std;
 
 int SQLiteDBInterface::init()
 {
-    char *sql;
-    /* Create SQL statement */
-    sql = "CREATE TABLE COMPANY("  \
-         "ID INT PRIMARY KEY     NOT NULL," \
-         "NAME           TEXT    NOT NULL," \
-         "AGE            INT     NOT NULL," \
-         "ADDRESS        CHAR(50)," \
-         "SALARY         REAL );";
-
     Utils utils;
     int rc = sqlite3_open(utils.getJasmineGraphProperty("org.jasminegraph.db.location").c_str(), &database);
-
     if (rc)
     {
         fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(database));

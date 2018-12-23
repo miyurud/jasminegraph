@@ -30,7 +30,7 @@ limitations under the License.
 #include <pthread.h>
 #include "../metadb/SQLiteDBInterface.h"
 
-void *task1(void *);
+//void *task1(void *);
 
 class JasmineGraphFrontEnd {
 public:
