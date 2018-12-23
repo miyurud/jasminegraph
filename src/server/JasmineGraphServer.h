@@ -27,13 +27,14 @@ private:
     SQLiteDBInterface sqlite;
     JasmineGraphFrontEnd* frontend;
     JasmineGraphBackend* backend;
-    bool IS_DISTRIBUTED;
+//    bool IS_DISTRIBUTED;
 public:
     ~JasmineGraphServer();
     JasmineGraphServer();
     void init();
     int run();
     bool isRunning();
+    bool IS_DISTRIBUTED;
 };
 
 

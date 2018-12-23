@@ -49,18 +49,6 @@ map<std::string, std::string> Utils::getBatchUploadFileList(std::string file)
     return *result;
 }
 
-std::vector<std::string> Utils::split(const std::string& s, char delimiter)
-{
-    std::vector<std::string> tokens;
-    std::string token;
-    std::istringstream tokenStream(s);
-    while (std::getline(tokenStream, token, delimiter))
-    {
-        tokens.push_back(token);
-    }
-    return tokens;
-}
-
 std::vector<std::string> Utils::getFileContent(std::string file)
 {
     ifstream in(file);
@@ -128,6 +116,32 @@ std::string Utils::trim_copy(
         const std::string& delimiters = " \f\n\r\t\v" )
 {
     return trim_left_copy( trim_right_copy( s, delimiters ), delimiters );
+}
+
+/**
+ * This method splits a string using the given delimiter.
+ *
+ * @param s string to be splitted
+ * @param delimiter
+ * @return array of splitted strings
+ */
+std::vector<std::string> Utils::split(
+        const std::string s,
+        char delimiter) {
+    std::vector<std::string> tokens;
+    std::string token;
+    std::istringstream tokenStream(s);
+    while (std::getline(tokenStream, token, delimiter)) {
+        tokens.push_back(token);
+    }
+    return tokens;
+}
+
+bool parseBoolean(const std::string &str) {
+    if (str == "true" || str == "TRUE" || str == "True"){
+        return true;
+    }
+    return false;
 }
 
 

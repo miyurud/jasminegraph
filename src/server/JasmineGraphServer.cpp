@@ -48,6 +48,7 @@ void JasmineGraphServer::init()
 {
     Utils utils;
     std::map<string, string> result = utils.getBatchUploadFileList(utils.getJasmineGraphProperty("org.jasminegraph.batchupload.file.path"));
+    IS_DISTRIBUTED = utils.parseBoolean(utils.getJasmineGraphProperty("org.jasminegraph.server.mode.isdistributed"));
 
     if (result.size() != 0) {
         std::map<std::string, std::string>::iterator iterator1 = result.begin();
