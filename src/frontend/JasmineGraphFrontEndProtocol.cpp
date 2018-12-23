@@ -8,3 +8,5 @@ const string ADGR  = "adgr";
 const string EXIT = "exit";
 const string LIST = "lst";
 const string SHTDN = "shdn";
+const string SEND = "send";
+const string ERROR = "error";

@@ -16,6 +16,7 @@ limitations under the License.
 
 #include "../util/sqlite3/sqlite3.h"
 #include <vector>
+#include <map>
 
 class SQLiteDBInterface {
 private:
@@ -23,7 +24,7 @@ private:
 public:
     int init();
     int finalize();
-    std::vector<std::string> runSelect(std::string);
+    std::vector<std::vector<std::pair<std::string,std::string>>> runSelect(std::string);
     int RunSqlNoCallback(const char * zSql);
     SQLiteDBInterface();
 };
