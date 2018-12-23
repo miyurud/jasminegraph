@@ -49,6 +49,18 @@ map<std::string, std::string> Utils::getBatchUploadFileList(std::string file)
     return *result;
 }
 
+std::vector<std::string> Utils::split(const std::string& s, char delimiter)
+{
+    std::vector<std::string> tokens;
+    std::string token;
+    std::istringstream tokenStream(s);
+    while (std::getline(tokenStream, token, delimiter))
+    {
+        tokens.push_back(token);
+    }
+    return tokens;
+}
+
 std::vector<std::string> Utils::getFileContent(std::string file)
 {
     ifstream in(file);
@@ -78,7 +90,7 @@ std::string Utils::getJasmineGraphProperty(std::string key)
 {
     std::vector<std::string>::iterator it;
     //TODO: Need to remove this hardcoded link
-    vector<std::string> vec = getFileContent("/home/miyurud/git/jasminegraph/conf/jasminegraph-server.properties");
+    vector<std::string> vec = getFileContent("/home/dinika/FYP/jasminegraph/conf/jasminegraph-server.properties");
     it = vec.begin();
 
     for (it=vec.begin(); it<vec.end(); it++)
@@ -119,24 +131,10 @@ std::string Utils::trim_copy(
 }
 
 /**
- * This method splits a string using the given delimiter.
- *
- * @param s string to be splitted
- * @param delimiter
- * @return array of splitted strings
+ * This fuction is to convert string to boolean
+ * @param str
+ * @return
  */
-std::vector<std::string> Utils::split(
-        const std::string s,
-        char delimiter) {
-    std::vector<std::string> tokens;
-    std::string token;
-    std::istringstream tokenStream(s);
-    while (std::getline(tokenStream, token, delimiter)) {
-        tokens.push_back(token);
-    }
-    return tokens;
-}
-
 bool parseBoolean(const std::string &str) {
     if (str == "true" || str == "TRUE" || str == "True"){
         return true;

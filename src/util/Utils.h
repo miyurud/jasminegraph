@@ -25,7 +25,7 @@ public:
     map<std::string, std::string> getBatchUploadFileList(std::string file);
     std::string getJasmineGraphProperty(std::string key);
     std::vector<std::string> getFileContent(std::string);
-    static std::vector<std::string> split(const std::string, char delimiter);
+    static std::vector<std::string> split(const std::string&, char delimiter);
     static std::string trim_copy(const std::string&,
                           const std::string& );
     static bool parseBoolean(const std::string &str);
