@@ -1,1 +1,2 @@
-/home/miyurud/Lab/GCN/git/jasminegraph/cmake-build-debug/JasmineGraph
+#!/usr/bin/env bash
+/home/$USER/git/jasminegraph/cmake-build-debug/JasmineGraph

@@ -90,7 +90,12 @@ int JasmineGraphFrontEnd::run() {
             cout << "Connection successful" << endl;
         }
 
-        pthread_create(&threadA[noThread], NULL, task1, &this->sqlite);
+        struct frontendservicesessionargs frontendservicesessionargs1;
+        frontendservicesessionargs1.sqlite = this->sqlite;
+        frontendservicesessionargs1.connFd = connFd;
+
+
+        pthread_create(&threadA[noThread], NULL, task1, &frontendservicesessionargs1);
 
         noThread++;
     }
@@ -103,41 +108,41 @@ int JasmineGraphFrontEnd::run() {
 
 }
 
-void *task1(void *dummyPt)
-{
-    cout << "Thread No: " << pthread_self() << endl;
-    char data[300];
-    bzero(data, 301);
-    bool loop = false;
-    while(!loop)
-    {
-        bzero(data, 301);
-        read(connFd, data, 300);
-
-        string line (data);
-        cout << line << endl;
-
-        line = Utils::trim_copy(line, " \f\n\r\t\v");
-
-        if(line.compare(EXIT) == 0)
-        {
-            break;
-        }
-        else if (line.compare(LIST) == 0)
-        {
-            SQLiteDBInterface* sqlite = (SQLiteDBInterface*) dummyPt;
-            std::vector<std::string> v = sqlite->runSelect("SELECT idgraph, name, upload_path, upload_start_time, upload_end_time, "
-                              "graph_status_idgraph_status, vertexcount, centralpartitioncount, edgecount FROM graph;");
-            for(std::vector<std::string>::iterator it = v.begin(); it != v.end(); ++it) {
-                std::cout << *it << endl;
-            }
-        }
-        else if (line.compare(SHTDN) == 0)
-        {
-            close(connFd);
-            exit(0);
-        }
-    }
-    cout << "\nClosing thread and connection" << endl;
-    close(connFd);
-}
+//void *task1(void *dummyPt)
+//{
+//    cout << "Thread No: " << pthread_self() << endl;
+//    char data[300];
+//    bzero(data, 301);
+//    bool loop = false;
+//    while(!loop)
+//    {
+//        bzero(data, 301);
+//        read(connFd, data, 300);
+//
+//        string line (data);
+//        cout << line << endl;
+//
+//        line = Utils::trim_copy(line, " \f\n\r\t\v");
+//
+//        if(line.compare(EXIT) == 0)
+//        {
+//            break;
+//        }
+//        else if (line.compare(LIST) == 0)
+//        {
+//            SQLiteDBInterface* sqlite = (SQLiteDBInterface*) dummyPt;
+//            std::vector<std::string> v = sqlite->runSelect("SELECT idgraph, name, upload_path, upload_start_time, upload_end_time, "
+//                              "graph_status_idgraph_status, vertexcount, centralpartitioncount, edgecount FROM graph;");
+//            for(std::vector<std::string>::iterator it = v.begin(); it != v.end(); ++it) {
+//                std::cout << *it << endl;
+//            }
+//        }
+//        else if (line.compare(SHTDN) == 0)
+//        {
+//            close(connFd);
+//            exit(0);
+//        }
+//    }
+//    cout << "\nClosing thread and connection" << endl;
+//    close(connFd);
+//}

@@ -40,5 +40,9 @@ private:
     SQLiteDBInterface sqlite;
 };
 
+struct frontendservicesessionargs {
+    SQLiteDBInterface sqlite;
+    int connFd;
+};
 
 #endif //JASMINGRAPH_JASMINGRAPHFRONTEND_H
