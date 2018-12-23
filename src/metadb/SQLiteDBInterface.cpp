@@ -48,32 +48,34 @@ SQLiteDBInterface::SQLiteDBInterface() {
 
 }
 
-static int callback(void *data, int argc, char **argv, char **azColName){
+typedef vector<vector<pair<string, string> >> table_type;
+
+static int callback(void *ptr, int argc, char **argv, char **azColName) {
     int i;
-    fprintf(stderr, "%s: ", (const char*)data);
+    table_type *dbResults = static_cast<table_type *>(ptr);
+    vector<pair<string, string>> results;
 
-    for(i = 0; i<argc; i++){
-        printf("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
+    for (i = 0; i < argc; i++) {
+        results.push_back(make_pair(azColName[i], argv[i] ? argv[i] : "NULL"));
+        //printf("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
     }
-
-    printf("\n");
+    dbResults->push_back(results);
     return 0;
 }
 
-vector<std::string>  SQLiteDBInterface::runSelect(std::string query)
-{
+vector<vector<pair<string, string> >> SQLiteDBInterface::runSelect(std::string query) {
     char *zErrMsg = 0;
     int rc;
-    const char* data = "Callback function called";
-    sqlite3_stmt * stmt;
+    vector<vector<pair<string, string>>> dbResults;
 
-    rc = sqlite3_exec(database, query.c_str(), callback, (void*)data, &zErrMsg);
+    rc = sqlite3_exec(database, query.c_str(), callback, &dbResults, &zErrMsg);
 
-    if( rc != SQLITE_OK ) {
+    if (rc != SQLITE_OK) {
         fprintf(stderr, "SQL error: %s\n", zErrMsg);
         sqlite3_free(zErrMsg);
     } else {
         fprintf(stdout, "Operation done successfully\n");
+        return dbResults;
     }
 }
 

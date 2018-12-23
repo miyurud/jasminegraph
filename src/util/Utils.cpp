@@ -90,7 +90,7 @@ std::string Utils::getJasmineGraphProperty(std::string key)
 {
     std::vector<std::string>::iterator it;
     //TODO: Need to remove this hardcoded link
-    vector<std::string> vec = getFileContent("/home/miyurud/git/jasminegraph/conf/jasminegraph-server.properties");
+    vector<std::string> vec = getFileContent("/home/dinika/FYP/jasminegraph/conf/jasminegraph-server.properties");
     it = vec.begin();
 
     for (it=vec.begin(); it<vec.end(); it++)
@@ -128,6 +128,18 @@ std::string Utils::trim_copy(
         const std::string& delimiters = " \f\n\r\t\v" )
 {
     return trim_left_copy( trim_right_copy( s, delimiters ), delimiters );
+}
+
+/**
+ * This fuction is to convert string to boolean
+ * @param str
+ * @return
+ */
+bool parseBoolean(const std::string &str) {
+    if (str == "true" || str == "TRUE" || str == "True"){
+        return true;
+    }
+    return false;
 }
 
 
