@@ -20,10 +20,9 @@ limitations under the License.
 
 using namespace std;
 
+Utils utils;
 static int connFd;
-static bool graphExists(std::string basic_string, void *dummyPt);
-static bool graphExistsByID(std::string id, void *dummyPt);
-static bool fileExists(const string fileName);
+static bool IS_DISTRIBUTED = Utils::parseBoolean(utils.getJasmineGraphProperty("org.jasminegraph.server.mode.isdistributed"));
 
 void *task1(void *dummyPt)
 {
@@ -52,9 +51,13 @@ void *task1(void *dummyPt)
                                                                            "graph_status_idgraph_status, vertexcount, centralpartitioncount, edgecount FROM graph;");
             for (std::vector<vector<pair<string,string>>>::iterator i = v.begin(); i != v.end(); ++i) {
                 for (std::vector<pair<string,string>>::iterator j = (i->begin()); j != i->end(); ++j) {
-                    std::cout << "  " << j->first << " = " << j->second << std::endl;
+                    string dataString = " " + j->first + " = " + j->second + "\n";
+                    write(connFd, dataString.c_str(),dataString.size());
+                    //std::cout << "  " << j->first << " = " << j->second << std::endl;
                 }
-                std::cout << "\n" << endl;
+                string newLine = "\n";
+                write(connFd,newLine.c_str() , 2);
+                //std::cout << "\n" << endl;
             }
         }
         else if (line.compare(SHTDN) == 0)
@@ -66,7 +69,7 @@ void *task1(void *dummyPt)
         else if (line.compare(ADGR) == 0)
         {
             std::cout << SEND << endl;
-
+            write(connFd, (SEND + '\n').c_str(), SEND.size()+1);
             // We get the name and the path to graph as a pair separated by |.
             char graph_data[300];
             bzero(graph_data, 301);
@@ -81,29 +84,61 @@ void *task1(void *dummyPt)
             std::vector<std::string> strArr = Utils::split(gData, '|');
 
             if(strArr.size() != 2){
-                std::cout << ERROR << ":Message format not recognized" << endl;
-                break;
+                string message = ERROR + ":Message format not recognized\n";
+                std::cout << message;
+                write(connFd, message.c_str(), message.size());
             }
 
             name = strArr[0];
             path = strArr[1];
 
-            if(graphExists(path, dummyPt)){
-                std::cout << ERROR << ":Graph exists" << endl;
-                break;
+            if(JasmineGraphFrontEnd::graphExists(path, dummyPt)){
+                string message = ERROR + ":Graph exists\n";
+                write(connFd, message.c_str(), message.size());
+                std::cout << message;
             }
 
-            if(fileExists(path)){
+            if(JasmineGraphFrontEnd::fileExists(path)){
                 std::cout << "Path exists" << endl;
-                // TODO : upload grapg either locally or in distributed server
+                if(IS_DISTRIBUTED){
+                    // TODO :: Upload distributed graph
+                }
+                else{
+                    // TODO :: Upload graph locally
+                }
             }else{
-                std::cout << ERROR <<":Graph data file does not exist on the specified path" << endl;
-                break;
+                string message = ERROR + ":Graph data file does not exist on the specified path\n";
+                write(connFd, message.c_str(), message.size());
+                std::cout << message;
             }
+        }
+        // Remove graph from JasmineGraph
+        else if (line.compare(RMGR) == 0)
+        {
+            std::cout << SEND << endl;
+            write(connFd, (SEND+'\n').c_str(), SEND.size()+1);
+            // Get the graph id as a user input.
+            char graphID[20];
+            bzero(graphID, 21);
+
+            read(connFd, graphID, 21);
+            string graph_id (graphID);
+            graph_id = Utils::trim_copy(graph_id, " \f\n\r\t\v");
+
+            if(!JasmineGraphFrontEnd::graphExistsByID(graph_id, dummyPt)){
+                string message = ERROR + ":The specified graph id does not exist\n";
+                write(connFd, message.c_str(), message.size());
+                std::cout << message;
+            }
+            else{
+                // TODO :: Remove graph
+            };
         }
         else
         {
-            std::cout << ERROR << ":Message format not recognized" << endl;
+            string message = ERROR + ":Message format not recognized\n";
+            write(connFd, message.c_str(), message.size());
+            std::cout << message;
         }
     }
     cout << "\nClosing thread " << pthread_self() << " and connection" << endl;
@@ -197,14 +232,14 @@ int JasmineGraphFrontEnd::run() {
 
 }
 
- /**
-  * This method checks if a graph exists in JasmineGraph.
-  * This method uses the unique path of the graph.
-  * @param basic_string
-  * @param dummyPt
-  * @return
-  */
- static bool graphExists(string path, void *dummyPt) {
+/**
+ * This method checks if a graph exists in JasmineGraph.
+ * This method uses the unique path of the graph.
+ * @param basic_string
+ * @param dummyPt
+ * @return
+ */
+  bool JasmineGraphFrontEnd::graphExists(string path, void *dummyPt) {
      bool result = true;
      string stmt = "SELECT COUNT( * ) FROM graph WHERE upload_path LIKE '" + path + "';";
      SQLiteDBInterface *sqlite = (SQLiteDBInterface *) dummyPt;
@@ -223,7 +258,7 @@ int JasmineGraphFrontEnd::run() {
   * @param dummyPt
   * @return
   */
-static bool graphExistsByID(string id, void *dummyPt) {
+bool JasmineGraphFrontEnd::graphExistsByID(string id, void *dummyPt) {
     bool result = true;
     string stmt = "SELECT COUNT( * ) FROM graph WHERE idgraph LIKE '" + id + "';";
     SQLiteDBInterface *sqlite = (SQLiteDBInterface *) dummyPt;
@@ -241,8 +276,9 @@ static bool graphExistsByID(string id, void *dummyPt) {
  * @param fileName
  * @return
  */
-static bool fileExists(const string fileName)
+bool JasmineGraphFrontEnd::fileExists(const string fileName)
 {
     std::ifstream infile(fileName);
     return infile.good();
 }
+
