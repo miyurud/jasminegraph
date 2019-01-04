@@ -134,12 +134,14 @@ std::string Utils::trim_copy(
  * @param str
  * @return
  */
-bool parseBoolean(const std::string &str) {
+bool Utils::parseBoolean(const std::string &str) {
     if (str == "true" || str == "TRUE" || str == "True"){
         return true;
     }
     return false;
 }
+
+
 
 
 
