@@ -17,6 +17,7 @@ limitations under the License.
 #include <map>
 #include <iostream>
 #include <fstream>
+#include "../frontend/JasmineGraphFrontEnd.h"
 
 using std::map;
 
@@ -26,9 +27,10 @@ public:
     std::string getJasmineGraphProperty(std::string key);
     std::vector<std::string> getFileContent(std::string);
     static std::vector<std::string> split(const std::string&, char delimiter);
-    static std::string trim_copy(const std::string&,
+    std::string trim_copy(const std::string&,
                           const std::string& );
-    static bool parseBoolean(const std::string &str);
+    bool parseBoolean(const std::string str);
+    bool fileExists(const std::string fileName, frontendservicesessionargs* ptr);
 };
 
 

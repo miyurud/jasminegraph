@@ -30,15 +30,14 @@ limitations under the License.
 #include <pthread.h>
 #include "../metadb/SQLiteDBInterface.h"
 
-//void *task1(void *);
+void *frontendservicesesion(void *dummyPt);
 
 class JasmineGraphFrontEnd {
 public:
     JasmineGraphFrontEnd(SQLiteDBInterface db);
     int run();
-//    static bool graphExists(std::string basic_string, void *dummyPt);
-//    static bool graphExistsByID(std::string id, void *dummyPt);
-//    static bool fileExists(const string fileName);
+    static bool graphExists(std::string basic_string, void *dummyPt);
+    static bool graphExistsByID(std::string id, void *dummyPt);
 private:
     SQLiteDBInterface sqlite;
 };

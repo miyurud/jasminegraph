@@ -14,6 +14,7 @@ limitations under the License.
 #include <vector>
 #include <sstream>
 #include "Utils.h"
+#include "../frontend/JasmineGraphFrontEnd.h"
 
 using namespace std;
 
@@ -134,13 +135,22 @@ std::string Utils::trim_copy(
  * @param str
  * @return
  */
-bool parseBoolean(const std::string &str) {
+bool Utils::parseBoolean(const std::string str) {
     if (str == "true" || str == "TRUE" || str == "True"){
         return true;
     }
     return false;
 }
 
-
+/**
+ * This method checks if a file with the given path exists.
+ * @param fileName
+ * @return
+ */
+bool Utils::fileExists(const std::string fileName, frontendservicesessionargs *ptr)
+{
+    std::ifstream infile(fileName);
+    return infile.good();
+}
 
 
