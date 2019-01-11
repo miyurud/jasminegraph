@@ -20,10 +20,130 @@ limitations under the License.
 
 using namespace std;
 
+Utils utils;
 static int connFd;
-static bool graphExists(std::string basic_string, void *dummyPt);
-static bool graphExistsByID(std::string id, void *dummyPt);
-static bool fileExists(const string fileName);
+static bool IS_DISTRIBUTED = Utils::parseBoolean(utils.getJasmineGraphProperty("org.jasminegraph.server.mode.isdistributed"));
+
+void *task1(void *dummyPt)
+{
+    cout << "Thread No: " << pthread_self() << endl;
+    char data[300];
+    bzero(data, 301);
+    bool loop = false;
+    while(!loop)
+    {
+        bzero(data, 301);
+        read(connFd, data, 300);
+
+        string line (data);
+        cout << line << endl;
+
+        line = Utils::trim_copy(line, " \f\n\r\t\v");
+
+        if(line.compare(EXIT) == 0)
+        {
+            break;
+        }
+        else if (line.compare(LIST) == 0)
+        {
+            SQLiteDBInterface* sqlite = (SQLiteDBInterface*) dummyPt;
+            std::vector<vector<pair<string,string>>> v = sqlite->runSelect("SELECT idgraph, name, upload_path, upload_start_time, upload_end_time, "
+                                                                           "graph_status_idgraph_status, vertexcount, centralpartitioncount, edgecount FROM graph;");
+            for (std::vector<vector<pair<string,string>>>::iterator i = v.begin(); i != v.end(); ++i) {
+                for (std::vector<pair<string,string>>::iterator j = (i->begin()); j != i->end(); ++j) {
+                    string dataString = " " + j->first + " = " + j->second + "\n";
+                    write(connFd, dataString.c_str(),dataString.size());
+                    //std::cout << "  " << j->first << " = " << j->second << std::endl;
+                }
+                string newLine = "\n";
+                write(connFd,newLine.c_str() , 2);
+                //std::cout << "\n" << endl;
+            }
+        }
+        else if (line.compare(SHTDN) == 0)
+        {
+            close(connFd);
+            exit(0);
+        }
+            // Add graph from outside
+        else if (line.compare(ADGR) == 0)
+        {
+            std::cout << SEND << endl;
+            write(connFd, (SEND + '\n').c_str(), SEND.size()+1);
+            // We get the name and the path to graph as a pair separated by |.
+            char graph_data[300];
+            bzero(graph_data, 301);
+            string name = "";
+            string path = "";
+
+            read(connFd, graph_data, 300);
+            string gData (graph_data);
+            gData = Utils::trim_copy(gData, " \f\n\r\t\v");
+            std::cout << "data received : " << gData << endl;
+
+            std::vector<std::string> strArr = Utils::split(gData, '|');
+
+            if(strArr.size() != 2){
+                string message = ERROR + ":Message format not recognized\n";
+                std::cout << message;
+                write(connFd, message.c_str(), message.size());
+            }
+
+            name = strArr[0];
+            path = strArr[1];
+
+            if(JasmineGraphFrontEnd::graphExists(path, dummyPt)){
+                string message = ERROR + ":Graph exists\n";
+                write(connFd, message.c_str(), message.size());
+                std::cout << message;
+            }
+
+            if(JasmineGraphFrontEnd::fileExists(path)){
+                std::cout << "Path exists" << endl;
+                if(IS_DISTRIBUTED){
+                    // TODO :: Upload distributed graph
+                }
+                else{
+                    // TODO :: Upload graph locally
+                }
+            }else{
+                string message = ERROR + ":Graph data file does not exist on the specified path\n";
+                write(connFd, message.c_str(), message.size());
+                std::cout << message;
+            }
+        }
+        // Remove graph from JasmineGraph
+        else if (line.compare(RMGR) == 0)
+        {
+            std::cout << SEND << endl;
+            write(connFd, (SEND+'\n').c_str(), SEND.size()+1);
+            // Get the graph id as a user input.
+            char graphID[20];
+            bzero(graphID, 21);
+
+            read(connFd, graphID, 21);
+            string graph_id (graphID);
+            graph_id = Utils::trim_copy(graph_id, " \f\n\r\t\v");
+
+            if(!JasmineGraphFrontEnd::graphExistsByID(graph_id, dummyPt)){
+                string message = ERROR + ":The specified graph id does not exist\n";
+                write(connFd, message.c_str(), message.size());
+                std::cout << message;
+            }
+            else{
+                // TODO :: Remove graph
+            };
+        }
+        else
+        {
+            string message = ERROR + ":Message format not recognized\n";
+            write(connFd, message.c_str(), message.size());
+            std::cout << message;
+        }
+    }
+    cout << "\nClosing thread " << pthread_self() << " and connection" << endl;
+    close(connFd);
+}
 
 JasmineGraphFrontEnd::JasmineGraphFrontEnd(SQLiteDBInterface db)
 {
@@ -152,91 +272,13 @@ bool JasmineGraphFrontEnd::graphExistsByID(string id, void *dummyPt) {
     return result;
 }
 
-
-void *frontendservicesesion(void *dummyPt)
+/**
+ * This method checks if a file with the given path exists.
+ * @param fileName
+ * @return
+ */
+bool JasmineGraphFrontEnd::fileExists(const string fileName)
 {
-    frontendservicesessionargs* sessionargs = (frontendservicesessionargs*) dummyPt;
-    cout << "Thread No: " << pthread_self() << endl;
-    char data[300];
-    bzero(data, 301);
-    bool loop = false;
-    while(!loop)
-    {
-        bzero(data, 301);
-        read(sessionargs->connFd, data, 300);
-
-        string line (data);
-        cout << line << endl;
-
-        Utils utils;
-        line = utils.trim_copy(line, " \f\n\r\t\v");
-
-        if(line.compare(EXIT) == 0)
-        {
-            break;
-        }
-        else if (line.compare(LIST) == 0)
-        {
-            SQLiteDBInterface* sqlite = (SQLiteDBInterface*) dummyPt;
-            std::vector<vector<pair<string,string>>> v = sqlite->runSelect("SELECT idgraph, name, upload_path, upload_start_time, upload_end_time, "
-                                                                           "graph_status_idgraph_status, vertexcount, centralpartitioncount, edgecount FROM graph;");
-            for (std::vector<vector<pair<string,string>>>::iterator i = v.begin(); i != v.end(); ++i) {
-                for (std::vector<pair<string,string>>::iterator j = (i->begin()); j != i->end(); ++j) {
-                    std::cout << "  " << j->first << " = " << j->second << std::endl;
-                }
-                std::cout << "\n" << endl;
-            }
-        }
-        else if (line.compare(SHTDN) == 0)
-        {
-            close(sessionargs->connFd);
-            exit(0);
-        }
-            // Add graph from outside
-        else if (line.compare(ADGR) == 0)
-        {
-            std::cout << SEND << endl;
-
-            // We get the name and the path to graph as a pair separated by |.
-            char graph_data[300];
-            bzero(graph_data, 301);
-            string name = "";
-            string path = "";
-
-            read(sessionargs->connFd, graph_data, 300);
-            string gData (graph_data);
-            Utils utils;
-            gData = utils.trim_copy(gData, " \f\n\r\t\v");
-            std::cout << "data received : " << gData << endl;
-
-            std::vector<std::string> strArr = Utils::split(gData, '|');
-
-            if(strArr.size() != 2){
-                std::cout << ERROR << ":Message format not recognized" << endl;
-                break;
-            }
-
-            name = strArr[0];
-            path = strArr[1];
-
-            if(JasmineGraphFrontEnd::graphExists(path, dummyPt)){
-                std::cout << ERROR << ":Graph exists" << endl;
-                break;
-            }
-
-            if(utils.fileExists(path, sessionargs)){
-                std::cout << "Path exists" << endl;
-                // TODO : upload graph either locally or in distributed server
-            }else{
-                std::cout << ERROR <<":Graph data file does not exist on the specified path" << endl;
-                break;
-            }
-        }
-        else
-        {
-            std::cout << ERROR << ":Message format not recognized" << endl;
-        }
-    }
-    cout << "\nClosing thread " << pthread_self() << " and connection" << endl;
-    close(sessionargs->connFd);
+    std::ifstream infile(fileName);
+    return infile.good();
 }

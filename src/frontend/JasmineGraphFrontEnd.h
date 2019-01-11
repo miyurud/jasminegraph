@@ -35,9 +35,14 @@ void *frontendservicesesion(void *dummyPt);
 class JasmineGraphFrontEnd {
 public:
     JasmineGraphFrontEnd(SQLiteDBInterface db);
+
     int run();
+    static bool fileExists(const std::string fileName);
+
     static bool graphExists(std::string basic_string, void *dummyPt);
+
     static bool graphExistsByID(std::string id, void *dummyPt);
+
 private:
     SQLiteDBInterface sqlite;
 };
