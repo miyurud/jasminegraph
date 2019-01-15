@@ -46,6 +46,13 @@ void MetisPartitioner::loadDataSet(string inputFilePath, string outputFilePath) 
         firstVertex = atoi(vertexOne.c_str());
         secondVertex = atoi(vertexTwo.c_str());
 
+        if (!zeroflag) {
+            if (firstVertex == 0 || secondVertex == 0) {
+                zeroflag = true;
+                std::cout << "Graph have zero vertex." << std::endl;
+            }
+        }
+
         std::vector<int> firstEdgeSet = graphStorageMap[firstVertex];
         std::vector<int> secondEdgeSet = graphStorageMap[secondVertex];
 
@@ -83,6 +90,7 @@ void MetisPartitioner::loadDataSet(string inputFilePath, string outputFilePath) 
         if (firstVertex > largestVertex) {
             largestVertex = firstVertex;
         }
+
         if (secondVertex > largestVertex) {
             largestVertex = secondVertex;
         }
@@ -97,43 +105,37 @@ void MetisPartitioner::loadDataSet(string inputFilePath, string outputFilePath) 
 
 void MetisPartitioner::constructMetisFormat() {
     int adjacencyIndex = 0;
+    std::ofstream outputFile;
+    outputFile.open("/tmp/grf");
+
+    if (zeroflag){
+        outputFile << (vertexCount+1) << ' ' << (edgeCount) << std::endl;
+    }else{
+        outputFile << (vertexCount) << ' ' << (edgeCount) << std::endl;
+    }
+
+
     xadj.push_back(adjacencyIndex);
     for (int vertexNum = 0; vertexNum <= largestVertex; vertexNum++) {
         std::vector<int> vertexSet = graphStorageMap[vertexNum];
-        std::sort(vertexSet.begin(),vertexSet.end());
+        std::sort(vertexSet.begin(), vertexSet.end());
 
-        int edgeSize = vertexSet.size();
-        if (edgeSize == 0) {
-            xadj.push_back(adjacencyIndex);
-        } else {
-            std::copy(vertexSet.begin(),vertexSet.end(),std::back_inserter(adjncy));
-            adjacencyIndex = adjacencyIndex+edgeSize;
-            xadj.push_back(adjacencyIndex);
+        for (std::vector<int>::const_iterator i = vertexSet.begin(); i != vertexSet.end(); ++i) {
+            if (zeroflag) {
+                outputFile << (*i + 1) << ' ';
+            } else {
+                outputFile << *i << ' ';
+            }
         }
+
+        outputFile << std::endl;
     }
-
-    /*for (std::vector<int>::const_iterator i = xadj.begin(); i != xadj.end(); ++i)
-        std::cout << *i << ' ';
-
-    std::cout << "\n";
-
-    for (std::vector<int>::const_iterator i = adjncy.begin(); i != adjncy.end(); ++i)
-        std::cout << *i << ' ';*/
 }
 
-void MetisPartitioner::partitionGraph() {
-    idx_t part[vertexCount];
-
-    idx_t xadjArray[xadj.size()];
-    std::copy(xadj.begin(),xadj.end(),xadjArray);
-
-    idx_t adjacencyArray[adjncy.size()];
-    std::copy(adjncy.begin(),adjncy.end(),adjacencyArray);
-    int ret = METIS_PartGraphKway(&vertexCount,&nWeights,xadjArray,adjacencyArray, NULL, NULL, NULL, &nParts, NULL,NULL, NULL, &objVal, part);
-
-    /*for(unsigned part_i = 0; part_i < vertexCount; part_i++){
-        std::cout << part_i << " " << part[part_i] << std::endl;
-    }*/
+void MetisPartitioner::partitioneWithGPMetis() {
+    char buffer[128];
+    std::string result = "";
+    system("gpmetis /tmp/grf 4");
 }
 
 void MetisPartitioner::createPartitionFiles(idx_t *part) {
@@ -173,28 +175,27 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
                 }
             }
         }
-
     }
 
     for (int part = 0;part<nParts;part++) {
-        string outputFilePart = outputFilePath+std::to_string(part);
-        string outputFilePartMaster = outputFilePath+std::to_string(part);
+        string outputFilePart = outputFilePath + std::to_string(part);
+        string outputFilePartMaster = outputFilePath + std::to_string(part);
 
-        std::map<int,std::vector<int>> partEdgeMap = partitionedLocalGraphStorageMap[part];
-        std::map<int,std::vector<int>> partMasterEdgeMap = masterGraphStorageMap[part];
+        std::map<int, std::vector<int>> partEdgeMap = partitionedLocalGraphStorageMap[part];
+        std::map<int, std::vector<int>> partMasterEdgeMap = masterGraphStorageMap[part];
 
         if (!partEdgeMap.empty()) {
             std::ofstream localFile(outputFilePart);
 
             if (localFile.is_open()) {
-                for (int vertex = 0; vertex < vertexCount;vertex++) {
+                for (int vertex = 0; vertex < vertexCount; vertex++) {
                     std::vector<int> destinationSet = partEdgeMap[vertex];
                     if (!destinationSet.empty()) {
-                        for (std::vector<int>::iterator itr = destinationSet.begin(); itr != destinationSet.end(); ++itr) {
+                        for (std::vector<int>::iterator itr = destinationSet.begin();
+                             itr != destinationSet.end(); ++itr) {
                             string edge = std::to_string(vertex) + " " + std::to_string((*itr));
-                            localFile<<edge;
-                            localFile<<"\n";
-
+                            localFile << edge;
+                            localFile << "\n";
                         }
                     }
                 }
@@ -208,13 +209,14 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
             std::ofstream masterFile(outputFilePartMaster);
 
             if (masterFile.is_open()) {
-                for (int vertex = 0; vertex < vertexCount;vertex++) {
+                for (int vertex = 0; vertex < vertexCount; vertex++) {
                     std::vector<int> destinationSet = partMasterEdgeMap[vertex];
                     if (!destinationSet.empty()) {
-                        for (std::vector<int>::iterator itr = destinationSet.begin(); itr != destinationSet.end(); ++itr) {
+                        for (std::vector<int>::iterator itr = destinationSet.begin();
+                             itr != destinationSet.end(); ++itr) {
                             string edge = vertex + " " + (*itr);
-                            masterFile<<edge;
-                            masterFile<<"\n";
+                            masterFile << edge;
+                            masterFile << "\n";
 
                         }
                     }
@@ -224,7 +226,5 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
             masterFile.close();
 
         }
-
-
     }
 }

@@ -60,6 +60,7 @@ class JasminGraphFrontEndProtocol {
     //The commands ending with -send are asking the graph id to be sent. The precommand.
 };
 
+const int FRONTEND_COMMAND_LENGTH = 4;
 
 
 #endif //JASMINGRAPH_JASMINGRAPHFRONTENDPROTOCOL_H

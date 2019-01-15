@@ -17,6 +17,7 @@ limitations under the License.
 #include "../util/Utils.h"
 #include "JasmineGraphFrontEndProtocol.h"
 #include "../metadb/SQLiteDBInterface.h"
+#include "../partitioner/local/MetisPartitioner.h"
 
 using namespace std;
 
@@ -48,14 +49,18 @@ void *frontendservicesesion(void *dummyPt)
         else if (line.compare(LIST) == 0)
         {
             SQLiteDBInterface* sqlite = (SQLiteDBInterface*) dummyPt;
-            std::vector<vector<pair<string,string>>> v = sqlite->runSelect("SELECT idgraph, name, upload_path, upload_start_time, upload_end_time, "
-                                                                           "graph_status_idgraph_status, vertexcount, centralpartitioncount, edgecount FROM graph;");
+            std::stringstream ss;
+            std::vector<vector<pair<string,string>>> v = sqlite->runSelect("SELECT idgraph, name, upload_path FROM graph;");
             for (std::vector<vector<pair<string,string>>>::iterator i = v.begin(); i != v.end(); ++i) {
+                ss << "|";
                 for (std::vector<pair<string,string>>::iterator j = (i->begin()); j != i->end(); ++j) {
-                    std::cout << "  " << j->first << " = " << j->second << std::endl;
+                    ss << j->second << "|";
                 }
-                std::cout << "\n" << endl;
+                ss << "\n";
             }
+            std:;string result = ss.str();
+            write(sessionargs->connFd, result.c_str(), result.length());
+
         }
         else if (line.compare(SHTDN) == 0)
         {
@@ -66,6 +71,8 @@ void *frontendservicesesion(void *dummyPt)
         else if (line.compare(ADGR) == 0)
         {
             std::cout << SEND << endl;
+            write(sessionargs->connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
+            write(sessionargs->connFd, "\r\n", 2);
 
             // We get the name and the path to graph as a pair separated by |.
             char graph_data[300];
@@ -96,7 +103,10 @@ void *frontendservicesesion(void *dummyPt)
 
             if(utils.fileExists(path, sessionargs)){
                 std::cout << "Path exists" << endl;
-                // TODO : upload graph either locally or in distributed server
+                MetisPartitioner* partitioner = new MetisPartitioner();
+                partitioner->loadDataSet(path, utils.getJasmineGraphProperty("org.jasminegraph.server.runtime.location").c_str());
+                partitioner->constructMetisFormat();
+                partitioner->partitioneWithGPMetis();
             }else{
                 std::cout << ERROR <<":Graph data file does not exist on the specified path" << endl;
                 break;
