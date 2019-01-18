@@ -135,7 +135,20 @@ void MetisPartitioner::constructMetisFormat() {
 void MetisPartitioner::partitioneWithGPMetis() {
     char buffer[128];
     std::string result = "";
-    system("gpmetis /tmp/grf 4");
+    //system("gpmetis /tmp/grf 4");
+    FILE *input = popen("gpmetis /tmp/grf 4", "r");
+    if (input) {
+        // read the input
+        while (!feof(input)) {
+            if (fgets(buffer, 128, input) != NULL) {
+                result.append(buffer);
+            }
+        }
+        pclose(input);
+    } else {
+        perror("popen");
+        // handle error
+    }
 }
 
 void MetisPartitioner::createPartitionFiles(idx_t *part) {
