@@ -15,6 +15,7 @@ limitations under the License.
 #define JASMINEGRAPH_METISPARTITIONER_H
 
 #include <string>
+#include <string.h>
 #include <fstream>
 #include <iostream>
 #include <sstream>
