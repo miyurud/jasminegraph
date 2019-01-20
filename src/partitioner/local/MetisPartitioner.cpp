@@ -135,7 +135,7 @@ void MetisPartitioner::constructMetisFormat() {
 void MetisPartitioner::partitioneWithGPMetis() {
     char buffer[128];
     std::string result = "";
-    //system("gpmetis /tmp/grf 4");
+    FILE *headerModify;
     FILE *input = popen("gpmetis /tmp/grf 4 2>&1", "r");
     if (input) {
         // read the input
@@ -151,8 +151,7 @@ void MetisPartitioner::partitioneWithGPMetis() {
             string command = "sed -i \"1s/.*/" + newHeader +"/\" /tmp/grf";
             char * newHeaderChar = new char [command.length()+1];
             strcpy(newHeaderChar,command.c_str());
-            FILE *headerModify = popen(newHeaderChar, "r");
-            pclose(headerModify);
+            headerModify = popen(newHeaderChar, "r");
             partitioneWithGPMetis();
         } else if (!result.empty() && result.find("out of bounds") != std::string::npos) {
             vertexCount+=1;
@@ -160,8 +159,7 @@ void MetisPartitioner::partitioneWithGPMetis() {
             string command = "sed -i \"1s/.*/" + newHeader +"/\" /tmp/grf";
             char * newHeaderChar = new char [command.length()+1];
             strcpy(newHeaderChar,command.c_str());
-            FILE *headerModify = popen(newHeaderChar, "r");
-            pclose(headerModify);
+            headerModify = popen(newHeaderChar, "r");
             partitioneWithGPMetis();
             //However, I only found
         } else if (!result.empty() && result.find("However, I only found") != std::string::npos) {
@@ -174,11 +172,30 @@ void MetisPartitioner::partitioneWithGPMetis() {
             string command = "sed -i \"1s/.*/" + newHeader +"/\" /tmp/grf";
             char * newHeaderChar = new char [command.length()+1];
             strcpy(newHeaderChar,command.c_str());
-            FILE *headerModify = popen(newHeaderChar, "r");
-            pclose(headerModify);
+            headerModify = popen(newHeaderChar, "r");
             partitioneWithGPMetis();
             //However, I only found
+        } else if (!result.empty() && result.find("Timing Information") != std::string::npos) {
+            idx_t partIndex[vertexCount];
+            std::string line;
+            std::ifstream infile("/tmp/grf.part.4");
+            int counter = 0;
+            while (std::getline(infile, line)){
+                std::istringstream iss(line);
+                int a;
+                if (!(iss >> a)) {
+                    break;
+                } else {
+                    partIndex[counter] = a;
+                    counter++;
+                }
+            }
+
+            createPartitionFiles(partIndex);
         }
+
+
+
         perror("popen");
     } else {
         perror("popen");
@@ -188,7 +205,6 @@ void MetisPartitioner::partitioneWithGPMetis() {
 
 void MetisPartitioner::createPartitionFiles(idx_t *part) {
     for (int vertex = 0;vertex<vertexCount;vertex++) {
-        std::cout << vertex << " " << part[vertex] << std::endl;
         idx_t vertexPart = part[vertex];
 
         std::vector<int> partVertexSet = partVertexMap[vertexPart];
@@ -226,8 +242,8 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
     }
 
     for (int part = 0;part<nParts;part++) {
-        string outputFilePart = outputFilePath + std::to_string(part);
-        string outputFilePartMaster = outputFilePath + std::to_string(part);
+        string outputFilePart = outputFilePath + "/" + std::to_string(part);
+        string outputFilePartMaster = outputFilePath + "/_centralstore" + std::to_string(part);
 
         std::map<int, std::vector<int>> partEdgeMap = partitionedLocalGraphStorageMap[part];
         std::map<int, std::vector<int>> partMasterEdgeMap = masterGraphStorageMap[part];
@@ -249,11 +265,9 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
                 }
             }
 
+            localFile.flush();
             localFile.close();
 
-        }
-
-        if (!partEdgeMap.empty()) {
             std::ofstream masterFile(outputFilePartMaster);
 
             if (masterFile.is_open()) {
@@ -262,15 +276,15 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
                     if (!destinationSet.empty()) {
                         for (std::vector<int>::iterator itr = destinationSet.begin();
                              itr != destinationSet.end(); ++itr) {
-                            string edge = vertex + " " + (*itr);
+                            string edge = std::to_string(vertex) + " " + std::to_string((*itr));
                             masterFile << edge;
                             masterFile << "\n";
-
                         }
                     }
                 }
             }
 
+            masterFile.flush();
             masterFile.close();
 
         }

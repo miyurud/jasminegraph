@@ -42,7 +42,8 @@ private:
     idx_t largestVertex;
     idx_t vertexCount;
     idx_t nWeights = 1;
-    idx_t nParts = 3;
+    //TODO:Need to remove this hardcoded value
+    idx_t nParts = 4;
     idx_t objVal;
     string outputFilePath;
     bool zeroflag = false;
