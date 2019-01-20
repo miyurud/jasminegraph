@@ -109,7 +109,7 @@ void MetisPartitioner::constructMetisFormat() {
     outputFile.open("/tmp/grf");
 
     if (zeroflag){
-        outputFile << (vertexCount+1) << ' ' << (edgeCount) << std::endl;
+        outputFile << (++vertexCount) << ' ' << (edgeCount) << std::endl;
     }else{
         outputFile << (vertexCount) << ' ' << (edgeCount) << std::endl;
     }
@@ -135,7 +135,55 @@ void MetisPartitioner::constructMetisFormat() {
 void MetisPartitioner::partitioneWithGPMetis() {
     char buffer[128];
     std::string result = "";
-    system("gpmetis /tmp/grf 4");
+    //system("gpmetis /tmp/grf 4");
+    FILE *input = popen("gpmetis /tmp/grf 4 2>&1", "r");
+    if (input) {
+        // read the input
+        while (!feof(input)) {
+            if (fgets(buffer, 128, input) != NULL) {
+                result.append(buffer);
+            }
+        }
+        pclose(input);
+        if (!result.empty() && result.find("Premature") != std::string::npos) {
+            vertexCount-=1;
+            string newHeader = std::to_string(vertexCount)+ ' '+ std::to_string(edgeCount);
+            string command = "sed -i \"1s/.*/" + newHeader +"/\" /tmp/grf";
+            char * newHeaderChar = new char [command.length()+1];
+            strcpy(newHeaderChar,command.c_str());
+            FILE *headerModify = popen(newHeaderChar, "r");
+            pclose(headerModify);
+            partitioneWithGPMetis();
+        } else if (!result.empty() && result.find("out of bounds") != std::string::npos) {
+            vertexCount+=1;
+            string newHeader = std::to_string(vertexCount)+ ' '+ std::to_string(edgeCount);
+            string command = "sed -i \"1s/.*/" + newHeader +"/\" /tmp/grf";
+            char * newHeaderChar = new char [command.length()+1];
+            strcpy(newHeaderChar,command.c_str());
+            FILE *headerModify = popen(newHeaderChar, "r");
+            pclose(headerModify);
+            partitioneWithGPMetis();
+            //However, I only found
+        } else if (!result.empty() && result.find("However, I only found") != std::string::npos) {
+            string firstDelimiter = "I only found";
+            string secondDelimite = "edges in the file";
+            unsigned first = result.find(firstDelimiter);
+            unsigned last = result.find(secondDelimite);
+            string newEdgeSize = result.substr (first+firstDelimiter.length()+1,last-(first+firstDelimiter.length())-2);
+            string newHeader = std::to_string(vertexCount)+ ' '+ newEdgeSize;
+            string command = "sed -i \"1s/.*/" + newHeader +"/\" /tmp/grf";
+            char * newHeaderChar = new char [command.length()+1];
+            strcpy(newHeaderChar,command.c_str());
+            FILE *headerModify = popen(newHeaderChar, "r");
+            pclose(headerModify);
+            partitioneWithGPMetis();
+            //However, I only found
+        }
+        perror("popen");
+    } else {
+        perror("popen");
+        // handle error
+    }
 }
 
 void MetisPartitioner::createPartitionFiles(idx_t *part) {
