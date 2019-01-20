@@ -11,7 +11,7 @@ Please contact [Miyuru Dayarathna](miyurud at yahoo dot co dot uk) for further i
 Jasminegraph is licensed under the [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0).
 
 ## References
-More details of Jesmingraph/Acacia architecture is available from the following list of papers.
+More details of Jasminegraph/Acacia architecture is available from the following list of papers.
 
 - Miyuru Dayarathna, Sathya Bandara, Nandula Jayamaha, Mahen Herath, Achala Madhushan, Sanath Jayasena, Toyotaro Suzumura. 2017. "[An X10-Based Distributed Streaming Graph Database Engine.](https://doi.org/10.1109/HiPC.2017.00036)," 2017 IEEE 24th International Conference on High Performance Computing (HiPC), Jaipur, 2017, pp. 243-252.
 - Miyuru Dayarathna, Isuru Herath, Yasima Dewmini, Gayan Mettananda, Sameera Nandasiri, Sanath Jayasena, Toyotaro Suzumura. 2016 "[Acacia-RDF: An X10-Based Scalable Distributed RDF Graph Database Engine.](https://doi.org/10.1109/CLOUD.2016.0075)," 2016 IEEE 9th International Conference on Cloud Computing (CLOUD), San Francisco, CA, 2016, pp. 521-528.

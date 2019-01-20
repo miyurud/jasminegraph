@@ -24,6 +24,7 @@ limitations under the License.
 #include <unordered_set>
 #include <set>
 #include "metis.h"
+#include "../../metadb/SQLiteDBInterface.h"
 #include <cstddef>
 #include <algorithm>
 
@@ -36,17 +37,17 @@ public:
     //void partitionGraph();
     void constructMetisFormat();
     void partitioneWithGPMetis();
+    MetisPartitioner(SQLiteDBInterface*);
 
 private:
-    idx_t edgeCount;
-    idx_t largestVertex;
-    idx_t vertexCount;
-    idx_t nWeights = 1;
+    idx_t edgeCount = 0;
+    idx_t largestVertex = 0;
+    idx_t vertexCount = 0;
     //TODO:Need to remove this hardcoded value
     idx_t nParts = 4;
-    idx_t objVal;
     string outputFilePath;
     bool zeroflag = false;
+    SQLiteDBInterface sqlite;
 
 
     std::map<int,std::vector<int>> graphStorageMap;

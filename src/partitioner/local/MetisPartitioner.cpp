@@ -13,6 +13,10 @@ limitations under the License.
 
 #include "MetisPartitioner.h"
 
+MetisPartitioner::MetisPartitioner(SQLiteDBInterface * sqlite) {
+    this->sqlite = *sqlite;
+}
+
 void MetisPartitioner::loadDataSet(string inputFilePath, string outputFilePath) {
     this->outputFilePath = outputFilePath;
     std::ifstream dbFile;
@@ -204,6 +208,9 @@ void MetisPartitioner::partitioneWithGPMetis() {
 }
 
 void MetisPartitioner::createPartitionFiles(idx_t *part) {
+    std::vector<std::vector<std::pair<string,string>>> v = this->sqlite.runSelect("SELECT idgraph FROM graph ORDER BY idgraph LIMIT 1;");
+    int newGraphID = atoi(v.at(0).at(0).second.c_str()) + 1;
+
     for (int vertex = 0;vertex<vertexCount;vertex++) {
         idx_t vertexPart = part[vertex];
 
@@ -242,8 +249,8 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
     }
 
     for (int part = 0;part<nParts;part++) {
-        string outputFilePart = outputFilePath + "/" + std::to_string(part);
-        string outputFilePartMaster = outputFilePath + "/_centralstore" + std::to_string(part);
+        string outputFilePart = outputFilePath + "/" + std::to_string(newGraphID) + "_" + std::to_string(part);
+        string outputFilePartMaster = outputFilePath + "/" + std::to_string(newGraphID) + "_centralstore_" + std::to_string(part);
 
         std::map<int, std::vector<int>> partEdgeMap = partitionedLocalGraphStorageMap[part];
         std::map<int, std::vector<int>> partMasterEdgeMap = masterGraphStorageMap[part];

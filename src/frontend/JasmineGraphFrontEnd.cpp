@@ -48,7 +48,7 @@ void *frontendservicesesion(void *dummyPt)
         }
         else if (line.compare(LIST) == 0)
         {
-            SQLiteDBInterface* sqlite = (SQLiteDBInterface*) dummyPt;
+            SQLiteDBInterface* sqlite = &sessionargs->sqlite;
             std::stringstream ss;
             std::vector<vector<pair<string,string>>> v = sqlite->runSelect("SELECT idgraph, name, upload_path FROM graph;");
             for (std::vector<vector<pair<string,string>>>::iterator i = v.begin(); i != v.end(); ++i) {
@@ -58,7 +58,7 @@ void *frontendservicesesion(void *dummyPt)
                 }
                 ss << "\n";
             }
-            std:;string result = ss.str();
+            string result = ss.str();
             write(sessionargs->connFd, result.c_str(), result.length());
 
         }
@@ -103,7 +103,7 @@ void *frontendservicesesion(void *dummyPt)
 
             if(utils.fileExists(path, sessionargs)){
                 std::cout << "Path exists" << endl;
-                MetisPartitioner* partitioner = new MetisPartitioner();
+                MetisPartitioner* partitioner = new MetisPartitioner(&sessionargs->sqlite);
                 partitioner->loadDataSet(path, utils.getJasmineGraphProperty("org.jasminegraph.server.runtime.location").c_str());
                 partitioner->constructMetisFormat();
                 partitioner->partitioneWithGPMetis();
