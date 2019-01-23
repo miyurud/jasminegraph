@@ -153,6 +153,35 @@ bool Utils::fileExists(const std::string fileName, frontendservicesessionargs *p
     return infile.good();
 }
 
+/**
+ * This method compresses files using gzip
+ * @param filePath
+ */
+void Utils::compressFile(const std::string filePath) {
+    char buffer[128];
+    std::string result = "";
+    std::string command = "gzip -f " + filePath + " 2>&1";
+    char * commandChar = new char [command.length()+1];
+    strcpy(commandChar,command.c_str());
+    FILE *input = popen(commandChar,"r");
+    if (input) {
+        while (!feof(input)) {
+            if (fgets(buffer, 128, input) != NULL) {
+                result.append(buffer);
+            }
+        }
+        pclose(input);
+        if (!result.empty()) {
+            std::cout << "File compression failed with error : " << result << endl;
+        } else {
+            cout << "File in " << filePath << " compressed with gzip" << endl;
+        }
+    } else {
+        perror("popen");
+        // handle error
+    }
+}
+
 
 
 
