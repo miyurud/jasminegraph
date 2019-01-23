@@ -208,6 +208,7 @@ void MetisPartitioner::partitioneWithGPMetis() {
 }
 
 void MetisPartitioner::createPartitionFiles(idx_t *part) {
+    Utils utils;
     std::vector<std::vector<std::pair<string,string>>> v = this->sqlite.runSelect("SELECT idgraph FROM graph ORDER BY idgraph LIMIT 1;");
     int newGraphID = atoi(v.at(0).at(0).second.c_str()) + 1;
 
@@ -295,5 +296,9 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
             masterFile.close();
 
         }
+
+        //Compress part files
+        utils.compressFile(outputFilePart);
+        utils.compressFile(outputFilePartMaster);
     }
 }

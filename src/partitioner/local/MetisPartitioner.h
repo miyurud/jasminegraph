@@ -25,6 +25,7 @@ limitations under the License.
 #include <set>
 #include "metis.h"
 #include "../../metadb/SQLiteDBInterface.h"
+#include "../../util/Utils.h"
 #include <cstddef>
 #include <algorithm>
 
