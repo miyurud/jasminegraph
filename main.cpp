@@ -15,9 +15,12 @@ limitations under the License.
 #include <iostream>
 #include <unistd.h>
 #include "main.h"
+#include "src/util/Conts.h"
+#include "src/server/JasmineGraphInstance.h"
 
 unsigned int microseconds = 10000000;
 JasmineGraphServer* server;
+JasmineGraphInstance* instance;
 
 void fnExit3 (void)
 {
@@ -26,17 +29,38 @@ void fnExit3 (void)
 }
 
 
-int main() {
+int main(int argc, char *argv[]) {
     atexit(fnExit3);
-    server = new JasmineGraphServer();
-    server->run();
 
-    while (server->isRunning())
-    {
-        usleep(microseconds);
+    if (argc == 1) {
+        std::cout << "Need one argument. Use argument 1 to start JasmineGraph in Master mode. Use any other integer to "
+                     << "start as worker." << std::endl;
+        return -1;
     }
 
-    delete server;
+
+    int mode = atoi(argv[1]);
+
+    if (mode == Conts::JASMINEGRAPH_RUNTIME_PROFILE_MASTER) {
+        server = new JasmineGraphServer();
+        server->run();
+
+        while (server->isRunning()) {
+            usleep(microseconds);
+        }
+
+        delete server;
+    } else {
+        instance = new JasmineGraphInstance();
+        instance->start_running();
+
+        while (instance->isRunning()) {
+            usleep(microseconds);
+        }
+
+        delete instance;
+    }
+
     return 0;
 }
 

@@ -27,6 +27,7 @@ public:
     void registerShutdownHook();
     void truncate();
     void shutdown();
+    bool isRunning();
 };
 
 

@@ -24,15 +24,15 @@ using std::string;
 class JasmineGraphLocalStore {
 private:
 public:
-    virtual bool loadGraph() = 0;
-    virtual bool storeGraph() = 0;
-    virtual map<long, unordered_set<long>> getUnderlyingHashMap() = 0;
-    virtual map<long, long> getOutDegreeDistributionHashMap() = 0;
-    virtual void initialize() = 0;
-    virtual void addVertex(string* attributes) = 0;
-    virtual void addEdge(long startVid, long endVid) = 0;
-    virtual long getVertexCount() = 0;
-    virtual long getEdgeCount() = 0;
+    bool loadGraph();
+    bool storeGraph();
+    map<long, unordered_set<long>> getUnderlyingHashMap();
+    map<long, long> getOutDegreeDistributionHashMap();
+    void initialize();
+    void addVertex(string* attributes);
+    void addEdge(long startVid, long endVid);
+    long getVertexCount();
+    long getEdgeCount();
 };
 
 

@@ -33,17 +33,17 @@ private:
 public:
     JasmineGraphHashMapLocalStore(int graphid, int partitionid);
     JasmineGraphHashMapLocalStore(std::string folderLocation);
-    inline bool loadGraph() override;
-    bool storeGraph() override;
-    long getEdgeCount() override;
-    long getVertexCount() override;
-    void addEdge(long startVid, long endVid) override;
+    inline bool loadGraph() ;
+    bool storeGraph() ;
+    long getEdgeCount() ;
+    long getVertexCount() ;
+    void addEdge(long startVid, long endVid) ;
     unordered_set<long> getVertexSet();
     int* getOutDegreeDistribution();
-    map<long, long> getOutDegreeDistributionHashMap() override;
-    map<long, unordered_set<long>> getUnderlyingHashMap() override;
-    void initialize() override;
-    void addVertex(string* attributes) override;
+    map<long, long> getOutDegreeDistributionHashMap() ;
+    map<long, unordered_set<long>> getUnderlyingHashMap() ;
+    void initialize() ;
+    void addVertex(string* attributes) ;
 };
 
 

@@ -12,3 +12,15 @@ limitations under the License.
  */
 
 #include "JasmineGraphInstance.h"
+
+#include <iostream>
+#include <unistd.h>
+
+
+void JasmineGraphInstance::start_running() {
+    std::cout << "Worker started" << std::endl;
+}
+
+bool JasmineGraphInstance::isRunning() {
+    return true;
+}
