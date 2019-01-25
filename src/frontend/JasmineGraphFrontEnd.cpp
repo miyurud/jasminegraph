@@ -67,6 +67,53 @@ void *frontendservicesesion(void *dummyPt)
             close(sessionargs->connFd);
             exit(0);
         }
+
+            // add RDF graph
+        else if (line.compare(ADRDF) == 0)
+        {
+            std::cout << SEND << endl;
+            write(sessionargs->connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
+            write(sessionargs->connFd, "\r\n", 2);
+
+            // We get the name and the path to graph as a pair separated by |.
+            char graph_data[300];
+            bzero(graph_data, 301);
+            string name = "";
+            string path = "";
+
+            read(sessionargs->connFd, graph_data, 300);
+            string gData (graph_data);
+            Utils utils;
+            gData = utils.trim_copy(gData, " \f\n\r\t\v");
+            std::cout << "data received : " << gData << endl;
+
+            std::vector<std::string> strArr = Utils::split(gData, '|');
+
+            if(strArr.size() != 2){
+                std::cout << ERROR << ":Message format not recognized" << endl;
+                break;
+            }
+
+            name = strArr[0];
+            path = strArr[1];
+
+            if(JasmineGraphFrontEnd::graphExists(path, dummyPt)){
+                std::cout << ERROR << ":Graph exists" << endl;
+                break;
+            }
+
+            if(utils.fileExists(path, sessionargs)){
+                std::cout << "Path exists" << endl;
+                //call rdf partitioner
+            }else{
+                std::cout << ERROR <<":Graph data file does not exist on the specified path" << endl;
+                break;
+            }
+
+        }
+
+
+
             // Add graph from outside
         else if (line.compare(ADGR) == 0)
         {
