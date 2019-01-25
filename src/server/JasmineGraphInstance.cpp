@@ -19,6 +19,9 @@ limitations under the License.
 
 void JasmineGraphInstance::start_running() {
     std::cout << "Worker started" << std::endl;
+
+    string startScript = "ssh ubuntu@18.221.13.185 sh /home/ubuntu/test.sh";
+    system(startScript.c_str());
 }
 
 bool JasmineGraphInstance::isRunning() {
