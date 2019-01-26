@@ -30,5 +30,11 @@ public:
     bool isRunning();
 };
 
+struct JasmineGraphInstanceRecord {
+    int instanceID;
+    std::string hostName;
+    int port;
+};
+
 
 #endif //JASMINEGRAPH_JASMINEGRAPHINSTANCE_H

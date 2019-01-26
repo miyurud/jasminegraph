@@ -135,6 +135,7 @@ int JasmineGraphFrontEnd::run() {
     struct sockaddr_in svrAdd;
     struct sockaddr_in clntAdd;
 
+    //TODO: This seems there is only 3 front end instances can be kept running once. Need to double check this.
     pthread_t threadA[3];
 
     //create socket

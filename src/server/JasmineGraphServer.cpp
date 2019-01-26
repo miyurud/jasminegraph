@@ -19,6 +19,13 @@ limitations under the License.
 #include "../frontend/JasmineGraphFrontEnd.h"
 #include "../util/Utils.h"
 
+void *runfrontend(void *dummyPt){
+    JasmineGraphServer* refToServer = (JasmineGraphServer*) dummyPt;
+    refToServer->frontend = new JasmineGraphFrontEnd(refToServer->sqlite);
+    refToServer->frontend->run();
+}
+
+
 JasmineGraphServer::JasmineGraphServer()
 {
 
@@ -37,6 +44,7 @@ int JasmineGraphServer::run()
     this->sqlite = *new SQLiteDBInterface();
     this->sqlite.init();
     init();
+    start_workers();
     return 0;
 }
 
@@ -59,6 +67,19 @@ void JasmineGraphServer::init()
         }
     }
 
-    this->frontend = new JasmineGraphFrontEnd(this->sqlite);
-    this->frontend->run();
+    pthread_t frontendthread;
+    pthread_create(&frontendthread, NULL, runfrontend, this);
+}
+
+void JasmineGraphServer::start_workers(){
+    Utils utils;
+    std::vector<std::string> hostsList = utils.getHostList();
+    std::vector<std::string>::iterator it;
+    it = hostsList.begin();
+
+    for (it=hostsList.begin(); it<hostsList.end(); it++) {
+        std::string item = *it;
+        std::cout << "===>>>" << item << std::endl;
+
+    }
 }

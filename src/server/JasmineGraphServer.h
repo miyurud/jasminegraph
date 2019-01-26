@@ -24,15 +24,18 @@ using std::map;
 class JasmineGraphServer {
 private:
     map<std::string, long> hostPlaceMap;
-    SQLiteDBInterface sqlite;
-    JasmineGraphFrontEnd* frontend;
     JasmineGraphBackend* backend;
 public:
     ~JasmineGraphServer();
     JasmineGraphServer();
     void init();
+    void start_workers();
     int run();
     bool isRunning();
+
+    JasmineGraphFrontEnd* frontend;
+    SQLiteDBInterface sqlite;
+    //pthread_t frontendthread;
 };
 
 

@@ -108,6 +108,23 @@ std::string Utils::getJasmineGraphProperty(std::string key)
     return NULL;
 }
 
+std::vector<std::string> Utils::getHostList(){
+    std::vector<std::string> result;
+    std::vector<std::string>::iterator it;
+    vector<std::string> vec = getFileContent("conf/hosts.txt");
+    it = vec.begin();
+
+    for (it=vec.begin(); it<vec.end(); it++)
+    {
+        std::string item = *it;
+        if (item.length() > 0 && !(item.rfind("#", 0) == 0)) {
+            result.insert(result.begin(), item);
+        }
+    }
+
+    return result;
+}
+
 
 inline std::string trim_right_copy(
         const std::string& s,
