@@ -34,7 +34,7 @@ using std::string;
 
 class MetisPartitioner {
 public:
-    void loadDataSet(string inputFilePath, string outputFilePath);
+    void loadDataSet(string inputFilePath, string outputFilePath, int graphID);
     //void partitionGraph();
     void constructMetisFormat();
     void partitioneWithGPMetis();
@@ -49,7 +49,8 @@ private:
     string outputFilePath;
     bool zeroflag = false;
     SQLiteDBInterface sqlite;
-
+    int graphID;
+    Utils utils;
 
     std::map<int,std::vector<int>> graphStorageMap;
     std::map<int,std::vector<int>> graphEdgeMap;
