@@ -18,13 +18,17 @@ limitations under the License.
 #include "../frontend/JasmineGraphFrontEnd.h"
 #include "../backend/JasmineGraphBackend.h"
 #include "../metadb/SQLiteDBInterface.h"
+#include "../util/Conts.h"
 
 using std::map;
 
 class JasmineGraphServer {
 private:
     map<std::string, long> hostPlaceMap;
-    JasmineGraphBackend *backend;
+    JasmineGraphBackend* backend;
+    int numberOfWorkers;
+    std::map<std::string,std::vector<int>> workerPortsMap;
+    std::map<std::string,std::vector<int>> workerDataPortsMap;
 public:
     ~JasmineGraphServer();
 

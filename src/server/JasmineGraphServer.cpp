@@ -70,13 +70,52 @@ void JasmineGraphServer::init() {
 
 void JasmineGraphServer::start_workers() {
     Utils utils;
+    int hostListModeNWorkers = 0;
+    int numberOfWorkersPerHost;
     std::vector<std::string> hostsList = utils.getHostList();
+    std::string nWorkers = utils.getJasmineGraphProperty("org.jasminegraph.server.nworkers");
+    int workerPort = Conts::JASMINEGRAPH_INSTANCE_PORT;
+    int workerDataPort = Conts::JASMINEGRAPH_INSTANCE_DATA_PORT;
+    if (utils.is_number(nWorkers)) {
+        numberOfWorkers = atoi(nWorkers.c_str());
+    } else {
+        std::cout<<"Number of Workers Have not Specified."<< std::endl;
+        numberOfWorkers = 0;
+    }
+
+    if (numberOfWorkers > 0 && hostsList.size() > 0) {
+        numberOfWorkersPerHost = hostsList.size()/numberOfWorkers;
+        hostListModeNWorkers = hostsList.size() % numberOfWorkers;
+    }
+
     std::vector<std::string>::iterator it;
     it = hostsList.begin();
 
     for (it = hostsList.begin(); it < hostsList.end(); it++) {
         std::string item = *it;
+        int portCount = 0;
         std::cout << "===>>>" << item << std::endl;
+        std::vector<int> portVector = workerPortsMap[item];
+        std::vector<int> dataPortVector = workerDataPortsMap[item];
+
+        while (portCount <= numberOfWorkersPerHost) {
+            portVector.push_back(workerPort);
+            dataPortVector.push_back(workerDataPort);
+            workerPort = workerPort + 2;
+            workerDataPort = workerDataPort + 2;
+            portCount ++;
+        }
+
+        if (hostListModeNWorkers > 0) {
+            portVector.push_back(workerPort);
+            dataPortVector.push_back(workerDataPort);
+            workerPort = workerPort + 2;
+            workerDataPort = workerDataPort + 2;
+            hostListModeNWorkers--;
+        }
+
+        workerPortsMap[item] = portVector;
+        workerDataPortsMap[item] = dataPortVector;
 
     }
 }
