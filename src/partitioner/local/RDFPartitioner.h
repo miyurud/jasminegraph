@@ -49,10 +49,6 @@ public:
     void loadDataSet(string inputFilePath, string outputFilePath);
 
     void distributeEdges();
-    //void partitionGraph();
-//    void constructMetisFormat();
-//    void partitioneWithGPMetis();
-    //MetisPartitioner(SQLiteDBInterface*);
 private:
 
     string outputFilePath;
@@ -64,31 +60,13 @@ private:
 
     string inputFilePath;
 
-//private:
-//    idx_t edgeCount = 0;
-//    idx_t largestVertex = 0;
-//    idx_t vertexCount = 0;
-//    //TODO:Need to remove this hardcoded value
-//    idx_t nParts = 4;
-//    string outputFilePath;
-//    bool zeroflag = false;
-//    SQLiteDBInterface sqlite;
-
-
-//private var nodes:HashMap[String,Long] = new HashMap[String,Long]();
-//private var nodesTemp:HashMap[Long,String] = new HashMap[Long,String]();
-//private var predicates:HashMap[String,Long] = new HashMap[String,Long]();
-//private var predicatesTemp:HashMap[Long,String] = new HashMap[Long,String]();
-//private var relationsMap:HashMap[Long,HashMap[Long,ArrayList[String]]] = new HashMap[Long,HashMap[Long,ArrayList[String]]]();
-//private var attributeMap:HashMap[Long,HashMap[Long,ArrayList[String]]] = new HashMap[Long,HashMap[Long,ArrayList[String]]]();
-
     std::map<string, long> nodes;
     std::map<long, string> nodesTemp;
     std::map<string, long> predicates;
     std::map<long, string> predicatesTemp;
     std::map<long, std::vector<string>> relationsMap;
     std::map<long, std::vector<string>> attributeMap;
-
+    bool isDistributedCentralPartitions;
 };
 
 
