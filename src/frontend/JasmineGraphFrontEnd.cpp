@@ -12,6 +12,8 @@ limitations under the License.
  */
 
 #include <sstream>
+#include <ctime>
+#include <chrono>
 #include "JasmineGraphFrontEnd.h"
 #include "../util/Conts.h"
 #include "../util/Utils.h"
@@ -81,6 +83,8 @@ void *frontendservicesesion(void *dummyPt)
             string path = "";
 
             read(sessionargs->connFd, graph_data, 300);
+            std::time_t time = chrono::system_clock::to_time_t(chrono::system_clock::now());
+            string uploadStartTime = ctime(&time);
             string gData (graph_data);
             Utils utils;
             gData = utils.trim_copy(gData, " \f\n\r\t\v");
@@ -103,8 +107,15 @@ void *frontendservicesesion(void *dummyPt)
 
             if(utils.fileExists(path, sessionargs)){
                 std::cout << "Path exists" << endl;
+                SQLiteDBInterface *sqlite = &sessionargs->sqlite;
+                string sqlStatement =
+                        "INSERT INTO graph (name,upload_path,upload_start_time,upload_end_time,graph_status_idgraph_status,"
+                        "vertexcount,centralpartitioncount,edgecount) VALUES(\"" + name + "\", \"" + path +
+                                "\", \"" + uploadStartTime + "\", \"\",\"UPLOADING\", \"\", \"\", \"\")";
+                int newGraphID = sqlite->runInsert(sqlStatement);
                 MetisPartitioner* partitioner = new MetisPartitioner(&sessionargs->sqlite);
-                partitioner->loadDataSet(path, utils.getJasmineGraphProperty("org.jasminegraph.server.runtime.location").c_str());
+                //partitioner->loadDataSet(path, utils.getJasmineGraphProperty("org.jasminegraph.server.runtime.location").c_str());
+                partitioner->loadDataSet(path, utils.getJasmineGraphProperty("org.jasminegraph.server.runtime.location").c_str(),newGraphID);
                 partitioner->constructMetisFormat();
                 partitioner->partitioneWithGPMetis();
             }else{

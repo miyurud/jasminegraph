@@ -69,6 +69,32 @@ vector<vector<pair<string, string> >> SQLiteDBInterface::runSelect(std::string q
     }
 }
 
+// This function inserts a new row to the DB and returns the last inserted row id
+int SQLiteDBInterface::runInsert(std::string query) {
+    char *zErrMsg = 0;
+
+    int rc = sqlite3_exec(database, query.c_str(), NULL, NULL, NULL);
+
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "SQL error: %s\n", zErrMsg);
+        sqlite3_free(zErrMsg);
+    } else {
+        fprintf(stdout, "Insert operation done successfully\n");
+
+        vector<vector<pair<string, string>>> dbResults;
+        string q2 = "SELECT last_insert_rowid();";
+
+        int rc2 = sqlite3_exec(database, q2.c_str(), callback, &dbResults, &zErrMsg);
+
+        if (rc2 != SQLITE_OK) {
+            fprintf(stderr, "SQL error: %s\n", zErrMsg);
+            sqlite3_free(zErrMsg);
+        } else {
+            return std::stoi(dbResults[0][0].second);
+        }
+    }
+}
+
 int SQLiteDBInterface::RunSqlNoCallback(const char * zSql)
 {
     sqlite3_stmt *stmt = NULL;

@@ -13,6 +13,7 @@ limitations under the License.
 
 #include <vector>
 #include <sstream>
+#include <sys/stat.h>
 #include "Utils.h"
 #include "../frontend/JasmineGraphFrontEnd.h"
 
@@ -198,6 +199,19 @@ void Utils::compressFile(const std::string filePath) {
         // handle error
     }
 }
+
+/**
+ * This method creates a new directory if it does not exist
+ * @param dirName
+ */
+void Utils::createDirectory(const std::string dirName) {
+    if (mkdir(dirName.c_str(), 0777) == -1) {
+        //std::cout << "Error : " << strerror(errno) << endl;
+    } else {
+        std::cout << "Directory created" << endl;
+    }
+}
+
 
 
 

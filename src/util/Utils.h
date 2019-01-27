@@ -33,6 +33,7 @@ public:
     bool parseBoolean(const std::string str);
     bool fileExists(const std::string fileName, frontendservicesessionargs* ptr);
     void compressFile(const std::string filePath);
+    void createDirectory(const std::string dirName);
 };
 
 

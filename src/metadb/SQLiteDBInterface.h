@@ -25,6 +25,7 @@ public:
     int init();
     int finalize();
     std::vector<std::vector<std::pair<std::string,std::string>>> runSelect(std::string);
+    int runInsert(std::string);
     int RunSqlNoCallback(const char * zSql);
     SQLiteDBInterface();
 };
