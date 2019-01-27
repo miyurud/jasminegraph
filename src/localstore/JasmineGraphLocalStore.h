@@ -25,13 +25,21 @@ class JasmineGraphLocalStore {
 private:
 public:
     bool loadGraph();
+
     bool storeGraph();
+
     map<long, unordered_set<long>> getUnderlyingHashMap();
+
     map<long, long> getOutDegreeDistributionHashMap();
+
     void initialize();
-    void addVertex(string* attributes);
+
+    void addVertex(string *attributes);
+
     void addEdge(long startVid, long endVid);
+
     long getVertexCount();
+
     long getEdgeCount();
 };
 

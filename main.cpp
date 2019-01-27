@@ -19,13 +19,12 @@ limitations under the License.
 #include "src/server/JasmineGraphInstance.h"
 
 unsigned int microseconds = 10000000;
-JasmineGraphServer* server;
-JasmineGraphInstance* instance;
+JasmineGraphServer *server;
+JasmineGraphInstance *instance;
 
-void fnExit3 (void)
-{
-    delete(server);
-    puts ("Shutting down the server.");
+void fnExit3(void) {
+    delete (server);
+    puts("Shutting down the server.");
 }
 
 
@@ -34,7 +33,7 @@ int main(int argc, char *argv[]) {
 
     if (argc == 1) {
         std::cout << "Need one argument. Use argument 1 to start JasmineGraph in Master mode. Use any other integer to "
-                     << "start as worker." << std::endl;
+                  << "start as worker." << std::endl;
         return -1;
     }
 

@@ -24,9 +24,13 @@ private:
     map<std::string, JasmineGraphLocalStore> graphDBMapLocalStores;
 public:
     void start_running();
+
     void registerShutdownHook();
+
     void truncate();
+
     void shutdown();
+
     bool isRunning();
 };
 

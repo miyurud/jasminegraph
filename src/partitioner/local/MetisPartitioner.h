@@ -34,11 +34,14 @@ using std::string;
 
 class MetisPartitioner {
 public:
-    void loadDataSet(string inputFilePath, string outputFilePath);
+    void loadDataSet(string inputFilePath, string outputFilePath, int graphID);
+
     //void partitionGraph();
     void constructMetisFormat();
+
     void partitioneWithGPMetis();
-    MetisPartitioner(SQLiteDBInterface*);
+
+    MetisPartitioner(SQLiteDBInterface *);
 
 private:
     idx_t edgeCount = 0;
@@ -49,13 +52,14 @@ private:
     string outputFilePath;
     bool zeroflag = false;
     SQLiteDBInterface sqlite;
+    int graphID;
+    Utils utils;
 
-
-    std::map<int,std::vector<int>> graphStorageMap;
-    std::map<int,std::vector<int>> graphEdgeMap;
-    std::map<int,std::vector<int>> partVertexMap;
-    std::map<int,std::map<int,std::vector<int>>> partitionedLocalGraphStorageMap;
-    std::map<int,std::map<int,std::vector<int>>> masterGraphStorageMap;
+    std::map<int, std::vector<int>> graphStorageMap;
+    std::map<int, std::vector<int>> graphEdgeMap;
+    std::map<int, std::vector<int>> partVertexMap;
+    std::map<int, std::map<int, std::vector<int>>> partitionedLocalGraphStorageMap;
+    std::map<int, std::map<int, std::vector<int>>> masterGraphStorageMap;
     std::vector<int> xadj;
     std::vector<int> adjncy;
 

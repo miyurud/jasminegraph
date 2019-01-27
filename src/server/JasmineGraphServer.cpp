@@ -19,26 +19,23 @@ limitations under the License.
 #include "../frontend/JasmineGraphFrontEnd.h"
 #include "../util/Utils.h"
 
-void *runfrontend(void *dummyPt){
-    JasmineGraphServer* refToServer = (JasmineGraphServer*) dummyPt;
+void *runfrontend(void *dummyPt) {
+    JasmineGraphServer *refToServer = (JasmineGraphServer *) dummyPt;
     refToServer->frontend = new JasmineGraphFrontEnd(refToServer->sqlite);
     refToServer->frontend->run();
 }
 
 
-JasmineGraphServer::JasmineGraphServer()
-{
+JasmineGraphServer::JasmineGraphServer() {
 
 }
 
-JasmineGraphServer::~JasmineGraphServer()
-{
-    puts ("Freeing up server resources.");
+JasmineGraphServer::~JasmineGraphServer() {
+    puts("Freeing up server resources.");
     sqlite.finalize();
 }
 
-int JasmineGraphServer::run()
-{
+int JasmineGraphServer::run() {
     std::cout << "Running the server..." << std::endl;
 
     this->sqlite = *new SQLiteDBInterface();
@@ -52,10 +49,10 @@ bool JasmineGraphServer::isRunning() {
     return true;
 }
 
-void JasmineGraphServer::init()
-{
+void JasmineGraphServer::init() {
     Utils utils;
-    std::map<string, string> result = utils.getBatchUploadFileList(utils.getJasmineGraphProperty("org.jasminegraph.batchupload.file.path"));
+    std::map<string, string> result = utils.getBatchUploadFileList(
+            utils.getJasmineGraphProperty("org.jasminegraph.batchupload.file.path"));
 
     if (result.size() != 0) {
         std::map<std::string, std::string>::iterator iterator1 = result.begin();
@@ -71,13 +68,13 @@ void JasmineGraphServer::init()
     pthread_create(&frontendthread, NULL, runfrontend, this);
 }
 
-void JasmineGraphServer::start_workers(){
+void JasmineGraphServer::start_workers() {
     Utils utils;
     std::vector<std::string> hostsList = utils.getHostList();
     std::vector<std::string>::iterator it;
     it = hostsList.begin();
 
-    for (it=hostsList.begin(); it<hostsList.end(); it++) {
+    for (it = hostsList.begin(); it < hostsList.end(); it++) {
         std::string item = *it;
         std::cout << "===>>>" << item << std::endl;
 

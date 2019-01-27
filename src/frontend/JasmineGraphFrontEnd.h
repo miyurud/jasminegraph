@@ -37,6 +37,7 @@ public:
     JasmineGraphFrontEnd(SQLiteDBInterface db);
 
     int run();
+
     static bool fileExists(const std::string fileName);
 
     static bool graphExists(std::string basic_string, void *dummyPt);

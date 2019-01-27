@@ -5,12 +5,25 @@
 #include "RDFPartitioner.h"
 
 
-void RDFPartitioner::convert(string graphName, string graphID, string:inputFilePath, string outputFilePath, int nParts, bool isDistributedCentralPartitions, int nThreads, int nPlaces) {
-    convertWithoutDistribution(graphName, graphID, inputFilePath, outputFilePath, nParts, isDistributedCentralPartitions, nThreads, nPlaces);
-    distributeEdges();
+void RDFPartitioner::convert(string graphName, string graphID, string
+
+:inputFilePath,
+string outputFilePath,
+int nParts,
+bool isDistributedCentralPartitions,
+int nThreads,
+int nPlaces
+) {
+convertWithoutDistribution(graphName, graphID, inputFilePath, outputFilePath, nParts, isDistributedCentralPartitions, nThreads, nPlaces
+);
+
+distributeEdges();
+
 }
 
-void MetisPartitioner:: convertWithoutDistribution(string graphName, string graphID, string inputFilePath, string outputFilePath, int nParts, bool isDistributedCentralPartitions, int nThreads, int nPlaces){
+void MetisPartitioner::convertWithoutDistribution(string graphName, string graphID, string inputFilePath,
+                                                  string outputFilePath, int nParts,
+                                                  bool isDistributedCentralPartitions, int nThreads, int nPlaces) {
     this.outputFilePath = outputFilePath;
     this.nParts = nParts;
     this.graphName = graphName;
@@ -33,10 +46,10 @@ void MetisPartitioner:: convertWithoutDistribution(string graphName, string grap
 
 }
 
-void distributeEdges(){
+void distributeEdges() {
     //method implementation
 }
 
-void loadDataSet(){
+void loadDataSet() {
 
 }

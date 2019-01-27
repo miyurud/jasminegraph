@@ -13,14 +13,16 @@ limitations under the License.
 
 #include "MetisPartitioner.h"
 
-MetisPartitioner::MetisPartitioner(SQLiteDBInterface * sqlite) {
+MetisPartitioner::MetisPartitioner(SQLiteDBInterface *sqlite) {
     this->sqlite = *sqlite;
 }
 
-void MetisPartitioner::loadDataSet(string inputFilePath, string outputFilePath) {
+void MetisPartitioner::loadDataSet(string inputFilePath, string outputFilePath, int graphID) {
+    this->graphID = graphID;
     this->outputFilePath = outputFilePath;
+    this->utils.createDirectory("/tmp/" + std::to_string(this->graphID));
     std::ifstream dbFile;
-    dbFile.open(inputFilePath,std::ios::binary | std::ios::in);
+    dbFile.open(inputFilePath, std::ios::binary | std::ios::in);
 
     int firstVertex = -1;
     int secondVertex = -1;
@@ -69,19 +71,19 @@ void MetisPartitioner::loadDataSet(string inputFilePath, string outputFilePath) 
             vertexEdgeSet.push_back(secondVertex);
 
         } else {
-            if (std::find(firstEdgeSet.begin(),firstEdgeSet.end(),secondVertex) == firstEdgeSet.end()) {
+            if (std::find(firstEdgeSet.begin(), firstEdgeSet.end(), secondVertex) == firstEdgeSet.end()) {
                 firstEdgeSet.push_back(secondVertex);
                 vertexEdgeSet.push_back(secondVertex);
                 edgeCount++;
             }
         }
 
-        if (secondEdgeSet.empty()){
+        if (secondEdgeSet.empty()) {
             vertexCount++;
             secondEdgeSet.push_back(firstVertex);
 
         } else {
-            if (std::find(secondEdgeSet.begin(),secondEdgeSet.end(),firstVertex) == secondEdgeSet.end()) {
+            if (std::find(secondEdgeSet.begin(), secondEdgeSet.end(), firstVertex) == secondEdgeSet.end()) {
                 secondEdgeSet.push_back(firstVertex);
             }
         }
@@ -100,7 +102,7 @@ void MetisPartitioner::loadDataSet(string inputFilePath, string outputFilePath) 
         }
 
         std::getline(dbFile, line);
-        while(!line.empty() && line.find_first_not_of(splitter) == std::string::npos) {
+        while (!line.empty() && line.find_first_not_of(splitter) == std::string::npos) {
             std::getline(dbFile, line);
         }
     }
@@ -110,11 +112,13 @@ void MetisPartitioner::loadDataSet(string inputFilePath, string outputFilePath) 
 void MetisPartitioner::constructMetisFormat() {
     int adjacencyIndex = 0;
     std::ofstream outputFile;
-    outputFile.open("/tmp/grf");
+    //outputFile.open("/tmp/grf");
+    string outputFileName = "/tmp/" + std::to_string(this->graphID) + "/grf";
+    outputFile.open(outputFileName);
 
-    if (zeroflag){
+    if (zeroflag) {
         outputFile << (++vertexCount) << ' ' << (edgeCount) << std::endl;
-    }else{
+    } else {
         outputFile << (vertexCount) << ' ' << (edgeCount) << std::endl;
     }
 
@@ -140,7 +144,9 @@ void MetisPartitioner::partitioneWithGPMetis() {
     char buffer[128];
     std::string result = "";
     FILE *headerModify;
-    FILE *input = popen("gpmetis /tmp/grf 4 2>&1", "r");
+    //FILE *input = popen("gpmetis /tmp/grf 4 2>&1", "r");
+    string metisCommand = "gpmetis /tmp/" + std::to_string(this->graphID) + "/grf 4 2>&1";
+    FILE *input = popen(metisCommand.c_str(), "r");
     if (input) {
         // read the input
         while (!feof(input)) {
@@ -150,19 +156,21 @@ void MetisPartitioner::partitioneWithGPMetis() {
         }
         pclose(input);
         if (!result.empty() && result.find("Premature") != std::string::npos) {
-            vertexCount-=1;
-            string newHeader = std::to_string(vertexCount)+ ' '+ std::to_string(edgeCount);
-            string command = "sed -i \"1s/.*/" + newHeader +"/\" /tmp/grf";
-            char * newHeaderChar = new char [command.length()+1];
-            strcpy(newHeaderChar,command.c_str());
+            vertexCount -= 1;
+            string newHeader = std::to_string(vertexCount) + ' ' + std::to_string(edgeCount);
+            //string command = "sed -i \"1s/.*/" + newHeader +"/\" /tmp/grf";
+            string command = "sed -i \"1s/.*/" + newHeader + "/\" /tmp/" + std::to_string(this->graphID) + "/grf";
+            char *newHeaderChar = new char[command.length() + 1];
+            strcpy(newHeaderChar, command.c_str());
             headerModify = popen(newHeaderChar, "r");
             partitioneWithGPMetis();
         } else if (!result.empty() && result.find("out of bounds") != std::string::npos) {
-            vertexCount+=1;
-            string newHeader = std::to_string(vertexCount)+ ' '+ std::to_string(edgeCount);
-            string command = "sed -i \"1s/.*/" + newHeader +"/\" /tmp/grf";
-            char * newHeaderChar = new char [command.length()+1];
-            strcpy(newHeaderChar,command.c_str());
+            vertexCount += 1;
+            string newHeader = std::to_string(vertexCount) + ' ' + std::to_string(edgeCount);
+            //string command = "sed -i \"1s/.*/" + newHeader +"/\" /tmp/grf";
+            string command = "sed -i \"1s/.*/" + newHeader + "/\" /tmp/" + std::to_string(this->graphID) + "/grf";
+            char *newHeaderChar = new char[command.length() + 1];
+            strcpy(newHeaderChar, command.c_str());
             headerModify = popen(newHeaderChar, "r");
             partitioneWithGPMetis();
             //However, I only found
@@ -171,20 +179,24 @@ void MetisPartitioner::partitioneWithGPMetis() {
             string secondDelimite = "edges in the file";
             unsigned first = result.find(firstDelimiter);
             unsigned last = result.find(secondDelimite);
-            string newEdgeSize = result.substr (first+firstDelimiter.length()+1,last-(first+firstDelimiter.length())-2);
-            string newHeader = std::to_string(vertexCount)+ ' '+ newEdgeSize;
-            string command = "sed -i \"1s/.*/" + newHeader +"/\" /tmp/grf";
-            char * newHeaderChar = new char [command.length()+1];
-            strcpy(newHeaderChar,command.c_str());
+            string newEdgeSize = result.substr(first + firstDelimiter.length() + 1,
+                                               last - (first + firstDelimiter.length()) - 2);
+            string newHeader = std::to_string(vertexCount) + ' ' + newEdgeSize;
+            //string command = "sed -i \"1s/.*/" + newHeader +"/\" /tmp/grf";
+            string command = "sed -i \"1s/.*/" + newHeader + "/\" /tmp/" + std::to_string(this->graphID) + "/grf";
+            char *newHeaderChar = new char[command.length() + 1];
+            strcpy(newHeaderChar, command.c_str());
             headerModify = popen(newHeaderChar, "r");
             partitioneWithGPMetis();
             //However, I only found
         } else if (!result.empty() && result.find("Timing Information") != std::string::npos) {
             idx_t partIndex[vertexCount];
             std::string line;
-            std::ifstream infile("/tmp/grf.part.4");
+            string fileName = "/tmp/" + std::to_string(this->graphID) + "/grf.part.4";
+            std::ifstream infile(fileName);
+            //std::ifstream infile("/tmp/grf.part.4");
             int counter = 0;
-            while (std::getline(infile, line)){
+            while (std::getline(infile, line)) {
                 std::istringstream iss(line);
                 int a;
                 if (!(iss >> a)) {
@@ -199,7 +211,6 @@ void MetisPartitioner::partitioneWithGPMetis() {
         }
 
 
-
         perror("popen");
     } else {
         perror("popen");
@@ -208,11 +219,10 @@ void MetisPartitioner::partitioneWithGPMetis() {
 }
 
 void MetisPartitioner::createPartitionFiles(idx_t *part) {
-    Utils utils;
-    std::vector<std::vector<std::pair<string,string>>> v = this->sqlite.runSelect("SELECT idgraph FROM graph ORDER BY idgraph LIMIT 1;");
-    int newGraphID = atoi(v.at(0).at(0).second.c_str()) + 1;
+//    std::vector<std::vector<std::pair<string,string>>> v = this->sqlite.runSelect("SELECT idgraph FROM graph ORDER BY idgraph LIMIT 1;");
+//    int newGraphID = atoi(v.at(0).at(0).second.c_str()) + 1;
 
-    for (int vertex = 0;vertex<vertexCount;vertex++) {
+    for (int vertex = 0; vertex < vertexCount; vertex++) {
         idx_t vertexPart = part[vertex];
 
         std::vector<int> partVertexSet = partVertexMap[vertexPart];
@@ -222,7 +232,7 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
         partVertexMap[vertexPart] = partVertexSet;
     }
 
-    for (int vertex = 0;vertex<vertexCount;vertex++) {
+    for (int vertex = 0; vertex < vertexCount; vertex++) {
         std::vector<int> vertexEdgeSet = graphEdgeMap[vertex];
         idx_t firstVertexPart = part[vertex];
 
@@ -233,13 +243,13 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
                 int secondVertexPart = part[secondVertex];
 
                 if (firstVertexPart == secondVertexPart) {
-                    std::map<int,std::vector<int>> partEdgesSet = partitionedLocalGraphStorageMap[firstVertexPart];
+                    std::map<int, std::vector<int>> partEdgesSet = partitionedLocalGraphStorageMap[firstVertexPart];
                     std::vector<int> edgeSet = partEdgesSet[vertex];
                     edgeSet.push_back(secondVertex);
                     partEdgesSet[vertex] = edgeSet;
                     partitionedLocalGraphStorageMap[firstVertexPart] = partEdgesSet;
                 } else {
-                    std::map<int,std::vector<int>> partMasterEdgesSet = masterGraphStorageMap[firstVertexPart];
+                    std::map<int, std::vector<int>> partMasterEdgesSet = masterGraphStorageMap[firstVertexPart];
                     std::vector<int> edgeSet = partMasterEdgesSet[vertex];
                     edgeSet.push_back(secondVertex);
                     partMasterEdgesSet[vertex] = edgeSet;
@@ -249,9 +259,12 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
         }
     }
 
-    for (int part = 0;part<nParts;part++) {
-        string outputFilePart = outputFilePath + "/" + std::to_string(newGraphID) + "_" + std::to_string(part);
-        string outputFilePartMaster = outputFilePath + "/" + std::to_string(newGraphID) + "_centralstore_" + std::to_string(part);
+    for (int part = 0; part < nParts; part++) {
+//        string outputFilePart = outputFilePath + "/" + std::to_string(newGraphID) + "_" + std::to_string(part);
+//        string outputFilePartMaster = outputFilePath + "/" + std::to_string(newGraphID) + "_centralstore_" + std::to_string(part);
+        string outputFilePart = outputFilePath + "/" + std::to_string(this->graphID) + "_" + std::to_string(part);
+        string outputFilePartMaster =
+                outputFilePath + "/" + std::to_string(this->graphID) + "_centralstore_" + std::to_string(part);
 
         std::map<int, std::vector<int>> partEdgeMap = partitionedLocalGraphStorageMap[part];
         std::map<int, std::vector<int>> partMasterEdgeMap = masterGraphStorageMap[part];
@@ -298,7 +311,7 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
         }
 
         //Compress part files
-        utils.compressFile(outputFilePart);
-        utils.compressFile(outputFilePartMaster);
+        this->utils.compressFile(outputFilePart);
+        this->utils.compressFile(outputFilePartMaster);
     }
 }

@@ -24,17 +24,26 @@ using std::map;
 class Utils {
 public:
     map<std::string, std::string> getBatchUploadFileList(std::string file);
-    std::string getJasmineGraphProperty(std::string key);
-    std::vector<std::string> getHostList();
-    std::vector<std::string> getFileContent(std::string);
-    static std::vector<std::string> split(const std::string&, char delimiter);
-    std::string trim_copy(const std::string&,
-                          const std::string& );
-    bool parseBoolean(const std::string str);
-    bool fileExists(const std::string fileName, frontendservicesessionargs* ptr);
-    void compressFile(const std::string filePath);
-};
 
+    std::string getJasmineGraphProperty(std::string key);
+
+    std::vector<std::string> getHostList();
+
+    std::vector<std::string> getFileContent(std::string);
+
+    static std::vector<std::string> split(const std::string &, char delimiter);
+
+    std::string trim_copy(const std::string &,
+                          const std::string &);
+
+    bool parseBoolean(const std::string str);
+
+    bool fileExists(const std::string fileName, frontendservicesessionargs *ptr);
+
+    void compressFile(const std::string filePath);
+
+    void createDirectory(const std::string dirName);
+};
 
 
 #endif //JASMINEGRAPH_UTILS_H

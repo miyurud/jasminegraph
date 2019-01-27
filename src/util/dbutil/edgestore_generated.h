@@ -7,160 +7,176 @@
 #include "flatbuffers/flatbuffers.h"
 
 namespace JasmineGraph {
-namespace Edgestore {
+    namespace Edgestore {
 
-struct EdgeStore;
+        struct EdgeStore;
 
-struct EdgeStoreEntry;
+        struct EdgeStoreEntry;
 
-struct EdgeStore FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  enum {
-    VT_ENTRIES = 4
-  };
-  const flatbuffers::Vector<flatbuffers::Offset<EdgeStoreEntry>> *entries() const {
-    return GetPointer<const flatbuffers::Vector<flatbuffers::Offset<EdgeStoreEntry>> *>(VT_ENTRIES);
-  }
-  bool Verify(flatbuffers::Verifier &verifier) const {
-    return VerifyTableStart(verifier) &&
-           VerifyOffset(verifier, VT_ENTRIES) &&
-           verifier.VerifyVector(entries()) &&
-           verifier.VerifyVectorOfTables(entries()) &&
-           verifier.EndTable();
-  }
-};
+        struct EdgeStore FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+            enum {
+                VT_ENTRIES = 4
+            };
 
-struct EdgeStoreBuilder {
-  flatbuffers::FlatBufferBuilder &fbb_;
-  flatbuffers::uoffset_t start_;
-  void add_entries(flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<EdgeStoreEntry>>> entries) {
-    fbb_.AddOffset(EdgeStore::VT_ENTRIES, entries);
-  }
-  explicit EdgeStoreBuilder(flatbuffers::FlatBufferBuilder &_fbb)
-        : fbb_(_fbb) {
-    start_ = fbb_.StartTable();
-  }
-  EdgeStoreBuilder &operator=(const EdgeStoreBuilder &);
-  flatbuffers::Offset<EdgeStore> Finish() {
-    const auto end = fbb_.EndTable(start_);
-    auto o = flatbuffers::Offset<EdgeStore>(end);
-    return o;
-  }
-};
+            const flatbuffers::Vector<flatbuffers::Offset<EdgeStoreEntry>> *entries() const {
+                return GetPointer<const flatbuffers::Vector<flatbuffers::Offset<EdgeStoreEntry>> *>(VT_ENTRIES);
+            }
 
-inline flatbuffers::Offset<EdgeStore> CreateEdgeStore(
-    flatbuffers::FlatBufferBuilder &_fbb,
-    flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<EdgeStoreEntry>>> entries = 0) {
-  EdgeStoreBuilder builder_(_fbb);
-  builder_.add_entries(entries);
-  return builder_.Finish();
-}
+            bool Verify(flatbuffers::Verifier &verifier) const {
+                return VerifyTableStart(verifier) &&
+                       VerifyOffset(verifier, VT_ENTRIES) &&
+                       verifier.VerifyVector(entries()) &&
+                       verifier.VerifyVectorOfTables(entries()) &&
+                       verifier.EndTable();
+            }
+        };
 
-inline flatbuffers::Offset<EdgeStore> CreateEdgeStoreDirect(
-    flatbuffers::FlatBufferBuilder &_fbb,
-    const std::vector<flatbuffers::Offset<EdgeStoreEntry>> *entries = nullptr) {
-  return JasmineGraph::Edgestore::CreateEdgeStore(
-      _fbb,
-      entries ? _fbb.CreateVector<flatbuffers::Offset<EdgeStoreEntry>>(*entries) : 0);
-}
+        struct EdgeStoreBuilder {
+            flatbuffers::FlatBufferBuilder &fbb_;
+            flatbuffers::uoffset_t start_;
 
-struct EdgeStoreEntry FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  enum {
-    VT_KEY = 4,
-    VT_VALUE = 6
-  };
-  int64_t key() const {
-    return GetField<int64_t>(VT_KEY, 0);
-  }
-  bool KeyCompareLessThan(const EdgeStoreEntry *o) const {
-    return key() < o->key();
-  }
-  int KeyCompareWithValue(int64_t val) const {
-    return static_cast<int>(key() > val) - static_cast<int>(key() < val);
-  }
-  const flatbuffers::Vector<int64_t> *value() const {
-    return GetPointer<const flatbuffers::Vector<int64_t> *>(VT_VALUE);
-  }
-  bool Verify(flatbuffers::Verifier &verifier) const {
-    return VerifyTableStart(verifier) &&
-           VerifyField<int64_t>(verifier, VT_KEY) &&
-           VerifyOffset(verifier, VT_VALUE) &&
-           verifier.VerifyVector(value()) &&
-           verifier.EndTable();
-  }
-};
+            void add_entries(flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<EdgeStoreEntry>>> entries) {
+                fbb_.AddOffset(EdgeStore::VT_ENTRIES, entries);
+            }
 
-struct EdgeStoreEntryBuilder {
-  flatbuffers::FlatBufferBuilder &fbb_;
-  flatbuffers::uoffset_t start_;
-  void add_key(int64_t key) {
-    fbb_.AddElement<int64_t>(EdgeStoreEntry::VT_KEY, key, 0);
-  }
-  void add_value(flatbuffers::Offset<flatbuffers::Vector<int64_t>> value) {
-    fbb_.AddOffset(EdgeStoreEntry::VT_VALUE, value);
-  }
-  explicit EdgeStoreEntryBuilder(flatbuffers::FlatBufferBuilder &_fbb)
-        : fbb_(_fbb) {
-    start_ = fbb_.StartTable();
-  }
-  EdgeStoreEntryBuilder &operator=(const EdgeStoreEntryBuilder &);
-  flatbuffers::Offset<EdgeStoreEntry> Finish() {
-    const auto end = fbb_.EndTable(start_);
-    auto o = flatbuffers::Offset<EdgeStoreEntry>(end);
-    return o;
-  }
-};
+            explicit EdgeStoreBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+                    : fbb_(_fbb) {
+                start_ = fbb_.StartTable();
+            }
 
-inline flatbuffers::Offset<EdgeStoreEntry> CreateEdgeStoreEntry(
-    flatbuffers::FlatBufferBuilder &_fbb,
-    int64_t key = 0,
-    flatbuffers::Offset<flatbuffers::Vector<int64_t>> value = 0) {
-  EdgeStoreEntryBuilder builder_(_fbb);
-  builder_.add_key(key);
-  builder_.add_value(value);
-  return builder_.Finish();
-}
+            EdgeStoreBuilder &operator=(const EdgeStoreBuilder &);
 
-inline flatbuffers::Offset<EdgeStoreEntry> CreateEdgeStoreEntryDirect(
-    flatbuffers::FlatBufferBuilder &_fbb,
-    int64_t key = 0,
-    const std::vector<int64_t> *value = nullptr) {
-  return JasmineGraph::Edgestore::CreateEdgeStoreEntry(
-      _fbb,
-      key,
-      value ? _fbb.CreateVector<int64_t>(*value) : 0);
-}
+            flatbuffers::Offset<EdgeStore> Finish() {
+                const auto end = fbb_.EndTable(start_);
+                auto o = flatbuffers::Offset<EdgeStore>(end);
+                return o;
+            }
+        };
 
-inline const JasmineGraph::Edgestore::EdgeStore *GetEdgeStore(const void *buf) {
-  return flatbuffers::GetRoot<JasmineGraph::Edgestore::EdgeStore>(buf);
-}
+        inline flatbuffers::Offset<EdgeStore> CreateEdgeStore(
+                flatbuffers::FlatBufferBuilder &_fbb,
+                flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<EdgeStoreEntry>>> entries = 0) {
+            EdgeStoreBuilder builder_(_fbb);
+            builder_.add_entries(entries);
+            return builder_.Finish();
+        }
 
-inline const JasmineGraph::Edgestore::EdgeStore *GetSizePrefixedEdgeStore(const void *buf) {
-  return flatbuffers::GetSizePrefixedRoot<JasmineGraph::Edgestore::EdgeStore>(buf);
-}
+        inline flatbuffers::Offset<EdgeStore> CreateEdgeStoreDirect(
+                flatbuffers::FlatBufferBuilder &_fbb,
+                const std::vector<flatbuffers::Offset<EdgeStoreEntry>> *entries = nullptr) {
+            return JasmineGraph::Edgestore::CreateEdgeStore(
+                    _fbb,
+                    entries ? _fbb.CreateVector<flatbuffers::Offset<EdgeStoreEntry>>(*entries) : 0);
+        }
 
-inline bool VerifyEdgeStoreBuffer(
-    flatbuffers::Verifier &verifier) {
-  return verifier.VerifyBuffer<JasmineGraph::Edgestore::EdgeStore>(nullptr);
-}
+        struct EdgeStoreEntry FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+            enum {
+                VT_KEY = 4,
+                VT_VALUE = 6
+            };
 
-inline bool VerifySizePrefixedEdgeStoreBuffer(
-    flatbuffers::Verifier &verifier) {
-  return verifier.VerifySizePrefixedBuffer<JasmineGraph::Edgestore::EdgeStore>(nullptr);
-}
+            int64_t key() const {
+                return GetField<int64_t>(VT_KEY, 0);
+            }
 
-inline void FinishEdgeStoreBuffer(
-    flatbuffers::FlatBufferBuilder &fbb,
-    flatbuffers::Offset<JasmineGraph::Edgestore::EdgeStore> root) {
-  fbb.Finish(root);
-}
+            bool KeyCompareLessThan(const EdgeStoreEntry *o) const {
+                return key() < o->key();
+            }
 
-inline void FinishSizePrefixedEdgeStoreBuffer(
-    flatbuffers::FlatBufferBuilder &fbb,
-    flatbuffers::Offset<JasmineGraph::Edgestore::EdgeStore> root) {
-  fbb.FinishSizePrefixed(root);
-}
+            int KeyCompareWithValue(int64_t val) const {
+                return static_cast<int>(key() > val) - static_cast<int>(key() < val);
+            }
 
-}  // namespace Edgestore
+            const flatbuffers::Vector<int64_t> *value() const {
+                return GetPointer<const flatbuffers::Vector<int64_t> *>(VT_VALUE);
+            }
+
+            bool Verify(flatbuffers::Verifier &verifier) const {
+                return VerifyTableStart(verifier) &&
+                       VerifyField<int64_t>(verifier, VT_KEY) &&
+                       VerifyOffset(verifier, VT_VALUE) &&
+                       verifier.VerifyVector(value()) &&
+                       verifier.EndTable();
+            }
+        };
+
+        struct EdgeStoreEntryBuilder {
+            flatbuffers::FlatBufferBuilder &fbb_;
+            flatbuffers::uoffset_t start_;
+
+            void add_key(int64_t key) {
+                fbb_.AddElement<int64_t>(EdgeStoreEntry::VT_KEY, key, 0);
+            }
+
+            void add_value(flatbuffers::Offset<flatbuffers::Vector<int64_t>> value) {
+                fbb_.AddOffset(EdgeStoreEntry::VT_VALUE, value);
+            }
+
+            explicit EdgeStoreEntryBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+                    : fbb_(_fbb) {
+                start_ = fbb_.StartTable();
+            }
+
+            EdgeStoreEntryBuilder &operator=(const EdgeStoreEntryBuilder &);
+
+            flatbuffers::Offset<EdgeStoreEntry> Finish() {
+                const auto end = fbb_.EndTable(start_);
+                auto o = flatbuffers::Offset<EdgeStoreEntry>(end);
+                return o;
+            }
+        };
+
+        inline flatbuffers::Offset<EdgeStoreEntry> CreateEdgeStoreEntry(
+                flatbuffers::FlatBufferBuilder &_fbb,
+                int64_t key = 0,
+                flatbuffers::Offset<flatbuffers::Vector<int64_t>> value = 0) {
+            EdgeStoreEntryBuilder builder_(_fbb);
+            builder_.add_key(key);
+            builder_.add_value(value);
+            return builder_.Finish();
+        }
+
+        inline flatbuffers::Offset<EdgeStoreEntry> CreateEdgeStoreEntryDirect(
+                flatbuffers::FlatBufferBuilder &_fbb,
+                int64_t key = 0,
+                const std::vector<int64_t> *value = nullptr) {
+            return JasmineGraph::Edgestore::CreateEdgeStoreEntry(
+                    _fbb,
+                    key,
+                    value ? _fbb.CreateVector<int64_t>(*value) : 0);
+        }
+
+        inline const JasmineGraph::Edgestore::EdgeStore *GetEdgeStore(const void *buf) {
+            return flatbuffers::GetRoot<JasmineGraph::Edgestore::EdgeStore>(buf);
+        }
+
+        inline const JasmineGraph::Edgestore::EdgeStore *GetSizePrefixedEdgeStore(const void *buf) {
+            return flatbuffers::GetSizePrefixedRoot<JasmineGraph::Edgestore::EdgeStore>(buf);
+        }
+
+        inline bool VerifyEdgeStoreBuffer(
+                flatbuffers::Verifier &verifier) {
+            return verifier.VerifyBuffer<JasmineGraph::Edgestore::EdgeStore>(nullptr);
+        }
+
+        inline bool VerifySizePrefixedEdgeStoreBuffer(
+                flatbuffers::Verifier &verifier) {
+            return verifier.VerifySizePrefixedBuffer<JasmineGraph::Edgestore::EdgeStore>(nullptr);
+        }
+
+        inline void FinishEdgeStoreBuffer(
+                flatbuffers::FlatBufferBuilder &fbb,
+                flatbuffers::Offset<JasmineGraph::Edgestore::EdgeStore> root) {
+            fbb.Finish(root);
+        }
+
+        inline void FinishSizePrefixedEdgeStoreBuffer(
+                flatbuffers::FlatBufferBuilder &fbb,
+                flatbuffers::Offset<JasmineGraph::Edgestore::EdgeStore> root) {
+            fbb.FinishSizePrefixed(root);
+        }
+
+    }  // namespace Edgestore
 }  // namespace JasminGraph
 
 #endif  // FLATBUFFERS_GENERATED_EDGESTORE_JASMINGRAPH_EDGESTORE_H_

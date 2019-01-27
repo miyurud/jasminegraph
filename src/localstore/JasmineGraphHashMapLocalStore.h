@@ -12,7 +12,7 @@
 using namespace JasmineGraph::Edgestore;
 
 
-class JasmineGraphHashMapLocalStore:public JasmineGraphLocalStore {
+class JasmineGraphHashMapLocalStore : public JasmineGraphLocalStore {
 private:
     std::string VERTEX_STORE_NAME = "acacia.nodestore.db";
     std::string EDGE_STORE_NAME = "acacia.edgestore.db";
@@ -21,7 +21,7 @@ private:
     int graphId;
     int partitionId;
     std::string instanceDataFolderLocation;
-    std::map<long,std::unordered_set<long>> localSubGraphMap;
+    std::map<long, std::unordered_set<long>> localSubGraphMap;
 
     long vertexCount;
     long edgeCount;
@@ -29,21 +29,35 @@ private:
 
 
     std::string getFileSeparator();
+
     void toLocalSubGraphMap(const EdgeStore *edgeStoreData);
+
 public:
     JasmineGraphHashMapLocalStore(int graphid, int partitionid);
+
     JasmineGraphHashMapLocalStore(std::string folderLocation);
-    inline bool loadGraph() ;
-    bool storeGraph() ;
-    long getEdgeCount() ;
-    long getVertexCount() ;
-    void addEdge(long startVid, long endVid) ;
+
+    inline bool loadGraph();
+
+    bool storeGraph();
+
+    long getEdgeCount();
+
+    long getVertexCount();
+
+    void addEdge(long startVid, long endVid);
+
     unordered_set<long> getVertexSet();
-    int* getOutDegreeDistribution();
-    map<long, long> getOutDegreeDistributionHashMap() ;
-    map<long, unordered_set<long>> getUnderlyingHashMap() ;
-    void initialize() ;
-    void addVertex(string* attributes) ;
+
+    int *getOutDegreeDistribution();
+
+    map<long, long> getOutDegreeDistributionHashMap();
+
+    map<long, unordered_set<long>> getUnderlyingHashMap();
+
+    void initialize();
+
+    void addVertex(string *attributes);
 };
 
 

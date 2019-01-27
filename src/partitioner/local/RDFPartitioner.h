@@ -6,8 +6,6 @@
 #define JASMINEGRAPH_RDFPARTITIONER_H
 
 
-
-
 #include <string>
 #include <string.h>
 #include <fstream>
@@ -26,11 +24,21 @@
 using std::string;
 
 
-class RDFPartitioner  {
+class RDFPartitioner {
 public:
-    void convert(string graphName, string graphID, string:inputFilePath, string outputFilePath, int nParts, bool isDistributedCentralPartitions, int nThreads, int nPlaces);
-    void convertWithoutDistribution(string graphName, string graphID, string inputFilePath, string outputFilePath, int nParts, bool isDistributedCentralPartitions, int nThreads, int nPlaces);
+    void convert(string graphName, string graphID, string inputFilePath,
+                 string outputFilePath,
+                 int nParts,
+                 bool isDistributedCentralPartitions,
+                 int nThreads,
+                 int nPlaces
+    );
+
+    void convertWithoutDistribution(string graphName, string graphID, string inputFilePath, string outputFilePath,
+                                    int nParts, bool isDistributedCentralPartitions, int nThreads, int nPlaces);
+
     void loadDataSet(string inputFilePath, string outputFilePath);
+
     void distributeEdges();
     //void partitionGraph();
 //    void constructMetisFormat();
