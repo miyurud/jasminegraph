@@ -30,6 +30,10 @@ limitations under the License.
 #include <pthread.h>
 #include "../metadb/SQLiteDBInterface.h"
 
+
+
+
+
 void *frontendservicesesion(void *dummyPt);
 
 class JasmineGraphFrontEnd {
@@ -37,8 +41,6 @@ public:
     JasmineGraphFrontEnd(SQLiteDBInterface db);
 
     int run();
-
-    static bool fileExists(const std::string fileName);
 
     static bool graphExists(std::string basic_string, void *dummyPt);
 
