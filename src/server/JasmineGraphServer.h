@@ -27,8 +27,12 @@ private:
     map<std::string, long> hostPlaceMap;
     JasmineGraphBackend* backend;
     int numberOfWorkers;
+    int serverPort;
+    int serverDataPort;
     std::map<std::string,std::vector<int>> workerPortsMap;
     std::map<std::string,std::vector<int>> workerDataPortsMap;
+
+    static void *startRemoteWorkers(void *threadData);
 public:
     ~JasmineGraphServer();
 

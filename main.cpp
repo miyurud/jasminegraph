@@ -31,14 +31,16 @@ void fnExit3(void) {
 int main(int argc, char *argv[]) {
     atexit(fnExit3);
 
-    if (argc == 1) {
-        std::cout << "Need one argument. Use argument 1 to start JasmineGraph in Master mode. Use any other integer to "
+    if (argc < 4) {
+        std::cout << "Need three arguments. Use argument '1 <serverPort> <serverDataPort>' to start JasmineGraph in Master mode. Use any other integer with <serverPort> <serverDataPort> to "
                   << "start as worker." << std::endl;
         return -1;
     }
 
 
     int mode = atoi(argv[1]);
+    int serverPort = atoi(argv[2]);
+    int serverDataPort = atoi(argv[3]);
 
     if (mode == Conts::JASMINEGRAPH_RUNTIME_PROFILE_MASTER) {
         server = new JasmineGraphServer();
@@ -51,7 +53,7 @@ int main(int argc, char *argv[]) {
         delete server;
     } else {
         instance = new JasmineGraphInstance();
-        instance->start_running();
+        instance->start_running(serverPort,serverDataPort);
 
         while (instance->isRunning()) {
             usleep(microseconds);

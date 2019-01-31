@@ -19,6 +19,12 @@ limitations under the License.
 #include "../frontend/JasmineGraphFrontEnd.h"
 #include "../util/Utils.h"
 
+struct workerPorts{
+    std::vector<int> workerPortsVector;
+    std::vector<int> workerDataPortsVector;
+    std::string host;
+};
+
 void *runfrontend(void *dummyPt) {
     JasmineGraphServer *refToServer = (JasmineGraphServer *) dummyPt;
     refToServer->frontend = new JasmineGraphFrontEnd(refToServer->sqlite);
@@ -94,7 +100,6 @@ void JasmineGraphServer::start_workers() {
     for (it = hostsList.begin(); it < hostsList.end(); it++) {
         std::string item = *it;
         int portCount = 0;
-        std::cout << "===>>>" << item << std::endl;
         std::vector<int> portVector = workerPortsMap[item];
         std::vector<int> dataPortVector = workerDataPortsMap[item];
 
@@ -117,5 +122,38 @@ void JasmineGraphServer::start_workers() {
         workerPortsMap[item] = portVector;
         workerDataPortsMap[item] = dataPortVector;
 
+    }
+
+    std::vector<std::string>::iterator hostListIterator;
+    hostListIterator = hostsList.begin();
+
+    pthread_t threadArray[hostsList.size()];
+    int count =0;
+
+    for (hostListIterator = hostsList.begin(); hostListIterator < hostsList.end(); hostListIterator++) {
+        std::string host = *it;
+        workerPorts workerPortsData;
+        workerPortsData.workerPortsVector = workerPortsMap[host];
+        workerPortsData.workerDataPortsVector = workerDataPortsMap[host];
+        workerPortsData.host = host;
+        pthread_create(&threadArray[count],NULL,&JasmineGraphServer::startRemoteWorkers,(void *)&workerPortsData);
+    }
+}
+
+void* JasmineGraphServer::startRemoteWorkers(void *threadData) {
+    struct workerPorts *workerPortsDataStruct;
+    workerPortsDataStruct = (struct workerPorts *) threadData;
+    std::vector<int> workerPortsVector = workerPortsDataStruct->workerPortsVector;
+    std::vector<int> workerDataPortsVector = workerPortsDataStruct->workerDataPortsVector;
+    string host = workerPortsDataStruct->host;
+    std::string remoteServerStartScript;
+
+    for (int i =0 ; i < workerPortsVector.size() ; i++) {
+        if (host.find("localhost") != std::string::npos) {
+            remoteServerStartScript = "sh"+ Conts::REMOTE_SERVER_PATH+ " 2"+" "+ std::to_string(workerPortsVector.at(i)) + " " + std::to_string(workerDataPortsVector.at(i));
+        } else {
+            remoteServerStartScript = "ssh " + host+ " sh"+ Conts::REMOTE_SERVER_PATH+ " 2"+" "+ std::to_string(workerPortsVector.at(i)) + " " + std::to_string(workerDataPortsVector.at(i));
+        }
+        system(remoteServerStartScript.c_str());
     }
 }
