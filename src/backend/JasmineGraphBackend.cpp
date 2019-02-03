@@ -44,9 +44,17 @@ void *backendservicesesion(void *dummyPt) {
         } else if (line.compare(HANDSHAKE) == 0) {
             write(sessionargs->connFd, HANDSHAKE_OK.c_str(), HANDSHAKE_OK.size());
             write(sessionargs->connFd, "\r\n", 2);
-            // TODO: Get the hostname from worker
 
-        } else {
+            char host[300];
+            bzero(host, 301);
+            read(sessionargs->connFd, host, 300);
+            string hostname(host);
+            Utils utils;
+            hostname = utils.trim_copy(hostname, " \f\n\r\t\v");
+            std::cout << "Hostname of the worker : " << hostname << endl;
+
+        }
+        else {
             std::cout << ERROR << ":Message format not recognized" << endl;
         }
     }

@@ -36,7 +36,7 @@ extern const string DONE;
 extern const string PARTITIONS_ON_HOST;     //The command to get the list of partitions on particular host
 
 class JasminGraphBackendProtocol {
-   
+
 };
 
 #endif //JASMINEGRAPH_JASMINEGRAPHBACKENDPROTOCOL_H
