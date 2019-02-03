@@ -103,7 +103,7 @@ void JasmineGraphServer::start_workers() {
         std::vector<int> portVector = workerPortsMap[item];
         std::vector<int> dataPortVector = workerDataPortsMap[item];
 
-        while (portCount <= numberOfWorkersPerHost) {
+        while (portCount < numberOfWorkersPerHost) {
             portVector.push_back(workerPort);
             dataPortVector.push_back(workerDataPort);
             workerPort = workerPort + 2;
@@ -131,29 +131,36 @@ void JasmineGraphServer::start_workers() {
     int count =0;
 
     for (hostListIterator = hostsList.begin(); hostListIterator < hostsList.end(); hostListIterator++) {
-        std::string host = *it;
+        std::string host = *hostListIterator;
+        std::string result = "";
+        char buffer[128];
         workerPorts workerPortsData;
         workerPortsData.workerPortsVector = workerPortsMap[host];
         workerPortsData.workerDataPortsVector = workerDataPortsMap[host];
         workerPortsData.host = host;
+        std::cout<<workerPortsData.host<< std::endl;
         pthread_create(&threadArray[count],NULL,&JasmineGraphServer::startRemoteWorkers,(void *)&workerPortsData);
     }
 }
 
 void* JasmineGraphServer::startRemoteWorkers(void *threadData) {
+    Utils utils;
     struct workerPorts *workerPortsDataStruct;
     workerPortsDataStruct = (struct workerPorts *) threadData;
     std::vector<int> workerPortsVector = workerPortsDataStruct->workerPortsVector;
     std::vector<int> workerDataPortsVector = workerPortsDataStruct->workerDataPortsVector;
+    std::string serverPath = utils.getJasmineGraphProperty("org.jasminegraph.worker.startup.path");
     string host = workerPortsDataStruct->host;
     std::string remoteServerStartScript;
 
     for (int i =0 ; i < workerPortsVector.size() ; i++) {
         if (host.find("localhost") != std::string::npos) {
-            remoteServerStartScript = "sh"+ Conts::REMOTE_SERVER_PATH+ " 2"+" "+ std::to_string(workerPortsVector.at(i)) + " " + std::to_string(workerDataPortsVector.at(i));
+            remoteServerStartScript = "sh "+ serverPath + " 2"+" "+ std::to_string(workerPortsVector.at(i)) + " " + std::to_string(workerDataPortsVector.at(i));
         } else {
-            remoteServerStartScript = "ssh " + host+ " sh"+ Conts::REMOTE_SERVER_PATH+ " 2"+" "+ std::to_string(workerPortsVector.at(i)) + " " + std::to_string(workerDataPortsVector.at(i));
+            remoteServerStartScript = "ssh -p 22 " + host+ " sh "+ serverPath + " 2"+" "+ std::to_string(workerPortsVector.at(i)) + " " + std::to_string(workerDataPortsVector.at(i));
         }
+        std::cout<<workerPortsDataStruct->host<< std::endl;
+        std::cout<<remoteServerStartScript<< std::endl;
         system(remoteServerStartScript.c_str());
     }
 }

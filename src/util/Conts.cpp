@@ -21,5 +21,4 @@ int Conts::JASMINEGRAPH_INSTANCE_DATA_PORT = 7781;//Data Port
 
 
 int Conts::JASMINEGRAPH_RUNTIME_PROFILE_MASTER = 1;
-
-std::string Conts::REMOTE_SERVER_PATH= "/home/ubuntu/test.sh";
+int Conts::JASMINEGRAPH_RUNTIME_PROFILE_WORKER = 2;
