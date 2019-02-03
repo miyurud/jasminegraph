@@ -35,11 +35,7 @@ using std::string;
 
 class RDFPartitioner {
 public:
-    RDFPartitioner(SQLiteDBInterface *);
-
-    void convert(string graphName,
-                 int graphID,
-                 string inputFilePath,
+    void convert(string graphName, string graphID, string inputFilePath,
                  string outputFilePath,
                  int nParts,
                  bool isDistributedCentralPartitions,
@@ -55,24 +51,20 @@ public:
                                     int nThreads,
                                     int nPlaces);
 
-    void loadDataSet(string inputFilePath, string outputFilePath, int graphID);
+    void convertWithoutDistribution(string graphName, string graphID, string inputFilePath, string outputFilePath,
+                                    int nParts, bool isDistributedCentralPartitions, int nThreads, int nPlaces);
+
+    void loadDataSet(string inputFilePath, string outputFilePath);
 
     void distributeEdges();
-    //void partitionGraph();
-//    void constructMetisFormat();
-//    void partitioneWithGPMetis();
 private:
 
     string outputFilePath;
     int nParts;
     string graphName;
-    int graphID;
+    string graphID;
     int nThreads;
     int nPlaces;
-    bool isDistributedCentralPartitions;
-
-    SQLiteDBInterface sqlite;
-
 
     string inputFilePath;
 

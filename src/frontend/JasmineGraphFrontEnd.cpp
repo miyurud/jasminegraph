@@ -18,6 +18,7 @@ limitations under the License.
 #include "../util/Conts.h"
 #include "../util/Utils.h"
 #include "JasmineGraphFrontEndProtocol.h"
+#include "../metadb/SQLiteDBInterface.h"
 #include "../partitioner/local/MetisPartitioner.h"
 #include "../partitioner/local/RDFPartitioner.h"
 
@@ -301,3 +302,12 @@ bool JasmineGraphFrontEnd::graphExistsByID(string id, void *dummyPt) {
     return result;
 }
 
+/**
+ * This method checks if a file with the given path exists.
+ * @param fileName
+ * @return
+ */
+bool JasmineGraphFrontEnd::fileExists(const string fileName) {
+    std::ifstream infile(fileName);
+    return infile.good();
+}

@@ -12,9 +12,22 @@ limitations under the License.
  */
 
 #include "RDFPartitioner.h"
+#include "MetisPartitioner.h"
 
-RDFPartitioner::RDFPartitioner(SQLiteDBInterface *sqlite) {
-    this->sqlite = *sqlite;
+
+void RDFPartitioner::convert(string graphName, string graphID, string inputFilePath,
+                             string outputFilePath,
+                             int nParts,
+                             bool isDistributedCentralPartitions,
+                             int nThreads,
+                             int nPlaces
+) {
+    convertWithoutDistribution(graphName, graphID, inputFilePath, outputFilePath, nParts,
+                               isDistributedCentralPartitions, nThreads, nPlaces
+    );
+
+    distributeEdges();
+
 }
 
 void RDFPartitioner::convertWithoutDistribution(string graphName, int graphID, string inputFilePath,
