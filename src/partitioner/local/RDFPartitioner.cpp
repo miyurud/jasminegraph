@@ -45,9 +45,10 @@ void RDFPartitioner::loadDataSet(string inputFilePath, string outputFilePath, in
     string predicate;
     string object;
     char splitter = '\t';
+    string line;
 
-    //std::getline(dbFile, line);
-    string line = "subject   predicate   object";
+    std::getline(dbFile, line);
+    //string line = "subject   predicate   object";
 
     while (!line.empty()) {
         string subject_str;
@@ -60,12 +61,12 @@ void RDFPartitioner::loadDataSet(string inputFilePath, string outputFilePath, in
         stream >> object_str;
 
         subject = atoi(subject_str.c_str());
-        std::cout << "Subject"<< subject << std::endl;
+        std::cout << "Subject---"<< subject << std::endl;
 
         predicate = atoi(predicate_str.c_str());
-        std::cout << "predicate" << predicate << std::endl;
+        std::cout << "predicate---" << predicate << std::endl;
         predicate = atoi(object_str.c_str());
-        std::cout << "Object" << object << std::endl;
+        std::cout << "Object---" << object << std::endl;
 
     }
 }
