@@ -31,9 +31,6 @@ limitations under the License.
 #include "../metadb/SQLiteDBInterface.h"
 
 
-
-
-
 void *frontendservicesesion(void *dummyPt);
 
 class JasmineGraphFrontEnd {

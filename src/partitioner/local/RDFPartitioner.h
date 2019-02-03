@@ -15,8 +15,6 @@ limitations under the License.
 #define JASMINEGRAPH_RDFPARTITIONER_H
 
 
-
-
 #include <string>
 #include <string.h>
 #include <fstream>
@@ -79,7 +77,6 @@ private:
     string inputFilePath;
 
     Utils utils;
-
 
 
     std::map<string, long> nodes;

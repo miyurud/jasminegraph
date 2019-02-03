@@ -36,7 +36,7 @@ void RDFPartitioner::distributeEdges() {
 void RDFPartitioner::loadDataSet(string inputFilePath, string outputFilePath, int graphID) {
     this->graphID = graphID;
     this->outputFilePath = outputFilePath;
-    std::cout << "grapphId"<< this->graphID << std::endl;
+    std::cout << "grapphId" << this->graphID << std::endl;
     this->utils.createDirectory("/tmp/" + std::to_string(this->graphID));
     std::ifstream dbFile;
     dbFile.open(inputFilePath, std::ios::binary | std::ios::in);
@@ -48,7 +48,6 @@ void RDFPartitioner::loadDataSet(string inputFilePath, string outputFilePath, in
     string line;
 
     std::getline(dbFile, line);
-    //string line = "subject   predicate   object";
 
     while (!line.empty()) {
         string subject_str;
@@ -57,18 +56,10 @@ void RDFPartitioner::loadDataSet(string inputFilePath, string outputFilePath, in
 
         std::istringstream stream(line);
         std::getline(stream, subject_str, splitter);
-        std::getline(stream, predicate_str, splitter);
-        stream >> object_str;
-
-        subject = atoi(subject_str.c_str());
-        std::cout << "Subject---"<< subject << std::endl;
-
-        predicate = atoi(predicate_str.c_str());
-        std::cout << "predicate---" << predicate << std::endl;
-        predicate = atoi(object_str.c_str());
-        std::cout << "Object---" << object << std::endl;
 
     }
+
+
 }
 
 void RDFPartitioner::convert(string graphName, int graphID, string inputFilePath, string outputFilePath, int nParts,
