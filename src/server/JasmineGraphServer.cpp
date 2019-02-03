@@ -25,6 +25,12 @@ void *runfrontend(void *dummyPt) {
     refToServer->frontend->run();
 }
 
+void *runbackend(void *dummyPt) {
+    JasmineGraphServer *refToServer = (JasmineGraphServer *) dummyPt;
+    refToServer->backend = new JasmineGraphBackend(refToServer->sqlite);
+    refToServer->backend->run();
+}
+
 
 JasmineGraphServer::JasmineGraphServer() {
 
@@ -65,7 +71,9 @@ void JasmineGraphServer::init() {
     }
 
     pthread_t frontendthread;
+    pthread_t backendthread;
     pthread_create(&frontendthread, NULL, runfrontend, this);
+    pthread_create(&backendthread, NULL, runbackend, this);
 }
 
 void JasmineGraphServer::start_workers() {

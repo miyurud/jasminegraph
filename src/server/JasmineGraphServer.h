@@ -24,7 +24,7 @@ using std::map;
 class JasmineGraphServer {
 private:
     map<std::string, long> hostPlaceMap;
-    JasmineGraphBackend *backend;
+//    JasmineGraphBackend *backend;
 public:
     ~JasmineGraphServer();
 
@@ -40,6 +40,7 @@ public:
 
     JasmineGraphFrontEnd *frontend;
     SQLiteDBInterface sqlite;
+    JasmineGraphBackend *backend;
     //pthread_t frontendthread;
 };
 

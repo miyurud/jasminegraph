@@ -23,7 +23,7 @@ limitations under the License.
 
 using namespace std;
 
-Utils utils;
+//Utils utils;
 static int connFd;
 
 void *frontendservicesesion(void *dummyPt) {
