@@ -48,6 +48,7 @@ public:
 
     JasmineGraphFrontEnd *frontend;
     SQLiteDBInterface sqlite;
+    JasmineGraphBackend *backend;
     //pthread_t frontendthread;
 };
 
