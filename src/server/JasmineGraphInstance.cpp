@@ -17,8 +17,14 @@ limitations under the License.
 #include <unistd.h>
 
 
-void JasmineGraphInstance::start_running() {
+void JasmineGraphInstance::start_running(int serverPort, int serverDataPort) {
     std::cout << "Worker started" << std::endl;
+    std::cout << "Running the server..." << std::endl;
+
+    this->sqlite = *new SQLiteDBInterface();
+    this->sqlite.init();
+
+
 }
 
 bool JasmineGraphInstance::isRunning() {

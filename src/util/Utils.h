@@ -18,6 +18,7 @@ limitations under the License.
 #include <iostream>
 #include <fstream>
 #include "../frontend/JasmineGraphFrontEnd.h"
+#include <algorithm>
 
 using std::map;
 
@@ -41,6 +42,7 @@ public:
     bool fileExists(const std::string fileName, frontendservicesessionargs *ptr);
 
     void compressFile(const std::string filePath);
+    bool is_number(const std::string& compareString);
 
     void createDirectory(const std::string dirName);
 };

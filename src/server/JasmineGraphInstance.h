@@ -16,14 +16,18 @@ limitations under the License.
 
 #include <map>
 #include "../localstore/JasmineGraphLocalStore.h"
+#include "../metadb/SQLiteDBInterface.h"
 
 using std::map;
 
 class JasmineGraphInstance {
 private:
     map<std::string, JasmineGraphLocalStore> graphDBMapLocalStores;
+    int serverPort;
+    int serverDataPort;
 public:
-    void start_running();
+    SQLiteDBInterface sqlite;
+    void start_running(int serverPort, int serverDataPort);
 
     void registerShutdownHook();
 

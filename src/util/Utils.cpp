@@ -200,6 +200,10 @@ void Utils::createDirectory(const std::string dirName) {
 }
 
 
+bool Utils::is_number(const std::string& compareString) {
+    return !compareString.empty() && std::find_if(compareString.begin(),
+                                                  compareString.end(), [](char c) { return !std::isdigit(c); }) == compareString.end();
+}
 
 
 
