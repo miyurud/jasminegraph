@@ -25,7 +25,6 @@ using std::map;
 class JasmineGraphServer {
 private:
     map<std::string, long> hostPlaceMap;
-    JasmineGraphBackend* backend;
     int numberOfWorkers;
     int serverPort;
     int serverDataPort;
