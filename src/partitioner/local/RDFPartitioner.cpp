@@ -12,27 +12,14 @@ limitations under the License.
  */
 
 #include "RDFPartitioner.h"
-#include "MetisPartitioner.h"
 
-
-void RDFPartitioner::convert(string graphName, string graphID, string inputFilePath,
-                             string outputFilePath,
-                             int nParts,
-                             bool isDistributedCentralPartitions,
-                             int nThreads,
-                             int nPlaces
-) {
-    convertWithoutDistribution(graphName, graphID, inputFilePath, outputFilePath, nParts,
-                               isDistributedCentralPartitions, nThreads, nPlaces
-    );
-
-    distributeEdges();
-
+RDFPartitioner::RDFPartitioner(SQLiteDBInterface *sqlite) {
+    this->sqlite = *sqlite;
 }
 
-void RDFPartitioner::convertWithoutDistribution(string graphName, string graphID, string inputFilePath,
-                                                  string outputFilePath, int nParts,
-                                                  bool isDistributedCentralPartitions, int nThreads, int nPlaces) {
+void RDFPartitioner::convertWithoutDistribution(string graphName, int graphID, string inputFilePath,
+                                                string outputFilePath, int nParts,
+                                                bool isDistributedCentralPartitions, int nThreads, int nPlaces) {
     this->outputFilePath = outputFilePath;
     this->nParts = nParts;
     this->graphName = graphName;
@@ -46,6 +33,43 @@ void RDFPartitioner::distributeEdges() {
     //method implementation
 }
 
-void RDFPartitioner::loadDataSet(string inputFilePath, string outputFilePath) {
+void RDFPartitioner::loadDataSet(string inputFilePath, string outputFilePath, int graphID) {
+    this->graphID = graphID;
+    this->outputFilePath = outputFilePath;
+    std::cout << "grapphId" << this->graphID << std::endl;
+    this->utils.createDirectory("/tmp/" + std::to_string(this->graphID));
+    std::ifstream dbFile;
+    dbFile.open(inputFilePath, std::ios::binary | std::ios::in);
+
+
+    string subject;
+    string predicate;
+    string object;
+    char splitter = '\t';
+    string line;
+
+    while (std::getline(dbFile, line)) {
+
+        string subject_str;
+        string predicate_str;
+        string object_str;
+
+        std::istringstream stream(line);
+        std::getline(stream, subject_str, splitter);
+        stream >> predicate_str >> object_str;
+        std::cout << "subject_str---" << subject_str << std::endl;
+        std::cout << "predicate_str---" << predicate_str << std::endl;
+        std::cout << "object_str---" << object_str << std::endl;
+
+
+    }
+}
+
+void RDFPartitioner::convert(string graphName, int graphID, string inputFilePath, string outputFilePath, int nParts,
+                             bool isDistributedCentralPartitions, int nThreads, int nPlaces) {
+    convertWithoutDistribution(graphName, graphID, inputFilePath, outputFilePath, nParts,
+                               isDistributedCentralPartitions, nThreads, nPlaces);
+
+    distributeEdges();
 
 }
