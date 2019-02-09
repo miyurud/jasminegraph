@@ -132,33 +132,33 @@ void JasmineGraphServer::start_workers() {
 
     }
 
+
+    int hostListSize = hostsList.size();
     std::vector<std::string>::iterator hostListIterator;
     hostListIterator = hostsList.begin();
 
-    pthread_t threadArray[hostsList.size()];
+
+    std::thread* myThreads = new std::thread[hostListSize];
     int count =0;
 
     for (hostListIterator = hostsList.begin(); hostListIterator < hostsList.end(); hostListIterator++) {
         std::string host = *hostListIterator;
-        std::string result = "";
-        char buffer[128];
-        workerPorts workerPortsData;
-        workerPortsData.workerPortsVector = workerPortsMap[host];
-        workerPortsData.workerDataPortsVector = workerDataPortsMap[host];
-        workerPortsData.host = host;
-        std::cout<<workerPortsData.host<< std::endl;
-        pthread_create(&threadArray[count],NULL,&JasmineGraphServer::startRemoteWorkers,(void *)&workerPortsData);
+        myThreads[count] = std::thread(startRemoteWorkers,workerPortsMap[host],workerDataPortsMap[host], host);
+        count++;
     }
+
+    for (int threadCount=0;threadCount<hostListSize;threadCount++) {
+        myThreads[threadCount].join();
+        std::cout<<"############JOINED###########"<< std::endl;
+    }
+
 }
 
-void* JasmineGraphServer::startRemoteWorkers(void *threadData) {
+
+void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector,
+                                                    std::vector<int> workerDataPortsVector, std::string host) {
     Utils utils;
-    struct workerPorts *workerPortsDataStruct;
-    workerPortsDataStruct = (struct workerPorts *) threadData;
-    std::vector<int> workerPortsVector = workerPortsDataStruct->workerPortsVector;
-    std::vector<int> workerDataPortsVector = workerPortsDataStruct->workerDataPortsVector;
     std::string serverPath = utils.getJasmineGraphProperty("org.jasminegraph.worker.startup.path");
-    string host = workerPortsDataStruct->host;
     std::string remoteServerStartScript;
 
     for (int i =0 ; i < workerPortsVector.size() ; i++) {
@@ -167,7 +167,6 @@ void* JasmineGraphServer::startRemoteWorkers(void *threadData) {
         } else {
             remoteServerStartScript = "ssh -p 22 " + host+ " sh "+ serverPath + " 2"+" "+ std::to_string(workerPortsVector.at(i)) + " " + std::to_string(workerDataPortsVector.at(i));
         }
-        std::cout<<workerPortsDataStruct->host<< std::endl;
         std::cout<<remoteServerStartScript<< std::endl;
         system(remoteServerStartScript.c_str());
     }

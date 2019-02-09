@@ -1,3 +1,4 @@
 #This is the hosts file for Jasminegraph. All the host names on which Jasminegraph workers should get started needs
 #to be listed here
 localhost
+ubuntu@18.219.24.222

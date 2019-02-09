@@ -15,6 +15,9 @@ limitations under the License.
 #define JASMINEGRAPH_JASMINEGRAPHSERVER_H
 
 #include <map>
+#include <thread>
+#include <stdio.h>
+#include <stdlib.h>
 #include "../frontend/JasmineGraphFrontEnd.h"
 #include "../backend/JasmineGraphBackend.h"
 #include "../metadb/SQLiteDBInterface.h"
@@ -31,7 +34,7 @@ private:
     std::map<std::string,std::vector<int>> workerPortsMap;
     std::map<std::string,std::vector<int>> workerDataPortsMap;
 
-    static void *startRemoteWorkers(void *threadData);
+    static void startRemoteWorkers(std::vector<int> workerPortsVector, std::vector<int> workerDataPortsVector, std::string host);
 public:
     ~JasmineGraphServer();
 
