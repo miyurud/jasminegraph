@@ -3,7 +3,16 @@
 ## 1. Introduction
 Jasminegraph is a C/C++ based distributed graph database server. It has been developed following the [Acacia](https://github.com/miyurud/Acacia) graph database server architecture.
 
-## 2. Contact Information
+## 2. Building Jasminegraph
+Prerequisites
+--Cmake version 3.10.3 or above
+
+First, this repository should be cloned into one of your computer's local directory. Then change directory to jasminegraph and run ./build.sh to build the Jasminegraph executable.
+
+## 3. Running Jasminegraph
+Jasminegraph can be run by executing the run.sh script. This will start master on your local computer while workers are created in the list of the hosts mentioned in the conf/hosts.txt file.
+
+## 4. Contact Information
 
 Please contact [Miyuru Dayarathna](miyurud at yahoo dot co dot uk) for further information. Please let us know about bug reports or any further improvements you wish to have in Jasminegraph.
 
