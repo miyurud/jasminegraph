@@ -159,15 +159,32 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector,
                                                     std::vector<int> workerDataPortsVector, std::string host) {
     Utils utils;
     std::string serverPath = utils.getJasmineGraphProperty("org.jasminegraph.worker.startup.path");
-    std::string remoteServerStartScript;
+    std::string jasmineGraphExecutableName = Conts::JASMINEGRAPH_EXECUTABLE;
+    std::string executableFile = "."+serverPath+jasmineGraphExecutableName;
+    std::string serverStartScript;
+    char buffer[128];
+    std::string result = "";
 
     for (int i =0 ; i < workerPortsVector.size() ; i++) {
         if (host.find("localhost") != std::string::npos) {
-            remoteServerStartScript = "sh "+ serverPath + " 2"+" "+ std::to_string(workerPortsVector.at(i)) + " " + std::to_string(workerDataPortsVector.at(i));
+            serverStartScript = executableFile+" 2 "+ std::to_string(workerPortsVector.at(i)) + " " + std::to_string(workerDataPortsVector.at(i));
         } else {
-            remoteServerStartScript = "ssh -p 22 " + host+ " sh "+ serverPath + " 2"+" "+ std::to_string(workerPortsVector.at(i)) + " " + std::to_string(workerDataPortsVector.at(i));
+            serverStartScript = "ssh -p 22 " + host+ " "+ executableFile + " 2"+" "+ std::to_string(workerPortsVector.at(i)) + " " + std::to_string(workerDataPortsVector.at(i));
         }
-        std::cout<<remoteServerStartScript<< std::endl;
-        system(remoteServerStartScript.c_str());
+        std::cout<<serverStartScript<< std::endl;
+        FILE *input = popen(serverStartScript.c_str(),"r");
+
+        if (input) {
+            // read the input
+            while (!feof(input)) {
+                if (fgets(buffer, 128, input) != NULL) {
+                    result.append(buffer);
+                }
+            }
+            if (!result.empty()) {
+                std::cout<<result<< std::endl;
+            }
+            pclose(input);
+        }
     }
 }
