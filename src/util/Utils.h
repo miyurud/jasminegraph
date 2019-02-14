@@ -22,8 +22,9 @@ limitations under the License.
 
 using std::map;
 
-class Utils {
-public:
+class Utils
+{
+  public:
     map<std::string, std::string> getBatchUploadFileList(std::string file);
 
     std::string getJasmineGraphProperty(std::string key);
@@ -42,10 +43,9 @@ public:
     bool fileExists(const std::string fileName, frontendservicesessionargs *ptr);
 
     void compressFile(const std::string filePath);
-    bool is_number(const std::string& compareString);
+    bool is_number(const std::string &compareString);
 
     void createDirectory(const std::string dirName);
 };
-
 
 #endif //JASMINEGRAPH_UTILS_H

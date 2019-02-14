@@ -36,22 +36,22 @@ cmake_force:
 # Set environment variables for the build.
 
 # The shell in which to execute make rules.
-SHELL = /bin/sh
+SHELL = /usr/bin/bash
 
 # The CMake executable.
-CMAKE_COMMAND = /home/miyurud/software/clion-2018.1.3/bin/cmake/bin/cmake
+CMAKE_COMMAND = cmake
 
 # The command to remove a file.
-RM = /home/miyurud/software/clion-2018.1.3/bin/cmake/bin/cmake -E remove -f
+RM = cmake -E remove -f
 
 # Escaping for special characters.
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/miyurud/git/jasminegraph
+CMAKE_SOURCE_DIR = .
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/miyurud/git/jasminegraph/cmake-build-debug
+CMAKE_BINARY_DIR = ./cmake-build-debug
 
 #=============================================================================
 # Targets provided globally by CMake.
@@ -565,4 +565,3 @@ help:
 cmake_check_build_system:
 	$(CMAKE_COMMAND) -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 0
 .PHONY : cmake_check_build_system
-
