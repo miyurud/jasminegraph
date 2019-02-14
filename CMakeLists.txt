@@ -4,7 +4,7 @@ project(JasmineGraph)
 set(CMAKE_CXX_STANDARD 11)
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pthread")
 link_libraries('sqlite3')
-
+#TODO: Need to install the library separately
 include_directories("$ENV{HOME}/software/flatbuffers/include")
 
 add_executable(JasmineGraph main.cpp src/server/JasmineGraphServer.cpp src/server/JasmineGraphServer.h src/metadb/SQLiteDBInterface.cpp
@@ -22,5 +22,5 @@ add_executable(JasmineGraph main.cpp src/server/JasmineGraphServer.cpp src/serve
 #add_executable(JesminGraph ${Dir1_Sources})
 
 #target_link_libraries(JasmineGraph /usr/local/lib/libmetis.so)
-
+#TODO: Need to install the library separately
 target_link_libraries(JasmineGraph /usr/local/lib/libmetis.a)
