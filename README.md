@@ -3,9 +3,13 @@
 ## 1. Introduction
 Jasminegraph is a C/C++ based distributed graph database server. It has been developed following the [Acacia](https://github.com/miyurud/Acacia) graph database server architecture.
 
-## 2. Building Jasminegraph
+## 2. Building Jasminegraph on Single Computer
 Prerequisites
---Cmake version 3.10.3 or above
+The following build tools, applications, and libraries need to be installed before building Jasminegraph.
+- GCC 5.4.0 or above
+- Cmake version 3.10.3 or above
+- Google Flat Buffers (https://github.com/google/flatbuffers)
+- Metis (http://glaros.dtc.umn.edu/gkhome/metis/metis/download)
 
 First, this repository should be cloned into one of your computer's local directory. Then change directory to jasminegraph and run ./build.sh to build the Jasminegraph executable.
 
