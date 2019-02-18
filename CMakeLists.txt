@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 project(JasmineGraph)
 
 set(CMAKE_CXX_STANDARD 11)
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pthread")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pthread -Isrc/util/spdlog/include")
 link_libraries('sqlite3')
 #TODO: Need to install the library separately
 include_directories("$ENV{HOME}/software/flatbuffers/include")

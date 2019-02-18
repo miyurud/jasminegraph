@@ -17,6 +17,7 @@ limitations under the License.
 #include "main.h"
 #include "src/util/Conts.h"
 #include "src/server/JasmineGraphInstance.h"
+#include "spdlog/spdlog.h"
 
 unsigned int microseconds = 10000000;
 JasmineGraphServer *server;
@@ -30,16 +31,13 @@ void fnExit3(void) {
 
 int main(int argc, char *argv[]) {
     atexit(fnExit3);
-
     if (argc < 1) {
-        std::cout << "Use argument 1 to start JasmineGraph in Master mode. Use 2 <serverPort> <serverDataPort> to "
-                  << "start as worker ." << std::endl;
+//        std::cout << "Use argument 1 to start JasmineGraph in Master mode. Use 2 <serverPort> <serverDataPort> to "
+//                  << "start as worker ." << std::endl;
+        spdlog::error("Use argument 1 to start JasmineGraph in Master mode. Use 2 <serverPort> <serverDataPort> to start as worker.");
         return -1;
     }
-
-
     int mode = atoi(argv[1]);
-
 
     if (mode == Conts::JASMINEGRAPH_RUNTIME_PROFILE_MASTER) {
         server = new JasmineGraphServer();
@@ -52,8 +50,9 @@ int main(int argc, char *argv[]) {
         delete server;
     } else if (mode == Conts::JASMINEGRAPH_RUNTIME_PROFILE_WORKER){
         if (argc < 4) {
-            std::cout << "Need three arguments. Use 2 <serverPort> <serverDataPort> to "
-                      << "start as worker ." << std::endl;
+//            std::cout << "Need three arguments. Use 2 <serverPort> <serverDataPort> to "
+//                      << "start as worker ." << std::endl;
+            spdlog::error("Need three arguments. Use 2 <serverPort> <serverDataPort> to tart as worker.");
             return -1;
         }
         int serverPort = atoi(argv[2]);

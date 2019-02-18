@@ -18,6 +18,7 @@ limitations under the License.
 #include "JasmineGraphInstance.h"
 #include "../frontend/JasmineGraphFrontEnd.h"
 #include "../util/Utils.h"
+//#include "spdlog/spdlog.h"
 
 struct workerPorts{
     std::vector<int> workerPortsVector;
@@ -48,8 +49,8 @@ JasmineGraphServer::~JasmineGraphServer() {
 }
 
 int JasmineGraphServer::run() {
-    std::cout << "Running the server..." << std::endl;
-
+    //std::cout << "Running the server..." << std::endl;
+    spdlog::info("Running the server...");
     this->sqlite = *new SQLiteDBInterface();
     this->sqlite.init();
     init();
