@@ -160,7 +160,7 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector,
     Utils utils;
     std::string serverPath = utils.getJasmineGraphProperty("org.jasminegraph.worker.startup.path");
     std::string jasmineGraphExecutableName = Conts::JASMINEGRAPH_EXECUTABLE;
-    std::string executableFile = "."+serverPath+jasmineGraphExecutableName;
+    std::string executableFile = serverPath+jasmineGraphExecutableName;
     std::string serverStartScript;
     char buffer[128];
     std::string result = "";
