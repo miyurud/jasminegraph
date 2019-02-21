@@ -18,7 +18,6 @@ limitations under the License.
 #include "JasmineGraphInstance.h"
 #include "../frontend/JasmineGraphFrontEnd.h"
 #include "../util/Utils.h"
-//#include "spdlog/spdlog.h"
 
 struct workerPorts{
     std::vector<int> workerPortsVector;
@@ -94,7 +93,8 @@ void JasmineGraphServer::start_workers() {
     if (utils.is_number(nWorkers)) {
         numberOfWorkers = atoi(nWorkers.c_str());
     } else {
-        std::cout<<"Number of Workers Have not Specified."<< std::endl;
+        spdlog::warn("Number of workers is not specified");
+        //std::cout<<"Number of Workers Have not Specified."<< std::endl;
         numberOfWorkers = 0;
     }
 
@@ -149,6 +149,11 @@ void JasmineGraphServer::start_workers() {
         workerPortsData.host = host;
         std::cout<<workerPortsData.host<< std::endl;
         pthread_create(&threadArray[count],NULL,&JasmineGraphServer::startRemoteWorkers,(void *)&workerPortsData);
+        count++;
+    }
+
+    for (int i = 0; i < count; i++) {
+        pthread_join(threadArray[i], NULL);
     }
 }
 

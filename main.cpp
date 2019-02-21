@@ -34,7 +34,8 @@ int main(int argc, char *argv[]) {
     if (argc < 1) {
 //        std::cout << "Use argument 1 to start JasmineGraph in Master mode. Use 2 <serverPort> <serverDataPort> to "
 //                  << "start as worker ." << std::endl;
-        spdlog::error("Use argument 1 to start JasmineGraph in Master mode. Use 2 <serverPort> <serverDataPort> to start as worker.");
+        spdlog::error(
+                "Use argument 1 to start JasmineGraph in Master mode. Use 2 <serverPort> <serverDataPort> to start as worker.");
         return -1;
     }
     int mode = atoi(argv[1]);
@@ -42,7 +43,6 @@ int main(int argc, char *argv[]) {
     if (mode == Conts::JASMINEGRAPH_RUNTIME_PROFILE_MASTER) {
         server = new JasmineGraphServer();
         server->run();
-
         while (server->isRunning()) {
             usleep(microseconds);
         }

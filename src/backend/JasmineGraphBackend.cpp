@@ -15,6 +15,7 @@ limitations under the License.
 #include "../util/Utils.h"
 #include "../util/Conts.h"
 #include "JasmineGraphBackendProtocol.h"
+#include "spdlog/spdlog.h"
 
 using namespace std;
 
@@ -113,7 +114,8 @@ int JasmineGraphBackend::run() {
     int noThread = 0;
 
     while (noThread < 3) {
-        cout << "Listening" << endl;
+        spdlog::info("Listening...");
+        //cout << "Listening" << endl;
 
         //this is where client connects. svr will hang in this mode until client conn
         connFd = accept(listenFd, (struct sockaddr *) &clntAdd, &len);
