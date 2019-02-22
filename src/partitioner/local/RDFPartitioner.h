@@ -35,30 +35,47 @@ using std::string;
 
 class RDFPartitioner {
 public:
-    void convert(string graphName, string graphID, string inputFilePath,
+    RDFPartitioner(SQLiteDBInterface *);
+
+    void convert(string graphName,
+                 int graphID,
+                 string inputFilePath,
                  string outputFilePath,
                  int nParts,
                  bool isDistributedCentralPartitions,
                  int nThreads,
-                 int nPlaces
-    );
+                 int nPlaces);
 
-    void convertWithoutDistribution(string graphName, string graphID, string inputFilePath, string outputFilePath,
-                                    int nParts, bool isDistributedCentralPartitions, int nThreads, int nPlaces);
+    void convertWithoutDistribution(string graphName,
+                                    int graphID,
+                                    string inputFilePath,
+                                    string outputFilePath,
+                                    int nParts,
+                                    bool isDistributedCentralPartitions,
+                                    int nThreads,
+                                    int nPlaces);
 
-    void loadDataSet(string inputFilePath, string outputFilePath);
+    void loadDataSet(string inputFilePath, string outputFilePath, int graphID);
 
     void distributeEdges();
+
 private:
 
     string outputFilePath;
     int nParts;
     string graphName;
-    string graphID;
+    int graphID;
     int nThreads;
     int nPlaces;
+    bool isDistributedCentralPartitions;
+
+    SQLiteDBInterface sqlite;
+
 
     string inputFilePath;
+
+    Utils utils;
+
 
     std::map<string, long> nodes;
     std::map<long, string> nodesTemp;
@@ -66,7 +83,7 @@ private:
     std::map<long, string> predicatesTemp;
     std::map<long, std::vector<string>> relationsMap;
     std::map<long, std::vector<string>> attributeMap;
-    bool isDistributedCentralPartitions;
+
 };
 
 
