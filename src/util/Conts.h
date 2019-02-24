@@ -23,6 +23,7 @@ public:
     std::string JASMINEGRAPH_SERVER_PROPS_FILE = "conf/acacia-server.properties";
     std::string JASMINEGRAPH_SERVER_PUBLIC_HOSTS_FILE = "machines_public.txt";
     std::string JASMINEGRAPH_SERVER_PRIVATE_HOSTS_FILE = "machines.txt";
+    static std::string JASMINEGRAPH_EXECUTABLE;
 
     int JASMINEGRAPH_PARTITION_INDEX_PORT;
     static int JASMINEGRAPH_FRONTEND_PORT;
