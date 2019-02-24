@@ -13,6 +13,8 @@ limitations under the License.
 
 #include "MetisPartitioner.h"
 
+thread_local std::vector<string> partitionFileList;
+
 MetisPartitioner::MetisPartitioner(SQLiteDBInterface *sqlite) {
     this->sqlite = *sqlite;
 }
@@ -312,6 +314,11 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
 
         //Compress part files
         this->utils.compressFile(outputFilePart);
+        partitionFileList.push_back(outputFilePart+".zip");
         this->utils.compressFile(outputFilePartMaster);
     }
+}
+
+std::vector<string> MetisPartitioner::getPartitionFiles() {
+    return partitionFileList;
 }
