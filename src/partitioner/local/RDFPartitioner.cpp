@@ -13,6 +13,10 @@ limitations under the License.
 
 #include "RDFPartitioner.h"
 
+using namespace std;
+using namespace __gnu_cxx;
+
+
 RDFPartitioner::RDFPartitioner(SQLiteDBInterface *sqlite) {
     this->sqlite = *sqlite;
 }
@@ -57,13 +61,98 @@ void RDFPartitioner::loadDataSet(string inputFilePath, string outputFilePath, in
         std::istringstream stream(line);
         std::getline(stream, subject_str, splitter);
         stream >> predicate_str >> object_str;
-        std::cout << "subject_str---" << subject_str << std::endl;
-        std::cout << "predicate_str---" << predicate_str << std::endl;
-        std::cout << "object_str---" << object_str << std::endl;
 
+
+
+        long firstVertex = addToStore(&nodes, subject_str);
+
+
+        long relation = addToStore(&predicates, predicate_str);
+
+        long secondVertex = addToStore(&nodes, object_str);
+
+
+        std::string secondVertexStr = std::to_string(secondVertex);
+
+        addToMap(&relationsMap, firstVertex, relation, secondVertexStr);
+
+
+        std::set<long> vertexSet = graphStorage.find(firstVertex)->second;
+
+        for (auto it = vertexSet.begin(); it != vertexSet.end(); ++it)
+
+            if (vertexSet.empty()) {
+
+                vertexSet = set<long>();
+                vertexSet.insert(secondVertex);
+                edgeCount++;
+                graphStorage.insert({firstVertex, vertexSet});
+            } else if (!vertexSet.empty()) {
+
+                if (vertexSet.insert(secondVertex).second) {
+                    edgeCount++;
+                }
+            }
+
+    }
+    writeRelationData();
+}
+
+long RDFPartitioner::addToStore(std::map<string, long> *map, string URI) {
+    long id;
+    id = map->size();
+
+    auto search = map->find(URI);
+    if (search != map->end()) {
+        return search->second;
+    } else {
+
+    }
+
+
+    if (*map == nodes) {
+        nodesTemp.insert({id, URI});
+
+
+    } else if (*map == predicates) {
+        predicatesTemp.insert({id, URI});
+
+    }
+    map->insert({URI, id});
+    return id;
+}
+
+
+void RDFPartitioner::addToMap(std::map<long, std::map<long, std::vector<string> >> *map, long vertex, long relation,
+                              string value) {
+    std::map<long, std::vector<string>> miniMap = map->find(vertex)->second;
+
+
+    if (!miniMap.empty()) {
+
+        std::vector<string> list = miniMap.find(0)->second;
+
+        if (!list.empty()) {
+
+            list.push_back(value);
+        } else if (list.empty()) {
+
+            list = std::vector<string>();
+            list.push_back(value);
+            miniMap.insert({relation, list});
+        }
+
+    } else if (miniMap.empty()) {
+
+        std::vector<string> list;
+        list.push_back(value);
+        miniMap = std::map<long, vector<string>>();
+        miniMap.insert({relation, list});
+        map->insert({vertex, miniMap});
 
     }
 }
+
 
 void RDFPartitioner::convert(string graphName, int graphID, string inputFilePath, string outputFilePath, int nParts,
                              bool isDistributedCentralPartitions, int nThreads, int nPlaces) {
@@ -71,5 +160,29 @@ void RDFPartitioner::convert(string graphName, int graphID, string inputFilePath
                                isDistributedCentralPartitions, nThreads, nPlaces);
 
     distributeEdges();
+
+}
+
+void RDFPartitioner::writeRelationData() {
+    ofstream file;
+    file.open("RDFdata.txt");
+    for (auto it = relationsMap.begin(); it != relationsMap.end(); ++it) {
+        std::cout << it->first << " " << flush;
+        file << it->first << " " << flush;
+        std::map<long, std::vector<string>> miniMap = relationsMap.find(it->first)->second;
+        for (auto itr = miniMap.begin(); itr != miniMap.end(); ++itr) {
+            std::cout << itr->first << " " << flush;
+            file << itr->first << " " << flush;
+
+            std::vector<string> valuelist = miniMap.find(itr->first)->second;
+            for (std::vector<string>::const_iterator i = valuelist.begin(); i != valuelist.end(); ++i) {
+                std::cout << *i << std::endl;
+                file << *i << "\n";
+            }
+        }
+    }
+
+    file.close();
+    std::cout << "writing to the file 'RDFdata'" << std::endl;
 
 }
