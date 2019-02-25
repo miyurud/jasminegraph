@@ -20,6 +20,9 @@ limitations under the License.
 #include "../util/Utils.h"
 #include "../partitioner/local/MetisPartitioner.h"
 #include "JasmineGraphInstanceProtocol.h"
+#include "../util/logger/Logger.h"
+
+Logger server_logger;
 
 struct workers{
     std::string hostname;
@@ -53,7 +56,8 @@ JasmineGraphServer::~JasmineGraphServer() {
 }
 
 int JasmineGraphServer::run() {
-    std::cout << "Running the server..." << std::endl;
+    //std::cout << "Running the server..." << std::endl;
+    server_logger.log("Running the server...", "info");
 
     this->sqlite = *new SQLiteDBInterface();
     this->sqlite.init();
@@ -98,7 +102,8 @@ void JasmineGraphServer::start_workers() {
     if (utils.is_number(nWorkers)) {
         numberOfWorkers = atoi(nWorkers.c_str());
     } else {
-        std::cout<<"Number of Workers Have not Specified."<< std::endl;
+        //std::cout<<"Number of Workers Have not Specified."<< std::endl;
+        server_logger.log("Number of Workers is not specified", "error");
         numberOfWorkers = 0;
     }
 
@@ -184,7 +189,7 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector,
             copyArtifactsToWorkers(workerPath,artifactPath,host);
             serverStartScript = "ssh -p 22 " + host+ " "+ executableFile + " 2"+" "+ std::to_string(workerPortsVector.at(i)) + " " + std::to_string(workerDataPortsVector.at(i));
         }
-        std::cout<<serverStartScript<< std::endl;
+        //std::cout<<serverStartScript<< std::endl;
         FILE *input = popen(serverStartScript.c_str(),"r");
 
         if (input) {

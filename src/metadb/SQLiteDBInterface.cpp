@@ -14,17 +14,21 @@ limitations under the License.
 #include <string>
 #include "SQLiteDBInterface.h"
 #include "../util/Utils.h"
+#include "../util/logger/Logger.h"
 
 using namespace std;
+Logger db_logger;
 
 int SQLiteDBInterface::init() {
     Utils utils;
     int rc = sqlite3_open(utils.getJasmineGraphProperty("org.jasminegraph.db.location").c_str(), &database);
     if (rc) {
-        fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(database));
+        //fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(database));
+        db_logger.log("Cannot open database: " + string(sqlite3_errmsg(database)), "error");
         return (-1);
     } else {
-        fprintf(stderr, "Opened database successfully\n");
+        //fprintf(stderr, "Opened database successfully\n");
+        db_logger.log("Database opened successfully", "info");
     }
 }
 
@@ -59,10 +63,12 @@ vector<vector<pair<string, string> >> SQLiteDBInterface::runSelect(std::string q
     rc = sqlite3_exec(database, query.c_str(), callback, &dbResults, &zErrMsg);
 
     if (rc != SQLITE_OK) {
-        fprintf(stderr, "SQL error: %s\n", zErrMsg);
+        //fprintf(stderr, "SQL error: %s\n", zErrMsg);
+        db_logger.log("SQL Error: " + string(zErrMsg), "error");
         sqlite3_free(zErrMsg);
     } else {
-        fprintf(stdout, "Operation done successfully\n");
+        //fprintf(stdout, "Operation done successfully\n");
+        db_logger.log("Operation done successfully", "info");
         return dbResults;
     }
 }
@@ -74,10 +80,12 @@ int SQLiteDBInterface::runInsert(std::string query) {
     int rc = sqlite3_exec(database, query.c_str(), NULL, NULL, NULL);
 
     if (rc != SQLITE_OK) {
-        fprintf(stderr, "SQL error: %s\n", zErrMsg);
+        //fprintf(stderr, "SQL error: %s\n", zErrMsg);
+        db_logger.log("SQL Error: " + string(zErrMsg), "error");
         sqlite3_free(zErrMsg);
     } else {
-        fprintf(stdout, "Insert operation done successfully\n");
+        //fprintf(stdout, "Insert operation done successfully\n");
+        db_logger.log("Insert operation done successfully", "info");
 
         vector<vector<pair<string, string>>> dbResults;
         string q2 = "SELECT last_insert_rowid();";

@@ -21,15 +21,18 @@ limitations under the License.
 #include "../metadb/SQLiteDBInterface.h"
 #include "../partitioner/local/MetisPartitioner.h"
 #include "../partitioner/local/RDFPartitioner.h"
+#include "../util/logger/Logger.h"
 #include "../server/JasmineGraphServer.h"
 
 using namespace std;
 
 static int connFd;
+Logger frontend_logger;
 
 void *frontendservicesesion(void *dummyPt) {
     frontendservicesessionargs *sessionargs = (frontendservicesessionargs *) dummyPt;
-    cout << "Thread No: " << pthread_self() << endl;
+    //cout << "Thread No: " << pthread_self() << endl;
+    frontend_logger.log("Thread No: " + to_string(pthread_self()), "info");
     char data[300];
     bzero(data, 301);
     bool loop = false;
@@ -38,7 +41,8 @@ void *frontendservicesesion(void *dummyPt) {
         read(sessionargs->connFd, data, 300);
 
         string line(data);
-        cout << line << endl;
+        //cout << line << endl;
+        frontend_logger.log("Command received: " + line, "info");
 
         Utils utils;
         line = utils.trim_copy(line, " \f\n\r\t\v");
@@ -65,7 +69,7 @@ void *frontendservicesesion(void *dummyPt) {
             exit(0);
         } else if (line.compare(ADRDF) == 0) {
             // add RDF graph
-            std::cout << SEND << endl;
+            //std::cout << SEND << endl;
             write(sessionargs->connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
             write(sessionargs->connFd, "\r\n", 2);
 
@@ -83,12 +87,14 @@ void *frontendservicesesion(void *dummyPt) {
 
             Utils utils;
             gData = utils.trim_copy(gData, " \f\n\r\t\v");
-            std::cout << "data received : " << gData << endl;
+            //std::cout << "data received : " << gData << endl;
+            frontend_logger.log("Data received: " + gData, "info");
 
             std::vector<std::string> strArr = Utils::split(gData, '|');
 
             if (strArr.size() != 2) {
-                std::cout << ERROR << ":Message format not recognized" << endl;
+                //std::cout << ERROR << ":Message format not recognized" << endl;
+                frontend_logger.log("Message format not recognized", "error");
                 break;
             }
 
@@ -96,12 +102,12 @@ void *frontendservicesesion(void *dummyPt) {
             path = strArr[1];
 
             if (JasmineGraphFrontEnd::graphExists(path, dummyPt)) {
-                std::cout << ERROR << ":Graph exists" << endl;
+                //std::cout << ERROR << ":Graph exists" << endl;
+                frontend_logger.log("Graph exists", "error");
                 break;
             }
 
             if (utils.fileExists(path, sessionargs)) {
-                std::cout << "Path exists" << endl;
 
                 SQLiteDBInterface *sqlite = &sessionargs->sqlite;
                 string sqlStatement =
@@ -114,12 +120,13 @@ void *frontendservicesesion(void *dummyPt) {
                         "org.jasminegraph.server.runtime.location").c_str(), newGraphID);
 
             } else {
-                std::cout << ERROR << ":Graph data file does not exist on the specified path" << endl;
+                //std::cout << ERROR << ":Graph data file does not exist on the specified path" << endl;
+                frontend_logger.log("Graph data file does not exist on the specified path", "error");
                 break;
             }
 
         } else if (line.compare(ADGR) == 0) {
-            std::cout << SEND << endl;
+            //std::cout << SEND << endl;
             write(sessionargs->connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
             write(sessionargs->connFd, "\r\n", 2);
 
@@ -137,12 +144,14 @@ void *frontendservicesesion(void *dummyPt) {
 
             Utils utils;
             gData = utils.trim_copy(gData, " \f\n\r\t\v");
-            std::cout << "data received : " << gData << endl;
+            //std::cout << "data received : " << gData << endl;
+            frontend_logger.log("Data received: " + gData, "info");
 
             std::vector<std::string> strArr = Utils::split(gData, '|');
 
             if (strArr.size() != 2) {
-                std::cout << ERROR << ":Message format not recognized" << endl;
+                //std::cout << ERROR << ":Message format not recognized" << endl;
+                frontend_logger.log("Message format not recognized", "error");
                 break;
             }
 
@@ -150,13 +159,12 @@ void *frontendservicesesion(void *dummyPt) {
             path = strArr[1];
 
             if (JasmineGraphFrontEnd::graphExists(path, dummyPt)) {
-                std::cout << ERROR << ":Graph exists" << endl;
+                //std::cout << ERROR << ":Graph exists" << endl;
+                frontend_logger.log("Graph exists" ,"error");
                 break;
             }
 
             if (utils.fileExists(path, sessionargs)) {
-                std::cout << "Path exists" << endl;
-
                 SQLiteDBInterface *sqlite = &sessionargs->sqlite;
                 string sqlStatement =
                         "INSERT INTO graph (name,upload_path,upload_start_time,upload_end_time,graph_status_idgraph_status,"
@@ -172,14 +180,17 @@ void *frontendservicesesion(void *dummyPt) {
                 JasmineGraphServer *jasmineServer = new JasmineGraphServer();
                 jasmineServer->uploadGraphLocally(newGraphID);
             } else {
-                std::cout << ERROR << ":Graph data file does not exist on the specified path" << endl;
+                //std::cout << ERROR << ":Graph data file does not exist on the specified path" << endl;
+                frontend_logger.log("Graph data file does not exist on the specified path", "error");
                 break;
             }
         } else {
-            std::cout << ERROR << ":Message format not recognized" << endl;
+            //std::cout << ERROR << ":Message format not recognized" << endl;
+            frontend_logger.log("Message format not recognized", "error");
         }
     }
-    cout << "\nClosing thread " << pthread_self() << " and connection" << endl;
+    frontend_logger.log("Closing thread " + to_string(pthread_self()) + " and connection", "info");
+    //cout << "\nClosing thread " << pthread_self() << " and connection" << endl;
     close(sessionargs->connFd);
 }
 
@@ -203,7 +214,8 @@ int JasmineGraphFrontEnd::run() {
     listenFd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (listenFd < 0) {
-        cerr << "Cannot open socket" << endl;
+        //cerr << "Cannot open socket" << endl;
+        frontend_logger.log("Cannot open socket", "error");
         return 0;
     }
 
@@ -223,7 +235,8 @@ int JasmineGraphFrontEnd::run() {
 
     //bind socket
     if (bind(listenFd, (struct sockaddr *) &svrAdd, sizeof(svrAdd)) < 0) {
-        cerr << "Cannot bind" << endl;
+        //cerr << "Cannot bind" << endl;
+        frontend_logger.log("Cannot bind", "error");
         return 0;
     }
 
@@ -234,16 +247,19 @@ int JasmineGraphFrontEnd::run() {
     int noThread = 0;
 
     while (noThread < 3) {
-        cout << "Listening" << endl;
+        //cout << "Listening" << endl;
+        frontend_logger.log("Frontend Listening", "info");
 
         //this is where client connects. svr will hang in this mode until client conn
         connFd = accept(listenFd, (struct sockaddr *) &clntAdd, &len);
 
         if (connFd < 0) {
-            cerr << "Cannot accept connection" << endl;
+            //cerr << "Cannot accept connection" << endl;
+            frontend_logger.log("Cannot accept connection", "error");
             return 0;
         } else {
-            cout << "Connection successful" << endl;
+            //cout << "Connection successful" << endl;
+            frontend_logger.log("Connection successful", "info");
         }
 
         struct frontendservicesessionargs frontendservicesessionargs1;
@@ -277,7 +293,6 @@ bool JasmineGraphFrontEnd::graphExists(string path, void *dummyPt) {
     SQLiteDBInterface *sqlite = (SQLiteDBInterface *) dummyPt;
     std::vector<vector<pair<string, string>>> v = sqlite->runSelect(stmt);
     int count = std::stoi(v[0][0].second);
-    std::cout << "No of columns  : " << count << endl;
     if (count == 0) {
         result = false;
     }
@@ -296,19 +311,8 @@ bool JasmineGraphFrontEnd::graphExistsByID(string id, void *dummyPt) {
     SQLiteDBInterface *sqlite = (SQLiteDBInterface *) dummyPt;
     std::vector<vector<pair<string, string>>> v = sqlite->runSelect(stmt);
     int count = std::stoi(v[0][0].second);
-    std::cout << "No of columns  : " << count << endl;
     if (count == 0) {
         result = false;
     }
     return result;
-}
-
-/**
- * This method checks if a file with the given path exists.
- * @param fileName
- * @return
- */
-bool JasmineGraphFrontEnd::fileExists(const string fileName) {
-    std::ifstream infile(fileName);
-    return infile.good();
 }

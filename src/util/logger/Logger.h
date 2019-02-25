@@ -11,26 +11,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
-#include "JasmineGraphInstance.h"
-#include "../util/logger/Logger.h"
+#ifndef JASMINEGRAPH_SPDLOGGER_H
+#define JASMINEGRAPH_SPDLOGGER_H
 
-#include <iostream>
-#include <unistd.h>
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/file_sinks.h>
 
-Logger worker_logger;
-
-void JasmineGraphInstance::start_running(int serverPort, int serverDataPort) {
-//    std::cout << "Worker started" << std::endl;
-//    std::cout << "Running the server..." << std::endl;
-    worker_logger.log("Worker started", "info");
-    worker_logger.log("Running the server...", "info");
-
-    this->sqlite = *new SQLiteDBInterface();
-    this->sqlite.init();
+class Logger
+{
+public:
+    void log(std::string message, const std::string log_type);
+};
 
 
-}
-
-bool JasmineGraphInstance::isRunning() {
-    return true;
-}
+#endif //JASMINEGRAPH_SPDLOGGER_H

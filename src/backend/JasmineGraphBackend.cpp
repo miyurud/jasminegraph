@@ -15,16 +15,19 @@ limitations under the License.
 #include "../util/Utils.h"
 #include "../util/Conts.h"
 #include "JasmineGraphBackendProtocol.h"
+#include "../util/logger/Logger.h"
 
 using namespace std;
 
 Utils utils;
+Logger backend_logger;
 thread_local int connFd;
 //static int connFd;
 
 void *backendservicesesion(void *dummyPt) {
     backendservicesessionargs *sessionargs = (backendservicesessionargs *) dummyPt;
-    cout << "Thread No: " << pthread_self() << endl;
+    //cout << "Thread No: " << pthread_self() << endl;
+    backend_logger.log("Thread No: " + to_string(pthread_self()), "info");
     char data[300];
     bzero(data, 301);
     bool loop = false;
@@ -33,8 +36,8 @@ void *backendservicesesion(void *dummyPt) {
         read(sessionargs->connFd, data, 300);
 
         string line(data);
-        cout << line << endl;
-
+        //cout << line << endl;
+        backend_logger.log("Command received: " + line , "info");
         line = utils.trim_copy(line, " \f\n\r\t\v");
 
         if (line.compare(EXIT_BACKEND) == 0) {
@@ -51,14 +54,17 @@ void *backendservicesesion(void *dummyPt) {
             string hostname(host);
             Utils utils;
             hostname = utils.trim_copy(hostname, " \f\n\r\t\v");
-            std::cout << "Hostname of the worker : " << hostname << endl;
+            backend_logger.log("Hostname of the worker: " + hostname , "info");
+            //std::cout << "Hostname of the worker : " << hostname << endl;
 
         }
         else {
-            std::cout << ERROR << ":Message format not recognized" << endl;
+            backend_logger.log("Message format not recognized", "error");
+            //std::cout << ERROR << ":Message format not recognized" << endl;
         }
     }
-    cout << "\nClosing thread " << pthread_self() << " and connection" << endl;
+    backend_logger.log("Closing thread " + to_string(pthread_self()) + " and connection", "info");
+    //cout << "\nClosing thread " << pthread_self() << " and connection" << endl;
     close(sessionargs->connFd);
 }
 
@@ -82,7 +88,8 @@ int JasmineGraphBackend::run() {
     listenFd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (listenFd < 0) {
-        cerr << "Cannot open socket" << endl;
+        //cerr << "Cannot open socket" << endl;
+        backend_logger.log("Cannot open socket", "error");
         return 0;
     }
 
@@ -102,7 +109,8 @@ int JasmineGraphBackend::run() {
 
     //bind socket
     if (bind(listenFd, (struct sockaddr *) &svrAdd, sizeof(svrAdd)) < 0) {
-        cerr << "Cannot bind" << endl;
+        //cerr << "Cannot bind" << endl;
+        backend_logger.log("Cannot bind", "error");
         return 0;
     }
 
@@ -113,16 +121,19 @@ int JasmineGraphBackend::run() {
     int noThread = 0;
 
     while (noThread < 3) {
-        cout << "Listening" << endl;
+        //cout << "Listening" << endl;
+        backend_logger.log("Backend Listening", "info");
 
         //this is where client connects. svr will hang in this mode until client conn
         connFd = accept(listenFd, (struct sockaddr *) &clntAdd, &len);
 
         if (connFd < 0) {
-            cerr << "Cannot accept connection" << endl;
+            //cerr << "Cannot accept connection" << endl;
+            backend_logger.log("Cannot accept connection", "error");
             return 0;
         } else {
-            cout << "Connection successful" << endl;
+            //cout << "Connection successful" << endl;
+            backend_logger.log("Connection successful", "info");
         }
 
         struct backendservicesessionargs backendservicesessionargs1;

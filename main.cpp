@@ -17,10 +17,12 @@ limitations under the License.
 #include "main.h"
 #include "src/util/Conts.h"
 #include "src/server/JasmineGraphInstance.h"
+#include "src/util/logger/Logger.h"
 
 unsigned int microseconds = 10000000;
 JasmineGraphServer *server;
 JasmineGraphInstance *instance;
+Logger main_logger;
 
 void fnExit3(void) {
     delete (server);
@@ -33,8 +35,10 @@ int main(int argc, char *argv[]) {
     Utils utils;
 
     if (argc < 1) {
-        std::cout << "Use argument 1 to start JasmineGraph in Master mode. Use 2 <serverPort> <serverDataPort> to "
-                  << "start as worker." << std::endl;
+//        std::cout << "Use argument 1 to start JasmineGraph in Master mode. Use 2 <serverPort> <serverDataPort> to "
+//                  << "start as worker ." << std::endl;
+    main_logger.log("\"Use argument 1 to start JasmineGraph in Master mode. Use 2 "
+                    "<serverPort> <serverDataPort> to start as worker","error");
         return -1;
     }
 
@@ -56,8 +60,9 @@ int main(int argc, char *argv[]) {
         delete server;
     } else if (mode == Conts::JASMINEGRAPH_RUNTIME_PROFILE_WORKER){
         if (argc < 4) {
-            std::cout << "Need three arguments. Use 2 <serverPort> <serverDataPort> to "
-                      << "start as worker ." << std::endl;
+//            std::cout << "Need three arguments. Use 2 <serverPort> <serverDataPort> to "
+//                      << "start as worker ." << std::endl;
+        main_logger.log("Need three arguments. Use 2 <serverPort> <serverDataPort> to start as worker","info");
             return -1;
         }
         int serverPort = atoi(argv[2]);
