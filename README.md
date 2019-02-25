@@ -10,6 +10,7 @@ The following build tools, applications, and libraries need to be installed befo
 - Cmake version 3.10.3 or above
 - Google Flat Buffers (https://github.com/google/flatbuffers)
 - Metis (http://glaros.dtc.umn.edu/gkhome/metis/metis/download)
+- SdpLog (Ubuntu: apt-get install libspdlog-dev)
 
 First, this repository should be cloned into one of your computer's local directory. Then change directory to jasminegraph and run ./build.sh to build the Jasminegraph executable.
 
