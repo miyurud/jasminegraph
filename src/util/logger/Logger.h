@@ -17,8 +17,7 @@ limitations under the License.
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/file_sinks.h>
 
-class Logger
-{
+class Logger {
 public:
     void log(std::string message, const std::string log_type);
 };

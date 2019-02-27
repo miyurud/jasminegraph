@@ -68,3 +68,6 @@ fabric.properties
 .vscode/
 build/
 metadb/jasminegraph_meta.db
+
+# Log files
+logs/

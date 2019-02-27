@@ -15,30 +15,23 @@ limitations under the License.
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/file_sinks.h>
 
-
-
-
 auto logger = spdlog::stdout_logger_mt("logger");
-auto daily_logger = spdlog::daily_logger_mt("JasmineGraph", "logs/server_log", 0, 00);
+auto daily_logger = spdlog::daily_logger_mt("JasmineGraph", "logs/server_log", 0, 00, true);
 
 void Logger::log(std::string message, const std::string log_type) {
-    if (log_type.compare("info")==0){
+    if (log_type.compare("info") == 0) {
         daily_logger->info(message);
         logger->info(message);
-    }
-    else if (log_type.compare("warn")==0){
+    } else if (log_type.compare("warn") == 0) {
         daily_logger->warn(message);
         logger->warn(message);
-    }
-    else if (log_type.compare("trace")==0){
+    } else if (log_type.compare("trace") == 0) {
         daily_logger->trace(message);
         logger->trace(message);
-    }
-    else if (log_type.compare("error")==0){
+    } else if (log_type.compare("error") == 0) {
         daily_logger->error(message);
         logger->error(message);
-    }
-    else {
+    } else {
         std::cout << "Invalid logging type" << std::endl;
     }
 
