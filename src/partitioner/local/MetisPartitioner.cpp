@@ -314,7 +314,7 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
 
         //Compress part files
         this->utils.compressFile(outputFilePart);
-        partitionFileList.push_back(outputFilePart+".zip");
+        partitionFileList.push_back(outputFilePart+".gz");
         this->utils.compressFile(outputFilePartMaster);
     }
 }

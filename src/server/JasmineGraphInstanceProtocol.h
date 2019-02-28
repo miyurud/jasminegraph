@@ -20,8 +20,8 @@ using namespace std;
 
 class JasmineGraphInstanceProtocol{
 public:
-    //Handshaking is the first task that Acacia's main server does with an Acacia Instance once it gets connected.
-    //During the phase of Handshaking, Acacia server informs its host name to the instance so that it can connect with the server later time.
+    //Handshaking is the first task that JasmineGraph's main server does with an JasmineGraph Instance once it gets connected.
+    //During the phase of Handshaking, JasmineGraph server informs its host name to the instance so that it can connect with the server later time.
     static const string HANDSHAKE;
     static const string HANDSHAKE_OK;
     static const string CLOSE;
@@ -34,11 +34,11 @@ public:
     static const string BATCH_UPLOAD;               // This is to upload a file as a batch
     static const string BATCH_UPLOAD_CENTRAL;       // This is to upload centralstore file as a batch
     static const string BATCH_UPLOAD_CHK;           // This is to check whether the upload process has finished or not.
-    static const string BATCH_UPLOAD_WAIT;          // This is to check whether the upload process has finished or not.
+    static const string BATCH_UPLOAD_WAIT;
     static const string BATCH_UPLOAD_ACK;
     static const string SEND_FILE;
-    static const string SEND_FILE_LEN;              // This is to indicate manager to send the size of the file.
-    static const string SEND_FILE_CONT;             // This is to indicate manager to send the file contents.
+    static const string SEND_FILE_LEN;              // This is to indicate server to send the size of the file.
+    static const string SEND_FILE_CONT;             // This is to indicate server to send the file contents.
     static const string SEND_FILE_COMPLETE;
     static const string SEND_FILE_NAME;
     static const string SEND_PARTITION_ID;          // This command is used by the Instance service session to ask for partition id.

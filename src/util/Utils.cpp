@@ -205,5 +205,30 @@ bool Utils::is_number(const std::string& compareString) {
                                                   compareString.end(), [](char c) { return !std::isdigit(c); }) == compareString.end();
 }
 
+/**
+ * This method extracts the file name from file path
+ * @param filePath
+ * @return
+ */
+std::string Utils::getFileName(std::string filePath) {
+    std::string filename = filePath.substr(filePath.find_last_of("/\\") + 1);
+    return filename;
+}
 
-
+/**
+ * This method returns the size of the file in bytes
+ * @param filePath
+ * @return
+ */
+int Utils::getFileSize(std::string filePath) {
+    //const clock_t begin_time = clock();
+    ifstream file(filePath.c_str(), ifstream::in | ifstream::binary);
+    if (!file.is_open()) {
+        return -1;
+    }
+    file.seekg(0, ios::end);
+    int fileSize = file.tellg();
+    file.close();
+    //std::cout << "TIME FOR READ : "<<float( clock () - begin_time ) /  CLOCKS_PER_SEC << std::endl;
+    return fileSize;
+}

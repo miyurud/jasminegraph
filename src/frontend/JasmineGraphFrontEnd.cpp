@@ -162,17 +162,15 @@ void *frontendservicesesion(void *dummyPt) {
                         "INSERT INTO graph (name,upload_path,upload_start_time,upload_end_time,graph_status_idgraph_status,"
                         "vertexcount,centralpartitioncount,edgecount) VALUES(\"" + name + "\", \"" + path +
                         "\", \"" + uploadStartTime + "\", \"\",\"UPLOADING\", \"\", \"\", \"\")";
-                //int newGraphID = sqlite->runInsert(sqlStatement);
-                int newGraphID = 3;
+                int newGraphID = sqlite->runInsert(sqlStatement);
                 MetisPartitioner *partitioner = new MetisPartitioner(&sessionargs->sqlite);
-                //partitioner->loadDataSet(path, utils.getJasmineGraphProperty("org.jasminegraph.server.runtime.location").c_str());
                 partitioner->loadDataSet(path, utils.getJasmineGraphProperty(
                         "org.jasminegraph.server.runtime.location").c_str(), newGraphID);
 
                 partitioner->constructMetisFormat();
                 partitioner->partitioneWithGPMetis();
-                JasmineGraphServer *jg = new JasmineGraphServer();
-                jg->uploadGraphLocally(newGraphID);
+                JasmineGraphServer *jasmineServer = new JasmineGraphServer();
+                jasmineServer->uploadGraphLocally(newGraphID);
             } else {
                 std::cout << ERROR << ":Graph data file does not exist on the specified path" << endl;
                 break;

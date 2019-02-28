@@ -31,12 +31,13 @@ private:
     int numberOfWorkers;
     int serverPort;
     int serverDataPort;
-    std::map<std::string,std::vector<int>> workerPortsMap;
-    std::map<std::string,std::vector<int>> workerDataPortsMap;
+    std::map<std::string, std::vector<int>> workerPortsMap;
+    std::map<std::string, std::vector<int>> workerDataPortsMap;
 
     static void startRemoteWorkers(std::vector<int> workerPortsVector, std::vector<int> workerDataPortsVector, std::string host);
 
-    static void *startBatchUploadThread(void *threadData);
+    static bool sendFileThroughService(std::string host, int dataPort, std::string fileName, std::string filePath);
+
 public:
     ~JasmineGraphServer();
 
@@ -52,8 +53,7 @@ public:
 
     void uploadGraphLocally(int graphID);
 
-    bool batchUploadFile(std::string host, int port, int graphID, std::string filePath, int dataPort);
-
+    static bool batchUploadFile(std::string host, int port, int dataPort, int graphID, std::string filePath);
 
     JasmineGraphFrontEnd *frontend;
     SQLiteDBInterface sqlite;
