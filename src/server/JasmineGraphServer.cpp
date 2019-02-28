@@ -150,14 +150,13 @@ void JasmineGraphServer::start_workers() {
     for (hostListIterator = hostsList.begin(); hostListIterator < hostsList.end(); hostListIterator++) {
         std::string host = *hostListIterator;
         myThreads[count] = std::thread(startRemoteWorkers,workerPortsMap[host],workerDataPortsMap[host], host);
-        myThreads[count].join();
         count++;
     }
 
-//    for (int threadCount=0;threadCount<hostListSize;threadCount++) {
-//        myThreads[threadCount].join();
-//        std::cout<<"############JOINED###########"<< std::endl;
-//    }
+    for (int threadCount=0;threadCount<hostListSize;threadCount++) {
+        myThreads[threadCount].join();
+        std::cout<<"############JOINED###########"<< std::endl;
+    }
 
 }
 
