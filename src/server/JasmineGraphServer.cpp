@@ -150,13 +150,14 @@ void JasmineGraphServer::start_workers() {
     for (hostListIterator = hostsList.begin(); hostListIterator < hostsList.end(); hostListIterator++) {
         std::string host = *hostListIterator;
         myThreads[count] = std::thread(startRemoteWorkers,workerPortsMap[host],workerDataPortsMap[host], host);
+        myThreads[count].join();
         count++;
     }
 
-    for (int threadCount=0;threadCount<hostListSize;threadCount++) {
-        myThreads[threadCount].join();
-        std::cout<<"############JOINED###########"<< std::endl;
-    }
+//    for (int threadCount=0;threadCount<hostListSize;threadCount++) {
+//        myThreads[threadCount].join();
+//        std::cout<<"############JOINED###########"<< std::endl;
+//    }
 
 }
 
@@ -166,16 +167,18 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector,
     Utils utils;
     std::string serverPath = utils.getJasmineGraphProperty("org.jasminegraph.worker.startup.path");
     std::string jasmineGraphExecutableName = Conts::JASMINEGRAPH_EXECUTABLE;
-    std::string executableFile = serverPath+jasmineGraphExecutableName;
+    std::string executableFile = serverPath+"/"+jasmineGraphExecutableName;
     std::string serverStartScript;
     char buffer[128];
     std::string result = "";
 
     for (int i =0 ; i < workerPortsVector.size() ; i++) {
         if (host.find("localhost") != std::string::npos) {
-            serverStartScript = executableFile+" 2 "+ std::to_string(workerPortsVector.at(i)) + " " + std::to_string(workerDataPortsVector.at(i));
+            serverStartScript = executableFile+" 2 "+ std::to_string(workerPortsVector.at(i)) + " " +
+                    std::to_string(workerDataPortsVector.at(i));
         } else {
-            serverStartScript = "ssh -p 22 " + host+ " "+ executableFile + " 2"+" "+ std::to_string(workerPortsVector.at(i)) + " " + std::to_string(workerDataPortsVector.at(i));
+            serverStartScript = "ssh -p 22 " + host+ " "+ executableFile + " 2"+" "+
+                    std::to_string(workerPortsVector.at(i)) + " " + std::to_string(workerDataPortsVector.at(i));
         }
         std::cout<<serverStartScript<< std::endl;
         FILE *input = popen(serverStartScript.c_str(),"r");

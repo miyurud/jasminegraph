@@ -33,7 +33,7 @@ int main(int argc, char *argv[]) {
 
     if (argc < 1) {
         std::cout << "Use argument 1 to start JasmineGraph in Master mode. Use 2 <serverPort> <serverDataPort> to "
-                  << "start as worker ." << std::endl;
+                  << "start as worker." << std::endl;
         return -1;
     }
 

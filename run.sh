@@ -5,10 +5,6 @@ MODE=$1;
 SERVER_PORT=$2;
 SERVER_DATA_PORT=$3;
 
-echo "using mode $MODE"
-echo "using mode $SERVER_PORT"
-echo "using mode $SERVER_DATA_PORT"
-
 JASMINEGRAPH_HOME="`( cd \"$JASMINEGRAPH_HOME\" && pwd )`"
 if [ -z "$JASMINEGRAPH_HOME" ] ;
 then
@@ -17,7 +13,9 @@ fi
 
 if [ -z "$MODE" ] ;
 then
-    echo "SERVER MODE SHOULD BE SPECIFIED"
+    echo "MODE OF OPERATION SHOULD BE SPECIFIED"
+    echo "Use argument 1 to start JasmineGraph in Master mode."
+    echo "Use 2 <serverPort> <serverDataPort> to start in Worker mode."
     exit 1
 fi
 
@@ -38,6 +36,12 @@ else
     fi
 fi
 
+echo "using mode $MODE"
+if [ $MODE -eq 1 ] ;
+then
+    echo "using mode $SERVER_PORT"
+    echo "using mode $SERVER_DATA_PORT"
+fi
 
 cd $JASMINEGRAPH_HOME
 
