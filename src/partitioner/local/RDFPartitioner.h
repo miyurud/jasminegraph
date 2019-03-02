@@ -29,6 +29,14 @@ limitations under the License.
 #include "../../util/Utils.h"
 #include <cstddef>
 #include <algorithm>
+#include <unordered_map>
+#include <ext/hash_set>
+#include <vector>
+#include <set>
+
+using namespace __gnu_cxx;
+
+//using namespace std;
 
 using std::string;
 
@@ -59,6 +67,16 @@ public:
 
     void distributeEdges();
 
+    long addToNodes(std::map<string, long> *map, string URI);
+
+    long addToPredicates(std::map<string, long> *map, string URI);
+
+
+    void addToMap(std::map<long, std::map<long, std::set<string> >> *map, long vertex, long relation, string value);
+
+    void writeRelationData();
+
+
 private:
 
     string outputFilePath;
@@ -81,8 +99,12 @@ private:
     std::map<long, string> nodesTemp;
     std::map<string, long> predicates;
     std::map<long, string> predicatesTemp;
-    std::map<long, std::vector<string>> relationsMap;
-    std::map<long, std::vector<string>> attributeMap;
+    std::map<long, std::set<long> > graphStorage;
+    std::map<long, std::map<long, std::set<string>>> relationsMap;
+    std::map<long, std::map<long, vector<string>>> attributeMap;
+
+    long edgeCount;
+    long vertexCount;
 
 };
 
