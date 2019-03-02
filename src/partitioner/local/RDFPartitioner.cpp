@@ -41,9 +41,10 @@ void RDFPartitioner::loadDataSet(string inputFilePath, string outputFilePath, in
     this->graphID = graphID;
     this->outputFilePath = outputFilePath;
     std::cout << "grapphId" << this->graphID << std::endl;
-    this->utils.createDirectory("/tmp/" + std::to_string(this->graphID));
+
     std::ifstream dbFile;
     dbFile.open(inputFilePath, std::ios::binary | std::ios::in);
+    std::cout << "File is loading..." << std::endl;
 
 
     string subject;
@@ -63,13 +64,12 @@ void RDFPartitioner::loadDataSet(string inputFilePath, string outputFilePath, in
         stream >> predicate_str >> object_str;
 
 
+        long firstVertex = addToNodes(&nodes, subject_str);
 
-        long firstVertex = addToStore(&nodes, subject_str);
+        long relation = addToPredicates(&predicates, predicate_str);
 
 
-        long relation = addToStore(&predicates, predicate_str);
-
-        long secondVertex = addToStore(&nodes, object_str);
+        long secondVertex = addToNodes(&nodes, object_str);
 
 
         std::string secondVertexStr = std::to_string(secondVertex);
@@ -79,78 +79,84 @@ void RDFPartitioner::loadDataSet(string inputFilePath, string outputFilePath, in
 
         std::set<long> vertexSet = graphStorage.find(firstVertex)->second;
 
-        for (auto it = vertexSet.begin(); it != vertexSet.end(); ++it)
 
-            if (vertexSet.empty()) {
+        if (vertexSet.empty()) {
 
-                vertexSet = set<long>();
-                vertexSet.insert(secondVertex);
+            vertexSet = set<long>();
+            vertexSet.insert(secondVertex);
+            edgeCount++;
+
+            graphStorage.insert({firstVertex, vertexSet});
+        } else if (!vertexSet.empty()) {
+
+            if (vertexSet.insert(secondVertex).second) {
                 edgeCount++;
-                graphStorage.insert({firstVertex, vertexSet});
-            } else if (!vertexSet.empty()) {
 
-                if (vertexSet.insert(secondVertex).second) {
-                    edgeCount++;
-                }
             }
+        }
 
     }
     writeRelationData();
 }
 
-long RDFPartitioner::addToStore(std::map<string, long> *map, string URI) {
+long RDFPartitioner::addToNodes(std::map<string, long> *map, string URI) {
     long id;
     id = map->size();
 
     auto search = map->find(URI);
     if (search != map->end()) {
         return search->second;
-    } else {
-
     }
 
 
-    if (*map == nodes) {
-        nodesTemp.insert({id, URI});
+    nodesTemp.insert({id, URI});
 
 
-    } else if (*map == predicates) {
-        predicatesTemp.insert({id, URI});
+    map->insert({URI, id});
+    return id;
+}
 
+long RDFPartitioner::addToPredicates(std::map<string, long> *map, string URI) {
+    long id;
+    id = map->size();
+
+    auto search = map->find(URI);
+    if (search != map->end()) {
+        return search->second;
     }
+
+
+    predicatesTemp.insert({id, URI});
+
+
     map->insert({URI, id});
     return id;
 }
 
 
-void RDFPartitioner::addToMap(std::map<long, std::map<long, std::vector<string> >> *map, long vertex, long relation,
+void RDFPartitioner::addToMap(std::map<long, std::map<long, std::set<string>>> *map, long vertex, long relation,
                               string value) {
-    std::map<long, std::vector<string>> miniMap = map->find(vertex)->second;
+    auto it = map->find(vertex);
+    if (it == map->end()) {
+        relationsMap[vertex][relation].insert(value);
+
+    } else {
+        std::map<long, std::set<string>> miniMap = map->find(vertex)->second;
 
 
-    if (!miniMap.empty()) {
+        auto it = miniMap.find(relation);
+        if (it == miniMap.end()) {
 
-        std::vector<string> list = miniMap.find(0)->second;
+            relationsMap[vertex][relation].insert(value);
 
-        if (!list.empty()) {
+        } else {
 
-            list.push_back(value);
-        } else if (list.empty()) {
+            relationsMap[vertex][relation].insert(value);
 
-            list = std::vector<string>();
-            list.push_back(value);
-            miniMap.insert({relation, list});
+
         }
-
-    } else if (miniMap.empty()) {
-
-        std::vector<string> list;
-        list.push_back(value);
-        miniMap = std::map<long, vector<string>>();
-        miniMap.insert({relation, list});
-        map->insert({vertex, miniMap});
-
     }
+
 }
 
 
@@ -165,24 +171,27 @@ void RDFPartitioner::convert(string graphName, int graphID, string inputFilePath
 
 void RDFPartitioner::writeRelationData() {
     ofstream file;
-    file.open("RDFdata.txt");
-    for (auto it = relationsMap.begin(); it != relationsMap.end(); ++it) {
-        std::cout << it->first << " " << flush;
-        file << it->first << " " << flush;
-        std::map<long, std::vector<string>> miniMap = relationsMap.find(it->first)->second;
-        for (auto itr = miniMap.begin(); itr != miniMap.end(); ++itr) {
-            std::cout << itr->first << " " << flush;
-            file << itr->first << " " << flush;
+    file.open("./tmp/RDF/" + std::to_string(this->graphID) + ".txt");
 
-            std::vector<string> valuelist = miniMap.find(itr->first)->second;
-            for (std::vector<string>::const_iterator i = valuelist.begin(); i != valuelist.end(); ++i) {
-                std::cout << *i << std::endl;
-                file << *i << "\n";
+
+    for (const auto &subject : relationsMap) {
+        for (const auto &relation : subject.second) {
+            for (const auto &object : relation.second) {
+                std::cout << subject.first << " " << flush;
+                file << subject.first << " " << flush;
+
+                std::cout << relation.first << " " << flush;
+                file << relation.first << " " << flush;
+
+                std::cout << object << "\n";
+                file << object << "\n";
+
             }
         }
     }
 
+
     file.close();
-    std::cout << "writing to the file 'RDFdata'" << std::endl;
+    std::cout << "Data was written to the file path- /tmp/RDF/" << std::to_string(this->graphID) << ".txt" << std::endl;
 
 }
