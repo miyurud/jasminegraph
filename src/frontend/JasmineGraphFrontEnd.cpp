@@ -21,6 +21,7 @@ limitations under the License.
 #include "../metadb/SQLiteDBInterface.h"
 #include "../partitioner/local/MetisPartitioner.h"
 #include "../partitioner/local/RDFPartitioner.h"
+#include "../server/JasmineGraphServer.h"
 
 using namespace std;
 
@@ -163,12 +164,13 @@ void *frontendservicesesion(void *dummyPt) {
                         "\", \"" + uploadStartTime + "\", \"\",\"UPLOADING\", \"\", \"\", \"\")";
                 int newGraphID = sqlite->runInsert(sqlStatement);
                 MetisPartitioner *partitioner = new MetisPartitioner(&sessionargs->sqlite);
-                //partitioner->loadDataSet(path, utils.getJasmineGraphProperty("org.jasminegraph.server.runtime.location").c_str());
                 partitioner->loadDataSet(path, utils.getJasmineGraphProperty(
                         "org.jasminegraph.server.runtime.location").c_str(), newGraphID);
 
                 partitioner->constructMetisFormat();
                 partitioner->partitioneWithGPMetis();
+                JasmineGraphServer *jasmineServer = new JasmineGraphServer();
+                jasmineServer->uploadGraphLocally(newGraphID);
             } else {
                 std::cout << ERROR << ":Graph data file does not exist on the specified path" << endl;
                 break;

@@ -46,6 +46,10 @@ class Utils
     bool is_number(const std::string &compareString);
 
     void createDirectory(const std::string dirName);
+
+    std::string getFileName(std::string filePath);
+
+    int getFileSize(std::string filePath);
 };
 
 #endif //JASMINEGRAPH_UTILS_H
