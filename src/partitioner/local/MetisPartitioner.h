@@ -28,6 +28,7 @@ limitations under the License.
 #include "../../util/Utils.h"
 #include <cstddef>
 #include <algorithm>
+#include <thread>
 
 using std::string;
 
@@ -40,6 +41,9 @@ public:
     void constructMetisFormat();
 
     void partitioneWithGPMetis();
+
+    //return list of partition files
+    static std::vector<string> getPartitionFiles();
 
     MetisPartitioner(SQLiteDBInterface *);
 

@@ -18,12 +18,17 @@ limitations under the License.
 #include "JasmineGraphInstance.h"
 #include "../frontend/JasmineGraphFrontEnd.h"
 #include "../util/Utils.h"
+#include "../partitioner/local/MetisPartitioner.h"
+#include "JasmineGraphInstanceProtocol.h"
 
-struct workerPorts{
-    std::vector<int> workerPortsVector;
-    std::vector<int> workerDataPortsVector;
-    std::string host;
+struct workers{
+    std::string hostname;
+    int port;
+    int dataPort;
 };
+
+
+static std::vector<workers> hostWorkerMap;
 
 void *runfrontend(void *dummyPt) {
     JasmineGraphServer *refToServer = (JasmineGraphServer *) dummyPt;
@@ -114,6 +119,7 @@ void JasmineGraphServer::start_workers() {
         while (portCount < numberOfWorkersPerHost) {
             portVector.push_back(workerPort);
             dataPortVector.push_back(workerDataPort);
+            hostWorkerMap.push_back({*it,workerPort,workerDataPort});
             workerPort = workerPort + 2;
             workerDataPort = workerDataPort + 2;
             portCount ++;
@@ -122,6 +128,7 @@ void JasmineGraphServer::start_workers() {
         if (hostListModeNWorkers > 0) {
             portVector.push_back(workerPort);
             dataPortVector.push_back(workerDataPort);
+            hostWorkerMap.push_back({*it,workerPort,workerDataPort});
             workerPort = workerPort + 2;
             workerDataPort = workerDataPort + 2;
             hostListModeNWorkers--;
@@ -131,7 +138,6 @@ void JasmineGraphServer::start_workers() {
         workerDataPortsMap[item] = dataPortVector;
 
     }
-
 
     int hostListSize = hostsList.size();
     std::vector<std::string>::iterator hostListIterator;
@@ -144,14 +150,13 @@ void JasmineGraphServer::start_workers() {
     for (hostListIterator = hostsList.begin(); hostListIterator < hostsList.end(); hostListIterator++) {
         std::string host = *hostListIterator;
         myThreads[count] = std::thread(startRemoteWorkers,workerPortsMap[host],workerDataPortsMap[host], host);
-        myThreads[count].join();
         count++;
     }
 
-//    for (int threadCount=0;threadCount<hostListSize;threadCount++) {
-//        myThreads[threadCount].join();
-//        std::cout<<"############JOINED###########"<< std::endl;
-//    }
+    for (int threadCount=0;threadCount<hostListSize;threadCount++) {
+        myThreads[threadCount].join();
+        std::cout<<"############JOINED###########"<< std::endl;
+    }
 
 }
 
@@ -191,3 +196,277 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector,
         }
     }
 }
+
+void JasmineGraphServer::uploadGraphLocally(int graphID) {
+    std::cout << "Uploading the graph locally.." << std::endl;
+    std::vector<string> partitionFileList = MetisPartitioner::getPartitionFiles();
+    int count = 0;
+    std::thread* workerThreads = new std::thread[hostWorkerMap.size()];
+    std::vector<workers, std::allocator<workers>>::iterator mapIterator;
+    for (mapIterator = hostWorkerMap.begin(); mapIterator < hostWorkerMap.end(); mapIterator++) {
+        workers worker = *mapIterator;
+        workerThreads[count] = std::thread(batchUploadFile,worker.hostname,worker.port, worker.dataPort,graphID, partitionFileList[count]  );
+        count++;
+    }
+
+    for (int threadCount=0;threadCount<count;threadCount++) {
+        workerThreads[threadCount].join();
+    }
+
+    //TODO::Update the database as required
+}
+
+bool JasmineGraphServer::batchUploadFile(std::string host, int port, int dataPort, int graphID, std::string filePath) {
+    Utils utils;
+    bool result = true;
+    std::cout <<pthread_self()<< " host : " <<host<< " port : " <<port<< " DPort : " << dataPort<<std::endl;
+    int listenFd;
+    char data[300];
+    bool loop = false;
+    socklen_t len;
+    struct sockaddr_in svrAdd;
+    struct sockaddr_in clntAdd;
+
+    //create socket
+    listenFd = socket(AF_INET, SOCK_STREAM, 0);
+    if (listenFd < 0) {
+        std::cerr << "Cannot open socket" << std::endl;
+        return 0;
+    }
+
+    bzero(data, 301);
+    bzero((char *) &svrAdd, sizeof(svrAdd));
+
+    svrAdd.sin_family = AF_INET;
+    svrAdd.sin_addr.s_addr = INADDR_ANY;
+    svrAdd.sin_port = htons(port);
+
+    int yes = 1;
+
+    if (setsockopt(listenFd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes) == -1) {
+        perror("setsockopt");
+        exit(1);
+    }
+
+
+    //bind socket
+    if (bind(listenFd, (struct sockaddr *) &svrAdd, sizeof(svrAdd)) < 0) {
+        std::cerr << "Cannot bind" << std::endl;
+        return 0;
+    }
+
+    listen(listenFd, 5);
+
+    len = sizeof(clntAdd);
+
+    int connFd = accept(listenFd, (struct sockaddr *) &clntAdd, &len);
+
+    if (connFd < 0) {
+        std::cerr << "Cannot accept connection" << std::endl;
+        return 0;
+    } else {
+        std::cout << "Connection successful" << std::endl;
+    }
+
+    std::cout << JasmineGraphInstanceProtocol::HANDSHAKE << std::endl;
+    write(connFd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+
+    bzero(data, 301);
+    read(connFd, data, 300);
+    string response = (data);
+
+    std::cout << response << std::endl;
+
+    response = utils.trim_copy(response, " \f\n\r\t\v");
+
+    if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
+        std::cout << host << std::endl;
+        write(connFd, host.c_str(), host.size());
+    }
+
+    std::cout << JasmineGraphInstanceProtocol::BATCH_UPLOAD << std::endl;
+    write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD.c_str(), JasmineGraphInstanceProtocol::BATCH_UPLOAD.size());
+
+    bzero(data, 301);
+    read(connFd, data, 300);
+    response = (data);
+    response = utils.trim_copy(response, " \f\n\r\t\v");
+    std::cout << response << std::endl;
+    if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+        std::cout << graphID << std::endl;
+        write(connFd, std::to_string(graphID).c_str(), std::to_string(graphID).size());
+
+        std::string fileName = utils.getFileName(filePath);
+        std::string fileLength = to_string(utils.getFileSize(filePath));
+
+        bzero(data, 301);
+        read(connFd, data, 300);
+        response = (data);
+        response = utils.trim_copy(response, " \f\n\r\t\v");
+
+        if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_NAME) == 0) {
+            std::cout << fileName << std::endl;
+            write(connFd, fileName.c_str(), fileName.size());
+
+            bzero(data, 301);
+            read(connFd, data, 300);
+            response = (data);
+            response = utils.trim_copy(response, " \f\n\r\t\v");
+
+            if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_LEN) == 0) {
+                std::cout << fileLength << std::endl;
+                write(connFd, fileLength.c_str(), fileLength.size());
+
+                bzero(data, 301);
+                read(connFd, data, 300);
+                response = (data);
+                response = utils.trim_copy(response, " \f\n\r\t\v");
+
+                if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_CONT) == 0) {
+                    sendFileThroughService(host, dataPort, filePath, filePath);
+                }
+            }
+        }
+        int count = 0;
+
+        while (true) {
+            std::cout << JasmineGraphInstanceProtocol::FILE_RECV_CHK << std::endl;
+            write(connFd, JasmineGraphInstanceProtocol::FILE_RECV_CHK.c_str(), JasmineGraphInstanceProtocol::FILE_RECV_CHK.size());
+
+            bzero(data, 301);
+            read(connFd, data, 300);
+            response = (data);
+            response = utils.trim_copy(response, " \f\n\r\t\v");
+
+            if (response.compare(JasmineGraphInstanceProtocol::FILE_RECV_WAIT) == 0) {
+                std::cout << "Checking file status : " << count << std::endl;
+                count++;
+                //Thread.currentThread().sleep(1000);
+                //We sleep for 1 second, and try again.
+                continue;
+            }
+            else{
+                break;
+            }
+        }
+
+        std::cout << "File transfer completed..." << std::endl;
+
+        //Next we wait till the batch upload completes
+        while(true){
+
+            std::cout << JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK << std::endl;
+            write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK.c_str(), JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK.size());
+
+            bzero(data, 301);
+            read(connFd, data, 300);
+            response = (data);
+            response = utils.trim_copy(response, " \f\n\r\t\v");
+
+            if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT) == 0) {
+                //Thread.currentThread().sleep(1000);
+                //We sleep for 1 second, and try again.
+                continue;
+            }
+            else{
+                break;
+            }
+        }
+
+        if(response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK) == 0){
+            std::cout << "Batch upload completed..." << std::endl;
+        }else{
+            std::cout << "There was an error in the upload process..." << std::endl;
+        }
+
+    }
+    close(connFd);
+    return result;
+}
+
+bool JasmineGraphServer::sendFileThroughService(std::string host, int dataPort, std::string fileName,
+                                                std::string filePath) {
+    Utils utils;
+    int listenFd;
+    char data[300];
+    socklen_t len;
+    struct sockaddr_in svrAdd;
+    struct sockaddr_in clntAdd;
+
+    //create socket
+    listenFd = socket(AF_INET, SOCK_STREAM, 0);
+    if (listenFd < 0) {
+        std::cerr << "Cannot open socket" << std::endl;
+        return 0;
+    }
+
+    bzero(data, 301);
+    bzero((char *) &svrAdd, sizeof(svrAdd));
+
+    svrAdd.sin_family = AF_INET;
+    svrAdd.sin_addr.s_addr = INADDR_ANY;
+    svrAdd.sin_port = htons(dataPort);
+
+    int yes = 1;
+
+    if (setsockopt(listenFd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes) == -1) {
+        perror("setsockopt");
+        exit(1);
+    }
+
+
+    //bind socket
+    if (bind(listenFd, (struct sockaddr *) &svrAdd, sizeof(svrAdd)) < 0) {
+        std::cerr << "Cannot bind" << std::endl;
+        return 0;
+    }
+
+    listen(listenFd, 5);
+
+    len = sizeof(clntAdd);
+
+    thread_local int connFd = accept(listenFd, (struct sockaddr *) &clntAdd, &len);
+
+    if (connFd < 0) {
+        std::cerr << "Cannot accept connection" << std::endl;
+        return 0;
+    } else {
+        std::cout << "Connection successful" << std::endl;
+    }
+
+    write(connFd, fileName.c_str(), fileName.size());
+
+    bzero(data, 301);
+    read(connFd, data, 300);
+    string response = (data);
+
+    std::cout << response << std::endl;
+
+    response = utils.trim_copy(response, " \f\n\r\t\v");
+
+    if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE) == 0) {
+        std::cout << "Sending file" << std::endl;
+        // TODO : Send file through socket
+        std::string dataFolderPath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+        char buffer[128];
+        std::string result = "";
+        string serverStartScript = "scp -P " + to_string(dataPort) + " " + filePath + " " + host + ":" + dataFolderPath;
+        std::cout << "Script: " << serverStartScript << std::endl;
+        FILE *input = popen(serverStartScript.c_str(), "r");
+
+        if (input) {
+            // read the input
+            while (!feof(input)) {
+                if (fgets(buffer, 128, input) != NULL) {
+                    result.append(buffer);
+                }
+            }
+            if (!result.empty()) {
+                std::cout << result << std::endl;
+            }
+            pclose(input);
+        }
+
+    }
+}
+
