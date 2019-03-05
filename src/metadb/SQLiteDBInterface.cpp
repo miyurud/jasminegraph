@@ -25,6 +25,7 @@ int SQLiteDBInterface::init() {
         return (-1);
     } else {
         fprintf(stderr, "Opened database successfully\n");
+        return rc;
     }
 }
 
