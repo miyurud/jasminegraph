@@ -280,8 +280,8 @@ bool JasmineGraphServer::batchUploadFile(std::string host, int port, int dataPor
     response = utils.trim_copy(response, " \f\n\r\t\v");
 
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
-        std::cout << host << std::endl;
-        write(connFd, host.c_str(), host.size());
+        string server_host = utils.getJasmineGraphProperty("org.jasminegraph.server.host");
+        write(connFd, server_host.c_str(), server_host.size());
     }
 
     std::cout << JasmineGraphInstanceProtocol::BATCH_UPLOAD << std::endl;

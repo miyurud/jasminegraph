@@ -153,7 +153,7 @@ bool Utils::parseBoolean(const std::string str) {
  * @param fileName
  * @return
  */
-bool Utils::fileExists(const std::string fileName, frontendservicesessionargs *ptr) {
+bool Utils::fileExists(std::string fileName) {
     std::ifstream infile(fileName);
     return infile.good();
 }
@@ -231,4 +231,33 @@ int Utils::getFileSize(std::string filePath) {
     file.close();
     //std::cout << "TIME FOR READ : "<<float( clock () - begin_time ) /  CLOCKS_PER_SEC << std::endl;
     return fileSize;
+}
+
+/**
+ * this method extracts a gzip file
+ * @param filePath
+ */
+void Utils::unzipFile(std::string filePath) {
+    char buffer[128];
+    std::string result = "";
+    std::string command = "gzip -d " + filePath ;
+    char *commandChar = new char[command.length() + 1];
+    strcpy(commandChar, command.c_str());
+    FILE *input = popen(commandChar, "r");
+    if (input) {
+        while (!feof(input)) {
+            if (fgets(buffer, 128, input) != NULL) {
+                result.append(buffer);
+            }
+        }
+        pclose(input);
+        if (!result.empty()) {
+            std::cout << "File decompression failed with error : " << result << endl;
+        } else {
+            cout << "File in " << filePath << " extracted with gzip" << endl;
+        }
+    } else {
+        perror("popen");
+        // handle error
+    }
 }

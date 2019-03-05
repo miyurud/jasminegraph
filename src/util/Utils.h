@@ -40,7 +40,7 @@ class Utils
 
     bool parseBoolean(const std::string str);
 
-    bool fileExists(const std::string fileName, frontendservicesessionargs *ptr);
+    bool fileExists(std::string fileName);
 
     void compressFile(const std::string filePath);
     bool is_number(const std::string &compareString);
@@ -50,6 +50,8 @@ class Utils
     std::string getFileName(std::string filePath);
 
     int getFileSize(std::string filePath);
+
+    void unzipFile(std::string filePath);
 };
 
 #endif //JASMINEGRAPH_UTILS_H

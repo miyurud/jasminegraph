@@ -27,7 +27,7 @@ private:
     int serverDataPort;
 public:
     SQLiteDBInterface sqlite;
-    void start_running(int serverPort, int serverDataPort);
+    int start_running(int serverPort, int serverDataPort);
 
     void registerShutdownHook();
 
