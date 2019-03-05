@@ -1,15 +1,21 @@
 #!/usr/bin/env bash
 
-JASMINEGRAPH_HOME="`dirname \"$0\"`"
+JASMINEGRAPH_DIR="`dirname \"$0\"`"
 MODE=$1;
 SERVER_PORT=$2;
 SERVER_DATA_PORT=$3;
 
-JASMINEGRAPH_HOME="`( cd \"$JASMINEGRAPH_HOME\" && pwd )`"
-if [ -z "$JASMINEGRAPH_HOME" ] ;
+echo "using mode $MODE"
+echo "using server port $SERVER_PORT"
+echo "using server data port $SERVER_DATA_PORT"
+
+JASMINEGRAPH_DIR="`( cd \"$JASMINEGRAPH_DIR\" && pwd )`"
+if [ -z "$JASMINEGRAPH_DIR" ] ;
 then
     exit 1  # fail
 fi
+
+export JASMINEGRAPH_HOME="$JASMINEGRAPH_DIR"
 
 if [ -z "$MODE" ] ;
 then
@@ -43,6 +49,6 @@ then
     echo "using mode $SERVER_DATA_PORT"
 fi
 
-cd $JASMINEGRAPH_HOME
+cd $JASMINEGRAPH_DIR
 
 ./JasmineGraph $MODE $SERVER_PORT $SERVER_DATA_PORT

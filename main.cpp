@@ -30,6 +30,7 @@ void fnExit3(void) {
 
 int main(int argc, char *argv[]) {
     atexit(fnExit3);
+    Utils utils;
 
     if (argc < 1) {
         std::cout << "Use argument 1 to start JasmineGraph in Master mode. Use 2 <serverPort> <serverDataPort> to "
@@ -39,7 +40,10 @@ int main(int argc, char *argv[]) {
 
 
     int mode = atoi(argv[1]);
+    std::string JASMINEGRAPH_HOME = utils.getJasmineGraphHome();
 
+    std::cout << "Using JASMINE_GRAPH_HOME" << std::endl;
+    std::cout << JASMINEGRAPH_HOME << std::endl;
 
     if (mode == Conts::JASMINEGRAPH_RUNTIME_PROFILE_MASTER) {
         server = new JasmineGraphServer();

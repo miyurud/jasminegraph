@@ -14,6 +14,7 @@ limitations under the License.
 #include "Conts.h"
 
 std::string Conts::JASMINEGRAPH_EXECUTABLE = "run.sh";
+std::string Conts::JASMINEGRAPH_HOME  = "JASMINEGRAPH_HOME";
 
 int Conts::JASMINEGRAPH_FRONTEND_PORT = 7777;
 int Conts::JASMINEGRAPH_BACKEND_PORT = 7778;

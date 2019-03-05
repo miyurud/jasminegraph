@@ -19,6 +19,7 @@ limitations under the License.
 #include <fstream>
 #include "../frontend/JasmineGraphFrontEnd.h"
 #include <algorithm>
+#include "Conts.h"
 
 using std::map;
 
@@ -47,9 +48,10 @@ class Utils
 
     void createDirectory(const std::string dirName);
 
-    std::string getFileName(std::string filePath);
+   std::string getFileName(std::string filePath);
 
     int getFileSize(std::string filePath);
+    std::string getJasmineGraphHome();
 };
 
 #endif //JASMINEGRAPH_UTILS_H

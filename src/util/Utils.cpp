@@ -16,6 +16,7 @@ limitations under the License.
 #include <sys/stat.h>
 #include "Utils.h"
 #include "../frontend/JasmineGraphFrontEnd.h"
+#include "Conts.h"
 
 using namespace std;
 
@@ -214,6 +215,20 @@ std::string Utils::getFileName(std::string filePath) {
     std::string filename = filePath.substr(filePath.find_last_of("/\\") + 1);
     return filename;
 }
+
+std::string Utils::getJasmineGraphHome() {
+    std::string test = Conts::JASMINEGRAPH_HOME;
+    std::string jasminegraph_home;
+
+    char const* temp = getenv(test.c_str());
+    if(temp != NULL)
+    {
+        jasminegraph_home = std::string(temp);
+    }
+
+    return jasminegraph_home;
+}
+
 
 /**
  * This method returns the size of the file in bytes
