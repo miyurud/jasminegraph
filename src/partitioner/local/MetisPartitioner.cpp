@@ -19,9 +19,14 @@ MetisPartitioner::MetisPartitioner(SQLiteDBInterface *sqlite) {
     this->sqlite = *sqlite;
 }
 
-void MetisPartitioner::loadDataSet(string inputFilePath, string outputFilePath, int graphID) {
+void MetisPartitioner::loadDataSet(string inputFilePath, int graphID) {
     this->graphID = graphID;
-    this->outputFilePath = outputFilePath;
+    this->outputFilePath = utils.getHomeDir() + "/.jasmine/tmp"; // Output directory is created under the users home directory '~/.jasmine/tmp/'
+
+    // Have to call createDirectory twice since it does not support recursive directory creation. Could use boost::filesystem for path creation
+    this->utils.createDirectory(utils.getHomeDir() + "/.jasmine/");
+    this->utils.createDirectory(this->outputFilePath);
+
     this->utils.createDirectory("/tmp/" + std::to_string(this->graphID));
     std::ifstream dbFile;
     dbFile.open(inputFilePath, std::ios::binary | std::ios::in);
@@ -51,8 +56,8 @@ void MetisPartitioner::loadDataSet(string inputFilePath, string outputFilePath, 
         std::getline(stream, vertexOne, splitter);
         stream >> vertexTwo;
 
-        firstVertex = atoi(vertexOne.c_str());
-        secondVertex = atoi(vertexTwo.c_str());
+        firstVertex = std::stoi(vertexOne);
+        secondVertex = std::stoi(vertexTwo);
 
         if (!zeroflag) {
             if (firstVertex == 0 || secondVertex == 0) {

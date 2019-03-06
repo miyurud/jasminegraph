@@ -50,6 +50,8 @@ class Utils
     std::string getFileName(std::string filePath);
 
     int getFileSize(std::string filePath);
+    // Static method to get running users home directory
+    static std::string getHomeDir();
 };
 
 #endif //JASMINEGRAPH_UTILS_H

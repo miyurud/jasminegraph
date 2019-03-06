@@ -14,6 +14,8 @@ limitations under the License.
 #include <vector>
 #include <sstream>
 #include <sys/stat.h>
+#include <pwd.h>
+#include <unistd.h>
 #include "Utils.h"
 #include "../frontend/JasmineGraphFrontEnd.h"
 
@@ -192,8 +194,8 @@ void Utils::compressFile(const std::string filePath) {
  * @param dirName
  */
 void Utils::createDirectory(const std::string dirName) {
-    if (mkdir(dirName.c_str(), 0777) == -1) {
-        //std::cout << "Error : " << strerror(errno) << endl;
+    if (mkdir(dirName.c_str(), 0777) != -1) {
+        std::cout << "Error while creating \"" << dirName << "\" directory. Directory might already exist!" << endl;
     } else {
         std::cout << "Directory created" << endl;
     }
@@ -214,6 +216,20 @@ std::string Utils::getFileName(std::string filePath) {
     std::string filename = filePath.substr(filePath.find_last_of("/\\") + 1);
     return filename;
 }
+
+/*
+ * Get the current users(calle of the program) home directory from the $HOME environment variable,
+ * If it's not available get the home directory from /etc/passwd records.
+ */
+std::string Utils::getHomeDir() {
+    const char *homedir;
+    if ((homedir = getenv("HOME")) == NULL)
+    {
+        homedir = getpwuid(getuid())->pw_dir;
+    }
+    return string(homedir);
+}
+
 
 /**
  * This method returns the size of the file in bytes
