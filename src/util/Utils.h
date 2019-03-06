@@ -46,6 +46,9 @@ class Utils
     bool is_number(const std::string &compareString);
 
     void createDirectory(const std::string dirName);
+
+    // Static method to get running users home directory
+    static std::string getHomeDir();
 };
 
 #endif //JASMINEGRAPH_UTILS_H
