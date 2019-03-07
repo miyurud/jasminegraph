@@ -35,8 +35,6 @@ int main(int argc, char *argv[]) {
     Utils utils;
 
     if (argc < 1) {
-//        std::cout << "Use argument 1 to start JasmineGraph in Master mode. Use 2 <serverPort> <serverDataPort> to "
-//                  << "start as worker ." << std::endl;
     main_logger.log("\"Use argument 1 to start JasmineGraph in Master mode. Use 2 "
                     "<serverPort> <serverDataPort> to start as worker","error");
         return -1;
