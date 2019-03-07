@@ -164,8 +164,8 @@ void *frontendservicesesion(void *dummyPt) {
                         "\", \"" + uploadStartTime + "\", \"\",\"UPLOADING\", \"\", \"\", \"\")";
                 int newGraphID = sqlite->runInsert(sqlStatement);
                 MetisPartitioner *partitioner = new MetisPartitioner(&sessionargs->sqlite);
-                partitioner->loadDataSet(path, utils.getJasmineGraphProperty(
-                        "org.jasminegraph.server.runtime.location").c_str(), newGraphID);
+                //partitioner->loadDataSet(path, utils.getJasmineGraphProperty("org.jasminegraph.server.runtime.location").c_str());
+                partitioner->loadDataSet(path, newGraphID);
 
                 partitioner->constructMetisFormat();
                 partitioner->partitioneWithGPMetis();
