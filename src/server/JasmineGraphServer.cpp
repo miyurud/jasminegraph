@@ -56,7 +56,6 @@ JasmineGraphServer::~JasmineGraphServer() {
 }
 
 int JasmineGraphServer::run() {
-    //std::cout << "Running the server..." << std::endl;
     server_logger.log("Running the server...", "info");
 
     this->sqlite = *new SQLiteDBInterface();
@@ -102,7 +101,6 @@ void JasmineGraphServer::start_workers() {
     if (utils.is_number(nWorkers)) {
         numberOfWorkers = atoi(nWorkers.c_str());
     } else {
-        //std::cout<<"Number of Workers Have not Specified."<< std::endl;
         server_logger.log("Number of Workers is not specified", "error");
         numberOfWorkers = 0;
     }

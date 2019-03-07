@@ -20,8 +20,6 @@ limitations under the License.
 Logger worker_logger;
 
 void JasmineGraphInstance::start_running(int serverPort, int serverDataPort) {
-//    std::cout << "Worker started" << std::endl;
-//    std::cout << "Running the server..." << std::endl;
     worker_logger.log("Worker started", "info");
     worker_logger.log("Running the server...", "info");
 
