@@ -21,10 +21,10 @@ MetisPartitioner::MetisPartitioner(SQLiteDBInterface *sqlite) {
 
 void MetisPartitioner::loadDataSet(string inputFilePath, int graphID) {
     this->graphID = graphID;
-    this->outputFilePath = utils.getHomeDir() + "/.jasmine/tmp"; // Output directory is created under the users home directory '~/.jasmine/tmp/'
+    this->outputFilePath = utils.getHomeDir() + "/.jasminegraph/tmp"; // Output directory is created under the users home directory '~/.jasmine/tmp/'
 
     // Have to call createDirectory twice since it does not support recursive directory creation. Could use boost::filesystem for path creation
-    this->utils.createDirectory(utils.getHomeDir() + "/.jasmine/");
+    this->utils.createDirectory(utils.getHomeDir() + "/.jasminegraph/");
     this->utils.createDirectory(this->outputFilePath);
 
     this->utils.createDirectory("/tmp/" + std::to_string(this->graphID));
