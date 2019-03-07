@@ -19,6 +19,7 @@ limitations under the License.
 #include <fstream>
 #include "../frontend/JasmineGraphFrontEnd.h"
 #include <algorithm>
+#include "Conts.h"
 
 using std::map;
 
@@ -50,6 +51,9 @@ class Utils
     std::string getFileName(std::string filePath);
 
     int getFileSize(std::string filePath);
+
+    std::string getJasmineGraphHome();
+  
     // Static method to get running user's home directory
     static std::string getHomeDir();
 };

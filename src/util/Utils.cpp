@@ -18,6 +18,7 @@ limitations under the License.
 #include <unistd.h>
 #include "Utils.h"
 #include "../frontend/JasmineGraphFrontEnd.h"
+#include "Conts.h"
 
 using namespace std;
 
@@ -217,6 +218,19 @@ std::string Utils::getFileName(std::string filePath) {
     return filename;
 }
 
+std::string Utils::getJasmineGraphHome() {
+    std::string test = Conts::JASMINEGRAPH_HOME;
+    std::string jasminegraph_home;
+
+    char const* temp = getenv(test.c_str());
+    if(temp != NULL)
+    {
+        jasminegraph_home = std::string(temp);
+    }
+
+    return jasminegraph_home;
+}
+
 /*
  * Get the current user's (caller of the program) home directory from the $HOME environment variable,
  * If it's not available get the home directory from /etc/passwd records.
@@ -229,7 +243,6 @@ std::string Utils::getHomeDir() {
     }
     return string(homedir);
 }
-
 
 /**
  * This method returns the size of the file in bytes

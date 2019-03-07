@@ -164,20 +164,25 @@ void JasmineGraphServer::start_workers() {
 void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector,
                                                     std::vector<int> workerDataPortsVector, std::string host) {
     Utils utils;
-    std::string serverPath = utils.getJasmineGraphProperty("org.jasminegraph.worker.startup.path");
+    std::string workerPath = utils.getJasmineGraphProperty("org.jasminegraph.worker.path");
+    std::string artifactPath = utils.getJasmineGraphProperty("org.jasminegraph.artifact.path");
     std::string jasmineGraphExecutableName = Conts::JASMINEGRAPH_EXECUTABLE;
-    std::string executableFile = serverPath+"/"+jasmineGraphExecutableName;
+    std::string executableFile = workerPath+"/"+jasmineGraphExecutableName;
     std::string serverStartScript;
     char buffer[128];
     std::string result = "";
 
+    if (artifactPath.empty() || artifactPath.find_first_not_of (' ') == artifactPath.npos) {
+        artifactPath = utils.getJasmineGraphHome();
+    }
+
     for (int i =0 ; i < workerPortsVector.size() ; i++) {
         if (host.find("localhost") != std::string::npos) {
-            serverStartScript = executableFile+" 2 "+ std::to_string(workerPortsVector.at(i)) + " " +
-                    std::to_string(workerDataPortsVector.at(i));
+            copyArtifactsToWorkers(workerPath,artifactPath,host);
+            serverStartScript = executableFile+" 2 "+ std::to_string(workerPortsVector.at(i)) + " " + std::to_string(workerDataPortsVector.at(i));
         } else {
-            serverStartScript = "ssh -p 22 " + host+ " "+ executableFile + " 2"+" "+
-                    std::to_string(workerPortsVector.at(i)) + " " + std::to_string(workerDataPortsVector.at(i));
+            copyArtifactsToWorkers(workerPath,artifactPath,host);
+            serverStartScript = "ssh -p 22 " + host+ " "+ executableFile + " 2"+" "+ std::to_string(workerPortsVector.at(i)) + " " + std::to_string(workerDataPortsVector.at(i));
         }
         std::cout<<serverStartScript<< std::endl;
         FILE *input = popen(serverStartScript.c_str(),"r");
@@ -470,3 +475,80 @@ bool JasmineGraphServer::sendFileThroughService(std::string host, int dataPort, 
     }
 }
 
+void JasmineGraphServer::copyArtifactsToWorkers(std::string workerPath, std::string artifactLocation,
+                                                      std::string remoteWorker) {
+    std::string pathCheckCommand = "test -e " + workerPath + "&& echo file exists || echo file not found";
+    std::string artifactCopyCommand;
+    std::string localWorkerArtifactCopyCommand = "cp -r "+ artifactLocation+"/* "+workerPath;
+    std::string remoteWorkerArtifactCopyCommand = "scp -r " + artifactLocation + "/* " + remoteWorker + ":" + workerPath;
+
+    char buffer[128];
+    std::string result = "";
+
+    if (remoteWorker.find("localhost") == std::string::npos) {
+        std::string remotePathCheckCommand = "ssh -p 22 " + remoteWorker+ " " +  pathCheckCommand;
+        pathCheckCommand = remotePathCheckCommand;
+    }
+
+    FILE *input = popen(pathCheckCommand.c_str(),"r");
+
+    if (input) {
+        // read the input
+        while (!feof(input)) {
+            if (fgets(buffer, 128, input) != NULL) {
+                result.append(buffer);
+            }
+        }
+        if (!result.empty() && remoteWorker.find("file not found") == std::string::npos) {
+            createWorkerPath(remoteWorker,workerPath);
+        }
+        pclose(input);
+    }
+
+    if (remoteWorker.find("localhost") != std::string::npos) {
+        artifactCopyCommand = localWorkerArtifactCopyCommand;
+    } else {
+        artifactCopyCommand = remoteWorkerArtifactCopyCommand;
+    }
+
+    FILE *copyInput = popen(artifactCopyCommand.c_str(),"r");
+
+    if (copyInput) {
+        // read the input
+        while (!feof(copyInput)) {
+            if (fgets(buffer, 128, copyInput) != NULL) {
+                result.append(buffer);
+            }
+        }
+        if (!result.empty()) {
+            std::cout<<result<< std::endl;
+        }
+        pclose(copyInput);
+    }
+}
+
+void JasmineGraphServer::createWorkerPath(std::string workerHost, std::string workerPath) {
+    std::string pathCreationCommand = "mkdir -p " + workerPath;
+    char buffer[128];
+    std::string result = "";
+
+    if (workerHost.find("localhost") == std::string::npos) {
+        std::string tmpPathCreation = pathCreationCommand;
+        pathCreationCommand = "ssh -p 22 " + workerHost+ " " + tmpPathCreation;
+    }
+
+    FILE *input = popen(pathCreationCommand.c_str(),"r");
+
+    if (input) {
+        // read the input
+        while (!feof(input)) {
+            if (fgets(buffer, 128, input) != NULL) {
+                result.append(buffer);
+            }
+        }
+        if (!result.empty()) {
+            std::cout<<result<< std::endl;
+        }
+        pclose(input);
+    }
+}
