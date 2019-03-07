@@ -19,8 +19,10 @@ limitations under the License.
 #include "Utils.h"
 #include "../frontend/JasmineGraphFrontEnd.h"
 #include "Conts.h"
+#include "logger/Logger.h"
 
 using namespace std;
+Logger util_logger;
 
 map<std::string, std::string> Utils::getBatchUploadFileList(std::string file) {
     std::vector<std::string> batchUploadFileContent = getFileContent(file);
@@ -180,9 +182,9 @@ void Utils::compressFile(const std::string filePath) {
         }
         pclose(input);
         if (!result.empty()) {
-            std::cout << "File compression failed with error : " << result << endl;
+            util_logger.log("File compression failed with error: " + result, "error");
         } else {
-            cout << "File in " << filePath << " compressed with gzip" << endl;
+            util_logger.log("File in " + filePath + " compressed with gzip", "info");
         }
     } else {
         perror("popen");
@@ -195,10 +197,10 @@ void Utils::compressFile(const std::string filePath) {
  * @param dirName
  */
 void Utils::createDirectory(const std::string dirName) {
-    if (mkdir(dirName.c_str(), 0777) != -1) {
-        std::cout << "Error while creating \"" << dirName << "\" directory. Directory might already exist!" << endl;
+    if (mkdir(dirName.c_str(), 0777) == -1) {
+        //std::cout << "Error : " << strerror(errno) << endl;
     } else {
-        std::cout << "Directory created" << endl;
+        util_logger.log("Directory " + dirName + " created successfully", "info");
     }
 }
 

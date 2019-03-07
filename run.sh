@@ -48,6 +48,8 @@ then
     echo "using mode $SERVER_PORT"
     echo "using mode $SERVER_DATA_PORT"
 fi
+mkdir -p logs
+
 
 cd $JASMINEGRAPH_DIR
 
