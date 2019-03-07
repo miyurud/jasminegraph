@@ -76,24 +76,9 @@ void RDFPartitioner::loadDataSet(string inputFilePath, string outputFilePath, in
 
         addToMap(&relationsMap, firstVertex, relation, secondVertexStr);
 
+        graphStorage[firstVertex].insert(secondVertex);
+        edgeCount++;
 
-        std::set<long> vertexSet = graphStorage.find(firstVertex)->second;
-
-
-        if (vertexSet.empty()) {
-
-            vertexSet = set<long>();
-            vertexSet.insert(secondVertex);
-            edgeCount++;
-
-            graphStorage.insert({firstVertex, vertexSet});
-        } else if (!vertexSet.empty()) {
-
-            if (vertexSet.insert(secondVertex).second) {
-                edgeCount++;
-
-            }
-        }
 
     }
     writeRelationData();
@@ -193,5 +178,24 @@ void RDFPartitioner::writeRelationData() {
 
     file.close();
     std::cout << "Data was written to the file path- /tmp/RDF/" << std::to_string(this->graphID) << ".txt" << std::endl;
+
+
+    ofstream metisInputfile;
+    metisInputfile.open("./tmp/RDF/" + std::to_string(this->graphID) + "_metisInput.txt");
+
+
+    for( auto ii=graphStorage.begin(); ii!=graphStorage.end(); ++ii)
+    {
+        metisInputfile<< "Key: "<< ii->first << " value: ";
+
+        for (auto it=ii->second.begin(); it!=ii->second.end(); ++it)
+        {
+            metisInputfile << *it << " ";
+        }
+        metisInputfile << endl;
+    }
+    metisInputfile.close();
+    std::cout << "Data was written to the file path- /tmp/RDF/" << std::to_string(this->graphID) << "_metisInput.txt" << std::endl;
+
 
 }

@@ -103,8 +103,8 @@ private:
     std::map<long, std::map<long, std::set<string>>> relationsMap;
     std::map<long, std::map<long, vector<string>>> attributeMap;
 
-    long edgeCount;
-    long vertexCount;
+    long edgeCount=0;
+    long vertexCount=0;
 
 };
 
