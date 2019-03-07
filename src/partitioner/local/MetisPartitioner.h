@@ -35,7 +35,7 @@ using std::string;
 
 class MetisPartitioner {
 public:
-    void loadDataSet(string inputFilePath, string outputFilePath, int graphID);
+    void loadDataSet(string inputFilePath, int graphID);
 
     //void partitionGraph();
     void constructMetisFormat();

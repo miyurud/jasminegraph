@@ -48,10 +48,14 @@ class Utils
 
     void createDirectory(const std::string dirName);
 
-   std::string getFileName(std::string filePath);
+    std::string getFileName(std::string filePath);
 
     int getFileSize(std::string filePath);
+
     std::string getJasmineGraphHome();
+  
+    // Static method to get running user's home directory
+    static std::string getHomeDir();
 };
 
 #endif //JASMINEGRAPH_UTILS_H
