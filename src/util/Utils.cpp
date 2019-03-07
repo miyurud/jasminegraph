@@ -218,7 +218,7 @@ std::string Utils::getFileName(std::string filePath) {
 }
 
 /*
- * Get the current users(calle of the program) home directory from the $HOME environment variable,
+ * Get the current user's (caller of the program) home directory from the $HOME environment variable,
  * If it's not available get the home directory from /etc/passwd records.
  */
 std::string Utils::getHomeDir() {
