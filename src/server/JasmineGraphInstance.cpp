@@ -67,6 +67,7 @@ int JasmineGraphInstance::start_running(int serverPort, int serverDataPort) {
     int connectionCounter = 0;
 
     while(true){
+        std::cout << "Worker listening on port " << serverPort << std::endl;
         int connFd = accept(listenFd, (struct sockaddr *) &clntAdd, &len);
 
         if (connFd < 0) {
