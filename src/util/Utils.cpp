@@ -261,3 +261,10 @@ void Utils::unzipFile(std::string filePath) {
         // handle error
     }
 }
+
+int Utils::parseARGS(char **args, char *line){
+    int tmp=0;
+    args[tmp] = strtok( line, ":" );
+    while ( (args[++tmp] = strtok(NULL, ":" ) ) != NULL );
+    return tmp - 1;
+}

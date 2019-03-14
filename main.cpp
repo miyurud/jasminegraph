@@ -59,6 +59,7 @@ int main(int argc, char *argv[]) {
         int serverPort = atoi(argv[2]);
         int serverDataPort = atoi(argv[3]);
 
+        std::cout << "In worker mode" << std::endl;
         instance = new JasmineGraphInstance();
         instance->start_running(serverPort,serverDataPort);
 

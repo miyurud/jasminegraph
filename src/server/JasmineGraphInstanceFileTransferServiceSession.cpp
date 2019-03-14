@@ -11,25 +11,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
-#include "JasmineGraphInstance.h"
-#include "JasmineGraphInstanceServiceSession.h"
 #include "JasmineGraphInstanceFileTransferServiceSession.h"
+#include "../util/Utils.h"
+#include "JasmineGraphInstanceProtocol.h"
 
 #include <iostream>
 #include <unistd.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <memory.h>
 
+using namespace std;
 
-int JasmineGraphInstance::start_running(int serverPort, int serverDataPort) {
-//    std::cout << "Worker started" << std::endl;
-//    std::cout << "Running the server..." << std::endl;
-    fprintf(stdout, "Worker started\n");
-    fprintf(stdout, "Running the server...\n");
-
-    this->sqlite = *new SQLiteDBInterface();
-    this->sqlite.init();
+int JasmineGraphInstanceFileTransferServiceSession::startFileTransferSession(int serverDataPort) {
+    std::cout << "New file transfer service session started" << std::endl;
+    fprintf(stderr, "New file transfer service session started\n");
+    Utils utils;
 
     int listenFd;
     socklen_t len;
@@ -47,7 +41,7 @@ int JasmineGraphInstance::start_running(int serverPort, int serverDataPort) {
 
     svrAdd.sin_family = AF_INET;
     svrAdd.sin_addr.s_addr = INADDR_ANY;
-    svrAdd.sin_port = htons(serverPort);
+    svrAdd.sin_port = htons(serverDataPort);
 
     int yes = 1;
 
@@ -67,28 +61,48 @@ int JasmineGraphInstance::start_running(int serverPort, int serverDataPort) {
 
     len = sizeof(clntAdd);
 
-    int connectionCounter = 0;
-
-    while(true){
-        std::cout << "Worker listening on port " << serverPort << std::endl;
+    while (true) {
+        std::cout << "Worker listening on port " << serverDataPort << std::endl;
         int connFd = accept(listenFd, (struct sockaddr *) &clntAdd, &len);
 
         if (connFd < 0) {
             std::cerr << "Cannot accept connection" << std::endl;
         } else {
             std::cout << "Connection successful" << std::endl;
-            connectionCounter++;
         }
 
-        // TODO : multi-threading needs to be applied?
-        JasmineGraphInstanceServiceSession *serviceSession = new JasmineGraphInstanceServiceSession();
-        serviceSession->start_session(connFd, serverDataPort);
-        std::cout << "END>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << std::endl;
+        char data[300];
+        bzero(data, 301);
+        read(connFd, data, 300);
+        string fileName = (data);
+        fileName = utils.trim_copy(fileName, " \f\n\r\t\v");
+        string filePathWithName =
+                utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
 
+        write(connFd, JasmineGraphInstanceProtocol::SEND_FILE.c_str(), JasmineGraphInstanceProtocol::SEND_FILE.size());
+
+        char recvBUFF[256];
+        int bytesReceived = 0;
+        //memset(recvBUFF, '0', sizeof(recvBUFF));
+
+        FILE *fp;
+        fp = fopen(filePathWithName.c_str(), "w");
+        if (NULL == fp) {
+            printf("Error opening file");
+            return 1;
+        }
+
+        while((bytesReceived = read(connFd, recvBUFF, 256)) > 0)
+        {
+            printf("Bytes received %d\n",bytesReceived);
+            fwrite(recvBUFF, 1,bytesReceived,fp);
+        }
+        if(bytesReceived < 0)
+        {
+            printf("\n Read Error \n");
+        }
+        close(connFd);
+        std::cout << "Connection to the FTP closed" << std::endl;
+        return 0;
     }
-
-}
-
-bool JasmineGraphInstance::isRunning() {
-    return true;
 }

@@ -52,6 +52,8 @@ class Utils
     int getFileSize(std::string filePath);
 
     void unzipFile(std::string filePath);
+
+    int parseARGS(char **args, char *line);
 };
 
 #endif //JASMINEGRAPH_UTILS_H

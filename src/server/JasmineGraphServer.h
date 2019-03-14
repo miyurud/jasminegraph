@@ -36,7 +36,7 @@ private:
 
     static void startRemoteWorkers(std::vector<int> workerPortsVector, std::vector<int> workerDataPortsVector, std::string host);
 
-    static bool sendFileThroughService(std::string host, int dataPort, std::string fileName, std::string filePath);
+    static bool sendFileThroughService(std::string host, int dataPort, std::string fileName, std::string filePath, int fileSize);
 
 public:
     ~JasmineGraphServer();

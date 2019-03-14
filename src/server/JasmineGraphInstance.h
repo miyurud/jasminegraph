@@ -17,6 +17,8 @@ limitations under the License.
 #include <map>
 #include "../localstore/JasmineGraphLocalStore.h"
 #include "../metadb/SQLiteDBInterface.h"
+#include "JasmineGraphInstanceFileTransferServiceSession.h"
+#include "JasmineGraphInstanceServiceSession.h"
 
 using std::map;
 
@@ -36,6 +38,9 @@ public:
     void shutdown();
 
     bool isRunning();
+
+    JasmineGraphInstanceServiceSession *instanceService;
+    JasmineGraphInstanceFileTransferServiceSession *ftpService;
 };
 
 struct JasmineGraphInstanceRecord {
