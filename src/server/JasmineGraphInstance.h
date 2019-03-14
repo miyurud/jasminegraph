@@ -17,16 +17,14 @@ limitations under the License.
 #include <map>
 #include "../localstore/JasmineGraphLocalStore.h"
 #include "../metadb/SQLiteDBInterface.h"
-#include "JasmineGraphInstanceFileTransferServiceSession.h"
-#include "JasmineGraphInstanceServiceSession.h"
+#include "JasmineGraphInstanceFileTransferService.h"
+#include "JasmineGraphInstanceService.h"
 
 using std::map;
 
 class JasmineGraphInstance {
 private:
     map<std::string, JasmineGraphLocalStore> graphDBMapLocalStores;
-    int serverPort;
-    int serverDataPort;
 public:
     SQLiteDBInterface sqlite;
     int start_running(int serverPort, int serverDataPort);
@@ -39,8 +37,11 @@ public:
 
     bool isRunning();
 
-    JasmineGraphInstanceServiceSession *instanceService;
-    JasmineGraphInstanceFileTransferServiceSession *ftpService;
+    int serverPort;
+    int serverDataPort;
+
+    JasmineGraphInstanceService *instanceService;
+    JasmineGraphInstanceFileTransferService *ftpService;
 };
 
 struct JasmineGraphInstanceRecord {
