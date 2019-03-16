@@ -101,7 +101,8 @@ void *frontendservicesesion(void *dummyPt) {
                 break;
             }
 
-            if (utils.fileExists(path, sessionargs)) {
+            if (utils.fileExists(path)) {
+                std::cout << "Path exists" << endl;
 
                 SQLiteDBInterface *sqlite = &sessionargs->sqlite;
                 string sqlStatement =
@@ -153,13 +154,16 @@ void *frontendservicesesion(void *dummyPt) {
                 break;
             }
 
-            if (utils.fileExists(path, sessionargs)) {
+            if (utils.fileExists(path)) {
+                std::cout << "Path exists" << endl;
+
                 SQLiteDBInterface *sqlite = &sessionargs->sqlite;
                 string sqlStatement =
                         "INSERT INTO graph (name,upload_path,upload_start_time,upload_end_time,graph_status_idgraph_status,"
                         "vertexcount,centralpartitioncount,edgecount) VALUES(\"" + name + "\", \"" + path +
                         "\", \"" + uploadStartTime + "\", \"\",\"UPLOADING\", \"\", \"\", \"\")";
-                int newGraphID = sqlite->runInsert(sqlStatement);
+                //int newGraphID = sqlite->runInsert(sqlStatement);
+                int newGraphID = 3;
                 MetisPartitioner *partitioner = new MetisPartitioner(&sessionargs->sqlite);
                 //partitioner->loadDataSet(path, utils.getJasmineGraphProperty("org.jasminegraph.server.runtime.location").c_str());
                 partitioner->loadDataSet(path, newGraphID);

@@ -14,18 +14,31 @@ limitations under the License.
 #include "JasmineGraphInstance.h"
 #include "../util/logger/Logger.h"
 
-#include <iostream>
-#include <unistd.h>
+void *runInstanceService(void *dummyPt) {
+    JasmineGraphInstance *refToInstance = (JasmineGraphInstance *) dummyPt;
+    refToInstance->instanceService = new JasmineGraphInstanceService();
+    refToInstance->instanceService->run(refToInstance->serverPort);
+}
 
-Logger worker_logger;
+void *runFileTransferService(void *dummyPt) {
+    JasmineGraphInstance *refToInstance = (JasmineGraphInstance *) dummyPt;
+    refToInstance->ftpService = new JasmineGraphInstanceFileTransferService();
+    refToInstance->ftpService->run(refToInstance->serverDataPort);
+}
 
-void JasmineGraphInstance::start_running(int serverPort, int serverDataPort) {
-    worker_logger.log("Worker started", "info");
-    worker_logger.log("Running the server...", "info");
+int JasmineGraphInstance::start_running(int serverPort, int serverDataPort) {
+    std::cout << "Worker started" << std::endl;
+    std::cout << "Running the server..." << std::endl;
 
     this->sqlite = *new SQLiteDBInterface();
     this->sqlite.init();
+    this->serverPort = serverPort;
+    this->serverDataPort = serverDataPort;
 
+    pthread_t instanceCommunicatorThread;
+    pthread_t instanceFileTransferThread;
+    pthread_create(&instanceCommunicatorThread, NULL, runInstanceService, this);
+    pthread_create(&instanceFileTransferThread, NULL, runFileTransferService, this);
 
 }
 
