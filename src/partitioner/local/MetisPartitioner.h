@@ -45,6 +45,9 @@ public:
     //return list of partition files
     static std::vector<string> getPartitionFiles();
 
+    //return list of centralStore files
+    static std::vector<string> getCentalStoreFiles();
+
     MetisPartitioner(SQLiteDBInterface *);
 
 private:

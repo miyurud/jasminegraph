@@ -41,7 +41,7 @@ class Utils
 
     bool parseBoolean(const std::string str);
 
-    bool fileExists(const std::string fileName, frontendservicesessionargs *ptr);
+    bool fileExists(std::string fileName);
 
     void compressFile(const std::string filePath);
     bool is_number(const std::string &compareString);
@@ -56,6 +56,9 @@ class Utils
   
     // Static method to get running user's home directory
     static std::string getHomeDir();
+    void unzipFile(std::string filePath);
+
+    int parseARGS(char **args, char *line);
 };
 
 #endif //JASMINEGRAPH_UTILS_H
