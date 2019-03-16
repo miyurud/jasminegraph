@@ -15,10 +15,6 @@ limitations under the License.
 #include "../util/Utils.h"
 
 using namespace std;
-void gotoxy(int x,int y)
-{
-    printf("%c[%d;%df",0x1B,y,x);
-}
 
 void *filetransferservicesession(void *dummyPt) {
     filetransferservicesessionargs *sessionargs = (filetransferservicesessionargs *) dummyPt;
@@ -37,56 +33,21 @@ void *filetransferservicesession(void *dummyPt) {
 
     char recvBUFF[1024];
     int bytesReceived = 0;
-    memset(recvBUFF, '0', sizeof(recvBUFF));
+    //memset(recvBUFF, '0', sizeof(recvBUFF));
 
-    FILE *fp;
-    fp = fopen(filePathWithName.c_str(), "w+");
-    if (NULL == fp) {
-        printf("Error opening file");
-    }
-
-    while((bytesReceived = read(connFd, recvBUFF, 1024)) > 0)
+    char buffer[1024];
+    std::ofstream file(filePathWithName, std::ios::out|std::ios::binary);
+    do
     {
-        printf("Bytes received %d\n",bytesReceived);
-        fwrite(recvBUFF, 1,bytesReceived,fp);
+        bytesReceived = recv(connFd, buffer, sizeof(buffer), 0);
+        if (bytesReceived > 0) {
+            file.write(buffer, bytesReceived);
+            printf("Buffer: %.*s\n", connFd, buffer);
+            //or: printf("Buffer: %*.*s\n", bytes_read, bytes_read, buffer);
+        }
     }
-    if(bytesReceived < 0)
-    {
-        printf("\n Read Error \n");
-    }
-    close(connFd);
-    std::cout << "Connection to the FTP closed" << std::endl;
-    pthread_exit(NULL);
+    while (bytesReceived > 0);
 }
-//    int bytesReceived = 0;
-//    char recvBuff[1024];
-//    memset(recvBuff, '0', sizeof(recvBuff));
-//    FILE *fp;
-//    fp = fopen(filePathWithName.c_str(), "ab");
-//    if(NULL == fp)
-//    {
-//        printf("Error opening file");
-//    }
-//    long double sz=1;
-//    /* Receive data in chunks of 256 bytes */
-//    while((bytesReceived = read(connFd, recvBuff, 1024)) > 0)
-//    {
-//        sz++;
-//        gotoxy(0,4);
-//        printf("Received: %llf Mb",(sz/1024));
-//        fflush(stdout);
-//        // recvBuff[n] = 0;
-//        fwrite(recvBuff, 1,bytesReceived,fp);
-//        // printf("%s \n", recvBuff);
-//    }
-//
-//    if(bytesReceived < 0)
-//    {
-//        printf("\n Read Error \n");
-//    }
-//    printf("\nFile OK....Completed\n");
-//    return 0;
-//}
 
 JasmineGraphInstanceFileTransferService::JasmineGraphInstanceFileTransferService() {
 }
@@ -145,14 +106,9 @@ int JasmineGraphInstanceFileTransferService::run(int dataPort) {
 
             pthread_create(&threadA[connectionCounter], NULL, filetransferservicesession,
                            &filetransferservicesessionargs1);
-            //pthread_detach(threadA[connectionCounter]);
-            //pthread_join(threadA[connectionCounter], NULL);
             connectionCounter++;
         }
     }
-
-    close(connFd);
-    return 0;
 
     for (int i = 0; i < connectionCounter; i++) {
         pthread_join(threadA[i], NULL);
