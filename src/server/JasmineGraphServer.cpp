@@ -263,7 +263,7 @@ bool JasmineGraphServer::batchUploadFile(std::string host, int port, int dataPor
 
     std::cout << response << std::endl;
 
-    //response = utils.trim_copy(response, " \f\n\r\t\v");
+    response = utils.trim_copy(response, " \f\n\r\t\v");
 
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
         string server_host = utils.getJasmineGraphProperty("org.jasminegraph.server.host");
@@ -274,7 +274,7 @@ bool JasmineGraphServer::batchUploadFile(std::string host, int port, int dataPor
     bzero(data, 301);
     read(sockfd, data, 300);
     response = (data);
-    //response = utils.trim_copy(response, " \f\n\r\t\v");
+    response = utils.trim_copy(response, " \f\n\r\t\v");
     //std::cout << response << std::endl;
     if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
         //std::cout << graphID << std::endl;
@@ -287,7 +287,7 @@ bool JasmineGraphServer::batchUploadFile(std::string host, int port, int dataPor
         bzero(data, 301);
         read(sockfd, data, 300);
         response = (data);
-        //response = utils.trim_copy(response, " \f\n\r\t\v");
+        response = utils.trim_copy(response, " \f\n\r\t\v");
 
         if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_NAME) == 0) {
             //std::cout << fileName << std::endl;
@@ -316,7 +316,6 @@ bool JasmineGraphServer::batchUploadFile(std::string host, int port, int dataPor
         int count = 0;
 
         while (result) {
-            std::cout << JasmineGraphInstanceProtocol::FILE_RECV_CHK << std::endl;
             write(sockfd, JasmineGraphInstanceProtocol::FILE_RECV_CHK.c_str(), JasmineGraphInstanceProtocol::FILE_RECV_CHK.size());
             std::cout << "Checking if file is received"  << std::endl;
             bzero(data, 301);
@@ -329,8 +328,8 @@ bool JasmineGraphServer::batchUploadFile(std::string host, int port, int dataPor
                 count++;
                 sleep(1);
                 //We sleep for 1 second, and try again.
-                if (count == 10){
-                    result = false;
+                if (count == 5){
+                    break;
                 }
                 continue;
             }
@@ -412,7 +411,7 @@ bool JasmineGraphServer::sendFileThroughService(std::string host, int dataPort, 
     bzero(data, 301);
     read(sockfd, data, 300);
     string response = (data);
-    //response = utils.trim_copy(response, " \f\n\r\t\v");
+    response = utils.trim_copy(response, " \f\n\r\t\v");
 
     if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE) == 0) {
         std::cout << "Sending file " << filePath << std::endl;
@@ -448,7 +447,7 @@ bool JasmineGraphServer::sendFileThroughService(std::string host, int dataPort, 
             }
         }
 
-       fclose(fp);
+        fclose(fp);
         close(sockfd);
     }
 }

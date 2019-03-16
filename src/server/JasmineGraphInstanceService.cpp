@@ -34,7 +34,7 @@ void *instanceservicesession(void *dummyPt) {
         string line(data);
 
         Utils utils;
-        //line = utils.trim_copy(line, " \f\n\r\t\v");
+        line = utils.trim_copy(line, " \f\n\r\t\v");
 
         if (line.compare(JasmineGraphInstanceProtocol::HANDSHAKE) == 0) {
             write(connFd, JasmineGraphInstanceProtocol::HANDSHAKE_OK.c_str(),
@@ -67,7 +67,7 @@ void *instanceservicesession(void *dummyPt) {
             bzero(data, 301);
             read(connFd, data, 300);
             string graphID = (data);
-            //graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
+            graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
 
             write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_NAME.c_str(),
                   JasmineGraphInstanceProtocol::SEND_FILE_NAME.size());
@@ -89,18 +89,14 @@ void *instanceservicesession(void *dummyPt) {
                   JasmineGraphInstanceProtocol::SEND_FILE_CONT.size());
 
             // TODO :: Check with Acacia code
-//            JasmineGraphInstanceFileTransferServiceSession *ftpSession = new JasmineGraphInstanceFileTransferServiceSession();
-//            std::cout << "going to start a ftp session" << std::endl;
-//            ftpSession->startFileTransferSession(serverDataPort);
 
             string fullFilePath =
                     utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
-
             while (utils.fileExists(fullFilePath) && utils.getFileSize(fullFilePath) < fileSize) {
-                std::cout << "is the file received?? :: " <<  utils.getFileSize(fullFilePath) << std::endl;
                 bzero(data, 301);
                 read(connFd, data, 300);
                 string response = (data);
+                std::cout << "is the file received?? :: " <<  utils.getFileSize(fullFilePath) << std::endl;
                 //response = utils.trim_copy(response, " \f\n\r\t\v");
 
                 if (response.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {

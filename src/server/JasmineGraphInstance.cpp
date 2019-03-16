@@ -39,7 +39,10 @@ int JasmineGraphInstance::start_running(int serverPort, int serverDataPort) {
     pthread_create(&instanceCommunicatorThread, NULL, runInstanceService, this);
     pthread_create(&instanceFileTransferThread, NULL, runFileTransferService, this);
 
-}
+    pthread_join(instanceCommunicatorThread,NULL);
+    pthread_join(instanceFileTransferThread,NULL);
+
+    }
 
 bool JasmineGraphInstance::isRunning() {
     return true;
