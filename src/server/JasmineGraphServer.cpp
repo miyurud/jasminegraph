@@ -17,13 +17,11 @@ limitations under the License.
 #include "JasmineGraphInstance.h"
 #include "../util/Utils.h"
 #include "../partitioner/local/MetisPartitioner.h"
-<<<<<<< HEAD
+
 #include "JasmineGraphInstanceProtocol.h"
 #include "../util/logger/Logger.h"
 
 Logger server_logger;
-=======
->>>>>>> 5c6a71865cdee87e98334b70c141f24c06362ca2
 
 struct workers{
     std::string hostname;
