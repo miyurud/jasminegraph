@@ -70,18 +70,6 @@ bool JasmineGraphServer::isRunning() {
 
 void JasmineGraphServer::init() {
     Utils utils;
-    std::map<string, string> result = utils.getBatchUploadFileList(
-            utils.getJasmineGraphProperty("org.jasminegraph.batchupload.file.path"));
-
-    if (result.size() != 0) {
-        std::map<std::string, std::string>::iterator iterator1 = result.begin();
-        while (iterator1 != result.end()) {
-            std::string fileName = iterator1->first;
-            std::string filePath = iterator1->second;
-            //Next, we need to implement the batch upload logic here.
-            iterator1++;
-        }
-    }
 
     pthread_t frontendthread;
     pthread_t backendthread;
@@ -539,35 +527,3 @@ void JasmineGraphServer::createWorkerPath(std::string workerHost, std::string wo
         pclose(input);
     }
 }
-//        FILE *fp = fopen(filePath.c_str(), "rb");
-//        if (fp == NULL) {
-//            printf("File opern error");
-//            return 1;
-//        }
-//
-//        /* Read data from file and send it */
-//        while (1) {
-//            /* First read file in chunks of 256 bytes */
-//            unsigned char buff[1024] = {0};
-//            int nread = fread(buff, 1, 1024, fp);
-//            //printf("Bytes read %d \n", nread);
-//
-//            /* If read was success, send data. */
-//            if (nread > 0) {
-//                //printf("Sending \n");
-//                write(sockfd, buff, nread);
-//            }
-//            if (nread < 1024) {
-//                if (feof(fp)) {
-//                    printf("End of file\n");
-//                    printf("File transfer completed for id: %d\n", sockfd);
-//                }
-//                if (ferror(fp))
-//                    printf("Error reading\n");
-//                break;
-//            }
-//        }
-//        printf("Closing Connection for id: %d\n", sockfd);
-//        close(sockfd);
-//    }
-//}
