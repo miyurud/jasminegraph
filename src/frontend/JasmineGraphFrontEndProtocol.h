@@ -61,6 +61,8 @@ extern const string OUTPUT_FILE_PATH;
 extern const string ADD_STREAM;
 extern const string ADD_STREAM_KAFKA;
 extern const string STRM_ACK;
+extern const string ADD_STREAM_KAFKA;
+extern const string STREAM_TOPIC_NAME;
 
 
 class JasminGraphFrontEndProtocol {

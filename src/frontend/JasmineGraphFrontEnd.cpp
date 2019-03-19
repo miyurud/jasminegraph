@@ -17,6 +17,7 @@ limitations under the License.
 #include "JasmineGraphFrontEnd.h"
 #include "../util/Conts.h"
 #include "../util/Utils.h"
+#include "../util/kafka/KafkaCC.h"
 #include "JasmineGraphFrontEndProtocol.h"
 #include "../metadb/SQLiteDBInterface.h"
 #include "../partitioner/local/MetisPartitioner.h"
@@ -175,6 +176,48 @@ void *frontendservicesesion(void *dummyPt) {
             } else {
                 frontend_logger.log("Graph data file does not exist on the specified path", "error");
                 break;
+            }
+        } else if (line.compare(ADD_STREAM_KAFKA) == 0) {
+            std::cout << STREAM_TOPIC_NAME << endl;
+            write(sessionargs->connFd, STREAM_TOPIC_NAME.c_str(), STREAM_TOPIC_NAME.length());
+            write(sessionargs->connFd, "\r\n", 2);
+
+            // We get the name and the path to graph as a pair separated by |.
+            char topic_name[300];
+            bzero(topic_name, 301);
+
+            read(sessionargs->connFd, topic_name, 300);
+
+            Utils utils;
+            string topic_name_s(topic_name);
+            topic_name_s = utils.trim_copy(topic_name_s, " \f\n\r\t\v");
+            std::cout << "data received : " << topic_name << endl;
+            // After getting the topic name , need to close the connection and ask the user to send the data to given topic
+
+            cppkafka::Configuration configs = {{"metadata.broker.list", "127.0.0.1:9092"}, {"group.id", "knnect"}};
+            KafkaConnector kstream(configs);
+
+            kstream.Subscribe(topic_name_s);
+            while (true)
+            {
+                cout << "Waiting to receive message. . ." << endl;
+                cppkafka::Message msg = kstream.consumer.poll();
+                if (!msg)
+                {
+                    continue;
+                }
+
+                if (msg.get_error())
+                {
+                    if (msg.is_eof())
+                    {
+                        cout << "Message end of file received!" << endl;
+                    }
+                    continue;
+                }
+
+                cout << "Received message on partition " << msg.get_topic() << "/" << msg.get_partition() << ", offset " << msg.get_offset() << endl;
+                cout << "Payload = " << msg.get_payload() << endl;
             }
         } else {
             frontend_logger.log("Message format not recognized", "error");
