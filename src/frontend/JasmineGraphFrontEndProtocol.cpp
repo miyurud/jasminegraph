@@ -21,3 +21,5 @@ const string LIST = "lst";
 const string SHTDN = "shdn";
 const string SEND = "send";
 const string ERROR = "error";
+const string ADD_STREAM_KAFKA = "adstrmk";
+const string STREAM_TOPIC_NAME = "topicnm";
