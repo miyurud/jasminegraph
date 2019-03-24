@@ -204,6 +204,15 @@ void Utils::createDirectory(const std::string dirName) {
     }
 }
 
+/**
+ * This method deletes a directory with all its content
+ * @param dirName
+ */
+void Utils::deleteDirectory(const std::string dirName) {
+    string command = "rm -rf " + dirName;
+    system(command.c_str());
+    util_logger.log(dirName + " deleted successfully", "info");
+}
 
 bool Utils::is_number(const std::string& compareString) {
     return !compareString.empty() && std::find_if(compareString.begin(),
@@ -271,7 +280,7 @@ int Utils::getFileSize(std::string filePath) {
 void Utils::unzipFile(std::string filePath) {
     char buffer[128];
     std::string result = "";
-    std::string command = "gzip -d " + filePath ;
+    std::string command = "gzip -f -d " + filePath ;
     char *commandChar = new char[command.length() + 1];
     strcpy(commandChar, command.c_str());
     FILE *input = popen(commandChar, "r");
@@ -283,9 +292,9 @@ void Utils::unzipFile(std::string filePath) {
         }
         pclose(input);
         if (!result.empty()) {
-            std::cout << "File decompression failed with error : " << result << endl;
+            util_logger.log("File decompression failed with error : " + result, "error");
         } else {
-            cout << "File in " << filePath << " extracted with gzip" << endl;
+            util_logger.log("File in " + filePath + " extracted with gzip", "info");
         }
     } else {
         perror("popen");

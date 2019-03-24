@@ -36,7 +36,7 @@ private:
 
     static void startRemoteWorkers(std::vector<int> workerPortsVector, std::vector<int> workerDataPortsVector, std::string host);
 
-    static bool sendFileThroughService(std::string host, int dataPort, std::string fileName, std::string filePath, int fileSize);
+    static bool sendFileThroughService(std::string host, int dataPort, std::string fileName, std::string filePath);
 
     static void copyArtifactsToWorkers(std::string workerPath, std::string artifactLocation, std::string remoteWorker);
     static void createWorkerPath (std::string workerHost, std::string workerPath);
@@ -56,6 +56,8 @@ public:
     void uploadGraphLocally(int graphID);
 
     static bool batchUploadFile(std::string host, int port, int dataPort, int graphID, std::string filePath);
+
+    static bool batchUploadCentralStore(std::string host, int port, int dataPort, int graphID, std::string filePath);
 
     JasmineGraphFrontEnd *frontend;
     SQLiteDBInterface sqlite;

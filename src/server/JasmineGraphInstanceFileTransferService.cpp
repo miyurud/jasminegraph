@@ -13,14 +13,17 @@ limitations under the License.
 
 #include "JasmineGraphInstanceFileTransferService.h"
 #include "../util/Utils.h"
+#include "../util/logger/Logger.h"
 
 using namespace std;
+Logger file_service_logger;
+pthread_mutex_t thread_lock = PTHREAD_MUTEX_INITIALIZER;
 
 void *filetransferservicesession(void *dummyPt) {
     filetransferservicesessionargs *sessionargs = (filetransferservicesessionargs *) dummyPt;
     int connFd = sessionargs->connFd;
     Utils utils;
-
+    pthread_mutex_lock(&thread_lock);
     char data[300];
     bzero(data, 301);
     read(connFd, data, 300);
@@ -30,23 +33,19 @@ void *filetransferservicesession(void *dummyPt) {
             utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
 
     write(connFd, JasmineGraphInstanceProtocol::SEND_FILE.c_str(), JasmineGraphInstanceProtocol::SEND_FILE.size());
-
-    char recvBUFF[1024];
     int bytesReceived = 0;
-    //memset(recvBUFF, '0', sizeof(recvBUFF));
-
     char buffer[1024];
-    std::ofstream file(filePathWithName, std::ios::out|std::ios::binary);
-    do
-    {
+    std::ofstream file(filePathWithName, std::ios::out | std::ios::binary);
+    do {
         bytesReceived = recv(connFd, buffer, sizeof(buffer), 0);
         if (bytesReceived > 0) {
             file.write(buffer, bytesReceived);
             printf("Buffer: %.*s\n", connFd, buffer);
             //or: printf("Buffer: %*.*s\n", bytes_read, bytes_read, buffer);
         }
-    }
-    while (bytesReceived > 0);
+    } while (bytesReceived > 0);
+    file.close();
+    pthread_mutex_unlock(&thread_lock);
 }
 
 JasmineGraphInstanceFileTransferService::JasmineGraphInstanceFileTransferService() {
@@ -92,15 +91,15 @@ int JasmineGraphInstanceFileTransferService::run(int dataPort) {
     int connectionCounter = 0;
     pthread_t threadA[5];
 
-    // TODO :: What is the maximum number of connections allowed??
-    while (connectionCounter<5) {
-        std::cout << "Worker FileTransfer Service listening on port " << dataPort << std::endl;
+    // TODO :: What is the maximum number of connections allowed?? Considered as 5 for now
+    while (connectionCounter < 5) {
+        file_service_logger.log("Worker FileTransfer Service listening on port " + to_string(dataPort), "info");
         connFd = accept(listenFd, (struct sockaddr *) &clntAdd, &len);
 
         if (connFd < 0) {
-            std::cerr << "Cannot accept connection" << std::endl;
+            file_service_logger.log("Cannot accept connection to port " + to_string(dataPort), "error");
         } else {
-            std::cout << "Connection successful" << std::endl;
+            file_service_logger.log("Connection successful to port " + to_string(dataPort), "info");
             struct filetransferservicesessionargs filetransferservicesessionargs1;
             filetransferservicesessionargs1.connFd = connFd;
 
