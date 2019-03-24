@@ -89,8 +89,8 @@ void JasmineGraphServer::start_workers() {
     }
 
     if (numberOfWorkers > 0 && hostsList.size() > 0) {
-        numberOfWorkersPerHost = hostsList.size()/numberOfWorkers;
-        hostListModeNWorkers = hostsList.size() % numberOfWorkers;
+        numberOfWorkersPerHost = numberOfWorkers/hostsList.size();
+        hostListModeNWorkers = numberOfWorkers % hostsList.size();
     }
 
     std::vector<std::string>::iterator it;
