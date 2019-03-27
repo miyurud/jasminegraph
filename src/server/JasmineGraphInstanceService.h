@@ -31,6 +31,7 @@ limitations under the License.
 #include <thread>
 
 void *instanceservicesession(void *dummyPt);
+void writeCatalogRecord(string record);
 
 class JasmineGraphInstanceService {
 public:

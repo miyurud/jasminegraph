@@ -129,7 +129,8 @@ void *instanceservicesession(void *dummyPt) {
             string rawname = fileName.substr(0, lastindex);
             fullFilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + rawname;
 
-            //TODO:: Check with Acacia (writeCatalogRecord()?)
+            string partitionID = rawname.substr(rawname.find_last_of("_") + 1);
+            writeCatalogRecord(graphID +":"+partitionID);
 
             while (!utils.fileExists(fullFilePath)) {
                 bzero(data, 301);
@@ -211,8 +212,6 @@ void *instanceservicesession(void *dummyPt) {
             size_t lastindex = fileName.find_last_of(".");
             string rawname = fileName.substr(0, lastindex);
             fullFilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + rawname;
-
-            //TODO:: Check with Acacia (writeCatalogRecord()?)
 
             while (!utils.fileExists(fullFilePath)) {
                 bzero(data, 301);
@@ -310,4 +309,14 @@ int JasmineGraphInstanceService::run(int serverPort) {
         pthread_join(threadA[i], NULL);
         std::cout << "service Threads joined" << std::endl;
     }
+}
+
+void writeCatalogRecord(string record) {
+    Utils utils;
+    utils.createDirectory(utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder"));
+    string catalogFilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder")+"/catalog.txt";
+    ofstream outfile;
+    outfile.open(catalogFilePath.c_str(), std::ios_base::app);
+    outfile << record << endl;
+    outfile.close();
 }

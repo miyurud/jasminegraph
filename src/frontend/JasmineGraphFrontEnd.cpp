@@ -33,12 +33,13 @@ Logger frontend_logger;
 void *frontendservicesesion(void *dummyPt) {
     frontendservicesessionargs *sessionargs = (frontendservicesessionargs *) dummyPt;
     frontend_logger.log("Thread No: " + to_string(pthread_self()), "info");
+    int connFd = sessionargs->connFd;
     char data[300];
     bzero(data, 301);
     bool loop = false;
     while (!loop) {
         bzero(data, 301);
-        read(sessionargs->connFd, data, 300);
+        read(connFd, data, 300);
 
         string line(data);
         frontend_logger.log("Command received: " + line, "info");
@@ -61,15 +62,15 @@ void *frontendservicesesion(void *dummyPt) {
                 ss << "\n";
             }
             string result = ss.str();
-            write(sessionargs->connFd, result.c_str(), result.length());
+            write(connFd, result.c_str(), result.length());
 
         } else if (line.compare(SHTDN) == 0) {
-            close(sessionargs->connFd);
+            close(connFd);
             exit(0);
         } else if (line.compare(ADRDF) == 0) {
             // add RDF graph
-            write(sessionargs->connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
-            write(sessionargs->connFd, "\r\n", 2);
+            write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
+            write(connFd, "\r\n", 2);
 
             // We get the name and the path to graph as a pair separated by |.
             char graph_data[300];
@@ -77,7 +78,7 @@ void *frontendservicesesion(void *dummyPt) {
             string name = "";
             string path = "";
 
-            read(sessionargs->connFd, graph_data, 300);
+            read(connFd, graph_data, 300);
 
             std::time_t time = chrono::system_clock::to_time_t(chrono::system_clock::now());
             string uploadStartTime = ctime(&time);
@@ -121,8 +122,8 @@ void *frontendservicesesion(void *dummyPt) {
             }
 
         } else if (line.compare(ADGR) == 0) {
-            write(sessionargs->connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
-            write(sessionargs->connFd, "\r\n", 2);
+            write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
+            write(connFd, "\r\n", 2);
 
             // We get the name and the path to graph as a pair separated by |.
             char graph_data[300];
@@ -130,7 +131,7 @@ void *frontendservicesesion(void *dummyPt) {
             string name = "";
             string path = "";
 
-            read(sessionargs->connFd, graph_data, 300);
+            read(connFd, graph_data, 300);
 
             std::time_t time = chrono::system_clock::to_time_t(chrono::system_clock::now());
             string uploadStartTime = ctime(&time);
@@ -162,7 +163,7 @@ void *frontendservicesesion(void *dummyPt) {
                 string sqlStatement =
                         "INSERT INTO graph (name,upload_path,upload_start_time,upload_end_time,graph_status_idgraph_status,"
                         "vertexcount,centralpartitioncount,edgecount) VALUES(\"" + name + "\", \"" + path +
-                        "\", \"" + uploadStartTime + "\", \"\",\"UPLOADING\", \"\", \"\", \"\")";
+                        "\", \"" + uploadStartTime + "\", \"\",\"1\", \"\", \"\", \"\")";
                 int newGraphID = sqlite->runInsert(sqlStatement);
                 MetisPartitioner *partitioner = new MetisPartitioner(&sessionargs->sqlite);
                 //partitioner->loadDataSet(path, utils.getJasmineGraphProperty("org.jasminegraph.server.runtime.location").c_str());
@@ -180,14 +181,14 @@ void *frontendservicesesion(void *dummyPt) {
             }
         } else if (line.compare(ADD_STREAM_KAFKA) == 0) {
             std::cout << STREAM_TOPIC_NAME << endl;
-            write(sessionargs->connFd, STREAM_TOPIC_NAME.c_str(), STREAM_TOPIC_NAME.length());
-            write(sessionargs->connFd, "\r\n", 2);
+            write(connFd, STREAM_TOPIC_NAME.c_str(), STREAM_TOPIC_NAME.length());
+            write(connFd, "\r\n", 2);
 
             // We get the name and the path to graph as a pair separated by |.
             char topic_name[300];
             bzero(topic_name, 301);
 
-            read(sessionargs->connFd, topic_name, 300);
+            read(connFd, topic_name, 300);
 
             Utils utils;
             string topic_name_s(topic_name);
@@ -225,7 +226,7 @@ void *frontendservicesesion(void *dummyPt) {
         }
     }
     frontend_logger.log("Closing thread " + to_string(pthread_self()) + " and connection", "info");
-    close(sessionargs->connFd);
+    close(connFd);
 }
 
 JasmineGraphFrontEnd::JasmineGraphFrontEnd(SQLiteDBInterface db) {
