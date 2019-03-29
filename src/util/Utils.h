@@ -61,6 +61,8 @@ class Utils
     void unzipFile(std::string filePath);
 
     int parseARGS(char **args, char *line);
+
+    bool hostExists(std::string name, std::string ip, SQLiteDBInterface sqlite);
 };
 
 #endif //JASMINEGRAPH_UTILS_H

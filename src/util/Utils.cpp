@@ -308,3 +308,21 @@ int Utils::parseARGS(char **args, char *line){
     while ( (args[++tmp] = strtok(NULL, ":" ) ) != NULL );
     return tmp - 1;
 }
+
+/**
+ * This method checks if a host exists in JasmineGraph MetaBD.
+ * This method uses the name and ip of the host.
+ */
+bool Utils::hostExists(string name, string ip, SQLiteDBInterface sqlite) {
+    bool result = true;
+    string stmt = "SELECT COUNT( * ) FROM host WHERE name LIKE '" + name + "' AND ip LIKE '" + ip + "';";
+    if (ip == ""){
+        stmt = "SELECT COUNT( * ) FROM host WHERE name LIKE '" + name + "';";
+    }
+    std::vector<vector<pair<string, string>>> v = sqlite.runSelect(stmt);
+    int count = std::stoi(v[0][0].second);
+    if (count == 0) {
+        result = false;
+    }
+    return result;
+}

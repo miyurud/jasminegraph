@@ -38,6 +38,10 @@ private:
 
     static bool sendFileThroughService(std::string host, int dataPort, std::string fileName, std::string filePath);
 
+    void addHostsToMetaDB();
+
+    std::map<std::string, std::string> getLiveHostIDList();
+
     static void copyArtifactsToWorkers(std::string workerPath, std::string artifactLocation, std::string remoteWorker);
     static void createWorkerPath (std::string workerHost, std::string workerPath);
 public:

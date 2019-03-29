@@ -17,7 +17,6 @@ limitations under the License.
 
 using namespace std;
 Logger instance_logger;
-pthread_mutex_t protocol_thread_lock = PTHREAD_MUTEX_INITIALIZER;
 
 void *instanceservicesession(void *dummyPt) {
     instanceservicesessionargs *sessionargs = (instanceservicesessionargs *) dummyPt;
@@ -41,18 +40,16 @@ void *instanceservicesession(void *dummyPt) {
 
         if (line.compare(JasmineGraphInstanceProtocol::HANDSHAKE) == 0) {
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
-            pthread_mutex_lock(&protocol_thread_lock);
             write(connFd, JasmineGraphInstanceProtocol::HANDSHAKE_OK.c_str(),
                   JasmineGraphInstanceProtocol::HANDSHAKE_OK.size());
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
             bzero(data, 301);
             read(connFd, data, 300);
             line = (data);
-            //line = utils.trim_copy(line, " \f\n\r\t\v");
+            line = utils.trim_copy(line, " \f\n\r\t\v");
             string server_hostname = line;
             instance_logger.log("Received hostname : " + line, "info");
             std::cout << "ServerName : " << server_hostname << std::endl;
-            pthread_mutex_unlock(&protocol_thread_lock);
         } else if (line.compare(JasmineGraphInstanceProtocol::CLOSE) == 0) {
             write(connFd, JasmineGraphInstanceProtocol::CLOSE_ACK.c_str(),
                   JasmineGraphInstanceProtocol::CLOSE_ACK.size());
@@ -69,6 +66,7 @@ void *instanceservicesession(void *dummyPt) {
             // TODO :: INSERT_EDGES,TRUNCATE,COUNT_VERTICES,COUNT_EDGES,DELETE,LOADPG etc should be implemented
 
         else if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD) == 0) {
+//            pthread_mutex_lock(&protocol_thread_lock);
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD, "info");
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
@@ -98,7 +96,7 @@ void *instanceservicesession(void *dummyPt) {
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
             string fullFilePath =
                     utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
-
+  //          pthread_mutex_unlock(&protocol_thread_lock);
             while (utils.fileExists(fullFilePath) && utils.getFileSize(fullFilePath) < fileSize) {
                 bzero(data, 301);
                 read(connFd, data, 300);
@@ -138,8 +136,10 @@ void *instanceservicesession(void *dummyPt) {
                 string response = (data);
                 response = utils.trim_copy(response, " \f\n\r\t\v");
                 if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
+                    instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
                     write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.c_str(),
                           JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.size());
+                    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT, "info");
                 }
             }
             bzero(data, 301);
@@ -219,8 +219,10 @@ void *instanceservicesession(void *dummyPt) {
                 string response = (data);
                 response = utils.trim_copy(response, " \f\n\r\t\v");
                 if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
+                    instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
                     write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.c_str(),
                           JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.size());
+                    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT, "info");
                 }
             }
             bzero(data, 301);
@@ -232,7 +234,6 @@ void *instanceservicesession(void *dummyPt) {
                       JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.size());
                 instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK, "info");
             }
-
         }
         // TODO :: Implement the rest of the protocol
         //else if ()
@@ -283,10 +284,10 @@ int JasmineGraphInstanceService::run(int serverPort) {
     len = sizeof(clntAdd);
 
     int connectionCounter = 0;
-    pthread_t threadA[5];
+    pthread_t threadA[50];
 
     // TODO :: What is the maximum number of connections allowed??
-    while (connectionCounter < 5) {
+    while (connectionCounter < 50) {
         instance_logger.log("Worker listening on port " + to_string(serverPort), "info");
         int connFd = accept(listenFd, (struct sockaddr *) &clntAdd, &len);
 
