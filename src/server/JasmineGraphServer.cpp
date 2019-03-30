@@ -23,14 +23,8 @@ limitations under the License.
 
 Logger server_logger;
 
-struct workers{
-    std::string hostname;
-    int port;
-    int dataPort;
-};
-
 static map<string,string> hostIDMap;
-static std::vector<workers> hostWorkerMap;
+static std::vector<JasmineGraphServer::workers> hostWorkerMap;
 
 void *runfrontend(void *dummyPt) {
     JasmineGraphServer *refToServer = (JasmineGraphServer *) dummyPt;
@@ -202,8 +196,6 @@ void JasmineGraphServer::uploadGraphLocally(int graphID) {
     std::vector<string> centralStoreFileList = MetisPartitioner::getCentalStoreFiles();
     int count = 0;
     int file_count = 0;
-    string sqlStatement = "";
-    string partitionID = "";
     std::thread *workerThreads = new std::thread[hostWorkerMap.size() * 2];
     std::vector<workers, std::allocator<workers>>::iterator mapIterator;
     for (mapIterator = hostWorkerMap.begin(); mapIterator < hostWorkerMap.end(); mapIterator++) {
@@ -214,14 +206,6 @@ void JasmineGraphServer::uploadGraphLocally(int graphID) {
         sleep(1);
         workerThreads[count] = std::thread(batchUploadCentralStore, worker.hostname, worker.port, worker.dataPort,
                                            graphID, centralStoreFileList[file_count]);
-        size_t lastindex = partitionFileList[file_count].find_last_of(".");
-        string rawname = partitionFileList[file_count].substr(0, lastindex);
-        partitionID = rawname.substr(rawname.find_last_of("_") + 1);
-        sqlStatement = "INSERT INTO host_has_partition (host_idhost, partition_idpartition, partition_graph_idgraph) "
-                       "VALUES('" + hostIDMap.find(worker.hostname)->second + "','" + partitionID + "','" +
-                       to_string(graphID) + "')";
-        // TODO :: debug below line
-        //this->sqlite.runInsertNoIDReturn(sqlStatement);
         count++;
         file_count++;
     }
@@ -231,7 +215,12 @@ void JasmineGraphServer::uploadGraphLocally(int graphID) {
         std::cout << "Thread " << threadCount << " joined" << std::endl;
     }
 
-    //TODO::Update the database as required
+    std::time_t time = chrono::system_clock::to_time_t(chrono::system_clock::now());
+    string uploadEndTime = ctime(&time);
+
+    //The following function updates the 'host_has_partition' table and 'graph' table only
+    //TODO::Update the 'partition' table after taking edge and vertex counts
+    updateMetaDB(hostWorkerMap, partitionFileList, graphID, uploadEndTime);
 
 }
 
@@ -708,9 +697,6 @@ void JasmineGraphServer::addHostsToMetaDB() {
             vector<string> splitted = utils.split(host, '@');
             ip_address = splitted[1];
         }
-//        sqlStatement = ("UPDATE host SET name=\"dinika\" where name = 'anuradha'");
-//        std::cout << sqlStatement << std::endl;
-//        this->sqlite.runUpdate(sqlStatement);
         if (!utils.hostExists(name, ip_address, this->sqlite)) {
             sqlStatement = ("INSERT INTO host (name,ip,is_public) VALUES(\"" + name + "\", \"" + ip_address +
                             "\", \"\")");
@@ -731,10 +717,30 @@ map<string, string> JasmineGraphServer::getLiveHostIDList() {
         string id = v[0][0].second;
         hostIDMap.insert(make_pair(host,id));
     }
-//    for (std::vector<map<string, string>>::iterator j = (hostIDMap.begin()); j != hostIDMap.end(); ++j) {
-//        std::map<string,string>::iterator it = j->begin();
-//        for (it=j->begin(); it!=j->end(); ++it)
-//            std::cout << it->first << " => " << it->second << endl;
-//    }
     return hostIDMap;
+}
+
+void JasmineGraphServer::updateMetaDB(vector<JasmineGraphServer::workers> hostWorkerMap,
+                                      std::vector<std::string> partitionFileList, int graphID, string uploadEndTime) {
+    SQLiteDBInterface refToSqlite = *new SQLiteDBInterface();
+    refToSqlite.init();
+    int file_count = 0;
+    std::vector<workers, std::allocator<workers>>::iterator mapIterator;
+    for (mapIterator = hostWorkerMap.begin(); mapIterator < hostWorkerMap.end(); mapIterator++) {
+        workers worker = *mapIterator;
+        size_t lastindex = partitionFileList[file_count].find_last_of('.');
+        string rawname = partitionFileList[file_count].substr(0, lastindex);
+        string partitionID = rawname.substr(rawname.find_last_of('_') + 1);
+        string sqlStatement =
+                "INSERT INTO host_has_partition (host_idhost, partition_idpartition, partition_graph_idgraph) "
+                "VALUES('" + hostIDMap.find(worker.hostname)->second + "','" + partitionID + "','" +
+                to_string(graphID) + "')";
+
+        refToSqlite.runInsertNoIDReturn(sqlStatement);
+        file_count++;
+    }
+    string sqlStatement2 =
+            "UPDATE graph SET upload_end_time = '" + uploadEndTime + "' ,graph_status_idgraph_status = '" +
+            to_string(Conts::GRAPH_STATUS::OPERATIONAL) + "' WHERE idgraph = '" + to_string(graphID) + "'";
+    refToSqlite.runUpdate(sqlStatement2);
 }

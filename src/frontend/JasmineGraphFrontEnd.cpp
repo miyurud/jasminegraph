@@ -163,7 +163,8 @@ void *frontendservicesesion(void *dummyPt) {
                 string sqlStatement =
                         "INSERT INTO graph (name,upload_path,upload_start_time,upload_end_time,graph_status_idgraph_status,"
                         "vertexcount,centralpartitioncount,edgecount) VALUES(\"" + name + "\", \"" + path +
-                        "\", \"" + uploadStartTime + "\", \"\",\"1\", \"\", \"\", \"\")";
+                        "\", \"" + uploadStartTime + "\", \"\",\"" + to_string(Conts::GRAPH_STATUS::LOADING) +
+                        "\", \"\", \"\", \"\")";
                 int newGraphID = sqlite->runInsert(sqlStatement);
                 MetisPartitioner *partitioner = new MetisPartitioner(&sessionargs->sqlite);
                 //partitioner->loadDataSet(path, utils.getJasmineGraphProperty("org.jasminegraph.server.runtime.location").c_str());

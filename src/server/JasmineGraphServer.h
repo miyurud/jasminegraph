@@ -67,6 +67,15 @@ public:
     SQLiteDBInterface sqlite;
     JasmineGraphBackend *backend;
     //pthread_t frontendthread;
+
+    struct workers {
+        std::string hostname;
+        int port;
+        int dataPort;
+    };
+
+    static void updateMetaDB(std::vector<workers> hostWorkerMap, std::vector<std::string> partitionFileList, int graphID,
+                 std::string uploadEndTime);
 };
 
 

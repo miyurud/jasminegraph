@@ -72,7 +72,6 @@ vector<vector<pair<string, string> >> SQLiteDBInterface::runSelect(std::string q
 // This function inserts a new row to the DB and returns the last inserted row id
 int SQLiteDBInterface::runInsert(std::string query) {
     char *zErrMsg = 0;
-
     int rc = sqlite3_exec(database, query.c_str(), NULL, NULL, &zErrMsg);
     if (rc != SQLITE_OK) {
         db_logger.log("SQL Error: " + string(zErrMsg), "error");
@@ -97,13 +96,12 @@ int SQLiteDBInterface::runInsert(std::string query) {
 // This is used for inserting tables which do not have primary IDs
 void SQLiteDBInterface::runInsertNoIDReturn(std::string query) {
     char *zErrMsg = 0;
-    cout << query << endl;
     int rc = sqlite3_exec(database, query.c_str(), NULL, NULL, &zErrMsg);
     if (rc != SQLITE_OK) {
         db_logger.log("SQL Error: " + string(zErrMsg), "error");
         sqlite3_free(zErrMsg);
     } else {
-        db_logger.log("Update operation done successfully", "info");
+        db_logger.log("Insert operation done successfully", "info");
     }
 }
 
@@ -111,7 +109,7 @@ void SQLiteDBInterface::runInsertNoIDReturn(std::string query) {
 void SQLiteDBInterface::runUpdate(std::string query) {
     char *zErrMsg = 0;
 
-    int rc = sqlite3_exec(database, query.c_str(), NULL, NULL, NULL);
+    int rc = sqlite3_exec(database, query.c_str(), NULL, NULL, &zErrMsg);
 
     if (rc != SQLITE_OK) {
         db_logger.log("SQL Error: " + string(zErrMsg), "error");
