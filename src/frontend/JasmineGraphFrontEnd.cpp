@@ -222,8 +222,32 @@ void *frontendservicesesion(void *dummyPt) {
                 cout << "Received message on partition " << msg.get_topic() << "/" << msg.get_partition() << ", offset " << msg.get_offset() << endl;
                 cout << "Payload = " << msg.get_payload() << endl;
             }
+        } else if (line.compare(RMGR) == 0){
+            write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
+            write(connFd, "\r\n", 2);
+
+            // We get the name and the path to graph as a pair separated by |.
+            char graph_id[300];
+            bzero(graph_id, 301);
+            string name = "";
+            string path = "";
+
+            read(connFd, graph_id, 300);
+
+            string graphID(graph_id);
+
+            Utils utils;
+            graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
+            frontend_logger.log("Graph ID received: " + graphID, "info");
+
+            if (JasmineGraphFrontEnd::graphExistsByID(graphID, dummyPt)) {
+                cout << "removing ..." << endl;
+                JasmineGraphFrontEnd::removeGraph(graphID, dummyPt);
+            } else {
+                frontend_logger.log("Graph does not exist" ,"error");
+            }
         } else {
-            frontend_logger.log("Message format not recognized", "error");
+            frontend_logger.log("Message format not recognized " + line , "error");
         }
     }
     frontend_logger.log("Closing thread " + to_string(pthread_self()) + " and connection", "info");
@@ -338,7 +362,7 @@ bool JasmineGraphFrontEnd::graphExists(string path, void *dummyPt) {
  */
 bool JasmineGraphFrontEnd::graphExistsByID(string id, void *dummyPt) {
     bool result = true;
-    string stmt = "SELECT COUNT( * ) FROM graph WHERE idgraph LIKE '" + id + "';";
+    string stmt = "SELECT COUNT( * ) FROM graph WHERE idgraph = " + id + "";
     SQLiteDBInterface *sqlite = (SQLiteDBInterface *) dummyPt;
     std::vector<vector<pair<string, string>>> v = sqlite->runSelect(stmt);
     int count = std::stoi(v[0][0].second);
@@ -347,3 +371,19 @@ bool JasmineGraphFrontEnd::graphExistsByID(string id, void *dummyPt) {
     }
     return result;
 }
+
+/**
+ * This method removes a graph from JasmineGraph
+ */
+void JasmineGraphFrontEnd::removeGraph(std::string graphID, void *dummyPt) {
+    SQLiteDBInterface *sqlite = (SQLiteDBInterface *) dummyPt;
+    vector<vector<pair<string, string>>> hostPartitionResults = sqlite->runSelect(
+            "SELECT name, partition_idpartition FROM host_has_partition INNER JOIN host ON host_idhost = idhost WHERE partition_graph_idgraph = '" +graphID+"'");
+    for (vector<vector<pair<string, string>>>::iterator i = hostPartitionResults.begin(); i != hostPartitionResults.end(); ++i) {
+        for (std::vector<pair<string, string>>::iterator j = (i->begin()); j != i->end(); ++j) {
+            cout << j->first << " ------------ "<< j->second << endl;
+        }
+    }
+}
+
+
