@@ -48,6 +48,8 @@ class Utils
 
     void createDirectory(const std::string dirName);
 
+    void deleteDirectory(const std::string dirName);
+
     std::string getFileName(std::string filePath);
 
     int getFileSize(std::string filePath);
@@ -59,6 +61,8 @@ class Utils
     void unzipFile(std::string filePath);
 
     int parseARGS(char **args, char *line);
+
+    bool hostExists(std::string name, std::string ip, SQLiteDBInterface sqlite);
 };
 
 #endif //JASMINEGRAPH_UTILS_H

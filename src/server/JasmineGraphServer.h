@@ -36,7 +36,11 @@ private:
 
     static void startRemoteWorkers(std::vector<int> workerPortsVector, std::vector<int> workerDataPortsVector, std::string host);
 
-    static bool sendFileThroughService(std::string host, int dataPort, std::string fileName, std::string filePath, int fileSize);
+    static bool sendFileThroughService(std::string host, int dataPort, std::string fileName, std::string filePath);
+
+    void addHostsToMetaDB();
+
+    std::map<std::string, std::string> getLiveHostIDList();
 
     static void copyArtifactsToWorkers(std::string workerPath, std::string artifactLocation, std::string remoteWorker);
     static void createWorkerPath (std::string workerHost, std::string workerPath);
@@ -57,10 +61,21 @@ public:
 
     static bool batchUploadFile(std::string host, int port, int dataPort, int graphID, std::string filePath);
 
+    static bool batchUploadCentralStore(std::string host, int port, int dataPort, int graphID, std::string filePath);
+
     JasmineGraphFrontEnd *frontend;
     SQLiteDBInterface sqlite;
     JasmineGraphBackend *backend;
     //pthread_t frontendthread;
+
+    struct workers {
+        std::string hostname;
+        int port;
+        int dataPort;
+    };
+
+    static void updateMetaDB(std::vector<workers> hostWorkerMap, std::vector<std::string> partitionFileList, int graphID,
+                 std::string uploadEndTime);
 };
 
 

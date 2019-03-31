@@ -30,6 +30,10 @@ public:
 
     int runInsert(std::string);
 
+    void runUpdate(std::string);
+
+    void runInsertNoIDReturn(std::string);
+
     int RunSqlNoCallback(const char *zSql);
 
     SQLiteDBInterface();

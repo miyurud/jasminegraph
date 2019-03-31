@@ -35,6 +35,12 @@ public:
     static int JASMINEGRAPH_RUNTIME_PROFILE_MASTER;
     static int JASMINEGRAPH_RUNTIME_PROFILE_WORKER;
 
+    struct GRAPH_STATUS {
+        static const int LOADING;
+        static const int OPERATIONAL;
+        static const int DELETED;
+        static const int NONOPERATIONAL;
+    };
 };
 
 
