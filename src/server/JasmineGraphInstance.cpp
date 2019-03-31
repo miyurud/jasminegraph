@@ -30,8 +30,6 @@ int JasmineGraphInstance::start_running(int serverPort, int serverDataPort) {
     std::cout << "Worker started" << std::endl;
     std::cout << "Running the server..." << std::endl;
 
-    this->sqlite = *new SQLiteDBInterface();
-    this->sqlite.init();
     this->serverPort = serverPort;
     this->serverDataPort = serverDataPort;
 

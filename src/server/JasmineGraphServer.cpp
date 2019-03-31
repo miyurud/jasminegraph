@@ -173,20 +173,8 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector,
             serverStartScript = "ssh -p 22 " + host+ " "+ executableFile + " 2"+" "+ std::to_string(workerPortsVector.at(i)) + " " + std::to_string(workerDataPortsVector.at(i));
         }
         //std::cout<<serverStartScript<< std::endl;
-        FILE *input = popen(serverStartScript.c_str(),"r");
+        popen(serverStartScript.c_str(),"r");
 
-        if (input) {
-            // read the input
-            while (!feof(input)) {
-                if (fgets(buffer, 128, input) != NULL) {
-                    result.append(buffer);
-                }
-            }
-            if (!result.empty()) {
-                std::cout<<result<< std::endl;
-            }
-            pclose(input);
-        }
     }
 }
 
@@ -197,6 +185,7 @@ void JasmineGraphServer::uploadGraphLocally(int graphID) {
     int count = 0;
     int file_count = 0;
     std::thread *workerThreads = new std::thread[hostWorkerMap.size() * 2];
+
     std::vector<workers, std::allocator<workers>>::iterator mapIterator;
     for (mapIterator = hostWorkerMap.begin(); mapIterator < hostWorkerMap.end(); mapIterator++) {
         workers worker = *mapIterator;
