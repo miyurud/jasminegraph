@@ -267,6 +267,9 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
         }
     }
 
+    partitionFileList.clear();
+    centralStoreFileList.clear();
+
     for (int part = 0; part < nParts; part++) {
 //        string outputFilePart = outputFilePath + "/" + std::to_string(newGraphID) + "_" + std::to_string(part);
 //        string outputFilePartMaster = outputFilePath + "/" + std::to_string(newGraphID) + "_centralstore_" + std::to_string(part);
