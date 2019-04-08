@@ -29,6 +29,9 @@ limitations under the License.
 #include <cstddef>
 #include <algorithm>
 #include <thread>
+#include "RDFParser.h"
+#include <flatbuffers/util.h>
+
 
 using std::string;
 
@@ -50,6 +53,7 @@ public:
 
     MetisPartitioner(SQLiteDBInterface *);
 
+
 private:
     idx_t edgeCount = 0;
     idx_t largestVertex = 0;
@@ -69,6 +73,10 @@ private:
     std::map<int, std::map<int, std::vector<int>>> masterGraphStorageMap;
     std::vector<int> xadj;
     std::vector<int> adjncy;
+    std::map<std::pair<int, int>, int> edgeMap;
+    std::map<long, string[7]> articlesMap;
+
+
 
     void createPartitionFiles(idx_t part[]);
 };
