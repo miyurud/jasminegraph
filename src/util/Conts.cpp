@@ -28,5 +28,5 @@ int Conts::JASMINEGRAPH_RUNTIME_PROFILE_WORKER = 2;
 
 const int Conts::GRAPH_STATUS::LOADING = 1;
 const int Conts::GRAPH_STATUS::OPERATIONAL = 2;
-const int Conts::GRAPH_STATUS::DELETED = 3;
+const int Conts::GRAPH_STATUS::DELETING = 3;
 const int Conts::GRAPH_STATUS::NONOPERATIONAL = 4;

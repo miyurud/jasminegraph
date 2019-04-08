@@ -87,7 +87,7 @@ int JasmineGraphInstanceFileTransferService::run(int dataPort) {
         return 0;
     }
     int connFd;
-    listen(listenFd, 5);
+    listen(listenFd, 10);
 
     len = sizeof(clntAdd);
 

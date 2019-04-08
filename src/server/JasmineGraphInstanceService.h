@@ -32,6 +32,7 @@ limitations under the License.
 
 void *instanceservicesession(void *dummyPt);
 void writeCatalogRecord(string record);
+void deleteGraphPartition(std::string graphID, std::string partitionID);
 
 class JasmineGraphInstanceService {
 public:
