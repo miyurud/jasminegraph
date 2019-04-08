@@ -17,6 +17,7 @@ limitations under the License.
 
 using namespace std;
 Logger instance_logger;
+pthread_mutex_t file_lock;
 
 void *instanceservicesession(void *dummyPt) {
     instanceservicesessionargs *sessionargs = (instanceservicesessionargs *) dummyPt;
@@ -62,11 +63,7 @@ void *instanceservicesession(void *dummyPt) {
         } else if (line.compare(JasmineGraphInstanceProtocol::READY) == 0) {
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
         }
-
-            // TODO :: INSERT_EDGES,TRUNCATE,COUNT_VERTICES,COUNT_EDGES,DELETE,LOADPG etc should be implemented
-
         else if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD) == 0) {
-//            pthread_mutex_lock(&protocol_thread_lock);
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD, "info");
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
@@ -81,7 +78,6 @@ void *instanceservicesession(void *dummyPt) {
             bzero(data, 301);
             read(connFd, data, 300);
             string fileName = (data);
-            //fileName = utils.trim_copy(fileName, " \f\n\r\t\v");
             instance_logger.log("Received File name: " + fileName, "info");
             write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_LEN.c_str(),
                   JasmineGraphInstanceProtocol::SEND_FILE_LEN.size());
@@ -96,7 +92,6 @@ void *instanceservicesession(void *dummyPt) {
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
             string fullFilePath =
                     utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
-  //          pthread_mutex_unlock(&protocol_thread_lock);
             while (utils.fileExists(fullFilePath) && utils.getFileSize(fullFilePath) < fileSize) {
                 bzero(data, 301);
                 read(connFd, data, 300);
@@ -128,7 +123,9 @@ void *instanceservicesession(void *dummyPt) {
             fullFilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + rawname;
 
             string partitionID = rawname.substr(rawname.find_last_of("_") + 1);
+            pthread_mutex_lock(&file_lock);
             writeCatalogRecord(graphID +":"+partitionID);
+            pthread_mutex_unlock(&file_lock);
 
             while (!utils.fileExists(fullFilePath)) {
                 bzero(data, 301);
@@ -234,9 +231,33 @@ void *instanceservicesession(void *dummyPt) {
                       JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.size());
                 instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK, "info");
             }
+        } else if (line.compare(JasmineGraphInstanceProtocol::DELETE_GRAPH) == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::DELETE_GRAPH, "info");
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+            bzero(data, 301);
+            read(connFd, data, 300);
+            string graphID = (data);
+            graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
+            instance_logger.log("Received Graph ID: " + graphID, "info");
+            write(connFd, JasmineGraphInstanceProtocol::SEND_PARTITION_ID.c_str(),
+                  JasmineGraphInstanceProtocol::SEND_PARTITION_ID.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_PARTITION_ID, "info");
+            bzero(data, 301);
+            read(connFd, data, 300);
+            string partitionID = (data);
+            instance_logger.log("Received partitionID: " + partitionID, "info");
+            deleteGraphPartition(graphID,partitionID);
+            //pthread_mutex_lock(&file_lock);
+            //TODO :: Update catalog file
+            //pthread_mutex_unlock(&file_lock);
+            string result = "1";
+            write(connFd, result.c_str(), result.size());
+            instance_logger.log("Sent : " + result, "info");
+            instance_logger.log("Done and dusted", "info");
         }
         // TODO :: Implement the rest of the protocol
-        //else if ()
+        // TODO :: INSERT_EDGES,TRUNCATE,COUNT_VERTICES,COUNT_EDGES,LOADPG etc should be implemented
     }
     instance_logger.log("Closing thread " + to_string(pthread_self()), "info");
     close(connFd);
@@ -279,15 +300,16 @@ int JasmineGraphInstanceService::run(int serverPort) {
         return 0;
     }
 
-    listen(listenFd, 5);
+    listen(listenFd, 10);
 
     len = sizeof(clntAdd);
 
     int connectionCounter = 0;
-    pthread_t threadA[50];
+    pthread_mutex_init(&file_lock, NULL);
+    pthread_t threadA[300];
 
     // TODO :: What is the maximum number of connections allowed??
-    while (connectionCounter < 50) {
+    while (connectionCounter < 300) {
         instance_logger.log("Worker listening on port " + to_string(serverPort), "info");
         int connFd = accept(listenFd, (struct sockaddr *) &clntAdd, &len);
 
@@ -310,6 +332,20 @@ int JasmineGraphInstanceService::run(int serverPort) {
         pthread_join(threadA[i], NULL);
         std::cout << "service Threads joined" << std::endl;
     }
+
+    pthread_mutex_destroy(&file_lock);
+}
+
+void deleteGraphPartition(std::string graphID, std::string partitionID) {
+    Utils utils;
+    string partitionFilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + graphID + +"_"+ partitionID;
+    utils.deleteDirectory(partitionFilePath);
+    string centalStoreFilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + graphID + +"_centralstore_"+ partitionID;
+    utils.deleteDirectory(centalStoreFilePath);
+    instance_logger.log("Graph partition and centralstore files are now deleted", "info");
+//    if (!utils.fileExists(partitionFilePath) and !utils.fileExists(centalStoreFilePath)){
+//        result = 1;
+//    }
 }
 
 void writeCatalogRecord(string record) {

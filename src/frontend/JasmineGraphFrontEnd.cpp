@@ -222,8 +222,32 @@ void *frontendservicesesion(void *dummyPt) {
                 cout << "Received message on partition " << msg.get_topic() << "/" << msg.get_partition() << ", offset " << msg.get_offset() << endl;
                 cout << "Payload = " << msg.get_payload() << endl;
             }
+        } else if (line.compare(RMGR) == 0){
+            write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
+            write(connFd, "\r\n", 2);
+
+            // We get the name and the path to graph as a pair separated by |.
+            char graph_id[300];
+            bzero(graph_id, 301);
+            string name = "";
+            string path = "";
+
+            read(connFd, graph_id, 300);
+
+            string graphID(graph_id);
+
+            Utils utils;
+            graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
+            frontend_logger.log("Graph ID received: " + graphID, "info");
+
+            if (JasmineGraphFrontEnd::graphExistsByID(graphID, dummyPt)) {
+                frontend_logger.log("Graph with ID " + graphID + " is being deleted now", "info");
+                JasmineGraphFrontEnd::removeGraph(graphID, dummyPt);
+            } else {
+                frontend_logger.log("Graph does not exist or cannot be deleted with the current hosts setting" ,"error");
+            }
         } else {
-            frontend_logger.log("Message format not recognized", "error");
+            frontend_logger.log("Message format not recognized " + line , "error");
         }
     }
     frontend_logger.log("Closing thread " + to_string(pthread_self()) + " and connection", "info");
@@ -242,9 +266,6 @@ int JasmineGraphFrontEnd::run() {
     bool loop = false;
     struct sockaddr_in svrAdd;
     struct sockaddr_in clntAdd;
-
-    //TODO: This seems there is only 3 front end instances can be kept running once. Need to double check this.
-    pthread_t threadA[3];
 
     //create socket
     listenFd = socket(AF_INET, SOCK_STREAM, 0);
@@ -274,13 +295,14 @@ int JasmineGraphFrontEnd::run() {
         return 0;
     }
 
-    listen(listenFd, 5);
+    listen(listenFd, 10);
 
+    pthread_t threadA[20];
     len = sizeof(clntAdd);
 
     int noThread = 0;
 
-    while (noThread < 3) {
+    while (noThread < 20) {
         frontend_logger.log("Frontend Listening", "info");
 
         //this is where client connects. svr will hang in this mode until client conn
@@ -304,7 +326,7 @@ int JasmineGraphFrontEnd::run() {
         noThread++;
     }
 
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < noThread; i++) {
         pthread_join(threadA[i], NULL);
     }
 
@@ -331,14 +353,15 @@ bool JasmineGraphFrontEnd::graphExists(string path, void *dummyPt) {
 }
 
 /**
- * This method checks if a graph exists in JasmineGraph with the same unique ID.
+ * This method checks if an accessible graph exists in JasmineGraph with the same unique ID.
  * @param id
  * @param dummyPt
  * @return
  */
 bool JasmineGraphFrontEnd::graphExistsByID(string id, void *dummyPt) {
     bool result = true;
-    string stmt = "SELECT COUNT( * ) FROM graph WHERE idgraph LIKE '" + id + "';";
+    string stmt = "SELECT COUNT( * ) FROM graph WHERE idgraph = " + id + " and graph_status_idgraph_status = " +
+                  to_string(Conts::GRAPH_STATUS::OPERATIONAL);
     SQLiteDBInterface *sqlite = (SQLiteDBInterface *) dummyPt;
     std::vector<vector<pair<string, string>>> v = sqlite->runSelect(stmt);
     int count = std::stoi(v[0][0].second);
@@ -347,3 +370,43 @@ bool JasmineGraphFrontEnd::graphExistsByID(string id, void *dummyPt) {
     }
     return result;
 }
+
+/**
+ * This method removes a graph from JasmineGraph
+ */
+void JasmineGraphFrontEnd::removeGraph(std::string graphID, void *dummyPt) {
+    vector<pair<string, string>> hostHasPartition;
+    SQLiteDBInterface *sqlite = (SQLiteDBInterface *) dummyPt;
+    vector<vector<pair<string, string>>> hostPartitionResults = sqlite->runSelect(
+            "SELECT name, partition_idpartition FROM host_has_partition INNER JOIN host ON host_idhost = idhost WHERE "
+            "partition_graph_idgraph = '" + graphID + "'");
+    for (vector<vector<pair<string, string>>>::iterator i = hostPartitionResults.begin();
+         i != hostPartitionResults.end(); ++i) {
+        int count = 0;
+        string hostname;
+        string partitionID;
+        for (std::vector<pair<string, string>>::iterator j = (i->begin()); j != i->end(); ++j) {
+            if (count == 0) {
+                hostname = j->second;
+            } else {
+                partitionID = j->second;
+                hostHasPartition.push_back(pair<string, string>(hostname, partitionID));
+            }
+            count++;
+        }
+    }
+    for (std::vector<pair<string, string>>::iterator j = (hostHasPartition.begin()); j != hostHasPartition.end(); ++j) {
+        cout << "HOST ID : " << j->first << " Partition ID : " << j->second << endl;
+    }
+    sqlite->runUpdate("UPDATE graph SET graph_status_idgraph_status = " + to_string(Conts::GRAPH_STATUS::DELETING) +
+                      " WHERE idgraph = " + graphID);
+
+    JasmineGraphServer *jasmineServer = new JasmineGraphServer();
+    jasmineServer->removeGraph(hostHasPartition, graphID);
+
+    sqlite->runUpdate("DELETE FROM host_has_partition WHERE partition_graph_idgraph = " + graphID);
+    sqlite->runUpdate("DELETE FROM partition WHERE graph_idgraph = " + graphID);
+    sqlite->runUpdate("DELETE FROM graph WHERE idgraph = " + graphID);
+}
+
+

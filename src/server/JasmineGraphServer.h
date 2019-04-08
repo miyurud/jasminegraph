@@ -59,9 +59,13 @@ public:
 
     void uploadGraphLocally(int graphID);
 
+    void removeGraph(std::vector<std::pair<std::string, std::string>> hostHasPartition, std::string graphID);
+
     static bool batchUploadFile(std::string host, int port, int dataPort, int graphID, std::string filePath);
 
     static bool batchUploadCentralStore(std::string host, int port, int dataPort, int graphID, std::string filePath);
+
+    static int removePartitionThroughService(std::string host, int port, std::string graphID, std::string partitionID);
 
     JasmineGraphFrontEnd *frontend;
     SQLiteDBInterface sqlite;

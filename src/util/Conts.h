@@ -36,10 +36,10 @@ public:
     static int JASMINEGRAPH_RUNTIME_PROFILE_WORKER;
 
     struct GRAPH_STATUS {
-        static const int LOADING;
-        static const int OPERATIONAL;
-        static const int DELETED;
-        static const int NONOPERATIONAL;
+        static const int LOADING;           //Graph partitions are being uploaded
+        static const int OPERATIONAL;       //Graph is uploaded and all its partitions are accessible in the current hosts setting
+        static const int DELETING;          //Graph partitions are being deleted
+        static const int NONOPERATIONAL;    //Graph is uploaded but some partitions of it are not accessible with the current set of active hosts
     };
 };
 
