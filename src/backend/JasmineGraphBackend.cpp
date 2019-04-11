@@ -21,34 +21,33 @@ using namespace std;
 
 Utils utils;
 Logger backend_logger;
-thread_local int connFd;
-//static int connFd;
 
 void *backendservicesesion(void *dummyPt) {
     backendservicesessionargs *sessionargs = (backendservicesessionargs *) dummyPt;
+    int connFd = sessionargs->connFd;
     backend_logger.log("Thread No: " + to_string(pthread_self()), "info");
     char data[300];
     bzero(data, 301);
     bool loop = false;
     while (!loop) {
         bzero(data, 301);
-        read(sessionargs->connFd, data, 300);
+        read(connFd, data, 300);
 
         string line(data);
         backend_logger.log("Command received: " + line , "info");
         line = utils.trim_copy(line, " \f\n\r\t\v");
 
         if (line.compare(EXIT_BACKEND) == 0) {
-            write(sessionargs->connFd, EXIT_ACK.c_str(), EXIT_ACK.size());
-            write(sessionargs->connFd, "\r\n", 2);
+            write(connFd, EXIT_ACK.c_str(), EXIT_ACK.size());
+            write(connFd, "\r\n", 2);
             break;
         } else if (line.compare(HANDSHAKE) == 0) {
-            write(sessionargs->connFd, HANDSHAKE_OK.c_str(), HANDSHAKE_OK.size());
-            write(sessionargs->connFd, "\r\n", 2);
+            write(connFd, HANDSHAKE_OK.c_str(), HANDSHAKE_OK.size());
+            write(connFd, "\r\n", 2);
 
             char host[300];
             bzero(host, 301);
-            read(sessionargs->connFd, host, 300);
+            read(connFd, host, 300);
             string hostname(host);
             Utils utils;
             hostname = utils.trim_copy(hostname, " \f\n\r\t\v");
@@ -60,7 +59,7 @@ void *backendservicesesion(void *dummyPt) {
         }
     }
     backend_logger.log("Closing thread " + to_string(pthread_self()) + " and connection", "info");
-    close(sessionargs->connFd);
+    close(connFd);
 }
 
 JasmineGraphBackend::JasmineGraphBackend(SQLiteDBInterface db) {
@@ -75,9 +74,6 @@ int JasmineGraphBackend::run() {
     bool loop = false;
     struct sockaddr_in svrAdd;
     struct sockaddr_in clntAdd;
-
-    //TODO: This seems there is only 3 back end instances can be kept running once. Need to double check this.
-    pthread_t threadA[3];
 
     //create socket
     listenFd = socket(AF_INET, SOCK_STREAM, 0);
@@ -107,17 +103,18 @@ int JasmineGraphBackend::run() {
         return 0;
     }
 
-    listen(listenFd, 5);
+    listen(listenFd, 10);
+    pthread_t threadA[20];
 
     len = sizeof(clntAdd);
 
     int noThread = 0;
 
-    while (noThread < 3) {
+    while (noThread < 20) {
         backend_logger.log("Backend Listening", "info");
 
         //this is where client connects. svr will hang in this mode until client conn
-        connFd = accept(listenFd, (struct sockaddr *) &clntAdd, &len);
+        int connFd = accept(listenFd, (struct sockaddr *) &clntAdd, &len);
 
         if (connFd < 0) {
             backend_logger.log("Cannot accept connection", "error");
@@ -137,9 +134,7 @@ int JasmineGraphBackend::run() {
         noThread++;
     }
 
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < noThread; i++) {
         pthread_join(threadA[i], NULL);
     }
-
-
 }

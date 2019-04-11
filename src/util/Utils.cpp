@@ -208,6 +208,7 @@ void Utils::createDirectory(const std::string dirName) {
  * This method deletes a directory with all its content
  * @param dirName
  */
+//TODO :: find a possible solution to handle the permission denied error when trying to delete a protected directory. popen does not work either
 void Utils::deleteDirectory(const std::string dirName) {
     string command = "rm -rf " + dirName;
     system(command.c_str());

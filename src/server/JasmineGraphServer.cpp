@@ -25,6 +25,7 @@ Logger server_logger;
 
 static map<string,string> hostIDMap;
 static std::vector<JasmineGraphServer::workers> hostWorkerMap;
+static map<string,int> hostPortMap;
 
 void *runfrontend(void *dummyPt) {
     JasmineGraphServer *refToServer = (JasmineGraphServer *) dummyPt;
@@ -106,6 +107,7 @@ void JasmineGraphServer::start_workers() {
             portVector.push_back(workerPort);
             dataPortVector.push_back(workerDataPort);
             hostWorkerMap.push_back({*it,workerPort,workerDataPort});
+            hostPortMap.insert(make_pair(*it,workerPort));
             workerPort = workerPort + 2;
             workerDataPort = workerDataPort + 2;
             portCount ++;
@@ -115,6 +117,7 @@ void JasmineGraphServer::start_workers() {
             portVector.push_back(workerPort);
             dataPortVector.push_back(workerDataPort);
             hostWorkerMap.push_back({*it,workerPort,workerDataPort});
+            hostPortMap.insert(make_pair(*it,workerPort));
             workerPort = workerPort + 2;
             workerDataPort = workerDataPort + 2;
             hostListModeNWorkers--;
@@ -732,4 +735,117 @@ void JasmineGraphServer::updateMetaDB(vector<JasmineGraphServer::workers> hostWo
             "UPDATE graph SET upload_end_time = '" + uploadEndTime + "' ,graph_status_idgraph_status = '" +
             to_string(Conts::GRAPH_STATUS::OPERATIONAL) + "' WHERE idgraph = '" + to_string(graphID) + "'";
     refToSqlite.runUpdate(sqlStatement2);
+}
+
+void JasmineGraphServer::removeGraph(vector<pair<string, string>> hostHasPartition, string graphID) {
+    std::cout << "Deleting the graph partitions.." << std::endl;
+    int count = 0;
+    std::thread *deleteThreads = new std::thread[hostHasPartition.size()];
+    for (std::vector<pair<string, string>>::iterator j = (hostHasPartition.begin()); j != hostHasPartition.end(); ++j) {
+        deleteThreads[count] = std::thread(removePartitionThroughService, j->first, hostPortMap[j->first], graphID, j->second);
+        count++;
+        sleep(1);
+    }
+
+    for (int threadCount = 0; threadCount < count; threadCount++) {
+        deleteThreads[threadCount].join();
+        std::cout << "Thread " << threadCount << " joined" << std::endl;
+    }
+}
+
+int JasmineGraphServer::removePartitionThroughService(string host, int port, string graphID, string partitionID) {
+    Utils utils;
+    std::cout << pthread_self() << " host : " << host << " port : " << port << std::endl;
+    int sockfd;
+    char data[300];
+    bool loop = false;
+    socklen_t len;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sockfd < 0) {
+        std::cerr << "Cannot accept connection" << std::endl;
+        return 0;
+    }
+
+    if (host.find('@') != std::string::npos) {
+        host = utils.split(host, '@')[1];
+    }
+
+    server = gethostbyname(host.c_str());
+    if (server == NULL) {
+        std::cerr << "ERROR, no host named " << server << std::endl;
+    }
+
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *) server->h_addr,
+          (char *) &serv_addr.sin_addr.s_addr,
+          server->h_length);
+    serv_addr.sin_port = htons(port);
+    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+        std::cerr << "ERROR connecting" << std::endl;
+        //TODO::exit
+    }
+
+    bzero(data, 301);
+    write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+    server_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
+    bzero(data, 301);
+    read(sockfd, data, 300);
+    string response = (data);
+
+    response = utils.trim_copy(response, " \f\n\r\t\v");
+
+    if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
+        server_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
+        string server_host = utils.getJasmineGraphProperty("org.jasminegraph.server.host");
+        write(sockfd, server_host.c_str(), server_host.size());
+        server_logger.log("Sent : " + server_host, "info");
+
+
+        write(sockfd, JasmineGraphInstanceProtocol::DELETE_GRAPH.c_str(),
+              JasmineGraphInstanceProtocol::DELETE_GRAPH.size());
+        server_logger.log("Sent : " + JasmineGraphInstanceProtocol::DELETE_GRAPH, "info");
+        bzero(data, 301);
+        read(sockfd, data, 300);
+        response = (data);
+        response = utils.trim_copy(response, " \f\n\r\t\v");
+        //std::cout << response << std::endl;
+        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+            server_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+            write(sockfd, graphID.c_str(), graphID.size());
+            server_logger.log("Sent : Graph ID " + graphID, "info");
+
+            bzero(data, 301);
+            read(sockfd, data, 300);
+            response = (data);
+            response = utils.trim_copy(response, " \f\n\r\t\v");
+
+            if (response.compare(JasmineGraphInstanceProtocol::SEND_PARTITION_ID) == 0) {
+                server_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_PARTITION_ID, "info");
+                write(sockfd, partitionID.c_str(), partitionID.size());
+                server_logger.log("Sent : Partition ID " + partitionID, "info");
+
+                bzero(data, 301);
+                read(sockfd, data, 300);
+                response = (data);
+                response = utils.trim_copy(response, " \f\n\r\t\v");
+                server_logger.log("Received last response : " + response, "info");
+                return 1;
+            }
+            else {
+                close(sockfd);
+                return 0;
+            }
+        }
+        else {
+            close(sockfd);
+            return 0;
+        }
+    }
+    close(sockfd);
+    return 0;
 }

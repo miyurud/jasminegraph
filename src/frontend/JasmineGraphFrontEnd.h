@@ -42,6 +42,8 @@ public:
 
     static bool graphExistsByID(std::string id, void *dummyPt);
 
+    static void removeGraph(std::string graphID, void *dummyPt);
+
 private:
     SQLiteDBInterface sqlite;
 };
