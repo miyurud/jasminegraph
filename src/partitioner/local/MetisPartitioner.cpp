@@ -119,7 +119,8 @@ void MetisPartitioner::loadDataSet(string inputFilePath, int graphID) {
 
 }
 
-void MetisPartitioner::constructMetisFormat() {
+void MetisPartitioner::constructMetisFormat(string graph_type) {
+    graphType= graph_type;
     int adjacencyIndex = 0;
     std::ofstream outputFile;
     //outputFile.open("/tmp/grf");
@@ -287,49 +288,53 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
         std::map<int, std::vector<int>> partEdgeMap = partitionedLocalGraphStorageMap[part];
         std::map<int, std::vector<int>> partMasterEdgeMap = masterGraphStorageMap[part];
 
-        std::map<long, string[7]> partitionedEdgeAttributes;
+
+        if(graphType=="rdf"){
+            std::map<long, string[7]> partitionedEdgeAttributes;
 
 
-        //edge attribute separation for partition files
-        for (auto it = partEdgeMap.begin(); it != partEdgeMap.end(); ++it) {
-            for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
-                auto entry = edgeMap.find(make_pair(it->first, *it2));
-                long article_id = entry->second;
-                string attributes[7];
-                auto array = (articlesMap.find(article_id))->second;
+            //edge attribute separation for partition files
+            for (auto it = partEdgeMap.begin(); it != partEdgeMap.end(); ++it) {
+                for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
+                    auto entry = edgeMap.find(make_pair(it->first, *it2));
+                    long article_id = entry->second;
+                    string attributes[7];
+                    auto array = (articlesMap.find(article_id))->second;
 
-                for (int itt = 0; itt < 7; itt++) {
-                    attributes[itt] = (array)[itt];
+                    for (int itt = 0; itt < 7; itt++) {
+                        attributes[itt] = (array)[itt];
+                    }
+
+                    partitionedEdgeAttributes.insert({article_id, attributes});
+
+
                 }
-                for (int itt = 0; itt < 7; itt++) {
+            }
+
+            //edge attribute separation for central store files
+            for (auto it = partMasterEdgeMap.begin(); it != partMasterEdgeMap.end(); ++it) {
+                for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
+                    auto entry = edgeMap.find(make_pair(it->first, *it2));
+                    long article_id = entry->second;
+                    string attributes[7];
+                    auto array = (articlesMap.find(article_id))->second;
+
+                    for (int itt = 0; itt < 7; itt++) {
+                        attributes[itt] = (array)[itt];
+
+                    }
+
+                    partitionedEdgeAttributes.insert({article_id, attributes});
+
 
                 }
-                partitionedEdgeAttributes.insert({article_id, attributes});
-
-
             }
         }
 
-        //edge attribute separation for central store files
-        for (auto it = partMasterEdgeMap.begin(); it != partMasterEdgeMap.end(); ++it) {
-            for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
-                auto entry = edgeMap.find(make_pair(it->first, *it2));
-                long article_id = entry->second;
-                string attributes[7];
-                auto array = (articlesMap.find(article_id))->second;
-
-                for (int itt = 0; itt < 7; itt++) {
-                    attributes[itt] = (array)[itt];
-
-                }
-                for (int itt = 0; itt < 7; itt++) {
-
-                }
-                partitionedEdgeAttributes.insert({article_id, attributes});
 
 
-            }
-        }
+
+
 
         if (!partEdgeMap.empty()) {
             std::ofstream localFile(outputFilePart);

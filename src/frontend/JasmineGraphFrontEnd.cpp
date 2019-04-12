@@ -122,7 +122,7 @@ void *frontendservicesesion(void *dummyPt) {
                 string input_file_path = utils.getHomeDir() + "/.jasminegraph/tmp/"+std::to_string(newGraphID);
                 metisPartitioner->loadDataSet(input_file_path, newGraphID);
 
-                metisPartitioner->constructMetisFormat();
+                metisPartitioner->constructMetisFormat("rdf");
                 metisPartitioner->partitioneWithGPMetis();
                 JasmineGraphServer *jasmineServer = new JasmineGraphServer();
                 jasmineServer->uploadGraphLocally(newGraphID);
@@ -182,7 +182,7 @@ void *frontendservicesesion(void *dummyPt) {
                 //partitioner->loadDataSet(path, utils.getJasmineGraphProperty("org.jasminegraph.server.runtime.location").c_str());
                 partitioner->loadDataSet(path, newGraphID);
 
-                partitioner->constructMetisFormat();
+                partitioner->constructMetisFormat("normal");
                 partitioner->partitioneWithGPMetis();
                 JasmineGraphServer *jasmineServer = new JasmineGraphServer();
                 jasmineServer->uploadGraphLocally(newGraphID);

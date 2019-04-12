@@ -41,7 +41,7 @@ public:
     void loadDataSet(string inputFilePath, int graphID);
 
     //void partitionGraph();
-    void constructMetisFormat();
+    void constructMetisFormat(string graph_type);
 
     void partitioneWithGPMetis();
 
@@ -65,6 +65,7 @@ private:
     SQLiteDBInterface sqlite;
     int graphID;
     Utils utils;
+    string graphType;
 
     std::map<int, std::vector<int>> graphStorageMap;
     std::map<int, std::vector<int>> graphEdgeMap;
