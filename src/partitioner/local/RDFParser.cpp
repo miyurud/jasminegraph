@@ -110,7 +110,7 @@ GetConfig::~GetConfig() {
         XMLString::release(&TAG_full_name);
     }
     catch (...) {
-        cerr << "Unknown exception encountered in TagNamesdtor" << endl;
+        cerr << "Unknown exception encountered while trying to release unknown TAG" << endl;
     }
 
     // Terminate Xerces
@@ -121,7 +121,7 @@ GetConfig::~GetConfig() {
     catch (xercesc::XMLException &e) {
         char *message = xercesc::XMLString::transcode(e.getMessage());
 
-        cerr << "XML ttolkit teardown error: " << message << endl;
+        cerr << "Unknown exception encountered" << message << endl;
         XMLString::release(&message);
     }
 }
@@ -342,7 +342,7 @@ throw(std::runtime_error) {
                     }
                 }
 
-                printEdges();
+                writeEdgesToFile();
 
             }
 
@@ -358,7 +358,7 @@ throw(std::runtime_error) {
     }
 }
 
-void GetConfig::printEdges() {
+void GetConfig::writeEdgesToFile() {
 
     ofstream file;
     string outputFilePath = utils.getHomeDir() + "/.jasminegraph/tmp";

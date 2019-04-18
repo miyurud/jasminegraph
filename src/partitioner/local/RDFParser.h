@@ -68,7 +68,7 @@ public:
 
     char *getOptionB() { return m_OptionB; };
 
-    void printEdges();
+    void writeEdgesToFile();
 
     long addToAuthors(std::map<std::string, long> *map, std::string URI);
 
