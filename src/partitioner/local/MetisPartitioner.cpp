@@ -293,6 +293,8 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
 
         if (graphType == Conts::GRAPH_TYPE_RDF) {
             std::map<long, string[7]> partitionedEdgeAttributes;
+            std::map<long, string[7]> centralStoreEdgeAttributes;
+
 
 
             //edge attribute separation for partition files
@@ -326,7 +328,7 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
 
                     }
 
-                    partitionedEdgeAttributes.insert({article_id, attributes});
+                    centralStoreEdgeAttributes.insert({article_id, attributes});
 
 
                 }
