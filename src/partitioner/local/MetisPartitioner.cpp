@@ -13,6 +13,8 @@ limitations under the License.
 
 #include <flatbuffers/flatbuffers.h>
 #include "MetisPartitioner.h"
+#include "../../util/Conts.h"
+
 
 thread_local std::vector<string> partitionFileList;
 thread_local std::vector<string> centralStoreFileList;
@@ -120,7 +122,7 @@ void MetisPartitioner::loadDataSet(string inputFilePath, int graphID) {
 }
 
 void MetisPartitioner::constructMetisFormat(string graph_type) {
-    graphType= graph_type;
+    graphType = graph_type;
     int adjacencyIndex = 0;
     std::ofstream outputFile;
     //outputFile.open("/tmp/grf");
@@ -289,7 +291,7 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
         std::map<int, std::vector<int>> partMasterEdgeMap = masterGraphStorageMap[part];
 
 
-        if(graphType=="rdf"){
+        if (graphType == Conts::GRAPH_TYPE_RDF) {
             std::map<long, string[7]> partitionedEdgeAttributes;
 
 
@@ -330,10 +332,6 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
                 }
             }
         }
-
-
-
-
 
 
         if (!partEdgeMap.empty()) {

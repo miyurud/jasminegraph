@@ -25,6 +25,10 @@ public:
     std::string JASMINEGRAPH_SERVER_PRIVATE_HOSTS_FILE = "machines.txt";
     static std::string JASMINEGRAPH_EXECUTABLE;
     static std::string JASMINEGRAPH_HOME;
+    static std::string GRAPH_TYPE_RDF ;
+    static std::string GRAPH_TYPE_NORMAL ;
+
+
 
     int JASMINEGRAPH_PARTITION_INDEX_PORT;
     static int JASMINEGRAPH_FRONTEND_PORT;
@@ -34,6 +38,8 @@ public:
     static int JASMINEGRAPH_INSTANCE_DATA_PORT;
     static int JASMINEGRAPH_RUNTIME_PROFILE_MASTER;
     static int JASMINEGRAPH_RUNTIME_PROFILE_WORKER;
+    static int RDF_NUM_OF_ATTRIBUTES;
+
 
     struct GRAPH_STATUS {
         static const int LOADING;           //Graph partitions are being uploaded
