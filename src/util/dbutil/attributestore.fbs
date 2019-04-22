@@ -1,0 +1,12 @@
+namespace JasmineGraph.AttributeStore;
+
+table AttributeStore {
+    entries:[AttributeStoreEntry];
+}
+
+table AttributeStoreEntry {
+    key:long (key);
+    value:[string];
+}
+
+root_type AttributeStore;

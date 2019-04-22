@@ -185,3 +185,81 @@ void JasmineGraphHashMapLocalStore::initialize() {
 void JasmineGraphHashMapLocalStore::addVertex(string *attributes) {
 
 }
+
+bool JasmineGraphHashMapLocalStore::storeAttributes(std::map<long, std::vector<string>> attributeMap) {
+    this->localAttributeMap = attributeMap;
+    bool result = false;
+    flatbuffers::FlatBufferBuilder builder;
+    std::vector<flatbuffers::Offset<AttributeStoreEntry>> attributeStoreEntriesVector;
+    std::string storePath = instanceDataFolderLocation + getFileSeparator() + ATTRIBUTE_STORE_NAME;
+
+    std::map<long, std::vector<std::string>>::iterator mapIterator;
+    for (mapIterator = localAttributeMap.begin(); mapIterator != localAttributeMap.end(); mapIterator++) {
+        long key = mapIterator->first;
+        std::vector<std::string> attributeVector = mapIterator->second;
+
+        auto flatbufferVector = builder.CreateVectorOfStrings(attributeVector);
+        auto attributeStoreEntry = CreateAttributeStoreEntry(builder, key, flatbufferVector);
+        attributeStoreEntriesVector.push_back(attributeStoreEntry);
+    }
+
+    auto flatBuffersAttributeStoreEntriesVector = builder.CreateVectorOfSortedTables(&attributeStoreEntriesVector);
+
+    auto attributeStore = CreateAttributeStore(builder, flatBuffersAttributeStoreEntriesVector);
+
+    builder.Finish(attributeStore);
+
+    flatbuffers::SaveFile(storePath.c_str(), (const char *) builder.GetBufferPointer(), (size_t) builder.GetSize(), true);
+
+    result = true;
+
+    return result;
+}
+
+bool JasmineGraphHashMapLocalStore::loadAttributes() {
+    bool result = false;
+    std::string attributeStorePath = instanceDataFolderLocation + getFileSeparator() + ATTRIBUTE_STORE_NAME;
+    std::ifstream dbFile;
+    dbFile.open(attributeStorePath, std::ios::binary | std::ios::in);
+
+    if (!dbFile.is_open()) {
+        return result;
+    }
+
+    dbFile.seekg(0, std::ios::end);
+    int length = dbFile.tellg();
+    dbFile.seekg(0, std::ios::beg);
+    char *data = new char[length];
+    dbFile.read(data, length);
+    dbFile.close();
+
+    auto attributeStoreData = GetAttributeStore(data);
+
+    toLocalAttributeMap(attributeStoreData);
+
+    result = true;
+
+    return result;
+}
+
+void JasmineGraphHashMapLocalStore::toLocalAttributeMap(const AttributeStore *attributeStoreData) {
+    auto allEntries = attributeStoreData->entries();
+    int tableSize = allEntries->size();
+
+    for (int i = 0; i < tableSize; i = i + 1) {
+        std::vector<std::string> attributeVector;
+        auto entry = allEntries->Get(i);
+        long key = entry->key();
+        auto attributes = entry->value();
+        auto attributesSize = attributes->Length();
+        for (int j = 0; j < attributesSize; j = j + 1) {
+            attributeVector.push_back(attributes->Get(j)->c_str());
+        }
+        localAttributeMap.insert(std::make_pair(key, attributeVector));
+    }
+}
+
+map<long, std::vector<std::string>> JasmineGraphHashMapLocalStore::getAttributeHashMap() {
+    loadAttributes();
+    return this->localAttributeMap;
+}

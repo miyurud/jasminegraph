@@ -13,6 +13,9 @@ The following build tools, applications, and libraries need to be installed befo
 - SdpLog (Ubuntu: apt-get install libspdlog-dev) (https://github.com/gabime/spdlog)
 - SQLite3 (https://www.sqlite.org/download.html)
 - cppkafka (https://github.com/mfontanini/cppkafka)
+- Xerces-c-3.2.2 (https://xerces.apache.org/xerces-c/)
+
+
 
 First, this repository should be cloned into one of your computer's local directory. Then change directory to jasminegraph and run ./build.sh to build the Jasminegraph executable.
 

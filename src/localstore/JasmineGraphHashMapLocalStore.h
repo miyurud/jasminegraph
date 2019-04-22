@@ -16,21 +16,23 @@ limitations under the License.
 
 #include "JasmineGraphLocalStore.h"
 #include "../util/dbutil/edgestore_generated.h"
+#include "../util/dbutil/attributestore_generated.h"
 #include <flatbuffers/util.h>
 
 using namespace JasmineGraph::Edgestore;
-
+using namespace JasmineGraph::AttributeStore;
 
 class JasmineGraphHashMapLocalStore : public JasmineGraphLocalStore {
 private:
     std::string VERTEX_STORE_NAME = "acacia.nodestore.db";
     std::string EDGE_STORE_NAME = "acacia.edgestore.db";
-    std::string ATTRIBUTE_STORE_NAME = "acacia.attributestore.db";
+    std::string ATTRIBUTE_STORE_NAME = "jasminegraph.attributestore";
 
     int graphId;
     int partitionId;
     std::string instanceDataFolderLocation;
     std::map<long, std::unordered_set<long>> localSubGraphMap;
+    std::map<long, std::vector<string>> localAttributeMap;
 
     long vertexCount;
     long edgeCount;
@@ -41,6 +43,8 @@ private:
 
     void toLocalSubGraphMap(const EdgeStore *edgeStoreData);
 
+    void toLocalAttributeMap(const AttributeStore *attributeStoreData);
+
 public:
     JasmineGraphHashMapLocalStore(int graphid, int partitionid);
 
@@ -48,7 +52,11 @@ public:
 
     inline bool loadGraph();
 
+    bool loadAttributes();
+
     bool storeGraph();
+
+    bool storeAttributes(std::map<long, std::vector<string>> attributeMap);
 
     long getEdgeCount();
 
@@ -67,6 +75,8 @@ public:
     void initialize();
 
     void addVertex(string *attributes);
+
+    map<long, std::vector<std::string>> getAttributeHashMap();
 };
 
 

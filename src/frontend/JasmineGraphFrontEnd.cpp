@@ -24,6 +24,7 @@ limitations under the License.
 #include "../partitioner/local/RDFPartitioner.h"
 #include "../util/logger/Logger.h"
 #include "../server/JasmineGraphServer.h"
+#include "../partitioner/local/RDFParser.h"
 
 using namespace std;
 
@@ -68,6 +69,7 @@ void *frontendservicesesion(void *dummyPt) {
             close(connFd);
             exit(0);
         } else if (line.compare(ADRDF) == 0) {
+
             // add RDF graph
             write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
             write(connFd, "\r\n", 2);
@@ -112,9 +114,19 @@ void *frontendservicesesion(void *dummyPt) {
                         "vertexcount,centralpartitioncount,edgecount) VALUES(\"" + name + "\", \"" + path +
                         "\", \"" + uploadStartTime + "\", \"\",\"UPLOADING\", \"\", \"\", \"\")";
                 int newGraphID = sqlite->runInsert(sqlStatement);
-                RDFPartitioner *rdfPartitioner = new RDFPartitioner(&sessionargs->sqlite);
-                rdfPartitioner->loadDataSet(path, utils.getJasmineGraphProperty(
-                        "org.jasminegraph.server.runtime.location").c_str(), newGraphID);
+
+                GetConfig appConfig;
+                appConfig.readConfigFile(path,newGraphID);
+
+                MetisPartitioner *metisPartitioner = new MetisPartitioner(&sessionargs->sqlite);
+                string input_file_path = utils.getHomeDir() + "/.jasminegraph/tmp/"+std::to_string(newGraphID);
+                metisPartitioner->loadDataSet(input_file_path, newGraphID);
+
+                metisPartitioner->constructMetisFormat(Conts::GRAPH_TYPE_RDF);
+                metisPartitioner->partitioneWithGPMetis();
+                JasmineGraphServer *jasmineServer = new JasmineGraphServer();
+                jasmineServer->uploadGraphLocally(newGraphID);
+
 
             } else {
                 frontend_logger.log("Graph data file does not exist on the specified path", "error");
@@ -170,7 +182,7 @@ void *frontendservicesesion(void *dummyPt) {
                 //partitioner->loadDataSet(path, utils.getJasmineGraphProperty("org.jasminegraph.server.runtime.location").c_str());
                 partitioner->loadDataSet(path, newGraphID);
 
-                partitioner->constructMetisFormat();
+                partitioner->constructMetisFormat(Conts::GRAPH_TYPE_NORMAL);
                 partitioner->partitioneWithGPMetis();
                 JasmineGraphServer *jasmineServer = new JasmineGraphServer();
                 jasmineServer->uploadGraphLocally(newGraphID);

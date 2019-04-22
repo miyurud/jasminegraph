@@ -29,6 +29,9 @@ limitations under the License.
 #include <cstddef>
 #include <algorithm>
 #include <thread>
+#include "RDFParser.h"
+#include <flatbuffers/util.h>
+
 
 using std::string;
 
@@ -38,7 +41,7 @@ public:
     void loadDataSet(string inputFilePath, int graphID);
 
     //void partitionGraph();
-    void constructMetisFormat();
+    void constructMetisFormat(string graph_type);
 
     void partitioneWithGPMetis();
 
@@ -49,6 +52,7 @@ public:
     static std::vector<string> getCentalStoreFiles();
 
     MetisPartitioner(SQLiteDBInterface *);
+
 
 private:
     idx_t edgeCount = 0;
@@ -61,6 +65,7 @@ private:
     SQLiteDBInterface sqlite;
     int graphID;
     Utils utils;
+    string graphType;
 
     std::map<int, std::vector<int>> graphStorageMap;
     std::map<int, std::vector<int>> graphEdgeMap;
@@ -69,6 +74,10 @@ private:
     std::map<int, std::map<int, std::vector<int>>> masterGraphStorageMap;
     std::vector<int> xadj;
     std::vector<int> adjncy;
+    std::map<std::pair<int, int>, int> edgeMap;
+    std::map<long, string[7]> articlesMap;
+
+
 
     void createPartitionFiles(idx_t part[]);
 };

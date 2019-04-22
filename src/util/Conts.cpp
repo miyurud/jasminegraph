@@ -16,6 +16,11 @@ limitations under the License.
 std::string Conts::JASMINEGRAPH_EXECUTABLE = "run.sh";
 std::string Conts::JASMINEGRAPH_HOME  = "JASMINEGRAPH_HOME";
 
+std::string Conts::GRAPH_TYPE_RDF  = "RDF_GRAPH";
+std::string Conts::GRAPH_TYPE_NORMAL  = "NORMAL_GRAPH";
+
+
+
 int Conts::JASMINEGRAPH_FRONTEND_PORT = 7777;
 int Conts::JASMINEGRAPH_BACKEND_PORT = 7778;
 int Conts::JASMINEGRAPH_VERTEXCOUNTER_PORT = 7779;
@@ -26,7 +31,11 @@ int Conts::JASMINEGRAPH_INSTANCE_DATA_PORT = 7781;//Data Port
 int Conts::JASMINEGRAPH_RUNTIME_PROFILE_MASTER = 1;
 int Conts::JASMINEGRAPH_RUNTIME_PROFILE_WORKER = 2;
 
+int Conts::RDF_NUM_OF_ATTRIBUTES = 7;
+
+
 const int Conts::GRAPH_STATUS::LOADING = 1;
 const int Conts::GRAPH_STATUS::OPERATIONAL = 2;
 const int Conts::GRAPH_STATUS::DELETING = 3;
 const int Conts::GRAPH_STATUS::NONOPERATIONAL = 4;
+

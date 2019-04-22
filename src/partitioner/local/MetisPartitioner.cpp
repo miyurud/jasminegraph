@@ -11,7 +11,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
+#include <flatbuffers/flatbuffers.h>
 #include "MetisPartitioner.h"
+#include "../../util/Conts.h"
+
 
 thread_local std::vector<string> partitionFileList;
 thread_local std::vector<string> centralStoreFileList;
@@ -22,7 +25,8 @@ MetisPartitioner::MetisPartitioner(SQLiteDBInterface *sqlite) {
 
 void MetisPartitioner::loadDataSet(string inputFilePath, int graphID) {
     this->graphID = graphID;
-    this->outputFilePath = utils.getHomeDir() + "/.jasminegraph/tmp"; // Output directory is created under the users home directory '~/.jasmine/tmp/'
+    this->outputFilePath = utils.getHomeDir() +
+                           "/.jasminegraph/tmp"; // Output directory is created under the users home directory '~/.jasmine/tmp/'
 
     // Have to call createDirectory twice since it does not support recursive directory creation. Could use boost::filesystem for path creation
     this->utils.createDirectory(utils.getHomeDir() + "/.jasminegraph/");
@@ -117,7 +121,8 @@ void MetisPartitioner::loadDataSet(string inputFilePath, int graphID) {
 
 }
 
-void MetisPartitioner::constructMetisFormat() {
+void MetisPartitioner::constructMetisFormat(string graph_type) {
+    graphType = graph_type;
     int adjacencyIndex = 0;
     std::ofstream outputFile;
     //outputFile.open("/tmp/grf");
@@ -129,7 +134,6 @@ void MetisPartitioner::constructMetisFormat() {
     } else {
         outputFile << (vertexCount) << ' ' << (edgeCount) << std::endl;
     }
-
 
     xadj.push_back(adjacencyIndex);
     for (int vertexNum = 0; vertexNum <= largestVertex; vertexNum++) {
@@ -227,6 +231,10 @@ void MetisPartitioner::partitioneWithGPMetis() {
 }
 
 void MetisPartitioner::createPartitionFiles(idx_t *part) {
+
+    edgeMap = GetConfig::getEdgeMap();
+    articlesMap = GetConfig::getAttributesMap();
+
 //    std::vector<std::vector<std::pair<string,string>>> v = this->sqlite.runSelect("SELECT idgraph FROM graph ORDER BY idgraph LIMIT 1;");
 //    int newGraphID = atoi(v.at(0).at(0).second.c_str()) + 1;
 
@@ -254,6 +262,8 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
                     std::map<int, std::vector<int>> partEdgesSet = partitionedLocalGraphStorageMap[firstVertexPart];
                     std::vector<int> edgeSet = partEdgesSet[vertex];
                     edgeSet.push_back(secondVertex);
+
+
                     partEdgesSet[vertex] = edgeSet;
                     partitionedLocalGraphStorageMap[firstVertexPart] = partEdgesSet;
                 } else {
@@ -280,6 +290,58 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
         std::map<int, std::vector<int>> partEdgeMap = partitionedLocalGraphStorageMap[part];
         std::map<int, std::vector<int>> partMasterEdgeMap = masterGraphStorageMap[part];
 
+
+        if (graphType == Conts::GRAPH_TYPE_RDF) {
+            std::map<long, std::vector<string>> partitionedEdgeAttributes;
+            std::map<long, std::vector<string>> centralStoreEdgeAttributes;
+
+
+
+            //edge attribute separation for partition files
+            for (auto it = partEdgeMap.begin(); it != partEdgeMap.end(); ++it) {
+                for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
+                    auto entry = edgeMap.find(make_pair(it->first, *it2));
+                    long article_id = entry->second;
+                    std::vector<string> attributes;
+                    auto array = (articlesMap.find(article_id))->second;
+
+                    for (int itt = 0; itt < 7; itt++) {
+                        string element = (array)[itt];
+                        attributes.push_back(element);
+
+                    }
+
+                    partitionedEdgeAttributes.insert({article_id, attributes});
+
+
+                }
+            }
+
+
+
+
+            //edge attribute separation for central store files
+            for (auto it = partMasterEdgeMap.begin(); it != partMasterEdgeMap.end(); ++it) {
+                for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
+                    auto entry = edgeMap.find(make_pair(it->first, *it2));
+                    long article_id = entry->second;
+                    std::vector<string> attributes;
+                    auto array = (articlesMap.find(article_id))->second;
+
+                    for (int itt = 0; itt < 7; itt++) {
+                        string element = (array)[itt];
+                        attributes.push_back(element);
+                    }
+
+
+                    centralStoreEdgeAttributes.insert({article_id, attributes});
+
+
+                }
+            }
+        }
+
+
         if (!partEdgeMap.empty()) {
             std::ofstream localFile(outputFilePart);
 
@@ -289,7 +351,19 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
                     if (!destinationSet.empty()) {
                         for (std::vector<int>::iterator itr = destinationSet.begin();
                              itr != destinationSet.end(); ++itr) {
-                            string edge = std::to_string(vertex) + " " + std::to_string((*itr));
+
+                            string edge;
+
+                            if (graphType == Conts::GRAPH_TYPE_RDF) {
+                                auto entry = edgeMap.find(make_pair(vertex, (*itr)));
+                                long article_id = entry->second;
+
+                                string edge = std::to_string(vertex) + " " + std::to_string((*itr)) + " " +
+                                              std::to_string(article_id);
+                            } else {
+                                string edge = std::to_string(vertex) + " " + std::to_string((*itr));
+
+                            }
                             localFile << edge;
                             localFile << "\n";
                         }
@@ -308,7 +382,19 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
                     if (!destinationSet.empty()) {
                         for (std::vector<int>::iterator itr = destinationSet.begin();
                              itr != destinationSet.end(); ++itr) {
-                            string edge = std::to_string(vertex) + " " + std::to_string((*itr));
+                            string edge;
+
+                            if (graphType == Conts::GRAPH_TYPE_RDF) {
+                                auto entry = edgeMap.find(make_pair(vertex, (*itr)));
+                                long article_id = entry->second;
+
+                                string edge = std::to_string(vertex) + " " + std::to_string((*itr)) + " " +
+                                              std::to_string(article_id);
+                            } else {
+                                string edge = std::to_string(vertex) + " " + std::to_string((*itr));
+
+                            }
+
                             masterFile << edge;
                             masterFile << "\n";
                         }
@@ -323,9 +409,9 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
 
         //Compress part files
         this->utils.compressFile(outputFilePart);
-        partitionFileList.push_back(outputFilePart+".gz");
+        partitionFileList.push_back(outputFilePart + ".gz");
         this->utils.compressFile(outputFilePartMaster);
-        centralStoreFileList.push_back(outputFilePartMaster+".gz");
+        centralStoreFileList.push_back(outputFilePartMaster + ".gz");
     }
 }
 
