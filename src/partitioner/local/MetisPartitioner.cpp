@@ -292,8 +292,8 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
 
 
         if (graphType == Conts::GRAPH_TYPE_RDF) {
-            std::map<long, string[7]> partitionedEdgeAttributes;
-            std::map<long, string[7]> centralStoreEdgeAttributes;
+            std::map<long, std::vector<string>> partitionedEdgeAttributes;
+            std::map<long, std::vector<string>> centralStoreEdgeAttributes;
 
 
 
@@ -302,11 +302,13 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
                 for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
                     auto entry = edgeMap.find(make_pair(it->first, *it2));
                     long article_id = entry->second;
-                    string attributes[7];
+                    std::vector<string> attributes;
                     auto array = (articlesMap.find(article_id))->second;
 
                     for (int itt = 0; itt < 7; itt++) {
-                        attributes[itt] = (array)[itt];
+                        string element = (array)[itt];
+                        attributes.push_back(element);
+
                     }
 
                     partitionedEdgeAttributes.insert({article_id, attributes});
@@ -315,18 +317,22 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
                 }
             }
 
+
+
+
             //edge attribute separation for central store files
             for (auto it = partMasterEdgeMap.begin(); it != partMasterEdgeMap.end(); ++it) {
                 for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
                     auto entry = edgeMap.find(make_pair(it->first, *it2));
                     long article_id = entry->second;
-                    string attributes[7];
+                    std::vector<string> attributes;
                     auto array = (articlesMap.find(article_id))->second;
 
                     for (int itt = 0; itt < 7; itt++) {
-                        attributes[itt] = (array)[itt];
-
+                        string element = (array)[itt];
+                        attributes.push_back(element);
                     }
+
 
                     centralStoreEdgeAttributes.insert({article_id, attributes});
 
@@ -345,7 +351,19 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
                     if (!destinationSet.empty()) {
                         for (std::vector<int>::iterator itr = destinationSet.begin();
                              itr != destinationSet.end(); ++itr) {
-                            string edge = std::to_string(vertex) + " " + std::to_string((*itr));
+
+                            string edge;
+
+                            if (graphType == Conts::GRAPH_TYPE_RDF) {
+                                auto entry = edgeMap.find(make_pair(vertex, (*itr)));
+                                long article_id = entry->second;
+
+                                string edge = std::to_string(vertex) + " " + std::to_string((*itr)) + " " +
+                                              std::to_string(article_id);
+                            } else {
+                                string edge = std::to_string(vertex) + " " + std::to_string((*itr));
+
+                            }
                             localFile << edge;
                             localFile << "\n";
                         }
@@ -364,7 +382,19 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
                     if (!destinationSet.empty()) {
                         for (std::vector<int>::iterator itr = destinationSet.begin();
                              itr != destinationSet.end(); ++itr) {
-                            string edge = std::to_string(vertex) + " " + std::to_string((*itr));
+                            string edge;
+
+                            if (graphType == Conts::GRAPH_TYPE_RDF) {
+                                auto entry = edgeMap.find(make_pair(vertex, (*itr)));
+                                long article_id = entry->second;
+
+                                string edge = std::to_string(vertex) + " " + std::to_string((*itr)) + " " +
+                                              std::to_string(article_id);
+                            } else {
+                                string edge = std::to_string(vertex) + " " + std::to_string((*itr));
+
+                            }
+
                             masterFile << edge;
                             masterFile << "\n";
                         }
