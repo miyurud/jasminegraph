@@ -20,7 +20,6 @@ Logger file_service_logger;
 pthread_mutex_t thread_lock = PTHREAD_MUTEX_INITIALIZER;
 
 void *filetransferservicesession(void *dummyPt) {
-    file_service_logger.log("file transfer sercice session beginning now.....................", "info");
     filetransferservicesessionargs *sessionargs = (filetransferservicesessionargs *) dummyPt;
     int connFd = sessionargs->connFd;
     Utils utils;
@@ -42,7 +41,7 @@ void *filetransferservicesession(void *dummyPt) {
         bytesReceived = recv(connFd, buffer, sizeof(buffer), 0);
         if (bytesReceived > 0) {
             file.write(buffer, bytesReceived);
-            printf("Buffer: %.*s\n", connFd, buffer);
+            //printf("Buffer: %.*s\n", connFd, buffer);
             //or: printf("Buffer: %*.*s\n", bytes_read, bytes_read, buffer);
         }
     } while (bytesReceived > 0);
@@ -92,10 +91,10 @@ int JasmineGraphInstanceFileTransferService::run(int dataPort) {
     len = sizeof(clntAdd);
 
     int connectionCounter = 0;
-    pthread_t threadA[50];
+    pthread_t threadA[100];
 
-    // TODO :: What is the maximum number of connections allowed?? Considered as 50 for now
-    while (connectionCounter < 50) {
+    // TODO :: What is the maximum number of connections allowed?? Considered as 100 for now
+    while (connectionCounter < 100) {
         file_service_logger.log("Worker FileTransfer Service listening on port " + to_string(dataPort), "info");
         connFd = accept(listenFd, (struct sockaddr *) &clntAdd, &len);
 

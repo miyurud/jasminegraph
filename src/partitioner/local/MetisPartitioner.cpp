@@ -18,6 +18,8 @@ limitations under the License.
 
 thread_local std::vector<string> partitionFileList;
 thread_local std::vector<string> centralStoreFileList;
+thread_local std::vector<string> partitionAttributeFileList;
+thread_local std::vector<string> centralStoreAttributeFileList;
 
 MetisPartitioner::MetisPartitioner(SQLiteDBInterface *sqlite) {
     this->sqlite = *sqlite;
@@ -25,11 +27,12 @@ MetisPartitioner::MetisPartitioner(SQLiteDBInterface *sqlite) {
 
 void MetisPartitioner::loadDataSet(string inputFilePath, int graphID) {
     this->graphID = graphID;
-    this->outputFilePath = utils.getHomeDir() +
-                           "/.jasminegraph/tmp"; // Output directory is created under the users home directory '~/.jasmine/tmp/'
+    // Output directory is created under the users home directory '~/.jasminegraph/tmp/'
+    this->outputFilePath = utils.getHomeDir() + "/.jasminegraph/tmp/" + std::to_string(this->graphID);
 
     // Have to call createDirectory twice since it does not support recursive directory creation. Could use boost::filesystem for path creation
     this->utils.createDirectory(utils.getHomeDir() + "/.jasminegraph/");
+    this->utils.createDirectory(utils.getHomeDir() + "/.jasminegraph/tmp");
     this->utils.createDirectory(this->outputFilePath);
 
     this->utils.createDirectory("/tmp/" + std::to_string(this->graphID));
@@ -134,6 +137,8 @@ void MetisPartitioner::constructMetisFormat(string graph_type) {
     } else {
         outputFile << (vertexCount) << ' ' << (edgeCount) << std::endl;
     }
+    this->totalEdgeCount = edgeCount;
+    this->totalVertexCount = vertexCount;
 
     xadj.push_back(adjacencyIndex);
     for (int vertexNum = 0; vertexNum <= largestVertex; vertexNum++) {
@@ -194,6 +199,7 @@ void MetisPartitioner::partitioneWithGPMetis() {
             string newEdgeSize = result.substr(first + firstDelimiter.length() + 1,
                                                last - (first + firstDelimiter.length()) - 2);
             string newHeader = std::to_string(vertexCount) + ' ' + newEdgeSize;
+            //this->totalEdgeCount = atoi(newEdgeSize.c_str());
             //string command = "sed -i \"1s/.*/" + newHeader +"/\" /tmp/grf";
             string command = "sed -i \"1s/.*/" + newHeader + "/\" /tmp/" + std::to_string(this->graphID) + "/grf";
             char *newHeaderChar = new char[command.length() + 1];
@@ -220,6 +226,11 @@ void MetisPartitioner::partitioneWithGPMetis() {
             }
 
             createPartitionFiles(partIndex);
+            string sqlStatement =
+                    "UPDATE graph SET vertexcount = '" + std::to_string(this->totalVertexCount) + "' ,centralpartitioncount = '" +
+                    std::to_string(this->nParts) + "' ,edgecount = '"+std::to_string(this->totalEdgeCount)+"' WHERE idgraph = '" +
+                    std::to_string(this->graphID) + "'";
+            this->sqlite.runUpdate(sqlStatement);
         }
 
 
@@ -234,9 +245,6 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
 
     edgeMap = GetConfig::getEdgeMap();
     articlesMap = GetConfig::getAttributesMap();
-
-//    std::vector<std::vector<std::pair<string,string>>> v = this->sqlite.runSelect("SELECT idgraph FROM graph ORDER BY idgraph LIMIT 1;");
-//    int newGraphID = atoi(v.at(0).at(0).second.c_str()) + 1;
 
     for (int vertex = 0; vertex < vertexCount; vertex++) {
         idx_t vertexPart = part[vertex];
@@ -279,13 +287,20 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
 
     partitionFileList.clear();
     centralStoreFileList.clear();
+    partitionAttributeFileList.clear();
+    centralStoreAttributeFileList.clear();
 
     for (int part = 0; part < nParts; part++) {
-//        string outputFilePart = outputFilePath + "/" + std::to_string(newGraphID) + "_" + std::to_string(part);
-//        string outputFilePartMaster = outputFilePath + "/" + std::to_string(newGraphID) + "_centralstore_" + std::to_string(part);
+        int partEdgeCount = 0;
+        std::vector<int> partVertexList;
         string outputFilePart = outputFilePath + "/" + std::to_string(this->graphID) + "_" + std::to_string(part);
         string outputFilePartMaster =
                 outputFilePath + "/" + std::to_string(this->graphID) + "_centralstore_" + std::to_string(part);
+        string attributeFilePart =
+                outputFilePath + "/" + std::to_string(this->graphID) + "_attributes_" + std::to_string(part);
+        string attributeFilePartMaster =
+                outputFilePath + "/" + std::to_string(this->graphID) + "_centralstore_attributes_" +
+                std::to_string(part);
 
         std::map<int, std::vector<int>> partEdgeMap = partitionedLocalGraphStorageMap[part];
         std::map<int, std::vector<int>> partMasterEdgeMap = masterGraphStorageMap[part];
@@ -339,6 +354,10 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
 
                 }
             }
+
+            JasmineGraphHashMapLocalStore *hashMapLocalStore = new JasmineGraphHashMapLocalStore();
+            hashMapLocalStore->storeAttributes(partitionedEdgeAttributes, attributeFilePart);
+            hashMapLocalStore->storeAttributes(centralStoreEdgeAttributes, attributeFilePartMaster);
         }
 
 
@@ -349,6 +368,7 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
                 for (int vertex = 0; vertex < vertexCount; vertex++) {
                     std::vector<int> destinationSet = partEdgeMap[vertex];
                     if (!destinationSet.empty()) {
+                        partVertexList.push_back(vertex);
                         for (std::vector<int>::iterator itr = destinationSet.begin();
                              itr != destinationSet.end(); ++itr) {
 
@@ -366,6 +386,8 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
                             }
                             localFile << edge;
                             localFile << "\n";
+                            partEdgeCount++;
+                            partVertexList.push_back(*itr);
                         }
                     }
                 }
@@ -406,12 +428,25 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
             masterFile.close();
 
         }
+        std::sort(partVertexList.begin(), partVertexList.end());
+        int partVertexCount = std::unique(partVertexList.begin(), partVertexList.end()) - partVertexList.begin();
+        string sqlStatement =
+                "INSERT INTO partition (idpartition,graph_idgraph,vertexcount,edgecount) VALUES(\"" +
+                std::to_string(part) + "\", \"" + std::to_string(this->graphID) +
+                "\", \"" + std::to_string(partVertexCount) + "\",\"" + std::to_string(partEdgeCount) + "\")";
+        this->sqlite.runUpdate(sqlStatement);
 
         //Compress part files
         this->utils.compressFile(outputFilePart);
         partitionFileList.push_back(outputFilePart + ".gz");
         this->utils.compressFile(outputFilePartMaster);
         centralStoreFileList.push_back(outputFilePartMaster + ".gz");
+        if (graphType == Conts::GRAPH_TYPE_RDF){
+            this->utils.compressFile(attributeFilePart);
+            partitionAttributeFileList.push_back(attributeFilePart + ".gz");
+            this->utils.compressFile(attributeFilePartMaster);
+            centralStoreAttributeFileList.push_back(attributeFilePartMaster + ".gz");
+        }
     }
 }
 
@@ -423,3 +458,10 @@ std::vector<string> MetisPartitioner::getCentalStoreFiles() {
     return centralStoreFileList;
 }
 
+std::vector<string> MetisPartitioner::getPartitionAttributeFiles() {
+    return partitionAttributeFileList;
+}
+
+std::vector<string> MetisPartitioner::getCentralStoreAttributeFiles() {
+    return centralStoreAttributeFileList;
+}

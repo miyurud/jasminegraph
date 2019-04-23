@@ -33,6 +33,8 @@ public:
     static const string ERROR;
     static const string BATCH_UPLOAD;               // This is to upload a file as a batch
     static const string BATCH_UPLOAD_CENTRAL;       // This is to upload centralstore file as a batch
+    static const string UPLOAD_RDF_ATTRIBUTES;       // This is to upload attribute list of partitions file as a batch
+    static const string UPLOAD_RDF_ATTRIBUTES_CENTRAL; // This is to upload attribute list of centralstore file as a batch
     static const string BATCH_UPLOAD_CHK;           // This is to check whether the upload process has finished or not.
     static const string BATCH_UPLOAD_WAIT;
     static const string BATCH_UPLOAD_ACK;

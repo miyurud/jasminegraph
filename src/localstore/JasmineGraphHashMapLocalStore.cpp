@@ -25,6 +25,9 @@ JasmineGraphHashMapLocalStore::JasmineGraphHashMapLocalStore(std::string folderL
     instanceDataFolderLocation = folderLocation;
 }
 
+JasmineGraphHashMapLocalStore::JasmineGraphHashMapLocalStore() {
+}
+
 bool JasmineGraphHashMapLocalStore::loadGraph() {
     bool result = false;
     std::string edgeStorePath = instanceDataFolderLocation + getFileSeparator() + EDGE_STORE_NAME;
@@ -186,12 +189,11 @@ void JasmineGraphHashMapLocalStore::addVertex(string *attributes) {
 
 }
 
-bool JasmineGraphHashMapLocalStore::storeAttributes(std::map<long, std::vector<string>> attributeMap) {
+bool JasmineGraphHashMapLocalStore::storeAttributes(std::map<long, std::vector<string>> attributeMap, const string storePath) {
     this->localAttributeMap = attributeMap;
     bool result = false;
     flatbuffers::FlatBufferBuilder builder;
     std::vector<flatbuffers::Offset<AttributeStoreEntry>> attributeStoreEntriesVector;
-    std::string storePath = instanceDataFolderLocation + getFileSeparator() + ATTRIBUTE_STORE_NAME;
 
     std::map<long, std::vector<std::string>>::iterator mapIterator;
     for (mapIterator = localAttributeMap.begin(); mapIterator != localAttributeMap.end(); mapIterator++) {
