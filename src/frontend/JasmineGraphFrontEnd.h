@@ -28,7 +28,10 @@ limitations under the License.
 #include <stdlib.h>
 #include <string>
 #include <pthread.h>
+#include <chrono>
+#include <thread>
 #include "../metadb/SQLiteDBInterface.h"
+#include "../util/PlacesToNodeMapper.h"
 
 void *frontendservicesesion(void *dummyPt);
 
@@ -46,11 +49,16 @@ public:
 
 private:
     SQLiteDBInterface sqlite;
+
+    static void countTriangles(std::string graphId, void *dummyPt);
+
+    static long getTriangleCount(int graphId, std::string host, int port, int partitionId);
 };
 
 struct frontendservicesessionargs {
     SQLiteDBInterface sqlite;
     int connFd;
+
 };
 
 #endif //JASMINGRAPH_JASMINGRAPHFRONTEND_H

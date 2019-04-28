@@ -41,3 +41,5 @@ const string JasmineGraphInstanceProtocol::FILE_RECV_ERROR = "file-error";
 const string JasmineGraphInstanceProtocol::FILE_ACK = "file-ok";
 const string JasmineGraphInstanceProtocol::STATUS = "status";
 const string JasmineGraphInstanceProtocol::DELETE_GRAPH = "delete";
+const string JasmineGraphInstanceProtocol::NPLACES = "nplac";
+const string JasmineGraphInstanceProtocol::TRIANGLES = "tria";
