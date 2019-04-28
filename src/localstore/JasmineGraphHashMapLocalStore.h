@@ -50,13 +50,15 @@ public:
 
     JasmineGraphHashMapLocalStore(std::string folderLocation);
 
+    JasmineGraphHashMapLocalStore();
+
     inline bool loadGraph();
 
     bool loadAttributes();
 
     bool storeGraph();
 
-    bool storeAttributes(std::map<long, std::vector<string>> attributeMap);
+    bool storeAttributes(std::map<long, std::vector<string>> attributeMap, const std::string storePath);
 
     long getEdgeCount();
 

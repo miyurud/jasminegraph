@@ -26,6 +26,7 @@ limitations under the License.
 #include "metis.h"
 #include "../../metadb/SQLiteDBInterface.h"
 #include "../../util/Utils.h"
+#include "../../localstore/JasmineGraphHashMapLocalStore.h"
 #include <cstddef>
 #include <algorithm>
 #include <thread>
@@ -51,6 +52,12 @@ public:
     //return list of centralStore files
     static std::vector<string> getCentalStoreFiles();
 
+    //return list of attribute files related to rdf graph partitions
+    static std::vector<string> getPartitionAttributeFiles();
+
+    //return list of attribute files related to rdf graph centralstore portions
+    static std::vector<string> getCentralStoreAttributeFiles();
+
     MetisPartitioner(SQLiteDBInterface *);
 
 
@@ -66,6 +73,8 @@ private:
     int graphID;
     Utils utils;
     string graphType;
+    int totalVertexCount;
+    int totalEdgeCount;
 
     std::map<int, std::vector<int>> graphStorageMap;
     std::map<int, std::vector<int>> graphEdgeMap;

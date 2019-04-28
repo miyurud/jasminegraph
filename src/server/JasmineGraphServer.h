@@ -40,6 +40,8 @@ private:
 
     void addHostsToMetaDB();
 
+    void updateOperationalGraphList();
+
     std::map<std::string, std::string> getLiveHostIDList();
 
     static void copyArtifactsToWorkers(std::string workerPath, std::string artifactLocation, std::string remoteWorker);
@@ -57,13 +59,17 @@ public:
 
     bool isRunning();
 
-    void uploadGraphLocally(int graphID);
+    void uploadGraphLocally(int graphID, const std::string graphType);
 
     void removeGraph(std::vector<std::pair<std::string, std::string>> hostHasPartition, std::string graphID);
 
     static bool batchUploadFile(std::string host, int port, int dataPort, int graphID, std::string filePath);
 
     static bool batchUploadCentralStore(std::string host, int port, int dataPort, int graphID, std::string filePath);
+
+    static bool batchUploadAttributeFile(std::string host, int port, int dataPort, int graphID, std::string filePath);
+
+    static bool batchUploadCentralAttributeFile(std::string host, int port, int dataPort, int graphID, std::string filePath);
 
     static int removePartitionThroughService(std::string host, int port, std::string graphID, std::string partitionID);
 

@@ -112,21 +112,24 @@ void *frontendservicesesion(void *dummyPt) {
                 string sqlStatement =
                         "INSERT INTO graph (name,upload_path,upload_start_time,upload_end_time,graph_status_idgraph_status,"
                         "vertexcount,centralpartitioncount,edgecount) VALUES(\"" + name + "\", \"" + path +
-                        "\", \"" + uploadStartTime + "\", \"\",\"UPLOADING\", \"\", \"\", \"\")";
+                        "\", \"" + uploadStartTime + "\", \"\",\"" + to_string(Conts::GRAPH_STATUS::LOADING) +
+                        "\", \"\", \"\", \"\")";
                 int newGraphID = sqlite->runInsert(sqlStatement);
 
                 GetConfig appConfig;
                 appConfig.readConfigFile(path,newGraphID);
 
                 MetisPartitioner *metisPartitioner = new MetisPartitioner(&sessionargs->sqlite);
-                string input_file_path = utils.getHomeDir() + "/.jasminegraph/tmp/"+std::to_string(newGraphID);
+                string input_file_path = utils.getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID) + "/" +
+                                         to_string(newGraphID);
                 metisPartitioner->loadDataSet(input_file_path, newGraphID);
 
                 metisPartitioner->constructMetisFormat(Conts::GRAPH_TYPE_RDF);
                 metisPartitioner->partitioneWithGPMetis();
                 JasmineGraphServer *jasmineServer = new JasmineGraphServer();
-                jasmineServer->uploadGraphLocally(newGraphID);
-
+                jasmineServer->uploadGraphLocally(newGraphID, Conts::GRAPH_TYPE_RDF);
+                utils.deleteDirectory(utils.getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
+                utils.deleteDirectory("/tmp/" + std::to_string(newGraphID));
 
             } else {
                 frontend_logger.log("Graph data file does not exist on the specified path", "error");
@@ -185,8 +188,8 @@ void *frontendservicesesion(void *dummyPt) {
                 partitioner->constructMetisFormat(Conts::GRAPH_TYPE_NORMAL);
                 partitioner->partitioneWithGPMetis();
                 JasmineGraphServer *jasmineServer = new JasmineGraphServer();
-                jasmineServer->uploadGraphLocally(newGraphID);
-                utils.deleteDirectory(utils.getHomeDir() + "/.jasminegraph/tmp");
+                jasmineServer->uploadGraphLocally(newGraphID, Conts::GRAPH_TYPE_NORMAL);
+                utils.deleteDirectory(utils.getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
                 utils.deleteDirectory("/tmp/" + std::to_string(newGraphID));
             } else {
                 frontend_logger.log("Graph data file does not exist on the specified path", "error");
@@ -354,7 +357,9 @@ int JasmineGraphFrontEnd::run() {
  */
 bool JasmineGraphFrontEnd::graphExists(string path, void *dummyPt) {
     bool result = true;
-    string stmt = "SELECT COUNT( * ) FROM graph WHERE upload_path LIKE '" + path + "';";
+    string stmt =
+            "SELECT COUNT( * ) FROM graph WHERE upload_path LIKE '" + path + "' AND graph_status_idgraph_status = '" +
+            to_string(Conts::GRAPH_STATUS::OPERATIONAL) + "';";
     SQLiteDBInterface *sqlite = (SQLiteDBInterface *) dummyPt;
     std::vector<vector<pair<string, string>>> v = sqlite->runSelect(stmt);
     int count = std::stoi(v[0][0].second);
@@ -420,5 +425,4 @@ void JasmineGraphFrontEnd::removeGraph(std::string graphID, void *dummyPt) {
     sqlite->runUpdate("DELETE FROM partition WHERE graph_idgraph = " + graphID);
     sqlite->runUpdate("DELETE FROM graph WHERE idgraph = " + graphID);
 }
-
 
