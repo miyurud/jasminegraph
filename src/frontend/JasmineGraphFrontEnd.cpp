@@ -112,17 +112,14 @@ void *frontendservicesesion(void *dummyPt) {
                 string sqlStatement =
                         "INSERT INTO graph (name,upload_path,upload_start_time,upload_end_time,graph_status_idgraph_status,"
                         "vertexcount,centralpartitioncount,edgecount) VALUES(\"" + name + "\", \"" + path +
-                        "\", \"" + uploadStartTime + "\", \"\",\"UPLOADING\", \"\", \"\", \"\")";
+                        "\", \"" + uploadStartTime + "\", \"\",\"" + to_string(Conts::GRAPH_STATUS::LOADING) +
+                        "\", \"\", \"\", \"\")";
                 int newGraphID = sqlite->runInsert(sqlStatement);
 
                 GetConfig appConfig;
                 appConfig.readConfigFile(path,newGraphID);
 
                 MetisPartitioner *metisPartitioner = new MetisPartitioner(&sessionargs->sqlite);
-                // Have to call createDirectory twice since it does not support recursive directory creation. Could use boost::filesystem for path creation
-                utils.createDirectory(utils.getHomeDir() + "/.jasminegraph/");
-                utils.createDirectory(utils.getHomeDir() + "/.jasminegraph/tmp");
-                utils.createDirectory(utils.getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
                 string input_file_path = utils.getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID) + "/" +
                                          to_string(newGraphID);
                 metisPartitioner->loadDataSet(input_file_path, newGraphID);
@@ -360,7 +357,9 @@ int JasmineGraphFrontEnd::run() {
  */
 bool JasmineGraphFrontEnd::graphExists(string path, void *dummyPt) {
     bool result = true;
-    string stmt = "SELECT COUNT( * ) FROM graph WHERE upload_path LIKE '" + path + "';";
+    string stmt =
+            "SELECT COUNT( * ) FROM graph WHERE upload_path LIKE '" + path + "' AND graph_status_idgraph_status = '" +
+            to_string(Conts::GRAPH_STATUS::OPERATIONAL) + "';";
     SQLiteDBInterface *sqlite = (SQLiteDBInterface *) dummyPt;
     std::vector<vector<pair<string, string>>> v = sqlite->runSelect(stmt);
     int count = std::stoi(v[0][0].second);
@@ -426,5 +425,4 @@ void JasmineGraphFrontEnd::removeGraph(std::string graphID, void *dummyPt) {
     sqlite->runUpdate("DELETE FROM partition WHERE graph_idgraph = " + graphID);
     sqlite->runUpdate("DELETE FROM graph WHERE idgraph = " + graphID);
 }
-
 

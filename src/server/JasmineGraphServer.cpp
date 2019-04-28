@@ -212,6 +212,7 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType)
             workerThreads[count] = std::thread(batchUploadCentralStore, worker.hostname, worker.port, worker.dataPort,
                                                graphID, centralStoreFileList[file_count]);
             count++;
+            sleep(1);
             if (graphType == Conts::GRAPH_TYPE_RDF){
                 workerThreads[count] = std::thread(batchUploadAttributeFile, worker.hostname, worker.port, worker.dataPort,
                                                    graphID, attributeFileList[file_count]);
@@ -220,6 +221,7 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType)
                 workerThreads[count] = std::thread(batchUploadCentralAttributeFile, worker.hostname, worker.port, worker.dataPort,
                                                    graphID, centralStoreAttributeFileList[file_count]);
                 count++;
+                sleep(1);
             }
             file_count++;
         }

@@ -505,6 +505,10 @@ void deleteGraphPartition(std::string graphID, std::string partitionID) {
     utils.deleteDirectory(partitionFilePath);
     string centalStoreFilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + graphID + +"_centralstore_"+ partitionID;
     utils.deleteDirectory(centalStoreFilePath);
+    string attributeFilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + graphID + +"_attributes_"+ partitionID;
+    utils.deleteDirectory(attributeFilePath);
+    string attributeCentalStoreFilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + graphID + +"_centralstore_attributes_"+ partitionID;
+    utils.deleteDirectory(attributeCentalStoreFilePath);
     instance_logger.log("Graph partition and centralstore files are now deleted", "info");
 //    if (!utils.fileExists(partitionFilePath) and !utils.fileExists(centalStoreFilePath)){
 //        result = 1;

@@ -378,10 +378,10 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
                                 auto entry = edgeMap.find(make_pair(vertex, (*itr)));
                                 long article_id = entry->second;
 
-                                string edge = std::to_string(vertex) + " " + std::to_string((*itr)) + " " +
+                                edge = std::to_string(vertex) + " " + std::to_string((*itr)) + " " +
                                               std::to_string(article_id);
                             } else {
-                                string edge = std::to_string(vertex) + " " + std::to_string((*itr));
+                                edge = std::to_string(vertex) + " " + std::to_string((*itr));
 
                             }
                             localFile << edge;
@@ -403,17 +403,17 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
                     std::vector<int> destinationSet = partMasterEdgeMap[vertex];
                     if (!destinationSet.empty()) {
                         for (std::vector<int>::iterator itr = destinationSet.begin();
-                             itr != destinationSet.end(); ++itr) {
+                            itr != destinationSet.end(); ++itr) {
                             string edge;
 
                             if (graphType == Conts::GRAPH_TYPE_RDF) {
                                 auto entry = edgeMap.find(make_pair(vertex, (*itr)));
                                 long article_id = entry->second;
 
-                                string edge = std::to_string(vertex) + " " + std::to_string((*itr)) + " " +
+                                edge = std::to_string(vertex) + " " + std::to_string((*itr)) + " " +
                                               std::to_string(article_id);
                             } else {
-                                string edge = std::to_string(vertex) + " " + std::to_string((*itr));
+                                edge = std::to_string(vertex) + " " + std::to_string((*itr));
 
                             }
 

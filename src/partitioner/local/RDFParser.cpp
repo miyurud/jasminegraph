@@ -361,9 +361,10 @@ throw(std::runtime_error) {
 void GetConfig::writeEdgesToFile() {
 
     ofstream file;
-    string outputFilePath = utils.getHomeDir() + "/.jasminegraph/tmp";
     this->utils.createDirectory(utils.getHomeDir() + "/.jasminegraph/");
-    file.open(utils.getHomeDir() + "/.jasminegraph/tmp/" + std::to_string(this->graphID));
+    this->utils.createDirectory(utils.getHomeDir() + "/.jasminegraph/tmp/");
+    this->utils.createDirectory(utils.getHomeDir() + "/.jasminegraph/tmp/" + to_string(this->graphID));
+    file.open(utils.getHomeDir() + "/.jasminegraph/tmp/" + std::to_string(this->graphID) + "/" + std::to_string(this->graphID));
     for (int i = 0; i < edgelist.size(); i++) {
         file << edgelist[i].first << " "
              << edgelist[i].second << endl;
