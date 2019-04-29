@@ -35,6 +35,9 @@ limitations under the License.
 #include "../trainer/JasminGraphTrainingInitiator.h"
 #include "../trainer/JasminGraphLinkPredictor.h"
 
+#include "../trainer/python-c-api/Python_C_API.h"
+#include "../trainer/JasminGraphTrainingInitiator.h"
+
 using namespace std;
 
 static int connFd;
@@ -59,6 +62,36 @@ void *frontendservicesesion(void *dummyPt) {
 
         if (line.compare(EXIT) == 0) {
             break;
+        } else if (line.compare(TRAIN) == 0) {
+            write(sessionargs->connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
+            write(sessionargs->connFd, "\r\n", 2);
+
+            char train_data[300];
+            bzero(train_data, 301);
+
+            read(sessionargs->connFd, train_data, 300);
+
+            string trainData(train_data);
+
+            Utils utils;
+            trainData = utils.trim_copy(trainData, " \f\n\r\t\v");
+            frontend_logger.log("Data received: " + trainData, "info");
+
+            std::vector<std::string> trainargs = Utils::split(trainData, ' ');
+
+            std::vector<char *> vc;
+            std::transform(trainargs.begin(), trainargs.end(), std::back_inserter(vc), convert);
+
+            for ( size_t i = 0 ; i < vc.size() ; i++ )
+                std::cout <<  vc[i] << std::endl;
+            if (vc.size() == 0) {
+                frontend_logger.log("Message format not recognized", "error");
+                break;
+            }
+
+            JasminGraphTrainingInitiator *jasminGraphTrainingInitiator = new JasminGraphTrainingInitiator();
+            jasminGraphTrainingInitiator->InitiateTrainingLocally(trainData);
+//            Python_C_API::train(vc.size(), &vc[0]);
         } else if (line.compare(LIST) == 0) {
             SQLiteDBInterface *sqlite = &sessionargs->sqlite;
             std::stringstream ss;

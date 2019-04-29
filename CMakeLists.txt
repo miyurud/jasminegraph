@@ -36,9 +36,11 @@ add_executable(JasmineGraph main.cpp
         src/server/JasmineGraphInstanceService.cpp src/server/JasmineGraphInstanceService.h
         src/partitioner/local/RDFParser.cpp src/partitioner/local/RDFParser.h src/partitioner/stream/Partitioner.cpp src/partitioner/stream/JasmineGraphIncrementalStore.cpp
         src/trainer/python-c-api/Python_C_API.cpp src/trainer/python-c-api/Python_C_API.h
-        src/trainer/JasminGraphTrainingInitiator.cpp src/trainer/JasminGraphTrainingInitiator.h src/trainer/JasminGraphLinkPredictor.h src/trainer/JasminGraphLinkPredictor.cpp)
+        src/trainer/JasminGraphTrainingInitiator.cpp src/trainer/JasminGraphTrainingInitiator.h src/trainer/JasminGraphLinkPredictor.h src/trainer/JasminGraphLinkPredictor.cpp
+        src/centralstore/JasmineGraphHashMapCentralStore.cpp src/centralstore/JasmineGraphHashMapCentralStore.h src/server/JasmineGraphInstanceService.h src/trainer/python-c-api/Python_C_API.cpp src/trainer/python-c-api/Python_C_API.h
+        src/trainer/JasminGraphTrainingInitiator.cpp src/trainer/JasminGraphTrainingInitiator.h)
 
-target_compile_options(JasmineGraph PRIVATE -std=c++11)
+target_compile_options(JasmineGraph PRIVATE -std=c++11 -I/usr/include/python3.5)
 
 if(CMAKE_ENABLE_DEBUG)
     message(STATUS "DEBUG enabled")
