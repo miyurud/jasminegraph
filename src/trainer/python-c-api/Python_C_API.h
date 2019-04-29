@@ -1,5 +1,5 @@
 /**
-Copyright 2019 JasminGraph Team
+Copyright 2019 JasmineGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -10,19 +10,14 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
  */
+#ifndef JASMINEGRAPH_PYTHON_C_API_H
+#define JASMINEGRAPH_PYTHON_C_API_H
 
-#include "JasmineGraphFrontEndProtocol.h"
 
-const string ADGR = "adgr";
-const string ADRDF = "adrdf";
-const string ADGR_CUST = "adgr-cust";
-const string RMGR = "rmgr";
-const string EXIT = "exit";
-const string LIST = "lst";
-const string SHTDN = "shdn";
-const string SEND = "send";
-const string ERROR = "error";
-const string ADD_STREAM_KAFKA = "adstrmk";
-const string STREAM_TOPIC_NAME = "topicnm";
-const string REFORMAT = "reformat";
-const string TRAIN = "train";
+class Python_C_API {
+public:
+    static void train(int argc, char *argv[]);
+};
+
+
+#endif //JASMINEGRAPH_PYTHON_C_API_H

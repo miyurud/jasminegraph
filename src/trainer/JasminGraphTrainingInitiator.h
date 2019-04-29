@@ -1,5 +1,5 @@
 /**
-Copyright 2019 JasminGraph Team
+Copyright 2019 JasmineGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -11,18 +11,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
-#include "JasmineGraphFrontEndProtocol.h"
+#ifndef JASMINEGRAPH_JASMINGRAPHTRAININGINITIATOR_H
+#define JASMINEGRAPH_JASMINGRAPHTRAININGINITIATOR_H
 
-const string ADGR = "adgr";
-const string ADRDF = "adrdf";
-const string ADGR_CUST = "adgr-cust";
-const string RMGR = "rmgr";
-const string EXIT = "exit";
-const string LIST = "lst";
-const string SHTDN = "shdn";
-const string SEND = "send";
-const string ERROR = "error";
-const string ADD_STREAM_KAFKA = "adstrmk";
-const string STREAM_TOPIC_NAME = "topicnm";
-const string REFORMAT = "reformat";
-const string TRAIN = "train";
+#include <stdio.h>
+#include <stdlib.h>
+#include <thread>
+
+class JasminGraphTrainingInitiator {
+public:
+
+    void InitiateTrainingLocally(std::string trainingArgs);
+
+    static bool initiateTrain(std::string host, int port, int dataPort,std::string trainingArgs);
+};
+
+
+#endif //JASMINEGRAPH_JASMINGRAPHTRAININGINITIATOR_H
