@@ -11,14 +11,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
+#include <cstring>
 #include "JasmineGraphInstanceService.h"
 #include "../util/Utils.h"
 #include "../util/logger/Logger.h"
+#include "../trainer/python-c-api/Python_C_API.h"
 
 using namespace std;
 Logger instance_logger;
 pthread_mutex_t file_lock;
 
+
+char *converter(const std::string &s) {
+    char *pc = new char[s.size() + 1];
+    std::strcpy(pc, s.c_str());
+    return pc;
+}
 
 void *instanceservicesession(void *dummyPt) {
     instanceservicesessionargs *sessionargs = (instanceservicesessionargs *) dummyPt;
@@ -524,6 +532,25 @@ void *instanceservicesession(void *dummyPt) {
 
             aggregatedTriangleCount= JasmineGraphInstanceService::aggregateCentralStoreTriangles(graphId, partitionId);
             write(connFd, std::to_string(aggregatedTriangleCount).c_str(), std::to_string(aggregatedTriangleCount).size());
+            instance_logger.log("Done and dusted", "info");
+        } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_TRAIN) == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::INITIATE_TRAIN, "info");
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+            bzero(data, 301);
+            read(connFd, data, 300);
+            string trainData(data);
+
+            Utils utils;
+            trainData = utils.trim_copy(trainData, " \f\n\r\t\v");
+
+            std::vector<std::string> trainargs = Utils::split(trainData, ' ');
+
+            std::vector<char *> vc;
+            std::transform(trainargs.begin(), trainargs.end(), std::back_inserter(vc), converter);
+
+            Python_C_API::train(vc.size(), &vc[0]);
+
         }
     }
     instance_logger.log("Closing thread " + to_string(pthread_self()), "info");

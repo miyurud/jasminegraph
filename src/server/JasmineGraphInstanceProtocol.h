@@ -54,7 +54,7 @@ public:
     static const string TRIANGLES;
     static const string SEND_CENTRALSTORE_TO_AGGREGATOR;
     static const string AGGREGATE_CENTRALSTORE_TRIANGLES;
-
+    static const string INITIATE_TRAIN;
 };
 
 

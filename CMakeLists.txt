@@ -18,9 +18,10 @@ add_executable(JasmineGraph main.cpp src/server/JasmineGraphServer.cpp src/serve
         src/partitioner/local/RDFParser.cpp src/partitioner/local/RDFParser.h src/partitioner/stream/Partitioner.cpp src/partitioner/stream/JasmineGraphIncrementalStore.cpp
         src/server/JasmineGraphInstanceService.cpp src/server/JasmineGraphInstanceService.h src/util/PlacesToNodeMapper.cpp src/util/PlacesToNodeMapper.h
         src/localstore/JasmineGraphLocalStoreFactory.cpp src/localstore/JasmineGraphLocalStoreFactory.h src/query/algorithms/triangles/Triangles.cpp src/query/algorithms/triangles/Triangles.h
-        src/centralstore/JasmineGraphHashMapCentralStore.cpp src/centralstore/JasmineGraphHashMapCentralStore.h)
+        src/centralstore/JasmineGraphHashMapCentralStore.cpp src/centralstore/JasmineGraphHashMapCentralStore.h src/server/JasmineGraphInstanceService.h src/trainer/python-c-api/Python_C_API.cpp src/trainer/python-c-api/Python_C_API.h
+        src/trainer/JasminGraphTrainingInitiator.cpp src/trainer/JasminGraphTrainingInitiator.h)
 
-target_compile_options(JasmineGraph PRIVATE -std=c++11)
+target_compile_options(JasmineGraph PRIVATE -std=c++11 -I/usr/include/python3.5)
 
 if(CMAKE_ENABLE_DEBUG)
     message(STATUS "DEBUG enabled")
@@ -45,3 +46,11 @@ target_link_libraries(JasmineGraph $ENV{HOME}/software/xerces-c-3.2.2/lib/libxer
 target_link_libraries(JasmineGraph $ENV{HOME}/software/flatbuffers/libflatbuffers.a)
 target_link_libraries(JasmineGraph /opt/lib/libxerces-c.a)
 target_link_libraries(JasmineGraph $ENV{HOME}/software/jsoncpp/build/debug/src/lib_json/libjsoncpp.a)
+
+set(PYTHON_EXECUTABLE "/usr/bin/python3.5")
+set(PYTHON_INCLUDE_DIR "/usr/include/python3.5m")
+set(PYTHON_LIBRARIES "/usr/lib/x86_64-linux-gnu/libpython3.5m.so")
+
+include_directories(${PYTHON_INCLUDE_DIRS})
+include_directories(${PYTHON_DIRECTORIES})
+target_link_libraries(JasmineGraph ${PYTHON_LIBRARIES})

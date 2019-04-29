@@ -1179,6 +1179,13 @@ int JasmineGraphServer::removePartitionThroughService(string host, int port, str
     return 0;
 }
 
+std::vector<JasmineGraphServer::workers> JasmineGraphServer::getHostWorkerMap() {
+    return hostWorkerMap;
+}
+
+
+
+
 void JasmineGraphServer::updateOperationalGraphList() {
     Utils utils;
     string hosts = "";
