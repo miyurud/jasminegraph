@@ -351,7 +351,7 @@ void *frontendservicesesion(void *dummyPt) {
             }
             graphPartitioner.printStats();
 
-        } else if (line.compare(RMGR) == 0) {
+        } else if (line.compare(RMGR) == 0){
             write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
             write(connFd, "\r\n", 2);
 
