@@ -1,6 +1,15 @@
 cmake_minimum_required(VERSION 3.10)
 project(JasmineGraph LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 11)
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -g -pthread -I/usr/include/python3.5")
+
+link_libraries('sqlite3')
+link_libraries('rdkafka')
+link_libraries('cppkafka')
+#TODO: Need to install the library separately
+include_directories("$ENV{HOME}/software/flatbuffers/include")
+include_directories("$ENV{HOME}/software/xerces/include")
+include_directories("$ENV{HOME}/software/spdlog/include")
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
@@ -21,7 +30,11 @@ add_executable(JasmineGraph main.cpp src/server/JasmineGraphServer.cpp src/serve
         src/partitioner/local/RDFParser.cpp src/partitioner/local/RDFParser.h src/partitioner/stream/Partitioner.cpp src/partitioner/stream/JasmineGraphIncrementalStore.cpp
         src/server/JasmineGraphInstanceService.cpp src/server/JasmineGraphInstanceService.h src/util/PlacesToNodeMapper.cpp src/util/PlacesToNodeMapper.h
         src/localstore/JasmineGraphLocalStoreFactory.cpp src/localstore/JasmineGraphLocalStoreFactory.h src/query/algorithms/triangles/Triangles.cpp src/query/algorithms/triangles/Triangles.h
-        src/centralstore/JasmineGraphHashMapCentralStore.cpp src/centralstore/JasmineGraphHashMapCentralStore.h src/scheduler/Scheduler.h src/scheduler/InterruptableSleep.h src/scheduler/Cron.h src/scheduler/ctpl_stl.h src/util/performance/PerformanceUtil.cpp src/util/performance/PerformanceUtil.h src/scheduler/SchedulerService.cpp src/scheduler/SchedulerService.h src/performancedb/PerformanceSQLiteDBInterface.cpp src/performancedb/PerformanceSQLiteDBInterface.h src/util/performance/StatisticCollector.cpp src/util/performance/StatisticCollector.h)
+        src/centralstore/JasmineGraphHashMapCentralStore.cpp src/centralstore/JasmineGraphHashMapCentralStore.h src/scheduler/Scheduler.h src/scheduler/InterruptableSleep.h src/scheduler/Cron.h src/scheduler/ctpl_stl.h src/util/performance/PerformanceUtil.cpp src/util/performance/PerformanceUtil.h src/scheduler/SchedulerService.cpp src/scheduler/SchedulerService.h src/performancedb/PerformanceSQLiteDBInterface.cpp src/performancedb/PerformanceSQLiteDBInterface.h src/util/performance/StatisticCollector.cpp src/util/performance/StatisticCollector.h
+        src/server/JasmineGraphInstanceService.cpp src/server/JasmineGraphInstanceService.h
+        src/partitioner/local/RDFParser.cpp src/partitioner/local/RDFParser.h src/partitioner/stream/Partitioner.cpp src/partitioner/stream/JasmineGraphIncrementalStore.cpp
+        src/partitioner/local/RDFParser.cpp src/partitioner/local/RDFParser.h src/server/JasmineGraphInstanceService.cpp src/server/JasmineGraphInstanceService.h src/trainer/python-c-api/Python_C_API.cpp src/trainer/python-c-api/Python_C_API.h
+        src/trainer/JasminGraphTrainingInitiator.cpp src/trainer/JasminGraphTrainingInitiator.h)
 
 target_compile_options(JasmineGraph PRIVATE -std=c++11)
 
@@ -49,3 +62,11 @@ target_link_libraries(JasmineGraph $ENV{HOME}/software/xerces-c-3.2.2/lib/libxer
 target_link_libraries(JasmineGraph $ENV{HOME}/software/flatbuffers/libflatbuffers.a)
 target_link_libraries(JasmineGraph /opt/lib/libxerces-c.a)
 target_link_libraries(JasmineGraph $ENV{HOME}/software/jsoncpp/build/debug/src/lib_json/libjsoncpp.a)
+
+set(PYTHON_EXECUTABLE "/usr/bin/python3.5")
+set(PYTHON_INCLUDE_DIR "/usr/include/python3.5m")
+set(PYTHON_LIBRARIES "/usr/lib/x86_64-linux-gnu/libpython3.5m.so")
+
+include_directories(${PYTHON_INCLUDE_DIRS})
+include_directories(${PYTHON_DIRECTORIES})
+target_link_libraries(JasmineGraph ${PYTHON_LIBRARIES})
