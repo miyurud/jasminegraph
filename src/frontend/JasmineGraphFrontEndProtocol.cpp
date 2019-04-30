@@ -15,6 +15,7 @@ limitations under the License.
 
 const string ADGR = "adgr";
 const string ADRDF = "adrdf";
+const string ADGR_CUST = "adgr-cust";
 const string RMGR = "rmgr";
 const string EXIT = "exit";
 const string LIST = "lst";

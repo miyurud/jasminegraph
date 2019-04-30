@@ -14,7 +14,9 @@ limitations under the License.
 #include <flatbuffers/flatbuffers.h>
 #include "MetisPartitioner.h"
 #include "../../util/Conts.h"
+#include "../../util/logger/Logger.h"
 
+Logger partitioner_logger;
 
 thread_local std::vector<string> partitionFileList;
 thread_local std::vector<string> centralStoreFileList;
@@ -116,6 +118,14 @@ void MetisPartitioner::loadDataSet(string inputFilePath, int graphID) {
             largestVertex = secondVertex;
         }
 
+        if (firstVertex < smallestVertex){
+            smallestVertex = firstVertex;
+        }
+
+        if (secondVertex < smallestVertex){
+            smallestVertex = secondVertex;
+        }
+
         std::getline(dbFile, line);
         while (!line.empty() && line.find_first_not_of(splitter) == std::string::npos) {
             std::getline(dbFile, line);
@@ -124,7 +134,7 @@ void MetisPartitioner::loadDataSet(string inputFilePath, int graphID) {
 
 }
 
-void MetisPartitioner::constructMetisFormat(string graph_type) {
+int MetisPartitioner::constructMetisFormat(string graph_type) {
     graphType = graph_type;
     int adjacencyIndex = 0;
     std::ofstream outputFile;
@@ -143,6 +153,18 @@ void MetisPartitioner::constructMetisFormat(string graph_type) {
     xadj.push_back(adjacencyIndex);
     for (int vertexNum = 0; vertexNum <= largestVertex; vertexNum++) {
         std::vector<int> vertexSet = graphStorageMap[vertexNum];
+
+        if (vertexNum > smallestVertex && vertexSet.empty()){
+            partitioner_logger.log("Vertex list is not sequential. Reformatting vertex list", "info");
+            vertexCount = 0;
+            edgeCount = 0;
+            graphEdgeMap.clear();
+            graphStorageMap.clear();
+            smallestVertex = std::numeric_limits<int>::max();
+            largestVertex = 0;
+            return 0;
+        }
+
         std::sort(vertexSet.begin(), vertexSet.end());
 
         for (std::vector<int>::const_iterator i = vertexSet.begin(); i != vertexSet.end(); ++i) {
@@ -155,6 +177,7 @@ void MetisPartitioner::constructMetisFormat(string graph_type) {
 
         outputFile << std::endl;
     }
+    return 1;
 }
 
 void MetisPartitioner::partitioneWithGPMetis() {
@@ -296,11 +319,6 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
         string outputFilePart = outputFilePath + "/" + std::to_string(this->graphID) + "_" + std::to_string(part);
         string outputFilePartMaster =
                 outputFilePath + "/" + std::to_string(this->graphID) + "_centralstore_" + std::to_string(part);
-        string attributeFilePart =
-                outputFilePath + "/" + std::to_string(this->graphID) + "_attributes_" + std::to_string(part);
-        string attributeFilePartMaster =
-                outputFilePath + "/" + std::to_string(this->graphID) + "_centralstore_attributes_" +
-                std::to_string(part);
 
         std::map<int, std::vector<int>> partEdgeMap = partitionedLocalGraphStorageMap[part];
         std::map<int, std::vector<int>> partMasterEdgeMap = masterGraphStorageMap[part];
@@ -309,8 +327,11 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
         if (graphType == Conts::GRAPH_TYPE_RDF) {
             std::map<long, std::vector<string>> partitionedEdgeAttributes;
             std::map<long, std::vector<string>> centralStoreEdgeAttributes;
-
-
+            string attributeFilePart =
+                    outputFilePath + "/" + std::to_string(this->graphID) + "_attributes_" + std::to_string(part);
+            string attributeFilePartMaster =
+                    outputFilePath + "/" + std::to_string(this->graphID) + "_centralstore_attributes_" +
+                    std::to_string(part);
 
             //edge attribute separation for partition files
             for (auto it = partEdgeMap.begin(); it != partEdgeMap.end(); ++it) {
@@ -323,17 +344,11 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
                     for (int itt = 0; itt < 7; itt++) {
                         string element = (array)[itt];
                         attributes.push_back(element);
-
                     }
 
                     partitionedEdgeAttributes.insert({article_id, attributes});
-
-
                 }
             }
-
-
-
 
             //edge attribute separation for central store files
             for (auto it = partMasterEdgeMap.begin(); it != partMasterEdgeMap.end(); ++it) {
@@ -348,18 +363,19 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
                         attributes.push_back(element);
                     }
 
-
                     centralStoreEdgeAttributes.insert({article_id, attributes});
-
-
                 }
             }
 
             JasmineGraphHashMapLocalStore *hashMapLocalStore = new JasmineGraphHashMapLocalStore();
             hashMapLocalStore->storeAttributes(partitionedEdgeAttributes, attributeFilePart);
             hashMapLocalStore->storeAttributes(centralStoreEdgeAttributes, attributeFilePartMaster);
-        }
 
+            this->utils.compressFile(attributeFilePart);
+            partitionAttributeFileList.push_back(attributeFilePart + ".gz");
+            this->utils.compressFile(attributeFilePartMaster);
+            centralStoreAttributeFileList.push_back(attributeFilePartMaster + ".gz");
+        }
 
         if (!partEdgeMap.empty()) {
             std::ofstream localFile(outputFilePart);
@@ -380,6 +396,10 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
 
                                 edge = std::to_string(vertex) + " " + std::to_string((*itr)) + " " +
                                               std::to_string(article_id);
+                            } else if (graphType == Conts::GRAPH_TYPE_NORMAL_REFORMATTED) {
+                                int vertex2 = idToVertexMap.find(*itr)->second;
+                                edge = std::to_string(idToVertexMap.find(vertex)->second) + " " +
+                                       std::to_string(vertex2);
                             } else {
                                 edge = std::to_string(vertex) + " " + std::to_string((*itr));
 
@@ -412,6 +432,11 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
 
                                 edge = std::to_string(vertex) + " " + std::to_string((*itr)) + " " +
                                               std::to_string(article_id);
+
+                            } else if (graphType == Conts::GRAPH_TYPE_NORMAL_REFORMATTED) {
+                                int vertex2 = idToVertexMap.find(*itr)->second;
+                                edge = std::to_string(idToVertexMap.find(vertex)->second) + " " +
+                                       std::to_string(vertex2);
                             } else {
                                 edge = std::to_string(vertex) + " " + std::to_string((*itr));
 
@@ -441,12 +466,6 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
         partitionFileList.push_back(outputFilePart + ".gz");
         this->utils.compressFile(outputFilePartMaster);
         centralStoreFileList.push_back(outputFilePartMaster + ".gz");
-        if (graphType == Conts::GRAPH_TYPE_RDF){
-            this->utils.compressFile(attributeFilePart);
-            partitionAttributeFileList.push_back(attributeFilePart + ".gz");
-            this->utils.compressFile(attributeFilePartMaster);
-            centralStoreAttributeFileList.push_back(attributeFilePartMaster + ".gz");
-        }
     }
 }
 
@@ -464,4 +483,71 @@ std::vector<string> MetisPartitioner::getPartitionAttributeFiles() {
 
 std::vector<string> MetisPartitioner::getCentralStoreAttributeFiles() {
     return centralStoreAttributeFileList;
+}
+
+string MetisPartitioner::reformatDataSet(string inputFilePath, int graphID) {
+    this->graphID = graphID;
+
+    std::ifstream inFile;
+    inFile.open(inputFilePath, std::ios::binary | std::ios::in);
+
+    string outputFile = utils.getHomeDir() + "/.jasminegraph/tmp/" + std::to_string(this->graphID) + "/" +
+                           std::to_string(this->graphID);
+    std::ofstream outFile;
+    outFile.open(outputFile);
+
+    int firstVertex = -1;
+    int secondVertex = -1;
+    string line;
+    char splitter;
+
+    std::getline(inFile, line);
+
+    if (!line.empty()) {
+        if (line.find(" ") != std::string::npos) {
+            splitter = ' ';
+        } else if (line.find('\t') != std::string::npos) {
+            splitter = '\t';
+        } else if (line.find(",") != std::string::npos) {
+            splitter = ',';
+        }
+    }
+
+    int idCounter = 1;
+
+    while (!line.empty()) {
+        string vertexOne;
+        string vertexTwo;
+
+        std::istringstream stream(line);
+        std::getline(stream, vertexOne, splitter);
+        stream >> vertexTwo;
+
+        firstVertex = std::stoi(vertexOne);
+        secondVertex = std::stoi(vertexTwo);
+
+        if (vertexToIDMap.find(firstVertex) == vertexToIDMap.end()){
+            vertexToIDMap.insert(make_pair(firstVertex, idCounter));
+            idToVertexMap.insert(make_pair(idCounter, firstVertex));
+            idCounter++;
+        }
+        if (vertexToIDMap.find(secondVertex) == vertexToIDMap.end()){
+            vertexToIDMap.insert(make_pair(secondVertex, idCounter));
+            idToVertexMap.insert(make_pair(idCounter, secondVertex));
+            idCounter++;
+        }
+
+        int firstVertexID = vertexToIDMap.find(firstVertex)->second;
+        int secondVertexID = vertexToIDMap.find(secondVertex)->second;
+
+        outFile << (firstVertexID) << ' ' << (secondVertexID) << std::endl;
+
+        std::getline(inFile, line);
+        while (!line.empty() && line.find_first_not_of(splitter) == std::string::npos) {
+            std::getline(inFile, line);
+        }
+    }
+
+    partitioner_logger.log("Reformatting done", "info");
+    return outputFile;
 }

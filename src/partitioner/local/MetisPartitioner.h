@@ -42,7 +42,7 @@ public:
     void loadDataSet(string inputFilePath, int graphID);
 
     //void partitionGraph();
-    void constructMetisFormat(string graph_type);
+    int constructMetisFormat(string graph_type);
 
     void partitioneWithGPMetis();
 
@@ -57,6 +57,9 @@ public:
 
     //return list of attribute files related to rdf graph centralstore portions
     static std::vector<string> getCentralStoreAttributeFiles();
+
+    //reformat the vertex list by mapping vertex values to new sequntial IDs
+    std::string reformatDataSet(string inputFilePath, int graphID);
 
     MetisPartitioner(SQLiteDBInterface *);
 
@@ -75,6 +78,7 @@ private:
     string graphType;
     int totalVertexCount;
     int totalEdgeCount;
+    int smallestVertex = std::numeric_limits<int>::max();
 
     std::map<int, std::vector<int>> graphStorageMap;
     std::map<int, std::vector<int>> graphEdgeMap;
@@ -85,6 +89,8 @@ private:
     std::vector<int> adjncy;
     std::map<std::pair<int, int>, int> edgeMap;
     std::map<long, string[7]> articlesMap;
+    std::map<int, int> vertexToIDMap;
+    std::map<int, int> idToVertexMap;
 
 
 

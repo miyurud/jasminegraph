@@ -184,7 +184,7 @@ void Utils::compressFile(const std::string filePath) {
         if (!result.empty()) {
             util_logger.log("File compression failed with error: " + result, "error");
         } else {
-            util_logger.log("File in " + filePath + " compressed with gzip", "info");
+            //util_logger.log("File in " + filePath + " compressed with gzip", "info");
         }
     } else {
         perror("popen");
@@ -200,7 +200,7 @@ void Utils::createDirectory(const std::string dirName) {
     if (mkdir(dirName.c_str(), 0777) == -1) {
         //std::cout << "Error : " << strerror(errno) << endl;
     } else {
-        util_logger.log("Directory " + dirName + " created successfully", "info");
+        //util_logger.log("Directory " + dirName + " created successfully", "info");
     }
 }
 
@@ -295,7 +295,7 @@ void Utils::unzipFile(std::string filePath) {
         if (!result.empty()) {
             util_logger.log("File decompression failed with error : " + result, "error");
         } else {
-            util_logger.log("File in " + filePath + " extracted with gzip", "info");
+            //util_logger.log("File in " + filePath + " extracted with gzip", "info");
         }
     } else {
         perror("popen");

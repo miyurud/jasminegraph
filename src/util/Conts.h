@@ -27,7 +27,13 @@ public:
     static std::string JASMINEGRAPH_HOME;
     static std::string GRAPH_TYPE_RDF ;
     static std::string GRAPH_TYPE_NORMAL ;
+    static std::string GRAPH_TYPE_NORMAL_REFORMATTED;
 
+    struct GRAPH_WITH {
+        static std::string TEXT_ATTRIBUTES;         //Graph is uploaded with edge list and a plain text attribute file
+        static std::string JSON_ATTRIBUTES;         //Graph is uploaded with edge list and a JSON formatted attribute file
+        static std::string XML_ATTRIBUTES;          //Graph is uploaded with edge list and a XML formatted attribute file
+    };
 
 
     int JASMINEGRAPH_PARTITION_INDEX_PORT;
