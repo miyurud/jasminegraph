@@ -181,14 +181,106 @@ void *frontendservicesesion(void *dummyPt) {
                         "\", \"" + uploadStartTime + "\", \"\",\"" + to_string(Conts::GRAPH_STATUS::LOADING) +
                         "\", \"\", \"\", \"\")";
                 int newGraphID = sqlite->runInsert(sqlStatement);
-                MetisPartitioner *partitioner = new MetisPartitioner(&sessionargs->sqlite);
-                //partitioner->loadDataSet(path, utils.getJasmineGraphProperty("org.jasminegraph.server.runtime.location").c_str());
-                partitioner->loadDataSet(path, newGraphID);
-
-                partitioner->constructMetisFormat(Conts::GRAPH_TYPE_NORMAL);
-                partitioner->partitioneWithGPMetis();
                 JasmineGraphServer *jasmineServer = new JasmineGraphServer();
-                jasmineServer->uploadGraphLocally(newGraphID, Conts::GRAPH_TYPE_NORMAL);
+                MetisPartitioner *partitioner = new MetisPartitioner(&sessionargs->sqlite);
+
+                partitioner->loadDataSet(path, newGraphID);
+                int result = partitioner->constructMetisFormat(Conts::GRAPH_TYPE_NORMAL);
+                if (result == 0){
+                    string reformattedFilePath = partitioner->reformatDataSet(path,newGraphID);
+                    partitioner->loadDataSet(reformattedFilePath, newGraphID);
+                    partitioner->constructMetisFormat(Conts::GRAPH_TYPE_NORMAL_REFORMATTED);
+                    partitioner->partitioneWithGPMetis();
+                    jasmineServer->uploadGraphLocally(newGraphID, Conts::GRAPH_TYPE_NORMAL_REFORMATTED);
+                }
+                else{
+                    partitioner->partitioneWithGPMetis();
+                    jasmineServer->uploadGraphLocally(newGraphID, Conts::GRAPH_TYPE_NORMAL);
+                }
+                utils.deleteDirectory(utils.getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
+                utils.deleteDirectory("/tmp/" + std::to_string(newGraphID));
+            } else {
+                frontend_logger.log("Graph data file does not exist on the specified path", "error");
+                break;
+            }
+        }else if (line.compare(ADGR_CUST) == 0) {
+            string message = "Select a custom graph upload option\n";
+            write(connFd, message.c_str(), message.size());
+            write(connFd, Conts::GRAPH_WITH::TEXT_ATTRIBUTES.c_str(), Conts::GRAPH_WITH::TEXT_ATTRIBUTES.size());
+            write(connFd, "\n", 2);
+            write(connFd, Conts::GRAPH_WITH::JSON_ATTRIBUTES.c_str(), Conts::GRAPH_WITH::TEXT_ATTRIBUTES.size());
+            write(connFd, "\n", 2);
+            write(connFd, Conts::GRAPH_WITH::XML_ATTRIBUTES.c_str(), Conts::GRAPH_WITH::TEXT_ATTRIBUTES.size());
+            write(connFd, "\n", 2);
+
+            //TODO :: Handle user inputting a value out of range
+            char type[20];
+            bzero(type, 21);
+            read(connFd, type, 20);
+            string graphType(type);
+
+            // We get the name and the path to graph edge list and attribute list as a triplet separated by | .
+            // (<name>|<path to edge list>|<path to attribute file>)
+            message = "Send <name>|<path to edge list>|<path to attribute file>\n";
+            write(connFd, message.c_str(), message.size());
+            char graph_data[300];
+            bzero(graph_data, 301);
+            string name = "";
+            string edgeListPath = "";
+            string attributeListPath = "";
+
+            read(connFd, graph_data, 300);
+
+            std::time_t time = chrono::system_clock::to_time_t(chrono::system_clock::now());
+            string uploadStartTime = ctime(&time);
+            string gData(graph_data);
+
+            Utils utils;
+            gData = utils.trim_copy(gData, " \f\n\r\t\v");
+            frontend_logger.log("Data received: " + gData, "info");
+
+            std::vector<std::string> strArr = Utils::split(gData, '|');
+
+            if (strArr.size() != 3) {
+                frontend_logger.log("Message format not recognized", "error");
+                break;
+            }
+
+            name = strArr[0];
+            edgeListPath = strArr[1];
+            attributeListPath = strArr[2];
+
+            if (JasmineGraphFrontEnd::graphExists(edgeListPath, dummyPt)) {
+                frontend_logger.log("Graph exists" ,"error");
+                break;
+            }
+
+            if (utils.fileExists(edgeListPath) && utils.fileExists(attributeListPath)) {
+                std::cout << "Paths exists" << endl;
+
+                SQLiteDBInterface *sqlite = &sessionargs->sqlite;
+                string sqlStatement =
+                        "INSERT INTO graph (name,upload_path,upload_start_time,upload_end_time,graph_status_idgraph_status,"
+                        "vertexcount,centralpartitioncount,edgecount) VALUES(\"" + name + "\", \"" + edgeListPath +
+                        "\", \"" + uploadStartTime + "\", \"\",\"" + to_string(Conts::GRAPH_STATUS::LOADING) +
+                        "\", \"\", \"\", \"\")";
+                int newGraphID = sqlite->runInsert(sqlStatement);
+                JasmineGraphServer *jasmineServer = new JasmineGraphServer();
+                MetisPartitioner *partitioner = new MetisPartitioner(&sessionargs->sqlite);
+
+                partitioner->loadDataSet(edgeListPath, newGraphID);
+                int result = partitioner->constructMetisFormat(Conts::GRAPH_TYPE_NORMAL);
+                if (result == 0){
+                    string reformattedFilePath = partitioner->reformatDataSet(edgeListPath,newGraphID);
+                    partitioner->loadDataSet(reformattedFilePath, newGraphID);
+                    partitioner->constructMetisFormat(Conts::GRAPH_TYPE_NORMAL_REFORMATTED);
+                    partitioner->partitioneWithGPMetis();
+                    jasmineServer->uploadGraphLocally(newGraphID, Conts::GRAPH_TYPE_NORMAL_REFORMATTED);
+                }
+                else{
+                    partitioner->partitioneWithGPMetis();
+                    jasmineServer->uploadGraphLocally(newGraphID, Conts::GRAPH_TYPE_NORMAL);
+                }
                 utils.deleteDirectory(utils.getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
                 utils.deleteDirectory("/tmp/" + std::to_string(newGraphID));
             } else {

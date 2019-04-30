@@ -21,6 +21,7 @@ using namespace std;
 
 extern const string ADGR;
 extern const string ADRDF;
+extern const string ADGR_CUST;
 extern const string RMGR;
 extern const string TRUNCATE;
 extern const string DONE;
