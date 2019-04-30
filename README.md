@@ -13,8 +13,12 @@ The following build tools, applications, and libraries need to be installed befo
 - SdpLog (Ubuntu: apt-get install libspdlog-dev) (https://github.com/gabime/spdlog)
 - SQLite3 (https://www.sqlite.org/download.html)
 - cppkafka (https://github.com/mfontanini/cppkafka)
+    - Install librdkafka - Follow the Readme in (https://github.com/mfontanini/cppkafka)
+    - Install boost library - use 'sudo apt-get install libboost-all-dev'
+    - Once cppkafka is built install it by running 'sudo make install' from the build directory
 - Xerces-c-3.2.2 (https://xerces.apache.org/xerces-c/)
-
+    - Intallation guide is available at http://xerces.apache.org/xerces-c/build-3.html
+    - Once installed specify the target_link_libraries path to xerces.
 
 
 First, this repository should be cloned into one of your computer's local directory. Then change directory to jasminegraph and run ./build.sh to build the Jasminegraph executable.
