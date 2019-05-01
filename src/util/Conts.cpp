@@ -19,6 +19,9 @@ std::string Conts::JASMINEGRAPH_HOME  = "JASMINEGRAPH_HOME";
 std::string Conts::GRAPH_TYPE_RDF  = "RDF_GRAPH";
 std::string Conts::GRAPH_TYPE_NORMAL  = "NORMAL_GRAPH";
 std::string Conts::GRAPH_TYPE_NORMAL_REFORMATTED  = "REFORMATTED_GRAPH";
+std::string Conts::GRAPH_TYPE_ADGR_CUST  = "ADGR_CUST_GRAPH";
+
+
 
 std::string Conts::GRAPH_WITH::TEXT_ATTRIBUTES = "1 : Graph with edge list + text attributes list";
 std::string Conts::GRAPH_WITH::JSON_ATTRIBUTES = "2 : Graph with edge list + JSON attributes list";
@@ -30,6 +33,9 @@ int Conts::JASMINEGRAPH_BACKEND_PORT = 7778;
 int Conts::JASMINEGRAPH_VERTEXCOUNTER_PORT = 7779;
 int Conts::JASMINEGRAPH_INSTANCE_PORT = 7780;//Worker port
 int Conts::JASMINEGRAPH_INSTANCE_DATA_PORT = 7781;//Data Port
+
+int Conts::GRAPH_TYPE_TEXT= 1 ;//Data Port
+
 
 
 int Conts::JASMINEGRAPH_RUNTIME_PROFILE_MASTER = 1;

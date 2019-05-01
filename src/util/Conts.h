@@ -26,6 +26,7 @@ public:
     static std::string JASMINEGRAPH_EXECUTABLE;
     static std::string JASMINEGRAPH_HOME;
     static std::string GRAPH_TYPE_RDF ;
+    static std::string GRAPH_TYPE_ADGR_CUST;
     static std::string GRAPH_TYPE_NORMAL ;
     static std::string GRAPH_TYPE_NORMAL_REFORMATTED;
 
@@ -45,6 +46,9 @@ public:
     static int JASMINEGRAPH_RUNTIME_PROFILE_MASTER;
     static int JASMINEGRAPH_RUNTIME_PROFILE_WORKER;
     static int RDF_NUM_OF_ATTRIBUTES;
+
+    static int GRAPH_TYPE_TEXT;
+
 
 
     struct GRAPH_STATUS {

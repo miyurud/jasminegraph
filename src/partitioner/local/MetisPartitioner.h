@@ -61,6 +61,8 @@ public:
     //reformat the vertex list by mapping vertex values to new sequntial IDs
     std::string reformatDataSet(string inputFilePath, int graphID);
 
+    void loadContentData(string inputFilePath, string graphType);
+
     MetisPartitioner(SQLiteDBInterface *);
 
 
@@ -79,6 +81,7 @@ private:
     int totalVertexCount;
     int totalEdgeCount;
     int smallestVertex = std::numeric_limits<int>::max();
+    string graphTypeInt;
 
     std::map<int, std::vector<int>> graphStorageMap;
     std::map<int, std::vector<int>> graphEdgeMap;
@@ -91,7 +94,7 @@ private:
     std::map<long, string[7]> articlesMap;
     std::map<int, int> vertexToIDMap;
     std::map<int, int> idToVertexMap;
-
+    std::map<long, std::vector<string>> attributeDataMap;
 
 
     void createPartitionFiles(idx_t part[]);
