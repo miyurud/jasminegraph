@@ -26,9 +26,10 @@ public:
     static std::string JASMINEGRAPH_EXECUTABLE;
     static std::string JASMINEGRAPH_HOME;
     static std::string GRAPH_TYPE_RDF ;
-    static std::string GRAPH_TYPE_ADGR_CUST;
     static std::string GRAPH_TYPE_NORMAL ;
     static std::string GRAPH_TYPE_NORMAL_REFORMATTED;
+
+    static std::string GRAPH_WITH_ATTRIBUTES;       //To identify that there are additional attribute files to be uploaded through workers
 
     struct GRAPH_WITH {
         static std::string TEXT_ATTRIBUTES;         //Graph is uploaded with edge list and a plain text attribute file

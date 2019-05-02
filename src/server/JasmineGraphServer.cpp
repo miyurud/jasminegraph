@@ -189,7 +189,7 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType)
     std::vector<string> attributeFileList;
     std::vector<string> centralStoreAttributeFileList;
     int total_threads = partitionFileList.size() + centralStoreFileList.size();
-    if (graphType == Conts::GRAPH_TYPE_RDF){
+    if (graphType == Conts::GRAPH_WITH_ATTRIBUTES){
         attributeFileList = MetisPartitioner::getPartitionAttributeFiles();
         total_threads += attributeFileList.size();
         centralStoreAttributeFileList = MetisPartitioner::getCentralStoreAttributeFiles();
@@ -213,7 +213,7 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType)
                                                graphID, centralStoreFileList[file_count]);
             count++;
             sleep(1);
-            if (graphType == Conts::GRAPH_TYPE_RDF){
+            if (graphType == Conts::GRAPH_WITH_ATTRIBUTES){
                 workerThreads[count] = std::thread(batchUploadAttributeFile, worker.hostname, worker.port, worker.dataPort,
                                                    graphID, attributeFileList[file_count]);
                 count++;

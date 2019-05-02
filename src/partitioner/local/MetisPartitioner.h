@@ -61,7 +61,7 @@ public:
     //reformat the vertex list by mapping vertex values to new sequntial IDs
     std::string reformatDataSet(string inputFilePath, int graphID);
 
-    void loadContentData(string inputFilePath, string graphType);
+    void loadContentData(string inputAttributeFilePath, string graphType);
 
     MetisPartitioner(SQLiteDBInterface *);
 
