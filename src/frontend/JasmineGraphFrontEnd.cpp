@@ -117,7 +117,7 @@ void *frontendservicesesion(void *dummyPt) {
                 int newGraphID = sqlite->runInsert(sqlStatement);
 
                 GetConfig appConfig;
-                appConfig.readConfigFile(path,newGraphID);
+                appConfig.readConfigFile(path, newGraphID);
 
                 MetisPartitioner *metisPartitioner = new MetisPartitioner(&sessionargs->sqlite);
                 string input_file_path = utils.getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID) + "/" +
@@ -167,7 +167,7 @@ void *frontendservicesesion(void *dummyPt) {
             path = strArr[1];
 
             if (JasmineGraphFrontEnd::graphExists(path, dummyPt)) {
-                frontend_logger.log("Graph exists" ,"error");
+                frontend_logger.log("Graph exists", "error");
                 break;
             }
 
@@ -186,14 +186,13 @@ void *frontendservicesesion(void *dummyPt) {
 
                 partitioner->loadDataSet(path, newGraphID);
                 int result = partitioner->constructMetisFormat(Conts::GRAPH_TYPE_NORMAL);
-                if (result == 0){
-                    string reformattedFilePath = partitioner->reformatDataSet(path,newGraphID);
+                if (result == 0) {
+                    string reformattedFilePath = partitioner->reformatDataSet(path, newGraphID);
                     partitioner->loadDataSet(reformattedFilePath, newGraphID);
                     partitioner->constructMetisFormat(Conts::GRAPH_TYPE_NORMAL_REFORMATTED);
                     partitioner->partitioneWithGPMetis();
                     jasmineServer->uploadGraphLocally(newGraphID, Conts::GRAPH_TYPE_NORMAL_REFORMATTED);
-                }
-                else{
+                } else {
                     partitioner->partitioneWithGPMetis();
                     jasmineServer->uploadGraphLocally(newGraphID, Conts::GRAPH_TYPE_NORMAL);
                 }
@@ -203,7 +202,7 @@ void *frontendservicesesion(void *dummyPt) {
                 frontend_logger.log("Graph data file does not exist on the specified path", "error");
                 break;
             }
-        }else if (line.compare(ADGR_CUST) == 0) {
+        } else if (line.compare(ADGR_CUST) == 0) {
             string message = "Select a custom graph upload option\n";
             write(connFd, message.c_str(), message.size());
             write(connFd, Conts::GRAPH_WITH::TEXT_ATTRIBUTES.c_str(), Conts::GRAPH_WITH::TEXT_ATTRIBUTES.size());
@@ -251,7 +250,7 @@ void *frontendservicesesion(void *dummyPt) {
             attributeListPath = strArr[2];
 
             if (JasmineGraphFrontEnd::graphExists(edgeListPath, dummyPt)) {
-                frontend_logger.log("Graph exists" ,"error");
+                frontend_logger.log("Graph exists", "error");
                 break;
             }
 
@@ -267,22 +266,22 @@ void *frontendservicesesion(void *dummyPt) {
                 int newGraphID = sqlite->runInsert(sqlStatement);
                 JasmineGraphServer *jasmineServer = new JasmineGraphServer();
                 MetisPartitioner *partitioner = new MetisPartitioner(&sessionargs->sqlite);
+                partitioner->loadContentData(attributeListPath, "1");
 
                 partitioner->loadDataSet(edgeListPath, newGraphID);
                 int result = partitioner->constructMetisFormat(Conts::GRAPH_TYPE_NORMAL);
-                if (result == 0){
-                    string reformattedFilePath = partitioner->reformatDataSet(edgeListPath,newGraphID);
+                if (result == 0) {
+                    string reformattedFilePath = partitioner->reformatDataSet(edgeListPath, newGraphID);
                     partitioner->loadDataSet(reformattedFilePath, newGraphID);
                     partitioner->constructMetisFormat(Conts::GRAPH_TYPE_NORMAL_REFORMATTED);
                     partitioner->partitioneWithGPMetis();
                     jasmineServer->uploadGraphLocally(newGraphID, Conts::GRAPH_TYPE_NORMAL_REFORMATTED);
-                }
-                else{
+                } else {
                     partitioner->partitioneWithGPMetis();
                     jasmineServer->uploadGraphLocally(newGraphID, Conts::GRAPH_TYPE_NORMAL);
                 }
-                utils.deleteDirectory(utils.getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
-                utils.deleteDirectory("/tmp/" + std::to_string(newGraphID));
+                //utils.deleteDirectory(utils.getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
+                //utils.deleteDirectory("/tmp/" + std::to_string(newGraphID));
             } else {
                 frontend_logger.log("Graph data file does not exist on the specified path", "error");
                 break;
@@ -304,32 +303,30 @@ void *frontendservicesesion(void *dummyPt) {
             std::cout << "data received : " << topic_name << endl;
             // After getting the topic name , need to close the connection and ask the user to send the data to given topic
 
-            cppkafka::Configuration configs = {{"metadata.broker.list", "127.0.0.1:9092"}, {"group.id", "knnect"}};
+            cppkafka::Configuration configs = {{"metadata.broker.list", "127.0.0.1:9092"},
+                                               {"group.id",             "knnect"}};
             KafkaConnector kstream(configs);
 
             kstream.Subscribe(topic_name_s);
-            while (true)
-            {
+            while (true) {
                 cout << "Waiting to receive message. . ." << endl;
                 cppkafka::Message msg = kstream.consumer.poll();
-                if (!msg)
-                {
+                if (!msg) {
                     continue;
                 }
 
-                if (msg.get_error())
-                {
-                    if (msg.is_eof())
-                    {
+                if (msg.get_error()) {
+                    if (msg.is_eof()) {
                         cout << "Message end of file received!" << endl;
                     }
                     continue;
                 }
 
-                cout << "Received message on partition " << msg.get_topic() << "/" << msg.get_partition() << ", offset " << msg.get_offset() << endl;
+                cout << "Received message on partition " << msg.get_topic() << "/" << msg.get_partition() << ", offset "
+                     << msg.get_offset() << endl;
                 cout << "Payload = " << msg.get_payload() << endl;
             }
-        } else if (line.compare(RMGR) == 0){
+        } else if (line.compare(RMGR) == 0) {
             write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
             write(connFd, "\r\n", 2);
 
@@ -351,10 +348,11 @@ void *frontendservicesesion(void *dummyPt) {
                 frontend_logger.log("Graph with ID " + graphID + " is being deleted now", "info");
                 JasmineGraphFrontEnd::removeGraph(graphID, dummyPt);
             } else {
-                frontend_logger.log("Graph does not exist or cannot be deleted with the current hosts setting" ,"error");
+                frontend_logger.log("Graph does not exist or cannot be deleted with the current hosts setting",
+                                    "error");
             }
         } else {
-            frontend_logger.log("Message format not recognized " + line , "error");
+            frontend_logger.log("Message format not recognized " + line, "error");
         }
     }
     frontend_logger.log("Closing thread " + to_string(pthread_self()) + " and connection", "info");

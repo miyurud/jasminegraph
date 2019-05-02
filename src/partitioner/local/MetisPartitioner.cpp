@@ -118,11 +118,11 @@ void MetisPartitioner::loadDataSet(string inputFilePath, int graphID) {
             largestVertex = secondVertex;
         }
 
-        if (firstVertex < smallestVertex){
+        if (firstVertex < smallestVertex) {
             smallestVertex = firstVertex;
         }
 
-        if (secondVertex < smallestVertex){
+        if (secondVertex < smallestVertex) {
             smallestVertex = secondVertex;
         }
 
@@ -154,7 +154,7 @@ int MetisPartitioner::constructMetisFormat(string graph_type) {
     for (int vertexNum = 0; vertexNum <= largestVertex; vertexNum++) {
         std::vector<int> vertexSet = graphStorageMap[vertexNum];
 
-        if (vertexNum > smallestVertex && vertexSet.empty()){
+        if (vertexNum > smallestVertex && vertexSet.empty()) {
             partitioner_logger.log("Vertex list is not sequential. Reformatting vertex list", "info");
             vertexCount = 0;
             edgeCount = 0;
@@ -250,8 +250,10 @@ void MetisPartitioner::partitioneWithGPMetis() {
 
             createPartitionFiles(partIndex);
             string sqlStatement =
-                    "UPDATE graph SET vertexcount = '" + std::to_string(this->totalVertexCount) + "' ,centralpartitioncount = '" +
-                    std::to_string(this->nParts) + "' ,edgecount = '"+std::to_string(this->totalEdgeCount)+"' WHERE idgraph = '" +
+                    "UPDATE graph SET vertexcount = '" + std::to_string(this->totalVertexCount) +
+                    "' ,centralpartitioncount = '" +
+                    std::to_string(this->nParts) + "' ,edgecount = '" + std::to_string(this->totalEdgeCount) +
+                    "' WHERE idgraph = '" +
                     std::to_string(this->graphID) + "'";
             this->sqlite.runUpdate(sqlStatement);
         }
@@ -324,6 +326,79 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
         std::map<int, std::vector<int>> partMasterEdgeMap = masterGraphStorageMap[part];
 
 
+        if (graphTypeInt == "1") {
+            std::map<long, std::vector<string>> partitionAttributes;
+            std::map<long, std::vector<string>> centralStoreAttributes;
+            string attributeFilePart =
+                    outputFilePath + "/" + std::to_string(this->graphID) + "_attributes_" + std::to_string(part);
+//            string attributeFilePartMaster =
+//                    outputFilePath + "/" + std::to_string(this->graphID) + "_centralstore_attributes_" +
+//                    std::to_string(part);
+
+
+            ofstream partfile;
+            partfile.open(attributeFilePart);
+
+            for (auto it = partEdgeMap.begin(); it != partEdgeMap.end(); ++it) {
+                for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
+
+                    int vertex1 = idToVertexMap.find(it->first)->second;
+                    auto vertex1_ele = attributeDataMap.find(vertex1);
+                    int vertex2 = idToVertexMap.find(*it2)->second;
+                    auto vertex2_ele = attributeDataMap.find(vertex2);
+
+                    std::vector<string> vertex1Attributes = vertex1_ele->second;
+                    std::vector<string> vertex2Attributes = vertex2_ele->second;
+
+                    partfile << vertex1_ele->first << "\t";
+                    for (auto itr = vertex1Attributes.begin(); itr != vertex1Attributes.end(); ++itr) {
+                        partfile << *itr << "\t";
+                    }
+                    partfile << endl;
+
+                    partfile << vertex2_ele->first << "\t";
+                    for (auto itr2 = vertex2Attributes.begin(); itr2 != vertex2Attributes.end(); ++itr2) {
+                        partfile << *itr2 << "\t";
+                    }
+                    partfile << endl;
+
+
+                }
+            }
+
+
+            for (auto it = partMasterEdgeMap.begin(); it != partMasterEdgeMap.end(); ++it) {
+                for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
+
+                    int vertex1 = idToVertexMap.find(it->first)->second;
+                    auto vertex1_ele = attributeDataMap.find(vertex1);
+                    int vertex2 = idToVertexMap.find(*it2)->second;
+                    auto vertex2_ele = attributeDataMap.find(vertex2);
+
+                    std::vector<string> vertex1Attributes = vertex1_ele->second;
+                    std::vector<string> vertex2Attributes = vertex2_ele->second;
+
+                    partfile << vertex1_ele->first << "\t";
+                    for (auto itr = vertex1Attributes.begin(); itr != vertex1Attributes.end(); ++itr) {
+                        partfile << *itr << "\t";
+                    }
+                    partfile << endl;
+
+                    partfile << vertex2_ele->first << "\t";
+                    for (auto itr2 = vertex2Attributes.begin(); itr2 != vertex2Attributes.end(); ++itr2) {
+                        partfile << *itr2 << "\t";
+                    }
+                    partfile << endl;
+                    //centralStoreAttributes.insert({vertex1_ele->first, vertex1Attributes});
+
+
+                }
+            }
+
+            partfile.close();
+
+        }
+
         if (graphType == Conts::GRAPH_TYPE_RDF) {
             std::map<long, std::vector<string>> partitionedEdgeAttributes;
             std::map<long, std::vector<string>> centralStoreEdgeAttributes;
@@ -395,7 +470,7 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
                                 long article_id = entry->second;
 
                                 edge = std::to_string(vertex) + " " + std::to_string((*itr)) + " " +
-                                              std::to_string(article_id);
+                                       std::to_string(article_id);
                             } else if (graphType == Conts::GRAPH_TYPE_NORMAL_REFORMATTED) {
                                 int vertex2 = idToVertexMap.find(*itr)->second;
                                 edge = std::to_string(idToVertexMap.find(vertex)->second) + " " +
@@ -423,7 +498,7 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
                     std::vector<int> destinationSet = partMasterEdgeMap[vertex];
                     if (!destinationSet.empty()) {
                         for (std::vector<int>::iterator itr = destinationSet.begin();
-                            itr != destinationSet.end(); ++itr) {
+                             itr != destinationSet.end(); ++itr) {
                             string edge;
 
                             if (graphType == Conts::GRAPH_TYPE_RDF) {
@@ -431,7 +506,7 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
                                 long article_id = entry->second;
 
                                 edge = std::to_string(vertex) + " " + std::to_string((*itr)) + " " +
-                                              std::to_string(article_id);
+                                       std::to_string(article_id);
 
                             } else if (graphType == Conts::GRAPH_TYPE_NORMAL_REFORMATTED) {
                                 int vertex2 = idToVertexMap.find(*itr)->second;
@@ -492,7 +567,7 @@ string MetisPartitioner::reformatDataSet(string inputFilePath, int graphID) {
     inFile.open(inputFilePath, std::ios::binary | std::ios::in);
 
     string outputFile = utils.getHomeDir() + "/.jasminegraph/tmp/" + std::to_string(this->graphID) + "/" +
-                           std::to_string(this->graphID);
+                        std::to_string(this->graphID);
     std::ofstream outFile;
     outFile.open(outputFile);
 
@@ -526,12 +601,12 @@ string MetisPartitioner::reformatDataSet(string inputFilePath, int graphID) {
         firstVertex = std::stoi(vertexOne);
         secondVertex = std::stoi(vertexTwo);
 
-        if (vertexToIDMap.find(firstVertex) == vertexToIDMap.end()){
+        if (vertexToIDMap.find(firstVertex) == vertexToIDMap.end()) {
             vertexToIDMap.insert(make_pair(firstVertex, idCounter));
             idToVertexMap.insert(make_pair(idCounter, firstVertex));
             idCounter++;
         }
-        if (vertexToIDMap.find(secondVertex) == vertexToIDMap.end()){
+        if (vertexToIDMap.find(secondVertex) == vertexToIDMap.end()) {
             vertexToIDMap.insert(make_pair(secondVertex, idCounter));
             idToVertexMap.insert(make_pair(idCounter, secondVertex));
             idCounter++;
@@ -550,4 +625,48 @@ string MetisPartitioner::reformatDataSet(string inputFilePath, int graphID) {
 
     partitioner_logger.log("Reformatting done", "info");
     return outputFile;
+}
+
+
+void MetisPartitioner::loadContentData(string inputFilePath, string graphtype) {
+    graphTypeInt = graphtype;
+    std::cout << "graphTypeInt..." << graphTypeInt << std::endl;
+
+
+    std::ifstream dbFile;
+    dbFile.open(inputFilePath, std::ios::binary | std::ios::in);
+    std::cout << "Content file is loading..." << std::endl;
+
+
+    char splitter = '\t';
+    string line;
+
+    while (std::getline(dbFile, line)) {
+        long vertex;
+        string class_label;
+        std::vector<string> attributes;
+
+        string vertex_str;
+        string attribute;
+
+        std::istringstream stream(line);
+        std::getline(stream, vertex_str, splitter);
+        vertex = stol(vertex_str);
+
+
+        while (stream) {
+            std::string attribute;
+            stream >> attribute;
+
+            if (attribute.length()) {
+
+                attributes.push_back(attribute);
+            }
+        }
+
+        attributeDataMap.insert({vertex, attributes});
+
+
+    }
+
 }
