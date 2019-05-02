@@ -19,7 +19,8 @@ std::string Conts::JASMINEGRAPH_HOME  = "JASMINEGRAPH_HOME";
 std::string Conts::GRAPH_TYPE_RDF  = "RDF_GRAPH";
 std::string Conts::GRAPH_TYPE_NORMAL  = "NORMAL_GRAPH";
 std::string Conts::GRAPH_TYPE_NORMAL_REFORMATTED  = "REFORMATTED_GRAPH";
-std::string Conts::GRAPH_TYPE_ADGR_CUST  = "ADGR_CUST_GRAPH";
+
+std::string Conts::GRAPH_WITH_ATTRIBUTES  = "GRAPH_WITH_ATTRIBUTES";
 
 
 

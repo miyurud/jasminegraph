@@ -251,10 +251,8 @@ void MetisPartitioner::partitioneWithGPMetis() {
             createPartitionFiles(partIndex);
             string sqlStatement =
                     "UPDATE graph SET vertexcount = '" + std::to_string(this->totalVertexCount) +
-                    "' ,centralpartitioncount = '" +
-                    std::to_string(this->nParts) + "' ,edgecount = '" + std::to_string(this->totalEdgeCount) +
-                    "' WHERE idgraph = '" +
-                    std::to_string(this->graphID) + "'";
+                    "' ,centralpartitioncount = '" + std::to_string(this->nParts) + "' ,edgecount = '"
+                    + std::to_string(this->totalEdgeCount) + "' WHERE idgraph = '" + std::to_string(this->graphID) + "'";
             this->sqlite.runUpdate(sqlStatement);
         }
 
@@ -331,9 +329,9 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
             std::map<long, std::vector<string>> centralStoreAttributes;
             string attributeFilePart =
                     outputFilePath + "/" + std::to_string(this->graphID) + "_attributes_" + std::to_string(part);
-//            string attributeFilePartMaster =
-//                    outputFilePath + "/" + std::to_string(this->graphID) + "_centralstore_attributes_" +
-//                    std::to_string(part);
+            string attributeFilePartMaster =
+                    outputFilePath + "/" + std::to_string(this->graphID) + "_centralstore_attributes_" +
+                    std::to_string(part);
 
 
             ofstream partfile;
@@ -366,6 +364,8 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
                 }
             }
 
+            partfile.close();
+            partfile.open(attributeFilePartMaster);
 
             for (auto it = partMasterEdgeMap.begin(); it != partMasterEdgeMap.end(); ++it) {
                 for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
@@ -396,6 +396,11 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
             }
 
             partfile.close();
+
+            this->utils.compressFile(attributeFilePart);
+            partitionAttributeFileList.push_back(attributeFilePart + ".gz");
+            this->utils.compressFile(attributeFilePartMaster);
+            centralStoreAttributeFileList.push_back(attributeFilePartMaster + ".gz");
 
         }
 
@@ -628,13 +633,13 @@ string MetisPartitioner::reformatDataSet(string inputFilePath, int graphID) {
 }
 
 
-void MetisPartitioner::loadContentData(string inputFilePath, string graphtype) {
+void MetisPartitioner::loadContentData(string inputAttributeFilePath, string graphtype) {
     graphTypeInt = graphtype;
     std::cout << "graphTypeInt..." << graphTypeInt << std::endl;
 
 
     std::ifstream dbFile;
-    dbFile.open(inputFilePath, std::ios::binary | std::ios::in);
+    dbFile.open(inputAttributeFilePath, std::ios::binary | std::ios::in);
     std::cout << "Content file is loading..." << std::endl;
 
 
