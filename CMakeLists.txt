@@ -34,6 +34,8 @@ add_executable(JasmineGraph main.cpp src/server/JasmineGraphServer.cpp src/serve
         src/server/JasmineGraphInstanceService.cpp src/server/JasmineGraphInstanceService.h
         src/partitioner/local/RDFParser.cpp src/partitioner/local/RDFParser.h src/partitioner/stream/Partitioner.cpp src/partitioner/stream/JasmineGraphIncrementalStore.cpp
         src/partitioner/local/RDFParser.cpp src/partitioner/local/RDFParser.h src/server/JasmineGraphInstanceService.cpp src/server/JasmineGraphInstanceService.h src/trainer/python-c-api/Python_C_API.cpp src/trainer/python-c-api/Python_C_API.h
+        src/partitioner/local/RDFParser.cpp src/partitioner/local/RDFParser.h
+        src/server/JasmineGraphInstanceService.cpp src/server/JasmineGraphInstanceService.h src/trainer/python-c-api/Python_C_API.cpp src/trainer/python-c-api/Python_C_API.h
         src/trainer/JasminGraphTrainingInitiator.cpp src/trainer/JasminGraphTrainingInitiator.h)
 
 target_compile_options(JasmineGraph PRIVATE -std=c++11)
