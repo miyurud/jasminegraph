@@ -337,61 +337,83 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
             ofstream partfile;
             partfile.open(attributeFilePart);
 
+            vector<int> partVertices;
+            vector<int>::iterator finder;
+
             for (auto it = partEdgeMap.begin(); it != partEdgeMap.end(); ++it) {
-                for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
-
-                    int vertex1 = idToVertexMap.find(it->first)->second;
+                int vertex1 = it->first;
+                if (graphType == Conts::GRAPH_TYPE_NORMAL_REFORMATTED){
+                    vertex1 = idToVertexMap.find(it->first)->second;
+                }
+                finder = find (partVertices.begin(), partVertices.end(), vertex1);
+                if (finder == partVertices.end()){
+                    partVertices.push_back(vertex1);
                     auto vertex1_ele = attributeDataMap.find(vertex1);
-                    int vertex2 = idToVertexMap.find(*it2)->second;
-                    auto vertex2_ele = attributeDataMap.find(vertex2);
-
                     std::vector<string> vertex1Attributes = vertex1_ele->second;
-                    std::vector<string> vertex2Attributes = vertex2_ele->second;
-
                     partfile << vertex1_ele->first << "\t";
                     for (auto itr = vertex1Attributes.begin(); itr != vertex1Attributes.end(); ++itr) {
                         partfile << *itr << "\t";
                     }
                     partfile << endl;
+                }
 
-                    partfile << vertex2_ele->first << "\t";
-                    for (auto itr2 = vertex2Attributes.begin(); itr2 != vertex2Attributes.end(); ++itr2) {
-                        partfile << *itr2 << "\t";
+                for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
+                    int vertex2 = *it2;
+                    if (graphType == Conts::GRAPH_TYPE_NORMAL_REFORMATTED){
+                        vertex2 = idToVertexMap.find(*it2)->second;
                     }
-                    partfile << endl;
+                    finder = find (partVertices.begin(), partVertices.end(), vertex2);
 
-
+                    if (finder == partVertices.end()){
+                        partVertices.push_back(vertex2);
+                        auto vertex2_ele = attributeDataMap.find(vertex2);
+                        std::vector<string> vertex2Attributes = vertex2_ele->second;
+                        partfile << vertex2_ele->first << "\t";
+                        for (auto itr2 = vertex2Attributes.begin(); itr2 != vertex2Attributes.end(); ++itr2) {
+                            partfile << *itr2 << "\t";
+                        }
+                        partfile << endl;
+                    }
                 }
             }
 
             partfile.close();
+
             partfile.open(attributeFilePartMaster);
 
+            vector<int> masterPartVertices;
+
             for (auto it = partMasterEdgeMap.begin(); it != partMasterEdgeMap.end(); ++it) {
-                for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
 
-                    int vertex1 = idToVertexMap.find(it->first)->second;
+                int vertex1 = idToVertexMap.find(it->first)->second;
+                finder = find (masterPartVertices.begin(), masterPartVertices.end(), vertex1);
+                if (finder == masterPartVertices.end()){
+                    masterPartVertices.push_back(vertex1);
                     auto vertex1_ele = attributeDataMap.find(vertex1);
-                    int vertex2 = idToVertexMap.find(*it2)->second;
-                    auto vertex2_ele = attributeDataMap.find(vertex2);
-
                     std::vector<string> vertex1Attributes = vertex1_ele->second;
-                    std::vector<string> vertex2Attributes = vertex2_ele->second;
-
                     partfile << vertex1_ele->first << "\t";
                     for (auto itr = vertex1Attributes.begin(); itr != vertex1Attributes.end(); ++itr) {
                         partfile << *itr << "\t";
                     }
                     partfile << endl;
+                }
 
-                    partfile << vertex2_ele->first << "\t";
-                    for (auto itr2 = vertex2Attributes.begin(); itr2 != vertex2Attributes.end(); ++itr2) {
-                        partfile << *itr2 << "\t";
+                for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
+
+                    int vertex2 = idToVertexMap.find(*it2)->second;
+
+                    finder = find (masterPartVertices.begin(), masterPartVertices.end(), vertex2);
+
+                    if (finder == masterPartVertices.end()){
+                        masterPartVertices.push_back(vertex2);
+                        auto vertex2_ele = attributeDataMap.find(vertex2);
+                        std::vector<string> vertex2Attributes = vertex2_ele->second;
+                        partfile << vertex2_ele->first << "\t";
+                        for (auto itr2 = vertex2Attributes.begin(); itr2 != vertex2Attributes.end(); ++itr2) {
+                            partfile << *itr2 << "\t";
+                        }
+                        partfile << endl;
                     }
-                    partfile << endl;
-                    //centralStoreAttributes.insert({vertex1_ele->first, vertex1Attributes});
-
-
                 }
             }
 
@@ -635,8 +657,6 @@ string MetisPartitioner::reformatDataSet(string inputFilePath, int graphID) {
 
 void MetisPartitioner::loadContentData(string inputAttributeFilePath, string graphtype) {
     graphTypeInt = graphtype;
-    std::cout << "graphTypeInt..." << graphTypeInt << std::endl;
-
 
     std::ifstream dbFile;
     dbFile.open(inputAttributeFilePath, std::ios::binary | std::ios::in);
