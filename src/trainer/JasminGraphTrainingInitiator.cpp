@@ -107,6 +107,7 @@ bool JasminGraphTrainingInitiator::initiateTrain(std::string host, int port, int
             std::cout << trainingArgs << std::endl;
             write(sockfd, (trainingArgs).c_str(), (trainingArgs).size());
             server_log.log("Sent : training args" + trainingArgs, "info");
+            return 0;
         }
     } else {
         server_log.log("There was an error in the upload process and the response is :: " + response, "error");

@@ -29,6 +29,8 @@ add_executable(JasmineGraph main.cpp src/server/JasmineGraphServer.cpp src/serve
         src/server/JasmineGraphInstanceService.cpp src/server/JasmineGraphInstanceService.h
         src/partitioner/local/RDFParser.cpp src/partitioner/local/RDFParser.h src/partitioner/stream/Partitioner.cpp src/partitioner/stream/JasmineGraphIncrementalStore.cpp
         src/partitioner/local/RDFParser.cpp src/partitioner/local/RDFParser.h src/server/JasmineGraphInstanceService.cpp src/server/JasmineGraphInstanceService.h src/trainer/python-c-api/Python_C_API.cpp src/trainer/python-c-api/Python_C_API.h
+        src/partitioner/local/RDFParser.cpp src/partitioner/local/RDFParser.h
+        src/server/JasmineGraphInstanceService.cpp src/server/JasmineGraphInstanceService.h src/trainer/python-c-api/Python_C_API.cpp src/trainer/python-c-api/Python_C_API.h
         src/trainer/JasminGraphTrainingInitiator.cpp src/trainer/JasminGraphTrainingInitiator.h)
 
 #file(GLOB_RECURSE Dir1_Sources "*.cpp")
@@ -39,6 +41,7 @@ add_executable(JasmineGraph main.cpp src/server/JasmineGraphServer.cpp src/serve
 target_link_libraries(JasmineGraph /usr/local/lib/libmetis.a)
 target_link_libraries(JasmineGraph $ENV{HOME}/software/xerces-c-3.2.2/lib/libxerces-c.so)
 target_link_libraries(JasmineGraph $ENV{HOME}/software/flatbuffers/libflatbuffers.a)
+target_link_libraries(JasmineGraph $ENV{HOME}/software/xerces-c-3.2.2/lib/libxerces-c.so)
 
 set(PYTHON_EXECUTABLE "/usr/bin/python3.5")
 set(PYTHON_INCLUDE_DIR "/usr/include/python3.5m")
