@@ -298,11 +298,22 @@ void MetisPartitioner::createPartitionFiles(idx_t *part) {
                     partEdgesSet[vertex] = edgeSet;
                     partitionedLocalGraphStorageMap[firstVertexPart] = partEdgesSet;
                 } else {
+                    //This edge's two vertices belong to two different parts.
+                    //Therefore the edge is added to both partMasterEdgeSets
+
+                    //This adds the edge to the masterGraphStorageMap with key being the part of vertex 1
                     std::map<int, std::vector<int>> partMasterEdgesSet = masterGraphStorageMap[firstVertexPart];
                     std::vector<int> edgeSet = partMasterEdgesSet[vertex];
                     edgeSet.push_back(secondVertex);
                     partMasterEdgesSet[vertex] = edgeSet;
                     masterGraphStorageMap[firstVertexPart] = partMasterEdgesSet;
+
+                    //This adds the edge to the masterGraphStorageMap with key being the part of vertex 2
+                    std::map<int, std::vector<int>> partMasterEdgesSet2 = masterGraphStorageMap[secondVertexPart];
+                    std::vector<int> edgeSet2 = partMasterEdgesSet2[vertex];
+                    edgeSet2.push_back(secondVertex);
+                    partMasterEdgesSet2[vertex] = edgeSet2;
+                    masterGraphStorageMap[secondVertexPart] = partMasterEdgesSet2;
                 }
             }
         }
