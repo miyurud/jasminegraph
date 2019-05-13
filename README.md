@@ -10,7 +10,10 @@ The following build tools, applications, and libraries need to be installed befo
 - Cmake version 3.10.3 or above
 - Google Flat Buffers (https://github.com/google/flatbuffers)
 - Metis (http://glaros.dtc.umn.edu/gkhome/metis/metis/download)
-- SdpLog (Ubuntu: apt-get install libspdlog-dev) (https://github.com/gabime/spdlog)
+- SdpLog (https://github.com/gabime/spdlog)
+    - Clone or download the repository from the above link
+    - Once downloaded specify the include directory in CMakeList.txt.
+    - Ex : "include_directories("$ENV{HOME}/software/spdlog/include")"
 - SQLite3 (https://www.sqlite.org/download.html)
 - cppkafka (https://github.com/mfontanini/cppkafka)
     - Install librdkafka - Follow the Readme in (https://github.com/mfontanini/cppkafka)
