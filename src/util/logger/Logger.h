@@ -14,8 +14,7 @@ limitations under the License.
 #ifndef JASMINEGRAPH_SPDLOGGER_H
 #define JASMINEGRAPH_SPDLOGGER_H
 
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/file_sinks.h>
+#include <string>
 
 class Logger {
 public:

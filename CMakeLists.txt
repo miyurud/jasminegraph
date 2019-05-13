@@ -9,6 +9,7 @@ link_libraries('cppkafka')
 #TODO: Need to install the library separately
 include_directories("$ENV{HOME}/software/flatbuffers/include")
 include_directories("$ENV{HOME}/software/xerces-c-3.2.2/include")
+include_directories("$ENV{HOME}/software/spdlog/include")
 
 add_executable(JasmineGraph main.cpp src/server/JasmineGraphServer.cpp src/server/JasmineGraphServer.h src/metadb/SQLiteDBInterface.cpp
         src/util/dbutil/edgestore_generated.h src/util/dbutil/attributestore_generated.h src/metadb/SQLiteDBInterface.h main.h src/server/JasmineGraphInstance.cpp
@@ -32,4 +33,4 @@ add_executable(JasmineGraph main.cpp src/server/JasmineGraphServer.cpp src/serve
 #TODO: Need to install the library separately
 target_link_libraries(JasmineGraph /usr/local/lib/libmetis.a)
 target_link_libraries(JasmineGraph /opt/lib/libxerces-c.a)
-target_link_libraries(JasmineGraph /home/shalika/software/flatbuffers/libflatbuffers.a)
+target_link_libraries(JasmineGraph $ENV{HOME}/software/flatbuffers/libflatbuffers.a)

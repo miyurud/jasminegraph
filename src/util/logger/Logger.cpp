@@ -13,10 +13,11 @@ limitations under the License.
 
 #include "Logger.h"
 #include <spdlog/spdlog.h>
-#include <spdlog/sinks/file_sinks.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
+#include <spdlog/sinks/daily_file_sink.h>
 
-auto logger = spdlog::stdout_logger_mt("logger");
-auto daily_logger = spdlog::daily_logger_mt("JasmineGraph", "logs/server_log", 0, 00);
+auto logger = spdlog::stdout_color_mt("logger");
+auto daily_logger = spdlog::daily_logger_mt("JasmineGraph", "logs/server_log.txt", 0, 00,true);
 
 void Logger::log(std::string message, const std::string log_type) {
     if (log_type.compare("info") == 0) {
@@ -32,7 +33,7 @@ void Logger::log(std::string message, const std::string log_type) {
         daily_logger->error(message);
         logger->error(message);
     } else {
-        std::cout << "Invalid logging type" << std::endl;
+        //std::cout << "Invalid logging type" << std::endl;
     }
 
 }
