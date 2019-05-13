@@ -16,6 +16,7 @@ limitations under the License.
 #include <chrono>
 #include <iostream>
 #include <map>
+#include <set>
 #include "JasmineGraphFrontEnd.h"
 #include "../util/Conts.h"
 #include "../util/Utils.h"
@@ -435,6 +436,7 @@ void *frontendservicesesion(void *dummyPt) {
                 auto begin = chrono::high_resolution_clock::now();
                 vector<string> hostsList = utils.getHostList();
                 int hostListLength = hostsList.size();
+                long triangleCount = JasmineGraphFrontEnd::countTriangles(graph_id,dummyPt);
                 auto end = chrono::high_resolution_clock::now();
                 auto dur = end - begin;
                 auto msDuration = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
@@ -605,14 +607,13 @@ void JasmineGraphFrontEnd::removeGraph(std::string graphID, void *dummyPt) {
 }
 
 
-void JasmineGraphFrontEnd::countTriangles(std::string graphId, void *dummyPt) {
+long JasmineGraphFrontEnd::countTriangles(std::string graphId, void *dummyPt) {
     long result= 0;
     Utils utils;
     vector<std::string> hostList = utils.getHostList();
     int hostListSize = hostList.size();
-    long intermRes[hostListSize];
     int counter = 0;
-    typedef std::function<void> Callback;
+    std::vector<std::future<long>> intermRes;
     PlacesToNodeMapper placesToNodeMapper;
 
     string sqlStatement = "SELECT NAME,PARTITION_IDPARTITION FROM ACACIA_META.HOST_HAS_PARTITION INNER JOIN ACACIA_META.HOST ON HOST_IDHOST=IDHOST WHERE PARTITION_GRAPH_IDGRAPH=" + graphId + ";";
@@ -648,7 +649,23 @@ void JasmineGraphFrontEnd::countTriangles(std::string graphId, void *dummyPt) {
             partitionId = *iterator;
             partitionList.erase(partitionList.begin());
         }
+
+        std::vector<int>::iterator portsIterator;
+
+        for (portsIterator = instancePorts.begin(); portsIterator != instancePorts.end(); ++portsIterator) {
+            int port = *portsIterator;
+            intermRes.push_back(std::async(std::launch::async,JasmineGraphFrontEnd::getTriangleCount,atoi(graphId.c_str()),host,port,atoi(partitionId.c_str())));
+        }
+
     }
+
+    for (auto&& futureCall:intermRes) {
+        result += futureCall.get();
+    }
+
+    long globalTriangleCount = JasmineGraphFrontEnd::countGlobalTriangles(atoi(graphId.c_str()), dummyPt);
+    result += globalTriangleCount;
+    return result;
 }
 
 
@@ -740,4 +757,130 @@ long JasmineGraphFrontEnd::getTriangleCount(int graphId, std::string host, int p
         frontend_logger.log("There was an error in the upload process and the response is :: " + response, "error");
     }
 
+}
+
+long JasmineGraphFrontEnd::countGlobalTriangles(int graphId, void *dummyPt) {
+    long result;
+    long startVid;
+    long endVid;
+    int centralPartitionCount = 0;
+    std::string query = "select CENTRALPARTITIONCOUNT from ACACIA_META.GRAPH where IDGRAPH=" + std::to_string(graphId);
+
+    SQLiteDBInterface *sqlite = (SQLiteDBInterface *) dummyPt;
+    std::vector<vector<pair<string, string>>> results = sqlite->runSelect(query);
+
+    map<long, unordered_set<long>> localSubgraphMap;
+
+    if (results.size() > 0) {
+        vector<pair<string, string>> resultPairVector = results.at(0);
+        if (resultPairVector.size() >0) {
+            std::string resultString = resultPairVector.at(0).second;
+            centralPartitionCount = atoi(resultString.c_str());
+        }
+    }
+
+    for (int i=0; i< centralPartitionCount; i++) {
+        JasmineGraphHashMapCentralStore *centralStore = new JasmineGraphHashMapCentralStore(graphId, i);
+        centralStore->loadGraph();
+
+        map<long, unordered_set<long>> edgeList2 = centralStore->getUnderlyingHashMap();
+        map<long, unordered_set<long>>::iterator edgeListIterator;
+        long firstVertex = 0;
+
+        for (edgeListIterator = edgeList2.begin(); edgeListIterator != edgeList2.end(); ++edgeListIterator) {
+            firstVertex = edgeListIterator->first;
+            unordered_set<long> hs = localSubgraphMap[firstVertex];
+
+            unordered_set<long> hs2 = edgeListIterator->second;
+
+            for (unordered_set<long>::iterator it = hs2.begin(); it != hs2.end(); ++it) {
+                hs.insert(*it);
+            }
+
+            localSubgraphMap[firstVertex] = hs;
+        }
+
+    }
+
+    map<long, unordered_set<long>> degreeMap;
+    map<long,long> degreeReverseLookupMap;
+
+    long degree =0;
+    startVid =0;
+    map<long,unordered_set<long>>::iterator localSubgraphMapIterator;
+
+    for (localSubgraphMapIterator = localSubgraphMap.begin(); localSubgraphMapIterator != localSubgraphMap.end(); ++ localSubgraphMapIterator) {
+        startVid = localSubgraphMapIterator->first;
+        unordered_set<long> items = localSubgraphMapIterator->second;
+
+        degree = items.size();
+
+        unordered_set<long> degreeSet = degreeMap[degree];
+        degreeSet.insert(startVid);
+        degreeMap[degree] = degreeSet;
+    }
+
+    long triangleCount =0;
+    long v1 = 0;
+    long v2 = 0;
+    long v3 = 0;
+    map<long, map<long, std::vector<long>>> triangleTree;
+    vector<long> degreeListVisited;
+
+    map<long, unordered_set<long>>::iterator degreeMapIterator;
+
+    for (degreeMapIterator = degreeMap.begin(); degreeMapIterator != degreeMap.end(); ++ degreeMapIterator) {
+        long kkkk = degreeMapIterator->first;
+
+        unordered_set<long> vVertices = degreeMap[kkkk];
+
+        unordered_set<long>::iterator vVerticesIterator;
+
+        for (vVerticesIterator = vVertices.begin(); vVerticesIterator != vVertices.end(); ++vVerticesIterator) {
+            long v = *vVerticesIterator;
+            unordered_set<long> uList = localSubgraphMap[v];
+            unordered_set<long>::iterator uListIterator;
+            for (uListIterator = uList.begin(); uListIterator !=uList.end(); ++uListIterator) {
+                long u = *uListIterator;
+                unordered_set<long> nuList = localSubgraphMap[u];
+                unordered_set<long>::iterator itr4;
+                for (itr4 = nuList.begin(); itr4!= nuList.end(); ++itr4) {
+                    long nu = *itr4;
+                    unordered_set<long> nwList = localSubgraphMap[nu];
+
+                    unordered_set<long> :: iterator nwListSearchIterator = nwList.find(v);
+
+                    if (nwListSearchIterator != nwList.end()) {
+                        vector<long> tempVector;
+                        tempVector.push_back(v);
+                        tempVector.push_back(u);
+                        tempVector.push_back(nu);
+
+                        std::sort(tempVector.begin(),tempVector.end());
+
+                        v1 = tempVector[0];
+                        v2 = tempVector[1];
+                        v3 = tempVector[2];
+
+                        map<long, std::vector<long>> itemRes = triangleTree[v1];
+
+                        std::vector<long> lst = itemRes[v2];
+
+                        if (std::find(lst.begin(), lst.end(), v3) == lst.end()) {
+                            lst.push_back(v3);
+                            itemRes[v2] = lst;
+                            triangleTree[v1] = itemRes;
+                            triangleCount++;
+                        }
+
+                    }
+                }
+            }
+        }
+        degreeListVisited.push_back(kkkk);
+        degreeMap.erase(kkkk);
+    }
+    result = triangleCount;
+
+    return result;
 }

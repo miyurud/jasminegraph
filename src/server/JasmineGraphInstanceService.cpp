@@ -19,9 +19,13 @@ using namespace std;
 Logger instance_logger;
 pthread_mutex_t file_lock;
 
+
 void *instanceservicesession(void *dummyPt) {
     instanceservicesessionargs *sessionargs = (instanceservicesessionargs *) dummyPt;
     int connFd = sessionargs->connFd;
+    std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores = sessionargs->graphDBMapLocalStores;
+    std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores = sessionargs->graphDBMapCentralStores;
+
     instance_logger.log("New service session started", "info");
     Utils utils;
 
@@ -468,6 +472,8 @@ void *instanceservicesession(void *dummyPt) {
 }
 
 JasmineGraphInstanceService::JasmineGraphInstanceService() {
+    Utils utils;
+    dataFolder = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
 }
 
 int JasmineGraphInstanceService::run(int serverPort) {
@@ -516,6 +522,8 @@ int JasmineGraphInstanceService::run(int serverPort) {
     while (connectionCounter < 300) {
         instance_logger.log("Worker listening on port " + to_string(serverPort), "info");
         int connFd = accept(listenFd, (struct sockaddr *) &clntAdd, &len);
+        std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores;
+        std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores;
 
         if (connFd < 0) {
             instance_logger.log("Cannot accept connection to port " + to_string(serverPort), "error");
@@ -523,6 +531,8 @@ int JasmineGraphInstanceService::run(int serverPort) {
             instance_logger.log("Connection successful to port " + to_string(serverPort), "info");
             struct instanceservicesessionargs instanceservicesessionargs1;
             instanceservicesessionargs1.connFd = connFd;
+            instanceservicesessionargs1.graphDBMapLocalStores = graphDBMapLocalStores;
+            instanceservicesessionargs1.graphDBMapCentralStores = graphDBMapCentralStores;
 
             pthread_create(&threadA[connectionCounter], NULL, instanceservicesession,
                            &instanceservicesessionargs1);
@@ -564,4 +574,42 @@ void writeCatalogRecord(string record) {
     outfile.open(catalogFilePath.c_str(), std::ios_base::app);
     outfile << record << endl;
     outfile.close();
+}
+
+std::string JasmineGraphInstanceService::countLocalTriangles(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores) {
+    std::string result;
+
+    std::string graphIdentifier = graphId + "_" + partitionId;
+    JasmineGraphLocalStore graphDB;
+
+    std::map<std::string,JasmineGraphHashMapLocalStore>::iterator dbIterator = graphDBMapLocalStores.find(graphIdentifier);
+
+
+    if (dbIterator == graphDBMapLocalStores.end()) {
+        if (isGraphDBExists(graphId,partitionId)) {
+            loadLocalStore(graphId,partitionId,graphDBMapLocalStores);
+        }
+        graphDB = graphDBMapLocalStores[graphIdentifier];
+    } else {
+        graphDB = graphDBMapLocalStores[graphIdentifier];
+    }
+
+}
+
+bool JasmineGraphInstanceService::isGraphDBExists(std::string graphId, std::string partitionId) {
+    std::string fileName = dataFolder + "/" + graphId + "_"+partitionId;
+    std::ifstream dbFile(fileName, std::ios::binary);
+    if (!dbFile) {
+        return false;
+    }
+    return true;
+}
+
+void JasmineGraphInstanceService::loadLocalStore(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores) {
+    std::string graphIdentifier = graphId + "_"+partitionId;
+    Utils utils;
+    JasmineGraphHashMapLocalStore  *jasmineGraphHashMapLocalStore = new JasmineGraphHashMapLocalStore(atoi(graphId.c_str()),atoi(partitionId.c_str()));
+    jasmineGraphHashMapLocalStore->loadGraph();
+    graphDBMapLocalStores.insert(std::make_pair(graphIdentifier,*jasmineGraphHashMapLocalStore));
+    loadedGraphs.push_back(graphIdentifier);
 }

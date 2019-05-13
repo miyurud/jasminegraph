@@ -148,11 +148,11 @@ long JasmineGraphHashMapCentralStore::getEdgeCount() {
 }
 
 std::string JasmineGraphHashMapCentralStore::getFileSeparator() {
-#ifdef _WIN32
-    return "\\";
-#else
-    return "/";
-#endif
+    #ifdef _WIN32
+        return "\\";
+    #else
+        return "/";
+    #endif
 }
 
 void JasmineGraphHashMapCentralStore::toLocalSubGraphMap(const EdgeStore *edgeStoreData) {
@@ -167,4 +167,5 @@ void JasmineGraphHashMapCentralStore::toLocalSubGraphMap(const EdgeStore *edgeSt
         unordered_set<long> valueSet(vector.begin(), vector.end());
         localSubgraphMap.insert(std::make_pair(key, valueSet));
     }
+
 }

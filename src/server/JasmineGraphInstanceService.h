@@ -15,6 +15,10 @@ limitations under the License.
 #define JASMINEGRAPH_JASMINEGRAPHINSTANCESERVICE_H
 
 #include "JasmineGraphInstanceProtocol.h"
+#include "../localstore/JasmineGraphLocalStore.h"
+#include "../localstore/JasmineGraphHashMapLocalStore.h"
+#include "../localstore/JasmineGraphLocalStoreFactory.h"
+#include "../util/Utils.h"
 #include <string.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -29,12 +33,20 @@ limitations under the License.
 #include <string>
 #include <pthread.h>
 #include <thread>
+#include <map>
 
 void *instanceservicesession(void *dummyPt);
 void writeCatalogRecord(string record);
 void deleteGraphPartition(std::string graphID, std::string partitionID);
 
 class JasmineGraphInstanceService {
+private:
+    std::string dataFolder;
+    std::vector<std::string> loadedGraphs;
+
+    std::string countLocalTriangles(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores);
+    bool isGraphDBExists(std::string graphId, std::string partitionId);
+    void loadLocalStore(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores);
 public:
     JasmineGraphInstanceService();
 
@@ -44,6 +56,8 @@ public:
 
 struct instanceservicesessionargs {
     int connFd;
+    std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores;
+    std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores;
 };
 
 #endif //JASMINEGRAPH_JASMINEGRAPHINSTANCESERVICE_H

@@ -28,7 +28,7 @@ JasmineGraphHashMapLocalStore::JasmineGraphHashMapLocalStore(std::string folderL
 JasmineGraphHashMapLocalStore::JasmineGraphHashMapLocalStore() {
 }
 
-bool JasmineGraphHashMapLocalStore::loadGraph() {
+/*bool JasmineGraphHashMapLocalStore::loadGraph() {
     bool result = false;
     std::string edgeStorePath = instanceDataFolderLocation + getFileSeparator() + EDGE_STORE_NAME;
 
@@ -56,7 +56,7 @@ bool JasmineGraphHashMapLocalStore::loadGraph() {
     edgeCount = getEdgeCount();
 
     return result;
-}
+}*/
 
 bool JasmineGraphHashMapLocalStore::storeGraph() {
     bool result = false;

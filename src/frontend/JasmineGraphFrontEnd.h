@@ -32,6 +32,7 @@ limitations under the License.
 #include <thread>
 #include "../metadb/SQLiteDBInterface.h"
 #include "../util/PlacesToNodeMapper.h"
+#include "../centralstore/JasmineGraphHashMapCentralStore.h"
 
 void *frontendservicesesion(void *dummyPt);
 
@@ -47,12 +48,15 @@ public:
 
     static void removeGraph(std::string graphID, void *dummyPt);
 
+    static long countTriangles(std::string graphId, void *dummyPt);
+
+    static long getTriangleCount(int graphId, std::string host, int port, int partitionId);
+
+    static long countGlobalTriangles(int graphId, void *dummyPt);
+
 private:
     SQLiteDBInterface sqlite;
 
-    static void countTriangles(std::string graphId, void *dummyPt);
-
-    static long getTriangleCount(int graphId, std::string host, int port, int partitionId);
 };
 
 struct frontendservicesessionargs {
