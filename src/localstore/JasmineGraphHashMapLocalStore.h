@@ -24,8 +24,8 @@ using namespace JasmineGraph::AttributeStore;
 
 class JasmineGraphHashMapLocalStore : public JasmineGraphLocalStore {
 private:
-    std::string VERTEX_STORE_NAME = "acacia.nodestore.db";
-    std::string EDGE_STORE_NAME = "acacia.edgestore.db";
+    std::string VERTEX_STORE_NAME = "jasminegraph.nodestore.db";
+    std::string EDGE_STORE_NAME = "jasminegraph.edgestore.db";
     std::string ATTRIBUTE_STORE_NAME = "jasminegraph.attributestore";
 
     int graphId;
