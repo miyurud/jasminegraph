@@ -141,7 +141,6 @@ void RDFPartitioner::addToMap(std::map<long, std::map<long, std::set<string>>> *
 
         }
     }
-
 }
 
 
@@ -157,7 +156,6 @@ void RDFPartitioner::convert(string graphName, int graphID, string inputFilePath
 void RDFPartitioner::writeRelationData() {
     ofstream file;
     file.open("./tmp/RDF/" + std::to_string(this->graphID) + ".txt");
-
 
     for (const auto &subject : relationsMap) {
         for (const auto &relation : subject.second) {
