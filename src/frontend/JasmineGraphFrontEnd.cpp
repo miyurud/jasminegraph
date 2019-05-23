@@ -360,8 +360,7 @@ void *frontendservicesesion(void *dummyPt) {
             // We get the name and the path to graph as a pair separated by |.
             char graph_data[300];
             bzero(graph_data, 301);
-            string name = "";
-            string path = "";
+
 
             read(connFd, graph_data, 300);
 
@@ -377,9 +376,8 @@ void *frontendservicesesion(void *dummyPt) {
                 frontend_logger.log("Message format not recognized", "error");
                 break;
             }
-
-            name = strArr[0];
-            path = strArr[1];
+            string name = strArr[0];
+            string path = strArr[1];
 
             if (utils.fileExists(path)) {
                 std::cout << "Path exists" << endl;

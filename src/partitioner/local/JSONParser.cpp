@@ -120,6 +120,8 @@ void JSONParser::readFile(string filePath) {
 
 
     attrFile.close();
+    utils.deleteDirectory(this->outputFilePath + "/reformatted.txt");
+
 }
 
 
