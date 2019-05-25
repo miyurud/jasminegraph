@@ -18,9 +18,9 @@ limitations under the License.
 #include "../server/JasmineGraphServer.h"
 #include "../server/JasmineGraphInstanceProtocol.h"
 
-Logger server_log;
+Logger trainer_log;
 
-void JasminGraphTrainingInitiator::InitiateTrainingLocally(std::string trainingArgs) {
+void JasminGraphTrainingInitiator::initiateTrainingLocally(std::string trainingArgs) {
     std::cout << "Initiating training.." << std::endl;
     int count = 0;
     std::vector<JasmineGraphServer::workers> hostWorkerMap = JasmineGraphServer::getHostWorkerMap();
@@ -80,7 +80,7 @@ bool JasminGraphTrainingInitiator::initiateTrain(std::string host, int port, int
 
     bzero(data, 301);
     write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
-    server_log.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
+    trainer_log.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
     bzero(data, 301);
     read(sockfd, data, 300);
     string response = (data);
@@ -88,29 +88,29 @@ bool JasminGraphTrainingInitiator::initiateTrain(std::string host, int port, int
     response = utils.trim_copy(response, " \f\n\r\t\v");
 
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
-        server_log.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
+        trainer_log.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
         string server_host = utils.getJasmineGraphProperty("org.jasminegraph.server.host");
         write(sockfd, server_host.c_str(), server_host.size());
-        server_log.log("Sent : " + server_host, "info");
+        trainer_log.log("Sent : " + server_host, "info");
 
 
         write(sockfd, JasmineGraphInstanceProtocol::INITIATE_TRAIN.c_str(),
               JasmineGraphInstanceProtocol::INITIATE_TRAIN.size());
-        server_log.log("Sent : " + JasmineGraphInstanceProtocol::INITIATE_TRAIN, "info");
+        trainer_log.log("Sent : " + JasmineGraphInstanceProtocol::INITIATE_TRAIN, "info");
         bzero(data, 301);
         read(sockfd, data, 300);
         response = (data);
         response = utils.trim_copy(response, " \f\n\r\t\v");
         std::cout << response << std::endl;
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-            server_log.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+            trainer_log.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
             std::cout << trainingArgs << std::endl;
             write(sockfd, (trainingArgs).c_str(), (trainingArgs).size());
-            server_log.log("Sent : training args" + trainingArgs, "info");
+            trainer_log.log("Sent : training args" + trainingArgs, "info");
             return 0;
         }
     } else {
-        server_log.log("There was an error in the upload process and the response is :: " + response, "error");
+        trainer_log.log("There was an error in the upload process and the response is :: " + response, "error");
     }
 
     close(sockfd);

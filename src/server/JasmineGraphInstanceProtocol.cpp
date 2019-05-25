@@ -46,3 +46,5 @@ const string JasmineGraphInstanceProtocol::TRIANGLES = "tria";
 const string JasmineGraphInstanceProtocol::SEND_CENTRALSTORE_TO_AGGREGATOR = "aggre-copy";
 const string JasmineGraphInstanceProtocol::AGGREGATE_CENTRALSTORE_TRIANGLES = "aggregate";
 const string JasmineGraphInstanceProtocol::INITIATE_TRAIN = "initiate-train";
+const string JasmineGraphInstanceProtocol::INITIATE_PREDICT = "init-predict";
+const string JasmineGraphInstanceProtocol::SEND_HOSTS = "hosts";

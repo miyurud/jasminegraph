@@ -58,6 +58,8 @@ public:
     static long getTriangleCount(int graphId, std::string host, int port, int partitionId);
 
 
+    static bool isGraphActiveAndTrained(std::string graphID, void *dummyPt);
+
 private:
     SQLiteDBInterface sqlite;
 
