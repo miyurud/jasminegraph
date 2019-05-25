@@ -56,6 +56,8 @@ public:
     static const string AGGREGATE_CENTRALSTORE_TRIANGLES;
     static const string PERFORMANCE_STATISTICS;
     static const string INITIATE_TRAIN;
+    static const string INITIATE_PREDICT;
+    static const string SEND_HOSTS;
 };
 
 

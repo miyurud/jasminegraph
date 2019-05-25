@@ -31,3 +31,4 @@ const string GRAPHID_SEND = "graphid-send";
 const string VCOUNT= "vcnt";
 const string ECOUNT= "ecnt";
 const string TRAIN = "train";
+const string PREDICT = "predict";

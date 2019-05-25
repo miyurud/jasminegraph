@@ -11,20 +11,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
-#ifndef JASMINEGRAPH_JASMINGRAPHTRAININGINITIATOR_H
-#define JASMINEGRAPH_JASMINGRAPHTRAININGINITIATOR_H
+#ifndef JASMINEGRAPH_JASMINGRAPHLINKPREDICTOR_H
+#define JASMINEGRAPH_JASMINGRAPHLINKPREDICTOR_H
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <thread>
+#include <string>
+#include <map>
+#include "../server/JasmineGraphServer.h"
 
-class JasminGraphTrainingInitiator {
+class JasminGraphLinkPredictor {
 public:
 
-    void initiateTrainingLocally(std::string trainingArgs);
+    void initiateLinkPrediction(std::string graphID, std::string path);
 
-    static bool initiateTrain(std::string host, int port, int dataPort,std::string trainingArgs);
+    static int sendQueryToWorker(std::string host, int port, int dataPort, std::string graphID, std::string filePath,
+                           map<std::string, JasmineGraphServer::workerPartitions> remainHostMap);
 };
 
 
-#endif //JASMINEGRAPH_JASMINGRAPHTRAININGINITIATOR_H
+#endif //JASMINEGRAPH_JASMINGRAPHLINKPREDICTOR_H
