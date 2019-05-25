@@ -1276,3 +1276,50 @@ bool JasmineGraphServer::hasEnding(std::string const &fullString, std::string co
         return false;
     }
 }
+
+std::map<string, JasmineGraphServer::workerPartitions> JasmineGraphServer::getGraphPartitionedHosts(string graphID) {
+
+    vector<pair<string, string>> hostHasPartition;
+    vector<vector<pair<string, string>>> hostPartitionResults = this->sqlite.runSelect(
+            "SELECT name, partition_idpartition FROM host_has_partition INNER JOIN host ON host_idhost = idhost WHERE "
+            "partition_graph_idgraph = '" + graphID + "'");
+    for (vector<vector<pair<string, string>>>::iterator i = hostPartitionResults.begin();
+         i != hostPartitionResults.end(); ++i) {
+        int count = 0;
+        string hostname;
+        string partitionID;
+        for (std::vector<pair<string, string>>::iterator j = (i->begin()); j != i->end(); ++j) {
+            if (count == 0) {
+                hostname = j->second;
+            } else {
+                partitionID = j->second;
+                hostHasPartition.push_back(pair<string, string>(hostname, partitionID));
+            }
+            count++;
+        }
+    }
+
+    map<string, vector<string>> hostPartitions;
+    for (std::vector<pair<string, string>>::iterator j = (hostHasPartition.begin()); j != hostHasPartition.end(); ++j) {
+        cout << "HOST ID : " << j->first << " Partition ID : " << j->second << endl;
+        string hostname = j->first;
+        if (hostPartitions.count(hostname) > 0) {
+            hostPartitions[hostname].push_back(j->second);
+        } else {
+            vector<string> vec;
+            vec.push_back(j->second);
+            hostPartitions.insert((pair<string, vector<string>>(hostname, vec)));
+        }
+
+    }
+
+    map<string, JasmineGraphServer::workerPartitions> graphPartitionedHosts;
+    for (map<string, vector<string>>::iterator it = (hostPartitions.begin()); it != hostPartitions.end(); ++it) {
+        graphPartitionedHosts.insert((pair<string, JasmineGraphServer::workerPartitions>(it->first,
+                                                                                         {hostPortMap[it->first].first,
+                                                                                          hostPortMap[it->first].second,
+                                                                                          hostPartitions[it->first]})));
+    }
+
+    return graphPartitionedHosts;
+}

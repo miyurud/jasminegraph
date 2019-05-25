@@ -18,6 +18,7 @@ limitations under the License.
 #include "../util/logger/Logger.h"
 #include "../trainer/python-c-api/Python_C_API.h"
 #include "JasmineGraphInstance.h"
+#include "../server/JasmineGraphServer.h"
 
 using namespace std;
 Logger instance_logger;

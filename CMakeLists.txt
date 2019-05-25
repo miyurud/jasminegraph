@@ -38,7 +38,7 @@ add_executable(JasmineGraph main.cpp
         src/trainer/python-c-api/Python_C_API.cpp src/trainer/python-c-api/Python_C_API.h
         src/trainer/JasminGraphTrainingInitiator.cpp src/trainer/JasminGraphTrainingInitiator.h src/trainer/JasminGraphLinkPredictor.h src/trainer/JasminGraphLinkPredictor.cpp
         src/centralstore/JasmineGraphHashMapCentralStore.cpp src/centralstore/JasmineGraphHashMapCentralStore.h src/server/JasmineGraphInstanceService.h src/trainer/python-c-api/Python_C_API.cpp src/trainer/python-c-api/Python_C_API.h
-        src/trainer/JasminGraphTrainingInitiator.cpp src/trainer/JasminGraphTrainingInitiator.h)
+        src/trainer/JasminGraphTrainingInitiator.cpp src/trainer/JasminGraphTrainingInitiator.h src/trainer/JasminGraphLinkPredictor.h src/trainer/JasminGraphLinkPredictor.cpp)
 
 target_compile_options(JasmineGraph PRIVATE -std=c++11 -I/usr/include/python3.5)
 
