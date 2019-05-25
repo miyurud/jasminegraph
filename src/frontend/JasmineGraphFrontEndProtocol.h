@@ -66,6 +66,7 @@ extern const string ADD_STREAM_KAFKA;
 extern const string STREAM_TOPIC_NAME;
 extern const string REFORMAT;
 extern const string TRAIN;
+extern const string PREDICT;
 
 
 class JasminGraphFrontEndProtocol {

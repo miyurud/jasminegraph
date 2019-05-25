@@ -44,6 +44,8 @@ public:
 
     static void removeGraph(std::string graphID, void *dummyPt);
 
+    static bool isGraphActiveAndTrained(std::string graphID, void *dummyPt);
+
 private:
     SQLiteDBInterface sqlite;
 };

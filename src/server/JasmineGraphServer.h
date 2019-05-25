@@ -84,11 +84,19 @@ public:
         int dataPort;
     };
 
+    struct workerPartitions {
+        int port;
+        int dataPort;
+        std::vector<std::string> partitionID;
+    };
+
     static void updateMetaDB(std::vector<workers> hostWorkerMap,  std::map<int,std::string> partitionFileList, int graphID,
                  std::string uploadEndTime);
 
     //return hostWorkerMap
     static std::vector<JasmineGraphServer::workers> getHostWorkerMap();
+
+    std::map<std::string, workerPartitions> getGraphPartitionedHosts(std::string graphID);
 };
 
 

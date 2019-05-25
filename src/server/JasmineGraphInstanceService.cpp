@@ -16,6 +16,7 @@ limitations under the License.
 #include "../util/Utils.h"
 #include "../util/logger/Logger.h"
 #include "../trainer/python-c-api/Python_C_API.h"
+#include "../server/JasmineGraphServer.h"
 
 using namespace std;
 Logger instance_logger;
@@ -476,6 +477,83 @@ void *instanceservicesession(void *dummyPt) {
             std::transform(trainargs.begin(), trainargs.end(), std::back_inserter(vc), converter);
 
             Python_C_API::train(vc.size(), &vc[0]);
+
+        } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_PREDICT) == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::INITIATE_PREDICT, "info");
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+            bzero(data, 301);
+            read(connFd, data, 300);
+            string graphID = (data);
+            graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
+            instance_logger.log("Received Graph ID: " + graphID, "info");
+            /*Receive hosts' detail*/
+            write(connFd, JasmineGraphInstanceProtocol::SEND_HOSTS.c_str(),
+                  JasmineGraphInstanceProtocol::SEND_HOSTS.size());
+            bzero(data, 501);
+            read(connFd, data, 500);
+            string hostList = (data);
+            instance_logger.log("Received Hosts List: " + hostList, "info");
+
+            //Put all hosts to a map
+            std::map<std::string, JasmineGraphServer::workerPartitions> graphPartitionedHosts;
+            std::vector<std::string> hosts = Utils::split(hostList, '|');
+            for (std::vector<std::string>::iterator it = hosts.begin();
+                 it != hosts.end(); ++it) {
+                std::vector<std::string> hostDetail = Utils::split(*it, ',');
+                std::string hostName;
+                int port;
+                int dataport;
+                std::vector<string> partitionIDs;
+                for (std::vector<std::string>::iterator j = hostDetail.begin();
+                     j != hostDetail.end(); ++j) {
+                    int index = std::distance(hostDetail.begin(), j);
+                    if (index == 0) {
+                        hostName = *j;
+                    } else if (index == 1) {
+                        port = stoi(*j);
+                    } else if (index == 2) {
+                        dataport = stoi(*j);
+                    } else {
+                        partitionIDs.push_back(*j);
+                    }
+                }
+                graphPartitionedHosts.insert(
+                        pair<string, JasmineGraphServer::workerPartitions>(hostName, {port, dataport, partitionIDs}));
+            }
+            /*Receive file*/
+            write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_NAME.c_str(),
+                  JasmineGraphInstanceProtocol::SEND_FILE_NAME.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_NAME, "info");
+            bzero(data, 301);
+            read(connFd, data, 300);
+            string fileName = (data);
+            instance_logger.log("Received File name: " + fileName, "info");
+            write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_LEN.c_str(),
+                  JasmineGraphInstanceProtocol::SEND_FILE_LEN.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN, "info");
+            bzero(data, 301);
+            read(connFd, data, 300);
+            string size = (data);
+            int fileSize = atoi(size.c_str());
+            instance_logger.log("Received file size in bytes: " + fileSize, "info");
+            write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_CONT.c_str(),
+                  JasmineGraphInstanceProtocol::SEND_FILE_CONT.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
+            string fullFilePath =
+                    utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
+
+            while (utils.fileExists(fullFilePath) && utils.getFileSize(fullFilePath) < fileSize) {
+                bzero(data, 301);
+                read(connFd, data, 300);
+                line = (data);
+                if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
+                    write(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT.c_str(),
+                          JasmineGraphInstanceProtocol::FILE_RECV_WAIT.size());
+                }
+            }
+            instance_logger.log("File received and saved to " + fullFilePath, "info");
+            loop = true;
 
         }
         // TODO :: Implement the rest of the protocol

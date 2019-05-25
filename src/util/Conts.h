@@ -61,6 +61,11 @@ public:
         static const int DELETING;          //Graph partitions are being deleted
         static const int NONOPERATIONAL;    //Graph is uploaded but some partitions of it are not accessible with the current set of active hosts
     };
+
+    struct TRAIN_STATUS {
+        static const std::string TRAINED;
+        static const std::string NOT_TRAINED;
+    };
 };
 
 

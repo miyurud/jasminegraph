@@ -42,3 +42,5 @@ const string JasmineGraphInstanceProtocol::FILE_ACK = "file-ok";
 const string JasmineGraphInstanceProtocol::STATUS = "status";
 const string JasmineGraphInstanceProtocol::DELETE_GRAPH = "delete";
 const string JasmineGraphInstanceProtocol::INITIATE_TRAIN = "initiate-train";
+const string JasmineGraphInstanceProtocol::INITIATE_PREDICT = "init-predict";
+const string JasmineGraphInstanceProtocol::SEND_HOSTS = "hosts";

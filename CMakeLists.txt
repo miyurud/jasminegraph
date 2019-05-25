@@ -30,8 +30,9 @@ add_executable(JasmineGraph main.cpp src/server/JasmineGraphServer.cpp src/serve
         src/partitioner/local/RDFParser.cpp src/partitioner/local/RDFParser.h src/partitioner/stream/Partitioner.cpp src/partitioner/stream/JasmineGraphIncrementalStore.cpp
         src/partitioner/local/RDFParser.cpp src/partitioner/local/RDFParser.h src/server/JasmineGraphInstanceService.cpp src/server/JasmineGraphInstanceService.h src/trainer/python-c-api/Python_C_API.cpp src/trainer/python-c-api/Python_C_API.h
         src/partitioner/local/RDFParser.cpp src/partitioner/local/RDFParser.h
-        src/server/JasmineGraphInstanceService.cpp src/server/JasmineGraphInstanceService.h src/trainer/python-c-api/Python_C_API.cpp src/trainer/python-c-api/Python_C_API.h
-        src/trainer/JasminGraphTrainingInitiator.cpp src/trainer/JasminGraphTrainingInitiator.h)
+        src/server/JasmineGraphInstanceService.cpp src/server/JasmineGraphInstanceService.h
+        src/trainer/python-c-api/Python_C_API.cpp src/trainer/python-c-api/Python_C_API.h
+        src/trainer/JasminGraphTrainingInitiator.cpp src/trainer/JasminGraphTrainingInitiator.h src/trainer/JasminGraphLinkPredictor.h src/trainer/JasminGraphLinkPredictor.cpp)
 
 #file(GLOB_RECURSE Dir1_Sources "*.cpp")
 #add_executable(JesminGraph ${Dir1_Sources})
