@@ -43,3 +43,5 @@ const string JasmineGraphInstanceProtocol::STATUS = "status";
 const string JasmineGraphInstanceProtocol::DELETE_GRAPH = "delete";
 const string JasmineGraphInstanceProtocol::NPLACES = "nplac";
 const string JasmineGraphInstanceProtocol::TRIANGLES = "tria";
+const string JasmineGraphInstanceProtocol::SEND_CENTRALSTORE_TO_AGGREGATOR = "aggre-copy";
+const string JasmineGraphInstanceProtocol::AGGREGATE_CENTRALSTORE_TRIANGLES = "aggregate";

@@ -18,6 +18,7 @@ limitations under the License.
 #include "../localstore/JasmineGraphLocalStore.h"
 #include "../localstore/JasmineGraphHashMapLocalStore.h"
 #include "../localstore/JasmineGraphLocalStoreFactory.h"
+#include "../query/algorithm/triangles/Triangles.h"
 #include "../util/Utils.h"
 #include <string.h>
 #include <unistd.h>
@@ -34,24 +35,31 @@ limitations under the License.
 #include <pthread.h>
 #include <thread>
 #include <map>
+#include <sys/types.h>
+#include <dirent.h>
 
 void *instanceservicesession(void *dummyPt);
 void writeCatalogRecord(string record);
 void deleteGraphPartition(std::string graphID, std::string partitionID);
+long countLocalTriangles(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores, std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores);
 
 class JasmineGraphInstanceService {
-private:
-    std::string dataFolder;
-    std::vector<std::string> loadedGraphs;
-
-    std::string countLocalTriangles(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores);
-    bool isGraphDBExists(std::string graphId, std::string partitionId);
-    void loadLocalStore(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores);
 public:
     JasmineGraphInstanceService();
 
     int run(int serverPort);
 
+    static bool isGraphDBExists(std::string graphId, std::string partitionId);
+    static bool isInstanceCentralStoreExists(std::string graphId, std::string partitionId);
+    static void loadLocalStore(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores);
+    static void loadInstanceCentralStore(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores);
+    static JasmineGraphHashMapCentralStore loadCentralStore(std::string centralStoreFileName);
+    static std::string copyCentralStoreToAggregator(std::string graphId, std::string partitionId, std::string aggregatorHost, std::string aggregatorPort, std::string host);
+    static long aggregateCentralStoreTriangles (std::string graphId, std::string partitionId);
+    static map<long, long> getOutDegreeDistributionHashMap(map<long, unordered_set<long>> graphMap);
+
+private:
+    static long countCentralStoreTriangles (map<long, unordered_set<long>> centralStore, map<long, long> distributionMap);
 };
 
 struct instanceservicesessionargs {

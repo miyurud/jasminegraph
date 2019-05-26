@@ -8,15 +8,16 @@
 
 #include <string>
 #include "../../../localstore/JasmineGraphHashMapLocalStore.h"
+#include "../../../centralstore/JasmineGraphHashMapCentralStore.h"
 #include <map>
 #include <set>
 #include <algorithm>
 
 class Triangles {
 public:
-    static std::string run (JasmineGraphHashMapLocalStore graphDB, std::string hostName);
+    static long run (JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCentralStore centralStore, std::string hostName);
 
-    static std::string run (JasmineGraphHashMapLocalStore graphDB, std::string graphId, std::string partitionId, std::string serverHostName);
+    static long run (JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCentralStore centralStore, std::string graphId, std::string partitionId);
 
 
 

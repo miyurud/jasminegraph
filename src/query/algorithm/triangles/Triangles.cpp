@@ -6,15 +6,16 @@
 #include "Triangles.h"
 #include "../../../localstore/JasmineGraphHashMapLocalStore.h"
 
-std::string Triangles::run(JasmineGraphHashMapLocalStore graphDB, std::string hostName) {
-    return run(graphDB,NULL,NULL,hostName);
+long Triangles::run(JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCentralStore centralStore, std::string hostName) {
+    return run(graphDB,centralStore, NULL,NULL);
 }
 
-std::string Triangles::run(JasmineGraphHashMapLocalStore graphDB, std::string graphId, std::string partitionId,
-                           std::string serverHostName) {
+long Triangles::run(JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCentralStore centralStore, std::string graphId, std::string partitionId) {
     map<long, unordered_set<long>> localSubGraphMap = graphDB.getUnderlyingHashMap();
+    map<long, unordered_set<long>> centralDBSubGraphMap = centralStore.getUnderlyingHashMap();
     long edgeCount = graphDB.getEdgeCount();
     map<long,long> degreeDistribution = graphDB.getOutDegreeDistributionHashMap();
+    map<long,long> centralDBDegreeDistribution = centralStore.getOutDegreeDistributionHashMap();
     std::map<long,long> degreeReverseLookupMap;
     std::map<long,std::set<long>> degreeMap;
     std::set<long> degreeSet;
@@ -22,6 +23,37 @@ std::string Triangles::run(JasmineGraphHashMapLocalStore graphDB, std::string gr
     long degree;
 
     std::map<long,long>::iterator it;
+    std::map<long,long>::iterator degreeDistributionIterator;
+    std::map<long,long>::iterator centralDBDegreeDistributionIterator;
+
+    //Merging Local Store and Workers central stores before starting triangle count
+    for (centralDBDegreeDistributionIterator = centralDBDegreeDistribution.begin();centralDBDegreeDistributionIterator != centralDBDegreeDistribution.end();++centralDBDegreeDistributionIterator) {
+        long centralDBStartVid = centralDBDegreeDistributionIterator->first;
+        long centralDBDegree = centralDBDegreeDistributionIterator->second;
+        bool isFound = false;
+        for (degreeDistributionIterator = degreeDistribution.begin(); degreeDistributionIterator != degreeDistribution.end();++degreeDistributionIterator) {
+            long localStartVid = degreeDistributionIterator->first;
+            long localDBDegree = degreeDistributionIterator->second;
+
+            if (centralDBStartVid == localStartVid) {
+                localDBDegree += centralDBDegree;
+                isFound = true;
+                degreeDistribution[localStartVid] = localDBDegree;
+                unordered_set<long> localDBMapSet = localSubGraphMap[localStartVid];
+                unordered_set<long> centralDBMapSet = centralDBSubGraphMap[centralDBStartVid];
+
+                localDBMapSet.insert(centralDBMapSet.begin(),centralDBMapSet.end());
+
+                localSubGraphMap[localStartVid] = localDBMapSet;
+            }
+        }
+
+        if (!isFound) {
+            degreeDistribution[centralDBStartVid] = centralDBDegree;
+            localSubGraphMap[centralDBStartVid] = centralDBSubGraphMap[centralDBStartVid];
+        }
+    }
+
 
     for (it = degreeDistribution.begin(); it != degreeDistribution.end();++it) {
         startVId = it->first;
@@ -101,5 +133,5 @@ std::string Triangles::run(JasmineGraphHashMapLocalStore graphDB, std::string gr
         degreeListVisited.push_back(key);
     }
 
-    return std::to_string(triangleCount);
+    return triangleCount;
 }

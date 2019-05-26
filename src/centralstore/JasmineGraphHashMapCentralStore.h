@@ -37,7 +37,7 @@ private:
     int  partitionId = 0;
 
     string instanceDataFolderLocation;
-    std::map<long,unordered_set<long>> localSubgraphMap;
+    std::map<long,unordered_set<long>> centralSubgraphMap;
 
     long vertexCount = 0;
     long edgeCount =0;
@@ -56,6 +56,8 @@ public:
     JasmineGraphHashMapCentralStore(std::string folderLocation);
 
     bool loadGraph();
+
+    bool loadGraph(std::string fileName);
 
     bool storeGraph();
 

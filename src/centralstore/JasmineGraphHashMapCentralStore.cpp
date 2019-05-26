@@ -59,7 +59,37 @@ bool JasmineGraphHashMapCentralStore::loadGraph() {
 
     result = true;
 
-    vertexCount = localSubgraphMap.size();
+    vertexCount = centralSubgraphMap.size();
+    edgeCount = getEdgeCount();
+
+    return result;
+}
+
+bool JasmineGraphHashMapCentralStore::loadGraph(std::string fileName) {
+    bool result = false;
+    std::string edgeStorePath = fileName;
+
+    std::ifstream dbFile;
+    dbFile.open(edgeStorePath, std::ios::binary | std::ios::in);
+
+    if (!dbFile.is_open()) {
+        return result;
+    }
+
+    dbFile.seekg(0, std::ios::end);
+    int length = dbFile.tellg();
+    dbFile.seekg(0, std::ios::beg);
+    char *data = new char[length];
+    dbFile.read(data, length);
+    dbFile.close();
+
+    auto edgeStoreData = GetEdgeStore(data);
+
+    toLocalSubGraphMap(edgeStoreData);
+
+    result = true;
+
+    vertexCount = centralSubgraphMap.size();
     edgeCount = getEdgeCount();
 
     return result;
@@ -72,8 +102,8 @@ bool JasmineGraphHashMapCentralStore::storeGraph() {
     std::string edgeStorePath = instanceDataFolderLocation + getFileSeparator() + CENTRAL_STORE_NAME;
 
     std::map<long, std::unordered_set<long>>::iterator localSubGraphMapIterator;
-    for (localSubGraphMapIterator = localSubgraphMap.begin();
-         localSubGraphMapIterator != localSubgraphMap.end(); localSubGraphMapIterator++) {
+    for (localSubGraphMapIterator = centralSubgraphMap.begin();
+         localSubGraphMapIterator != centralSubgraphMap.end(); localSubGraphMapIterator++) {
         long key = localSubGraphMapIterator->first;
         unordered_set<long> value = localSubGraphMapIterator->second;
 
@@ -100,13 +130,13 @@ bool JasmineGraphHashMapCentralStore::storeGraph() {
 }
 
 map<long, unordered_set<long>> JasmineGraphHashMapCentralStore::getUnderlyingHashMap() {
-    return localSubgraphMap;
+    return centralSubgraphMap;
 }
 
 map<long, long> JasmineGraphHashMapCentralStore::getOutDegreeDistributionHashMap() {
     map<long, long> distributionHashMap;
 
-    for (map<long, unordered_set<long>>::iterator it = localSubgraphMap.begin(); it != localSubgraphMap.end(); ++it) {
+    for (map<long, unordered_set<long>>::iterator it = centralSubgraphMap.begin(); it != centralSubgraphMap.end(); ++it) {
         long distribution = (it->second).size();
         distributionHashMap.insert(std::make_pair(it->first, distribution));
     }
@@ -118,8 +148,8 @@ void JasmineGraphHashMapCentralStore::addVertex(string *attributes) {
 }
 
 void JasmineGraphHashMapCentralStore::addEdge(long startVid, long endVid) {
-    map<long, unordered_set<long>>::iterator entryIterator = localSubgraphMap.find(startVid);
-    if (entryIterator != localSubgraphMap.end()) {
+    map<long, unordered_set<long>>::iterator entryIterator = centralSubgraphMap.find(startVid);
+    if (entryIterator != centralSubgraphMap.end()) {
         unordered_set<long> neighbours = entryIterator->second;
         neighbours.insert(endVid);
         entryIterator->second = neighbours;
@@ -128,7 +158,7 @@ void JasmineGraphHashMapCentralStore::addEdge(long startVid, long endVid) {
 
 long JasmineGraphHashMapCentralStore::getVertexCount() {
     if (vertexCount == 0) {
-        vertexCount = localSubgraphMap.size();
+        vertexCount = centralSubgraphMap.size();
     }
 
     return vertexCount;
@@ -137,9 +167,9 @@ long JasmineGraphHashMapCentralStore::getVertexCount() {
 long JasmineGraphHashMapCentralStore::getEdgeCount() {
     if (edgeCount == 0) {
         std::map<long, std::unordered_set<long>>::iterator localSubGraphMapIterator;
-        long mapSize = localSubgraphMap.size();
-        for (localSubGraphMapIterator = localSubgraphMap.begin();
-             localSubGraphMapIterator != localSubgraphMap.end(); localSubGraphMapIterator++) {
+        long mapSize = centralSubgraphMap.size();
+        for (localSubGraphMapIterator = centralSubgraphMap.begin();
+             localSubGraphMapIterator != centralSubgraphMap.end(); localSubGraphMapIterator++) {
             edgeCount = edgeCount + localSubGraphMapIterator->second.size();
         }
     }
@@ -165,7 +195,7 @@ void JasmineGraphHashMapCentralStore::toLocalSubGraphMap(const EdgeStore *edgeSt
         auto value = entry->value();
         const flatbuffers::Vector<long> &vector = *value;
         unordered_set<long> valueSet(vector.begin(), vector.end());
-        localSubgraphMap.insert(std::make_pair(key, valueSet));
+        centralSubgraphMap.insert(std::make_pair(key, valueSet));
     }
 
 }

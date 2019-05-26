@@ -30,6 +30,7 @@ limitations under the License.
 #include <pthread.h>
 #include <chrono>
 #include <thread>
+#include <map>
 #include "../metadb/SQLiteDBInterface.h"
 #include "../util/PlacesToNodeMapper.h"
 #include "../centralstore/JasmineGraphHashMapCentralStore.h"
@@ -47,6 +48,10 @@ public:
     static bool graphExistsByID(std::string id, void *dummyPt);
 
     static void removeGraph(std::string graphID, void *dummyPt);
+
+    static std::string copyCentralStoreToAggregator(std::string aggregatorHostName, std::string aggregatorPort, std::string host, std::string port, int graphId, int partitionId);
+
+    static long countCentralStoreTriangles (std::string aggregatorHostName, std::string aggregatorPort, std::string host, std::string partitionId, std::string graphId);
 
     static long countTriangles(std::string graphId, void *dummyPt);
 
