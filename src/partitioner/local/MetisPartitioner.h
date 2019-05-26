@@ -30,6 +30,7 @@ limitations under the License.
 #include <cstddef>
 #include <algorithm>
 #include <thread>
+#include <mutex>
 #include "RDFParser.h"
 #include <flatbuffers/util.h>
 
@@ -44,19 +45,7 @@ public:
     //void partitionGraph();
     int constructMetisFormat(string graph_type);
 
-    void partitioneWithGPMetis();
-
-    //return list of partition files
-    static std::vector<string> getPartitionFiles();
-
-    //return list of centralStore files
-    static std::vector<string> getCentalStoreFiles();
-
-    //return list of attribute files related to rdf graph partitions
-    static std::vector<string> getPartitionAttributeFiles();
-
-    //return list of attribute files related to rdf graph centralstore portions
-    static std::vector<string> getCentralStoreAttributeFiles();
+    std::vector<std::map<int,std::string>> partitioneWithGPMetis();
 
     //reformat the vertex list by mapping vertex values to new sequntial IDs
     std::string reformatDataSet(string inputFilePath, int graphID);
@@ -83,11 +72,18 @@ private:
     int smallestVertex = std::numeric_limits<int>::max();
     string graphTypeInt;
 
+    std::map<int,std::string> partitionFileList;
+    std::map<int,std::string> centralStoreFileList;
+    std::map<int,std::string> partitionAttributeFileList;
+    std::map<int,std::string> centralStoreAttributeFileList;
+    std::vector<std::map<int,std::string>> fullFileList;
+
     std::map<int, std::vector<int>> graphStorageMap;
     std::map<int, std::vector<int>> graphEdgeMap;
     std::map<int, std::vector<int>> partVertexMap;
     std::map<int, std::map<int, std::vector<int>>> partitionedLocalGraphStorageMap;
     std::map<int, std::map<int, std::vector<int>>> masterGraphStorageMap;
+    std::map<int, std::map<int,std::vector<std::pair<int,int>>>> commonCentralStoreEdgeMap;
     std::vector<int> xadj;
     std::vector<int> adjncy;
     std::map<std::pair<int, int>, int> edgeMap;
@@ -97,7 +93,11 @@ private:
     std::map<long, std::vector<string>> attributeDataMap;
 
 
-    void createPartitionFiles(idx_t part[]);
+    void createPartitionFiles(std::map<int,int> partMap);
+
+    void populatePartMaps(std::map<int,int> partMap, int part);
+
+    void writePartitionFiles(int part);
 };
 
 

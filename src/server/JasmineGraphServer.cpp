@@ -168,31 +168,28 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector,
         artifactPath = utils.getJasmineGraphHome();
     }
 
+    copyArtifactsToWorkers(workerPath,artifactPath,host);
     for (int i =0 ; i < workerPortsVector.size() ; i++) {
         if (host.find("localhost") != std::string::npos) {
-            copyArtifactsToWorkers(workerPath,artifactPath,host);
             serverStartScript = executableFile+" 2 "+ std::to_string(workerPortsVector.at(i)) + " " + std::to_string(workerDataPortsVector.at(i));
         } else {
-            copyArtifactsToWorkers(workerPath,artifactPath,host);
             serverStartScript = "ssh -p 22 " + host+ " "+ executableFile + " 2"+" "+ std::to_string(workerPortsVector.at(i)) + " " + std::to_string(workerDataPortsVector.at(i));
         }
-        //std::cout<<serverStartScript<< std::endl;
         popen(serverStartScript.c_str(),"r");
-
     }
 }
 
-void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType) {
+void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType, vector<std::map<int,string>> fullFileList) {
     std::cout << "Uploading the graph locally.." << std::endl;
-    std::vector<string> partitionFileList = MetisPartitioner::getPartitionFiles();
-    std::vector<string> centralStoreFileList = MetisPartitioner::getCentalStoreFiles();
-    std::vector<string> attributeFileList;
-    std::vector<string> centralStoreAttributeFileList;
+    std::map<int,string> partitionFileList = fullFileList[0];
+    std::map<int,string> centralStoreFileList = fullFileList[1];
+    std::map<int,string> attributeFileList;
+    std::map<int,string> centralStoreAttributeFileList;
     int total_threads = partitionFileList.size() + centralStoreFileList.size();
     if (graphType == Conts::GRAPH_WITH_ATTRIBUTES){
-        attributeFileList = MetisPartitioner::getPartitionAttributeFiles();
+        attributeFileList = fullFileList[2];
         total_threads += attributeFileList.size();
-        centralStoreAttributeFileList = MetisPartitioner::getCentralStoreAttributeFiles();
+        centralStoreAttributeFileList = fullFileList[3];
         total_threads += centralStoreAttributeFileList.size();
     }
     int count = 0;
@@ -236,7 +233,6 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType)
     string uploadEndTime = ctime(&time);
 
     //The following function updates the 'host_has_partition' table and 'graph' table only
-    //TODO::Update the 'partition' table after taking edge and vertex counts
     updateMetaDB(hostWorkerMap, partitionFileList, graphID, uploadEndTime);
 
 }
@@ -1040,7 +1036,7 @@ map<string, string> JasmineGraphServer::getLiveHostIDList() {
 }
 
 void JasmineGraphServer::updateMetaDB(vector<JasmineGraphServer::workers> hostWorkerMap,
-                                      std::vector<std::string> partitionFileList, int graphID, string uploadEndTime) {
+                                      std::map<int,string> partitionFileList, int graphID, string uploadEndTime) {
     SQLiteDBInterface refToSqlite = *new SQLiteDBInterface();
     refToSqlite.init();
     int file_count = 0;
