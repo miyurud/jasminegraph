@@ -25,6 +25,8 @@ limitations under the License.
 #include "../util/logger/Logger.h"
 #include "../server/JasmineGraphServer.h"
 #include "../partitioner/local/RDFParser.h"
+#include "../partitioner/local/JSONParser.h"
+
 
 using namespace std;
 
@@ -349,6 +351,45 @@ void *frontendservicesesion(void *dummyPt) {
             } else {
                 frontend_logger.log("Graph does not exist or cannot be deleted with the current hosts setting",
                                     "error");
+            }
+
+        } else if (line.compare(REFORMAT) == 0) {
+            write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
+            write(connFd, "\r\n", 2);
+
+            // We get the name and the path to graph as a pair separated by |.
+            char graph_data[300];
+            bzero(graph_data, 301);
+
+
+            read(connFd, graph_data, 300);
+
+            string gData(graph_data);
+
+            Utils utils;
+            gData = utils.trim_copy(gData, " \f\n\r\t\v");
+            frontend_logger.log("Data received: " + gData, "info");
+
+            std::vector<std::string> strArr = Utils::split(gData, '|');
+
+            if (strArr.size() != 2) {
+                frontend_logger.log("Message format not recognized", "error");
+                break;
+            }
+            string name = strArr[0];
+            string path = strArr[1];
+
+            if (utils.fileExists(path)) {
+                std::cout << "Path exists" << endl;
+
+                JSONParser *jsonParser = new JSONParser();
+                jsonParser->readFile(path);
+                frontend_logger.log("Reformatted files created on /home/.jasminegraph/tmp/JSONParser/output", "info");
+
+
+            } else {
+                frontend_logger.log("Graph data file does not exist on the specified path", "error");
+                break;
             }
         } else {
             frontend_logger.log("Message format not recognized " + line, "error");
