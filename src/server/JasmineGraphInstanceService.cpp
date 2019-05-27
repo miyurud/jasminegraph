@@ -22,7 +22,6 @@ pthread_mutex_t file_lock;
 void *instanceservicesession(void *dummyPt) {
     instanceservicesessionargs *sessionargs = (instanceservicesessionargs *) dummyPt;
     int connFd = sessionargs->connFd;
-
     instance_logger.log("New service session started", "info");
     Utils utils;
 
@@ -85,24 +84,41 @@ void *instanceservicesession(void *dummyPt) {
             bzero(data, 301);
             read(connFd, data, 300);
             string size = (data);
-            int fileSize = atoi(size.c_str());
-            instance_logger.log("Received file size in bytes: " + fileSize, "info");
+            //int fileSize = atoi(size.c_str());
+            instance_logger.log("Received file size in bytes: " + size, "info");
             write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_CONT.c_str(),
                   JasmineGraphInstanceProtocol::SEND_FILE_CONT.size());
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
             string fullFilePath =
                     utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
-            while (utils.fileExists(fullFilePath) && utils.getFileSize(fullFilePath) < fileSize) {
-                bzero(data, 301);
-                read(connFd, data, 300);
-                line = (data);
-
-                if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
-                    write(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT.c_str(),
-                          JasmineGraphInstanceProtocol::FILE_RECV_WAIT.size());
+            int fileSize = atoi(size.c_str());
+            while (true){
+                if (utils.fileExists(fullFilePath)){
+                    while (utils.getFileSize(fullFilePath) < fileSize) {
+                        bzero(data, 301);
+                        read(connFd, data, 300);
+                        line = (data);
+                        if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
+                            write(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT.c_str(),
+                                  JasmineGraphInstanceProtocol::FILE_RECV_WAIT.size());
+                        }
+                    }
+                    break;
+                }else{
+                    continue;
                 }
-            }
 
+            }
+//            while (utils.fileExists(fullFilePath) && utils.getFileSize(fullFilePath) < fileSize) {
+//                bzero(data, 301);
+//                read(connFd, data, 300);
+//                line = (data);
+//
+//                if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
+//                    write(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT.c_str(),
+//                          JasmineGraphInstanceProtocol::FILE_RECV_WAIT.size());
+//                }
+//            }
             bzero(data, 301);
             read(connFd, data, 300);
             line = (data);
@@ -172,15 +188,14 @@ void *instanceservicesession(void *dummyPt) {
             bzero(data, 301);
             read(connFd, data, 300);
             string size = (data);
-            int fileSize = atoi(size.c_str());
-            instance_logger.log("Received file size in bytes: " + fileSize, "info");
+            instance_logger.log("Received file size in bytes: " + size, "info");
             write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_CONT.c_str(),
                   JasmineGraphInstanceProtocol::SEND_FILE_CONT.size());
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
             string fullFilePath =
                     utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
 
-            while (utils.fileExists(fullFilePath) && utils.getFileSize(fullFilePath) < fileSize) {
+            /*while (utils.fileExists(fullFilePath) && utils.getFileSize(fullFilePath) < fileSize) {
                 bzero(data, 301);
                 read(connFd, data, 300);
                 line = (data);
@@ -189,6 +204,25 @@ void *instanceservicesession(void *dummyPt) {
                     write(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT.c_str(),
                           JasmineGraphInstanceProtocol::FILE_RECV_WAIT.size());
                 }
+            }*/
+            int fileSize = atoi(size.c_str());
+            while (true){
+                if (utils.fileExists(fullFilePath)){
+                    while (utils.getFileSize(fullFilePath) < fileSize) {
+                        bzero(data, 301);
+                        read(connFd, data, 300);
+                        line = (data);
+
+                        if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
+                            write(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT.c_str(),
+                                  JasmineGraphInstanceProtocol::FILE_RECV_WAIT.size());
+                        }
+                    }
+                    break;
+                }else{
+                    continue;
+                }
+
             }
 
             bzero(data, 301);
@@ -254,14 +288,13 @@ void *instanceservicesession(void *dummyPt) {
             bzero(data, 301);
             read(connFd, data, 300);
             string size = (data);
-            int fileSize = atoi(size.c_str());
-            instance_logger.log("Received file size in bytes: " + fileSize, "info");
+            instance_logger.log("Received file size in bytes: " + size, "info");
             write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_CONT.c_str(),
                   JasmineGraphInstanceProtocol::SEND_FILE_CONT.size());
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
             string fullFilePath =
                     utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
-
+            int fileSize = atoi(size.c_str());
             while (utils.fileExists(fullFilePath) && utils.getFileSize(fullFilePath) < fileSize) {
                 bzero(data, 301);
                 read(connFd, data, 300);
@@ -336,14 +369,13 @@ void *instanceservicesession(void *dummyPt) {
             bzero(data, 301);
             read(connFd, data, 300);
             string size = (data);
-            int fileSize = atoi(size.c_str());
-            instance_logger.log("Received file size in bytes: " + fileSize, "info");
+            instance_logger.log("Received file size in bytes: " + size, "info");
             write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_CONT.c_str(),
                   JasmineGraphInstanceProtocol::SEND_FILE_CONT.size());
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
             string fullFilePath =
                     utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
-
+            int fileSize = atoi(size.c_str());
             while (utils.fileExists(fullFilePath) && utils.getFileSize(fullFilePath) < fileSize) {
                 bzero(data, 301);
                 read(connFd, data, 300);

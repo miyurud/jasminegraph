@@ -349,8 +349,6 @@ bool JasmineGraphServer::batchUploadFile(std::string host, int port, int dataPor
                 bzero(data, 301);
                 read(sockfd, data, 300);
                 response = (data);
-                //response = utils.trim_copy(response, " \f\n\r\t\v");
-
                 if (response.compare(JasmineGraphInstanceProtocol::FILE_RECV_WAIT) == 0) {
                     server_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_WAIT, "info");
                     server_logger.log("Checking file status : " + to_string(count), "info");
@@ -362,8 +360,7 @@ bool JasmineGraphServer::batchUploadFile(std::string host, int port, int dataPor
                     server_logger.log("File transfer completed", "info");
                     break;
                 }
-            }
-
+            };
             //Next we wait till the batch upload completes
             while (true) {
                 write(sockfd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK.c_str(),
@@ -891,7 +888,7 @@ bool JasmineGraphServer::sendFileThroughService(std::string host, int dataPort, 
 
         FILE *fp = fopen(filePath.c_str(), "r");
         if (fp == NULL) {
-            printf("Error opening file\n");
+            //printf("Error opening file\n");
             close(sockfd);
             return 0;
         }
@@ -909,7 +906,7 @@ bool JasmineGraphServer::sendFileThroughService(std::string host, int dataPort, 
 
             if (nread < 1024) {
                 if (feof(fp))
-                    //printf("End of file\n");
+                    printf("End of file\n");
                 if (ferror(fp))
                     printf("Error reading\n");
                 break;
