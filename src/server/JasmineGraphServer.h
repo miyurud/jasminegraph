@@ -59,7 +59,7 @@ public:
 
     bool isRunning();
 
-    void uploadGraphLocally(int graphID, const std::string graphType);
+    void uploadGraphLocally(int graphID, const std::string graphType, std::vector<std::map<int,std::string>> fullFileList);
 
     void removeGraph(std::vector<std::pair<std::string, std::string>> hostHasPartition, std::string graphID);
 
@@ -84,7 +84,7 @@ public:
         int dataPort;
     };
 
-    static void updateMetaDB(std::vector<workers> hostWorkerMap, std::vector<std::string> partitionFileList, int graphID,
+    static void updateMetaDB(std::vector<workers> hostWorkerMap,  std::map<int,std::string> partitionFileList, int graphID,
                  std::string uploadEndTime);
 };
 

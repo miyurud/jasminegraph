@@ -34,5 +34,5 @@ add_executable(JasmineGraph main.cpp src/server/JasmineGraphServer.cpp src/serve
 #target_link_libraries(JasmineGraph /usr/local/lib/libmetis.so)
 #TODO: Need to install the library separately
 target_link_libraries(JasmineGraph /usr/local/lib/libmetis.a)
-target_link_libraries(JasmineGraph /opt/lib/libxerces-c.a)
+target_link_libraries(JasmineGraph $ENV{HOME}/software/xerces-c-3.2.2/lib/libxerces-c.so)
 target_link_libraries(JasmineGraph $ENV{HOME}/software/flatbuffers/libflatbuffers.a)

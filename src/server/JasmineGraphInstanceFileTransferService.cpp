@@ -23,8 +23,6 @@ void *filetransferservicesession(void *dummyPt) {
     filetransferservicesessionargs *sessionargs = (filetransferservicesessionargs *) dummyPt;
     int connFd = sessionargs->connFd;
     Utils utils;
-    //pthread_mutex_lock(&thread_lock);
-    file_service_logger.log("Thread locked", "info");
     char data[300];
     bzero(data, 301);
     read(connFd, data, 300);
@@ -46,8 +44,6 @@ void *filetransferservicesession(void *dummyPt) {
         }
     } while (bytesReceived > 0);
     file.close();
-    //pthread_mutex_unlock(&thread_lock);
-    file_service_logger.log("Thread lock released", "info");
 }
 
 JasmineGraphInstanceFileTransferService::JasmineGraphInstanceFileTransferService() {
