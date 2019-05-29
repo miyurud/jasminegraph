@@ -26,7 +26,7 @@ add_executable(JasmineGraph main.cpp src/server/JasmineGraphServer.cpp src/serve
         src/backend/JasmineGraphBackendProtocol.cpp src/backend/JasmineGraphBackendProtocol.h src/server/JasmineGraphInstanceProtocol.cpp
         src/server/JasmineGraphInstanceProtocol.h src/server/JasmineGraphInstanceFileTransferService.cpp src/server/JasmineGraphInstanceFileTransferService.h
         src/server/JasmineGraphInstanceService.cpp src/server/JasmineGraphInstanceService.h
-        src/partitioner/local/RDFParser.cpp src/partitioner/local/RDFParser.h)
+        src/partitioner/local/RDFParser.cpp src/partitioner/local/RDFParser.h src/partitioner/Partitioner.h src/partitioner/Partition.h)
 
 #file(GLOB_RECURSE Dir1_Sources "*.cpp")
 #add_executable(JesminGraph ${Dir1_Sources})
