@@ -31,7 +31,7 @@ std::set<int> Partition::getNeighbors(int vertex) {
 
 // The number of edges, the cardinality of E, is called the size of graph and denoted by |E|. We usually use m to denote
 // the size of G.
-double Partition::edgesCount() {
+double Partition::getEdgesCount() {
     double total = 0;
     std::set<int> uniqueEdges;
     for (auto edge : this->edgeList) {
@@ -44,7 +44,19 @@ double Partition::edgesCount() {
 
 // The number of vertices, the cardinality of V, is called the order of graph and devoted by |V|. We usually use n to
 // denote the order of G.
-double Partition::vertextCount() { return this->edgeList.size(); }
+double Partition::getVertextCount() {
+    double edgeListVetices = this->edgeList.size() / 2.0;
+    double edgeCutVertices = 0;
+    for (size_t i = 0; i < this->numberOfPartitions; i++) {
+        for (auto edge : this->edgeCuts[i]) {
+            bool isExistInEdgeList = this->edgeList.find(edge.first) != this->edgeList.end();
+            if (!isExistInEdgeList) {
+                edgeCutVertices += 1;
+            }
+        }
+    }
+    return edgeListVetices + edgeCutVertices;
+}
 
 template <typename Out>
 void Partition::_split(const std::string &s, char delim, Out result) {
@@ -82,7 +94,7 @@ long Partition::edgeCutsCount() {
     return total;
 }
 
-float Partition::edgeCutsRatio() { return this->edgeCutsCount() / (this->edgesCount() + this->edgeCutsCount()); }
+float Partition::edgeCutsRatio() { return this->edgeCutsCount() / (this->getEdgesCount() + this->edgeCutsCount()); }
 
 void Partition::printEdgeCuts() {
     std::cout << "Printing edge cuts of " << id << " partition" << std::endl;
@@ -115,4 +127,13 @@ void Partition::printEdges() {
         }
         std::cout << "\n" << std::endl;
     }
+}
+
+bool Partition::isExist(double vertext) {
+    bool inEdgeList = this->edgeList.find(vertext) != this->edgeList.end();
+    bool inEdgeCuts = false;
+    for (size_t i = 0; i < this->numberOfPartitions; i++) {
+        inEdgeCuts = this->edgeCuts[i].find(vertext) != this->edgeCuts[i].end();
+    }
+    return inEdgeCuts || inEdgeList;
 }
