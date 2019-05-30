@@ -39,8 +39,8 @@ class Partition {
     void addEdge(std::pair<int, int> edge);
     std::set<int> getNeighbors(int);
     double partitionScore(int vertex);
-    double edgesCount();
-    double vertextCount();
+    double getEdgesCount();
+    double getVertextCount();
     void addToEdgeCuts(int resident, int foriegn, int partitionId);
     float edgeCutsRatio();
     template <typename Out>
@@ -49,6 +49,7 @@ class Partition {
     long edgeCutsCount();
     void printEdgeCuts();
     void printEdges();
+    bool isExist(double vertext);
 };
 
 #endif

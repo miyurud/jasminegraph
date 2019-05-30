@@ -36,8 +36,8 @@ void Partitioner::hashPartitioning(std::pair<int, int> edge) {
 void Partitioner::printStats() {
     int id = 0;
     for (auto partition : this->partitions) {
-        std::cout << id << " => Vertext count = " << partition.vertextCount() << std::endl;
-        std::cout << id << " => Edges count = " << partition.edgesCount() << std::endl;
+        std::cout << id << " => Vertext count = " << partition.getVertextCount() << std::endl;
+        std::cout << id << " => Edges count = " << partition.getEdgesCount() << std::endl;
         std::cout << id << " => Edge cuts count = " << partition.edgeCutsCount() << std::endl;
         std::cout << id << " => Cut ratio = " << partition.edgeCutsRatio() << std::endl;
         partition.printEdgeCuts();
@@ -69,20 +69,22 @@ void Partitioner::fennelPartitioning(std::pair<int, int> edge) {
 
     int id = 0;
     for (auto partition : partitions) {
-        long currentSize = partition.vertextCount();
+        double partitionSize = partition.getVertextCount();
         long thisCostSecond, thisCostFirst = 0;
         std::set<int> firstVertextNeighbors = partition.getNeighbors(edge.first);
         std::set<int> secondVertextNeighbors = partition.getNeighbors(edge.second);
         double firstVertextIntraCost;
         double secondVertextIntraCost;
-
+        if (partition.isExist(edge.first) && partition.isExist(edge.second)) {
+            partition.addEdge(edge);
+            this->totalEdges += 1; // TODO: Check whether edge already exist
+            return;
+        }
         double firstVertextInterCost = firstVertextNeighbors.size();
         double secondVertextInterCost = secondVertextNeighbors.size();
-
         if (firstVertextNeighbors.size() == 0) {
             // firstVertextIntraCost = alpha * gamma * pow(firstVertextNeighbors.size(), (gamma - 1));
-            firstVertextIntraCost =
-                alpha * (pow(firstVertextNeighbors.size() + 1, gamma) - pow(firstVertextNeighbors.size(), gamma));
+            firstVertextIntraCost = alpha * (pow(partitionSize + 1, gamma) - pow(partitionSize, gamma));
         } else {
             if (firstVertextNeighbors.find(edge.second) != firstVertextNeighbors.end())
                 return;  // Nothing to do, edge already exisit
@@ -94,8 +96,7 @@ void Partitioner::fennelPartitioning(std::pair<int, int> edge) {
 
         if (secondVertextNeighbors.size() == 0) {
             // secondVertextIntraCost = alpha * gamma * pow(secondVertextNeighbors.size(), (gamma - 1));
-            secondVertextIntraCost =
-                alpha * (pow(secondVertextNeighbors.size() + 1, gamma) - pow(secondVertextNeighbors.size(), gamma));
+            secondVertextIntraCost = firstVertextIntraCost;
         } else {
             if (secondVertextNeighbors.find(edge.second) != secondVertextNeighbors.end())
                 return;  // Nothing to do, edge already exisit
@@ -112,9 +113,8 @@ void Partitioner::fennelPartitioning(std::pair<int, int> edge) {
     int firstIndex =
         distance(partitionScoresFirst.begin(), max_element(partitionScoresFirst.begin(), partitionScoresFirst.end()));
 
-    partitionScoresSecond[firstIndex] -=
-        alpha * (pow(partitions[firstIndex].getNeighbors(edge.second).size() + 2, gamma) -
-                 pow(partitions[firstIndex].getNeighbors(edge.second).size() + 1, gamma));
+    // partitionScoresSecond[firstIndex] -= alpha * (pow(partitions[firstIndex].getVertextCount() + 2, gamma) -
+    //                                               pow(partitions[firstIndex].getVertextCount() + 1, gamma));
     int secondIndex = distance(partitionScoresSecond.begin(),
                                max_element(partitionScoresSecond.begin(), partitionScoresSecond.end()));
     if (firstIndex == secondIndex) {
