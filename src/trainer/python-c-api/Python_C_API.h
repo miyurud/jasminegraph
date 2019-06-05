@@ -14,9 +14,12 @@ limitations under the License.
 #define JASMINEGRAPH_PYTHON_C_API_H
 
 
+#include <string>
+
 class Python_C_API {
 public:
     static void train(int argc, char *argv[]);
+    static int predict(int argc, char *argv[]);
 };
 
 

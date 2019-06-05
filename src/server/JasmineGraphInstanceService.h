@@ -34,6 +34,8 @@ limitations under the License.
 #include <string>
 #include <pthread.h>
 #include <thread>
+#include <vector>
+#include <map>
 #include <map>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -44,11 +46,18 @@ void writeCatalogRecord(string record);
 void deleteGraphPartition(std::string graphID, std::string partitionID);
 long countLocalTriangles(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores, std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores);
 
+struct instanceservicesessionargs {
+    int connFd;
+    int port;
+    int dataPort;
+    string hostName;
+};
+
 class JasmineGraphInstanceService {
 public:
     JasmineGraphInstanceService();
 
-    int run(int serverPort);
+    int run(string hostName, int serverPort, int serverDataPort);
 
     static bool isGraphDBExists(std::string graphId, std::string partitionId);
     static bool isInstanceCentralStoreExists(std::string graphId, std::string partitionId);
@@ -60,13 +69,23 @@ public:
     static map<long, long> getOutDegreeDistributionHashMap(map<long, unordered_set<long>> graphMap);
 
 };
+    struct workerPartitions {
+        int port;
+        int dataPort;
+        std::vector<std::string> partitionID;
+    };
 
 struct instanceservicesessionargs {
     int connFd;
     std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores;
     std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores;
+    static void collectTrainedModels(instanceservicesessionargs *sessionargs, std::string graphID,
+                                     std::map<std::string, JasmineGraphInstanceService::workerPartitions> graphPartitionedHosts,
+                                     int totalPartitions);
+
+    static int collectTrainedModelThreadFunction(instanceservicesessionargs *sessionargs, std::string host, int port, int dataPort,
+                                      std::string graphID, std::string partition);
 };
 
+
 #endif //JASMINEGRAPH_JASMINEGRAPHINSTANCESERVICE_H
-
-

@@ -57,6 +57,8 @@ public:
     static const string INITIATE_TRAIN;
     static const string INITIATE_PREDICT;
     static const string SEND_HOSTS;
+    static const string INITIATE_MODEL_COLLECTION;
+
 };
 
 
