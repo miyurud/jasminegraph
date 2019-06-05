@@ -178,6 +178,10 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector,
         if (host.find("localhost") != std::string::npos) {
             serverStartScript = executableFile+" 2 "+ std::to_string(workerPortsVector.at(i)) + " " + std::to_string(workerDataPortsVector.at(i));
         } else {
+            copyArtifactsToWorkers(workerPath, artifactPath, host);
+            serverStartScript =
+                    "ssh -p 22 " + host + " " + executableFile + " 2" + " "+host+" " + std::to_string(workerPortsVector.at(i)) +
+                    " " + std::to_string(workerDataPortsVector.at(i));
             serverStartScript = "ssh -p 22 " + host+ " "+ executableFile + " 2"+" "+ std::to_string(workerPortsVector.at(i)) + " " + std::to_string(workerDataPortsVector.at(i));
         }
         popen(serverStartScript.c_str(),"r");
@@ -1224,7 +1228,9 @@ void JasmineGraphServer::updateOperationalGraphList() {
 std::map<string, JasmineGraphServer::workerPartitions> JasmineGraphServer::getGraphPartitionedHosts(string graphID) {
 
     vector<pair<string, string>> hostHasPartition;
-    vector<vector<pair<string, string>>> hostPartitionResults = this->sqlite.runSelect(
+    SQLiteDBInterface refToSqlite = *new SQLiteDBInterface();
+    refToSqlite.init();
+    vector<vector<pair<string, string>>> hostPartitionResults = refToSqlite.runSelect(
             "SELECT name, partition_idpartition FROM host_has_partition INNER JOIN host ON host_idhost = idhost WHERE "
             "partition_graph_idgraph = '" + graphID + "'");
     for (vector<vector<pair<string, string>>>::iterator i = hostPartitionResults.begin();

@@ -23,10 +23,10 @@ limitations under the License.
 class JasminGraphLinkPredictor {
 public:
 
-    void initiateLinkPrediction(std::string graphID, std::string path);
+    int initiateLinkPrediction(std::string graphID, std::string path);
 
-    static int sendQueryToWorker(std::string host, int port, int dataPort, std::string graphID, std::string filePath,
-                           map<std::string, JasmineGraphServer::workerPartitions> remainHostMap);
+    int sendQueryToWorker(std::string host, int port, int dataPort, std::string graphID, std::string filePath,
+                                 std::string hostsList);
 };
 
 
