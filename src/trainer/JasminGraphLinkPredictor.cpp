@@ -18,8 +18,8 @@ limitations under the License.
 
 Logger predictor_logger;
 
-void JasminGraphLinkPredictor::initiateLinkPrediction(std::string graphID, std::string path) {
-
+int JasminGraphLinkPredictor::initiateLinkPrediction(std::string graphID, std::string path) {
+    std::cout << "in initiate predictor" << endl;
     JasmineGraphServer *jasmineServer = new JasmineGraphServer();
     std::map<std::string, JasmineGraphServer::workerPartitions> graphPartitionedHosts = jasmineServer->getGraphPartitionedHosts(
             graphID);
@@ -34,6 +34,7 @@ void JasminGraphLinkPredictor::initiateLinkPrediction(std::string graphID, std::
     /*Select the idle worker*/
 //    TODO :: Need to select the idle worker to allocate predicting task.
 //     For this time the first worker of the map is allocated
+    cout << "selecting one host" << endl;
     for (std::map<std::string, JasmineGraphServer::workerPartitions>::iterator it = (graphPartitionedHosts.begin());
          it != graphPartitionedHosts.end(); ++it) {
         if (count == 0) {
@@ -41,18 +42,42 @@ void JasminGraphLinkPredictor::initiateLinkPrediction(std::string graphID, std::
             selectedHostPort = (graphPartitionedHosts[it->first]).port;
             selectedHostDataPort = (graphPartitionedHosts[it->first]).dataPort;
             selectedHostPartitions = (graphPartitionedHosts[it->first]).partitionID;
+//            remainHostMap.insert(std::pair<std::string, JasmineGraphServer::workerPartitions>(it->first, it->second));
         } else {
             remainHostMap.insert(std::pair<std::string, JasmineGraphServer::workerPartitions>(it->first, it->second));
         }
         count++;
     }
+    std::string hostsList = "none|";
+    for (std::map<std::string, JasmineGraphServer::workerPartitions>::iterator it = (remainHostMap.begin());
+         it != remainHostMap.end(); ++it) {
+        std::string hostDetail =
+                it->first + "," + std::to_string((remainHostMap[it->first]).port) + "," +
+                std::to_string((remainHostMap[it->first]).dataPort) + ",";
+        for (std::vector<std::string>::iterator j = ((remainHostMap[it->first].partitionID).begin());
+             j != (remainHostMap[it->first].partitionID).end(); ++j) {
 
-    this->sendQueryToWorker(selectedHostName, selectedHostPort, selectedHostDataPort, graphID, path, remainHostMap);
+            if (std::next(j) == (remainHostMap[it->first].partitionID).end()) {
+                hostDetail = hostDetail + *j;
+            } else {
+                hostDetail = hostDetail + *j + ",";
+            }
+        }
+//        std::cout << hostDetail << endl;
+        if (std::next(it) == remainHostMap.end()) {
+            hostsList += hostDetail;
+        } else {
+            hostsList += hostDetail + "|";
+        }
+    }
+//    std::cout << hostsList << endl;
+//    cout << "sending details" << endl;
+
+    this->sendQueryToWorker(selectedHostName, selectedHostPort, selectedHostDataPort, graphID, path, hostsList);
 }
 
 int JasminGraphLinkPredictor::sendQueryToWorker(std::string host, int port, int dataPort, std::string graphID,
-                                                std::string filePath,
-                                                map<std::string, JasmineGraphServer::workerPartitions> remainHostMap) {
+                                                std::string filePath, std::string hostsList) {
     Utils utils;
     bool result = true;
     std::cout << pthread_self() << " host : " << host << " port : " << port << " DPort : " << dataPort << std::endl;
@@ -117,48 +142,23 @@ int JasminGraphLinkPredictor::sendQueryToWorker(std::string host, int port, int 
             write(sockfd, graphID.c_str(), (graphID).size());
             predictor_logger.log("Sent : Graph ID " + graphID, "info");
 
+            std::string fileName = utils.getFileName(filePath);
+            int fileSize = utils.getFileSize(filePath);
+            std::string fileLength = to_string(fileSize);
+
             bzero(data, 301);
             read(sockfd, data, 300);
             response = (data);
             response = utils.trim_copy(response, " \f\n\r\t\v");
-
             if (response.compare(JasmineGraphInstanceProtocol::SEND_HOSTS) == 0) {
-
+                predictor_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_HOSTS, "info");
                 /*Create a atring with host details*/
-                std::string hostsList = "";
-                for (std::map<std::string, JasmineGraphServer::workerPartitions>::iterator it = (remainHostMap.begin());
-                     it != remainHostMap.end(); ++it) {
-                    std::string hostDetail = it->first + "," + std::to_string((remainHostMap[it->first]).port) + "," +
-                                             std::to_string((remainHostMap[it->first]).dataPort);
-                    for (std::vector<std::string>::iterator j = ((remainHostMap[it->first].partitionID).begin());
-                         j != (remainHostMap[it->first].partitionID).end(); ++j) {
 
-                        if (std::next(j) == (remainHostMap[it->first].partitionID).end()) {
-                            hostDetail = hostDetail + *j;
-                        } else {
-                            hostDetail = hostDetail + *j + ",";
-                        }
-
-                    }
-                    std::cout << hostDetail << endl;
-                    if (std::next(it) == remainHostMap.end()) {
-                        hostsList = hostDetail;
-                    } else {
-                        hostsList = hostDetail + "|";
-                    }
-                }
-                std::cout << hostsList << endl;
                 write(sockfd, hostsList.c_str(), (hostsList).size());
                 predictor_logger.log("Sent : Hosts List " + hostsList, "info");
-
-                std::string fileName = utils.getFileName(filePath);
-                int fileSize = utils.getFileSize(filePath);
-                std::string fileLength = to_string(fileSize);
-
                 bzero(data, 301);
                 read(sockfd, data, 300);
                 response = (data);
-                response = utils.trim_copy(response, " \f\n\r\t\v");
 
                 if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_NAME) == 0) {
                     predictor_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_NAME, "info");
@@ -182,35 +182,36 @@ int JasminGraphLinkPredictor::sendQueryToWorker(std::string host, int port, int 
                             JasmineGraphServer::sendFileThroughService(host, dataPort, fileName, filePath);
 
                         }
+                    }
+                }
+                int count = 0;
+                while (true) {
+                    write(sockfd, JasmineGraphInstanceProtocol::FILE_RECV_CHK.c_str(),
+                          JasmineGraphInstanceProtocol::FILE_RECV_CHK.size());
+                    predictor_logger.log("Sent : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
+                    predictor_logger.log("Checking if file is received", "info");
+                    bzero(data, 301);
+                    read(sockfd, data, 300);
+                    response = (data);
 
-                        int count = 0;
-
-                        while (true) {
-                            write(sockfd, JasmineGraphInstanceProtocol::FILE_RECV_CHK.c_str(),
-                                  JasmineGraphInstanceProtocol::FILE_RECV_CHK.size());
-                            predictor_logger.log("Sent : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
-                            predictor_logger.log("Checking if file is received", "info");
-                            bzero(data, 301);
-                            read(sockfd, data, 300);
-                            response = (data);
-                            //response = utils.trim_copy(response, " \f\n\r\t\v");
-
-                            if (response.compare(JasmineGraphInstanceProtocol::FILE_RECV_WAIT) == 0) {
-                                predictor_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_WAIT,
-                                                     "info");
-                                predictor_logger.log("Checking file status : " + to_string(count), "info");
-                                count++;
-                                sleep(1);
-                                continue;
-                            } else if (response.compare(JasmineGraphInstanceProtocol::FILE_ACK) == 0) {
-                                predictor_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_ACK, "info");
-                                predictor_logger.log("File transfer completed", "info");
-                                break;
-                            }
-                        }
+                    if (response.compare(JasmineGraphInstanceProtocol::FILE_RECV_WAIT) == 0) {
+                        predictor_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_WAIT,
+                                             "info");
+                        predictor_logger.log("Checking file status : " + to_string(count), "info");
+                        count++;
+                        sleep(1);
+                        continue;
+                    } else if (response.compare(JasmineGraphInstanceProtocol::FILE_ACK) == 0) {
+                        predictor_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_ACK, "info");
+                        predictor_logger.log("File transfer completed", "info");
+                        break;
                     }
                 }
             }
         }
+    } else {
+        predictor_logger.log("There was an error in the :: " + response, "error");
     }
+    close(sockfd);
+    return 0;
 }

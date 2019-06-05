@@ -36,7 +36,7 @@ int main(int argc, char *argv[]) {
 
     if (argc < 1) {
     main_logger.log("\"Use argument 1 to start JasmineGraph in Master mode. Use 2 "
-                    "<serverPort> <serverDataPort> to start as worker","error");
+                    "<hostName> <serverPort> <serverDataPort> to start as worker","error");
         return -1;
     }
 
@@ -57,18 +57,19 @@ int main(int argc, char *argv[]) {
 
         delete server;
     } else if (mode == Conts::JASMINEGRAPH_RUNTIME_PROFILE_WORKER){
-        if (argc < 4) {
+        if (argc < 5) {
 //            std::cout << "Need three arguments. Use 2 <serverPort> <serverDataPort> to "
 //                      << "start as worker ." << std::endl;
-        main_logger.log("Need three arguments. Use 2 <serverPort> <serverDataPort> to start as worker","info");
+        main_logger.log("Need three arguments. Use 2 <hostName> <serverPort> <serverDataPort> to start as worker","info");
             return -1;
         }
-        int serverPort = atoi(argv[2]);
-        int serverDataPort = atoi(argv[3]);
+        string hostName = argv[2];
+        int serverPort = atoi(argv[3]);
+        int serverDataPort = atoi(argv[4]);
 
         std::cout << "In worker mode" << std::endl;
         instance = new JasmineGraphInstance();
-        instance->start_running(serverPort,serverDataPort);
+        instance->start_running(hostName, serverPort,serverDataPort);
 
         while (instance->isRunning()) {
             usleep(microseconds);

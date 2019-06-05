@@ -29,23 +29,39 @@ limitations under the License.
 #include <string>
 #include <pthread.h>
 #include <thread>
+#include <vector>
+#include <map>
 
 void *instanceservicesession(void *dummyPt);
 void writeCatalogRecord(string record);
 void deleteGraphPartition(std::string graphID, std::string partitionID);
 
+struct instanceservicesessionargs {
+    int connFd;
+    int port;
+    int dataPort;
+    string hostName;
+};
+
 class JasmineGraphInstanceService {
 public:
     JasmineGraphInstanceService();
 
-    int run(int serverPort);
+    int run(string hostName, int serverPort, int serverDataPort);
 
+    struct workerPartitions {
+        int port;
+        int dataPort;
+        std::vector<std::string> partitionID;
+    };
+
+    static void collectTrainedModels(instanceservicesessionargs *sessionargs, std::string graphID,
+                                     std::map<std::string, JasmineGraphInstanceService::workerPartitions> graphPartitionedHosts,
+                                     int totalPartitions);
+
+    static int collectTrainedModelThreadFunction(instanceservicesessionargs *sessionargs, std::string host, int port, int dataPort,
+                                      std::string graphID, std::string partition);
 };
 
-struct instanceservicesessionargs {
-    int connFd;
-};
 
 #endif //JASMINEGRAPH_JASMINEGRAPHINSTANCESERVICE_H
-
-
