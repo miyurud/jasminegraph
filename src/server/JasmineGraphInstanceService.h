@@ -92,5 +92,4 @@ struct instanceservicesessionargs {
     static void createPartitionFiles(std::string graphID, std::string partitionID, std::string fileType);
 };
 
-
 #endif //JASMINEGRAPH_JASMINEGRAPHINSTANCESERVICE_H

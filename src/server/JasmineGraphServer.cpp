@@ -1280,7 +1280,9 @@ bool JasmineGraphServer::hasEnding(std::string const &fullString, std::string co
 std::map<string, JasmineGraphServer::workerPartitions> JasmineGraphServer::getGraphPartitionedHosts(string graphID) {
 
     vector<pair<string, string>> hostHasPartition;
-    vector<vector<pair<string, string>>> hostPartitionResults = this->sqlite.runSelect(
+    SQLiteDBInterface refToSqlite = *new SQLiteDBInterface();
+    refToSqlite.init();
+    vector<vector<pair<string, string>>> hostPartitionResults = refToSqlite.runSelect(
             "SELECT name, partition_idpartition FROM host_has_partition INNER JOIN host ON host_idhost = idhost WHERE "
             "partition_graph_idgraph = '" + graphID + "'");
     for (vector<vector<pair<string, string>>>::iterator i = hostPartitionResults.begin();
