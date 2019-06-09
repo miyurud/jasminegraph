@@ -455,6 +455,7 @@ void MetisPartitioner::populatePartMaps(std::map<int, int> partMap, int part) {
     std::map<int, std::vector<int>>::iterator edgeMapIterator;
     std::map<int, std::vector<int>> partEdgesSet;
     std::map<int, std::vector<int>> partMasterEdgesSet;
+    std::map<int, vector<pair<int, int>>> tempPartMap = commonCentralStoreEdgeMap[part];
 
 
     for (edgeMapIterator = graphEdgeMap.begin(); edgeMapIterator!= graphEdgeMap.end();++edgeMapIterator) {
@@ -477,6 +478,7 @@ void MetisPartitioner::populatePartMaps(std::map<int, int> partMap, int part) {
                     localGraphVertexVector.push_back(endVertex);
                 } else {
                     centralGraphVertexVector.push_back(endVertex);
+
                 }
             }
 
@@ -487,8 +489,30 @@ void MetisPartitioner::populatePartMaps(std::map<int, int> partMap, int part) {
 
     }
 
+    for (int tempPart = 1; tempPart <= nParts; tempPart++) {
+        std::vector<pair<int, int>> tempEdgeList;
+        for (edgeMapIterator = graphEdgeMap.begin(); edgeMapIterator!= graphEdgeMap.end();++edgeMapIterator) {
+            int startVertex = edgeMapIterator->first;
+            int startVertexPart = partMap[startVertex];
+
+            if (startVertexPart == part) {
+                std::vector<int> secondVertexVector = edgeMapIterator->second;
+                std::vector<int>::iterator secondVertexIterator;
+                for (secondVertexIterator = secondVertexVector.begin();secondVertexIterator!=secondVertexVector.end(); ++secondVertexIterator) {
+                    int endVertex = *secondVertexIterator;
+                    int endVertexPart = partMap[endVertex];
+                    if (endVertexPart !=  part && tempPart == endVertexPart) {
+                        tempEdgeList.push_back(make_pair(startVertex, endVertex));
+                    }
+                }
+            }
+        }
+        tempPartMap[tempPart] = tempEdgeList;
+    }
+
     partitionedLocalGraphStorageMap[part] = partEdgesSet;
     masterGraphStorageMap[part] = partMasterEdgesSet;
+    commonCentralStoreEdgeMap[part] = tempPartMap;
     
 
     string sqlStatement =
