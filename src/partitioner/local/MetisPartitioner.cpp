@@ -451,52 +451,69 @@ void MetisPartitioner::loadContentData(string inputAttributeFilePath, string gra
 void MetisPartitioner::populatePartMaps(std::map<int, int> partMap, int part) {
     int partitionVertexCount = 0;
     int partitionEdgeCount = 0;
-    for (int vertex = 0; vertex < vertexCount; vertex++) {
-        int firstVertexPart = partMap[vertex];
-        if (firstVertexPart == part) {
-            std::vector<int> vertexEdgeSet = graphEdgeMap[vertex];
-            if (!vertexEdgeSet.empty()) {
-                partitionVertexCount++;
-                std::vector<int>::iterator it;
-                for (it = vertexEdgeSet.begin(); it != vertexEdgeSet.end(); ++it) {
-                    int secondVertex = *it;
-                    int secondVertexPart = partMap[secondVertex];
 
-                    if (firstVertexPart == secondVertexPart) {
-                        partitionEdgeCount++;
-                        std::map<int, std::vector<int>> partEdgesSet = partitionedLocalGraphStorageMap[firstVertexPart];
-                        std::vector<int> edgeSet = partEdgesSet[vertex];
-                        edgeSet.push_back(secondVertex);
-                        partEdgesSet[vertex] = edgeSet;
-                        partitionedLocalGraphStorageMap[firstVertexPart] = partEdgesSet;
-                    } else {
-                        /*This edge's two vertices belong to two different parts.
-                        *Therefore the edge is added to both partMasterEdgeSets
-                        *This adds the edge to the masterGraphStorageMap with key being the part of vertex 1
-                        */
-                        std::map<int, std::vector<int>> partMasterEdgesSet = masterGraphStorageMap[firstVertexPart];
-                        std::vector<int> edgeSet = partMasterEdgesSet[vertex];
-                        edgeSet.push_back(secondVertex);
-                        partMasterEdgesSet[vertex] = edgeSet;
-                        masterGraphStorageMap[firstVertexPart] = partMasterEdgesSet;
+    std::map<int, std::vector<int>>::iterator edgeMapIterator;
+    std::map<int, std::vector<int>> partEdgesSet;
+    std::map<int, std::vector<int>> partMasterEdgesSet;
+    std::map<int, vector<pair<int, int>>> tempPartMap = commonCentralStoreEdgeMap[part];
 
-                        /* We need to insert these central store edges to the masterGraphStorageMap where the key is the
-                         * second vertex's part. But it cannot be done inside the thread as it generates a race condition
-                         * due to multiple threads trying to write to masterGraphStorageMap's maps apart from the one
-                         * assigned to the thread. Therefore, we take all such edges to a separate data structure and
-                         * add them to the masterGraphStorageMap later by a single thread (main thread)
-                         */
-                        std::map<int, vector<pair<int, int>>> tempPartMap = commonCentralStoreEdgeMap[firstVertexPart];
-                        std::vector<pair<int, int>> tempEdgeList = tempPartMap[secondVertexPart];
-                        tempEdgeList.push_back(make_pair(vertex, secondVertex));
-                        tempPartMap[secondVertexPart] = tempEdgeList;
-                        commonCentralStoreEdgeMap[firstVertexPart] = tempPartMap;
 
+    for (edgeMapIterator = graphEdgeMap.begin(); edgeMapIterator!= graphEdgeMap.end();++edgeMapIterator) {
+        partitionVertexCount++;
+        int startVertex = edgeMapIterator->first;
+        int startVertexPart = partMap[startVertex];
+        if (startVertexPart == part) {
+            std::vector<int> secondVertexVector = edgeMapIterator->second;
+            std::vector<int> localGraphVertexVector;
+            std::vector<int> centralGraphVertexVector;
+
+
+            std::vector<int>::iterator secondVertexIterator;
+            for (secondVertexIterator = secondVertexVector.begin();secondVertexIterator!=secondVertexVector.end(); ++secondVertexIterator) {
+                int endVertex = *secondVertexIterator;
+                int endVertexPart = partMap[endVertex];
+
+                if (endVertexPart ==  part) {
+                    partitionEdgeCount++;
+                    localGraphVertexVector.push_back(endVertex);
+                } else {
+                    centralGraphVertexVector.push_back(endVertex);
+
+                }
+            }
+
+            partEdgesSet[startVertex] = localGraphVertexVector;
+            partMasterEdgesSet[startVertex] = centralGraphVertexVector;
+
+        }
+
+    }
+
+    for (int tempPart = 1; tempPart <= nParts; tempPart++) {
+        std::vector<pair<int, int>> tempEdgeList;
+        for (edgeMapIterator = graphEdgeMap.begin(); edgeMapIterator!= graphEdgeMap.end();++edgeMapIterator) {
+            int startVertex = edgeMapIterator->first;
+            int startVertexPart = partMap[startVertex];
+
+            if (startVertexPart == part) {
+                std::vector<int> secondVertexVector = edgeMapIterator->second;
+                std::vector<int>::iterator secondVertexIterator;
+                for (secondVertexIterator = secondVertexVector.begin();secondVertexIterator!=secondVertexVector.end(); ++secondVertexIterator) {
+                    int endVertex = *secondVertexIterator;
+                    int endVertexPart = partMap[endVertex];
+                    if (endVertexPart !=  part && tempPart == endVertexPart) {
+                        tempEdgeList.push_back(make_pair(startVertex, endVertex));
                     }
                 }
             }
         }
+        tempPartMap[tempPart] = tempEdgeList;
     }
+
+    partitionedLocalGraphStorageMap[part] = partEdgesSet;
+    masterGraphStorageMap[part] = partMasterEdgesSet;
+    commonCentralStoreEdgeMap[part] = tempPartMap;
+    
 
     string sqlStatement =
             "INSERT INTO partition (idpartition,graph_idgraph,vertexcount,edgecount) VALUES(\"" +
