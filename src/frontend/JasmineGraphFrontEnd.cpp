@@ -386,7 +386,7 @@ void *frontendservicesesion(void *dummyPt) {
                 std::cout << "Path exists" << endl;
 
                 JSONParser *jsonParser = new JSONParser();
-                jsonParser->readFile(path);
+                jsonParser->jsonParse(path);
                 frontend_logger.log("Reformatted files created on /home/.jasminegraph/tmp/JSONParser/output", "info");
 
 

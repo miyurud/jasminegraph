@@ -20,7 +20,12 @@ limitations under the License.
 
 #include <sstream>
 #include <string>
+#include "json/json.h"
+#include <ctime>
+#include <chrono>
 
+
+class Value;
 
 namespace pt = boost::property_tree;
 
@@ -32,95 +37,15 @@ JSONParser::JSONParser() {
 
 }
 
-void JSONParser::readFile(string filePath) {
+void JSONParser::jsonParse(string filePath) {
+
     this->inputFilePath = filePath;
     this->outputFilePath = utils.getHomeDir() + "/.jasminegraph/tmp/JSONParser/output";
-    formatFile();
 
-    ofstream file;
-    file.open(this->outputFilePath + "/edgelist.txt");
+    readFile();
 
-    boost::property_tree::ptree root;
-    boost::property_tree::read_json(this->outputFilePath + "/reformatted.txt", root);
+    attributeFileCreate();
 
-
-    for (auto &v : root.get_child("")) {
-        auto &node = v.second;
-
-        string id = node.get("id", "");
-
-
-        if (node.count("references") != 0) {
-            for (auto &param :node.get_child("references")) {
-                file << id << " " << param.second.get_value("") << endl;
-            }
-
-        }
-
-        if (node.count("venue") != 0) {
-
-            for (pt::ptree::value_type &venue : node.get_child("venue")) {
-
-                std::string key = venue.first;
-                if (key == "raw") {
-                    std::string name = venue.second.data();
-                    addToVenues(name);
-
-                }
-            }
-        }
-
-    }
-
-    file.close();
-
-    ofstream attrFile;
-    attrFile.open(outputFilePath + "/attributeList.txt");
-
-
-    for (auto &v : root.get_child("")) {
-        auto &node = v.second;
-        std::vector<int> vectorOfzeros(venueMap.size(), 0);
-
-        string id = node.get("id", "");
-
-
-        string venue_name;
-        if (node.count("venue") != 0) {
-
-            for (pt::ptree::value_type &venue : node.get_child("venue")) {
-
-                std::string key = venue.first;
-                if (key == "raw") {
-                    venue_name = venue.second.data();
-
-                }
-
-
-                auto search = venueMap.find(venue_name);
-                if (search != venueMap.end()) {
-                    int index = search->second;
-                    vectorOfzeros.at(index) = 1;
-
-                }
-            }
-        }
-
-        attrFile << id << "\t";
-
-
-        for (auto it = vectorOfzeros.begin(); it != vectorOfzeros.end(); ++it) {
-            attrFile << *it << "\t ";
-
-        }
-        attrFile << endl;
-
-
-    }
-
-
-    attrFile.close();
-    utils.deleteDirectory(this->outputFilePath + "/reformatted.txt");
 
 }
 
@@ -139,38 +64,91 @@ long JSONParser::addToVenues(string name) {
     return id;
 }
 
-
-void JSONParser::formatFile() {
+void JSONParser::attributeFileCreate() {
     int count = 0;
-    ofstream formattedFile;
+    ofstream attrFile;
+    attrFile.open(outputFilePath + "/attributeList.txt");
+
+    std::ifstream infile(this->inputFilePath);
+    std::string line;
+    Json::Reader reader;
+    Json::Value root;
+    while (std::getline(infile, line)) {
+        count++;
+        std::vector<int> vectorOfzeros(venueMap.size(), 0);
+
+
+        if (!reader.parse(line, root)) {
+            std::cout << reader.getFormattedErrorMessages();
+            exit(1);
+        } else {
+            string id = root["id"].asString();
+
+
+            string venue = root["venue"].toStyledString();
+
+
+            auto search = venueMap.find(venue);
+            if (search != venueMap.end()) {
+                int index = search->second;
+                vectorOfzeros.at(index) = 1;
+
+            }
+
+            attrFile << id << "\t";
+
+
+            for (auto it = vectorOfzeros.begin(); it != vectorOfzeros.end(); ++it) {
+                attrFile << *it << "\t ";
+
+            }
+            attrFile << endl;
+
+        }
+    }
+    attrFile.close();
+
+
+}
+
+
+void JSONParser::readFile() {
 
     this->utils.createDirectory(utils.getHomeDir() + "/.jasminegraph/");
     this->utils.createDirectory(utils.getHomeDir() + "/.jasminegraph/tmp");
     this->utils.createDirectory(utils.getHomeDir() + "/.jasminegraph/tmp/JSONParser");
     this->utils.createDirectory(utils.getHomeDir() + "/.jasminegraph/tmp/JSONParser/output");
 
-    formattedFile.open(this->outputFilePath + "/reformatted.txt");
+    ofstream file;
+    file.open(this->outputFilePath + "/edgelist.txt");
 
     std::ifstream infile(this->inputFilePath);
     std::string line;
-    formattedFile << "[";
-    while (std::getline(infile, line)) {
-        if (count != 0) {
-            formattedFile << ',';
+    Json::Reader reader;
+    Json::Value root;
 
-        }
-        formattedFile << line << endl;
-        count++;
-        if (count == 250000) {
-            break;
+    while (std::getline(infile, line)) {
+
+        if (!reader.parse(line, root)) {
+            std::cout << reader.getFormattedErrorMessages();
+            exit(1);
+        } else {
+            string id = root["id"].asString();
+            const Json::Value references = root["references"];
+            for (int index = 0; index < references.size(); ++index) {
+                file << id << " " << references[index].asString() << endl;
+
+            }
+
+            string venue = root["venue"].toStyledString();
+            addToVenues(venue);
+
         }
     }
-    
-    formattedFile << "]";
 
-    formattedFile.close();
+
+    file.close();
 }
-
 
 
 

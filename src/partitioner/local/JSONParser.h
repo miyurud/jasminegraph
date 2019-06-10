@@ -32,13 +32,18 @@ class JSONParser {
 public:
 
     JSONParser();
-    void readFile(string inputFilePath);
+
+    void jsonParse(string inputFilePath);
+
     long addToVenues(string name);
-    void formatFile();
+
+    void readFile();
+
+    void attributeFileCreate();
 
 
 private:
-    std::map<std::string,int> venueMap;
+    std::map<std::string, int> venueMap;
     string inputFilePath;
     string outputFilePath;
     Utils utils;
