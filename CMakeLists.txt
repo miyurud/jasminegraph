@@ -2,13 +2,13 @@ cmake_minimum_required(VERSION 3.10)
 project(JasmineGraph)
 
 set(CMAKE_CXX_STANDARD 11)
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pthread")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -g -pthread")
 link_libraries('sqlite3')
 link_libraries('rdkafka')
 link_libraries('cppkafka')
 #TODO: Need to install the library separately
 include_directories("$ENV{HOME}/software/flatbuffers/include")
-include_directories("$ENV{HOME}/software/xerces-c-3.2.2/include")
+include_directories("$ENV{HOME}/software/xerces/include")
 include_directories("$ENV{HOME}/software/spdlog/include")
 
 
