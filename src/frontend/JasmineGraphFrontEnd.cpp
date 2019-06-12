@@ -96,7 +96,7 @@ void *frontendservicesesion(void *dummyPt) {
 
             if (strArr.size() != 2) {
                 frontend_logger.log("Message format not recognized", "error");
-                break;
+                continue;
             }
 
             name = strArr[0];
@@ -104,7 +104,7 @@ void *frontendservicesesion(void *dummyPt) {
 
             if (JasmineGraphFrontEnd::graphExists(path, dummyPt)) {
                 frontend_logger.log("Graph exists", "error");
-                break;
+                continue;
             }
 
             if (utils.fileExists(path)) {
@@ -136,7 +136,7 @@ void *frontendservicesesion(void *dummyPt) {
 
             } else {
                 frontend_logger.log("Graph data file does not exist on the specified path", "error");
-                break;
+                continue;
             }
 
         } else if (line.compare(ADGR) == 0) {
@@ -163,7 +163,7 @@ void *frontendservicesesion(void *dummyPt) {
 
             if (strArr.size() != 2) {
                 frontend_logger.log("Message format not recognized", "error");
-                break;
+                continue;
             }
 
             name = strArr[0];
@@ -171,7 +171,7 @@ void *frontendservicesesion(void *dummyPt) {
 
             if (JasmineGraphFrontEnd::graphExists(path, dummyPt)) {
                 frontend_logger.log("Graph exists", "error");
-                break;
+                continue;
             }
 
             if (utils.fileExists(path)) {
@@ -196,14 +196,15 @@ void *frontendservicesesion(void *dummyPt) {
                     partitioner->constructMetisFormat(Conts::GRAPH_TYPE_NORMAL_REFORMATTED);
                     fullFileList = partitioner->partitioneWithGPMetis();
                 } else {
+
                     fullFileList = partitioner->partitioneWithGPMetis();
                 }
                 frontend_logger.log("Upload done", "info");
                 jasmineServer->uploadGraphLocally(newGraphID, Conts::GRAPH_TYPE_NORMAL, fullFileList);
-                utils.deleteDirectory(utils.getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
+                //utils.deleteDirectory(utils.getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
             } else {
                 frontend_logger.log("Graph data file does not exist on the specified path", "error");
-                break;
+                continue;
             }
         } else if (line.compare(ADGR_CUST) == 0) {
             string message = "Select a custom graph upload option\n";
@@ -215,11 +216,26 @@ void *frontendservicesesion(void *dummyPt) {
             write(connFd, Conts::GRAPH_WITH::XML_ATTRIBUTES.c_str(), Conts::GRAPH_WITH::TEXT_ATTRIBUTES.size());
             write(connFd, "\n", 2);
 
-            //TODO :: Handle user inputting a value out of range
             char type[20];
             bzero(type, 21);
             read(connFd, type, 20);
             string graphType(type);
+            graphType = utils.trim_copy(graphType, " \f\n\r\t\v");
+
+            std::unordered_set<std::string> s = {"1","2","3"};
+            if (s.find(graphType) == s.end()){
+                frontend_logger.log("Graph type not recognized", "error");
+                continue;
+            }
+
+            string graphAttributeType = "";
+            if (graphType == "1"){
+                graphAttributeType = Conts::GRAPH_WITH_TEXT_ATTRIBUTES;
+            }else if (graphType == "2"){
+                graphAttributeType = Conts::GRAPH_WITH_JSON_ATTRIBUTES;
+            }else if (graphType == "3"){
+                graphAttributeType = Conts::GRAPH_WITH_XML_ATTRIBUTES;
+            }
 
             // We get the name and the path to graph edge list and attribute list as a triplet separated by | .
             // (<name>|<path to edge list>|<path to attribute file>)
@@ -245,7 +261,7 @@ void *frontendservicesesion(void *dummyPt) {
 
             if (strArr.size() != 3) {
                 frontend_logger.log("Message format not recognized", "error");
-                break;
+                continue;
             }
 
             name = strArr[0];
@@ -254,7 +270,7 @@ void *frontendservicesesion(void *dummyPt) {
 
             if (JasmineGraphFrontEnd::graphExists(edgeListPath, dummyPt)) {
                 frontend_logger.log("Graph exists", "error");
-                break;
+                continue;
             }
 
             if (utils.fileExists(edgeListPath) && utils.fileExists(attributeListPath)) {
@@ -270,7 +286,7 @@ void *frontendservicesesion(void *dummyPt) {
                 JasmineGraphServer *jasmineServer = new JasmineGraphServer();
                 MetisPartitioner *partitioner = new MetisPartitioner(&sessionargs->sqlite);
                 vector<std::map<int,string>> fullFileList;
-                partitioner->loadContentData(attributeListPath, "1");
+                partitioner->loadContentData(attributeListPath, graphAttributeType);
                 partitioner->loadDataSet(edgeListPath, newGraphID);
                 int result = partitioner->constructMetisFormat(Conts::GRAPH_TYPE_NORMAL);
                 if (result == 0) {
@@ -288,7 +304,7 @@ void *frontendservicesesion(void *dummyPt) {
                 utils.deleteDirectory("/tmp/" + std::to_string(newGraphID));
             } else {
                 frontend_logger.log("Graph data file does not exist on the specified path", "error");
-                break;
+                continue;
             }
         } else if (line.compare(ADD_STREAM_KAFKA) == 0) {
             std::cout << STREAM_TOPIC_NAME << endl;
@@ -395,7 +411,7 @@ void *frontendservicesesion(void *dummyPt) {
                 break;
             }
         } else {
-            frontend_logger.log("Message format not recognized " + line, "error");
+            frontend_logger.log("Command not recognized " + line, "error");
         }
     }
     frontend_logger.log("Closing thread " + to_string(pthread_self()) + " and connection", "info");

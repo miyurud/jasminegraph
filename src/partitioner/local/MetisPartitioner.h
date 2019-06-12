@@ -50,27 +50,26 @@ public:
     //reformat the vertex list by mapping vertex values to new sequntial IDs
     std::string reformatDataSet(string inputFilePath, int graphID);
 
-    void loadContentData(string inputAttributeFilePath, string graphType);
+    void loadContentData(string inputAttributeFilePath, string graphAttributeType);
 
     MetisPartitioner(SQLiteDBInterface *);
 
 
 private:
     idx_t edgeCount = 0;
+    idx_t edgeCountForMetis = 0;
     idx_t largestVertex = 0;
     idx_t vertexCount = 0;
     //TODO:Need to remove this hardcoded value
-    idx_t nParts = 4;
+    int nParts = 4;
     string outputFilePath;
     bool zeroflag = false;
     SQLiteDBInterface sqlite;
     int graphID;
     Utils utils;
     string graphType;
-    int totalVertexCount;
-    int totalEdgeCount;
     int smallestVertex = std::numeric_limits<int>::max();
-    string graphTypeInt;
+    string graphAttributeType;
 
     std::map<int,std::string> partitionFileList;
     std::map<int,std::string> centralStoreFileList;
@@ -83,14 +82,14 @@ private:
     std::map<int, std::vector<int>> partVertexMap;
     std::map<int, std::map<int, std::vector<int>>> partitionedLocalGraphStorageMap;
     std::map<int, std::map<int, std::vector<int>>> masterGraphStorageMap;
-    std::map<int, std::map<int,std::vector<std::pair<int,int>>>> commonCentralStoreEdgeMap;
+    std::map<int, std::map<int,std::map<int, std::vector<int>>>> commonCentralStoreEdgeMap;
     std::vector<int> xadj;
     std::vector<int> adjncy;
     std::map<std::pair<int, int>, int> edgeMap;
     std::map<long, string[7]> articlesMap;
     std::map<int, int> vertexToIDMap;
     std::map<int, int> idToVertexMap;
-    std::map<long, std::vector<string>> attributeDataMap;
+    std::map<int, std::string> attributeDataMap;
 
 
     void createPartitionFiles(std::map<int,int> partMap);
@@ -98,6 +97,20 @@ private:
     void populatePartMaps(std::map<int,int> partMap, int part);
 
     void writePartitionFiles(int part);
+
+    void writeMasterFiles(int part);
+
+    void writeSerializedMasterFiles(int part);
+
+    void writeSerializedPartitionFiles(int part);
+
+    void writeRDFAttributeFilesForPartitions(int part);
+
+    void writeRDFAttributeFilesForMasterParts(int part);
+
+    void writeTextAttributeFilesForPartitions(int part);
+
+    void writeTextAttributeFilesForMasterParts(int part);
 };
 
 

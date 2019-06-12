@@ -1,0 +1,12 @@
+namespace JasmineGraph.PartEdgeMapStore;
+
+table PartEdgeMapStore {
+    entries:[PartEdgeMapStoreEntry];
+}
+
+table PartEdgeMapStoreEntry {
+    key:int (key);
+    value:[int];
+}
+
+root_type PartEdgeMapStore;
