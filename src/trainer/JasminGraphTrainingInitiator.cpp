@@ -20,24 +20,60 @@ limitations under the License.
 
 Logger trainer_log;
 
-void JasminGraphTrainingInitiator::initiateTrainingLocally(std::string trainingArgs) {
+void JasminGraphTrainingInitiator::initiateTrainingLocally(std::string graphID, std::string trainingArgs) {
     std::cout << "Initiating training.." << std::endl;
     int count = 0;
-    std::vector<JasmineGraphServer::workers> hostWorkerMap = JasmineGraphServer::getHostWorkerMap();
-    std::cout << hostWorkerMap.size() << std::endl;
-    std::thread *workerThreads = new std::thread[hostWorkerMap.size()];
+//    std::vector<JasmineGraphServer::workers> hostWorkerMap = JasmineGraphServer::getHostWorkerMap();
+//    std::cout << hostWorkerMap.size() << std::endl;
+//    std::thread *workerThreads = new std::thread[hostWorkerMap.size()];
 
-    std::vector<JasmineGraphServer::workers, std::allocator<JasmineGraphServer::workers>>::iterator mapIterator;
-    for (mapIterator = hostWorkerMap.begin(); mapIterator < hostWorkerMap.end(); mapIterator++) {
-        JasmineGraphServer::workers worker = *mapIterator;
-        workerThreads[count] = std::thread(initiateTrain, worker.hostname, worker.port, worker.dataPort, trainingArgs);
-        count++;
+    JasmineGraphServer *jasmineServer = new JasmineGraphServer();
+    std::map<std::string, JasmineGraphServer::workerPartitions> graphPartitionedHosts = jasmineServer->getGraphPartitionedHosts(
+            graphID);
+    int partition_count = 0;
+    std::map<std::string, JasmineGraphServer::workerPartitions>::iterator mapIterator;
+    for (mapIterator = graphPartitionedHosts.begin(); mapIterator != graphPartitionedHosts.end(); mapIterator++) {
+        JasmineGraphServer::workerPartitions workerPartition = mapIterator->second;
+        std::vector<std::string> partitions = workerPartition.partitionID;
+        std::vector<std::string>::iterator it;
+        for(it = partitions.begin(); it < partitions.end(); it++){
+            partition_count++;
+        }
     }
+    std::thread *workerThreads = new std::thread[partition_count];
+
+    Utils utils;
+    string prefix = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+    trainingArgs+= "--train_prefix "+prefix+"/"+graphID;
+
+    std::map<std::string, JasmineGraphServer::workerPartitions>::iterator j;
+    for (j = graphPartitionedHosts.begin(); j != graphPartitionedHosts.end(); j++) {
+        JasmineGraphServer::workerPartitions workerPartition = j->second;
+        std::vector<std::string> partitions = workerPartition.partitionID;
+        std::vector<std::string>::iterator k;
+        for(k = partitions.begin(); k < partitions.end(); k++){
+            workerThreads[count] = std::thread(initiateTrain, j->first, workerPartition.port, workerPartition.dataPort, trainingArgs+"--train_worker "+*k);
+        }
+    }
+
+//    std::vector<JasmineGraphServer::workers, std::allocator<JasmineGraphServer::workers>>::iterator mapIterator;
+//    for (mapIterator = hostWorkerMap.begin(); mapIterator < hostWorkerMap.end(); mapIterator++) {
+//        JasmineGraphServer::workers worker = *mapIterator;
+//        workerThreads[count] = std::thread(initiateTrain, worker.hostname, worker.port, worker.dataPort, trainingArgs);
+//        count++;
+//    }
+
 
     for (int threadCount = 0; threadCount < count; threadCount++) {
         workerThreads[threadCount].join();
         std::cout << "Thread " << threadCount << " joined" << std::endl;
     }
+    SQLiteDBInterface refToSqlite = *new SQLiteDBInterface();
+    refToSqlite.init();
+    string sqlStatement =
+            "UPDATE graph SET train_status = '" + (Conts::TRAIN_STATUS::TRAINED) + "' WHERE idgraph = '" + graphID + "'";
+    refToSqlite.runUpdate(sqlStatement);
+
 }
 
 bool JasminGraphTrainingInitiator::initiateTrain(std::string host, int port, int dataPort, std::string trainingArgs) {

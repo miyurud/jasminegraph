@@ -36,8 +36,6 @@ private:
 
     static void startRemoteWorkers(std::vector<int> workerPortsVector, std::vector<int> workerDataPortsVector, std::string host);
 
-    static bool sendFileThroughService(std::string host, int dataPort, std::string fileName, std::string filePath);
-
     void addHostsToMetaDB();
 
     void updateOperationalGraphList();
@@ -72,6 +70,8 @@ public:
     static bool batchUploadCentralAttributeFile(std::string host, int port, int dataPort, int graphID, std::string filePath);
 
     static int removePartitionThroughService(std::string host, int port, std::string graphID, std::string partitionID);
+
+    static bool sendFileThroughService(std::string host, int dataPort, std::string fileName, std::string filePath);
 
     JasmineGraphFrontEnd *frontend;
     SQLiteDBInterface sqlite;

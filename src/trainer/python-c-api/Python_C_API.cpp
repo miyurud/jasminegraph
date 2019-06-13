@@ -16,14 +16,14 @@ limitations under the License.
 
 void Python_C_API::train(int argc, char *argv[]) {
 
-    if (argc%2 != 0) {
+    if (argc % 2 != 0) {
         fprintf(stderr, "Usage: [--flag name] [args]\n");
     }
 
     Py_Initialize();
-    FILE* file;
-    wchar_t* _argv[argc];
-    for(int i=0; i<argc; i++){
+    FILE *file;
+    wchar_t *_argv[argc];
+    for (int i = 0; i < argc; i++) {
         wchar_t *arg = Py_DecodeLocale(argv[i], NULL);
         _argv[i] = arg;
     }
@@ -33,37 +33,41 @@ void Python_C_API::train(int argc, char *argv[]) {
     PyObject *path = PyObject_GetAttrString(sys, "path");
 
     PyList_Append(path, PyUnicode_FromString("."));
-    file = fopen("./test.py","r");
+    file = fopen("./test.py", "r");
     PyRun_SimpleFile(file, "./test.py");
     fclose(file);
     Py_Finalize();
 }
 
-int Python_C_API::predict(int argc, char *argv[]){
-    PyObject *pName, *pModule, *pDict, *pFunc;
+int Python_C_API::predict(int argc, char *argv[]) {
+    PyObject *pName, *pModule, *pFunc;
     PyObject *pArgs, *pValue;
     int i;
 
-    if (argc < 3) {
-        fprintf(stderr,"Usage: [args]\n");
+    if (argc != 4) {
+        fprintf(stderr, "Usage: call [args]\n");
         return 1;
     }
 
     Py_Initialize();
-    pName = PyUnicode_DecodeFSDefault(argv[1]);
+
+    PyObject *sys = PyImport_ImportModule("sys");
+    PyObject *path = PyObject_GetAttrString(sys, "path");
+    PyList_Append(path, PyUnicode_FromString("./GraphSAGE/graphsage/"));
+    pName = PyUnicode_DecodeFSDefault("predict");
     /* Error checking of pName left out */
 
     pModule = PyImport_Import(pName);
     Py_DECREF(pName);
 
     if (pModule != NULL) {
-        pFunc = PyObject_GetAttrString(pModule, argv[2]);
+        pFunc = PyObject_GetAttrString(pModule, "predict");
         /* pFunc is a new reference */
 
         if (pFunc && PyCallable_Check(pFunc)) {
-            pArgs = PyTuple_New(argc - 3);
-            for (i = 0; i < argc - 3; ++i) {
-                pValue = PyLong_FromLong(atoi(argv[i + 3]));
+            pArgs = PyTuple_New(argc);
+            for (i = 0; i < argc; ++i) {
+                pValue = PyLong_FromLong(atoi(argv[i]));
                 if (!pValue) {
                     Py_DECREF(pArgs);
                     Py_DECREF(pModule);
@@ -78,26 +82,23 @@ int Python_C_API::predict(int argc, char *argv[]){
             if (pValue != NULL) {
                 printf("Result of call: %ld\n", PyLong_AsLong(pValue));
                 Py_DECREF(pValue);
-            }
-            else {
+            } else {
                 Py_DECREF(pFunc);
                 Py_DECREF(pModule);
                 PyErr_Print();
-                fprintf(stderr,"Call failed\n");
+                fprintf(stderr, "Call failed\n");
                 return 1;
             }
-        }
-        else {
+        } else {
             if (PyErr_Occurred())
                 PyErr_Print();
-            fprintf(stderr, "Cannot find function \"%s\"\n", argv[2]);
+            fprintf(stderr, "Cannot find function \"%s\"\n", "predict");
         }
         Py_XDECREF(pFunc);
         Py_DECREF(pModule);
-    }
-    else {
+    } else {
         PyErr_Print();
-        fprintf(stderr, "Failed to load \"%s\"\n", argv[1]);
+        fprintf(stderr, "Failed to load \"%s\"\n", "predict");
         return 1;
     }
     Py_Finalize();

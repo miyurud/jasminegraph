@@ -37,10 +37,10 @@ void writeCatalogRecord(string record);
 void deleteGraphPartition(std::string graphID, std::string partitionID);
 
 struct instanceservicesessionargs {
+    string host;
     int connFd;
     int port;
     int dataPort;
-    string hostName;
 };
 
 class JasmineGraphInstanceService {
