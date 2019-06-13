@@ -20,6 +20,7 @@ limitations under the License.
 #include <iostream>
 #include <sstream>
 #include <map>
+#include <unordered_map>
 #include <vector>
 #include <unordered_set>
 #include <set>
@@ -79,7 +80,7 @@ private:
 
     std::map<int, std::vector<int>> graphStorageMap;
     std::map<int, std::vector<int>> graphEdgeMap;
-    std::map<int, std::vector<int>> partVertexMap;
+    std::unordered_map<int, size_t> partVertexCounts;
     std::map<int, std::map<int, std::vector<int>>> partitionedLocalGraphStorageMap;
     std::map<int, std::map<int, std::vector<int>>> masterGraphStorageMap;
     std::map<int, std::map<int,std::map<int, std::vector<int>>>> commonCentralStoreEdgeMap;

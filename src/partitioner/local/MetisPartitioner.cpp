@@ -29,7 +29,6 @@ MetisPartitioner::MetisPartitioner(SQLiteDBInterface *sqlite) {
 
 void MetisPartitioner::loadDataSet(string inputFilePath, int graphID) {
     partitioner_logger.log("Processing dataset for partitioning", "info");
-    const clock_t begin = clock();
     this->graphID = graphID;
     // Output directory is created under the users home directory '~/.jasminegraph/tmp/'
     this->outputFilePath = utils.getHomeDir() + "/.jasminegraph/tmp/" + std::to_string(this->graphID);
@@ -135,8 +134,7 @@ void MetisPartitioner::loadDataSet(string inputFilePath, int graphID) {
         }
     }
 
-    float time = float(clock() - begin) / CLOCKS_PER_SEC;
-    partitioner_logger.log("Processing dataset completed in " + to_string(time) + " seconds", "info");
+    partitioner_logger.log("Processing dataset completed", "info");
     cout << "Total vertex count : " << vertexCount << endl;
     cout << "Total edge count : " << edgeCount << endl;
     cout << "Largest vertex : " << largestVertex << endl;
@@ -145,7 +143,6 @@ void MetisPartitioner::loadDataSet(string inputFilePath, int graphID) {
 
 int MetisPartitioner::constructMetisFormat(string graph_type) {
     partitioner_logger.log("Constructing metis input format", "info");
-    const clock_t begin = clock();
     graphType = graph_type;
     int adjacencyIndex = 0;
     std::ofstream outputFile;
@@ -200,8 +197,7 @@ int MetisPartitioner::constructMetisFormat(string graph_type) {
 
         outputFile << std::endl;
     }
-    float time = float(clock() - begin) / CLOCKS_PER_SEC;
-    partitioner_logger.log("Constructing metis format completed in " + to_string(time) + " seconds", "info");
+    partitioner_logger.log("Constructing metis format completed", "info");
     return 1;
 }
 
@@ -269,8 +265,7 @@ std::vector<std::map<int, std::string>> MetisPartitioner::partitioneWithGPMetis(
                     counter++;
                 }
             }
-            float time = float(clock() - begin) / CLOCKS_PER_SEC;
-            partitioner_logger.log("Done partitioning with gpmetis in " + to_string(time) + " seconds", "info");
+            partitioner_logger.log("Done partitioning with gpmetis", "info");
             createPartitionFiles(partIndex);
 
             string sqlStatement =
@@ -293,7 +288,9 @@ std::vector<std::map<int, std::string>> MetisPartitioner::partitioneWithGPMetis(
 }
 
 void MetisPartitioner::createPartitionFiles(std::map<int, int> partMap) {
-    const clock_t begin_time = clock();
+    for (int i=smallestVertex; i<=largestVertex; i++)
+        partVertexCounts[partMap[i]]++;
+
     partitioner_logger.log("Populating edge lists before writing to files", "info");
     edgeMap = GetConfig::getEdgeMap();
     articlesMap = GetConfig::getAttributesMap();
@@ -337,10 +334,9 @@ void MetisPartitioner::createPartitionFiles(std::map<int, int> partMap) {
         }
     }
 
-    float t1 = float(clock() - begin_time) / CLOCKS_PER_SEC;
     partitioner_logger.log("Populating edge lists completed", "info");
     partitioner_logger.log("Writing edge lists to files", "info");
-    const clock_t begin_time2 = clock();
+
     int threadCount = nParts * 2;
     if (graphAttributeType == Conts::GRAPH_WITH_TEXT_ATTRIBUTES || graphType == Conts::GRAPH_TYPE_RDF) {
         threadCount = nParts * 4;
@@ -373,18 +369,10 @@ void MetisPartitioner::createPartitionFiles(std::map<int, int> partMap) {
         threads[tc].join();
     }
     partitioner_logger.log("writing to files completed", "info");
-    float t2 = float(clock() - begin_time2) / CLOCKS_PER_SEC;
-
-    string sqlStatement2 =
-            "UPDATE graph SET time_to_populate = '" + to_string(t1) + "' ,time_to_write = '" +
-            to_string(t2) + "' WHERE idgraph = '" + to_string(graphID) + "'";
-    this->sqlite.runUpdate(sqlStatement2);
 }
 
 void MetisPartitioner::populatePartMaps(std::map<int, int> partMap, int part) {
-    int partitionVertexCount = 0;
     int partitionEdgeCount = 0;
-    int masterPartEdgeCount = 0;
 
     std::map<int, std::vector<int>>::iterator edgeMapIterator;
     std::map<int, std::vector<int>> partEdgesSet;
@@ -399,7 +387,6 @@ void MetisPartitioner::populatePartMaps(std::map<int, int> partMap, int part) {
             int startVertexPart = partMap[startVertexID];
             int startVertexActual = idToVertexMap[startVertexID];
             if (startVertexPart == part) {
-                partitionVertexCount++;
                 std::vector<int> secondVertexVector = edgeMapIterator->second;
                 std::vector<int> localGraphVertexVector;
                 std::vector<int> centralGraphVertexVector;
@@ -415,7 +402,6 @@ void MetisPartitioner::populatePartMaps(std::map<int, int> partMap, int part) {
                         partitionEdgeCount++;
                         localGraphVertexVector.push_back(endVertexActual);
                     } else {
-                        masterPartEdgeCount++;
                         centralGraphVertexVector.push_back(endVertexActual);
                         commonMasterEdgeSet[endVertexPart][startVertexActual].push_back(endVertexActual);
                     }
@@ -430,7 +416,6 @@ void MetisPartitioner::populatePartMaps(std::map<int, int> partMap, int part) {
             int startVertex = edgeMapIterator->first;
             int startVertexPart = partMap[startVertex];
             if (startVertexPart == part) {
-                partitionVertexCount++;
                 std::vector<int> secondVertexVector = edgeMapIterator->second;
                 std::vector<int> localGraphVertexVector;
                 std::vector<int> centralGraphVertexVector;
@@ -445,7 +430,6 @@ void MetisPartitioner::populatePartMaps(std::map<int, int> partMap, int part) {
                         partitionEdgeCount++;
                         localGraphVertexVector.push_back(endVertex);
                     } else {
-                        masterPartEdgeCount++;
                         /*This edge's two vertices belong to two different parts.
                         * Therefore the edge is added to both partMasterEdgeSets
                         * This adds the edge to the masterGraphStorageMap with key being the part of vertex 1
@@ -474,9 +458,8 @@ void MetisPartitioner::populatePartMaps(std::map<int, int> partMap, int part) {
     string sqlStatement =
             "INSERT INTO partition (idpartition,graph_idgraph,vertexcount,edgecount) VALUES(\"" +
             std::to_string(part) + "\", \"" + std::to_string(this->graphID) +
-            "\", \"" + std::to_string(partitionVertexCount) + "\",\"" + std::to_string(partitionEdgeCount) + "\")";
+            "\", \"" + std::to_string(partVertexCounts[part]) + "\",\"" + std::to_string(partitionEdgeCount) + "\")";
     this->sqlite.runUpdate(sqlStatement);
-
 }
 
 void MetisPartitioner::writeSerializedPartitionFiles(int part) {
@@ -836,7 +819,6 @@ void MetisPartitioner::loadContentData(string inputAttributeFilePath, string gra
     if (graphAttributeType == Conts::GRAPH_WITH_TEXT_ATTRIBUTES) {
         std::ifstream dbFile;
         dbFile.open(inputAttributeFilePath, std::ios::binary | std::ios::in);
-        std::cout << "Content file is loading..." << std::endl;
         partitioner_logger.log("Processing features set", "info");
 
         char splitter;
@@ -860,7 +842,6 @@ void MetisPartitioner::loadContentData(string inputAttributeFilePath, string gra
             string vertex_str = line.substr(0, strpos);
             string attributes = line.substr(strpos + 1, -1);
             int vertex = stoi(vertex_str);
-            //cout << vertex << " -------------------- " << attributes << endl;
             attributeDataMap.insert({vertex, attributes});
 
             std::getline(dbFile, line);
