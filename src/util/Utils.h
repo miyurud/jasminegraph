@@ -63,6 +63,11 @@ class Utils
     int parseARGS(char **args, char *line);
 
     bool hostExists(std::string name, std::string ip, SQLiteDBInterface sqlite);
+
+    void compressDirectory(const std::string filePath);
+
+    void unzipDirectory(std::string filePath);
+
 };
 
 #endif //JASMINEGRAPH_UTILS_H

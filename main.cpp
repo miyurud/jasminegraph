@@ -57,13 +57,20 @@ int main(int argc, char *argv[]) {
 
         delete server;
     } else if (mode == Conts::JASMINEGRAPH_RUNTIME_PROFILE_WORKER){
+        main_logger.log(to_string(argc),"info");
+        main_logger.log((argv[0]),"info");
+        main_logger.log((argv[1]),"info");
+        main_logger.log((argv[2]),"info");
+        main_logger.log((argv[3]),"info");
+        main_logger.log((argv[4]),"info");
         if (argc < 5) {
 //            std::cout << "Need three arguments. Use 2 <serverPort> <serverDataPort> to "
 //                      << "start as worker ." << std::endl;
-        main_logger.log("Need three arguments. Use 2 <hostName> <serverPort> <serverDataPort> to start as worker","info");
+        main_logger.log("Need Four arguments. Use 2 <hostName> <serverPort> <serverDataPort> to start as worker","info");
             return -1;
         }
-        string hostName = argv[2];
+        string hostName;
+        hostName = argv[2];
         int serverPort = atoi(argv[3]);
         int serverDataPort = atoi(argv[4]);
 

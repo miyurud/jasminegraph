@@ -335,3 +335,63 @@ bool Utils::hostExists(string name, string ip, SQLiteDBInterface sqlite) {
     }
     return result;
 }
+
+
+/**
+ * This method compresses directories using tar
+ * @param filePath
+ */
+void Utils::compressDirectory(const std::string filePath) {
+    char buffer[128];
+    std::string result = "";
+    std::string command = "tar -czvf " + filePath + ".tar.gz "+ filePath;
+    char *commandChar = new char[command.length() + 1];
+    strcpy(commandChar, command.c_str());
+    FILE *input = popen(commandChar, "r");
+    if (input) {
+        while (!feof(input)) {
+            if (fgets(buffer, 128, input) != NULL) {
+                result.append(buffer);
+            }
+        }
+        pclose(input);
+        if (!result.empty()) {
+            util_logger.log("Directory compression failed with error: " + result, "error");
+        } else {
+            //util_logger.log("File in " + filePath + " compressed with gzip", "info");
+        }
+    } else {
+        perror("popen");
+        // handle error
+    }
+}
+
+/**
+ * this method extracts a tar.gz directory
+ * @param filePath
+ */
+void Utils::unzipDirectory(std::string filePath){
+
+    char buffer[128];
+    std::string result = "";
+    std::string command = "tar -xzvf " + filePath ;
+    char *commandChar = new char[command.length() + 1];
+    strcpy(commandChar, command.c_str());
+    FILE *input = popen(commandChar, "r");
+    if (input) {
+        while (!feof(input)) {
+            if (fgets(buffer, 128, input) != NULL) {
+                result.append(buffer);
+            }
+        }
+        pclose(input);
+        if (!result.empty()) {
+            util_logger.log("Directory decompression failed with error : " + result, "error");
+        } else {
+            //util_logger.log("File in " + filePath + " extracted with gzip", "info");
+        }
+    } else {
+        perror("popen");
+        // handle error
+    }
+}
