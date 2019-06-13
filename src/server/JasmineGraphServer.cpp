@@ -108,7 +108,7 @@ void JasmineGraphServer::start_workers() {
             portVector.push_back(workerPort);
             dataPortVector.push_back(workerDataPort);
             hostWorkerMap.push_back({*it,workerPort,workerDataPort});
-            hostPortMap.insert(make_pair(*it,workerPort));
+            hostPortMap.insert((pair<string, pair<int, int>>(*it,make_pair(workerPort,workerDataPort))));
             workerPort = workerPort + 2;
             workerDataPort = workerDataPort + 2;
             portCount ++;
@@ -118,7 +118,7 @@ void JasmineGraphServer::start_workers() {
             portVector.push_back(workerPort);
             dataPortVector.push_back(workerDataPort);
             hostWorkerMap.push_back({*it,workerPort,workerDataPort});
-            hostPortMap.insert(make_pair(*it,workerPort));
+            hostPortMap.insert(((pair<string, pair<int, int>>(*it,make_pair(workerPort,workerDataPort)))));
             workerPort = workerPort + 2;
             workerDataPort = workerDataPort + 2;
             hostListModeNWorkers--;
@@ -154,7 +154,7 @@ void JasmineGraphServer::start_workers() {
 
 
 void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector,
-                                                    std::vector<int> workerDataPortsVector, std::string host) {
+                                                    std::vector<int> workerDataPortsVector,string host) {
     Utils utils;
     std::string executableFile;
     std::string workerPath = utils.getJasmineGraphProperty("org.jasminegraph.worker.path");
@@ -176,13 +176,11 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector,
     copyArtifactsToWorkers(workerPath,artifactPath,host);
     for (int i =0 ; i < workerPortsVector.size() ; i++) {
         if (host.find("localhost") != std::string::npos) {
-            serverStartScript = executableFile+" 2 "+ std::to_string(workerPortsVector.at(i)) + " " + std::to_string(workerDataPortsVector.at(i));
+            serverStartScript = executableFile+" 2 "+ host +" " + std::to_string(workerPortsVector.at(i)) + " " + std::to_string(workerDataPortsVector.at(i));
         } else {
-            copyArtifactsToWorkers(workerPath, artifactPath, host);
             serverStartScript =
-                    "ssh -p 22 " + host + " " + executableFile + " 2" + " "+host+" " + std::to_string(workerPortsVector.at(i)) +
+                    "ssh -p 22 " + host + " " + executableFile + " 2 "+host+" " + std::to_string(workerPortsVector.at(i)) +
                     " " + std::to_string(workerDataPortsVector.at(i));
-            serverStartScript = "ssh -p 22 " + host+ " "+ executableFile + " 2"+" "+ std::to_string(workerPortsVector.at(i)) + " " + std::to_string(workerDataPortsVector.at(i));
         }
         popen(serverStartScript.c_str(),"r");
     }
@@ -297,7 +295,7 @@ bool JasmineGraphServer::batchUploadFile(std::string host, int port, int dataPor
     string response = (data);
 
     response = utils.trim_copy(response, " \f\n\r\t\v");
-
+    server_logger.log("Response: " + response, "info");
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
         server_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
         string server_host = utils.getJasmineGraphProperty("org.jasminegraph.server.host");
@@ -1080,7 +1078,7 @@ void JasmineGraphServer::removeGraph(vector<pair<string, string>> hostHasPartiti
     int count = 0;
     std::thread *deleteThreads = new std::thread[hostHasPartition.size()];
     for (std::vector<pair<string, string>>::iterator j = (hostHasPartition.begin()); j != hostHasPartition.end(); ++j) {
-        deleteThreads[count] = std::thread(removePartitionThroughService, j->first, hostPortMap[j->first], graphID, j->second);
+        deleteThreads[count] = std::thread(removePartitionThroughService, j->first, hostPortMap[j->first].first, graphID, j->second);
         count++;
         sleep(1);
     }

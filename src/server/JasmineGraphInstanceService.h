@@ -49,10 +49,10 @@ void deleteGraphPartition(std::string graphID, std::string partitionID);
 long countLocalTriangles(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores, std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores);
 
 struct instanceservicesessionargs {
+    string host;
     int connFd;
     int port;
     int dataPort;
-    string hostName;
 };
 
 class JasmineGraphInstanceService {

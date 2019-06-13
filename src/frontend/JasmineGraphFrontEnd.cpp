@@ -40,11 +40,11 @@ using namespace std;
 static int connFd;
 Logger frontend_logger;
 
-char *convert(const std::string &s) {
-    char *pc = new char[s.size() + 1];
-    std::strcpy(pc, s.c_str());
-    return pc;
-}
+//char *convert(const std::string &s) {
+//    char *pc = new char[s.size() + 1];
+//    std::strcpy(pc, s.c_str());
+//    return pc;
+//}
 
 void *frontendservicesesion(void *dummyPt) {
     frontendservicesessionargs *sessionargs = (frontendservicesessionargs *) dummyPt;
@@ -535,19 +535,33 @@ void *frontendservicesesion(void *dummyPt) {
             frontend_logger.log("Data received: " + trainData, "info");
 
             std::vector<std::string> trainargs = Utils::split(trainData, ' ');
+            std::vector<std::string>::iterator itr = std::find(trainargs.begin(), trainargs.end(), "--graph_id");
+            std::string graphID;
+            if (itr != trainargs.cend()) {
+                int index = std::distance(trainargs.begin(), itr);
+                graphID = trainargs[index+1];
+            }
+            else {
+                frontend_logger.log("graph_id should be given as an argument", "error");
+                break;
+            }
 
-            std::vector<char *> vc;
-            std::transform(trainargs.begin(), trainargs.end(), std::back_inserter(vc), convert);
-
-            for (size_t i = 0; i < vc.size(); i++)
-                std::cout << vc[i] << std::endl;
-            if (vc.size() == 0) {
+//            std::vector<char *> vc;
+//            std::transform(trainargs.begin(), trainargs.end(), std::back_inserter(vc), convert);
+//
+//            for (size_t i = 0; i < vc.size(); i++)
+//                std::cout << vc[i] << std::endl;
+//            if (vc.size() == 0) {
+//                frontend_logger.log("Message format not recognized", "error");
+//                break;
+//            }
+            if (trainargs.size() == 0) {
                 frontend_logger.log("Message format not recognized", "error");
                 break;
             }
 
             JasminGraphTrainingInitiator *jasminGraphTrainingInitiator = new JasminGraphTrainingInitiator();
-            jasminGraphTrainingInitiator->initiateTrainingLocally(trainData);
+            jasminGraphTrainingInitiator->initiateTrainingLocally(graphID,trainData);
 //            Python_C_API::train(vc.size(), &vc[0]);
         } else if (line.compare(PREDICT) == 0){
             write(sessionargs->connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
