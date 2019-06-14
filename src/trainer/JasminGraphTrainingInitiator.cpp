@@ -40,19 +40,25 @@ void JasminGraphTrainingInitiator::initiateTrainingLocally(std::string graphID, 
             partition_count++;
         }
     }
-    std::thread *workerThreads = new std::thread[partition_count];
+    cout<<partition_count<<endl;
+//    std::thread *workerThreads = new std::thread[partition_count];
+    std::thread *workerThreads = new std::thread[1];
 
     Utils utils;
     string prefix = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
-    trainingArgs+= "--train_prefix "+prefix+"/"+graphID;
+    trainingArgs+= " --train_prefix "+prefix+"/"+graphID;
 
     std::map<std::string, JasmineGraphServer::workerPartitions>::iterator j;
     for (j = graphPartitionedHosts.begin(); j != graphPartitionedHosts.end(); j++) {
         JasmineGraphServer::workerPartitions workerPartition = j->second;
         std::vector<std::string> partitions = workerPartition.partitionID;
         std::vector<std::string>::iterator k;
-        for(k = partitions.begin(); k < partitions.end(); k++){
-            workerThreads[count] = std::thread(initiateTrain, j->first, workerPartition.port, workerPartition.dataPort, trainingArgs+"--train_worker "+*k);
+        for(k = partitions.begin(); k != partitions.end(); k++){
+            workerThreads[count] = std::thread(initiateTrain, j->first, workerPartition.port, workerPartition.dataPort, trainingArgs+" --train_worker "+*k);
+//            std::thread workThread = std::thread(initiateTrain, j->first, workerPartition.port, workerPartition.dataPort, trainingArgs+" --train_worker "+*k);
+//            workThread.detach();
+            count++;
+            break;
         }
     }
 
@@ -142,7 +148,7 @@ bool JasminGraphTrainingInitiator::initiateTrain(std::string host, int port, int
             trainer_log.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
             std::cout << trainingArgs << std::endl;
             write(sockfd, (trainingArgs).c_str(), (trainingArgs).size());
-            trainer_log.log("Sent : training args" + trainingArgs, "info");
+            trainer_log.log("Sent : training args " + trainingArgs, "info");
             return 0;
         }
     } else {

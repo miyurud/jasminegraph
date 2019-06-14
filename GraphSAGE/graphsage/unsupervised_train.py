@@ -3,6 +3,7 @@ from __future__ import print_function
 
 import os
 import time
+import sys
 import tensorflow as tf
 import numpy as np
 
@@ -28,9 +29,9 @@ tf.app.flags.DEFINE_boolean('log_device_placement', False,
 flags.DEFINE_string('model', 'graphsage', 'model names. See README for possible values.')  
 flags.DEFINE_float('learning_rate', 0.00001, 'initial learning rate.')
 flags.DEFINE_string("model_size", "small", "Can be big or small; model specific def'ns")
-flags.DEFINE_string('train_prefix', '', 'name of the object file that stores the training data. must be specified.')
+flags.DEFINE_string('train_prefix', '/var/tmp/jasminegraph-localstore/1', 'name of the object file that stores the training data. must be specified.')
 flags.DEFINE_string('train_worker', '0' , 'specify the worker')
-flags.DEFINE_integer('graph_id', 0 , 'specify the graphID')
+flags.DEFINE_integer('graph_id', 1 , 'specify the graphID')
 
 # left to default values in main experiments 
 flags.DEFINE_integer('epochs', 1, 'number of epochs to train.')
@@ -389,6 +390,14 @@ def train(train_data, test_data=None):
     
 
 def main(argv=None):
+    # for i in range(argv):
+    #     if argv[i]=="--train_prefix":
+    #         train_prefix = argv[i+1]
+    #     if argv[i]=="--train_worker":
+    #         train_worker = argv[i+1]
+    # file = open("train_prefix.txt", "w")
+    # file.write(train_prefix)
+    # file.write(train_worker)
     print("Loading training data..")
     train_data = load_data(FLAGS.train_prefix, FLAGS.train_worker, load_walks=True)
     print("Done loading training data..")
@@ -396,4 +405,5 @@ def main(argv=None):
 
 if __name__ == '__main__':
     # tf.app.run()
+    # main(sys.argv)
     main()
