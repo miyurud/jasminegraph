@@ -542,18 +542,9 @@ void *frontendservicesesion(void *dummyPt) {
             }
             else {
                 frontend_logger.log("graph_id should be given as an argument", "error");
-                break;
+                continue;
             }
 
-//            std::vector<char *> vc;
-//            std::transform(trainargs.begin(), trainargs.end(), std::back_inserter(vc), convert);
-//
-//            for (size_t i = 0; i < vc.size(); i++)
-//                std::cout << vc[i] << std::endl;
-//            if (vc.size() == 0) {
-//                frontend_logger.log("Message format not recognized", "error");
-//                break;
-//            }
             if (trainargs.size() == 0) {
                 frontend_logger.log("Message format not recognized", "error");
                 break;

@@ -13,9 +13,14 @@ limitations under the License.
 
 #include "Python.h"
 #include "Python_C_API.h"
+#include <iostream>
+#include <fstream>
+using namespace std;
 
 void Python_C_API::train(int argc, char *argv[]) {
-
+    ofstream myfile;
+    myfile.open ("logs/API.txt");
+    myfile << "in C-Python API Train method" << endl;
     if (argc % 2 != 0) {
         fprintf(stderr, "Usage: [--flag name] [args]\n");
     }
@@ -32,9 +37,9 @@ void Python_C_API::train(int argc, char *argv[]) {
     PyObject *sys = PyImport_ImportModule("sys");
     PyObject *path = PyObject_GetAttrString(sys, "path");
 
-    PyList_Append(path, PyUnicode_FromString("."));
-    file = fopen("./test.py", "r");
-    PyRun_SimpleFile(file, "./test.py");
+    PyList_Append(path, PyUnicode_FromString("./GraphSAGE/graphsage/"));
+    file = fopen("./unsupervised_train.py", "r");
+    PyRun_SimpleFile(file, "./unsupervised_train.py");
     fclose(file);
     Py_Finalize();
 }

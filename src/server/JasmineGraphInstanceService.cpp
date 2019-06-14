@@ -32,7 +32,7 @@ char *converter(const std::string &s) {
 void *instanceservicesession(void *dummyPt) {
     instanceservicesessionargs *sessionargs = (instanceservicesessionargs *) dummyPt;
     int connFd = sessionargs->connFd;
-    string serverName = sessionargs->hostName;
+    string serverName = sessionargs->host;
     int serverPort = sessionargs->port;
     int serverDataPort = sessionargs->dataPort;
 
@@ -544,9 +544,12 @@ void *instanceservicesession(void *dummyPt) {
             bzero(data, 301);
             read(connFd, data, 300);
             string trainData(data);
+            ofstream myfile;
+            myfile.open ("logs/instancelog.txt");
+            myfile << trainData << endl;
 
             Utils utils;
-            trainData = utils.trim_copy(trainData, " \f\n\r\t\v");
+//            trainData = utils.trim_copy(trainData, " \f\n\r\t\v");
 
             std::vector<std::string> trainargs = Utils::split(trainData, ' ');
 
@@ -554,7 +557,7 @@ void *instanceservicesession(void *dummyPt) {
             std::transform(trainargs.begin(), trainargs.end(), std::back_inserter(vc), converter);
 
             Python_C_API::train(vc.size(), &vc[0]);
-            loop = true;
+//            loop = true;
 
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_PREDICT) == 0) {
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::INITIATE_PREDICT, "info");
