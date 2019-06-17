@@ -1,10 +1,23 @@
-#include "Partition.h"
+/*
+ * Copyright 2019 JasminGraph Team
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#include "JasmineGraphIncrementalStore.h"
 #include <iostream>
 #include <sstream>
 #include <vector>
 
 // This addition is undirectional , Add both items of the pair as keys
-void Partition::addEdge(std::pair<int, int> edge) {
+void JasmineGraphIncrementalStore::addEdge(std::pair<int, int> edge) {
     auto exsistFirstVertext = this->edgeList.find(edge.first);
     if (exsistFirstVertext != this->edgeList.end()) {
         this->edgeList[edge.first].insert(edge.second);
@@ -20,7 +33,7 @@ void Partition::addEdge(std::pair<int, int> edge) {
     }
 }
 
-std::set<int> Partition::getNeighbors(int vertex) {
+std::set<int> JasmineGraphIncrementalStore::getNeighbors(int vertex) {
     auto exsist = this->edgeList.find(vertex);
     if (exsist != this->edgeList.end()) {
         return this->edgeList[vertex];
@@ -31,7 +44,7 @@ std::set<int> Partition::getNeighbors(int vertex) {
 
 // The number of edges, the cardinality of E, is called the size of graph and denoted by |E|. We usually use m to denote
 // the size of G.
-double Partition::getEdgesCount() {
+double JasmineGraphIncrementalStore::getEdgesCount() {
     double total = 0;
     std::set<int> uniqueEdges;
     for (auto edge : this->edgeList) {
@@ -44,8 +57,8 @@ double Partition::getEdgesCount() {
 
 // The number of vertices, the cardinality of V, is called the order of graph and devoted by |V|. We usually use n to
 // denote the order of G.
-double Partition::getVertextCount() {
-    double edgeListVetices = this->edgeList.size() / 2.0;
+double JasmineGraphIncrementalStore::getVertextCount() {
+    double edgeListVetices = this->edgeList.size();
     double edgeCutVertices = 0;
     for (size_t i = 0; i < this->numberOfPartitions; i++) {
         for (auto edge : this->edgeCuts[i]) {
@@ -59,7 +72,7 @@ double Partition::getVertextCount() {
 }
 
 template <typename Out>
-void Partition::_split(const std::string &s, char delim, Out result) {
+void JasmineGraphIncrementalStore::_split(const std::string &s, char delim, Out result) {
     std::stringstream ss(s);
     std::string item;
     while (std::getline(ss, item, delim)) {
@@ -67,13 +80,13 @@ void Partition::_split(const std::string &s, char delim, Out result) {
     }
 }
 
-std::vector<std::string> Partition::_split(const std::string &s, char delim) {
+std::vector<std::string> JasmineGraphIncrementalStore::_split(const std::string &s, char delim) {
     std::vector<std::string> elems;
-    Partition::_split(s, delim, std::back_inserter(elems));
+    JasmineGraphIncrementalStore::_split(s, delim, std::back_inserter(elems));
     return elems;
 }
 
-void Partition::addToEdgeCuts(int resident, int foreign, int partitionId) {
+void JasmineGraphIncrementalStore::addToEdgeCuts(int resident, int foreign, int partitionId) {
     if (partitionId < this->numberOfPartitions) {
         auto exsistResidentVertiext = this->edgeCuts[partitionId].find(resident);
         if (exsistResidentVertiext != this->edgeCuts[partitionId].end()) {
@@ -84,7 +97,7 @@ void Partition::addToEdgeCuts(int resident, int foreign, int partitionId) {
     }
 }
 
-long Partition::edgeCutsCount() {
+long JasmineGraphIncrementalStore::edgeCutsCount() {
     long total = 0;
     for (auto partition : this->edgeCuts) {
         for (auto edgeCuts : partition) {
@@ -94,9 +107,9 @@ long Partition::edgeCutsCount() {
     return total;
 }
 
-float Partition::edgeCutsRatio() { return this->edgeCutsCount() / (this->getEdgesCount() + this->edgeCutsCount()); }
+float JasmineGraphIncrementalStore::edgeCutsRatio() { return this->edgeCutsCount() / (this->getEdgesCount() + this->edgeCutsCount()); }
 
-void Partition::printEdgeCuts() {
+void JasmineGraphIncrementalStore::printEdgeCuts() {
     std::cout << "Printing edge cuts of " << id << " partition" << std::endl;
     for (auto partition : this->edgeCuts) {
         for (auto edgeList : partition) {
@@ -109,7 +122,7 @@ void Partition::printEdgeCuts() {
     }
 }
 
-void Partition::printEdges() {
+void JasmineGraphIncrementalStore::printEdges() {
     std::cout << "Printing edge list of " << id << " partition" << std::endl;
     std::unordered_set<long> compositeVertextIDs;
     for (auto edgeList : this->edgeList) {
@@ -129,7 +142,7 @@ void Partition::printEdges() {
     }
 }
 
-bool Partition::isExist(double vertext) {
+bool JasmineGraphIncrementalStore::isExist(double vertext) {
     bool inEdgeList = this->edgeList.find(vertext) != this->edgeList.end();
     bool inEdgeCuts = false;
     for (size_t i = 0; i < this->numberOfPartitions; i++) {

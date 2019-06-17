@@ -920,6 +920,10 @@ bool JasmineGraphServer::sendFileThroughService(std::string host, int dataPort, 
 
 void JasmineGraphServer::copyArtifactsToWorkers(std::string workerPath, std::string artifactLocation,
                                                       std::string remoteWorker) {
+    if (artifactLocation.empty() || artifactLocation.find_first_not_of (' ') == artifactLocation.npos) {
+        server_logger.log("Received `" + artifactLocation + "` for `artifactLocation` value!", "error");
+        throw std::invalid_argument( "Received empty string for `artifactLocation` value!" );   
+    }
     std::string pathCheckCommand = "test -e " + workerPath + "&& echo file exists || echo file not found";
     std::string artifactCopyCommand;
     std::string localWorkerArtifactCopyCommand = "cp -r "+ artifactLocation+"/* "+workerPath;

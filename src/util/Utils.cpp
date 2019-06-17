@@ -239,7 +239,9 @@ std::string Utils::getJasmineGraphHome() {
     {
         jasminegraph_home = std::string(temp);
     }
-
+    if(jasminegraph_home.empty()) {
+        util_logger.log("Returning empty value for " + Conts::JASMINEGRAPH_HOME, "warn");
+    }
     return jasminegraph_home;
 }
 

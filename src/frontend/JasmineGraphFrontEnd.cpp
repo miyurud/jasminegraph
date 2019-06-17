@@ -21,6 +21,7 @@ limitations under the License.
 #include "JasmineGraphFrontEndProtocol.h"
 #include "../metadb/SQLiteDBInterface.h"
 #include "../partitioner/local/MetisPartitioner.h"
+#include "../partitioner/stream/Partitioner.h"
 #include "../partitioner/local/RDFPartitioner.h"
 #include "../util/logger/Logger.h"
 #include "../server/JasmineGraphServer.h"
@@ -291,8 +292,9 @@ void *frontendservicesesion(void *dummyPt) {
                 break;
             }
         } else if (line.compare(ADD_STREAM_KAFKA) == 0) {
-            std::cout << STREAM_TOPIC_NAME << endl;
-            write(connFd, STREAM_TOPIC_NAME.c_str(), STREAM_TOPIC_NAME.length());
+            frontend_logger.log("Start serving `" + ADD_STREAM_KAFKA + "` command", "info");
+            string message = "send kafka topic name"; 
+            write(connFd, message.c_str(), message.length());
             write(connFd, "\r\n", 2);
 
             // We get the name and the path to graph as a pair separated by |.
@@ -304,32 +306,33 @@ void *frontendservicesesion(void *dummyPt) {
             Utils utils;
             string topic_name_s(topic_name);
             topic_name_s = utils.trim_copy(topic_name_s, " \f\n\r\t\v");
-            std::cout << "data received : " << topic_name << endl;
             // After getting the topic name , need to close the connection and ask the user to send the data to given topic
 
             cppkafka::Configuration configs = {{"metadata.broker.list", "127.0.0.1:9092"},
                                                {"group.id",             "knnect"}};
             KafkaConnector kstream(configs);
+            int numberOfPartitions = 4;
+            Partitioner graphPartitioner(numberOfPartitions);
 
             kstream.Subscribe(topic_name_s);
+            frontend_logger.log("Start listning to " + topic_name_s, "info");
             while (true) {
-                cout << "Waiting to receive message. . ." << endl;
                 cppkafka::Message msg = kstream.consumer.poll();
-                if (!msg) {
+                if (!msg || msg.get_error()) {
                     continue;
                 }
-
-                if (msg.get_error()) {
-                    if (msg.is_eof()) {
-                        cout << "Message end of file received!" << endl;
-                    }
-                    continue;
+                string data(msg.get_payload());
+                // cout << "Payload = " << data << endl;
+                if (data == "-1") {  // Marks the end of stream
+                    frontend_logger.log("Received the end of stream", "info");
+                    break;
                 }
-
-                cout << "Received message on partition " << msg.get_topic() << "/" << msg.get_partition() << ", offset "
-                     << msg.get_offset() << endl;
-                cout << "Payload = " << msg.get_payload() << endl;
+                std::pair<long, long> edge = Partitioner::deserialize(data);
+                frontend_logger.log("Received edge >> " + std::to_string(edge.first) + " --- " + std::to_string(edge.second) , "info");
+                graphPartitioner.addEdge(edge);
             }
+            graphPartitioner.printStats();
+
         } else if (line.compare(RMGR) == 0) {
             write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
             write(connFd, "\r\n", 2);
