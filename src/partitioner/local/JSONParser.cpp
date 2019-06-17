@@ -23,6 +23,9 @@ limitations under the License.
 #include "json/json.h"
 #include <ctime>
 #include <chrono>
+#include "../../util/logger/Logger.h"
+
+Logger jsonparser_logger;
 
 
 class Value;
@@ -46,26 +49,10 @@ void JSONParser::jsonParse(string filePath) {
 
     attributeFileCreate();
 
-
 }
 
-
-long JSONParser::addToVenues(string name) {
-    long id;
-    id = venueMap.size();
-
-    auto search = venueMap.find(name);
-    if (search != venueMap.end()) {
-        return search->second;
-    }
-
-
-    venueMap.insert({name, id});
-    return id;
-}
 
 void JSONParser::attributeFileCreate() {
-    int count = 0;
     ofstream attrFile;
     attrFile.open(outputFilePath + "/attributeList.txt");
 
@@ -73,32 +60,40 @@ void JSONParser::attributeFileCreate() {
     std::string line;
     Json::Reader reader;
     Json::Value root;
+    std::vector<int> vectorOfzeros(fieldsMap.size(), 0);
+
     while (std::getline(infile, line)) {
-        count++;
-        std::vector<int> vectorOfzeros(venueMap.size(), 0);
-
-
+        std::vector<int> tempVectorOfZeros = vectorOfzeros;
         if (!reader.parse(line, root)) {
             std::cout << reader.getFormattedErrorMessages();
             exit(1);
         } else {
             string id = root["id"].asString();
+            int mapped_id = vertexToIDMap.find(stol(id))->second;
+            const Json::Value fos = root["fos"];
+            for (int i = 0; i < fos.size(); i++) {
+                string field = fos[i]["name"].asString();
 
+                double weight = fos[i]["w"].asDouble();
+                auto search = fieldsMap.find(field);
+                if (search != fieldsMap.end()) {
+                    int index = search->second;
+                    if (weight < 0.5 && weight > 0.0) {
+                        tempVectorOfZeros.at(index) = 1;
 
-            string venue = root["venue"].toStyledString();
+                    } else if (weight > 0.5) {
+                        tempVectorOfZeros.at(index) = 2;
 
+                    }
 
-            auto search = venueMap.find(venue);
-            if (search != venueMap.end()) {
-                int index = search->second;
-                vectorOfzeros.at(index) = 1;
-
+                }
             }
 
-            attrFile << id << "\t";
+
+            attrFile << mapped_id << "\t";
 
 
-            for (auto it = vectorOfzeros.begin(); it != vectorOfzeros.end(); ++it) {
+            for (auto it = tempVectorOfZeros.begin(); it != tempVectorOfZeros.end(); ++it) {
                 attrFile << *it << "\t ";
 
             }
@@ -113,7 +108,6 @@ void JSONParser::attributeFileCreate() {
 
 
 void JSONParser::readFile() {
-
     this->utils.createDirectory(utils.getHomeDir() + "/.jasminegraph/");
     this->utils.createDirectory(utils.getHomeDir() + "/.jasminegraph/tmp");
     this->utils.createDirectory(utils.getHomeDir() + "/.jasminegraph/tmp/JSONParser");
@@ -126,31 +120,58 @@ void JSONParser::readFile() {
     std::string line;
     Json::Reader reader;
     Json::Value root;
+    int count = 0;
+    int idCounter = 0;
+    int field_counter = 0;
+    int mapped_id = 0;
 
     while (std::getline(infile, line)) {
+        count++;
 
         if (!reader.parse(line, root)) {
-            std::cout << reader.getFormattedErrorMessages();
+            jsonparser_logger.log("File format mismatch", "error");
             exit(1);
         } else {
+
             string id = root["id"].asString();
+            long idValue = stol(id);
+            if (vertexToIDMap.find(idValue) == vertexToIDMap.end()) {
+                vertexToIDMap.insert(make_pair(idValue, idCounter));
+                mapped_id = idCounter;
+                idCounter++;
+            }
+
             const Json::Value references = root["references"];
+            int mapped_ref_id;
             for (int index = 0; index < references.size(); ++index) {
-                file << id << " " << references[index].asString() << endl;
+                string ref_id = references[index].asString();
+                long ref_idValue = stol(ref_id);
+                if (vertexToIDMap.find(ref_idValue) == vertexToIDMap.end()) {
+                    vertexToIDMap.insert(make_pair(idValue, idCounter));
+                    mapped_ref_id = idCounter;
+                    idCounter++;
+                } else {
+                    mapped_ref_id = vertexToIDMap.find(ref_idValue)->second;
+                }
+
+                file << mapped_id << " " << mapped_ref_id << endl;
 
             }
 
-            string venue = root["venue"].toStyledString();
-            addToVenues(venue);
+            const Json::Value fos = root["fos"];
 
+            for (int i = 0; i < fos.size(); i++) {
+                string field = fos[i]["name"].asString();
+                if (fieldsMap.find(field) == fieldsMap.end()) {
+                    fieldsMap.insert(make_pair(field, field_counter));
+                    field_counter++;
+                }
+            }
         }
     }
 
-
     file.close();
 }
-
-
 
 
 

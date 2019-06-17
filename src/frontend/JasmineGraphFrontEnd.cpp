@@ -109,7 +109,7 @@ void *frontendservicesesion(void *dummyPt) {
             }
 
             if (utils.fileExists(path)) {
-                std::cout << "Path exists" << endl;
+                frontend_logger.log("Path exists", "info");
 
                 SQLiteDBInterface *sqlite = &sessionargs->sqlite;
                 string sqlStatement =
@@ -176,7 +176,7 @@ void *frontendservicesesion(void *dummyPt) {
             }
 
             if (utils.fileExists(path)) {
-                std::cout << "Path exists" << endl;
+                frontend_logger.log("Path exists", "info");
 
                 SQLiteDBInterface *sqlite = &sessionargs->sqlite;
                 string sqlStatement =
@@ -375,7 +375,7 @@ void *frontendservicesesion(void *dummyPt) {
                                     "error");
             }
 
-        } else if (line.compare(REFORMAT) == 0) {
+        } else if (line.compare(PROCESS_DATASET) == 0) {
             write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
             write(connFd, "\r\n", 2);
 
@@ -392,17 +392,15 @@ void *frontendservicesesion(void *dummyPt) {
             gData = utils.trim_copy(gData, " \f\n\r\t\v");
             frontend_logger.log("Data received: " + gData, "info");
 
-            std::vector<std::string> strArr = Utils::split(gData, '|');
-
-            if (strArr.size() != 2) {
+            if (gData.length()==0) {
                 frontend_logger.log("Message format not recognized", "error");
                 break;
             }
-            string name = strArr[0];
-            string path = strArr[1];
+            string path = gData;
+
 
             if (utils.fileExists(path)) {
-                std::cout << "Path exists" << endl;
+                frontend_logger.log("Path exists", "info");
 
                 JSONParser *jsonParser = new JSONParser();
                 jsonParser->jsonParse(path);

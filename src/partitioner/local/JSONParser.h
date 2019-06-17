@@ -35,15 +35,20 @@ public:
 
     void jsonParse(string inputFilePath);
 
-    long addToVenues(string name);
+    long addToFields(string name);
 
     void readFile();
 
     void attributeFileCreate();
 
+    //int vertexToIdMap(long vec_id);
+
 
 private:
-    std::map<std::string, int> venueMap;
+    //std::vector<std::string> filedsList;
+    std::map<std::string, int> fieldsMap;
+    std::map<long , int> vertexToIDMap;
+
     string inputFilePath;
     string outputFilePath;
     Utils utils;
