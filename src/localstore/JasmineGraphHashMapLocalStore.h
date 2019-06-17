@@ -17,10 +17,12 @@ limitations under the License.
 #include "JasmineGraphLocalStore.h"
 #include "../util/dbutil/edgestore_generated.h"
 #include "../util/dbutil/attributestore_generated.h"
+#include "../util/dbutil/partedgemapstore_generated.h"
 #include <flatbuffers/util.h>
 
 using namespace JasmineGraph::Edgestore;
 using namespace JasmineGraph::AttributeStore;
+using namespace JasmineGraph::PartEdgeMapStore;
 
 class JasmineGraphHashMapLocalStore : public JasmineGraphLocalStore {
 private:
@@ -33,6 +35,7 @@ private:
     std::string instanceDataFolderLocation;
     std::map<long, std::unordered_set<long>> localSubGraphMap;
     std::map<long, std::vector<string>> localAttributeMap;
+    std::map<int, std::vector<int>> edgeMap;
 
     long vertexCount;
     long edgeCount;
@@ -79,6 +82,16 @@ public:
     void addVertex(string *attributes);
 
     map<long, std::vector<std::string>> getAttributeHashMap();
+
+    // The following 4 functions are used to serialize partition edge maps before uploading through workers.
+    // If this function can be done by existing methods we can remove these.
+    void toLocalEdgeMap(const PartEdgeMapStore *edgeMapStoreData);
+
+    bool loadPartEdgeMap(const std::string filePath);
+
+    bool storePartEdgeMap(std::map<int, std::vector<int>> edgeMap, const std::string savePath);
+
+    map<int, std::vector<int>> getEdgeHashMap(const std::string filePath);
 };
 
 
