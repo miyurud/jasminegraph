@@ -21,6 +21,7 @@ limitations under the License.
 #include "JasmineGraphFrontEndProtocol.h"
 #include "../metadb/SQLiteDBInterface.h"
 #include "../partitioner/local/MetisPartitioner.h"
+#include "../partitioner/stream/Partitioner.h"
 #include "../partitioner/local/RDFPartitioner.h"
 #include "../util/logger/Logger.h"
 #include "../server/JasmineGraphServer.h"
@@ -96,7 +97,7 @@ void *frontendservicesesion(void *dummyPt) {
 
             if (strArr.size() != 2) {
                 frontend_logger.log("Message format not recognized", "error");
-                break;
+                continue;
             }
 
             name = strArr[0];
@@ -104,7 +105,7 @@ void *frontendservicesesion(void *dummyPt) {
 
             if (JasmineGraphFrontEnd::graphExists(path, dummyPt)) {
                 frontend_logger.log("Graph exists", "error");
-                break;
+                continue;
             }
 
             if (utils.fileExists(path)) {
@@ -136,7 +137,7 @@ void *frontendservicesesion(void *dummyPt) {
 
             } else {
                 frontend_logger.log("Graph data file does not exist on the specified path", "error");
-                break;
+                continue;
             }
 
         } else if (line.compare(ADGR) == 0) {
@@ -163,7 +164,7 @@ void *frontendservicesesion(void *dummyPt) {
 
             if (strArr.size() != 2) {
                 frontend_logger.log("Message format not recognized", "error");
-                break;
+                continue;
             }
 
             name = strArr[0];
@@ -171,7 +172,7 @@ void *frontendservicesesion(void *dummyPt) {
 
             if (JasmineGraphFrontEnd::graphExists(path, dummyPt)) {
                 frontend_logger.log("Graph exists", "error");
-                break;
+                continue;
             }
 
             if (utils.fileExists(path)) {
@@ -196,6 +197,7 @@ void *frontendservicesesion(void *dummyPt) {
                     partitioner->constructMetisFormat(Conts::GRAPH_TYPE_NORMAL_REFORMATTED);
                     fullFileList = partitioner->partitioneWithGPMetis();
                 } else {
+
                     fullFileList = partitioner->partitioneWithGPMetis();
                 }
                 frontend_logger.log("Upload done", "info");
@@ -203,7 +205,7 @@ void *frontendservicesesion(void *dummyPt) {
                 utils.deleteDirectory(utils.getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
             } else {
                 frontend_logger.log("Graph data file does not exist on the specified path", "error");
-                break;
+                continue;
             }
         } else if (line.compare(ADGR_CUST) == 0) {
             string message = "Select a custom graph upload option\n";
@@ -215,11 +217,26 @@ void *frontendservicesesion(void *dummyPt) {
             write(connFd, Conts::GRAPH_WITH::XML_ATTRIBUTES.c_str(), Conts::GRAPH_WITH::TEXT_ATTRIBUTES.size());
             write(connFd, "\n", 2);
 
-            //TODO :: Handle user inputting a value out of range
             char type[20];
             bzero(type, 21);
             read(connFd, type, 20);
             string graphType(type);
+            graphType = utils.trim_copy(graphType, " \f\n\r\t\v");
+
+            std::unordered_set<std::string> s = {"1","2","3"};
+            if (s.find(graphType) == s.end()){
+                frontend_logger.log("Graph type not recognized", "error");
+                continue;
+            }
+
+            string graphAttributeType = "";
+            if (graphType == "1"){
+                graphAttributeType = Conts::GRAPH_WITH_TEXT_ATTRIBUTES;
+            }else if (graphType == "2"){
+                graphAttributeType = Conts::GRAPH_WITH_JSON_ATTRIBUTES;
+            }else if (graphType == "3"){
+                graphAttributeType = Conts::GRAPH_WITH_XML_ATTRIBUTES;
+            }
 
             // We get the name and the path to graph edge list and attribute list as a triplet separated by | .
             // (<name>|<path to edge list>|<path to attribute file>)
@@ -245,7 +262,7 @@ void *frontendservicesesion(void *dummyPt) {
 
             if (strArr.size() != 3) {
                 frontend_logger.log("Message format not recognized", "error");
-                break;
+                continue;
             }
 
             name = strArr[0];
@@ -254,7 +271,7 @@ void *frontendservicesesion(void *dummyPt) {
 
             if (JasmineGraphFrontEnd::graphExists(edgeListPath, dummyPt)) {
                 frontend_logger.log("Graph exists", "error");
-                break;
+                continue;
             }
 
             if (utils.fileExists(edgeListPath) && utils.fileExists(attributeListPath)) {
@@ -270,7 +287,7 @@ void *frontendservicesesion(void *dummyPt) {
                 JasmineGraphServer *jasmineServer = new JasmineGraphServer();
                 MetisPartitioner *partitioner = new MetisPartitioner(&sessionargs->sqlite);
                 vector<std::map<int,string>> fullFileList;
-                partitioner->loadContentData(attributeListPath, "1");
+                partitioner->loadContentData(attributeListPath, graphAttributeType);
                 partitioner->loadDataSet(edgeListPath, newGraphID);
                 int result = partitioner->constructMetisFormat(Conts::GRAPH_TYPE_NORMAL);
                 if (result == 0) {
@@ -288,11 +305,12 @@ void *frontendservicesesion(void *dummyPt) {
                 utils.deleteDirectory("/tmp/" + std::to_string(newGraphID));
             } else {
                 frontend_logger.log("Graph data file does not exist on the specified path", "error");
-                break;
+                continue;
             }
         } else if (line.compare(ADD_STREAM_KAFKA) == 0) {
-            std::cout << STREAM_TOPIC_NAME << endl;
-            write(connFd, STREAM_TOPIC_NAME.c_str(), STREAM_TOPIC_NAME.length());
+            frontend_logger.log("Start serving `" + ADD_STREAM_KAFKA + "` command", "info");
+            string message = "send kafka topic name"; 
+            write(connFd, message.c_str(), message.length());
             write(connFd, "\r\n", 2);
 
             // We get the name and the path to graph as a pair separated by |.
@@ -304,32 +322,33 @@ void *frontendservicesesion(void *dummyPt) {
             Utils utils;
             string topic_name_s(topic_name);
             topic_name_s = utils.trim_copy(topic_name_s, " \f\n\r\t\v");
-            std::cout << "data received : " << topic_name << endl;
             // After getting the topic name , need to close the connection and ask the user to send the data to given topic
 
             cppkafka::Configuration configs = {{"metadata.broker.list", "127.0.0.1:9092"},
                                                {"group.id",             "knnect"}};
             KafkaConnector kstream(configs);
+            int numberOfPartitions = 4;
+            Partitioner graphPartitioner(numberOfPartitions);
 
             kstream.Subscribe(topic_name_s);
+            frontend_logger.log("Start listning to " + topic_name_s, "info");
             while (true) {
-                cout << "Waiting to receive message. . ." << endl;
                 cppkafka::Message msg = kstream.consumer.poll();
-                if (!msg) {
+                if (!msg || msg.get_error()) {
                     continue;
                 }
-
-                if (msg.get_error()) {
-                    if (msg.is_eof()) {
-                        cout << "Message end of file received!" << endl;
-                    }
-                    continue;
+                string data(msg.get_payload());
+                // cout << "Payload = " << data << endl;
+                if (data == "-1") {  // Marks the end of stream
+                    frontend_logger.log("Received the end of stream", "info");
+                    break;
                 }
-
-                cout << "Received message on partition " << msg.get_topic() << "/" << msg.get_partition() << ", offset "
-                     << msg.get_offset() << endl;
-                cout << "Payload = " << msg.get_payload() << endl;
+                std::pair<long, long> edge = Partitioner::deserialize(data);
+                frontend_logger.log("Received edge >> " + std::to_string(edge.first) + " --- " + std::to_string(edge.second) , "info");
+                graphPartitioner.addEdge(edge);
             }
+            graphPartitioner.printStats();
+
         } else if (line.compare(RMGR) == 0) {
             write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
             write(connFd, "\r\n", 2);
@@ -395,7 +414,7 @@ void *frontendservicesesion(void *dummyPt) {
                 break;
             }
         } else {
-            frontend_logger.log("Message format not recognized " + line, "error");
+            frontend_logger.log("Command not recognized " + line, "error");
         }
     }
     frontend_logger.log("Closing thread " + to_string(pthread_self()) + " and connection", "info");

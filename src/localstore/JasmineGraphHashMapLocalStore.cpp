@@ -265,3 +265,79 @@ map<long, std::vector<std::string>> JasmineGraphHashMapLocalStore::getAttributeH
     loadAttributes();
     return this->localAttributeMap;
 }
+
+// The following 4 functions are used to serialize partition edge maps before uploading through workers.
+// If this function can be done by existing methods we can remove these.
+
+void JasmineGraphHashMapLocalStore::toLocalEdgeMap(const PartEdgeMapStore *edgeMapStoreData) {
+    auto allEntries = edgeMapStoreData->entries();
+    int tableSize = allEntries->size();
+
+    for (int i = 0; i < tableSize; i = i + 1) {
+        auto entry = allEntries->Get(i);
+        int key = entry->key();
+        auto value = entry->value();
+        const flatbuffers::Vector<int> &vector = *value;
+        std::vector<int> valueSet(vector.begin(), vector.end());
+        edgeMap.insert(std::make_pair(key, valueSet));
+    }
+}
+
+bool JasmineGraphHashMapLocalStore::loadPartEdgeMap(const std::string filePath) {
+    bool result = false;
+
+    std::ifstream dbFile;
+    dbFile.open(filePath, std::ios::binary | std::ios::in);
+
+    if (!dbFile.is_open()) {
+        return result;
+    }
+
+    dbFile.seekg(0, std::ios::end);
+    int length = dbFile.tellg();
+    dbFile.seekg(0, std::ios::beg);
+    char *data = new char[length];
+    dbFile.read(data, length);
+    dbFile.close();
+
+    auto edgeMapStoreData = GetPartEdgeMapStore(data);
+
+    toLocalEdgeMap(edgeMapStoreData);
+
+    result = true;
+
+    return result;
+}
+
+bool JasmineGraphHashMapLocalStore::storePartEdgeMap(std::map<int, std::vector<int>> edgeMap, const std::string savePath) {
+    bool result = false;
+    flatbuffers::FlatBufferBuilder builder;
+    std::vector<flatbuffers::Offset<PartEdgeMapStoreEntry>> edgeStoreEntriesVector;
+
+    std::map<int, std::vector<int>>::iterator mapIterator;
+    for (mapIterator = edgeMap.begin(); mapIterator != edgeMap.end(); mapIterator++) {
+        int key = mapIterator->first;
+        std::vector<int> value = mapIterator->second;
+        std::vector<int> valueVector(value.begin(), value.end());
+        auto flatbufferVector = builder.CreateVector(valueVector);
+        auto edgeStoreEntry = CreatePartEdgeMapStoreEntry(builder, key, flatbufferVector);
+        edgeStoreEntriesVector.push_back(edgeStoreEntry);
+    }
+
+    auto flatBuffersEdgeStoreEntriesVector = builder.CreateVectorOfSortedTables(&edgeStoreEntriesVector);
+
+    auto edgeStore = CreatePartEdgeMapStore(builder, flatBuffersEdgeStoreEntriesVector);
+
+    builder.Finish(edgeStore);
+
+    flatbuffers::SaveFile(savePath.c_str(), (const char *) builder.GetBufferPointer(), (size_t) builder.GetSize(), true);
+
+    result = true;
+
+    return result;
+}
+
+map<int, std::vector<int>> JasmineGraphHashMapLocalStore::getEdgeHashMap(const std::string filePath) {
+    loadPartEdgeMap(filePath);
+    return this->edgeMap;
+}

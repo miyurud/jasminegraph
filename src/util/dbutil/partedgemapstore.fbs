@@ -1,0 +1,17 @@
+// If any changes are done to this schema definition file, regenerate 'partedgemapstore_generated.h' using flatc compiler
+// by running following command and copy generated 'partedgemapstore_generated.h' header file to dbutil directory
+//          cd flatbuffers/
+//          ./flatc --cpp partedgemapstore.fbs
+
+namespace JasmineGraph.PartEdgeMapStore;
+
+table PartEdgeMapStore {
+    entries:[PartEdgeMapStoreEntry];
+}
+
+table PartEdgeMapStoreEntry {
+    key:int (key);
+    value:[int];
+}
+
+root_type PartEdgeMapStore;

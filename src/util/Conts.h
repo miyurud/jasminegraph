@@ -28,6 +28,9 @@ public:
     static std::string GRAPH_TYPE_RDF ;
     static std::string GRAPH_TYPE_NORMAL ;
     static std::string GRAPH_TYPE_NORMAL_REFORMATTED;
+    static std::string GRAPH_WITH_TEXT_ATTRIBUTES;
+    static std::string GRAPH_WITH_JSON_ATTRIBUTES;
+    static std::string GRAPH_WITH_XML_ATTRIBUTES;
 
     static std::string GRAPH_WITH_ATTRIBUTES;       //To identify that there are additional attribute files to be uploaded through workers
 
