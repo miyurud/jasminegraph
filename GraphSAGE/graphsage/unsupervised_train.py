@@ -10,7 +10,7 @@ import numpy as np
 from models import SampleAndAggregate, SAGEInfo, Node2VecModel
 from minibatch import EdgeMinibatchIterator
 from neigh_samplers import UniformNeighborSampler
-from utils import load_data
+from utils import preprocess_data
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 
@@ -26,12 +26,12 @@ FLAGS = flags.FLAGS
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
                             """Whether to log device placement.""")
 #core params..
-flags.DEFINE_string('model', 'graphsage', 'model names. See README for possible values.')  
+flags.DEFINE_string('model', 'graphsage_mean', 'model names. See README for possible values.')
 flags.DEFINE_float('learning_rate', 0.00001, 'initial learning rate.')
 flags.DEFINE_string("model_size", "small", "Can be big or small; model specific def'ns")
-flags.DEFINE_string('train_prefix', '/var/tmp/jasminegraph-localstore/1', 'name of the object file that stores the training data. must be specified.')
+flags.DEFINE_string('train_prefix', '/var/tmp/jasminegraph-localstore/', 'name of the object file that stores the training data. must be specified.')
 flags.DEFINE_string('train_worker', '0' , 'specify the worker')
-flags.DEFINE_integer('graph_id', 1 , 'specify the graphID')
+flags.DEFINE_integer('graph_id', 0 , 'specify the graphID')
 
 # left to default values in main experiments 
 flags.DEFINE_integer('epochs', 1, 'number of epochs to train.')
@@ -62,16 +62,12 @@ os.environ["CUDA_VISIBLE_DEVICES"]=str(FLAGS.gpu)
 GPU_MEM_FRACTION = 0.8
 
 def log_dir():
-    # log_dir = FLAGS.base_log_dir + "/unsup-" + FLAGS.train_prefix.split("/")[-2]
-    log_dir = FLAGS.base_log_dir + "/jasminegraph-local_trained_model_store"
+
+    log_dir = FLAGS.base_log_dir + "/jasminegraph-local_trained_model_store/"
     log_dir += "{graph_id:s}_model_{train_worker:s}".format(
         graph_id = FLAGS.train_prefix.split("/")[-1],
         train_worker = FLAGS.train_worker
     )
-    # log_dir += "/{model:s}_{model_size:s}_{lr:0.6f}/".format(
-    #         model=FLAGS.model,
-    #         model_size=FLAGS.model_size,
-    #         lr=FLAGS.learning_rate)
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
     return log_dir
@@ -126,8 +122,8 @@ def save_val_embeddings(sess, model, minibatch_iter, size, out_dir, mod=""):
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
     val_embeddings = np.vstack(val_embeddings)
-    np.save(out_dir + name + mod + ".npy",  val_embeddings)
-    with open(out_dir + name + mod + ".txt", "w") as fp:
+    np.save(out_dir + "/" + name + mod + ".npy",  val_embeddings)
+    with open(out_dir +  "/" + name + mod + ".txt", "w") as fp:
         fp.write("\n".join(map(str,nodes)))
 
 def construct_placeholders():
@@ -398,12 +394,22 @@ def main(argv=None):
     # file = open("train_prefix.txt", "w")
     # file.write(train_prefix)
     # file.write(train_worker)
+
+    file = open("copy.txt", "w")
+    file.write(FLAGS.train_prefix)
+    file.write(str(FLAGS.graph_id))
+    file.write(FLAGS.train_worker)
+    file.write(FLAGS.model)
+    file.write(str(FLAGS.learning_rate))
+    file.close()
     print("Loading training data..")
-    train_data = load_data(FLAGS.train_prefix, FLAGS.train_worker, load_walks=True)
+    train_data = preprocess_data(FLAGS.train_prefix, FLAGS.train_worker)
     print("Done loading training data..")
     train(train_data)
 
 if __name__ == '__main__':
     # tf.app.run()
     # main(sys.argv)
+    file = open("before.txt", "w")
+    file.write("before")
     main()
