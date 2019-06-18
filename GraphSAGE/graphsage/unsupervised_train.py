@@ -34,7 +34,7 @@ flags.DEFINE_string('train_worker', '0' , 'specify the worker')
 flags.DEFINE_integer('graph_id', 0 , 'specify the graphID')
 
 # left to default values in main experiments 
-flags.DEFINE_integer('epochs', 1, 'number of epochs to train.')
+flags.DEFINE_integer('epochs', 10, 'number of epochs to train.')
 flags.DEFINE_float('dropout', 0.0, 'dropout rate (1 - keep probability).')
 flags.DEFINE_float('weight_decay', 0.0, 'weight for l2 loss on embedding matrix.')
 flags.DEFINE_integer('max_degree', 100, 'maximum node degree.')
@@ -42,7 +42,7 @@ flags.DEFINE_integer('samples_1', 25, 'number of samples in layer 1')
 flags.DEFINE_integer('samples_2', 10, 'number of users samples in layer 2')
 flags.DEFINE_integer('dim_1', 128, 'Size of output dim (final is 2x this, if using concat)')
 flags.DEFINE_integer('dim_2', 128, 'Size of output dim (final is 2x this, if using concat)')
-flags.DEFINE_boolean('random_context', True, 'Whether to use random context or direct edges')
+flags.DEFINE_boolean('random_context', False, 'Whether to use random context or direct edges')
 flags.DEFINE_integer('neg_sample_size', 20, 'number of negative samples')
 flags.DEFINE_integer('batch_size', 512, 'minibatch size.')
 flags.DEFINE_integer('n2v_test_epochs', 1, 'Number of new SGD epochs for n2v.')
@@ -51,10 +51,10 @@ flags.DEFINE_integer('identity_dim', 0, 'Set to positive value to use identity e
 #logging, saving, validation settings etc.
 flags.DEFINE_boolean('save_embeddings', True, 'whether to save embeddings for all nodes after training')
 flags.DEFINE_string('base_log_dir', '/var/tmp/jasminegraph-localstore/', 'base directory for logging and saving embeddings')
-flags.DEFINE_integer('validate_iter', 5000, "how often to run a validation minibatch.")
-flags.DEFINE_integer('validate_batch_size', 256, "how many nodes per validation sample.")
+flags.DEFINE_integer('validate_iter',10,"how often to run a validation minibatch.")
+flags.DEFINE_integer('validate_batch_size', 3, "how many nodes per validation sample.")
 flags.DEFINE_integer('gpu', 1, "which gpu to use.")
-flags.DEFINE_integer('print_every', 50, "How often to print training info.")
+flags.DEFINE_integer('print_every', 2, "How often to print training info.")
 flags.DEFINE_integer('max_total_steps', 10**10, "Maximum total number of iterations")
 
 os.environ["CUDA_VISIBLE_DEVICES"]=str(FLAGS.gpu)
@@ -83,6 +83,14 @@ def evaluate(sess, model, minibatch_iter, size=None):
     t_test = time.time()
     feed_dict_val = minibatch_iter.val_feed_dict(size)
     outs_val = sess.run([model.loss, model.ranks, model.mrr], 
+                        feed_dict=feed_dict_val)
+    return outs_val[0], outs_val[1], outs_val[2], (time.time() - t_test)
+
+# Define model evaluation function on test edges
+def evaluate_test(sess, model, minibatch_iter, size=None):
+    t_test = time.time()
+    feed_dict_val = minibatch_iter.test_feed_dict(size)
+    outs_val = sess.run([model.loss, model.ranks, model.mrr],
                         feed_dict=feed_dict_val)
     return outs_val[0], outs_val[1], outs_val[2], (time.time() - t_test)
 
@@ -261,6 +269,7 @@ def train(train_data, test_data=None):
     
     train_shadow_mrr = None
     shadow_mrr = None
+    test_shadow_mrr = None
 
     total_steps = 0
     avg_time = 0.0
@@ -317,6 +326,10 @@ def train(train_data, test_data=None):
                       "val_mrr=", "{:.5f}".format(val_mrr), 
                       "val_mrr_ema=", "{:.5f}".format(shadow_mrr), # exponential moving average
                       "time=", "{:.5f}".format(avg_time))
+                with open(log_dir() + "/"+str(FLAGS.graph_id)+"_validate_stats_"+FLAGS.train_worker+".txt", "w") as fp:
+                    fp.write("train_loss={:.5f} train_mrr={:.5f} train_mrr_ema={:.5f} val_loss={:.5f} val_mrr={:.5f} val_mrr_ema={:.5f} time={:.5f}".
+                             format(train_cost, train_mrr, train_shadow_mrr,val_cost,val_mrr,shadow_mrr, avg_time))
+
 
             iter += 1
             total_steps += 1
@@ -326,12 +339,28 @@ def train(train_data, test_data=None):
 
         if total_steps > FLAGS.max_total_steps:
                 break
-    
+
     print("Optimization Finished!")
     if FLAGS.save_embeddings:
         sess.run(val_adj_info.op)
 
         save_val_embeddings(sess, model, minibatch, FLAGS.validate_batch_size, log_dir())
+
+        test_cost, test_ranks, test_mrr, test_duration  = evaluate_test(sess, model, minibatch, size=FLAGS.validate_batch_size)
+        if test_shadow_mrr is None:
+            test_shadow_mrr = test_mrr#
+        else:
+            test_shadow_mrr -= (1-0.99) * (test_shadow_mrr - test_mrr)
+
+        print("Full Test stats:",
+              "test_loss=", "{:.5f}".format(test_cost),
+              "test_mrr=", "{:.5f}".format(test_mrr),
+              "test_mrr_ema=", "{:.5f}".format(test_shadow_mrr),
+              "time=", "{:.5f}".format(test_duration))
+
+        with open(log_dir() + "/" +str(FLAGS.graph_id)+"_test_stats_"+FLAGS.train_worker+".txt", "w") as fp:
+            fp.write("test_loss={:.5f} test_mrr={:.5f} test_mrr_ema={:.5f} time={:.5f}".
+                     format(test_cost, test_mrr, test_shadow_mrr, test_duration))
 
         if FLAGS.model == "n2v":
             # stopping the gradient for the already trained nodes
