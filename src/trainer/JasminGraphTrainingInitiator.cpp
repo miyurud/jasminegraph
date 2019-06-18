@@ -45,7 +45,7 @@ void JasminGraphTrainingInitiator::initiateTrainingLocally(std::string graphID, 
 //    std::thread *workerThreads = new std::thread[1];
 
     Utils utils;
-    string prefix = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+    string prefix = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.trainedmodelfolder");
     string trainarg_prefix = "Graphsage Unsupervised_train ";
     trainingArgs= trainarg_prefix+trainingArgs+" --train_prefix "+prefix+"/"+graphID;
 
