@@ -41,12 +41,13 @@ void JasminGraphTrainingInitiator::initiateTrainingLocally(std::string graphID, 
         }
     }
     cout<<partition_count<<endl;
-//    std::thread *workerThreads = new std::thread[partition_count];
-    std::thread *workerThreads = new std::thread[1];
+    std::thread *workerThreads = new std::thread[partition_count];
+//    std::thread *workerThreads = new std::thread[1];
 
     Utils utils;
     string prefix = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
-    trainingArgs+= " --train_prefix "+prefix+"/"+graphID;
+    string trainarg_prefix = "Graphsage Unsupervised_train ";
+    trainingArgs= trainarg_prefix+trainingArgs+" --train_prefix "+prefix+"/"+graphID;
 
     std::map<std::string, JasmineGraphServer::workerPartitions>::iterator j;
     for (j = graphPartitionedHosts.begin(); j != graphPartitionedHosts.end(); j++) {
@@ -58,7 +59,7 @@ void JasminGraphTrainingInitiator::initiateTrainingLocally(std::string graphID, 
 //            std::thread workThread = std::thread(initiateTrain, j->first, workerPartition.port, workerPartition.dataPort, trainingArgs+" --train_worker "+*k);
 //            workThread.detach();
             count++;
-            break;
+//            break;
         }
     }
 

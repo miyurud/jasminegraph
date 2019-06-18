@@ -18,30 +18,47 @@ limitations under the License.
 using namespace std;
 
 void Python_C_API::train(int argc, char *argv[]) {
+
+    Py_Initialize();
+
     ofstream myfile;
     myfile.open ("logs/API.txt");
     myfile << "in C-Python API Train method" << endl;
-    if (argc % 2 != 0) {
+    if (argc%2 != 0) {
         fprintf(stderr, "Usage: [--flag name] [args]\n");
     }
+    myfile << "at initializer" << endl;
 
-    Py_Initialize();
     FILE *file;
     wchar_t *_argv[argc];
     for (int i = 0; i < argc; i++) {
         wchar_t *arg = Py_DecodeLocale(argv[i], NULL);
         _argv[i] = arg;
     }
-
+    myfile << "arg set" << endl;
     PySys_SetArgv(argc, _argv);
     PyObject *sys = PyImport_ImportModule("sys");
     PyObject *path = PyObject_GetAttrString(sys, "path");
-
+    myfile << "path set" << endl;
     PyList_Append(path, PyUnicode_FromString("./GraphSAGE/graphsage/"));
-    file = fopen("./unsupervised_train.py", "r");
-    PyRun_SimpleFile(file, "./unsupervised_train.py");
+    file = fopen("./GraphSAGE/graphsage/unsupervised_train.py", "r");
+    PyRun_SimpleFile(file, "./GraphSAGE/graphsage/unsupervised_train.py");
+
+//    PyObject *obj = Py_BuildValue("s", "test.py");
+//    file = _Py_fopen_obj(obj, "r+");
+//    if(file != NULL) {
+//        myfile << "start file run" << endl;
+//        PyRun_SimpleFile(file, "test.py");
+//    }
+
+//    PyList_Append(path, PyUnicode_FromString("."));
+//    file = fopen("./test.py", "r");
+//    PyRun_SimpleFile(file, "./test.py");
+    myfile << "at finalizer" << endl;
     fclose(file);
+
     Py_Finalize();
+
 }
 
 int Python_C_API::predict(int argc, char *argv[]) {
@@ -72,7 +89,7 @@ int Python_C_API::predict(int argc, char *argv[]) {
         if (pFunc && PyCallable_Check(pFunc)) {
             pArgs = PyTuple_New(argc);
             for (i = 0; i < argc; ++i) {
-                pValue = PyLong_FromLong(atoi(argv[i]));
+                pValue = PyUnicode_FromString(argv[i]);
                 if (!pValue) {
                     Py_DECREF(pArgs);
                     Py_DECREF(pModule);
@@ -82,18 +99,8 @@ int Python_C_API::predict(int argc, char *argv[]) {
                 /* pValue reference stolen here: */
                 PyTuple_SetItem(pArgs, i, pValue);
             }
-            pValue = PyObject_CallObject(pFunc, pArgs);
+            PyObject_CallObject(pFunc, pArgs);
             Py_DECREF(pArgs);
-            if (pValue != NULL) {
-                printf("Result of call: %ld\n", PyLong_AsLong(pValue));
-                Py_DECREF(pValue);
-            } else {
-                Py_DECREF(pFunc);
-                Py_DECREF(pModule);
-                PyErr_Print();
-                fprintf(stderr, "Call failed\n");
-                return 1;
-            }
         } else {
             if (PyErr_Occurred())
                 PyErr_Print();
