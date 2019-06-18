@@ -20,7 +20,15 @@ limitations under the License.
 
 #include <sstream>
 #include <string>
+#include "json/json.h"
+#include <ctime>
+#include <chrono>
+#include "../../util/logger/Logger.h"
 
+Logger jsonparser_logger;
+
+
+class Value;
 
 namespace pt = boost::property_tree;
 
@@ -32,147 +40,138 @@ JSONParser::JSONParser() {
 
 }
 
-void JSONParser::readFile(string filePath) {
+void JSONParser::jsonParse(string filePath) {
+
     this->inputFilePath = filePath;
     this->outputFilePath = utils.getHomeDir() + "/.jasminegraph/tmp/JSONParser/output";
-    formatFile();
 
-    ofstream file;
-    file.open(this->outputFilePath + "/edgelist.txt");
+    readFile();
 
-    boost::property_tree::ptree root;
-    boost::property_tree::read_json(this->outputFilePath + "/reformatted.txt", root);
+    attributeFileCreate();
 
-
-    for (auto &v : root.get_child("")) {
-        auto &node = v.second;
-
-        string id = node.get("id", "");
+}
 
 
-        if (node.count("references") != 0) {
-            for (auto &param :node.get_child("references")) {
-                file << id << " " << param.second.get_value("") << endl;
-            }
-
-        }
-
-        if (node.count("venue") != 0) {
-
-            for (pt::ptree::value_type &venue : node.get_child("venue")) {
-
-                std::string key = venue.first;
-                if (key == "raw") {
-                    std::string name = venue.second.data();
-                    addToVenues(name);
-
-                }
-            }
-        }
-
-    }
-
-    file.close();
-
+void JSONParser::attributeFileCreate() {
     ofstream attrFile;
     attrFile.open(outputFilePath + "/attributeList.txt");
 
+    std::ifstream infile(this->inputFilePath);
+    std::string line;
+    Json::Reader reader;
+    Json::Value root;
+    std::vector<int> vectorOfzeros(fieldsMap.size(), 0);
 
-    for (auto &v : root.get_child("")) {
-        auto &node = v.second;
-        std::vector<int> vectorOfzeros(venueMap.size(), 0);
+    while (std::getline(infile, line)) {
+        std::vector<int> tempVectorOfZeros = vectorOfzeros;
+        if (!reader.parse(line, root)) {
+            std::cout << reader.getFormattedErrorMessages();
+            exit(1);
+        } else {
+            string id = root["id"].asString();
+            int mapped_id = vertexToIDMap.find(stol(id))->second;
+            const Json::Value fos = root["fos"];
+            for (int i = 0; i < fos.size(); i++) {
+                string field = fos[i]["name"].asString();
 
-        string id = node.get("id", "");
-
-
-        string venue_name;
-        if (node.count("venue") != 0) {
-
-            for (pt::ptree::value_type &venue : node.get_child("venue")) {
-
-                std::string key = venue.first;
-                if (key == "raw") {
-                    venue_name = venue.second.data();
-
-                }
-
-
-                auto search = venueMap.find(venue_name);
-                if (search != venueMap.end()) {
+                double weight = fos[i]["w"].asDouble();
+                auto search = fieldsMap.find(field);
+                if (search != fieldsMap.end()) {
                     int index = search->second;
-                    vectorOfzeros.at(index) = 1;
+                    if (weight < 0.5 && weight > 0.0) {
+                        tempVectorOfZeros.at(index) = 1;
+
+                    } else if (weight > 0.5) {
+                        tempVectorOfZeros.at(index) = 2;
+
+                    }
 
                 }
             }
+
+
+            attrFile << mapped_id << "\t";
+
+
+            for (auto it = tempVectorOfZeros.begin(); it != tempVectorOfZeros.end(); ++it) {
+                attrFile << *it << "\t ";
+
+            }
+            attrFile << endl;
+
         }
-
-        attrFile << id << "\t";
-
-
-        for (auto it = vectorOfzeros.begin(); it != vectorOfzeros.end(); ++it) {
-            attrFile << *it << "\t ";
-
-        }
-        attrFile << endl;
-
-
     }
-
-
     attrFile.close();
-    utils.deleteDirectory(this->outputFilePath + "/reformatted.txt");
+
 
 }
 
 
-long JSONParser::addToVenues(string name) {
-    long id;
-    id = venueMap.size();
-
-    auto search = venueMap.find(name);
-    if (search != venueMap.end()) {
-        return search->second;
-    }
-
-
-    venueMap.insert({name, id});
-    return id;
-}
-
-
-void JSONParser::formatFile() {
-    int count = 0;
-    ofstream formattedFile;
-
+void JSONParser::readFile() {
     this->utils.createDirectory(utils.getHomeDir() + "/.jasminegraph/");
     this->utils.createDirectory(utils.getHomeDir() + "/.jasminegraph/tmp");
     this->utils.createDirectory(utils.getHomeDir() + "/.jasminegraph/tmp/JSONParser");
     this->utils.createDirectory(utils.getHomeDir() + "/.jasminegraph/tmp/JSONParser/output");
 
-    formattedFile.open(this->outputFilePath + "/reformatted.txt");
+    ofstream file;
+    file.open(this->outputFilePath + "/edgelist.txt");
 
     std::ifstream infile(this->inputFilePath);
     std::string line;
-    formattedFile << "[";
-    while (std::getline(infile, line)) {
-        if (count != 0) {
-            formattedFile << ',';
+    Json::Reader reader;
+    Json::Value root;
+    int count = 0;
+    int idCounter = 0;
+    int field_counter = 0;
+    int mapped_id = 0;
 
-        }
-        formattedFile << line << endl;
+    while (std::getline(infile, line)) {
         count++;
-        if (count == 250000) {
-            break;
+
+        if (!reader.parse(line, root)) {
+            jsonparser_logger.log("File format mismatch", "error");
+            exit(1);
+        } else {
+
+            string id = root["id"].asString();
+            long idValue = stol(id);
+            if (vertexToIDMap.find(idValue) == vertexToIDMap.end()) {
+                vertexToIDMap.insert(make_pair(idValue, idCounter));
+                mapped_id = idCounter;
+                idCounter++;
+            }
+
+            const Json::Value references = root["references"];
+            int mapped_ref_id;
+            for (int index = 0; index < references.size(); ++index) {
+                string ref_id = references[index].asString();
+                long ref_idValue = stol(ref_id);
+                if (vertexToIDMap.find(ref_idValue) == vertexToIDMap.end()) {
+                    vertexToIDMap.insert(make_pair(idValue, idCounter));
+                    mapped_ref_id = idCounter;
+                    idCounter++;
+                } else {
+                    mapped_ref_id = vertexToIDMap.find(ref_idValue)->second;
+                }
+
+                file << mapped_id << " " << mapped_ref_id << endl;
+
+            }
+
+            const Json::Value fos = root["fos"];
+
+            for (int i = 0; i < fos.size(); i++) {
+                string field = fos[i]["name"].asString();
+                if (fieldsMap.find(field) == fieldsMap.end()) {
+                    fieldsMap.insert(make_pair(field, field_counter));
+                    field_counter++;
+                }
+            }
         }
     }
-    
-    formattedFile << "]";
 
-    formattedFile.close();
+    file.close();
 }
-
-
-
 
 
 
