@@ -42,7 +42,15 @@ class EdgeMinibatchIterator(object):
         self.train_edges = self.edges = np.random.permutation(edges)
         if not n2v_retrain:
             self.train_edges = self._remove_isolated(self.train_edges)
-            self.val_edges = [e for e in G.edges() if G[e[0]][e[1]]['train_removed']]
+            # self.val_edges = [e for e in G.edges() if G[e[0]][e[1]]['train_removed']]
+            print("train_edges ----");
+            print(len(self.train_edges));
+            self.val_edges = [e for e in G.edges() if G[e[0]][e[1]]['validation']]
+            print("val_edges ----");
+            print(len(self.val_edges));
+            self.test_edges = [e for e in G.edges() if G[e[0]][e[1]]['testing']]
+            print("test_edges ----");
+            print(len(self.test_edges));
         else:
             if fixed_n2v:
                 self.train_edges = self.val_edges = self._n2v_prune(self.edges)
@@ -58,19 +66,26 @@ class EdgeMinibatchIterator(object):
         return [e for e in edges if not is_val(e[1])]
 
     def _remove_isolated(self, edge_list):
+        print("in remove isolated")
         new_edge_list = []
         missing = 0
+        count = 0
         for n1, n2 in edge_list:
+            count +=1
             if not n1 in self.G.node or not n2 in self.G.node:
                 missing += 1
                 continue
-            if (self.deg[self.id2idx[n1]] == 0 or self.deg[self.id2idx[n2]] == 0) \
-                    and (not self.G.node[n1]['test'] or self.G.node[n1]['val']) \
-                    and (not self.G.node[n2]['test'] or self.G.node[n2]['val']):
+            # if (self.deg[self.id2idx[n1]] == 0 or self.deg[self.id2idx[n2]] == 0) \
+            #         and (not self.G.node[n1]['test'] or self.G.node[n1]['val']) \
+            #         and (not self.G.node[n2]['test'] or self.G.node[n2]['val']):
+            if (self.G.node[n1]['test'] and self.G.node[n2]['test']) \
+                    or (self.G.node[n1]['val'] and self.G.node[n2]['val']):
+                # count +=1
                 continue
             else:
                 new_edge_list.append((n1,n2))
         print("Unexpected missing:", missing)
+        print(count)
         return new_edge_list
 
     def construct_adj(self):
@@ -142,6 +157,15 @@ class EdgeMinibatchIterator(object):
             ind = np.random.permutation(len(edge_list))
             val_edges = [edge_list[i] for i in ind[:min(size, len(ind))]]
             return self.batch_feed_dict(val_edges)
+
+    def test_feed_dict(self, size=None):
+        edge_list = self.test_edges
+        if size is None:
+            return self.batch_feed_dict(edge_list)
+        else:
+            ind = np.random.permutation(len(edge_list))
+            test_edges = [edge_list[i] for i in ind[:min(size, len(ind))]]
+            return self.batch_feed_dict(test_edges)
 
     def incremental_val_feed_dict(self, size, iter_num):
         edge_list = self.val_edges

@@ -51,7 +51,10 @@ def preprocess_data(prefix, worker):
             G.node[n]["val"] = False
 
     data = json_graph.node_link_data(G)
+    print("all nodes-------")
     print(len(data['nodes']))
+    print("all edges------")
+    print(len(G.edges()))
 
     with open(save_dir + str(FLAGS.graph_id) + '_' + worker + "-G.json", mode="w") as f:
         f.write(json.dumps(data))
@@ -169,6 +172,14 @@ def load_data(prefix, worker, normalize=True, load_walks=False):
             G[edge[0]][edge[1]]['train_removed'] = True
         else:
             G[edge[0]][edge[1]]['train_removed'] = False
+        if(G.node[edge[0]]['val'] and G.node[edge[1]]['val']):
+            G[edge[0]][edge[1]]['validation'] = True
+        else:
+            G[edge[0]][edge[1]]['validation'] = False
+        if(G.node[edge[0]]['test'] and G.node[edge[1]]['test']):
+            G[edge[0]][edge[1]]['testing'] = True
+        else:
+            G[edge[0]][edge[1]]['testing'] = False
 
     if normalize and not feats is None:
         # comes here only if normalize == true and the data set has feat
