@@ -82,6 +82,7 @@ bool JasmineGraphInstance::sendFileThroughService(std::string host, int dataPort
         std::cerr << "ERROR connecting to port " << dataPort << std::endl;
     }
 
+    fileName =  "jasminegraph-local_trained_model_store/"+fileName;
     write(sockfd, fileName.c_str(), fileName.size());
 
     bzero(data, 301);
