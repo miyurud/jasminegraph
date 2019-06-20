@@ -156,10 +156,15 @@ void JasmineGraphServer::start_workers() {
 void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector,
                                                     std::vector<int> workerDataPortsVector, std::string host) {
     Utils utils;
+    std::string executableFile;
     std::string workerPath = utils.getJasmineGraphProperty("org.jasminegraph.worker.path");
     std::string artifactPath = utils.getJasmineGraphProperty("org.jasminegraph.artifact.path");
     std::string jasmineGraphExecutableName = Conts::JASMINEGRAPH_EXECUTABLE;
-    std::string executableFile = workerPath+"/"+jasmineGraphExecutableName;
+    if (hasEnding(workerPath,"/")) {
+        executableFile = workerPath+jasmineGraphExecutableName;
+    } else {
+        executableFile = workerPath+"/"+jasmineGraphExecutableName;
+    }
     std::string serverStartScript;
     char buffer[128];
     std::string result = "";
@@ -1202,4 +1207,12 @@ void JasmineGraphServer::updateOperationalGraphList() {
                            to_string(Conts::GRAPH_STATUS::OPERATIONAL) + "' ELSE '" +
                            to_string(Conts::GRAPH_STATUS::NONOPERATIONAL) + "' END )";
     this->sqlite.runUpdate(sqlStatement2);
+}
+
+bool JasmineGraphServer::hasEnding(std::string const &fullString, std::string const &ending) {
+    if (fullString.length() >= ending.length()) {
+        return (0 == fullString.compare (fullString.length() - ending.length(), ending.length(), ending));
+    } else {
+        return false;
+    }
 }
