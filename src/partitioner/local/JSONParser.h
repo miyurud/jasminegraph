@@ -35,19 +35,19 @@ public:
 
     void jsonParse(string inputFilePath);
 
-    long addToFields(string name);
-
     void readFile();
 
     void attributeFileCreate();
 
-    //int vertexToIdMap(long vec_id);
+    void createEdgeList();
 
+    void countFileds();
 
 private:
-    //std::vector<std::string> filedsList;
+    
     std::map<std::string, int> fieldsMap;
     std::map<long , int> vertexToIDMap;
+    std::map<std::string, int> fieldCounts;
 
     string inputFilePath;
     string outputFilePath;
