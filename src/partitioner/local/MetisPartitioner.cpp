@@ -137,10 +137,6 @@ void MetisPartitioner::loadDataSet(string inputFilePath, int graphID) {
 
     float time = float(clock() - begin) / CLOCKS_PER_SEC;
     partitioner_logger.log("Processing dataset completed in " + to_string(time) + " seconds", "info");
-    cout << "Total vertex count : " << vertexCount << endl;
-    cout << "Total edge count : " << edgeCount << endl;
-    cout << "Largest vertex : " << largestVertex << endl;
-    cout << "Smallest vertex : " << smallestVertex << endl;
 }
 
 int MetisPartitioner::constructMetisFormat(string graph_type) {
@@ -293,10 +289,8 @@ std::vector<std::map<int, std::string>> MetisPartitioner::partitioneWithGPMetis(
 }
 
 void MetisPartitioner::createPartitionFiles(std::map<int, int> partMap) {
-    for (int i=smallestVertex; i<=largestVertex; i++)
+    for (int i=smallestVertex; i<=largestVertex; i++){
         partVertexCounts[partMap[i]]++;
-    for (auto it = partVertexCounts.begin(); it != partVertexCounts.end(); ++it) {
-        cout << it->first << " ----- " << it->second << endl;
     }
     const clock_t begin_time = clock();
     partitioner_logger.log("Populating edge lists before writing to files", "info");
@@ -374,7 +368,6 @@ void MetisPartitioner::createPartitionFiles(std::map<int, int> partMap) {
     }
 
     for (int tc = 0; tc < threadCount; tc++) {
-        cout << tc << " joined" << endl;
         threads[tc].join();
     }
     float t2 = float(clock() - begin_time2) / CLOCKS_PER_SEC;

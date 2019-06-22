@@ -70,7 +70,8 @@ void JSONParser::attributeFileCreate() {
     while (std::getline(infile, line)) {
         std::vector<int> tempVectorOfZeros = vectorOfzeros;
         if (!reader.parse(line, root)) {
-            std::cout << reader.getFormattedErrorMessages();
+            string message = reader.getFormattedErrorMessages();
+            jsonparser_logger.log("Error : " + message, "error");
             exit(1);
         } else {
             string id = root["id"].asString();
@@ -111,7 +112,6 @@ void JSONParser::readFile() {
 
     for (int threadCount = 0; threadCount < 2; threadCount++) {
         workerThreads[threadCount].join();
-        std::cout << "Thread " << threadCount << " joined" << std::endl;
     }
 }
 
