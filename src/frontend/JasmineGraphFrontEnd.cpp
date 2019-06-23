@@ -440,6 +440,7 @@ void *frontendservicesesion(void *dummyPt) {
                 auto end = chrono::high_resolution_clock::now();
                 auto dur = end - begin;
                 auto msDuration = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
+                frontend_logger.log("Triangle Count: " + to_string(triangleCount),"info");
             }
         } else {
             frontend_logger.log("Command not recognized " + line, "error");
@@ -617,7 +618,7 @@ long JasmineGraphFrontEnd::countTriangles(std::string graphId, void *dummyPt) {
     map<std::string,std::future<std::string>> remoteCopyRes;
     PlacesToNodeMapper placesToNodeMapper;
 
-    string sqlStatement = "SELECT NAME,PARTITION_IDPARTITION FROM ACACIA_META.HOST_HAS_PARTITION INNER JOIN ACACIA_META.HOST ON HOST_IDHOST=IDHOST WHERE PARTITION_GRAPH_IDGRAPH=" + graphId + ";";
+    string sqlStatement = "SELECT name,partition_idpartition FROM host_has_partition INNER JOIN host ON host_idhost=idhost WHERE partition_graph_idgraph=" + graphId + ";";
 
     SQLiteDBInterface *sqlite = (SQLiteDBInterface *) dummyPt;
     std::vector<vector<pair<string, string>>> results = sqlite->runSelect(sqlStatement);
@@ -631,8 +632,8 @@ long JasmineGraphFrontEnd::countTriangles(std::string graphId, void *dummyPt) {
     std::string aggregatorPartitionId;
 
     if (aggregatorWorker.find('@') != std::string::npos) {
-        aggregatorWorkerHost = utils.split(aggregatorWorker, '@')[1];
-        aggregatorWorkerPort = utils.split(aggregatorWorker, '@')[2];
+        aggregatorWorkerHost = utils.split(aggregatorWorker, '@')[0];
+        aggregatorWorkerPort = utils.split(aggregatorWorker, '@')[1];
     }
 
     for (std::vector<vector<pair<string, string>>>::iterator i = results.begin(); i != results.end(); ++i) {
