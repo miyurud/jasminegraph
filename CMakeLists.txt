@@ -61,3 +61,18 @@ set(PYTHON_LIBRARIES "/usr/lib/x86_64-linux-gnu/libpython3.5m.so")
 include_directories(${PYTHON_INCLUDE_DIRS})
 include_directories(${PYTHON_DIRECTORIES})
 target_link_libraries(JasmineGraph ${PYTHON_LIBRARIES})
+target_compile_options(JasmineGraph PRIVATE -std=c++11)
+
+if(CMAKE_ENABLE_DEBUG)
+    message(STATUS "DEBUG enabled")
+    target_compile_options(JasmineGraph PRIVATE -g)
+endif()
+
+#TODO: Need to install the library separately
+target_link_libraries(JasmineGraph sqlite3)
+target_link_libraries(JasmineGraph pthread)
+target_link_libraries(JasmineGraph rdkafka)
+target_link_libraries(JasmineGraph cppkafka)
+target_link_libraries(JasmineGraph flatbuffers)
+target_link_libraries(JasmineGraph xerces-c)
+find_package(spdlog CONFIG REQUIRED)
