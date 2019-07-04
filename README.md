@@ -23,8 +23,15 @@ The following build tools, applications, and libraries need to be installed befo
     - Intallation guide is available at http://xerces.apache.org/xerces-c/build-3.html
     - Once installed specify the target_link_libraries path to xerces.
 - Jsoncpp(https://github.com/open-source-parsers/jsoncpp)
-
-
+- pigz (optional)
+    - pigz, which stands for Parallel Implementation of GZip, is a fully functional
+      replacement for gzip that exploits multiple processors and multiple cores to
+      the hilt when compressing data.
+    - Jasminegraph by default uses pigz for file compression and decompression.
+    - However if pigz is not found, gzip is used instead.
+    - Download pigz from (http://zlib.net/pigz/) or (https://github.com/madler/pigz.git).
+    - Type "make" in pigz directory to build the "pigz" executable. 
+    - Add pigz executable's path to ~/.bashrc file and refresh.
 
 First, this repository should be cloned into one of your computer's local directory. Then change directory to jasminegraph and run ./build.sh to build the Jasminegraph executable.
 
