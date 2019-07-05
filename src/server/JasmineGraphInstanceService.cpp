@@ -523,8 +523,9 @@ void *instanceservicesession(void *dummyPt) {
             string partitionId = (data);
             partitionId = utils.trim_copy(partitionId, " \f\n\r\t\v");
             instance_logger.log("Received Partition ID: " + partitionId, "info");
+            long aggregatedTriangleCount =0;
 
-            long aggregatedTriangleCount = JasmineGraphInstanceService::aggregateCentralStoreTriangles(graphId, partitionId);
+            aggregatedTriangleCount= JasmineGraphInstanceService::aggregateCentralStoreTriangles(graphId, partitionId);
             write(connFd, std::to_string(aggregatedTriangleCount).c_str(), std::to_string(aggregatedTriangleCount).size());
         }
     }
@@ -734,6 +735,16 @@ std::string JasmineGraphInstanceService::copyCentralStoreToAggregator(std::strin
         std::string centralStoreFile = dataFolder + "/" + centralGraphIdentifier;
         std::string copyCommand;
 
+        DIR* dir = opendir(aggregatorFilePath.c_str());
+
+        if (dir) {
+            closedir(dir);
+        } else {
+            std::string createDirCommand = "mkdir -p " + aggregatorFilePath;
+            FILE *createDirInput = popen(createDirCommand.c_str(),"r");
+            pclose(createDirInput);
+        }
+
         if (aggregatorHost == host) {
             copyCommand = "cp "+centralStoreFile+ " " + aggregatorFilePath;
         } else {
@@ -796,19 +807,25 @@ long JasmineGraphInstanceService::aggregateCentralStoreTriangles(std::string gra
 
     for (fileNamesIterator = fileNames.begin(); fileNamesIterator != fileNames.end(); ++fileNamesIterator) {
         std::string fileName = *fileNamesIterator;
+        struct stat s;
         std::string centralStoreFile = aggregatorFilePath + "/" + fileName;
-        JasmineGraphHashMapCentralStore centralStore = JasmineGraphInstanceService::loadCentralStore(centralStoreFile);
-        map<long, unordered_set<long>> centralGraphMap = centralStore.getUnderlyingHashMap();
-        map<long, unordered_set<long>>::iterator centralGraphMapIterator;
+        if (stat(centralStoreFile.c_str(),&s) == 0) {
+            if (s.st_mode & S_IFREG) {
+                JasmineGraphHashMapCentralStore centralStore = JasmineGraphInstanceService::loadCentralStore(centralStoreFile);
+                map<long, unordered_set<long>> centralGraphMap = centralStore.getUnderlyingHashMap();
+                map<long, unordered_set<long>>::iterator centralGraphMapIterator;
 
-        for (centralGraphMapIterator = centralGraphMap.begin(); centralGraphMapIterator != centralGraphMap.end(); ++centralGraphMapIterator) {
-            long startVid = centralGraphMapIterator->first;
-            unordered_set<long> endVidSet = centralGraphMapIterator->second;
+                for (centralGraphMapIterator = centralGraphMap.begin(); centralGraphMapIterator != centralGraphMap.end(); ++centralGraphMapIterator) {
+                    long startVid = centralGraphMapIterator->first;
+                    unordered_set<long> endVidSet = centralGraphMapIterator->second;
 
-            unordered_set<long> aggregatedEndVidSet = aggregatedCentralStore[startVid];
-            aggregatedEndVidSet.insert(endVidSet.begin(),endVidSet.end());
-            aggregatedCentralStore[startVid] = aggregatedEndVidSet;
+                    unordered_set<long> aggregatedEndVidSet = aggregatedCentralStore[startVid];
+                    aggregatedEndVidSet.insert(endVidSet.begin(),endVidSet.end());
+                    aggregatedCentralStore[startVid] = aggregatedEndVidSet;
+                }
+            }
         }
+
     }
     map<long, long> distributionHashMap = JasmineGraphInstanceService::getOutDegreeDistributionHashMap(aggregatedCentralStore);
     long aggregatedTriangleCount = JasmineGraphInstanceService::countCentralStoreTriangles(aggregatedCentralStore,distributionHashMap);
@@ -831,10 +848,12 @@ map<long, long> JasmineGraphInstanceService::getOutDegreeDistributionHashMap(map
 long JasmineGraphInstanceService::countCentralStoreTriangles(map<long, unordered_set<long>> centralStore,
                                                              map<long, long> distributionMap) {
    std::map<long,long> degreeReverseLookupMap;
+   std::vector<std::set<long>> degreeVector;
     std::map<long,std::set<long>> degreeMap;
-    std::set<long> degreeSet;
+
     long startVId;
     long degree;
+    int maxDegree=0;
 
     std::map<long,long>::iterator it;
     std::map<long,long>::iterator degreeDistributionIterator;
@@ -842,13 +861,35 @@ long JasmineGraphInstanceService::countCentralStoreTriangles(map<long, unordered
 
 
     for (it = distributionMap.begin(); it != distributionMap.end();++it) {
-        startVId = it->first;
         degree = it->second;
 
-        degreeSet = degreeMap[degree];
-        degreeSet.insert(startVId);
+        if (degree > maxDegree) {
+            maxDegree=degree;
+        }
 
-        degreeMap[degree] = degreeSet;
+        /*if (degreeVector.size() > degree) {
+            degreeSet = degreeVector[degree];
+            degreeSet.insert(startVId);
+        } else {
+            degreeVector.resize(degree+1);
+            degreeSet.insert(startVId);
+        }*/
+
+        //degreeVector.at(degree) = degreeSet;
+    }
+
+    for (int degreeIndex=0;degreeIndex<=maxDegree;degreeIndex++) {
+        std::set<long> degreeSet;
+        for (it = distributionMap.begin(); it != distributionMap.end();++it) {
+            startVId = it->first;
+            degree = it->second;
+
+            if (degreeIndex == degree) {
+                degreeSet.insert(startVId);
+            }
+
+        }
+        degreeMap[degreeIndex]=degreeSet;
     }
 
     long triangleCount = 0;
@@ -921,3 +962,10 @@ long JasmineGraphInstanceService::countCentralStoreTriangles(map<long, unordered
 
     return triangleCount;
 }
+
+/*
+int main(int argc, char *argv[]) {
+    JasmineGraphInstanceService *instanceService = new JasmineGraphInstanceService();
+    instanceService->copyCentralStoreToAggregator("1","0","localhost","7768","localhost");
+    instanceService->aggregateCentralStoreTriangles("1","0");
+}*/

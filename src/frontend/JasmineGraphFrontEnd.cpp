@@ -427,6 +427,10 @@ void *frontendservicesesion(void *dummyPt) {
             read(connFd, graph_id_data, 300);
 
             string graph_id(graph_id_data);
+            graph_id.erase(std::remove(graph_id.begin(), graph_id.end(), '\n'),
+                           graph_id.end());
+            graph_id.erase(std::remove(graph_id.begin(), graph_id.end(), '\r'),
+                           graph_id.end());
 
             if (!JasmineGraphFrontEnd::graphExistsByID(graph_id,dummyPt)) {
                 string error_message = "The specified graph id does not exist";
@@ -626,7 +630,7 @@ long JasmineGraphFrontEnd::countTriangles(std::string graphId, void *dummyPt) {
     std::map<string, std::vector<string>> map;
 
     // Implement Logic to Decide the Worker node which Acts as the centralstore triangle count aggregator
-    std::string aggregatorWorker = "localhost@7877";
+    std::string aggregatorWorker = "localhost@7780";
     std::string aggregatorWorkerHost;
     std::string aggregatorWorkerPort;
     std::string aggregatorPartitionId;
@@ -710,7 +714,7 @@ long JasmineGraphFrontEnd::getTriangleCount(int graphId, std::string host, int p
     }
 
     if (host.find('@') != std::string::npos) {
-        host = utils.split(host, '@')[1];
+        host = utils.split(host, '@')[0];
     }
 
     server = gethostbyname(host.c_str());
@@ -926,7 +930,7 @@ std::string JasmineGraphFrontEnd::copyCentralStoreToAggregator(std::string aggre
     }
 
     if (host.find('@') != std::string::npos) {
-        host = utils.split(host, '@')[1];
+        host = utils.split(host, '@')[0];
     }
 
     server = gethostbyname(host.c_str());
@@ -1046,7 +1050,7 @@ long JasmineGraphFrontEnd::countCentralStoreTriangles(std::string aggregatorHost
     }
 
     if (host.find('@') != std::string::npos) {
-        host = utils.split(host, '@')[1];
+        host = utils.split(host, '@')[0];
     }
 
     server = gethostbyname(host.c_str());
