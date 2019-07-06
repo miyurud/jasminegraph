@@ -698,16 +698,17 @@ bool JasmineGraphInstanceService::isInstanceCentralStoreExists(std::string graph
     return true;
 }
 
-void JasmineGraphInstanceService::loadLocalStore(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores) {
+void JasmineGraphInstanceService::loadLocalStore(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapLocalStore>& graphDBMapLocalStores) {
     std::string graphIdentifier = graphId + "_"+partitionId;
     Utils utils;
-    JasmineGraphHashMapLocalStore  *jasmineGraphHashMapLocalStore = new JasmineGraphHashMapLocalStore(atoi(graphId.c_str()),atoi(partitionId.c_str()));
+    std::string folderLocation = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+    JasmineGraphHashMapLocalStore  *jasmineGraphHashMapLocalStore = new JasmineGraphHashMapLocalStore(atoi(graphId.c_str()),atoi(partitionId.c_str()), folderLocation);
     jasmineGraphHashMapLocalStore->loadGraph();
     graphDBMapLocalStores.insert(std::make_pair(graphIdentifier,*jasmineGraphHashMapLocalStore));
 }
 
 void JasmineGraphInstanceService::loadInstanceCentralStore(std::string graphId, std::string partitionId,
-                                                           std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores) {
+                                                           std::map<std::string, JasmineGraphHashMapCentralStore>& graphDBMapCentralStores) {
     std::string graphIdentifier = graphId + +"_centralstore_"+ partitionId;
     Utils utils;
     JasmineGraphHashMapCentralStore *jasmineGraphHashMapCentralStore = new JasmineGraphHashMapCentralStore(atoi(graphId.c_str()),atoi(partitionId.c_str()));
@@ -963,9 +964,11 @@ long JasmineGraphInstanceService::countCentralStoreTriangles(map<long, unordered
     return triangleCount;
 }
 
-/*
-int main(int argc, char *argv[]) {
+/*int main(int argc, char *argv[]) {
     JasmineGraphInstanceService *instanceService = new JasmineGraphInstanceService();
-    instanceService->copyCentralStoreToAggregator("1","0","localhost","7768","localhost");
-    instanceService->aggregateCentralStoreTriangles("1","0");
+    std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores;
+    std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores;
+    *//*instanceService->copyCentralStoreToAggregator("1","0","localhost","7768","localhost");
+    instanceService->aggregateCentralStoreTriangles("1","0");*//*
+    long triangleCount = countLocalTriangles("1","0",graphDBMapLocalStores,graphDBMapCentralStores);
 }*/

@@ -27,17 +27,13 @@ JasmineGraphHashMapCentralStore::JasmineGraphHashMapCentralStore(int graphId, in
 
     Utils utils;
 
-    string dataFolder = utils.getJasmineGraphProperty("org.jasminegraph.server.runtime.location");
-    string centralStoreFolder = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+    instanceDataFolderLocation = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
 
-    string graphIdentifier = std::to_string(graphId) + "_" + std::to_string(partitionId);
-
-    instanceDataFolderLocation = dataFolder + "/" + std::to_string(graphId) + "_centralStore" + graphIdentifier;
 }
 
 bool JasmineGraphHashMapCentralStore::loadGraph() {
     bool result = false;
-    std::string edgeStorePath = instanceDataFolderLocation + getFileSeparator() + CENTRAL_STORE_NAME;
+    std::string edgeStorePath = instanceDataFolderLocation + getFileSeparator() + std::to_string(graphId) + "_centralstore_" + std::to_string(partitionId);
 
     std::ifstream dbFile;
     dbFile.open(edgeStorePath, std::ios::binary | std::ios::in);
@@ -99,7 +95,7 @@ bool JasmineGraphHashMapCentralStore::storeGraph() {
     bool result = false;
     flatbuffers::FlatBufferBuilder builder;
     std::vector<flatbuffers::Offset<EdgeStoreEntry>> edgeStoreEntriesVector;
-    std::string edgeStorePath = instanceDataFolderLocation + getFileSeparator() + CENTRAL_STORE_NAME;
+    std::string edgeStorePath = instanceDataFolderLocation + getFileSeparator() + getFileSeparator() + std::to_string(graphId) + "_centralstore_" + std::to_string(partitionId);
 
     std::map<long, std::unordered_set<long>>::iterator localSubGraphMapIterator;
     for (localSubGraphMapIterator = centralSubgraphMap.begin();

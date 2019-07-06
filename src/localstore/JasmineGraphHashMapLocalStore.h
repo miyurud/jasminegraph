@@ -49,7 +49,7 @@ private:
     void toLocalAttributeMap(const AttributeStore *attributeStoreData);
 
 public:
-    JasmineGraphHashMapLocalStore(int graphid, int partitionid);
+    JasmineGraphHashMapLocalStore(int graphid, int partitionid, std::string folderLocation);
 
     JasmineGraphHashMapLocalStore(std::string folderLocation);
 
@@ -57,7 +57,7 @@ public:
 
     inline bool loadGraph() {
         bool result = false;
-        std::string edgeStorePath = instanceDataFolderLocation + getFileSeparator() + EDGE_STORE_NAME;
+        std::string edgeStorePath = instanceDataFolderLocation + getFileSeparator() + std::to_string(graphId)+"_"+std::to_string(partitionId);
 
         std::ifstream dbFile;
         dbFile.open(edgeStorePath, std::ios::binary | std::ios::in);

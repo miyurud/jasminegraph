@@ -51,8 +51,8 @@ public:
 
     static bool isGraphDBExists(std::string graphId, std::string partitionId);
     static bool isInstanceCentralStoreExists(std::string graphId, std::string partitionId);
-    static void loadLocalStore(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores);
-    static void loadInstanceCentralStore(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores);
+    static void loadLocalStore(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapLocalStore>& graphDBMapLocalStores);
+    static void loadInstanceCentralStore(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapCentralStore>& graphDBMapCentralStores);
     static JasmineGraphHashMapCentralStore loadCentralStore(std::string centralStoreFileName);
     static std::string copyCentralStoreToAggregator(std::string graphId, std::string partitionId, std::string aggregatorHost, std::string aggregatorPort, std::string host);
     static long aggregateCentralStoreTriangles (std::string graphId, std::string partitionId);

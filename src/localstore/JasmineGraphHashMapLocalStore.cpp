@@ -16,9 +16,10 @@ limitations under the License.
 #include <fstream>
 
 
-JasmineGraphHashMapLocalStore::JasmineGraphHashMapLocalStore(int graphid, int partitionid) {
+JasmineGraphHashMapLocalStore::JasmineGraphHashMapLocalStore(int graphid, int partitionid, std::string folderLocation) {
     graphId = graphid;
     partitionId = partitionid;
+    instanceDataFolderLocation = folderLocation;
 }
 
 JasmineGraphHashMapLocalStore::JasmineGraphHashMapLocalStore(std::string folderLocation) {
