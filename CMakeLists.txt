@@ -1,19 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
-project(JasmineGraph)
-
+project(JasmineGraph LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 11)
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -g -pthread")
-link_libraries('sqlite3')
-link_libraries('rdkafka')
-link_libraries('cppkafka')
-#TODO: Need to install the library separately
-include_directories("$ENV{HOME}/software/flatbuffers/include")
-include_directories("$ENV{HOME}/software/xerces/include")
-include_directories("$ENV{HOME}/software/spdlog/include")
-include_directories("$ENV{HOME}/software/jsoncpp/include")
-
-
-
 
 add_executable(JasmineGraph main.cpp src/server/JasmineGraphServer.cpp src/server/JasmineGraphServer.h src/metadb/SQLiteDBInterface.cpp
         src/util/dbutil/edgestore_generated.h src/util/dbutil/attributestore_generated.h src/util/dbutil/partedgemapstore_generated.h src/metadb/SQLiteDBInterface.h main.h src/server/JasmineGraphInstance.cpp
@@ -31,14 +18,26 @@ add_executable(JasmineGraph main.cpp src/server/JasmineGraphServer.cpp src/serve
         src/server/JasmineGraphInstanceService.cpp src/server/JasmineGraphInstanceService.h
         src/partitioner/local/RDFParser.cpp src/partitioner/local/RDFParser.h src/partitioner/stream/Partitioner.cpp src/partitioner/stream/JasmineGraphIncrementalStore.cpp)
 
-#file(GLOB_RECURSE Dir1_Sources "*.cpp")
-#add_executable(JesminGraph ${Dir1_Sources})
+target_compile_options(JasmineGraph PRIVATE -std=c++11)
 
-#target_link_libraries(JasmineGraph /usr/local/lib/libmetis.so)
+if(CMAKE_ENABLE_DEBUG)
+    message(STATUS "DEBUG enabled")
+    target_compile_options(JasmineGraph PRIVATE -g)
+endif()
+
 #TODO: Need to install the library separately
+target_link_libraries(JasmineGraph sqlite3)
+target_link_libraries(JasmineGraph pthread)
+target_link_libraries(JasmineGraph rdkafka)
+target_link_libraries(JasmineGraph cppkafka)
+
+include_directories("$ENV{HOME}/software/flatbuffers/include")
+include_directories("$ENV{HOME}/software/xerces/include")
+include_directories("$ENV{HOME}/software/spdlog/include")
+include_directories("$ENV{HOME}/software/jsoncpp/include")
+
 target_link_libraries(JasmineGraph /usr/local/lib/libmetis.a)
 target_link_libraries(JasmineGraph $ENV{HOME}/software/xerces-c-3.2.2/lib/libxerces-c.so)
 target_link_libraries(JasmineGraph $ENV{HOME}/software/flatbuffers/libflatbuffers.a)
 target_link_libraries(JasmineGraph /opt/lib/libxerces-c.a)
 target_link_libraries(JasmineGraph $ENV{HOME}/software/jsoncpp/build/debug/src/lib_json/libjsoncpp.a)
-
