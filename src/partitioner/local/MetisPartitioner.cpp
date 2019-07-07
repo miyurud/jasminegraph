@@ -359,7 +359,7 @@ void MetisPartitioner::createPartitionFiles(std::map<int, int> partMap) {
     for (int tc = 0; tc < threadCount; tc++) {
         threads[tc].join();
     }
-    partitioner_logger.log("writing to files completed", "info");
+    partitioner_logger.log("Writing to files completed", "info");
 }
 
 void MetisPartitioner::populatePartMaps(std::map<int, int> partMap, int part) {
