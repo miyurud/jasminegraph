@@ -272,8 +272,6 @@ void Utils::compressFile(const std::string filePath, const std::string mode) {
             } else {
                 util_logger.log("File compression failed with error: " + result, "error");
             }
-        } else {
-            //util_logger.log("File in " + filePath + " compressed with gzip", "info");
         }
     } else {
         perror("popen");
@@ -306,8 +304,6 @@ void Utils::unzipFile(std::string filePath, const std::string mode ) {
             } else {
                 util_logger.log("File decompression failed with error: " + result, "error");
             }
-        } else {
-            //util_logger.log("File in " + filePath + " compressed with gzip", "info");
         }
     } else {
         perror("popen");

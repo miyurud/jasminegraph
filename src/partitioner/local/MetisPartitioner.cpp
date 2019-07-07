@@ -274,10 +274,9 @@ std::vector<std::map<int, std::string>> MetisPartitioner::partitioneWithGPMetis(
             this->fullFileList.push_back(this->centralStoreAttributeFileList);
             return (this->fullFileList);
         }
-        perror("popen");
     } else {
-        perror("popen error");
-        // handle error
+        perror("Popen error in executing gpmetis command");
+        partitioner_logger.log("Popen error in executing gpmetis command", "error");
     }
 }
 
