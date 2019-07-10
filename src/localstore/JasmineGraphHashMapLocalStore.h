@@ -44,7 +44,7 @@ private:
 
     std::string getFileSeparator();
 
-    void toLocalSubGraphMap(const EdgeStore *edgeStoreData);
+    void toLocalSubGraphMap(const PartEdgeMapStore *edgeMapStoreData);
 
     void toLocalAttributeMap(const AttributeStore *attributeStoreData);
 
@@ -73,7 +73,7 @@ public:
         dbFile.read(data, length);
         dbFile.close();
 
-        auto edgeStoreData = GetEdgeStore(data);
+        auto edgeStoreData = GetPartEdgeMapStore(data);
 
         toLocalSubGraphMap(edgeStoreData);
 

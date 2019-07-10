@@ -101,15 +101,15 @@ std::string JasmineGraphHashMapLocalStore::getFileSeparator() {
 #endif
 }
 
-void JasmineGraphHashMapLocalStore::toLocalSubGraphMap(const EdgeStore *edgeStoreData) {
-    auto allEntries = edgeStoreData->entries();
+void JasmineGraphHashMapLocalStore::toLocalSubGraphMap(const PartEdgeMapStore *edgeMapStoreData) {
+    auto allEntries = edgeMapStoreData->entries();
     int tableSize = allEntries->size();
 
     for (int i = 0; i < tableSize; i = i + 1) {
         auto entry = allEntries->Get(i);
         long key = entry->key();
         auto value = entry->value();
-        const flatbuffers::Vector<long> &vector = *value;
+        const flatbuffers::Vector<int> &vector = *value;
         unordered_set<long> valueSet(vector.begin(), vector.end());
         localSubGraphMap.insert(std::make_pair(key, valueSet));
     }
