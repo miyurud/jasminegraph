@@ -20,11 +20,13 @@ limitations under the License.
 #include "../util/Utils.h"
 #include "../util/dbutil/edgestore_generated.h"
 #include "../util/dbutil/attributestore_generated.h"
+#include "../util/dbutil/partedgemapstore_generated.h"
 #include <flatbuffers/util.h>
 
 using std::string;
 using namespace JasmineGraph::Edgestore;
 using namespace JasmineGraph::AttributeStore;
+using namespace JasmineGraph::PartEdgeMapStore;
 
 
 class JasmineGraphHashMapCentralStore: public JasmineGraphLocalStore {
@@ -44,7 +46,7 @@ private:
 
     std::string getFileSeparator();
 
-    void toLocalSubGraphMap(const EdgeStore *edgeStoreData);
+    void toLocalSubGraphMap(const PartEdgeMapStore *edgeMapStoreData);
 
     void toLocalAttributeMap(const AttributeStore *attributeStoreData);
 
@@ -74,6 +76,8 @@ public:
     long getVertexCount();
 
     long getEdgeCount();
+
+    bool storePartEdgeMap(std::map<int, std::vector<int>> edgeMap, const std::string savePath);
 };
 
 
