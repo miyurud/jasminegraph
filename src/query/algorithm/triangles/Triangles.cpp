@@ -31,7 +31,11 @@ long Triangles::run(JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCe
         long centralDBStartVid = centralDBDegreeDistributionIterator->first;
         long centralDBDegree = centralDBDegreeDistributionIterator->second;
         bool isFound = false;
-        for (degreeDistributionIterator = degreeDistribution.begin(); degreeDistributionIterator != degreeDistribution.end();++degreeDistributionIterator) {
+
+        degreeDistribution[centralDBStartVid] += centralDBDegree;
+        localSubGraphMap[centralDBStartVid].insert(centralDBSubGraphMap[centralDBStartVid].begin(),centralDBSubGraphMap[centralDBStartVid].end());
+
+        /*for (degreeDistributionIterator = degreeDistribution.begin(); degreeDistributionIterator != degreeDistribution.end();++degreeDistributionIterator) {
             long localStartVid = degreeDistributionIterator->first;
             long localDBDegree = degreeDistributionIterator->second;
 
@@ -46,12 +50,12 @@ long Triangles::run(JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCe
 
                 localSubGraphMap[localStartVid] = localDBMapSet;
             }
-        }
+        }*/
 
-        if (!isFound) {
+        /*if (!isFound) {
             degreeDistribution[centralDBStartVid] = centralDBDegree;
             localSubGraphMap[centralDBStartVid] = centralDBSubGraphMap[centralDBStartVid];
-        }
+        }*/
     }
 
 
@@ -59,10 +63,8 @@ long Triangles::run(JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCe
         startVId = it->first;
         degree = it->second;
 
-        degreeSet = degreeMap[degree];
-        degreeSet.insert(startVId);
+        degreeMap[degree].insert(startVId);
 
-        degreeMap[degree] = degreeSet;
     }
 
     long triangleCount = 0;
@@ -85,15 +87,16 @@ long Triangles::run(JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCe
         for (verticesIterator = vertices.begin();verticesIterator != vertices.end();++verticesIterator) {
             long temp = *verticesIterator;
             std::unordered_set<long> uList = localSubGraphMap[temp];
-            std::unordered_set<long>::iterator uListIterator;
-            for (uListIterator = uList.begin();uListIterator != uList.end(); ++uListIterator) {
+            std::set<long> orderedUList(uList.begin(),uList.end());
+            std::set<long>::iterator uListIterator;
+            for (uListIterator = orderedUList.begin();uListIterator != orderedUList.end(); ++uListIterator) {
                 long u = *uListIterator;
                 std::unordered_set<long> nuList = localSubGraphMap[u];
-                std::unordered_set<long>::iterator nuListIterator;
-                for (nuListIterator = nuList.begin();nuListIterator != nuList.end();++nuListIterator) {
+                std::set<long> orderedNuList(nuList.begin(),nuList.end());
+                std::set<long>::iterator nuListIterator;
+                for (nuListIterator = orderedNuList.begin();nuListIterator != orderedNuList.end();++nuListIterator) {
                     long nu = *nuListIterator;
-                    unordered_set<long> nwList = localSubGraphMap[nu];
-                    if (nwList.find(temp) != nwList.end()) {
+                    if (uList.find(nu) != uList.end()) {
                         fullCount++;
                         std::vector<long> tempVector;
                         tempVector.push_back(temp);
@@ -132,6 +135,5 @@ long Triangles::run(JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCe
         }
         degreeListVisited.push_back(key);
     }
-
     return triangleCount;
 }

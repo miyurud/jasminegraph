@@ -178,8 +178,7 @@ void JasmineGraphHashMapLocalStore::addEdge(long startVid, long endVid) {
 }
 
 map<long, unordered_set<long>> JasmineGraphHashMapLocalStore::getUnderlyingHashMap() {
-    map<long, unordered_set<long>> result;
-    return result;
+    return localSubGraphMap;
 }
 
 void JasmineGraphHashMapLocalStore::initialize() {
