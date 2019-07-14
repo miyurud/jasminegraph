@@ -661,16 +661,17 @@ long JasmineGraphFrontEnd::countTriangles(std::string graphId, void *dummyPt) {
 
         std::vector<string> partitionList = map[host];
 
-        if (partitionList.size() > 0) {
-            auto iterator = partitionList.begin();
-            partitionId = *iterator;
-            partitionList.erase(partitionList.begin());
-        }
-
         std::vector<int>::iterator portsIterator;
 
         for (portsIterator = instancePorts.begin(); portsIterator != instancePorts.end(); ++portsIterator) {
             int port = *portsIterator;
+
+            if (partitionList.size() > 0) {
+                auto iterator = partitionList.begin();
+                partitionId = *iterator;
+                partitionList.erase(partitionList.begin());
+            }
+
             intermRes.push_back(std::async(std::launch::async,JasmineGraphFrontEnd::getTriangleCount,atoi(graphId.c_str()),host,port,atoi(partitionId.c_str())));
             if (!(aggregatorWorkerHost == host && aggregatorWorkerPort == std::to_string(port))) {
                 remoteCopyRes.insert(std::make_pair(host,std::async(std::launch::async, JasmineGraphFrontEnd::copyCentralStoreToAggregator, aggregatorWorkerHost,aggregatorWorkerPort,host,std::to_string(port),atoi(graphId.c_str()),atoi(partitionId.c_str()))));
