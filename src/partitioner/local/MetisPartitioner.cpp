@@ -21,7 +21,7 @@ std::mutex partFileMutex;
 std::mutex masterFileMutex;
 std::mutex partAttrFileMutex;
 std::mutex masterAttrFileMutex;
-
+std::mutex dbLock;
 
 MetisPartitioner::MetisPartitioner(SQLiteDBInterface *sqlite) {
     this->sqlite = *sqlite;
@@ -29,7 +29,6 @@ MetisPartitioner::MetisPartitioner(SQLiteDBInterface *sqlite) {
 
 void MetisPartitioner::loadDataSet(string inputFilePath, int graphID) {
     partitioner_logger.log("Processing dataset for partitioning", "info");
-    const clock_t begin = clock();
     this->graphID = graphID;
     // Output directory is created under the users home directory '~/.jasminegraph/tmp/'
     this->outputFilePath = utils.getHomeDir() + "/.jasminegraph/tmp/" + std::to_string(this->graphID);
@@ -134,14 +133,11 @@ void MetisPartitioner::loadDataSet(string inputFilePath, int graphID) {
             std::getline(dbFile, line);
         }
     }
-
-    float time = float(clock() - begin) / CLOCKS_PER_SEC;
-    partitioner_logger.log("Processing dataset completed in " + to_string(time) + " seconds", "info");
+    partitioner_logger.log("Processing dataset completed", "info");
 }
 
 int MetisPartitioner::constructMetisFormat(string graph_type) {
     partitioner_logger.log("Constructing metis input format", "info");
-    const clock_t begin = clock();
     graphType = graph_type;
     int adjacencyIndex = 0;
     std::ofstream outputFile;
@@ -196,14 +192,12 @@ int MetisPartitioner::constructMetisFormat(string graph_type) {
 
         outputFile << std::endl;
     }
-    float time = float(clock() - begin) / CLOCKS_PER_SEC;
-    partitioner_logger.log("Constructing metis format completed in " + to_string(time) + " seconds", "info");
+    partitioner_logger.log("Constructing metis format completed", "info");
     return 1;
 }
 
 std::vector<std::map<int, std::string>> MetisPartitioner::partitioneWithGPMetis() {
     partitioner_logger.log("Partitioning with gpmetis", "info");
-    const clock_t begin = clock();
     char buffer[128];
     std::string result = "";
     FILE *headerModify;
@@ -265,8 +259,7 @@ std::vector<std::map<int, std::string>> MetisPartitioner::partitioneWithGPMetis(
                     counter++;
                 }
             }
-            float time = float(clock() - begin) / CLOCKS_PER_SEC;
-            partitioner_logger.log("Done partitioning with gpmetis in " + to_string(time) + " seconds", "info");
+            partitioner_logger.log("Done partitioning with gpmetis", "info");
             createPartitionFiles(partIndex);
 
             string sqlStatement =
@@ -281,10 +274,9 @@ std::vector<std::map<int, std::string>> MetisPartitioner::partitioneWithGPMetis(
             this->fullFileList.push_back(this->centralStoreAttributeFileList);
             return (this->fullFileList);
         }
-        perror("popen");
     } else {
-        perror("popen error");
-        // handle error
+        perror("Popen error in executing gpmetis command");
+        partitioner_logger.log("Popen error in executing gpmetis command", "error");
     }
 }
 
@@ -292,7 +284,6 @@ void MetisPartitioner::createPartitionFiles(std::map<int, int> partMap) {
     for (int i=smallestVertex; i<=largestVertex; i++){
         partVertexCounts[partMap[i]]++;
     }
-    const clock_t begin_time = clock();
     partitioner_logger.log("Populating edge lists before writing to files", "info");
     edgeMap = GetConfig::getEdgeMap();
     articlesMap = GetConfig::getAttributesMap();
@@ -335,11 +326,8 @@ void MetisPartitioner::createPartitionFiles(std::map<int, int> partMap) {
             }
         }
     }
-
-    float t1 = float(clock() - begin_time) / CLOCKS_PER_SEC;
-    partitioner_logger.log("Populating edge lists completed in " + to_string(t1) + " seconds", "info");
+    partitioner_logger.log("Populating edge lists completed", "info");
     partitioner_logger.log("Writing edge lists to files", "info");
-    const clock_t begin_time2 = clock();
     int threadCount = nParts * 2;
     if (graphAttributeType == Conts::GRAPH_WITH_TEXT_ATTRIBUTES || graphType == Conts::GRAPH_TYPE_RDF) {
         threadCount = nParts * 4;
@@ -370,8 +358,7 @@ void MetisPartitioner::createPartitionFiles(std::map<int, int> partMap) {
     for (int tc = 0; tc < threadCount; tc++) {
         threads[tc].join();
     }
-    float t2 = float(clock() - begin_time2) / CLOCKS_PER_SEC;
-    partitioner_logger.log("writing to files completed in " + to_string(t2) + " seconds", "info");
+    partitioner_logger.log("Writing to files completed", "info");
 }
 
 void MetisPartitioner::populatePartMaps(std::map<int, int> partMap, int part) {
@@ -462,8 +449,9 @@ void MetisPartitioner::populatePartMaps(std::map<int, int> partMap, int part) {
             "INSERT INTO partition (idpartition,graph_idgraph,vertexcount,edgecount) VALUES(\"" +
             std::to_string(part) + "\", \"" + std::to_string(this->graphID) +
             "\", \"" + std::to_string(partVertexCounts[part]) + "\",\"" + std::to_string(partitionEdgeCount) + "\")";
+    dbLock.lock();
     this->sqlite.runUpdate(sqlStatement);
-
+    dbLock.unlock();
 }
 
 void MetisPartitioner::writeSerializedPartitionFiles(int part) {
@@ -592,8 +580,6 @@ void MetisPartitioner::writeMasterFiles(int part) {
 }
 
 void MetisPartitioner::writeTextAttributeFilesForPartitions(int part) {
-    std::map<int, std::vector<string>> partitionAttributes;
-
     string attributeFilePart =
             outputFilePath + "/" + std::to_string(this->graphID) + "_attributes_" + std::to_string(part);
 
@@ -630,7 +616,6 @@ void MetisPartitioner::writeTextAttributeFilesForPartitions(int part) {
 }
 
 void MetisPartitioner::writeTextAttributeFilesForMasterParts(int part) {
-    std::map<int, std::vector<string>> centralStoreAttributes;
     string attributeFilePartMaster =
             outputFilePath + "/" + std::to_string(this->graphID) + "_centralstore_attributes_" +
             std::to_string(part);

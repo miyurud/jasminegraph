@@ -38,12 +38,12 @@ void *frontendservicesesion(void *dummyPt) {
     frontendservicesessionargs *sessionargs = (frontendservicesessionargs *) dummyPt;
     frontend_logger.log("Thread No: " + to_string(pthread_self()), "info");
     int connFd = sessionargs->connFd;
-    char data[300];
-    bzero(data, 301);
+    char data[FRONTEND_DATA_LENGTH];
+    bzero(data, FRONTEND_DATA_LENGTH + 1);
     bool loop = false;
     while (!loop) {
-        bzero(data, 301);
-        read(connFd, data, 300);
+        bzero(data, FRONTEND_DATA_LENGTH + 1);
+        read(connFd, data, FRONTEND_DATA_LENGTH);
 
         string line(data);
         frontend_logger.log("Command received: " + line, "info");
@@ -78,12 +78,12 @@ void *frontendservicesesion(void *dummyPt) {
             write(connFd, "\r\n", 2);
 
             // We get the name and the path to graph as a pair separated by |.
-            char graph_data[300];
-            bzero(graph_data, 301);
+            char graph_data[FRONTEND_DATA_LENGTH];
+            bzero(graph_data, FRONTEND_DATA_LENGTH + 1);
             string name = "";
             string path = "";
 
-            read(connFd, graph_data, 300);
+            read(connFd, graph_data, FRONTEND_DATA_LENGTH);
 
             std::time_t time = chrono::system_clock::to_time_t(chrono::system_clock::now());
             string uploadStartTime = ctime(&time);
@@ -123,7 +123,7 @@ void *frontendservicesesion(void *dummyPt) {
                 appConfig.readConfigFile(path, newGraphID);
 
                 MetisPartitioner *metisPartitioner = new MetisPartitioner(&sessionargs->sqlite);
-                vector<std::map<int,string>> fullFileList;
+                vector<std::map<int, string>> fullFileList;
                 string input_file_path = utils.getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID) + "/" +
                                          to_string(newGraphID);
                 metisPartitioner->loadDataSet(input_file_path, newGraphID);
@@ -145,12 +145,12 @@ void *frontendservicesesion(void *dummyPt) {
             write(connFd, "\r\n", 2);
 
             // We get the name and the path to graph as a pair separated by |.
-            char graph_data[300];
-            bzero(graph_data, 301);
+            char graph_data[FRONTEND_DATA_LENGTH];
+            bzero(graph_data, FRONTEND_DATA_LENGTH + 1);
             string name = "";
             string path = "";
 
-            read(connFd, graph_data, 300);
+            read(connFd, graph_data, FRONTEND_DATA_LENGTH);
 
             std::time_t time = chrono::system_clock::to_time_t(chrono::system_clock::now());
             string uploadStartTime = ctime(&time);
@@ -187,7 +187,7 @@ void *frontendservicesesion(void *dummyPt) {
                 int newGraphID = sqlite->runInsert(sqlStatement);
                 JasmineGraphServer *jasmineServer = new JasmineGraphServer();
                 MetisPartitioner *partitioner = new MetisPartitioner(&sessionargs->sqlite);
-                vector<std::map<int,string>> fullFileList;
+                vector<std::map<int, string>> fullFileList;
 
                 partitioner->loadDataSet(path, newGraphID);
                 int result = partitioner->constructMetisFormat(Conts::GRAPH_TYPE_NORMAL);
@@ -223,18 +223,18 @@ void *frontendservicesesion(void *dummyPt) {
             string graphType(type);
             graphType = utils.trim_copy(graphType, " \f\n\r\t\v");
 
-            std::unordered_set<std::string> s = {"1","2","3"};
-            if (s.find(graphType) == s.end()){
+            std::unordered_set<std::string> s = {"1", "2", "3"};
+            if (s.find(graphType) == s.end()) {
                 frontend_logger.log("Graph type not recognized", "error");
                 continue;
             }
 
             string graphAttributeType = "";
-            if (graphType == "1"){
+            if (graphType == "1") {
                 graphAttributeType = Conts::GRAPH_WITH_TEXT_ATTRIBUTES;
-            }else if (graphType == "2"){
+            } else if (graphType == "2") {
                 graphAttributeType = Conts::GRAPH_WITH_JSON_ATTRIBUTES;
-            }else if (graphType == "3"){
+            } else if (graphType == "3") {
                 graphAttributeType = Conts::GRAPH_WITH_XML_ATTRIBUTES;
             }
 
@@ -242,13 +242,13 @@ void *frontendservicesesion(void *dummyPt) {
             // (<name>|<path to edge list>|<path to attribute file>)
             message = "Send <name>|<path to edge list>|<path to attribute file>\n";
             write(connFd, message.c_str(), message.size());
-            char graph_data[300];
-            bzero(graph_data, 301);
+            char graph_data[FRONTEND_DATA_LENGTH];
+            bzero(graph_data, FRONTEND_DATA_LENGTH + 1);
             string name = "";
             string edgeListPath = "";
             string attributeListPath = "";
 
-            read(connFd, graph_data, 300);
+            read(connFd, graph_data, FRONTEND_DATA_LENGTH);
 
             std::time_t time = chrono::system_clock::to_time_t(chrono::system_clock::now());
             string uploadStartTime = ctime(&time);
@@ -286,7 +286,7 @@ void *frontendservicesesion(void *dummyPt) {
                 int newGraphID = sqlite->runInsert(sqlStatement);
                 JasmineGraphServer *jasmineServer = new JasmineGraphServer();
                 MetisPartitioner *partitioner = new MetisPartitioner(&sessionargs->sqlite);
-                vector<std::map<int,string>> fullFileList;
+                vector<std::map<int, string>> fullFileList;
                 partitioner->loadContentData(attributeListPath, graphAttributeType);
                 partitioner->loadDataSet(edgeListPath, newGraphID);
                 int result = partitioner->constructMetisFormat(Conts::GRAPH_TYPE_NORMAL);
@@ -309,15 +309,15 @@ void *frontendservicesesion(void *dummyPt) {
             }
         } else if (line.compare(ADD_STREAM_KAFKA) == 0) {
             frontend_logger.log("Start serving `" + ADD_STREAM_KAFKA + "` command", "info");
-            string message = "send kafka topic name"; 
+            string message = "send kafka topic name";
             write(connFd, message.c_str(), message.length());
             write(connFd, "\r\n", 2);
 
             // We get the name and the path to graph as a pair separated by |.
-            char topic_name[300];
-            bzero(topic_name, 301);
+            char topic_name[FRONTEND_DATA_LENGTH];
+            bzero(topic_name, FRONTEND_DATA_LENGTH + 1);
 
-            read(connFd, topic_name, 300);
+            read(connFd, topic_name, FRONTEND_DATA_LENGTH);
 
             Utils utils;
             string topic_name_s(topic_name);
@@ -344,7 +344,9 @@ void *frontendservicesesion(void *dummyPt) {
                     break;
                 }
                 std::pair<long, long> edge = Partitioner::deserialize(data);
-                frontend_logger.log("Received edge >> " + std::to_string(edge.first) + " --- " + std::to_string(edge.second) , "info");
+                frontend_logger.log(
+                        "Received edge >> " + std::to_string(edge.first) + " --- " + std::to_string(edge.second),
+                        "info");
                 graphPartitioner.addEdge(edge);
             }
             graphPartitioner.printStats();
@@ -354,12 +356,12 @@ void *frontendservicesesion(void *dummyPt) {
             write(connFd, "\r\n", 2);
 
             // We get the name and the path to graph as a pair separated by |.
-            char graph_id[300];
-            bzero(graph_id, 301);
+            char graph_id[FRONTEND_DATA_LENGTH];
+            bzero(graph_id, FRONTEND_DATA_LENGTH + 1);
             string name = "";
             string path = "";
 
-            read(connFd, graph_id, 300);
+            read(connFd, graph_id, FRONTEND_DATA_LENGTH);
 
             string graphID(graph_id);
 
@@ -380,11 +382,11 @@ void *frontendservicesesion(void *dummyPt) {
             write(connFd, "\r\n", 2);
 
             // We get the name and the path to graph as a pair separated by |.
-            char graph_data[300];
-            bzero(graph_data, 301);
+            char graph_data[FRONTEND_DATA_LENGTH];
+            bzero(graph_data, FRONTEND_DATA_LENGTH + 1);
 
 
-            read(connFd, graph_data, 300);
+            read(connFd, graph_data, FRONTEND_DATA_LENGTH);
 
             string gData(graph_data);
 
@@ -392,7 +394,7 @@ void *frontendservicesesion(void *dummyPt) {
             gData = utils.trim_copy(gData, " \f\n\r\t\v");
             frontend_logger.log("Data received: " + gData, "info");
 
-            if (gData.length()==0) {
+            if (gData.length() == 0) {
                 frontend_logger.log("Message format not recognized", "error");
                 break;
             }

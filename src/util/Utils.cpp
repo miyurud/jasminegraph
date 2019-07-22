@@ -164,35 +164,6 @@ bool Utils::fileExists(std::string fileName) {
 }
 
 /**
- * This method compresses files using gzip
- * @param filePath
- */
-void Utils::compressFile(const std::string filePath) {
-    char buffer[128];
-    std::string result = "";
-    std::string command = "gzip -f " + filePath + " 2>&1";
-    char *commandChar = new char[command.length() + 1];
-    strcpy(commandChar, command.c_str());
-    FILE *input = popen(commandChar, "r");
-    if (input) {
-        while (!feof(input)) {
-            if (fgets(buffer, 128, input) != NULL) {
-                result.append(buffer);
-            }
-        }
-        pclose(input);
-        if (!result.empty()) {
-            util_logger.log("File compression failed with error: " + result, "error");
-        } else {
-            //util_logger.log("File in " + filePath + " compressed with gzip", "info");
-        }
-    } else {
-        perror("popen");
-        // handle error
-    }
-}
-
-/**
  * This method creates a new directory if it does not exist
  * @param dirName
  */
@@ -277,13 +248,13 @@ int Utils::getFileSize(std::string filePath) {
 }
 
 /**
- * this method extracts a gzip file
+ * This method compresses files using gzip
  * @param filePath
  */
-void Utils::unzipFile(std::string filePath) {
+void Utils::compressFile(const std::string filePath, const std::string mode) {
     char buffer[128];
     std::string result = "";
-    std::string command = "gzip -f -d " + filePath ;
+    std::string command = mode + " -f " + filePath + " 2>&1";
     char *commandChar = new char[command.length() + 1];
     strcpy(commandChar, command.c_str());
     FILE *input = popen(commandChar, "r");
@@ -295,9 +266,44 @@ void Utils::unzipFile(std::string filePath) {
         }
         pclose(input);
         if (!result.empty()) {
-            util_logger.log("File decompression failed with error : " + result, "error");
-        } else {
-            //util_logger.log("File in " + filePath + " extracted with gzip", "info");
+            if (result.find("pigz: not found") != std::string::npos) {
+                util_logger.log("pigz not found. Compressing using gzip", "info");
+                compressFile(filePath, "gzip");
+            } else {
+                util_logger.log("File compression failed with error: " + result, "error");
+            }
+        }
+    } else {
+        perror("popen");
+        // handle error
+    }
+}
+
+/**
+ * this method extracts a gzip file
+ * @param filePath
+ */
+void Utils::unzipFile(std::string filePath, const std::string mode ) {
+    char buffer[128];
+    std::string result = "";
+    std::string command = mode + " -f -d " + filePath + " 2>&1";
+    char *commandChar = new char[command.length() + 1];
+    strcpy(commandChar, command.c_str());
+    FILE *input = popen(commandChar, "r");
+    if (input) {
+        while (!feof(input)) {
+            if (fgets(buffer, 128, input) != NULL) {
+                result.append(buffer);
+            }
+        }
+        pclose(input);
+        if (!result.empty()) {
+            if (result.find("pigz: not found") != std::string::npos) {
+                util_logger.log("pigz not found. Decompressing using gzip", "info");
+                unzipFile(filePath, "gzip");
+            } else {
+                util_logger.log("File decompression failed with error: " + result, "error");
+            }
         }
     } else {
         perror("popen");

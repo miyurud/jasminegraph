@@ -75,6 +75,7 @@ class JasminGraphFrontEndProtocol {
 };
 
 const int FRONTEND_COMMAND_LENGTH = 4;
+const int FRONTEND_DATA_LENGTH = 300;
 
 
 #endif //JASMINGRAPH_JASMINGRAPHFRONTENDPROTOCOL_H

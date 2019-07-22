@@ -43,7 +43,7 @@ class Utils
 
     bool fileExists(std::string fileName);
 
-    void compressFile(const std::string filePath);
+    void compressFile(const std::string filePath, const std::string mode = "pigz");
     bool is_number(const std::string &compareString);
 
     void createDirectory(const std::string dirName);
@@ -58,7 +58,7 @@ class Utils
   
     // Static method to get running user's home directory
     static std::string getHomeDir();
-    void unzipFile(std::string filePath);
+    void unzipFile(std::string filePath, const std::string mode = "pigz");
 
     int parseARGS(char **args, char *line);
 
