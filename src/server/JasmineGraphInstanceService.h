@@ -18,7 +18,7 @@ limitations under the License.
 #include "../localstore/JasmineGraphLocalStore.h"
 #include "../localstore/JasmineGraphHashMapLocalStore.h"
 #include "../localstore/JasmineGraphLocalStoreFactory.h"
-#include "../query/algorithm/triangles/Triangles.h"
+#include "../query/algorithms/triangles/Triangles.h"
 #include "../util/Utils.h"
 #include <string.h>
 #include <unistd.h>
@@ -58,8 +58,6 @@ public:
     static long aggregateCentralStoreTriangles (std::string graphId, std::string partitionId);
     static map<long, long> getOutDegreeDistributionHashMap(map<long, unordered_set<long>> graphMap);
 
-private:
-    static long countCentralStoreTriangles (map<long, unordered_set<long>> centralStore, map<long, long> distributionMap);
 };
 
 struct instanceservicesessionargs {

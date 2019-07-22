@@ -29,35 +29,6 @@ JasmineGraphHashMapLocalStore::JasmineGraphHashMapLocalStore(std::string folderL
 JasmineGraphHashMapLocalStore::JasmineGraphHashMapLocalStore() {
 }
 
-/*bool JasmineGraphHashMapLocalStore::loadGraph() {
-    bool result = false;
-    std::string edgeStorePath = instanceDataFolderLocation + getFileSeparator() + EDGE_STORE_NAME;
-
-    std::ifstream dbFile;
-    dbFile.open(edgeStorePath, std::ios::binary | std::ios::in);
-
-    if (!dbFile.is_open()) {
-        return result;
-    }
-
-    dbFile.seekg(0, std::ios::end);
-    int length = dbFile.tellg();
-    dbFile.seekg(0, std::ios::beg);
-    char *data = new char[length];
-    dbFile.read(data, length);
-    dbFile.close();
-
-    auto edgeStoreData = GetEdgeStore(data);
-
-    toLocalSubGraphMap(edgeStoreData);
-
-    result = true;
-
-    vertexCount = localSubGraphMap.size();
-    edgeCount = getEdgeCount();
-
-    return result;
-}*/
 
 bool JasmineGraphHashMapLocalStore::storeGraph() {
     bool result = false;

@@ -57,7 +57,6 @@ public:
 
     static long getTriangleCount(int graphId, std::string host, int port, int partitionId);
 
-    static long countGlobalTriangles(int graphId, void *dummyPt);
 
 private:
     SQLiteDBInterface sqlite;
