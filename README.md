@@ -9,6 +9,9 @@ The following build tools, applications, and libraries need to be installed befo
 - GCC 5.4.0 or above
 - Cmake version 3.10.3 or above
 - Google Flat Buffers (https://github.com/google/flatbuffers)
+    - Clone the flatbuffers repository to $ENV{HOME}/software
+    - Checkout Tag v1.10.0
+    - Follow https://google.github.io/flatbuffers/flatbuffers_guide_building.html link to build flatbuffers
 - Metis (http://glaros.dtc.umn.edu/gkhome/metis/metis/download)
 - SdpLog (https://github.com/gabime/spdlog)
     - Clone or download the repository from the above link
