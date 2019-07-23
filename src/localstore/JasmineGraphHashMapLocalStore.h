@@ -44,18 +44,46 @@ private:
 
     std::string getFileSeparator();
 
-    void toLocalSubGraphMap(const EdgeStore *edgeStoreData);
+    void toLocalSubGraphMap(const PartEdgeMapStore *edgeMapStoreData);
 
     void toLocalAttributeMap(const AttributeStore *attributeStoreData);
 
 public:
-    JasmineGraphHashMapLocalStore(int graphid, int partitionid);
+    JasmineGraphHashMapLocalStore(int graphid, int partitionid, std::string folderLocation);
 
     JasmineGraphHashMapLocalStore(std::string folderLocation);
 
     JasmineGraphHashMapLocalStore();
 
-    inline bool loadGraph();
+    inline bool loadGraph() {
+        bool result = false;
+        std::string edgeStorePath = instanceDataFolderLocation + getFileSeparator() + std::to_string(graphId)+"_"+std::to_string(partitionId);
+
+        std::ifstream dbFile;
+        dbFile.open(edgeStorePath, std::ios::binary | std::ios::in);
+
+        if (!dbFile.is_open()) {
+            return result;
+        }
+
+        dbFile.seekg(0, std::ios::end);
+        int length = dbFile.tellg();
+        dbFile.seekg(0, std::ios::beg);
+        char *data = new char[length];
+        dbFile.read(data, length);
+        dbFile.close();
+
+        auto edgeStoreData = GetPartEdgeMapStore(data);
+
+        toLocalSubGraphMap(edgeStoreData);
+
+        result = true;
+
+        vertexCount = localSubGraphMap.size();
+        edgeCount = getEdgeCount();
+
+        return result;
+    }
 
     bool loadAttributes();
 

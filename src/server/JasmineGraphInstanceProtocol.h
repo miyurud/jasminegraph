@@ -50,6 +50,10 @@ public:
     static const string FILE_ACK;
     static const string STATUS;                     // This is sent to the client to check its status.
     static const string DELETE_GRAPH;               // This mesage deletes a particular graph from JasmineGraph
+    static const string NPLACES;
+    static const string TRIANGLES;
+    static const string SEND_CENTRALSTORE_TO_AGGREGATOR;
+    static const string AGGREGATE_CENTRALSTORE_TRIANGLES;
 
 };
 

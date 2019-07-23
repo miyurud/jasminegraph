@@ -478,8 +478,8 @@ void MetisPartitioner::writeSerializedMasterFiles(int part) {
 
     std::map<int, std::vector<int>> partMasterEdgeMap = masterGraphStorageMap[part];
 
-    JasmineGraphHashMapLocalStore *hashMapLocalStore = new JasmineGraphHashMapLocalStore();
-    hashMapLocalStore->storePartEdgeMap(partMasterEdgeMap, outputFilePartMaster);
+    JasmineGraphHashMapCentralStore *hashMapCentralStore = new JasmineGraphHashMapCentralStore();
+    hashMapCentralStore->storePartEdgeMap(partMasterEdgeMap, outputFilePartMaster);
 
     this->utils.compressFile(outputFilePartMaster);
     masterFileMutex.lock();

@@ -20,11 +20,13 @@ limitations under the License.
 #include "../util/Utils.h"
 #include "../util/dbutil/edgestore_generated.h"
 #include "../util/dbutil/attributestore_generated.h"
+#include "../util/dbutil/partedgemapstore_generated.h"
 #include <flatbuffers/util.h>
 
 using std::string;
 using namespace JasmineGraph::Edgestore;
 using namespace JasmineGraph::AttributeStore;
+using namespace JasmineGraph::PartEdgeMapStore;
 
 
 class JasmineGraphHashMapCentralStore: public JasmineGraphLocalStore {
@@ -37,14 +39,14 @@ private:
     int  partitionId = 0;
 
     string instanceDataFolderLocation;
-    std::map<long,unordered_set<long>> localSubgraphMap;
+    std::map<long,unordered_set<long>> centralSubgraphMap;
 
     long vertexCount = 0;
     long edgeCount =0;
 
     std::string getFileSeparator();
 
-    void toLocalSubGraphMap(const EdgeStore *edgeStoreData);
+    void toLocalSubGraphMap(const PartEdgeMapStore *edgeMapStoreData);
 
     void toLocalAttributeMap(const AttributeStore *attributeStoreData);
 
@@ -56,6 +58,8 @@ public:
     JasmineGraphHashMapCentralStore(std::string folderLocation);
 
     bool loadGraph();
+
+    bool loadGraph(std::string fileName);
 
     bool storeGraph();
 
@@ -72,7 +76,11 @@ public:
     long getVertexCount();
 
     long getEdgeCount();
+
+    bool storePartEdgeMap(std::map<int, std::vector<int>> edgeMap, const std::string savePath);
 };
 
 
+
 #endif //JASMINEGRAPH_JASMINEGRAPHHASHMAPCENTRALSTORE_H
+

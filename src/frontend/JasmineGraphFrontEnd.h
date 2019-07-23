@@ -28,7 +28,12 @@ limitations under the License.
 #include <stdlib.h>
 #include <string>
 #include <pthread.h>
+#include <chrono>
+#include <thread>
+#include <map>
 #include "../metadb/SQLiteDBInterface.h"
+#include "../util/PlacesToNodeMapper.h"
+#include "../centralstore/JasmineGraphHashMapCentralStore.h"
 
 void *frontendservicesesion(void *dummyPt);
 
@@ -44,13 +49,24 @@ public:
 
     static void removeGraph(std::string graphID, void *dummyPt);
 
+    static std::string copyCentralStoreToAggregator(std::string aggregatorHostName, std::string aggregatorPort, std::string host, std::string port, int graphId, int partitionId);
+
+    static long countCentralStoreTriangles (std::string aggregatorHostName, std::string aggregatorPort, std::string host, std::string partitionId, std::string graphId);
+
+    static long countTriangles(std::string graphId, void *dummyPt);
+
+    static long getTriangleCount(int graphId, std::string host, int port, int partitionId);
+
+
 private:
     SQLiteDBInterface sqlite;
+
 };
 
 struct frontendservicesessionargs {
     SQLiteDBInterface sqlite;
     int connFd;
+
 };
 
 #endif //JASMINGRAPH_JASMINGRAPHFRONTEND_H
