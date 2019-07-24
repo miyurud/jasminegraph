@@ -19,6 +19,7 @@ limitations under the License.
 #include "../util/dbutil/attributestore_generated.h"
 #include "../util/dbutil/partedgemapstore_generated.h"
 #include <flatbuffers/util.h>
+#include <fstream>
 
 using namespace JasmineGraph::Edgestore;
 using namespace JasmineGraph::AttributeStore;

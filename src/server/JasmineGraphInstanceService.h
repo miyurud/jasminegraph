@@ -36,6 +36,7 @@ limitations under the License.
 #include <thread>
 #include <map>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <dirent.h>
 
 void *instanceservicesession(void *dummyPt);
