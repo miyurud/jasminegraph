@@ -24,8 +24,10 @@ The following build tools, applications, and libraries need to be installed befo
     - Once cppkafka is built install it by running 'sudo make install' from the build directory
 - Xerces-c-3.2.2 (https://xerces.apache.org/xerces-c/)
     - Intallation guide is available at http://xerces.apache.org/xerces-c/build-3.html
+    - When configuring Xerces skip the use of transcoder ICU by using the flag --disable-transcoder-icu
     - Once installed specify the target_link_libraries path to xerces.
 - Jsoncpp(https://github.com/open-source-parsers/jsoncpp)
+    - Install the release https://github.com/open-source-parsers/jsoncpp/releases/tag/1.8.4
 - pigz (optional)
     - pigz, which stands for Parallel Implementation of GZip, is a fully functional
       replacement for gzip that exploits multiple processors and multiple cores to
