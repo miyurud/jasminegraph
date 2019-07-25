@@ -478,6 +478,36 @@ void *frontendservicesesion(void *dummyPt) {
                 int vertexCount = std::stoi(output[0][0].second);
                 frontend_logger.log("Vertex Count: " + to_string(vertexCount),"info");
             }
+        } else if (line.compare(ECOUNT) == 0) {
+            write(connFd, GRAPHID_SEND.c_str(), GRAPHID_SEND.size());
+            write(connFd, "\r\n", 2);
+
+            char graph_id_data[300];
+            bzero(graph_id_data, 301);
+            string name = "";
+
+            read(connFd, graph_id_data, 300);
+
+            string graph_id(graph_id_data);
+
+            graph_id.erase(std::remove(graph_id.begin(), graph_id.end(), '\n'),
+                           graph_id.end());
+            graph_id.erase(std::remove(graph_id.begin(), graph_id.end(), '\r'),
+                           graph_id.end());
+
+            if (!JasmineGraphFrontEnd::graphExistsByID(graph_id,dummyPt)) {
+                string error_message = "The specified graph id does not exist";
+                write(connFd, error_message.c_str(), FRONTEND_COMMAND_LENGTH);
+                write(connFd, "\r\n", 2);
+            } else {
+                SQLiteDBInterface *sqlite = &sessionargs->sqlite;
+                string sqlStatement = "SELECT edgecount from graph where idgraph=" + graph_id;
+
+                std::vector<vector<pair<string, string>>> output = sqlite->runSelect(sqlStatement);
+
+                int vertexCount = std::stoi(output[0][0].second);
+                frontend_logger.log("Edge Count: " + to_string(vertexCount),"info");
+            }
         } else {
             frontend_logger.log("Command not recognized " + line, "error");
         }
