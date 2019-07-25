@@ -19,7 +19,7 @@ The following build tools, applications, and libraries need to be installed befo
     - Ex : "include_directories("$ENV{HOME}/software/spdlog/include")"
 - SQLite3 (https://www.sqlite.org/download.html)
 - cppkafka (https://github.com/mfontanini/cppkafka)
-    - Install librdkafka - Follow the Readme in (https://github.com/mfontanini/cppkafka)
+    - Install librdkafka - Follow the Readme in (https://github.com/edenhill/librdkafka)
     - Install boost library - use 'sudo apt-get install libboost-all-dev'
     - Once cppkafka is built install it by running 'sudo make install' from the build directory
 - Xerces-c-3.2.2 (https://xerces.apache.org/xerces-c/)
