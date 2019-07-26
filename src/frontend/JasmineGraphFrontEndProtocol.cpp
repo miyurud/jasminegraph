@@ -28,3 +28,5 @@ const string PROCESS_DATASET = "process_dataset";
 const string REFORMAT = "reformat";
 const string TRIANGLES = "trian";
 const string GRAPHID_SEND = "graphid-send";
+const string VCOUNT= "vcnt";
+const string ECOUNT= "ecnt";
