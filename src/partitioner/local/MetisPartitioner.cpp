@@ -270,6 +270,7 @@ std::vector<std::map<int, std::string>> MetisPartitioner::partitioneWithGPMetis(
             this->sqlite.runUpdate(sqlStatement);
             this->fullFileList.push_back(this->partitionFileList);
             this->fullFileList.push_back(this->centralStoreFileList);
+            this->fullFileList.push_back(this->centralStoreDuplicateFileList);
             this->fullFileList.push_back(this->partitionAttributeFileList);
             this->fullFileList.push_back(this->centralStoreAttributeFileList);
             return (this->fullFileList);
@@ -308,7 +309,7 @@ void MetisPartitioner::createPartitionFiles(std::map<int, int> partMap) {
             if (part == subPart) {
                 continue;
             } else {
-                std::map<int, std::vector<int>> partMasterEdgesSet = masterGraphStorageMap[subPart];
+                std::map<int, std::vector<int>> partMasterEdgesSet = duplicateMasterGraphStorageMap[subPart];
                 std::map<int, std::vector<int>> commonMasterEdgeSet = commonCentralStoreEdgePartMap[subPart];
                 for (edgeMapIterator = commonMasterEdgeSet.begin();
                      edgeMapIterator != commonMasterEdgeSet.end(); ++edgeMapIterator) {
@@ -319,18 +320,20 @@ void MetisPartitioner::createPartitionFiles(std::map<int, int> partMap) {
                          secondVertexIterator != secondVertexVector.end(); ++secondVertexIterator) {
                         int endVertex = *secondVertexIterator;
                         centralGraphVertexVector.push_back(endVertex);
+                        masterEdgeCountsWithDups[subPart]++;
                     }
                     partMasterEdgesSet[edgeMapIterator->first] = centralGraphVertexVector;
                 }
-                masterGraphStorageMap[subPart] = partMasterEdgesSet;
+                duplicateMasterGraphStorageMap[subPart] = partMasterEdgesSet;
             }
         }
     }
+
     partitioner_logger.log("Populating edge lists completed", "info");
     partitioner_logger.log("Writing edge lists to files", "info");
-    int threadCount = nParts * 2;
+    int threadCount = nParts * 3;
     if (graphAttributeType == Conts::GRAPH_WITH_TEXT_ATTRIBUTES || graphType == Conts::GRAPH_TYPE_RDF) {
-        threadCount = nParts * 4;
+        threadCount = nParts * 5;
     }
     std::thread *threads = new std::thread[threadCount];
     count = 0;
@@ -340,6 +343,8 @@ void MetisPartitioner::createPartitionFiles(std::map<int, int> partMap) {
         count++;
         //threads[count] = std::thread(&MetisPartitioner::writeMasterFiles, this, part);
         threads[count] = std::thread(&MetisPartitioner::writeSerializedMasterFiles, this, part);
+        count++;
+        threads[count] = std::thread(&MetisPartitioner::writeSerializedDuplicateMasterFiles, this, part);
         count++;
         if (graphAttributeType == Conts::GRAPH_WITH_TEXT_ATTRIBUTES) {
             threads[count] = std::thread(&MetisPartitioner::writeTextAttributeFilesForPartitions, this, part);
@@ -359,6 +364,21 @@ void MetisPartitioner::createPartitionFiles(std::map<int, int> partMap) {
         threads[tc].join();
     }
     partitioner_logger.log("Writing to files completed", "info");
+
+    for (int part = 0; part < nParts; part++) {
+        int masterEdgeCount = masterEdgeCounts[part];
+        int masterEdgeCountWithDups = masterEdgeCountsWithDups[part];
+
+        string sqlStatement =
+                "UPDATE partition SET central_edgecount = '" + std::to_string(masterEdgeCount) +
+                "', central_edgecount_with_dups = '" + std::to_string(masterEdgeCountWithDups) +
+                "' WHERE graph_idgraph = '" + std::to_string(this->graphID) + "' AND idpartition = '" +
+                std::to_string(part) + "'";
+        cout << sqlStatement << endl;
+        dbLock.lock();
+        this->sqlite.runUpdate(sqlStatement);
+        dbLock.unlock();
+    }
 }
 
 void MetisPartitioner::populatePartMaps(std::map<int, int> partMap, int part) {
@@ -393,6 +413,8 @@ void MetisPartitioner::populatePartMaps(std::map<int, int> partMap, int part) {
                         localGraphVertexVector.push_back(endVertexActual);
                     } else {
                         centralGraphVertexVector.push_back(endVertexActual);
+                        masterEdgeCounts[part]++;
+                        masterEdgeCountsWithDups[part]++;
                         commonMasterEdgeSet[endVertexPart][startVertexActual].push_back(endVertexActual);
                     }
                 }
@@ -420,6 +442,8 @@ void MetisPartitioner::populatePartMaps(std::map<int, int> partMap, int part) {
                         partitionEdgeCount++;
                         localGraphVertexVector.push_back(endVertex);
                     } else {
+                        masterEdgeCounts[part]++;
+                        masterEdgeCountsWithDups[part]++;
                         /*This edge's two vertices belong to two different parts.
                         * Therefore the edge is added to both partMasterEdgeSets
                         * This adds the edge to the masterGraphStorageMap with key being the part of vertex 1
@@ -486,6 +510,23 @@ void MetisPartitioner::writeSerializedMasterFiles(int part) {
     centralStoreFileList.insert(make_pair(part, outputFilePartMaster + ".gz"));
     masterFileMutex.unlock();
     partitioner_logger.log("Serializing done for central part " + to_string(part), "info");
+}
+
+void MetisPartitioner::writeSerializedDuplicateMasterFiles(int part) {
+
+    string outputFilePartMaster =
+            outputFilePath + "/" + std::to_string(this->graphID) + "_centralstore_dp_" + std::to_string(part);
+
+    std::map<int, std::vector<int>> partMasterEdgeMap = duplicateMasterGraphStorageMap[part];
+
+    JasmineGraphHashMapCentralStore *hashMapCentralStore = new JasmineGraphHashMapCentralStore();
+    hashMapCentralStore->storePartEdgeMap(partMasterEdgeMap, outputFilePartMaster);
+
+    this->utils.compressFile(outputFilePartMaster);
+    masterFileMutex.lock();
+    centralStoreDuplicateFileList.insert(make_pair(part, outputFilePartMaster + ".gz"));
+    masterFileMutex.unlock();
+    partitioner_logger.log("Serializing done for duplicate central part " + to_string(part), "info");
 }
 
 void MetisPartitioner::writePartitionFiles(int part) {

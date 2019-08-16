@@ -305,8 +305,8 @@ void *frontendservicesesion(void *dummyPt) {
                 //Graph type should be changed to identify graphs with attributes
                 //because this graph type has additional attribute files to be uploaded
                 jasmineServer->uploadGraphLocally(newGraphID, Conts::GRAPH_WITH_ATTRIBUTES, fullFileList);
-                //utils.deleteDirectory(utils.getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
-                //utils.deleteDirectory("/tmp/" + std::to_string(newGraphID));
+                utils.deleteDirectory(utils.getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
+                utils.deleteDirectory("/tmp/" + std::to_string(newGraphID));
                 JasmineGraphFrontEnd::getAndUpdateUploadTime(to_string(newGraphID), dummyPt);
             } else {
                 frontend_logger.log("Graph data file does not exist on the specified path", "error");
@@ -383,7 +383,41 @@ void *frontendservicesesion(void *dummyPt) {
             }
 
         } else if (line.compare(PROCESS_DATASET) == 0) {
-            
+            write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
+            write(connFd, "\r\n", 2);
+
+            // We get the name and the path to graph as a pair separated by |.
+            char graph_data[FRONTEND_DATA_LENGTH];
+            bzero(graph_data, FRONTEND_DATA_LENGTH + 1);
+
+
+            read(connFd, graph_data, FRONTEND_DATA_LENGTH);
+
+            string gData(graph_data);
+
+            Utils utils;
+            gData = utils.trim_copy(gData, " \f\n\r\t\v");
+            frontend_logger.log("Data received: " + gData, "info");
+
+            if (gData.length() == 0) {
+                frontend_logger.log("Message format not recognized", "error");
+                break;
+            }
+            string path = gData;
+
+
+            if (utils.fileExists(path)) {
+                frontend_logger.log("Path exists", "info");
+
+                JSONParser *jsonParser = new JSONParser();
+                jsonParser->jsonParse(path);
+                frontend_logger.log("Reformatted files created on /home/.jasminegraph/tmp/JSONParser/output", "info");
+
+
+            } else {
+                frontend_logger.log("Graph data file does not exist on the specified path", "error");
+                break;
+            }
         } else if (line.compare(TRIANGLES) == 0) {
             // add RDF graph
             write(connFd, GRAPHID_SEND.c_str(), FRONTEND_COMMAND_LENGTH);
