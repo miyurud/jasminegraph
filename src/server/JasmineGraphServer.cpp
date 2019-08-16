@@ -186,13 +186,13 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector,
 
 void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType, vector<std::map<int,string>> fullFileList) {
     std::cout << "Uploading the graph locally.." << std::endl;
-    std::map<int,string> partitionFileList = fullFileList[0];
-    std::map<int,string> centralStoreFileList = fullFileList[1];
-    std::map<int,string> centralStoreDuplFileList = fullFileList[2];
-    std::map<int,string> attributeFileList;
-    std::map<int,string> centralStoreAttributeFileList;
+    std::map<int, string> partitionFileList = fullFileList[0];
+    std::map<int, string> centralStoreFileList = fullFileList[1];
+    std::map<int, string> centralStoreDuplFileList = fullFileList[2];
+    std::map<int, string> attributeFileList;
+    std::map<int, string> centralStoreAttributeFileList;
     int total_threads = partitionFileList.size() + centralStoreFileList.size() + centralStoreDuplFileList.size();
-    if (graphType == Conts::GRAPH_WITH_ATTRIBUTES){
+    if (graphType == Conts::GRAPH_WITH_ATTRIBUTES) {
         attributeFileList = fullFileList[3];
         total_threads += attributeFileList.size();
         centralStoreAttributeFileList = fullFileList[4];
@@ -220,13 +220,13 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
                                                graphID, centralStoreDuplFileList[file_count]);
             count++;
             sleep(1);
-            if (graphType == Conts::GRAPH_WITH_ATTRIBUTES){
-                workerThreads[count] = std::thread(batchUploadAttributeFile, worker.hostname, worker.port, worker.dataPort,
-                                                   graphID, attributeFileList[file_count]);
+            if (graphType == Conts::GRAPH_WITH_ATTRIBUTES) {
+                workerThreads[count] = std::thread(batchUploadAttributeFile, worker.hostname, worker.port,
+                                                   worker.dataPort, graphID, attributeFileList[file_count]);
                 count++;
                 sleep(1);
-                workerThreads[count] = std::thread(batchUploadCentralAttributeFile, worker.hostname, worker.port, worker.dataPort,
-                                                   graphID, centralStoreAttributeFileList[file_count]);
+                workerThreads[count] = std::thread(batchUploadCentralAttributeFile, worker.hostname, worker.port,
+                                                   worker.dataPort, graphID, centralStoreAttributeFileList[file_count]);
                 count++;
                 sleep(1);
             }

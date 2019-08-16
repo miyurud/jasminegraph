@@ -605,7 +605,7 @@ int JasmineGraphFrontEnd::run() {
  * @return
  */
 bool JasmineGraphFrontEnd::graphExists(string path, void *dummyPt) {
-    bool result = false;
+    bool result = true;
     string stmt =
             "SELECT COUNT( * ) FROM graph WHERE upload_path LIKE '" + path + "' AND graph_status_idgraph_status = '" +
             to_string(Conts::GRAPH_STATUS::OPERATIONAL) + "';";
@@ -1067,13 +1067,13 @@ void JasmineGraphFrontEnd::getAndUpdateUploadTime(std::string graphID, void *dum
             "SELECT upload_start_time,upload_end_time FROM graph WHERE idgraph = '" + graphID + "'");
     string startTime = uploadStartFinishTimes[0][0].second;
     string endTime = uploadStartFinishTimes[0][1].second;
-    string sTime = startTime.substr(startTime.size()-14,startTime.size()-5);
-    string eTime = endTime.substr(startTime.size()-14,startTime.size()-5);
+    string sTime = startTime.substr(startTime.size() - 14, startTime.size() - 5);
+    string eTime = endTime.substr(startTime.size() - 14, startTime.size() - 5);
     strptime(sTime.c_str(), "%H:%M:%S", &tm);
     time_t start = mktime(&tm);
     strptime(eTime.c_str(), "%H:%M:%S", &tm);
     time_t end = mktime(&tm);
-    double difTime = difftime(end,start);
+    double difTime = difftime(end, start);
     sqlite->runUpdate("UPDATE graph SET upload_time = " + to_string(difTime) + " WHERE idgraph = " + graphID);
-    frontend_logger.log("Upload time updated in the database" , "info");
+    frontend_logger.log("Upload time updated in the database", "info");
 }

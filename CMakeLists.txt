@@ -36,12 +36,11 @@ target_link_libraries(JasmineGraph rdkafka)
 target_link_libraries(JasmineGraph cppkafka)
 
 include_directories("$ENV{HOME}/software/flatbuffers/include")
-include_directories("$ENV{HOME}/software/xerces/include")
+include_directories("$ENV{HOME}/software/xerces-c-3.2.2/include")
 include_directories("$ENV{HOME}/software/spdlog/include")
 include_directories("$ENV{HOME}/software/jsoncpp/include")
 
 target_link_libraries(JasmineGraph /usr/local/lib/libmetis.a)
 target_link_libraries(JasmineGraph $ENV{HOME}/software/xerces-c-3.2.2/lib/libxerces-c.so)
 target_link_libraries(JasmineGraph $ENV{HOME}/software/flatbuffers/libflatbuffers.a)
-target_link_libraries(JasmineGraph /opt/lib/libxerces-c.a)
 target_link_libraries(JasmineGraph $ENV{HOME}/software/jsoncpp/build/debug/src/lib_json/libjsoncpp.a)
