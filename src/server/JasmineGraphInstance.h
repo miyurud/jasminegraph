@@ -19,6 +19,7 @@ limitations under the License.
 #include "../metadb/SQLiteDBInterface.h"
 #include "JasmineGraphInstanceFileTransferService.h"
 #include "JasmineGraphInstanceService.h"
+#include "../localstore/JasmineGraphHashMapLocalStore.h"
 
 using std::map;
 

@@ -19,7 +19,7 @@ limitations under the License.
 Logger predictor_logger;
 
 int JasminGraphLinkPredictor::initiateLinkPrediction(std::string graphID, std::string path) {
-    std::cout << "in initiate predictor" << endl;
+
     JasmineGraphServer *jasmineServer = new JasmineGraphServer();
     std::map<std::string, JasmineGraphServer::workerPartitions> graphPartitionedHosts = jasmineServer->getGraphPartitionedHosts(
             graphID);
@@ -29,12 +29,13 @@ int JasminGraphLinkPredictor::initiateLinkPrediction(std::string graphID, std::s
     int selectedHostPort;
     int selectedHostDataPort;
     std::vector<std::string> selectedHostPartitions;
+    int selectedHostPartitionsNo;
     int count = 0;
 
     /*Select the idle worker*/
 //    TODO :: Need to select the idle worker to allocate predicting task.
 //     For this time the first worker of the map is allocated
-    cout << "selecting one host" << endl;
+
     for (std::map<std::string, JasmineGraphServer::workerPartitions>::iterator it = (graphPartitionedHosts.begin());
          it != graphPartitionedHosts.end(); ++it) {
         if (count == 0) {
@@ -42,7 +43,7 @@ int JasminGraphLinkPredictor::initiateLinkPrediction(std::string graphID, std::s
             selectedHostPort = (graphPartitionedHosts[it->first]).port;
             selectedHostDataPort = (graphPartitionedHosts[it->first]).dataPort;
             selectedHostPartitions = (graphPartitionedHosts[it->first]).partitionID;
-//            remainHostMap.insert(std::pair<std::string, JasmineGraphServer::workerPartitions>(it->first, it->second));
+            selectedHostPartitionsNo = selectedHostPartitions.size();
         } else {
             remainHostMap.insert(std::pair<std::string, JasmineGraphServer::workerPartitions>(it->first, it->second));
         }
@@ -63,20 +64,26 @@ int JasminGraphLinkPredictor::initiateLinkPrediction(std::string graphID, std::s
                 hostDetail = hostDetail + *j + ",";
             }
         }
-//        std::cout << hostDetail << endl;
         if (std::next(it) == remainHostMap.end()) {
             hostsList += hostDetail;
         } else {
             hostsList += hostDetail + "|";
         }
     }
-//    std::cout << hostsList << endl;
-//    cout << "sending details" << endl;
+    std::string vertexCount;
+    SQLiteDBInterface refToSqlite = *new SQLiteDBInterface();
+    refToSqlite.init();
+    string sqlStatement = "SELECT vertexcount FROM graph WHERE "
+                          "idgraph = " + graphID;
+    std::vector<vector<pair<string, string>>> v = refToSqlite.runSelect(sqlStatement);
+    vertexCount = (v[0][0].second);
 
-    this->sendQueryToWorker(selectedHostName, selectedHostPort, selectedHostDataPort, graphID, path, hostsList);
+    this->sendQueryToWorker(selectedHostName, selectedHostPort, selectedHostDataPort, selectedHostPartitionsNo, graphID,
+                            vertexCount, path, hostsList);
 }
 
-int JasminGraphLinkPredictor::sendQueryToWorker(std::string host, int port, int dataPort, std::string graphID,
+int JasminGraphLinkPredictor::sendQueryToWorker(std::string host, int port, int dataPort, int selectedHostPartitionsNo,
+                                                std::string graphID, std::string vertexCount,
                                                 std::string filePath, std::string hostsList) {
     Utils utils;
     bool result = true;
@@ -141,6 +148,13 @@ int JasminGraphLinkPredictor::sendQueryToWorker(std::string host, int port, int 
             predictor_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
             write(sockfd, graphID.c_str(), (graphID).size());
             predictor_logger.log("Sent : Graph ID " + graphID, "info");
+
+            write(sockfd, vertexCount.c_str(), (vertexCount).size());
+            predictor_logger.log("Sent : Vertex Count " + vertexCount, "info");
+
+            write(sockfd, to_string(selectedHostPartitionsNo).c_str(), to_string(selectedHostPartitionsNo).size());
+            predictor_logger.log("Sent : No of partition in selected host " + to_string(selectedHostPartitionsNo),
+                                 "info");
 
             std::string fileName = utils.getFileName(filePath);
             int fileSize = utils.getFileSize(filePath);

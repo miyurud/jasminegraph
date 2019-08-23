@@ -9,7 +9,6 @@ import os
 import tensorflow as tf
 import networkx as nx
 from networkx.readwrite import json_graph
-from collections import defaultdict
 
 version_info = list(map(int, nx.__version__.split('.')))
 major = version_info[0]
@@ -23,10 +22,10 @@ flags = tf.app.flags
 FLAGS = flags.FLAGS
 
 
-def preprocess_data(prefix, worker):
+def preprocess_data(prefix,attr_prefix,worker,isLabel=False,isFeatures=False,normalize=True,load_walks=False):
+
     np.random.seed(1)
     random.seed(1)
-    # G = nx.read_edgelist(prefix + '_' + worker, nodetype=int)
     G_local = nx.read_edgelist(prefix + '_' + worker, nodetype=int)
     G_central = nx.read_edgelist(prefix + '_centralstore_' + worker, nodetype=int)
     G = nx.compose(G_local, G_central)
@@ -34,10 +33,9 @@ def preprocess_data(prefix, worker):
     save_dir = FLAGS.base_log_dir + "/jasminegraph-local_trained_model_store/"
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
-    # print(nodes_key_list)
-    # shuffle data
+
     nodes_key_list = np.random.permutation(nodes_key_list)
-    # random.shuffle(nodes_key_list)
+    #node separation
     test_val_frac = 0.2
     for i, n in enumerate(nodes_key_list):
         if i < len(nodes_key_list) * test_val_frac:
@@ -49,88 +47,116 @@ def preprocess_data(prefix, worker):
         if i >= 2 * len(nodes_key_list) * test_val_frac:
             G.node[n]["test"] = False
             G.node[n]["val"] = False
+    if isinstance(G.nodes()[0], int):
+        conversion = lambda n: int(n)
+    else:
+        conversion = lambda n: n
 
-    data = json_graph.node_link_data(G)
-    print("all nodes-------")
-    print(len(data['nodes']))
-    print("all edges------")
-    print(len(G.edges()))
-
-    with open(save_dir + str(FLAGS.graph_id) + '_' + worker + "-G.json", mode="w") as f:
-        f.write(json.dumps(data))
-
-    # TODO Try to get number of attri. from db
-    with open(prefix + "_attributes_" + worker) as fp:
-        first_line = fp.readline().strip().split()
-
-    num_nodes = len(nodes_key_list)
-    num_feats = len(first_line) - 2
-    # print(num_feats)
-
-    feat_data = np.zeros((num_nodes, num_feats))
-    labels = np.empty((num_nodes, 1), dtype=np.int64)
-    # print(labels.shape)
+    feat_data = None
     node_map = {}
     label_map = {}
+    walks = []
+    if(isFeatures):
+    # TODO Try to get number of attri. from db
+        with open(attr_prefix + "_attributes_" + worker) as fp:
+            first_line = fp.readline().strip().split()
 
-    with open(prefix + "_attributes_" + worker) as fp:
-        for i, line in enumerate(fp):
-            # print(i)
-            # print(line)
-            info = line.strip().split()
-            feat_data[i, :] = list(map(float, info[1:-1]))
-            node_map[info[0]] = i
-            # idx_node_map[i] = info[0]
-            if not info[-1] in label_map:
-                label_map[info[-1]] = len(label_map)
-            labels[i] = label_map[info[-1]]
-        next_index = i + 1
+        num_nodes = len(nodes_key_list)
+        if(isLabel):
+            num_feats = len(first_line) - 2
+        else:
+            num_feats = len(first_line) - 1
 
-    with open(prefix + "_centralstore_attributes_" + worker) as fp:
-        for i, line in enumerate(fp):
-            info = line.strip().split()
-            if info[0] in node_map:
-                continue
-            else:
-                feat_data[next_index, :] = list(map(float, info[1:-1]))
-                node_map[info[0]] = next_index
-                if not info[-1] in label_map:
-                    label_map[info[-1]] = len(label_map)
-                labels[next_index] = label_map[info[-1]]
-                next_index += 1
+        if(isLabel):
+            labels = np.empty((num_nodes, 1), dtype=np.int64)
 
-    with open(save_dir + str(FLAGS.graph_id) + "_" + worker + "-id_map.json", mode="w") as f:
-        f.write(json.dumps(node_map))
+        feat_data = np.zeros((num_nodes, num_feats))
+        with open(attr_prefix + "_attributes_" + worker) as fp:
+            for i, line in enumerate(fp):
+                info = line.strip().split()
+                if(isLabel):
+                    feat_data[i, :] = list(map(float, info[1:-1]))
+                    node_map[info[0]] = i
+                    if not info[-1] in label_map:
+                        label_map[info[-1]] = len(label_map)
+                    labels[i] = label_map[info[-1]]
+                else:
+                    feat_data[i, :] = list(map(float, info[1:]))
+                    node_map[info[0]] = i
+            next_index = i + 1
 
-    labels_reshape = labels.flatten()
-    # print(labels_reshape)
-    n_labels = len(np.unique(labels_reshape))
-    # print(n_labels)
-    labels_one_hot = np.eye(n_labels, dtype=int)[labels_reshape]
-    # print(np.eye(n_labels, dtype=int).shape)
-    # print("label_one_hot-----------------------------------------------------")
-    # print(labels_one_hot)
-    # class_map = {k: list(labels_one_hot[i]) for i, k in enumerate(node_map.keys())}
-    class_map = {i: list(labels_one_hot[k]) for i, k in node_map.items()}
-    # class_map = {}
-    # for i in range(num_nodes):
-    #     class_map[idx_node_map[i]] = list(labels_one_hot[i])
+        with open(attr_prefix + "_centralstore_attributes_" + worker) as fp:
+            for i, line in enumerate(fp):
+                info = line.strip().split()
+                if info[0] in node_map:
+                    continue
+                else:
+                    if(isLabel):
+                        feat_data[next_index, :] = list(map(float, info[1:-1]))
+                        node_map[info[0]] = next_index
+                        if not info[-1] in label_map:
+                            label_map[info[-1]] = len(label_map)
+                        labels[next_index] = label_map[info[-1]]
+                    else:
+                        feat_data[next_index, :] = list(map(float, info[1:]))
+                        node_map[info[0]] = next_index
+                    next_index += 1
 
-    # print(class_map)
-    # print(list(class_map.values())[2])
-    with open(save_dir + str(FLAGS.graph_id) + "_" + worker + "-class_map.json", mode="w") as f:
-        f.write(json.dumps(class_map, default=int))
+    else:
+        for i,node in  enumerate(G.nodes()):
+            node_map[node] = i
+    node_map = {conversion(k): int(v) for k, v in node_map.items()}
 
-    np.save(save_dir + str(FLAGS.graph_id) + "_" + worker + '-feats.npy', feat_data)
-    return load_data(prefix, worker)
+    if(isLabel):
+        labels_reshape = labels.flatten()
+        n_labels = len(np.unique(labels_reshape))
+        labels_one_hot = np.eye(n_labels, dtype=int)[labels_reshape]
+        class_map = {i: list(labels_one_hot[k]) for i, k in node_map.items()}
 
+    broken_count = 0
+    for node in G.nodes():
+        if not 'val' in G.node[node] or not 'test' in G.node[node]:
+            G.remove_node(node)
+            broken_count += 1
+    print("Removed {:d} nodes that lacked proper annotations due to networkx versioning issues".format(broken_count))
 
-def load_data(prefix, worker, normalize=True, load_walks=False):
+    ## Make sure the graph has edge train_removed annotations
+    ## (some datasets might already have this..)
+    print("Loaded data.. now preprocessing..")
+    for edge in G.edges():
+        if (G.node[edge[0]]['val'] or G.node[edge[1]]['val'] or
+                G.node[edge[0]]['test'] or G.node[edge[1]]['test']):
+            G[edge[0]][edge[1]]['train_removed'] = True
+        else:
+            G[edge[0]][edge[1]]['train_removed'] = False
+        if(G.node[edge[0]]['val'] and G.node[edge[1]]['val']):
+            G[edge[0]][edge[1]]['validation'] = True
+        else:
+            G[edge[0]][edge[1]]['validation'] = False
+        if(G.node[edge[0]]['test'] and G.node[edge[1]]['test']):
+            G[edge[0]][edge[1]]['testing'] = True
+        else:
+            G[edge[0]][edge[1]]['testing'] = False
+
+    if normalize and not feat_data is None:
+        # comes here only if normalize == true and the data set has feat
+        from sklearn.preprocessing import StandardScaler
+        train_ids = np.array([node_map[n] for n in G.nodes() if not G.node[n]['val'] and not G.node[n]['test']])
+        train_feats = feat_data[train_ids]
+        scaler = StandardScaler()
+        scaler.fit(train_feats)
+        feat_data = scaler.transform(feat_data)
+
+    if(isLabel):
+        return G,feat_data,node_map,walks,class_map,G_local
+    else:
+        return G, feat_data, node_map, walks, G_local
+
+def load_data(prefix, worker,isLabel, normalize=True, load_walks=False):
     save_dir = FLAGS.base_log_dir + "/jasminegraph-local_trained_model_store/"
     G_data = json.load(open(save_dir + str(FLAGS.graph_id) + "_" + worker + "-G.json"))
     G = json_graph.node_link_graph(G_data)
-    # print("G.nodes()[0] -----")
-    # print(G.nodes()[0])
+
     if isinstance(G.nodes()[0], int):
         conversion = lambda n: int(n)
     else:
@@ -145,13 +171,14 @@ def load_data(prefix, worker, normalize=True, load_walks=False):
     id_map = {conversion(k): int(v) for k, v in id_map.items()}
     # id_map doesn't have an order
     walks = []
-    class_map = json.load(open(save_dir + str(FLAGS.graph_id) + "_" + worker + "-class_map.json"))
-    if isinstance(list(class_map.values())[0], list):
-        lab_conversion = lambda n: n
-    else:
-        lab_conversion = lambda n: int(n)
+    if(isLabel):
+        class_map = json.load(open(save_dir + str(FLAGS.graph_id) + "_" + worker + "-class_map.json"))
+        if isinstance(list(class_map.values())[0], list):
+            lab_conversion = lambda n: n
+        else:
+            lab_conversion = lambda n: int(n)
 
-    class_map = {conversion(k): lab_conversion(v) for k, v in class_map.items()}
+        class_map = {conversion(k): lab_conversion(v) for k, v in class_map.items()}
 
     ## Remove all nodes that do not have val/test annotations
     ## (necessary because of networkx weirdness with the Reddit data)
@@ -166,7 +193,6 @@ def load_data(prefix, worker, normalize=True, load_walks=False):
     ## (some datasets might already have this..)
     print("Loaded data.. now preprocessing..")
     for edge in G.edges():
-        # print(edge)
         if (G.node[edge[0]]['val'] or G.node[edge[1]]['val'] or
                 G.node[edge[0]]['test'] or G.node[edge[1]]['test']):
             G[edge[0]][edge[1]]['train_removed'] = True
@@ -185,20 +211,20 @@ def load_data(prefix, worker, normalize=True, load_walks=False):
         # comes here only if normalize == true and the data set has feat
         from sklearn.preprocessing import StandardScaler
         train_ids = np.array([id_map[n] for n in G.nodes() if not G.node[n]['val'] and not G.node[n]['test']])
-        # print(train_ids)
         train_feats = feats[train_ids]
-        # print(train_feats.shape) (1208,1433)
         scaler = StandardScaler()
         scaler.fit(train_feats)
         feats = scaler.transform(feats)
-        # print(feats.shape)
 
     if load_walks:
         with open(save_dir + str(FLAGS.graph_id) + "_" + worker + "-walks.txt") as fp:
             for line in fp:
                 walks.append(map(conversion, line.split()))
 
-    return G, feats, id_map, walks, class_map
+    if(isLabel):
+        return G, feats, id_map, walks, class_map
+    else:
+        return G, feats, id_map, walks
 
 
 def run_random_walks(G, nodes, num_walks=N_WALKS):

@@ -235,7 +235,9 @@ class SampleAndAggregate(GeneralizedModel):
                 raise Exception("Must have a positive value for identity feature dimension if no input features given.")
             self.features = self.embeds
         else:
-            self.features = tf.Variable(tf.constant(features, dtype=tf.float32), trainable=False)
+            #self.features = tf.Variable(tf.constant(features, dtype=tf.float32), trainable=False)
+            self.features_placeholder = tf.placeholder(tf.float32, shape=features.shape)
+            self.features = tf.Variable(self.features_placeholder, trainable=False)
             if not self.embeds is None:
                 self.features = tf.concat([self.embeds, self.features], axis=1)
         self.degrees = degrees
@@ -269,18 +271,9 @@ class SampleAndAggregate(GeneralizedModel):
             t = len(layer_infos) - k - 1
             support_size *= layer_infos[t].num_samples
             sampler = layer_infos[t].neigh_sampler
-            # print(samples[k])
-            # print(layer_infos[t].num_samples)
-            # Tensor("batch1:0", dtype=int32)
-            # 10
-            # Tensor("Reshape:0", shape=(?,), dtype=int32)
-            # 25
             node = sampler((samples[k], layer_infos[t].num_samples))
             samples.append(tf.reshape(node, [support_size * batch_size,]))
             support_sizes.append(support_size)
-        print("samples---------------------")
-        # print(samples) [<tf.Tensor 'batch1:0' shape=<unknown> dtype=int32>, <tf.Tensor 'Reshape:0' shape=(?,) dtype=int32>, <tf.Tensor 'Reshape_1:0' shape=(?,) dtype=int32>]
-        # print(support_sizes) [1,10,250]
         return samples, support_sizes
 
 
@@ -306,18 +299,12 @@ class SampleAndAggregate(GeneralizedModel):
 
         # length: number of layers + 1
         hidden = [tf.nn.embedding_lookup(input_features, node_samples) for node_samples in samples]
-        # print(hidden)
-        # [<tf.Tensor 'embedding_lookup:0' shape=<unknown> dtype=float32>, <tf.Tensor 'embedding_lookup_1:0' shape=(?, 1433) dtype=float32>, <tf.Tensor 'embedding_lookup_2:0' shape=(?, 1433) dtype=float32>]
-        # print(dims) [1433, 128, 128]
         new_agg = aggregators is None
-        # print(new_agg) True
         if new_agg:
             aggregators = []
-        # print(len(num_samples)) 2
         for layer in range(len(num_samples)):
             if new_agg:
                 dim_mult = 2 if concat and (layer != 0) else 1
-                # print(dim_mult) # 1 and 2 are the outputs for 2 loops
                 # aggregator at current layer
                 if layer == len(num_samples) - 1:
                     aggregator = self.aggregator_cls(dim_mult*dims[layer], dims[layer+1], act=lambda x : x,
@@ -328,8 +315,6 @@ class SampleAndAggregate(GeneralizedModel):
                             dropout=self.placeholders['dropout'], 
                             name=name, concat=concat, model_size=model_size)
                 aggregators.append(aggregator)
-                # print(aggregators) [<aggregators.MeanAggregator object at 0x7f7711e146d0>]
-                # [<aggregators.MeanAggregator object at 0x7f7711e146d0>, <aggregators.MeanAggregator object at 0x7f7711edfa90>]
 
             else:
                 aggregator = aggregators[layer]
@@ -341,16 +326,11 @@ class SampleAndAggregate(GeneralizedModel):
                 neigh_dims = [batch_size * support_sizes[hop], 
                               num_samples[len(num_samples) - hop - 1], 
                               dim_mult*dims[layer]]
-                # print(neigh_dims)[<tf.Tensor 'mul_2:0' shape=<unknown> dtype=int32>, 10, 1433]
-                # [<tf.Tensor 'mul_3:0' shape=<unknown> dtype=int32>, 25, 1433]
-                # [<tf.Tensor 'mul_4:0' shape=<unknown> dtype=int32>, 10, 256]
 
                 h = aggregator((hidden[hop],
                                 tf.reshape(hidden[hop + 1], neigh_dims)))
                 next_hidden.append(h)
             hidden = next_hidden
-        # print(hidden) [<tf.Tensor 'meanaggregator_2/concat:0' shape=(?, 256) dtype=float32>]
-        # print(hidden[0]) Tensor("meanaggregator_2/concat:0", shape=(?, 256), dtype=float32)
         return hidden[0], aggregators
 
     def _build(self):
@@ -369,48 +349,27 @@ class SampleAndAggregate(GeneralizedModel):
            
         # perform "convolution"
         samples1, support_sizes1 = self.sample(self.inputs1, self.layer_infos)
-        # print(samples1)
-        # print(support_sizes1)
-        # [<tf.Tensor 'batch1:0' shape=<unknown> dtype=int32>, <tf.Tensor 'Reshape_1:0' shape=(?,) dtype=int32>, <tf.Tensor 'Reshape_2:0' shape=(?,) dtype=int32>]
-        # [1, 10, 250]
         samples2, support_sizes2 = self.sample(self.inputs2, self.layer_infos)
-        # print(samples2)
-        # print(support_sizes2)
-        # [<tf.Tensor 'batch2:0' shape=<unknown> dtype=int32>, <tf.Tensor 'Reshape_3:0' shape=(?,) dtype=int32>, <tf.Tensor 'Reshape_4:0' shape=(?,) dtype=int32>]
-        # [1, 10, 250]
         num_samples = [layer_info.num_samples for layer_info in self.layer_infos]
         self.outputs1, self.aggregators = self.aggregate(samples1, [self.features], self.dims, num_samples,
                 support_sizes1, concat=self.concat, model_size=self.model_size)
-        # print(self.outputs1) Tensor("meanaggregator_2/concat:0", shape=(?, 256), dtype=float32)
-        # print(self.aggregators) [<aggregators.MeanAggregator object at 0x7fadcd945b00>, <aggregators.MeanAggregator object at 0x7fad9a973d68>]
-
         self.outputs2, _ = self.aggregate(samples2, [self.features], self.dims, num_samples,
                 support_sizes2, aggregators=self.aggregators, concat=self.concat,
                 model_size=self.model_size)
-        # print(self.outputs2) Tensor("meanaggregator_2_1/concat:0", shape=(?, 256), dtype=float32)
         neg_samples, neg_support_sizes = self.sample(self.neg_samples, self.layer_infos,
             FLAGS.neg_sample_size)
-        # print(neg_samples) [<tf.Tensor 'FixedUnigramCandidateSampler:0' shape=(20,) dtype=int64>, <tf.Tensor 'Reshape_11:0' shape=(200,) dtype=int32>, <tf.Tensor 'Reshape_12:0' shape=(5000,) dtype=int32>]
-
-        # print(neg_support_sizes) [1, 10, 250]
         self.neg_outputs, _ = self.aggregate(neg_samples, [self.features], self.dims, num_samples,
                 neg_support_sizes, batch_size=FLAGS.neg_sample_size, aggregators=self.aggregators,
                 concat=self.concat, model_size=self.model_size)
-        # print(self.neg_outputs) Tensor("meanaggregator_2_2/concat:0", shape=(20, 256), dtype=float32)
         dim_mult = 2 if self.concat else 1
-        # print(dim_mult) 2
         self.link_pred_layer = BipartiteEdgePredLayer(dim_mult*self.dims[-1],
                 dim_mult*self.dims[-1], self.placeholders, act=tf.nn.sigmoid, 
                 bilinear_weights=False,
                 name='edge_predict')
-        # print(self.link_pred_layer) <prediction.BipartiteEdgePredLayer object at 0x7f81e473e198>
 
         self.outputs1 = tf.nn.l2_normalize(self.outputs1, 1)
-        # print(self.outputs1) Tensor("l2_normalize:0", shape=(?, 256), dtype=float32)
         self.outputs2 = tf.nn.l2_normalize(self.outputs2, 1)
-        # print(self.outputs2) Tensor("l2_normalize_1:0", shape=(?, 256), dtype=float32)
         self.neg_outputs = tf.nn.l2_normalize(self.neg_outputs, 1)
-        # print(self.neg_outputs) Tensor("l2_normalize_2:0", shape=(20, 256), dtype=float32)
 
     def build(self):
         self._build()
@@ -434,16 +393,12 @@ class SampleAndAggregate(GeneralizedModel):
         tf.summary.scalar('loss', self.loss)
 
     def _accuracy(self):
-        # shape: [batch_size]
         aff = self.link_pred_layer.affinity(self.outputs1, self.outputs2)
-        # shape : [batch_size x num_neg_samples]
         self.neg_aff = self.link_pred_layer.neg_cost(self.outputs1, self.neg_outputs)
         self.neg_aff = tf.reshape(self.neg_aff, [self.batch_size, FLAGS.neg_sample_size])
         _aff = tf.expand_dims(aff, axis=1)
         self.aff_all = tf.concat(axis=1, values=[self.neg_aff, _aff])
         size = tf.shape(self.aff_all)[1]
-        print("tf.shape(self.aff_all)[1]------------------")
-        print(size)
         _, indices_of_ranks = tf.nn.top_k(self.aff_all, k=size)
         _, self.ranks = tf.nn.top_k(-indices_of_ranks, k=size)
         self.mrr = tf.reduce_mean(tf.div(1.0, tf.cast(self.ranks[:, -1] + 1, tf.float32)))
@@ -532,9 +487,7 @@ class Node2VecModel(GeneralizedModel):
         tf.summary.scalar('loss', self.loss)
         
     def _accuracy(self):
-        # shape: [batch_size]
         aff = self.link_pred_layer.affinity(self.outputs1, self.outputs2)
-       # shape : [batch_size x num_neg_samples]
         self.neg_aff = self.link_pred_layer.neg_cost(self.outputs1, self.neg_outputs)
         self.neg_aff = tf.reshape(self.neg_aff, [self.batch_size, FLAGS.neg_sample_size])
         _aff = tf.expand_dims(aff, axis=1)
