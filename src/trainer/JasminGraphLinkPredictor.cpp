@@ -166,7 +166,7 @@ int JasminGraphLinkPredictor::sendQueryToWorker(std::string host, int port, int 
             response = utils.trim_copy(response, " \f\n\r\t\v");
             if (response.compare(JasmineGraphInstanceProtocol::SEND_HOSTS) == 0) {
                 predictor_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_HOSTS, "info");
-                /*Create a atring with host details*/
+                /*Create a string with host details*/
 
                 write(sockfd, hostsList.c_str(), (hostsList).size());
                 predictor_logger.log("Sent : Hosts List " + hostsList, "info");
