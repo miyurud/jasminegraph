@@ -41,12 +41,6 @@ using namespace std;
 static int connFd;
 Logger frontend_logger;
 
-//char *convert(const std::string &s) {
-//    char *pc = new char[s.size() + 1];
-//    std::strcpy(pc, s.c_str());
-//    return pc;
-//}
-
 void *frontendservicesesion(void *dummyPt) {
     frontendservicesessionargs *sessionargs = (frontendservicesessionargs *) dummyPt;
     frontend_logger.log("Thread No: " + to_string(pthread_self()), "info");
