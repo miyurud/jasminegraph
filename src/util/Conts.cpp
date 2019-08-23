@@ -56,3 +56,8 @@ const int Conts::GRAPH_STATUS::NONOPERATIONAL = 4;
 const std::string Conts::TRAIN_STATUS::TRAINED = "trained";
 const std::string Conts::TRAIN_STATUS::NOT_TRAINED = "not_trained";
 
+const std::string Conts::FLAGS::GRAPH_ID = "graph_id";
+const std::string Conts::FLAGS::LEARNING_RATE = "learning_rate";
+const std::string Conts::FLAGS::BATCH_SIZE = "batch_size";
+const std::string Conts::FLAGS::VALIDATE_ITER = "validate_iter";
+const std::string Conts::FLAGS::EPOCHS = "epochs";
