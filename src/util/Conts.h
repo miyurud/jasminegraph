@@ -66,6 +66,16 @@ public:
         static const std::string TRAINED;
         static const std::string NOT_TRAINED;
     };
+
+    struct FLAGS {
+        static const std::string GRAPH_ID;
+        static const std::string LEARNING_RATE;
+        static const std::string BATCH_SIZE;
+        static const std::string VALIDATE_ITER;
+        static const std::string EPOCHS;
+    };
+
+
 };
 
 

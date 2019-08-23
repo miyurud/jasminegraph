@@ -514,8 +514,15 @@ void *frontendservicesesion(void *dummyPt) {
                 frontend_logger.log("Edge Count: " + to_string(vertexCount),"info");
             }
         } else if (line.compare(TRAIN) == 0) {
-            write(sessionargs->connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
-            write(sessionargs->connFd, "\r\n", 2);
+            string message = "Available main flags:\n";
+            write(connFd, message.c_str(), message.size());
+            string flags =
+                    Conts::FLAGS::GRAPH_ID + " " + Conts::FLAGS::LEARNING_RATE + " " + Conts::FLAGS::BATCH_SIZE + " " +
+                    Conts::FLAGS::VALIDATE_ITER + " " + Conts::FLAGS::EPOCHS;
+            write(connFd, flags.c_str(), flags.size());
+            write(connFd, "\n", 2);
+            message = "Send --<flag1> <value1> --<flag2> <value2> .. \n";
+            write(connFd, message.c_str(), message.size());
 
             char train_data[300];
             bzero(train_data, 301);
