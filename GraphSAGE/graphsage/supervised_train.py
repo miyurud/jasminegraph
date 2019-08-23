@@ -104,7 +104,6 @@ def save_val_embeddings(sess, model, minibatch_iter, size, out_dir, mod=""):
     name = "val"
     while not finished:
         feed_dict_val, finished, val_nodes = minibatch_iter.incremental_embed_feed_dict(size, iter_num)
-        # print(feed_dict_val)
         iter_num += 1
         node_outs_val = sess.run([model.preds, model.loss, model.outputs1],
                                  feed_dict=feed_dict_val[0])
@@ -134,7 +133,6 @@ def incremental_evaluate(sess, model, minibatch_iter, size, test=False ):
     name = "val"
     while not finished:
         feed_dict_val, batch_labels, finished, val_nodes  = minibatch_iter.incremental_node_val_feed_dict(size, iter_num, test=test)
-        # print(feed_dict_val)
         node_outs_val = sess.run([model.preds, model.loss, model.outputs1],
                          feed_dict=feed_dict_val)
         val_preds.append(node_outs_val[0])
@@ -220,7 +218,6 @@ def train(train_data, test_data=None):
     elif FLAGS.model == 'gcn':
         # Create model
         sampler = UniformNeighborSampler(adj_info)
-        # print (sampler)
         layer_infos = [SAGEInfo("node", sampler, FLAGS.samples_1, 2*FLAGS.dim_1),
                             SAGEInfo("node", sampler, FLAGS.samples_2, 2*FLAGS.dim_2)]
 
@@ -324,8 +321,6 @@ def train(train_data, test_data=None):
             # Training step
             outs = sess.run([merged, model.opt_op, model.loss, model.outputs1, model.preds], feed_dict=feed_dict)
             train_cost = outs[2]
-            # print(outs[-1])
-            # print(outs[-1].shape)
 
             if iter % FLAGS.validate_iter == 0:
                 # Validation
@@ -386,23 +381,11 @@ def train(train_data, test_data=None):
     sess.close()
 
 def main(argv=None):
-    # file = open("./FlagDetails.txt","w")
-    # for key in tf.app.flags.FLAGS.flag_values_dict():
-    #     msg = str(key) + ".................." +str(FLAGS[key].value) + "\n"
-    #     file.write(str(msg))
-    # file.close()
     print("Loading training data..")
     train_data = preprocess_data(FLAGS.train_prefix, FLAGS.train_worker)
     print("Done loading training data..")
     train(train_data)
 
-    # with tf.Session() as sess:
-    #     new_saver = tf.train.import_meta_graph(log_dir()  + str(245) + ".ckpt.meta")
-    #     new_saver.restore(sess,log_dir()  + str(245) + ".ckpt")
-    #
-    #     graph = tf.get_default_graph()
-
 
 if __name__ == '__main__':
-    # tf.app.run()
     main()

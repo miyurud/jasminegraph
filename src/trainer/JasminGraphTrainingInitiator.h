@@ -17,6 +17,8 @@ limitations under the License.
 #include <stdio.h>
 #include <stdlib.h>
 #include <thread>
+#include <vector>
+#include <map>
 
 class JasminGraphTrainingInitiator {
 public:
@@ -24,6 +26,7 @@ public:
     void initiateTrainingLocally(std::string graphID,std::string trainingArgs);
 
     static bool initiateTrain(std::string host, int port, int dataPort,std::string trainingArgs);
+
 };
 
 

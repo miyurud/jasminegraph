@@ -41,12 +41,6 @@ using namespace std;
 static int connFd;
 Logger frontend_logger;
 
-//char *convert(const std::string &s) {
-//    char *pc = new char[s.size() + 1];
-//    std::strcpy(pc, s.c_str());
-//    return pc;
-//}
-
 void *frontendservicesesion(void *dummyPt) {
     frontendservicesessionargs *sessionargs = (frontendservicesessionargs *) dummyPt;
     frontend_logger.log("Thread No: " + to_string(pthread_self()), "info");
@@ -552,7 +546,6 @@ void *frontendservicesesion(void *dummyPt) {
 
             JasminGraphTrainingInitiator *jasminGraphTrainingInitiator = new JasminGraphTrainingInitiator();
             jasminGraphTrainingInitiator->initiateTrainingLocally(graphID,trainData);
-//            Python_C_API::train(vc.size(), &vc[0]);
         } else if (line.compare(PREDICT) == 0){
             write(sessionargs->connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
             write(sessionargs->connFd, "\r\n", 2);
@@ -759,6 +752,12 @@ void JasmineGraphFrontEnd::removeGraph(std::string graphID, void *dummyPt) {
     sqlite->runUpdate("DELETE FROM graph WHERE idgraph = " + graphID);
 }
 
+/**
+ * This method checks whether the graph is active and trained
+ * @param graphID
+ * @param dummyPt
+ * @return
+ */
 bool JasmineGraphFrontEnd::isGraphActiveAndTrained(std::string graphID, void *dummyPt) {
     bool result = true;
     string stmt =

@@ -78,7 +78,6 @@ class SupervisedGraphsage(models.SampleAndAggregate):
     def build(self):
         samples1, support_sizes1 = self.sample(self.inputs1, self.layer_infos)
         num_samples = [layer_info.num_samples for layer_info in self.layer_infos]
-        # print(num_samples) [25,10]
         self.outputs1, self.aggregators = self.aggregate(samples1, [self.features], self.dims, num_samples,
                 support_sizes1, concat=self.concat, model_size=self.model_size)
         dim_mult = 2 if self.concat else 1
@@ -91,7 +90,6 @@ class SupervisedGraphsage(models.SampleAndAggregate):
                 act=lambda x : x)
         # TF graph management
         self.node_preds = self.node_pred(self.outputs1)
-        # print(self.node_preds) Tensor("dense_1/add:0", shape=(?, 7), dtype=float32)
         self._loss()
         grads_and_vars = self.optimizer.compute_gradients(self.loss)
         clipped_grads_and_vars = [(tf.clip_by_value(grad, -5.0, 5.0) if grad is not None else None, var) 

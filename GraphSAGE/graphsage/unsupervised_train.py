@@ -3,9 +3,9 @@ from __future__ import print_function
 
 import os
 import time
-import sys
 import tensorflow as tf
 import numpy as np
+import datetime
 
 from models import SampleAndAggregate, SAGEInfo, Node2VecModel
 from minibatch import EdgeMinibatchIterator
@@ -27,14 +27,17 @@ tf.app.flags.DEFINE_boolean('log_device_placement', False,
                             """Whether to log device placement.""")
 #core params..
 flags.DEFINE_string('model', 'graphsage_mean', 'model names. See README for possible values.')
-flags.DEFINE_float('learning_rate', 0.00001, 'initial learning rate.')
+flags.DEFINE_float('learning_rate', 0.01, 'initial learning rate.')
 flags.DEFINE_string("model_size", "small", "Can be big or small; model specific def'ns")
-flags.DEFINE_string('train_prefix', '/var/tmp/jasminegraph-localstore/', 'name of the object file that stores the training data. must be specified.')
-flags.DEFINE_string('train_worker', '0' , 'specify the worker')
-flags.DEFINE_integer('graph_id', 0 , 'specify the graphID')
+flags.DEFINE_string('train_prefix', '/var/tmp/jasminegraph-localstore/jasminegraph-local_trained_model_store/6', 'name of the object file that stores the training data. must be specified.')
+flags.DEFINE_string('train_attr_prefix', '/var/tmp/jasminegraph-localstore/6', 'name of the object file that stores the training attributes data. must be specified.')
+flags.DEFINE_string('train_worker', '1' , 'specify the worker')
+flags.DEFINE_integer('graph_id',6, 'specify the graphID')
+flags.DEFINE_boolean('isLabel', True, 'whether dataset has labels')
+flags.DEFINE_boolean('isFeatures', True, 'whether dataset has features')
 
 # left to default values in main experiments 
-flags.DEFINE_integer('epochs', 10, 'number of epochs to train.')
+flags.DEFINE_integer('epochs', 2, 'number of epochs to train.')
 flags.DEFINE_float('dropout', 0.0, 'dropout rate (1 - keep probability).')
 flags.DEFINE_float('weight_decay', 0.0, 'weight for l2 loss on embedding matrix.')
 flags.DEFINE_integer('max_degree', 100, 'maximum node degree.')
@@ -44,17 +47,17 @@ flags.DEFINE_integer('dim_1', 128, 'Size of output dim (final is 2x this, if usi
 flags.DEFINE_integer('dim_2', 128, 'Size of output dim (final is 2x this, if using concat)')
 flags.DEFINE_boolean('random_context', False, 'Whether to use random context or direct edges')
 flags.DEFINE_integer('neg_sample_size', 20, 'number of negative samples')
-flags.DEFINE_integer('batch_size', 512, 'minibatch size.')
+flags.DEFINE_integer('batch_size', 16, 'minibatch size.')
 flags.DEFINE_integer('n2v_test_epochs', 1, 'Number of new SGD epochs for n2v.')
 flags.DEFINE_integer('identity_dim', 0, 'Set to positive value to use identity embedding features of that dimension. Default 0.')
 
 #logging, saving, validation settings etc.
 flags.DEFINE_boolean('save_embeddings', True, 'whether to save embeddings for all nodes after training')
 flags.DEFINE_string('base_log_dir', '/var/tmp/jasminegraph-localstore/', 'base directory for logging and saving embeddings')
-flags.DEFINE_integer('validate_iter',10,"how often to run a validation minibatch.")
-flags.DEFINE_integer('validate_batch_size', 3, "how many nodes per validation sample.")
+flags.DEFINE_integer('validate_iter',5,"how often to run a validation minibatch.")
+flags.DEFINE_integer('validate_batch_size', 4, "how many nodes per validation sample.")
 flags.DEFINE_integer('gpu', 1, "which gpu to use.")
-flags.DEFINE_integer('print_every', 2, "How often to print training info.")
+flags.DEFINE_integer('print_every', 50, "How often to print training info.")
 flags.DEFINE_integer('max_total_steps', 10**10, "Maximum total number of iterations")
 
 os.environ["CUDA_VISIBLE_DEVICES"]=str(FLAGS.gpu)
@@ -134,6 +137,33 @@ def save_val_embeddings(sess, model, minibatch_iter, size, out_dir, mod=""):
     with open(out_dir +  "/" + name + mod + ".txt", "w") as fp:
         fp.write("\n".join(map(str,nodes)))
 
+def save_central_val_embeddings(sess, model, minibatch_iter, size, out_dir, mod=""):
+    val_embeddings = []
+    finished = False
+    seen = set([])
+    nodes = []
+    iter_num = 0
+    name = FLAGS.train_prefix.split("/")[-1] +"_central_model_"+FLAGS.train_worker
+    while not finished:
+        feed_dict_val, finished, edges = minibatch_iter.incremental_central_embed_feed_dict(size, iter_num)
+        iter_num += 1
+        outs_val = sess.run([model.loss, model.mrr, model.outputs1],
+                            feed_dict=feed_dict_val)
+        #ONLY SAVE FOR embeds1 because of planetoid
+        for i, edge in enumerate(edges):
+            if not edge[0] in seen:
+                val_embeddings.append(outs_val[-1][i,:])
+                nodes.append(edge[0])
+                seen.add(edge[0])
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+    if(len(val_embeddings)!=0):
+        val_embeddings = np.vstack(val_embeddings)
+        np.save(out_dir + "/" + name + mod + ".npy",  val_embeddings)
+        with open(out_dir +  "/" + name + mod + ".txt", "w") as fp:
+            fp.write("\n".join(map(str,nodes)))
+
+
 def construct_placeholders():
     # Define placeholders
     placeholders = {
@@ -147,7 +177,7 @@ def construct_placeholders():
     }
     return placeholders
 
-def train(train_data, test_data=None):
+def train(train_data, G_local,test_data=None):
     G = train_data[0]
     features = train_data[1]
     id_map = train_data[2]
@@ -158,12 +188,20 @@ def train(train_data, test_data=None):
 
     context_pairs = train_data[3] if FLAGS.random_context else None
     placeholders = construct_placeholders()
-    minibatch = EdgeMinibatchIterator(G, 
+    minibatch = EdgeMinibatchIterator(G, G_local,
             id_map,
             placeholders, batch_size=FLAGS.batch_size,
             max_degree=FLAGS.max_degree, 
             num_neg_samples=FLAGS.neg_sample_size,
             context_pairs = context_pairs)
+    edge_file = open(log_dir() + "/" +str(FLAGS.graph_id)+"_edge_detail_"+FLAGS.train_worker+".txt", "w")
+    edge_file.write (str("train-edges"))
+    edge_file.write (str(len(minibatch.train_edges)))
+    edge_file.write (str("valid-edges"))
+    edge_file.write (str(len(minibatch.val_edges)))
+    edge_file.write (str("test-edges"))
+    edge_file.write (str(len(minibatch.test_edges)))
+
     adj_info_ph = tf.placeholder(tf.int32, shape=minibatch.adj.shape)
     adj_info = tf.Variable(adj_info_ph, trainable=False, name="adj_info")
 
@@ -253,18 +291,16 @@ def train(train_data, test_data=None):
 
     config = tf.ConfigProto(log_device_placement=FLAGS.log_device_placement)
     config.gpu_options.allow_growth = True
-    #config.gpu_options.per_process_gpu_memory_fraction = GPU_MEM_FRACTION
     config.allow_soft_placement = True
     
     # Initialize session
     sess = tf.Session(config=config)
     merged = tf.summary.merge_all()
-    summary_writer = tf.summary.FileWriter(log_dir(), sess.graph)
     saver = tf.train.Saver()
      
     # Init variables
-    sess.run(tf.global_variables_initializer(), feed_dict={adj_info_ph: minibatch.adj})
-    
+    sess.run(tf.global_variables_initializer(), feed_dict={adj_info_ph: minibatch.adj,model.features_placeholder: features})
+
     # Train model
     
     train_shadow_mrr = None
@@ -310,15 +346,11 @@ def train(train_data, test_data=None):
             else:
                 shadow_mrr -= (1-0.99) * (shadow_mrr - val_mrr)
 
-            if total_steps % FLAGS.print_every == 0:
-                summary_writer.add_summary(outs[0], total_steps)
-                save_model(saver,sess,total_steps)
-    
-            # Print results
             avg_time = (avg_time * total_steps + time.time() - t) / (total_steps + 1)
 
             if total_steps % FLAGS.print_every == 0:
-                print("Iter:", '%04d' % iter, 
+                print("Epoch: ,%04d" % (epoch + 1),
+                      "Iter:", '%04d' % iter,
                       "train_loss=", "{:.5f}".format(train_cost),
                       "train_mrr=", "{:.5f}".format(train_mrr), 
                       "train_mrr_ema=", "{:.5f}".format(train_shadow_mrr), # exponential moving average
@@ -326,9 +358,10 @@ def train(train_data, test_data=None):
                       "val_mrr=", "{:.5f}".format(val_mrr), 
                       "val_mrr_ema=", "{:.5f}".format(shadow_mrr), # exponential moving average
                       "time=", "{:.5f}".format(avg_time))
-                with open(log_dir() + "/"+str(FLAGS.graph_id)+"_validate_stats_"+FLAGS.train_worker+".txt", "w") as fp:
+                with open(log_dir() + "/"+str(FLAGS.graph_id)+"_validate_stats_"+FLAGS.train_worker+".txt", "a+") as fp:
                     fp.write("train_loss={:.5f} train_mrr={:.5f} train_mrr_ema={:.5f} val_loss={:.5f} val_mrr={:.5f} val_mrr_ema={:.5f} time={:.5f}".
                              format(train_cost, train_mrr, train_shadow_mrr,val_cost,val_mrr,shadow_mrr, avg_time))
+                    fp.write("\n")
 
 
             iter += 1
@@ -340,15 +373,21 @@ def train(train_data, test_data=None):
         if total_steps > FLAGS.max_total_steps:
                 break
 
+    train_end_file = open(log_dir() + "/" +str(FLAGS.graph_id)+"_train_end_time_"+FLAGS.train_worker+".txt", "w")
+    trainendDT = datetime.datetime.now()
+    print (str(trainendDT))
+    train_end_file.write (str(trainendDT))
+
     print("Optimization Finished!")
     if FLAGS.save_embeddings:
         sess.run(val_adj_info.op)
 
         save_val_embeddings(sess, model, minibatch, FLAGS.validate_batch_size, log_dir())
+        save_central_val_embeddings(sess, model, minibatch, FLAGS.validate_batch_size, log_dir())
 
         test_cost, test_ranks, test_mrr, test_duration  = evaluate_test(sess, model, minibatch, size=FLAGS.validate_batch_size)
         if test_shadow_mrr is None:
-            test_shadow_mrr = test_mrr#
+            test_shadow_mrr = test_mrr
         else:
             test_shadow_mrr -= (1-0.99) * (test_shadow_mrr - test_mrr)
 
@@ -357,10 +396,21 @@ def train(train_data, test_data=None):
               "test_mrr=", "{:.5f}".format(test_mrr),
               "test_mrr_ema=", "{:.5f}".format(test_shadow_mrr),
               "time=", "{:.5f}".format(test_duration))
+        end_file = open(log_dir() + "/" +str(FLAGS.graph_id)+"_end_time_"+FLAGS.train_worker+".txt", "w")
+        endDT = datetime.datetime.now()
+        print (str(endDT))
+        end_file.write (str(endDT))
 
         with open(log_dir() + "/" +str(FLAGS.graph_id)+"_test_stats_"+FLAGS.train_worker+".txt", "w") as fp:
             fp.write("test_loss={:.5f} test_mrr={:.5f} test_mrr_ema={:.5f} time={:.5f}".
                      format(test_cost, test_mrr, test_shadow_mrr, test_duration))
+
+        test_edge_set = [e for e in G.edges() if G[e[0]][e[1]]['testing']]
+
+        with open(log_dir() + "/"+str(FLAGS.graph_id)+"_TEST_EDGE_SET_"+FLAGS.train_worker+".txt", "a+") as fp:
+            for e in test_edge_set:
+                fp.write(str(e[0])+" "+str(e[1]))
+                fp.write("\n")
 
         if FLAGS.model == "n2v":
             # stopping the gradient for the already trained nodes
@@ -382,7 +432,7 @@ def train(train_data, test_data=None):
             pairs = run_random_walks(G, nodes, num_walks=50)
             walk_time = time.time() - start_time
 
-            test_minibatch = EdgeMinibatchIterator(G, 
+            test_minibatch = EdgeMinibatchIterator(G, G_local,
                 id_map,
                 placeholders, batch_size=FLAGS.batch_size,
                 max_degree=FLAGS.max_degree, 
@@ -415,30 +465,21 @@ def train(train_data, test_data=None):
     
 
 def main(argv=None):
-    # for i in range(argv):
-    #     if argv[i]=="--train_prefix":
-    #         train_prefix = argv[i+1]
-    #     if argv[i]=="--train_worker":
-    #         train_worker = argv[i+1]
-    # file = open("train_prefix.txt", "w")
-    # file.write(train_prefix)
-    # file.write(train_worker)
+    file = open(log_dir() + "/" +str(FLAGS.graph_id)+"_start_time_"+FLAGS.train_worker+".txt", "w")
+    currentDT = datetime.datetime.now()
+    print (str(currentDT))
+    file.write (str(currentDT))
 
-    file = open("copy.txt", "w")
-    file.write(FLAGS.train_prefix)
-    file.write(str(FLAGS.graph_id))
-    file.write(FLAGS.train_worker)
-    file.write(FLAGS.model)
-    file.write(str(FLAGS.learning_rate))
-    file.close()
+
     print("Loading training data..")
-    train_data = preprocess_data(FLAGS.train_prefix, FLAGS.train_worker)
+    processed_data = preprocess_data(FLAGS.train_prefix, FLAGS.train_attr_prefix, FLAGS.train_worker,FLAGS.isLabel,FLAGS.isFeatures)
+    train_data = processed_data[0:-1]
+    G_local = processed_data[-1]
     print("Done loading training data..")
-    train(train_data)
+    file.write(str("Done loading training data.."))
+    file.close()
+    train(train_data,G_local)
+
 
 if __name__ == '__main__':
-    # tf.app.run()
-    # main(sys.argv)
-    file = open("before.txt", "w")
-    file.write("before")
     main()

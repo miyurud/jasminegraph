@@ -85,6 +85,8 @@ struct instanceservicesessionargs {
 
     static int collectTrainedModelThreadFunction(instanceservicesessionargs *sessionargs, std::string host, int port, int dataPort,
                                       std::string graphID, std::string partition);
+
+    static void createPartitionFiles(std::string graphID, std::string partitionID, std::string fileType);
 };
 
 

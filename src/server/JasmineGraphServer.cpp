@@ -212,20 +212,20 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
             workerThreads[count] = std::thread(batchUploadFile, worker.hostname, worker.port, worker.dataPort, graphID,
                                                partitionFileList[file_count]);
             count++;
-            sleep(1);
+            sleep(3);
             workerThreads[count] = std::thread(batchUploadCentralStore, worker.hostname, worker.port, worker.dataPort,
                                                graphID, centralStoreFileList[file_count]);
             count++;
-            sleep(1);
+            sleep(3);
             if (graphType == Conts::GRAPH_WITH_ATTRIBUTES){
                 workerThreads[count] = std::thread(batchUploadAttributeFile, worker.hostname, worker.port, worker.dataPort,
                                                    graphID, attributeFileList[file_count]);
                 count++;
-                sleep(1);
+                sleep(3);
                 workerThreads[count] = std::thread(batchUploadCentralAttributeFile, worker.hostname, worker.port, worker.dataPort,
                                                    graphID, centralStoreAttributeFileList[file_count]);
                 count++;
-                sleep(1);
+                sleep(3);
             }
             file_count++;
         }
@@ -1184,9 +1184,6 @@ int JasmineGraphServer::removePartitionThroughService(string host, int port, str
 std::vector<JasmineGraphServer::workers> JasmineGraphServer::getHostWorkerMap() {
     return hostWorkerMap;
 }
-
-
-
 
 void JasmineGraphServer::updateOperationalGraphList() {
     Utils utils;
