@@ -19,13 +19,15 @@ class EdgeMinibatchIterator(object):
     n2v_retrain -- signals that the iterator is being used to add new embeddings to a n2v model
     fixed_n2v -- signals that the iterator is being used to retrain n2v with only existing nodes as context
     """
-    def __init__(self, G, id2idx, 
+    def __init__(self, G, G_local,id2idx,
             placeholders, context_pairs=None, batch_size=100, max_degree=25,
             n2v_retrain=False, fixed_n2v=False,
             **kwargs):
 
         self.G = G
         self.nodes = G.nodes()
+        self.local_nodes = G_local.nodes()
+        self.central_nodes = list(set(G.nodes())-set(G_local.nodes()))
         self.id2idx = id2idx
         self.placeholders = placeholders
         self.batch_size = batch_size
@@ -42,15 +44,8 @@ class EdgeMinibatchIterator(object):
         self.train_edges = self.edges = np.random.permutation(edges)
         if not n2v_retrain:
             self.train_edges = self._remove_isolated(self.train_edges)
-            # self.val_edges = [e for e in G.edges() if G[e[0]][e[1]]['train_removed']]
-            print("train_edges ----");
-            print(len(self.train_edges));
             self.val_edges = [e for e in G.edges() if G[e[0]][e[1]]['validation']]
-            print("val_edges ----");
-            print(len(self.val_edges));
             self.test_edges = [e for e in G.edges() if G[e[0]][e[1]]['testing']]
-            print("test_edges ----");
-            print(len(self.test_edges));
         else:
             if fixed_n2v:
                 self.train_edges = self.val_edges = self._n2v_prune(self.edges)
@@ -75,17 +70,12 @@ class EdgeMinibatchIterator(object):
             if not n1 in self.G.node or not n2 in self.G.node:
                 missing += 1
                 continue
-            # if (self.deg[self.id2idx[n1]] == 0 or self.deg[self.id2idx[n2]] == 0) \
-            #         and (not self.G.node[n1]['test'] or self.G.node[n1]['val']) \
-            #         and (not self.G.node[n2]['test'] or self.G.node[n2]['val']):
             if (self.G.node[n1]['test'] and self.G.node[n2]['test']) \
                     or (self.G.node[n1]['val'] and self.G.node[n2]['val']):
-                # count +=1
                 continue
             else:
                 new_edge_list.append((n1,n2))
         print("Unexpected missing:", missing)
-        print(count)
         return new_edge_list
 
     def construct_adj(self):
@@ -164,7 +154,7 @@ class EdgeMinibatchIterator(object):
             return self.batch_feed_dict(edge_list)
         else:
             ind = np.random.permutation(len(edge_list))
-            test_edges = [edge_list[i] for i in ind[:min(size, len(ind))]]
+            test_edges = [edge_list[i] for i in ind[:len(ind)]]
             return self.batch_feed_dict(test_edges)
 
     def incremental_val_feed_dict(self, size, iter_num):
@@ -173,10 +163,19 @@ class EdgeMinibatchIterator(object):
             len(edge_list))]
         return self.batch_feed_dict(val_edges), (iter_num+1)*size >= len(self.val_edges), val_edges
 
+    #Takes nodes appears in the localstore
     def incremental_embed_feed_dict(self, size, iter_num):
-        node_list = self.nodes
+        node_list = self.local_nodes
         val_nodes = node_list[iter_num*size:min((iter_num+1)*size, 
             len(node_list))]
+        val_edges = [(n,n) for n in val_nodes]
+        return self.batch_feed_dict(val_edges), (iter_num+1)*size >= len(node_list), val_edges
+
+    #Takes nodes appears ONLY in the centralstore
+    def incremental_central_embed_feed_dict(self, size, iter_num):
+        node_list = self.central_nodes
+        val_nodes = node_list[iter_num*size:min((iter_num+1)*size,
+                                                len(node_list))]
         val_edges = [(n,n) for n in val_nodes]
         return self.batch_feed_dict(val_edges), (iter_num+1)*size >= len(node_list), val_edges
 
@@ -259,7 +258,6 @@ class NodeMinibatchIterator(object):
                 for neighbor in self.G.neighbors(nodeid)
                 if (not self.G[nodeid][neighbor]['train_removed'])])
             deg[self.id2idx[nodeid]] = len(neighbors)
-            # print(deg)
             if len(neighbors) == 0:
                 continue
             if len(neighbors) > self.max_degree:
@@ -267,10 +265,6 @@ class NodeMinibatchIterator(object):
             elif len(neighbors) < self.max_degree:
                 neighbors = np.random.choice(neighbors, self.max_degree, replace=True)
             adj[self.id2idx[nodeid], :] = neighbors
-            # print("deg shape \n")
-            # print(deg.shape)
-            # print("\n")
-            # print(deg)
         return adj, deg
 
     def construct_test_adj(self):

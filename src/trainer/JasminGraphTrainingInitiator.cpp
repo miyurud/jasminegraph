@@ -23,9 +23,6 @@ Logger trainer_log;
 void JasminGraphTrainingInitiator::initiateTrainingLocally(std::string graphID, std::string trainingArgs) {
     std::cout << "Initiating training.." << std::endl;
     int count = 0;
-//    std::vector<JasmineGraphServer::workers> hostWorkerMap = JasmineGraphServer::getHostWorkerMap();
-//    std::cout << hostWorkerMap.size() << std::endl;
-//    std::thread *workerThreads = new std::thread[hostWorkerMap.size()];
 
     JasmineGraphServer *jasmineServer = new JasmineGraphServer();
     std::map<std::string, JasmineGraphServer::workerPartitions> graphPartitionedHosts = jasmineServer->getGraphPartitionedHosts(
@@ -36,40 +33,34 @@ void JasminGraphTrainingInitiator::initiateTrainingLocally(std::string graphID, 
         JasmineGraphServer::workerPartitions workerPartition = mapIterator->second;
         std::vector<std::string> partitions = workerPartition.partitionID;
         std::vector<std::string>::iterator it;
-        for(it = partitions.begin(); it < partitions.end(); it++){
+        for (it = partitions.begin(); it < partitions.end(); it++) {
             partition_count++;
         }
     }
-    cout<<partition_count<<endl;
+    cout << partition_count << endl;
     std::thread *workerThreads = new std::thread[partition_count];
-//    std::thread *workerThreads = new std::thread[1];
 
     Utils utils;
     string prefix = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.trainedmodelfolder");
+    string attr_prefix = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
     string trainarg_prefix = "Graphsage Unsupervised_train ";
-    trainingArgs= trainarg_prefix+trainingArgs+" --train_prefix "+prefix+"/"+graphID;
+    trainingArgs =
+            trainarg_prefix + trainingArgs + " --train_prefix " + prefix + "/" + graphID + " --train_attr_prefix " +
+            attr_prefix + "/" + graphID;
+
 
     std::map<std::string, JasmineGraphServer::workerPartitions>::iterator j;
     for (j = graphPartitionedHosts.begin(); j != graphPartitionedHosts.end(); j++) {
         JasmineGraphServer::workerPartitions workerPartition = j->second;
         std::vector<std::string> partitions = workerPartition.partitionID;
         std::vector<std::string>::iterator k;
-        for(k = partitions.begin(); k != partitions.end(); k++){
-            workerThreads[count] = std::thread(initiateTrain, j->first, workerPartition.port, workerPartition.dataPort, trainingArgs+" --train_worker "+*k);
-//            std::thread workThread = std::thread(initiateTrain, j->first, workerPartition.port, workerPartition.dataPort, trainingArgs+" --train_worker "+*k);
-//            workThread.detach();
+        for (k = partitions.begin(); k != partitions.end(); k++) {
+            workerThreads[count] = std::thread(initiateTrain, j->first, workerPartition.port, workerPartition.dataPort,
+                                               trainingArgs + " --train_worker " + *k);
             count++;
-//            break;
+            sleep(3);
         }
     }
-
-//    std::vector<JasmineGraphServer::workers, std::allocator<JasmineGraphServer::workers>>::iterator mapIterator;
-//    for (mapIterator = hostWorkerMap.begin(); mapIterator < hostWorkerMap.end(); mapIterator++) {
-//        JasmineGraphServer::workers worker = *mapIterator;
-//        workerThreads[count] = std::thread(initiateTrain, worker.hostname, worker.port, worker.dataPort, trainingArgs);
-//        count++;
-//    }
-
 
     for (int threadCount = 0; threadCount < count; threadCount++) {
         workerThreads[threadCount].join();
@@ -78,7 +69,8 @@ void JasminGraphTrainingInitiator::initiateTrainingLocally(std::string graphID, 
     SQLiteDBInterface refToSqlite = *new SQLiteDBInterface();
     refToSqlite.init();
     string sqlStatement =
-            "UPDATE graph SET train_status = '" + (Conts::TRAIN_STATUS::TRAINED) + "' WHERE idgraph = '" + graphID + "'";
+            "UPDATE graph SET train_status = '" + (Conts::TRAIN_STATUS::TRAINED) + "' WHERE idgraph = '" + graphID +
+            "'";
     refToSqlite.runUpdate(sqlStatement);
 
 }
@@ -136,7 +128,6 @@ bool JasminGraphTrainingInitiator::initiateTrain(std::string host, int port, int
         write(sockfd, server_host.c_str(), server_host.size());
         trainer_log.log("Sent : " + server_host, "info");
 
-
         write(sockfd, JasmineGraphInstanceProtocol::INITIATE_TRAIN.c_str(),
               JasmineGraphInstanceProtocol::INITIATE_TRAIN.size());
         trainer_log.log("Sent : " + JasmineGraphInstanceProtocol::INITIATE_TRAIN, "info");
@@ -153,7 +144,8 @@ bool JasminGraphTrainingInitiator::initiateTrain(std::string host, int port, int
             return 0;
         }
     } else {
-        trainer_log.log("There was an error in the upload process and the response is :: " + response, "error");
+        trainer_log.log("There was an error in the invoking training process and the response is :: " + response,
+                        "error");
     }
 
     close(sockfd);

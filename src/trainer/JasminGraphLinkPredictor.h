@@ -25,8 +25,10 @@ public:
 
     int initiateLinkPrediction(std::string graphID, std::string path);
 
-    int sendQueryToWorker(std::string host, int port, int dataPort, std::string graphID, std::string filePath,
-                                 std::string hostsList);
+    int sendQueryToWorker(std::string host, int port, int dataPort, int selectedHostPartitionsNo, std::string graphID,
+                          std::string vertexCount,
+                          std::string filePath,
+                          std::string hostsList);
 };
 
 
