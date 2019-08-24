@@ -18,6 +18,7 @@ limitations under the License.
 #include "src/util/Conts.h"
 #include "src/server/JasmineGraphInstance.h"
 #include "src/util/logger/Logger.h"
+#include "src/scheduler/SchedulerService.h"
 
 unsigned int microseconds = 10000000;
 JasmineGraphServer *server;
