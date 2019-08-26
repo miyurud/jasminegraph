@@ -53,6 +53,8 @@ void *backendservicesesion(void *dummyPt) {
             hostname = utils.trim_copy(hostname, " \f\n\r\t\v");
             backend_logger.log("Hostname of the worker: " + hostname , "info");
 
+        } else if (line.compare(RECORD_PERF_STATS)) {
+
         }
         else {
             backend_logger.log("Message format not recognized", "error");

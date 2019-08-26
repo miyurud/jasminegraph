@@ -7,6 +7,9 @@
 #include <dirent.h>
 #include <string.h>
 #include <iostream>
+#include "../Utils.h"
+#include "../Conts.h"
+
 
 #ifndef JASMINEGRAPH_PERFORMANCEUTIL_H
 #define JASMINEGRAPH_PERFORMANCEUTIL_H
@@ -17,6 +20,7 @@ public:
     static int reportPerformanceStatistics();
     static int getVirtualMemoryUsage();
     static int parseLine(char* line);
+    int publishStatisticsToMaster();
 };
 
 
