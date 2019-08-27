@@ -137,7 +137,7 @@ void *frontendservicesesion(void *dummyPt) {
                 jasmineServer->uploadGraphLocally(newGraphID, Conts::GRAPH_WITH_ATTRIBUTES, fullFileList);
                 utils.deleteDirectory(utils.getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
                 utils.deleteDirectory("/tmp/" + std::to_string(newGraphID));
-
+                JasmineGraphFrontEnd::getAndUpdateUploadTime(to_string(newGraphID), dummyPt);
             } else {
                 frontend_logger.log("Graph data file does not exist on the specified path", "error");
                 continue;
@@ -206,6 +206,7 @@ void *frontendservicesesion(void *dummyPt) {
                 frontend_logger.log("Upload done", "info");
                 jasmineServer->uploadGraphLocally(newGraphID, Conts::GRAPH_TYPE_NORMAL, fullFileList);
                 utils.deleteDirectory(utils.getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
+                JasmineGraphFrontEnd::getAndUpdateUploadTime(to_string(newGraphID), dummyPt);
             } else {
                 frontend_logger.log("Graph data file does not exist on the specified path", "error");
                 continue;
@@ -306,6 +307,7 @@ void *frontendservicesesion(void *dummyPt) {
                 jasmineServer->uploadGraphLocally(newGraphID, Conts::GRAPH_WITH_ATTRIBUTES, fullFileList);
                 utils.deleteDirectory(utils.getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
                 utils.deleteDirectory("/tmp/" + std::to_string(newGraphID));
+                JasmineGraphFrontEnd::getAndUpdateUploadTime(to_string(newGraphID), dummyPt);
             } else {
                 frontend_logger.log("Graph data file does not exist on the specified path", "error");
                 continue;
@@ -1056,4 +1058,22 @@ long JasmineGraphFrontEnd::countCentralStoreTriangles(std::string aggregatorHost
         frontend_logger.log("There was an error in the upload process and the response is :: " + response, "error");
     }
     return atol(response.c_str());
+}
+
+void JasmineGraphFrontEnd::getAndUpdateUploadTime(std::string graphID, void *dummyPt) {
+    SQLiteDBInterface *sqlite = (SQLiteDBInterface *) dummyPt;
+    struct tm tm;
+    vector<vector<pair<string, string>>> uploadStartFinishTimes = sqlite->runSelect(
+            "SELECT upload_start_time,upload_end_time FROM graph WHERE idgraph = '" + graphID + "'");
+    string startTime = uploadStartFinishTimes[0][0].second;
+    string endTime = uploadStartFinishTimes[0][1].second;
+    string sTime = startTime.substr(startTime.size() - 14, startTime.size() - 5);
+    string eTime = endTime.substr(startTime.size() - 14, startTime.size() - 5);
+    strptime(sTime.c_str(), "%H:%M:%S", &tm);
+    time_t start = mktime(&tm);
+    strptime(eTime.c_str(), "%H:%M:%S", &tm);
+    time_t end = mktime(&tm);
+    double difTime = difftime(end, start);
+    sqlite->runUpdate("UPDATE graph SET upload_time = " + to_string(difTime) + " WHERE idgraph = " + graphID);
+    frontend_logger.log("Upload time updated in the database", "info");
 }

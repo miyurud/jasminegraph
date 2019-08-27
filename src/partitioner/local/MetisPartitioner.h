@@ -74,6 +74,7 @@ private:
 
     std::map<int,std::string> partitionFileList;
     std::map<int,std::string> centralStoreFileList;
+    std::map<int,std::string> centralStoreDuplicateFileList;
     std::map<int,std::string> partitionAttributeFileList;
     std::map<int,std::string> centralStoreAttributeFileList;
     std::vector<std::map<int,std::string>> fullFileList;
@@ -81,8 +82,11 @@ private:
     std::map<int, std::vector<int>> graphStorageMap;
     std::map<int, std::vector<int>> graphEdgeMap;
     std::unordered_map<int, size_t> partVertexCounts;
+    std::unordered_map<int, size_t> masterEdgeCounts;
+    std::unordered_map<int, size_t> masterEdgeCountsWithDups;
     std::map<int, std::map<int, std::vector<int>>> partitionedLocalGraphStorageMap;
     std::map<int, std::map<int, std::vector<int>>> masterGraphStorageMap;
+    std::map<int, std::map<int, std::vector<int>>> duplicateMasterGraphStorageMap;
     std::map<int, std::map<int,std::map<int, std::vector<int>>>> commonCentralStoreEdgeMap;
     std::vector<int> xadj;
     std::vector<int> adjncy;
@@ -102,6 +106,8 @@ private:
     void writeMasterFiles(int part);
 
     void writeSerializedMasterFiles(int part);
+
+    void writeSerializedDuplicateMasterFiles(int part);
 
     void writeSerializedPartitionFiles(int part);
 
