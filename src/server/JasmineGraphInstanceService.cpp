@@ -18,6 +18,7 @@ limitations under the License.
 using namespace std;
 Logger instance_logger;
 pthread_mutex_t file_lock;
+StatisticCollector collector;
 
 
 void *instanceservicesession(void *dummyPt) {
@@ -531,6 +532,17 @@ void *instanceservicesession(void *dummyPt) {
 
             aggregatedTriangleCount= JasmineGraphInstanceService::aggregateCentralStoreTriangles(graphId, partitionId);
             write(connFd, std::to_string(aggregatedTriangleCount).c_str(), std::to_string(aggregatedTriangleCount).size());
+        } else if (line.compare(JasmineGraphInstanceProtocol::PERFORMANCE_STATISTICS) == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::PERFORMANCE_STATISTICS, "info");
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+            bzero(data, 301);
+            read(connFd, data, 300);
+            string isVMStatManager = (data);
+            isVMStatManager = utils.trim_copy(isVMStatManager, " \f\n\r\t\v");
+            instance_logger.log("Received VM Stat manager status: " + isVMStatManager, "info");
+
+            int memoryUsage = JasmineGraphInstanceService::requestPerformanceStatistics(isVMStatManager);
         }
     }
     instance_logger.log("Closing thread " + to_string(pthread_self()), "info");
@@ -845,5 +857,10 @@ map<long, long> JasmineGraphInstanceService::getOutDegreeDistributionHashMap(map
         distributionHashMap.insert(std::make_pair(it->first, distribution));
     }
     return distributionHashMap;
+}
+
+int JasmineGraphInstanceService::requestPerformanceStatistics(std::string isVMStatManager) {
+    int memoryUsage = collector.getVirtualMemoryUsage();
+    return memoryUsage;
 }
 

@@ -7,7 +7,8 @@
 
 using namespace Bosma;
 
-Logger scheduler_logger;
+Logger schedulerservice_logger;
+
 
 void SchedulerService::startScheduler() {
 
@@ -17,7 +18,7 @@ void SchedulerService::startScheduler() {
 
     if (schedulerEnabled == "true") {
 
-        scheduler_logger.log("#######SCHEDULER ENABLED#####","info");
+        schedulerservice_logger.log("#######SCHEDULER ENABLED#####","info");
 
         startPerformanceScheduler();
     }
@@ -32,7 +33,7 @@ void SchedulerService::startPerformanceScheduler() {
 
     Bosma::Scheduler s(max_n_threads);
 
-    s.every(std::chrono::seconds(5), util.reportPerformanceStatistics);
+    s.every(std::chrono::seconds(5), util.collectPerformanceStatistics);
 
     std::this_thread::sleep_for(std::chrono::minutes(10));
 }

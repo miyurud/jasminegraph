@@ -6,9 +6,16 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <string.h>
-#include <iostream>
 #include "../Utils.h"
 #include "../Conts.h"
+#include "../../metadb/SQLiteDBInterface.h"
+#include "../../performancedb/PerformanceSQLiteDBInterface.h"
+#include "../PlacesToNodeMapper.h"
+#include "../../server/JasmineGraphInstanceProtocol.h"
+#include "../logger/Logger.h"
+#include <thread>
+#include <pthread.h>
+#include <future>
 
 
 #ifndef JASMINEGRAPH_PERFORMANCEUTIL_H
@@ -17,10 +24,13 @@
 
 class PerformanceUtil {
 public:
-    static int reportPerformanceStatistics();
-    static int getVirtualMemoryUsage();
-    static int parseLine(char* line);
-    int publishStatisticsToMaster();
+    //PerformanceUtil(SQLiteDBInterface sqlLiteDB, PerformanceSQLiteDBInterface perfDb);
+    static int collectPerformanceStatistics();
+
+private:
+    //static SQLiteDBInterface sqlLiteDB;
+    //static PerformanceSQLiteDBInterface perfDb;
+    static int requestPerformanceData(std::string host, int port, std::string isVMStatManager);
 };
 
 

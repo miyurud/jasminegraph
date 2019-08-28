@@ -8,12 +8,17 @@
 #include "../util/performance/PerformanceUtil.h"
 #include "../util/Utils.h"
 #include "../util/logger/Logger.h"
+#include "../performancedb/PerformanceSQLiteDBInterface.h"
 #include <thread>
+
 
 class SchedulerService {
 public:
     static void startScheduler();
     static void startPerformanceScheduler();
+
+    static SQLiteDBInterface sqlite;
+    static PerformanceSQLiteDBInterface perfSqlite;
 };
 
 

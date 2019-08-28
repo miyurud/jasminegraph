@@ -47,7 +47,6 @@ int main(int argc, char *argv[]) {
 
     int mode = atoi(argv[1]);
     std::string JASMINEGRAPH_HOME = utils.getJasmineGraphHome();
-    std::async(std::launch::async,SchedulerService::startScheduler);
 
     std::cout << "Using JASMINE_GRAPH_HOME" << std::endl;
     std::cout << JASMINEGRAPH_HOME << std::endl;
@@ -55,12 +54,14 @@ int main(int argc, char *argv[]) {
 
     if (mode == Conts::JASMINEGRAPH_RUNTIME_PROFILE_MASTER) {
         server = new JasmineGraphServer();
+        thread schedulerThread(SchedulerService::startScheduler);
         server->run();
 
         while (server->isRunning()) {
             usleep(microseconds);
         }
 
+        schedulerThread.join();
         delete server;
     } else if (mode == Conts::JASMINEGRAPH_RUNTIME_PROFILE_WORKER){
         if (argc < 4) {

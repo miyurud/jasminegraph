@@ -3,52 +3,60 @@
 //
 
 #include "PerformanceUtil.h"
-#include "../../backend/JasmineGraphBackendProtocol.h"
 
 Utils systemUtils;
 
-int PerformanceUtil::reportPerformanceStatistics() {
-    int memoryUsage = getVirtualMemoryUsage();
+Logger scheduler_logger;
+SQLiteDBInterface sqlLiteDB = *new SQLiteDBInterface();
+PerformanceSQLiteDBInterface perfDb = *new PerformanceSQLiteDBInterface();
+
+int PerformanceUtil::collectPerformanceStatistics() {
+    vector<std::string> hostList = systemUtils.getHostList();
+    int hostListSize = hostList.size();
+    int counter = 0;
+    std::vector<std::future<long>> intermRes;
+    PlacesToNodeMapper placesToNodeMapper;
+
+
+    for (int i=0;i<hostListSize;i++) {
+        int k = counter;
+        string host = placesToNodeMapper.getHost(i);
+        std::vector<int> instancePorts = placesToNodeMapper.getInstancePort(i);
+        string partitionId;
+
+        std::vector<int>::iterator portsIterator;
+
+        for (portsIterator = instancePorts.begin(); portsIterator != instancePorts.end(); ++portsIterator) {
+            int port = *portsIterator;
+
+            std::string sqlStatement = "select vm_manager from instance_details where host_ip=" + host + "and port="+to_string(port)+";";
+
+            std::vector<vector<pair<string, string>>> results = sqlLiteDB.runSelect(sqlStatement);
+
+            vector<pair<string, string>> resultEntry = results.at(0);
+
+            string isReporter = resultEntry.at(0).second;
+
+            int memoryUsage = requestPerformanceData(host,port,isReporter);
+
+        }
+
+    }
+
+
     return 0;
 }
 
-int PerformanceUtil::getVirtualMemoryUsage() {
-    FILE* file = fopen("/proc/self/status", "r");
-    int result = -1;
-    char line[128];
-
-    while (fgets(line, 128, file) != NULL){
-        if (strncmp(line, "VmSize:", 7) == 0){
-            result = parseLine(line);
-            break;
-        }
-    }
-    fclose(file);
-    std::cout << "Memory Usage: " + std::to_string(result) << std::endl;
-    return result;
 
 
-}
-
-int PerformanceUtil::parseLine(char* line){
-    int i = strlen(line);
-    const char* p = line;
-    while (*p <'0' || *p > '9') p++;
-    line[i-3] = '\0';
-    i = atoi(p);
-    return i;
-}
-
-int PerformanceUtil::publishStatisticsToMaster()  {
-    std::string masterHost = systemUtils.getJasmineGraphProperty("org.jasminegraph.server.host");
-    int masterBackendPort = Conts::JASMINEGRAPH_BACKEND_PORT;
-
+int PerformanceUtil::requestPerformanceData(std::string host, int port, std::string isVMStatManager) {
     int sockfd;
     char data[300];
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
     struct hostent *server;
+    Utils utils;
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -57,7 +65,7 @@ int PerformanceUtil::publishStatisticsToMaster()  {
         return 0;
     }
 
-    server = gethostbyname(masterHost.c_str());
+    server = gethostbyname(host.c_str());
     if (server == NULL) {
         std::cerr << "ERROR, no host named " << server << std::endl;
     }
@@ -67,21 +75,43 @@ int PerformanceUtil::publishStatisticsToMaster()  {
     bcopy((char *) server->h_addr,
           (char *) &serv_addr.sin_addr.s_addr,
           server->h_length);
-    serv_addr.sin_port = htons(masterBackendPort);
+    serv_addr.sin_port = htons(port);
     if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
     }
 
     bzero(data, 301);
-    write(sockfd, HANDSHAKE.c_str(), HANDSHAKE.size());
-    //frontend_logger.log("Sent : " + JasminGraphBackendProtocol::HANDSHAKE, "info");
+    write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+    scheduler_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
     bzero(data, 301);
     read(sockfd, data, 300);
     string response = (data);
 
-    response = systemUtils.trim_copy(response, " \f\n\r\t\v");
+    response = utils.trim_copy(response, " \f\n\r\t\v");
 
-    if (response.compare(HANDSHAKE_OK) == 0) {
+    if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
+        scheduler_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
+        string server_host = utils.getJasmineGraphProperty("org.jasminegraph.server.host");
+        write(sockfd, server_host.c_str(), server_host.size());
+        scheduler_logger.log("Sent : " + server_host, "info");
 
+        write(sockfd, JasmineGraphInstanceProtocol::PERFORMANCE_STATISTICS.c_str(),
+              JasmineGraphInstanceProtocol::PERFORMANCE_STATISTICS.size());
+        scheduler_logger.log("Sent : " + JasmineGraphInstanceProtocol::PERFORMANCE_STATISTICS, "info");
+        bzero(data, 301);
+        read(sockfd, data, 300);
+        response = (data);
+        response = utils.trim_copy(response, " \f\n\r\t\v");
+
+        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+            scheduler_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+            write(sockfd, isVMStatManager.c_str(), isVMStatManager.size());
+            scheduler_logger.log("Sent : Graph ID " + isVMStatManager, "info");
+
+            bzero(data, 301);
+            read(sockfd, data, 300);
+            response = (data);
+            response = utils.trim_copy(response, " \f\n\r\t\v");
+        }
     }
 }
