@@ -543,6 +543,7 @@ void *instanceservicesession(void *dummyPt) {
             instance_logger.log("Received VM Stat manager status: " + isVMStatManager, "info");
 
             int memoryUsage = JasmineGraphInstanceService::requestPerformanceStatistics(isVMStatManager);
+            write(connFd, std::to_string(memoryUsage).c_str(), std::to_string(memoryUsage).size());
         }
     }
     instance_logger.log("Closing thread " + to_string(pthread_self()), "info");

@@ -25,7 +25,9 @@
 class PerformanceUtil {
 public:
     //PerformanceUtil(SQLiteDBInterface sqlLiteDB, PerformanceSQLiteDBInterface perfDb);
+    int init();
     static int collectPerformanceStatistics();
+
 
 private:
     //static SQLiteDBInterface sqlLiteDB;

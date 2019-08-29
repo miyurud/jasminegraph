@@ -10,6 +10,11 @@ Logger scheduler_logger;
 SQLiteDBInterface sqlLiteDB = *new SQLiteDBInterface();
 PerformanceSQLiteDBInterface perfDb = *new PerformanceSQLiteDBInterface();
 
+int PerformanceUtil::init() {
+    sqlLiteDB.init();
+    perfDb.init();
+}
+
 int PerformanceUtil::collectPerformanceStatistics() {
     vector<std::string> hostList = systemUtils.getHostList();
     int hostListSize = hostList.size();
@@ -29,9 +34,9 @@ int PerformanceUtil::collectPerformanceStatistics() {
         for (portsIterator = instancePorts.begin(); portsIterator != instancePorts.end(); ++portsIterator) {
             int port = *portsIterator;
 
-            std::string sqlStatement = "select vm_manager from instance_details where host_ip=" + host + "and port="+to_string(port)+";";
+            std::string sqlStatement = "select vm_manager from instance_details where host_ip=\"" + host + "\" and port="+to_string(port)+";";
 
-            std::vector<vector<pair<string, string>>> results = sqlLiteDB.runSelect(sqlStatement);
+            std::vector<vector<pair<string, string>>> results = perfDb.runSelect(sqlStatement);
 
             vector<pair<string, string>> resultEntry = results.at(0);
 
@@ -106,12 +111,18 @@ int PerformanceUtil::requestPerformanceData(std::string host, int port, std::str
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
             scheduler_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
             write(sockfd, isVMStatManager.c_str(), isVMStatManager.size());
-            scheduler_logger.log("Sent : Graph ID " + isVMStatManager, "info");
+            scheduler_logger.log("Sent : VM Manager Status " + isVMStatManager, "info");
 
             bzero(data, 301);
             read(sockfd, data, 300);
             response = (data);
             response = utils.trim_copy(response, " \f\n\r\t\v");
+
+            int memoryUsage = atol(response.c_str());
+
+            string sql = ("insert into performance_data (ip_address, port, memory_usage) values (\""+host+ "\",\""+to_string(port)+"\",\""+to_string(memoryUsage)+"\")");
+
+            perfDb.runInsert(sql);
         }
     }
 }
