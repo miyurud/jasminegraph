@@ -19,12 +19,19 @@ limitations under the License.
 #include <dirent.h>
 #include <string.h>
 #include <iostream>
+#include "stdlib.h"
+#include "stdio.h"
+#include "string.h"
+#include "sys/times.h"
+#include "sys/vtimes.h"
 
 
 class StatisticCollector {
 public:
+    int init();
     static int getVirtualMemoryUsage();
     static int parseLine(char* line);
+    static double getCpuUsage();
 };
 
 

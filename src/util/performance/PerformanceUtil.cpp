@@ -127,11 +127,18 @@ int PerformanceUtil::requestPerformanceData(std::string host, int port, std::str
             response = (data);
             response = utils.trim_copy(response, " \f\n\r\t\v");
 
-            int memoryUsage = atol(response.c_str());
+            scheduler_logger.log("Performance Response " + response, "info");
 
-            string sql = ("insert into performance_data (ip_address, port, memory_usage) values (\""+host+ "\",\""+to_string(port)+"\",\""+to_string(memoryUsage)+"\")");
+            std::vector<std::string> strArr = Utils::split(response, ',');
+
+            std::string processTime = strArr[0];
+            std::string memoryUsage = strArr[1];
+            std::string cpuUsage = strArr[2];
+
+            string sql = ("insert into performance_data (ip_address, date_time, port, memory_usage, cpu_usage) values (\""+host+ "\",\""+to_string(port)+"\",\""+processTime+"\",\""+memoryUsage+"\",\""+cpuUsage+"\")");
 
             perfDb.runInsert(sql);
         }
     }
 }
+
