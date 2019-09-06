@@ -43,7 +43,7 @@ void SchedulerService::startPerformanceScheduler() {
 
     Bosma::Scheduler s(max_n_threads);
 
-    s.every(std::chrono::seconds(20), util.collectPerformanceStatistics);
+    s.every(std::chrono::seconds(120), util.collectPerformanceStatistics);
 
-    std::this_thread::sleep_for(std::chrono::minutes(10));
+    std::this_thread::sleep_for(std::chrono::minutes(120));
 }

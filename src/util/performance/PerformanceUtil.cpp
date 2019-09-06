@@ -116,9 +116,10 @@ int PerformanceUtil::requestPerformanceData(std::string host, int port, std::str
         read(sockfd, data, 300);
         response = (data);
         response = utils.trim_copy(response, " \f\n\r\t\v");
+        scheduler_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-            scheduler_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+            //scheduler_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
             write(sockfd, isVMStatManager.c_str(), isVMStatManager.size());
             scheduler_logger.log("Sent : VM Manager Status " + isVMStatManager, "info");
 
@@ -135,7 +136,7 @@ int PerformanceUtil::requestPerformanceData(std::string host, int port, std::str
             std::string memoryUsage = strArr[1];
             std::string cpuUsage = strArr[2];
 
-            string sql = ("insert into performance_data (ip_address, date_time, port, memory_usage, cpu_usage) values (\""+host+ "\",\""+to_string(port)+"\",\""+processTime+"\",\""+memoryUsage+"\",\""+cpuUsage+"\")");
+            string sql = ("insert into performance_data (ip_address, port, date_time, memory_usage, cpu_usage) values (\""+host+ "\",\""+to_string(port)+"\",\""+processTime+"\",\""+memoryUsage+"\",\""+cpuUsage+"\")");
 
             perfDb.runInsert(sql);
         }
