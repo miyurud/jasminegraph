@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.10)
 project(JasmineGraph LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 11)
 
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
+
 add_executable(JasmineGraph main.cpp src/server/JasmineGraphServer.cpp src/server/JasmineGraphServer.h src/metadb/SQLiteDBInterface.cpp
         src/util/dbutil/edgestore_generated.h src/util/dbutil/attributestore_generated.h src/util/dbutil/partedgemapstore_generated.h src/metadb/SQLiteDBInterface.h main.h src/server/JasmineGraphInstance.cpp
         src/server/JasmineGraphInstance.h src/localstore/JasmineGraphLocalStore.cpp src/localstore/JasmineGraphLocalStore.h
@@ -18,7 +21,7 @@ add_executable(JasmineGraph main.cpp src/server/JasmineGraphServer.cpp src/serve
         src/partitioner/local/RDFParser.cpp src/partitioner/local/RDFParser.h src/partitioner/stream/Partitioner.cpp src/partitioner/stream/JasmineGraphIncrementalStore.cpp
         src/server/JasmineGraphInstanceService.cpp src/server/JasmineGraphInstanceService.h src/util/PlacesToNodeMapper.cpp src/util/PlacesToNodeMapper.h
         src/localstore/JasmineGraphLocalStoreFactory.cpp src/localstore/JasmineGraphLocalStoreFactory.h src/query/algorithms/triangles/Triangles.cpp src/query/algorithms/triangles/Triangles.h
-        src/centralstore/JasmineGraphHashMapCentralStore.cpp src/centralstore/JasmineGraphHashMapCentralStore.h)
+        src/centralstore/JasmineGraphHashMapCentralStore.cpp src/centralstore/JasmineGraphHashMapCentralStore.h src/scheduler/Scheduler.h src/scheduler/InterruptableSleep.h src/scheduler/Cron.h src/scheduler/ctpl_stl.h src/util/performance/PerformanceUtil.cpp src/util/performance/PerformanceUtil.h src/scheduler/SchedulerService.cpp src/scheduler/SchedulerService.h src/performancedb/PerformanceSQLiteDBInterface.cpp src/performancedb/PerformanceSQLiteDBInterface.h src/util/performance/StatisticCollector.cpp src/util/performance/StatisticCollector.h)
 
 target_compile_options(JasmineGraph PRIVATE -std=c++11)
 
@@ -34,6 +37,7 @@ target_link_libraries(JasmineGraph sqlite3)
 target_link_libraries(JasmineGraph pthread)
 target_link_libraries(JasmineGraph rdkafka)
 target_link_libraries(JasmineGraph cppkafka)
+target_link_libraries(JasmineGraph Threads::Threads)
 
 include_directories("$ENV{HOME}/software/flatbuffers/include")
 include_directories("$ENV{HOME}/software/xerces/include")

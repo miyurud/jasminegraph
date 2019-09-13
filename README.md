@@ -49,6 +49,7 @@ Please contact [Miyuru Dayarathna](miyurud at yahoo dot co dot uk) for further i
 
 ## Open Source License
 JasmineGraph is licensed under the [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0).
+Task Scheduler which is integrated in Jasminegraph is using MIT License.
 
 ## References
 More details of JasmineGraph/Acacia architecture is available from the following list of papers.

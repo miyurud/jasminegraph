@@ -17,3 +17,4 @@ const string HANDSHAKE = "hske";
 const string HANDSHAKE_OK = "hske-ok";
 const string EXIT_BACKEND = "exit";
 const string EXIT_ACK = "bye";
+const string RECORD_PERF_STATS="record-perf";

@@ -38,6 +38,9 @@ limitations under the License.
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <dirent.h>
+#include "../util/performance/StatisticCollector.h"
+#include <chrono>
+#include <ctime>
 
 void *instanceservicesession(void *dummyPt);
 void writeCatalogRecord(string record);
@@ -58,6 +61,7 @@ public:
     static std::string copyCentralStoreToAggregator(std::string graphId, std::string partitionId, std::string aggregatorHost, std::string aggregatorPort, std::string host);
     static long aggregateCentralStoreTriangles (std::string graphId, std::string partitionId);
     static map<long, long> getOutDegreeDistributionHashMap(map<long, unordered_set<long>> graphMap);
+    static std::string requestPerformanceStatistics(std::string isVMStatManager);
 
 };
 

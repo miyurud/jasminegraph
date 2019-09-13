@@ -18,6 +18,7 @@ limitations under the License.
 using namespace std;
 Logger instance_logger;
 pthread_mutex_t file_lock;
+StatisticCollector collector;
 
 
 void *instanceservicesession(void *dummyPt) {
@@ -28,6 +29,7 @@ void *instanceservicesession(void *dummyPt) {
 
     instance_logger.log("New service session started", "info");
     Utils utils;
+    collector.init();
 
     utils.createDirectory(utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder"));
 
@@ -531,6 +533,18 @@ void *instanceservicesession(void *dummyPt) {
 
             aggregatedTriangleCount= JasmineGraphInstanceService::aggregateCentralStoreTriangles(graphId, partitionId);
             write(connFd, std::to_string(aggregatedTriangleCount).c_str(), std::to_string(aggregatedTriangleCount).size());
+        } else if (line.compare(JasmineGraphInstanceProtocol::PERFORMANCE_STATISTICS) == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::PERFORMANCE_STATISTICS, "info");
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+            bzero(data, 301);
+            read(connFd, data, 300);
+            string isVMStatManager = (data);
+            isVMStatManager = utils.trim_copy(isVMStatManager, " \f\n\r\t\v");
+            instance_logger.log("Received VM Stat manager status: " + isVMStatManager, "info");
+
+            std::string memoryUsage = JasmineGraphInstanceService::requestPerformanceStatistics(isVMStatManager);
+            write(connFd, memoryUsage.c_str(), memoryUsage.size());
         }
     }
     instance_logger.log("Closing thread " + to_string(pthread_self()), "info");
@@ -847,3 +861,14 @@ map<long, long> JasmineGraphInstanceService::getOutDegreeDistributionHashMap(map
     return distributionHashMap;
 }
 
+std::string JasmineGraphInstanceService::requestPerformanceStatistics(std::string isVMStatManager) {
+    Utils utils;
+    int memoryUsage = collector.getVirtualMemoryUsage();
+    double cpuUsage = collector.getCpuUsage();
+    auto executedTime = std::chrono::system_clock::now();
+    std::time_t reportTime = std::chrono::system_clock::to_time_t(executedTime);
+    std::string reportTimeString(std::ctime(&reportTime));
+    reportTimeString = utils.trim_copy(reportTimeString, " \f\n\r\t\v");
+    std::string usageString = reportTimeString+","+to_string(memoryUsage)+","+to_string(cpuUsage);
+    return usageString;
+}

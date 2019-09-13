@@ -18,10 +18,14 @@ limitations under the License.
 #include "src/util/Conts.h"
 #include "src/server/JasmineGraphInstance.h"
 #include "src/util/logger/Logger.h"
+#include "src/scheduler/SchedulerService.h"
+#include "src/util/Utils.h"
+#include <future>
 
 unsigned int microseconds = 10000000;
 JasmineGraphServer *server;
 JasmineGraphInstance *instance;
+SchedulerService schedulerService;
 Logger main_logger;
 
 void fnExit3(void) {
@@ -47,14 +51,17 @@ int main(int argc, char *argv[]) {
     std::cout << "Using JASMINE_GRAPH_HOME" << std::endl;
     std::cout << JASMINEGRAPH_HOME << std::endl;
 
+
     if (mode == Conts::JASMINEGRAPH_RUNTIME_PROFILE_MASTER) {
         server = new JasmineGraphServer();
+        thread schedulerThread(SchedulerService::startScheduler);
         server->run();
 
         while (server->isRunning()) {
             usleep(microseconds);
         }
 
+        schedulerThread.join();
         delete server;
     } else if (mode == Conts::JASMINEGRAPH_RUNTIME_PROFILE_WORKER){
         if (argc < 4) {

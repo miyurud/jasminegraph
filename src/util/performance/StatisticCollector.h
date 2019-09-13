@@ -11,12 +11,28 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
-#ifndef JASMINEGRAPH_MAIN_H
-#define JASMINEGRAPH_MAIN_H
+#ifndef JASMINEGRAPH_STATISTICCOLLECTOR_H
+#define JASMINEGRAPH_STATISTICCOLLECTOR_H
 
-#endif //JASMINEGRAPH_MAIN_H
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <dirent.h>
+#include <string.h>
+#include <iostream>
+#include "stdlib.h"
+#include "stdio.h"
+#include "string.h"
+#include "sys/times.h"
+#include "sys/vtimes.h"
 
-#include "src/server/JasmineGraphServer.h"
-#include "src/util/sqlite3/sqlite3.h"
-#include "src/util/Utils.h"
-#include <thread>
+
+class StatisticCollector {
+public:
+    int init();
+    static int getVirtualMemoryUsage();
+    static int parseLine(char* line);
+    static double getCpuUsage();
+};
+
+
+#endif //JASMINEGRAPH_STATISTICCOLLECTOR_H

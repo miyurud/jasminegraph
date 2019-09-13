@@ -74,17 +74,15 @@ long Triangles::run(JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCe
 
         for (verticesIterator = vertices.begin();verticesIterator != vertices.end();++verticesIterator) {
             long temp = *verticesIterator;
-            std::unordered_set<long> uList = localSubGraphMap[temp];
-            std::set<long> orderedUList(uList.begin(),uList.end());
+            std::set<long> orderedUList(localSubGraphMap[temp].begin(),localSubGraphMap[temp].end());
             std::set<long>::iterator uListIterator;
             for (uListIterator = orderedUList.begin();uListIterator != orderedUList.end(); ++uListIterator) {
                 long u = *uListIterator;
-                std::unordered_set<long> nuList = localSubGraphMap[u];
-                std::set<long> orderedNuList(nuList.begin(),nuList.end());
+                std::set<long> orderedNuList(localSubGraphMap[u].begin(),localSubGraphMap[u].end());
                 std::set<long>::iterator nuListIterator;
                 for (nuListIterator = orderedNuList.begin();nuListIterator != orderedNuList.end();++nuListIterator) {
                     long nu = *nuListIterator;
-                    if (uList.find(nu) != uList.end()) {
+                    if (localSubGraphMap[temp].find(nu) != localSubGraphMap[temp].end()) {
                         fullCount++;
                         std::vector<long> tempVector;
                         tempVector.push_back(temp);
@@ -105,16 +103,11 @@ long Triangles::run(JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCe
 
                             std::vector<long>::iterator listIterator;
                             if (std::find(list.begin(),list.end(),varThree) == list.end()) {
-                                list.push_back(varThree);
-                                itemRes[varTwo] = list;
-                                triangleTree[varOne] = itemRes;
+                                triangleTree[varOne][varTwo].push_back(varThree);
                                 triangleCount++;
                             }
                         } else {
-                            std::vector<long> newU;
-                            newU.push_back(varThree);
-                            itemRes[varTwo] = newU;
-                            triangleTree[varOne] = itemRes;
+                            triangleTree[varOne][varTwo].push_back(varThree);
                             triangleCount++;
                         }
                     }

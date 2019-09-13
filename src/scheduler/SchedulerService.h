@@ -11,12 +11,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
-#ifndef JASMINEGRAPH_MAIN_H
-#define JASMINEGRAPH_MAIN_H
+#ifndef JASMINEGRAPH_SCHEDULERSERVICE_H
+#define JASMINEGRAPH_SCHEDULERSERVICE_H
 
-#endif //JASMINEGRAPH_MAIN_H
-
-#include "src/server/JasmineGraphServer.h"
-#include "src/util/sqlite3/sqlite3.h"
-#include "src/util/Utils.h"
+#include "../util/performance/PerformanceUtil.h"
+#include "../util/Utils.h"
+#include "../util/logger/Logger.h"
+#include "../performancedb/PerformanceSQLiteDBInterface.h"
 #include <thread>
+
+
+class SchedulerService {
+public:
+    static void startScheduler();
+    static void startPerformanceScheduler();
+
+    static SQLiteDBInterface sqlite;
+    static PerformanceSQLiteDBInterface perfSqlite;
+};
+
+
+#endif //JASMINEGRAPH_SCHEDULERSERVICE_H
