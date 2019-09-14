@@ -37,6 +37,10 @@ The following build tools, applications, and libraries need to be installed befo
     - Download pigz from (http://zlib.net/pigz/) or (https://github.com/madler/pigz.git).
     - Type "make" in pigz directory to build the "pigz" executable. 
     - Add pigz executable's path to ~/.bashrc file and refresh.
+- python3.5 (https://www.python.org/downloads/release/python-350/)
+- Recent versions of TensorFlow, numpy, scipy, sklearn, and networkx are required (but networkx must be <=1.11). You can install all the required packages using the following command:
+
+   pip install -r ./GraphSAGE/requirements
 
 First, this repository should be cloned into one of your computer's local directory. Then change directory to jasminegraph and run ./build.sh to build the JasmineGraph executable.
 
@@ -49,6 +53,7 @@ Please contact [Miyuru Dayarathna](miyurud at yahoo dot co dot uk) for further i
 
 ## Open Source License
 JasmineGraph is licensed under the [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0).
+[GraphSAGE](https://github.com/williamleif/GraphSAGE/)  which is integrated in Jasminegraph to generate node embeddings is using MIT License.
 
 ## References
 More details of JasmineGraph/Acacia architecture is available from the following list of papers.
