@@ -14,10 +14,10 @@ limitations under the License.
 #ifndef JASMINEGRAPH_SCHEDULERSERVICE_H
 #define JASMINEGRAPH_SCHEDULERSERVICE_H
 
-#include "../util/performance/PerformanceUtil.h"
-#include "../util/Utils.h"
-#include "../util/logger/Logger.h"
-#include "../performancedb/PerformanceSQLiteDBInterface.h"
+#include "../performance/PerformanceUtil.h"
+#include "../Utils.h"
+#include "../logger/Logger.h"
+#include "../../performancedb/PerformanceSQLiteDBInterface.h"
 #include <thread>
 
 
