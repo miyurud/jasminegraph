@@ -31,6 +31,14 @@ limitations under the License.
 #include "../partitioner/local/RDFParser.h"
 #include "../partitioner/local/JSONParser.h"
 #include "../server/JasmineGraphInstanceProtocol.h"
+#include "../trainer/python-c-api/Python_C_API.h"
+#include "../trainer/JasminGraphTrainingInitiator.h"
+#include "../trainer/JasminGraphLinkPredictor.h"
+
+
+#include "../trainer/python-c-api/Python_C_API.h"
+#include "../trainer/JasminGraphTrainingInitiator.h"
+#include "../trainer/JasminGraphLinkPredictor.h"
 
 using namespace std;
 
@@ -510,8 +518,90 @@ void *frontendservicesesion(void *dummyPt) {
                 int vertexCount = std::stoi(output[0][0].second);
                 frontend_logger.log("Edge Count: " + to_string(vertexCount),"info");
             }
-        } else {
-            frontend_logger.log("Command not recognized " + line, "error");
+        } else if (line.compare(TRAIN) == 0) {
+            string message = "Available main flags:\n";
+            write(connFd, message.c_str(), message.size());
+            string flags =
+                    Conts::FLAGS::GRAPH_ID + " " + Conts::FLAGS::LEARNING_RATE + " " + Conts::FLAGS::BATCH_SIZE + " " +
+                    Conts::FLAGS::VALIDATE_ITER + " " + Conts::FLAGS::EPOCHS;
+            write(connFd, flags.c_str(), flags.size());
+            write(connFd, "\n", 2);
+            message = "Send --<flag1> <value1> --<flag2> <value2> .. \n";
+            write(connFd, message.c_str(), message.size());
+
+            char train_data[300];
+            bzero(train_data, 301);
+
+            read(sessionargs->connFd, train_data, 300);
+
+            string trainData(train_data);
+
+            Utils utils;
+            trainData = utils.trim_copy(trainData, " \f\n\r\t\v");
+            frontend_logger.log("Data received: " + trainData, "info");
+
+            std::vector<std::string> trainargs = Utils::split(trainData, ' ');
+            std::vector<std::string>::iterator itr = std::find(trainargs.begin(), trainargs.end(), "--graph_id");
+            std::string graphID;
+            if (itr != trainargs.cend()) {
+                int index = std::distance(trainargs.begin(), itr);
+                graphID = trainargs[index+1];
+            }
+            else {
+                frontend_logger.log("graph_id should be given as an argument", "error");
+                continue;
+            }
+
+            if (trainargs.size() == 0) {
+                frontend_logger.log("Message format not recognized", "error");
+                break;
+            }
+
+            JasminGraphTrainingInitiator *jasminGraphTrainingInitiator = new JasminGraphTrainingInitiator();
+            jasminGraphTrainingInitiator->initiateTrainingLocally(graphID,trainData);
+        } else if (line.compare(PREDICT) == 0){
+            write(sessionargs->connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
+            write(sessionargs->connFd, "\r\n", 2);
+
+            char predict_data[300];
+            bzero(predict_data, 301);
+            string graphID = "";
+            string path = "";
+
+            read(connFd, predict_data, 300);
+            string predictData(predict_data);
+
+            Utils utils;
+            predictData = utils.trim_copy(predictData, " \f\n\r\t\v");
+            frontend_logger.log("Data received: " + predictData, "info");
+
+            std::vector<std::string> strArr = Utils::split(predictData, '|');
+
+            if (strArr.size() != 2) {
+                frontend_logger.log("Message format not recognized", "error");
+                continue;
+            }
+
+            graphID = strArr[0];
+            path = strArr[1];
+
+            if(JasmineGraphFrontEnd::isGraphActiveAndTrained(graphID, dummyPt)) {
+                if (utils.fileExists(path)) {
+                    std::cout << "Path exists" << endl;
+                    JasminGraphLinkPredictor *jasminGraphLinkPredictor = new JasminGraphLinkPredictor();
+                    jasminGraphLinkPredictor->initiateLinkPrediction(graphID, path);
+                } else {
+                    frontend_logger.log("Graph edge file does not exist on the specified path", "error");
+                    continue;
+                }
+            }
+            else {
+                frontend_logger.log("The graph is not fully accessible or not fully trained.", "error");
+                continue;
+            }
+        }
+        else {
+            frontend_logger.log("Message format not recognized " + line, "error");
         }
     }
     frontend_logger.log("Closing thread " + to_string(pthread_self()) + " and connection", "info");
@@ -675,6 +765,25 @@ void JasmineGraphFrontEnd::removeGraph(std::string graphID, void *dummyPt) {
     sqlite->runUpdate("DELETE FROM graph WHERE idgraph = " + graphID);
 }
 
+/**
+ * This method checks whether the graph is active and trained
+ * @param graphID
+ * @param dummyPt
+ * @return
+ */
+bool JasmineGraphFrontEnd::isGraphActiveAndTrained(std::string graphID, void *dummyPt) {
+    bool result = true;
+    string stmt =
+            "SELECT COUNT( * ) FROM graph WHERE idgraph LIKE '" + graphID + "' AND graph_status_idgraph_status = '" +
+            to_string(Conts::GRAPH_STATUS::OPERATIONAL) + "' AND train_status = '"+(Conts::TRAIN_STATUS::TRAINED) +"';";
+    SQLiteDBInterface *sqlite = (SQLiteDBInterface *) dummyPt;
+    std::vector<vector<pair<string, string>>> v = sqlite->runSelect(stmt);
+    int count = std::stoi(v[0][0].second);
+    if (count == 0) {
+        result = false;
+    }
+    return result;
+}
 
 long JasmineGraphFrontEnd::countTriangles(std::string graphId, void *dummyPt) {
     long result= 0;

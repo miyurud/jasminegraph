@@ -36,8 +36,6 @@ private:
 
     static void startRemoteWorkers(std::vector<int> workerPortsVector, std::vector<int> workerDataPortsVector, std::string host);
 
-    static bool sendFileThroughService(std::string host, int dataPort, std::string fileName, std::string filePath);
-
     void addHostsToMetaDB();
 
     void updateOperationalGraphList();
@@ -75,6 +73,8 @@ public:
 
     static int removePartitionThroughService(std::string host, int port, std::string graphID, std::string partitionID);
 
+    static bool sendFileThroughService(std::string host, int dataPort, std::string fileName, std::string filePath);
+
     JasmineGraphFrontEnd *frontend;
     SQLiteDBInterface sqlite;
     JasmineGraphBackend *backend;
@@ -86,8 +86,19 @@ public:
         int dataPort;
     };
 
+    struct workerPartitions {
+        int port;
+        int dataPort;
+        std::vector<std::string> partitionID;
+    };
+
     static void updateMetaDB(std::vector<workers> hostWorkerMap,  std::map<int,std::string> partitionFileList, int graphID,
                  std::string uploadEndTime);
+
+    //return hostWorkerMap
+    static std::vector<JasmineGraphServer::workers> getHostWorkerMap();
+
+    std::map<std::string, workerPartitions> getGraphPartitionedHosts(std::string graphID);
 };
 
 

@@ -2,10 +2,12 @@
 
 JASMINEGRAPH_DIR="`dirname \"$0\"`"
 MODE=$1;
-SERVER_PORT=$2;
-SERVER_DATA_PORT=$3;
+HOST_NAME=$2;
+SERVER_PORT=$3;
+SERVER_DATA_PORT=$4;
 
 echo "using mode $MODE"
+echo "using server $HOST_NAME"
 echo "using server port $SERVER_PORT"
 echo "using server data port $SERVER_DATA_PORT"
 
@@ -21,7 +23,7 @@ if [ -z "$MODE" ] ;
 then
     echo "MODE OF OPERATION SHOULD BE SPECIFIED"
     echo "Use argument 1 to start JasmineGraph in Master mode."
-    echo "Use 2 <serverPort> <serverDataPort> to start in Worker mode."
+    echo "Use 2 <hostName> <serverPort> <serverDataPort> to start in Worker mode."
     exit 1
 fi
 
@@ -45,6 +47,7 @@ fi
 echo "using mode $MODE"
 if [ $MODE -eq 1 ] ;
 then
+    echo "using server $HOST_NAME"
     echo "using mode $SERVER_PORT"
     echo "using mode $SERVER_DATA_PORT"
 fi
@@ -53,4 +56,4 @@ mkdir -p logs
 
 cd $JASMINEGRAPH_DIR
 
-./JasmineGraph $MODE $SERVER_PORT $SERVER_DATA_PORT
+./JasmineGraph $MODE $HOST_NAME $SERVER_PORT $SERVER_DATA_PORT

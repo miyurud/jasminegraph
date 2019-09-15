@@ -41,17 +41,27 @@ limitations under the License.
 #include "../util/performance/StatisticCollector.h"
 #include <chrono>
 #include <ctime>
+#include <vector>
 
 void *instanceservicesession(void *dummyPt);
 void writeCatalogRecord(string record);
 void deleteGraphPartition(std::string graphID, std::string partitionID);
 long countLocalTriangles(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores, std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores);
 
+struct instanceservicesessionargs {
+    string host;
+    int connFd;
+    int port;
+    int dataPort;
+    std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores;
+    std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores;
+};
+
 class JasmineGraphInstanceService {
 public:
     JasmineGraphInstanceService();
 
-    int run(int serverPort);
+    int run(string hostName, int serverPort, int serverDataPort);
 
     static bool isGraphDBExists(std::string graphId, std::string partitionId);
     static bool isInstanceCentralStoreExists(std::string graphId, std::string partitionId);
@@ -63,14 +73,24 @@ public:
     static map<long, long> getOutDegreeDistributionHashMap(map<long, unordered_set<long>> graphMap);
     static std::string requestPerformanceStatistics(std::string isVMStatManager);
 
+    struct workerPartitions {
+        int port;
+        int dataPort;
+        std::vector<std::string> partitionID;
+    };
+
+    static void collectTrainedModels(instanceservicesessionargs *sessionargs, std::string graphID,
+                                     std::map<std::string, JasmineGraphInstanceService::workerPartitions> graphPartitionedHosts,
+                                     int totalPartitions);
+
+    static int collectTrainedModelThreadFunction(instanceservicesessionargs *sessionargs, std::string host, int port, int dataPort,
+                                                 std::string graphID, std::string partition);
+
+    static void createPartitionFiles(std::string graphID, std::string partitionID, std::string fileType);
+
 };
 
-struct instanceservicesessionargs {
-    int connFd;
-    std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores;
-    std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores;
-};
+
+
 
 #endif //JASMINEGRAPH_JASMINEGRAPHINSTANCESERVICE_H
-
-

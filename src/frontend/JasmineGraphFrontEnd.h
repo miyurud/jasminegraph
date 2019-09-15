@@ -59,6 +59,7 @@ public:
 
     static void getAndUpdateUploadTime(std::string graphID, void *dummyPt);
 
+    static bool isGraphActiveAndTrained(std::string graphID, void *dummyPt);
 
 private:
     SQLiteDBInterface sqlite;

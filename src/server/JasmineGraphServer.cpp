@@ -23,9 +23,9 @@ limitations under the License.
 
 Logger server_logger;
 
-static map<string,string> hostIDMap;
+static map<string, string> hostIDMap;
 static std::vector<JasmineGraphServer::workers> hostWorkerMap;
-static map<string,int> hostPortMap;
+static map<string, pair<int, int>> hostPortMap;
 
 void *runfrontend(void *dummyPt) {
     JasmineGraphServer *refToServer = (JasmineGraphServer *) dummyPt;
@@ -108,7 +108,7 @@ void JasmineGraphServer::start_workers() {
             portVector.push_back(workerPort);
             dataPortVector.push_back(workerDataPort);
             hostWorkerMap.push_back({*it,workerPort,workerDataPort});
-            hostPortMap.insert(make_pair(*it,workerPort));
+            hostPortMap.insert((pair<string, pair<int, int>>(*it,make_pair(workerPort,workerDataPort))));
             workerPort = workerPort + 2;
             workerDataPort = workerDataPort + 2;
             portCount ++;
@@ -118,7 +118,7 @@ void JasmineGraphServer::start_workers() {
             portVector.push_back(workerPort);
             dataPortVector.push_back(workerDataPort);
             hostWorkerMap.push_back({*it,workerPort,workerDataPort});
-            hostPortMap.insert(make_pair(*it,workerPort));
+            hostPortMap.insert(((pair<string, pair<int, int>>(*it,make_pair(workerPort,workerDataPort)))));
             workerPort = workerPort + 2;
             workerDataPort = workerDataPort + 2;
             hostListModeNWorkers--;
@@ -154,7 +154,7 @@ void JasmineGraphServer::start_workers() {
 
 
 void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector,
-                                                    std::vector<int> workerDataPortsVector, std::string host) {
+                                                    std::vector<int> workerDataPortsVector,string host) {
     Utils utils;
     std::string executableFile;
     std::string workerPath = utils.getJasmineGraphProperty("org.jasminegraph.worker.path");
@@ -176,9 +176,11 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector,
     copyArtifactsToWorkers(workerPath,artifactPath,host);
     for (int i =0 ; i < workerPortsVector.size() ; i++) {
         if (host.find("localhost") != std::string::npos) {
-            serverStartScript = executableFile+" 2 "+ std::to_string(workerPortsVector.at(i)) + " " + std::to_string(workerDataPortsVector.at(i));
+            serverStartScript = executableFile+" 2 "+ host +" " + std::to_string(workerPortsVector.at(i)) + " " + std::to_string(workerDataPortsVector.at(i));
         } else {
-            serverStartScript = "ssh -p 22 " + host+ " "+ executableFile + " 2"+" "+ std::to_string(workerPortsVector.at(i)) + " " + std::to_string(workerDataPortsVector.at(i));
+            serverStartScript =
+                    "ssh -p 22 " + host + " " + executableFile + " 2 "+host+" " + std::to_string(workerPortsVector.at(i)) +
+                    " " + std::to_string(workerDataPortsVector.at(i));
         }
         popen(serverStartScript.c_str(),"r");
     }
@@ -1076,7 +1078,7 @@ void JasmineGraphServer::removeGraph(vector<pair<string, string>> hostHasPartiti
     int count = 0;
     std::thread *deleteThreads = new std::thread[hostHasPartition.size()];
     for (std::vector<pair<string, string>>::iterator j = (hostHasPartition.begin()); j != hostHasPartition.end(); ++j) {
-        deleteThreads[count] = std::thread(removePartitionThroughService, j->first, hostPortMap[j->first], graphID, j->second);
+        deleteThreads[count] = std::thread(removePartitionThroughService, j->first, hostPortMap[j->first].first, graphID, j->second);
         count++;
         sleep(1);
     }
@@ -1184,6 +1186,10 @@ int JasmineGraphServer::removePartitionThroughService(string host, int port, str
     return 0;
 }
 
+std::vector<JasmineGraphServer::workers> JasmineGraphServer::getHostWorkerMap() {
+    return hostWorkerMap;
+}
+
 void JasmineGraphServer::updateOperationalGraphList() {
     Utils utils;
     string hosts = "";
@@ -1212,6 +1218,55 @@ void JasmineGraphServer::updateOperationalGraphList() {
                            to_string(Conts::GRAPH_STATUS::OPERATIONAL) + "' ELSE '" +
                            to_string(Conts::GRAPH_STATUS::NONOPERATIONAL) + "' END )";
     this->sqlite.runUpdate(sqlStatement2);
+}
+
+std::map<string, JasmineGraphServer::workerPartitions> JasmineGraphServer::getGraphPartitionedHosts(string graphID) {
+
+    vector<pair<string, string>> hostHasPartition;
+    SQLiteDBInterface refToSqlite = *new SQLiteDBInterface();
+    refToSqlite.init();
+    vector<vector<pair<string, string>>> hostPartitionResults = refToSqlite.runSelect(
+            "SELECT name, partition_idpartition FROM host_has_partition INNER JOIN host ON host_idhost = idhost WHERE "
+            "partition_graph_idgraph = '" + graphID + "'");
+    for (vector<vector<pair<string, string>>>::iterator i = hostPartitionResults.begin();
+         i != hostPartitionResults.end(); ++i) {
+        int count = 0;
+        string hostname;
+        string partitionID;
+        for (std::vector<pair<string, string>>::iterator j = (i->begin()); j != i->end(); ++j) {
+            if (count == 0) {
+                hostname = j->second;
+            } else {
+                partitionID = j->second;
+                hostHasPartition.push_back(pair<string, string>(hostname, partitionID));
+            }
+            count++;
+        }
+    }
+
+    map<string, vector<string>> hostPartitions;
+    for (std::vector<pair<string, string>>::iterator j = (hostHasPartition.begin()); j != hostHasPartition.end(); ++j) {
+        cout << "HOST ID : " << j->first << " Partition ID : " << j->second << endl;
+        string hostname = j->first;
+        if (hostPartitions.count(hostname) > 0) {
+            hostPartitions[hostname].push_back(j->second);
+        } else {
+            vector<string> vec;
+            vec.push_back(j->second);
+            hostPartitions.insert((pair<string, vector<string>>(hostname, vec)));
+        }
+
+    }
+
+    map<string, JasmineGraphServer::workerPartitions> graphPartitionedHosts;
+    for (map<string, vector<string>>::iterator it = (hostPartitions.begin()); it != hostPartitions.end(); ++it) {
+        graphPartitionedHosts.insert((pair<string, JasmineGraphServer::workerPartitions>(it->first,
+                                                                                         {hostPortMap[it->first].first,
+                                                                                          hostPortMap[it->first].second,
+                                                                                          hostPartitions[it->first]})));
+    }
+
+    return graphPartitionedHosts;
 }
 
 bool JasmineGraphServer::hasEnding(std::string const &fullString, std::string const &ending) {
