@@ -412,33 +412,6 @@ def train(train_data, G_local,test_data=None):
                 fp.write(str(e[0])+" "+str(e[1]))
                 fp.write("\n")
 
-        test_cost, test_ranks, test_mrr, test_duration  = evaluate_test(sess, model, minibatch, size=FLAGS.validate_batch_size)
-        if test_shadow_mrr is None:
-            test_shadow_mrr = test_mrr
-        else:
-            test_shadow_mrr -= (1-0.99) * (test_shadow_mrr - test_mrr)
-
-        print("Full Test stats:",
-              "test_loss=", "{:.5f}".format(test_cost),
-              "test_mrr=", "{:.5f}".format(test_mrr),
-              "test_mrr_ema=", "{:.5f}".format(test_shadow_mrr),
-              "time=", "{:.5f}".format(test_duration))
-        end_file = open(log_dir() + "/" +str(FLAGS.graph_id)+"_end_time_"+FLAGS.train_worker+".txt", "w")
-        endDT = datetime.datetime.now()
-        print (str(endDT))
-        end_file.write (str(endDT))
-
-        with open(log_dir() + "/" +str(FLAGS.graph_id)+"_test_stats_"+FLAGS.train_worker+".txt", "w") as fp:
-            fp.write("test_loss={:.5f} test_mrr={:.5f} test_mrr_ema={:.5f} time={:.5f}".
-                     format(test_cost, test_mrr, test_shadow_mrr, test_duration))
-
-        test_edge_set = [e for e in G.edges() if G[e[0]][e[1]]['testing']]
-
-        with open(log_dir() + "/"+str(FLAGS.graph_id)+"_TEST_EDGE_SET_"+FLAGS.train_worker+".txt", "a+") as fp:
-            for e in test_edge_set:
-                fp.write(str(e[0])+" "+str(e[1]))
-                fp.write("\n")
-
         if FLAGS.model == "n2v":
             # stopping the gradient for the already trained nodes
             train_ids = tf.constant([[id_map[n]] for n in G.nodes_iter() if not G.node[n]['val'] and not G.node[n]['test']],

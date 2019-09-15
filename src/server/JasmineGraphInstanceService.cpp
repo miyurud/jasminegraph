@@ -128,7 +128,6 @@ void *instanceservicesession(void *dummyPt) {
                 }else{
                     sleep(1);
                     continue;
-
                 }
             }
             bzero(data, 301);
@@ -208,10 +207,12 @@ void *instanceservicesession(void *dummyPt) {
                     utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
 
             int fileSize = atoi(size.c_str());
-            while (utils.fileExists(fullFilePath) && utils.getFileSize(fullFilePath) < fileSize) {
-                bzero(data, 301);
-                read(connFd, data, 300);
-                line = (data);
+            while (true){
+                if (utils.fileExists(fullFilePath)){
+                    while (utils.getFileSize(fullFilePath) < fileSize) {
+                        bzero(data, 301);
+                        read(connFd, data, 300);
+                        line = (data);
 
                         if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
                             write(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT.c_str(),
@@ -729,7 +730,7 @@ void *instanceservicesession(void *dummyPt) {
             std::vector<char *> predict_agrs_vector;
             std::transform(predictargs.begin(), predictargs.end(), std::back_inserter(predict_agrs_vector), converter);
 
-            std::string path = "cd /var/tmp/jasminegraph/GraphSAGE/graphsage/ && ";
+            std::string path = "cd " + utils.getJasmineGraphProperty("org.jasminegraph.graphsage") + " && ";
             std::string command = path + "python predict.py ";
 
             int argc = predictargs.size();
