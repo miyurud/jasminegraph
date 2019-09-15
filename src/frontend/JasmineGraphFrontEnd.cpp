@@ -36,6 +36,10 @@ limitations under the License.
 #include "../trainer/JasminGraphLinkPredictor.h"
 
 
+#include "../trainer/python-c-api/Python_C_API.h"
+#include "../trainer/JasminGraphTrainingInitiator.h"
+#include "../trainer/JasminGraphLinkPredictor.h"
+
 using namespace std;
 
 static int connFd;
