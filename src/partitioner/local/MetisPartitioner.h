@@ -61,8 +61,7 @@ private:
     idx_t edgeCountForMetis = 0;
     idx_t largestVertex = 0;
     idx_t vertexCount = 0;
-    //TODO:Need to remove this hardcoded value
-    int nParts = 4;
+    int nParts = 0;
     string outputFilePath;
     bool zeroflag = false;
     SQLiteDBInterface sqlite;
