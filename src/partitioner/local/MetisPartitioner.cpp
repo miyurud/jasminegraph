@@ -25,6 +25,9 @@ std::mutex dbLock;
 
 MetisPartitioner::MetisPartitioner(SQLiteDBInterface *sqlite) {
     this->sqlite = *sqlite;
+    Utils utils;
+    std::string nWorkers = utils.getJasmineGraphProperty("org.jasminegraph.server.nworkers");
+    nParts = atoi(nWorkers.c_str());
 }
 
 void MetisPartitioner::loadDataSet(string inputFilePath, int graphID) {

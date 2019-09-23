@@ -18,7 +18,7 @@ limitations under the License.
 #include "src/util/Conts.h"
 #include "src/server/JasmineGraphInstance.h"
 #include "src/util/logger/Logger.h"
-#include "src/scheduler/SchedulerService.h"
+#include "src/util/scheduler/SchedulerService.h"
 #include "src/util/Utils.h"
 #include <future>
 
