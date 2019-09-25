@@ -1181,11 +1181,15 @@ std::string JasmineGraphInstanceService::requestPerformanceStatistics(std::strin
     Utils utils;
     int memoryUsage = collector.getVirtualMemoryUsage();
     double cpuUsage = collector.getCpuUsage();
+    std::string vmLevelStatistics = collector.collectVMStatistics(isVMStatManager);
     auto executedTime = std::chrono::system_clock::now();
     std::time_t reportTime = std::chrono::system_clock::to_time_t(executedTime);
     std::string reportTimeString(std::ctime(&reportTime));
     reportTimeString = utils.trim_copy(reportTimeString, " \f\n\r\t\v");
     std::string usageString = reportTimeString+","+to_string(memoryUsage)+","+to_string(cpuUsage);
+    if (!vmLevelStatistics.empty()) {
+        usageString = usageString + "," + vmLevelStatistics;
+    }
     return usageString;
 }
 
@@ -1426,3 +1430,4 @@ JasmineGraphInstanceService::createPartitionFiles(std::string graphID, std::stri
     }
 
 }
+

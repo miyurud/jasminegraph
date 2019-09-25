@@ -86,3 +86,31 @@ double StatisticCollector::getCpuUsage() {
     return percent;
 }
 
+std::string StatisticCollector::collectVMStatistics(std::string isVMStatManager) {
+    std::string vmLevelStatistics;
+
+    if (isVMStatManager == "true") {
+        long totalMemory = getTotalMemory();
+
+        vmLevelStatistics=std::to_string(totalMemory);
+    }
+
+    return vmLevelStatistics;
+}
+
+long StatisticCollector::getTotalMemory() {
+    std::string token;
+    std::ifstream file("/proc/meminfo");
+    while(file >> token) {
+        if(token == "MemTotal:") {
+            unsigned long mem;
+            if(file >> mem) {
+                return mem;
+            } else {
+                return 0;
+            }
+        }
+        file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    }
+}
+

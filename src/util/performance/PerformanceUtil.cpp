@@ -43,15 +43,21 @@ int PerformanceUtil::collectPerformanceStatistics() {
         for (portsIterator = instancePorts.begin(); portsIterator != instancePorts.end(); ++portsIterator) {
             int port = *portsIterator;
 
-            std::string sqlStatement = "select vm_manager from instance_details where host_ip=\"" + host + "\" and port="+to_string(port)+";";
+            std::string sqlStatement = "select vm_manager,total_memory,cores from instance_details where host_ip=\"" + host + "\" and port="+to_string(port)+";";
 
             std::vector<vector<pair<string, string>>> results = perfDb.runSelect(sqlStatement);
 
             vector<pair<string, string>> resultEntry = results.at(0);
 
-            string isReporter = resultEntry.at(0).second;
+            std::string isReporter = resultEntry.at(0).second;
+            std::string totalMemory = resultEntry.at(1).second;
+            std::string totalCores = resultEntry.at(2).second;
 
-            int memoryUsage = requestPerformanceData(host,port,isReporter);
+            if (!totalMemory.empty() && totalMemory != "NULL") {
+                isReporter = "false";
+            }
+
+            requestPerformanceData(host,port,isReporter);
 
         }
 
@@ -135,6 +141,13 @@ int PerformanceUtil::requestPerformanceData(std::string host, int port, std::str
             std::string processTime = strArr[0];
             std::string memoryUsage = strArr[1];
             std::string cpuUsage = strArr[2];
+
+            if (strArr.size() > 3) {
+                std::string totalMemory = strArr[3];
+                string vmUpdateSql = ("update instance_details set total_memory=\""+totalMemory+"\" where host_ip=\""+host+"\" and port=\""+to_string(port)+"\"");
+
+                perfDb.runUpdate(vmUpdateSql);
+            }
 
             string sql = ("insert into performance_data (ip_address, port, date_time, memory_usage, cpu_usage) values (\""+host+ "\",\""+to_string(port)+"\",\""+processTime+"\",\""+memoryUsage+"\",\""+cpuUsage+"\")");
 
