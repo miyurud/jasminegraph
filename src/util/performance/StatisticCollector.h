@@ -24,6 +24,8 @@ limitations under the License.
 #include "string.h"
 #include "sys/times.h"
 #include "sys/vtimes.h"
+#include <limits>
+#include <fstream>
 
 
 class StatisticCollector {
@@ -32,6 +34,8 @@ public:
     static int getVirtualMemoryUsage();
     static int parseLine(char* line);
     static double getCpuUsage();
+    static std::string collectVMStatistics(std::string isVMStatManager);
+    static long getTotalMemory();
 };
 
 
