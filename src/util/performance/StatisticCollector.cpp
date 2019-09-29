@@ -91,8 +91,9 @@ std::string StatisticCollector::collectVMStatistics(std::string isVMStatManager)
 
     if (isVMStatManager == "true") {
         long totalMemory = getTotalMemory();
+        int totalCoresAvailable = getTotalNumberofCores();
 
-        vmLevelStatistics=std::to_string(totalMemory);
+        vmLevelStatistics=std::to_string(totalMemory) + "," + std::to_string(totalCoresAvailable);
     }
 
     return vmLevelStatistics;
@@ -112,5 +113,10 @@ long StatisticCollector::getTotalMemory() {
         }
         file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     }
+}
+
+int StatisticCollector::getTotalNumberofCores() {
+    unsigned concurentThreadsSupported = std::thread::hardware_concurrency();
+    return concurentThreadsSupported;
 }
 
