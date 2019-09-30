@@ -144,7 +144,8 @@ int PerformanceUtil::requestPerformanceData(std::string host, int port, std::str
 
             if (strArr.size() > 3) {
                 std::string totalMemory = strArr[3];
-                string vmUpdateSql = ("update instance_details set total_memory=\""+totalMemory+"\" where host_ip=\""+host+"\" and port=\""+to_string(port)+"\"");
+                std::string totalCores = strArr[4];
+                string vmUpdateSql = ("update instance_details set total_memory=\""+totalMemory+"\", cores=\""+totalCores+"\" where host_ip=\""+host+"\" and port=\""+to_string(port)+"\"");
 
                 perfDb.runUpdate(vmUpdateSql);
             }

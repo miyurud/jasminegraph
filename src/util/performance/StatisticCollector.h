@@ -26,6 +26,7 @@ limitations under the License.
 #include "sys/vtimes.h"
 #include <limits>
 #include <fstream>
+#include <thread>
 
 
 class StatisticCollector {
@@ -36,6 +37,7 @@ public:
     static double getCpuUsage();
     static std::string collectVMStatistics(std::string isVMStatManager);
     static long getTotalMemory();
+    static int getTotalNumberofCores();
 };
 
 
