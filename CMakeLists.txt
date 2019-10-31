@@ -23,7 +23,7 @@ add_executable(JasmineGraph main.cpp src/server/JasmineGraphServer.cpp src/serve
         src/localstore/JasmineGraphLocalStoreFactory.cpp src/localstore/JasmineGraphLocalStoreFactory.h src/query/algorithms/triangles/Triangles.cpp src/query/algorithms/triangles/Triangles.h
         src/centralstore/JasmineGraphHashMapCentralStore.cpp src/centralstore/JasmineGraphHashMapCentralStore.h src/util/scheduler/Scheduler.h src/util/scheduler/InterruptableSleep.h src/util/scheduler/Cron.h src/util/scheduler/ctpl_stl.h src/util/performance/PerformanceUtil.cpp src/util/performance/PerformanceUtil.h src/util/scheduler/SchedulerService.cpp src/util/scheduler/SchedulerService.h src/performancedb/PerformanceSQLiteDBInterface.cpp src/performancedb/PerformanceSQLiteDBInterface.h src/util/performance/StatisticCollector.cpp src/util/performance/StatisticCollector.h
         src/trainer/python-c-api/Python_C_API.cpp src/trainer/python-c-api/Python_C_API.h
-        src/trainer/JasminGraphTrainingInitiator.cpp src/trainer/JasminGraphTrainingInitiator.h src/trainer/JasminGraphLinkPredictor.h src/trainer/JasminGraphLinkPredictor.cpp)
+        src/trainer/JasmineGraphTrainingSchedular.cpp src/trainer/JasmineGraphTrainingSchedular.h src/trainer/JasminGraphTrainingInitiator.cpp src/trainer/JasminGraphTrainingInitiator.h src/trainer/JasminGraphLinkPredictor.h src/trainer/JasminGraphLinkPredictor.cpp)
 
 
 target_compile_options(JasmineGraph PRIVATE -std=c++11 -I/usr/include/python3.5)
