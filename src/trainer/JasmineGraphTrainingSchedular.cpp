@@ -104,21 +104,21 @@ void JasmineGraphTrainingSchedular::sortPartions(std::string graphID) {
 }
 
 float JasmineGraphTrainingSchedular::estimateMemory(int vertexCount) {
-    float featureMetrixSize;
-    float adjacencyMetrixSize;
-    float degreeMetrixSize;
-    float embeddingMetrixSize;
+    float featureMatrixSize;
+    float adjacencyMatrixSize;
+    float degreeMatrixSize;
+    float embeddingMatrixSize;
     int featureCount = 100;
     float networkXgraphsize;
 
-    featureMetrixSize = 4 * 16 * featureCount * (vertexCount + 1);
-    adjacencyMetrixSize = 4 * 16 * 128 * (vertexCount + 1);
-    degreeMetrixSize = 4 * 16 * 1 * (vertexCount + 1);
-    embeddingMetrixSize = 4 * 16 * 256 * (vertexCount + 1);
+    featureMatrixSize = 4 * 16 * featureCount * (vertexCount + 1);
+    adjacencyMatrixSize = 4 * 16 * 128 * (vertexCount + 1);
+    degreeMatrixSize = 4 * 16 * 1 * (vertexCount + 1);
+    embeddingMatrixSize = 4 * 16 * 256 * (vertexCount + 1);
     networkXgraphsize = 60 * (vertexCount);
 
     float totalMemoryApproximation =
-            (featureMetrixSize + adjacencyMetrixSize + degreeMetrixSize + embeddingMetrixSize + networkXgraphsize) /
+            (featureMatrixSize + adjacencyMatrixSize + degreeMatrixSize + embeddingMatrixSize + networkXgraphsize) /
             1024;
 
     return totalMemoryApproximation;
