@@ -13,7 +13,7 @@ add_executable(JasmineGraph main.cpp src/server/JasmineGraphServer.cpp src/serve
         src/frontend/JasmineGraphFrontEndProtocol.h src/frontend/JasmineGraphFrontEndProtocol.cpp
         src/localstore/JasmineGraphHashMapLocalStore.cpp src/localstore/JasmineGraphHashMapLocalStore.h
         src/partitioner/local/MetisPartitioner.cpp src/partitioner/local/MetisPartitioner.h src/partitioner/local/RDFPartitioner.cpp
-            src/partitioner/local/JSONParser.cpp src/partitioner/local/JSONParser.h
+        src/partitioner/local/JSONParser.cpp src/partitioner/local/JSONParser.h
         src/partitioner/local/RDFPartitioner.h src/backend/JasmineGraphBackend.cpp src/backend/JasmineGraphBackend.h
         src/backend/JasmineGraphBackendProtocol.cpp src/backend/JasmineGraphBackendProtocol.h src/util/logger/Logger.h src/util/logger/Logger.cpp
         src/server/JasmineGraphInstanceProtocol.cpp
@@ -39,19 +39,21 @@ endif()
 target_link_libraries(JasmineGraph sqlite3)
 target_link_libraries(JasmineGraph pthread)
 target_link_libraries(JasmineGraph rdkafka)
-target_link_libraries(JasmineGraph cppkafka)
+#target_link_libraries(JasmineGraph cppkafka)
 target_link_libraries(JasmineGraph Threads::Threads)
 
 include_directories("$ENV{HOME}/software/flatbuffers/include")
 include_directories("$ENV{HOME}/software/xerces/include")
 include_directories("$ENV{HOME}/software/spdlog/include")
 include_directories("$ENV{HOME}/software/jsoncpp/include")
+include_directories("$ENV{HOME}/software/cppkafka/include")
 
 target_link_libraries(JasmineGraph /usr/local/lib/libmetis.a)
 target_link_libraries(JasmineGraph $ENV{HOME}/software/xerces-c-3.2.2/lib/libxerces-c.so)
 target_link_libraries(JasmineGraph $ENV{HOME}/software/flatbuffers/libflatbuffers.a)
-target_link_libraries(JasmineGraph /opt/lib/libxerces-c.a)
+include_directories("$ENV{HOME}/software/xerces-c-3.2.2/include")
 target_link_libraries(JasmineGraph $ENV{HOME}/software/jsoncpp/build/debug/src/lib_json/libjsoncpp.a)
+target_link_libraries(JasmineGraph $ENV{HOME}/software/cppkafka/build/usr/local/lib/libcppkafka.so)
 
 set(PYTHON_EXECUTABLE "/usr/bin/python3.5")
 set(PYTHON_INCLUDE_DIR "/usr/include/python3.5m")

@@ -1054,18 +1054,20 @@ void JasmineGraphServer::updateMetaDB(vector<JasmineGraphServer::workers> hostWo
     refToSqlite.init();
     int file_count = 0;
     std::vector<workers, std::allocator<workers>>::iterator mapIterator;
-    for (mapIterator = hostWorkerMap.begin(); mapIterator < hostWorkerMap.end(); mapIterator++) {
-        workers worker = *mapIterator;
-        size_t lastindex = partitionFileList[file_count].find_last_of('.');
-        string rawname = partitionFileList[file_count].substr(0, lastindex);
-        string partitionID = rawname.substr(rawname.find_last_of('_') + 1);
-        string sqlStatement =
-                "INSERT INTO host_has_partition (host_idhost, partition_idpartition, partition_graph_idgraph) "
-                "VALUES('" + hostIDMap.find(worker.hostname)->second + "','" + partitionID + "','" +
-                to_string(graphID) + "')";
+    while (file_count < partitionFileList.size()) {
+        for (mapIterator = hostWorkerMap.begin(); mapIterator < hostWorkerMap.end(); mapIterator++) {
+            workers worker = *mapIterator;
+            size_t lastindex = partitionFileList[file_count].find_last_of('.');
+            string rawname = partitionFileList[file_count].substr(0, lastindex);
+            string partitionID = rawname.substr(rawname.find_last_of('_') + 1);
+            string sqlStatement =
+                    "INSERT INTO host_has_partition (host_idhost, partition_idpartition, partition_graph_idgraph) "
+                    "VALUES('" + hostIDMap.find(worker.hostname)->second + "','" + partitionID + "','" +
+                    to_string(graphID) + "')";
 
-        refToSqlite.runInsertNoIDReturn(sqlStatement);
-        file_count++;
+            refToSqlite.runInsertNoIDReturn(sqlStatement);
+            file_count++;
+        }
     }
     string sqlStatement2 =
             "UPDATE graph SET upload_end_time = '" + uploadEndTime + "' ,graph_status_idgraph_status = '" +

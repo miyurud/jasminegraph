@@ -25,9 +25,10 @@ public:
 
     void initiateTrainingLocally(std::string graphID,std::string trainingArgs);
 
-    static bool initiateTrain(std::string host, int port, int dataPort,std::string trainingArgs);
+    static bool initiateTrain(std::string host, int port, int dataPort,std::string trainingArgs, int iteration, std::string partCount);
 
 };
 
+const int DATA_LENGTH = 300;
 
 #endif //JASMINEGRAPH_JASMINGRAPHTRAININGINITIATOR_H

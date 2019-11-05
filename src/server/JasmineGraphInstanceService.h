@@ -88,6 +88,15 @@ public:
 
     static void createPartitionFiles(std::string graphID, std::string partitionID, std::string fileType);
 
+    static void collectExecutionData(std::string iteration, std::string trainArgs, std::string partCount);
+
+    static void executeTrainingIterations(int maxThreads);
+
+    static void trainPartition(std::string trainData);
+
+    static std::map<int,std::vector<std::string>> iterationData;
+
+    static int partitionCounter;
 };
 
 

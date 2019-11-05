@@ -17,13 +17,15 @@ limitations under the License.
 #include "../util/Utils.h"
 #include "../server/JasmineGraphServer.h"
 #include "../server/JasmineGraphInstanceProtocol.h"
+#include "../trainer/JasmineGraphTrainingSchedular.h"
 
 Logger trainer_log;
 
 void JasminGraphTrainingInitiator::initiateTrainingLocally(std::string graphID, std::string trainingArgs) {
     std::cout << "Initiating training.." << std::endl;
     int count = 0;
-
+    JasmineGraphTrainingSchedular *schedular = new JasmineGraphTrainingSchedular();
+    map<string, map<int, int>> scheduleForAllHosts = schedular->schedulePartitionTraining(graphID);
     JasmineGraphServer *jasmineServer = new JasmineGraphServer();
     std::map<std::string, JasmineGraphServer::workerPartitions> graphPartitionedHosts = jasmineServer->getGraphPartitionedHosts(
             graphID);
@@ -53,10 +55,13 @@ void JasminGraphTrainingInitiator::initiateTrainingLocally(std::string graphID, 
     for (j = graphPartitionedHosts.begin(); j != graphPartitionedHosts.end(); j++) {
         JasmineGraphServer::workerPartitions workerPartition = j->second;
         std::vector<std::string> partitions = workerPartition.partitionID;
+        string partitionCount = to_string(partitions.size());
         std::vector<std::string>::iterator k;
+        map<int, int> scheduleOfHost = scheduleForAllHosts[j->first];
         for (k = partitions.begin(); k != partitions.end(); k++) {
+            int iterationOfPart = scheduleOfHost[stoi(*k)];
             workerThreads[count] = std::thread(initiateTrain, j->first, workerPartition.port, workerPartition.dataPort,
-                                               trainingArgs + " --train_worker " + *k);
+                                               trainingArgs + " --train_worker " + *k, iterationOfPart, partitionCount);
             count++;
             sleep(3);
         }
@@ -75,12 +80,13 @@ void JasminGraphTrainingInitiator::initiateTrainingLocally(std::string graphID, 
 
 }
 
-bool JasminGraphTrainingInitiator::initiateTrain(std::string host, int port, int dataPort, std::string trainingArgs) {
+bool JasminGraphTrainingInitiator::initiateTrain(std::string host, int port, int dataPort, std::string trainingArgs,
+                                                 int iteration, string partCount) {
     Utils utils;
     bool result = true;
     std::cout << pthread_self() << " host : " << host << " port : " << port << " DPort : " << dataPort << std::endl;
     int sockfd;
-    char data[300];
+    char data[DATA_LENGTH];
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
@@ -113,11 +119,11 @@ bool JasminGraphTrainingInitiator::initiateTrain(std::string host, int port, int
         //TODO::exit
     }
 
-    bzero(data, 301);
+    bzero(data, DATA_LENGTH);
     write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
     trainer_log.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
-    bzero(data, 301);
-    read(sockfd, data, 300);
+    bzero(data, DATA_LENGTH);
+    read(sockfd, data, DATA_LENGTH);
     string response = (data);
 
     response = utils.trim_copy(response, " \f\n\r\t\v");
@@ -131,17 +137,35 @@ bool JasminGraphTrainingInitiator::initiateTrain(std::string host, int port, int
         write(sockfd, JasmineGraphInstanceProtocol::INITIATE_TRAIN.c_str(),
               JasmineGraphInstanceProtocol::INITIATE_TRAIN.size());
         trainer_log.log("Sent : " + JasmineGraphInstanceProtocol::INITIATE_TRAIN, "info");
-        bzero(data, 301);
-        read(sockfd, data, 300);
+        bzero(data, DATA_LENGTH);
+        read(sockfd, data, DATA_LENGTH);
         response = (data);
         response = utils.trim_copy(response, " \f\n\r\t\v");
         std::cout << response << std::endl;
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
             trainer_log.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
-            std::cout << trainingArgs << std::endl;
             write(sockfd, (trainingArgs).c_str(), (trainingArgs).size());
             trainer_log.log("Sent : training args " + trainingArgs, "info");
-            return 0;
+            bzero(data, DATA_LENGTH);
+            read(sockfd, data, DATA_LENGTH);
+            response = (data);
+            response = utils.trim_copy(response, " \f\n\r\t\v");
+            if (response.compare(JasmineGraphInstanceProtocol::SEND_PARTITION_ITERATION) == 0) {
+                trainer_log.log("Received : " + JasmineGraphInstanceProtocol::SEND_PARTITION_ITERATION, "info");
+                write(sockfd, to_string(iteration).c_str(), to_string(iteration).size());
+                trainer_log.log("Sent : partition iteration " + to_string(iteration), "info");
+
+                bzero(data, DATA_LENGTH);
+                read(sockfd, data, DATA_LENGTH);
+                response = (data);
+                response = utils.trim_copy(response, " \f\n\r\t\v");
+                if (response.compare(JasmineGraphInstanceProtocol::SEND_PARTITION_COUNT) == 0) {
+                    trainer_log.log("Received : " + JasmineGraphInstanceProtocol::SEND_PARTITION_COUNT, "info");
+                    write(sockfd, partCount.c_str(), partCount.size());
+                    trainer_log.log("Sent : partition count " + partCount, "info");
+                    return 0;
+                }
+            }
         }
     } else {
         trainer_log.log("There was an error in the invoking training process and the response is :: " + response,

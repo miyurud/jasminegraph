@@ -26,16 +26,12 @@ limitations under the License.
 class JasmineGraphTrainingSchedular {
 public:
 
-    void sortPartions(std::string graphID);
+    std::map<std::string,std::map<int,int>> schedulePartitionTraining(std::string graphID);
 
     float estimateMemory(int edgeCount) ;
+    long getAvailableMemory(std::string hostname);
 
-    std::map<std::string,std::vector<int>> getScheduledPartitionList();
-    std::map<std::string,std::vector<int>> getSchduledIteratorList();
-
-private:
-    std::map<std::string,std::vector<int>> partitionSequence;
-    std::map<std::string,std::vector<int>> partitionSequenceIteration;
+    std::map<int,int> packPartitionsToMemory(std::vector<std::pair<int,int>> partitionMemoryList, int capacity);
 
 };
 
