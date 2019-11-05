@@ -23,8 +23,10 @@ limitations under the License.
 using namespace std;
 Logger instance_logger;
 pthread_mutex_t file_lock;
+pthread_mutex_t map_lock;
 StatisticCollector collector;
-
+int JasmineGraphInstanceService::partitionCounter = 0;
+std::map<int,std::vector<std::string>> JasmineGraphInstanceService::iterationData;
 
 char *converter(const std::string &s) {
     char *pc = new char[s.size() + 1];
@@ -591,19 +593,23 @@ void *instanceservicesession(void *dummyPt) {
                 std::cout << "Thread " << threadCount << " joined" << std::endl;
             }
 
-            std::vector<char *> vc;
-            std::transform(trainargs.begin(), trainargs.end(), std::back_inserter(vc), converter);
+            write(connFd, JasmineGraphInstanceProtocol::SEND_PARTITION_ITERATION.c_str(), JasmineGraphInstanceProtocol::SEND_PARTITION_ITERATION.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_PARTITION_ITERATION, "info");
 
-            std::string path = "cd " + utils.getJasmineGraphProperty("org.jasminegraph.graphsage") + " && ";
-            std::string command = path + "python3 -m unsupervised_train ";
+            bzero(data, 301);
+            read(connFd, data, 300);
+            string partIteration(data);
 
-            int argc = trainargs.size();
-            for (int i = 0; i < argc - 2; ++i) {
-                command += trainargs[i + 2];
-                command += " ";
-            }
-            cout << command << endl;
-            system(command.c_str());
+            write(connFd, JasmineGraphInstanceProtocol::SEND_PARTITION_COUNT.c_str(), JasmineGraphInstanceProtocol::SEND_PARTITION_ITERATION.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_PARTITION_COUNT, "info");
+
+            bzero(data, 301);
+            read(connFd, data, 300);
+            string partCount(data);
+
+            instance_logger.log("Received partition iteration - " + partIteration, "info");
+            JasmineGraphInstanceService::collectExecutionData(partIteration, trainData, partCount);
+            instance_logger.log("After calling collector ", "info");
 
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_PREDICT) == 0) {
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::INITIATE_PREDICT, "info");
@@ -1431,3 +1437,82 @@ JasmineGraphInstanceService::createPartitionFiles(std::string graphID, std::stri
 
 }
 
+void JasmineGraphInstanceService::collectExecutionData(string iteration, string trainArgs, string partCount){
+    pthread_mutex_lock(&map_lock);
+    if (iterationData.find(stoi(iteration)) == iterationData.end() ) {
+        vector<string> trainData;
+        trainData.push_back(trainArgs);
+        iterationData[stoi(iteration)] = trainData;
+    }
+    else {
+        vector<string> trainData = iterationData[stoi(iteration)];
+        trainData.push_back(trainArgs);
+        iterationData[stoi(iteration)] = trainData;
+    }
+    partitionCounter++;
+    pthread_mutex_unlock(&map_lock);
+    if (partitionCounter == stoi(partCount)){
+        int maxPartCountInVector = 0;
+        instance_logger.log("Data collection done for all iterations", "info");
+        for (auto bin = iterationData.begin(); bin != iterationData.end(); ++bin) {
+            if (maxPartCountInVector < bin->second.size()){
+                maxPartCountInVector = bin->second.size();
+            }
+        }
+        JasmineGraphInstanceService::executeTrainingIterations(maxPartCountInVector);
+        return;
+    }
+    else{
+        return;
+    }
+}
+
+void JasmineGraphInstanceService::executeTrainingIterations(int maxThreads){
+    int iterCounter = 0;
+    std::thread *threadList = new std::thread[maxThreads];
+    for (auto bin = iterationData.begin(); bin != iterationData.end(); ++bin) {
+        vector<string> partVector = bin->second;
+        int count = 0;
+
+        for (auto trainarg = partVector.begin(); trainarg != partVector.end(); ++trainarg) {
+            string trainData = *trainarg;
+            threadList[count] = std::thread(trainPartition,trainData);
+            count++;
+        }
+        iterCounter++;
+        instance_logger.log("Trainings initiated for iteration " + to_string(iterCounter), "info");
+        for (int threadCount = 0; threadCount < count; threadCount++) {
+            threadList[threadCount].join();
+        }
+        instance_logger.log("Trainings completed for iteration " + to_string(iterCounter), "info");
+    }
+    iterationData.clear();
+    partitionCounter = 0;
+}
+
+void JasmineGraphInstanceService::trainPartition(string trainData){
+    Utils utils;
+    std::vector<std::string> trainargs = Utils::split(trainData, ' ');
+    string graphID;
+    string partitionID = trainargs[trainargs.size() - 1];
+
+    for (int i = 0; i < trainargs.size(); i++) {
+        if (trainargs[i] == "--graph_id") {
+            graphID = trainargs[i + 1];
+            break;
+        }
+    }
+
+    std::vector<char *> vc;
+    std::transform(trainargs.begin(), trainargs.end(), std::back_inserter(vc), converter);
+
+    std::string path = "cd " + utils.getJasmineGraphProperty("org.jasminegraph.graphsage") + " && ";
+    std::string command = path + "python3 -m unsupervised_train ";
+
+    int argc = trainargs.size();
+    for (int i = 0; i < argc - 2; ++i) {
+        command += trainargs[i + 2];
+        command += " ";
+    }
+    system(command.c_str());
+}

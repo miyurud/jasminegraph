@@ -44,6 +44,8 @@ public:
     static const string SEND_FILE_COMPLETE;
     static const string SEND_FILE_NAME;
     static const string SEND_PARTITION_ID;          // This command is used by the Instance service session to ask for partition id.
+    static const string SEND_PARTITION_ITERATION;   // This command is used by the Instance service session to ask the training iteration in which the partition should train.
+    static const string SEND_PARTITION_COUNT;       // This command is used by the Instance service session to ask the total partitions expected to be trained inside a host.
     static const string FILE_RECV_CHK;
     static const string FILE_RECV_WAIT;
     static const string FILE_RECV_ERROR;

@@ -26,8 +26,8 @@ std::mutex dbLock;
 MetisPartitioner::MetisPartitioner(SQLiteDBInterface *sqlite) {
     this->sqlite = *sqlite;
     Utils utils;
-    std::string nWorkers = utils.getJasmineGraphProperty("org.jasminegraph.server.nworkers");
-    nParts = atoi(nWorkers.c_str());
+    std::string partitionCount = utils.getJasmineGraphProperty("org.jasminegraph.server.npartitions");
+    nParts = atoi(partitionCount.c_str());
 }
 
 void MetisPartitioner::loadDataSet(string inputFilePath, int graphID) {
@@ -377,7 +377,6 @@ void MetisPartitioner::createPartitionFiles(std::map<int, int> partMap) {
                 "', central_edgecount_with_dups = '" + std::to_string(masterEdgeCountWithDups) +
                 "' WHERE graph_idgraph = '" + std::to_string(this->graphID) + "' AND idpartition = '" +
                 std::to_string(part) + "'";
-        cout << sqlStatement << endl;
         dbLock.lock();
         this->sqlite.runUpdate(sqlStatement);
         dbLock.unlock();
@@ -391,6 +390,7 @@ void MetisPartitioner::populatePartMaps(std::map<int, int> partMap, int part) {
     std::map<int, std::vector<int>> partEdgesSet;
     std::map<int, std::vector<int>> partMasterEdgesSet;
     std::map<int, std::map<int, std::vector<int>>> commonMasterEdgeSet;
+    unordered_set<int> centralPartVertices;
 
     if (graphType == Conts::GRAPH_TYPE_NORMAL_REFORMATTED) {
 
@@ -418,6 +418,7 @@ void MetisPartitioner::populatePartMaps(std::map<int, int> partMap, int part) {
                         centralGraphVertexVector.push_back(endVertexActual);
                         masterEdgeCounts[part]++;
                         masterEdgeCountsWithDups[part]++;
+                        centralPartVertices.insert(endVertexActual);
                         commonMasterEdgeSet[endVertexPart][startVertexActual].push_back(endVertexActual);
                     }
                 }
@@ -447,6 +448,7 @@ void MetisPartitioner::populatePartMaps(std::map<int, int> partMap, int part) {
                     } else {
                         masterEdgeCounts[part]++;
                         masterEdgeCountsWithDups[part]++;
+                        centralPartVertices.insert(endVertex);
                         /*This edge's two vertices belong to two different parts.
                         * Therefore the edge is added to both partMasterEdgeSets
                         * This adds the edge to the masterGraphStorageMap with key being the part of vertex 1
@@ -473,12 +475,17 @@ void MetisPartitioner::populatePartMaps(std::map<int, int> partMap, int part) {
     commonCentralStoreEdgeMap[part] = commonMasterEdgeSet;
 
     string sqlStatement =
-            "INSERT INTO partition (idpartition,graph_idgraph,vertexcount,edgecount) VALUES(\"" +
+            "INSERT INTO partition (idpartition,graph_idgraph,vertexcount,central_vertexcount,edgecount) VALUES(\"" +
             std::to_string(part) + "\", \"" + std::to_string(this->graphID) +
-            "\", \"" + std::to_string(partVertexCounts[part]) + "\",\"" + std::to_string(partitionEdgeCount) + "\")";
+            "\", \"" + std::to_string(partVertexCounts[part]) + "\",\"" + std::to_string(centralPartVertices.size()) + "\",\""
+            + std::to_string(partitionEdgeCount) + "\")";
     dbLock.lock();
     this->sqlite.runUpdate(sqlStatement);
     dbLock.unlock();
+    centralPartVertices.clear();
+    commonMasterEdgeSet.clear();
+    partMasterEdgesSet.clear();
+    partEdgesSet.clear();
 }
 
 void MetisPartitioner::writeSerializedPartitionFiles(int part) {
