@@ -29,5 +29,6 @@ public:
 
 };
 
+const int DATA_LENGTH = 300;
 
 #endif //JASMINEGRAPH_JASMINGRAPHTRAININGINITIATOR_H

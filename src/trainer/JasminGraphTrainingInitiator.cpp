@@ -86,7 +86,7 @@ bool JasminGraphTrainingInitiator::initiateTrain(std::string host, int port, int
     bool result = true;
     std::cout << pthread_self() << " host : " << host << " port : " << port << " DPort : " << dataPort << std::endl;
     int sockfd;
-    char data[300];
+    char data[DATA_LENGTH];
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
@@ -119,11 +119,11 @@ bool JasminGraphTrainingInitiator::initiateTrain(std::string host, int port, int
         //TODO::exit
     }
 
-    bzero(data, 301);
+    bzero(data, DATA_LENGTH);
     write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
     trainer_log.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
-    bzero(data, 301);
-    read(sockfd, data, 300);
+    bzero(data, DATA_LENGTH);
+    read(sockfd, data, DATA_LENGTH);
     string response = (data);
 
     response = utils.trim_copy(response, " \f\n\r\t\v");
@@ -137,8 +137,8 @@ bool JasminGraphTrainingInitiator::initiateTrain(std::string host, int port, int
         write(sockfd, JasmineGraphInstanceProtocol::INITIATE_TRAIN.c_str(),
               JasmineGraphInstanceProtocol::INITIATE_TRAIN.size());
         trainer_log.log("Sent : " + JasmineGraphInstanceProtocol::INITIATE_TRAIN, "info");
-        bzero(data, 301);
-        read(sockfd, data, 300);
+        bzero(data, DATA_LENGTH);
+        read(sockfd, data, DATA_LENGTH);
         response = (data);
         response = utils.trim_copy(response, " \f\n\r\t\v");
         std::cout << response << std::endl;
@@ -146,8 +146,8 @@ bool JasminGraphTrainingInitiator::initiateTrain(std::string host, int port, int
             trainer_log.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
             write(sockfd, (trainingArgs).c_str(), (trainingArgs).size());
             trainer_log.log("Sent : training args " + trainingArgs, "info");
-            bzero(data, 301);
-            read(sockfd, data, 300);
+            bzero(data, DATA_LENGTH);
+            read(sockfd, data, DATA_LENGTH);
             response = (data);
             response = utils.trim_copy(response, " \f\n\r\t\v");
             if (response.compare(JasmineGraphInstanceProtocol::SEND_PARTITION_ITERATION) == 0) {
@@ -155,8 +155,8 @@ bool JasminGraphTrainingInitiator::initiateTrain(std::string host, int port, int
                 write(sockfd, to_string(iteration).c_str(), to_string(iteration).size());
                 trainer_log.log("Sent : partition iteration " + to_string(iteration), "info");
 
-                bzero(data, 301);
-                read(sockfd, data, 300);
+                bzero(data, DATA_LENGTH);
+                read(sockfd, data, DATA_LENGTH);
                 response = (data);
                 response = utils.trim_copy(response, " \f\n\r\t\v");
                 if (response.compare(JasmineGraphInstanceProtocol::SEND_PARTITION_COUNT) == 0) {

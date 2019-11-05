@@ -18,7 +18,6 @@ limitations under the License.
 #include "../util/Conts.h"
 #include "../frontend/JasmineGraphFrontEnd.h"
 #include "../performancedb/PerformanceSQLiteDBInterface.h"
-#include <bits/stdc++.h>
 #include "../util/logger/Logger.h"
 
 using namespace std;
@@ -125,7 +124,6 @@ long JasmineGraphTrainingSchedular::getAvailableMemory(string hostname) {
     string perfSqlStatement = "SELECT memory_usage FROM performance_data where ip_address = '" + hostname +
                               "' ORDER BY date_time DESC LIMIT 1";
     vector<vector<pair<string, string>>> result = refToPerfDb.runSelect(perfSqlStatement);
-    cout << result.size() << endl;
     if (result.size() == 0) {
         return 0;
     }
