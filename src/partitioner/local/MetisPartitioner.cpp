@@ -841,7 +841,7 @@ string MetisPartitioner::reformatDataSet(string inputFilePath, int graphID) {
 }
 
 
-void MetisPartitioner::loadContentData(string inputAttributeFilePath, string graphAttributeType) {
+void MetisPartitioner::loadContentData(string inputAttributeFilePath, string graphAttributeType, int graphID) {
     this->graphAttributeType = graphAttributeType;
 
     if (graphAttributeType == Conts::GRAPH_WITH_TEXT_ATTRIBUTES) {
@@ -875,6 +875,26 @@ void MetisPartitioner::loadContentData(string inputAttributeFilePath, string gra
             std::getline(dbFile, line);
             while (!line.empty() && line.find_first_not_of(splitter) == std::string::npos) {
                 std::getline(dbFile, line);
+            }
+        }
+        std::ifstream file;
+        file.open(inputAttributeFilePath, std::ios::binary | std::ios::in);
+        string str_line;
+
+        std::getline(file, str_line);
+        int count =0;
+        while (!str_line.empty()) {
+            count+=1;
+            std::istringstream ss(str_line);
+            std::istream_iterator<std::string> begin(ss), end;
+            std::vector<std::string> arrayFeatures(begin, end);
+            string sqlStatement = "UPDATE graph SET feature_count = '" + std::to_string(arrayFeatures.size()-1) + "' WHERE idgraph = '" + std::to_string(graphID)+ "'";
+            cout << sqlStatement << endl;
+            dbLock.lock();
+            this->sqlite.runUpdate(sqlStatement);
+            dbLock.unlock();
+            if (count==1){
+                break;
             }
         }
     }

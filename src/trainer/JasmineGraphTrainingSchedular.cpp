@@ -80,7 +80,7 @@ map<string, std::map<int, int>> JasmineGraphTrainingSchedular::schedulePartition
         long availableMemory = getAvailableMemory(j->second);
         vector<pair<int, int>> memoryEstimationForEachPartition;
         for (auto i = vertexCountToPartitionId.begin(); i != vertexCountToPartitionId.end(); ++i) {
-            long memoryForPartition = estimateMemory(i->first);
+            long memoryForPartition = estimateMemory(i->first, graphID);
             trainScheduler_logger.log(
                     "Estimated memory for partition :" + to_string(i->second) + " is " + to_string(memoryForPartition),
                     "info");
@@ -96,25 +96,44 @@ map<string, std::map<int, int>> JasmineGraphTrainingSchedular::schedulePartition
     return scheduleForEachHost;
 }
 
-float JasmineGraphTrainingSchedular::estimateMemory(int vertexCount) {
-    float featureMatrixSize;
-    float adjacencyMatrixSize;
-    float degreeMatrixSize;
-    float embeddingMatrixSize;
-    int featureCount = 100;
-    float networkXgraphsize;
+long JasmineGraphTrainingSchedular::estimateMemory(int vertexCount, string graph_id) {
+    SQLiteDBInterface refToSqlite = *new SQLiteDBInterface();
+    refToSqlite.init();
 
-    featureMatrixSize = 4 * 16 * featureCount * (vertexCount + 1);
+    string sqlStatement =
+            "SELECT feature_count FROM graph WHERE idgraph = " + graph_id;
+    std::vector<vector<pair<string, string>>> result = refToSqlite.runSelect(sqlStatement);
+
+    cout << sqlStatement << endl;
+    int feature_Count;
+
+    for (std::vector<vector<pair<string, string>>>::iterator i = result.begin(); i != result.end(); ++i) {
+        std::vector<pair<string, string>> rowData = *i;
+
+        string featureCount = rowData.at(0).second;
+
+        feature_Count = stoi(featureCount);
+    }
+
+
+    long featureMatrixSize;
+    long adjacencyMatrixSize;
+    long degreeMatrixSize;
+    long embeddingMatrixSize;
+    long networkXgraphsize;
+
+    featureMatrixSize = 4 * 16 * feature_Count * (vertexCount + 1);
     adjacencyMatrixSize = 4 * 16 * 128 * (vertexCount + 1);
     degreeMatrixSize = 4 * 16 * 1 * (vertexCount + 1);
     embeddingMatrixSize = 4 * 16 * 256 * (vertexCount + 1);
     networkXgraphsize = 60 * (vertexCount);
 
-    float totalMemoryApproximation =
+    long totalMemoryApproximation =
             (featureMatrixSize + adjacencyMatrixSize + degreeMatrixSize + embeddingMatrixSize + networkXgraphsize) /
             1024;
 
     return totalMemoryApproximation;
+
 
 }
 
