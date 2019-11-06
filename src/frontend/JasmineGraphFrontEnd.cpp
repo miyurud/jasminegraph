@@ -302,7 +302,7 @@ void *frontendservicesesion(void *dummyPt) {
                 JasmineGraphServer *jasmineServer = new JasmineGraphServer();
                 MetisPartitioner *partitioner = new MetisPartitioner(&sessionargs->sqlite);
                 vector<std::map<int, string>> fullFileList;
-                partitioner->loadContentData(attributeListPath, graphAttributeType,newGraphID);
+                partitioner->loadContentData(attributeListPath, graphAttributeType, newGraphID);
                 partitioner->loadDataSet(edgeListPath, newGraphID);
                 int result = partitioner->constructMetisFormat(Conts::GRAPH_TYPE_NORMAL);
                 if (result == 0) {
