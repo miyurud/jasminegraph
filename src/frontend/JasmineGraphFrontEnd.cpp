@@ -34,6 +34,9 @@ limitations under the License.
 #include "../trainer/python-c-api/Python_C_API.h"
 #include "../trainer/JasminGraphTrainingInitiator.h"
 #include "../trainer/JasminGraphLinkPredictor.h"
+#include "../trainer/JasmineGraphTrainingSchedular.h"
+
+
 
 
 #include "../trainer/python-c-api/Python_C_API.h"
@@ -299,7 +302,7 @@ void *frontendservicesesion(void *dummyPt) {
                 JasmineGraphServer *jasmineServer = new JasmineGraphServer();
                 MetisPartitioner *partitioner = new MetisPartitioner(&sessionargs->sqlite);
                 vector<std::map<int, string>> fullFileList;
-                partitioner->loadContentData(attributeListPath, graphAttributeType);
+                partitioner->loadContentData(attributeListPath, graphAttributeType, newGraphID);
                 partitioner->loadDataSet(edgeListPath, newGraphID);
                 int result = partitioner->constructMetisFormat(Conts::GRAPH_TYPE_NORMAL);
                 if (result == 0) {

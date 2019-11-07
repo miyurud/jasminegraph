@@ -28,8 +28,8 @@ public:
 
     std::map<std::string,std::map<int,int>> schedulePartitionTraining(std::string graphID);
 
-    float estimateMemory(int edgeCount) ;
     long getAvailableMemory(std::string hostname);
+    long estimateMemory(int edgeCount,std::string graph_id) ;
 
     std::map<int,int> packPartitionsToMemory(std::vector<std::pair<int,int>> partitionMemoryList, int capacity);
 

@@ -327,7 +327,7 @@ throw(std::runtime_error) {
                 }
 
                 if (attributes->size() > 0) {
-                    articlesMap.insert({articleID, attributes});
+                    //articlesMap.insert({articleID, attributes});
 
                 }
                 for (int i = 0; i < authorsInArticle.size(); i++) {
