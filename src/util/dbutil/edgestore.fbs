@@ -3,7 +3,7 @@
 //          cd flatbuffers/
 //          ./flatc --cpp edgestore.fbs
 
-namespace JasminGraph.Edgestore;
+namespace JasmineGraph.Edgestore;
 
 table EdgeStore {
     entries:[EdgeStoreEntry];
