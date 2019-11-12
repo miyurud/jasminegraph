@@ -25,6 +25,7 @@ RUN make install
 WORKDIR /home/ubuntu/software
 RUN git clone https://github.com/gabime/spdlog.git
 RUN apt-get install -y sqlite3
+RUN apt-get install -y libsqlite3-dev
 RUN apt install -y librdkafka-dev
 RUN apt-get update
 RUN apt-get install -y libboost-all-dev
