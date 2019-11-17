@@ -80,5 +80,6 @@ RUN ./flatc --cpp -o /home/ubuntu/software/jasminegraph/src/util/dbutil /home/ub
 RUN ./flatc --cpp -o /home/ubuntu/software/jasminegraph/src/util/dbutil /home/ubuntu/software/jasminegraph/src/util/dbutil/attributestore.fbs
 RUN ./flatc --cpp -o /home/ubuntu/software/jasminegraph/src/util/dbutil /home/ubuntu/software/jasminegraph/src/util/dbutil/partedgemapstore.fbs
 WORKDIR /home/ubuntu/software/jasminegraph
+ENV JASMINEGRAPH_HOME="/home/ubuntu/software/jasminegraph"
 RUN sh build.sh
 CMD ["bash"]
