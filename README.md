@@ -45,7 +45,7 @@ The following build tools, applications, and libraries need to be installed befo
 First, this repository should be cloned into one of your computer's local directory. Then change directory to jasminegraph and run ./build.sh to build the JasmineGraph executable.
 
 ## 3. Running JasmineGraph
-Jasminegraph can be run by executing the run.sh script. This will start master on your local computer while workers are created in the list of the hosts mentioned in the conf/hosts.txt file.
+JasmineGraph can be run by executing the run.sh script. This will start master on your local computer while workers are created in the list of the hosts mentioned in the conf/hosts.txt file.
 
 ## 4. Contact Information
 
@@ -53,8 +53,8 @@ Please contact [Miyuru Dayarathna](miyurud at yahoo dot co dot uk) for further i
 
 ## Open Source License
 JasmineGraph is licensed under the [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0).
-Task Scheduler which is integrated in Jasminegraph is using MIT License.
-[GraphSAGE](https://github.com/williamleif/GraphSAGE/)  which is integrated in Jasminegraph to generate node embeddings is using MIT License.
+Task Scheduler which is integrated in JasmineGraph is using [MIT](https://opensource.org/licenses/MIT) License.
+[GraphSAGE](https://github.com/williamleif/GraphSAGE/)  which is integrated in JasmineGraph to generate node embeddings is using MIT License.
 
 ## References
 More details of JasmineGraph/Acacia architecture is available from the following list of papers.
