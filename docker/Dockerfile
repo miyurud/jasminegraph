@@ -68,6 +68,9 @@ RUN apt-get install -y libtool
 RUN git clone https://github.com/miyurud/jasminegraph.git
 ENV HOME="/home/ubuntu"
 WORKDIR /home/ubuntu/software/jasminegraph
+RUN apt-get update
+RUN apt-get install -y python-pip
+RUN pip install -r ./GraphSAGE/requirements
 RUN sed -i '/target_link_libraries(JasmineGraph \/usr\/local\/lib\/libmetis.so)/c\target_link_libraries(JasmineGraph \/usr\/local\/lib\/libmetis.so)' CMakeLists.txt
 RUN sed -i '/target_link_libraries(JasmineGraph \/usr\/local\/lib\/libxerces-c-3.2.so)/c\target_link_libraries(JasmineGraph \/usr\/local\/lib\/libxerces-c-3.2.so)' CMakeLists.txt
 RUN sed -i '/target_link_libraries(JasmineGraph \/usr\/local\/lib\/libmetis.a)/c\#target_link_libraries(JasmineGraph \/usr\/local\/lib\/libmetis.a)' CMakeLists.txt
