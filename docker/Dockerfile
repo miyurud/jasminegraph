@@ -85,4 +85,5 @@ RUN ./flatc --cpp -o /home/ubuntu/software/jasminegraph/src/util/dbutil /home/ub
 WORKDIR /home/ubuntu/software/jasminegraph
 ENV JASMINEGRAPH_HOME="/home/ubuntu/software/jasminegraph"
 RUN sh build.sh
+ENTRYPOINT ["/home/ubuntu/software/jasminegraph/run.sh"]
 CMD ["bash"]
