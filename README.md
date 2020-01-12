@@ -4,15 +4,18 @@
 JasmineGraph is a C/C++ based distributed graph database server. It has been developed following the [Acacia](https://github.com/miyurud/Acacia) graph database server architecture. JasmineGraph can be run on single computer as well as on a compute cluster.
 
 ## 2. Building JasmineGraph on Single Computer
-Prerequisites
-The following build tools, applications, and libraries need to be installed before building JasmineGraph.
-- GCC 5.4.0 or above
+**Prerequisites**
+
+The following build tools, applications, and libraries need to be installed before building JasmineGraph. The CMakeLists.txt file's entries need to be updated to match with the installation locations of the dependencies.
+
+- GCC 9.1.0 (recommended) or above
 - Cmake version 3.10.3 or above
 - Google Flat Buffers (https://github.com/google/flatbuffers)
     - Clone the flatbuffers repository to $ENV{HOME}/software
     - Checkout Tag v1.10.0
     - Follow https://google.github.io/flatbuffers/flatbuffers_guide_building.html link to build flatbuffers
 - Metis (http://glaros.dtc.umn.edu/gkhome/metis/metis/download)
+    - Follow the installation guidelines provided in this [URL](http://glaros.dtc.umn.edu/gkhome/metis/metis/download).
 - SdpLog (https://github.com/gabime/spdlog)
     - Clone or download the repository from the above link
     - Once downloaded specify the include directory in CMakeList.txt.
