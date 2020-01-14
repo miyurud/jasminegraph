@@ -19,7 +19,7 @@ The following build tools, applications, and libraries need to be installed befo
 - SpdLog (https://github.com/gabime/spdlog)
     - Clone or download the repository from the above link
     - Issue "cmake ."
-    - Issue "make" followed by "make install"
+    - Issue "make" followed by "sudo make install"
 - SQLite3 (https://www.sqlite.org/download.html)
 - cppkafka (https://github.com/mfontanini/cppkafka)
     - Install librdkafka - Follow the Readme in (https://github.com/edenhill/librdkafka)
@@ -31,6 +31,8 @@ The following build tools, applications, and libraries need to be installed befo
     - Once installed specify the target_link_libraries path to xerces.
 - Jsoncpp(https://github.com/open-source-parsers/jsoncpp)
     - Install the release https://github.com/open-source-parsers/jsoncpp/releases/tag/1.8.4
+    - Issue "cmake ."
+    - Issue "make" followed by "sudo make install"
 - pigz (optional)
     - pigz, which stands for Parallel Implementation of GZip, is a fully functional
       replacement for gzip that exploits multiple processors and multiple cores to
@@ -41,6 +43,7 @@ The following build tools, applications, and libraries need to be installed befo
     - Type "make" in pigz directory to build the "pigz" executable. 
     - Add pigz executable's path to ~/.bashrc file and refresh.
 - python3.5 (https://www.python.org/downloads/release/python-350/)
+    - Read this [blog](https://passingcuriosity.com/2015/installing-python-from-source/) for more details on setting up python3.5
 - Recent versions of TensorFlow, numpy, scipy, sklearn, and networkx are required (but networkx must be <=1.11). You can install all the required packages using the following command:
 
    pip install -r ./GraphSAGE/requirements
