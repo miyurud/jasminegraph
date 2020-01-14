@@ -6,7 +6,7 @@ JasmineGraph is a C/C++ based distributed graph database server. It has been dev
 ## 2. Building JasmineGraph on Single Computer
 **Prerequisites**
 
-The following build tools, applications, and libraries need to be installed before building JasmineGraph. The CMakeLists.txt file's entries need to be updated to match with the installation locations of the dependencies.
+The following build tools, applications, and libraries need to be installed before building JasmineGraph. The CMakeLists.txt file's entries need to be updated to match with the installation locations of the dependencies. For examole, if you install SpdLog in a directory called "software" in your Linux system you may have to add a line as "include_directories("$ENV{HOME}/software/spdlog/include")" to get the SpdLog's header files associated with you build process.
 
 - GCC 9.1.0 (recommended) or above
 - Cmake version 3.10.3 or above
@@ -16,10 +16,10 @@ The following build tools, applications, and libraries need to be installed befo
     - Follow https://google.github.io/flatbuffers/flatbuffers_guide_building.html link to build flatbuffers
 - Metis (http://glaros.dtc.umn.edu/gkhome/metis/metis/download)
     - Follow the installation guidelines provided in this [URL](http://glaros.dtc.umn.edu/gkhome/metis/metis/download).
-- SdpLog (https://github.com/gabime/spdlog)
+- SpdLog (https://github.com/gabime/spdlog)
     - Clone or download the repository from the above link
-    - Once downloaded specify the include directory in CMakeList.txt.
-    - Ex : "include_directories("$ENV{HOME}/software/spdlog/include")"
+    - Issue "cmake ."
+    - Issue "make" followed by "make install"
 - SQLite3 (https://www.sqlite.org/download.html)
 - cppkafka (https://github.com/mfontanini/cppkafka)
     - Install librdkafka - Follow the Readme in (https://github.com/edenhill/librdkafka)
