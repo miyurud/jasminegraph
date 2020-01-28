@@ -49,6 +49,8 @@ void deleteGraphPartition(std::string graphID, std::string partitionID);
 long countLocalTriangles(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores, std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores);
 
 struct instanceservicesessionargs {
+    string profile;
+    string masterHost;
     string host;
     int connFd;
     int port;
@@ -61,7 +63,7 @@ class JasmineGraphInstanceService {
 public:
     JasmineGraphInstanceService();
 
-    int run(string hostName, int serverPort, int serverDataPort);
+    int run(string profile, string masterHost, string hostName, int serverPort, int serverDataPort);
 
     static bool isGraphDBExists(std::string graphId, std::string partitionId);
     static bool isInstanceCentralStoreExists(std::string graphId, std::string partitionId);

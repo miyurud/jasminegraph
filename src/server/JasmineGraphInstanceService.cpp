@@ -41,6 +41,8 @@ void *instanceservicesession(void *dummyPt) {
     std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores = sessionargs->graphDBMapCentralStores;
 
     string serverName = sessionargs->host;
+    string masterHost = sessionargs->masterHost;
+    string profile = sessionargs->profile;
     int serverPort = sessionargs->port;
     int serverDataPort = sessionargs->dataPort;
 
@@ -874,7 +876,7 @@ JasmineGraphInstanceService::JasmineGraphInstanceService() {
 
 }
 
-int JasmineGraphInstanceService::run(string host,int serverPort, int serverDataPort) {
+int JasmineGraphInstanceService::run(string profile, string masterHost, string host,int serverPort, int serverDataPort) {
     int listenFd;
     socklen_t len;
     struct sockaddr_in svrAdd;
@@ -930,6 +932,8 @@ int JasmineGraphInstanceService::run(string host,int serverPort, int serverDataP
             instanceservicesessionargs1.connFd = connFd;
             instanceservicesessionargs1.graphDBMapLocalStores = graphDBMapLocalStores;
             instanceservicesessionargs1.graphDBMapCentralStores = graphDBMapCentralStores;
+            instanceservicesessionargs1.profile = profile;
+            instanceservicesessionargs1.masterHost = masterHost;
             instanceservicesessionargs1.port = serverPort;
             instanceservicesessionargs1.dataPort = serverDataPort;
             instanceservicesessionargs1.host = host;

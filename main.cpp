@@ -59,7 +59,7 @@ int main(int argc, char *argv[]) {
         std::string workerIps = argv[5];
         server = new JasmineGraphServer();
         thread schedulerThread(SchedulerService::startScheduler);
-        server->run();
+        server->run(profile,masterIp,numberOfWorkers, workerIps);
 
         while (server->isRunning()) {
             usleep(microseconds);
@@ -74,20 +74,30 @@ int main(int argc, char *argv[]) {
         main_logger.log((argv[2]),"info");
         main_logger.log((argv[3]),"info");
         main_logger.log((argv[4]),"info");
-        if (argc < 5) {
-//            std::cout << "Need three arguments. Use 2 <serverPort> <serverDataPort> to "
-//                      << "start as worker ." << std::endl;
-        main_logger.log("Need Four arguments. Use 2 <hostName> <serverPort> <serverDataPort> to start as worker","info");
-            return -1;
+        main_logger.log((argv[5]),"info");
+        main_logger.log((argv[6]),"info");
+
+        if (profile == "docker") {
+            if (argc < 5) {
+                main_logger.log("Need Four arguments. Use 2 <hostName> <serverPort> <serverDataPort> to start as worker","info");
+                return -1;
+            }
+        } else if (profile == "native") {
+            if (argc < 5) {
+                main_logger.log("Need Four arguments. Use 2 <hostName> <serverPort> <serverDataPort> to start as worker","info");
+                return -1;
+            }
         }
+
         string hostName;
-        hostName = argv[2];
-        int serverPort = atoi(argv[3]);
-        int serverDataPort = atoi(argv[4]);
+        hostName = argv[3];
+        std::string masterHost = argv[4];
+        int serverPort = atoi(argv[5]);
+        int serverDataPort = atoi(argv[6]);
 
         std::cout << "In worker mode" << std::endl;
         instance = new JasmineGraphInstance();
-        instance->start_running(hostName, serverPort,serverDataPort);
+        instance->start_running(profile, hostName, masterHost, serverPort,serverDataPort);
 
         while (instance->isRunning()) {
             usleep(microseconds);

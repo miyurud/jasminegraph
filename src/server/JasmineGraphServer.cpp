@@ -49,11 +49,15 @@ JasmineGraphServer::~JasmineGraphServer() {
     sqlite.finalize();
 }
 
-int JasmineGraphServer::run() {
+int JasmineGraphServer::run(std::string profile, std::string masterIp, int numberofWorkers, std::string workerIps) {
     server_logger.log("Running the server...", "info");
 
     this->sqlite = *new SQLiteDBInterface();
     this->sqlite.init();
+    this->masterHost = masterIp;
+    this->profile = profile;
+    this->numberOfWorkers = numberofWorkers;
+    this->workerHosts = workerIps;
     init();
     addHostsToMetaDB();
     updateOperationalGraphList();
@@ -79,8 +83,16 @@ void JasmineGraphServer::start_workers() {
     Utils utils;
     int hostListModeNWorkers = 0;
     int numberOfWorkersPerHost;
-    std::vector<std::string> hostsList = utils.getHostList();
-    std::string nWorkers = utils.getJasmineGraphProperty("org.jasminegraph.server.nworkers");
+    std::vector<std::string> hostsList;
+    std::string nWorkers;
+    if (profile == "native") {
+        hostsList = utils.getHostList();
+        nWorkers = utils.getJasmineGraphProperty("org.jasminegraph.server.nworkers");
+    } else if (profile == "docker") {
+        hostsList = getWorkerVector(workerHosts);
+        nWorkers = numberOfWorkers;
+    }
+
     int workerPort = Conts::JASMINEGRAPH_INSTANCE_PORT;
     int workerDataPort = Conts::JASMINEGRAPH_INSTANCE_DATA_PORT;
     if (utils.is_number(nWorkers)) {
@@ -139,7 +151,7 @@ void JasmineGraphServer::start_workers() {
     server_logger.log("Starting threads for workers", "info");
     for (hostListIterator = hostsList.begin(); hostListIterator < hostsList.end(); hostListIterator++) {
         std::string host = *hostListIterator;
-        myThreads[count] = std::thread(startRemoteWorkers, workerPortsMap[host], workerDataPortsMap[host], host);
+        myThreads[count] = std::thread(startRemoteWorkers,workerPortsMap[host],workerDataPortsMap[host], host, profile, masterHost);
 //        myThreads[count].detach();
 //        std::cout<<"############JOINED###########"<< std::endl;
         count++;
@@ -154,7 +166,7 @@ void JasmineGraphServer::start_workers() {
 
 
 void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector,
-                                            std::vector<int> workerDataPortsVector, string host) {
+                                                    std::vector<int> workerDataPortsVector,string host, string profile, string masterHost) {
     Utils utils;
     std::string executableFile;
     std::string workerPath = utils.getJasmineGraphProperty("org.jasminegraph.worker.path");
@@ -173,19 +185,33 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector,
         artifactPath = utils.getJasmineGraphHome();
     }
 
-    copyArtifactsToWorkers(workerPath, artifactPath, host);
-    for (int i = 0; i < workerPortsVector.size(); i++) {
-        if (host.find("localhost") != std::string::npos) {
-            serverStartScript = executableFile + " 2 " + host + " " + std::to_string(workerPortsVector.at(i)) + " " +
-                                std::to_string(workerDataPortsVector.at(i));
-        } else {
-            serverStartScript =
-                    "ssh -p 22 " + host + " " + executableFile + " 2 " + host + " " +
-                    std::to_string(workerPortsVector.at(i)) +
-                    " " + std::to_string(workerDataPortsVector.at(i));
+    if (profile == "native") {
+        copyArtifactsToWorkers(workerPath,artifactPath,host);
+        for (int i =0 ; i < workerPortsVector.size() ; i++) {
+            if (host.find("localhost") != std::string::npos) {
+                serverStartScript = executableFile+" 2 "+ host +" " + std::to_string(workerPortsVector.at(i)) + " " + std::to_string(workerDataPortsVector.at(i));
+            } else {
+                serverStartScript =
+                        "ssh -p 22 " + host + " " + executableFile + " 2 "+host+" " + std::to_string(workerPortsVector.at(i)) +
+                        " " + std::to_string(workerDataPortsVector.at(i));
+            }
+            popen(serverStartScript.c_str(),"r");
         }
-        popen(serverStartScript.c_str(), "r");
+    } else if (profile == "docker") {
+        for (int i =0 ; i < workerPortsVector.size() ; i++) {
+            if (host.find("localhost") != std::string::npos) {
+                serverStartScript = executableFile+" 2 "+ host +" " + std::to_string(workerPortsVector.at(i)) + " " + std::to_string(workerDataPortsVector.at(i));
+            } else {
+                serverStartScript =
+                        "ssh -p 22 " + host + " " + executableFile + " 2 "+host+" " + std::to_string(workerPortsVector.at(i)) +
+                        " " + std::to_string(workerDataPortsVector.at(i));
+            }
+            serverStartScript = "docker -H ssh://root@" + host + " run jasmine_graph:latest 2 " + profile + " " + host + " " + masterHost + " " + std::to_string(workerPortsVector.at(i)) + " " + std::to_string(workerDataPortsVector.at(i));
+            popen(serverStartScript.c_str(),"r");
+        }
     }
+
+
 }
 
 int JasmineGraphServer::shutdown_workers() {
@@ -1334,4 +1360,10 @@ bool JasmineGraphServer::hasEnding(std::string const &fullString, std::string co
     } else {
         return false;
     }
+}
+
+std::vector<std::string> JasmineGraphServer::getWorkerVector(std::string workerList) {
+    Utils utils;
+    std::vector<std::string> workerVector = utils.split(workerList,',');
+    return workerVector;
 }

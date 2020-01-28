@@ -28,13 +28,16 @@ using std::map;
 class JasmineGraphServer {
 private:
     map<std::string, long> hostPlaceMap;
+    std::string profile;
+    std::string masterHost;
+    std::string workerHosts;
     int numberOfWorkers;
     int serverPort;
     int serverDataPort;
     std::map<std::string, std::vector<int>> workerPortsMap;
     std::map<std::string, std::vector<int>> workerDataPortsMap;
 
-    static void startRemoteWorkers(std::vector<int> workerPortsVector, std::vector<int> workerDataPortsVector, std::string host);
+    static void startRemoteWorkers(std::vector<int> workerPortsVector, std::vector<int> workerDataPortsVector, std::string host, string profile, string masterHost);
 
     void addHostsToMetaDB();
 
@@ -46,6 +49,7 @@ private:
     static void createWorkerPath (std::string workerHost, std::string workerPath);
 
     static bool hasEnding(std::string const &fullString, std::string const &ending);
+    std::vector<std::string> getWorkerVector(std::string workerList);
 public:
     ~JasmineGraphServer();
 
@@ -57,7 +61,7 @@ public:
 
     int shutdown_workers();
 
-    int run();
+    int run(std::string profile, std::string masterIp, int numberofWorkers, std::string workerIps);
 
     bool isRunning();
 

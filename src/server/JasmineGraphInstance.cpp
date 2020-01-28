@@ -18,7 +18,7 @@ limitations under the License.
 void *runInstanceService(void *dummyPt) {
     JasmineGraphInstance *refToInstance = (JasmineGraphInstance *) dummyPt;
     refToInstance->instanceService = new JasmineGraphInstanceService();
-    refToInstance->instanceService->run(refToInstance->hostName, refToInstance->serverPort,
+    refToInstance->instanceService->run(refToInstance->profile, refToInstance->masterHostName, refToInstance->hostName, refToInstance->serverPort,
                                         refToInstance->serverDataPort);
 }
 
@@ -28,11 +28,13 @@ void *runFileTransferService(void *dummyPt) {
     refToInstance->ftpService->run(refToInstance->serverDataPort);
 }
 
-int JasmineGraphInstance::start_running(string hostName,int serverPort, int serverDataPort) {
+int JasmineGraphInstance::start_running(string profile, string hostName, string masterHost,int serverPort, int serverDataPort) {
     std::cout << "Worker started" << std::endl;
     std::cout << "Running the server..." << std::endl;
 
     this->hostName = hostName;
+    this->profile = profile;
+    this->masterHostName = masterHost;
     this->serverPort = serverPort;
     this->serverDataPort = serverDataPort;
 

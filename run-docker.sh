@@ -48,11 +48,18 @@ then
             exit 1
     fi
 else
+
+    if [ -z "$MASTERIP" ] ;
+         then
+             echo "MASTER IP SHOULD BE SPECIFIED"
+             exit 1
+    fi
+
     if [ -z "$SERVER_PORT" ] ;
         then
             echo "SERVER PORT SHOULD BE SPECIFIED"
             exit 1
-       fi
+    fi
 
     if [ -z "$SERVER_DATA_PORT" ] ;
         then
@@ -63,7 +70,7 @@ fi
 
 if [ $MODE -eq 1 ] ;
 then
-    ./JasmineGraph "docker" "$MODE $MASTERIP $WORKERS $WORKERIP
+    ./JasmineGraph "docker" $MODE $MASTERIP $WORKERS $WORKERIP
 else
-    ./JasmineGraph "docker" "$MODE $HOST_NAME $SERVER_PORT $SERVER_DATA_PORT
+    ./JasmineGraph "docker" $MODE $HOST_NAME $MASTERIP $SERVER_PORT $SERVER_DATA_PORT
 fi
