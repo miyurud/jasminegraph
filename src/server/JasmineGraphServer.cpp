@@ -90,16 +90,14 @@ void JasmineGraphServer::start_workers() {
         nWorkers = utils.getJasmineGraphProperty("org.jasminegraph.server.nworkers");
     } else if (profile == "docker") {
         hostsList = getWorkerVector(workerHosts);
-        nWorkers = numberOfWorkers;
     }
 
     int workerPort = Conts::JASMINEGRAPH_INSTANCE_PORT;
     int workerDataPort = Conts::JASMINEGRAPH_INSTANCE_DATA_PORT;
     if (utils.is_number(nWorkers)) {
         numberOfWorkers = atoi(nWorkers.c_str());
-    } else {
+    } else if (numberOfWorkers == 0) {
         server_logger.log("Number of Workers is not specified", "error");
-        numberOfWorkers = 0;
     }
 
     if (numberOfWorkers > 0 && hostsList.size() > 0) {
