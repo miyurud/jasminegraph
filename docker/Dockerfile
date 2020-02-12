@@ -71,7 +71,7 @@ RUN apt-get update
 RUN add-apt-repository ppa:deadsnakes/ppa
 RUN apt-get install -y python3.5-dev
 RUN apt-get install -y libtool
-RUN git clone https://github.com/miyurud/jasminegraph.git
+RUN git clone https://github.com/chinthakarukshan/jasminegraph.git
 ENV HOME="/home/ubuntu"
 WORKDIR /home/ubuntu/software/jasminegraph
 RUN apt-get update
