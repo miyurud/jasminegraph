@@ -29,7 +29,6 @@ class JasmineGraphServer {
 private:
     map<std::string, long> hostPlaceMap;
     std::string profile;
-    std::string masterHost;
     std::string workerHosts;
     int numberOfWorkers;
     int serverPort;
@@ -65,25 +64,26 @@ public:
 
     bool isRunning();
 
-    void uploadGraphLocally(int graphID, const std::string graphType, std::vector<std::map<int,std::string>> fullFileList);
+    void uploadGraphLocally(int graphID, const std::string graphType, std::vector<std::map<int,std::string>> fullFileList, std::string masterIP);
 
-    void removeGraph(std::vector<std::pair<std::string, std::string>> hostHasPartition, std::string graphID);
+    void removeGraph(std::vector<std::pair<std::string, std::string>> hostHasPartition, std::string graphID, std::string masterIP);
 
-    static bool batchUploadFile(std::string host, int port, int dataPort, int graphID, std::string filePath);
+    static bool batchUploadFile(std::string host, int port, int dataPort, int graphID, std::string filePath, std::string masterIP);
 
-    static bool batchUploadCentralStore(std::string host, int port, int dataPort, int graphID, std::string filePath);
+    static bool batchUploadCentralStore(std::string host, int port, int dataPort, int graphID, std::string filePath, std::string masterIP);
 
-    static bool batchUploadAttributeFile(std::string host, int port, int dataPort, int graphID, std::string filePath);
+    static bool batchUploadAttributeFile(std::string host, int port, int dataPort, int graphID, std::string filePath, std::string masterIP);
 
-    static bool batchUploadCentralAttributeFile(std::string host, int port, int dataPort, int graphID, std::string filePath);
+    static bool batchUploadCentralAttributeFile(std::string host, int port, int dataPort, int graphID, std::string filePath, std::string masterIP);
 
-    static int removePartitionThroughService(std::string host, int port, std::string graphID, std::string partitionID);
+    static int removePartitionThroughService(std::string host, int port, std::string graphID, std::string partitionID, std::string masterIP);
 
-    static bool sendFileThroughService(std::string host, int dataPort, std::string fileName, std::string filePath);
+    static bool sendFileThroughService(std::string host, int dataPort, std::string fileName, std::string filePath, std::string masterIP);
 
     JasmineGraphFrontEnd *frontend;
     SQLiteDBInterface sqlite;
     JasmineGraphBackend *backend;
+    std::string masterHost;
     //pthread_t frontendthread;
 
     struct workers {

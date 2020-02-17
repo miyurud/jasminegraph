@@ -18,7 +18,7 @@ limitations under the License.
 
 Logger predictor_logger;
 
-int JasminGraphLinkPredictor::initiateLinkPrediction(std::string graphID, std::string path) {
+int JasminGraphLinkPredictor::initiateLinkPrediction(std::string graphID, std::string path, std::string masterIP) {
 
     JasmineGraphServer *jasmineServer = new JasmineGraphServer();
     std::map<std::string, JasmineGraphServer::workerPartitions> graphPartitionedHosts = jasmineServer->getGraphPartitionedHosts(
@@ -79,12 +79,12 @@ int JasminGraphLinkPredictor::initiateLinkPrediction(std::string graphID, std::s
     vertexCount = (v[0][0].second);
 
     this->sendQueryToWorker(selectedHostName, selectedHostPort, selectedHostDataPort, selectedHostPartitionsNo, graphID,
-                            vertexCount, path, hostsList);
+                            vertexCount, path, hostsList, masterIP);
 }
 
 int JasminGraphLinkPredictor::sendQueryToWorker(std::string host, int port, int dataPort, int selectedHostPartitionsNo,
                                                 std::string graphID, std::string vertexCount,
-                                                std::string filePath, std::string hostsList) {
+                                                std::string filePath, std::string hostsList, std::string masterIP) {
     Utils utils;
     bool result = true;
     std::cout << pthread_self() << " host : " << host << " port : " << port << " DPort : " << dataPort << std::endl;
@@ -193,7 +193,7 @@ int JasminGraphLinkPredictor::sendQueryToWorker(std::string host, int port, int 
                         if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_CONT) == 0) {
                             predictor_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
                             predictor_logger.log("Going to send file through service", "info");
-                            JasmineGraphServer::sendFileThroughService(host, dataPort, fileName, filePath);
+                            JasmineGraphServer::sendFileThroughService(host, dataPort, fileName, filePath, masterIP);
 
                         }
                     }

@@ -39,7 +39,7 @@ void *frontendservicesesion(void *dummyPt);
 
 class JasmineGraphFrontEnd {
 public:
-    JasmineGraphFrontEnd(SQLiteDBInterface db);
+    JasmineGraphFrontEnd(SQLiteDBInterface db, std::string masterIP);
 
     int run();
 
@@ -47,15 +47,15 @@ public:
 
     static bool graphExistsByID(std::string id, void *dummyPt);
 
-    static void removeGraph(std::string graphID, void *dummyPt);
+    static void removeGraph(std::string graphID, void *dummyPt, std::string masterIP);
 
-    static std::string copyCentralStoreToAggregator(std::string aggregatorHostName, std::string aggregatorPort, std::string host, std::string port, int graphId, int partitionId);
+    static std::string copyCentralStoreToAggregator(std::string aggregatorHostName, std::string aggregatorPort, std::string host, std::string port, int graphId, int partitionId, std::string masterIP);
 
-    static long countCentralStoreTriangles (std::string aggregatorHostName, std::string aggregatorPort, std::string host, std::string partitionId, std::string graphId);
+    static long countCentralStoreTriangles (std::string aggregatorHostName, std::string aggregatorPort, std::string host, std::string partitionId, std::string graphId, std::string masterIP);
 
-    static long countTriangles(std::string graphId, void *dummyPt);
+    static long countTriangles(std::string graphId, void *dummyPt, std::string masterIP);
 
-    static long getTriangleCount(int graphId, std::string host, int port, int partitionId);
+    static long getTriangleCount(int graphId, std::string host, int port, int partitionId, std::string masterIP);
 
     static void getAndUpdateUploadTime(std::string graphID, void *dummyPt);
 
@@ -63,13 +63,14 @@ public:
 
 private:
     SQLiteDBInterface sqlite;
+    std::string masterIP;
 
 };
 
 struct frontendservicesessionargs {
     SQLiteDBInterface sqlite;
     int connFd;
-
+    std::string masterIP;
 };
 
 #endif //JASMINGRAPH_JASMINGRAPHFRONTEND_H
