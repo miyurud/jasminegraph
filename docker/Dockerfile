@@ -13,10 +13,9 @@ RUN apt-get install -y cmake
 RUN git clone https://github.com/google/flatbuffers.git
 WORKDIR /home/ubuntu/software/flatbuffers
 RUN git checkout tags/v1.10.0
-RUN apt-get install -y clang-6.0
-RUN update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-6.0 100
-RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-6.0 100
-RUN CC=/usr/bin/clang CXX=/usr/bin/clang++ cmake -G "Unix Makefiles" .
+RUN apt-get update
+RUN apt-get install -y build-essential
+RUN cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release
 RUN make
 WORKDIR /home/ubuntu/software
 RUN apt-get install -y wget
@@ -71,6 +70,7 @@ RUN apt-get update
 RUN add-apt-repository ppa:deadsnakes/ppa
 RUN apt-get install -y python3.5-dev
 RUN apt-get install -y libtool
+
 RUN git clone https://github.com/chinthakarukshan/jasminegraph.git
 ENV HOME="/home/ubuntu"
 WORKDIR /home/ubuntu/software/jasminegraph
