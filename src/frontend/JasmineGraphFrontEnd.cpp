@@ -51,6 +51,7 @@ void *frontendservicesesion(void *dummyPt) {
     frontend_logger.log("Thread No: " + to_string(pthread_self()), "info");
     int connFd = sessionargs->connFd;
     std::string masterIP = sessionargs->masterIP;
+    frontend_logger.log("Got Master IP: " + masterIP, "info");
     char data[FRONTEND_DATA_LENGTH];
     bzero(data, FRONTEND_DATA_LENGTH + 1);
     bool loop = false;
