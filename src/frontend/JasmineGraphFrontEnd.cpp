@@ -50,7 +50,7 @@ void *frontendservicesesion(void *dummyPt) {
     frontendservicesessionargs *sessionargs = (frontendservicesessionargs *) dummyPt;
     frontend_logger.log("Thread No: " + to_string(pthread_self()), "info");
     int connFd = sessionargs->connFd;
-    frontend_logger.log("Got connfd: " , "info");
+    frontend_logger.log("Got connfd: " + sessionargs->masterIP , "info");
     std::string masterIP = sessionargs->masterIP;
     frontend_logger.log("Got Master IP: " + masterIP, "info");
     char data[FRONTEND_DATA_LENGTH];
