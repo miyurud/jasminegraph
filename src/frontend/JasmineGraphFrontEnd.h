@@ -35,7 +35,7 @@ limitations under the License.
 #include "../util/PlacesToNodeMapper.h"
 #include "../centralstore/JasmineGraphHashMapCentralStore.h"
 
-void *frontendservicesesion(void *dummyPt);
+void *frontendservicesesion(void *dummyPt, std::string masterIP, int connFd);
 
 class JasmineGraphFrontEnd {
 public:
@@ -70,7 +70,6 @@ private:
 struct frontendservicesessionargs {
     SQLiteDBInterface sqlite;
     int connFd;
-    char masterIP[30];
 };
 
 #endif //JASMINGRAPH_JASMINGRAPHFRONTEND_H

@@ -46,13 +46,10 @@ using namespace std;
 static int connFd;
 Logger frontend_logger;
 
-void *frontendservicesesion(void *dummyPt) {
+void *frontendservicesesion(void *dummyPt, std::string masterIP, int connFd) {
     frontendservicesessionargs *sessionargs = (frontendservicesessionargs *) dummyPt;
     frontend_logger.log("Thread No: " + to_string(pthread_self()), "info");
-    int connFd = sessionargs->connFd;
-    //frontend_logger.log("Got connfd: " + sessionargs->masterIP , "info");
-    std::string masterIP = sessionargs->masterIP;
-    frontend_logger.log("Got Master IP: " + masterIP, "info");
+    frontend_logger.log("Master IP: " + masterIP, "info");
     char data[FRONTEND_DATA_LENGTH];
     bzero(data, FRONTEND_DATA_LENGTH + 1);
     bool loop = false;
@@ -684,7 +681,7 @@ int JasmineGraphFrontEnd::run() {
 
     listen(listenFd, 10);
 
-    pthread_t threadA[20];
+    std::thread* myThreads = new std::thread[20];
     len = sizeof(clntAdd);
 
     int noThread = 0;
@@ -707,17 +704,16 @@ int JasmineGraphFrontEnd::run() {
         struct frontendservicesessionargs *frontendservicesessionargs1 =(struct frontendservicesessionargs*) malloc(sizeof(struct frontendservicesessionargs)*1 );;
         frontendservicesessionargs1->sqlite = this->sqlite;
         frontendservicesessionargs1->connFd = connFd;
-        strcpy(frontendservicesessionargs1->masterIP, masterIP.c_str());
 
+        myThreads[noThread] = std::thread(frontendservicesesion,&frontendservicesessionargs1, masterIP, connFd);
 
-        pthread_create(&threadA[noThread], NULL, frontendservicesesion,
-                       &frontendservicesessionargs1);
+        std::thread();
 
         noThread++;
     }
 
     for (int i = 0; i < noThread; i++) {
-        pthread_join(threadA[i], NULL);
+        myThreads[i].join();
     }
 
 
