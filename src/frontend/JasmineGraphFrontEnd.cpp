@@ -702,6 +702,8 @@ int JasmineGraphFrontEnd::run() {
             frontend_logger.log("Connection successful", "info");
         }
 
+        frontend_logger.log("Master IP" + masterIP, "info");
+
         struct frontendservicesessionargs frontendservicesessionargs1;
         frontendservicesessionargs1.sqlite = this->sqlite;
         frontendservicesessionargs1.connFd = connFd;
