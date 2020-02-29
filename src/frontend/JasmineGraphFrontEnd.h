@@ -70,7 +70,7 @@ private:
 struct frontendservicesessionargs {
     SQLiteDBInterface sqlite;
     int connFd;
-    std::string masterIP;
+    char masterIP[30];
 };
 
 #endif //JASMINGRAPH_JASMINGRAPHFRONTEND_H

@@ -50,7 +50,7 @@ void *frontendservicesesion(void *dummyPt) {
     frontendservicesessionargs *sessionargs = (frontendservicesessionargs *) dummyPt;
     frontend_logger.log("Thread No: " + to_string(pthread_self()), "info");
     int connFd = sessionargs->connFd;
-    frontend_logger.log("Got connfd: " + sessionargs->masterIP , "info");
+    //frontend_logger.log("Got connfd: " + sessionargs->masterIP , "info");
     std::string masterIP = sessionargs->masterIP;
     frontend_logger.log("Got Master IP: " + masterIP, "info");
     char data[FRONTEND_DATA_LENGTH];
@@ -704,10 +704,10 @@ int JasmineGraphFrontEnd::run() {
 
         frontend_logger.log("Master IP" + masterIP, "info");
 
-        struct frontendservicesessionargs frontendservicesessionargs1;
-        frontendservicesessionargs1.sqlite = this->sqlite;
-        frontendservicesessionargs1.connFd = connFd;
-        frontendservicesessionargs1.masterIP = masterIP;
+        struct frontendservicesessionargs *frontendservicesessionargs1 =(struct frontendservicesessionargs*) malloc(sizeof(struct frontendservicesessionargs)*1 );;
+        frontendservicesessionargs1->sqlite = this->sqlite;
+        frontendservicesessionargs1->connFd = connFd;
+        strcpy(frontendservicesessionargs1->masterIP, masterIP.c_str());
 
 
         pthread_create(&threadA[noThread], NULL, frontendservicesesion,
