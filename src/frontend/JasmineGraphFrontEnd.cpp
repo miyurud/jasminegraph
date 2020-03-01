@@ -46,8 +46,7 @@ using namespace std;
 static int connFd;
 Logger frontend_logger;
 
-void *frontendservicesesion(void *dummyPt, std::string masterIP, int connFd) {
-    frontendservicesessionargs *sessionargs = (frontendservicesessionargs *) dummyPt;
+void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface sqlite) {
     frontend_logger.log("Thread No: " + to_string(pthread_self()), "info");
     frontend_logger.log("Master IP: " + masterIP, "info");
     char data[FRONTEND_DATA_LENGTH];
@@ -66,10 +65,9 @@ void *frontendservicesesion(void *dummyPt, std::string masterIP, int connFd) {
         if (line.compare(EXIT) == 0) {
             break;
         } else if (line.compare(LIST) == 0) {
-            SQLiteDBInterface *sqlite = &sessionargs->sqlite;
-            std::stringstream ss;
-            std::vector<vector<pair<string, string>>> v = sqlite->runSelect(
-                    "SELECT idgraph, name, upload_path, graph_status_idgraph_status FROM graph;");
+           std::stringstream ss;
+            std::vector<vector<pair<string, string>>> v = sqlite.runSelect(
+                    "SELECT idgraph, name, upload_path FROM graph;");
             for (std::vector<vector<pair<string, string>>>::iterator i = v.begin(); i != v.end(); ++i) {
                 ss << "|";
                 int counter = 0;
@@ -131,7 +129,7 @@ void *frontendservicesesion(void *dummyPt, std::string masterIP, int connFd) {
             name = strArr[0];
             path = strArr[1];
 
-            if (JasmineGraphFrontEnd::graphExists(path, dummyPt)) {
+            if (JasmineGraphFrontEnd::graphExists(path, sqlite)) {
                 frontend_logger.log("Graph exists", "error");
                 continue;
             }
@@ -139,18 +137,17 @@ void *frontendservicesesion(void *dummyPt, std::string masterIP, int connFd) {
             if (utils.fileExists(path)) {
                 frontend_logger.log("Path exists", "info");
 
-                SQLiteDBInterface *sqlite = &sessionargs->sqlite;
                 string sqlStatement =
                         "INSERT INTO graph (name,upload_path,upload_start_time,upload_end_time,graph_status_idgraph_status,"
                         "vertexcount,centralpartitioncount,edgecount) VALUES(\"" + name + "\", \"" + path +
                         "\", \"" + uploadStartTime + "\", \"\",\"" + to_string(Conts::GRAPH_STATUS::LOADING) +
                         "\", \"\", \"\", \"\")";
-                int newGraphID = sqlite->runInsert(sqlStatement);
+                int newGraphID = sqlite.runInsert(sqlStatement);
 
                 GetConfig appConfig;
                 appConfig.readConfigFile(path, newGraphID);
 
-                MetisPartitioner *metisPartitioner = new MetisPartitioner(&sessionargs->sqlite);
+                MetisPartitioner *metisPartitioner = new MetisPartitioner(&sqlite);
                 vector<std::map<int, string>> fullFileList;
                 string input_file_path = utils.getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID) + "/" +
                                          to_string(newGraphID);
@@ -162,7 +159,7 @@ void *frontendservicesesion(void *dummyPt, std::string masterIP, int connFd) {
                 jasmineServer->uploadGraphLocally(newGraphID, Conts::GRAPH_WITH_ATTRIBUTES, fullFileList,masterIP);
                 utils.deleteDirectory(utils.getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
                 utils.deleteDirectory("/tmp/" + std::to_string(newGraphID));
-                JasmineGraphFrontEnd::getAndUpdateUploadTime(to_string(newGraphID), dummyPt);
+                JasmineGraphFrontEnd::getAndUpdateUploadTime(to_string(newGraphID), sqlite);
             } else {
                 frontend_logger.log("Graph data file does not exist on the specified path", "error");
                 continue;
@@ -198,26 +195,22 @@ void *frontendservicesesion(void *dummyPt, std::string masterIP, int connFd) {
             name = strArr[0];
             path = strArr[1];
 
-            if (JasmineGraphFrontEnd::graphExists(path, dummyPt)) {
-                string message = "Graph exists";
-                frontend_logger.log(message, "error");
-                write(connFd, message.c_str(), message.length());
-                write(connFd, "\r\n", 2);
+            if (JasmineGraphFrontEnd::graphExists(path, sqlite)) {
+                frontend_logger.log("Graph exists", "error");
                 continue;
             }
 
             if (utils.fileExists(path)) {
                 frontend_logger.log("Path exists", "info");
 
-                SQLiteDBInterface *sqlite = &sessionargs->sqlite;
                 string sqlStatement =
                         "INSERT INTO graph (name,upload_path,upload_start_time,upload_end_time,graph_status_idgraph_status,"
                         "vertexcount,centralpartitioncount,edgecount) VALUES(\"" + name + "\", \"" + path +
                         "\", \"" + uploadStartTime + "\", \"\",\"" + to_string(Conts::GRAPH_STATUS::LOADING) +
                         "\", \"\", \"\", \"\")";
-                int newGraphID = sqlite->runInsert(sqlStatement);
+                int newGraphID = sqlite.runInsert(sqlStatement);
                 JasmineGraphServer *jasmineServer = new JasmineGraphServer();
-                MetisPartitioner *partitioner = new MetisPartitioner(&sessionargs->sqlite);
+                MetisPartitioner *partitioner = new MetisPartitioner(&sqlite);
                 vector<std::map<int, string>> fullFileList;
 
                 partitioner->loadDataSet(path, newGraphID);
@@ -234,7 +227,7 @@ void *frontendservicesesion(void *dummyPt, std::string masterIP, int connFd) {
                 frontend_logger.log("Upload done", "info");
                 jasmineServer->uploadGraphLocally(newGraphID, Conts::GRAPH_TYPE_NORMAL, fullFileList, masterIP);
                 utils.deleteDirectory(utils.getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
-                JasmineGraphFrontEnd::getAndUpdateUploadTime(to_string(newGraphID), dummyPt);
+                JasmineGraphFrontEnd::getAndUpdateUploadTime(to_string(newGraphID), sqlite);
                 write(connFd, DONE.c_str(), DONE.size());
                 write(connFd, "\n", 2);
             } else {
@@ -303,7 +296,7 @@ void *frontendservicesesion(void *dummyPt, std::string masterIP, int connFd) {
             edgeListPath = strArr[1];
             attributeListPath = strArr[2];
 
-            if (JasmineGraphFrontEnd::graphExists(edgeListPath, dummyPt)) {
+            if (JasmineGraphFrontEnd::graphExists(edgeListPath, sqlite)) {
                 frontend_logger.log("Graph exists", "error");
                 continue;
             }
@@ -311,15 +304,14 @@ void *frontendservicesesion(void *dummyPt, std::string masterIP, int connFd) {
             if (utils.fileExists(edgeListPath) && utils.fileExists(attributeListPath)) {
                 std::cout << "Paths exists" << endl;
 
-                SQLiteDBInterface *sqlite = &sessionargs->sqlite;
                 string sqlStatement =
                         "INSERT INTO graph (name,upload_path,upload_start_time,upload_end_time,graph_status_idgraph_status,"
                         "vertexcount,centralpartitioncount,edgecount) VALUES(\"" + name + "\", \"" + edgeListPath +
                         "\", \"" + uploadStartTime + "\", \"\",\"" + to_string(Conts::GRAPH_STATUS::LOADING) +
                         "\", \"\", \"\", \"\")";
-                int newGraphID = sqlite->runInsert(sqlStatement);
+                int newGraphID = sqlite.runInsert(sqlStatement);
                 JasmineGraphServer *jasmineServer = new JasmineGraphServer();
-                MetisPartitioner *partitioner = new MetisPartitioner(&sessionargs->sqlite);
+                MetisPartitioner *partitioner = new MetisPartitioner(&sqlite);
                 vector<std::map<int, string>> fullFileList;
                 partitioner->loadContentData(attributeListPath, graphAttributeType, newGraphID);
                 partitioner->loadDataSet(edgeListPath, newGraphID);
@@ -337,7 +329,7 @@ void *frontendservicesesion(void *dummyPt, std::string masterIP, int connFd) {
                 jasmineServer->uploadGraphLocally(newGraphID, Conts::GRAPH_WITH_ATTRIBUTES, fullFileList, masterIP);
                 utils.deleteDirectory(utils.getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
                 utils.deleteDirectory("/tmp/" + std::to_string(newGraphID));
-                JasmineGraphFrontEnd::getAndUpdateUploadTime(to_string(newGraphID), dummyPt);
+                JasmineGraphFrontEnd::getAndUpdateUploadTime(to_string(newGraphID), sqlite);
             } else {
                 frontend_logger.log("Graph data file does not exist on the specified path", "error");
                 continue;
@@ -404,9 +396,9 @@ void *frontendservicesesion(void *dummyPt, std::string masterIP, int connFd) {
             graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
             frontend_logger.log("Graph ID received: " + graphID, "info");
 
-            if (JasmineGraphFrontEnd::graphExistsByID(graphID, dummyPt)) {
+            if (JasmineGraphFrontEnd::graphExistsByID(graphID, sqlite)) {
                 frontend_logger.log("Graph with ID " + graphID + " is being deleted now", "info");
-                JasmineGraphFrontEnd::removeGraph(graphID, dummyPt, masterIP);
+                JasmineGraphFrontEnd::removeGraph(graphID, sqlite, masterIP);
                 write(connFd, DONE.c_str(), DONE.size());
                 write(connFd, "\n", 2);
             } else {
@@ -470,7 +462,7 @@ void *frontendservicesesion(void *dummyPt, std::string masterIP, int connFd) {
             graph_id.erase(std::remove(graph_id.begin(), graph_id.end(), '\r'),
                            graph_id.end());
 
-            if (!JasmineGraphFrontEnd::graphExistsByID(graph_id, dummyPt)) {
+            if (!JasmineGraphFrontEnd::graphExistsByID(graph_id,sqlite)) {
                 string error_message = "The specified graph id does not exist";
                 write(connFd, error_message.c_str(), FRONTEND_COMMAND_LENGTH);
                 write(connFd, "\r\n", 2);
@@ -478,7 +470,7 @@ void *frontendservicesesion(void *dummyPt, std::string masterIP, int connFd) {
                 auto begin = chrono::high_resolution_clock::now();
                 vector<string> hostsList = utils.getHostList();
                 int hostListLength = hostsList.size();
-                long triangleCount = JasmineGraphFrontEnd::countTriangles(graph_id,dummyPt,masterIP);
+                long triangleCount = JasmineGraphFrontEnd::countTriangles(graph_id,sqlite,masterIP);
                 auto end = chrono::high_resolution_clock::now();
                 auto dur = end - begin;
                 auto msDuration = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
@@ -503,15 +495,14 @@ void *frontendservicesesion(void *dummyPt, std::string masterIP, int connFd) {
             graph_id.erase(std::remove(graph_id.begin(), graph_id.end(), '\r'),
                            graph_id.end());
 
-            if (!JasmineGraphFrontEnd::graphExistsByID(graph_id, dummyPt)) {
+            if (!JasmineGraphFrontEnd::graphExistsByID(graph_id,sqlite)) {
                 string error_message = "The specified graph id does not exist";
                 write(connFd, error_message.c_str(), FRONTEND_COMMAND_LENGTH);
                 write(connFd, "\r\n", 2);
             } else {
-                SQLiteDBInterface *sqlite = &sessionargs->sqlite;
                 string sqlStatement = "SELECT vertexcount from graph where idgraph=" + graph_id;
 
-                std::vector<vector<pair<string, string>>> output = sqlite->runSelect(sqlStatement);
+                std::vector<vector<pair<string, string>>> output = sqlite.runSelect(sqlStatement);
 
                 int vertexCount = std::stoi(output[0][0].second);
                 frontend_logger.log("Vertex Count: " + to_string(vertexCount), "info");
@@ -535,15 +526,14 @@ void *frontendservicesesion(void *dummyPt, std::string masterIP, int connFd) {
             graph_id.erase(std::remove(graph_id.begin(), graph_id.end(), '\r'),
                            graph_id.end());
 
-            if (!JasmineGraphFrontEnd::graphExistsByID(graph_id, dummyPt)) {
+            if (!JasmineGraphFrontEnd::graphExistsByID(graph_id,sqlite)) {
                 string error_message = "The specified graph id does not exist";
                 write(connFd, error_message.c_str(), FRONTEND_COMMAND_LENGTH);
                 write(connFd, "\r\n", 2);
             } else {
-                SQLiteDBInterface *sqlite = &sessionargs->sqlite;
                 string sqlStatement = "SELECT edgecount from graph where idgraph=" + graph_id;
 
-                std::vector<vector<pair<string, string>>> output = sqlite->runSelect(sqlStatement);
+                std::vector<vector<pair<string, string>>> output = sqlite.runSelect(sqlStatement);
 
                 int edgeCount = std::stoi(output[0][0].second);
                 frontend_logger.log("Edge Count: " + to_string(edgeCount), "info");
@@ -564,7 +554,7 @@ void *frontendservicesesion(void *dummyPt, std::string masterIP, int connFd) {
             char train_data[300];
             bzero(train_data, 301);
 
-            read(sessionargs->connFd, train_data, 300);
+            read(connFd, train_data, 300);
 
             string trainData(train_data);
 
@@ -589,10 +579,10 @@ void *frontendservicesesion(void *dummyPt, std::string masterIP, int connFd) {
             }
 
             JasminGraphTrainingInitiator *jasminGraphTrainingInitiator = new JasminGraphTrainingInitiator();
-            jasminGraphTrainingInitiator->initiateTrainingLocally(graphID, trainData);
-        } else if (line.compare(PREDICT) == 0) {
-            write(sessionargs->connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
-            write(sessionargs->connFd, "\r\n", 2);
+            jasminGraphTrainingInitiator->initiateTrainingLocally(graphID,trainData);
+        } else if (line.compare(PREDICT) == 0){
+            write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
+            write(connFd, "\r\n", 2);
 
             char predict_data[300];
             bzero(predict_data, 301);
@@ -616,7 +606,7 @@ void *frontendservicesesion(void *dummyPt, std::string masterIP, int connFd) {
             graphID = strArr[0];
             path = strArr[1];
 
-            if (JasmineGraphFrontEnd::isGraphActiveAndTrained(graphID, dummyPt)) {
+            if(JasmineGraphFrontEnd::isGraphActiveAndTrained(graphID, sqlite)) {
                 if (utils.fileExists(path)) {
                     std::cout << "Path exists" << endl;
                     JasminGraphLinkPredictor *jasminGraphLinkPredictor = new JasminGraphLinkPredictor();
@@ -705,7 +695,7 @@ int JasmineGraphFrontEnd::run() {
         frontendservicesessionargs1->sqlite = this->sqlite;
         frontendservicesessionargs1->connFd = connFd;
 
-        myThreads[noThread] = std::thread(frontendservicesesion,&frontendservicesessionargs1, masterIP, connFd);
+        myThreads[noThread] = std::thread(frontendservicesesion, masterIP, connFd, this->sqlite);
 
         std::thread();
 
@@ -726,13 +716,12 @@ int JasmineGraphFrontEnd::run() {
  * @param dummyPt
  * @return
  */
-bool JasmineGraphFrontEnd::graphExists(string path, void *dummyPt) {
+bool JasmineGraphFrontEnd::graphExists(string path, SQLiteDBInterface sqlite) {
     bool result = true;
     string stmt =
             "SELECT COUNT( * ) FROM graph WHERE upload_path LIKE '" + path + "' AND graph_status_idgraph_status = '" +
             to_string(Conts::GRAPH_STATUS::OPERATIONAL) + "';";
-    SQLiteDBInterface *sqlite = (SQLiteDBInterface *) dummyPt;
-    std::vector<vector<pair<string, string>>> v = sqlite->runSelect(stmt);
+    std::vector<vector<pair<string, string>>> v = sqlite.runSelect(stmt);
     int count = std::stoi(v[0][0].second);
     if (count == 0) {
         result = false;
@@ -746,12 +735,11 @@ bool JasmineGraphFrontEnd::graphExists(string path, void *dummyPt) {
  * @param dummyPt
  * @return
  */
-bool JasmineGraphFrontEnd::graphExistsByID(string id, void *dummyPt) {
+bool JasmineGraphFrontEnd::graphExistsByID(string id, SQLiteDBInterface sqlite) {
     bool result = true;
     string stmt = "SELECT COUNT( * ) FROM graph WHERE idgraph = " + id + " and graph_status_idgraph_status = " +
                   to_string(Conts::GRAPH_STATUS::OPERATIONAL);
-    SQLiteDBInterface *sqlite = (SQLiteDBInterface *) dummyPt;
-    std::vector<vector<pair<string, string>>> v = sqlite->runSelect(stmt);
+    std::vector<vector<pair<string, string>>> v = sqlite.runSelect(stmt);
     int count = std::stoi(v[0][0].second);
     std::cout << "AAAAAAAAA1:" << count << std::endl;
     if (count == 0) {
@@ -766,10 +754,9 @@ bool JasmineGraphFrontEnd::graphExistsByID(string id, void *dummyPt) {
 /**
  * This method removes a graph from JasmineGraph
  */
-void JasmineGraphFrontEnd::removeGraph(std::string graphID, void *dummyPt, std::string masterIP) {
+void JasmineGraphFrontEnd::removeGraph(std::string graphID, SQLiteDBInterface sqlite, std::string masterIP) {
     vector<pair<string, string>> hostHasPartition;
-    SQLiteDBInterface *sqlite = (SQLiteDBInterface *) dummyPt;
-    vector<vector<pair<string, string>>> hostPartitionResults = sqlite->runSelect(
+    vector<vector<pair<string, string>>> hostPartitionResults = sqlite.runSelect(
             "SELECT name, partition_idpartition FROM host_has_partition INNER JOIN host ON host_idhost = idhost WHERE "
             "partition_graph_idgraph = '" + graphID + "'");
     for (vector<vector<pair<string, string>>>::iterator i = hostPartitionResults.begin();
@@ -790,15 +777,15 @@ void JasmineGraphFrontEnd::removeGraph(std::string graphID, void *dummyPt, std::
     for (std::vector<pair<string, string>>::iterator j = (hostHasPartition.begin()); j != hostHasPartition.end(); ++j) {
         cout << "HOST ID : " << j->first << " Partition ID : " << j->second << endl;
     }
-    sqlite->runUpdate("UPDATE graph SET graph_status_idgraph_status = " + to_string(Conts::GRAPH_STATUS::DELETING) +
+    sqlite.runUpdate("UPDATE graph SET graph_status_idgraph_status = " + to_string(Conts::GRAPH_STATUS::DELETING) +
                       " WHERE idgraph = " + graphID);
 
     JasmineGraphServer *jasmineServer = new JasmineGraphServer();
     jasmineServer->removeGraph(hostHasPartition, graphID, masterIP);
 
-    sqlite->runUpdate("DELETE FROM host_has_partition WHERE partition_graph_idgraph = " + graphID);
-    sqlite->runUpdate("DELETE FROM partition WHERE graph_idgraph = " + graphID);
-    sqlite->runUpdate("DELETE FROM graph WHERE idgraph = " + graphID);
+    sqlite.runUpdate("DELETE FROM host_has_partition WHERE partition_graph_idgraph = " + graphID);
+    sqlite.runUpdate("DELETE FROM partition WHERE graph_idgraph = " + graphID);
+    sqlite.runUpdate("DELETE FROM graph WHERE idgraph = " + graphID);
 }
 
 /**
@@ -807,14 +794,12 @@ void JasmineGraphFrontEnd::removeGraph(std::string graphID, void *dummyPt, std::
  * @param dummyPt
  * @return
  */
-bool JasmineGraphFrontEnd::isGraphActiveAndTrained(std::string graphID, void *dummyPt) {
+bool JasmineGraphFrontEnd::isGraphActiveAndTrained(std::string graphID, SQLiteDBInterface sqlite) {
     bool result = true;
     string stmt =
             "SELECT COUNT( * ) FROM graph WHERE idgraph LIKE '" + graphID + "' AND graph_status_idgraph_status = '" +
-            to_string(Conts::GRAPH_STATUS::OPERATIONAL) + "' AND train_status = '" + (Conts::TRAIN_STATUS::TRAINED) +
-            "';";
-    SQLiteDBInterface *sqlite = (SQLiteDBInterface *) dummyPt;
-    std::vector<vector<pair<string, string>>> v = sqlite->runSelect(stmt);
+            to_string(Conts::GRAPH_STATUS::OPERATIONAL) + "' AND train_status = '"+(Conts::TRAIN_STATUS::TRAINED) +"';";
+    std::vector<vector<pair<string, string>>> v = sqlite.runSelect(stmt);
     int count = std::stoi(v[0][0].second);
     if (count == 0) {
         result = false;
@@ -822,7 +807,7 @@ bool JasmineGraphFrontEnd::isGraphActiveAndTrained(std::string graphID, void *du
     return result;
 }
 
-long JasmineGraphFrontEnd::countTriangles(std::string graphId, void *dummyPt, std::string masterIP) {
+long JasmineGraphFrontEnd::countTriangles(std::string graphId, SQLiteDBInterface sqlite, std::string masterIP) {
     long result= 0;
     Utils utils;
     vector<std::string> hostList = utils.getHostList();
@@ -836,8 +821,7 @@ long JasmineGraphFrontEnd::countTriangles(std::string graphId, void *dummyPt, st
             "SELECT name,partition_idpartition FROM host_has_partition INNER JOIN host ON host_idhost=idhost WHERE partition_graph_idgraph=" +
             graphId + ";";
 
-    SQLiteDBInterface *sqlite = (SQLiteDBInterface *) dummyPt;
-    std::vector<vector<pair<string, string>>> results = sqlite->runSelect(sqlStatement);
+    std::vector<vector<pair<string, string>>> results = sqlite.runSelect(sqlStatement);
 
     std::map<string, std::vector<string>> map;
 
@@ -1250,10 +1234,9 @@ long JasmineGraphFrontEnd::countCentralStoreTriangles(std::string aggregatorHost
     return atol(response.c_str());
 }
 
-void JasmineGraphFrontEnd::getAndUpdateUploadTime(std::string graphID, void *dummyPt) {
-    SQLiteDBInterface *sqlite = (SQLiteDBInterface *) dummyPt;
+void JasmineGraphFrontEnd::getAndUpdateUploadTime(std::string graphID, SQLiteDBInterface sqlite) {
     struct tm tm;
-    vector<vector<pair<string, string>>> uploadStartFinishTimes = sqlite->runSelect(
+    vector<vector<pair<string, string>>> uploadStartFinishTimes = sqlite.runSelect(
             "SELECT upload_start_time,upload_end_time FROM graph WHERE idgraph = '" + graphID + "'");
     string startTime = uploadStartFinishTimes[0][0].second;
     string endTime = uploadStartFinishTimes[0][1].second;
@@ -1264,6 +1247,6 @@ void JasmineGraphFrontEnd::getAndUpdateUploadTime(std::string graphID, void *dum
     strptime(eTime.c_str(), "%H:%M:%S", &tm);
     time_t end = mktime(&tm);
     double difTime = difftime(end, start);
-    sqlite->runUpdate("UPDATE graph SET upload_time = " + to_string(difTime) + " WHERE idgraph = " + graphID);
+    sqlite.runUpdate("UPDATE graph SET upload_time = " + to_string(difTime) + " WHERE idgraph = " + graphID);
     frontend_logger.log("Upload time updated in the database", "info");
 }
