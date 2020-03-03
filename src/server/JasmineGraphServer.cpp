@@ -192,10 +192,10 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector,
         copyArtifactsToWorkers(workerPath,artifactPath,host);
         for (int i =0 ; i < workerPortsVector.size() ; i++) {
             if (host.find("localhost") != std::string::npos) {
-                serverStartScript = executableFile+" 2 "+ host +" " + std::to_string(workerPortsVector.at(i)) + " " + std::to_string(workerDataPortsVector.at(i));
+                serverStartScript = executableFile+" native 2 "+ host +" " + masterHost + " " + std::to_string(workerPortsVector.at(i)) + " " + std::to_string(workerDataPortsVector.at(i));
             } else {
                 serverStartScript =
-                        "ssh -p 22 " + host + " " + executableFile + " 2 "+host+" " + std::to_string(workerPortsVector.at(i)) +
+                        "ssh -p 22 " + host + " " + executableFile + " native 2 "+host+" " + masterHost + " " + std::to_string(workerPortsVector.at(i)) +
                         " " + std::to_string(workerDataPortsVector.at(i));
             }
             popen(serverStartScript.c_str(),"r");

@@ -69,13 +69,6 @@ int main(int argc, char *argv[]) {
         delete server;
     } else if (mode == Conts::JASMINEGRAPH_RUNTIME_PROFILE_WORKER){
         main_logger.log(to_string(argc),"info");
-        main_logger.log((argv[0]),"info");
-        main_logger.log((argv[1]),"info");
-        main_logger.log((argv[2]),"info");
-        main_logger.log((argv[3]),"info");
-        main_logger.log((argv[4]),"info");
-        main_logger.log((argv[5]),"info");
-        main_logger.log((argv[6]),"info");
 
         if (profile == "docker") {
             if (argc < 5) {
