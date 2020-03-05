@@ -209,11 +209,11 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector,
                         "ssh -p 22 " + host + " " + executableFile + " 2 "+host+" " + std::to_string(workerPortsVector.at(i)) +
                         " " + std::to_string(workerDataPortsVector.at(i));
             }
-            serverStartScript = "docker -H ssh://root@" + host + " run jasmine_graph:latest -p " +
+            serverStartScript = "docker -H ssh://root@" + host + " run -p " +
                                 std::to_string(workerPortsVector.at(i)) + ":" +
                                 std::to_string(workerPortsVector.at(i)) + " -p " +
                                 std::to_string(workerDataPortsVector.at(i)) + ":" +
-                                std::to_string(workerDataPortsVector.at(i)) + " --MODE 2 --HOST_NAME " + host +
+                                std::to_string(workerDataPortsVector.at(i)) + " jasmine_graph:latest --MODE 2 --HOST_NAME " + host +
                                 " --MASTERIP " + masterHost + " --SERVER_PORT " +
                                 std::to_string(workerPortsVector.at(i)) + " --SERVER_DATA_PORT " +
                                 std::to_string(workerDataPortsVector.at(i));
