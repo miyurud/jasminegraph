@@ -27,6 +27,7 @@ public:
     static std::string getHost(long placeId);
     static std::vector<int> getInstancePort(long placeId);
     static std::vector<int> getFileTransferServicePort(long placeId);
+    static int PlacesToNodeMapper::countPortRanges(int totalNumberOfWorkers);
 };
 
 
