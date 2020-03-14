@@ -38,7 +38,7 @@ private:
 
     static void startRemoteWorkers(std::vector<int> workerPortsVector, std::vector<int> workerDataPortsVector, std::string host, string profile, string masterHost);
 
-    void addHostsToMetaDB();
+    void addHostsToMetaDB(std::string host, std::vector<int> portVector, std::vector<int> dataPortVector);
 
     void updateOperationalGraphList();
 

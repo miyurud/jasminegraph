@@ -64,9 +64,8 @@ int JasmineGraphServer::run(std::string profile, std::string masterIp, int numbe
     this->numberOfWorkers = numberofWorkers;
     this->workerHosts = workerIps;
     init();
-    addHostsToMetaDB();
+    //addHostsToMetaDB();
     updateOperationalGraphList();
-    hostIDMap = getLiveHostIDList();
     start_workers();
     return 0;
 }
@@ -154,6 +153,8 @@ void JasmineGraphServer::start_workers() {
     server_logger.log("Starting threads for workers", "info");
     for (hostListIterator = hostsList.begin(); hostListIterator < hostsList.end(); hostListIterator++) {
         std::string host = *hostListIterator;
+        addHostsToMetaDB(host, workerPortsMap[host],workerDataPortsMap[host]);
+        hostIDMap = getLiveHostIDList();
         myThreads[count] = std::thread(startRemoteWorkers,workerPortsMap[host],workerDataPortsMap[host], host, profile, masterHost);
 //        myThreads[count].detach();
 //        std::cout<<"############JOINED###########"<< std::endl;
@@ -209,7 +210,7 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector,
                         "ssh -p 22 " + host + " " + executableFile + " 2 "+host+" " + std::to_string(workerPortsVector.at(i)) +
                         " " + std::to_string(workerDataPortsVector.at(i));
             }
-            serverStartScript = "docker -H ssh://root@" + host + " run -p " +
+            serverStartScript = "docker -H ssh://" + host + " run -p " +
                                 std::to_string(workerPortsVector.at(i)) + ":" +
                                 std::to_string(workerPortsVector.at(i)) + " -p " +
                                 std::to_string(workerDataPortsVector.at(i)) + ":" +
@@ -1106,25 +1107,31 @@ void JasmineGraphServer::createWorkerPath(std::string workerHost, std::string wo
     }
 }
 
-void JasmineGraphServer::addHostsToMetaDB() {
+void JasmineGraphServer::addHostsToMetaDB(std::string host, std::vector<int> portVector, std::vector<int> dataPortVector) {
     Utils utils;
-    vector<string> hostsList = utils.getHostList();
-    vector<string>::iterator it;
+    string name = host;
     string sqlStatement = "";
-    for (it = hostsList.begin(); it < hostsList.end(); it++) {
-        string host = *it;
-        string name = host;
-        string ip_address = "";
-        if (host.find('@') != std::string::npos) {
-            vector<string> splitted = utils.split(host, '@');
-            ip_address = splitted[1];
-        }
-        if (!utils.hostExists(name, ip_address, this->sqlite)) {
-            sqlStatement = ("INSERT INTO host (name,ip,is_public) VALUES(\"" + name + "\", \"" + ip_address +
-                            "\", \"\")");
+    string ip_address = "";
+    string user = "";
+    if (host.find('@') != std::string::npos) {
+        vector<string> splitted = utils.split(host, '@');
+        ip_address = splitted[1];
+        user = splitted[0];
+    } else {
+        ip_address = host;
+    }
+
+    for (int i =0 ; i < portVector.size() ; i++) {
+        int workerPort = portVector.at(i);
+        int workerDataPort = dataPortVector.at(i);
+
+        if (!utils.hostExists(name, ip_address, std::to_string(workerPort), this->sqlite)) {
+            sqlStatement = ("INSERT INTO host (name,ip,user,is_public,server_port,server_data_port) VALUES(\"" + name + "\", \"" + ip_address +
+                            "\",\""+user+"\", \"\",\""+ std::to_string(workerPort) +"\", \""+ std::to_string(workerDataPort) +"\")");
             this->sqlite.runInsert(sqlStatement);
         }
     }
+
 }
 
 map<string, string> JasmineGraphServer::getLiveHostIDList() {

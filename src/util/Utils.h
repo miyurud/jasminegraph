@@ -62,7 +62,7 @@ class Utils
 
     int parseARGS(char **args, char *line);
 
-    bool hostExists(std::string name, std::string ip, SQLiteDBInterface sqlite);
+    bool hostExists(std::string name, std::string ip, std::string workerPort, SQLiteDBInterface sqlite);
 
     void compressDirectory(const std::string filePath);
 
