@@ -1119,13 +1119,16 @@ std::string JasmineGraphInstanceService::copyCentralStoreToAggregator(std::strin
 
 long JasmineGraphInstanceService::aggregateCentralStoreTriangles(std::string graphId, std::string partitionId) {
     Utils utils;
+    instance_logger.log("###INSTANCE### Started Aggregating Central Store Triangles","info");
     std::string aggregatorFilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
     std::vector<std::string> fileNames;
     map<long, unordered_set<long>> aggregatedCentralStore;
     std::string centralGraphIdentifier = graphId + +"_centralstore_"+ partitionId;
     std::string dataFolder = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
     std::string workerCentralStoreFile = dataFolder + "/" + centralGraphIdentifier;
+    instance_logger.log("###INSTANCE### Loading Central Store : Started " + workerCentralStoreFile,"info");
     JasmineGraphHashMapCentralStore workerCentralStore = JasmineGraphInstanceService::loadCentralStore(workerCentralStoreFile);
+    instance_logger.log("###INSTANCE### Loading Central Store : Completed","info");
     map<long, unordered_set<long>> workerCentralGraphMap = workerCentralStore.getUnderlyingHashMap();
 
     map<long, unordered_set<long>>::iterator workerCentalGraphIterator;
