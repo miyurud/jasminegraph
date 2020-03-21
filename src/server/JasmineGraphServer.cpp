@@ -90,7 +90,7 @@ void JasmineGraphServer::start_workers() {
     std::vector<std::string> hostsList;
     std::string nWorkers;
     if (profile == "native") {
-        hostsList = utils.getHostList();
+        hostsList = utils.getHostListFromProperties();
         nWorkers = utils.getJasmineGraphProperty("org.jasminegraph.server.nworkers");
     } else if (profile == "docker") {
         hostsList = getWorkerVector(workerHosts);
@@ -1298,7 +1298,7 @@ void JasmineGraphServer::updateOperationalGraphList() {
     Utils utils;
     string hosts = "";
     string graphIDs = "";
-    vector<string> hostsList = utils.getHostList();
+    vector<string> hostsList = utils.getHostListFromProperties();
     vector<string>::iterator it;
     for (it = hostsList.begin(); it < hostsList.end(); it++) {
         string host = *it;

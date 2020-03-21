@@ -25,7 +25,7 @@ int PerformanceUtil::init() {
 }
 
 int PerformanceUtil::collectPerformanceStatistics() {
-    vector<std::string> hostList = systemUtils.getHostList();
+    vector<std::string> hostList = systemUtils.getHostListFromProperties();
     int hostListSize = hostList.size();
     int counter = 0;
     std::vector<std::future<long>> intermRes;

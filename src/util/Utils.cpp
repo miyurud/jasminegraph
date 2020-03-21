@@ -106,7 +106,30 @@ std::string Utils::getJasmineGraphProperty(std::string key) {
     return NULL;
 }
 
-std::vector<std::string> Utils::getHostList() {
+std::vector<Utils::worker> Utils::getHostList(SQLiteDBInterface sqlite) {
+    vector<worker> workerVector;
+    std::vector<vector<pair<string, string>>> v = sqlite.runSelect(
+            "SELECT user,ip,server_port,server_data_port FROM host;");
+    for (int i = 0; i < v.size(); i++) {
+        string user = v[i][0].second;
+        string ip = v[i][1].second;
+        string serverPort = v[i][2].second;
+        string serverDataPort = v[i][3].second;
+
+        worker workerInstance;
+        workerInstance.username = user;
+        workerInstance.hostname = ip;
+        workerInstance.port = serverPort;
+        workerInstance.dataPort = serverDataPort;
+
+
+        workerVector.push_back(workerInstance);
+    }
+
+    return workerVector;
+}
+
+std::vector<std::string> Utils::getHostListFromProperties() {
     std::vector<std::string> result;
     std::vector<std::string>::iterator it;
     vector<std::string> vec = getFileContent("conf/hosts.txt");

@@ -19,7 +19,7 @@ Logger node_logger;
 
 std::string PlacesToNodeMapper::getHost(long placeId) {
     Utils utils;
-    std::vector<std::string> hostList = utils.getHostList();
+    std::vector<std::string> hostList = utils.getHostListFromProperties();
     std::string & host = hostList.at(placeId);
     return host;
 }
@@ -30,7 +30,7 @@ std::vector<int> PlacesToNodeMapper::getInstancePortsList(long placeId) {
     int numberOfWorkers =0;
     int hostListModeNWorkers;
     std::vector<int> portList;
-    std::vector<std::string> hostList = utils.getHostList();
+    std::vector<std::string> hostList = utils.getHostListFromProperties();
     std::string nWorkers = utils.getJasmineGraphProperty("org.jasminegraph.server.nworkers");
     int workerPort = Conts::JASMINEGRAPH_INSTANCE_PORT;
     if (utils.is_number(nWorkers)) {
@@ -71,7 +71,7 @@ std::vector<int> PlacesToNodeMapper::getFileTransferServicePort(long placeId) {
     int numberOfWorkers =0;
     int hostListModeNWorkers;
     std::vector<int> portList;
-    std::vector<std::string> hostList = utils.getHostList();
+    std::vector<std::string> hostList = utils.getHostListFromProperties();
     std::string nWorkers = utils.getJasmineGraphProperty("org.jasminegraph.server.nworkers");
     int workerPort = Conts::JASMINEGRAPH_INSTANCE_PORT;
     int workerDataPort = Conts::JASMINEGRAPH_INSTANCE_DATA_PORT;

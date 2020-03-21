@@ -468,8 +468,6 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 write(connFd, "\r\n", 2);
             } else {
                 auto begin = chrono::high_resolution_clock::now();
-                vector<string> hostsList = utils.getHostList();
-                int hostListLength = hostsList.size();
                 long triangleCount = JasmineGraphFrontEnd::countTriangles(graph_id,sqlite,masterIP);
                 auto end = chrono::high_resolution_clock::now();
                 auto dur = end - begin;
@@ -810,72 +808,50 @@ bool JasmineGraphFrontEnd::isGraphActiveAndTrained(std::string graphID, SQLiteDB
 long JasmineGraphFrontEnd::countTriangles(std::string graphId, SQLiteDBInterface sqlite, std::string masterIP) {
     long result= 0;
     Utils utils;
-    vector<std::string> hostList = utils.getHostList();
-    int hostListSize = hostList.size();
+    Utils::worker aggregatorWorker;
+    vector<Utils::worker> workerList = utils.getHostList(sqlite);
+    int hostListSize = workerList.size();
     int counter = 0;
     std::vector<std::future<long>> intermRes;
     std::map<std::string, std::future<std::string>> remoteCopyRes;
     PlacesToNodeMapper placesToNodeMapper;
 
-    string sqlStatement =
-            "SELECT name,partition_idpartition FROM host_has_partition INNER JOIN host ON host_idhost=idhost WHERE partition_graph_idgraph=" +
-            graphId + ";";
+    string sqlStatement = "SELECT name,ip,user,server_port,server_data_port,partition_idpartition FROM host_has_partition INNER JOIN host ON host_idhost=idhost WHERE partition_graph_idgraph=" + graphId + ";";
 
     std::vector<vector<pair<string, string>>> results = sqlite.runSelect(sqlStatement);
 
     std::map<string, std::vector<string>> map;
 
-    // ToDO: Implement Logic to Decide the Worker node which Acts as the centralstore triangle count aggregator
-    std::string aggregatorWorker = "localhost@7780";
-    std::string aggregatorWorkerHost;
-    std::string aggregatorWorkerPort;
-    std::string aggregatorPartitionId;
+    // Implement Logic to Decide the Worker node which Acts as the centralstore triangle count aggregator
+    aggregatorWorker = workerList.at(0);
+    string aggregatorWorkerHost = aggregatorWorker.hostname;
+    std::string aggregatorWorkerPort = aggregatorWorker.port;
 
-    if (aggregatorWorker.find('@') != std::string::npos) {
-        aggregatorWorkerHost = utils.split(aggregatorWorker, '@')[0];
-        aggregatorWorkerPort = utils.split(aggregatorWorker, '@')[1];
-    }
+    std::string aggregatorPartitionId;
 
     for (std::vector<vector<pair<string, string>>>::iterator i = results.begin(); i != results.end(); ++i) {
         std::vector<pair<string, string>> rowData = *i;
+        string host = "";
 
         string name = rowData.at(0).second;
-        string partitionId = rowData.at(1).second;
+        string ip = rowData.at(1).second;
+        string user = rowData.at(2).second;
+        string serverPort = rowData.at(3).second;
+        string serverDataPort = rowData.at(4).second;
+        string partitionId = rowData.at(5).second;
 
-        std::vector<string> partitionList = map[name];
+        if (ip.find("localhost") != std::string::npos) {
+            host = user + "@" + ip;
+        } else {
+            host = ip;
+        }
 
-        partitionList.push_back(partitionId);
+        intermRes.push_back(std::async(std::launch::async,JasmineGraphFrontEnd::getTriangleCount,atoi(graphId.c_str()),host,atoi(serverPort.c_str()),atoi(partitionId.c_str()),masterIP));
 
-        map[name] = partitionList;
-    }
-
-    for (int i = 0; i < hostListSize; i++) {
-        int k = counter;
-        string host = placesToNodeMapper.getHost(i);
-        std::vector<int> instancePorts = placesToNodeMapper.getInstancePortsList(i);
-
-        string partitionId;
-
-        std::vector<string> partitionList = map[host];
-
-        std::vector<int>::iterator portsIterator;
-
-        for (portsIterator = instancePorts.begin(); portsIterator != instancePorts.end(); ++portsIterator) {
-            int port = (int) *portsIterator;
-            frontend_logger.log("====>PORT:" + std::to_string(port), "info");
-
-            if (partitionList.size() > 0) {
-                auto iterator = partitionList.begin();
-                partitionId = *iterator;
-                partitionList.erase(partitionList.begin());
-            }
-
-            intermRes.push_back(std::async(std::launch::async,JasmineGraphFrontEnd::getTriangleCount,atoi(graphId.c_str()),host,port,atoi(partitionId.c_str()),masterIP));
-            if (!(aggregatorWorkerHost == host && aggregatorWorkerPort == std::to_string(port))) {
-                remoteCopyRes.insert(std::make_pair(host,std::async(std::launch::async, JasmineGraphFrontEnd::copyCentralStoreToAggregator, aggregatorWorkerHost,aggregatorWorkerPort,host,std::to_string(port),atoi(graphId.c_str()),atoi(partitionId.c_str()),masterIP)));
-            } else {
-                aggregatorPartitionId = partitionId;
-            }
+        if (!(aggregatorWorkerHost == host && aggregatorWorker.port == serverPort)) {
+            remoteCopyRes.insert(std::make_pair(host,std::async(std::launch::async, JasmineGraphFrontEnd::copyCentralStoreToAggregator, aggregatorWorkerHost,aggregatorWorker.port,host,serverPort,atoi(graphId.c_str()),atoi(partitionId.c_str()),masterIP)));
+        } else {
+            aggregatorPartitionId = partitionId;
         }
     }
 
@@ -929,7 +905,7 @@ long JasmineGraphFrontEnd::countTriangles(std::string graphId, SQLiteDBInterface
         //frontend_logger.log("====>result:" + std::to_string(result), "info");
     }
 
-    long aggregatedTriangleCount = JasmineGraphFrontEnd::countCentralStoreTriangles(aggregatorWorkerHost,aggregatorWorkerPort,aggregatorWorker,aggregatorPartitionId,graphId,masterIP);
+    long aggregatedTriangleCount = JasmineGraphFrontEnd::countCentralStoreTriangles(aggregatorWorkerHost,aggregatorWorkerPort,aggregatorWorkerHost,aggregatorPartitionId,graphId,masterIP);
     result += aggregatedTriangleCount;
     //frontend_logger.log("====>result:" + std::to_string(result), "info");
     return result;
@@ -1161,10 +1137,6 @@ long JasmineGraphFrontEnd::countCentralStoreTriangles(std::string aggregatorHost
     if (sockfd < 0) {
         std::cerr << "Cannot accept connection" << std::endl;
         return 0;
-    }
-
-    if (host.find('@') != std::string::npos) {
-        host = utils.split(host, '@')[0];
     }
 
     server = gethostbyname(host.c_str());
