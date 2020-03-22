@@ -1147,15 +1147,13 @@ long JasmineGraphInstanceService::aggregateCentralStoreTriangles(std::string gra
 
     instance_logger.log("###INSTANCE### Loading Aggregator File Location : Started","info");
     DIR* dirp = opendir(aggregatorFilePath.c_str());
-    struct dirent * dp;
-    std::string prefixString =  graphId + +"_";
-    while ((dp = readdir(dirp)) != NULL) {
-        std::string dName = dp->d_name;
-        if (dName.rfind(prefixString, 0) == 0) {
-            fileNames.push_back(dName);
+    if (dirp) {
+        struct dirent * dp;
+        while ((dp = readdir(dirp)) != NULL) {
+            fileNames.push_back(dp->d_name);
         }
+        closedir(dirp);
     }
-    closedir(dirp);
     instance_logger.log("###INSTANCE### Loading Aggregator File Location : Completed","info");
 
     std::vector<std::string>::iterator fileNamesIterator;
