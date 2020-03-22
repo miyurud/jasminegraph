@@ -199,8 +199,11 @@ int MetisPartitioner::constructMetisFormat(string graph_type) {
     return 1;
 }
 
-std::vector<std::map<int, std::string>> MetisPartitioner::partitioneWithGPMetis() {
+std::vector<std::map<int, std::string>> MetisPartitioner::partitioneWithGPMetis(string partitionCount) {
     partitioner_logger.log("Partitioning with gpmetis", "info");
+    if (partitionCount != "") {
+        nParts = atoi(partitionCount.c_str());
+    }
     char buffer[128];
     std::string result = "";
     FILE *headerModify;
@@ -224,7 +227,7 @@ std::vector<std::map<int, std::string>> MetisPartitioner::partitioneWithGPMetis(
             char *newHeaderChar = new char[command.length() + 1];
             strcpy(newHeaderChar, command.c_str());
             headerModify = popen(newHeaderChar, "r");
-            partitioneWithGPMetis();
+            partitioneWithGPMetis(to_string(nParts));
         } else if (!result.empty() && result.find("out of bounds") != std::string::npos) {
             vertexCount += 1;
             string newHeader = std::to_string(vertexCount) + ' ' + std::to_string(edgeCountForMetis);
@@ -233,7 +236,7 @@ std::vector<std::map<int, std::string>> MetisPartitioner::partitioneWithGPMetis(
             char *newHeaderChar = new char[command.length() + 1];
             strcpy(newHeaderChar, command.c_str());
             headerModify = popen(newHeaderChar, "r");
-            partitioneWithGPMetis();
+            partitioneWithGPMetis(to_string(nParts));
             //However, I only found
         } else if (!result.empty() && result.find("However, I only found") != std::string::npos) {
             string firstDelimiter = "I only found";
@@ -247,7 +250,7 @@ std::vector<std::map<int, std::string>> MetisPartitioner::partitioneWithGPMetis(
             char *newHeaderChar = new char[command.length() + 1];
             strcpy(newHeaderChar, command.c_str());
             headerModify = popen(newHeaderChar, "r");
-            partitioneWithGPMetis();
+            partitioneWithGPMetis(to_string(nParts));
         } else if (!result.empty() && result.find("Timing Information") != std::string::npos) {
             std::string line;
             string fileName = this->outputFilePath + "/grf.part." + to_string(this->nParts);

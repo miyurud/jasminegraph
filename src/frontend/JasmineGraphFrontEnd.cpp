@@ -154,7 +154,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 metisPartitioner->loadDataSet(input_file_path, newGraphID);
 
                 metisPartitioner->constructMetisFormat(Conts::GRAPH_TYPE_RDF);
-                fullFileList = metisPartitioner->partitioneWithGPMetis();
+                fullFileList = metisPartitioner->partitioneWithGPMetis("");
                 JasmineGraphServer *jasmineServer = new JasmineGraphServer();
                 jasmineServer->uploadGraphLocally(newGraphID, Conts::GRAPH_WITH_ATTRIBUTES, fullFileList,masterIP);
                 utils.deleteDirectory(utils.getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
@@ -171,6 +171,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
             // We get the name and the path to graph as a pair separated by |.
             char graph_data[FRONTEND_DATA_LENGTH];
+            char partition_count[FRONTEND_DATA_LENGTH];
             bzero(graph_data, FRONTEND_DATA_LENGTH + 1);
             string name = "";
             string path = "";
@@ -191,6 +192,12 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 frontend_logger.log("Message format not recognized", "error");
                 continue;
             }
+
+            write(connFd, PARTITIONS.c_str(), FRONTEND_COMMAND_LENGTH);
+            write(connFd, "\r\n", 2);
+
+            bzero(partition_count, FRONTEND_DATA_LENGTH + 1);
+            string partitionCount(partition_count);
 
             name = strArr[0];
             path = strArr[1];
@@ -219,10 +226,10 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                     string reformattedFilePath = partitioner->reformatDataSet(path, newGraphID);
                     partitioner->loadDataSet(reformattedFilePath, newGraphID);
                     partitioner->constructMetisFormat(Conts::GRAPH_TYPE_NORMAL_REFORMATTED);
-                    fullFileList = partitioner->partitioneWithGPMetis();
+                    fullFileList = partitioner->partitioneWithGPMetis(partitionCount);
                 } else {
 
-                    fullFileList = partitioner->partitioneWithGPMetis();
+                    fullFileList = partitioner->partitioneWithGPMetis(partitionCount);
                 }
                 frontend_logger.log("Upload done", "info");
                 jasmineServer->uploadGraphLocally(newGraphID, Conts::GRAPH_TYPE_NORMAL, fullFileList, masterIP);
@@ -320,9 +327,9 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                     string reformattedFilePath = partitioner->reformatDataSet(edgeListPath, newGraphID);
                     partitioner->loadDataSet(reformattedFilePath, newGraphID);
                     partitioner->constructMetisFormat(Conts::GRAPH_TYPE_NORMAL_REFORMATTED);
-                    fullFileList = partitioner->partitioneWithGPMetis();
+                    fullFileList = partitioner->partitioneWithGPMetis("");
                 } else {
-                    fullFileList = partitioner->partitioneWithGPMetis();
+                    fullFileList = partitioner->partitioneWithGPMetis("");
                 }
                 //Graph type should be changed to identify graphs with attributes
                 //because this graph type has additional attribute files to be uploaded
