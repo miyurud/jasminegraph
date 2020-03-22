@@ -175,6 +175,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             bzero(graph_data, FRONTEND_DATA_LENGTH + 1);
             string name = "";
             string path = "";
+            string partitionCount = "";
 
             read(connFd, graph_data, FRONTEND_DATA_LENGTH);
 
@@ -188,19 +189,17 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
             std::vector<std::string> strArr = Utils::split(gData, '|');
 
-            if (strArr.size() != 2) {
+            if (strArr.size() < 2) {
                 frontend_logger.log("Message format not recognized", "error");
                 continue;
             }
 
-            write(connFd, PARTITIONS.c_str(), FRONTEND_COMMAND_LENGTH);
-            write(connFd, "\r\n", 2);
-
-            bzero(partition_count, FRONTEND_DATA_LENGTH + 1);
-            string partitionCount(partition_count);
-
             name = strArr[0];
             path = strArr[1];
+
+            if (strArr.size() == 3) {
+                partitionCount = strArr[2];
+            }
 
             if (JasmineGraphFrontEnd::graphExists(path, sqlite)) {
                 frontend_logger.log("Graph exists", "error");
