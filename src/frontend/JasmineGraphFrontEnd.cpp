@@ -846,6 +846,8 @@ long JasmineGraphFrontEnd::countTriangles(std::string graphId, SQLiteDBInterface
             host = ip;
         }
 
+        frontend_logger.log("###FRONTEND### Getting Triangle Count : Host " + host + " Server Port " + serverPort + " PartitionId " + partitionId, "info");
+
         intermRes.push_back(std::async(std::launch::async,JasmineGraphFrontEnd::getTriangleCount,atoi(graphId.c_str()),host,atoi(serverPort.c_str()),atoi(partitionId.c_str()),masterIP));
 
         if (!(aggregatorWorkerHost == host && aggregatorWorker.port == serverPort)) {
