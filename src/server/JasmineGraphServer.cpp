@@ -1132,19 +1132,20 @@ map<string, string> JasmineGraphServer::getLiveHostIDList() {
     server_logger.log("###MASTER### Loading Live Host ID List", "info");
     map<string, string> hostIDMap;
     std::vector<vector<pair<string, string>>> v = this->sqlite.runSelect(
-                "SELECT idhost,user,ip FROM host;");
+                "SELECT idhost,user,ip,server_port FROM host;");
     string id = v[0][0].second;
     for (int i = 0; i < v.size(); i++) {
         string id = v[i][0].second;
         string user = v[i][1].second;
         string ip = v[i][2].second;
+        string serverPort = v[i][3].second;
 
         string host = "";
 
         if (user == "") {
             host = ip;
         } else {
-            host = user + "@" + ip;
+            host = user + "@" + ip + ":" + serverPort;
         }
 
         hostIDMap.insert(make_pair(host,id));
@@ -1162,12 +1163,13 @@ void JasmineGraphServer::updateMetaDB(vector<JasmineGraphServer::workers> hostWo
     while (file_count < partitionFileList.size()) {
         for (mapIterator = hostWorkerMap.begin(); mapIterator < hostWorkerMap.end(); mapIterator++) {
             workers worker = *mapIterator;
+            string mapKey = worker.hostname + ":" + to_string(worker.port);
             size_t lastindex = partitionFileList[file_count].find_last_of('.');
             string rawname = partitionFileList[file_count].substr(0, lastindex);
             string partitionID = rawname.substr(rawname.find_last_of('_') + 1);
             string sqlStatement =
                     "INSERT INTO host_has_partition (host_idhost, partition_idpartition, partition_graph_idgraph) "
-                    "VALUES('" + hostIDMap.find(worker.hostname)->second + "','" + partitionID + "','" +
+                    "VALUES('" + hostIDMap.find(mapKey)->second + "','" + partitionID + "','" +
                     to_string(graphID) + "')";
 
             refToSqlite.runInsertNoIDReturn(sqlStatement);
