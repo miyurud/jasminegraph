@@ -1060,8 +1060,10 @@ void JasmineGraphInstanceService::loadInstanceCentralStore(std::string graphId, 
 }
 
 JasmineGraphHashMapCentralStore JasmineGraphInstanceService::loadCentralStore(std::string centralStoreFileName) {
+    instance_logger.log("###INSTANCE### Loading Central Store File : Started " + centralStoreFileName,"info");
     JasmineGraphHashMapCentralStore *jasmineGraphHashMapCentralStore = new JasmineGraphHashMapCentralStore();
     jasmineGraphHashMapCentralStore->loadGraph(centralStoreFileName);
+    instance_logger.log("###INSTANCE### Loading Central Store File : Completed","info");
     return *jasmineGraphHashMapCentralStore;
 }
 
@@ -1145,7 +1147,6 @@ long JasmineGraphInstanceService::aggregateCentralStoreTriangles(std::string gra
 
     instance_logger.log("###INSTANCE### Loading Aggregator File Location : Started","info");
     DIR* dirp = opendir(aggregatorFilePath.c_str());
-    instance_logger.log("###INSTANCE### Loading Aggregator File Location : Completed","info");
     struct dirent * dp;
     std::string prefixString =  graphId + +"_";
     while ((dp = readdir(dirp)) != NULL) {
@@ -1155,9 +1156,11 @@ long JasmineGraphInstanceService::aggregateCentralStoreTriangles(std::string gra
         }
     }
     closedir(dirp);
+    instance_logger.log("###INSTANCE### Loading Aggregator File Location : Completed","info");
 
     std::vector<std::string>::iterator fileNamesIterator;
 
+    instance_logger.log("###INSTANCE### Central Store Aggregation : Started","info");
     for (fileNamesIterator = fileNames.begin(); fileNamesIterator != fileNames.end(); ++fileNamesIterator) {
         std::string fileName = *fileNamesIterator;
         struct stat s;
@@ -1179,6 +1182,8 @@ long JasmineGraphInstanceService::aggregateCentralStoreTriangles(std::string gra
             }
         }
     }
+    instance_logger.log("###INSTANCE### Central Store Aggregation : Completed","info");
+
     map<long, long> distributionHashMap = JasmineGraphInstanceService::getOutDegreeDistributionHashMap(aggregatedCentralStore);
 
     long aggregatedTriangleCount = Triangles::countCentralStoreTriangles(aggregatedCentralStore,distributionHashMap);
