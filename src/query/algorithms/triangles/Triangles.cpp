@@ -14,12 +14,16 @@ limitations under the License.
 #include <vector>
 #include "Triangles.h"
 #include "../../../localstore/JasmineGraphHashMapLocalStore.h"
+#include "../../../util/logger/Logger.h"
+
+Logger triangle_logger;
 
 long Triangles::run(JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCentralStore centralStore, std::string hostName) {
     return run(graphDB,centralStore, NULL,NULL);
 }
 
 long Triangles::run(JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCentralStore centralStore, std::string graphId, std::string partitionId) {
+    triangle_logger.log("###TRIANGLE### Triangle Counting: Started","info");
     map<long, unordered_set<long>> localSubGraphMap = graphDB.getUnderlyingHashMap();
     map<long, unordered_set<long>> centralDBSubGraphMap = centralStore.getUnderlyingHashMap();
     long edgeCount = graphDB.getEdgeCount();
@@ -116,6 +120,7 @@ long Triangles::run(JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCe
         }
         degreeListVisited.push_back(key);
     }
+    triangle_logger.log("###TRIANGLE### Triangle Counting: Completed: Triangles" + std::to_string(triangleCount),"info");
     return triangleCount;
 }
 
