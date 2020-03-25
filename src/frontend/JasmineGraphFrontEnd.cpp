@@ -942,6 +942,8 @@ long JasmineGraphFrontEnd::getTriangleCount(int graphId, std::string host, int p
         host = utils.split(host, '@')[1];
     }
 
+    frontend_logger.log("###FRONTEND### Get Host By Name : " + host, "info");
+
     server = gethostbyname(host.c_str());
     if (server == NULL) {
         std::cerr << "ERROR, no host named " << server << std::endl;
