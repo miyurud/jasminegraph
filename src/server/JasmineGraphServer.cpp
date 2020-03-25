@@ -1143,7 +1143,7 @@ map<string, string> JasmineGraphServer::getLiveHostIDList() {
         string host = "";
 
         if (user == "") {
-            host = ip;
+            host = ip + ":" + serverPort;
         } else {
             host = user + "@" + ip + ":" + serverPort;
         }

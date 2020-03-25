@@ -847,9 +847,9 @@ long JasmineGraphFrontEnd::countTriangles(std::string graphId, SQLiteDBInterface
         string partitionId = rowData.at(5).second;
 
         if (ip.find("localhost") != std::string::npos) {
-            host = user + "@" + ip;
-        } else {
             host = ip;
+        } else {
+            host = user + "@" + ip;;
         }
 
         frontend_logger.log("###FRONTEND### Getting Triangle Count : Host " + host + " Server Port " + serverPort + " PartitionId " + partitionId, "info");
@@ -915,7 +915,7 @@ long JasmineGraphFrontEnd::countTriangles(std::string graphId, SQLiteDBInterface
 
     long aggregatedTriangleCount = JasmineGraphFrontEnd::countCentralStoreTriangles(aggregatorWorkerHost,aggregatorWorkerPort,aggregatorWorkerHost,aggregatorPartitionId,graphId,masterIP);
     result += aggregatedTriangleCount;
-    //frontend_logger.log("====>result:" + std::to_string(result), "info");
+    frontend_logger.log("###FRONTEND### Getting Triangle Count : Completed: Triangles " + to_string(result), "info");
     return result;
 }
 
