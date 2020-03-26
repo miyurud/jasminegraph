@@ -939,7 +939,7 @@ long JasmineGraphFrontEnd::getTriangleCount(int graphId, std::string host, int p
     }
 
     if (host.find('@') != std::string::npos) {
-        host = utils.split(host, '@')[1];
+        host = utils.split(host, '@')[0];
     }
 
     frontend_logger.log("###FRONTEND### Get Host By Name : " + host, "info");
