@@ -6,11 +6,6 @@ HOST_NAME=$2;
 SERVER_PORT=$3;
 SERVER_DATA_PORT=$4;
 
-echo "using mode $MODE"
-echo "using server $HOST_NAME"
-echo "using server port $SERVER_PORT"
-echo "using server data port $SERVER_DATA_PORT"
-
 JASMINEGRAPH_DIR="`( cd \"$JASMINEGRAPH_DIR\" && pwd )`"
 if [ -z "$JASMINEGRAPH_DIR" ] ;
 then
@@ -30,7 +25,7 @@ fi
 if [ $MODE -eq 1 ] ;
 then
     echo "STARTING MASTER MODE"
-else
+
     if [ -z "$SERVER_PORT" ] ;
     then
         echo "SERVER PORT SHOULD BE SPECIFIED"
@@ -48,8 +43,8 @@ echo "using mode $MODE"
 if [ $MODE -eq 1 ] ;
 then
     echo "using server $HOST_NAME"
-    echo "using mode $SERVER_PORT"
-    echo "using mode $SERVER_DATA_PORT"
+    echo "using server port $SERVER_PORT"
+    echo "using server data port $SERVER_DATA_PORT"
 fi
 mkdir -p logs
 

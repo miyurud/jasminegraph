@@ -38,17 +38,17 @@ int main(int argc, char *argv[]) {
     atexit(fnExit3);
     Utils utils;
 
-    if (argc < 1) {
+    if (argc <= 1) {
     main_logger.log("\"Use argument 1 to start JasmineGraph in Master mode. Use 2 "
                     "<hostName> <serverPort> <serverDataPort> to start as worker","error");
         return -1;
     }
-
+    std::cout << argc << std::endl;
 
     int mode = atoi(argv[1]);
     std::string JASMINEGRAPH_HOME = utils.getJasmineGraphHome();
 
-    std::cout << "Using JASMINE_GRAPH_HOME" << std::endl;
+    main_logger.log("Using JASMINE_GRAPH_HOME", "info");
     std::cout << JASMINEGRAPH_HOME << std::endl;
 
 
