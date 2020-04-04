@@ -60,7 +60,7 @@ void *instanceservicesession(void *dummyPt) {
         string line = (data);
 
         Utils utils;
-//        line = utils.trim_copy(line, " \f\n\r\t\v");
+        line = utils.trim_copy(line, " \f\n\r\t\v");
         if (line.compare(JasmineGraphInstanceProtocol::HANDSHAKE) == 0) {
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
             write(connFd, JasmineGraphInstanceProtocol::HANDSHAKE_OK.c_str(),
@@ -81,7 +81,7 @@ void *instanceservicesession(void *dummyPt) {
             write(connFd, JasmineGraphInstanceProtocol::SHUTDOWN_ACK.c_str(),
                   JasmineGraphInstanceProtocol::SHUTDOWN_ACK.size());
             close(connFd);
-            break;
+            exit(0);
         } else if (line.compare(JasmineGraphInstanceProtocol::READY) == 0) {
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
         }

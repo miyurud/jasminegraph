@@ -55,6 +55,8 @@ public:
 
     void start_workers();
 
+    int shutdown_workers();
+
     int run();
 
     bool isRunning();

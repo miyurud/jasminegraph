@@ -83,6 +83,8 @@ void *frontendservicesesion(void *dummyPt) {
             write(connFd, result.c_str(), result.length());
 
         } else if (line.compare(SHTDN) == 0) {
+            JasmineGraphServer *jasmineServer = new JasmineGraphServer();
+            jasmineServer->shutdown_workers();
             close(connFd);
             exit(0);
         } else if (line.compare(ADRDF) == 0) {
