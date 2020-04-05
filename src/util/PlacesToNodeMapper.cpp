@@ -108,7 +108,7 @@ std::vector<int> PlacesToNodeMapper::getFileTransferServicePort(long placeId) {
 }
 
 
-int PlacesToNodeMapper::countPortRanges(int totalNumberOfWorkers) {
+void PlacesToNodeMapper::countPortRanges(int totalNumberOfWorkers) {
 
     std::vector<int> instancePortList;
     std::vector<int> dataPortList;
@@ -124,15 +124,11 @@ int PlacesToNodeMapper::countPortRanges(int totalNumberOfWorkers) {
         workerPort = workerPort + i*2;
         instancePortList.push_back(workerPort);
 
-    }
-
-    for (int i=0; i<totalNumberOfWorkers; i++) {
-
         workerDataPort = workerDataPort + i*2;
         dataPortList.push_back(workerDataPort);
+
     }
 
     count = instancePortList.size() + dataPortList.size();
-    return count; 
-
+  
 }
