@@ -60,6 +60,7 @@ void *instanceservicesession(void *dummyPt) {
         read(connFd, data, INSTANCE_DATA_LENGTH);
 
         string line = (data);
+        line = utils.trim_copy(line, " \f\n\r\t\v");
 
         Utils utils;
         line = utils.trim_copy(line, " \f\n\r\t\v");

@@ -427,8 +427,14 @@ void MetisPartitioner::populatePartMaps(std::map<int, int> partMap, int part) {
                         commonMasterEdgeSet[endVertexPart][startVertexActual].push_back(endVertexActual);
                     }
                 }
-                partEdgesSet[startVertexActual] = localGraphVertexVector;
-                partMasterEdgesSet[startVertexActual] = centralGraphVertexVector;
+                if (localGraphVertexVector.size() > 0) {
+                    partEdgesSet[startVertexActual] = localGraphVertexVector;
+                }
+
+                if (centralGraphVertexVector.size() > 0) {
+                    partMasterEdgesSet[startVertexActual] = centralGraphVertexVector;
+                }
+
             }
         }
     } else {
@@ -469,8 +475,14 @@ void MetisPartitioner::populatePartMaps(std::map<int, int> partMap, int part) {
                         commonMasterEdgeSet[endVertexPart][startVertex].push_back(endVertex);
                     }
                 }
-                partEdgesSet[startVertex] = localGraphVertexVector;
-                partMasterEdgesSet[startVertex] = centralGraphVertexVector;
+
+                if (localGraphVertexVector.size() > 0) {
+                    partEdgesSet[startVertex] = localGraphVertexVector;
+                }
+
+                if (centralGraphVertexVector.size() > 0) {
+                    partMasterEdgesSet[startVertex] = centralGraphVertexVector;
+                }
             }
         }
     }
