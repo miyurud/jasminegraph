@@ -12,23 +12,26 @@ limitations under the License.
  */
 
 #include <vector>
+#include <algorithm>
 #include "Triangles.h"
 #include "../../../localstore/JasmineGraphHashMapLocalStore.h"
 #include "../../../util/logger/Logger.h"
 
 Logger triangle_logger;
 
-long Triangles::run(JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCentralStore centralStore, std::string hostName) {
-    return run(graphDB,centralStore, NULL,NULL);
+long Triangles::run(JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCentralStore centralStore, JasmineGraphHashMapDuplicateCentralStore duplicateCentralStore, std::string hostName) {
+    return run(graphDB, centralStore, duplicateCentralStore, NULL,NULL);
 }
 
-long Triangles::run(JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCentralStore centralStore, std::string graphId, std::string partitionId) {
+long Triangles::run(JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCentralStore centralStore, JasmineGraphHashMapDuplicateCentralStore duplicateCentralStore, std::string graphId, std::string partitionId) {
     triangle_logger.log("###TRIANGLE### Triangle Counting: Started","info");
     map<long, unordered_set<long>> localSubGraphMap = graphDB.getUnderlyingHashMap();
     map<long, unordered_set<long>> centralDBSubGraphMap = centralStore.getUnderlyingHashMap();
+    map<long, unordered_set<long>> duplicateCentralDBSubGraphMap = duplicateCentralStore.getUnderlyingHashMap();
     long edgeCount = graphDB.getEdgeCount();
     map<long,long> degreeDistribution = graphDB.getOutDegreeDistributionHashMap();
     map<long,long> centralDBDegreeDistribution = centralStore.getOutDegreeDistributionHashMap();
+    map<long,long> centralDuplicateDBDegreeDistribution = duplicateCentralStore.getOutDegreeDistributionHashMap();
     std::map<long,long> degreeReverseLookupMap;
     std::map<long,std::set<long>> degreeMap;
     std::set<long> degreeSet;
@@ -38,6 +41,22 @@ long Triangles::run(JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCe
     std::map<long,long>::iterator it;
     std::map<long,long>::iterator degreeDistributionIterator;
     std::map<long,long>::iterator centralDBDegreeDistributionIterator;
+    std::map<long,long>::iterator centralDuplicateDBDegreeDistributionIterator;
+
+    for (centralDuplicateDBDegreeDistributionIterator = centralDuplicateDBDegreeDistribution.begin(); centralDuplicateDBDegreeDistributionIterator != centralDuplicateDBDegreeDistribution.end(); ++centralDuplicateDBDegreeDistributionIterator) {
+        long centralDuplicateDBStartVid = centralDuplicateDBDegreeDistributionIterator->first;
+
+        unordered_set<long> centralDBSecondVertexSet = centralDBSubGraphMap[centralDuplicateDBStartVid];
+        unordered_set<long> duplicateSecondVertexSet = duplicateCentralDBSubGraphMap[centralDuplicateDBStartVid];
+        std::set<long> result;
+
+        std::set_difference(duplicateSecondVertexSet.begin(), duplicateSecondVertexSet.end(), centralDBSecondVertexSet.begin(), centralDBSecondVertexSet.end(), std::inserter(result, result.end()));
+
+        if (result.size() > 0) {
+            centralDBDegreeDistribution[centralDuplicateDBStartVid] += result.size();
+            centralDBSubGraphMap[centralDuplicateDBStartVid].insert(result.begin(), result.end());
+        }
+    }
 
     //Merging Local Store and Workers central stores before starting triangle count
     for (centralDBDegreeDistributionIterator = centralDBDegreeDistribution.begin();centralDBDegreeDistributionIterator != centralDBDegreeDistribution.end();++centralDBDegreeDistributionIterator) {
