@@ -70,16 +70,9 @@ int main(int argc, char *argv[]) {
     } else if (mode == Conts::JASMINEGRAPH_RUNTIME_PROFILE_WORKER){
         main_logger.log(to_string(argc),"info");
 
-        if (profile == "docker") {
-            if (argc < 5) {
-                main_logger.log("Need Four arguments. Use 2 <hostName> <serverPort> <serverDataPort> to start as worker","info");
-                return -1;
-            }
-        } else if (profile == "native") {
-            if (argc < 5) {
-                main_logger.log("Need Four arguments. Use 2 <hostName> <serverPort> <serverDataPort> to start as worker","info");
-                return -1;
-            }
+        if (argc < 5) {
+            main_logger.log("Need Four arguments. Use 2 <hostName> <serverPort> <serverDataPort> to start as worker","info");
+            return -1;
         }
 
         string hostName;
