@@ -46,7 +46,7 @@ public:
     //void partitionGraph();
     int constructMetisFormat(string graph_type);
 
-    std::vector<std::map<int,std::string>> partitioneWithGPMetis();
+    std::vector<std::map<int,std::string>> partitioneWithGPMetis(string partitionCount);
 
     //reformat the vertex list by mapping vertex values to new sequntial IDs
     std::string reformatDataSet(string inputFilePath, int graphID);

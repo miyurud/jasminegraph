@@ -46,27 +46,32 @@ limitations under the License.
 void *instanceservicesession(void *dummyPt);
 void writeCatalogRecord(string record);
 void deleteGraphPartition(std::string graphID, std::string partitionID);
-long countLocalTriangles(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores, std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores);
+long countLocalTriangles(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores, std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores, std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> graphDBMapDuplicateCentralStores);
 
 struct instanceservicesessionargs {
+    string profile;
+    string masterHost;
     string host;
     int connFd;
     int port;
     int dataPort;
     std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores;
     std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores;
+    std::map<std::string,JasmineGraphHashMapDuplicateCentralStore> graphDBMapDuplicateCentralStores;
 };
 
 class JasmineGraphInstanceService {
 public:
     JasmineGraphInstanceService();
 
-    int run(string hostName, int serverPort, int serverDataPort);
+    int run(string profile, string masterHost, string hostName, int serverPort, int serverDataPort);
 
     static bool isGraphDBExists(std::string graphId, std::string partitionId);
     static bool isInstanceCentralStoreExists(std::string graphId, std::string partitionId);
+    static bool isInstanceDuplicateCentralStoreExists(std::string graphId, std::string partitionId);
     static void loadLocalStore(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapLocalStore>& graphDBMapLocalStores);
     static void loadInstanceCentralStore(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapCentralStore>& graphDBMapCentralStores);
+    static void loadInstanceDuplicateCentralStore(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapDuplicateCentralStore>& graphDBMapDuplicateCentralStores);
     static JasmineGraphHashMapCentralStore loadCentralStore(std::string centralStoreFileName);
     static std::string copyCentralStoreToAggregator(std::string graphId, std::string partitionId, std::string aggregatorHost, std::string aggregatorPort, std::string host);
     static long aggregateCentralStoreTriangles (std::string graphId, std::string partitionId);

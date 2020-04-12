@@ -45,17 +45,21 @@ int main(int argc, char *argv[]) {
     }
     std::cout << argc << std::endl;
 
-    int mode = atoi(argv[1]);
+    int mode = atoi(argv[2]);
     std::string JASMINEGRAPH_HOME = utils.getJasmineGraphHome();
+    std::string profile = argv[1];
 
     main_logger.log("Using JASMINE_GRAPH_HOME", "info");
     std::cout << JASMINEGRAPH_HOME << std::endl;
 
 
     if (mode == Conts::JASMINEGRAPH_RUNTIME_PROFILE_MASTER) {
+        std::string masterIp = argv[3];
+        int numberOfWorkers = atoi(argv[4]);
+        std::string workerIps = argv[5];
         server = new JasmineGraphServer();
         thread schedulerThread(SchedulerService::startScheduler);
-        server->run();
+        server->run(profile,masterIp,numberOfWorkers, workerIps);
 
         while (server->isRunning()) {
             usleep(microseconds);
@@ -65,25 +69,21 @@ int main(int argc, char *argv[]) {
         delete server;
     } else if (mode == Conts::JASMINEGRAPH_RUNTIME_PROFILE_WORKER){
         main_logger.log(to_string(argc),"info");
-        main_logger.log((argv[0]),"info");
-        main_logger.log((argv[1]),"info");
-        main_logger.log((argv[2]),"info");
-        main_logger.log((argv[3]),"info");
-        main_logger.log((argv[4]),"info");
+
         if (argc < 5) {
-//            std::cout << "Need three arguments. Use 2 <serverPort> <serverDataPort> to "
-//                      << "start as worker ." << std::endl;
-        main_logger.log("Need Four arguments. Use 2 <hostName> <serverPort> <serverDataPort> to start as worker","info");
+            main_logger.log("Need Four arguments. Use 2 <hostName> <serverPort> <serverDataPort> to start as worker","info");
             return -1;
         }
+
         string hostName;
-        hostName = argv[2];
-        int serverPort = atoi(argv[3]);
-        int serverDataPort = atoi(argv[4]);
+        hostName = argv[3];
+        std::string masterHost = argv[4];
+        int serverPort = atoi(argv[5]);
+        int serverDataPort = atoi(argv[6]);
 
         std::cout << "In worker mode" << std::endl;
         instance = new JasmineGraphInstance();
-        instance->start_running(hostName, serverPort,serverDataPort);
+        instance->start_running(profile, hostName, masterHost, serverPort,serverDataPort);
 
         while (instance->isRunning()) {
             usleep(microseconds);

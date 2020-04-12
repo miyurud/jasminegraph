@@ -39,8 +39,11 @@ void *instanceservicesession(void *dummyPt) {
     int connFd = sessionargs->connFd;
     std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores = sessionargs->graphDBMapLocalStores;
     std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores = sessionargs->graphDBMapCentralStores;
+    std::map<std::string,JasmineGraphHashMapDuplicateCentralStore> graphDBMapDuplicateCentralStores = sessionargs->graphDBMapDuplicateCentralStores;
 
     string serverName = sessionargs->host;
+    string masterHost = sessionargs->masterHost;
+    string profile = sessionargs->profile;
     int serverPort = sessionargs->port;
     int serverDataPort = sessionargs->dataPort;
 
@@ -58,6 +61,7 @@ void *instanceservicesession(void *dummyPt) {
         read(connFd, data, INSTANCE_DATA_LENGTH);
 
         string line = (data);
+        line = utils.trim_copy(line, " \f\n\r\t\v");
 
         Utils utils;
         line = utils.trim_copy(line, " \f\n\r\t\v");
@@ -485,7 +489,7 @@ void *instanceservicesession(void *dummyPt) {
             string partitionId = (data);
             partitionId = utils.trim_copy(partitionId, " \f\n\r\t\v");
             instance_logger.log("Received Partition ID: " + partitionId, "info");
-            long localCount = countLocalTriangles(graphID,partitionId,graphDBMapLocalStores,graphDBMapCentralStores);
+            long localCount = countLocalTriangles(graphID,partitionId,graphDBMapLocalStores,graphDBMapCentralStores,graphDBMapDuplicateCentralStores);
             std::string result = to_string(localCount);
             write(connFd, result.c_str(), result.size());
         } else if (line.compare(JasmineGraphInstanceProtocol::SEND_CENTRALSTORE_TO_AGGREGATOR) == 0) {
@@ -874,7 +878,7 @@ JasmineGraphInstanceService::JasmineGraphInstanceService() {
 
 }
 
-int JasmineGraphInstanceService::run(string host,int serverPort, int serverDataPort) {
+int JasmineGraphInstanceService::run(string profile, string masterHost, string host,int serverPort, int serverDataPort) {
     int listenFd;
     socklen_t len;
     struct sockaddr_in svrAdd;
@@ -921,6 +925,7 @@ int JasmineGraphInstanceService::run(string host,int serverPort, int serverDataP
         int connFd = accept(listenFd, (struct sockaddr *) &clntAdd, &len);
         std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores;
         std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores;
+        std::map<std::string,JasmineGraphHashMapDuplicateCentralStore> graphDBMapDuplicateCentralStores;
 
         if (connFd < 0) {
             instance_logger.log("Cannot accept connection to port " + to_string(serverPort), "error");
@@ -930,6 +935,9 @@ int JasmineGraphInstanceService::run(string host,int serverPort, int serverDataP
             instanceservicesessionargs1.connFd = connFd;
             instanceservicesessionargs1.graphDBMapLocalStores = graphDBMapLocalStores;
             instanceservicesessionargs1.graphDBMapCentralStores = graphDBMapCentralStores;
+            instanceservicesessionargs1.graphDBMapDuplicateCentralStores = graphDBMapDuplicateCentralStores;
+            instanceservicesessionargs1.profile = profile;
+            instanceservicesessionargs1.masterHost = masterHost;
             instanceservicesessionargs1.port = serverPort;
             instanceservicesessionargs1.dataPort = serverDataPort;
             instanceservicesessionargs1.host = host;
@@ -978,17 +986,20 @@ void writeCatalogRecord(string record) {
 
 
 
-long countLocalTriangles(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores, std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores) {
+long countLocalTriangles(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores, std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores, std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> graphDBMapDuplicateCentralStores) {
     long result;
 
-
+    instance_logger.log("###INSTANCE### Local Triangle Count : Started", "info");
     std::string graphIdentifier = graphId + "_" + partitionId;
     std::string centralGraphIdentifier = graphId + +"_centralstore_"+ partitionId;
+    std::string duplicateCentralGraphIdentifier = graphId + +"_centralstore_dp_"+ partitionId;
     JasmineGraphHashMapLocalStore graphDB;
     JasmineGraphHashMapCentralStore centralGraphDB;
+    JasmineGraphHashMapDuplicateCentralStore duplicateCentralGraphDB;
 
     std::map<std::string,JasmineGraphHashMapLocalStore>::iterator localMapIterator = graphDBMapLocalStores.find(graphIdentifier);
     std::map<std::string,JasmineGraphHashMapCentralStore>::iterator centralStoreIterator = graphDBMapCentralStores.find(graphIdentifier);
+    std::map<std::string,JasmineGraphHashMapDuplicateCentralStore>::iterator duplicateCentralStoreIterator = graphDBMapDuplicateCentralStores.find(graphIdentifier);
 
 
     if (localMapIterator == graphDBMapLocalStores.end()) {
@@ -1009,7 +1020,18 @@ long countLocalTriangles(std::string graphId, std::string partitionId, std::map<
         centralGraphDB = graphDBMapCentralStores[centralGraphIdentifier];
     }
 
-    result = Triangles::run(graphDB,centralGraphDB,graphId,partitionId);
+    if (duplicateCentralStoreIterator == graphDBMapDuplicateCentralStores.end()) {
+        if (JasmineGraphInstanceService::isInstanceDuplicateCentralStoreExists(graphId,partitionId)) {
+            JasmineGraphInstanceService::loadInstanceDuplicateCentralStore(graphId,partitionId,graphDBMapDuplicateCentralStores);
+        }
+        duplicateCentralGraphDB = graphDBMapDuplicateCentralStores[duplicateCentralGraphIdentifier];
+    } else {
+        duplicateCentralGraphDB = graphDBMapDuplicateCentralStores[duplicateCentralGraphIdentifier];
+    }
+
+    result = Triangles::run(graphDB,centralGraphDB,duplicateCentralGraphDB,graphId,partitionId);
+
+    instance_logger.log("###INSTANCE### Local Triangle Count : Completed: Triangles: " + to_string(result), "info");
 
     return result;
 
@@ -1037,13 +1059,26 @@ bool JasmineGraphInstanceService::isInstanceCentralStoreExists(std::string graph
     return true;
 }
 
+bool JasmineGraphInstanceService::isInstanceDuplicateCentralStoreExists(std::string graphId, std::string partitionId) {
+    Utils utils;
+    std::string dataFolder = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+    std::string filename = dataFolder+"/"+graphId + +"_centralstore_dp_"+ partitionId;
+    std::ifstream dbFile(filename, std::ios::binary);
+    if (!dbFile) {
+        return false;
+    }
+    return true;
+}
+
 void JasmineGraphInstanceService::loadLocalStore(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapLocalStore>& graphDBMapLocalStores) {
+    instance_logger.log("###INSTANCE### Loading Local Store : Started", "info");
     std::string graphIdentifier = graphId + "_"+partitionId;
     Utils utils;
     std::string folderLocation = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
     JasmineGraphHashMapLocalStore  *jasmineGraphHashMapLocalStore = new JasmineGraphHashMapLocalStore(atoi(graphId.c_str()),atoi(partitionId.c_str()), folderLocation);
     jasmineGraphHashMapLocalStore->loadGraph();
     graphDBMapLocalStores.insert(std::make_pair(graphIdentifier,*jasmineGraphHashMapLocalStore));
+    instance_logger.log("###INSTANCE### Loading Local Store : Completed", "info");
 }
 
 void JasmineGraphInstanceService::loadInstanceCentralStore(std::string graphId, std::string partitionId,
@@ -1055,9 +1090,20 @@ void JasmineGraphInstanceService::loadInstanceCentralStore(std::string graphId, 
     graphDBMapCentralStores.insert(std::make_pair(graphIdentifier,*jasmineGraphHashMapCentralStore));
 }
 
+void JasmineGraphInstanceService::loadInstanceDuplicateCentralStore(std::string graphId, std::string partitionId,
+                                                                    std::map<std::string,JasmineGraphHashMapDuplicateCentralStore>& graphDBMapDuplicateCentralStores) {
+    std::string graphIdentifier = graphId + +"_centralstore_dp_"+ partitionId;
+    Utils utils;
+    JasmineGraphHashMapDuplicateCentralStore *jasmineGraphHashMapCentralStore = new JasmineGraphHashMapDuplicateCentralStore(atoi(graphId.c_str()),atoi(partitionId.c_str()));
+    jasmineGraphHashMapCentralStore->loadGraph();
+    graphDBMapDuplicateCentralStores.insert(std::make_pair(graphIdentifier,*jasmineGraphHashMapCentralStore));
+}
+
 JasmineGraphHashMapCentralStore JasmineGraphInstanceService::loadCentralStore(std::string centralStoreFileName) {
+    instance_logger.log("###INSTANCE### Loading Central Store File : Started " + centralStoreFileName,"info");
     JasmineGraphHashMapCentralStore *jasmineGraphHashMapCentralStore = new JasmineGraphHashMapCentralStore();
     jasmineGraphHashMapCentralStore->loadGraph(centralStoreFileName);
+    instance_logger.log("###INSTANCE### Loading Central Store File : Completed","info");
     return *jasmineGraphHashMapCentralStore;
 }
 
@@ -1115,13 +1161,16 @@ std::string JasmineGraphInstanceService::copyCentralStoreToAggregator(std::strin
 
 long JasmineGraphInstanceService::aggregateCentralStoreTriangles(std::string graphId, std::string partitionId) {
     Utils utils;
+    instance_logger.log("###INSTANCE### Started Aggregating Central Store Triangles","info");
     std::string aggregatorFilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
     std::vector<std::string> fileNames;
     map<long, unordered_set<long>> aggregatedCentralStore;
     std::string centralGraphIdentifier = graphId + +"_centralstore_"+ partitionId;
     std::string dataFolder = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
     std::string workerCentralStoreFile = dataFolder + "/" + centralGraphIdentifier;
+    instance_logger.log("###INSTANCE### Loading Central Store : Started " + workerCentralStoreFile,"info");
     JasmineGraphHashMapCentralStore workerCentralStore = JasmineGraphInstanceService::loadCentralStore(workerCentralStoreFile);
+    instance_logger.log("###INSTANCE### Loading Central Store : Completed","info");
     map<long, unordered_set<long>> workerCentralGraphMap = workerCentralStore.getUnderlyingHashMap();
 
     map<long, unordered_set<long>>::iterator workerCentalGraphIterator;
@@ -1136,19 +1185,20 @@ long JasmineGraphInstanceService::aggregateCentralStoreTriangles(std::string gra
     }
 
 
+    instance_logger.log("###INSTANCE### Loading Aggregator File Location : Started","info");
     DIR* dirp = opendir(aggregatorFilePath.c_str());
-    struct dirent * dp;
-    std::string prefixString =  graphId + +"_";
-    while ((dp = readdir(dirp)) != NULL) {
-        std::string dName = dp->d_name;
-        if (dName.rfind(prefixString, 0) == 0) {
-            fileNames.push_back(dName);
+    if (dirp) {
+        struct dirent * dp;
+        while ((dp = readdir(dirp)) != NULL) {
+            fileNames.push_back(dp->d_name);
         }
+        closedir(dirp);
     }
-    closedir(dirp);
+    instance_logger.log("###INSTANCE### Loading Aggregator File Location : Completed","info");
 
     std::vector<std::string>::iterator fileNamesIterator;
 
+    instance_logger.log("###INSTANCE### Central Store Aggregation : Started","info");
     for (fileNamesIterator = fileNames.begin(); fileNamesIterator != fileNames.end(); ++fileNamesIterator) {
         std::string fileName = *fileNamesIterator;
         struct stat s;
@@ -1170,6 +1220,8 @@ long JasmineGraphInstanceService::aggregateCentralStoreTriangles(std::string gra
             }
         }
     }
+    instance_logger.log("###INSTANCE### Central Store Aggregation : Completed","info");
+
     map<long, long> distributionHashMap = JasmineGraphInstanceService::getOutDegreeDistributionHashMap(aggregatedCentralStore);
 
     long aggregatedTriangleCount = Triangles::countCentralStoreTriangles(aggregatedCentralStore,distributionHashMap);

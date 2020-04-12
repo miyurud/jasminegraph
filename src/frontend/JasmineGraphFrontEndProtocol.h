@@ -69,6 +69,7 @@ extern const string REFORMAT;
 extern const string TRIANGLES;
 extern const string TRAIN;
 extern const string PREDICT;
+extern const string PARTITIONS;
 
 
 class JasminGraphFrontEndProtocol {

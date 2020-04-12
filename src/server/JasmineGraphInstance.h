@@ -28,7 +28,7 @@ private:
     map<std::string, JasmineGraphLocalStore> graphDBMapLocalStores;
 public:
     SQLiteDBInterface sqlite;
-    int start_running(string hostName, int serverPort, int serverDataPort);
+    int start_running(string profile, string hostName, string masterHost,int serverPort, int serverDataPort);
 
     void registerShutdownHook();
 
@@ -39,6 +39,8 @@ public:
     bool isRunning();
 
     string hostName;
+    string profile;
+    string masterHostName;
     int serverPort;
     int serverDataPort;
 
