@@ -37,8 +37,6 @@ limitations under the License.
 #include "../trainer/JasmineGraphTrainingSchedular.h"
 
 
-
-
 #include "../trainer/python-c-api/Python_C_API.h"
 #include "../trainer/JasminGraphTrainingInitiator.h"
 #include "../trainer/JasminGraphLinkPredictor.h"
@@ -71,11 +69,25 @@ void *frontendservicesesion(void *dummyPt) {
             SQLiteDBInterface *sqlite = &sessionargs->sqlite;
             std::stringstream ss;
             std::vector<vector<pair<string, string>>> v = sqlite->runSelect(
-                    "SELECT idgraph, name, upload_path FROM graph;");
+                    "SELECT idgraph, name, upload_path, graph_status_idgraph_status FROM graph;");
             for (std::vector<vector<pair<string, string>>>::iterator i = v.begin(); i != v.end(); ++i) {
                 ss << "|";
+                int counter = 0;
                 for (std::vector<pair<string, string>>::iterator j = (i->begin()); j != i->end(); ++j) {
-                    ss << j->second << "|";
+                    if (counter == 3) {
+                        if (std::stoi(j->second) == Conts::GRAPH_STATUS::LOADING) {
+                                ss << "loading|";
+                        } else if (std::stoi(j->second) == Conts::GRAPH_STATUS::DELETING) {
+                            ss << "deleting|";
+                        } else if (std::stoi(j->second) == Conts::GRAPH_STATUS::NONOPERATIONAL) {
+                            ss << "nop|";
+                        } else if (std::stoi(j->second) == Conts::GRAPH_STATUS::OPERATIONAL) {
+                            ss << "op|";
+                        }
+                    } else {
+                        ss << j->second << "|";
+                    }
+                    counter++;
                 }
                 ss << "\n";
             }
@@ -187,7 +199,10 @@ void *frontendservicesesion(void *dummyPt) {
             path = strArr[1];
 
             if (JasmineGraphFrontEnd::graphExists(path, dummyPt)) {
-                frontend_logger.log("Graph exists", "error");
+                string message = "Graph exists";
+                frontend_logger.log(message, "error");
+                write(connFd, message.c_str(), message.length());
+                write(connFd, "\r\n", 2);
                 continue;
             }
 
@@ -220,6 +235,8 @@ void *frontendservicesesion(void *dummyPt) {
                 jasmineServer->uploadGraphLocally(newGraphID, Conts::GRAPH_TYPE_NORMAL, fullFileList);
                 utils.deleteDirectory(utils.getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
                 JasmineGraphFrontEnd::getAndUpdateUploadTime(to_string(newGraphID), dummyPt);
+                write(connFd, DONE.c_str(), DONE.size());
+                write(connFd, "\n", 2);
             } else {
                 frontend_logger.log("Graph data file does not exist on the specified path", "error");
                 continue;
@@ -369,7 +386,7 @@ void *frontendservicesesion(void *dummyPt) {
             }
             graphPartitioner.printStats();
 
-        } else if (line.compare(RMGR) == 0){
+        } else if (line.compare(RMGR) == 0) {
             write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
             write(connFd, "\r\n", 2);
 
@@ -390,9 +407,13 @@ void *frontendservicesesion(void *dummyPt) {
             if (JasmineGraphFrontEnd::graphExistsByID(graphID, dummyPt)) {
                 frontend_logger.log("Graph with ID " + graphID + " is being deleted now", "info");
                 JasmineGraphFrontEnd::removeGraph(graphID, dummyPt);
+                write(connFd, DONE.c_str(), DONE.size());
+                write(connFd, "\n", 2);
             } else {
                 frontend_logger.log("Graph does not exist or cannot be deleted with the current hosts setting",
                                     "error");
+                write(connFd, ERROR.c_str(), ERROR.size());
+                write(connFd, "\n", 2);
             }
 
         } else if (line.compare(PROCESS_DATASET) == 0) {
@@ -449,7 +470,7 @@ void *frontendservicesesion(void *dummyPt) {
             graph_id.erase(std::remove(graph_id.begin(), graph_id.end(), '\r'),
                            graph_id.end());
 
-            if (!JasmineGraphFrontEnd::graphExistsByID(graph_id,dummyPt)) {
+            if (!JasmineGraphFrontEnd::graphExistsByID(graph_id, dummyPt)) {
                 string error_message = "The specified graph id does not exist";
                 write(connFd, error_message.c_str(), FRONTEND_COMMAND_LENGTH);
                 write(connFd, "\r\n", 2);
@@ -457,11 +478,13 @@ void *frontendservicesesion(void *dummyPt) {
                 auto begin = chrono::high_resolution_clock::now();
                 vector<string> hostsList = utils.getHostList();
                 int hostListLength = hostsList.size();
-                long triangleCount = JasmineGraphFrontEnd::countTriangles(graph_id,dummyPt);
+                long triangleCount = JasmineGraphFrontEnd::countTriangles(graph_id, dummyPt);
                 auto end = chrono::high_resolution_clock::now();
                 auto dur = end - begin;
                 auto msDuration = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
-                frontend_logger.log("Triangle Count: " + to_string(triangleCount),"info");
+                frontend_logger.log("Triangle Count: " + to_string(triangleCount), "info");
+                write(connFd, to_string(triangleCount).c_str(), (int)to_string(triangleCount).length());
+                write(connFd, "\r\n", 2);
             }
         } else if (line.compare(VCOUNT) == 0) {
             write(connFd, GRAPHID_SEND.c_str(), GRAPHID_SEND.size());
@@ -480,7 +503,7 @@ void *frontendservicesesion(void *dummyPt) {
             graph_id.erase(std::remove(graph_id.begin(), graph_id.end(), '\r'),
                            graph_id.end());
 
-            if (!JasmineGraphFrontEnd::graphExistsByID(graph_id,dummyPt)) {
+            if (!JasmineGraphFrontEnd::graphExistsByID(graph_id, dummyPt)) {
                 string error_message = "The specified graph id does not exist";
                 write(connFd, error_message.c_str(), FRONTEND_COMMAND_LENGTH);
                 write(connFd, "\r\n", 2);
@@ -491,7 +514,9 @@ void *frontendservicesesion(void *dummyPt) {
                 std::vector<vector<pair<string, string>>> output = sqlite->runSelect(sqlStatement);
 
                 int vertexCount = std::stoi(output[0][0].second);
-                frontend_logger.log("Vertex Count: " + to_string(vertexCount),"info");
+                frontend_logger.log("Vertex Count: " + to_string(vertexCount), "info");
+                write(connFd, to_string(vertexCount).c_str(), to_string(vertexCount).length());
+                write(connFd, "\r\n", 2);
             }
         } else if (line.compare(ECOUNT) == 0) {
             write(connFd, GRAPHID_SEND.c_str(), GRAPHID_SEND.size());
@@ -510,7 +535,7 @@ void *frontendservicesesion(void *dummyPt) {
             graph_id.erase(std::remove(graph_id.begin(), graph_id.end(), '\r'),
                            graph_id.end());
 
-            if (!JasmineGraphFrontEnd::graphExistsByID(graph_id,dummyPt)) {
+            if (!JasmineGraphFrontEnd::graphExistsByID(graph_id, dummyPt)) {
                 string error_message = "The specified graph id does not exist";
                 write(connFd, error_message.c_str(), FRONTEND_COMMAND_LENGTH);
                 write(connFd, "\r\n", 2);
@@ -520,8 +545,10 @@ void *frontendservicesesion(void *dummyPt) {
 
                 std::vector<vector<pair<string, string>>> output = sqlite->runSelect(sqlStatement);
 
-                int vertexCount = std::stoi(output[0][0].second);
-                frontend_logger.log("Edge Count: " + to_string(vertexCount),"info");
+                int edgeCount = std::stoi(output[0][0].second);
+                frontend_logger.log("Edge Count: " + to_string(edgeCount), "info");
+                write(connFd, to_string(edgeCount).c_str(), to_string(edgeCount).length());
+                write(connFd, "\r\n", 2);
             }
         } else if (line.compare(TRAIN) == 0) {
             string message = "Available main flags:\n";
@@ -550,9 +577,8 @@ void *frontendservicesesion(void *dummyPt) {
             std::string graphID;
             if (itr != trainargs.cend()) {
                 int index = std::distance(trainargs.begin(), itr);
-                graphID = trainargs[index+1];
-            }
-            else {
+                graphID = trainargs[index + 1];
+            } else {
                 frontend_logger.log("graph_id should be given as an argument", "error");
                 continue;
             }
@@ -563,8 +589,8 @@ void *frontendservicesesion(void *dummyPt) {
             }
 
             JasminGraphTrainingInitiator *jasminGraphTrainingInitiator = new JasminGraphTrainingInitiator();
-            jasminGraphTrainingInitiator->initiateTrainingLocally(graphID,trainData);
-        } else if (line.compare(PREDICT) == 0){
+            jasminGraphTrainingInitiator->initiateTrainingLocally(graphID, trainData);
+        } else if (line.compare(PREDICT) == 0) {
             write(sessionargs->connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
             write(sessionargs->connFd, "\r\n", 2);
 
@@ -590,7 +616,7 @@ void *frontendservicesesion(void *dummyPt) {
             graphID = strArr[0];
             path = strArr[1];
 
-            if(JasmineGraphFrontEnd::isGraphActiveAndTrained(graphID, dummyPt)) {
+            if (JasmineGraphFrontEnd::isGraphActiveAndTrained(graphID, dummyPt)) {
                 if (utils.fileExists(path)) {
                     std::cout << "Path exists" << endl;
                     JasminGraphLinkPredictor *jasminGraphLinkPredictor = new JasminGraphLinkPredictor();
@@ -599,13 +625,11 @@ void *frontendservicesesion(void *dummyPt) {
                     frontend_logger.log("Graph edge file does not exist on the specified path", "error");
                     continue;
                 }
-            }
-            else {
+            } else {
                 frontend_logger.log("The graph is not fully accessible or not fully trained.", "error");
                 continue;
             }
-        }
-        else {
+        } else {
             frontend_logger.log("Message format not recognized " + line, "error");
         }
     }
@@ -650,7 +674,7 @@ int JasmineGraphFrontEnd::run() {
 
     //bind socket
     if (bind(listenFd, (struct sockaddr *) &svrAdd, sizeof(svrAdd)) < 0) {
-        frontend_logger.log("Cannot bind", "error");
+        frontend_logger.log("Cannot bind on port " + portNo, "error");
         return 0;
     }
 
@@ -726,9 +750,13 @@ bool JasmineGraphFrontEnd::graphExistsByID(string id, void *dummyPt) {
     SQLiteDBInterface *sqlite = (SQLiteDBInterface *) dummyPt;
     std::vector<vector<pair<string, string>>> v = sqlite->runSelect(stmt);
     int count = std::stoi(v[0][0].second);
+    std::cout << "AAAAAAAAA1:" << count << std::endl;
     if (count == 0) {
         result = false;
     }
+
+    std::cout << "AAAAAAAAA2:" << result << std::endl;
+
     return result;
 }
 
@@ -780,7 +808,8 @@ bool JasmineGraphFrontEnd::isGraphActiveAndTrained(std::string graphID, void *du
     bool result = true;
     string stmt =
             "SELECT COUNT( * ) FROM graph WHERE idgraph LIKE '" + graphID + "' AND graph_status_idgraph_status = '" +
-            to_string(Conts::GRAPH_STATUS::OPERATIONAL) + "' AND train_status = '"+(Conts::TRAIN_STATUS::TRAINED) +"';";
+            to_string(Conts::GRAPH_STATUS::OPERATIONAL) + "' AND train_status = '" + (Conts::TRAIN_STATUS::TRAINED) +
+            "';";
     SQLiteDBInterface *sqlite = (SQLiteDBInterface *) dummyPt;
     std::vector<vector<pair<string, string>>> v = sqlite->runSelect(stmt);
     int count = std::stoi(v[0][0].second);
@@ -791,23 +820,25 @@ bool JasmineGraphFrontEnd::isGraphActiveAndTrained(std::string graphID, void *du
 }
 
 long JasmineGraphFrontEnd::countTriangles(std::string graphId, void *dummyPt) {
-    long result= 0;
+    long result = 0;
     Utils utils;
     vector<std::string> hostList = utils.getHostList();
     int hostListSize = hostList.size();
     int counter = 0;
     std::vector<std::future<long>> intermRes;
-    map<std::string,std::future<std::string>> remoteCopyRes;
+    std::map<std::string, std::future<std::string>> remoteCopyRes;
     PlacesToNodeMapper placesToNodeMapper;
 
-    string sqlStatement = "SELECT name,partition_idpartition FROM host_has_partition INNER JOIN host ON host_idhost=idhost WHERE partition_graph_idgraph=" + graphId + ";";
+    string sqlStatement =
+            "SELECT name,partition_idpartition FROM host_has_partition INNER JOIN host ON host_idhost=idhost WHERE partition_graph_idgraph=" +
+            graphId + ";";
 
     SQLiteDBInterface *sqlite = (SQLiteDBInterface *) dummyPt;
     std::vector<vector<pair<string, string>>> results = sqlite->runSelect(sqlStatement);
 
     std::map<string, std::vector<string>> map;
 
-    // Implement Logic to Decide the Worker node which Acts as the centralstore triangle count aggregator
+    // ToDO: Implement Logic to Decide the Worker node which Acts as the centralstore triangle count aggregator
     std::string aggregatorWorker = "localhost@7780";
     std::string aggregatorWorkerHost;
     std::string aggregatorWorkerPort;
@@ -831,10 +862,11 @@ long JasmineGraphFrontEnd::countTriangles(std::string graphId, void *dummyPt) {
         map[name] = partitionList;
     }
 
-    for (int i=0;i<hostListSize;i++) {
+    for (int i = 0; i < hostListSize; i++) {
         int k = counter;
         string host = placesToNodeMapper.getHost(i);
-        std::vector<int> instancePorts = placesToNodeMapper.getInstancePort(i);
+        std::vector<int> instancePorts = placesToNodeMapper.getInstancePortsList(i);
+
         string partitionId;
 
         std::vector<string> partitionList = map[host];
@@ -842,7 +874,8 @@ long JasmineGraphFrontEnd::countTriangles(std::string graphId, void *dummyPt) {
         std::vector<int>::iterator portsIterator;
 
         for (portsIterator = instancePorts.begin(); portsIterator != instancePorts.end(); ++portsIterator) {
-            int port = *portsIterator;
+            int port = (int) *portsIterator;
+            frontend_logger.log("====>PORT:" + std::to_string(port), "info");
 
             if (partitionList.size() > 0) {
                 auto iterator = partitionList.begin();
@@ -850,26 +883,89 @@ long JasmineGraphFrontEnd::countTriangles(std::string graphId, void *dummyPt) {
                 partitionList.erase(partitionList.begin());
             }
 
-            intermRes.push_back(std::async(std::launch::async,JasmineGraphFrontEnd::getTriangleCount,atoi(graphId.c_str()),host,port,atoi(partitionId.c_str())));
+//            intermRes.push_back(
+//                    std::async(std::launch::async, JasmineGraphFrontEnd::getTriangleCount, atoi(graphId.c_str()), host,
+//                               port, atoi(partitionId.c_str())));
+//            std::future<std::string> f2 = std::async(std::launch::async,
+//                                               JasmineGraphFrontEnd::copyCentralStoreToAggregator,
+//                                               aggregatorWorkerHost, aggregatorWorkerPort, host,
+//                                               std::to_string(port), atoi(graphId.c_str()),
+//                                               atoi(partitionId.c_str()));
+
             if (!(aggregatorWorkerHost == host && aggregatorWorkerPort == std::to_string(port))) {
-                remoteCopyRes.insert(std::make_pair(host,std::async(std::launch::async, JasmineGraphFrontEnd::copyCentralStoreToAggregator, aggregatorWorkerHost,aggregatorWorkerPort,host,std::to_string(port),atoi(graphId.c_str()),atoi(partitionId.c_str()))));
+                //remoteCopyRes.insert(std::pair<std::string, std::future<std::string>>(host, f2));
+                //remoteCopyRes.insert(std::make_pair(host, f2));
+                remoteCopyRes.insert(std::make_pair(host, std::async(std::launch::async,
+                        JasmineGraphFrontEnd::copyCentralStoreToAggregator,
+                        aggregatorWorkerHost,
+                        aggregatorWorkerPort,
+                        host,
+                        std::to_string(port),
+                        atoi(graphId.c_str()),
+                        atoi(partitionId.c_str()))));
             } else {
                 aggregatorPartitionId = partitionId;
             }
-
         }
-
     }
 
+    for (int i = 0; i < hostListSize; i++) {
+        int k = counter;
+        string host = placesToNodeMapper.getHost(i);
+        std::vector<int> instancePorts = placesToNodeMapper.getInstancePortsList(i);
 
-    for (auto&& futureCall:intermRes) {
+        string partitionId;
+
+        std::vector<string> partitionList = map[host];
+
+        std::vector<int>::iterator portsIterator;
+
+        for (portsIterator = instancePorts.begin(); portsIterator != instancePorts.end(); ++portsIterator) {
+            int port = (int) *portsIterator;
+            frontend_logger.log("====>PORT:" + std::to_string(port), "info");
+
+            if (partitionList.size() > 0) {
+                auto iterator = partitionList.begin();
+                partitionId = *iterator;
+                partitionList.erase(partitionList.begin());
+            }
+
+//            std::future<long> f2 = std::async(std::launch::async, JasmineGraphFrontEnd::getTriangleCount, atoi(graphId.c_str()), host,
+//                                                     port, atoi(partitionId.c_str()));
+//            f2.wait();
+//            intermRes.push_back(f2);
+
+            intermRes.push_back(
+                    std::async(std::launch::async, JasmineGraphFrontEnd::getTriangleCount, atoi(graphId.c_str()), host,
+                               port, atoi(partitionId.c_str())));
+//            if (!(aggregatorWorkerHost == host && aggregatorWorkerPort == std::to_string(port))) {
+//                remoteCopyRes.insert(std::make_pair(host, std::async(std::launch::async,
+//                                                                     JasmineGraphFrontEnd::copyCentralStoreToAggregator,
+//                                                                     aggregatorWorkerHost, aggregatorWorkerPort, host,
+//                                                                     std::to_string(port), atoi(graphId.c_str()),
+//                                                                     atoi(partitionId.c_str()))));
+//            } else {
+//                aggregatorPartitionId = partitionId;
+//            }
+        }
+    }
+
+    for (auto &&futureCall:intermRes) {
+        futureCall.wait();
+    }
+
+    for (auto &&futureCall:intermRes) {
         result += futureCall.get();
+        //frontend_logger.log("====>result:" + std::to_string(result), "info");
     }
 
-
-
-    long aggregatedTriangleCount = JasmineGraphFrontEnd::countCentralStoreTriangles(aggregatorWorkerHost,aggregatorWorkerPort,aggregatorWorker,aggregatorPartitionId,graphId);
+    long aggregatedTriangleCount = JasmineGraphFrontEnd::countCentralStoreTriangles(aggregatorWorkerHost,
+                                                                                    aggregatorWorkerPort,
+                                                                                    aggregatorWorker,
+                                                                                    aggregatorPartitionId, graphId);
+    //frontend_logger.log("====>aggregatedTriangleCount:" + std::to_string(aggregatedTriangleCount), "info");
     result += aggregatedTriangleCount;
+    //frontend_logger.log("====>result:" + std::to_string(result), "info");
     return result;
 }
 
@@ -953,6 +1049,7 @@ long JasmineGraphFrontEnd::getTriangleCount(int graphId, std::string host, int p
             bzero(data, 301);
             read(sockfd, data, 300);
             response = (data);
+            frontend_logger.log("Got response : |" + response + "|", "info");
             response = utils.trim_copy(response, " \f\n\r\t\v");
             triangleCount = atol(response.c_str());
             return triangleCount;
@@ -1086,7 +1183,8 @@ std::string JasmineGraphFrontEnd::copyCentralStoreToAggregator(std::string aggre
 }
 
 
-long JasmineGraphFrontEnd::countCentralStoreTriangles(std::string aggregatorHostName, std::string aggregatorPort, std::string host, std::string partitionId, std::string graphId) {
+long JasmineGraphFrontEnd::countCentralStoreTriangles(std::string aggregatorHostName, std::string aggregatorPort,
+                                                      std::string host, std::string partitionId, std::string graphId) {
     int sockfd;
     char data[300];
     bool loop = false;

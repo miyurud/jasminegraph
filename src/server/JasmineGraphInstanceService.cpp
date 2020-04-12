@@ -903,7 +903,7 @@ int JasmineGraphInstanceService::run(string host,int serverPort, int serverDataP
 
     //bind socket
     if (bind(listenFd, (struct sockaddr *) &svrAdd, sizeof(svrAdd)) < 0) {
-        std::cerr << "Cannot bind" << std::endl;
+        std::cerr << "Cannot bind on port " + serverPort << std::endl;
         return 0;
     }
 
@@ -957,6 +957,8 @@ void deleteGraphPartition(std::string graphID, std::string partitionID) {
     utils.deleteDirectory(partitionFilePath);
     string centalStoreFilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + graphID + +"_centralstore_"+ partitionID;
     utils.deleteDirectory(centalStoreFilePath);
+    string centalStoreDuplicateFilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + graphID + +"_centralstore_dp_"+ partitionID;
+    utils.deleteDirectory(centalStoreDuplicateFilePath);
     string attributeFilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + graphID + +"_attributes_"+ partitionID;
     utils.deleteDirectory(attributeFilePath);
     string attributeCentalStoreFilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + graphID + +"_centralstore_attributes_"+ partitionID;
@@ -1136,8 +1138,12 @@ long JasmineGraphInstanceService::aggregateCentralStoreTriangles(std::string gra
 
     DIR* dirp = opendir(aggregatorFilePath.c_str());
     struct dirent * dp;
+    std::string prefixString =  graphId + +"_";
     while ((dp = readdir(dirp)) != NULL) {
-        fileNames.push_back(dp->d_name);
+        std::string dName = dp->d_name;
+        if (dName.rfind(prefixString, 0) == 0) {
+            fileNames.push_back(dName);
+        }
     }
     closedir(dirp);
 
@@ -1163,7 +1169,6 @@ long JasmineGraphInstanceService::aggregateCentralStoreTriangles(std::string gra
                 }
             }
         }
-
     }
     map<long, long> distributionHashMap = JasmineGraphInstanceService::getOutDegreeDistributionHashMap(aggregatedCentralStore);
 

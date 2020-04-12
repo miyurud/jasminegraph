@@ -24,7 +24,7 @@ std::string PlacesToNodeMapper::getHost(long placeId) {
     return host;
 }
 
-std::vector<int> PlacesToNodeMapper::getInstancePort(long placeId) {
+std::vector<int> PlacesToNodeMapper::getInstancePortsList(long placeId) {
     Utils utils;
     int numberOfWorkersPerHost;
     int numberOfWorkers =0;
@@ -52,7 +52,7 @@ std::vector<int> PlacesToNodeMapper::getInstancePort(long placeId) {
     }
 
     for (int i=0; i<numberOfWorkersPerHost;i++) {
-        workerPort = workerPort + i*2;
+        workerPort = Conts::JASMINEGRAPH_INSTANCE_PORT + i*2;
         portList.push_back(workerPort);
     }
 
@@ -64,7 +64,6 @@ std::vector<int> PlacesToNodeMapper::getInstancePort(long placeId) {
     return portList;
 
 }
-
 
 std::vector<int> PlacesToNodeMapper::getFileTransferServicePort(long placeId) {
     Utils utils;

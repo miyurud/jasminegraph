@@ -25,7 +25,8 @@ private:
     static int numberOfWorkers;
 public:
     static std::string getHost(long placeId);
-    static std::vector<int> getInstancePort(long placeId);
+    static std::vector<int> getInstancePorts(long placeId);
+    static std::vector<int> getInstancePortsList(long placeId);
     static std::vector<int> getFileTransferServicePort(long placeId);
 };
 

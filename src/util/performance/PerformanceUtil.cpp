@@ -35,7 +35,7 @@ int PerformanceUtil::collectPerformanceStatistics() {
     for (int i=0;i<hostListSize;i++) {
         int k = counter;
         string host = placesToNodeMapper.getHost(i);
-        std::vector<int> instancePorts = placesToNodeMapper.getInstancePort(i);
+        std::vector<int> instancePorts = placesToNodeMapper.getInstancePortsList(i);
         string partitionId;
 
         std::vector<int>::iterator portsIterator;

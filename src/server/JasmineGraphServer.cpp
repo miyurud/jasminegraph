@@ -91,7 +91,7 @@ void JasmineGraphServer::start_workers() {
     }
 
     if (numberOfWorkers > 0 && hostsList.size() > 0) {
-        numberOfWorkersPerHost = numberOfWorkers/hostsList.size();
+        numberOfWorkersPerHost = numberOfWorkers / hostsList.size();
         hostListModeNWorkers = numberOfWorkers % hostsList.size();
     }
 
@@ -107,18 +107,18 @@ void JasmineGraphServer::start_workers() {
         while (portCount < numberOfWorkersPerHost) {
             portVector.push_back(workerPort);
             dataPortVector.push_back(workerDataPort);
-            hostWorkerMap.push_back({*it,workerPort,workerDataPort});
-            hostPortMap.insert((pair<string, pair<int, int>>(*it,make_pair(workerPort,workerDataPort))));
+            hostWorkerMap.push_back({*it, workerPort, workerDataPort});
+            hostPortMap.insert((pair<string, pair<int, int>>(*it, make_pair(workerPort, workerDataPort))));
             workerPort = workerPort + 2;
             workerDataPort = workerDataPort + 2;
-            portCount ++;
+            portCount++;
         }
 
         if (hostListModeNWorkers > 0) {
             portVector.push_back(workerPort);
             dataPortVector.push_back(workerDataPort);
-            hostWorkerMap.push_back({*it,workerPort,workerDataPort});
-            hostPortMap.insert(((pair<string, pair<int, int>>(*it,make_pair(workerPort,workerDataPort)))));
+            hostWorkerMap.push_back({*it, workerPort, workerDataPort});
+            hostPortMap.insert(((pair<string, pair<int, int>>(*it, make_pair(workerPort, workerDataPort)))));
             workerPort = workerPort + 2;
             workerDataPort = workerDataPort + 2;
             hostListModeNWorkers--;
@@ -134,55 +134,57 @@ void JasmineGraphServer::start_workers() {
     hostListIterator = hostsList.begin();
 
 
-    std::thread* myThreads = new std::thread[hostListSize];
-    int count =0;
+    std::thread *myThreads = new std::thread[hostListSize];
+    int count = 0;
     server_logger.log("Starting threads for workers", "info");
     for (hostListIterator = hostsList.begin(); hostListIterator < hostsList.end(); hostListIterator++) {
         std::string host = *hostListIterator;
-        myThreads[count] = std::thread(startRemoteWorkers,workerPortsMap[host],workerDataPortsMap[host], host);
+        myThreads[count] = std::thread(startRemoteWorkers, workerPortsMap[host], workerDataPortsMap[host], host);
 //        myThreads[count].detach();
 //        std::cout<<"############JOINED###########"<< std::endl;
         count++;
     }
 
-    for (int threadCount=0;threadCount<hostListSize;threadCount++) {
+    for (int threadCount = 0; threadCount < hostListSize; threadCount++) {
         myThreads[threadCount].join();
-        std::cout<<"############JOINED###########"<< std::endl;
+        std::cout << "############JOINED###########" << std::endl;
     }
 
 }
 
 
 void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector,
-                                                    std::vector<int> workerDataPortsVector,string host) {
+                                            std::vector<int> workerDataPortsVector, string host) {
     Utils utils;
     std::string executableFile;
     std::string workerPath = utils.getJasmineGraphProperty("org.jasminegraph.worker.path");
     std::string artifactPath = utils.getJasmineGraphProperty("org.jasminegraph.artifact.path");
     std::string jasmineGraphExecutableName = Conts::JASMINEGRAPH_EXECUTABLE;
-    if (hasEnding(workerPath,"/")) {
-        executableFile = workerPath+jasmineGraphExecutableName;
+    if (hasEnding(workerPath, "/")) {
+        executableFile = workerPath + jasmineGraphExecutableName;
     } else {
-        executableFile = workerPath+"/"+jasmineGraphExecutableName;
+        executableFile = workerPath + "/" + jasmineGraphExecutableName;
     }
     std::string serverStartScript;
     char buffer[128];
     std::string result = "";
 
-    if (artifactPath.empty() || artifactPath.find_first_not_of (' ') == artifactPath.npos) {
+    if (artifactPath.empty() || artifactPath.find_first_not_of(' ') == artifactPath.npos) {
         artifactPath = utils.getJasmineGraphHome();
     }
 
-    copyArtifactsToWorkers(workerPath,artifactPath,host);
-    for (int i =0 ; i < workerPortsVector.size() ; i++) {
+    copyArtifactsToWorkers(workerPath, artifactPath, host);
+    for (int i = 0; i < workerPortsVector.size(); i++) {
         if (host.find("localhost") != std::string::npos) {
-            serverStartScript = executableFile+" 2 "+ host +" " + std::to_string(workerPortsVector.at(i)) + " " + std::to_string(workerDataPortsVector.at(i));
+            serverStartScript = executableFile + " 2 " + host + " " + std::to_string(workerPortsVector.at(i)) + " " +
+                                std::to_string(workerDataPortsVector.at(i));
         } else {
             serverStartScript =
-                    "ssh -p 22 " + host + " " + executableFile + " 2 "+host+" " + std::to_string(workerPortsVector.at(i)) +
+                    "ssh -p 22 " + host + " " + executableFile + " 2 " + host + " " +
+                    std::to_string(workerPortsVector.at(i)) +
                     " " + std::to_string(workerDataPortsVector.at(i));
         }
-        popen(serverStartScript.c_str(),"r");
+        popen(serverStartScript.c_str(), "r");
     }
 }
 
@@ -193,7 +195,8 @@ int JasmineGraphServer::shutdown_workers() {
         workers worker = *mapIterator;
         Utils utils;
         bool result = true;
-        std::cout << pthread_self() << " host : " << worker.hostname << " port : " << worker.port << " DPort : " << worker.dataPort << std::endl;
+        std::cout << pthread_self() << " host : " << worker.hostname << " port : " << worker.port << " DPort : "
+                  << worker.dataPort << std::endl;
         int sockfd;
         char data[300];
         bool loop = false;
@@ -243,7 +246,8 @@ int JasmineGraphServer::shutdown_workers() {
     }
 }
 
-void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType, vector<std::map<int,string>> fullFileList) {
+void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
+                                            vector<std::map<int, string>> fullFileList) {
     std::cout << "Uploading the graph locally.." << std::endl;
     std::map<int, string> partitionFileList = fullFileList[0];
     std::map<int, string> centralStoreFileList = fullFileList[1];
@@ -450,8 +454,7 @@ bool JasmineGraphServer::batchUploadFile(std::string host, int port, int dataPor
                 }
             }
         }
-    }
-    else {
+    } else {
         server_logger.log("There was an error in the upload process and the response is :: " + response, "error");
     }
 
@@ -602,8 +605,7 @@ bool JasmineGraphServer::batchUploadCentralStore(std::string host, int port, int
                 }
             }
         }
-    }
-    else {
+    } else {
         server_logger.log("There was an error in the upload process and the response is :: " + response, "error");
     }
 
@@ -612,7 +614,7 @@ bool JasmineGraphServer::batchUploadCentralStore(std::string host, int port, int
 }
 
 bool JasmineGraphServer::batchUploadAttributeFile(std::string host, int port, int dataPort, int graphID,
-                                                 std::string filePath) {
+                                                  std::string filePath) {
     Utils utils;
     int sockfd;
     char data[300];
@@ -753,8 +755,7 @@ bool JasmineGraphServer::batchUploadAttributeFile(std::string host, int port, in
                 }
             }
         }
-    }
-    else {
+    } else {
         server_logger.log("There was an error in the upload process and the response is :: " + response, "error");
     }
 
@@ -763,7 +764,7 @@ bool JasmineGraphServer::batchUploadAttributeFile(std::string host, int port, in
 }
 
 bool JasmineGraphServer::batchUploadCentralAttributeFile(std::string host, int port, int dataPort, int graphID,
-                                                  std::string filePath) {
+                                                         std::string filePath) {
     Utils utils;
     int sockfd;
     char data[300];
@@ -904,8 +905,7 @@ bool JasmineGraphServer::batchUploadCentralAttributeFile(std::string host, int p
                 }
             }
         }
-    }
-    else {
+    } else {
         server_logger.log("There was an error in the upload process and the response is :: " + response, "error");
     }
 
@@ -988,25 +988,26 @@ bool JasmineGraphServer::sendFileThroughService(std::string host, int dataPort, 
 }
 
 void JasmineGraphServer::copyArtifactsToWorkers(std::string workerPath, std::string artifactLocation,
-                                                      std::string remoteWorker) {
-    if (artifactLocation.empty() || artifactLocation.find_first_not_of (' ') == artifactLocation.npos) {
+                                                std::string remoteWorker) {
+    if (artifactLocation.empty() || artifactLocation.find_first_not_of(' ') == artifactLocation.npos) {
         server_logger.log("Received `" + artifactLocation + "` for `artifactLocation` value!", "error");
-        throw std::invalid_argument( "Received empty string for `artifactLocation` value!" );   
+        throw std::invalid_argument("Received empty string for `artifactLocation` value!");
     }
     std::string pathCheckCommand = "test -e " + workerPath + "&& echo file exists || echo file not found";
     std::string artifactCopyCommand;
-    std::string localWorkerArtifactCopyCommand = "cp -r "+ artifactLocation+"/* "+workerPath;
-    std::string remoteWorkerArtifactCopyCommand = "scp -r " + artifactLocation + "/* " + remoteWorker + ":" + workerPath;
+    std::string localWorkerArtifactCopyCommand = "cp -r " + artifactLocation + "/* " + workerPath;
+    std::string remoteWorkerArtifactCopyCommand =
+            "scp -r " + artifactLocation + "/* " + remoteWorker + ":" + workerPath;
 
     char buffer[128];
     std::string result = "";
 
     if (remoteWorker.find("localhost") == std::string::npos) {
-        std::string remotePathCheckCommand = "ssh -p 22 " + remoteWorker+ " " +  pathCheckCommand;
+        std::string remotePathCheckCommand = "ssh -p 22 " + remoteWorker + " " + pathCheckCommand;
         pathCheckCommand = remotePathCheckCommand;
     }
 
-    FILE *input = popen(pathCheckCommand.c_str(),"r");
+    FILE *input = popen(pathCheckCommand.c_str(), "r");
 
     if (input) {
         // read the input
@@ -1016,7 +1017,7 @@ void JasmineGraphServer::copyArtifactsToWorkers(std::string workerPath, std::str
             }
         }
         if (!result.empty() && remoteWorker.find("file not found") == std::string::npos) {
-            createWorkerPath(remoteWorker,workerPath);
+            createWorkerPath(remoteWorker, workerPath);
         }
         pclose(input);
     }
@@ -1027,7 +1028,7 @@ void JasmineGraphServer::copyArtifactsToWorkers(std::string workerPath, std::str
         artifactCopyCommand = remoteWorkerArtifactCopyCommand;
     }
 
-    FILE *copyInput = popen(artifactCopyCommand.c_str(),"r");
+    FILE *copyInput = popen(artifactCopyCommand.c_str(), "r");
 
     if (copyInput) {
         // read the input
@@ -1037,7 +1038,7 @@ void JasmineGraphServer::copyArtifactsToWorkers(std::string workerPath, std::str
             }
         }
         if (!result.empty()) {
-            std::cout<<result<< std::endl;
+            std::cout << result << std::endl;
         }
         pclose(copyInput);
     }
@@ -1050,10 +1051,10 @@ void JasmineGraphServer::createWorkerPath(std::string workerHost, std::string wo
 
     if (workerHost.find("localhost") == std::string::npos) {
         std::string tmpPathCreation = pathCreationCommand;
-        pathCreationCommand = "ssh -p 22 " + workerHost+ " " + tmpPathCreation;
+        pathCreationCommand = "ssh -p 22 " + workerHost + " " + tmpPathCreation;
     }
 
-    FILE *input = popen(pathCreationCommand.c_str(),"r");
+    FILE *input = popen(pathCreationCommand.c_str(), "r");
 
     if (input) {
         // read the input
@@ -1063,7 +1064,7 @@ void JasmineGraphServer::createWorkerPath(std::string workerHost, std::string wo
             }
         }
         if (!result.empty()) {
-            std::cout<<result<< std::endl;
+            std::cout << result << std::endl;
         }
         pclose(input);
     }
@@ -1098,15 +1099,15 @@ map<string, string> JasmineGraphServer::getLiveHostIDList() {
     for (it = hostsList.begin(); it < hostsList.end(); it++) {
         string host = *it;
         std::vector<vector<pair<string, string>>> v = this->sqlite.runSelect(
-                "SELECT idhost FROM host WHERE name = '"+host+"';");
+                "SELECT idhost FROM host WHERE name = '" + host + "';");
         string id = v[0][0].second;
-        hostIDMap.insert(make_pair(host,id));
+        hostIDMap.insert(make_pair(host, id));
     }
     return hostIDMap;
 }
 
 void JasmineGraphServer::updateMetaDB(vector<JasmineGraphServer::workers> hostWorkerMap,
-                                      std::map<int,string> partitionFileList, int graphID, string uploadEndTime) {
+                                      std::map<int, string> partitionFileList, int graphID, string uploadEndTime) {
     SQLiteDBInterface refToSqlite = *new SQLiteDBInterface();
     refToSqlite.init();
     int file_count = 0;
@@ -1137,7 +1138,8 @@ void JasmineGraphServer::removeGraph(vector<pair<string, string>> hostHasPartiti
     int count = 0;
     std::thread *deleteThreads = new std::thread[hostHasPartition.size()];
     for (std::vector<pair<string, string>>::iterator j = (hostHasPartition.begin()); j != hostHasPartition.end(); ++j) {
-        deleteThreads[count] = std::thread(removePartitionThroughService, j->first, hostPortMap[j->first].first, graphID, j->second);
+        deleteThreads[count] = std::thread(removePartitionThroughService, j->first, hostPortMap[j->first].first,
+                                           graphID, j->second);
         count++;
         sleep(1);
     }
@@ -1230,13 +1232,11 @@ int JasmineGraphServer::removePartitionThroughService(string host, int port, str
                 response = utils.trim_copy(response, " \f\n\r\t\v");
                 server_logger.log("Received last response : " + response, "info");
                 return 1;
-            }
-            else {
+            } else {
                 close(sockfd);
                 return 0;
             }
-        }
-        else {
+        } else {
             close(sockfd);
             return 0;
         }
@@ -1330,7 +1330,7 @@ std::map<string, JasmineGraphServer::workerPartitions> JasmineGraphServer::getGr
 
 bool JasmineGraphServer::hasEnding(std::string const &fullString, std::string const &ending) {
     if (fullString.length() >= ending.length()) {
-        return (0 == fullString.compare (fullString.length() - ending.length(), ending.length(), ending));
+        return (0 == fullString.compare(fullString.length() - ending.length(), ending.length(), ending));
     } else {
         return false;
     }
