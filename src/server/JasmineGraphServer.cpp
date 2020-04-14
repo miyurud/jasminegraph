@@ -96,6 +96,28 @@ void JasmineGraphServer::start_workers() {
         hostsList = getWorkerVector(workerHosts);
     }
 
+    if(hostsList.size() == 0) {
+        server_logger.log("At least one host needs to be specified", "error");
+        exit(-1);
+    }
+
+    sqlite.runUpdate("DELETE FROM host");
+
+    std::vector<std::string>::iterator it;
+    it = hostsList.begin();
+    std::string hostString = "";
+    std::string sqlString = "INSERT INTO host (idhost,name,ip,is_public) VALUES ";
+    int counter = 0;
+
+    for (it = hostsList.begin(); it < hostsList.end(); it++) {
+        hostString = "(" + std::to_string(counter) + ", '" + (*it) + "', '" + (*it) + "', false),";
+        counter++;
+    }
+
+    hostString = hostString.substr(0, hostString.length() - 1);
+    sqlString = sqlString + hostString;
+    this->sqlite.runInsert(sqlString);
+
     int workerPort = Conts::JASMINEGRAPH_INSTANCE_PORT;
     int workerDataPort = Conts::JASMINEGRAPH_INSTANCE_DATA_PORT;
     if (utils.is_number(nWorkers)) {
@@ -115,7 +137,6 @@ void JasmineGraphServer::start_workers() {
     string valuesString;
     string sqlStatement = "INSERT INTO worker (idworker,host_idhost,name,ip,user,is_public,server_port,server_data_port) VALUES ";
     int workerIDCounter = 0;
-    std::vector<std::string>::iterator it;
     it = hostsList.begin();
 
     for (it = hostsList.begin(); it < hostsList.end(); it++) {
@@ -136,9 +157,9 @@ void JasmineGraphServer::start_workers() {
             string user = "";
             string ip = hostName;
             string is_public = "false";
-            valuesString += "(\"" + std::to_string(workerIDCounter) + "\", \"" + hostID + "\", \"" + hostName +
-                    "\", \"" + ip + "\",\"" + user + "\", \"" + is_public
-                    + "\",\""+ std::to_string(workerPort) +"\", \""+ std::to_string(workerDataPort) + "\"),";
+            valuesString += "(" + std::to_string(workerIDCounter) + ", " + hostID + ", \"" + hostName +
+                    "\", \"" + ip + "\",\"" + user + "\", " + is_public
+                    + ",\""+ std::to_string(workerPort) +"\", \""+ std::to_string(workerDataPort) + "\"),";
             workerPort = workerPort + 2;
             workerDataPort = workerDataPort + 2;
             workerIDCounter++;
@@ -153,9 +174,9 @@ void JasmineGraphServer::start_workers() {
             string user = "";
             string ip = hostName;
             string is_public = "false";
-            valuesString += "(\"" + std::to_string(workerIDCounter) + "\", \"" + hostID + "\", \"" + hostName +
-                            "\", \"" + ip + "\",\"" + user + "\", \"" + is_public
-                            + "\",\""+ std::to_string(workerPort) +"\", \""+ std::to_string(workerDataPort) + "\"),";
+            valuesString += "(" + std::to_string(workerIDCounter) + ", " + hostID + ", \"" + hostName +
+                            "\", \"" + ip + "\",\"" + user + "\", " + is_public
+                            + ",\""+ std::to_string(workerPort) +"\", \""+ std::to_string(workerDataPort) + "\"),";
             workerPort = workerPort + 2;
             workerDataPort = workerDataPort + 2;
             workerIDCounter++;
@@ -255,24 +276,26 @@ void JasmineGraphServer::assignPartitionsToWorkers(int numberOfWorkers) {
     string valueString;
     string sqlStatement = "INSERT INTO worker_has_partition (partition_idpartition, partition_graph_idgraph, worker_idworker) VALUES ";
     std::stringstream ss;
-    for (std::vector<vector<pair<string, string>>>::iterator i = v.begin(); i != v.end(); ++i) {
-        int counter = 0;
-        ss << "(";
-        for (std::vector<pair<string, string>>::iterator j = (i->begin()); j != i->end(); ++j) {
-            ss << j->second << ",";
-        }
+    if (v.size() > 0) {
+        for (std::vector<vector<pair<string, string>>>::iterator i = v.begin(); i != v.end(); ++i) {
+            int counter = 0;
+            ss << "(";
+            for (std::vector<pair<string, string>>::iterator j = (i->begin()); j != i->end(); ++j) {
+                ss << j->second << ",";
+            }
 
-        ss << workerCounter << "),";
-        valueString = valueString + ss.str();
-        ss.str(std::string());
-        workerCounter++;
-        if (workerCounter >= numberOfWorkers) {
-            workerCounter = 0;
+            ss << workerCounter << "),";
+            valueString = valueString + ss.str();
+            ss.str(std::string());
+            workerCounter++;
+            if (workerCounter >= numberOfWorkers) {
+                workerCounter = 0;
+            }
         }
+        valueString = valueString.substr(0, valueString.length() - 1);
+        sqlStatement = sqlStatement + valueString;
+        this->sqlite.runInsert(sqlStatement);
     }
-    valueString = valueString.substr(0, valueString.length() - 1);
-    sqlStatement = sqlStatement + valueString;
-    this->sqlite.runInsert(sqlStatement);
 }
 
 int JasmineGraphServer::shutdown_workers() {

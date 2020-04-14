@@ -90,7 +90,12 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 ss << "\n";
             }
             string result = ss.str();
-            write(connFd, result.c_str(), result.length());
+            if (result.size() == 0) {
+                write(connFd, EMPTY.c_str(), EMPTY.length());
+                write(connFd, "\r\n", 2);
+            } else {
+                write(connFd, result.c_str(), result.length());
+            }
 
         } else if (line.compare(SHTDN) == 0) {
             JasmineGraphServer *jasmineServer = new JasmineGraphServer();
