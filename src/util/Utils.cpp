@@ -106,17 +106,19 @@ std::string Utils::getJasmineGraphProperty(std::string key) {
     return NULL;
 }
 
-std::vector<Utils::worker> Utils::getHostList(SQLiteDBInterface sqlite) {
+std::vector<Utils::worker> Utils::getWorkerList(SQLiteDBInterface sqlite) {
     vector<worker> workerVector;
     std::vector<vector<pair<string, string>>> v = sqlite.runSelect(
-            "SELECT user,ip,server_port,server_data_port FROM host;");
+            "SELECT idworker,user,ip,server_port,server_data_port FROM worker;");
     for (int i = 0; i < v.size(); i++) {
-        string user = v[i][0].second;
-        string ip = v[i][1].second;
-        string serverPort = v[i][2].second;
-        string serverDataPort = v[i][3].second;
+        string workerID = v[i][0].second;
+        string user = v[i][1].second;
+        string ip = v[i][2].second;
+        string serverPort = v[i][3].second;
+        string serverDataPort = v[i][4].second;
 
         worker workerInstance;
+        workerInstance.workerID = workerID;
         workerInstance.username = user;
         workerInstance.hostname = ip;
         workerInstance.port = serverPort;
@@ -347,9 +349,9 @@ int Utils::parseARGS(char **args, char *line){
  */
 bool Utils::hostExists(string name, string ip, std::string workerPort, SQLiteDBInterface sqlite) {
     bool result = true;
-    string stmt = "SELECT COUNT( * ) FROM host WHERE name LIKE '" + name + "' AND ip LIKE '" + ip + "' AND server_port LIKE '"+ workerPort +"';";
+    string stmt = "SELECT COUNT( * ) FROM worker WHERE name LIKE '" + name + "' AND ip LIKE '" + ip + "' AND server_port LIKE '"+ workerPort +"';";
     if (ip == ""){
-        stmt = "SELECT COUNT( * ) FROM host WHERE name LIKE '" + name + "';";
+        stmt = "SELECT COUNT( * ) FROM worker WHERE name LIKE '" + name + "';";
     }
     std::vector<vector<pair<string, string>>> v = sqlite.runSelect(stmt);
     int count = std::stoi(v[0][0].second);
@@ -357,6 +359,15 @@ bool Utils::hostExists(string name, string ip, std::string workerPort, SQLiteDBI
         result = false;
     }
     return result;
+}
+
+string Utils::getHostID(string hostName, SQLiteDBInterface sqlite) {
+    map<string, string> hostIDMap;
+    std::vector<vector<pair<string, string>>> v = sqlite.runSelect("SELECT idhost FROM host where name LIKE '" +
+            hostName + "';");
+    string id = v[0][0].second;
+
+    return id;
 }
 
 

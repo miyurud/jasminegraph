@@ -68,6 +68,8 @@ public:
 
     void removeGraph(std::vector<std::pair<std::string, std::string>> hostHasPartition, std::string graphID, std::string masterIP);
 
+    void assignPartitionsToWorkers(int numberOfWorkers);
+
     static bool batchUploadFile(std::string host, int port, int dataPort, int graphID, std::string filePath, std::string masterIP);
 
     static bool batchUploadCentralStore(std::string host, int port, int dataPort, int graphID, std::string filePath, std::string masterIP);

@@ -1189,8 +1189,12 @@ long JasmineGraphInstanceService::aggregateCentralStoreTriangles(std::string gra
     DIR* dirp = opendir(aggregatorFilePath.c_str());
     if (dirp) {
         struct dirent * dp;
+        std::string prefixString =  graphId + +"_";
         while ((dp = readdir(dirp)) != NULL) {
-            fileNames.push_back(dp->d_name);
+            std::string dName = dp->d_name;
+            if (dName.rfind(prefixString, 0) == 0) {
+                fileNames.push_back(dName);
+            }
         }
         closedir(dirp);
     }
@@ -1278,7 +1282,7 @@ void JasmineGraphInstanceService::collectTrainedModels(instanceservicesessionarg
 
     for (int threadCount = 0; threadCount < count; threadCount++) {
         workerThreads[threadCount].join();
-        std::cout << "Thread " << threadCount << " joined" << std::endl;
+        std::cout << "Thread [C]: " << threadCount << " joined" << std::endl;
     }
 }
 

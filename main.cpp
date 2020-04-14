@@ -47,7 +47,7 @@ int main(int argc, char *argv[]) {
 
     int mode = atoi(argv[2]);
     std::string JASMINEGRAPH_HOME = utils.getJasmineGraphHome();
-    std::string profile = argv[1];
+    std::string profile = argv[1]; //This can be either "docker" or "native"
 
     main_logger.log("Using JASMINE_GRAPH_HOME", "info");
     std::cout << JASMINEGRAPH_HOME << std::endl;

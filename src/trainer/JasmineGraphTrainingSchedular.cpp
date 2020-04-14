@@ -30,9 +30,8 @@ map<string, std::map<int, int>> JasmineGraphTrainingSchedular::schedulePartition
     SQLiteDBInterface refToSqlite = *new SQLiteDBInterface();
     refToSqlite.init();
 
-    string sqlStatement =
-            "SELECT idhost, name FROM host_has_partition INNER JOIN host ON host_idhost = idhost WHERE partition_graph_idgraph = '" +
-            graphID + "' group by idhost";
+    string sqlStatement = "SELECT host_idhost, name FROM worker_has_partition INNER JOIN worker ON worker_idworker = "
+                          "idworker WHERE partition_graph_idgraph = " + graphID + " group by host_idhost";
     std::vector<vector<pair<string, string>>> result = refToSqlite.runSelect(sqlStatement);
     for (vector<vector<pair<string, string>>>::iterator i = result.begin(); i != result.end(); ++i) {
         int count = 0;
@@ -56,11 +55,10 @@ map<string, std::map<int, int>> JasmineGraphTrainingSchedular::schedulePartition
     int centralVertexCount;
     trainScheduler_logger.log("Scheduling training order for each host", "info");
     for (std::vector<pair<string, string>>::iterator j = (hostData.begin()); j != hostData.end(); ++j) {
-        sqlStatement =
-                "SELECT idpartition,vertexcount,central_vertexcount,graph_idgraph FROM partition INNER JOIN host_has_partition "
-                "ON partition.idpartition = host_has_partition.partition_idpartition WHERE graph_idgraph = " + graphID +
-                " AND host_idhost = "
-                + j->first;
+        sqlStatement = "SELECT idpartition, vertexcount, central_vertexcount, graph_idgraph FROM partition INNER JOIN "
+                       "(SELECT host_idhost, partition_idpartition, partition_graph_idgraph, worker_idworker FROM "
+                       "worker_has_partition INNER JOIN worker ON worker_idworker = idworker) AS a ON partition.idpartition = "
+                       "a.partition_idpartition WHERE partition.graph_idgraph =  "+ graphID +" AND a.host_idhost = " + j->first;
         std::vector<vector<pair<string, string>>> results = refToSqlite.runSelect(sqlStatement);
         std::map<int, int> vertexCountToPartitionId;
         for (std::vector<vector<pair<string, string>>>::iterator i = results.begin(); i != results.end(); ++i) {

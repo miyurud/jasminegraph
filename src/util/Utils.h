@@ -27,6 +27,7 @@ class Utils
 {
   public:
     struct worker {
+        std::string workerID;
         std::string hostname;
         std::string username;
         std::string port;
@@ -37,7 +38,7 @@ class Utils
 
     std::string getJasmineGraphProperty(std::string key);
 
-    std::vector<worker> getHostList(SQLiteDBInterface sqlite);
+    std::vector<worker> getWorkerList(SQLiteDBInterface sqlite);
 
     std::vector<std::string> getHostListFromProperties();
 
@@ -76,6 +77,8 @@ class Utils
     void compressDirectory(const std::string filePath);
 
     void unzipDirectory(std::string filePath);
+
+    static std::string getHostID(std::string hostName, SQLiteDBInterface sqlite);
 
 };
 
