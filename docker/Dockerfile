@@ -2,15 +2,20 @@ FROM ubuntu:bionic
 WORKDIR /home/ubuntu
 RUN mkdir software
 WORKDIR /home/ubuntu/software
+RUN apt-get update
+RUN apt-get -y install apt-transport-https ca-certificates curl gnupg2 software-properties-common
+RUN curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
+RUN add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+RUN apt-get update
+RUN apt-get -y install docker-ce
 RUN apt-get update && apt-get install -y git
 RUN apt-get install -y cmake
 RUN git clone https://github.com/google/flatbuffers.git
 WORKDIR /home/ubuntu/software/flatbuffers
 RUN git checkout tags/v1.10.0
-RUN apt-get install -y clang-6.0
-RUN update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-6.0 100
-RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-6.0 100
-RUN CC=/usr/bin/clang CXX=/usr/bin/clang++ cmake -G "Unix Makefiles" .
+RUN apt-get update
+RUN apt-get install -y build-essential
+RUN cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release
 RUN make
 WORKDIR /home/ubuntu/software
 RUN apt-get install -y wget
@@ -65,7 +70,8 @@ RUN apt-get update
 RUN add-apt-repository ppa:deadsnakes/ppa
 RUN apt-get install -y python3.5-dev
 RUN apt-get install -y libtool
-RUN git clone https://github.com/miyurud/jasminegraph.git
+
+RUN git clone https://github.com/chinthakarukshan/jasminegraph.git
 ENV HOME="/home/ubuntu"
 WORKDIR /home/ubuntu/software/jasminegraph
 RUN apt-get update
@@ -85,4 +91,5 @@ RUN ./flatc --cpp -o /home/ubuntu/software/jasminegraph/src/util/dbutil /home/ub
 WORKDIR /home/ubuntu/software/jasminegraph
 ENV JASMINEGRAPH_HOME="/home/ubuntu/software/jasminegraph"
 RUN sh build.sh
+ENTRYPOINT ["/home/ubuntu/software/jasminegraph/run-docker.sh"]
 CMD ["bash"]

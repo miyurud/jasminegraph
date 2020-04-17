@@ -1,15 +1,8 @@
 #!/usr/bin/env bash
 
 JASMINEGRAPH_DIR="`dirname \"$0\"`"
-MODE=$1;
-HOST_NAME=$2;
-SERVER_PORT=$3;
-SERVER_DATA_PORT=$4;
-
-echo "using mode $MODE"
-echo "using server $HOST_NAME"
-echo "using server port $SERVER_PORT"
-echo "using server data port $SERVER_DATA_PORT"
+PROFILE=$1;
+MODE=$2;
 
 JASMINEGRAPH_DIR="`( cd \"$JASMINEGRAPH_DIR\" && pwd )`"
 if [ -z "$JASMINEGRAPH_DIR" ] ;
@@ -27,10 +20,23 @@ then
     exit 1
 fi
 
+cd $JASMINEGRAPH_DIR
+
 if [ $MODE -eq 1 ] ;
 then
     echo "STARTING MASTER MODE"
+
+    MASTER_HOST_NAME=$3;
+    NUMBER_OF_WORKERS=$4;
+    WORKER_IPS=$5;
+
+    ./JasmineGraph "native" $MODE $MASTER_HOST_NAME $NUMBER_OF_WORKERS $WORKER_IPS
 else
+    WORKER_HOST=$3;
+    MASTER_HOST_NAME=$4;
+    SERVER_PORT=$5;
+    SERVER_DATA_PORT=$6;
+
     if [ -z "$SERVER_PORT" ] ;
     then
         echo "SERVER PORT SHOULD BE SPECIFIED"
@@ -42,18 +48,7 @@ else
             echo "SERVER DATA PORT SHOULD BE SPECIFIED"
             exit 1
     fi
+
+    ./JasmineGraph "native" $MODE $WORKER_HOST $MASTER_HOST_NAME $SERVER_PORT $SERVER_DATA_PORT
 fi
 
-echo "using mode $MODE"
-if [ $MODE -eq 1 ] ;
-then
-    echo "using server $HOST_NAME"
-    echo "using mode $SERVER_PORT"
-    echo "using mode $SERVER_DATA_PORT"
-fi
-mkdir -p logs
-
-
-cd $JASMINEGRAPH_DIR
-
-./JasmineGraph $MODE $HOST_NAME $SERVER_PORT $SERVER_DATA_PORT

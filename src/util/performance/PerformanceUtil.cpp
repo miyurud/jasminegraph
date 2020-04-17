@@ -25,7 +25,7 @@ int PerformanceUtil::init() {
 }
 
 int PerformanceUtil::collectPerformanceStatistics() {
-    vector<std::string> hostList = systemUtils.getHostList();
+    vector<std::string> hostList = systemUtils.getHostListFromProperties();
     int hostListSize = hostList.size();
     int counter = 0;
     std::vector<std::future<long>> intermRes;
@@ -35,7 +35,7 @@ int PerformanceUtil::collectPerformanceStatistics() {
     for (int i=0;i<hostListSize;i++) {
         int k = counter;
         string host = placesToNodeMapper.getHost(i);
-        std::vector<int> instancePorts = placesToNodeMapper.getInstancePort(i);
+        std::vector<int> instancePorts = placesToNodeMapper.getInstancePortsList(i);
         string partitionId;
 
         std::vector<int>::iterator portsIterator;

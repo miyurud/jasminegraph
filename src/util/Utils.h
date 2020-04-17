@@ -26,11 +26,21 @@ using std::map;
 class Utils
 {
   public:
+    struct worker {
+        std::string workerID;
+        std::string hostname;
+        std::string username;
+        std::string port;
+        std::string dataPort;
+    };
+
     map<std::string, std::string> getBatchUploadFileList(std::string file);
 
     std::string getJasmineGraphProperty(std::string key);
 
-    std::vector<std::string> getHostList();
+    std::vector<worker> getWorkerList(SQLiteDBInterface sqlite);
+
+    std::vector<std::string> getHostListFromProperties();
 
     std::vector<std::string> getFileContent(std::string);
 
@@ -62,11 +72,13 @@ class Utils
 
     int parseARGS(char **args, char *line);
 
-    bool hostExists(std::string name, std::string ip, SQLiteDBInterface sqlite);
+    bool hostExists(std::string name, std::string ip, std::string workerPort, SQLiteDBInterface sqlite);
 
     void compressDirectory(const std::string filePath);
 
     void unzipDirectory(std::string filePath);
+
+    static std::string getHostID(std::string hostName, SQLiteDBInterface sqlite);
 
 };
 

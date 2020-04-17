@@ -78,7 +78,7 @@ int JasmineGraphInstanceFileTransferService::run(int dataPort) {
 
     //bind socket
     if (bind(listenFd, (struct sockaddr *) &svrAdd, sizeof(svrAdd)) < 0) {
-        std::cerr << "Cannot bind" << std::endl;
+        std::cerr << "Cannot bind on port " + dataPort << std::endl;
         return 0;
     }
     int connFd;

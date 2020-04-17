@@ -72,7 +72,6 @@ build/
 logs/
 
 CMakeFiles/
-metadb/
 CMakeCache.txt
 JasmineGraph
 Makefile

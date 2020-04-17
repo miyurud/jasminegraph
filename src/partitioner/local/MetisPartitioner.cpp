@@ -199,12 +199,20 @@ int MetisPartitioner::constructMetisFormat(string graph_type) {
     return 1;
 }
 
-std::vector<std::map<int, std::string>> MetisPartitioner::partitioneWithGPMetis() {
+std::vector<std::map<int, std::string>> MetisPartitioner::partitioneWithGPMetis(string partitionCount) {
     partitioner_logger.log("Partitioning with gpmetis", "info");
+    if (partitionCount != "") {
+        nParts = atoi(partitionCount.c_str());
+    } else {
+        partitioner_logger.log("Using the default partition count " + partitionCount, "info");
+    }
+
     char buffer[128];
     std::string result = "";
     FILE *headerModify;
-    string metisCommand = "gpmetis " + this->outputFilePath + "/grf " + to_string(this->nParts) + " 2>&1";
+    std::string metisHome = utils.getJasmineGraphProperty("org.jasminegraph.partitioner.metis.home");
+    string metisCommand =
+            metisHome + "/bin/gpmetis " + this->outputFilePath + "/grf " + to_string(this->nParts) + " 2>&1";
     FILE *input = popen(metisCommand.c_str(), "r");
     if (input) {
         // read the input
@@ -222,7 +230,7 @@ std::vector<std::map<int, std::string>> MetisPartitioner::partitioneWithGPMetis(
             char *newHeaderChar = new char[command.length() + 1];
             strcpy(newHeaderChar, command.c_str());
             headerModify = popen(newHeaderChar, "r");
-            partitioneWithGPMetis();
+            partitioneWithGPMetis(to_string(nParts));
         } else if (!result.empty() && result.find("out of bounds") != std::string::npos) {
             vertexCount += 1;
             string newHeader = std::to_string(vertexCount) + ' ' + std::to_string(edgeCountForMetis);
@@ -231,7 +239,7 @@ std::vector<std::map<int, std::string>> MetisPartitioner::partitioneWithGPMetis(
             char *newHeaderChar = new char[command.length() + 1];
             strcpy(newHeaderChar, command.c_str());
             headerModify = popen(newHeaderChar, "r");
-            partitioneWithGPMetis();
+            partitioneWithGPMetis(to_string(nParts));
             //However, I only found
         } else if (!result.empty() && result.find("However, I only found") != std::string::npos) {
             string firstDelimiter = "I only found";
@@ -245,7 +253,7 @@ std::vector<std::map<int, std::string>> MetisPartitioner::partitioneWithGPMetis(
             char *newHeaderChar = new char[command.length() + 1];
             strcpy(newHeaderChar, command.c_str());
             headerModify = popen(newHeaderChar, "r");
-            partitioneWithGPMetis();
+            partitioneWithGPMetis(to_string(nParts));
         } else if (!result.empty() && result.find("Timing Information") != std::string::npos) {
             std::string line;
             string fileName = this->outputFilePath + "/grf.part." + to_string(this->nParts);
@@ -285,7 +293,7 @@ std::vector<std::map<int, std::string>> MetisPartitioner::partitioneWithGPMetis(
 }
 
 void MetisPartitioner::createPartitionFiles(std::map<int, int> partMap) {
-    for (int i=smallestVertex; i<=largestVertex; i++){
+    for (int i = smallestVertex; i <= largestVertex; i++) {
         partVertexCounts[partMap[i]]++;
     }
     partitioner_logger.log("Populating edge lists before writing to files", "info");
@@ -422,8 +430,14 @@ void MetisPartitioner::populatePartMaps(std::map<int, int> partMap, int part) {
                         commonMasterEdgeSet[endVertexPart][startVertexActual].push_back(endVertexActual);
                     }
                 }
-                partEdgesSet[startVertexActual] = localGraphVertexVector;
-                partMasterEdgesSet[startVertexActual] = centralGraphVertexVector;
+                if (localGraphVertexVector.size() > 0) {
+                    partEdgesSet[startVertexActual] = localGraphVertexVector;
+                }
+
+                if (centralGraphVertexVector.size() > 0) {
+                    partMasterEdgesSet[startVertexActual] = centralGraphVertexVector;
+                }
+
             }
         }
     } else {
@@ -464,8 +478,14 @@ void MetisPartitioner::populatePartMaps(std::map<int, int> partMap, int part) {
                         commonMasterEdgeSet[endVertexPart][startVertex].push_back(endVertex);
                     }
                 }
-                partEdgesSet[startVertex] = localGraphVertexVector;
-                partMasterEdgesSet[startVertex] = centralGraphVertexVector;
+
+                if (localGraphVertexVector.size() > 0) {
+                    partEdgesSet[startVertex] = localGraphVertexVector;
+                }
+
+                if (centralGraphVertexVector.size() > 0) {
+                    partMasterEdgesSet[startVertex] = centralGraphVertexVector;
+                }
             }
         }
     }
@@ -477,7 +497,8 @@ void MetisPartitioner::populatePartMaps(std::map<int, int> partMap, int part) {
     string sqlStatement =
             "INSERT INTO partition (idpartition,graph_idgraph,vertexcount,central_vertexcount,edgecount) VALUES(\"" +
             std::to_string(part) + "\", \"" + std::to_string(this->graphID) +
-            "\", \"" + std::to_string(partVertexCounts[part]) + "\",\"" + std::to_string(centralPartVertices.size()) + "\",\""
+            "\", \"" + std::to_string(partVertexCounts[part]) + "\",\"" + std::to_string(centralPartVertices.size()) +
+            "\",\""
             + std::to_string(partitionEdgeCount) + "\")";
     dbLock.lock();
     this->sqlite.runUpdate(sqlStatement);
@@ -882,18 +903,19 @@ void MetisPartitioner::loadContentData(string inputAttributeFilePath, string gra
         string str_line;
 
         std::getline(file, str_line);
-        int count =0;
+        int count = 0;
         while (!str_line.empty()) {
-            count+=1;
+            count += 1;
             std::istringstream ss(str_line);
             std::istream_iterator<std::string> begin(ss), end;
             std::vector<std::string> arrayFeatures(begin, end);
-            string sqlStatement = "UPDATE graph SET feature_count = '" + std::to_string(arrayFeatures.size()-1) + "' WHERE idgraph = '" + std::to_string(graphID)+ "'";
+            string sqlStatement = "UPDATE graph SET feature_count = '" + std::to_string(arrayFeatures.size() - 1) +
+                                  "' WHERE idgraph = '" + std::to_string(graphID) + "'";
             cout << sqlStatement << endl;
             dbLock.lock();
             this->sqlite.runUpdate(sqlStatement);
             dbLock.unlock();
-            if (count==1){
+            if (count == 1) {
                 break;
             }
         }

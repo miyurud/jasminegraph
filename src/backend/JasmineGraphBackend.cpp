@@ -101,7 +101,7 @@ int JasmineGraphBackend::run() {
 
     //bind socket
     if (bind(listenFd, (struct sockaddr *) &svrAdd, sizeof(svrAdd)) < 0) {
-        backend_logger.log("Cannot bind", "error");
+        backend_logger.log("Cannot bind on port " + portNo, "error");
         return 0;
     }
 
