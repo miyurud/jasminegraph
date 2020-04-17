@@ -70,3 +70,10 @@ build/
 
 # Log files
 logs/
+
+CMakeFiles/
+metadb/
+CMakeCache.txt
+JasmineGraph
+Makefile
+cmake_install.cmake

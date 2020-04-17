@@ -14,7 +14,7 @@ struct PartEdgeMapStore;
 struct PartEdgeMapStoreEntry;
 
 struct PartEdgeMapStore FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+  enum {
     VT_ENTRIES = 4
   };
   const flatbuffers::Vector<flatbuffers::Offset<PartEdgeMapStoreEntry>> *entries() const {
@@ -58,14 +58,13 @@ inline flatbuffers::Offset<PartEdgeMapStore> CreatePartEdgeMapStore(
 inline flatbuffers::Offset<PartEdgeMapStore> CreatePartEdgeMapStoreDirect(
     flatbuffers::FlatBufferBuilder &_fbb,
     const std::vector<flatbuffers::Offset<PartEdgeMapStoreEntry>> *entries = nullptr) {
-  auto entries__ = entries ? _fbb.CreateVector<flatbuffers::Offset<PartEdgeMapStoreEntry>>(*entries) : 0;
   return JasmineGraph::PartEdgeMapStore::CreatePartEdgeMapStore(
       _fbb,
-      entries__);
+      entries ? _fbb.CreateVector<flatbuffers::Offset<PartEdgeMapStoreEntry>>(*entries) : 0);
 }
 
 struct PartEdgeMapStoreEntry FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+  enum {
     VT_KEY = 4,
     VT_VALUE = 6
   };
@@ -125,11 +124,10 @@ inline flatbuffers::Offset<PartEdgeMapStoreEntry> CreatePartEdgeMapStoreEntryDir
     flatbuffers::FlatBufferBuilder &_fbb,
     int32_t key = 0,
     const std::vector<int32_t> *value = nullptr) {
-  auto value__ = value ? _fbb.CreateVector<int32_t>(*value) : 0;
   return JasmineGraph::PartEdgeMapStore::CreatePartEdgeMapStoreEntry(
       _fbb,
       key,
-      value__);
+      value ? _fbb.CreateVector<int32_t>(*value) : 0);
 }
 
 inline const JasmineGraph::PartEdgeMapStore::PartEdgeMapStore *GetPartEdgeMapStore(const void *buf) {
