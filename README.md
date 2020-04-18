@@ -12,7 +12,7 @@ The following build tools, applications, and libraries need to be installed befo
 - Cmake version 3.10.3 or above
 - Google Flat Buffers (https://github.com/google/flatbuffers)
     - Clone the flatbuffers repository to $ENV{HOME}/software
-    - Checkout Tag v1.10.0
+    - Checkout Tag [v1.12.0](https://github.com/google/flatbuffers/archive/v1.12.0.zip)
     - Follow https://google.github.io/flatbuffers/flatbuffers_guide_building.html link to build flatbuffers
 - Metis (http://glaros.dtc.umn.edu/gkhome/metis/metis/download)
     - Follow the installation guidelines provided in this [URL](http://glaros.dtc.umn.edu/gkhome/metis/metis/download).
