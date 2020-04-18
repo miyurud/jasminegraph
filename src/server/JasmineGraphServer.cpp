@@ -110,7 +110,7 @@ void JasmineGraphServer::start_workers() {
     int counter = 0;
 
     for (it = hostsList.begin(); it < hostsList.end(); it++) {
-        hostString = "(" + std::to_string(counter) + ", '" + (*it) + "', '" + (*it) + "', false),";
+        hostString = "(" + std::to_string(counter) + ", '" + (*it) + "', '" + (*it) + "', 'false'),";
         counter++;
     }
 
@@ -158,8 +158,8 @@ void JasmineGraphServer::start_workers() {
             string ip = hostName;
             string is_public = "false";
             valuesString += "(" + std::to_string(workerIDCounter) + ", " + hostID + ", \"" + hostName +
-                    "\", \"" + ip + "\",\"" + user + "\", " + is_public
-                    + ",\""+ std::to_string(workerPort) +"\", \""+ std::to_string(workerDataPort) + "\"),";
+                    "\", \"" + ip + "\",\"" + user + "\", '" + is_public
+                    + "',\""+ std::to_string(workerPort) +"\", \""+ std::to_string(workerDataPort) + "\"),";
             workerPort = workerPort + 2;
             workerDataPort = workerDataPort + 2;
             workerIDCounter++;
@@ -175,8 +175,8 @@ void JasmineGraphServer::start_workers() {
             string ip = hostName;
             string is_public = "false";
             valuesString += "(" + std::to_string(workerIDCounter) + ", " + hostID + ", \"" + hostName +
-                            "\", \"" + ip + "\",\"" + user + "\", " + is_public
-                            + ",\""+ std::to_string(workerPort) +"\", \""+ std::to_string(workerDataPort) + "\"),";
+                            "\", \"" + ip + "\",\"" + user + "\", '" + is_public
+                            + "',\""+ std::to_string(workerPort) +"\", \""+ std::to_string(workerDataPort) + "\"),";
             workerPort = workerPort + 2;
             workerDataPort = workerDataPort + 2;
             workerIDCounter++;
