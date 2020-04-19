@@ -132,7 +132,6 @@ void JasmineGraphServer::start_workers() {
     }
 
     sqlite.runUpdate("DELETE FROM worker");
-    sqlite.runUpdate("DELETE FROM worker_has_partition");
 
     string valuesString;
     string sqlStatement = "INSERT INTO worker (idworker,host_idhost,name,ip,user,is_public,server_port,server_data_port) VALUES ";
@@ -191,7 +190,7 @@ void JasmineGraphServer::start_workers() {
 
     }
 
-    assignPartitionsToWorkers(numberOfWorkers);
+    Utils::assignPartitionsToWorkers(numberOfWorkers, this->sqlite);
 
     int hostListSize = hostsList.size();
     std::vector<std::string>::iterator hostListIterator;
@@ -266,35 +265,6 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
             server_logger.log(serverStartScript, "info");
             popen(serverStartScript.c_str(),"r");
         }
-    }
-}
-
-void JasmineGraphServer::assignPartitionsToWorkers(int numberOfWorkers) {
-    std::vector<vector<pair<string, string>>> v = sqlite.runSelect(
-            "SELECT idpartition, graph_idgraph FROM partition;");
-    int workerCounter = 0;
-    string valueString;
-    string sqlStatement = "INSERT INTO worker_has_partition (partition_idpartition, partition_graph_idgraph, worker_idworker) VALUES ";
-    std::stringstream ss;
-    if (v.size() > 0) {
-        for (std::vector<vector<pair<string, string>>>::iterator i = v.begin(); i != v.end(); ++i) {
-            int counter = 0;
-            ss << "(";
-            for (std::vector<pair<string, string>>::iterator j = (i->begin()); j != i->end(); ++j) {
-                ss << j->second << ",";
-            }
-
-            ss << workerCounter << "),";
-            valueString = valueString + ss.str();
-            ss.str(std::string());
-            workerCounter++;
-            if (workerCounter >= numberOfWorkers) {
-                workerCounter = 0;
-            }
-        }
-        valueString = valueString.substr(0, valueString.length() - 1);
-        sqlStatement = sqlStatement + valueString;
-        this->sqlite.runInsert(sqlStatement);
     }
 }
 

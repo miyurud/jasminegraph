@@ -429,3 +429,34 @@ void Utils::unzipDirectory(std::string filePath){
         // handle error
     }
 }
+
+void Utils::assignPartitionsToWorkers(int numberOfWorkers, SQLiteDBInterface sqlite) {
+    sqlite.runUpdate("DELETE FROM worker_has_partition");
+
+    std::vector<vector<pair<string, string>>> v = sqlite.runSelect(
+            "SELECT idpartition, graph_idgraph FROM partition;");
+    int workerCounter = 0;
+    string valueString;
+    string sqlStatement = "INSERT INTO worker_has_partition (partition_idpartition, partition_graph_idgraph, worker_idworker) VALUES ";
+    std::stringstream ss;
+    if (v.size() > 0) {
+        for (std::vector<vector<pair<string, string>>>::iterator i = v.begin(); i != v.end(); ++i) {
+            int counter = 0;
+            ss << "(";
+            for (std::vector<pair<string, string>>::iterator j = (i->begin()); j != i->end(); ++j) {
+                ss << j->second << ",";
+            }
+
+            ss << workerCounter << "),";
+            valueString = valueString + ss.str();
+            ss.str(std::string());
+            workerCounter++;
+            if (workerCounter >= numberOfWorkers) {
+                workerCounter = 0;
+            }
+        }
+        valueString = valueString.substr(0, valueString.length() - 1);
+        sqlStatement = sqlStatement + valueString;
+        sqlite.runInsert(sqlStatement);
+    }
+}
