@@ -44,7 +44,7 @@ RUN cmake ..
 RUN make
 RUN make install
 WORKDIR /home/ubuntu/software
-RUN wget https://www-eu.apache.org/dist//xerces/c/3/sources/xerces-c-3.2.2.tar.gz
+RUN wget https://archive.apache.org/dist/xerces/c/3/sources/xerces-c-3.2.2.tar.gz
 RUN tar -xvf xerces-c-3.2.2.tar.gz
 WORKDIR /home/ubuntu/software/xerces-c-3.2.2
 RUN sh configure --disable-transcoder-icu
