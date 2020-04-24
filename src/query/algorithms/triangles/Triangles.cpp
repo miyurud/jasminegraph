@@ -209,8 +209,7 @@ long Triangles::countCentralStoreTriangles(map<long, unordered_set<long>> centra
                 std::unordered_set<long>::iterator nuListIterator;
                 for (nuListIterator = nuList.begin();nuListIterator != nuList.end();++nuListIterator) {
                     long nu = *nuListIterator;
-                    unordered_set<long> nwList = centralStore[nu];
-                    if (nwList.find(temp) != nwList.end()) {
+                    if (centralStore[temp].find(nu) != centralStore[temp].end()) {
                         fullCount++;
                         std::vector<long> tempVector;
                         tempVector.push_back(temp);
