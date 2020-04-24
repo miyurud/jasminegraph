@@ -46,6 +46,7 @@ private:
 
     static void copyArtifactsToWorkers(std::string workerPath, std::string artifactLocation, std::string remoteWorker);
     static void createWorkerPath (std::string workerHost, std::string workerPath);
+    static void deleteWorkerPath (std::string workerHost, std::string workerPath);
 
     static bool hasEnding(std::string const &fullString, std::string const &ending);
     std::vector<std::string> getWorkerVector(std::string workerList);
