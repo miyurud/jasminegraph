@@ -1112,6 +1112,7 @@ void JasmineGraphServer::copyArtifactsToWorkers(std::string workerPath, std::str
 
         deleteWorkerPath(remoteWorker, workerPath);
         createWorkerPath(remoteWorker, workerPath);
+        createLogFilePath(remoteWorker, workerPath);
         pclose(input);
     }
 
@@ -1167,6 +1168,32 @@ void JasmineGraphServer::deleteWorkerPath(std::string workerHost, std::string wo
 
 void JasmineGraphServer::createWorkerPath(std::string workerHost, std::string workerPath) {
     std::string pathCreationCommand = "mkdir -p " + workerPath;
+    char buffer[128];
+    std::string result = "";
+
+    if (workerHost.find("localhost") == std::string::npos) {
+        std::string tmpPathCreation = pathCreationCommand;
+        pathCreationCommand = "ssh -p 22 " + workerHost + " " + tmpPathCreation;
+    }
+
+    FILE *input = popen(pathCreationCommand.c_str(), "r");
+
+    if (input) {
+        // read the input
+        while (!feof(input)) {
+            if (fgets(buffer, 128, input) != NULL) {
+                result.append(buffer);
+            }
+        }
+        if (!result.empty()) {
+            server_logger.log("Error executing command for creating worker path : " + result, "error");
+        }
+        pclose(input);
+    }
+}
+
+void JasmineGraphServer::createLogFilePath(std::string workerHost, std::string workerPath) {
+    std::string pathCreationCommand = "mkdir -p " + workerPath + "/logs";
     char buffer[128];
     std::string result = "";
 
