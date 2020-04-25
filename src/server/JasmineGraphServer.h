@@ -31,6 +31,7 @@ private:
     std::string profile;
     std::string workerHosts;
     int numberOfWorkers;
+    static const int BUFFER_SIZE = 128;
     int serverPort;
     int serverDataPort;
     std::map<std::string, std::vector<int>> workerPortsMap;

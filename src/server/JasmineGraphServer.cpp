@@ -1142,7 +1142,7 @@ void JasmineGraphServer::copyArtifactsToWorkers(std::string workerPath, std::str
 
 void JasmineGraphServer::deleteWorkerPath(std::string workerHost, std::string workerPath) {
     std::string pathDeletionCommand = "rm -rf " + workerPath;
-    char buffer[128];
+    char buffer[BUFFER_SIZE];
     std::string result = "";
 
     if (workerHost.find("localhost") == std::string::npos) {
@@ -1155,7 +1155,7 @@ void JasmineGraphServer::deleteWorkerPath(std::string workerHost, std::string wo
     if (input) {
         // read the input
         while (!feof(input)) {
-            if (fgets(buffer, 128, input) != NULL) {
+            if (fgets(buffer, BUFFER_SIZE, input) != NULL) {
                 result.append(buffer);
             }
         }
@@ -1168,7 +1168,7 @@ void JasmineGraphServer::deleteWorkerPath(std::string workerHost, std::string wo
 
 void JasmineGraphServer::createWorkerPath(std::string workerHost, std::string workerPath) {
     std::string pathCreationCommand = "mkdir -p " + workerPath;
-    char buffer[128];
+    char buffer[BUFFER_SIZE];
     std::string result = "";
 
     if (workerHost.find("localhost") == std::string::npos) {
@@ -1181,7 +1181,7 @@ void JasmineGraphServer::createWorkerPath(std::string workerHost, std::string wo
     if (input) {
         // read the input
         while (!feof(input)) {
-            if (fgets(buffer, 128, input) != NULL) {
+            if (fgets(buffer, BUFFER_SIZE, input) != NULL) {
                 result.append(buffer);
             }
         }
@@ -1194,7 +1194,7 @@ void JasmineGraphServer::createWorkerPath(std::string workerHost, std::string wo
 
 void JasmineGraphServer::createLogFilePath(std::string workerHost, std::string workerPath) {
     std::string pathCreationCommand = "mkdir -p " + workerPath + "/logs";
-    char buffer[128];
+    char buffer[BUFFER_SIZE];
     std::string result = "";
 
     if (workerHost.find("localhost") == std::string::npos) {
@@ -1207,12 +1207,12 @@ void JasmineGraphServer::createLogFilePath(std::string workerHost, std::string w
     if (input) {
         // read the input
         while (!feof(input)) {
-            if (fgets(buffer, 128, input) != NULL) {
+            if (fgets(buffer, BUFFER_SIZE, input) != NULL) {
                 result.append(buffer);
             }
         }
         if (!result.empty()) {
-            server_logger.log("Error executing command for creating worker path : " + result, "error");
+            server_logger.log("Error executing command for creating log file path : " + result, "error");
         }
         pclose(input);
     }
