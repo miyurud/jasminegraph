@@ -13,8 +13,7 @@ limitations under the License.
 
 #include "Python.h"
 #include "Python_C_API.h"
-#include <iostream>
-#include <fstream>
+
 using namespace std;
 
 void Python_C_API::train(int argc, char *argv[]) {

@@ -11,7 +11,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
-#include <sstream>
 #include <ctime>
 #include <chrono>
 #include <iostream>
@@ -19,7 +18,6 @@ limitations under the License.
 #include <set>
 #include "JasmineGraphFrontEnd.h"
 #include "../util/Conts.h"
-#include "../util/Utils.h"
 #include "../util/kafka/KafkaCC.h"
 #include "JasmineGraphFrontEndProtocol.h"
 #include "../metadb/SQLiteDBInterface.h"
@@ -31,15 +29,10 @@ limitations under the License.
 #include "../partitioner/local/RDFParser.h"
 #include "../partitioner/local/JSONParser.h"
 #include "../server/JasmineGraphInstanceProtocol.h"
-#include "../trainer/python-c-api/Python_C_API.h"
 #include "../trainer/JasminGraphTrainingInitiator.h"
 #include "../trainer/JasminGraphLinkPredictor.h"
 #include "../trainer/JasmineGraphTrainingSchedular.h"
-
-
 #include "../trainer/python-c-api/Python_C_API.h"
-#include "../trainer/JasminGraphTrainingInitiator.h"
-#include "../trainer/JasminGraphLinkPredictor.h"
 
 using namespace std;
 

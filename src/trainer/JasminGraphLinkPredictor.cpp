@@ -13,7 +13,6 @@ limitations under the License.
 
 #include "JasminGraphLinkPredictor.h"
 #include "../util/logger/Logger.h"
-#include "../util/Utils.h"
 #include "../server/JasmineGraphInstanceProtocol.h"
 
 Logger predictor_logger;

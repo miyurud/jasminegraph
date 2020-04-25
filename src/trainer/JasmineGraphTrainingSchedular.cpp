@@ -11,12 +11,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
-#include <sstream>
-#include <iostream>
 #include "JasmineGraphTrainingSchedular.h"
 #include "../metadb/SQLiteDBInterface.h"
 #include "../util/Conts.h"
-#include "../frontend/JasmineGraphFrontEnd.h"
 #include "../performancedb/PerformanceSQLiteDBInterface.h"
 #include "../util/logger/Logger.h"
 
@@ -53,7 +50,7 @@ map<string, std::map<int, int>> JasmineGraphTrainingSchedular::schedulePartition
     int partition_id;
     int vertexcount;
     int centralVertexCount;
-    trainScheduler_logger.log("Scheduling training order for each host", "info");
+    trainScheduler_logger.log("Scheduling training order for each worker", "info");
     for (std::vector<pair<string, string>>::iterator j = (hostData.begin()); j != hostData.end(); ++j) {
         sqlStatement = "SELECT idpartition, vertexcount, central_vertexcount, graph_idgraph FROM partition INNER JOIN "
                        "(SELECT host_idhost, partition_idpartition, partition_graph_idgraph, worker_idworker FROM "
@@ -102,7 +99,6 @@ long JasmineGraphTrainingSchedular::estimateMemory(int vertexCount, string graph
             "SELECT feature_count FROM graph WHERE idgraph = " + graph_id;
     std::vector<vector<pair<string, string>>> result = refToSqlite.runSelect(sqlStatement);
 
-    cout << sqlStatement << endl;
     int feature_Count;
 
     for (std::vector<vector<pair<string, string>>>::iterator i = result.begin(); i != result.end(); ++i) {
@@ -159,11 +155,10 @@ JasmineGraphTrainingSchedular::packPartitionsToMemory(vector<pair<int, int>> par
     int bin_rem[n];
 
     for (int i = 0; i < n; i++) {
-        int j;
         int min = capacity + 1;
         int bestBin = 0;
 
-        for (j = 0; j < res; j++) {
+        for (int j = 0; j < res; j++) {
             if (bin_rem[j] >= partitionMemoryList[i].second && bin_rem[j] - partitionMemoryList[i].second < min) {
                 bestBin = j;
                 min = bin_rem[j] - partitionMemoryList[i].second;
