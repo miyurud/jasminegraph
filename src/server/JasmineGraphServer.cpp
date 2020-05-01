@@ -139,6 +139,8 @@ void JasmineGraphServer::start_workers() {
         hostListModeNWorkers = numberOfWorkers % hostsList.size();
     }
 
+    backupPerformanceDB();
+
     sqlite.runUpdate("DELETE FROM worker");
 
     string valuesString;
@@ -1497,4 +1499,32 @@ std::vector<std::string> JasmineGraphServer::getWorkerVector(std::string workerL
     Utils utils;
     std::vector<std::string> workerVector = utils.split(workerList,',');
     return workerVector;
+}
+
+void JasmineGraphServer::backupPerformanceDB() {
+    Utils utils;
+    std::string performanceDBPath = utils.getJasmineGraphProperty("org.jasminegraph.performance.db.location");
+
+    uint64_t currentTimestamp= std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+
+    std::string backupScript = "cp " + performanceDBPath + " " + performanceDBPath + "-" + to_string(currentTimestamp);
+
+    char buffer[BUFFER_SIZE];
+    std::string result = "";
+
+    FILE *input = popen(backupScript.c_str(), "r");
+
+    if (input) {
+        // read the input
+        while (!feof(input)) {
+            if (fgets(buffer, BUFFER_SIZE, input) != NULL) {
+                result.append(buffer);
+            }
+        }
+        if (!result.empty()) {
+            std::cout << result << std::endl;
+        }
+
+        pclose(input);
+    }
 }

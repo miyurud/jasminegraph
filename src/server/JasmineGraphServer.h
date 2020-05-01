@@ -61,6 +61,8 @@ public:
 
     void start_workers();
 
+    void backupPerformanceDB();
+
     int shutdown_workers();
 
     int run(std::string profile, std::string masterIp, int numberofWorkers, std::string workerIps);
