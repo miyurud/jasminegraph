@@ -38,12 +38,15 @@ void SchedulerService::startScheduler() {
 void SchedulerService::startPerformanceScheduler() {
     unsigned int max_n_threads = 12;
 
+    Utils utils;
     PerformanceUtil util;
     util.init();
 
     Bosma::Scheduler s(max_n_threads);
 
-    s.every(std::chrono::seconds(120), util.collectPerformanceStatistics);
+    std::string performanceSchedulerTiming = utils.getJasmineGraphProperty("org.jasminegraph.scheduler.performanceCollector.timing");
+
+    s.every(std::chrono::seconds(atoi(performanceSchedulerTiming.c_str())), util.collectPerformanceStatistics);
 
     std::this_thread::sleep_for(std::chrono::minutes(120));
 }
