@@ -36,8 +36,8 @@ std::vector<int> PlacesToNodeMapper::getInstancePortsList(long placeId) {
     if (utils.is_number(nWorkers)) {
         numberOfWorkers = atoi(nWorkers.c_str());
     } else {
-        node_logger.log("Number of Workers is not specified", "error");
-        numberOfWorkers = 0;
+        node_logger.log("Number of Workers specified in the properties is not an integer value.", "error");
+        return portList;
     }
 
     if (numberOfWorkers > 0 && hostList.size() > 0) {

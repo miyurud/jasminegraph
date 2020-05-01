@@ -30,7 +30,7 @@ private:
     map<std::string, long> hostPlaceMap;
     std::string profile;
     std::string workerHosts;
-    int numberOfWorkers;
+    int numberOfWorkers = -1;
     static const int BUFFER_SIZE = 128;
     int serverPort;
     int serverDataPort;

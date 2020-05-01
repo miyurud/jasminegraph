@@ -91,7 +91,9 @@ void JasmineGraphServer::start_workers() {
     std::string nWorkers;
     if (profile == "native") {
         hostsList = utils.getHostListFromProperties();
-        nWorkers = utils.getJasmineGraphProperty("org.jasminegraph.server.nworkers");
+        if ((this->numberOfWorkers) == -1) {
+            nWorkers = utils.getJasmineGraphProperty("org.jasminegraph.server.nworkers");
+        }
     } else if (profile == "docker") {
         hostsList = getWorkerVector(workerHosts);
     }
@@ -120,10 +122,16 @@ void JasmineGraphServer::start_workers() {
 
     int workerPort = Conts::JASMINEGRAPH_INSTANCE_PORT;
     int workerDataPort = Conts::JASMINEGRAPH_INSTANCE_DATA_PORT;
-    if (utils.is_number(nWorkers)) {
-        numberOfWorkers = atoi(nWorkers.c_str());
-    } else if (numberOfWorkers == 0) {
+
+    if (this->numberOfWorkers == -1) {
+        if (utils.is_number(nWorkers)) {
+            numberOfWorkers = atoi(nWorkers.c_str());
+        }
+    }
+
+    if (this->numberOfWorkers == 0) {
         server_logger.log("Number of Workers is not specified", "error");
+        return;
     }
 
     if (numberOfWorkers > 0 && hostsList.size() > 0) {
