@@ -55,6 +55,8 @@ int JasmineGraphServer::run(std::string profile, std::string masterIp, int numbe
 
     this->sqlite = *new SQLiteDBInterface();
     this->sqlite.init();
+    this->performanceSqlite = *new PerformanceSQLiteDBInterface();
+    this->performanceSqlite.init();
     if (masterIp.empty()) {
         this->masterHost = utils.getJasmineGraphProperty("org.jasminegraph.server.host");
     } else {
@@ -140,6 +142,7 @@ void JasmineGraphServer::start_workers() {
     }
 
     backupPerformanceDB();
+    clearPerformanceDB();
 
     sqlite.runUpdate("DELETE FROM worker");
 
@@ -213,6 +216,7 @@ void JasmineGraphServer::start_workers() {
     for (hostListIterator = hostsList.begin(); hostListIterator < hostsList.end(); hostListIterator++) {
         std::string host = *hostListIterator;
         addHostsToMetaDB(host, workerPortsMap[host],workerDataPortsMap[host]);
+        addInstanceDetailsToPerformanceDB(host,workerPortsMap[host]);
         myThreads[count] = std::thread(startRemoteWorkers,workerPortsMap[host],workerDataPortsMap[host], host, profile,
                 masterHost);
         count++;
@@ -1527,4 +1531,25 @@ void JasmineGraphServer::backupPerformanceDB() {
 
         pclose(input);
     }
+}
+
+void JasmineGraphServer::clearPerformanceDB() {
+    performanceSqlite.runUpdate("delete from performance_data");
+    performanceSqlite.runUpdate("delete from instance_details");
+}
+
+void JasmineGraphServer::addInstanceDetailsToPerformanceDB(std::string hostName, std::vector<int> portVector) {
+    std::vector<int>::iterator it;
+    std::string hostString;
+    std::string insertQuery = "insert into instance_details (host_ip,port,vm_manager,total_memory,cores) values ";
+
+    for (it = portVector.begin(); it < portVector.end(); it++) {
+        int port = (*it);
+        hostString += "('" + hostName + "'," + to_string(port) + ",'false','',''),";
+    }
+
+    hostString = hostString.substr(0, hostString.length() - 1);
+    insertQuery = insertQuery + hostString;
+
+    this->performanceSqlite.runInsert(insertQuery);
 }

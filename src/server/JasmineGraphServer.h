@@ -21,6 +21,7 @@ limitations under the License.
 #include "../frontend/JasmineGraphFrontEnd.h"
 #include "../backend/JasmineGraphBackend.h"
 #include "../metadb/SQLiteDBInterface.h"
+#include "../performancedb/PerformanceSQLiteDBInterface.h"
 #include "../util/Conts.h"
 
 using std::map;
@@ -63,6 +64,10 @@ public:
 
     void backupPerformanceDB();
 
+    void clearPerformanceDB();
+
+    void addInstanceDetailsToPerformanceDB(std::string hostName, std::vector<int> portVector);
+
     int shutdown_workers();
 
     int run(std::string profile, std::string masterIp, int numberofWorkers, std::string workerIps);
@@ -89,6 +94,7 @@ public:
 
     JasmineGraphFrontEnd *frontend;
     SQLiteDBInterface sqlite;
+    PerformanceSQLiteDBInterface performanceSqlite;
     JasmineGraphBackend *backend;
     std::string masterHost;
     //pthread_t frontendthread;
