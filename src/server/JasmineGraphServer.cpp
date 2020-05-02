@@ -1526,7 +1526,7 @@ void JasmineGraphServer::backupPerformanceDB() {
             }
         }
         if (!result.empty()) {
-            std::cout << result << std::endl;
+            server_logger.log("Error in performance database backup process","error");
         }
 
         pclose(input);
