@@ -55,6 +55,8 @@ int JasmineGraphServer::run(std::string profile, std::string masterIp, int numbe
 
     this->sqlite = *new SQLiteDBInterface();
     this->sqlite.init();
+    this->performanceSqlite = *new PerformanceSQLiteDBInterface();
+    this->performanceSqlite.init();
     if (masterIp.empty()) {
         this->masterHost = utils.getJasmineGraphProperty("org.jasminegraph.server.host");
     } else {
@@ -139,6 +141,9 @@ void JasmineGraphServer::start_workers() {
         hostListModeNWorkers = numberOfWorkers % hostsList.size();
     }
 
+    backupPerformanceDB();
+    clearPerformanceDB();
+
     sqlite.runUpdate("DELETE FROM worker");
 
     string valuesString;
@@ -211,6 +216,7 @@ void JasmineGraphServer::start_workers() {
     for (hostListIterator = hostsList.begin(); hostListIterator < hostsList.end(); hostListIterator++) {
         std::string host = *hostListIterator;
         addHostsToMetaDB(host, workerPortsMap[host],workerDataPortsMap[host]);
+        addInstanceDetailsToPerformanceDB(host,workerPortsMap[host]);
         myThreads[count] = std::thread(startRemoteWorkers,workerPortsMap[host],workerDataPortsMap[host], host, profile,
                 masterHost);
         count++;
@@ -1497,4 +1503,53 @@ std::vector<std::string> JasmineGraphServer::getWorkerVector(std::string workerL
     Utils utils;
     std::vector<std::string> workerVector = utils.split(workerList,',');
     return workerVector;
+}
+
+void JasmineGraphServer::backupPerformanceDB() {
+    Utils utils;
+    std::string performanceDBPath = utils.getJasmineGraphProperty("org.jasminegraph.performance.db.location");
+
+    uint64_t currentTimestamp= std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+
+    std::string backupScript = "cp " + performanceDBPath + " " + performanceDBPath + "-" + to_string(currentTimestamp);
+
+    char buffer[BUFFER_SIZE];
+    std::string result = "";
+
+    FILE *input = popen(backupScript.c_str(), "r");
+
+    if (input) {
+        // read the input
+        while (!feof(input)) {
+            if (fgets(buffer, BUFFER_SIZE, input) != NULL) {
+                result.append(buffer);
+            }
+        }
+        if (!result.empty()) {
+            server_logger.log("Error in performance database backup process","error");
+        }
+
+        pclose(input);
+    }
+}
+
+void JasmineGraphServer::clearPerformanceDB() {
+    performanceSqlite.runUpdate("delete from performance_data");
+    performanceSqlite.runUpdate("delete from instance_details");
+}
+
+void JasmineGraphServer::addInstanceDetailsToPerformanceDB(std::string hostName, std::vector<int> portVector) {
+    std::vector<int>::iterator it;
+    std::string hostString;
+    std::string insertQuery = "insert into instance_details (host_ip,port,vm_manager,total_memory,cores) values ";
+
+    for (it = portVector.begin(); it < portVector.end(); it++) {
+        int port = (*it);
+        hostString += "('" + hostName + "'," + to_string(port) + ",'false','',''),";
+    }
+
+    hostString = hostString.substr(0, hostString.length() - 1);
+    insertQuery = insertQuery + hostString;
+
+    this->performanceSqlite.runInsert(insertQuery);
 }
