@@ -561,11 +561,8 @@ void *instanceservicesession(void *dummyPt) {
             read(connFd, data, INSTANCE_DATA_LENGTH);
             string isVMStatManager = (data);
             isVMStatManager = utils.trim_copy(isVMStatManager, " \f\n\r\t\v");
-            instance_logger.log("Received VM Stat manager status: " + isVMStatManager, "info");
-
             std::string memoryUsage = JasmineGraphInstanceService::requestPerformanceStatistics(isVMStatManager);
             write(connFd, memoryUsage.c_str(), memoryUsage.size());
-            instance_logger.log("Done and dusted", "info");
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_TRAIN) == 0) {
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::INITIATE_TRAIN, "info");
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
