@@ -216,7 +216,7 @@ void JasmineGraphServer::start_workers() {
     for (hostListIterator = hostsList.begin(); hostListIterator < hostsList.end(); hostListIterator++) {
         std::string host = *hostListIterator;
         addHostsToMetaDB(host, workerPortsMap[host],workerDataPortsMap[host]);
-        addInstanceDetailsToPerformanceDB(host,workerPortsMap[host]);
+        addInstanceDetailsToPerformanceDB(host,workerPortsMap[host],"false");
         myThreads[count] = std::thread(startRemoteWorkers,workerPortsMap[host],workerDataPortsMap[host], host, profile,
                 masterHost);
         count++;
@@ -1534,22 +1534,59 @@ void JasmineGraphServer::backupPerformanceDB() {
 }
 
 void JasmineGraphServer::clearPerformanceDB() {
-    performanceSqlite.runUpdate("delete from performance_data");
-    performanceSqlite.runUpdate("delete from instance_details");
+    performanceSqlite.runUpdate("delete from host_performance_data");
+    performanceSqlite.runUpdate("delete from place_performance_data");
+    performanceSqlite.runUpdate("delete from place");
+    performanceSqlite.runUpdate("delete from host");
 }
 
-void JasmineGraphServer::addInstanceDetailsToPerformanceDB(std::string hostName, std::vector<int> portVector) {
+void JasmineGraphServer::addInstanceDetailsToPerformanceDB(std::string host, std::vector<int> portVector, std::string isMaster) {
     std::vector<int>::iterator it;
     std::string hostString;
-    std::string insertQuery = "insert into instance_details (host_ip,port,vm_manager,total_memory,cores) values ";
+    std::string hostId;
+    std::string isHostReporter = "false";
+    std::string user;
+    std::string ipAddress;
+    int count = 0;
+    Utils utils;
+
+    if (host.find('@') != std::string::npos) {
+        vector<string> splitted = utils.split(host, '@');
+        ipAddress = splitted[1];
+        user = splitted[0];
+    } else {
+        ipAddress = host;
+    }
+
+    std::string searchHost = "select idhost,ip from host where ip='"+ipAddress+"'";
+    vector<vector<pair<string,string>>> selectResult = this->performanceSqlite.runSelect(searchHost);
+
+    if (selectResult.size() > 0) {
+        hostId = selectResult[0][0].second;
+    } else {
+        std::string hostInsertQuery = "insert into host (name, ip, is_public, total_cpu_cores, total_memory) values ('" +
+                host + "','" + ipAddress + "','false','','')";
+        int insertedHostId = this->performanceSqlite.runInsert(hostInsertQuery);
+        hostId = to_string(insertedHostId);
+    }
+
+    std::string insertPlaceQuery = "insert into place (host_idhost,server_port,ip,user,is_master,is_host_reporter) values ";
 
     for (it = portVector.begin(); it < portVector.end(); it++) {
         int port = (*it);
-        hostString += "('" + hostName + "'," + to_string(port) + ",'false','',''),";
+        if (count == 0) {
+            std::string searchReporterQuery = "select idplace from place where ip='" + ipAddress + "' and is_host_reporter='true'";
+            vector<vector<pair<string,string>>> searchResult = this->performanceSqlite.runSelect(searchReporterQuery);
+            if (searchResult.size() > 0) {
+                isHostReporter = "true";
+            }
+        }
+        hostString += "('" + hostId + "','" + to_string(port) + "','" + ipAddress + "','" + user + "','" + isMaster + "','" + isHostReporter + "'),";
+        count++;
     }
 
     hostString = hostString.substr(0, hostString.length() - 1);
-    insertQuery = insertQuery + hostString;
+    insertPlaceQuery = insertPlaceQuery + hostString;
 
-    this->performanceSqlite.runInsert(insertQuery);
+    this->performanceSqlite.runInsert(insertPlaceQuery);
 }
