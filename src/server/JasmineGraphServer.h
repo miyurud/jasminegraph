@@ -69,7 +69,7 @@ public:
 
     void clearPerformanceDB();
 
-    void addInstanceDetailsToPerformanceDB(std::string hostName, std::vector<int> portVector);
+    void addInstanceDetailsToPerformanceDB(std::string host, std::vector<int> portVector, std::string isMaster);
 
     int shutdown_workers();
 
