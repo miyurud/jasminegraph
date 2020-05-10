@@ -50,6 +50,9 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
         read(connFd, data, FRONTEND_DATA_LENGTH);
 
         string line(data);
+        if (line.compare("\r\n") == 0) {
+            continue;
+        }
         frontend_logger.log("Command received: " + line, "info");
 
         Utils utils;
