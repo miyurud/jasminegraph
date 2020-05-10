@@ -142,8 +142,12 @@ void JasmineGraphServer::start_workers() {
         hostListModeNWorkers = numberOfWorkers % hostsList.size();
     }
 
-    backupPerformanceDB();
-    clearPerformanceDB();
+    std::string schedulerEnabled = utils.getJasmineGraphProperty("org.jasminegraph.scheduler.enabled");
+
+    if (schedulerEnabled == "true") {
+        backupPerformanceDB();
+        clearPerformanceDB();
+    }
 
     sqlite.runUpdate("DELETE FROM worker");
 
