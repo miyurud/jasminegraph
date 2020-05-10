@@ -61,7 +61,9 @@ public:
     static const string INITIATE_PREDICT;
     static const string SEND_HOSTS;
     static const string INITIATE_MODEL_COLLECTION;
-
+    static const string INITIATE_FRAGMENT_RESOLUTION;
+    static const string FRAGMENT_RESOLUTION_CHK;
+    static const string FRAGMENT_RESOLUTION_DONE;
 };
 
 const int INSTANCE_DATA_LENGTH = 300;

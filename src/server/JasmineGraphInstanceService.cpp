@@ -11,12 +11,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
-#include <cstring>
+#include <string>
 #include <cmath>
+#include <cctype>
 #include "JasmineGraphInstanceService.h"
-#include "../util/Utils.h"
 #include "../util/logger/Logger.h"
-#include "../trainer/python-c-api/Python_C_API.h"
 #include "JasmineGraphInstance.h"
 #include "../server/JasmineGraphServer.h"
 
@@ -865,6 +864,96 @@ void *instanceservicesession(void *dummyPt) {
                 }
             }
             loop = true;
+        } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_FRAGMENT_RESOLUTION) == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::INITIATE_FRAGMENT_RESOLUTION, "info");
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string listOfPartitions = (data);
+            listOfPartitions = utils.trim_copy(listOfPartitions, " \f\n\r\t\v");
+            instance_logger.log("Received ===>: " + listOfPartitions, "info");
+            std::stringstream ss;
+            ss << listOfPartitions;
+            while(true) {
+                write(connFd, JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_CHK.c_str(),
+                      JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_CHK.size());
+                instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_CHK, "info");
+
+                bzero(data, INSTANCE_DATA_LENGTH);
+                read(connFd, data, INSTANCE_DATA_LENGTH);
+                string listOfPartitions = (data);
+
+                if (listOfPartitions.compare(JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_DONE) == 0) {
+                    break;
+                } else {
+                    instance_logger.log("Received ===>: " + listOfPartitions, "info");
+                    ss << listOfPartitions;
+                }
+            }
+            std::vector<std::string> partitions = Utils::split(ss.str(), ',');
+            std::vector<std::string> graphIDs;
+            for (std::vector<string>::iterator x = partitions.begin(); x != partitions.end(); ++x) {
+                string graphID = x->substr(0, x->find_first_of("_"));
+                graphIDs.push_back(graphID);
+            }
+
+            Utils utils;
+            string dataFolder = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+            std::vector<string> listOfFiles = utils.getListOfFilesInDirectory(dataFolder);
+
+            std::vector<std::string> graphIDsFromFileSystem;
+            for (std::vector<string>::iterator x = listOfFiles.begin(); x != listOfFiles.end(); ++x) {
+                string graphID = x->substr(0, x->find_first_of("_"));
+                graphIDsFromFileSystem.push_back(graphID);
+            }
+
+            std::vector<string> notInGraphIDList;
+
+            for(std::vector<std::string>::iterator it = graphIDsFromFileSystem.begin(); it != graphIDsFromFileSystem.end(); it++){
+                bool found = false;
+                for(std::vector<std::string>::iterator itRemoteID = graphIDs.begin(); itRemoteID != graphIDs.end(); itRemoteID++){
+                    if (it->compare(itRemoteID->c_str()) == 0) {
+                        found = true;
+                        break;
+                    }
+                }
+                if(!found) {
+                    notInGraphIDList.push_back(it->c_str());
+                }
+            }
+
+            string notInItemsString = "";
+            std::vector<int> notInItemsList;
+            for(std::vector<string>::iterator it = notInGraphIDList.begin(); it != notInGraphIDList.end(); it++){
+                if(isdigit(it->c_str()[0])) {
+                    bool found = false;
+                    for(std::vector<int>::iterator it2 = notInItemsList.begin(); it2 != notInItemsList.end(); it2++) {
+                        if (atoi(it->c_str()) == *it2) {
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found) {
+                        notInItemsList.push_back(stoi(it->c_str()));
+                    }
+                }
+            }
+
+            bool firstFlag = true;
+            for(std::vector<int>::iterator it = notInItemsList.begin(); it != notInItemsList.end(); it++){
+                int x = *it;
+                if(firstFlag) {
+                    notInItemsString = std::to_string(x);
+                    firstFlag = false;
+                } else {
+                    notInItemsString = notInItemsString + "," + std::to_string(x);
+                };
+            }
+
+            string graphIDList = notInItemsString;
+            write(connFd, graphIDList.c_str(), graphIDList.size());
+            instance_logger.log("Sent : " + graphIDList, "info");
         }
     }
     instance_logger.log("Closing thread " + to_string(pthread_self()), "info");

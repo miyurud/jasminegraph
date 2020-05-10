@@ -52,3 +52,6 @@ const string JasmineGraphInstanceProtocol::INITIATE_TRAIN = "initiate-train";
 const string JasmineGraphInstanceProtocol::INITIATE_PREDICT = "init-predict";
 const string JasmineGraphInstanceProtocol::SEND_HOSTS = "send-hosts";
 const string JasmineGraphInstanceProtocol::INITIATE_MODEL_COLLECTION = "initiate-model-collection";
+const string JasmineGraphInstanceProtocol::INITIATE_FRAGMENT_RESOLUTION = "frag-res";
+const string JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_CHK = "frag-chk";
+const string JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_DONE = "frag-done";

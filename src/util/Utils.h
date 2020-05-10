@@ -58,6 +58,8 @@ class Utils
 
     void createDirectory(const std::string dirName);
 
+    std::vector<std::string> getListOfFilesInDirectory(const std::string dirName);
+
     void deleteDirectory(const std::string dirName);
 
     std::string getFileName(std::string filePath);

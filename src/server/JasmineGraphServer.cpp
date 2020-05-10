@@ -66,9 +66,10 @@ int JasmineGraphServer::run(std::string profile, std::string masterIp, int numbe
     this->numberOfWorkers = numberofWorkers;
     this->workerHosts = workerIps;
     init();
-    //addHostsToMetaDB();
     updateOperationalGraphList();
     start_workers();
+    sleep(2);
+    resolveOperationalGraphs();
     return 0;
 }
 
@@ -280,6 +281,195 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
             popen(serverStartScript.c_str(),"r");
         }
     }
+}
+
+void JasmineGraphServer::resolveOperationalGraphs(){
+    string sqlStatement = "SELECT partition_graph_idgraph,partition_idpartition,worker_idworker FROM worker_has_partition ORDER BY worker_idworker";
+    std::vector<vector<pair<string, string>>> output = sqlite.runSelect(sqlStatement);
+    std::map<int, vector<string>> partitionMap;
+
+    for (std::vector<vector<pair<string, string>>>::iterator i = output.begin(); i != output.end(); ++i) {
+        int workerID = -1;
+        string graphID;
+        string partitionID;
+        std::vector<pair<string, string>>::iterator j = (i->begin());
+        graphID = j->second;
+        ++j;
+        partitionID = j->second;
+        ++j;
+        workerID = std::stoi(j->second);
+        std::vector<string> partitionList = partitionMap[workerID];
+        partitionList.push_back(graphID + "_" + partitionID);
+        partitionMap[workerID] = partitionList;
+    }
+
+    int RECORD_AGGREGATION_FREQUENCY = 5;
+    int counter = 0;
+    std::stringstream ss;
+    std::map<int, vector<string>> partitionAggregatedMap;
+    for (map<int, vector<string>>::iterator it = partitionMap.begin(); it != partitionMap.end(); ++it) {
+        int len = (it->second).size();
+        int workerID = it->first;
+
+        for (std::vector<string>::iterator x = (it->second).begin(); x != (it->second).end(); ++x) {
+            if (counter >= RECORD_AGGREGATION_FREQUENCY) {
+                std::vector<string> partitionList = partitionAggregatedMap[workerID];
+                string data = ss.str();
+                std::stringstream().swap(ss);
+                counter = 0;
+                data = data.substr(0, data.find_last_of(","));
+                partitionList.push_back(data);
+                partitionAggregatedMap[workerID] = partitionList;
+            }
+            ss << x->c_str() << ",";
+            counter++;
+        }
+
+        std::vector<string> partitionList = partitionAggregatedMap[workerID];
+        string data = ss.str();
+        std::stringstream().swap(ss);
+        counter = 0;
+        data = data.substr(0, data.find_last_of(","));
+        partitionList.push_back(data);
+        partitionAggregatedMap[workerID] = partitionList;
+    }
+
+    sqlStatement = "SELECT idworker,ip,server_port FROM worker";
+    output = sqlite.runSelect(sqlStatement);
+
+    Utils utils;
+    std::set<int> graphIDsFromWorkersSet;
+    for (std::vector<vector<pair<string, string>>>::iterator i = output.begin(); i != output.end(); ++i) {
+        int workerID = -1;
+        string host;
+        int workerPort = -1;
+        string partitionID;
+        std::vector<pair<string, string>>::iterator j = (i->begin());
+        workerID = std::stoi(j->second);
+        ++j;
+        host = j->second;
+        ++j;
+        workerPort = std::stoi(j->second);
+
+        int sockfd;
+        char data[300];
+        bool loop = false;
+        socklen_t len;
+        struct sockaddr_in serv_addr;
+        struct hostent *server;
+
+        sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+        if (sockfd < 0) {
+            std::cerr << "Cannot accept connection" << std::endl;
+        }
+
+        if (host.find('@') != std::string::npos) {
+            host = utils.split(host, '@')[1];
+        }
+
+        server = gethostbyname(host.c_str());
+        if (server == NULL) {
+            std::cerr << "ERROR, no host named " << server << std::endl;
+        }
+
+        bzero((char *) &serv_addr, sizeof(serv_addr));
+        serv_addr.sin_family = AF_INET;
+        bcopy((char *) server->h_addr,
+              (char *) &serv_addr.sin_addr.s_addr,
+              server->h_length);
+        serv_addr.sin_port = htons(workerPort);
+        if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+            std::cerr << "ERROR connecting" << std::endl;
+            //TODO::exit
+        }
+
+        bzero(data, 301);
+        write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+        server_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
+        bzero(data, 301);
+        read(sockfd, data, 300);
+        string response = (data);
+
+        response = utils.trim_copy(response, " \f\n\r\t\v");
+
+        if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
+            server_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
+            string server_host = utils.getJasmineGraphProperty("org.jasminegraph.server.host");
+            write(sockfd, server_host.c_str(), server_host.size());
+            server_logger.log("Sent : " + server_host, "info");
+
+            write(sockfd, JasmineGraphInstanceProtocol::INITIATE_FRAGMENT_RESOLUTION.c_str(),
+                  JasmineGraphInstanceProtocol::INITIATE_FRAGMENT_RESOLUTION.size());
+            server_logger.log("Sent : " + JasmineGraphInstanceProtocol::INITIATE_FRAGMENT_RESOLUTION, "info");
+            bzero(data, 301);
+            read(sockfd, data, 300);
+            response = (data);
+            response = utils.trim_copy(response, " \f\n\r\t\v");
+            server_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+
+            if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+                std::vector<string> partitionList = partitionAggregatedMap[workerID];
+
+                for (std::vector<string>::iterator x = partitionList.begin(); x != partitionList.end(); ++x) {
+                    string partitionsList = x->c_str();
+
+                    write(sockfd, partitionsList.c_str(), partitionsList.size());
+                    server_logger.log("Sent : " + partitionsList, "info");
+                    bzero(data, 301);
+                    read(sockfd, data, 300);
+                    response = (data);
+                    response = utils.trim_copy(response, " \f\n\r\t\v");
+                    server_logger.log("Received : " + response, "info");
+
+                    if (response.compare(JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_CHK) == 0) {
+                        continue;
+                    } else {
+                        server_logger.log("Error in fragment resolution process. Received : " + response, "error");
+                    }
+                }
+
+                if (response.compare(JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_CHK) == 0) {
+                    write(sockfd, JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_DONE.c_str(),
+                          JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_DONE.size());
+                    server_logger.log("Sent : " + JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_DONE, "info");
+
+                    bzero(data, 301);
+                    read(sockfd, data, 300);
+                    response = (data);
+                    response = utils.trim_copy(response, " \f\n\r\t\v");
+                    server_logger.log("Received : " + response, "info");
+
+                    if(response.compare("") != 0) {
+                        std::vector<string> listOfOitems = utils.split(response, ',');
+                        for(std::vector<string>::iterator it = listOfOitems.begin(); it != listOfOitems.end(); it++) {
+                            graphIDsFromWorkersSet.insert(atoi(it->c_str()));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    sqlStatement = "SELECT idgraph FROM graph";
+    std::vector<vector<pair<string, string>>> output2 = sqlite.runSelect(sqlStatement);
+    std::set<int> graphIDsFromMetDBSet;
+    for (std::vector<vector<pair<string, string>>>::iterator i = output2.begin(); i != output2.end(); ++i) {
+        std::vector<pair<string, string>>::iterator j = (i->begin());
+        graphIDsFromMetDBSet.insert(atoi(j->second.c_str()));
+    }
+
+    for(std::set<int>::iterator itr = graphIDsFromWorkersSet.begin(); itr != graphIDsFromWorkersSet.end(); itr++){
+        if(graphIDsFromMetDBSet.find(*itr) == graphIDsFromMetDBSet.end()){
+            std::cout << "could not find " << *itr << " from metadb" << std::endl;
+            deleteNonOperationalGraphFragment(*itr);
+        }
+    }
+
+}
+
+//TODO:Needs to implement this method
+void JasmineGraphServer::deleteNonOperationalGraphFragment(int graphID) {
+
 }
 
 int JasmineGraphServer::shutdown_workers() {
@@ -1426,8 +1616,8 @@ void JasmineGraphServer::updateOperationalGraphList() {
     string sqlStatement = ("SELECT b.partition_graph_idgraph FROM worker_has_partition AS b "
                            "JOIN worker WHERE worker.idworker = b.worker_idworker AND worker.name IN "
                            "(" + hosts + ") GROUP BY b.partition_graph_idgraph HAVING COUNT(b.partition_idpartition)= "
-                           "(SELECT COUNT(a.partition_idpartition) FROM worker_has_partition AS a "
-                           "WHERE a.partition_graph_idgraph = b.partition_graph_idgraph);");
+                           "(SELECT COUNT(a.idpartition) FROM partition AS a "
+                           "WHERE a.graph_idgraph = b.partition_graph_idgraph);");
     std::vector<vector<pair<string, string>>> v = this->sqlite.runSelect(sqlStatement);
     for (std::vector<vector<pair<string, string>>>::iterator i = v.begin(); i != v.end(); ++i) {
         for (std::vector<pair<string, string>>::iterator j = (i->begin()); j != i->end(); ++j) {

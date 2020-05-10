@@ -53,6 +53,7 @@ private:
 
     static bool hasEnding(std::string const &fullString, std::string const &ending);
     std::vector<std::string> getWorkerVector(std::string workerList);
+    void deleteNonOperationalGraphFragment(int graphID);
 public:
     ~JasmineGraphServer();
 
@@ -61,6 +62,8 @@ public:
     void init();
 
     void start_workers();
+
+    void resolveOperationalGraphs();
 
     void backupPerformanceDB();
 
@@ -97,7 +100,6 @@ public:
     PerformanceSQLiteDBInterface performanceSqlite;
     JasmineGraphBackend *backend;
     std::string masterHost;
-    //pthread_t frontendthread;
 
     struct workers {
         std::string hostname;

@@ -200,6 +200,39 @@ void Utils::createDirectory(const std::string dirName) {
     }
 }
 
+std::vector<std::string> Utils::getListOfFilesInDirectory(const std::string dirName) {
+    char buffer[128];
+    std::vector<string> results;
+    std::string result = "";
+    std::string command = "ls -l " + dirName;
+    char *commandChar = new char[command.length() + 1];
+    strcpy(commandChar, command.c_str());
+    FILE *input = popen(commandChar, "r");
+    if (input) {
+        while (!feof(input)) {
+            if (fgets(buffer, 128, input) != NULL) {
+                result.append(buffer);
+            }
+        }
+        pclose(input);
+        if (!result.empty()) {
+            std::vector<std::string> vec = split(result, '\r\n');
+            for(std::vector<std::string>::iterator it = vec.begin(); it != vec.end(); ++it){
+                std::string line = it->c_str();
+                if (line.rfind("-", 0) == 0) {
+                    std::string file = line.substr(line.find_last_of(' ') + 1);
+                    results.push_back(file);
+                }
+            }
+        }
+    } else {
+        perror("popen");
+        // handle error
+    }
+
+    return results;
+}
+
 /**
  * This method deletes a directory with all its content
  * @param dirName
