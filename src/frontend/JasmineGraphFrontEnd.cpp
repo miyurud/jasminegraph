@@ -157,7 +157,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 metisPartitioner->constructMetisFormat(Conts::GRAPH_TYPE_RDF);
                 fullFileList = metisPartitioner->partitioneWithGPMetis("");
                 JasmineGraphServer *jasmineServer = new JasmineGraphServer();
-                jasmineServer->uploadGraphLocally(newGraphID, Conts::GRAPH_WITH_ATTRIBUTES, fullFileList,masterIP);
+                jasmineServer->uploadGraphLocally(newGraphID, Conts::GRAPH_WITH_ATTRIBUTES, fullFileList, masterIP);
                 utils.deleteDirectory(utils.getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
                 utils.deleteDirectory("/tmp/" + std::to_string(newGraphID));
                 JasmineGraphFrontEnd::getAndUpdateUploadTime(to_string(newGraphID), sqlite);
@@ -339,6 +339,8 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 utils.deleteDirectory(utils.getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
                 utils.deleteDirectory("/tmp/" + std::to_string(newGraphID));
                 JasmineGraphFrontEnd::getAndUpdateUploadTime(to_string(newGraphID), sqlite);
+                write(connFd, DONE.c_str(), DONE.size());
+                write(connFd, "\n", 2);
             } else {
                 frontend_logger.log("Graph data file does not exist on the specified path", "error");
                 continue;

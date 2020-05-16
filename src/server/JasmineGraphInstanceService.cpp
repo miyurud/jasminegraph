@@ -47,7 +47,7 @@ void *instanceservicesession(void *dummyPt) {
     int serverDataPort = sessionargs->dataPort;
 
 
-    instance_logger.log("New service session started", "info");
+    instance_logger.log("New service session started on thread " + to_string(pthread_self()), "info");
     Utils utils;
     collector.init();
 
@@ -1006,8 +1006,8 @@ int JasmineGraphInstanceService::run(string profile, string masterHost, string h
     pthread_t threadA[MAX_CONNECTION_COUNT];
 
     // TODO :: What is the maximum number of connections allowed??
+    instance_logger.log("Worker listening on port " + to_string(serverPort), "info");
     while (connectionCounter < MAX_CONNECTION_COUNT) {
-        instance_logger.log("Worker listening on port " + to_string(serverPort), "info");
         int connFd = accept(listenFd, (struct sockaddr *) &clntAdd, &len);
         std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores;
         std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores;

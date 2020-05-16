@@ -591,7 +591,9 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
 
     std::cout << "Total number of threads to join : " << count << std::endl;
     for (int threadCount = 0; threadCount < count; threadCount++) {
-        workerThreads[threadCount].join();
+        if(workerThreads[threadCount].joinable()) {
+            workerThreads[threadCount].join();
+        }
         std::cout << "Thread [B]: " << threadCount << " joined" << std::endl;
     }
 
