@@ -13,10 +13,10 @@ limitations under the License.
 
 #include <iostream>
 #include "JasminGraphTrainingInitiator.h"
-#include "../util/logger/Logger.h"
-#include "../util/Utils.h"
-#include "../server/JasmineGraphServer.h"
-#include "../server/JasmineGraphInstanceProtocol.h"
+#include "../../util/logger/Logger.h"
+#include "../../util/Utils.h"
+#include "../../server/JasmineGraphServer.h"
+#include "../../server/JasmineGraphInstanceProtocol.h"
 #include "../trainer/JasmineGraphTrainingSchedular.h"
 
 Logger trainer_log;

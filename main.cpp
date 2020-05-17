@@ -15,11 +15,9 @@ limitations under the License.
 #include <iostream>
 #include <unistd.h>
 #include "main.h"
-#include "src/util/Conts.h"
 #include "src/server/JasmineGraphInstance.h"
 #include "src/util/logger/Logger.h"
 #include "src/util/scheduler/SchedulerService.h"
-#include "src/util/Utils.h"
 #include <future>
 
 unsigned int microseconds = 10000000;

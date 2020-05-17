@@ -12,10 +12,10 @@ limitations under the License.
  */
 
 #include "JasmineGraphTrainingSchedular.h"
-#include "../metadb/SQLiteDBInterface.h"
-#include "../util/Conts.h"
-#include "../performancedb/PerformanceSQLiteDBInterface.h"
-#include "../util/logger/Logger.h"
+#include "../../metadb/SQLiteDBInterface.h"
+#include "../../util/Conts.h"
+#include "../../performancedb/PerformanceSQLiteDBInterface.h"
+#include "../../util/logger/Logger.h"
 
 using namespace std;
 Logger trainScheduler_logger;

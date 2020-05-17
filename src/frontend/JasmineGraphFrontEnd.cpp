@@ -29,10 +29,10 @@ limitations under the License.
 #include "../partitioner/local/RDFParser.h"
 #include "../partitioner/local/JSONParser.h"
 #include "../server/JasmineGraphInstanceProtocol.h"
-#include "../trainer/JasminGraphTrainingInitiator.h"
-#include "../trainer/JasminGraphLinkPredictor.h"
-#include "../trainer/JasmineGraphTrainingSchedular.h"
-#include "../trainer/python-c-api/Python_C_API.h"
+#include "../ml/trainer/JasminGraphTrainingInitiator.h"
+#include "../query/algorithms/linkprediction/JasminGraphLinkPredictor.h"
+#include "../ml/trainer/JasmineGraphTrainingSchedular.h"
+#include "../ml/trainer/python-c-api/Python_C_API.h"
 
 using namespace std;
 

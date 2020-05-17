@@ -18,7 +18,7 @@ limitations under the License.
 #include <stdlib.h>
 #include <string>
 #include <map>
-#include "../server/JasmineGraphServer.h"
+#include "src/server/JasmineGraphServer.h"
 
 class JasminGraphLinkPredictor {
 public:
