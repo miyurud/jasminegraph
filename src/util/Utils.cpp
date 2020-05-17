@@ -98,7 +98,11 @@ std::string Utils::getJasmineGraphProperty(std::string key) {
         if (item.length() > 0 && !(item.rfind("#", 0) == 0)) {
             std::vector<std::string> vec2 = split(item, '=');
             if (vec2.at(0).compare(key) == 0) {
-                return vec2.at(1);
+                if (item.substr(item.length() - 1, item.length()).compare("=") != 0) {
+                    return vec2.at(1);
+                } else {
+                    return " ";
+                }
             }
         }
     }
