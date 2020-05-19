@@ -48,5 +48,5 @@ void SchedulerService::startPerformanceScheduler() {
 
     scheduler.every(std::chrono::seconds(atoi(performanceSchedulerTiming.c_str())), util.collectPerformanceStatistics);
 
-    std::this_thread::sleep_for(std::chrono::minutes(120));
+    std::this_thread::sleep_for(std::chrono::minutes(1440));
 }

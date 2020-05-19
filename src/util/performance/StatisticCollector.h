@@ -32,12 +32,13 @@ limitations under the License.
 class StatisticCollector {
 public:
     int init();
-    static int getVirtualMemoryUsage();
+    static int getMemoryUsageByProcess();
     static int parseLine(char* line);
     static double getCpuUsage();
-    static std::string collectVMStatistics(std::string isVMStatManager);
-    static long getTotalMemory();
+    static std::string collectVMStatistics(std::string isVMStatManager, std::string isTotalAllocationRequired);
+    static long getTotalMemoryAllocated();
     static int getTotalNumberofCores();
+    static long getTotalMemoryUsage();
 };
 
 

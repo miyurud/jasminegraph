@@ -580,7 +580,16 @@ void *instanceservicesession(void *dummyPt) {
             read(connFd, data, INSTANCE_DATA_LENGTH);
             string isVMStatManager = (data);
             isVMStatManager = utils.trim_copy(isVMStatManager, " \f\n\r\t\v");
-            std::string memoryUsage = JasmineGraphInstanceService::requestPerformanceStatistics(isVMStatManager);
+
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string isResourceAllocationRequired = (data);
+            isResourceAllocationRequired = utils.trim_copy(isResourceAllocationRequired, " \f\n\r\t\v");
+
+            std::string memoryUsage = JasmineGraphInstanceService::requestPerformanceStatistics(isVMStatManager,
+                                                                                                isResourceAllocationRequired);
             write(connFd, memoryUsage.c_str(), memoryUsage.size());
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_TRAIN) == 0) {
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::INITIATE_TRAIN, "info");
@@ -1361,11 +1370,12 @@ map<long, long> JasmineGraphInstanceService::getOutDegreeDistributionHashMap(map
     return distributionHashMap;
 }
 
-std::string JasmineGraphInstanceService::requestPerformanceStatistics(std::string isVMStatManager) {
+string JasmineGraphInstanceService::requestPerformanceStatistics(std::string isVMStatManager,
+                                                                 std::string isResourceAllocationRequested) {
     Utils utils;
-    int memoryUsage = collector.getVirtualMemoryUsage();
+    int memoryUsage = collector.getMemoryUsageByProcess();
     double cpuUsage = collector.getCpuUsage();
-    std::string vmLevelStatistics = collector.collectVMStatistics(isVMStatManager);
+    std::string vmLevelStatistics = collector.collectVMStatistics(isVMStatManager, isResourceAllocationRequested);
     auto executedTime = std::chrono::system_clock::now();
     std::time_t reportTime = std::chrono::system_clock::to_time_t(executedTime);
     std::string reportTimeString(std::ctime(&reportTime));

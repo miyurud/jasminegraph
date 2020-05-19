@@ -21,6 +21,7 @@ limitations under the License.
 #include "../../performancedb/PerformanceSQLiteDBInterface.h"
 #include "../PlacesToNodeMapper.h"
 #include "../../server/JasmineGraphInstanceProtocol.h"
+#include "StatisticCollector.h"
 #include "../logger/Logger.h"
 #include <thread>
 #include <pthread.h>
@@ -41,7 +42,8 @@ public:
 private:
     //static SQLiteDBInterface sqlLiteDB;
     //static PerformanceSQLiteDBInterface perfDb;
-    static int requestPerformanceData(std::string host, int port, std::string isVMStatManager);
+    static int collectRemotePerformanceData(std::string host, int port, std::string isVMStatManager, std::string isResourceAllocationRequired, std::string hostId, std::string placeId);
+    static int collectLocalPerformanceData(std::string isVMStatManager, std::string isResourceAllocationRequired , std::string hostId, std::string placeId);
 };
 
 
