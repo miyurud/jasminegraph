@@ -737,7 +737,7 @@ void *instanceservicesession(void *dummyPt) {
             std::transform(predictargs.begin(), predictargs.end(), std::back_inserter(predict_agrs_vector), converter);
 
             std::string path = "cd " + utils.getJasmineGraphProperty("org.jasminegraph.graphsage") + " && ";
-            std::string command = path + "python predict.py ";
+            std::string command = path + "python3.5 predict.py ";
 
             int argc = predictargs.size();
             for (int i = 0; i < argc; ++i) {
