@@ -472,6 +472,28 @@ void *instanceservicesession(void *dummyPt) {
             string result = "1";
             write(connFd, result.c_str(), result.size());
             instance_logger.log("Sent : " + result, "info");
+        } else if (line.compare(JasmineGraphInstanceProtocol::DELETE_GRAPH_FRAGMENT) == 0) {
+            /**
+             * Conditional block for deleting all graph fragments when protocol is used
+             */
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::DELETE_GRAPH_FRAGMENT, "info");
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+            bzero(data, INSTANCE_DATA_LENGTH);
+            //Read the message
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            //Get graph ID from message
+            string graphID = (data);
+            graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
+            instance_logger.log("Received Graph ID: " + graphID, "info");
+            //Method call for graph fragment deletion
+            removeGraphFragments(graphID);
+            //pthread_mutex_lock(&file_lock);
+            //TODO :: Update catalog file
+            //pthread_mutex_unlock(&file_lock);
+            string result = "1";
+            write(connFd, result.c_str(), result.size());
+            instance_logger.log("Sent : " + result, "info");
         } else if (line.compare(JasmineGraphInstanceProtocol::TRIANGLES) == 0) {
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::TRIANGLES, "info");
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
@@ -1058,6 +1080,16 @@ void deleteGraphPartition(std::string graphID, std::string partitionID) {
     string attributeCentalStoreFilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + graphID + +"_centralstore_attributes_"+ partitionID;
     utils.deleteDirectory(attributeCentalStoreFilePath);
     instance_logger.log("Graph partition and centralstore files are now deleted", "info");
+}
+
+void removeGraphFragments(std::string graphID) {
+    /**
+     * Method for deleting all graph fragments given a graph ID
+     */
+    Utils utils;
+    //Delete all files in the datafolder starting with the graphID
+    string partitionFilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + graphID +"_*";
+    utils.deleteDirectory(partitionFilePath);
 }
 
 void writeCatalogRecord(string record) {
