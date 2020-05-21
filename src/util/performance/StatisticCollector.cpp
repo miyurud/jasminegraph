@@ -101,7 +101,7 @@ StatisticCollector::collectVMStatistics(std::string isVMStatManager, std::string
         long totalMemory = getTotalMemoryAllocated();
         int totalCoresAvailable = getTotalNumberofCores();
 
-        vmLevelStatistics=vmLevelStatistics + std::to_string(totalMemory) + "," + std::to_string(totalCoresAvailable);
+        vmLevelStatistics = vmLevelStatistics + std::to_string(totalMemory) + "," + std::to_string(totalCoresAvailable);
     }
 
     return vmLevelStatistics;

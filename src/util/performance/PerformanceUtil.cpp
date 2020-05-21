@@ -74,40 +74,7 @@ int PerformanceUtil::collectPerformanceStatistics() {
             collectRemotePerformanceData(host,atoi(serverPort.c_str()),isHostReporter,requestResourceAllocation,hostId,placeId);
         }
     }
-
-
-    /*for (int i=0;i<hostListSize;i++) {
-        int k = counter;
-        string host = placesToNodeMapper.getHost(i);
-        std::vector<int> instancePorts = placesToNodeMapper.getInstancePortsList(i);
-        string partitionId;
-
-        std::vector<int>::iterator portsIterator;
-
-        for (portsIterator = instancePorts.begin(); portsIterator != instancePorts.end(); ++portsIterator) {
-            int port = *portsIterator;
-
-            std::string sqlStatement = "select vm_manager,total_memory,cores from instance_details where host_ip=\"" + host + "\" and port="+to_string(port)+";";
-
-            std::vector<vector<pair<string, string>>> results = perfDb.runSelect(sqlStatement);
-
-            vector<pair<string, string>> resultEntry = results.at(0);
-
-            std::string isReporter = resultEntry.at(0).second;
-            std::string totalMemory = resultEntry.at(1).second;
-            std::string totalCores = resultEntry.at(2).second;
-
-            if (!totalMemory.empty() && totalMemory != "NULL") {
-                isReporter = "false";
-            }
-
-            collectRemotePerformanceData(host,port,isReporter);
-
-        }
-
-    }*/
-
-
+    
     return 0;
 }
 
