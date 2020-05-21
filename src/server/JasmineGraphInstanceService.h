@@ -46,6 +46,7 @@ limitations under the License.
 void *instanceservicesession(void *dummyPt);
 void writeCatalogRecord(string record);
 void deleteGraphPartition(std::string graphID, std::string partitionID);
+void removeGraphFragments(std::string graphID);
 long countLocalTriangles(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores, std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores, std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> graphDBMapDuplicateCentralStores);
 
 struct instanceservicesessionargs {

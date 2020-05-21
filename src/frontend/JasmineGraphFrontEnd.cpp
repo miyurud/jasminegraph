@@ -748,8 +748,7 @@ bool JasmineGraphFrontEnd::graphExists(string path, SQLiteDBInterface sqlite) {
  */
 bool JasmineGraphFrontEnd::graphExistsByID(string id, SQLiteDBInterface sqlite) {
     bool result = true;
-    string stmt = "SELECT COUNT( * ) FROM graph WHERE idgraph = " + id + " and graph_status_idgraph_status = " +
-                  to_string(Conts::GRAPH_STATUS::OPERATIONAL);
+    string stmt = "SELECT COUNT( * ) FROM graph WHERE idgraph = " + id;
     std::vector<vector<pair<string, string>>> v = sqlite.runSelect(stmt);
     int count = std::stoi(v[0][0].second);
 

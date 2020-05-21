@@ -417,7 +417,6 @@ void JasmineGraphServer::resolveOperationalGraphs(){
 
                 for (std::vector<string>::iterator x = partitionList.begin(); x != partitionList.end(); ++x) {
                     string partitionsList = x->c_str();
-
                     write(sockfd, partitionsList.c_str(), partitionsList.size());
                     server_logger.log("Sent : " + partitionsList, "info");
                     bzero(data, 301);
@@ -471,9 +470,33 @@ void JasmineGraphServer::resolveOperationalGraphs(){
 
 }
 
-//TODO:Needs to implement this method
+/** Method used in master node to commence deletion of a graph fragment
+ *
+ * @param graphID ID of graph fragments to be deleted
+ */
 void JasmineGraphServer::deleteNonOperationalGraphFragment(int graphID) {
+    std::cout << "Deleting the graph fragments" << std::endl;
+    int count = 0;
+    //Define threads for each host
+    std::thread *deleteThreads = new std::thread[hostPortMap.size()];
+    //Iterate through all hosts
+    for (std::map<string, pair<int, int>>::iterator it = hostPortMap.begin(); it != hostPortMap.end(); it++) {
+        //Fetch hostname and port
+        string hostname = it -> first;
+        int port = (it -> second).first;
+        //Initialize threads for host
+        //Each thread runs the service to remove the given graph ID fragments in their datafolders
+        deleteThreads[count++] = std::thread(removeFragmentThroughService, hostname, port, to_string(graphID), this -> masterHost);
+        sleep(1);
+        server_logger.log("Deleted graph fragments of graph ID " + to_string(graphID), "info");
+    }
 
+    for (int threadCount = 0; threadCount < count; threadCount++) {
+        if(deleteThreads[threadCount].joinable()) {
+            deleteThreads[threadCount].join();
+        }
+        std::cout << "Thread [A]: " << threadCount << " joined" << std::endl;
+    }
 }
 
 int JasmineGraphServer::shutdown_workers() {
@@ -1508,6 +1531,93 @@ void JasmineGraphServer::removeGraph(vector<pair<string, string>> hostHasPartiti
         deleteThreads[threadCount].join();
         std::cout << "Thread [A]: " << threadCount << " joined" << std::endl;
     }
+}
+
+/** Used to delete graph fragments of a given graph ID for a particular host running at a particular port
+ *
+ *  @param host Hostname of worker
+ *  @param port Port host is running on
+ *  @param graphID ID of graph fragments to be deleted
+ *  @param masterIP IP of master node
+ */
+int JasmineGraphServer::removeFragmentThroughService(string host, int port, string graphID, string masterIP) {
+    Utils utils;
+    std::cout << pthread_self() << " host : " << host << " port : " << port << std::endl;
+    int sockfd;
+    char data[300];
+    bool loop = false;
+    socklen_t len;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sockfd < 0) {
+        std::cerr << "Cannot accept connection" << std::endl;
+        return 0;
+    }
+
+    if (host.find('@') != std::string::npos) {
+        host = utils.split(host, '@')[1];
+    }
+
+    server = gethostbyname(host.c_str());
+    if (server == NULL) {
+        std::cerr << "ERROR, no host named " << server << std::endl;
+    }
+
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *) server->h_addr,
+          (char *) &serv_addr.sin_addr.s_addr,
+          server->h_length);
+    serv_addr.sin_port = htons(port);
+    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+        std::cerr << "ERROR connecting" << std::endl;
+        //TODO::exit
+    }
+
+    bzero(data, 301);
+    write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+    server_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
+    bzero(data, 301);
+    read(sockfd, data, 300);
+    string response = (data);
+
+    response = utils.trim_copy(response, " \f\n\r\t\v");
+
+    if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
+        server_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
+        write(sockfd, masterIP.c_str(), masterIP.size());
+        server_logger.log("Sent : " + masterIP, "info");
+
+
+        write(sockfd, JasmineGraphInstanceProtocol::DELETE_GRAPH_FRAGMENT.c_str(),
+              JasmineGraphInstanceProtocol::DELETE_GRAPH_FRAGMENT.size());
+        server_logger.log("Sent : " + JasmineGraphInstanceProtocol::DELETE_GRAPH_FRAGMENT, "info");
+        bzero(data, 301);
+        read(sockfd, data, 300);
+        response = (data);
+        response = utils.trim_copy(response, " \f\n\r\t\v");
+        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+            server_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+            write(sockfd, graphID.c_str(), graphID.size());
+            server_logger.log("Sent : Graph ID " + graphID, "info");
+
+            bzero(data, 301);
+            read(sockfd, data, 300);
+            response = (data);
+            response = utils.trim_copy(response, " \f\n\r\t\v");
+            server_logger.log("Received last response : " + response, "info");
+            return 1;
+
+        } else {
+            close(sockfd);
+            return 0;
+        }
+    }
+    close(sockfd);
+    return 0;
 }
 
 int JasmineGraphServer::removePartitionThroughService(string host, int port, string graphID, string partitionID, string masterIP) {
