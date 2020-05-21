@@ -470,13 +470,11 @@ void JasmineGraphServer::resolveOperationalGraphs(){
 
 }
 
+/** Method used in master node to commence deletion of a graph fragment
+ *
+ * @param graphID ID of graph fragments to be deleted
+ */
 void JasmineGraphServer::deleteNonOperationalGraphFragment(int graphID) {
-    /**
-     * Method used in master node to commence deletion of a graph fragment
-     * INPUT:
-     *  graphID - ID of graph to be deleted
-     * OUTPUT: None
-     */
     std::cout << "Deleting the graph fragments" << std::endl;
     int count = 0;
     //Define threads for each host
@@ -494,7 +492,9 @@ void JasmineGraphServer::deleteNonOperationalGraphFragment(int graphID) {
     }
 
     for (int threadCount = 0; threadCount < count; threadCount++) {
-        deleteThreads[threadCount].join();
+        if(deleteThreads[threadCount].joinable()) {
+            deleteThreads[threadCount].join();
+        }
         std::cout << "Thread [A]: " << threadCount << " joined" << std::endl;
     }
 }
@@ -1533,19 +1533,14 @@ void JasmineGraphServer::removeGraph(vector<pair<string, string>> hostHasPartiti
     }
 }
 
+/** Used to delete graph fragments of a given graph ID for a particular host running at a particular port
+ *
+ *  @param host Hostname of worker
+ *  @param port Port host is running on
+ *  @param graphID ID of graph fragments to be deleted
+ *  @param masterIP IP of master node
+ */
 int JasmineGraphServer::removeFragmentThroughService(string host, int port, string graphID, string masterIP) {
-    /**
-     * Used to delete graph fragments for a particular host running at a particular port for a given graph ID
-     * INPUT:
-     *  host - Hostname of worker
-     *  port - Port host is running on
-     *  graphID - Graph ID of graph to be deleted
-     *  masterIP - IP of master node
-     * OUTPUT: integer
-     *
-     * 1. Handshake between server and worker
-     * 2. Send graphID to corresponding instance service using DELETE_GRAPH_FRAGMENT instance protocol
-     */
     Utils utils;
     std::cout << pthread_self() << " host : " << host << " port : " << port << std::endl;
     int sockfd;
@@ -1604,7 +1599,6 @@ int JasmineGraphServer::removeFragmentThroughService(string host, int port, stri
         read(sockfd, data, 300);
         response = (data);
         response = utils.trim_copy(response, " \f\n\r\t\v");
-        //std::cout << response << std::endl;
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
             server_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
             write(sockfd, graphID.c_str(), graphID.size());
