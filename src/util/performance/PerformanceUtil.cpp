@@ -31,45 +31,56 @@ int PerformanceUtil::collectPerformanceStatistics() {
     std::vector<std::future<long>> intermRes;
     PlacesToNodeMapper placesToNodeMapper;
 
+    std::string placeLoadQuery = "select ip, user, server_port, is_master, is_host_reporter,host_idhost,idplace from place";
+    std::vector<vector<pair<string, string>>> placeList = perfDb.runSelect(placeLoadQuery);
+    std::vector<vector<pair<string, string>>>::iterator placeListIterator;
 
-    for (int i=0;i<hostListSize;i++) {
-        int k = counter;
-        string host = placesToNodeMapper.getHost(i);
-        std::vector<int> instancePorts = placesToNodeMapper.getInstancePortsList(i);
-        string partitionId;
+    for (placeListIterator = placeList.begin(); placeListIterator != placeList.end(); ++placeListIterator) {
+        vector<pair<string, string>> place = *placeListIterator;
+        std::string host;
+        std::string requestResourceAllocation = "false";
 
-        std::vector<int>::iterator portsIterator;
+        std::string ip = place.at(0).second;
+        std::string user = place.at(1).second;
+        std::string serverPort = place.at(2).second;
+        std::string isMaster = place.at(3).second;
+        std::string isHostReporter = place.at(4).second;
+        std::string hostId = place.at(5).second;
+        std::string placeId = place.at(6).second;
 
-        for (portsIterator = instancePorts.begin(); portsIterator != instancePorts.end(); ++portsIterator) {
-            int port = *portsIterator;
-
-            std::string sqlStatement = "select vm_manager,total_memory,cores from instance_details where host_ip=\"" + host + "\" and port="+to_string(port)+";";
-
-            std::vector<vector<pair<string, string>>> results = perfDb.runSelect(sqlStatement);
-
-            vector<pair<string, string>> resultEntry = results.at(0);
-
-            std::string isReporter = resultEntry.at(0).second;
-            std::string totalMemory = resultEntry.at(1).second;
-            std::string totalCores = resultEntry.at(2).second;
-
-            if (!totalMemory.empty() && totalMemory != "NULL") {
-                isReporter = "false";
-            }
-
-            requestPerformanceData(host,port,isReporter);
-
+        if (ip.find("localhost") != std::string::npos) {
+            host = "localhost";
+        } else {
+            host = user + "@" + ip;
         }
 
+        if (isHostReporter.find("true") != std::string::npos) {
+            std::string hostSearch = "select total_cpu_cores,total_memory from host where idhost='"+hostId+"'";
+            std::vector<vector<pair<string, string>>> hostAllocationList = perfDb.runSelect(hostSearch);
+
+            vector<pair<string, string>> firstHostAllocation = hostAllocationList.at(0);
+
+            std::string totalCPUCores = firstHostAllocation.at(0).second;
+            std::string totalMemory = firstHostAllocation.at(1).second;
+
+            if (totalCPUCores.empty() || totalMemory.empty()) {
+                requestResourceAllocation = "true";
+            }
+        }
+
+        if (isMaster.find("true") != std::string::npos) {
+            collectLocalPerformanceData(isHostReporter, requestResourceAllocation,hostId,placeId);
+        } else {
+            collectRemotePerformanceData(host,atoi(serverPort.c_str()),isHostReporter,requestResourceAllocation,hostId,placeId);
+        }
     }
-
-
+    
     return 0;
 }
 
 
 
-int PerformanceUtil::requestPerformanceData(std::string host, int port, std::string isVMStatManager) {
+int PerformanceUtil::collectRemotePerformanceData(std::string host, int port, std::string isVMStatManager, std::string isResourceAllocationRequired, std::string hostId, std::string placeId) {
     int sockfd;
     char data[300];
     bool loop = false;
@@ -134,26 +145,66 @@ int PerformanceUtil::requestPerformanceData(std::string host, int port, std::str
             response = (data);
             response = utils.trim_copy(response, " \f\n\r\t\v");
 
-            scheduler_logger.log("Performance Response " + response, "info");
+            if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+                write(sockfd, isResourceAllocationRequired.c_str(), isResourceAllocationRequired.size());
+                scheduler_logger.log("Sent : Resource Allocation Requested " + isResourceAllocationRequired, "info");
 
-            std::vector<std::string> strArr = Utils::split(response, ',');
+                bzero(data, 301);
+                read(sockfd, data, 300);
+                response = (data);
+                response = utils.trim_copy(response, " \f\n\r\t\v");
 
-            std::string processTime = strArr[0];
-            std::string memoryUsage = strArr[1];
-            std::string cpuUsage = strArr[2];
+                scheduler_logger.log("Performance Response " + response, "info");
 
-            if (strArr.size() > 3) {
-                std::string totalMemory = strArr[3];
-                std::string totalCores = strArr[4];
-                string vmUpdateSql = ("update instance_details set total_memory=\""+totalMemory+"\", cores=\""+totalCores+"\" where host_ip=\""+host+"\" and port=\""+to_string(port)+"\"");
+                std::vector<std::string> strArr = Utils::split(response, ',');
 
-                perfDb.runUpdate(vmUpdateSql);
+                std::string processTime = strArr[0];
+                std::string memoryUsage = strArr[1];
+                std::string cpuUsage = strArr[2];
+
+                if (isVMStatManager == "true" && strArr.size() > 3) {
+                    std::string memoryConsumption = strArr[3];
+                    string vmPerformanceSql = "insert into host_performance_data (date_time, memory_usage, cpu_usage, idhost) values ('" + processTime +
+                            "','" + memoryConsumption + "','','" + hostId + "')";
+
+                    perfDb.runInsert(vmPerformanceSql);
+
+                    if (isResourceAllocationRequired == "true") {
+                        std::string totalMemory = strArr[4];
+                        std::string totalCores = strArr[5];
+                        string allocationUpdateSql = "update host set total_cpu_cores='" + totalCores + "',total_memory='" + totalMemory + "' where idhost='" + hostId + "'";
+
+                        perfDb.runUpdate(allocationUpdateSql);
+                    }
+                }
+
+                string placePerfSql = "insert into place_performance_data (idplace, memory_usage, cpu_usage, date_time) values ('"+placeId+ "','"+memoryUsage+"','"+cpuUsage+"','"+processTime+"')";
+
+                perfDb.runInsert(placePerfSql);
             }
-
-            string sql = ("insert into performance_data (ip_address, port, date_time, memory_usage, cpu_usage) values (\""+host+ "\",\""+to_string(port)+"\",\""+processTime+"\",\""+memoryUsage+"\",\""+cpuUsage+"\")");
-
-            perfDb.runInsert(sql);
         }
     }
+}
+
+int PerformanceUtil::collectLocalPerformanceData(std::string isVMStatManager, std::string isResourceAllocationRequired, std::string hostId, std::string placeId) {
+    StatisticCollector statisticCollector;
+    Utils utils;
+    statisticCollector.init();
+
+    int memoryUsage = statisticCollector.getMemoryUsageByProcess();
+    double cpuUsage = statisticCollector.getCpuUsage();
+
+    auto executedTime = std::chrono::system_clock::now();
+    std::time_t reportTime = std::chrono::system_clock::to_time_t(executedTime);
+    std::string reportTimeString(std::ctime(&reportTime));
+    reportTimeString = utils.trim_copy(reportTimeString, " \f\n\r\t\v");
+
+    if (isVMStatManager.find("true") != std::string::npos) {
+        std::string vmLevelStatistics = statisticCollector.collectVMStatistics(isVMStatManager, std::string());
+        std::vector<std::string> strArr = Utils::split(vmLevelStatistics, ',');
+
+        std::string hostPerfInsertQuery = "insert into host_performance_data ()";
+    }
+
 }
 

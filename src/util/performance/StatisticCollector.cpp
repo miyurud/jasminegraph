@@ -34,7 +34,7 @@ int StatisticCollector::init() {
 }
 
 
-int StatisticCollector::getVirtualMemoryUsage() {
+int StatisticCollector::getMemoryUsageByProcess() {
     FILE* file = fopen("/proc/self/status", "r");
     int result = -1;
     char line[128];
@@ -86,20 +86,28 @@ double StatisticCollector::getCpuUsage() {
     return percent;
 }
 
-std::string StatisticCollector::collectVMStatistics(std::string isVMStatManager) {
+std::string
+StatisticCollector::collectVMStatistics(std::string isVMStatManager, std::string isTotalAllocationRequired) {
     std::string vmLevelStatistics;
 
     if (isVMStatManager == "true") {
-        long totalMemory = getTotalMemory();
+        long totalMemoryUsed = getTotalMemoryUsage();
+
+        vmLevelStatistics = std::to_string(totalMemoryUsed) + ",";
+    }
+
+
+    if (isTotalAllocationRequired == "true") {
+        long totalMemory = getTotalMemoryAllocated();
         int totalCoresAvailable = getTotalNumberofCores();
 
-        vmLevelStatistics=std::to_string(totalMemory) + "," + std::to_string(totalCoresAvailable);
+        vmLevelStatistics = vmLevelStatistics + std::to_string(totalMemory) + "," + std::to_string(totalCoresAvailable);
     }
 
     return vmLevelStatistics;
 }
 
-long StatisticCollector::getTotalMemory() {
+long StatisticCollector::getTotalMemoryAllocated() {
     std::string token;
     std::ifstream file("/proc/meminfo");
     while(file >> token) {
@@ -118,5 +126,32 @@ long StatisticCollector::getTotalMemory() {
 int StatisticCollector::getTotalNumberofCores() {
     unsigned concurentThreadsSupported = std::thread::hardware_concurrency();
     return concurentThreadsSupported;
+}
+
+long StatisticCollector::getTotalMemoryUsage() {
+    std::string token;
+    std::ifstream file("/proc/meminfo");
+    unsigned long memTotal;
+    unsigned long memFree;
+    unsigned long buffers;
+    unsigned long cached;
+    unsigned long sReclaimable;
+    unsigned long memUsage;
+    while(file >> token) {
+        if(token == "MemTotal:") {
+            file >> memTotal;
+        } else if (token == "MemFree:") {
+            file >> memFree;
+        } else if (token == "Buffers:") {
+            file >> buffers;
+        } else if (token == "Cached:") {
+            file >> cached;
+        } else if (token == "SReclaimable:") {
+            file >> sReclaimable;
+        }
+        file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    }
+    memUsage = memTotal-(memFree+buffers+cached+sReclaimable);
+    return memUsage;
 }
 
