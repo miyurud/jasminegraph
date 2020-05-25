@@ -164,14 +164,15 @@ int PerformanceUtil::collectRemotePerformanceData(std::string host, int port, st
 
                 if (isVMStatManager == "true" && strArr.size() > 3) {
                     std::string memoryConsumption = strArr[3];
+                    std::string cpuUsage = strArr[4];
                     string vmPerformanceSql = "insert into host_performance_data (date_time, memory_usage, cpu_usage, idhost) values ('" + processTime +
-                            "','" + memoryConsumption + "','','" + hostId + "')";
+                            "','" + memoryConsumption + "','"+ cpuUsage +"','" + hostId + "')";
 
                     perfDb.runInsert(vmPerformanceSql);
 
                     if (isResourceAllocationRequired == "true") {
-                        std::string totalMemory = strArr[4];
-                        std::string totalCores = strArr[5];
+                        std::string totalMemory = strArr[5];
+                        std::string totalCores = strArr[6];
                         string allocationUpdateSql = "update host set total_cpu_cores='" + totalCores + "',total_memory='" + totalMemory + "' where idhost='" + hostId + "'";
 
                         perfDb.runUpdate(allocationUpdateSql);
@@ -200,11 +201,30 @@ int PerformanceUtil::collectLocalPerformanceData(std::string isVMStatManager, st
     reportTimeString = utils.trim_copy(reportTimeString, " \f\n\r\t\v");
 
     if (isVMStatManager.find("true") != std::string::npos) {
-        std::string vmLevelStatistics = statisticCollector.collectVMStatistics(isVMStatManager, std::string());
+        std::string vmLevelStatistics = statisticCollector.collectVMStatistics(isVMStatManager, isResourceAllocationRequired);
         std::vector<std::string> strArr = Utils::split(vmLevelStatistics, ',');
 
-        std::string hostPerfInsertQuery = "insert into host_performance_data ()";
+        string totalMemoryUsed = strArr[0];
+        string totalCPUUsage = strArr[1];
+
+        string vmPerformanceSql = "insert into host_performance_data (date_time, memory_usage, cpu_usage, idhost) values ('" + reportTimeString +
+                                  "','" + totalMemoryUsed + "','"+ totalCPUUsage +"','" + hostId + "')";
+
+        perfDb.runInsert(vmPerformanceSql);
+
+        if (isResourceAllocationRequired == "true") {
+            std::string totalMemory = strArr[2];
+            std::string totalCores = strArr[3];
+            string allocationUpdateSql = "update host set total_cpu_cores='" + totalCores + "',total_memory='" + totalMemory + "' where idhost='" + hostId + "'";
+
+            perfDb.runUpdate(allocationUpdateSql);
+        }
+
     }
+
+    string placePerfSql = "insert into place_performance_data (idplace, memory_usage, cpu_usage, date_time) values ('"+placeId+ "','"+ to_string(memoryUsage) +"','"+ to_string(cpuUsage) +"','"+reportTimeString+"')";
+
+    perfDb.runInsert(placePerfSql);
 
 }
 

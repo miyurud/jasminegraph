@@ -92,8 +92,13 @@ StatisticCollector::collectVMStatistics(std::string isVMStatManager, std::string
 
     if (isVMStatManager == "true") {
         long totalMemoryUsed = getTotalMemoryUsage();
+        double totalCPUUsage = getTotalCpuUsage();
 
-        vmLevelStatistics = std::to_string(totalMemoryUsed) + ",";
+        std::stringstream stream;
+        stream << std::fixed << std::setprecision(2) << totalCPUUsage;
+        std::string cpuUsageString = stream.str();
+
+        vmLevelStatistics = std::to_string(totalMemoryUsed) + "," + cpuUsageString + ",";
     }
 
 
@@ -153,5 +158,53 @@ long StatisticCollector::getTotalMemoryUsage() {
     }
     memUsage = memTotal-(memFree+buffers+cached+sReclaimable);
     return memUsage;
+}
+
+double StatisticCollector::getTotalCpuUsage() {
+    std::string mpstatCommand = "mpstat";
+    char buffer[BUFFER_SIZE];
+    std::string result = "";
+    Utils utils;
+    std::vector<std::string>::iterator paramNameIterator;
+    int count = 0;
+    double totalCPUUsage = 0;
+
+
+    FILE *input = popen(mpstatCommand.c_str(), "r");
+
+    if (input) {
+        // read the input
+        while (!feof(input)) {
+            if (fgets(buffer, BUFFER_SIZE, input) != NULL) {
+                result.append(buffer);
+            }
+        }
+        if (!result.empty()) {
+            std::vector<std::string> splittedStats = utils.split(result,'\n');
+            int length = splittedStats.size();
+            std::string parameterNames = splittedStats[length-2];
+            std::string parameterValues = splittedStats[length-1];
+            std::vector<std::string> splittedParamNames = utils.split(parameterNames,' ');
+            splittedParamNames.erase(std::remove(splittedParamNames.begin(), splittedParamNames.end(), ""), splittedParamNames.end());
+            std::vector<std::string> splittedParamValues = utils.split(parameterValues,' ');
+            splittedParamValues.erase(std::remove(splittedParamValues.begin(), splittedParamValues.end(), ""), splittedParamValues.end());
+
+            for (paramNameIterator = splittedParamNames.begin(); paramNameIterator != splittedParamNames.end(); ++paramNameIterator) {
+                std::string paramName = *paramNameIterator;
+
+                if (paramName.find("%") != std::string::npos && paramName.find("idle") == std::string::npos) {
+                    std::string paramValue = splittedParamValues[count];
+                    double paramCPUUsage = std::stof(paramValue.c_str());
+                    paramCPUUsage = round(paramCPUUsage * 100) / 100;
+                    totalCPUUsage = totalCPUUsage + paramCPUUsage;
+                }
+
+                count++;
+            }
+        }
+        pclose(input);
+    }
+
+    return totalCPUUsage;
 }
 
