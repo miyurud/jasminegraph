@@ -52,6 +52,7 @@ JasmineGraphServer::~JasmineGraphServer() {
 int JasmineGraphServer::run(std::string profile, std::string masterIp, int numberofWorkers, std::string workerIps) {
     server_logger.log("Running the server...", "info");
     Utils utils;
+    std::vector<int> masterPortVector;
 
     this->sqlite = *new SQLiteDBInterface();
     this->sqlite.init();
@@ -66,6 +67,8 @@ int JasmineGraphServer::run(std::string profile, std::string masterIp, int numbe
     this->numberOfWorkers = numberofWorkers;
     this->workerHosts = workerIps;
     init();
+    masterPortVector.push_back(Conts::JASMINEGRAPH_FRONTEND_PORT);
+    addInstanceDetailsToPerformanceDB(masterHost,masterPortVector,"true");
     updateOperationalGraphList();
     start_workers();
     sleep(2);
