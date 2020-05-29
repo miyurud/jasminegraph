@@ -1,7 +1,7 @@
 FROM miyurud/jasminegraph
 WORKDIR /home/ubuntu/software
 RUN apt-get update
-RUN git clone -b docker https://github.com/DamithaSenevirathne/jasminegraph.git
+RUN git clone https://github.com/miyurud/jasminegraph.git
 ENV HOME="/home/ubuntu"
 WORKDIR /home/ubuntu/software/jasminegraph
 RUN apt-get update && \
