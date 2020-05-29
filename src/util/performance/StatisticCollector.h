@@ -27,9 +27,15 @@ limitations under the License.
 #include <limits>
 #include <fstream>
 #include <thread>
+#include "../Utils.h"
+#include <algorithm>
+#include <cmath>
+#include <sstream>
 
 
 class StatisticCollector {
+private:
+    static const int BUFFER_SIZE = 128;
 public:
     int init();
     static int getMemoryUsageByProcess();
@@ -39,6 +45,7 @@ public:
     static long getTotalMemoryAllocated();
     static int getTotalNumberofCores();
     static long getTotalMemoryUsage();
+    static double getTotalCpuUsage();
 };
 
 
