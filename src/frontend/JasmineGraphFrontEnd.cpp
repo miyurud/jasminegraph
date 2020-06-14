@@ -852,7 +852,7 @@ long JasmineGraphFrontEnd::countTriangles(std::string graphId, SQLiteDBInterface
         string serverDataPort = rowData.at(5).second;
         string partitionId = rowData.at(6).second;
 
-        if (ip.find("localhost") != std::string::npos) {
+        if ((ip.find("localhost") != std::string::npos) || ip == masterIP) {
             host = ip;
         } else {
             host = user + "@" + ip;;
