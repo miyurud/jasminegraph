@@ -573,7 +573,7 @@ int JasmineGraphServer::shutdown_workers() {
 
 void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType, vector<std::map<int,string>> fullFileList,
         std::string masterIP) {
-    std::cout << "Uploading the graph locally.." << std::endl;
+    server_logger.log("Uploading the graph locally..","info");
     std::map<int, string> partitionFileList = fullFileList[0];
     std::map<int, string> centralStoreFileList = fullFileList[1];
     std::map<int, string> centralStoreDuplFileList = fullFileList[2];
