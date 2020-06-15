@@ -233,7 +233,11 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 }
                 frontend_logger.log("Upload done", "info");
                 jasmineServer->uploadGraphLocally(newGraphID, Conts::GRAPH_TYPE_NORMAL, fullFileList, masterIP);
-                int nWorkers = atoi(utils.getJasmineGraphProperty("org.jasminegraph.server.nworkers").c_str());
+                utils.deleteDirectory(utils.getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
+                string workerCountQuery = "select count(*) from worker";
+                std::vector<vector<pair<string, string>>> results = sqlite.runSelect(workerCountQuery);
+                string workerCount = results[0][0].second;
+                int nWorkers = atoi(workerCount.c_str());
                 Utils::assignPartitionsToWorkers(nWorkers, sqlite);
                 JasmineGraphFrontEnd::getAndUpdateUploadTime(to_string(newGraphID), sqlite);
                 write(connFd, DONE.c_str(), DONE.size());
