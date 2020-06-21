@@ -604,6 +604,7 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
                                                partitionFileList[file_count], masterHost);
             count++;
             sleep(1);
+            copyCentralStoreToAggregateLocation(centralStoreFileList[file_count]);
             workerThreads[count] = std::thread(batchUploadCentralStore, worker.hostname, worker.port, worker.dataPort,
                                                graphID, centralStoreFileList[file_count], masterHost);
             count++;
@@ -942,6 +943,47 @@ bool JasmineGraphServer::batchUploadCentralStore(std::string host, int port, int
 
     close(sockfd);
     return 0;
+}
+
+void JasmineGraphServer::copyCentralStoreToAggregateLocation(std::string filePath) {
+    Utils utils;
+    char buffer[128];
+    std::string result = "SUCCESS";
+    std::string copyCommand;
+    std::string aggregatorFilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
+
+    DIR* dir = opendir(aggregatorFilePath.c_str());
+
+    if (dir) {
+        closedir(dir);
+    } else {
+        std::string createDirCommand = "mkdir -p " + aggregatorFilePath;
+        FILE *createDirInput = popen(createDirCommand.c_str(),"r");
+        pclose(createDirInput);
+    }
+
+    copyCommand = "cp "+filePath+ " " + aggregatorFilePath;
+
+    FILE *copyInput = popen(copyCommand.c_str(),"r");
+
+    if (copyInput) {
+        // read the input
+        while (!feof(copyInput)) {
+            if (fgets(buffer, 128, copyInput) != NULL) {
+                result.append(buffer);
+            }
+        }
+        if (!result.empty()) {
+            std::cout<<result<< std::endl;
+        }
+        pclose(copyInput);
+    }
+
+    std::string fileName = utils.getFileName(filePath);
+
+    std::string fullFileName = aggregatorFilePath + "/" + fileName;
+
+    utils.unzipFile(fullFileName);
 }
 
 bool JasmineGraphServer::batchUploadAttributeFile(std::string host, int port, int dataPort, int graphID,

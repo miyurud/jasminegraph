@@ -837,13 +837,6 @@ long JasmineGraphFrontEnd::countTriangles(std::string graphId, SQLiteDBInterface
 
     std::map<string, std::vector<string>> partitionMap;
 
-    // Implement Logic to Decide the Worker node which Acts as the centralstore triangle count aggregator
-    aggregatorWorker = workerList.at(0);
-    string aggregatorWorkerHost = aggregatorWorker.hostname;
-    std::string aggregatorWorkerPort = aggregatorWorker.port;
-
-    std::string aggregatorPartitionId;
-
     for (std::vector<vector<pair<string, string>>>::iterator i = results.begin(); i != results.end(); ++i) {
         std::vector<pair<string, string>> rowData = *i;
         string host = "";
@@ -874,13 +867,6 @@ long JasmineGraphFrontEnd::countTriangles(std::string graphId, SQLiteDBInterface
         frontend_logger.log("###FRONTEND### Getting Triangle Count : Host " + host + " Server Port " +
         serverPort + " PartitionId " + partitionId, "info");
 
-        if (!(aggregatorWorkerHost == host && aggregatorWorker.port == serverPort)) {
-            remoteCopyRes.push_back(std::async(std::launch::async, JasmineGraphFrontEnd::copyCentralStoreToAggregator,
-                    aggregatorWorkerHost,aggregatorWorker.port,host,serverPort,atoi(graphId.c_str()),
-                    atoi(partitionId.c_str()),masterIP));
-        } else {
-            aggregatorPartitionId = partitionId;
-        }
     }
 
     for (auto &&futureCall:remoteCopyRes) {
@@ -913,8 +899,7 @@ long JasmineGraphFrontEnd::countTriangles(std::string graphId, SQLiteDBInterface
         result += futureCall.get();
     }
 
-    long aggregatedTriangleCount = JasmineGraphFrontEnd::countCentralStoreTriangles(aggregatorWorkerHost,
-            aggregatorWorkerPort,aggregatorWorkerHost,aggregatorPartitionId,graphId,masterIP);
+    long aggregatedTriangleCount = JasmineGraphFrontEnd::aggregateCentralStoreTriangles(graphId);
     result += aggregatedTriangleCount;
     frontend_logger.log("###FRONTEND### Getting Triangle Count : Completed: Triangles " + to_string(result),
             "info");
@@ -1225,6 +1210,63 @@ long JasmineGraphFrontEnd::countCentralStoreTriangles(std::string aggregatorHost
     return atol(response.c_str());
 }
 
+long JasmineGraphFrontEnd::aggregateCentralStoreTriangles(std::string graphId) {
+    Utils utils;
+    frontend_logger.log("Started Aggregating Central Store Triangles","info");
+    std::string aggregatorFilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
+    std::vector<std::string> fileNames;
+    map<long, unordered_set<long>> aggregatedCentralStore;
+
+
+    frontend_logger.log("Loading Aggregator File Location : Started","info");
+    DIR* dirp = opendir(aggregatorFilePath.c_str());
+    if (dirp) {
+        struct dirent * dp;
+        std::string prefixString =  graphId + +"_";
+        while ((dp = readdir(dirp)) != NULL) {
+            std::string dName = dp->d_name;
+            if (dName.rfind(prefixString, 0) == 0) {
+                fileNames.push_back(dName);
+            }
+        }
+        closedir(dirp);
+    }
+    frontend_logger.log("Loading Aggregator File Location : Completed","info");
+
+    std::vector<std::string>::iterator fileNamesIterator;
+
+    frontend_logger.log("Central Store Aggregation : Started","info");
+    for (fileNamesIterator = fileNames.begin(); fileNamesIterator != fileNames.end(); ++fileNamesIterator) {
+        std::string fileName = *fileNamesIterator;
+        struct stat s;
+        std::string centralStoreFile = aggregatorFilePath + "/" + fileName;
+        if (stat(centralStoreFile.c_str(),&s) == 0) {
+            if (s.st_mode & S_IFREG) {
+                JasmineGraphHashMapCentralStore centralStore = JasmineGraphFrontEnd::loadCentralStore(centralStoreFile);
+                map<long, unordered_set<long>> centralGraphMap = centralStore.getUnderlyingHashMap();
+                map<long, unordered_set<long>>::iterator centralGraphMapIterator;
+
+                for (centralGraphMapIterator = centralGraphMap.begin(); centralGraphMapIterator != centralGraphMap.end(); ++centralGraphMapIterator) {
+                    long startVid = centralGraphMapIterator->first;
+                    unordered_set<long> endVidSet = centralGraphMapIterator->second;
+
+                    unordered_set<long> aggregatedEndVidSet = aggregatedCentralStore[startVid];
+                    aggregatedEndVidSet.insert(endVidSet.begin(),endVidSet.end());
+                    aggregatedCentralStore[startVid] = aggregatedEndVidSet;
+                }
+            }
+        }
+    }
+    frontend_logger.log("Central Store Aggregation : Completed","info");
+
+    map<long, long> distributionHashMap = JasmineGraphFrontEnd::getOutDegreeDistributionHashMap(aggregatedCentralStore);
+
+    long aggregatedTriangleCount = Triangles::countCentralStoreTriangles(aggregatedCentralStore,distributionHashMap);
+
+    return aggregatedTriangleCount;
+
+}
+
 void JasmineGraphFrontEnd::getAndUpdateUploadTime(std::string graphID, SQLiteDBInterface sqlite) {
     struct tm tm;
     vector<vector<pair<string, string>>> uploadStartFinishTimes = sqlite.runSelect(
@@ -1240,4 +1282,22 @@ void JasmineGraphFrontEnd::getAndUpdateUploadTime(std::string graphID, SQLiteDBI
     double difTime = difftime(end, start);
     sqlite.runUpdate("UPDATE graph SET upload_time = " + to_string(difTime) + " WHERE idgraph = " + graphID);
     frontend_logger.log("Upload time updated in the database", "info");
+}
+
+JasmineGraphHashMapCentralStore JasmineGraphFrontEnd::loadCentralStore(std::string centralStoreFileName) {
+    frontend_logger.log("Loading Central Store File : Started " + centralStoreFileName,"info");
+    JasmineGraphHashMapCentralStore *jasmineGraphHashMapCentralStore = new JasmineGraphHashMapCentralStore();
+    jasmineGraphHashMapCentralStore->loadGraph(centralStoreFileName);
+    frontend_logger.log("Loading Central Store File : Completed","info");
+    return *jasmineGraphHashMapCentralStore;
+}
+
+map<long, long> JasmineGraphFrontEnd::getOutDegreeDistributionHashMap(map<long, unordered_set<long>> graphMap) {
+    map<long, long> distributionHashMap;
+
+    for (map<long, unordered_set<long>>::iterator it = graphMap.begin(); it != graphMap.end(); ++it) {
+        long distribution = (it->second).size();
+        distributionHashMap.insert(std::make_pair(it->first, distribution));
+    }
+    return distributionHashMap;
 }
