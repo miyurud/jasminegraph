@@ -276,14 +276,25 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
         }
     } else if (profile == "docker") {
         for (int i =0 ; i < workerPortsVector.size() ; i++) {
-            serverStartScript = "docker -H ssh://" + host + " run -p " +
-                                std::to_string(workerPortsVector.at(i)) + ":" +
-                                std::to_string(workerPortsVector.at(i)) + " -p " +
-                                std::to_string(workerDataPortsVector.at(i)) + ":" +
-                                std::to_string(workerDataPortsVector.at(i)) + " jasmine_graph:latest --MODE 2 --HOST_NAME " + host +
-                                " --MASTERIP " + masterHost + " --SERVER_PORT " +
-                                std::to_string(workerPortsVector.at(i)) + " --SERVER_DATA_PORT " +
-                                std::to_string(workerDataPortsVector.at(i));
+            if (masterHost == host || host == "localhost") {
+                serverStartScript = "docker run -p " +
+                                    std::to_string(workerPortsVector.at(i)) + ":" +
+                                    std::to_string(workerPortsVector.at(i)) + " -p " +
+                                    std::to_string(workerDataPortsVector.at(i)) + ":" +
+                                    std::to_string(workerDataPortsVector.at(i)) + " jasminegraph:latest --MODE 2 --HOST_NAME " + host +
+                                    " --MASTERIP " + masterHost + " --SERVER_PORT " +
+                                    std::to_string(workerPortsVector.at(i)) + " --SERVER_DATA_PORT " +
+                                    std::to_string(workerDataPortsVector.at(i));
+            } else {
+                serverStartScript = "docker -H ssh://" + host + " run -p " +
+                                    std::to_string(workerPortsVector.at(i)) + ":" +
+                                    std::to_string(workerPortsVector.at(i)) + " -p " +
+                                    std::to_string(workerDataPortsVector.at(i)) + ":" +
+                                    std::to_string(workerDataPortsVector.at(i)) + " jasminegraph:latest --MODE 2 --HOST_NAME " + host +
+                                    " --MASTERIP " + masterHost + " --SERVER_PORT " +
+                                    std::to_string(workerPortsVector.at(i)) + " --SERVER_DATA_PORT " +
+                                    std::to_string(workerDataPortsVector.at(i));
+            }
             server_logger.log(serverStartScript, "info");
             popen(serverStartScript.c_str(),"r");
         }
@@ -562,7 +573,7 @@ int JasmineGraphServer::shutdown_workers() {
 
 void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType, vector<std::map<int,string>> fullFileList,
         std::string masterIP) {
-    std::cout << "Uploading the graph locally.." << std::endl;
+    server_logger.log("Uploading the graph locally..","info");
     std::map<int, string> partitionFileList = fullFileList[0];
     std::map<int, string> centralStoreFileList = fullFileList[1];
     std::map<int, string> centralStoreDuplFileList = fullFileList[2];
@@ -593,6 +604,7 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
                                                partitionFileList[file_count], masterHost);
             count++;
             sleep(1);
+            copyCentralStoreToAggregateLocation(centralStoreFileList[file_count]);
             workerThreads[count] = std::thread(batchUploadCentralStore, worker.hostname, worker.port, worker.dataPort,
                                                graphID, centralStoreFileList[file_count], masterHost);
             count++;
@@ -931,6 +943,47 @@ bool JasmineGraphServer::batchUploadCentralStore(std::string host, int port, int
 
     close(sockfd);
     return 0;
+}
+
+void JasmineGraphServer::copyCentralStoreToAggregateLocation(std::string filePath) {
+    Utils utils;
+    char buffer[128];
+    std::string result = "SUCCESS";
+    std::string copyCommand;
+    std::string aggregatorFilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
+
+    DIR* dir = opendir(aggregatorFilePath.c_str());
+
+    if (dir) {
+        closedir(dir);
+    } else {
+        std::string createDirCommand = "mkdir -p " + aggregatorFilePath;
+        FILE *createDirInput = popen(createDirCommand.c_str(),"r");
+        pclose(createDirInput);
+    }
+
+    copyCommand = "cp "+filePath+ " " + aggregatorFilePath;
+
+    FILE *copyInput = popen(copyCommand.c_str(),"r");
+
+    if (copyInput) {
+        // read the input
+        while (!feof(copyInput)) {
+            if (fgets(buffer, 128, copyInput) != NULL) {
+                result.append(buffer);
+            }
+        }
+        if (!result.empty()) {
+            std::cout<<result<< std::endl;
+        }
+        pclose(copyInput);
+    }
+
+    std::string fileName = utils.getFileName(filePath);
+
+    std::string fullFileName = aggregatorFilePath + "/" + fileName;
+
+    utils.unzipFile(fullFileName);
 }
 
 bool JasmineGraphServer::batchUploadAttributeFile(std::string host, int port, int dataPort, int graphID,

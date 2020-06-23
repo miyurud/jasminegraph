@@ -23,6 +23,9 @@ limitations under the License.
 #include <set>
 #include <algorithm>
 
+class JasmineGraphHashMapCentralStore;
+class JasmineGraphHashMapDuplicateCentralStore;
+
 class Triangles {
 public:
     static long run (JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCentralStore centralStore, JasmineGraphHashMapDuplicateCentralStore duplicateCentralStore, std::string hostName);
