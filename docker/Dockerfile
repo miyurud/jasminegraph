@@ -12,7 +12,7 @@ RUN apt-get update && \
     sed -i '/target_link_libraries(JasmineGraph \/opt\/lib\/libxerces-c.a)/c\#target_link_libraries(JasmineGraph \/opt\/lib\/libxerces-c.a)' CMakeLists.txt && \
     sed -i '/target_link_libraries(JasmineGraph $ENV{HOME}\/software\/cppkafka\/build\/usr\/local\/lib\/libcppkafka.so)/c\target_link_libraries(JasmineGraph \/usr\/local\/lib\/libcppkafka.so)' CMakeLists.txt && \
     sed -i '/namespace JasminGraph.Edgestore;/c\namespace JasmineGraph.Edgestore;' src/util/dbutil/edgestore.fbs && \
-    sed -i '/org.jasminegraph.partitioner.metis.bin=home\/ubuntu\/software\/metis-5.1.0\/bin/c\org.jasminegraph.partitioner.metis.bin=home\/ubuntu\/software\/metis\/metis-5.1.0\/bin' conf/jasminegraph-server.properties
+    sed -i '/org.jasminegraph.partitioner.metis.bin=home\/ubuntu\/software\/metis-5.1.0\/bin/c\org.jasminegraph.partitioner.metis.bin=\/home\/ubuntu\/software\/metis\/metis-5.1.0\/bin' conf/jasminegraph-server.properties
 WORKDIR /home/ubuntu/software/flatbuffers
 RUN ./flatc --cpp -o /home/ubuntu/software/jasminegraph/src/util/dbutil /home/ubuntu/software/jasminegraph/src/util/dbutil/edgestore.fbs && \
     ./flatc --cpp -o /home/ubuntu/software/jasminegraph/src/util/dbutil /home/ubuntu/software/jasminegraph/src/util/dbutil/attributestore.fbs && \
