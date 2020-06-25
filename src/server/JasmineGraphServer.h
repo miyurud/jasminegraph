@@ -99,6 +99,8 @@ public:
 
     static bool sendFileThroughService(std::string host, int dataPort, std::string fileName, std::string filePath, std::string masterIP);
 
+    void assignPartitionToWorker (std::string fileName, int graphId, std::string workerHost, int workerPort, int workerDataPort);
+
     JasmineGraphFrontEnd *frontend;
     SQLiteDBInterface sqlite;
     PerformanceSQLiteDBInterface performanceSqlite;

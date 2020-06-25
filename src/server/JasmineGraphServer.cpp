@@ -600,8 +600,9 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
             if (count == total_threads) {
                 break;
             }
+            std::string partitionFileName = partitionFileList[file_count];
             workerThreads[count] = std::thread(batchUploadFile, worker.hostname, worker.port, worker.dataPort, graphID,
-                                               partitionFileList[file_count], masterHost);
+                                               partitionFileName, masterHost);
             count++;
             sleep(1);
             copyCentralStoreToAggregateLocation(centralStoreFileList[file_count]);
@@ -623,6 +624,7 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
                 count++;
                 sleep(1);
             }
+            assignPartitionToWorker(partitionFileName,graphID,worker.hostname,worker.port,worker.dataPort);
             file_count++;
         }
     }
@@ -641,6 +643,25 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
     //The following function updates the 'worker_has_partition' table and 'graph' table only
     updateMetaDB(hostWorkerMap, partitionFileList, graphID, uploadEndTime);
 
+}
+
+void JasmineGraphServer::assignPartitionToWorker(std::string fileName, int graphId, std::string workerHost, int workerPort, int workerDataPort) {
+    SQLiteDBInterface refToSqlite = *new SQLiteDBInterface();
+    refToSqlite.init();
+    size_t lastindex = fileName.find_last_of(".");
+    string rawname = fileName.substr(0, lastindex);
+    string partitionID = rawname.substr(rawname.find_last_of("_") + 1);
+
+    std::string workerSearchQuery = "select idworker from worker where ip='" + workerHost + "' and server_port='" + std::to_string(workerPort)+ "' and server_data_port='" + std::to_string(workerDataPort) + "'";
+
+    std::vector<vector<pair<string, string>>> results = refToSqlite.runSelect(workerSearchQuery);
+
+    std::string workerID = results[0][0].second;
+
+    std::string partitionToWorkerQuery = "insert into worker_has_partition (partition_idpartition, partition_graph_idgraph, worker_idworker) values "
+                                         "('"+ partitionID + "','" +std::to_string(graphId) + "','" + workerID + "')";
+
+    refToSqlite.runInsert(partitionToWorkerQuery);
 }
 
 bool JasmineGraphServer::batchUploadFile(std::string host, int port, int dataPort, int graphID, std::string filePath,
