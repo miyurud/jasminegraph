@@ -497,3 +497,10 @@ void Utils::assignPartitionsToWorkers(int numberOfWorkers, SQLiteDBInterface sql
         sqlite.runInsert(sqlStatement);
     }
 }
+
+void Utils::copyToDirectory(std::string currentPath,std::string copyPath) {
+
+    std::string command = "mkdir -p " +copyPath + "&& " + "cp "+ currentPath + " " + copyPath;
+    system(command.c_str());
+    
+}
