@@ -238,7 +238,6 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 std::vector<vector<pair<string, string>>> results = sqlite.runSelect(workerCountQuery);
                 string workerCount = results[0][0].second;
                 int nWorkers = atoi(workerCount.c_str());
-                Utils::assignPartitionsToWorkers(nWorkers, sqlite);
                 JasmineGraphFrontEnd::getAndUpdateUploadTime(to_string(newGraphID), sqlite);
                 write(connFd, DONE.c_str(), DONE.size());
                 write(connFd, "\n", 2);
