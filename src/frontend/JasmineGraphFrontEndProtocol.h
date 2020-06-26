@@ -71,7 +71,7 @@ extern const string TRAIN;
 extern const string PREDICT;
 extern const string PARTITIONS;
 extern const string EMPTY;
-
+extern const string ADMDL;
 
 class JasminGraphFrontEndProtocol {
     //Note that this protocol do not need a handshake session since the communication in most of the time is conducted
