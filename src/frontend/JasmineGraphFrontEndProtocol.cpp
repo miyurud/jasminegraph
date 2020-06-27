@@ -35,3 +35,4 @@ const string TRAIN = "train";
 const string PREDICT = "predict";
 const string PARTITIONS = "number-of-partitions";
 const string EMPTY = "empty";
+const string ADMDL = "admdl";

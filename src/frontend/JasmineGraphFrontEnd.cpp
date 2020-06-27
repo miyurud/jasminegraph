@@ -345,6 +345,59 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 frontend_logger.log("Graph data file does not exist on the specified path", "error");
                 continue;
             }
+        }  else if (line.compare(ADMDL) == 0) {
+            write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
+            write(connFd, "\r\n", 2);
+
+            char graph_data[FRONTEND_DATA_LENGTH];
+            bzero(graph_data, FRONTEND_DATA_LENGTH + 1);
+            string name = "";
+            string path = "";
+
+            read(connFd, graph_data, FRONTEND_DATA_LENGTH);
+
+            std::time_t time = chrono::system_clock::to_time_t(chrono::system_clock::now());
+            string uploadStartTime = ctime(&time);
+            string gData(graph_data);
+
+            Utils utils;
+            gData = utils.trim_copy(gData, " \f\n\r\t\v");
+            frontend_logger.log("Data received: " + gData, "info");
+
+            std::vector<std::string> strArr = Utils::split(gData, '|');
+
+            if (strArr.size() < 2) {
+                frontend_logger.log("Message format not recognized", "error");
+                continue;
+            }
+
+            name = strArr[0];
+            path = strArr[1];
+
+            if (JasmineGraphFrontEnd::modelExists(path, sqlite)) {
+                frontend_logger.log("Model exists", "error");
+                continue;
+            }
+
+            if (utils.fileExists(path)) {
+                frontend_logger.log("Path exists", "info");
+                std::string toDir = utils.getJasmineGraphProperty("org.jasminegraph.server.modeldir");
+                utils.copyToDirectory(path,toDir);
+
+                string sqlStatement =
+                        "INSERT INTO model (name,upload_path,upload_time"
+                        ")VALUES(\"" + name + "\", \"" + path +
+                        "\", \"" + uploadStartTime + "\")";
+
+                int newModelID = sqlite.runInsert(sqlStatement);
+
+                frontend_logger.log("Upload done", "info");
+                write(connFd, DONE.c_str(), DONE.size());
+                write(connFd, "\n", 2);
+            } else {
+                frontend_logger.log("Model file does not exist on the specified path", "error");
+                continue;
+            }
         } else if (line.compare(ADD_STREAM_KAFKA) == 0) {
             frontend_logger.log("Start serving `" + ADD_STREAM_KAFKA + "` command", "info");
             string message = "send kafka topic name";
@@ -1237,4 +1290,29 @@ void JasmineGraphFrontEnd::getAndUpdateUploadTime(std::string graphID, SQLiteDBI
     double difTime = difftime(end, start);
     sqlite.runUpdate("UPDATE graph SET upload_time = " + to_string(difTime) + " WHERE idgraph = " + graphID);
     frontend_logger.log("Upload time updated in the database", "info");
+}
+
+bool JasmineGraphFrontEnd::modelExists(string path, SQLiteDBInterface sqlite) {
+    bool result = true;
+    string stmt =
+            "SELECT COUNT( * ) FROM model WHERE upload_path LIKE '" + path + "';";
+    std::vector<vector<pair<string, string>>> v = sqlite.runSelect(stmt);
+    int count = std::stoi(v[0][0].second);
+    if (count == 0) {
+        result = false;
+    }
+    return result;
+}
+
+bool JasmineGraphFrontEnd::modelExistsByID(string id, SQLiteDBInterface sqlite) {
+    bool result = true;
+    string stmt = "SELECT COUNT( * ) FROM model WHERE idmodel = " + id ;
+    std::vector<vector<pair<string, string>>> v = sqlite.runSelect(stmt);
+    int count = std::stoi(v[0][0].second);
+
+    if (count == 0) {
+        result = false;
+    }
+
+    return result;
 }

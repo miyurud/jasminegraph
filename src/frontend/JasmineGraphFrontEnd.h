@@ -45,7 +45,11 @@ public:
 
     static bool graphExists(std::string basic_string, SQLiteDBInterface sqlite);
 
+    static bool modelExists(std::string basic_string, SQLiteDBInterface sqlite);
+
     static bool graphExistsByID(std::string id, SQLiteDBInterface sqlite);
+
+    static bool modelExistsByID(std::string id, SQLiteDBInterface sqlite);
 
     static void removeGraph(std::string graphID, SQLiteDBInterface sqlite, std::string masterIP);
 
