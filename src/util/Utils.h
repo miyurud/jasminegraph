@@ -80,6 +80,8 @@ class Utils
 
     void unzipDirectory(std::string filePath);
 
+    void copyToDirectory(std::string currentPath, std::string copyPath);
+
     static std::string getHostID(std::string hostName, SQLiteDBInterface sqlite);
 
     static void assignPartitionsToWorkers(int numberOfWorkers, SQLiteDBInterface sqlite);
