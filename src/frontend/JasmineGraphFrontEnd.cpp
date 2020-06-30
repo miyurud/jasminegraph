@@ -486,7 +486,8 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 auto end = chrono::high_resolution_clock::now();
                 auto dur = end - begin;
                 auto msDuration = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
-                frontend_logger.log("Triangle Count: " + to_string(triangleCount), "info");
+                frontend_logger.log("Triangle Count: " + to_string(triangleCount) + " Time Taken: " + to_string(msDuration) +
+                " milliseconds", "info");
                 write(connFd, to_string(triangleCount).c_str(), (int)to_string(triangleCount).length());
                 write(connFd, "\r\n", 2);
             }
