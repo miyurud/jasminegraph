@@ -64,24 +64,19 @@ void JasmineGraphFederatedInstance::initiateCommunication(std::string graphID, s
 
     Utils utils;
     std::vector<Utils::worker> workerArr = utils.getWorkerList(sqlite);
-    std::thread *workerThreads = new std::thread[workerArr.size()+1];
+    std::thread *workerThreads = new std::thread[3];
 
     int limit = workerArr.size();
     int thread_id = 0;
     int poolSize = workerArr.size()+1;
 
-    for (int i = 0; i< limit; i++) {
-        if (i==0) {
-            workerThreads[thread_id] = std::thread(initiateServer,"localhost", 7780, 7781,trainingArgs,2, "1");
-            sleep(10);   
-        }
-
+    workerThreads[0] = std::thread(initiateServer,"localhost", 7780, 7781,trainingArgs,2, "1");
+    sleep(10);        
+    workerThreads[1] = std::thread(initiateClient,"localhost", 7780, 7781,trainingArgs + ' '+ '0',2, "1");    
+    sleep(5);
+    workerThreads[2] = std::thread(initiateClient,"localhost", 7782, 7783,trainingArgs + ' '+ '0',2, "1");
+    sleep(5); 
         
-        workerThreads[thread_id] = std::thread(initiateClient,"localhost", 7780, 7781,trainingArgs + ' '+ '0',2, "1");    
-        sleep(5);
-        thread_id += 1;
-    }  
-
     for (int threadCount = 0; threadCount < poolSize; threadCount++) {
         workerThreads[threadCount].join();
         std::cout << "Fed Thread " << threadCount << " joined" << std::endl;
