@@ -54,11 +54,3 @@ target_link_libraries(JasmineGraph $ENV{HOME}/software/flatbuffers/libflatbuffer
 include_directories("$ENV{HOME}/software/xerces-c-3.2.2/include")
 target_link_libraries(JasmineGraph $ENV{HOME}/software/jsoncpp/build/debug/src/lib_json/libjsoncpp.a)
 target_link_libraries(JasmineGraph /usr/local/lib/libcppkafka.so)
-
-set(PYTHON_EXECUTABLE "/usr/bin/python3.6")
-set(PYTHON_INCLUDE_DIR "/usr/include/python3.6m")
-set(PYTHON_LIBRARIES "/usr/lib/x86_64-linux-gnu/libpython3.6m.so")
-
-include_directories(${PYTHON_INCLUDE_DIRS})
-include_directories(${PYTHON_DIRECTORIES})
-target_link_libraries(JasmineGraph ${PYTHON_LIBRARIES})
