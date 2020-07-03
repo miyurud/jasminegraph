@@ -44,8 +44,8 @@ void MetisPartitioner::loadDataSet(string inputFilePath, int graphID) {
     std::ifstream dbFile;
     dbFile.open(inputFilePath, std::ios::binary | std::ios::in);
 
-    int firstVertex = -1;
-    int secondVertex = -1;
+    unsigned long firstVertex = -1;
+    unsigned long secondVertex = -1;
     string line;
     char splitter;
 
@@ -69,8 +69,8 @@ void MetisPartitioner::loadDataSet(string inputFilePath, int graphID) {
         std::getline(stream, vertexOne, splitter);
         stream >> vertexTwo;
 
-        firstVertex = std::stoi(vertexOne);
-        secondVertex = std::stoi(vertexTwo);
+        firstVertex = std::stoul(vertexOne);
+        secondVertex = std::stoul(vertexTwo);
 
         if (!zeroflag) {
             if (firstVertex == 0 || secondVertex == 0) {
@@ -805,8 +805,8 @@ string MetisPartitioner::reformatDataSet(string inputFilePath, int graphID) {
     std::ofstream outFile;
     outFile.open(outputFile);
 
-    int firstVertex = -1;
-    int secondVertex = -1;
+    unsigned long firstVertex = -1;
+    unsigned long secondVertex = -1;
     string line;
     char splitter;
 
@@ -832,8 +832,8 @@ string MetisPartitioner::reformatDataSet(string inputFilePath, int graphID) {
         std::getline(stream, vertexOne, splitter);
         stream >> vertexTwo;
 
-        firstVertex = std::stoi(vertexOne);
-        secondVertex = std::stoi(vertexTwo);
+        firstVertex = std::stoul(vertexOne);
+        secondVertex = std::stoul(vertexTwo);
 
         if (vertexToIDMap.find(firstVertex) == vertexToIDMap.end()) {
             vertexToIDMap.insert(make_pair(firstVertex, idCounter));
@@ -890,7 +890,7 @@ void MetisPartitioner::loadContentData(string inputAttributeFilePath, string gra
             int strpos = line.find(splitter);
             string vertex_str = line.substr(0, strpos);
             string attributes = line.substr(strpos + 1, -1);
-            int vertex = stoi(vertex_str);
+            unsigned long vertex = stoul(vertex_str);
             attributeDataMap.insert({vertex, attributes});
 
             std::getline(dbFile, line);
