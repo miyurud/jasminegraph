@@ -100,6 +100,10 @@ public:
 
     static void trainPartition(std::string trainData);
 
+    static void initServer(string trainData);
+
+    static  void initClient(string trainData);
+
     static std::map<int,std::vector<std::string>> iterationData;
 
     static int partitionCounter;

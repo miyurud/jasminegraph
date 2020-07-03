@@ -591,8 +591,90 @@ void *instanceservicesession(void *dummyPt) {
             std::string memoryUsage = JasmineGraphInstanceService::requestPerformanceStatistics(isVMStatManager,
                                                                                                 isResourceAllocationRequired);
             write(connFd, memoryUsage.c_str(), memoryUsage.size());
+        } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_FILES) == 0) {
+            
+            instance_logger.log("Received from: " + JasmineGraphInstanceProtocol::INITIATE_FILES, "info");
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string trainData(data);
+
+            std::vector<std::string> trainargs = Utils::split(trainData, ' ');
+
+            string graphID;
+            string partitionID = trainargs[trainargs.size() - 1];
+
+            for (int i = 0; i < trainargs.size(); i++) {
+                if (trainargs[i] == "--graph_id") {
+                    graphID = trainargs[i + 1];
+                    break;
+                }
+            }
+
+            std::thread *workerThreads = new std::thread[2];
+            workerThreads[0] = std::thread(&JasmineGraphInstanceService::createPartitionFiles, graphID, partitionID,
+                                           "local");
+            workerThreads[1] = std::thread(&JasmineGraphInstanceService::createPartitionFiles, graphID, partitionID,
+                                           "centralstore");
+
+            for (int threadCount = 0; threadCount < 2; threadCount++) {
+                workerThreads[threadCount].join();
+                std::cout << "Thread " << threadCount << " joined" << std::endl;
+            }
+
+        } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_SERVER) == 0) {
+            
+            instance_logger.log("Received from: " + JasmineGraphInstanceProtocol::INITIATE_FILES, "info");
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string trainData(data);
+
+            std::vector<std::string> trainargs = Utils::split(trainData, ' ');
+
+            string graphID;
+            string partitionID = trainargs[trainargs.size() - 1];
+
+            for (int i = 0; i < trainargs.size(); i++) {
+                if (trainargs[i] == "--graph_id") {
+                    graphID = trainargs[i + 1];
+                    break;
+                }
+            }
+
+            std::thread workerThreads = std::thread(&JasmineGraphInstanceService::initServer, trainData);
+            workerThreads.join();
+
+
+        } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_CLIENT) == 0) {
+            
+            instance_logger.log("Received from: " + JasmineGraphInstanceProtocol::INITIATE_FILES, "info");
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string trainData(data);
+
+            std::vector<std::string> trainargs = Utils::split(trainData, ' ');
+
+            string graphID;
+            string partitionID = trainargs[trainargs.size() - 1];
+
+            for (int i = 0; i < trainargs.size(); i++) {
+                if (trainargs[i] == "--graph_id") {
+                    graphID = trainargs[i + 1];
+                    break;
+                }
+            }
+
+            std::thread workerThread = std::thread(&JasmineGraphInstanceService::initClient, trainData);
+            workerThread.join();
+
+
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_TRAIN) == 0) {
-            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::INITIATE_TRAIN, "info");
+            instance_logger.log("Received from: " + JasmineGraphInstanceProtocol::INITIATE_TRAIN, "info");
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
             bzero(data, INSTANCE_DATA_LENGTH);
@@ -1277,8 +1359,6 @@ std::string JasmineGraphInstanceService::copyCentralStoreToAggregator(std::strin
             }
             pclose(copyInput);
         }
-
-
     }
 
     return result;
@@ -1702,5 +1782,48 @@ void JasmineGraphInstanceService::trainPartition(string trainData){
         command += trainargs[i + 2];
         command += " ";
     }
+    system(command.c_str());
+}
+
+void JasmineGraphInstanceService::initClient(string trainData){
+    Utils utils;
+    std::vector<std::string> trainargs = Utils::split(trainData, ' ');
+    string graphID;
+    string partitionID = trainargs[trainargs.size() - 1];
+
+    for (int i = 0; i < trainargs.size(); i++) {
+        if (trainargs[i] == "--graph_id") {
+            graphID = trainargs[i + 1];
+            break;
+        }
+    }
+
+    std::vector<char *> vc;
+    std::transform(trainargs.begin(), trainargs.end(), std::back_inserter(vc), converter);
+
+    std::string path = "cd " + utils.getJasmineGraphProperty("org.jasminegraph.fl.location") + " && ";
+    std::string command = path + "python client.py ./weights/weights_" + partitionID +".npy" + " /var/tmp/jasminegraph-localstore/1_attributes_" + partitionID + " /var/tmp/jasminegraph-localstore/jasminegraph-local_trained_model_store/1_"+ partitionID;
+    system(command.c_str());
+}
+
+
+void JasmineGraphInstanceService::initServer(string trainData){
+    Utils utils;
+    std::vector<std::string> trainargs = Utils::split(trainData, ' ');
+    string graphID;
+    string partitionID = trainargs[trainargs.size() - 1];
+
+    for (int i = 0; i < trainargs.size(); i++) {
+        if (trainargs[i] == "--graph_id") {
+            graphID = trainargs[i + 1];
+            break;
+        }
+    }
+
+    std::vector<char *> vc;
+    std::transform(trainargs.begin(), trainargs.end(), std::back_inserter(vc), converter);
+
+    std::string path = "cd " + utils.getJasmineGraphProperty("org.jasminegraph.fl.location") + " && ";
+    std::string command = path + "python server.py ./weights/weights.npy /var/tmp/jasminegraph-localstore/1_attributes_0 /var/tmp/jasminegraph-localstore/jasminegraph-local_trained_model_store/1_0 ";
     system(command.c_str());
 }
