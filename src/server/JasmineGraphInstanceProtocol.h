@@ -65,6 +65,9 @@ public:
     static const string INITIATE_FRAGMENT_RESOLUTION;
     static const string FRAGMENT_RESOLUTION_CHK;
     static const string FRAGMENT_RESOLUTION_DONE;
+    static const string INITIATE_FILES;
+    static const string INITIATE_SERVER;
+    static const string INITIATE_CLIENT;
 };
 
 const int INSTANCE_DATA_LENGTH = 300;
