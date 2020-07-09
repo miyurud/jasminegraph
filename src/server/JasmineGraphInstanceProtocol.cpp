@@ -59,3 +59,4 @@ const string JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_DONE = "frag-done
 const string JasmineGraphInstanceProtocol::INITIATE_FILES = "initiate-file";
 const string JasmineGraphInstanceProtocol::INITIATE_SERVER = "initiate-server";
 const string JasmineGraphInstanceProtocol::INITIATE_CLIENT = "initiate-client";
+const string JasmineGraphInstanceProtocol::MERGE_FILES = "merge-files";

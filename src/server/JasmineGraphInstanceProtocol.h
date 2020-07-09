@@ -68,6 +68,7 @@ public:
     static const string INITIATE_FILES;
     static const string INITIATE_SERVER;
     static const string INITIATE_CLIENT;
+    static const string MERGE_FILES;
 };
 
 const int INSTANCE_DATA_LENGTH = 300;
