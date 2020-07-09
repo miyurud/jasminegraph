@@ -1,5 +1,10 @@
 FROM miyurud/jasminegraph
 WORKDIR /home/ubuntu/software
+RUN wget https://nchc.dl.sourceforge.net/project/nmon/nmon16m_helpsystems.tar.gz
+RUN tar -xvf nmon16m_helpsystems.tar.gz
+WORKDIR /home/ubuntu/software/nmon16m_helpsystems
+RUN cp nmon_x86_64_ubuntu18 /usr/local/bin
+WORKDIR /home/ubuntu/software
 RUN apt-get update
 RUN git clone https://github.com/miyurud/jasminegraph.git
 ENV HOME="/home/ubuntu"
