@@ -1826,7 +1826,7 @@ void JasmineGraphInstanceService::initServer(string trainData){
 
     std::string path = "cd " + utils.getJasmineGraphProperty("org.jasminegraph.fl.location") + " && ";
     //std::string command = path + "python client.py ./weights/weights_" + partitionID +".npy" + " /var/tmp/jasminegraph-localstore/1_attributes_" + partitionID + " /var/tmp/jasminegraph-localstore/jasminegraph-local_trained_model_store/1_"+ partitionID;
-    std::string command = path + "python fl_server.py ./weights/ ./data/ ./data/ 1 0 2 4 localhost 5000";
+    std::string command = path + "python fl_server.py ./weights/ ./data/ ./data/ " + graphID + " 0 2 4 localhost 5000";
     system(command.c_str());
 }
 
