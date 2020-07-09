@@ -625,7 +625,7 @@ void *instanceservicesession(void *dummyPt) {
 
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_SERVER) == 0) {
             
-            instance_logger.log("Received from: " + JasmineGraphInstanceProtocol::INITIATE_FILES, "info");
+            instance_logger.log("Received from: " + JasmineGraphInstanceProtocol::INITIATE_SERVER, "info");
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
             bzero(data, INSTANCE_DATA_LENGTH);
@@ -644,13 +644,12 @@ void *instanceservicesession(void *dummyPt) {
                 }
             }
 
-            std::thread workerThreads = std::thread(&JasmineGraphInstanceService::initServer, trainData);
-            workerThreads.join();
-
+            std::thread workerThread = std::thread(&JasmineGraphInstanceService::initServer, trainData);
+            workerThread.join();
 
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_CLIENT) == 0) {
             
-            instance_logger.log("Received from: " + JasmineGraphInstanceProtocol::INITIATE_FILES, "info");
+            instance_logger.log("Received from: " + JasmineGraphInstanceProtocol::INITIATE_CLIENT, "info");
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
             bzero(data, INSTANCE_DATA_LENGTH);
@@ -670,6 +669,31 @@ void *instanceservicesession(void *dummyPt) {
             }
 
             std::thread workerThread = std::thread(&JasmineGraphInstanceService::initClient, trainData);
+            workerThread.join();
+
+
+        } else if (line.compare(JasmineGraphInstanceProtocol::MERGE_FILES) == 0) {
+            
+            instance_logger.log("Received from: " + JasmineGraphInstanceProtocol::MERGE_FILES, "info");
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string trainData(data);
+
+            std::vector<std::string> trainargs = Utils::split(trainData, ' ');
+
+            string graphID;
+            string partitionID = trainargs[trainargs.size() - 1];
+
+            for (int i = 0; i < trainargs.size(); i++) {
+                if (trainargs[i] == "--graph_id") {
+                    graphID = trainargs[i + 1];
+                    break;
+                }
+            }
+
+            std::thread workerThread = std::thread(&JasmineGraphInstanceService::mergeFiles, trainData);
             workerThread.join();
 
 
@@ -1660,8 +1684,7 @@ int JasmineGraphInstanceService::collectTrainedModelThreadFunction(instanceservi
     return 0;
 }
 
-void
-JasmineGraphInstanceService::createPartitionFiles(std::string graphID, std::string partitionID, std::string fileType) {
+void JasmineGraphInstanceService::createPartitionFiles(std::string graphID, std::string partitionID, std::string fileType) {
     Utils utils;
     utils.createDirectory(utils.getJasmineGraphProperty("org.jasminegraph.server.instance.trainedmodelfolder"));
     JasmineGraphHashMapLocalStore *hashMapLocalStore = new JasmineGraphHashMapLocalStore();
@@ -1785,28 +1808,6 @@ void JasmineGraphInstanceService::trainPartition(string trainData){
     system(command.c_str());
 }
 
-void JasmineGraphInstanceService::initClient(string trainData){
-    Utils utils;
-    std::vector<std::string> trainargs = Utils::split(trainData, ' ');
-    string graphID;
-    string partitionID = trainargs[trainargs.size() - 1];
-
-    for (int i = 0; i < trainargs.size(); i++) {
-        if (trainargs[i] == "--graph_id") {
-            graphID = trainargs[i + 1];
-            break;
-        }
-    }
-
-    std::vector<char *> vc;
-    std::transform(trainargs.begin(), trainargs.end(), std::back_inserter(vc), converter);
-
-    std::string path = "cd " + utils.getJasmineGraphProperty("org.jasminegraph.fl.location") + " && ";
-    std::string command = path + "python client.py ./weights/weights_" + partitionID +".npy" + " /var/tmp/jasminegraph-localstore/1_attributes_" + partitionID + " /var/tmp/jasminegraph-localstore/jasminegraph-local_trained_model_store/1_"+ partitionID;
-    system(command.c_str());
-}
-
-
 void JasmineGraphInstanceService::initServer(string trainData){
     Utils utils;
     std::vector<std::string> trainargs = Utils::split(trainData, ' ');
@@ -1824,6 +1825,42 @@ void JasmineGraphInstanceService::initServer(string trainData){
     std::transform(trainargs.begin(), trainargs.end(), std::back_inserter(vc), converter);
 
     std::string path = "cd " + utils.getJasmineGraphProperty("org.jasminegraph.fl.location") + " && ";
-    std::string command = path + "python server.py ./weights/weights.npy /var/tmp/jasminegraph-localstore/1_attributes_0 /var/tmp/jasminegraph-localstore/jasminegraph-local_trained_model_store/1_0 ";
+    //std::string command = path + "python client.py ./weights/weights_" + partitionID +".npy" + " /var/tmp/jasminegraph-localstore/1_attributes_" + partitionID + " /var/tmp/jasminegraph-localstore/jasminegraph-local_trained_model_store/1_"+ partitionID;
+    std::string command = path + "python fl_server.py ./weights/ ./data/ ./data/ 1 0 2 4 localhost 5000";
+    system(command.c_str());
+}
+
+
+void JasmineGraphInstanceService::initClient(string trainData){
+    Utils utils;
+    std::vector<std::string> trainargs = Utils::split(trainData, ' ');
+    string graphID;
+    string partitionID = trainargs[trainargs.size() - 1];
+
+    for (int i = 0; i < trainargs.size(); i++) {
+        if (trainargs[i] == "--graph_id") {
+            graphID = trainargs[i + 1];
+            break;
+        }
+    }
+
+    std::vector<char *> vc;
+    std::transform(trainargs.begin(), trainargs.end(), std::back_inserter(vc), converter);
+
+    std::string path = "cd " + utils.getJasmineGraphProperty("org.jasminegraph.fl.location") + " && ";
+    //std::string command = path + "python server.py ./weights/weights.npy /var/tmp/jasminegraph-localstore/1_attributes_0 /var/tmp/jasminegraph-localstore/jasminegraph-local_trained_model_store/1_0 ";
+    std::string command = path + "python fl_client.py ./weights/ ./embeddings/ ./data/ ./data/ "+ graphID + " " + partitionID + " 4 localhost 5000";
+    system(command.c_str());
+}
+
+
+void JasmineGraphInstanceService::mergeFiles(string trainData){
+    Utils utils;
+    std::vector<std::string> trainargs = Utils::split(trainData, ' ');
+    string graphID = trainargs[1];
+    string partitionID = trainargs[2];
+
+    std::string path = "cd " + utils.getJasmineGraphProperty("org.jasminegraph.fl.location") + " && ";
+    std::string command = path + "python merge.py ./data/ ./data/ ./data/ "+ graphID + " " + partitionID;;
     system(command.c_str());
 }
