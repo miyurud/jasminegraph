@@ -657,9 +657,11 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 frontend_logger.log(trainData, "info");
 
                 JasmineGraphFederatedInstance *jasminGraphFedInitiator = new JasmineGraphFederatedInstance();                
-                jasminGraphFedInitiator->initiateFiles(graphID, trainData);                
-                // jasminGraphFedInitiator->initiateCommunication(graphID, trainData, sqlite);
-                frontend_logger.log("initialize complete", "info");
+                jasminGraphFedInitiator->initiateFiles(graphID, trainData);
+                frontend_logger.log("initialize complete", "info"); 
+                //jasminGraphFedInitiator->mergeFiles(graphID, trainData, sqlite);
+                //frontend_logger.log("merge complete", "info");    
+                jasminGraphFedInitiator->initiateCommunication(graphID, trainData, sqlite);
             
             }
 
