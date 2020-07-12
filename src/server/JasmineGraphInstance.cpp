@@ -41,6 +41,8 @@ int JasmineGraphInstance::start_running(string profile, string hostName, string 
     this->serverDataPort = serverDataPort;
     this->enableNmon = enableNmon;
 
+    startNmonAnalyzer(enableNmon, serverPort);
+
     pthread_t instanceCommunicatorThread;
     pthread_t instanceFileTransferThread;
     pthread_create(&instanceCommunicatorThread, NULL, runInstanceService, this);
@@ -48,8 +50,6 @@ int JasmineGraphInstance::start_running(string profile, string hostName, string 
 
     pthread_join(instanceCommunicatorThread,NULL);
     pthread_join(instanceFileTransferThread,NULL);
-
-    startNmonAnalyzer(enableNmon, serverPort);
 
     }
 
