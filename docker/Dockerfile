@@ -3,6 +3,7 @@ WORKDIR /home/ubuntu/software
 RUN apt-get update
 RUN git clone https://github.com/miyurud/jasminegraph.git
 ENV HOME="/home/ubuntu"
+RUN mkdir -p /var/tmp/nmon
 WORKDIR /home/ubuntu/software/jasminegraph
 RUN apt-get update && \
     sed -i '/target_link_libraries(JasmineGraph \/usr\/local\/lib\/libmetis.so)/c\target_link_libraries(JasmineGraph \/usr\/local\/lib\/libmetis.so)' CMakeLists.txt && \
