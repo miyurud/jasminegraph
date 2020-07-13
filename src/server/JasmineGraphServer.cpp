@@ -49,7 +49,7 @@ JasmineGraphServer::~JasmineGraphServer() {
     sqlite.finalize();
 }
 
-int JasmineGraphServer::run(std::string profile, std::string masterIp, int numberofWorkers, std::string workerIps) {
+int JasmineGraphServer::run(std::string profile, std::string masterIp, int numberofWorkers, std::string workerIps, std::string enableNmon) {
     server_logger.log("Running the server...", "info");
     Utils utils;
     std::vector<int> masterPortVector;
@@ -66,6 +66,7 @@ int JasmineGraphServer::run(std::string profile, std::string masterIp, int numbe
     this->profile = profile;
     this->numberOfWorkers = numberofWorkers;
     this->workerHosts = workerIps;
+    this->enableNmon = enableNmon;
     init();
     masterPortVector.push_back(Conts::JASMINEGRAPH_FRONTEND_PORT);
     addInstanceDetailsToPerformanceDB(masterHost,masterPortVector,"true");
@@ -100,6 +101,7 @@ void JasmineGraphServer::start_workers() {
         if ((this->numberOfWorkers) == -1) {
             nWorkers = utils.getJasmineGraphProperty("org.jasminegraph.server.nworkers");
         }
+        enableNmon = utils.getJasmineGraphProperty("org.jasminegraph.server.enable.nmon");
     } else if (profile == "docker") {
         hostsList = getWorkerVector(workerHosts);
     }
@@ -226,7 +228,7 @@ void JasmineGraphServer::start_workers() {
         addHostsToMetaDB(host, workerPortsMap[host],workerDataPortsMap[host]);
         addInstanceDetailsToPerformanceDB(host,workerPortsMap[host],"false");
         myThreads[count] = std::thread(startRemoteWorkers,workerPortsMap[host],workerDataPortsMap[host], host, profile,
-                masterHost);
+                masterHost, enableNmon);
         count++;
     }
 
@@ -240,7 +242,7 @@ void JasmineGraphServer::start_workers() {
 
 
 void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, std::vector<int> workerDataPortsVector,
-        string host, string profile, string masterHost) {
+        string host, string profile, string masterHost, string enableNmon) {
     Utils utils;
     std::string executableFile;
     std::string workerPath = utils.getJasmineGraphProperty("org.jasminegraph.worker.path");
@@ -266,12 +268,12 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
         for (int i =0 ; i < workerPortsVector.size() ; i++) {
             if (host.find("localhost") != std::string::npos) {
                 serverStartScript = executableFile + " native 2 " + host + " " + masterHost + " " +
-                        std::to_string(workerPortsVector.at(i)) + " " + std::to_string(workerDataPortsVector.at(i));
+                        std::to_string(workerPortsVector.at(i)) + " " + std::to_string(workerDataPortsVector.at(i)) + " " + enableNmon;
             } else {
                 serverStartScript =
                         "ssh -p 22 " + host + " " + executableFile + " native 2 " + host + " " + masterHost + " " +
                         std::to_string(workerPortsVector.at(i)) +
-                        " " + std::to_string(workerDataPortsVector.at(i));
+                        " " + std::to_string(workerDataPortsVector.at(i)) + " " + enableNmon;
             }
             popen(serverStartScript.c_str(),"r");
         }
@@ -285,7 +287,7 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                                     std::to_string(workerDataPortsVector.at(i)) + " jasminegraph:latest --MODE 2 --HOST_NAME " + host +
                                     " --MASTERIP " + masterHost + " --SERVER_PORT " +
                                     std::to_string(workerPortsVector.at(i)) + " --SERVER_DATA_PORT " +
-                                    std::to_string(workerDataPortsVector.at(i));
+                                    std::to_string(workerDataPortsVector.at(i)) + " --ENABLE_NMON " + enableNmon;
             } else {
                 serverStartScript = "docker -H ssh://" + host + " run -v " + instanceDataFolder + ":" + instanceDataFolder +" -p " +
                                     std::to_string(workerPortsVector.at(i)) + ":" +
@@ -294,7 +296,7 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                                     std::to_string(workerDataPortsVector.at(i)) + " jasminegraph:latest --MODE 2 --HOST_NAME " + host +
                                     " --MASTERIP " + masterHost + " --SERVER_PORT " +
                                     std::to_string(workerPortsVector.at(i)) + " --SERVER_DATA_PORT " +
-                                    std::to_string(workerDataPortsVector.at(i));
+                                    std::to_string(workerDataPortsVector.at(i)) + " --ENABLE_NMON " + enableNmon;
             }
             server_logger.log(serverStartScript, "info");
             popen(serverStartScript.c_str(),"r");

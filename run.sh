@@ -30,7 +30,7 @@ then
     NUMBER_OF_WORKERS=$4;
     WORKER_IPS=$5;
 
-    ./JasmineGraph "native" $MODE $MASTER_HOST_NAME $NUMBER_OF_WORKERS $WORKER_IPS
+    ./JasmineGraph "native" $MODE $MASTER_HOST_NAME $NUMBER_OF_WORKERS $WORKER_IPS "false"
 else
     WORKER_HOST=$3;
     MASTER_HOST_NAME=$4;
@@ -49,6 +49,6 @@ else
             exit 1
     fi
 
-    ./JasmineGraph "native" $MODE $WORKER_HOST $MASTER_HOST_NAME $SERVER_PORT $SERVER_DATA_PORT
+    ./JasmineGraph "native" $MODE $WORKER_HOST $MASTER_HOST_NAME $SERVER_PORT $SERVER_DATA_PORT "false"
 fi
 

@@ -26,9 +26,12 @@ using std::map;
 class JasmineGraphInstance {
 private:
     map<std::string, JasmineGraphLocalStore> graphDBMapLocalStores;
+    static const int BUFFER_SIZE = 128;
 public:
     SQLiteDBInterface sqlite;
-    int start_running(string profile, string hostName, string masterHost,int serverPort, int serverDataPort);
+    int start_running(string profile, string hostName, string masterHost,int serverPort, int serverDataPort, string enableNmon);
+
+    void startNmonAnalyzer(string enableNmon, int serverPort);
 
     void registerShutdownHook();
 
@@ -43,6 +46,7 @@ public:
     string masterHostName;
     int serverPort;
     int serverDataPort;
+    string enableNmon;
 
     JasmineGraphInstanceService *instanceService;
     JasmineGraphInstanceFileTransferService *ftpService;

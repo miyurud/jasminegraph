@@ -46,6 +46,7 @@ int main(int argc, char *argv[]) {
     int mode = atoi(argv[2]);
     std::string JASMINEGRAPH_HOME = utils.getJasmineGraphHome();
     std::string profile = argv[1]; //This can be either "docker" or "native"
+    std::string enableNmon = "false";
 
     main_logger.log("Using JASMINE_GRAPH_HOME", "info");
     std::cout << JASMINEGRAPH_HOME << std::endl;
@@ -55,9 +56,10 @@ int main(int argc, char *argv[]) {
         std::string masterIp = argv[3];
         int numberOfWorkers = atoi(argv[4]);
         std::string workerIps = argv[5];
+        enableNmon = argv[6];
         server = new JasmineGraphServer();
         thread schedulerThread(SchedulerService::startScheduler);
-        server->run(profile,masterIp,numberOfWorkers, workerIps);
+        server->run(profile,masterIp,numberOfWorkers, workerIps, enableNmon);
 
         while (server->isRunning()) {
             usleep(microseconds);
@@ -78,10 +80,11 @@ int main(int argc, char *argv[]) {
         std::string masterHost = argv[4];
         int serverPort = atoi(argv[5]);
         int serverDataPort = atoi(argv[6]);
+        enableNmon = argv[7];
 
         std::cout << "In worker mode" << std::endl;
         instance = new JasmineGraphInstance();
-        instance->start_running(profile, hostName, masterHost, serverPort,serverDataPort);
+        instance->start_running(profile, hostName, masterHost, serverPort,serverDataPort, enableNmon);
 
         while (instance->isRunning()) {
             usleep(microseconds);

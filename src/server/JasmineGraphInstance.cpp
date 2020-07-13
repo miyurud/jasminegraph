@@ -15,6 +15,8 @@ limitations under the License.
 #include "../util/logger/Logger.h"
 #include "../util/Utils.h"
 
+Logger graphInstance_logger;
+
 void *runInstanceService(void *dummyPt) {
     JasmineGraphInstance *refToInstance = (JasmineGraphInstance *) dummyPt;
     refToInstance->instanceService = new JasmineGraphInstanceService();
@@ -28,7 +30,7 @@ void *runFileTransferService(void *dummyPt) {
     refToInstance->ftpService->run(refToInstance->serverDataPort);
 }
 
-int JasmineGraphInstance::start_running(string profile, string hostName, string masterHost,int serverPort, int serverDataPort) {
+int JasmineGraphInstance::start_running(string profile, string hostName, string masterHost,int serverPort, int serverDataPort, string enableNmon) {
     std::cout << "Worker started" << std::endl;
     std::cout << "Running the server..." << std::endl;
 
@@ -37,6 +39,9 @@ int JasmineGraphInstance::start_running(string profile, string hostName, string 
     this->masterHostName = masterHost;
     this->serverPort = serverPort;
     this->serverDataPort = serverDataPort;
+    this->enableNmon = enableNmon;
+
+    startNmonAnalyzer(enableNmon, serverPort);
 
     pthread_t instanceCommunicatorThread;
     pthread_t instanceFileTransferThread;
@@ -47,6 +52,36 @@ int JasmineGraphInstance::start_running(string profile, string hostName, string 
     pthread_join(instanceFileTransferThread,NULL);
 
     }
+
+void JasmineGraphInstance::startNmonAnalyzer(string enableNmon, int serverPort) {
+    Utils utils;
+    if (enableNmon == "true") {
+        std::string nmonFileLocation = utils.getJasmineGraphProperty("org.jasminegraph.server.nmon.file.location");
+        std::string numberOfSnapshots = utils.getJasmineGraphProperty("org.jasminegraph.server.nmon.snapshots");
+        std::string snapshotGap = utils.getJasmineGraphProperty("org.jasminegraph.server.nmon.snapshot.gap");
+        std::string nmonFileName = nmonFileLocation + "nmon.log." + std::to_string(serverPort);
+        std::string nmonStartupCommand = "nmon_x86_64_ubuntu18 -c "+ numberOfSnapshots + " -s " + snapshotGap + " -T -F " + nmonFileName;
+
+        char buffer[BUFFER_SIZE];
+        std::string result = "";
+
+        FILE *input = popen(nmonStartupCommand.c_str(), "r");
+
+        if (input) {
+            // read the input
+            while (!feof(input)) {
+                if (fgets(buffer, BUFFER_SIZE, input) != NULL) {
+                    result.append(buffer);
+                }
+            }
+            if (!result.empty()) {
+                graphInstance_logger.log("Error in performance database backup process","error");
+            }
+
+            pclose(input);
+        }
+    }
+}
 
 bool JasmineGraphInstance::isRunning() {
     return true;
