@@ -12,6 +12,8 @@ limitations under the License.
  */
 
 #include <vector>
+#include <chrono>
+#include <ctime>
 #include <algorithm>
 #include "Triangles.h"
 #include "../../../localstore/JasmineGraphHashMapLocalStore.h"
@@ -43,6 +45,8 @@ long Triangles::run(JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCe
     std::map<long,long>::iterator centralDBDegreeDistributionIterator;
     std::map<long,long>::iterator centralDuplicateDBDegreeDistributionIterator;
 
+    auto mergeBbegin = std::chrono::high_resolution_clock::now();
+
     for (centralDuplicateDBDegreeDistributionIterator = centralDuplicateDBDegreeDistribution.begin(); centralDuplicateDBDegreeDistributionIterator != centralDuplicateDBDegreeDistribution.end(); ++centralDuplicateDBDegreeDistributionIterator) {
         long centralDuplicateDBStartVid = centralDuplicateDBDegreeDistributionIterator->first;
 
@@ -69,6 +73,12 @@ long Triangles::run(JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCe
 
     }
 
+    auto mergeEnd = std::chrono::high_resolution_clock::now();
+    auto mergeDur = mergeEnd - mergeBbegin;
+    auto mergeMsDuration = std::chrono::duration_cast<std::chrono::milliseconds>(mergeDur).count();
+
+    triangle_logger.log(" Merge time Taken: " + std::to_string(mergeMsDuration) +
+                        " milliseconds", "info");
 
     for (it = degreeDistribution.begin(); it != degreeDistribution.end();++it) {
         startVId = it->first;
@@ -92,6 +102,10 @@ long Triangles::run(JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCe
     for (iterator = degreeMap.begin(); iterator != degreeMap.end();++iterator) {
         long key = iterator->first;
         std::set<long> vertices = iterator->second;
+
+        if (key == 1) {
+            triangle_logger.log(" Degree 1 list size: " + std::to_string(vertices.size()), "info");
+        }
 
         std::set<long>::iterator verticesIterator;
 
