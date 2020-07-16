@@ -104,7 +104,7 @@ long Triangles::run(JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCe
         std::set<long> vertices = iterator->second;
 
         if (key == 1) {
-            triangle_logger.log(" Degree 1 list size: " + std::to_string(vertices.size()), "info");
+            continue;
         }
 
         std::set<long>::iterator verticesIterator;
