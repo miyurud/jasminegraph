@@ -300,16 +300,24 @@ void MetisPartitioner::createPartitionFiles(std::map<int, int> partMap) {
     edgeMap = GetConfig::getEdgeMap();
     articlesMap = GetConfig::getAttributesMap();
 
+    partitioner_logger.log("creatiing partition files", "info");
+
     std::thread *threadList = new std::thread[nParts];
     int count = 0;
     for (int part = 0; part < nParts; part++) {
         threadList[count] = std::thread(&MetisPartitioner::populatePartMaps, this, partMap, part);
+        sleep(10);
         count++;
+
     }
+
+    partitioner_logger.log("creatiing partition files", "info");
 
     for (int threadCount = 0; threadCount < count; threadCount++) {
         threadList[threadCount].join();
     }
+
+    partitioner_logger.log("creatiing partition files", "info");
 
     // Populate the masterEdgeLists with the remaining edges after thread functions
     for (int part = 0; part < nParts; part++) {
@@ -399,6 +407,8 @@ void MetisPartitioner::populatePartMaps(std::map<int, int> partMap, int part) {
     std::map<int, std::vector<int>> partMasterEdgesSet;
     std::map<int, std::map<int, std::vector<int>>> commonMasterEdgeSet;
     unordered_set<int> centralPartVertices;
+
+    partitioner_logger.log("populating partmaps", "info");
 
     if (graphType == Conts::GRAPH_TYPE_NORMAL_REFORMATTED) {
 
