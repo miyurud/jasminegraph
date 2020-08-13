@@ -55,9 +55,11 @@ public:
 
     static std::string copyCentralStoreToAggregator(std::string aggregatorHostName, std::string aggregatorPort, std::string host, std::string port, int graphId, int partitionId, std::string masterIP);
 
-    static long aggregateCentralStoreTriangles(std::string graphId);
+    static std::vector<std::vector<string>> getWorkerCombination (SQLiteDBInterface sqlite, std::string graphId);
 
-    static long countCentralStoreTriangles (std::string aggregatorHostName, std::string aggregatorPort, std::string host, std::string partitionId, std::string graphId, std::string masterIP);
+    static long aggregateCentralStoreTriangles(SQLiteDBInterface sqlite, std::string graphId, std::string masterIP);
+
+    static string countCentralStoreTriangles (std::string aggregatorHostName, std::string aggregatorPort, std::string host, std::string aggregatorPartitionId, std::string partitionIdList, std::string graphId, std::string masterIP);
 
     static long countTriangles(std::string graphId, SQLiteDBInterface sqlite, std::string masterIP);
 

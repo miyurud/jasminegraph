@@ -158,11 +158,12 @@ long Triangles::run(JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCe
 }
 
 
-long Triangles::countCentralStoreTriangles(map<long, unordered_set<long>> centralStore,
+string Triangles::countCentralStoreTriangles(map<long, unordered_set<long>> centralStore,
                                            map<long, long> distributionMap) {
     std::map<long,long> degreeReverseLookupMap;
     std::vector<std::set<long>> degreeVector;
     std::map<long,std::set<long>> degreeMap;
+    std::string triangle="";
 
     long startVId;
     long degree;
@@ -248,6 +249,7 @@ long Triangles::countCentralStoreTriangles(map<long, unordered_set<long>> centra
                                 itemRes[varTwo] = list;
                                 triangleTree[varOne] = itemRes;
                                 triangleCount++;
+                                triangle = triangle + std::to_string(varOne) + "," + std::to_string(varTwo) + "," + std::to_string(varThree) + ":";
                             }
                         } else {
                             std::vector<long> newU;
@@ -255,6 +257,7 @@ long Triangles::countCentralStoreTriangles(map<long, unordered_set<long>> centra
                             itemRes[varTwo] = newU;
                             triangleTree[varOne] = itemRes;
                             triangleCount++;
+                            triangle = triangle + std::to_string(varOne) + "," + std::to_string(varTwo) + "," + std::to_string(varThree) + ":";
                         }
                     }
                 }
@@ -263,5 +266,9 @@ long Triangles::countCentralStoreTriangles(map<long, unordered_set<long>> centra
         degreeListVisited.push_back(key);
     }
 
-    return triangleCount;
+    if (triangle.empty()) {
+        return "NILL";
+    }
+
+    return triangle.substr(0, triangle.size()-1);
 }
