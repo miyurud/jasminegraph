@@ -1347,47 +1347,6 @@ std::string JasmineGraphInstanceService::aggregateCentralStoreTriangles(std::str
     }
 
 
-    /*instance_logger.log("###INSTANCE### Loading Aggregator File Location : Started","info");
-    DIR* dirp = opendir(aggregatorFilePath.c_str());
-    if (dirp) {
-        struct dirent * dp;
-        std::string prefixString =  graphId + +"_";
-        while ((dp = readdir(dirp)) != NULL) {
-            std::string dName = dp->d_name;
-            if (dName.rfind(prefixString, 0) == 0) {
-                fileNames.push_back(dName);
-            }
-        }
-        closedir(dirp);
-    }
-    instance_logger.log("###INSTANCE### Loading Aggregator File Location : Completed","info");
-
-    std::vector<std::string>::iterator fileNamesIterator;
-
-    instance_logger.log("###INSTANCE### Central Store Aggregation : Started","info");
-    for (fileNamesIterator = fileNames.begin(); fileNamesIterator != fileNames.end(); ++fileNamesIterator) {
-        std::string fileName = *fileNamesIterator;
-        struct stat s;
-        std::string centralStoreFile = aggregatorFilePath + "/" + fileName;
-        if (stat(centralStoreFile.c_str(),&s) == 0) {
-            if (s.st_mode & S_IFREG) {
-                JasmineGraphHashMapCentralStore centralStore = JasmineGraphInstanceService::loadCentralStore(centralStoreFile);
-                map<long, unordered_set<long>> centralGraphMap = centralStore.getUnderlyingHashMap();
-                map<long, unordered_set<long>>::iterator centralGraphMapIterator;
-
-                for (centralGraphMapIterator = centralGraphMap.begin(); centralGraphMapIterator != centralGraphMap.end(); ++centralGraphMapIterator) {
-                    long startVid = centralGraphMapIterator->first;
-                    unordered_set<long> endVidSet = centralGraphMapIterator->second;
-
-                    unordered_set<long> aggregatedEndVidSet = aggregatedCentralStore[startVid];
-                    aggregatedEndVidSet.insert(endVidSet.begin(),endVidSet.end());
-                    aggregatedCentralStore[startVid] = aggregatedEndVidSet;
-                }
-            }
-        }
-    }*/
-
-
     instance_logger.log("###INSTANCE### Central Store Aggregation : Completed","info");
 
     map<long, long> distributionHashMap = JasmineGraphInstanceService::getOutDegreeDistributionHashMap(aggregatedCentralStore);

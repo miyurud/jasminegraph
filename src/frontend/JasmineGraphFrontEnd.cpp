@@ -1331,7 +1331,7 @@ long JasmineGraphFrontEnd::aggregateCentralStoreTriangles(SQLiteDBInterface sqli
         if ((aggregatorIp.find("localhost") != std::string::npos) || aggregatorIp == masterIP) {
             aggregatorHost = aggregatorIp;
         } else {
-            aggregatorHost = aggregatorUser + "@" + aggregatorIp;;
+            aggregatorHost = aggregatorUser + "@" + aggregatorIp;
         }
 
         for (aggregatorCopyCombinationIterator = workerCombination.begin();aggregatorCopyCombinationIterator != workerCombination.end(); ++aggregatorCopyCombinationIterator) {
@@ -1356,7 +1356,7 @@ long JasmineGraphFrontEnd::aggregateCentralStoreTriangles(SQLiteDBInterface sqli
                 if ((workerIp.find("localhost") != std::string::npos) || workerIp == masterIP) {
                     host = workerIp;
                 } else {
-                    host = workerUser + "@" + workerIp;;
+                    host = workerUser + "@" + workerIp;
                 }
 
                 partitionIdList += partitionId + ",";
