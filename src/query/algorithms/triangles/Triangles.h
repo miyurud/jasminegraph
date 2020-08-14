@@ -32,7 +32,7 @@ public:
 
     static long run (JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCentralStore centralStore, JasmineGraphHashMapDuplicateCentralStore duplicateCentralStore, std::string graphId, std::string partitionId);
 
-    static long countCentralStoreTriangles(map<long, unordered_set<long>> centralStore,map<long, long> distributionMap);
+    static string countCentralStoreTriangles(map<long, unordered_set<long>> centralStore,map<long, long> distributionMap);
 
 };
 

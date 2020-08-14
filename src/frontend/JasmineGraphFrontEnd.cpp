@@ -38,6 +38,7 @@ using namespace std;
 
 static int connFd;
 Logger frontend_logger;
+static map<string,int> aggregatorWeightMap;
 
 void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface sqlite) {
     frontend_logger.log("Thread No: " + to_string(pthread_self()), "info");
@@ -899,7 +900,7 @@ long JasmineGraphFrontEnd::countTriangles(std::string graphId, SQLiteDBInterface
         result += futureCall.get();
     }
 
-    long aggregatedTriangleCount = JasmineGraphFrontEnd::aggregateCentralStoreTriangles(graphId);
+    long aggregatedTriangleCount = JasmineGraphFrontEnd::aggregateCentralStoreTriangles(sqlite, graphId,masterIP);
     result += aggregatedTriangleCount;
     frontend_logger.log("###FRONTEND### Getting Triangle Count : Completed: Triangles " + to_string(result),
             "info");
@@ -996,6 +997,61 @@ long JasmineGraphFrontEnd::getTriangleCount(int graphId, std::string host, int p
         frontend_logger.log("There was an error in the upload process and the response is :: " + response,
                 "error");
     }
+
+}
+
+std::vector<std::vector<string>> JasmineGraphFrontEnd::getWorkerCombination(SQLiteDBInterface sqlite, std::string graphId) {
+
+    std::set<string> workerIdSet;
+    std::vector<std::vector<int>> combinations;
+    std::vector<std::vector<string>> workerIdCombination;
+
+    string sqlStatement = "SELECT worker_idworker "
+                          "FROM worker_has_partition INNER JOIN worker ON worker_has_partition.worker_idworker=worker.idworker "
+                          "WHERE partition_graph_idgraph=" + graphId + ";";
+
+    std::vector<vector<pair<string, string>>> results = sqlite.runSelect(sqlStatement);
+
+
+    for (std::vector<vector<pair<string, string>>>::iterator i = results.begin(); i != results.end(); ++i) {
+        std::vector<pair<string, string>> rowData = *i;
+
+        string workerId = rowData.at(0).second;
+
+        workerIdSet.insert(workerId);
+    }
+
+    std::vector<string> workerIdVector(workerIdSet.begin(), workerIdSet.end());
+
+    //Below algorithm will get all the combinations of 3 workers for given set of workers
+    std::string bitmask(3, 1);
+    bitmask.resize(workerIdVector.size(), 0);
+
+    do {
+        std::vector<int> combination;
+        for (int i = 0; i < workerIdVector.size(); ++i)
+        {
+            if (bitmask[i]) {
+                combination.push_back(i);
+            }
+        }
+        combinations.push_back(combination);
+    } while (std::prev_permutation(bitmask.begin(), bitmask.end()));
+
+    for (std::vector<std::vector<int>>::iterator combinationsIterator = combinations.begin() ; combinationsIterator != combinations.end(); ++combinationsIterator) {
+        std::vector<int> combination = *combinationsIterator;
+        std::vector<string> tempWorkerIdCombination;
+
+        for (std::vector<int>::iterator combinationIterator = combination.begin();combinationIterator != combination.end(); ++combinationIterator) {
+            int index = *combinationIterator;
+
+            tempWorkerIdCombination.push_back(workerIdVector.at(index));
+        }
+
+        workerIdCombination.push_back(tempWorkerIdCombination);
+    }
+
+    return workerIdCombination;
 
 }
 
@@ -1124,8 +1180,8 @@ std::string JasmineGraphFrontEnd::copyCentralStoreToAggregator(std::string aggre
 }
 
 
-long JasmineGraphFrontEnd::countCentralStoreTriangles(std::string aggregatorHostName, std::string aggregatorPort,
-        std::string host, std::string partitionId, std::string graphId, std::string masterIP) {
+string JasmineGraphFrontEnd::countCentralStoreTriangles(std::string aggregatorHostName, std::string aggregatorPort,
+        std::string host, std::string partitionId, std::string partitionIdList, std::string graphId, std::string masterIP) {
     int sockfd;
     char data[300];
     bool loop = false;
@@ -1202,66 +1258,142 @@ long JasmineGraphFrontEnd::countCentralStoreTriangles(std::string aggregatorHost
             response = utils.trim_copy(response, " \f\n\r\t\v");
         }
 
+        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+            frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+            write(sockfd, partitionIdList.c_str(), partitionIdList.size());
+            frontend_logger.log("Sent : Partition ID List : " + partitionId, "info");
+
+            bzero(data, 301);
+            read(sockfd, data, 300);
+            response = (data);
+            response = utils.trim_copy(response, " \f\n\r\t\v");
+        }
+
 
     } else {
         frontend_logger.log("There was an error in the upload process and the response is :: " + response,
                 "error");
     }
-    return atol(response.c_str());
+    return response;
 }
 
-long JasmineGraphFrontEnd::aggregateCentralStoreTriangles(std::string graphId) {
-    Utils utils;
-    frontend_logger.log("Started Aggregating Central Store Triangles","info");
-    std::string aggregatorFilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
-    std::vector<std::string> fileNames;
-    map<long, unordered_set<long>> aggregatedCentralStore;
+long JasmineGraphFrontEnd::aggregateCentralStoreTriangles(SQLiteDBInterface sqlite, std::string graphId, std::string masterIP) {
 
+    std::vector<std::vector<string>> workerCombination = getWorkerCombination(sqlite,graphId);
+    std::map<string, int> workerWeightMap;
+    std::vector<std::vector<string>>::iterator workerCombinationsIterator;
+    std::vector<std::future<string>> triangleCountResponse;
+    std::string result = "";
+    long aggregatedTriangleCount = 0;
 
-    frontend_logger.log("Loading Aggregator File Location : Started","info");
-    DIR* dirp = opendir(aggregatorFilePath.c_str());
-    if (dirp) {
-        struct dirent * dp;
-        std::string prefixString =  graphId + +"_";
-        while ((dp = readdir(dirp)) != NULL) {
-            std::string dName = dp->d_name;
-            if (dName.rfind(prefixString, 0) == 0) {
-                fileNames.push_back(dName);
-            }
-        }
-        closedir(dirp);
-    }
-    frontend_logger.log("Loading Aggregator File Location : Completed","info");
+    for (workerCombinationsIterator = workerCombination.begin(); workerCombinationsIterator != workerCombination.end(); ++workerCombinationsIterator) {
+        std::vector<string> workerCombination = *workerCombinationsIterator;
+        std::map<string, int>::iterator workerWeightMapIterator;
+        int minimumWeight = 0;
+        std::string minWeightWorker;
+        string aggregatorHost = "";
+        std::string partitionIdList="";
 
-    std::vector<std::string>::iterator fileNamesIterator;
+        std::vector<string>::iterator workerCombinationIterator;
+        std::vector<string>::iterator aggregatorCopyCombinationIterator;
 
-    frontend_logger.log("Central Store Aggregation : Started","info");
-    for (fileNamesIterator = fileNames.begin(); fileNamesIterator != fileNames.end(); ++fileNamesIterator) {
-        std::string fileName = *fileNamesIterator;
-        struct stat s;
-        std::string centralStoreFile = aggregatorFilePath + "/" + fileName;
-        if (stat(centralStoreFile.c_str(),&s) == 0) {
-            if (s.st_mode & S_IFREG) {
-                JasmineGraphHashMapCentralStore centralStore = JasmineGraphFrontEnd::loadCentralStore(centralStoreFile);
-                map<long, unordered_set<long>> centralGraphMap = centralStore.getUnderlyingHashMap();
-                map<long, unordered_set<long>>::iterator centralGraphMapIterator;
+        for (workerCombinationIterator = workerCombination.begin();workerCombinationIterator != workerCombination.end(); ++workerCombinationIterator) {
+            std::string workerId = *workerCombinationIterator;
 
-                for (centralGraphMapIterator = centralGraphMap.begin(); centralGraphMapIterator != centralGraphMap.end(); ++centralGraphMapIterator) {
-                    long startVid = centralGraphMapIterator->first;
-                    unordered_set<long> endVidSet = centralGraphMapIterator->second;
+            workerWeightMapIterator = workerWeightMap.find(workerId);
 
-                    unordered_set<long> aggregatedEndVidSet = aggregatedCentralStore[startVid];
-                    aggregatedEndVidSet.insert(endVidSet.begin(),endVidSet.end());
-                    aggregatedCentralStore[startVid] = aggregatedEndVidSet;
+            if (workerWeightMapIterator != workerWeightMap.end()) {
+                int weight = workerWeightMap.at(workerId);
+
+                if (minimumWeight > weight) {
+                    minimumWeight = weight;
+                    minWeightWorker = workerId;
                 }
+            } else {
+                minWeightWorker = workerId;
             }
         }
+
+        string aggregatorSqlStatement = "SELECT ip,user,server_port,server_data_port,partition_idpartition "
+                                        "FROM worker_has_partition INNER JOIN worker ON worker_has_partition.worker_idworker=worker.idworker "
+                                        "WHERE partition_graph_idgraph=" + graphId + " and idworker=" + minWeightWorker + ";";
+
+        std::vector<vector<pair<string, string>>> result = sqlite.runSelect(aggregatorSqlStatement);
+
+        vector<pair<string, string>> aggregatorData = result.at(0);
+
+        std::string aggregatorIp = aggregatorData.at(0).second;
+        std::string aggregatorUser = aggregatorData.at(1).second;
+        std::string aggregatorPort = aggregatorData.at(2).second;
+        std::string aggregatorDataPort = aggregatorData.at(3).second;
+        std::string aggregatorPartitionId = aggregatorData.at(4).second;
+
+        if ((aggregatorIp.find("localhost") != std::string::npos) || aggregatorIp == masterIP) {
+            aggregatorHost = aggregatorIp;
+        } else {
+            aggregatorHost = aggregatorUser + "@" + aggregatorIp;
+        }
+
+        for (aggregatorCopyCombinationIterator = workerCombination.begin();aggregatorCopyCombinationIterator != workerCombination.end(); ++aggregatorCopyCombinationIterator) {
+            std::string workerId = *aggregatorCopyCombinationIterator;
+            string host = "";
+
+            if (workerId != minWeightWorker) {
+                string sqlStatement = "SELECT ip,user,server_port,server_data_port,partition_idpartition "
+                                      "FROM worker_has_partition INNER JOIN worker ON worker_has_partition.worker_idworker=worker.idworker "
+                                      "WHERE partition_graph_idgraph=" + graphId + " and idworker=" + workerId + ";";
+
+                std::vector<vector<pair<string, string>>> result = sqlite.runSelect(sqlStatement);
+
+                vector<pair<string, string>> workerData = result.at(0);
+
+                std::string workerIp = workerData.at(0).second;
+                std::string workerUser = workerData.at(1).second;
+                std::string workerPort = workerData.at(2).second;
+                std::string workerDataPort = workerData.at(3).second;
+                std::string partitionId = workerData.at(4).second;
+
+                if ((workerIp.find("localhost") != std::string::npos) || workerIp == masterIP) {
+                    host = workerIp;
+                } else {
+                    host = workerUser + "@" + workerIp;
+                }
+
+                partitionIdList += partitionId + ",";
+
+                copyCentralStoreToAggregator(aggregatorHost,aggregatorPort,host,workerPort,atoi(graphId.c_str()),atoi(partitionId.c_str()),masterIP);
+
+
+            }
+
+        }
+
+        std::string adjustedPartitionIdList = partitionIdList.substr(0, partitionIdList.size()-1);
+
+        triangleCountResponse.push_back(
+                std::async(std::launch::async, JasmineGraphFrontEnd::countCentralStoreTriangles, aggregatorHost, aggregatorPort, aggregatorHost,
+                           aggregatorPartitionId, adjustedPartitionIdList, graphId, masterIP));
+
+
     }
-    frontend_logger.log("Central Store Aggregation : Completed","info");
 
-    map<long, long> distributionHashMap = JasmineGraphFrontEnd::getOutDegreeDistributionHashMap(aggregatedCentralStore);
+    for (auto &&futureCall:triangleCountResponse) {
+        result = result + ":" + futureCall.get();
+    }
 
-    long aggregatedTriangleCount = Triangles::countCentralStoreTriangles(aggregatedCentralStore,distributionHashMap);
+    std::vector<std::string> triangles = Utils::split(result, ':');
+    std::vector<std::string>::iterator triangleIterator;
+    std::set<std::string> uniqueTriangleSet;
+
+    for (triangleIterator = triangles.begin();triangleIterator!=triangles.end();++triangleIterator) {
+        std::string triangle = *triangleIterator;
+
+        if (!triangle.empty() && triangle != "NILL") {
+            uniqueTriangleSet.insert(triangle);
+        }
+    }
+
+    aggregatedTriangleCount = uniqueTriangleSet.size();
 
     return aggregatedTriangleCount;
 
