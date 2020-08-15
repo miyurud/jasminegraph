@@ -960,7 +960,15 @@ long JasmineGraphFrontEnd::getTriangleCount(int graphId, std::string host, int p
         frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
         write(sockfd, masterIP.c_str(), masterIP.size());
         frontend_logger.log("Sent : " + masterIP, "info");
+        bzero(data, 301);
+        read(sockfd, data, 300);
+        response = (data);
 
+        if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
+            frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
+        } else {
+            frontend_logger.log("Received : " + response, "error");
+        }
         write(sockfd, JasmineGraphInstanceProtocol::TRIANGLES.c_str(),
               JasmineGraphInstanceProtocol::TRIANGLES.size());
         frontend_logger.log("Sent : " + JasmineGraphInstanceProtocol::TRIANGLES, "info");
@@ -1108,7 +1116,15 @@ std::string JasmineGraphFrontEnd::copyCentralStoreToAggregator(std::string aggre
         frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
         write(sockfd, masterIP.c_str(), masterIP.size());
         frontend_logger.log("Sent : " + masterIP, "info");
+        bzero(data, 301);
+        read(sockfd, data, 300);
+        response = (data);
 
+        if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
+            frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
+        } else {
+            frontend_logger.log("Received : " + response, "error");
+        }
         write(sockfd, JasmineGraphInstanceProtocol::SEND_CENTRALSTORE_TO_AGGREGATOR.c_str(),
               JasmineGraphInstanceProtocol::SEND_CENTRALSTORE_TO_AGGREGATOR.size());
         frontend_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_CENTRALSTORE_TO_AGGREGATOR,
@@ -1226,7 +1242,15 @@ string JasmineGraphFrontEnd::countCentralStoreTriangles(std::string aggregatorHo
         frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
         write(sockfd, masterIP.c_str(), masterIP.size());
         frontend_logger.log("Sent : " + masterIP, "info");
+        bzero(data, 301);
+        read(sockfd, data, 300);
+        response = (data);
 
+        if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
+            frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
+        } else {
+            frontend_logger.log("Received : " + response, "error");
+        }
         write(sockfd, JasmineGraphInstanceProtocol::AGGREGATE_CENTRALSTORE_TRIANGLES.c_str(),
               JasmineGraphInstanceProtocol::AGGREGATE_CENTRALSTORE_TRIANGLES.size());
         frontend_logger.log("Sent : " + JasmineGraphInstanceProtocol::AGGREGATE_CENTRALSTORE_TRIANGLES,

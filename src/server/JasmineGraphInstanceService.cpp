@@ -74,6 +74,8 @@ void *instanceservicesession(void *dummyPt) {
             line = (data);
             line = utils.trim_copy(line, " \f\n\r\t\v");
             string server_hostname = line;
+            write(connFd, JasmineGraphInstanceProtocol::HOST_OK.c_str(),
+                  JasmineGraphInstanceProtocol::HOST_OK.size());
             instance_logger.log("Received hostname : " + line, "info");
             std::cout << "ServerName : " << server_hostname << std::endl;
         } else if (line.compare(JasmineGraphInstanceProtocol::CLOSE) == 0) {

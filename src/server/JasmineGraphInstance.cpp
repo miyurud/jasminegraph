@@ -33,6 +33,8 @@ void *runFileTransferService(void *dummyPt) {
 int JasmineGraphInstance::start_running(string profile, string hostName, string masterHost,int serverPort, int serverDataPort, string enableNmon) {
     std::cout << "Worker started" << std::endl;
     std::cout << "Running the server..." << std::endl;
+    graphInstance_logger.log("Worker started","info");
+    graphInstance_logger.log("Running the server...", "info");
 
     this->hostName = hostName;
     this->profile = profile;
