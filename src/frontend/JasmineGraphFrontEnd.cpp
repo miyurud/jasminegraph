@@ -948,7 +948,12 @@ long JasmineGraphFrontEnd::getTriangleCount(int graphId, std::string host, int p
     }
 
     bzero(data, 301);
-    write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+    int result_wr = write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+
+    if(result_wr < 0) {
+        frontend_logger.log("Error writing to socket", "error");
+    }
+
     frontend_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
     bzero(data, 301);
     read(sockfd, data, 300);
@@ -958,7 +963,12 @@ long JasmineGraphFrontEnd::getTriangleCount(int graphId, std::string host, int p
 
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
         frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
-        write(sockfd, masterIP.c_str(), masterIP.size());
+        result_wr = write(sockfd, masterIP.c_str(), masterIP.size());
+
+        if(result_wr < 0) {
+            frontend_logger.log("Error writing to socket", "error");
+        }
+
         frontend_logger.log("Sent : " + masterIP, "info");
         bzero(data, 301);
         read(sockfd, data, 300);
@@ -969,8 +979,13 @@ long JasmineGraphFrontEnd::getTriangleCount(int graphId, std::string host, int p
         } else {
             frontend_logger.log("Received : " + response, "error");
         }
-        write(sockfd, JasmineGraphInstanceProtocol::TRIANGLES.c_str(),
+        result_wr = write(sockfd, JasmineGraphInstanceProtocol::TRIANGLES.c_str(),
               JasmineGraphInstanceProtocol::TRIANGLES.size());
+
+        if(result_wr < 0) {
+            frontend_logger.log("Error writing to socket", "error");
+        }
+
         frontend_logger.log("Sent : " + JasmineGraphInstanceProtocol::TRIANGLES, "info");
         bzero(data, 301);
         read(sockfd, data, 300);
@@ -979,7 +994,12 @@ long JasmineGraphFrontEnd::getTriangleCount(int graphId, std::string host, int p
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
             frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
-            write(sockfd, std::to_string(graphId).c_str(), std::to_string(graphId).size());
+            result_wr = write(sockfd, std::to_string(graphId).c_str(), std::to_string(graphId).size());
+
+            if(result_wr < 0) {
+                frontend_logger.log("Error writing to socket", "error");
+            }
+
             frontend_logger.log("Sent : Graph ID " + std::to_string(graphId), "info");
 
             bzero(data, 301);
@@ -990,7 +1010,12 @@ long JasmineGraphFrontEnd::getTriangleCount(int graphId, std::string host, int p
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
             frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
-            write(sockfd, std::to_string(partitionId).c_str(), std::to_string(partitionId).size());
+            result_wr = write(sockfd, std::to_string(partitionId).c_str(), std::to_string(partitionId).size());
+
+            if(result_wr < 0) {
+                frontend_logger.log("Error writing to socket", "error");
+            }
+
             frontend_logger.log("Sent : Partition ID " + std::to_string(partitionId), "info");
 
             bzero(data, 301);
@@ -1104,7 +1129,12 @@ std::string JasmineGraphFrontEnd::copyCentralStoreToAggregator(std::string aggre
     }
 
     bzero(data, 301);
-    write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+    int result_wr = write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+
+    if(result_wr < 0) {
+        frontend_logger.log("Error writing to socket", "error");
+    }
+
     frontend_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
     bzero(data, 301);
     read(sockfd, data, 300);
@@ -1114,7 +1144,12 @@ std::string JasmineGraphFrontEnd::copyCentralStoreToAggregator(std::string aggre
 
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
         frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
-        write(sockfd, masterIP.c_str(), masterIP.size());
+        result_wr = write(sockfd, masterIP.c_str(), masterIP.size());
+
+        if(result_wr < 0) {
+            frontend_logger.log("Error writing to socket", "error");
+        }
+
         frontend_logger.log("Sent : " + masterIP, "info");
         bzero(data, 301);
         read(sockfd, data, 300);
@@ -1125,8 +1160,13 @@ std::string JasmineGraphFrontEnd::copyCentralStoreToAggregator(std::string aggre
         } else {
             frontend_logger.log("Received : " + response, "error");
         }
-        write(sockfd, JasmineGraphInstanceProtocol::SEND_CENTRALSTORE_TO_AGGREGATOR.c_str(),
+        result_wr = write(sockfd, JasmineGraphInstanceProtocol::SEND_CENTRALSTORE_TO_AGGREGATOR.c_str(),
               JasmineGraphInstanceProtocol::SEND_CENTRALSTORE_TO_AGGREGATOR.size());
+
+        if(result_wr < 0) {
+            frontend_logger.log("Error writing to socket", "error");
+        }
+
         frontend_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_CENTRALSTORE_TO_AGGREGATOR,
                 "info");
         bzero(data, 301);
@@ -1136,7 +1176,12 @@ std::string JasmineGraphFrontEnd::copyCentralStoreToAggregator(std::string aggre
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
             frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
-            write(sockfd, std::to_string(graphId).c_str(), std::to_string(graphId).size());
+            result_wr = write(sockfd, std::to_string(graphId).c_str(), std::to_string(graphId).size());
+
+            if(result_wr < 0) {
+                frontend_logger.log("Error writing to socket", "error");
+            }
+
             frontend_logger.log("Sent : Graph ID " + std::to_string(graphId), "info");
 
             bzero(data, 301);
@@ -1147,7 +1192,12 @@ std::string JasmineGraphFrontEnd::copyCentralStoreToAggregator(std::string aggre
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
             frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
-            write(sockfd, std::to_string(partitionId).c_str(), std::to_string(partitionId).size());
+            result_wr = write(sockfd, std::to_string(partitionId).c_str(), std::to_string(partitionId).size());
+
+            if(result_wr < 0) {
+                frontend_logger.log("Error writing to socket", "error");
+            }
+
             frontend_logger.log("Sent : Partition ID " + std::to_string(partitionId), "info");
 
             bzero(data, 301);
@@ -1158,7 +1208,12 @@ std::string JasmineGraphFrontEnd::copyCentralStoreToAggregator(std::string aggre
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
             frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
-            write(sockfd, aggregatorHostName.c_str(), aggregatorHostName.size());
+            result_wr = write(sockfd, aggregatorHostName.c_str(), aggregatorHostName.size());
+
+            if(result_wr < 0) {
+                frontend_logger.log("Error writing to socket", "error");
+            }
+
             frontend_logger.log("Sent : Aggregator Host Name " + aggregatorHostName, "info");
 
             bzero(data, 301);
@@ -1169,7 +1224,12 @@ std::string JasmineGraphFrontEnd::copyCentralStoreToAggregator(std::string aggre
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
             frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
-            write(sockfd, aggregatorPort.c_str(), aggregatorPort.size());
+            result_wr = write(sockfd, aggregatorPort.c_str(), aggregatorPort.size());
+
+            if(result_wr < 0) {
+                frontend_logger.log("Error writing to socket", "error");
+            }
+
             frontend_logger.log("Sent : Aggregator Port " + aggregatorPort, "info");
 
             bzero(data, 301);
@@ -1180,7 +1240,12 @@ std::string JasmineGraphFrontEnd::copyCentralStoreToAggregator(std::string aggre
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
             frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
-            write(sockfd, host.c_str(), host.size());
+            result_wr = write(sockfd, host.c_str(), host.size());
+
+            if(result_wr < 0) {
+                frontend_logger.log("Error writing to socket", "error");
+            }
+
             frontend_logger.log("Sent : Host " + host, "info");
 
             bzero(data, 301);
@@ -1230,7 +1295,12 @@ string JasmineGraphFrontEnd::countCentralStoreTriangles(std::string aggregatorHo
     }
 
     bzero(data, 301);
-    write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+    int result_wr = write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+
+    if(result_wr < 0) {
+        frontend_logger.log("Error writing to socket", "error");
+    }
+
     frontend_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
     bzero(data, 301);
     read(sockfd, data, 300);
@@ -1240,7 +1310,12 @@ string JasmineGraphFrontEnd::countCentralStoreTriangles(std::string aggregatorHo
 
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
         frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
-        write(sockfd, masterIP.c_str(), masterIP.size());
+        result_wr = write(sockfd, masterIP.c_str(), masterIP.size());
+
+        if(result_wr < 0) {
+            frontend_logger.log("Error writing to socket", "error");
+        }
+
         frontend_logger.log("Sent : " + masterIP, "info");
         bzero(data, 301);
         read(sockfd, data, 300);
@@ -1251,8 +1326,13 @@ string JasmineGraphFrontEnd::countCentralStoreTriangles(std::string aggregatorHo
         } else {
             frontend_logger.log("Received : " + response, "error");
         }
-        write(sockfd, JasmineGraphInstanceProtocol::AGGREGATE_CENTRALSTORE_TRIANGLES.c_str(),
+        result_wr = write(sockfd, JasmineGraphInstanceProtocol::AGGREGATE_CENTRALSTORE_TRIANGLES.c_str(),
               JasmineGraphInstanceProtocol::AGGREGATE_CENTRALSTORE_TRIANGLES.size());
+
+        if(result_wr < 0) {
+            frontend_logger.log("Error writing to socket", "error");
+        }
+
         frontend_logger.log("Sent : " + JasmineGraphInstanceProtocol::AGGREGATE_CENTRALSTORE_TRIANGLES,
                 "info");
         bzero(data, 301);
@@ -1262,7 +1342,12 @@ string JasmineGraphFrontEnd::countCentralStoreTriangles(std::string aggregatorHo
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
             frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
-            write(sockfd, graphId.c_str(), graphId.size());
+            result_wr = write(sockfd, graphId.c_str(), graphId.size());
+
+            if(result_wr < 0) {
+                frontend_logger.log("Error writing to socket", "error");
+            }
+
             frontend_logger.log("Sent : Graph ID " + graphId, "info");
 
             bzero(data, 301);
@@ -1273,7 +1358,12 @@ string JasmineGraphFrontEnd::countCentralStoreTriangles(std::string aggregatorHo
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
             frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
-            write(sockfd, partitionId.c_str(), partitionId.size());
+            result_wr = write(sockfd, partitionId.c_str(), partitionId.size());
+
+            if(result_wr < 0) {
+                frontend_logger.log("Error writing to socket", "error");
+            }
+
             frontend_logger.log("Sent : Partition ID " + partitionId, "info");
 
             bzero(data, 301);
@@ -1284,7 +1374,12 @@ string JasmineGraphFrontEnd::countCentralStoreTriangles(std::string aggregatorHo
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
             frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
-            write(sockfd, partitionIdList.c_str(), partitionIdList.size());
+            result_wr = write(sockfd, partitionIdList.c_str(), partitionIdList.size());
+
+            if(result_wr < 0) {
+                frontend_logger.log("Error writing to socket", "error");
+            }
+
             frontend_logger.log("Sent : Partition ID List : " + partitionId, "info");
 
             bzero(data, 301);
