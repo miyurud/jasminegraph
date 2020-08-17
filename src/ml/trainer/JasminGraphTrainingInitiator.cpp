@@ -144,6 +144,18 @@ bool JasminGraphTrainingInitiator::initiateTrain(std::string host, int port, int
 
         trainer_log.log("Sent : " + server_host, "info");
 
+        bzero(data, DATA_LENGTH);
+        read(sockfd, data, DATA_LENGTH);
+        string response = (data);
+
+        response = utils.trim_copy(response, " \f\n\r\t\v");
+
+        if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
+            trainer_log.log("Received : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
+        } else {
+            trainer_log.log("Received : " + response, "error");
+        }
+
         result_wr = write(sockfd, JasmineGraphInstanceProtocol::INITIATE_TRAIN.c_str(),
               JasmineGraphInstanceProtocol::INITIATE_TRAIN.size());
         if(result_wr < 0) {
