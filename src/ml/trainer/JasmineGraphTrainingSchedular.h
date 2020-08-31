@@ -33,6 +33,12 @@ public:
 
     std::map<int, int> packPartitionsToMemory(std::vector<std::pair<int, int>> partitionMemoryList, int capacity);
 
+    std::map<std::string, std::map<int, std::map<int, int>>> scheduleGradientPassingTraining(std::string graphID);
+
+    std::vector<std::pair<int, int>> estimateMemoryDistOpt(std::vector<std::vector<int>> partitionDetails, long availableMemory);
+
+    std::map<int, std::map<int, int>> bestFitPartition(std::vector<std::pair<int, int>> partitionMemoryList, std::map<int, int> partitionWorkerMap, int capacity);
+
 };
 
 #endif //JASMINEGRAPH_JASMINEGRAPHTRAININGSCHEDULAR_H
