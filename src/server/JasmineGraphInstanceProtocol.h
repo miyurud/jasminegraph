@@ -66,6 +66,9 @@ public:
     static const string INITIATE_FRAGMENT_RESOLUTION;
     static const string FRAGMENT_RESOLUTION_CHK;
     static const string FRAGMENT_RESOLUTION_DONE;
+    static const string ACKNOWLEDGE_MASTER;
+    static const string WORKER_INFO_SEND;
+    static const string UPDATE_DONE;
 };
 
 const int INSTANCE_DATA_LENGTH = 300;

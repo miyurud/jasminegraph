@@ -50,10 +50,121 @@ int JasmineGraphInstance::start_running(string profile, string hostName, string 
     pthread_create(&instanceCommunicatorThread, NULL, runInstanceService, this);
     pthread_create(&instanceFileTransferThread, NULL, runFileTransferService, this);
 
+    acknowledgeMaster(masterHost,hostName,std::to_string(serverPort));
+
     pthread_join(instanceCommunicatorThread,NULL);
     pthread_join(instanceFileTransferThread,NULL);
 
     }
+
+bool JasmineGraphInstance::acknowledgeMaster(string masterHost, string workerIP, string workerPort) {
+    int sockfd;
+    char data[300];
+    bool loop = false;
+    socklen_t len;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+    Utils utils;
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sockfd < 0) {
+        std::cerr << "Cannot accept connection" << std::endl;
+        return 0;
+    }
+
+    if (masterHost.find('@') != std::string::npos) {
+        masterHost = utils.split(masterHost, '@')[0];
+    }
+
+    graphInstance_logger.log("###FRONTEND### Get Host By Name : " + masterHost, "info");
+
+    server = gethostbyname(masterHost.c_str());
+    if (server == NULL) {
+        std::cerr << "ERROR, no host named " << server << std::endl;
+    }
+
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *) server->h_addr,
+          (char *) &serv_addr.sin_addr.s_addr,
+          server->h_length);
+    serv_addr.sin_port = htons(Conts::JASMINEGRAPH_BACKEND_PORT);
+    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+        std::cerr << "ERROR connecting" << std::endl;
+    }
+
+    bzero(data, 301);
+    int result_wr = write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+
+    if(result_wr < 0) {
+        graphInstance_logger.log("Error writing to socket", "error");
+    }
+
+    graphInstance_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
+    bzero(data, 301);
+    read(sockfd, data, 300);
+    string response = (data);
+
+    response = utils.trim_copy(response, " \f\n\r\t\v");
+
+    if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
+        graphInstance_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
+
+        result_wr = write(sockfd, workerIP.c_str(), workerIP.size());
+
+        if(result_wr < 0) {
+            graphInstance_logger.log("Error writing to socket", "error");
+        }
+
+        graphInstance_logger.log("Sent : " + workerIP, "info");
+        bzero(data, 301);
+        read(sockfd, data, 300);
+        response = (data);
+        response = utils.trim_copy(response, " \f\n\r\t\v");
+
+        if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
+            graphInstance_logger.log("Received : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
+
+            result_wr = write(sockfd, JasmineGraphInstanceProtocol::ACKNOWLEDGE_MASTER.c_str(), JasmineGraphInstanceProtocol::ACKNOWLEDGE_MASTER.size());
+
+            if(result_wr < 0) {
+                graphInstance_logger.log("Error writing to socket", "error");
+            }
+
+            graphInstance_logger.log("Sent : " + JasmineGraphInstanceProtocol::ACKNOWLEDGE_MASTER, "info");
+            bzero(data, 301);
+            read(sockfd, data, 300);
+            response = (data);
+            response = utils.trim_copy(response, " \f\n\r\t\v");
+
+            if (response.compare(JasmineGraphInstanceProtocol::WORKER_INFO_SEND) == 0) {
+                std::string workerInfo = workerIP+ "|" + workerPort;
+                result_wr = write(sockfd, workerInfo.c_str(), workerInfo.size());
+
+                if(result_wr < 0) {
+                    graphInstance_logger.log("Error writing to socket", "error");
+                }
+
+                graphInstance_logger.log("Sent : " + workerInfo, "info");
+                bzero(data, 301);
+                read(sockfd, data, 300);
+                response = (data);
+                //response = utils.trim_copy(response, " \f\n\r\t\v");
+
+                if (response.compare(JasmineGraphInstanceProtocol::UPDATE_DONE) == 0) {
+                    return 1;
+                }
+            }
+
+            if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+                return 1;
+            }
+        }
+
+        return 0;
+    }
+}
 
 void JasmineGraphInstance::startNmonAnalyzer(string enableNmon, int serverPort) {
     Utils utils;

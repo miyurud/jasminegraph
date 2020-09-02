@@ -39,6 +39,8 @@ public:
 
     int run();
 
+    static void updateWorkerStatus (std::string workerIP, std::string workerPort, SQLiteDBInterface sqLiteDbInterface);
+
 private:
     SQLiteDBInterface sqlite;
 };
