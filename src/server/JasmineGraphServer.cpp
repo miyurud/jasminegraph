@@ -73,6 +73,7 @@ int JasmineGraphServer::run(std::string profile, std::string masterIp, int numbe
     updateOperationalGraphList();
     start_workers();
     sleep(2);
+    waitForAcknowledgement(numberofWorkers);
     resolveOperationalGraphs();
     return 0;
 }
@@ -237,6 +238,25 @@ void JasmineGraphServer::start_workers() {
         std::cout << "############JOINED###########" << std::endl;
     }
     hostIDMap = getLiveHostIDList();
+
+}
+
+void JasmineGraphServer::waitForAcknowledgement(int numberOfWorkers) {
+    auto begin = chrono::high_resolution_clock::now();
+    int timeDifference = 0;
+    while (timeDifference < 30000) {
+        sleep(2);
+        std::string selectQuery = "select idworker from worker where status='started'";
+        std::vector<vector<pair<string, string>>> output = this->sqlite.runSelect(selectQuery);
+        int startedWorkers = output.size();
+        if (numberOfWorkers == startedWorkers) {
+            break;
+        }
+        auto end = chrono::high_resolution_clock::now();
+        auto dur = end - begin;
+        auto msDuration = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
+        timeDifference = msDuration;
+    }
 
 }
 

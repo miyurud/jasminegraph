@@ -64,6 +64,8 @@ public:
 
     void start_workers();
 
+    void waitForAcknowledgement(int numberOfWorkers);
+
     void resolveOperationalGraphs();
 
     void backupPerformanceDB();
