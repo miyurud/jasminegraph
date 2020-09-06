@@ -15,6 +15,7 @@ limitations under the License.
 
 const string JasmineGraphInstanceProtocol::HANDSHAKE = "hske";
 const string JasmineGraphInstanceProtocol::HANDSHAKE_OK = "hske-ok";
+const string JasmineGraphInstanceProtocol::HOST_OK = "hst-ok";
 const string JasmineGraphInstanceProtocol::CLOSE = "close";
 const string JasmineGraphInstanceProtocol::CLOSE_ACK = "close-ok" ;
 const string JasmineGraphInstanceProtocol::SHUTDOWN = "shdn";

@@ -24,6 +24,7 @@ public:
     //During the phase of Handshaking, JasmineGraph server informs its host name to the instance so that it can connect with the server later time.
     static const string HANDSHAKE;
     static const string HANDSHAKE_OK;
+    static const string HOST_OK;
     static const string CLOSE;
     static const string CLOSE_ACK;
     static const string SHUTDOWN;

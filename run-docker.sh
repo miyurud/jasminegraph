@@ -8,6 +8,7 @@ WORKERIP=${WORKERIP}
 HOST_NAME=${HOST_NAME}
 SERVER_PORT=${SERVER_PORT};
 SERVER_DATA_PORT=${SERVER_DATA_PORT};
+ENABLE_NMON=${ENABLE_NMON}
 
 while [ $# -gt 0 ]; do
 
@@ -70,7 +71,7 @@ fi
 
 if [ $MODE -eq 1 ] ;
 then
-    ./JasmineGraph "docker" $MODE $MASTERIP $WORKERS $WORKERIP
+    ./JasmineGraph "docker" $MODE $MASTERIP $WORKERS $WORKERIP $ENABLE_NMON
 else
-    ./JasmineGraph "docker" $MODE $HOST_NAME $MASTERIP $SERVER_PORT $SERVER_DATA_PORT
+    ./JasmineGraph "docker" $MODE $HOST_NAME $MASTERIP $SERVER_PORT $SERVER_DATA_PORT $ENABLE_NMON
 fi

@@ -21,6 +21,7 @@ limitations under the License.
 #include <netdb.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <netinet/in.h>
 #include <iostream>
 #include <fstream>
@@ -31,9 +32,12 @@ limitations under the License.
 #include <chrono>
 #include <thread>
 #include <map>
+#include <dirent.h>
 #include "../metadb/SQLiteDBInterface.h"
 #include "../util/PlacesToNodeMapper.h"
-#include "../centralstore/JasmineGraphHashMapCentralStore.h"
+#include "../query/algorithms/triangles/Triangles.h"
+
+class JasmineGraphHashMapCentralStore;
 
 void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface sqlite);
 
@@ -51,7 +55,11 @@ public:
 
     static std::string copyCentralStoreToAggregator(std::string aggregatorHostName, std::string aggregatorPort, std::string host, std::string port, int graphId, int partitionId, std::string masterIP);
 
-    static long countCentralStoreTriangles (std::string aggregatorHostName, std::string aggregatorPort, std::string host, std::string partitionId, std::string graphId, std::string masterIP);
+    static std::vector<std::vector<string>> getWorkerCombination (SQLiteDBInterface sqlite, std::string graphId);
+
+    static long aggregateCentralStoreTriangles(SQLiteDBInterface sqlite, std::string graphId, std::string masterIP);
+
+    static string countCentralStoreTriangles (std::string aggregatorHostName, std::string aggregatorPort, std::string host, std::string aggregatorPartitionId, std::string partitionIdList, std::string graphId, std::string masterIP);
 
     static long countTriangles(std::string graphId, SQLiteDBInterface sqlite, std::string masterIP);
 
@@ -60,6 +68,10 @@ public:
     static void getAndUpdateUploadTime(std::string graphID, SQLiteDBInterface sqlite);
 
     static bool isGraphActiveAndTrained(std::string graphID, SQLiteDBInterface sqlite);
+
+    static JasmineGraphHashMapCentralStore loadCentralStore(std::string centralStoreFileName);
+
+    static map<long, long> getOutDegreeDistributionHashMap(map<long, unordered_set<long>> graphMap);
 
 private:
     SQLiteDBInterface sqlite;

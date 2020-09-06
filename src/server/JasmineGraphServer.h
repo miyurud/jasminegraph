@@ -31,6 +31,7 @@ private:
     map<std::string, long> hostPlaceMap;
     std::string profile;
     std::string workerHosts;
+    std::string enableNmon;
     int numberOfWorkers = -1;
     static const int BUFFER_SIZE = 128;
     int serverPort;
@@ -38,7 +39,7 @@ private:
     std::map<std::string, std::vector<int>> workerPortsMap;
     std::map<std::string, std::vector<int>> workerDataPortsMap;
 
-    static void startRemoteWorkers(std::vector<int> workerPortsVector, std::vector<int> workerDataPortsVector, std::string host, string profile, string masterHost);
+    static void startRemoteWorkers(std::vector<int> workerPortsVector, std::vector<int> workerDataPortsVector, std::string host, string profile, string masterHost, string enableNmon);
 
     void addHostsToMetaDB(std::string host, std::vector<int> portVector, std::vector<int> dataPortVector);
 
@@ -73,7 +74,7 @@ public:
 
     int shutdown_workers();
 
-    int run(std::string profile, std::string masterIp, int numberofWorkers, std::string workerIps);
+    int run(std::string profile, std::string masterIp, int numberofWorkers, std::string workerIps, std::string enableNmon);
 
     bool isRunning();
 
@@ -87,6 +88,8 @@ public:
 
     static bool batchUploadCentralStore(std::string host, int port, int dataPort, int graphID, std::string filePath, std::string masterIP);
 
+    static void copyCentralStoreToAggregateLocation(std::string filePath);
+
     static bool batchUploadAttributeFile(std::string host, int port, int dataPort, int graphID, std::string filePath, std::string masterIP);
 
     static bool batchUploadCentralAttributeFile(std::string host, int port, int dataPort, int graphID, std::string filePath, std::string masterIP);
@@ -96,6 +99,8 @@ public:
     static int removeFragmentThroughService(std::string host, int port, std::string graphID, std::string masterIP);
 
     static bool sendFileThroughService(std::string host, int dataPort, std::string fileName, std::string filePath, std::string masterIP);
+
+    void assignPartitionToWorker (std::string fileName, int graphId, std::string workerHost, int workerPort, int workerDataPort);
 
     JasmineGraphFrontEnd *frontend;
     SQLiteDBInterface sqlite;
