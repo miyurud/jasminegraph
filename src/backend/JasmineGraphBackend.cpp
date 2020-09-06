@@ -25,6 +25,7 @@ Logger backend_logger;
 void *backendservicesesion(void *dummyPt) {
     backendservicesessionargs *sessionargs = (backendservicesessionargs *) dummyPt;
     int connFd = sessionargs->connFd;
+    SQLiteDBInterface sqLiteDbInterface = sessionargs->sqlite;
     backend_logger.log("Thread No: " + to_string(pthread_self()), "info");
     char data[300];
     bzero(data, 301);
@@ -51,9 +52,37 @@ void *backendservicesesion(void *dummyPt) {
             string hostname(host);
             Utils utils;
             hostname = utils.trim_copy(hostname, " \f\n\r\t\v");
+            write(connFd, HOST_OK.c_str(),HOST_OK.size());
             backend_logger.log("Hostname of the worker: " + hostname , "info");
 
-        } else if (line.compare(RECORD_PERF_STATS)) {
+        } else if (line.compare(ACKNOWLEGE_MASTER) == 0) {
+            int result_wr = write(connFd, WORKER_INFO_SEND.c_str(), WORKER_INFO_SEND.size());
+            if(result_wr < 0) {
+                backend_logger.log("Error writing to socket", "error");
+            }
+            result_wr = write(connFd, "\r\n", 2);
+            if(result_wr < 0) {
+                backend_logger.log("Error writing to socket", "error");
+            }
+
+            // We get the name and the path to graph as a pair separated by |.
+            char worker_info_data[300];
+            bzero(worker_info_data, 301);
+            string name = "";
+
+            read(connFd, worker_info_data, 300);
+
+            string worker_info(worker_info_data);
+            worker_info.erase(std::remove(worker_info.begin(), worker_info.end(), '\n'),
+                              worker_info.end());
+            worker_info.erase(std::remove(worker_info.begin(), worker_info.end(), '\r'),
+                              worker_info.end());
+
+            std::vector<std::string> strArr = Utils::split(worker_info, '|');
+
+            std::string updateQuery = "update worker set status='started' where ip='" + strArr[0] + "' and server_port='" + strArr[1] + "';";
+
+            sqLiteDbInterface.runUpdate(updateQuery);
 
         }
         else {
