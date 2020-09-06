@@ -80,7 +80,9 @@ void *backendservicesesion(void *dummyPt) {
 
             std::vector<std::string> strArr = Utils::split(worker_info, '|');
 
-            JasmineGraphBackend::updateWorkerStatus(strArr[0], strArr[1], sqLiteDbInterface);
+            std::string updateQuery = "update worker set status='started' where ip='" + strArr[0] + "' and server_port='" + strArr[1] + "';";
+
+            sqLiteDbInterface.runUpdate(updateQuery);
 
         }
         else {
@@ -166,10 +168,4 @@ int JasmineGraphBackend::run() {
     for (int i = 0; i < noThread; i++) {
         pthread_join(threadA[i], NULL);
     }
-}
-
-void JasmineGraphBackend::updateWorkerStatus(std::string workerIP, std::string workerPort, SQLiteDBInterface sqLiteDbInterface) {
-    std::string updateQuery = "update worker set status='started' where ip='" + workerIP + "' and server_port='" + workerPort + "';";
-
-    sqLiteDbInterface.runUpdate(updateQuery);
 }

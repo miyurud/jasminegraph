@@ -34,7 +34,7 @@ extern const string LOCAL_TO_WORLD_AUTHFLOW_FOR_PARTITION;
 extern const string WORLD_TO_LOCAL_FLOW_FROMIDS;    //This command gets all the vertices connected with the external graph and their corresponding fromIDs
 extern const string DONE;
 extern const string PARTITIONS_ON_HOST;     //The command to get the list of partitions on particular host
-extern const string ACKNOWLEGE_MASTER; // Command to record the performance statistics in database
+extern const string ACKNOWLEGE_MASTER; // Command to acknowledge the master stating that the worker has started
 extern const string WORKER_INFO_SEND;
 extern const string HOST_OK;
 extern const string UPDATE_DONE;

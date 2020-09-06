@@ -77,7 +77,7 @@ bool JasmineGraphInstance::acknowledgeMaster(string masterHost, string workerIP,
         masterHost = utils.split(masterHost, '@')[0];
     }
 
-    graphInstance_logger.log("###FRONTEND### Get Host By Name : " + masterHost, "info");
+    graphInstance_logger.log("###INSTANCE### Get Host By Name : " + masterHost, "info");
 
     server = gethostbyname(masterHost.c_str());
     if (server == NULL) {
@@ -150,7 +150,6 @@ bool JasmineGraphInstance::acknowledgeMaster(string masterHost, string workerIP,
                 bzero(data, 301);
                 read(sockfd, data, 300);
                 response = (data);
-                //response = utils.trim_copy(response, " \f\n\r\t\v");
 
                 if (response.compare(JasmineGraphInstanceProtocol::UPDATE_DONE) == 0) {
                     return 1;

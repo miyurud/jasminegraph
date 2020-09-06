@@ -244,8 +244,8 @@ void JasmineGraphServer::start_workers() {
 void JasmineGraphServer::waitForAcknowledgement(int numberOfWorkers) {
     auto begin = chrono::high_resolution_clock::now();
     int timeDifference = 0;
-    while (timeDifference < 30000) {
-        sleep(2);
+    while (timeDifference < Conts::JASMINEGRAPH_WORKER_ACKNOWLEDGEMENT_TIMEOUT) {
+        sleep(2); // Sleep for two seconds
         std::string selectQuery = "select idworker from worker where status='started'";
         std::vector<vector<pair<string, string>>> output = this->sqlite.runSelect(selectQuery);
         int startedWorkers = output.size();
