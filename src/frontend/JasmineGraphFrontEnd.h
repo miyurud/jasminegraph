@@ -53,7 +53,7 @@ public:
 
     static void removeGraph(std::string graphID, SQLiteDBInterface sqlite, std::string masterIP);
 
-    static std::string copyCentralStoreToAggregator(std::string aggregatorHostName, std::string aggregatorPort, std::string host, std::string port, int graphId, int partitionId, std::string masterIP);
+    static std::string copyCentralStoreToAggregator(std::string aggregatorHostName, std::string aggregatorPort, std::string aggregatorDataPort, int graphId, int partitionId, std::string masterIP);
 
     static std::vector<std::vector<string>> getWorkerCombination (SQLiteDBInterface sqlite, std::string graphId);
 

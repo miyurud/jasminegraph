@@ -1314,8 +1314,7 @@ std::vector<std::vector<string>> JasmineGraphFrontEnd::getWorkerCombination(SQLi
 
 
 std::string JasmineGraphFrontEnd::copyCentralStoreToAggregator(std::string aggregatorHostName,
-                                                               std::string aggregatorPort, std::string host,
-                                                               std::string port, int graphId, int partitionId,
+                                                               std::string aggregatorPort, std::string aggregatorDataPort, int graphId, int partitionId,
                                                                std::string masterIP) {
     int sockfd;
     char data[300];
@@ -1324,6 +1323,13 @@ std::string JasmineGraphFrontEnd::copyCentralStoreToAggregator(std::string aggre
     struct sockaddr_in serv_addr;
     struct hostent *server;
     Utils utils;
+    std::string aggregatorFilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
+    std::string fileName = std::to_string(graphId) + "_centralstore_" + std::to_string(partitionId) + ".gz";
+    std::string centralStoreFile = aggregatorFilePath + "/" + fileName;
+    JasmineGraphServer *jasmineServer = new JasmineGraphServer();
+
+    int fileSize = utils.getFileSize(centralStoreFile);
+    std::string fileLength = to_string(fileSize);
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -1332,11 +1338,11 @@ std::string JasmineGraphFrontEnd::copyCentralStoreToAggregator(std::string aggre
         return 0;
     }
 
-    if (host.find('@') != std::string::npos) {
-        host = utils.split(host, '@')[0];
+    if (aggregatorHostName.find('@') != std::string::npos) {
+        aggregatorHostName = utils.split(aggregatorHostName, '@')[0];
     }
 
-    server = gethostbyname(host.c_str());
+    server = gethostbyname(aggregatorHostName.c_str());
     if (server == NULL) {
         std::cerr << "ERROR, no host named " << server << std::endl;
     }
@@ -1346,7 +1352,7 @@ std::string JasmineGraphFrontEnd::copyCentralStoreToAggregator(std::string aggre
     bcopy((char *) server->h_addr,
           (char *) &serv_addr.sin_addr.s_addr,
           server->h_length);
-    serv_addr.sin_port = htons(atoi(port.c_str()));
+    serv_addr.sin_port = htons(atoi(aggregatorPort.c_str()));
     if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
         //TODO::exit
@@ -1398,84 +1404,97 @@ std::string JasmineGraphFrontEnd::copyCentralStoreToAggregator(std::string aggre
         response = (data);
         response = utils.trim_copy(response, " \f\n\r\t\v");
 
-        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-            frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
-            result_wr = write(sockfd, std::to_string(graphId).c_str(), std::to_string(graphId).size());
+        if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_NAME) == 0) {
+            frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_NAME, "info");
+            result_wr = write(sockfd, fileName.c_str(), fileName.size());
 
             if(result_wr < 0) {
                 frontend_logger.log("Error writing to socket", "error");
             }
 
-            frontend_logger.log("Sent : Graph ID " + std::to_string(graphId), "info");
+            frontend_logger.log("Sent : File Name " + fileName, "info");
 
             bzero(data, 301);
             read(sockfd, data, 300);
             response = (data);
             response = utils.trim_copy(response, " \f\n\r\t\v");
+
+            if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_LEN) == 0) {
+                frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN, "info");
+                result_wr = write(sockfd, fileLength.c_str(), fileLength.size());
+
+                if(result_wr < 0) {
+                    frontend_logger.log("Error writing to socket", "error");
+                }
+
+                frontend_logger.log("Sent : File Length: " + fileLength, "info");
+
+                bzero(data, 301);
+                read(sockfd, data, 300);
+                response = (data);
+                response = utils.trim_copy(response, " \f\n\r\t\v");
+
+                if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_CONT) == 0) {
+                    frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
+                    frontend_logger.log("Going to send file through service", "info");
+                    jasmineServer->sendFileThroughService(aggregatorHostName, std::atoi(aggregatorDataPort.c_str()), fileName, centralStoreFile, masterIP);
+                }
+            }
         }
 
-        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-            frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
-            result_wr = write(sockfd, std::to_string(partitionId).c_str(), std::to_string(partitionId).size());
+        int count = 0;
+
+        while (true) {
+            result_wr = write(sockfd, JasmineGraphInstanceProtocol::FILE_RECV_CHK.c_str(),
+                              JasmineGraphInstanceProtocol::FILE_RECV_CHK.size());
 
             if(result_wr < 0) {
                 frontend_logger.log("Error writing to socket", "error");
             }
 
-            frontend_logger.log("Sent : Partition ID " + std::to_string(partitionId), "info");
-
+            frontend_logger.log("Sent : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
+            frontend_logger.log("Checking if file is received", "info");
             bzero(data, 301);
             read(sockfd, data, 300);
             response = (data);
-            response = utils.trim_copy(response, " \f\n\r\t\v");
+            //response = utils.trim_copy(response, " \f\n\r\t\v");
+
+            if (response.compare(JasmineGraphInstanceProtocol::FILE_RECV_WAIT) == 0) {
+                frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_WAIT, "info");
+                frontend_logger.log("Checking file status : " + to_string(count), "info");
+                count++;
+                sleep(1);
+                continue;
+            } else if (response.compare(JasmineGraphInstanceProtocol::FILE_ACK) == 0) {
+                frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_ACK, "info");
+                frontend_logger.log("File transfer completed for file : " + centralStoreFile, "info");
+                break;
+            }
         }
 
-        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-            frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
-            result_wr = write(sockfd, aggregatorHostName.c_str(), aggregatorHostName.size());
+        //Next we wait till the batch upload completes
+        while (true) {
+            result_wr = write(sockfd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK.c_str(),
+                              JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK.size());
 
             if(result_wr < 0) {
                 frontend_logger.log("Error writing to socket", "error");
             }
 
-            frontend_logger.log("Sent : Aggregator Host Name " + aggregatorHostName, "info");
-
+            frontend_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
             bzero(data, 301);
             read(sockfd, data, 300);
             response = (data);
-            response = utils.trim_copy(response, " \f\n\r\t\v");
-        }
 
-        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-            frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
-            result_wr = write(sockfd, aggregatorPort.c_str(), aggregatorPort.size());
-
-            if(result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+            if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT) == 0) {
+                frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT, "info");
+                sleep(1);
+                continue;
+            } else if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK) == 0) {
+                frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK, "info");
+                frontend_logger.log("CentralStore partition file upload completed", "info");
+                break;
             }
-
-            frontend_logger.log("Sent : Aggregator Port " + aggregatorPort, "info");
-
-            bzero(data, 301);
-            read(sockfd, data, 300);
-            response = (data);
-            response = utils.trim_copy(response, " \f\n\r\t\v");
-        }
-
-        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-            frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
-            result_wr = write(sockfd, host.c_str(), host.size());
-
-            if(result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
-            }
-
-            frontend_logger.log("Sent : Host " + host, "info");
-
-            bzero(data, 301);
-            read(sockfd, data, 300);
-            response = (data);
-            response = utils.trim_copy(response, " \f\n\r\t\v");
         }
     } else {
         frontend_logger.log("There was an error in the upload process and the response is :: " + response,
@@ -1622,14 +1641,14 @@ string JasmineGraphFrontEnd::countCentralStoreTriangles(std::string aggregatorHo
 
 long JasmineGraphFrontEnd::aggregateCentralStoreTriangles(SQLiteDBInterface sqlite, std::string graphId, std::string masterIP) {
 
-    std::vector<std::vector<string>> workerCombination = getWorkerCombination(sqlite,graphId);
+    std::vector<std::vector<string>> workerCombinations = getWorkerCombination(sqlite,graphId);
     std::map<string, int> workerWeightMap;
     std::vector<std::vector<string>>::iterator workerCombinationsIterator;
     std::vector<std::future<string>> triangleCountResponse;
     std::string result = "";
     long aggregatedTriangleCount = 0;
 
-    for (workerCombinationsIterator = workerCombination.begin(); workerCombinationsIterator != workerCombination.end(); ++workerCombinationsIterator) {
+    for (workerCombinationsIterator = workerCombinations.begin(); workerCombinationsIterator != workerCombinations.end(); ++workerCombinationsIterator) {
         std::vector<string> workerCombination = *workerCombinationsIterator;
         std::map<string, int>::iterator workerWeightMapIterator;
         int minimumWeight = 0;
@@ -1704,7 +1723,7 @@ long JasmineGraphFrontEnd::aggregateCentralStoreTriangles(SQLiteDBInterface sqli
 
                 partitionIdList += partitionId + ",";
 
-                copyCentralStoreToAggregator(aggregatorHost,aggregatorPort,host,workerPort,atoi(graphId.c_str()),atoi(partitionId.c_str()),masterIP);
+                copyCentralStoreToAggregator(aggregatorHost,aggregatorPort,aggregatorDataPort,atoi(graphId.c_str()),atoi(partitionId.c_str()),masterIP);
 
 
             }
@@ -1712,6 +1731,8 @@ long JasmineGraphFrontEnd::aggregateCentralStoreTriangles(SQLiteDBInterface sqli
         }
 
         std::string adjustedPartitionIdList = partitionIdList.substr(0, partitionIdList.size()-1);
+        minimumWeight = minimumWeight + 1;
+        workerWeightMap[minWeightWorker] = minimumWeight;
 
         triangleCountResponse.push_back(
                 std::async(std::launch::async, JasmineGraphFrontEnd::countCentralStoreTriangles, aggregatorHost, aggregatorPort, aggregatorHost,
