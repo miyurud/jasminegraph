@@ -1147,7 +1147,6 @@ void JasmineGraphServer::copyCentralStoreToAggregateLocation(std::string filePat
 
     std::string fullFileName = aggregatorFilePath + "/" + fileName;
 
-    utils.unzipFile(fullFileName);
 }
 
 bool JasmineGraphServer::batchUploadAttributeFile(std::string host, int port, int dataPort, int graphID,
