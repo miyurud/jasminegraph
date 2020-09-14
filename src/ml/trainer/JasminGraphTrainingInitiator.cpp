@@ -120,7 +120,12 @@ bool JasminGraphTrainingInitiator::initiateTrain(std::string host, int port, int
     }
 
     bzero(data, DATA_LENGTH);
-    write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+    int result_wr = write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+    if(result_wr < 0) {
+        trainer_log.log("Error writing to socket", "error");
+        return false;
+    }
+
     trainer_log.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
     bzero(data, DATA_LENGTH);
     read(sockfd, data, DATA_LENGTH);
@@ -131,11 +136,33 @@ bool JasminGraphTrainingInitiator::initiateTrain(std::string host, int port, int
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
         trainer_log.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
         string server_host = utils.getJasmineGraphProperty("org.jasminegraph.server.host");
-        write(sockfd, server_host.c_str(), server_host.size());
+        int result_wr = write(sockfd, server_host.c_str(), server_host.size());
+        if(result_wr < 0) {
+            trainer_log.log("Error writing to socket", "error");
+            return false;
+        }
+
         trainer_log.log("Sent : " + server_host, "info");
 
-        write(sockfd, JasmineGraphInstanceProtocol::INITIATE_TRAIN.c_str(),
+        bzero(data, DATA_LENGTH);
+        read(sockfd, data, DATA_LENGTH);
+        string response = (data);
+
+        response = utils.trim_copy(response, " \f\n\r\t\v");
+
+        if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
+            trainer_log.log("Received : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
+        } else {
+            trainer_log.log("Received : " + response, "error");
+        }
+
+        result_wr = write(sockfd, JasmineGraphInstanceProtocol::INITIATE_TRAIN.c_str(),
               JasmineGraphInstanceProtocol::INITIATE_TRAIN.size());
+        if(result_wr < 0) {
+            trainer_log.log("Error writing to socket", "error");
+            return false;
+        }
+
         trainer_log.log("Sent : " + JasmineGraphInstanceProtocol::INITIATE_TRAIN, "info");
         bzero(data, DATA_LENGTH);
         read(sockfd, data, DATA_LENGTH);
@@ -144,7 +171,12 @@ bool JasminGraphTrainingInitiator::initiateTrain(std::string host, int port, int
         std::cout << response << std::endl;
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
             trainer_log.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
-            write(sockfd, (trainingArgs).c_str(), (trainingArgs).size());
+            result_wr = write(sockfd, (trainingArgs).c_str(), (trainingArgs).size());
+            if(result_wr < 0) {
+                trainer_log.log("Error writing to socket", "error");
+                return false;
+            }
+
             trainer_log.log("Sent : training args " + trainingArgs, "info");
             bzero(data, DATA_LENGTH);
             read(sockfd, data, DATA_LENGTH);
@@ -152,7 +184,12 @@ bool JasminGraphTrainingInitiator::initiateTrain(std::string host, int port, int
             response = utils.trim_copy(response, " \f\n\r\t\v");
             if (response.compare(JasmineGraphInstanceProtocol::SEND_PARTITION_ITERATION) == 0) {
                 trainer_log.log("Received : " + JasmineGraphInstanceProtocol::SEND_PARTITION_ITERATION, "info");
-                write(sockfd, to_string(iteration).c_str(), to_string(iteration).size());
+                result_wr = write(sockfd, to_string(iteration).c_str(), to_string(iteration).size());
+                if(result_wr < 0) {
+                    trainer_log.log("Error writing to socket", "error");
+                    return false;
+                }
+
                 trainer_log.log("Sent : partition iteration " + to_string(iteration), "info");
 
                 bzero(data, DATA_LENGTH);
@@ -161,7 +198,11 @@ bool JasminGraphTrainingInitiator::initiateTrain(std::string host, int port, int
                 response = utils.trim_copy(response, " \f\n\r\t\v");
                 if (response.compare(JasmineGraphInstanceProtocol::SEND_PARTITION_COUNT) == 0) {
                     trainer_log.log("Received : " + JasmineGraphInstanceProtocol::SEND_PARTITION_COUNT, "info");
-                    write(sockfd, partCount.c_str(), partCount.size());
+                    result_wr = write(sockfd, partCount.c_str(), partCount.size());
+                    if(result_wr < 0) {
+                        trainer_log.log("Error writing to socket", "error");
+                        return false;
+                    }
                     trainer_log.log("Sent : partition count " + partCount, "info");
                     return 0;
                 }

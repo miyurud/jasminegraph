@@ -75,7 +75,7 @@ public:
     static void loadInstanceDuplicateCentralStore(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapDuplicateCentralStore>& graphDBMapDuplicateCentralStores);
     static JasmineGraphHashMapCentralStore loadCentralStore(std::string centralStoreFileName);
     static std::string copyCentralStoreToAggregator(std::string graphId, std::string partitionId, std::string aggregatorHost, std::string aggregatorPort, std::string host);
-    static long aggregateCentralStoreTriangles (std::string graphId, std::string partitionId);
+    static std::string aggregateCentralStoreTriangles (std::string graphId, std::string partitionId, std::string partitionIdList);
     static map<long, long> getOutDegreeDistributionHashMap(map<long, unordered_set<long>> graphMap);
     static string requestPerformanceStatistics(std::string isVMStatManager, std::string isResourceAllocationRequested);
 

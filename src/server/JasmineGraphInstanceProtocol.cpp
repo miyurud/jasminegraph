@@ -15,6 +15,7 @@ limitations under the License.
 
 const string JasmineGraphInstanceProtocol::HANDSHAKE = "hske";
 const string JasmineGraphInstanceProtocol::HANDSHAKE_OK = "hske-ok";
+const string JasmineGraphInstanceProtocol::HOST_OK = "hst-ok";
 const string JasmineGraphInstanceProtocol::CLOSE = "close";
 const string JasmineGraphInstanceProtocol::CLOSE_ACK = "close-ok" ;
 const string JasmineGraphInstanceProtocol::SHUTDOWN = "shdn";
@@ -56,3 +57,6 @@ const string JasmineGraphInstanceProtocol::INITIATE_MODEL_COLLECTION = "initiate
 const string JasmineGraphInstanceProtocol::INITIATE_FRAGMENT_RESOLUTION = "frag-res";
 const string JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_CHK = "frag-chk";
 const string JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_DONE = "frag-done";
+const string JasmineGraphInstanceProtocol::ACKNOWLEDGE_MASTER = "ack-master";
+const string JasmineGraphInstanceProtocol::WORKER_INFO_SEND = "worker-info";
+const string JasmineGraphInstanceProtocol::UPDATE_DONE="done";
