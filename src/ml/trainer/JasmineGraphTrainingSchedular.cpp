@@ -320,6 +320,7 @@ JasmineGraphTrainingSchedular::estimateMemoryDistOpt(vector<vector<int>> partiti
 
         double graphSize = ((double) featureSize) * nodeCount * edgeCount * featureCount / (1024 * 1024); //Size in hard disk (KB)
 
+        //The following linear relationship was observed between the computed graph size and graph size in memory in the experiments
         double sizeInMem = 3.6 * graphSize + 2 * 1024; //Size when loaded into memory
 
         if (sizeInMem > availableMemory) {
