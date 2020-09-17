@@ -862,7 +862,7 @@ string MetisPartitioner::reformatDataSet(string inputFilePath, int graphID) {
 }
 
 
-void MetisPartitioner::loadContentData(string inputAttributeFilePath, string graphAttributeType, int graphID) {
+void MetisPartitioner::loadContentData(string inputAttributeFilePath, string graphAttributeType, int graphID, string attrType="") {
     this->graphAttributeType = graphAttributeType;
 
     if (graphAttributeType == Conts::GRAPH_WITH_TEXT_ATTRIBUTES) {
@@ -874,6 +874,34 @@ void MetisPartitioner::loadContentData(string inputAttributeFilePath, string gra
         string line;
 
         std::getline(dbFile, line);
+
+        //Infer attribute data type if not explicitly given from first line in attribute file
+        if (attrType == "") {
+            string firstLine = line;
+            //Get substring containing attribute values
+            int strpos = line.find(splitter);
+            string attributes = line.substr(strpos + 1, -1);
+
+            //Iterate through attribute string values to infer data type
+            vector<string> strArr = Utils::split(attributes, splitter);
+            for (vector<string>::iterator i = strArr.begin(); i != strArr.end(); i++) {
+                string value = *i;
+                if (value.find(".") != std::string::npos) { //Check if contains decimal point (float)
+                    attrType = "float";
+                    break;
+                } else {
+                    int convertedValue = stoi(value);
+                    //Check value and determine suitable datatype
+                    if (-125 <= convertedValue && convertedValue <= 127)
+                        attrType = "int8";
+                    else if (-32768 <= convertedValue && convertedValue <= 32767)
+                        attrType = "int16";
+                    else
+                        attrType = "int32";
+                }
+            }
+            cout << "Inferred feature type: " << attrType << endl;
+        }
 
         if (!line.empty()) {
             if (line.find(" ") != std::string::npos) {
@@ -910,8 +938,9 @@ void MetisPartitioner::loadContentData(string inputAttributeFilePath, string gra
             std::istream_iterator<std::string> begin(ss), end;
             std::vector<std::string> arrayFeatures(begin, end);
             string sqlStatement = "UPDATE graph SET feature_count = '" + std::to_string(arrayFeatures.size() - 1) +
-                                  "' WHERE idgraph = '" + std::to_string(graphID) + "'";
+                                  "', feature_type = '" + attrType + "' WHERE idgraph = '" + std::to_string(graphID) + "'";
             cout << sqlStatement << endl;
+            cout << "Feature type: " << attrType << endl;
             dbLock.lock();
             this->sqlite.runUpdate(sqlStatement);
             dbLock.unlock();
