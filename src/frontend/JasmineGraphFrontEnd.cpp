@@ -1664,6 +1664,7 @@ long JasmineGraphFrontEnd::aggregateCentralStoreTriangles(SQLiteDBInterface sqli
     for (workerCombinationsIterator = workerCombinations.begin(); workerCombinationsIterator != workerCombinations.end(); ++workerCombinationsIterator) {
         std::vector<string> workerCombination = *workerCombinationsIterator;
         std::map<string, int>::iterator workerWeightMapIterator;
+        std::vector<std::future<string>> remoteGraphCopyResponse;
         int minimumWeight = 0;
         std::string minWeightWorker;
         string aggregatorHost = "";
@@ -1736,11 +1737,15 @@ long JasmineGraphFrontEnd::aggregateCentralStoreTriangles(SQLiteDBInterface sqli
 
                 partitionIdList += partitionId + ",";
 
-                copyCentralStoreToAggregator(aggregatorHost,aggregatorPort,aggregatorDataPort,atoi(graphId.c_str()),atoi(partitionId.c_str()),masterIP);
-
-
+                remoteGraphCopyResponse.push_back(
+                        std::async(std::launch::async, JasmineGraphFrontEnd::copyCentralStoreToAggregator, aggregatorHost, aggregatorPort, aggregatorDataPort,
+                                   atoi(graphId.c_str()), atoi(partitionId.c_str()), masterIP));
             }
 
+        }
+
+        for (auto &&futureCallCopy:remoteGraphCopyResponse) {
+            futureCallCopy.get();
         }
 
         std::string adjustedPartitionIdList = partitionIdList.substr(0, partitionIdList.size()-1);
