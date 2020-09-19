@@ -1681,7 +1681,7 @@ long JasmineGraphFrontEnd::aggregateCentralStoreTriangles(SQLiteDBInterface sqli
             if (workerWeightMapIterator != workerWeightMap.end()) {
                 int weight = workerWeightMap.at(workerId);
 
-                if (minimumWeight > weight) {
+                if (minimumWeight == 0 || minimumWeight > weight) {
                     minimumWeight = weight;
                     minWeightWorker = workerId;
                 }
