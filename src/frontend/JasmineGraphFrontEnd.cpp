@@ -361,8 +361,12 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             }
 
             // We get the name and the path to graph edge list and attribute list as a triplet separated by | .
-            // (<name>|<path to edge list>|<path to attribute file>)
-            message = "Send <name>|<path to edge list>|<path to attribute file>\n";
+            // <name>|<path to edge list>|<path to attribute file>|(optional)<attribute data type: int8. int16, int32 or float>
+            // Data types based on numpy array data types for numerical values with int8 referring to 8bit integers etc.
+            // If data type is not specified, it will be inferred from values present in the first line of the attribute file
+            // The provided data type should be the largest in the following order: float > int32 > int16 > int8
+            // Inferred data type will be the largest type based on the values present in the attribute file first line
+            message = "Send <name>|<path to edge list>|<path to attribute file>|(optional)<attribute data type: int8. int16, int32 or float>\n";
             result_wr = write(connFd, message.c_str(), message.size());
             if(result_wr < 0) {
                 frontend_logger.log("Error writing to socket", "error");
@@ -374,6 +378,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             string name = "";
             string edgeListPath = "";
             string attributeListPath = "";
+            string attrDataType = "";
 
             read(connFd, graph_data, FRONTEND_DATA_LENGTH);
 
@@ -387,7 +392,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
             std::vector<std::string> strArr = Utils::split(gData, '|');
 
-            if (strArr.size() != 3) {
+            if (strArr.size() != 3 && strArr.size() != 4) {
                 frontend_logger.log("Message format not recognized", "error");
                 continue;
             }
@@ -395,6 +400,14 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             name = strArr[0];
             edgeListPath = strArr[1];
             attributeListPath = strArr[2];
+            //If data type is specified
+            if (strArr.size() == 4) {
+                attrDataType = strArr[3];
+                if (attrDataType != "int8" && attrDataType != "int16" && attrDataType != "int32" && attrDataType != "float") {
+                    frontend_logger.log("Data type not recognized", "error");
+                    continue;
+                }
+            }
 
             if (JasmineGraphFrontEnd::graphExists(edgeListPath, sqlite)) {
                 frontend_logger.log("Graph exists", "error");
@@ -413,7 +426,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 JasmineGraphServer *jasmineServer = new JasmineGraphServer();
                 MetisPartitioner *partitioner = new MetisPartitioner(&sqlite);
                 vector<std::map<int, string>> fullFileList;
-                partitioner->loadContentData(attributeListPath, graphAttributeType, newGraphID);
+                partitioner->loadContentData(attributeListPath, graphAttributeType, newGraphID, attrDataType);
                 partitioner->loadDataSet(edgeListPath, newGraphID);
                 int result = partitioner->constructMetisFormat(Conts::GRAPH_TYPE_NORMAL);
                 if (result == 0) {
