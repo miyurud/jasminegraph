@@ -28,6 +28,8 @@ limitations under the License.
 #include "../server/JasmineGraphServer.h"
 #include "../partitioner/local/RDFParser.h"
 #include "../partitioner/local/JSONParser.h"
+#include "../partitioner/stream/utils/JSONStringParser.h"
+#include "../centralstore/incremental/NodeManager.h"
 #include "../server/JasmineGraphInstanceProtocol.h"
 #include "../ml/trainer/JasminGraphTrainingInitiator.h"
 #include "../query/algorithms/linkprediction/JasminGraphLinkPredictor.h"
@@ -39,6 +41,10 @@ using namespace std;
 static int connFd;
 Logger frontend_logger;
 static map<string,int> aggregatorWeightMap;
+const string NODE_DB = "streamStore/nodes.db";
+const string EDGE_DB = "streamStore/edges.db";
+NodeManager nm = NodeManager("trunc");
+
 
 void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface sqlite) {
     frontend_logger.log("Thread No: " + to_string(pthread_self()), "info");
@@ -488,16 +494,28 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                     continue;
                 }
                 string data(msg.get_payload());
-                // cout << "Payload = " << data << endl;
                 if (data == "-1") {  // Marks the end of stream
                     frontend_logger.log("Received the end of stream", "info");
                     break;
                 }
-                std::pair<long, long> edge = Partitioner::deserialize(data);
-                frontend_logger.log(
-                        "Received edge >> " + std::to_string(edge.first) + " --- " + std::to_string(edge.second),
-                        "info");
-                graphPartitioner.addEdge(edge);
+                const Json::Value edgePayload = JSONStringParser::parse(data);
+                const Json::Value source = edgePayload["source"];
+                if (source.empty()) {
+                    std::cout << "Error: Malformed payload!!" << std::endl;
+                }
+                const Json::Value destination = edgePayload["destination"];
+                string sourceIdRaw = source["id"].asString();
+                int sourceId = stoi(sourceIdRaw);
+                string destinationIdRaw = destination["id"].asString();
+                int destinationId = stoi(destinationIdRaw);
+                nm.addEdge({ sourceId, destinationId });
+                
+                
+                // std::pair<long, long> edge = Partitioner::deserialize(data);
+                // frontend_logger.log(
+                //         "Received edge >> " + std::to_string(edge.first) + " --- " + std::to_string(edge.second),
+                //         "info");
+                // graphPartitioner.addEdge(edge);
             }
             graphPartitioner.printStats();
 
