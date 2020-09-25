@@ -1052,6 +1052,46 @@ void *instanceservicesession(void *dummyPt) {
             string graphIDList = notInItemsString;
             write(connFd, graphIDList.c_str(), graphIDList.size());
             instance_logger.log("Sent : " + graphIDList, "info");
+        } else if (line.compare(JasmineGraphInstanceProtocol::CHECK_FILE_ACCESSIBLE) == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::CHECK_FILE_ACCESSIBLE, "info");
+            write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_TYPE.c_str(),
+                  JasmineGraphInstanceProtocol::SEND_FILE_TYPE.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_TYPE, "info");
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string fileType = (data);
+            fileType = utils.trim_copy(fileType, " \f\n\r\t\v");
+
+            if (fileType.compare(JasmineGraphInstanceProtocol::FILE_TYPE_CENTRALSTORE_AGGREGATE) == 0) {
+                write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+                instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+                bzero(data, INSTANCE_DATA_LENGTH);
+                read(connFd, data, INSTANCE_DATA_LENGTH);
+                string graphId = (data);
+                graphId = utils.trim_copy(graphId, " \f\n\r\t\v");
+                instance_logger.log("Received Graph ID: " + graphId, "info");
+
+                write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+                bzero(data, INSTANCE_DATA_LENGTH);
+                read(connFd, data, INSTANCE_DATA_LENGTH);
+                string partitionId = (data);
+                partitionId = utils.trim_copy(partitionId, " \f\n\r\t\v");
+                instance_logger.log("Received Partition ID: " + partitionId, "info");
+
+                string aggregateLocation = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
+                string fileName = graphId + "_centralstore_" + partitionId;
+                string fullFilePath = aggregateLocation + "/" + fileName;
+                string result = "false";
+
+                bool fileExists = utils.fileExists(fullFilePath);
+
+                if (fileExists) {
+                    result = "true";
+                }
+
+                write(connFd, result.c_str(), result.size());
+                instance_logger.log("Sent : " + result, "info");
+            }
         }
     }
     instance_logger.log("Closing thread " + to_string(pthread_self()), "info");

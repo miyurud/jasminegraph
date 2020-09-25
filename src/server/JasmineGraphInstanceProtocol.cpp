@@ -60,3 +60,6 @@ const string JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_DONE = "frag-done
 const string JasmineGraphInstanceProtocol::ACKNOWLEDGE_MASTER = "ack-master";
 const string JasmineGraphInstanceProtocol::WORKER_INFO_SEND = "worker-info";
 const string JasmineGraphInstanceProtocol::UPDATE_DONE="done";
+const string JasmineGraphInstanceProtocol::CHECK_FILE_ACCESSIBLE="check-file-accessible";
+const string JasmineGraphInstanceProtocol::SEND_FILE_TYPE="send-file-type";
+const string JasmineGraphInstanceProtocol::FILE_TYPE_CENTRALSTORE_AGGREGATE="file-type-centralstore-aggregate";
