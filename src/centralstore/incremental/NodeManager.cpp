@@ -15,7 +15,7 @@ NodeManager::NodeManager(std::string mode) {
         new std::fstream(NodeManager::NODE_DB_PATH, std::ios::in | std::ios::out | openMode | std::ios::binary);
     PropertyLink::propertiesDB =
         new std::fstream(PropertyLink::DB_PATH, std::ios::in | std::ios::out | openMode | std::ios::binary);
-    // TODO: set PropertyLink nextPropertyIndex after validating by modulus check from file number of bytes
+    // TODO (tmkasun): set PropertyLink nextPropertyIndex after validating by modulus check from file number of bytes
 
     if (dbSize(NodeManager::NODE_DB_PATH) % NodeBlock::BLOCK_SIZE != 0) {
         std::cout << "WARNING: " << NodeManager::NODE_DB_PATH << " might be corrupted!" << std::endl;
@@ -25,7 +25,7 @@ NodeManager::NodeManager(std::string mode) {
 std::unordered_map<std::string, unsigned int> NodeManager::readNodeIndex() {
     std::ifstream index_db(this->index_db_loc);
     std::cout << "DEBUG: tellg " << index_db.tellg() << std::endl;
-    std::unordered_map<std::string, unsigned int> _nodeIndex;  // temproy node index data holder
+    std::unordered_map<std::string, unsigned int> _nodeIndex;  // temporary node index data holder
 
     if (index_db.is_open()) {
         int iSize = dbSize(this->index_db_loc);
