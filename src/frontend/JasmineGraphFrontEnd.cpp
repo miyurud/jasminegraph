@@ -823,6 +823,11 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 break;
             }
 
+            if (!JasmineGraphFrontEnd::isGraphActive(graphID, sqlite)) {
+                frontend_logger.log("Graph is not in the active status", "error");
+                break;
+            }
+
             JasminGraphTrainingInitiator *jasminGraphTrainingInitiator = new JasminGraphTrainingInitiator();
             jasminGraphTrainingInitiator->initiateTrainingLocally(graphID,trainData);
         } else if (line.compare(PREDICT) == 0){
@@ -1052,6 +1057,25 @@ bool JasmineGraphFrontEnd::isGraphActiveAndTrained(std::string graphID, SQLiteDB
     int count = std::stoi(v[0][0].second);
     if (count == 0) {
         result = false;
+    }
+    return result;
+}
+
+/**
+ * This method checks whether the graph is active
+ * @param graphID
+ * @param dummyPt
+ * @return
+ */
+bool JasmineGraphFrontEnd::isGraphActive(std::string graphID, SQLiteDBInterface sqlite) {
+    bool result = false;
+    string stmt =
+            "SELECT COUNT( * ) FROM graph WHERE idgraph LIKE '" + graphID + "' AND graph_status_idgraph_status = '" +
+            to_string(Conts::GRAPH_STATUS::OPERATIONAL) + "';";
+    std::vector<vector<pair<string, string>>> v = sqlite.runSelect(stmt);
+    int count = std::stoi(v[0][0].second);
+    if (count != 0) {
+        result = true;
     }
     return result;
 }
