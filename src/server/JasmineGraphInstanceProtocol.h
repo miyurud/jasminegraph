@@ -69,6 +69,9 @@ public:
     static const string ACKNOWLEDGE_MASTER;
     static const string WORKER_INFO_SEND;
     static const string UPDATE_DONE;
+    static const string CHECK_FILE_ACCESSIBLE;
+    static const string SEND_FILE_TYPE;
+    static const string FILE_TYPE_CENTRALSTORE_AGGREGATE;
 };
 
 const int INSTANCE_DATA_LENGTH = 300;

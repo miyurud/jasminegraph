@@ -63,6 +63,8 @@ public:
 
     static long countTriangles(std::string graphId, SQLiteDBInterface sqlite, std::string masterIP);
 
+    static string isCentralstoreAccessibleToWorker(std::string graphId, std::string partitionId, std::string aggregatorHostName, std::string aggregatorPort, std::string masterIP);
+
     static long getTriangleCount(int graphId, std::string host, int port, int partitionId, std::string masterIP);
 
     static void getAndUpdateUploadTime(std::string graphID, SQLiteDBInterface sqlite);

@@ -1681,7 +1681,7 @@ long JasmineGraphFrontEnd::aggregateCentralStoreTriangles(SQLiteDBInterface sqli
             if (workerWeightMapIterator != workerWeightMap.end()) {
                 int weight = workerWeightMap.at(workerId);
 
-                if (minimumWeight > weight) {
+                if (minimumWeight == 0 || minimumWeight > weight) {
                     minimumWeight = weight;
                     minWeightWorker = workerId;
                 }
@@ -1737,9 +1737,15 @@ long JasmineGraphFrontEnd::aggregateCentralStoreTriangles(SQLiteDBInterface sqli
 
                 partitionIdList += partitionId + ",";
 
-                remoteGraphCopyResponse.push_back(
-                        std::async(std::launch::async, JasmineGraphFrontEnd::copyCentralStoreToAggregator, aggregatorHost, aggregatorPort, aggregatorDataPort,
-                                   atoi(graphId.c_str()), atoi(partitionId.c_str()), masterIP));
+                std::string centralStoreAvailable = isCentralstoreAccessibleToWorker(graphId,partitionId,aggregatorHost,aggregatorPort,masterIP);
+
+                if (centralStoreAvailable.compare("false") == 0) {
+                    remoteGraphCopyResponse.push_back(
+                            std::async(std::launch::async, JasmineGraphFrontEnd::copyCentralStoreToAggregator, aggregatorHost, aggregatorPort, aggregatorDataPort,
+                                       atoi(graphId.c_str()), atoi(partitionId.c_str()), masterIP));
+                }
+
+
             }
 
         }
@@ -1779,6 +1785,127 @@ long JasmineGraphFrontEnd::aggregateCentralStoreTriangles(SQLiteDBInterface sqli
 
     return aggregatedTriangleCount;
 
+}
+
+string JasmineGraphFrontEnd::isCentralstoreAccessibleToWorker(std::string graphId, std::string partitionId, std::string aggregatorHostName, std::string aggregatorPort, std::string masterIP) {
+    int sockfd;
+    char data[300];
+    bool loop = false;
+    socklen_t len;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+    Utils utils;
+    string centralStoreAccessible = "false";
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sockfd < 0) {
+        std::cerr << "Cannot accept connection" << std::endl;
+        return 0;
+    }
+
+    server = gethostbyname(aggregatorHostName.c_str());
+    if (server == NULL) {
+        std::cerr << "ERROR, no host named " << server << std::endl;
+    }
+
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *) server->h_addr,
+          (char *) &serv_addr.sin_addr.s_addr,
+          server->h_length);
+    serv_addr.sin_port = htons(atoi(aggregatorPort.c_str()));
+    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+        std::cerr << "ERROR connecting" << std::endl;
+        //TODO::exit
+    }
+
+    bzero(data, 301);
+    int result_wr = write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+
+    if(result_wr < 0) {
+        frontend_logger.log("Error writing to socket", "error");
+    }
+
+    frontend_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
+    bzero(data, 301);
+    read(sockfd, data, 300);
+    string response = (data);
+
+    response = utils.trim_copy(response, " \f\n\r\t\v");
+
+    if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
+        frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
+        result_wr = write(sockfd, masterIP.c_str(), masterIP.size());
+
+        if (result_wr < 0) {
+            frontend_logger.log("Error writing to socket", "error");
+        }
+
+        frontend_logger.log("Sent : " + masterIP, "info");
+        bzero(data, 301);
+        read(sockfd, data, 300);
+        response = (data);
+
+        if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
+            frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
+        } else {
+            frontend_logger.log("Received : " + response, "error");
+        }
+        result_wr = write(sockfd, JasmineGraphInstanceProtocol::CHECK_FILE_ACCESSIBLE.c_str(),
+                          JasmineGraphInstanceProtocol::CHECK_FILE_ACCESSIBLE.size());
+
+        if(result_wr < 0) {
+            frontend_logger.log("Error writing to socket", "error");
+        }
+
+        bzero(data, 301);
+        read(sockfd, data, 300);
+        response = (data);
+        response = utils.trim_copy(response, " \f\n\r\t\v");
+
+        if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_TYPE) == 0) {
+            result_wr = write(sockfd, JasmineGraphInstanceProtocol::FILE_TYPE_CENTRALSTORE_AGGREGATE.c_str(),
+                              JasmineGraphInstanceProtocol::FILE_TYPE_CENTRALSTORE_AGGREGATE.size());
+
+            if(result_wr < 0) {
+                frontend_logger.log("Error writing to socket", "error");
+            }
+
+            bzero(data, 301);
+            read(sockfd, data, 300);
+            response = (data);
+            response = utils.trim_copy(response, " \f\n\r\t\v");
+
+            if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+                result_wr = write(sockfd, graphId.c_str(),graphId.size());
+
+                if(result_wr < 0) {
+                    frontend_logger.log("Error writing to socket", "error");
+                }
+
+                bzero(data, 301);
+                read(sockfd, data, 300);
+                response = (data);
+                response = utils.trim_copy(response, " \f\n\r\t\v");
+
+                if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+                    result_wr = write(sockfd, partitionId.c_str(),partitionId.size());
+
+                    if(result_wr < 0) {
+                        frontend_logger.log("Error writing to socket", "error");
+                    }
+
+                    bzero(data, 301);
+                    read(sockfd, data, 300);
+                    response = (data);
+                    centralStoreAccessible = utils.trim_copy(response, " \f\n\r\t\v");
+                }
+            }
+        }
+    }
+
+    return centralStoreAccessible;
 }
 
 void JasmineGraphFrontEnd::getAndUpdateUploadTime(std::string graphID, SQLiteDBInterface sqlite) {

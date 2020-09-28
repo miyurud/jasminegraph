@@ -61,7 +61,7 @@ vector<vector<pair<string, string> >> SQLiteDBInterface::runSelect(std::string q
     rc = sqlite3_exec(database, query.c_str(), callback, &dbResults, &zErrMsg);
 
     if (rc != SQLITE_OK) {
-        db_logger.log("SQL Error: " + string(zErrMsg), "error");
+        db_logger.log("SQL Error: " + string(zErrMsg) + " " + query, "error");
         sqlite3_free(zErrMsg);
     } else {
         db_logger.log("Operation done successfully", "info");
@@ -74,7 +74,7 @@ int SQLiteDBInterface::runInsert(std::string query) {
     char *zErrMsg = 0;
     int rc = sqlite3_exec(database, query.c_str(), NULL, NULL, &zErrMsg);
     if (rc != SQLITE_OK) {
-        db_logger.log("SQL Error: " + string(zErrMsg), "error");
+        db_logger.log("SQL Error: " + string(zErrMsg) + " " + query, "error");
         sqlite3_free(zErrMsg);
     } else {
         db_logger.log("Insert operation done successfully", "info");
@@ -84,7 +84,7 @@ int SQLiteDBInterface::runInsert(std::string query) {
         int rc2 = sqlite3_exec(database, q2.c_str(), callback, &dbResults, &zErrMsg);
 
         if (rc2 != SQLITE_OK) {
-            fprintf(stderr, "SQL error: %s\n", zErrMsg);
+            db_logger.log("SQL Error: " + string(zErrMsg) + " " + query, "error");
             sqlite3_free(zErrMsg);
         } else {
             return std::stoi(dbResults[0][0].second);
@@ -98,7 +98,7 @@ void SQLiteDBInterface::runInsertNoIDReturn(std::string query) {
     char *zErrMsg = 0;
     int rc = sqlite3_exec(database, query.c_str(), NULL, NULL, &zErrMsg);
     if (rc != SQLITE_OK) {
-        db_logger.log("SQL Error: " + string(zErrMsg), "error");
+        db_logger.log("SQL Error: " + string(zErrMsg) + " " + query, "error");
         sqlite3_free(zErrMsg);
     } else {
         db_logger.log("Insert operation done successfully", "info");
@@ -112,7 +112,7 @@ void SQLiteDBInterface::runUpdate(std::string query) {
     int rc = sqlite3_exec(database, query.c_str(), NULL, NULL, &zErrMsg);
 
     if (rc != SQLITE_OK) {
-        db_logger.log("SQL Error: " + string(zErrMsg), "error");
+        db_logger.log("SQL Error: " + string(zErrMsg) + " " + query, "error");
         sqlite3_free(zErrMsg);
     } else {
         db_logger.log("Update operation done successfully", "info");
