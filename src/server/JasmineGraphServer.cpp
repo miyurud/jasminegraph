@@ -268,6 +268,7 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
     std::string workerPath = utils.getJasmineGraphProperty("org.jasminegraph.worker.path");
     std::string artifactPath = utils.getJasmineGraphProperty("org.jasminegraph.artifact.path");
     std::string instanceDataFolder = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+    std::string aggregateDataFolder = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
     std::string jasmineGraphExecutableName = Conts::JASMINEGRAPH_EXECUTABLE;
     server_logger.log("###MASTER#### Starting remote workers for profile " + profile, "info");
     if (hasEnding(workerPath,"/")) {
@@ -300,7 +301,8 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
     } else if (profile == "docker") {
         for (int i =0 ; i < workerPortsVector.size() ; i++) {
             if (masterHost == host || host == "localhost") {
-                serverStartScript = "docker run -v" + instanceDataFolder + ":" + instanceDataFolder + " -p " +
+                serverStartScript = "docker run -v" + instanceDataFolder + ":" + instanceDataFolder +
+                                    " -v " +aggregateDataFolder + ":" + aggregateDataFolder + " -p " +
                                     std::to_string(workerPortsVector.at(i)) + ":" +
                                     std::to_string(workerPortsVector.at(i)) + " -p " +
                                     std::to_string(workerDataPortsVector.at(i)) + ":" +
@@ -309,7 +311,8 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                                     std::to_string(workerPortsVector.at(i)) + " --SERVER_DATA_PORT " +
                                     std::to_string(workerDataPortsVector.at(i)) + " --ENABLE_NMON " + enableNmon;
             } else {
-                serverStartScript = "docker -H ssh://" + host + " run -v " + instanceDataFolder + ":" + instanceDataFolder +" -p " +
+                serverStartScript = "docker -H ssh://" + host + " run -v " + instanceDataFolder + ":" + instanceDataFolder +
+                                    " -v " +aggregateDataFolder + ":" + aggregateDataFolder + " -p " +
                                     std::to_string(workerPortsVector.at(i)) + ":" +
                                     std::to_string(workerPortsVector.at(i)) + " -p " +
                                     std::to_string(workerDataPortsVector.at(i)) + ":" +
