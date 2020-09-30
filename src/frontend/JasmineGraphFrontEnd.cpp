@@ -824,10 +824,13 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             }
 
             if (!JasmineGraphFrontEnd::isGraphActive(graphID, sqlite)) {
-
                 string error_message = "Graph is not in the active status";
                 frontend_logger.log(error_message, "error");
-                result_wr = write(connFd, error_message.c_str(), FRONTEND_COMMAND_LENGTH);
+                result_wr = write(connFd, error_message.c_str(), error_message.length());
+                if(result_wr < 0) {
+                    frontend_logger.log("Error writing to socket", "error");
+                }
+                result_wr = write(connFd, "\r\n", 2);
                 if(result_wr < 0) {
                     frontend_logger.log("Error writing to socket", "error");
                 }
