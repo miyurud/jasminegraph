@@ -75,6 +75,8 @@ public:
 
     static map<long, long> getOutDegreeDistributionHashMap(map<long, unordered_set<long>> graphMap);
 
+    static bool isGraphActive(string graphID, SQLiteDBInterface sqlite);
+
 private:
     SQLiteDBInterface sqlite;
     std::string masterIP;
