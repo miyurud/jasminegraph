@@ -1,3 +1,16 @@
+"""
+Copyright 2020 JasmineGraph Team
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+"""
+
 import socket
 import pickle
 import select
@@ -59,19 +72,22 @@ class Server:
         self.sockets_list.append(self.server_socket)
 
     def update_model(self,new_weights,partition_size):
+        """
+        Update global model
+        :param new_weights: new weights as a numpy array
+        :param partition_size: graph partition sizes as a list
+        :return: None
+        """
 
         self.partition_sizes.extend(partition_size)
 
         for i in range(len(partition_size)):
             self.weights.append(partition_size[i] * new_weights[i])
 
-        #self.weights.extend(np.array(new_weights))
-
         self.finished_client_count += 1
 
         if self.finished_client_count == self.NUM_CLIENTS:
 
-            #avg_weight = np.mean(self.weights, axis=0)
             avg_weight = sum(self.weights) / sum(self.partition_sizes)
 
             self.weights = []
@@ -83,7 +99,6 @@ class Server:
 
             self.training_cycles += 1
 
-            # weights file name : global_weights_graphid.npy
             weights_path = self.weights_path + 'weights_' + 'graphID:' + self.graph_id + "_V" + str(self.training_cycles) + ".npy"
             np.save(weights_path,avg_weight)
 
@@ -94,6 +109,11 @@ class Server:
         
 
     def send_model(self, client_socket):
+        """
+        Send global model to a client
+        :param client_socket: client socket that global model should be sent
+        :return: None
+        """
 
         if self.ROUNDS == self.training_cycles:
             self.stop_flag = True
@@ -111,6 +131,12 @@ class Server:
 
 
     def receive(self, client_socket):
+        """
+        Recieve a local model weights from a client
+        :param client_socket: client socket that a model weights  should be recieved
+        :return: recieved local model weights as a numpy array
+        """
+
         try:
             
             message_header = client_socket.recv(self.HEADER_LENGTH)
@@ -140,6 +166,10 @@ class Server:
 
 
     def run(self):
+        """
+        Running server; Listening to clients sockets and act accordingly
+        :return: None
+        """
 
         while not self.stop_flag:
 
@@ -209,11 +239,11 @@ if __name__ == "__main__":
 
     path_nodes = args['path_nodes'] + args['graph_id'] + '_nodes_' + args['partition_id'] + ".csv"
     nodes = pd.read_csv(path_nodes,index_col=0)
-    #nodes = nodes.astype("float32")
+    nodes = nodes.astype("float32")
 
     path_edges = args['path_edges'] + args['graph_id'] + '_edges_' + args['partition_id'] + ".csv"
     edges = pd.read_csv(path_edges)
-    #edges = edges.astype({"source":"uint32","target":"uint32"})
+    edges = edges.astype({"source":"uint32","target":"uint32"})
     
    
     model = Model(nodes,edges)

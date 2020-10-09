@@ -1,3 +1,17 @@
+"""
+Copyright 2020 JasmineGraph Team
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+"""
+
+
 import socket
 import pickle
 import select
@@ -65,12 +79,12 @@ class Client:
 
 
     def send_model(self):
+        """
+        Send local model weights to the server
+        :return: None
+        """
 
-        # svae model weights
-        # weights file name : weights_graphid_workerid.npy
         weights_path = self.weights_path + 'weights_' + self.graph_id + '_' + self.partition_id + ".npy"
-        
-        #np.save(weights_path,self.MODEL.get_weights())
 
         weights = np.array(self.MODEL.get_weights())
 
@@ -82,6 +96,10 @@ class Client:
 
 
     def receive(self):
+        """
+        Recieve global model weights from the server
+        :return: success or failure
+        """
         try:
 
             message_header = self.client_socket.recv(self.HEADER_LENGTH)
@@ -106,7 +124,7 @@ class Client:
             return data["WEIGHTS"]
 
         except Exception as e:
-            print(e)
+            logging.error(e)
 
 
     def fetch_model(self):
@@ -117,6 +135,9 @@ class Client:
         self.MODEL.fit(epochs = self.epochs)
 
     def run(self):
+        """
+        Training loop
+        """
 
         while not self.STOP_FLAG:
 
@@ -164,13 +185,6 @@ class Client:
                 self.train()
                 logging.info('Training done')
 
-                # eval = self.MODEL.evaluate()
-
-                # f1_train = (2 * eval[0][2] * eval[0][4]) / (eval[0][2] + eval[0][4])
-                # f1_test = (2 * eval[1][2] * eval[1][4]) / (eval[1][2] + eval[1][4])
-                # logging.info('After Round %s - Local model - Training set evaluation : loss - %s, accuracy - %s, recall - %s, AUC - %s, F1 - %s, precision - %s',self.rounds, eval[0][0], eval[0][1],eval[0][2],eval[0][3],f1_train,eval[0][4])
-                # logging.info('After Round %s - Local model - Testing set evaluation : loss - %s, accuracy - %s, recall - %s, AUC - %s, F1 - %s, precision - %s',self.rounds, eval[1][0], eval[1][1],eval[1][2],eval[1][3],f1_test,eval[1][4])
-
                 logging.info('Sent local model to the server')
                 self.send_model()
 
@@ -193,11 +207,9 @@ if __name__ == "__main__":
 
     path_nodes = args['path_nodes'] + args['graph_id'] + '_nodes_' + args['partition_id'] + ".csv"
     nodes = pd.read_csv(path_nodes,index_col=0)
-    #nodes = nodes.astype("float32")
 
     path_edges = args['path_edges'] + args['graph_id'] + '_edges_' + args['partition_id'] + ".csv"
     edges = pd.read_csv(path_edges)
-    #edges = edges.astype({"source":"uint32","target":"uint32"})
 
     logging.info('Model initialized')
     model = Model(nodes,edges)
@@ -219,5 +231,3 @@ if __name__ == "__main__":
     elapsed_time = end -start
     logging.info('Federated training done!')
     logging.info('Training report : Elapsed time %s seconds, graph ID %s, partition ID %s, epochs %s',elapsed_time,args['graph_id'],args['partition_id'],args['epochs'])
-
-    

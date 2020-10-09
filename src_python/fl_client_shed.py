@@ -1,3 +1,16 @@
+"""
+Copyright 2020 JasmineGraph Team
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+"""
+
 import sys
 import logging
 import gc
@@ -74,6 +87,10 @@ class Client:
 
 
     def send_models(self):
+        """
+        Send local model weights to the server
+        :return: None
+        """
 
         data = {"CLIENT_ID":self.client_id,"PARTITIONS":self.partition_ids,"PARTITION_SIEZES":self.partition_sizes,"WEIGHTS":self.LOCAL_MODELS}
 
@@ -86,6 +103,10 @@ class Client:
 
 
     def fetch_model(self):
+        """
+        Recieve global model weights from the server
+        :return: success or failure
+        """
         
         message_header = self.client_socket.recv(self.HEADER_LENGTH)
 
@@ -113,6 +134,9 @@ class Client:
 
 
     def run(self):
+        """
+        Training loop
+        """
 
         while not self.STOP_FLAG:
 
@@ -192,14 +216,6 @@ class Client:
                     
                     gc.collect()
 
-
-                    # eval = self.MODEL.evaluate()
-
-                    # f1_train = (2 * eval[0][2] * eval[0][4]) / (eval[0][2] + eval[0][4])
-                    # f1_test = (2 * eval[1][2] * eval[1][4]) / (eval[1][2] + eval[1][4])
-                    # logging.info('After Round %s - Local model - Training set evaluation : accuracy - %s, recall - %s, AUC - %s, F1 - %s, precision - %s',self.rounds,eval[0][1],eval[0][2],eval[0][3],f1_train,eval[0][4])
-                    # logging.info('After Round %s - Local model - Testing set evaluation : accuracy - %s, recall - %s, AUC - %s, F1 - %s, precision - %s',self.rounds,eval[1][1],eval[1][2],eval[1][3],f1_test,eval[1][4])
-
                 logging.info('********************************************* All partitions trained **********************************************')
 
                 logging.info('Sent local models to the aggregator')
@@ -233,5 +249,3 @@ if __name__ == "__main__":
     elapsed_time = end -start
     logging.info('Federated training done!')
     logging.info('Training report : Elapsed time %s seconds, graph ID %s, partition IDs %s, epochs %s',elapsed_time,args['graph_id'],args['partition_ids'],args['epochs'])
-
-    
