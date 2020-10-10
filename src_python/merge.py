@@ -47,7 +47,6 @@ edges_localstore = edges_localstore.astype({"source":"uint32","target":"uint32"}
 nodes_localstore = nodes_localstore.astype("float32")
 nodes_centralstore = nodes_centralstore.astype("float32")
 
-# nodes = pd.concat([nodes_localstore,nodes_centralstore]).reset_index().drop_duplicates(subset=[0]).set_index(0)
 nodes = pd.concat([nodes_localstore,nodes_centralstore])
 nodes = nodes.loc[~nodes.index.duplicated(keep='first')]
 edges = pd.concat([edges_localstore,edges_centralstore],ignore_index=True)
@@ -58,4 +57,3 @@ path_edges = args['path_data'] + args['graph_id'] + '_edges_' + args['partition_
 
 nodes.to_csv(path_nodes)
 edges.to_csv(path_edges,index=False)
-
