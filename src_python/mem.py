@@ -12,23 +12,41 @@ limitations under the License.
  """
 
 
-def mem(a,b,num_of_nodes,num_of_edges,num_of_features,feature_data_type,edge_data_type):
+def mem(num_of_nodes,num_of_edges,num_of_features,feature_data_type,edge_data_type):
+    """
+    This function is used for estimating memory usage of graph partitions.
+    :param num_of_nodes: number of nodes in the graph partition
+    :param num_of_edges: number of edges in the graph partition
+    :param num_of_features: number of features in the graph partition
+    :param feature_data_type: data type used for store features (input 8 for int8, 64 for int64 etc)
+    :param edge_data_type: data type used for store edges (input 8 for int8, 64 for int64 etc)
+    :return: estimated memory usage during training
+    """
     
     edge_mem = 2 * num_of_edges * (edge_data_type/8)
     node_mem = num_of_nodes * num_of_features * (feature_data_type/8)
 
     graph_size = (edge_mem + node_mem) / (1024*1024*1024)
 
-    # y = ax + b
-    return a* graph_size + b
+    # Empirically we found out that in-memory-graph-size has a linear relationship with the memory usage during training
+    # We determined the constatnts using linear regression
+    # Memory usage = 3.6 * in-memory-graph-size in Gb + 2
+    return 3.6* graph_size + 2
 
 
 def mem_est(partition_data,num_of_features,feature_data_type,edge_data_type):
+    """
+    This function is used for estimating memory usage of graph partitions.
+    :partiton_data: list of tuples (num_of_nodes,num_of_edges)
+    :param feature_data_type: data type used for store features (input 8 for int8, 64 for int64 etc)
+    :param edge_data_type: data type used for store edges (input 8 for int8, 64 for int64 etc)
+    :return: estimated memory usage during training for given partition list
+    """
 
     mems = []
 
     for data in partition_data:
-        mems.append(mem(3.6,2,data[0],data[1],num_of_features,feature_data_type,edge_data_type))
+        mems.append(mem(data[0],data[1],num_of_features,feature_data_type,edge_data_type))
 
     return mems
 
