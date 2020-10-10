@@ -77,7 +77,6 @@ class Server:
         """
         Update global model
         :param new_weights: new weights as a numpy array
-        :param partition_size: graph partition sizes as a list
         :param num_examples: number of training examples
         :return: None
         """
