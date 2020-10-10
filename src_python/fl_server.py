@@ -31,7 +31,6 @@ logging.basicConfig(
         logging.StreamHandler(sys.stdout)
     ]
 )
-
 class Server:
 
     def __init__(self, MODEL, ROUNDS , weights_path, graph_id, MAX_CONN = 2, IP= socket.gethostname(), PORT = 5000, HEADER_LENGTH = 10 ):
@@ -75,6 +74,7 @@ class Server:
         Update global model
         :param new_weights: new weights as a numpy array
         :param partition_size: graph partition sizes as a list
+        :param num_examples: number of training examples
         :return: None
         """
 

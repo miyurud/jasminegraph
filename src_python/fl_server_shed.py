@@ -107,7 +107,6 @@ class Server:
             
             logging.info("___________________________________________________ Training round %s done ______________________________________________________", self.training_cycles)
         
-
     def send_model(self, client_socket):
         """
         Send global model to a client
@@ -129,7 +128,6 @@ class Server:
 
         logging.info('Sent global model to client-%s at %s:%s',self.client_ids[client_socket],*self.clients[client_socket])
 
-
     def receive(self, client_socket):
         """
         Recieve a local model weights from a client
@@ -147,8 +145,6 @@ class Server:
 
             message_length = int(message_header.decode('utf-8').strip())
 
-            #full_msg = client_socket.recv(message_length)
-
             full_msg = b''
             while True:
                 msg = client_socket.recv(message_length)
@@ -163,7 +159,6 @@ class Server:
         except Exception as e:
             logging.error('Client-%s closed connection at %s:%s',self.client_ids[client_socket], *self.clients[client_socket])
             return False
-
 
     def run(self):
         """
@@ -208,7 +203,6 @@ class Server:
             for notified_socket in exception_sockets:
                 self.sockets_list.remove(notified_socket)
                 del self.clients[notified_socket]
-
 
 if __name__ == "__main__":
 

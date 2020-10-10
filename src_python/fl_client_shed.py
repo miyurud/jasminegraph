@@ -235,10 +235,8 @@ if __name__ == "__main__":
     
     logging.warning('####################################### New Training Session #######################################')
     logging.info('Client started, graph ID %s, partition IDs %s , epochs %s',args['graph_id'],args['partition_ids'],args['epochs'])
-
    
     client = Client(args['client_id'],weights_path=args['path_weights'],graph_id=args['graph_id'],partition_ids=args['partition_ids'].split(","),epochs = int(args['epochs']) ,IP=args['IP'],PORT=int(args['PORT']))
-
 
     logging.info('Federated training started!')
 
@@ -249,4 +247,3 @@ if __name__ == "__main__":
     elapsed_time = end -start
     logging.info('Federated training done!')
     logging.info('Training report : Elapsed time %s seconds, graph ID %s, partition IDs %s, epochs %s',elapsed_time,args['graph_id'],args['partition_ids'],args['epochs'])
-    
