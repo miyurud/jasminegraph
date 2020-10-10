@@ -51,6 +51,10 @@ import time
 from models.supervised import Model
 
 class Client:
+    """
+    Federated client that used to train a given list of graph partitions(By partition shedular) on a given GCN model
+    (With partition sheduling)
+    """
 
     def __init__(self, client_id, weights_path, graph_id, partition_ids, epochs = 10, IP = socket.gethostname(), PORT = 5000, HEADER_LENGTH = 10):
 

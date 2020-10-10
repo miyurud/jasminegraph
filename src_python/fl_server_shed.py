@@ -33,6 +33,10 @@ logging.basicConfig(
 )
 
 class Server:
+    """
+    Federated server/aggregator that used to aggregate local models and carry out the federated learning process
+    (With partition sheduling)
+    """
 
     def __init__(self, model_weights, ROUNDS , weights_path, graph_id, NUM_CLIENTS = 2, IP= socket.gethostname(), PORT = 5000, HEADER_LENGTH = 10 ):
 

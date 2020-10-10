@@ -45,6 +45,10 @@ logging.basicConfig(
     ]
 )
 class Client:
+    """
+    Federated client that used to train a given graph partition on a given GCN model
+    (Without partition sheduling)
+    """
 
     def __init__(self, MODEL, graph_params, weights_path, graph_id, partition_id, epochs = 10, IP = socket.gethostname(), PORT = 5000, HEADER_LENGTH = 10):
 
