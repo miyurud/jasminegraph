@@ -18,6 +18,7 @@ limitations under the License.
 #include "../util/logger/Logger.h"
 #include "JasmineGraphInstance.h"
 #include "../server/JasmineGraphServer.h"
+#include <stdio.h>
 
 using namespace std;
 Logger instance_logger;
@@ -1825,9 +1826,12 @@ void JasmineGraphInstanceService::initServer(string trainData){
     std::transform(trainargs.begin(), trainargs.end(), std::back_inserter(vc), converter);
 
     std::string path = "cd " + utils.getJasmineGraphProperty("org.jasminegraph.fl.location") + " && ";
-    //std::string command = path + "python client.py ./weights/weights_" + partitionID +".npy" + " /var/tmp/jasminegraph-localstore/1_attributes_" + partitionID + " /var/tmp/jasminegraph-localstore/jasminegraph-local_trained_model_store/1_"+ partitionID;
-    std::string command = path + "python fl_server.py ./weights/ ./data/ ./data/ " + graphID + " 0 2 4 localhost 5000";
-    system(command.c_str());
+    std::string command = path + "python3 fl_server.py "+ utils.getJasmineGraphProperty("org.jasminegraph.fl.weights") + " " + utils.getJasmineGraphProperty("org.jasminegraph.fl.dataDir") 
+            + " " + utils.getJasmineGraphProperty("org.jasminegraph.fl.dataDir")+ " "+ graphID + " 0 "+  utils.getJasmineGraphProperty("org.jasminegraph.fl_clients")+ " " 
+            + utils.getJasmineGraphProperty("org.jasminegraph.fl.epochs") +" localhost 5000 > server_logs.txt";
+    popen(command.c_str(), "r");
+
+    
 }
 
 
@@ -1848,19 +1852,25 @@ void JasmineGraphInstanceService::initClient(string trainData){
     std::transform(trainargs.begin(), trainargs.end(), std::back_inserter(vc), converter);
 
     std::string path = "cd " + utils.getJasmineGraphProperty("org.jasminegraph.fl.location") + " && ";
-    //std::string command = path + "python server.py ./weights/weights.npy /var/tmp/jasminegraph-localstore/1_attributes_0 /var/tmp/jasminegraph-localstore/jasminegraph-local_trained_model_store/1_0 ";
-    std::string command = path + "python fl_client.py ./weights/ ./embeddings/ ./data/ ./data/ "+ graphID + " " + partitionID + " 4 localhost 5000";
-    system(command.c_str());
+    std::string command = path + "python3 fl_client.py "+ utils.getJasmineGraphProperty("org.jasminegraph.fl.weights") + " " + utils.getJasmineGraphProperty("org.jasminegraph.fl.dataDir") 
+            + " " + utils.getJasmineGraphProperty("org.jasminegraph.fl.dataDir")+ " "+ graphID + " " + partitionID + " "+ utils.getJasmineGraphProperty("org.jasminegraph.fl.epochs") 
+            + " localhost 5000 > client_logs_" + partitionID +".txt";
+    
+    popen(command.c_str(), "r");
 }
 
 
 void JasmineGraphInstanceService::mergeFiles(string trainData){
+
     Utils utils;
     std::vector<std::string> trainargs = Utils::split(trainData, ' ');
     string graphID = trainargs[1];
     string partitionID = trainargs[2];
 
     std::string path = "cd " + utils.getJasmineGraphProperty("org.jasminegraph.fl.location") + " && ";
-    std::string command = path + "python merge.py ./data/ ./data/ ./data/ "+ graphID + " " + partitionID;;
-    system(command.c_str());
+    std::string command = path + "python3 merge.py "+ utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder")+ " " 
+            + utils.getJasmineGraphProperty("org.jasminegraph.server.instance.trainedmodelfolder") + " " 
+            + utils.getJasmineGraphProperty("org.jasminegraph.fl.dataDir") + " " + graphID + " " + partitionID + " > merge_logs" + partitionID +".txt";
+    popen(command.c_str(), "r");
+    
 }
