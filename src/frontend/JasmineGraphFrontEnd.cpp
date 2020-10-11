@@ -609,13 +609,64 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 write(connFd, to_string(edgeCount).c_str(), to_string(edgeCount).length());
                 write(connFd, "\r\n", 2);
             }
-        } else if (line.compare(TRAIN) == 0) {
+
+        } else if (line.compare(MERGE) == 0) {
+
+            Utils utils;
+            std::string federatedEnabled = utils.getJasmineGraphProperty("org.jasminegraph.federated.enabled");          
+
+           
+            string message = "Available main flags:\n";
+            write(connFd, message.c_str(), message.size());
+            string flags =
+            Conts::FLAGS::GRAPH_ID;
+            write(connFd, flags.c_str(), flags.size());
+            write(connFd, "\n", 2);
+            message = "Send --<flag1> <value1> \n";
+            write(connFd, message.c_str(), message.size());
+
+            char train_data[300];
+            bzero(train_data, 301);
+
+            read(connFd, train_data, 300);
+
+            string trainData(train_data);
+
+
+            trainData = utils.trim_copy(trainData, " \f\n\r\t\v");
+            frontend_logger.log("Data received: " + trainData, "info");
+
+            std::vector<std::string> trainargs = Utils::split(trainData, ' ');
+            std::vector<std::string>::iterator itr = std::find(trainargs.begin(), trainargs.end(), "--graph_id");
+            std::string graphID;
+
+            if (itr != trainargs.cend()) {
+                int index = std::distance(trainargs.begin(), itr);
+                graphID = trainargs[index + 1];
+
+            } else {
+                frontend_logger.log("graph_id should be given as an argument", "error");
+                continue;
+            }
+
+            if (trainargs.size() == 0) {
+                frontend_logger.log("Message format not recognized", "error");
+                break;
+            }
+            
+            frontend_logger.log(trainData, "info");
+
+            JasmineGraphFederatedInstance *jasminGraphFedInitiator = new JasmineGraphFederatedInstance();                
+            jasminGraphFedInitiator->initiateFiles(graphID, trainData);
+            jasminGraphFedInitiator->initiateMerge(graphID, trainData, sqlite);
+
+            
+        }else if (line.compare(TRAIN) == 0) {
 
             Utils utils;
             std::string federatedEnabled = utils.getJasmineGraphProperty("org.jasminegraph.federated.enabled");
 
             if (federatedEnabled=="true"){
-
            
                 string message = "Available main flags:\n";
                 write(connFd, message.c_str(), message.size());
@@ -628,12 +679,9 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
                 char train_data[300];
                 bzero(train_data, 301);
-
                 read(connFd, train_data, 300);
 
                 string trainData(train_data);
-
-                Utils utils;
                 trainData = utils.trim_copy(trainData, " \f\n\r\t\v");
                 frontend_logger.log("Data received: " + trainData, "info");
 
@@ -644,28 +692,21 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 if (itr != trainargs.cend()) {
                     int index = std::distance(trainargs.begin(), itr);
                     graphID = trainargs[index + 1];
-                    //modelID = trainargs[index + 3];
+
                 } else {
                     frontend_logger.log("graph_id should be given as an argument", "error");
                     continue;
                 }
-
+                
                 if (trainargs.size() == 0) {
                     frontend_logger.log("Message format not recognized", "error");
                     break;
                 }
                 frontend_logger.log(trainData, "info");
-
-                JasmineGraphFederatedInstance *jasminGraphFedInitiator = new JasmineGraphFederatedInstance();                
-                jasminGraphFedInitiator->initiateFiles(graphID, trainData);
-                frontend_logger.log("initialize complete", "info"); 
-                //jasminGraphFedInitiator->mergeFiles(graphID, trainData, sqlite);
-                //frontend_logger.log("merge complete", "info");    
+                JasmineGraphFederatedInstance *jasminGraphFedInitiator = new JasmineGraphFederatedInstance();              
                 jasminGraphFedInitiator->initiateCommunication(graphID, trainData, sqlite);
             
-            }
-
-            else{
+            }else{
             
                 string message = "Available main flags:\n";
                 write(connFd, message.c_str(), message.size());
