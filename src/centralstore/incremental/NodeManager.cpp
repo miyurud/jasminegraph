@@ -18,7 +18,7 @@ NodeManager::NodeManager(std::string mode) {
         new std::fstream(PropertyLink::DB_PATH, std::ios::in | std::ios::out | openMode | std::ios::binary);
     RelationBlock::relationsDB =
         new std::fstream(RelationBlock::DB_PATH, std::ios::in | std::ios::out | openMode | std::ios::binary);
-    // TODO: set PropertyLink nextPropertyIndex after validating by modulus check from file number of bytes
+    // TODO (tmkasun): set PropertyLink nextPropertyIndex after validating by modulus check from file number of bytes
 
     if (dbSize(NodeManager::NODE_DB_PATH) % NodeBlock::BLOCK_SIZE != 0) {
         std::cout << "WARNING: " << NodeManager::NODE_DB_PATH << " might be corrupted!" << std::endl;
