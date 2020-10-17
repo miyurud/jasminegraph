@@ -136,5 +136,5 @@ const unsigned long PropertyLink::MAX_VALUE_SIZE = 180;
 const unsigned long PropertyLink::PROPERTY_BLOCK_SIZE =
     PropertyLink::MAX_NAME_SIZE + PropertyLink::MAX_VALUE_SIZE + sizeof(unsigned int);
 unsigned int PropertyLink::nextPropertyIndex = 1;  // Starting with 1 because of the 0 and '\0' differentiation issue
-std::string PropertyLink::DB_PATH = "/mnt/wd_ubuntu_data_mnt/research/jasminegraph/streamStore/properties.db";
+std::string PropertyLink::DB_PATH = "streamStore/properties.db";
 std::fstream* PropertyLink::propertiesDB = NULL;

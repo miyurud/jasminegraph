@@ -12,8 +12,6 @@ void NodeBlock::save() {
     char _label[PropertyLink::MAX_VALUE_SIZE] = {0};
     std::strcpy(_label, id.c_str());
 
-    bool brk = this->id == "1106112";
-
     bool isSmallLabel = id.length() <= sizeof(label);
     if (isSmallLabel) {
         std::strcpy(this->label, this->id.c_str());
@@ -30,14 +28,25 @@ void NodeBlock::save() {
 }
 
 void NodeBlock::addProperty(std::string name, char* value) {
-    bool brk = this->id == "1106112";
     bool isEmpty = this->properties.isEmpty();
     this->propRef = properties.insert(name, value);
-    if (isEmpty) {  // If it was an empty prop link before inserting, Then update the property reference of this node block
+    if (isEmpty) {  // If it was an empty prop link before inserting, Then update the property reference of this node
+                    // block
         NodeBlock::nodesDB->seekp(this->addr + 1 + sizeof(this->edgeRef));
         NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(this->propRef)), sizeof(this->propRef));
         NodeBlock::nodesDB->flush();
     }
+}
+
+void NodeBlock::updateEdgeRef(unsigned int edgeReferenceAddress) {
+    int edgeRefOffset = sizeof(this->usage);
+    NodeBlock::nodesDB->seekp(this->addr + edgeRefOffset);
+    if (!NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(edgeReferenceAddress)), sizeof(unsigned int))) {
+        std::cout << "ERROR: Error while updating edge reference address of " << edgeReferenceAddress << " for node "
+                  << this->addr << std::endl;
+    }
+    NodeBlock::nodesDB->flush();  // Sync the file with in-memory stream
+    this->edgeRef = edgeReferenceAddress;
 }
 
 const unsigned long NodeBlock::BLOCK_SIZE = 15;

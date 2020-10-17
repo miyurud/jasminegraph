@@ -4,6 +4,7 @@
 
 #include "NodeBlock.h"  // To setup node DB
 #include "PropertyLink.h"
+#include "RelationBlock.h"
 
 NodeManager::NodeManager(std::string mode) {
     std::ios_base::openmode openMode = std::ios::trunc;  // default is Trunc mode which overrides the entire file
@@ -15,7 +16,9 @@ NodeManager::NodeManager(std::string mode) {
         new std::fstream(NodeManager::NODE_DB_PATH, std::ios::in | std::ios::out | openMode | std::ios::binary);
     PropertyLink::propertiesDB =
         new std::fstream(PropertyLink::DB_PATH, std::ios::in | std::ios::out | openMode | std::ios::binary);
-    // TODO (tmkasun): set PropertyLink nextPropertyIndex after validating by modulus check from file number of bytes
+    RelationBlock::relationsDB =
+        new std::fstream(RelationBlock::DB_PATH, std::ios::in | std::ios::out | openMode | std::ios::binary);
+    // TODO: set PropertyLink nextPropertyIndex after validating by modulus check from file number of bytes
 
     if (dbSize(NodeManager::NODE_DB_PATH) % NodeBlock::BLOCK_SIZE != 0) {
         std::cout << "WARNING: " << NodeManager::NODE_DB_PATH << " might be corrupted!" << std::endl;
@@ -25,7 +28,7 @@ NodeManager::NodeManager(std::string mode) {
 std::unordered_map<std::string, unsigned int> NodeManager::readNodeIndex() {
     std::ifstream index_db(this->index_db_loc);
     std::cout << "DEBUG: tellg " << index_db.tellg() << std::endl;
-    std::unordered_map<std::string, unsigned int> _nodeIndex;  // temporary node index data holder
+    std::unordered_map<std::string, unsigned int> _nodeIndex;  // temproy node index data holder
 
     if (index_db.is_open()) {
         int iSize = dbSize(this->index_db_loc);
@@ -54,28 +57,40 @@ std::unordered_map<std::string, unsigned int> NodeManager::readNodeIndex() {
     return _nodeIndex;
 }
 
-unsigned int NodeManager::addNode(std::string nodeId) {
+unsigned int NodeManager::addRelation(NodeBlock source, NodeBlock destination) {
+    RelationBlock *newRelation = NULL;
+    if (source.edgeRef == 0 || destination.edgeRef == 0) {  // certainly a new relation block needed
+        newRelation = RelationBlock::add(source, destination);
+    } else {
+        // check if the relation already exist or not
+    }
+
+    std::cout << "all done" << std::endl;
+}
+
+NodeBlock *NodeManager::addNode(std::string nodeId) {
     unsigned int assignedNodeIndex;
     if (this->nodeIndex.find(nodeId) == this->nodeIndex.end()) {
         std::cout << "DEBUG: nodeId not found in index " << nodeId << std::endl;
-        NodeBlock sourceBlk = NodeBlock(nodeId, this->nextNodeIndex * NodeBlock::BLOCK_SIZE);
+        NodeBlock *sourceBlk = new NodeBlock(nodeId, this->nextNodeIndex * NodeBlock::BLOCK_SIZE);
         this->nodeIndex.insert({nodeId, this->nextNodeIndex});
         assignedNodeIndex = this->nextNodeIndex;
         this->nextNodeIndex++;
-        sourceBlk.save();
+        sourceBlk->save();
+        return sourceBlk;
     } else {
-        assignedNodeIndex = this->nodeIndex.at(nodeId);
         std::cout << "DEBUG: Found nodeIndex for nodeId " << nodeId << " at " << assignedNodeIndex << std::endl;
+        return this->get(nodeId);
     }
-    return assignedNodeIndex * NodeBlock::BLOCK_SIZE;
 }
 
 void NodeManager::addEdge(std::pair<int, int> edge) {
     std::string sourceId = std::to_string(edge.first);
     std::string destinationId = std::to_string(edge.second);
-    unsigned int sourceNodeAddr = this->addNode(sourceId);
-    unsigned int destNodeAddr = this->addNode(destinationId);
-    std::cout << "DEBUG: Source DB block address " << sourceNodeAddr << " Destination DB block address " << destNodeAddr
+    NodeBlock *sourceNode = this->addNode(sourceId);
+    NodeBlock *destNode = this->addNode(destinationId);
+    unsigned int relationAddr = this->addRelation(*sourceNode, *destNode);
+    std::cout << "DEBUG: Source DB block address " << sourceNode << " Destination DB block address " << destNode
               << std::endl;
 }
 
@@ -176,4 +191,4 @@ void NodeManager::close() {
 
 const unsigned long NodeManager::INDEX_KEY_SIZE = 8;
 unsigned int NodeManager::nextPropertyIndex = 0;
-std::string NodeManager::NODE_DB_PATH = "/mnt/wd_ubuntu_data_mnt/research/jasminegraph/streamStore/nodes.db";
+std::string NodeManager::NODE_DB_PATH = "streamStore/nodes.db";

@@ -20,7 +20,7 @@ class NodeManager {
 
    public:
     static unsigned int nextPropertyIndex; // Next available property block index // unless open in wipe data mode(trunc) need to set this value to property db seekp()/BLOCK_SIZE
-    std::string index_db_loc = "/mnt/wd_ubuntu_data_mnt/research/jasminegraph/streamStore/nodes.index.db";
+    std::string index_db_loc = "streamStore/nodes.index.db";
 
     std::unordered_map<std::string, unsigned int> nodeIndex;
 
@@ -30,8 +30,9 @@ class NodeManager {
     };
 
     void addEdge(std::pair<int, int>);
+    unsigned int addRelation(NodeBlock, NodeBlock);
     void close();
-    unsigned int addNode(std::string); // will redurn DB block address
+    NodeBlock* addNode(std::string); // will redurn DB block address
     NodeBlock* get(std::string);
 
 };
