@@ -33,11 +33,9 @@ limitations under the License.
 #include "../query/algorithms/linkprediction/JasminGraphLinkPredictor.h"
 #include "../ml/trainer/JasmineGraphTrainingSchedular.h"
 
-
 #include "flatbuffers/flatbuffers.h"
 #include <iostream> // C++ header file for printing
 #include <fstream> // C++ header file for file access
-#include "../ml/federated/JasmineGraphFederatedInstance.h"
 
 using namespace std;
 
@@ -277,7 +275,6 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             name = strArr[0];
             path = strArr[1];
 
-
             if (JasmineGraphFrontEnd::modelExists(path, sqlite)) {
                 frontend_logger.log("Model exists", "error");
                 continue;
@@ -299,7 +296,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 write(connFd, DONE.c_str(), DONE.size());
                 write(connFd, "\n", 2);
             } else {
-                frontend_logger.log("Graph data file does not exist on the specified path", "error");
+                frontend_logger.log("Model file does not exist on the specified path", "error");
                 continue;
             }
         } else if (line.compare(ADGR_CUST) == 0) {
@@ -614,8 +611,6 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
             Utils utils;
             std::string federatedEnabled = utils.getJasmineGraphProperty("org.jasminegraph.federated.enabled");          
-
-           
             string message = "Available main flags:\n";
             write(connFd, message.c_str(), message.size());
             string flags =
@@ -627,12 +622,9 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
             char train_data[300];
             bzero(train_data, 301);
-
             read(connFd, train_data, 300);
 
             string trainData(train_data);
-
-
             trainData = utils.trim_copy(trainData, " \f\n\r\t\v");
             frontend_logger.log("Data received: " + trainData, "info");
 
@@ -653,14 +645,11 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 frontend_logger.log("Message format not recognized", "error");
                 break;
             }
-            
-            frontend_logger.log(trainData, "info");
 
-            JasmineGraphFederatedInstance *jasminGraphFedInitiator = new JasmineGraphFederatedInstance();                
-            jasminGraphFedInitiator->initiateFiles(graphID, trainData);
-            jasminGraphFedInitiator->initiateMerge(graphID, trainData, sqlite);
-
-            
+            JasmineGraphServer *jasmineServer = new JasmineGraphServer();            
+            jasmineServer->initiateFiles(graphID, trainData);
+            jasmineServer->initiateMerge(graphID, trainData, sqlite);
+    
         }else if (line.compare(TRAIN) == 0) {
 
             Utils utils;
@@ -702,9 +691,9 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                     frontend_logger.log("Message format not recognized", "error");
                     break;
                 }
-                frontend_logger.log(trainData, "info");
-                JasmineGraphFederatedInstance *jasminGraphFedInitiator = new JasmineGraphFederatedInstance();              
-                jasminGraphFedInitiator->initiateCommunication(graphID, trainData, sqlite);
+
+                JasmineGraphServer *jasmineServer = new JasmineGraphServer();               
+                jasmineServer->initiateCommunication(graphID, trainData, sqlite);
             
             }else{
             
@@ -720,7 +709,6 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
                 char train_data[300];
                 bzero(train_data, 301);
-
                 read(connFd, train_data, 300);
 
                 string trainData(train_data);
@@ -744,10 +732,9 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                     frontend_logger.log("Message format not recognized", "error");
                     break;
                 }
-                frontend_logger.log(trainData, "info"); //del
+
                 JasminGraphTrainingInitiator *jasminGraphTrainingInitiator = new JasminGraphTrainingInitiator();
                 jasminGraphTrainingInitiator->initiateTrainingLocally(graphID,trainData);
-
 
             }
 
