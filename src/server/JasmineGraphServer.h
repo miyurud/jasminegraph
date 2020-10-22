@@ -14,15 +14,18 @@ limitations under the License.
 #ifndef JASMINEGRAPH_JASMINEGRAPHSERVER_H
 #define JASMINEGRAPH_JASMINEGRAPHSERVER_H
 
+#include <iostream>
 #include <map>
 #include <thread>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string>
 #include "../frontend/JasmineGraphFrontEnd.h"
 #include "../backend/JasmineGraphBackend.h"
 #include "../metadb/SQLiteDBInterface.h"
 #include "../performancedb/PerformanceSQLiteDBInterface.h"
 #include "../util/Conts.h"
+#include "../util/Utils.h"
 
 using std::map;
 
@@ -122,7 +125,20 @@ public:
     static std::vector<JasmineGraphServer::workers> getHostWorkerMap();
 
     std::map<std::string, workerPartitions> getGraphPartitionedHosts(std::string graphID);
-};
 
+    void initiateFiles(std::string graphID, std::string trainingArgs);
+
+    void initiateCommunication(std::string graphID, std::string trainingArgs, SQLiteDBInterface sqlite);
+
+    void initiateMerge(std::string graphID, std::string trainingArgs,SQLiteDBInterface sqlite);
+
+    static bool initiateTrain(std::string host, int port, int dataPort,std::string trainingArgs,int iteration, string partCount);
+
+    static bool initiateServer(std::string host, int port, int dataPort,std::string trainingArgs,int iteration, string partCount);
+
+    static bool initiateClient(std::string host, int port, int dataPort,std::string trainingArgs,int iteration, string partCount);
+
+    static bool mergeFiles(std::string host, int port, int dataPort,std::string trainingArgs,int iteration, string partCount);
+};
 
 #endif //JASMINEGRAPH_JASMINEGRAPHSERVER_H
