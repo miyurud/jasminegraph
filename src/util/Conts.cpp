@@ -61,3 +61,5 @@ const std::string Conts::FLAGS::LEARNING_RATE = "learning_rate";
 const std::string Conts::FLAGS::BATCH_SIZE = "batch_size";
 const std::string Conts::FLAGS::VALIDATE_ITER = "validate_iter";
 const std::string Conts::FLAGS::EPOCHS = "epochs";
+
+const std::string Conts::FLAGS::MODEL_ID = "model_id";

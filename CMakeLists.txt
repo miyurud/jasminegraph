@@ -23,7 +23,8 @@ add_executable(JasmineGraph main.cpp src/server/JasmineGraphServer.cpp src/serve
         src/localstore/JasmineGraphLocalStoreFactory.cpp src/localstore/JasmineGraphLocalStoreFactory.h src/query/algorithms/triangles/Triangles.cpp src/query/algorithms/triangles/Triangles.h
         src/centralstore/JasmineGraphHashMapCentralStore.cpp src/centralstore/JasmineGraphHashMapCentralStore.h src/util/scheduler/Scheduler.h src/util/scheduler/InterruptableSleep.h src/util/scheduler/Cron.h src/util/scheduler/ctpl_stl.h src/util/performance/PerformanceUtil.cpp src/util/performance/PerformanceUtil.h src/util/scheduler/SchedulerService.cpp src/util/scheduler/SchedulerService.h src/performancedb/PerformanceSQLiteDBInterface.cpp src/performancedb/PerformanceSQLiteDBInterface.h src/util/performance/StatisticCollector.cpp src/util/performance/StatisticCollector.h
         src/ml/trainer/python-c-api/Python_C_API.cpp src/ml/trainer/python-c-api/Python_C_API.h
-        src/ml/trainer/JasmineGraphTrainingSchedular.cpp src/ml/trainer/JasmineGraphTrainingSchedular.h src/ml/trainer/JasminGraphTrainingInitiator.cpp src/ml/trainer/JasminGraphTrainingInitiator.h src/query/algorithms/linkprediction/JasminGraphLinkPredictor.h src/query/algorithms/linkprediction/JasminGraphLinkPredictor.cpp src/centralstore/JasmineGraphHashMapDuplicateCentralStore.cpp src/centralstore/JasmineGraphHashMapDuplicateCentralStore.h)
+        src/ml/trainer/JasmineGraphTrainingSchedular.cpp src/ml/trainer/JasmineGraphTrainingSchedular.h src/ml/trainer/JasminGraphTrainingInitiator.cpp src/ml/trainer/JasminGraphTrainingInitiator.h src/query/algorithms/linkprediction/JasminGraphLinkPredictor.h src/query/algorithms/linkprediction/JasminGraphLinkPredictor.cpp src/centralstore/JasmineGraphHashMapDuplicateCentralStore.cpp src/centralstore/JasmineGraphHashMapDuplicateCentralStore.h
+        src/ml/federated/JasmineGraphFederatedInstance.cpp src/ml/federated/JasmineGraphFederatedInstance.h)
 
 target_compile_options(JasmineGraph PRIVATE -std=c++11 -I/usr/include/python3.5)
 
@@ -32,8 +33,8 @@ if(CMAKE_ENABLE_DEBUG)
     target_compile_options(JasmineGraph PRIVATE -g)
 endif()
 
-#target_link_libraries(JasmineGraph /usr/local/lib/libmetis.so)
-#target_link_libraries(JasmineGraph /usr/local/lib/libxerces-c-3.2.so)
+target_link_libraries(JasmineGraph /usr/local/lib/libmetis.so)
+target_link_libraries(JasmineGraph /usr/local/lib/libxerces-c-3.2.so)
 #TODO: Need to install the library separately
 target_link_libraries(JasmineGraph sqlite3)
 target_link_libraries(JasmineGraph pthread)
@@ -47,12 +48,12 @@ include_directories("$ENV{HOME}/software/spdlog/include")
 include_directories("$ENV{HOME}/software/jsoncpp/include")
 include_directories("$ENV{HOME}/software/cppkafka/include")
 
-target_link_libraries(JasmineGraph /usr/local/lib/libmetis.a)
-target_link_libraries(JasmineGraph $ENV{HOME}/software/xerces-c-3.2.2/lib/libxerces-c.so)
+#target_link_libraries(JasmineGraph /usr/local/lib/libmetis.a)
+#target_link_libraries(JasmineGraph $ENV{HOME}/software/xerces-c-3.2.2/lib/libxerces-c.so)
 target_link_libraries(JasmineGraph $ENV{HOME}/software/flatbuffers/libflatbuffers.a)
 include_directories("$ENV{HOME}/software/xerces-c-3.2.2/include")
 target_link_libraries(JasmineGraph $ENV{HOME}/software/jsoncpp/build/debug/src/lib_json/libjsoncpp.a)
-target_link_libraries(JasmineGraph $ENV{HOME}/software/cppkafka/build/usr/local/lib/libcppkafka.so)
+target_link_libraries(JasmineGraph /usr/local/lib/libcppkafka.so)
 
 set(PYTHON_EXECUTABLE "/usr/bin/python3.5")
 set(PYTHON_INCLUDE_DIR "/usr/include/python3.5m")

@@ -56,3 +56,7 @@ const string JasmineGraphInstanceProtocol::INITIATE_MODEL_COLLECTION = "initiate
 const string JasmineGraphInstanceProtocol::INITIATE_FRAGMENT_RESOLUTION = "frag-res";
 const string JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_CHK = "frag-chk";
 const string JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_DONE = "frag-done";
+const string JasmineGraphInstanceProtocol::INITIATE_FILES = "initiate-file";
+const string JasmineGraphInstanceProtocol::INITIATE_SERVER = "initiate-server";
+const string JasmineGraphInstanceProtocol::INITIATE_CLIENT = "initiate-client";
+const string JasmineGraphInstanceProtocol::MERGE_FILES = "merge-files";
