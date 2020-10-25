@@ -9,7 +9,7 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
- */
+**/
 
 #include <cstring>
 #include <fstream>
@@ -19,19 +19,23 @@ limitations under the License.
 
 #include "PropertyLink.h"
 
+class RelationBlock;  // Forward declaration
+
 #ifndef NODE_BLOCK
 #define NODE_BLOCK
 
 class NodeBlock {
+   private:
+    bool isDirected = false;
 
    public:
-    unsigned int addr;
-    std::string id;  // Node ID for this block ie: citation paper ID, Facebook accout ID, Twitter account ID etc
-    char usage;      // Whether this block is in use or not
+    unsigned int addr = 0;
+    std::string id = "";  // Node ID for this block ie: citation paper ID, Facebook accout ID, Twitter account ID etc
+    char usage = false;   // Whether this block is in use or not
     char label[6] = {
         0};  // Initialize with null chars label === ID if length(id) < 6 else ID will be store as a Node's property
-    unsigned int edgeRef;  // edges database block address for relations
-    unsigned int propRef;  // Properties DB block address for node properties
+    unsigned int edgeRef = 0;  // edges database block address for relations
+    unsigned int propRef = 0;  // Properties DB block address for node properties
     PropertyLink properties;
 
     static const unsigned long BLOCK_SIZE;  // Size of a node block in bytes
@@ -46,16 +50,18 @@ class NodeBlock {
         this->id = id;
         this->addr = address;
         this->usage = true;
-        this->edgeRef = 0;
-        this->propRef = 0;
     };
 
-    NodeBlock(std::string id, unsigned int address, unsigned int edgeRef, unsigned int propRef, char label[],
-              bool usage)
-        : id(id), addr(address), usage(usage), edgeRef(edgeRef), properties(propRef), propRef(propRef) {
+    NodeBlock(std::string id, unsigned int address, unsigned int edgeAddr, unsigned int propRef, char label[],
+              bool usage) {
+        this->id = id;
+        this->addr = address;
+        this->usage = usage;
+        this->edgeRef = edgeAddr;
+        this->propRef = propRef;
         strcpy(this->label, label);
     };
-    void updateEdgeRef(unsigned int);
+    bool updateRelation(RelationBlock *, bool relocateHead = false);
     void save();
     std::string getLabel();
     bool isInUse();

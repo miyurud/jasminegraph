@@ -27,7 +27,6 @@ NodeManager::NodeManager(std::string mode) {
 
 std::unordered_map<std::string, unsigned int> NodeManager::readNodeIndex() {
     std::ifstream index_db(this->index_db_loc);
-    std::cout << "DEBUG: tellg " << index_db.tellg() << std::endl;
     std::unordered_map<std::string, unsigned int> _nodeIndex;  // temproy node index data holder
 
     if (index_db.is_open()) {
@@ -35,14 +34,12 @@ std::unordered_map<std::string, unsigned int> NodeManager::readNodeIndex() {
         unsigned long dataWidth = NodeManager::INDEX_KEY_SIZE + sizeof(unsigned int);
         if (iSize % dataWidth != 0) {
             std::cout << "ERROR: " << this->index_db_loc << " is corrupted!" << std::endl;
-            throw std::runtime_error("DB file is corrupted!");
+            throw std::runtime_error("Node index DB in " + this->index_db_loc + " is corrupted!");
         }
 
         char nodeIDC[NodeManager::INDEX_KEY_SIZE];
         unsigned int nodeIndexId;
         for (size_t i = 0; i < iSize / dataWidth; i++) {
-            std::cout << "DEBUG: tellg at index " << i << " ---> " << index_db.tellg() << std::endl;
-
             nodeIDC[NodeManager::INDEX_KEY_SIZE] = {0};  // Fill with null chars before puting data
             if (!index_db.read(&nodeIDC[0], NodeManager::INDEX_KEY_SIZE)) {
                 std::cout << "ERROR: Error while reading index data from block " << i << std::endl;
@@ -61,8 +58,16 @@ unsigned int NodeManager::addRelation(NodeBlock source, NodeBlock destination) {
     RelationBlock *newRelation = NULL;
     if (source.edgeRef == 0 || destination.edgeRef == 0) {  // certainly a new relation block needed
         newRelation = RelationBlock::add(source, destination);
+        if (newRelation) {
+            source.updateRelation(newRelation);
+            destination.updateRelation(newRelation);
+        } else {
+            std::cout << "WARNING: Something went wrong while adding the new edge/relation !" << std::endl;
+        }
+
     } else {
         // check if the relation already exist or not
+        std::cout << "DEBUG: Relations already exist for both nodes" << std::endl;
     }
 
     std::cout << "all done" << std::endl;
@@ -90,8 +95,11 @@ void NodeManager::addEdge(std::pair<int, int> edge) {
     NodeBlock *sourceNode = this->addNode(sourceId);
     NodeBlock *destNode = this->addNode(destinationId);
     unsigned int relationAddr = this->addRelation(*sourceNode, *destNode);
-    std::cout << "DEBUG: Source DB block address " << sourceNode << " Destination DB block address " << destNode
-              << std::endl;
+
+    std::cout << "DEBUG: Source DB block address " << sourceNode->addr << " Destination DB block address "
+              << destNode->addr << std::endl;
+    delete sourceNode;
+    delete destNode;
 }
 
 int NodeManager::dbSize(std::string path) {
@@ -157,6 +165,9 @@ NodeBlock *NodeManager::get(std::string nodeId) {
     std::cout << "Label = " << label << std::endl;
     std::cout << "Length of label = " << strlen(label) << std::endl;
     nodeBlockPointer = new NodeBlock(nodeId, blockAddress, edgeRef, propRef, label, usage);
+    if (nodeBlockPointer->edgeRef % RelationBlock::BLOCK_SIZE != 0) {
+        std::cout << "WARNING: Invalid edge reference address = " << nodeBlockPointer->edgeRef << std::endl;
+    }
     return nodeBlockPointer;
 }
 

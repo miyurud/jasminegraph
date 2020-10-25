@@ -4,6 +4,8 @@
 #include <sstream>
 #include <vector>
 
+#include "RelationBlock.h"
+
 bool NodeBlock::isInUse() { return this->usage == '\1'; }
 
 std::string NodeBlock::getLabel() { return std::string(this->label); }
@@ -38,15 +40,41 @@ void NodeBlock::addProperty(std::string name, char* value) {
     }
 }
 
-void NodeBlock::updateEdgeRef(unsigned int edgeReferenceAddress) {
-    int edgeRefOffset = sizeof(this->usage);
-    NodeBlock::nodesDB->seekp(this->addr + edgeRefOffset);
-    if (!NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(edgeReferenceAddress)), sizeof(unsigned int))) {
-        std::cout << "ERROR: Error while updating edge reference address of " << edgeReferenceAddress << " for node "
-                  << this->addr << std::endl;
+bool NodeBlock::updateRelation(RelationBlock* relation, bool relocateHead) {
+    unsigned int edgeReferenceAddress = relation->addr;
+    unsigned int idd = this->addr;
+    if (this->edgeRef == 0) {
+        int edgeRefOffset = sizeof(this->usage);
+        NodeBlock::nodesDB->seekp(this->addr + edgeRefOffset);
+        if (!NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(edgeReferenceAddress)), sizeof(unsigned int))) {
+            std::cout << "ERROR: Error while updating edge reference address of " << edgeReferenceAddress
+                      << " for node " << this->addr << std::endl;
+        }
+        NodeBlock::nodesDB->flush();  // Sync the file with in-memory stream
+        this->edgeRef = edgeReferenceAddress;
+    } else if (relocateHead) {
+        std::cout << "Info: Relocating edge list header" << std::endl;
+    } else {
+        RelationBlock* currentRelation = RelationBlock::get(this->edgeRef);
+        while (currentRelation != NULL) {
+            if (currentRelation->source.address == this->addr) {
+                if (currentRelation->source.nextRelationId == 0) {
+                    return currentRelation->updateSourceNextRelAddr(edgeReferenceAddress);
+                } else {
+                    currentRelation = RelationBlock::get(currentRelation->source.nextRelationId);
+                }
+            } else if (!this->isDirected && currentRelation->destination.address == this->addr) {
+                if (currentRelation->destination.nextRelationId == 0) {
+                    return currentRelation->updateDestinationNextRelAddr(edgeReferenceAddress);
+                } else {
+                    currentRelation = RelationBlock::get(currentRelation->destination.nextRelationId);
+                }
+            } else {
+                std::cout << "WARNING: Invalid relation block!!" << std::endl;
+            }
+        }
+        return false;
     }
-    NodeBlock::nodesDB->flush();  // Sync the file with in-memory stream
-    this->edgeRef = edgeReferenceAddress;
 }
 
 const unsigned long NodeBlock::BLOCK_SIZE = 15;
