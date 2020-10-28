@@ -302,7 +302,6 @@ void MetisPartitioner::createPartitionFiles(std::map<int, int> partMap) {
 
     std::thread *threadList = new std::thread[nParts];
     int count = 0;
-    partitioner_logger.log("###METISPARTITIONER### Populating Part Maps Started", "info");
     for (int part = 0; part < nParts; part++) {
         threadList[count] = std::thread(&MetisPartitioner::populatePartMaps, this, partMap, part);
         count++;
@@ -311,8 +310,6 @@ void MetisPartitioner::createPartitionFiles(std::map<int, int> partMap) {
     for (int threadCount = 0; threadCount < count; threadCount++) {
         threadList[threadCount].join();
     }
-
-    partitioner_logger.log("###METISPARTITIONER### Populating Part Maps end", "info");
 
     // Populate the masterEdgeLists with the remaining edges after thread functions
     for (int part = 0; part < nParts; part++) {
@@ -402,8 +399,6 @@ void MetisPartitioner::populatePartMaps(std::map<int, int> partMap, int part) {
     std::map<int, std::vector<int>> partMasterEdgesSet;
     std::map<int, std::map<int, std::vector<int>>> commonMasterEdgeSet;
     unordered_set<int> centralPartVertices;
-
-    partitioner_logger.log("###METISPARTITIONER### Populating Part Maps started", "info");
 
     if (graphType == Conts::GRAPH_TYPE_NORMAL_REFORMATTED) {
 
@@ -495,8 +490,6 @@ void MetisPartitioner::populatePartMaps(std::map<int, int> partMap, int part) {
         }
     }
 
-    partitioner_logger.log("###METISPARTITIONER### Part Map Formatting Completed", "info");
-
     partitionedLocalGraphStorageMap[part] = partEdgesSet;
     masterGraphStorageMap[part] = partMasterEdgesSet;
     commonCentralStoreEdgeMap[part] = commonMasterEdgeSet;
@@ -514,8 +507,6 @@ void MetisPartitioner::populatePartMaps(std::map<int, int> partMap, int part) {
     commonMasterEdgeSet.clear();
     partMasterEdgesSet.clear();
     partEdgesSet.clear();
-
-    partitioner_logger.log("###METISPARTITIONER### Populating Part Maps completed", "info");
 }
 
 void MetisPartitioner::writeSerializedPartitionFiles(int part) {
