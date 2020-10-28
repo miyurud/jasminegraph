@@ -1560,9 +1560,6 @@ string JasmineGraphFrontEnd::countCentralStoreTriangles(std::string aggregatorHo
     struct hostent *server;
     Utils utils;
 
-    frontend_logger.log("###FRONTEND### Triangle Count : " + JasmineGraphInstanceProtocol::AGGREGATE_CENTRALSTORE_TRIANGLES + " Host: "
-    + host + " Port: " + aggregatorPort, "error");
-
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
