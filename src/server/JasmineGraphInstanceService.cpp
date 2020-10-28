@@ -643,9 +643,9 @@ void *instanceservicesession(void *dummyPt) {
 
             std::vector<std::string> chunksVector;
 
-            for (unsigned i = 0; i < aggregatedTriangles.length(); i += INSTANCE_DATA_LENGTH-10) {
-                std::string chunk = aggregatedTriangles.substr(i, INSTANCE_DATA_LENGTH-10);
-                if (i + INSTANCE_DATA_LENGTH-10 < aggregatedTriangles.length()) {
+            for (unsigned i = 0; i < aggregatedTriangles.length(); i += INSTANCE_DATA_LENGTH - 10) {
+                std::string chunk = aggregatedTriangles.substr(i, INSTANCE_DATA_LENGTH - 10);
+                if (i + INSTANCE_DATA_LENGTH - 10 < aggregatedTriangles.length()) {
                     chunk += "/SEND";
                 } else {
                     chunk += "/CMPT";
@@ -653,7 +653,7 @@ void *instanceservicesession(void *dummyPt) {
                 chunksVector.push_back(chunk);
             }
 
-            for (int loopCount=0;loopCount < chunksVector.size();loopCount++) {
+            for (int loopCount = 0; loopCount < chunksVector.size(); loopCount++) {
                 if (loopCount == 0) {
                     std::string chunk = chunksVector.at(loopCount);
                     write(connFd, chunk.c_str(), chunk.size());

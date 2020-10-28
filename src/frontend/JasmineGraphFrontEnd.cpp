@@ -1675,8 +1675,8 @@ string JasmineGraphFrontEnd::countCentralStoreTriangles(std::string aggregatorHo
             read(sockfd, data, 300);
             response = (data);
             response = utils.trim_copy(response, " \f\n\r\t\v");
-            string status = response.substr(response.size()-5);
-            std::string result = response.substr(0, response.size()-5);
+            string status = response.substr(response.size() - 5);
+            std::string result = response.substr(0, response.size() - 5);
 
             while (status == "/SEND") {
                 result_wr = write(sockfd, status.c_str(), status.size());
@@ -1688,8 +1688,8 @@ string JasmineGraphFrontEnd::countCentralStoreTriangles(std::string aggregatorHo
                 read(sockfd, data, 300);
                 response = (data);
                 response = utils.trim_copy(response, " \f\n\r\t\v");
-                status = response.substr(response.size()-5);
-                std::string triangleResponse= response.substr(0, response.size()-5);
+                status = response.substr(response.size() - 5);
+                std::string triangleResponse= response.substr(0, response.size() - 5);
                 result = result + triangleResponse;
             }
             response = result;
