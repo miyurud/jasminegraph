@@ -2107,7 +2107,13 @@ void JasmineGraphServer::updateOperationalGraphList() {
     Utils utils;
     string hosts = "";
     string graphIDs = "";
-    vector<string> hostsList = utils.getHostListFromProperties();
+    std::vector<std::string> hostsList;
+
+    if (profile == "native") {
+        hostsList = utils.getHostListFromProperties();
+    } else if (profile == "docker") {
+        hostsList = getWorkerVector(workerHosts);
+    }
     vector<string>::iterator it;
     for (it = hostsList.begin(); it < hostsList.end(); it++) {
         string host = *it;

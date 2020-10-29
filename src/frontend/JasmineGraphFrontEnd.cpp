@@ -1675,6 +1675,24 @@ string JasmineGraphFrontEnd::countCentralStoreTriangles(std::string aggregatorHo
             read(sockfd, data, 300);
             response = (data);
             response = utils.trim_copy(response, " \f\n\r\t\v");
+            string status = response.substr(response.size() - 5);
+            std::string result = response.substr(0, response.size() - 5);
+
+            while (status == "/SEND") {
+                result_wr = write(sockfd, status.c_str(), status.size());
+
+                if(result_wr < 0) {
+                    frontend_logger.log("Error writing to socket", "error");
+                }
+                bzero(data, 301);
+                read(sockfd, data, 300);
+                response = (data);
+                response = utils.trim_copy(response, " \f\n\r\t\v");
+                status = response.substr(response.size() - 5);
+                std::string triangleResponse= response.substr(0, response.size() - 5);
+                result = result + triangleResponse;
+            }
+            response = result;
         }
 
 
