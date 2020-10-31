@@ -1733,10 +1733,11 @@ long JasmineGraphFrontEnd::aggregateCentralStoreTriangles(SQLiteDBInterface sqli
                 int weight = workerWeightMap.at(workerId);
 
                 if (minimumWeight == 0 || minimumWeight > weight) {
-                    minimumWeight = weight;
+                    minimumWeight = weight + 1;
                     minWeightWorker = workerId;
                 }
             } else {
+                minimumWeight = 1;
                 minWeightWorker = workerId;
             }
         }
@@ -1806,7 +1807,6 @@ long JasmineGraphFrontEnd::aggregateCentralStoreTriangles(SQLiteDBInterface sqli
         }
 
         std::string adjustedPartitionIdList = partitionIdList.substr(0, partitionIdList.size()-1);
-        minimumWeight = minimumWeight + 1;
         workerWeightMap[minWeightWorker] = minimumWeight;
 
         triangleCountResponse.push_back(
