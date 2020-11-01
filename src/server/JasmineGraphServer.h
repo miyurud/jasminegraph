@@ -139,6 +139,8 @@ public:
     static bool initiateClient(std::string host, int port, int dataPort,std::string trainingArgs,int iteration, string partCount);
 
     static bool mergeFiles(std::string host, int port, int dataPort,std::string trainingArgs,int iteration, string partCount);
+
+    static const int FED_DATA_LENGTH = 300;
 };
 
 #endif //JASMINEGRAPH_JASMINEGRAPHSERVER_H
