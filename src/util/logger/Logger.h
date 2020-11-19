@@ -19,6 +19,11 @@ limitations under the License.
 class Logger {
 public:
     void log(std::string message, const std::string log_type);
+    void info(std::string message){log(message,"info");};
+    void warn(std::string message){log(message,"warn");};
+    void debug(std::string message){log(message,"debug");};
+    void error(std::string message){log(message,"error");};
+
 };
 
 
