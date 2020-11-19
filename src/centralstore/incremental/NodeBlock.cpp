@@ -226,7 +226,7 @@ NodeBlock* NodeBlock::get(unsigned int blockAddress) {
         node_block_logger.error("Error while reading prop reference data from block " + std::to_string(blockAddress));
     }
 
-    if (!NodeBlock::nodesDB->read(&label[0], 6)) {
+    if (!NodeBlock::nodesDB->read(&label[0], NodeBlock::LABEL_SIZE)) {
         node_block_logger.error("Error while reading label data from block " + std::to_string(blockAddress));
     }
     bool usage = usageBlock == '\1';
