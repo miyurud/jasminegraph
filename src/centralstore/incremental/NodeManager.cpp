@@ -1,5 +1,5 @@
 /**
-Copyright 2020 JasminGraph Team
+Copyright 2020 JasmineGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -37,20 +37,20 @@ NodeManager::NodeManager(std::string mode) {
     // TODO (tmkasun): set PropertyLink nextPropertyIndex after validating by modulus check from file number of bytes
 
     if (dbSize(NodeManager::NODE_DB_PATH) % NodeBlock::BLOCK_SIZE != 0) {
-        node_manager_logger.error("Node DB size does not complies to node block size Path = " +
+        node_manager_logger.error("Node DB size does not comply to node block size Path = " +
                                   NodeManager::NODE_DB_PATH);
     }
 }
 
 std::unordered_map<std::string, unsigned int> NodeManager::readNodeIndex() {
     std::ifstream index_db(this->index_db_loc, std::ios::app | std::ios::binary);
-    std::unordered_map<std::string, unsigned int> _nodeIndex;  // temproy node index data holder
+    std::unordered_map<std::string, unsigned int> _nodeIndex;  // temporary node index data holder
 
     if (index_db.is_open()) {
         int iSize = dbSize(this->index_db_loc);
         unsigned long dataWidth = NodeManager::INDEX_KEY_SIZE + sizeof(unsigned int);
         if (iSize % dataWidth != 0) {
-            node_manager_logger.error("Index DB size does not complies to index block size Path = " +
+            node_manager_logger.error("Index DB size does not comply to index block size Path = " +
                                       this->index_db_loc);
             throw std::runtime_error("Node index DB in " + this->index_db_loc + " is corrupted!");
         }

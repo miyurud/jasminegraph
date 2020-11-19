@@ -1,5 +1,5 @@
 /**
-Copyright 2020 JasminGraph Team
+Copyright 2020 JasmineGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -13,7 +13,6 @@ limitations under the License.
 
 #include <cstring>
 #include <fstream>
-#include <iostream>  // for cout
 #include <list>
 #include <map>
 #include <string>
@@ -33,12 +32,14 @@ class NodeBlock {
     unsigned int addr = 0;
     std::string id = "";  // Node ID for this block ie: citation paper ID, Facebook accout ID, Twitter account ID etc
     char usage = false;   // Whether this block is in use or not
-    char label[6] = {
-        0};  // Initialize with null chars label === ID if length(id) < 6 else ID will be store as a Node's property
     unsigned int edgeRef = 0;  // edges database block address for relations
     unsigned int propRef = 0;  // Properties DB block address for node properties
 
-    static const unsigned long BLOCK_SIZE;  // Size of a node block in bytes
+    static const unsigned long BLOCK_SIZE = 15;  // Size of a node block in bytes
+    static const unsigned int LABEL_SIZE = 6;    // Size of a node block in bytes
+    char label[LABEL_SIZE] = {
+        0};  // Initialize with null chars label === ID if length(id) < 6 else ID will be stored as a Node's property
+
     static std::fstream *nodesDB;
 
     /**
@@ -58,9 +59,9 @@ class NodeBlock {
     void save();
     std::string getLabel();
     bool isInUse();
-    std::map<std::string, char*> getProperty(std::string);
+    std::map<std::string, char *> getProperty(std::string);
     PropertyLink *getPropertyHead();
-    std::map<std::string, char*> getAllProperties();
+    std::map<std::string, char *> getAllProperties();
     static NodeBlock *get(unsigned int);
     int getFlags();
     void addProperty(std::string, char *);

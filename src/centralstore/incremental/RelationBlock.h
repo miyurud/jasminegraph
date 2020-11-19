@@ -1,6 +1,5 @@
 #include <cstring>
 #include <fstream>
-#include <iostream>  // for cout
 #include <set>
 #include <string>
 

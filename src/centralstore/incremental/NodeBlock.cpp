@@ -1,5 +1,5 @@
 /**
-Copyright 2020 JasminGraph Team
+Copyright 2020 JasmineGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -13,12 +13,11 @@ limitations under the License.
 
 #include "NodeBlock.h"
 
-#include <iostream>
 #include <sstream>
 #include <vector>
 
-#include "RelationBlock.h"
 #include "../../util/logger/Logger.h"
+#include "RelationBlock.h"
 
 Logger node_block_logger;
 
@@ -94,7 +93,6 @@ bool NodeBlock::updateRelation(RelationBlock* newRelation, bool relocateHead) {
             }
         }
         return this->setRelationHead(*newRelation);
-        node_block_logger.log("Info: Relocating edge list header", "info");
     } else {
         RelationBlock* currentRelation = currentHead;
         while (currentRelation != NULL) {
@@ -111,7 +109,7 @@ bool NodeBlock::updateRelation(RelationBlock* newRelation, bool relocateHead) {
                     currentRelation = currentRelation->nextDestination();
                 }
             } else {
-                node_block_logger.warn("Invalid relation block");
+                node_block_logger.warn("Invalid relation block" + std::to_string(currentRelation->addr));
             }
         }
         return false;
@@ -142,7 +140,7 @@ bool NodeBlock::setRelationHead(RelationBlock newRelation) {
 }
 
 /**
- * Return a pointer to maching relation block with the given node if found, Else return NULL
+ * Return a pointer to matching relation block with the given node if found, Else return NULL
  * **/
 RelationBlock* NodeBlock::searchRelation(NodeBlock withNode) {
     RelationBlock* found = NULL;
@@ -232,7 +230,7 @@ NodeBlock* NodeBlock::get(unsigned int blockAddress) {
         node_block_logger.error("Error while reading label data from block " + std::to_string(blockAddress));
     }
     bool usage = usageBlock == '\1';
-    node_block_logger.debug("Label = "+ std::string(label));
+    node_block_logger.debug("Label = " + std::string(label));
     node_block_logger.debug("Label = " + std::string(label));
     node_block_logger.debug("Length of label = " + std::to_string(strlen(label)));
     node_block_logger.debug("edgeRef = " + std::to_string(edgeRef));
@@ -249,7 +247,7 @@ NodeBlock* NodeBlock::get(unsigned int blockAddress) {
                 std::to_string(nodeBlockPointer->addr);
         }
     }
-    node_block_logger.debug("Edge ref = "+std::to_string(nodeBlockPointer->edgeRef));
+    node_block_logger.debug("Edge ref = " + std::to_string(nodeBlockPointer->edgeRef));
     if (nodeBlockPointer->edgeRef % RelationBlock::BLOCK_SIZE != 0) {
         throw "Exception: Invalid edge reference address = " + nodeBlockPointer->edgeRef;
     }
@@ -257,5 +255,4 @@ NodeBlock* NodeBlock::get(unsigned int blockAddress) {
 }
 
 PropertyLink* NodeBlock::getPropertyHead() { return PropertyLink::get(this->propRef); }
-const unsigned long NodeBlock::BLOCK_SIZE = 15;
 std::fstream* NodeBlock::nodesDB = NULL;
