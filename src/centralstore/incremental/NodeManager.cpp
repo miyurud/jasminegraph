@@ -169,7 +169,7 @@ NodeBlock *NodeManager::get(std::string nodeId) {
     unsigned int edgeRef;
     unsigned int propRef;
     char usageBlock;
-    char label[6];
+    char label[NodeBlock::LABEL_SIZE];
 
     if (!NodeBlock::nodesDB->get(usageBlock)) {
         node_manager_logger.error("Error while reading usage data from block " + std::to_string(blockAddress));

@@ -36,7 +36,7 @@ class NodeBlock {
     unsigned int propRef = 0;  // Properties DB block address for node properties
 
     static const unsigned long BLOCK_SIZE = 15;  // Size of a node block in bytes
-    static const unsigned int LABEL_SIZE = 6;    // Size of a node block in bytes
+    static const unsigned int LABEL_SIZE = 6;    // Size of a node label in bytes
     char label[LABEL_SIZE] = {
         0};  // Initialize with null chars label === ID if length(id) < 6 else ID will be stored as a Node's property
 

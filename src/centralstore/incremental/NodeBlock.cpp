@@ -211,7 +211,7 @@ NodeBlock* NodeBlock::get(unsigned int blockAddress) {
     unsigned int edgeRef;
     unsigned int propRef;
     char usageBlock;
-    char label[6];
+    char label[NodeBlock::LABEL_SIZE];
     std::string id;
 
     if (!NodeBlock::nodesDB->get(usageBlock)) {
