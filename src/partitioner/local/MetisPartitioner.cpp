@@ -307,10 +307,6 @@ void MetisPartitioner::createPartitionFiles(std::map<int, int> partMap) {
         count++;
     }
 
-    /*for (int threadCount = 0; threadCount < count; threadCount++) {
-        threadList[threadCount].join();
-    }*/
-
     // Populate the masterEdgeLists with the remaining edges after thread functions
     for (int part = 0; part < nParts; part++) {
         std::map<int, std::map<int, std::vector<int>>> commonCentralStoreEdgePartMap = commonCentralStoreEdgeMap[part];
