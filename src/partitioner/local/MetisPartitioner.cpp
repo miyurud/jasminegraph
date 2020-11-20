@@ -303,12 +303,8 @@ void MetisPartitioner::createPartitionFiles(std::map<int, int> partMap) {
     std::thread *threadList = new std::thread[nParts];
     int count = 0;
     for (int part = 0; part < nParts; part++) {
-        threadList[count] = std::thread(&MetisPartitioner::populatePartMaps, this, partMap, part);
+        populatePartMaps(partMap, part);
         count++;
-    }
-
-    for (int threadCount = 0; threadCount < count; threadCount++) {
-        threadList[threadCount].join();
     }
 
     // Populate the masterEdgeLists with the remaining edges after thread functions
