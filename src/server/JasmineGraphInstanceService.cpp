@@ -273,6 +273,96 @@ void *instanceservicesession(void *dummyPt) {
                       JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.size());
                 instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK, "info");
             }
+        } else if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_COMPOSITE_CENTRAL) == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_COMPOSITE_CENTRAL, "info");
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string graphID = (data);
+            graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
+            instance_logger.log("Received Graph ID: " + graphID, "info");
+            write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_NAME.c_str(),
+                  JasmineGraphInstanceProtocol::SEND_FILE_NAME.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_NAME, "info");
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string fileName = (data);
+
+            instance_logger.log("Received File name: " + fileName, "info");
+            write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_LEN.c_str(),
+                  JasmineGraphInstanceProtocol::SEND_FILE_LEN.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN, "info");
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string size = (data);
+            instance_logger.log("Received file size in bytes: " + size, "info");
+            write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_CONT.c_str(),
+                  JasmineGraphInstanceProtocol::SEND_FILE_CONT.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
+            string fullFilePath =
+                    utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
+
+            int fileSize = atoi(size.c_str());
+            while (true){
+                if (utils.fileExists(fullFilePath)){
+                    while (utils.getFileSize(fullFilePath) < fileSize) {
+                        bzero(data, INSTANCE_DATA_LENGTH);
+                        read(connFd, data, INSTANCE_DATA_LENGTH);
+                        line = (data);
+
+                        if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
+                            write(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT.c_str(),
+                                  JasmineGraphInstanceProtocol::FILE_RECV_WAIT.size());
+                        }
+                    }
+                    break;
+                }else{
+                    sleep(1);
+                    continue;
+                }
+            }
+
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            line = (data);
+
+            if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
+                instance_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
+                write(connFd, JasmineGraphInstanceProtocol::FILE_ACK.c_str(),
+                      JasmineGraphInstanceProtocol::FILE_ACK.size());
+                instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::FILE_ACK, "info");
+            }
+
+            instance_logger.log("File received and saved to " + fullFilePath, "info");
+            loop = true;
+
+            utils.unzipFile(fullFilePath);
+            size_t lastindex = fileName.find_last_of(".");
+            string rawname = fileName.substr(0, lastindex);
+            fullFilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + rawname;
+
+            while (!utils.fileExists(fullFilePath)) {
+                bzero(data, INSTANCE_DATA_LENGTH);
+                read(connFd, data, INSTANCE_DATA_LENGTH);
+                string response = (data);
+                response = utils.trim_copy(response, " \f\n\r\t\v");
+                if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
+                    instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
+                    write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.c_str(),
+                          JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.size());
+                    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT, "info");
+                }
+            }
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            line = (data);
+            if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
+                instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
+                write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.c_str(),
+                      JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.size());
+                instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK, "info");
+            }
         } else if (line.compare(JasmineGraphInstanceProtocol::UPLOAD_RDF_ATTRIBUTES) == 0) {
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::UPLOAD_RDF_ATTRIBUTES, "info");
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
