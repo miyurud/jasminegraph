@@ -63,7 +63,6 @@ void NodeBlock::addProperty(std::string name, char* value) {
         } else {
             throw "Error occurred while adding a new property link to " + std::to_string(this->addr) + " node block";
         }
-
     } else {
         this->propRef = this->getPropertyHead()->insert(name, value);
     }
@@ -197,9 +196,9 @@ std::map<std::string, char*> NodeBlock::getAllProperties() {
     PropertyLink* current = this->getPropertyHead();
     while (current) {
         allProperties.insert({current->name, current->value});
-        PropertyLink* _temp = current->next();
+        PropertyLink* temp = current->next();
         delete current;  // To prevent memory leaks
-        current = _temp;
+        current = temp;
     }
     delete current;
     return allProperties;

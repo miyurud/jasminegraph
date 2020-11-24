@@ -243,7 +243,6 @@ bool RelationBlock::setNextSource(unsigned int newAddress) {
 bool RelationBlock::setPreviousSource(unsigned int newAddress) {
     if (this->updateRelationRecords(4, newAddress)) {
         this->source.preRelationId = newAddress;
-
     } else {
         throw "Exception: Error while updating the relation previous source address " + std::to_string(newAddress);
     }
@@ -271,7 +270,7 @@ bool RelationBlock::setPreviousDestination(unsigned int newAddress) {
 /**
  * Update relation record block given the offset to the recored from the begining, i:e
  *  recordOffset 0 --> Source address
- *  recordOffset 1 --> Source address
+ *  recordOffset 1 --> Destination address
  *  recordOffset 2 --> Source's next relation block address
  *  recordOffset 3 --> Source's next relation block partition id
  *                          .
@@ -305,7 +304,6 @@ void RelationBlock::addProperty(std::string name, char* value) {
         } else {
             throw "Error occurred while adding a new property link to " + std::to_string(this->addr) + " node block";
         }
-
     } else {
         this->propertyAddress = this->getPropertyHead()->insert(name, value);
     }
@@ -317,16 +315,16 @@ std::map<std::string, char*> RelationBlock::getAllProperties() {
     PropertyLink* current = this->getPropertyHead();
     while (current) {
         allProperties.insert({current->name, current->value});
-        PropertyLink* _temp = current->next();
+        PropertyLink* temp = current->next();
         delete current;  // To prevent memory leaks
-        current = _temp;
+        current = temp;
     }
     delete current;
     return allProperties;
 }
 
 const unsigned long RelationBlock::BLOCK_SIZE = RelationBlock::RECORD_SIZE * 11;
-// One relation block holds 11 recods such as source addres, destination address, source next relation address ect . .
+// One relation block holds 11 recods such as source addres, destination address, source next relation address etc.
 // and one record is typically 4 bytes (size of unsigned int)
 std::string RelationBlock::DB_PATH = "streamStore/relations.db";
 std::fstream* RelationBlock::relationsDB = NULL;

@@ -1,3 +1,16 @@
+/**
+Copyright 2020 JasmineGraph Team
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+**/
+
 #include <cstring>
 #include <fstream>
 #include <set>
@@ -36,7 +49,7 @@ class RelationBlock {
         : addr(addr), source(source), destination(destination), propertyAddress(propertyAddress){};
 
     char usage;
-    unsigned int addr;  // Block size * block ID ID for this block
+    unsigned int addr;  // Block size * block ID for this block
     NodeRelation source;
     NodeRelation destination;
     unsigned int propertyAddress;
@@ -60,7 +73,7 @@ class RelationBlock {
     static RelationBlock *get(unsigned int);
     void addProperty(std::string, char *);
     PropertyLink *getPropertyHead();
-    std::map<std::string, char*> getAllProperties();
+    std::map<std::string, char *> getAllProperties();
 
     static unsigned int nextRelationIndex;
     static const unsigned long BLOCK_SIZE;  // Size of a relation record block in bytes

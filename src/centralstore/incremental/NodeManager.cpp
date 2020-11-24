@@ -15,6 +15,8 @@ limitations under the License.
 
 #include <sys/stat.h>
 
+#include <exception>
+
 #include "../../util/logger/Logger.h"
 #include "NodeBlock.h"  // To setup node DB
 #include "PropertyLink.h"
@@ -24,7 +26,7 @@ Logger node_manager_logger;
 
 NodeManager::NodeManager(std::string mode) {
     std::ios_base::openmode openMode = std::ios::trunc;  // default is Trunc mode which overrides the entire file
-    if (mode == "app") {
+    if (mode == NodeManager::FILE_MODE) {
         openMode = std::ios::app;  // if app, open in append mode
         this->nodeIndex = readNodeIndex();
     }
@@ -37,8 +39,10 @@ NodeManager::NodeManager(std::string mode) {
     // TODO (tmkasun): set PropertyLink nextPropertyIndex after validating by modulus check from file number of bytes
 
     if (dbSize(NodeManager::NODE_DB_PATH) % NodeBlock::BLOCK_SIZE != 0) {
-        node_manager_logger.error("Node DB size does not comply to node block size Path = " +
-                                  NodeManager::NODE_DB_PATH);
+        std::string errorMessage =
+            "Node DB size does not comply to node block size Path = " + NodeManager::NODE_DB_PATH;
+        node_manager_logger.error(errorMessage);
+        throw std::runtime_error(errorMessage);
     }
 }
 
@@ -50,15 +54,14 @@ std::unordered_map<std::string, unsigned int> NodeManager::readNodeIndex() {
         int iSize = dbSize(this->index_db_loc);
         unsigned long dataWidth = NodeManager::INDEX_KEY_SIZE + sizeof(unsigned int);
         if (iSize % dataWidth != 0) {
-            node_manager_logger.error("Index DB size does not comply to index block size Path = " +
-                                      this->index_db_loc);
+            node_manager_logger.error("Index DB size does not comply to index block size Path = " + this->index_db_loc);
             throw std::runtime_error("Node index DB in " + this->index_db_loc + " is corrupted!");
         }
 
         char nodeIDC[NodeManager::INDEX_KEY_SIZE];
         unsigned int nodeIndexId;
         for (size_t i = 0; i < iSize / dataWidth; i++) {
-            nodeIDC[NodeManager::INDEX_KEY_SIZE] = {0};  // Fill with null chars before puting data
+            nodeIDC[NodeManager::INDEX_KEY_SIZE] = {0};  // Fill with null chars before putting data
             if (!index_db.read(&nodeIDC[0], NodeManager::INDEX_KEY_SIZE)) {
                 node_manager_logger.error("Error while reading index key data from block i = " + std::to_string(i));
             }
@@ -68,14 +71,16 @@ std::unordered_map<std::string, unsigned int> NodeManager::readNodeIndex() {
             _nodeIndex[std::string(nodeIDC)] = nodeIndexId;
         }
     } else {
-        node_manager_logger.error("Error while opening the node index DB");
+        std::string errorMessage = "Error while opening the node index DB";
+        node_manager_logger.error(errorMessage);
+        throw std::runtime_error(errorMessage);
     }
 
     index_db.close();
     return _nodeIndex;
 }
 
-unsigned int NodeManager::addRelation(NodeBlock source, NodeBlock destination) {
+RelationBlock *NodeManager::addRelation(NodeBlock source, NodeBlock destination) {
     RelationBlock *newRelation = NULL;
     if (source.edgeRef == 0 || destination.edgeRef == 0 ||
         !source.searchRelation(destination)) {  // certainly a new relation block needed
@@ -84,21 +89,20 @@ unsigned int NodeManager::addRelation(NodeBlock source, NodeBlock destination) {
             source.updateRelation(newRelation);
             destination.updateRelation(newRelation);
         } else {
-            node_manager_logger.error("Something went wrong while adding the new edge/relation source = " +
+            node_manager_logger.error("Error while adding the new edge/relation for source = " +
                                       std::string(source.id) + " destination = " + std::string(destination.id));
         }
-
     } else {
         node_manager_logger.warn("Relation/Edge already exist for source = " + std::string(source.id) +
                                  " destination = " + std::string(destination.id));
     }
-    return 0;
+    return newRelation;
 }
 
 NodeBlock *NodeManager::addNode(std::string nodeId) {
     unsigned int assignedNodeIndex;
     if (this->nodeIndex.find(nodeId) == this->nodeIndex.end()) {
-        node_manager_logger.debug("NodeId not found in index for node ID " + nodeId);
+        node_manager_logger.debug("Can't find NodeId (" + nodeId + ") in the index database");
         NodeBlock *sourceBlk = new NodeBlock(nodeId, this->nextNodeIndex * NodeBlock::BLOCK_SIZE);
         this->nodeIndex.insert({nodeId, this->nextNodeIndex});
         assignedNodeIndex = this->nextNodeIndex;
@@ -114,12 +118,12 @@ NodeBlock *NodeManager::addNode(std::string nodeId) {
 std::pair<NodeBlock, NodeBlock> NodeManager::addEdge(std::pair<std::string, std::string> edge) {
     NodeBlock *sourceNode = this->addNode(edge.first);
     NodeBlock *destNode = this->addNode(edge.second);
-    unsigned int relationAddr = this->addRelation(*sourceNode, *destNode);
+    RelationBlock *relationAddr = this->addRelation(*sourceNode, *destNode);
 
     node_manager_logger.debug("DEBUG: Source DB block address " + std::to_string(sourceNode->addr) +
                               " Destination DB block address " + std::to_string(destNode->addr));
     std::pair<NodeBlock, NodeBlock> returnVal = {*sourceNode, *destNode};
-    delete sourceNode; // to prevent memory leaks
+    delete sourceNode;  // to prevent memory leaks
     delete destNode;
     return returnVal;
 }
@@ -127,7 +131,7 @@ std::pair<NodeBlock, NodeBlock> NodeManager::addEdge(std::pair<std::string, std:
 int NodeManager::dbSize(std::string path) {
     /*
         The structure stat contains at least the following members:
-        st_dev     ID of device containing file
+        st_dev     ID of the device containing file
         st_ino     file serial number
         st_mode    mode of file (see below)
         st_nlink   number of links to the file
@@ -159,7 +163,6 @@ int NodeManager::dbSize(std::string path) {
  **/
 NodeBlock *NodeManager::get(std::string nodeId) {
     NodeBlock *nodeBlockPointer = NULL;
-    int debug = std::stoi(nodeId);
     if (this->nodeIndex.find(nodeId) == this->nodeIndex.end()) {  // Not found
         return nodeBlockPointer;
     }
@@ -193,7 +196,7 @@ NodeBlock *NodeManager::get(std::string nodeId) {
 
     nodeBlockPointer = new NodeBlock(nodeId, blockAddress, propRef, edgeRef, label, usage);
 
-    node_manager_logger.debug("DEBUG: nodeBlockPointer after creating the object edgeRef" +
+    node_manager_logger.debug("DEBUG: nodeBlockPointer after creating the object edgeRef " +
                               std::to_string(nodeBlockPointer->edgeRef));
 
     if (nodeBlockPointer->edgeRef % RelationBlock::BLOCK_SIZE != 0) {
@@ -237,6 +240,12 @@ std::list<NodeBlock> NodeManager::getGraph(int limit) {
     return vertices;
 }
 
+/**
+ *
+ * When closing the node manager,
+ * It closes all the open databases and persist the node index in-memory hash map to node index database
+ *
+ * **/
 void NodeManager::close() {
     this->persistNodeIndex();
     if (PropertyLink::propertiesDB) {
@@ -247,8 +256,12 @@ void NodeManager::close() {
         NodeBlock::nodesDB->flush();
         NodeBlock::nodesDB->close();
     }
+    if (RelationBlock::relationsDB) {
+        RelationBlock::relationsDB->flush();
+        RelationBlock::relationsDB->close();
+    }
 }
 
-const unsigned long NodeManager::INDEX_KEY_SIZE = 8;
 unsigned int NodeManager::nextPropertyIndex = 0;
 std::string NodeManager::NODE_DB_PATH = "streamStore/nodes.db";
+const std::string NodeManager::FILE_MODE = "app";  // for appending to existing DB
