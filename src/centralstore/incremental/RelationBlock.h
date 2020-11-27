@@ -29,6 +29,20 @@ struct NodeRelation {
     unsigned int prePid = 0;
 };
 
+enum class RelationOffsets : int {
+    SOURCE = 0,
+    DESTINATION = 1,
+    SOURCE_NEXT = 2,
+    SOURCE_NEXT_PID = 3,
+    SOURCE_PREVIOUS = 4,
+    SOURCE_PREVIOUS_PID = 5,
+    DESTINATION_NEXT = 6,
+    DESTINATION_NEXT_PID = 7,
+    DESTINATION_PREVIOUS = 8,
+    DESTINATION_PREVIOUS_PID = 9,
+    RELATION_PROPS = 10,
+};
+
 /**
  * Relation states
  *     Source       Destination
@@ -42,7 +56,7 @@ struct NodeRelation {
 class RelationBlock {
    private:
     std::string id;
-    bool updateRelationRecords(int recordType, unsigned int data);
+    bool updateRelationRecords(RelationOffsets, unsigned int);
 
    public:
     RelationBlock(unsigned int addr, NodeRelation source, NodeRelation destination, unsigned int propertyAddress)

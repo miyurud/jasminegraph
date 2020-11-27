@@ -232,7 +232,7 @@ RelationBlock* RelationBlock::nextDestination() { return RelationBlock::get(this
 RelationBlock* RelationBlock::previousDestination() { return RelationBlock::get(this->destination.preRelationId); }
 
 bool RelationBlock::setNextSource(unsigned int newAddress) {
-    if (this->updateRelationRecords(2, newAddress)) {
+    if (this->updateRelationRecords(RelationOffsets::SOURCE_NEXT, newAddress)) {
         this->source.nextRelationId = newAddress;
     } else {
         throw "Exception: Error while updating the relation next source address " + std::to_string(newAddress);
@@ -241,7 +241,7 @@ bool RelationBlock::setNextSource(unsigned int newAddress) {
 }
 
 bool RelationBlock::setPreviousSource(unsigned int newAddress) {
-    if (this->updateRelationRecords(4, newAddress)) {
+    if (this->updateRelationRecords(RelationOffsets::SOURCE_PREVIOUS, newAddress)) {
         this->source.preRelationId = newAddress;
     } else {
         throw "Exception: Error while updating the relation previous source address " + std::to_string(newAddress);
@@ -250,7 +250,7 @@ bool RelationBlock::setPreviousSource(unsigned int newAddress) {
 }
 
 bool RelationBlock::setNextDestination(unsigned int newAddress) {
-    if (this->updateRelationRecords(6, newAddress)) {
+    if (this->updateRelationRecords(RelationOffsets::DESTINATION_NEXT, newAddress)) {
         this->destination.nextRelationId = newAddress;
     } else {
         throw "Exception: Error while updating the relation next destination address " + std::to_string(newAddress);
@@ -259,7 +259,7 @@ bool RelationBlock::setNextDestination(unsigned int newAddress) {
 }
 
 bool RelationBlock::setPreviousDestination(unsigned int newAddress) {
-    if (this->updateRelationRecords(8, newAddress)) {
+    if (this->updateRelationRecords(RelationOffsets::DESTINATION_PREVIOUS, newAddress)) {
         this->destination.preRelationId = newAddress;
     } else {
         throw "Exception: Error while updating the relation previous destination address " + std::to_string(newAddress);
@@ -273,16 +273,20 @@ bool RelationBlock::setPreviousDestination(unsigned int newAddress) {
  *  recordOffset 1 --> Destination address
  *  recordOffset 2 --> Source's next relation block address
  *  recordOffset 3 --> Source's next relation block partition id
- *                          .
- *                          .
- *                          .
+ *  recordOffset 4 --> Source's previous relation block address
+ *  recordOffset 5 --> Source's previous relation block partition id
+ *  recordOffset 6 --> Destination's next relation block address
+ *  recordOffset 7 --> Destination's next relation block partition id
+ *  recordOffset 8 --> Destination's previous relation block address
+ *  recordOffset 9 --> Destination's previous relation block partition id
  * recordOffset 10 --> Relation's property address in the properties DB
  * */
-bool RelationBlock::updateRelationRecords(int recordOffset, unsigned int data) {
-    int dataOffset = RECORD_SIZE * recordOffset;
+bool RelationBlock::updateRelationRecords(RelationOffsets recordOffset, unsigned int data) {
+    int offsetValue = static_cast<int>(recordOffset);
+    int dataOffset = RECORD_SIZE * offsetValue;
     RelationBlock::relationsDB->seekg(this->addr + dataOffset);
     if (!RelationBlock::relationsDB->write(reinterpret_cast<char*>(&data), RECORD_SIZE)) {
-        relation_block_logger.error("Error while updating relation data record offset " + std::to_string(recordOffset) +
+        relation_block_logger.error("Error while updating relation data record offset " + std::to_string(offsetValue) +
                                     "data " + std::to_string(data));
         return false;
     }
@@ -300,7 +304,7 @@ void RelationBlock::addProperty(std::string name, char* value) {
             this->propertyAddress = newLink->blockAddress;
             // If it was an empty prop link before inserting, Then update the property reference of this node
             // block
-            this->updateRelationRecords(10, this->propertyAddress);
+            this->updateRelationRecords(RelationOffsets::RELATION_PROPS, this->propertyAddress);
         } else {
             throw "Error occurred while adding a new property link to " + std::to_string(this->addr) + " node block";
         }
