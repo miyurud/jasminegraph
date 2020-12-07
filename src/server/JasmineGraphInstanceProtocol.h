@@ -58,7 +58,9 @@ public:
     static const string NPLACES;
     static const string TRIANGLES;
     static const string SEND_CENTRALSTORE_TO_AGGREGATOR;
+    static const string SEND_COMPOSITE_CENTRALSTORE_TO_AGGREGATOR;
     static const string AGGREGATE_CENTRALSTORE_TRIANGLES;
+    static const string AGGREGATE_COMPOSITE_CENTRALSTORE_TRIANGLES;
     static const string PERFORMANCE_STATISTICS;
     static const string INITIATE_TRAIN;
     static const string INITIATE_PREDICT;
@@ -73,6 +75,7 @@ public:
     static const string CHECK_FILE_ACCESSIBLE;
     static const string SEND_FILE_TYPE;
     static const string FILE_TYPE_CENTRALSTORE_AGGREGATE;
+    static const string FILE_TYPE_CENTRALSTORE_COMPOSITE;
 };
 
 const int INSTANCE_DATA_LENGTH = 300;
