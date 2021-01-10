@@ -87,7 +87,7 @@ unsigned int PropertyLink::insert(std::string name, char* value) {
 
     if (this->name == name) {
         // TODO[tmkasun]: update existing property value
-        property_link_logger.error("Property key/name already exist key = " + std::string(name));
+        property_link_logger.warn("Property key/name already exist key = " + std::string(name));
         return this->blockAddress;
     } else if (this->next()) {  // Traverse to the edge/end of the link list
         return this->next()->insert(name, value);

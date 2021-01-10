@@ -20,12 +20,21 @@ limitations under the License.
 #ifndef NODE_MANAGER
 #define NODE_MANAGER
 
+struct GraphConfig {
+    unsigned long maxLabelSize;
+    unsigned int graphID = 0;
+    unsigned int partitionID = 0;
+    std::string openMode;
+};
+
 class NodeManager {
    private:
     unsigned int nextNodeIndex = 0;
     std::fstream* nodeDBT;
+    unsigned int graphID = 0;
+    unsigned int partitionID = 0;
     static const std::string FILE_MODE;
-    const unsigned long INDEX_KEY_SIZE = 8;  // Size of an index key entry in bytes
+    unsigned long INDEX_KEY_SIZE = 5;  // Size of an index key entry in bytes
 
     int dbSize(std::string path);
     void persistNodeIndex();
@@ -37,14 +46,14 @@ class NodeManager {
     static unsigned int nextPropertyIndex;  // Next available property block index
     // unless open in wipe data
     // mode(trunc) need to set this value to property db seekp()/BLOCK_SIZE
-    std::string index_db_loc = "streamStore/nodes.index.db";
+    std::string index_db_loc;
 
     std::unordered_map<std::string, unsigned int> nodeIndex;
 
-    NodeManager(std::string);
+    NodeManager(GraphConfig);
     ~NodeManager() { delete NodeBlock::nodesDB; };
-
-    std::pair<NodeBlock, NodeBlock> addEdge(std::pair<std::string, std::string>);
+    void setIndexKeySize(unsigned long);
+    RelationBlock* addEdge(std::pair<std::string, std::string>);
     RelationBlock* addRelation(NodeBlock, NodeBlock);
     void close();
     NodeBlock* addNode(std::string);  // will redurn DB block address

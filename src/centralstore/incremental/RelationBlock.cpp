@@ -327,6 +327,32 @@ std::map<std::string, char*> RelationBlock::getAllProperties() {
     return allProperties;
 }
 
+/**
+ * Get the source node in the current (this) relationship
+ *
+ * */
+NodeBlock* RelationBlock::getSource() {
+    if (this->sourceBlock) {
+        return sourceBlock;
+    } else {
+        relation_block_logger.warn("Get source from node block address is not implemented yet!");
+        return NULL;
+    }
+}
+
+/**
+ * Get the destination node in the relationship
+ *
+ * */
+NodeBlock* RelationBlock::getDestination() {
+    if (this->destinationBlock) {
+        return destinationBlock;
+    } else {
+        relation_block_logger.warn("Get destination from node block address is not implemented yet!");
+        return NULL;
+    }
+}
+
 const unsigned long RelationBlock::BLOCK_SIZE = RelationBlock::RECORD_SIZE * 11;
 // One relation block holds 11 recods such as source addres, destination address, source next relation address etc.
 // and one record is typically 4 bytes (size of unsigned int)

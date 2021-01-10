@@ -21,24 +21,35 @@ limitations under the License.
 #include "NodeBlock.h"  // To setup node DB
 #include "PropertyLink.h"
 #include "RelationBlock.h"
+#include "iostream"
 
 Logger node_manager_logger;
 
-NodeManager::NodeManager(std::string mode) {
+NodeManager::NodeManager(GraphConfig gConfig) {
+    this->graphID = gConfig.graphID;
+    this->partitionID = gConfig.partitionID;
+
+    std::string graphPrefix = "databases/g" + std::to_string(graphID);
+    std::string dbPrefix = graphPrefix + "_p" + std::to_string(partitionID);
+    std::string nodesDBPath = dbPrefix + "_nodes.db";
+    this->index_db_loc = dbPrefix + "_nodes.index.db";
+
+    if (gConfig.maxLabelSize) {
+        setIndexKeySize(gConfig.maxLabelSize);
+    }
     std::ios_base::openmode openMode = std::ios::trunc;  // default is Trunc mode which overrides the entire file
-    if (mode == NodeManager::FILE_MODE) {
+    if (gConfig.openMode == NodeManager::FILE_MODE) {
         openMode = std::ios::app;  // if app, open in append mode
         this->nodeIndex = readNodeIndex();
     }
-    NodeBlock::nodesDB =
-        new std::fstream(NodeManager::NODE_DB_PATH, std::ios::in | std::ios::out | openMode | std::ios::binary);
+    NodeBlock::nodesDB = new std::fstream(nodesDBPath, std::ios::in | std::ios::out | openMode | std::ios::binary);
     PropertyLink::propertiesDB =
-        new std::fstream(PropertyLink::DB_PATH, std::ios::in | std::ios::out | openMode | std::ios::binary);
+        new std::fstream(dbPrefix + "_properties.db", std::ios::in | std::ios::out | openMode | std::ios::binary);
     RelationBlock::relationsDB =
-        new std::fstream(RelationBlock::DB_PATH, std::ios::in | std::ios::out | openMode | std::ios::binary);
+        new std::fstream(dbPrefix + "_relations.db", std::ios::in | std::ios::out | openMode | std::ios::binary);
     // TODO (tmkasun): set PropertyLink nextPropertyIndex after validating by modulus check from file number of bytes
 
-    if (dbSize(NodeManager::NODE_DB_PATH) % NodeBlock::BLOCK_SIZE != 0) {
+    if (dbSize(nodesDBPath) % NodeBlock::BLOCK_SIZE != 0) {
         std::string errorMessage =
             "Node DB size does not comply to node block size Path = " + NodeManager::NODE_DB_PATH;
         node_manager_logger.error(errorMessage);
@@ -93,6 +104,7 @@ RelationBlock *NodeManager::addRelation(NodeBlock source, NodeBlock destination)
                                       std::string(source.id) + " destination = " + std::string(destination.id));
         }
     } else {
+        // TODO[tmkasun]: implement get edge support and return existing edge/relation if already exist
         node_manager_logger.warn("Relation/Edge already exist for source = " + std::string(source.id) +
                                  " destination = " + std::string(destination.id));
     }
@@ -115,23 +127,22 @@ NodeBlock *NodeManager::addNode(std::string nodeId) {
     }
 }
 
-std::pair<NodeBlock, NodeBlock> NodeManager::addEdge(std::pair<std::string, std::string> edge) {
+RelationBlock *NodeManager::addEdge(std::pair<std::string, std::string> edge) {
     NodeBlock *sourceNode = this->addNode(edge.first);
     NodeBlock *destNode = this->addNode(edge.second);
-    RelationBlock *relationAddr = this->addRelation(*sourceNode, *destNode);
+    RelationBlock *newRelation = this->addRelation(*sourceNode, *destNode);
+    if (newRelation) {
+        newRelation->setDestination(destNode);
+        newRelation->setSource(sourceNode);
+    }
 
     node_manager_logger.debug("DEBUG: Source DB block address " + std::to_string(sourceNode->addr) +
                               " Destination DB block address " + std::to_string(destNode->addr));
-    std::pair<NodeBlock, NodeBlock> returnVal = {*sourceNode, *destNode};
-    delete sourceNode;  // to prevent memory leaks
-    delete destNode;
-    return returnVal;
+    return newRelation;
 }
 
 int NodeManager::dbSize(std::string path) {
     /*
-        Following description was taken from 
-        https://pubs.opengroup.org/onlinepubs/009695299/basedefs/sys/stat.h.html
         The structure stat contains at least the following members:
         st_dev     ID of the device containing file
         st_ino     file serial number
@@ -210,6 +221,12 @@ NodeBlock *NodeManager::get(std::string nodeId) {
 void NodeManager::persistNodeIndex() {
     std::ofstream index_db(this->index_db_loc, std::ios::trunc | std::ios::binary);
     if (index_db.is_open()) {
+        if (this->nodeIndex.size() > 0 && (this->nodeIndex.begin()->first.length() > NodeManager::INDEX_KEY_SIZE)) {
+            node_manager_logger.error("Node label/ID is longer ( " +
+                                      std::to_string(this->nodeIndex.begin()->first.length()) +
+                                      " ) than the index key size " + std::to_string(NodeManager::INDEX_KEY_SIZE));
+            throw "Node label/ID is longer than the index key size!";
+        }
         for (auto nodeMap : this->nodeIndex) {
             char nodeIDC[NodeManager::INDEX_KEY_SIZE] = {0};  // Initialize with null chars
             std::strcpy(nodeIDC, nodeMap.first.c_str());
@@ -232,7 +249,7 @@ std::list<NodeBlock> NodeManager::getGraph(int limit) {
     std::list<NodeBlock> vertices;
     for (auto it : this->nodeIndex) {
         i++;
-        if (i >= limit) {
+        if (i > limit) {
             break;
         }
         auto nodeId = it.first;
@@ -264,6 +281,20 @@ void NodeManager::close() {
     }
 }
 
+/**
+ *
+ * Set the size of node index key size at the run time.
+ * By default Node/Vertext ID or the label is used as the key in the node index database, which act as a lookup table
+ * for node IDs to their block address in node DB
+ *
+ * */
+void NodeManager::setIndexKeySize(unsigned long newIndexKeySize) {
+    if (NodeBlock::LABEL_SIZE > newIndexKeySize) {
+        node_manager_logger.warn("Node/Vertext ID or label is larger than the index key size!!");
+    }
+
+    this->INDEX_KEY_SIZE = newIndexKeySize;
+}
 unsigned int NodeManager::nextPropertyIndex = 0;
-std::string NodeManager::NODE_DB_PATH = "streamStore/nodes.db";
+std::string NodeManager::NODE_DB_PATH = "streamStore/g{}_p{}.db";
 const std::string NodeManager::FILE_MODE = "app";  // for appending to existing DB

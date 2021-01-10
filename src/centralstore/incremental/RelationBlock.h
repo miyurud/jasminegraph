@@ -57,6 +57,8 @@ class RelationBlock {
    private:
     std::string id;
     bool updateRelationRecords(RelationOffsets, unsigned int);
+    NodeBlock *sourceBlock;
+    NodeBlock *destinationBlock;
 
    public:
     RelationBlock(unsigned int addr, NodeRelation source, NodeRelation destination, unsigned int propertyAddress)
@@ -77,6 +79,11 @@ class RelationBlock {
     bool setNextDestination(unsigned int);
     bool setPreviousSource(unsigned int);
     bool setPreviousDestination(unsigned int);
+
+    NodeBlock *getSource();
+    NodeBlock *getDestination();
+    void setSource(NodeBlock *src) { sourceBlock = src; };
+    void setDestination(NodeBlock *dst) { destinationBlock = dst; };
 
     RelationBlock *nextSource();
     RelationBlock *previousSource();
