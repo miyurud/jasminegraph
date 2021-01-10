@@ -130,6 +130,8 @@ std::pair<NodeBlock, NodeBlock> NodeManager::addEdge(std::pair<std::string, std:
 
 int NodeManager::dbSize(std::string path) {
     /*
+        Following description was taken from 
+        https://pubs.opengroup.org/onlinepubs/009695299/basedefs/sys/stat.h.html
         The structure stat contains at least the following members:
         st_dev     ID of the device containing file
         st_ino     file serial number
