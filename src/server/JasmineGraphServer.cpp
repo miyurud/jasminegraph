@@ -638,7 +638,8 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
     if (masterHost.empty()) {
         masterHost = utils.getJasmineGraphProperty("org.jasminegraph.server.host");;
     }
-    int total_threads = partitionFileList.size() + centralStoreFileList.size() + centralStoreDuplFileList.size() + compositeCentralStoreFileList.size();
+    int total_threads = partitionFileList.size() + centralStoreFileList.size() + centralStoreDuplFileList.size() +
+                        compositeCentralStoreFileList.size();
     if (graphType == Conts::GRAPH_WITH_ATTRIBUTES) {
         attributeFileList = fullFileList[3];
         total_threads += attributeFileList.size();
@@ -1673,7 +1674,6 @@ bool JasmineGraphServer::batchUploadCompositeCentralstoreFile(std::string host, 
                 bzero(data, 301);
                 read(sockfd, data, 300);
                 response = (data);
-                //response = utils.trim_copy(response, " \f\n\r\t\v");
 
                 if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_LEN) == 0) {
                     server_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN, "info");
@@ -1687,7 +1687,6 @@ bool JasmineGraphServer::batchUploadCompositeCentralstoreFile(std::string host, 
                     bzero(data, 301);
                     read(sockfd, data, 300);
                     response = (data);
-                    //response = utils.trim_copy(response, " \f\n\r\t\v");
 
                     if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_CONT) == 0) {
                         server_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
@@ -1711,7 +1710,6 @@ bool JasmineGraphServer::batchUploadCompositeCentralstoreFile(std::string host, 
                 bzero(data, 301);
                 read(sockfd, data, 300);
                 response = (data);
-                //response = utils.trim_copy(response, " \f\n\r\t\v");
 
                 if (response.compare(JasmineGraphInstanceProtocol::FILE_RECV_WAIT) == 0) {
                     server_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_WAIT, "info");

@@ -1772,7 +1772,8 @@ string JasmineGraphInstanceService::aggregateCompositeCentralStoreTriangles(std:
     std::vector<std::string> availableCompositeFileList = Utils::split(availableFileList, ':');
     std::vector<std::string>::iterator availableCompositeFileIterator;
 
-    for (availableCompositeFileIterator = availableCompositeFileList.begin(); availableCompositeFileIterator != availableCompositeFileList.end(); ++availableCompositeFileIterator) {
+    for (availableCompositeFileIterator = availableCompositeFileList.begin();
+         availableCompositeFileIterator != availableCompositeFileList.end(); ++availableCompositeFileIterator) {
         std::string availableCompositeFileName = *availableCompositeFileIterator;
         size_t lastindex = availableCompositeFileName.find_last_of(".");
         string rawFileName = availableCompositeFileName.substr(0, lastindex);
@@ -1780,18 +1781,21 @@ string JasmineGraphInstanceService::aggregateCompositeCentralStoreTriangles(std:
 
         std::string availableCompositeFile = dataFolder + "/" + rawFileName;
 
-        if (stat(availableCompositeFile.c_str(),&st) == 0) {
+        if (stat(availableCompositeFile.c_str(), &st) == 0) {
             if (st.st_mode & S_IFREG) {
-                JasmineGraphHashMapCentralStore centralStore = JasmineGraphInstanceService::loadCentralStore(availableCompositeFile);
+                JasmineGraphHashMapCentralStore centralStore = JasmineGraphInstanceService::loadCentralStore(
+                        availableCompositeFile);
                 map<long, unordered_set<long>> compositeCentralGraphMap = centralStore.getUnderlyingHashMap();
                 map<long, unordered_set<long>>::iterator compositeCentralGraphMapIterator;
 
-                for (compositeCentralGraphMapIterator = compositeCentralGraphMap.begin(); compositeCentralGraphMapIterator != compositeCentralGraphMap.end(); ++compositeCentralGraphMapIterator) {
+                for (compositeCentralGraphMapIterator = compositeCentralGraphMap.begin();
+                     compositeCentralGraphMapIterator !=
+                     compositeCentralGraphMap.end(); ++compositeCentralGraphMapIterator) {
                     long startVid = compositeCentralGraphMapIterator->first;
                     unordered_set<long> endVidSet = compositeCentralGraphMapIterator->second;
 
                     unordered_set<long> aggregatedEndVidSet = aggregatedCompositeCentralStore[startVid];
-                    aggregatedEndVidSet.insert(endVidSet.begin(),endVidSet.end());
+                    aggregatedEndVidSet.insert(endVidSet.begin(), endVidSet.end());
                     aggregatedCompositeCentralStore[startVid] = aggregatedEndVidSet;
                 }
             }

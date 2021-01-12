@@ -1113,7 +1113,7 @@ long JasmineGraphFrontEnd::countTriangles(std::string graphId, SQLiteDBInterface
 
     std::vector<vector<pair<string, string>>> results = sqlite.runSelect(sqlStatement);
 
-    if (results.size() > 4) {
+    if (results.size() > Conts::COMPOSITE_CENTRAL_STORE_WORKER_THRESHOLD) {
         isCompositeAggregation = true;
     }
 
@@ -1127,13 +1127,11 @@ long JasmineGraphFrontEnd::countTriangles(std::string graphId, SQLiteDBInterface
         for (graphFilesIterator = graphFiles.begin(); graphFilesIterator != graphFiles.end(); ++graphFilesIterator) {
             std::string graphFileName = *graphFilesIterator;
 
-            if (graphFileName.find(compositeFileNameFormat) == 0 && graphFileName.find(".gz") != std::string::npos) {
+            if ((graphFileName.find(compositeFileNameFormat) == 0) && (graphFileName.find(".gz") != std::string::npos)) {
                 compositeCentralStoreFiles.push_back(graphFileName);
             }
         }
-
         fileCombinations = getCombinations(compositeCentralStoreFiles);
-
     }
 
     std::map<string, std::vector<string>> partitionMap;
@@ -1343,7 +1341,7 @@ long JasmineGraphFrontEnd::getTriangleCount(int graphId, std::string host, int p
                 std::vector<string>::iterator fileListIterator;
                 std::set<string> partitionIdSet;
                 std::set<string> transferRequireFiles;
-                std::string combinationKey="";
+                std::string combinationKey = "";
                 std::string availableFiles = "";
                 std::string transferredFiles = "";
                 bool isAggregateValid = false;
@@ -1390,13 +1388,17 @@ long JasmineGraphFrontEnd::getTriangleCount(int graphId, std::string host, int p
                 if (isAggregateValid) {
                     std::set<string>::iterator transferRequireFileIterator;
 
-                    for (transferRequireFileIterator = transferRequireFiles.begin(); transferRequireFileIterator != transferRequireFiles.end(); ++transferRequireFileIterator) {
+                    for (transferRequireFileIterator = transferRequireFiles.begin();
+                         transferRequireFileIterator != transferRequireFiles.end(); ++transferRequireFileIterator) {
                         std::string transferFileName = *transferRequireFileIterator;
-                        std::string fileAccessible = isFileAccessibleToWorker(std::to_string(graphId),std::string(),host,std::to_string(port),masterIP,
-                                                                              JasmineGraphInstanceProtocol::FILE_TYPE_CENTRALSTORE_COMPOSITE,transferFileName);
+                        std::string fileAccessible = isFileAccessibleToWorker(std::to_string(graphId), std::string(),
+                                                                              host, std::to_string(port), masterIP,
+                                                                              JasmineGraphInstanceProtocol::FILE_TYPE_CENTRALSTORE_COMPOSITE,
+                                                                              transferFileName);
 
                         if (fileAccessible.compare("false") == 0) {
-                            copyCompositeCentralStoreToAggregator(host,std::to_string(port),std::to_string(dataPort),transferFileName, masterIP);
+                            copyCompositeCentralStoreToAggregator(host, std::to_string(port), std::to_string(dataPort),
+                                                                  transferFileName, masterIP);
                         }
                     }
 

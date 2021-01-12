@@ -421,7 +421,8 @@ void MetisPartitioner::createPartitionFiles(std::map<int, int> partMap) {
         std::vector<std::string> compositeGraphIdList;
         int partitionLoop = 0;
 
-        for (centralStoreSizeVectorIterator = centralStoreSizeVector.begin(); centralStoreSizeVectorIterator != centralStoreSizeVector.end(); ++centralStoreSizeVectorIterator) {
+        for (centralStoreSizeVectorIterator = centralStoreSizeVector.begin();
+             centralStoreSizeVectorIterator != centralStoreSizeVector.end(); ++centralStoreSizeVectorIterator) {
             size_t centralStoreSize = *centralStoreSizeVectorIterator;
             std::vector<size_t> minSumGroup = centralStoreGroups[0];
             std::vector<int> minPartitionGroup = partitionGroups[0];
@@ -429,7 +430,8 @@ void MetisPartitioner::createPartitionFiles(std::map<int, int> partMap) {
             size_t minGroupTotal = 0;
             int minGroupIndex = 0;
 
-            for (minSumGroupIterator = minSumGroup.begin(); minSumGroupIterator != minSumGroup.end(); ++minSumGroupIterator) {
+            for (minSumGroupIterator = minSumGroup.begin();
+                 minSumGroupIterator != minSumGroup.end(); ++minSumGroupIterator) {
                 size_t size = *minSumGroupIterator;
                 minGroupTotal += size;
             }
@@ -440,7 +442,8 @@ void MetisPartitioner::createPartitionFiles(std::map<int, int> partMap) {
                 std::vector<size_t>::iterator currentGroupIterator;
                 size_t currentGroupTotal = 0;
 
-                for (currentGroupIterator = currentGroup.begin(); currentGroupIterator != currentGroup.end(); ++currentGroupIterator) {
+                for (currentGroupIterator = currentGroup.begin();
+                     currentGroupIterator != currentGroup.end(); ++currentGroupIterator) {
                     int currentSize = *currentGroupIterator;
                     currentGroupTotal += currentSize;
                 }
@@ -464,7 +467,8 @@ void MetisPartitioner::createPartitionFiles(std::map<int, int> partMap) {
 
         std::map<int, std::vector<int>>::iterator partitionGroupsIterator;
 
-        for (partitionGroupsIterator = partitionGroups.begin() ; partitionGroupsIterator != partitionGroups.end(); ++partitionGroupsIterator) {
+        for (partitionGroupsIterator = partitionGroups.begin();
+             partitionGroupsIterator != partitionGroups.end(); ++partitionGroupsIterator) {
             std::string aggregatePartitionId = "";
             int group = partitionGroupsIterator->first;
             std::vector<int> partitionList = partitionGroupsIterator->second;
@@ -473,24 +477,28 @@ void MetisPartitioner::createPartitionFiles(std::map<int, int> partMap) {
                 std::vector<int>::iterator partitionListIterator;
                 std::map<int, std::vector<int>> tempCompositeMap;
 
-                for (partitionListIterator = partitionList.begin(); partitionListIterator != partitionList.end(); ++partitionListIterator) {
+                for (partitionListIterator = partitionList.begin();
+                     partitionListIterator != partitionList.end(); ++partitionListIterator) {
                     int partitionId = *partitionListIterator;
                     aggregatePartitionId = std::to_string(partitionId) + "_" + aggregatePartitionId;
 
                     std::map<int, std::vector<int>> currentStorageMap = masterGraphStorageMap[partitionId];
                     std::map<int, std::vector<int>>::iterator currentStorageMapIterator;
 
-                    for (currentStorageMapIterator = currentStorageMap.begin();currentStorageMapIterator != currentStorageMap.end(); ++currentStorageMapIterator) {
+                    for (currentStorageMapIterator = currentStorageMap.begin();
+                         currentStorageMapIterator != currentStorageMap.end(); ++currentStorageMapIterator) {
                         int startVetex = currentStorageMapIterator->first;
                         std::vector<int> secondVertexVector = currentStorageMapIterator->second;
 
                         std::vector<int> compositeMapSecondVertexVector = tempCompositeMap[startVetex];
                         std::vector<int>::iterator secondVertexVectorIterator;
 
-                        for (secondVertexVectorIterator = secondVertexVector.begin(); secondVertexVectorIterator != secondVertexVector.end(); ++secondVertexVectorIterator) {
+                        for (secondVertexVectorIterator = secondVertexVector.begin();
+                             secondVertexVectorIterator != secondVertexVector.end(); ++secondVertexVectorIterator) {
                             int secondVertex = *secondVertexVectorIterator;
 
-                            if (std::find(compositeMapSecondVertexVector.begin(), compositeMapSecondVertexVector.end(),secondVertex) == compositeMapSecondVertexVector.end()) {
+                            if (std::find(compositeMapSecondVertexVector.begin(), compositeMapSecondVertexVector.end(),
+                                          secondVertex) == compositeMapSecondVertexVector.end()) {
                                 compositeMapSecondVertexVector.push_back(secondVertex);
                             }
                         }
@@ -500,7 +508,8 @@ void MetisPartitioner::createPartitionFiles(std::map<int, int> partMap) {
 
                 }
 
-                std::string adjustedAggregatePartitionId = aggregatePartitionId.substr(0, aggregatePartitionId.size()-1);
+                std::string adjustedAggregatePartitionId = aggregatePartitionId.substr(0,
+                                                                                       aggregatePartitionId.size() - 1);
                 compositeGraphIdList.push_back(adjustedAggregatePartitionId);
                 compositeMasterGraphStorageMap[adjustedAggregatePartitionId] = tempCompositeMap;
             }
@@ -510,10 +519,12 @@ void MetisPartitioner::createPartitionFiles(std::map<int, int> partMap) {
         std::thread *compositeCopyThreads = new std::thread[threadCount];
         int compositeCopyCount = 0;
 
-        for (compositeGraphIdListIterator = compositeGraphIdList.begin(); compositeGraphIdListIterator != compositeGraphIdList.end(); ++compositeGraphIdListIterator) {
+        for (compositeGraphIdListIterator = compositeGraphIdList.begin();
+             compositeGraphIdListIterator != compositeGraphIdList.end(); ++compositeGraphIdListIterator) {
             std::string compositeGraphId = *compositeGraphIdListIterator;
 
-            compositeCopyThreads[compositeCopyCount] = std::thread(&MetisPartitioner::writeSerializedCompositeMasterFiles, this, compositeGraphId);
+            compositeCopyThreads[compositeCopyCount] = std::thread(
+                    &MetisPartitioner::writeSerializedCompositeMasterFiles, this, compositeGraphId);
             compositeCopyCount++;
         }
 
