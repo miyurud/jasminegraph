@@ -394,7 +394,7 @@ void MetisPartitioner::createPartitionFiles(std::map<int, int> partMap) {
 
     //Below code segment will create the composite central stores which uses for aggregation
 
-    if (nParts > 4) {
+    if (nParts > Conts::COMPOSITE_CENTRAL_STORE_WORKER_THRESHOLD) {
         bool haveSwapped = true;
 
         for (unsigned j = 1; haveSwapped && j < centralStoreSizeVector.size(); ++j) {
@@ -436,7 +436,7 @@ void MetisPartitioner::createPartitionFiles(std::map<int, int> partMap) {
                 minGroupTotal += size;
             }
 
-            for (int loop = 0; loop < 4; loop++) {
+            for (int loop = 0; loop < Conts::NUMBER_OF_COMPOSITE_CENTRAL_STORES; loop++) {
                 std::vector<size_t> currentGroup = centralStoreGroups[loop];
                 std::vector<int> currentPartitionGroup = partitionGroups[loop];
                 std::vector<size_t>::iterator currentGroupIterator;

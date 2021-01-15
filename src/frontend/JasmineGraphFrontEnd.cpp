@@ -1830,7 +1830,8 @@ std::string JasmineGraphFrontEnd::copyCompositeCentralStoreToAggregator(std::str
                 if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_CONT) == 0) {
                     frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
                     frontend_logger.log("Going to send file through service", "info");
-                    jasmineServer->sendFileThroughService(aggregatorHostName, std::atoi(aggregatorDataPort.c_str()), fileName, aggregateStoreFile, masterIP);
+                    jasmineServer->sendFileThroughService(aggregatorHostName, std::atoi(aggregatorDataPort.c_str()),
+                                                          fileName, aggregateStoreFile, masterIP);
                 }
             }
         }
@@ -1850,7 +1851,6 @@ std::string JasmineGraphFrontEnd::copyCompositeCentralStoreToAggregator(std::str
             bzero(data, 301);
             read(sockfd, data, 300);
             response = (data);
-            //response = utils.trim_copy(response, " \f\n\r\t\v");
 
             if (response.compare(JasmineGraphInstanceProtocol::FILE_RECV_WAIT) == 0) {
                 frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_WAIT, "info");
