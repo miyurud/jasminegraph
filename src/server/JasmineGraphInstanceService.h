@@ -76,6 +76,8 @@ public:
     static JasmineGraphHashMapCentralStore loadCentralStore(std::string centralStoreFileName);
     static std::string copyCentralStoreToAggregator(std::string graphId, std::string partitionId, std::string aggregatorHost, std::string aggregatorPort, std::string host);
     static std::string aggregateCentralStoreTriangles (std::string graphId, std::string partitionId, std::string partitionIdList);
+    static string aggregateCompositeCentralStoreTriangles(std::string compositeFileList,
+                                                          std::string availableFileList);
     static map<long, long> getOutDegreeDistributionHashMap(map<long, unordered_set<long>> graphMap);
     static string requestPerformanceStatistics(std::string isVMStatManager, std::string isResourceAllocationRequested);
 
