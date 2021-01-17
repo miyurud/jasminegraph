@@ -83,6 +83,7 @@ void *backendservicesesion(void *dummyPt) {
             std::string updateQuery = "update worker set status='started' where ip='" + strArr[0] + "' and server_port='" + strArr[1] + "';";
 
             sqLiteDbInterface.runUpdate(updateQuery);
+            break;
 
         }
         else {
