@@ -94,8 +94,9 @@ void *backendservicesesion(void *dummyPt) {
     close(connFd);
 }
 
-JasmineGraphBackend::JasmineGraphBackend(SQLiteDBInterface db) {
+JasmineGraphBackend::JasmineGraphBackend(SQLiteDBInterface db, int numberOfWorkers) {
     this->sqlite = db;
+    this->workerCount = numberOfWorkers;
 }
 
 int JasmineGraphBackend::run() {
@@ -136,13 +137,13 @@ int JasmineGraphBackend::run() {
     }
 
     listen(listenFd, 10);
-    pthread_t threadA[20];
+    pthread_t threadA[workerCount];
 
     len = sizeof(clntAdd);
 
     int noThread = 0;
 
-    while (noThread < 20) {
+    while (noThread < workerCount) {
         backend_logger.log("Backend Listening", "info");
 
         //this is where client connects. svr will hang in this mode until client conn

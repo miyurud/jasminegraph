@@ -35,7 +35,7 @@ void *runfrontend(void *dummyPt) {
 
 void *runbackend(void *dummyPt) {
     JasmineGraphServer *refToServer = (JasmineGraphServer *) dummyPt;
-    refToServer->backend = new JasmineGraphBackend(refToServer->sqlite);
+    refToServer->backend = new JasmineGraphBackend(refToServer->sqlite, refToServer->numberOfWorkers);
     refToServer->backend->run();
 }
 

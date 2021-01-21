@@ -32,7 +32,6 @@ private:
     std::string profile;
     std::string workerHosts;
     std::string enableNmon;
-    int numberOfWorkers = -1;
     static const int BUFFER_SIZE = 128;
     int serverPort;
     int serverDataPort;
@@ -111,6 +110,7 @@ public:
     PerformanceSQLiteDBInterface performanceSqlite;
     JasmineGraphBackend *backend;
     std::string masterHost;
+    int numberOfWorkers = -1;
 
     struct workers {
         std::string hostname;
