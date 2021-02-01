@@ -326,7 +326,6 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
             }
             server_logger.log(serverStartScript, "info");
             popen(serverStartScript.c_str(),"r");
-            sleep(1);
         }
     }
 }
