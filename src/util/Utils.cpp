@@ -497,3 +497,21 @@ void Utils::assignPartitionsToWorkers(int numberOfWorkers, SQLiteDBInterface sql
         sqlite.runInsert(sqlStatement);
     }
 }
+
+
+string Utils::replace(string str, string old, string replacement) {
+    size_t index = 0;
+    while (true) {
+        /* Locate the substring to replace. */
+        index = str.find(old, index);
+        if (index == std::string::npos) {
+            return str;
+        }
+
+        /* Make the replacement. */
+        str.replace(index, 1, replacement);
+
+        /* Advance index forward so the next iteration doesn't pick it up as well. */
+        index += 2;
+    }
+}

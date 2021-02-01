@@ -42,6 +42,7 @@ limitations under the License.
 #include <chrono>
 #include <ctime>
 #include <vector>
+#include <armadillo>
 
 void *instanceservicesession(void *dummyPt);
 void writeCatalogRecord(string record);
@@ -105,6 +106,20 @@ public:
     static std::map<int,std::vector<std::string>> iterationData;
 
     static int partitionCounter;
+
+    void clusterFilters(string trainData, int noClusters);
+
+    void entityRes(string trainData);
+
+    void generateLocalCandidateSets(int filterSize, int noClusters);
+
+    map<int, string> createFilters(map<int, vector<string>> entityData, int filterSize, int numHashes);
+
+    vector<map<int, string>>
+    createFilters(map<int, vector<string>> entityData, map<int, vector<int>> neighborhoodData, int filterSize,
+                  int numHashes);
+
+    arma::Mat<short> generateCRVs(int minhashSize, int noClusters);
 };
 
 
