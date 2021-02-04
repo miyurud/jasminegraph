@@ -105,6 +105,8 @@ public:
 
     void assignPartitionToWorker (std::string fileName, int graphId, std::string workerHost, int workerPort, int workerDataPort);
 
+    bool spawnNewWorker(string host, string port, string dataPort, string profile, string masterHost, string enableNmon);
+
     JasmineGraphFrontEnd *frontend;
     SQLiteDBInterface sqlite;
     PerformanceSQLiteDBInterface performanceSqlite;

@@ -330,6 +330,58 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
     }
 }
 
+bool JasmineGraphServer::spawnNewWorker(string host, string port, string dataPort, string profile, string masterHost, string enableNmon) {
+    SQLiteDBInterface refToSqlite = *new SQLiteDBInterface();
+    refToSqlite.init();
+    string selectHostSQL = "SELECT idhost from host where name='" + host + "'";
+    string selectWorkerSQL = "SELECT idworker from worker where server_port = '" + port + "' or server_data_port = '" + dataPort + "'";
+    std::vector<vector<pair<string, string>>> checkWorkerOutput = refToSqlite.runSelect(selectWorkerSQL);
+
+    if (checkWorkerOutput.size() > 0) {
+        return false;
+    }
+
+    std::vector<vector<pair<string, string>>> selectHostOutput = refToSqlite.runSelect(selectHostSQL);
+    string idHost = "";
+
+    if (selectHostOutput.size() > 0) {
+        idHost = selectHostOutput[0][0].second;
+    } else {
+        string maxHostIDSQL = "select max(idhost) from host";
+        std::vector<vector<pair<string, string>>> selectMaxHostOutput = refToSqlite.runSelect(maxHostIDSQL);
+        idHost = selectMaxHostOutput[0][0].second;
+
+        int hostId = atoi(idHost.c_str());
+        hostId++;
+        std::string hostInsertString = "INSERT INTO host (idhost,name,ip,is_public) VALUES ('" + std::to_string(hostId) + "','" +
+                host + "','" + host + "','false')";
+
+        refToSqlite.runInsert(hostInsertString);
+
+        idHost = to_string(hostId);
+    }
+
+    string maxWorkerIDSQL = "select max(idworker) from worker";
+    std::vector<vector<pair<string, string>>> selectMaxWorkerIdOutput = refToSqlite.runSelect(maxWorkerIDSQL);
+    string maxIdWorker = selectMaxWorkerIdOutput[0][0].second;
+    int maxWorkerId = atoi(maxIdWorker.c_str());
+    maxWorkerId++;
+    string workerInsertSqlStatement = "INSERT INTO worker (idworker,host_idhost,name,ip,user,is_public,server_port,server_data_port) VALUES ('" +
+            to_string(maxWorkerId) + "','" + idHost + "','" + host + "','" + host + "','','false','" + port + "','" + dataPort + "')";
+
+    refToSqlite.runInsert(workerInsertSqlStatement);
+
+    std::vector<int> workerPortsVector;
+    std::vector<int> workerDataPortsVector;
+
+    workerPortsVector.push_back(atoi(port.c_str()));
+    workerDataPortsVector.push_back(atoi(dataPort.c_str()));
+
+    startRemoteWorkers(workerPortsVector,workerDataPortsVector,host,profile,masterHost,enableNmon);
+
+    return true;
+}
+
 void JasmineGraphServer::resolveOperationalGraphs(){
     string sqlStatement = "SELECT partition_graph_idgraph,partition_idpartition,worker_idworker FROM worker_has_partition ORDER BY worker_idworker";
     std::vector<vector<pair<string, string>>> output = sqlite.runSelect(sqlStatement);
