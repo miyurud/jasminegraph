@@ -85,6 +85,13 @@ class Utils
     static std::string getHostID(std::string hostName, SQLiteDBInterface sqlite);
 
     static void assignPartitionsToWorkers(int numberOfWorkers, SQLiteDBInterface sqlite);
+
+    void editFlagZero(std::string flagPath);
+
+    void editFlagOne(std::string flagPath);
+
+    std::string checkFlag(std::string flagPath);
+
 };
 
 #endif //JASMINEGRAPH_UTILS_H
