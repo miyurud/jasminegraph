@@ -58,5 +58,7 @@ const string JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_CHK = "frag-chk";
 const string JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_DONE = "frag-done";
 const string JasmineGraphInstanceProtocol::INITIATE_FILES = "initiate-file";
 const string JasmineGraphInstanceProtocol::INITIATE_SERVER = "initiate-server";
+const string JasmineGraphInstanceProtocol::INITIATE_ORG_SERVER = "initiate-org-server";
 const string JasmineGraphInstanceProtocol::INITIATE_CLIENT = "initiate-client";
 const string JasmineGraphInstanceProtocol::MERGE_FILES = "merge-files";
+const string JasmineGraphInstanceProtocol::INITIATE_AGG = "initiate-agg";
