@@ -693,7 +693,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 }
 
                 JasmineGraphServer *jasmineServer = new JasmineGraphServer();               
-                jasmineServer->initiateCommunication(graphID, trainData, sqlite);
+                jasmineServer->initiateOrgCommunication(graphID, trainData, sqlite);
             
             }else{
             
