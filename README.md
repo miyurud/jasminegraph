@@ -62,7 +62,7 @@ JasmineGraph can be run inside a docker image. After cloning the project, build 
 
 Run the image by providing the appropriate volume mount paths and parameters: 
 
-    docker run -v "/var/run/docker.sock:/var/run/docker.sock:rw" -v "/root/.ssh:/home/kasun/.ssh" -v "/tmp:/tmp" -v "/var/tmp/jasminegraph-localstore:/var/tmp/jasminegraph-localstore" -v "/var/tmp/jasminegraph-aggregate:/var/tmp/jasminegraph-aggregate" -v "/home/kasun/Documents/MSc/Research/jasmingraph-docker-dev/jasminegraph/metadb:/home/ubuntu/software/jasminegraph/metadb" -v "/home/kasun/Documents/MSc/Research/jasmingraph-docker-dev/jasminegraph/performancedb:/home/ubuntu/software/jasminegraph/performancedb" -p 7777:7777 -p 7778:7778 jasminegraph --MODE 1 --MASTERIP <docker0 interface ip> --WORKERS 4 --WORKERIP <docker0 interface ip> --ENABLE_NMON false
+    docker run -v "/var/run/docker.sock:/var/run/docker.sock:rw" -v "/root/.ssh:/home/user/.ssh" -v "/tmp:/tmp" -v "/var/tmp/jasminegraph-localstore:/var/tmp/jasminegraph-localstore" -v "/var/tmp/jasminegraph-aggregate:/var/tmp/jasminegraph-aggregate" -v "/home/user/Documents/jasminegraph/metadb:/home/ubuntu/software/jasminegraph/metadb" -v "/home/user/Documents/MSc/jasminegraph/performancedb:/home/ubuntu/software/jasminegraph/performancedb" -p 7777:7777 -p 7778:7778 jasminegraph --MODE 1 --MASTERIP <docker0 interface ip> --WORKERS 4 --WORKERIP <docker0 interface ip> --ENABLE_NMON false
 
 
 ## 5. Contact Information
