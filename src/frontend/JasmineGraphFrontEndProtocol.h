@@ -71,6 +71,8 @@ extern const string TRAIN;
 extern const string PREDICT;
 extern const string PARTITIONS;
 extern const string EMPTY;
+extern const string START_REMOTE_WORKER;
+extern const string REMOTE_WORKER_ARGS;
 
 
 class JasminGraphFrontEndProtocol {

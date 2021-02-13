@@ -35,3 +35,5 @@ const string TRAIN = "train";
 const string PREDICT = "predict";
 const string PARTITIONS = "number-of-partitions";
 const string EMPTY = "empty";
+const string START_REMOTE_WORKER = "start-rmt-worker";
+const string REMOTE_WORKER_ARGS = "remote-worker-args";
