@@ -383,7 +383,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
             Utils utils;
             gData = utils.trim_copy(gData, " \f\n\r\t\v");
-            frontend_logger.log("Data received: " + gData, "info");
+            frontend_logger.log("Data received-----: " + gData, "info");
 
             std::vector<std::string> strArr = Utils::split(gData, '|');
 
