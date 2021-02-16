@@ -246,7 +246,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             }
 
 frontend_logger.log("Path ===============" + path, "error");
-           // if (utils.fileExists(path)) {
+           if (true) {
                 frontend_logger.log("Path exists", "info");
 
                 string sqlStatement =
@@ -290,10 +290,10 @@ frontend_logger.log("Path ===============" + path, "error");
                     loop = true;
                     continue;
                 }
-           // } else {
-            //    frontend_logger.log("Graph data file does not exist on the specified path", "error");
-             //   continue;
-           // }
+            } else {
+                frontend_logger.log("Graph data file does not exist on the specified path", "error");
+               continue;
+           }
         } else if (line.compare(ADGR_CUST) == 0) {
             string message = "Select a custom graph upload option\n";
             int result_wr = write(connFd, message.c_str(), message.size());
