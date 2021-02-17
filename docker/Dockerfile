@@ -1,10 +1,11 @@
 FROM miyurud/jasminegraph
 WORKDIR /home/ubuntu/software
 RUN apt-get update
-RUN git clone https://github.com/miyurud/jasminegraph.git
+RUN git clone https://github.com/kasundharmadasa/jasminegraph.git
+WORKDIR /home/ubuntu/software/jasminegraph
+#RUN git checkout docker-dev-2
 ENV HOME="/home/ubuntu"
 RUN mkdir -p /var/tmp/nmon
-WORKDIR /home/ubuntu/software/jasminegraph
 RUN apt-get update && \
     sed -i '/target_link_libraries(JasmineGraph \/usr\/local\/lib\/libmetis.so)/c\target_link_libraries(JasmineGraph \/usr\/local\/lib\/libmetis.so)' CMakeLists.txt && \
     sed -i '/target_link_libraries(JasmineGraph \/usr\/local\/lib\/libxerces-c-3.2.so)/c\target_link_libraries(JasmineGraph \/usr\/local\/lib\/libxerces-c-3.2.so)' CMakeLists.txt && \
