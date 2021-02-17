@@ -594,7 +594,7 @@ void *instanceservicesession(void *dummyPt) {
             write(connFd, memoryUsage.c_str(), memoryUsage.size());
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_FILES) == 0) {
             
-            instance_logger.log("Received from: " + JasmineGraphInstanceProtocol::INITIATE_FILES, "info");
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::INITIATE_FILES, "info");
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
             bzero(data, INSTANCE_DATA_LENGTH);
@@ -626,7 +626,7 @@ void *instanceservicesession(void *dummyPt) {
 
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_SERVER) == 0) {
             
-            instance_logger.log("Received from: " + JasmineGraphInstanceProtocol::INITIATE_SERVER, "info");
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::INITIATE_SERVER, "info");
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
             bzero(data, INSTANCE_DATA_LENGTH);
@@ -674,7 +674,7 @@ void *instanceservicesession(void *dummyPt) {
 
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_AGG) == 0) {
             
-            instance_logger.log("Received from: " + JasmineGraphInstanceProtocol::INITIATE_AGG, "info");
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::INITIATE_AGG, "info");
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
             bzero(data, INSTANCE_DATA_LENGTH);
@@ -698,7 +698,7 @@ void *instanceservicesession(void *dummyPt) {
 
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_CLIENT) == 0) {
             
-            instance_logger.log("Received from: " + JasmineGraphInstanceProtocol::INITIATE_CLIENT, "info");
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::INITIATE_CLIENT, "info");
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
             bzero(data, INSTANCE_DATA_LENGTH);
@@ -722,7 +722,7 @@ void *instanceservicesession(void *dummyPt) {
 
         } else if (line.compare(JasmineGraphInstanceProtocol::MERGE_FILES) == 0) {
             
-            instance_logger.log("Received from: " + JasmineGraphInstanceProtocol::MERGE_FILES, "info");
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::MERGE_FILES, "info");
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
             bzero(data, INSTANCE_DATA_LENGTH);
@@ -745,7 +745,7 @@ void *instanceservicesession(void *dummyPt) {
             workerThread.join();
 
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_TRAIN) == 0) {
-            instance_logger.log("Received from: " + JasmineGraphInstanceProtocol::INITIATE_TRAIN, "info");
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::INITIATE_TRAIN, "info");
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
             bzero(data, INSTANCE_DATA_LENGTH);
