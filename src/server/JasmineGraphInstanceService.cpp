@@ -621,7 +621,6 @@ void *instanceservicesession(void *dummyPt) {
 
             for (int threadCount = 0; threadCount < 2; threadCount++) {
                 workerThreads[threadCount].join();
-                std::cout << "Thread " << threadCount << " joined" << std::endl;
             }
 
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_SERVER) == 0) {
@@ -772,7 +771,6 @@ void *instanceservicesession(void *dummyPt) {
 
             for (int threadCount = 0; threadCount < 2; threadCount++) {
                 workerThreads[threadCount].join();
-                std::cout << "Thread " << threadCount << " joined" << std::endl;
             }
 
             write(connFd, JasmineGraphInstanceProtocol::SEND_PARTITION_ITERATION.c_str(), JasmineGraphInstanceProtocol::SEND_PARTITION_ITERATION.size());
@@ -1857,7 +1855,6 @@ void JasmineGraphInstanceService::trainPartition(string trainData){
 
 void JasmineGraphInstanceService::initServer(string trainData){
     Utils utils;
-    std::cout << "inside server" << std::endl;
     std::vector<std::string> trainargs = Utils::split(trainData, ' ');
     string graphID;
     string partitionID = trainargs[trainargs.size() - 1];
