@@ -246,7 +246,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             }
 
 frontend_logger.log("Path ===============" + path, "error");
-           if (true) {
+           if (utils.fileExists(path)) {
                 frontend_logger.log("Path exists", "info");
 
                 string sqlStatement =
