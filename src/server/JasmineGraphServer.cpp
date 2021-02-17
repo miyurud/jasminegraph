@@ -2000,7 +2000,7 @@ void JasmineGraphServer::initiateOrgCommunication(std::string graphID, std::stri
     Utils utils;
     int fl_clients = stoi(utils.getJasmineGraphProperty("org.jasminegraph.fl_clients"));
         std::string flagPath = utils.getJasmineGraphProperty("org.jasminegraph.fl.flag.file");
-    int threadLimit = fl_clients+1;
+    int threadLimit = fl_clients + 1;
     std::thread *workerThreads = new std::thread[threadLimit];
 
     utils.editFlagOne(flagPath);
@@ -2013,13 +2013,10 @@ void JasmineGraphServer::initiateOrgCommunication(std::string graphID, std::stri
         orgAggThread[0] = std::thread(initiateAggregator,"localhost",  stoi(workerVector[0].port), 
                                         stoi(workerVector[0].dataPort),trainingArgs,fl_clients, "1");
         orgAggThread[0].join();
-        sleep(5);
-
     }
 
     std::thread *communicationThread = new std::thread[1];
     communicationThread[0] = std::thread(receiveGlobalWeights,"localhost", 5000, "0", 1, "1");
-    sleep(5);
     server_logger.log("Communication Thread Initiated", "info");
 
     trainingArgs = trainingArgs;
@@ -2028,7 +2025,6 @@ void JasmineGraphServer::initiateOrgCommunication(std::string graphID, std::stri
     for (int i = 0; i < workerVector.size(); i++) {
 
         workerInstance = workerVector[i];
-
         int serverPort = stoi(workerInstance.port);
         int serverDataPort = stoi(workerInstance.dataPort);
 
@@ -2036,24 +2032,20 @@ void JasmineGraphServer::initiateOrgCommunication(std::string graphID, std::stri
 
             workerThreads[threadID] = std::thread(initiateOrgServer,"localhost", serverPort, 
                                                     serverDataPort,trainingArgs,fl_clients, to_string(i));
-            sleep(5);
             threadID++;
         }
 
         workerThreads[threadID] = std::thread(initiateClient,"localhost", serverPort, serverDataPort,trainingArgs + 
                                                     " " + to_string(i), fl_clients, to_string(i));
-        sleep(5);
         threadID++;
 
     }
    
     workerThreads[0].join();
-    sleep(5);
     communicationThread[0].join();
 
     for (int threadCount = 1; threadCount < threadLimit; threadCount++) {
         workerThreads[threadCount].join();
-        sleep(5);
     }
 
     server_logger.log("Federated learning commands sent", "info");
@@ -2564,7 +2556,7 @@ bool JasmineGraphServer::receiveGlobalWeights(std::string host, int port, std::s
         file1.write(content, full_size);      
 
         while (true) {
-            sleep(5);
+            sleep(DELAY);
             if (utils.checkFlag(flagPath) == "1"){
 
                 ifstream infile {weights_file };
@@ -2582,7 +2574,7 @@ bool JasmineGraphServer::receiveGlobalWeights(std::string host, int port, std::s
             }
         }
         server_logger.log("Round completed", "info");
-        sleep(5);
+        sleep(DELAY);
 
         if (isTrue==true) {
             break;
