@@ -512,12 +512,7 @@ void Utils::editFlagOne(std::string flagPath){
     char flag[] = "1";
 
     stream.open(filePath);
-    if( !stream )
-        cout << "Opening file failed" << endl;
     stream << flag << endl;
-    if( !stream )
-        cout << "Write failed" << endl;
-
     stream.close();
 }
 
@@ -528,12 +523,7 @@ void Utils::editFlagZero(std::string flagPath){
     char flag[] = "0";
 
     stream.open(filePath);
-    if( !stream )
-        cout << "Opening file failed" << endl;
     stream << flag << endl;
-    if( !stream )
-        cout << "Write failed" << endl;
-
     stream.close();
 }
 
