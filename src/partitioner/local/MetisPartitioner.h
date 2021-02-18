@@ -51,7 +51,7 @@ public:
     //reformat the vertex list by mapping vertex values to new sequntial IDs
     std::string reformatDataSet(string inputFilePath, int graphID);
 
-    void loadContentData(string inputAttributeFilePath, string graphAttributeType,int graphID);
+    void loadContentData(string inputAttributeFilePath, string graphAttributeType,int graphID, string attrType);
 
     MetisPartitioner(SQLiteDBInterface *);
 
@@ -73,6 +73,7 @@ private:
 
     std::map<int,std::string> partitionFileList;
     std::map<int,std::string> centralStoreFileList;
+    std::map<int,std::string> compositeCentralStoreFileList;
     std::map<int,std::string> centralStoreDuplicateFileList;
     std::map<int,std::string> partitionAttributeFileList;
     std::map<int,std::string> centralStoreAttributeFileList;
@@ -85,6 +86,7 @@ private:
     std::unordered_map<int, size_t> masterEdgeCountsWithDups;
     std::map<int, std::map<int, std::vector<int>>> partitionedLocalGraphStorageMap;
     std::map<int, std::map<int, std::vector<int>>> masterGraphStorageMap;
+    std::map<string, std::map<int, std::vector<int>>> compositeMasterGraphStorageMap;
     std::map<int, std::map<int, std::vector<int>>> duplicateMasterGraphStorageMap;
     std::map<int, std::map<int,std::map<int, std::vector<int>>>> commonCentralStoreEdgeMap;
     std::vector<int> xadj;
@@ -105,6 +107,8 @@ private:
     void writeMasterFiles(int part);
 
     void writeSerializedMasterFiles(int part);
+
+    void writeSerializedCompositeMasterFiles(std::string part);
 
     void writeSerializedDuplicateMasterFiles(int part);
 

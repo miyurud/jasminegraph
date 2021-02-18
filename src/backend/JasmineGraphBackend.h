@@ -35,12 +35,13 @@ void *backendservicesesion(void *dummyPt);
 
 class JasmineGraphBackend {
 public:
-    JasmineGraphBackend(SQLiteDBInterface db);
+    JasmineGraphBackend(SQLiteDBInterface db, int numberOfWorkers);
 
     int run();
 
 private:
     SQLiteDBInterface sqlite;
+    int workerCount;
 };
 
 struct backendservicesessionargs {

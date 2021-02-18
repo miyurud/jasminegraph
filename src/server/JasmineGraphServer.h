@@ -32,7 +32,6 @@ private:
     std::string profile;
     std::string workerHosts;
     std::string enableNmon;
-    int numberOfWorkers = -1;
     static const int BUFFER_SIZE = 128;
     int serverPort;
     int serverDataPort;
@@ -96,6 +95,8 @@ public:
 
     static bool batchUploadCentralAttributeFile(std::string host, int port, int dataPort, int graphID, std::string filePath, std::string masterIP);
 
+    static bool batchUploadCompositeCentralstoreFile(std::string host, int port, int dataPort, int graphID, std::string filePath, std::string masterIP);
+
     static int removePartitionThroughService(std::string host, int port, std::string graphID, std::string partitionID, std::string masterIP);
 
     static int removeFragmentThroughService(std::string host, int port, std::string graphID, std::string masterIP);
@@ -104,11 +105,14 @@ public:
 
     void assignPartitionToWorker (std::string fileName, int graphId, std::string workerHost, int workerPort, int workerDataPort);
 
+    bool spawnNewWorker(string host, string port, string dataPort, string profile, string masterHost, string enableNmon);
+
     JasmineGraphFrontEnd *frontend;
     SQLiteDBInterface sqlite;
     PerformanceSQLiteDBInterface performanceSqlite;
     JasmineGraphBackend *backend;
     std::string masterHost;
+    int numberOfWorkers = -1;
 
     struct workers {
         std::string hostname;

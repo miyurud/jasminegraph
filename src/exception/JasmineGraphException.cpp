@@ -1,5 +1,5 @@
 /**
-Copyright 2019 JasmineGraph Team
+Copyright 2020 JasminGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -11,20 +11,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
-#ifndef JASMINEGRAPH_SPDLOGGER_H
-#define JASMINEGRAPH_SPDLOGGER_H
+#include "JasmineGraphException.h"
 
-#include <string>
-
-class Logger {
-public:
-    void log(std::string message, const std::string log_type);
-    void info(std::string message){log(message,"info");};
-    void warn(std::string message){log(message,"warn");};
-    void debug(std::string message){log(message,"debug");};
-    void error(std::string message){log(message,"error");};
-
-};
-
-
-#endif //JASMINEGRAPH_SPDLOGGER_H
+class JasmineGraphException: public std::exception
+{
+    virtual const char* what() const throw()
+    {
+        return "JasmineGraph exception";
+    }
+} jException;

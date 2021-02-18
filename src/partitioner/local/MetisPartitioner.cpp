@@ -284,6 +284,7 @@ std::vector<std::map<int, std::string>> MetisPartitioner::partitioneWithGPMetis(
             this->fullFileList.push_back(this->centralStoreDuplicateFileList);
             this->fullFileList.push_back(this->partitionAttributeFileList);
             this->fullFileList.push_back(this->centralStoreAttributeFileList);
+            this->fullFileList.push_back(this->compositeCentralStoreFileList);
             return (this->fullFileList);
         }
     } else {
@@ -293,6 +294,8 @@ std::vector<std::map<int, std::string>> MetisPartitioner::partitioneWithGPMetis(
 }
 
 void MetisPartitioner::createPartitionFiles(std::map<int, int> partMap) {
+    std::vector<size_t> centralStoreSizeVector;
+    std::vector<int> sortedPartVector;
     for (int i = smallestVertex; i <= largestVertex; i++) {
         partVertexCounts[partMap[i]]++;
     }
@@ -303,12 +306,8 @@ void MetisPartitioner::createPartitionFiles(std::map<int, int> partMap) {
     std::thread *threadList = new std::thread[nParts];
     int count = 0;
     for (int part = 0; part < nParts; part++) {
-        threadList[count] = std::thread(&MetisPartitioner::populatePartMaps, this, partMap, part);
+        populatePartMaps(partMap, part);
         count++;
-    }
-
-    for (int threadCount = 0; threadCount < count; threadCount++) {
-        threadList[threadCount].join();
     }
 
     // Populate the masterEdgeLists with the remaining edges after thread functions
@@ -378,6 +377,9 @@ void MetisPartitioner::createPartitionFiles(std::map<int, int> partMap) {
 
     for (int part = 0; part < nParts; part++) {
         int masterEdgeCount = masterEdgeCounts[part];
+        //Below two lines of code will be used in creating the composite central stores
+        centralStoreSizeVector.push_back(masterEdgeCounts[part]);
+        sortedPartVector.push_back(part);
         int masterEdgeCountWithDups = masterEdgeCountsWithDups[part];
 
         string sqlStatement =
@@ -389,6 +391,150 @@ void MetisPartitioner::createPartitionFiles(std::map<int, int> partMap) {
         this->sqlite.runUpdate(sqlStatement);
         dbLock.unlock();
     }
+
+    //Below code segment will create the composite central stores which uses for aggregation
+
+    if (nParts > Conts::COMPOSITE_CENTRAL_STORE_WORKER_THRESHOLD) {
+        bool haveSwapped = true;
+
+        for (unsigned j = 1; haveSwapped && j < centralStoreSizeVector.size(); ++j) {
+            haveSwapped = false;
+
+            for (unsigned i = 0; i < centralStoreSizeVector.size() - j; ++i) {
+                if (centralStoreSizeVector[i] < centralStoreSizeVector[i+1]) {
+                    haveSwapped = true;
+
+                    size_t tempSize = centralStoreSizeVector[i];
+                    centralStoreSizeVector[i] = centralStoreSizeVector[i+1];
+                    centralStoreSizeVector[i+1] = tempSize;
+
+                    int tempPart = sortedPartVector[i];
+                    sortedPartVector[i] = sortedPartVector[i+1];
+                    sortedPartVector[i+1] = tempPart;
+                }
+            }
+        }
+
+        std::vector<size_t>::iterator centralStoreSizeVectorIterator;
+        std::map<int, std::vector<size_t>> centralStoreGroups;
+        std::map<int, std::vector<int>> partitionGroups;
+        std::vector<std::string> compositeGraphIdList;
+        int partitionLoop = 0;
+
+        for (centralStoreSizeVectorIterator = centralStoreSizeVector.begin();
+             centralStoreSizeVectorIterator != centralStoreSizeVector.end(); ++centralStoreSizeVectorIterator) {
+            size_t centralStoreSize = *centralStoreSizeVectorIterator;
+            std::vector<size_t> minSumGroup = centralStoreGroups[0];
+            std::vector<int> minPartitionGroup = partitionGroups[0];
+            std::vector<size_t>::iterator minSumGroupIterator;
+            size_t minGroupTotal = 0;
+            int minGroupIndex = 0;
+
+            for (minSumGroupIterator = minSumGroup.begin();
+                 minSumGroupIterator != minSumGroup.end(); ++minSumGroupIterator) {
+                size_t size = *minSumGroupIterator;
+                minGroupTotal += size;
+            }
+
+            for (int loop = 0; loop < Conts::NUMBER_OF_COMPOSITE_CENTRAL_STORES; loop++) {
+                std::vector<size_t> currentGroup = centralStoreGroups[loop];
+                std::vector<int> currentPartitionGroup = partitionGroups[loop];
+                std::vector<size_t>::iterator currentGroupIterator;
+                size_t currentGroupTotal = 0;
+
+                for (currentGroupIterator = currentGroup.begin();
+                     currentGroupIterator != currentGroup.end(); ++currentGroupIterator) {
+                    int currentSize = *currentGroupIterator;
+                    currentGroupTotal += currentSize;
+                }
+
+                if (currentGroupTotal < minGroupTotal) {
+                    minSumGroup = currentGroup;
+                    minGroupTotal = currentGroupTotal;
+                    minPartitionGroup = currentPartitionGroup;
+                    minGroupIndex = loop;
+                }
+            }
+
+            minSumGroup.push_back(centralStoreSize);
+            centralStoreGroups[minGroupIndex] = minSumGroup;
+
+            minPartitionGroup.push_back(partitionLoop);
+            partitionGroups[minGroupIndex] = minPartitionGroup;
+
+            partitionLoop++;
+        }
+
+        std::map<int, std::vector<int>>::iterator partitionGroupsIterator;
+
+        for (partitionGroupsIterator = partitionGroups.begin();
+             partitionGroupsIterator != partitionGroups.end(); ++partitionGroupsIterator) {
+            std::string aggregatePartitionId = "";
+            int group = partitionGroupsIterator->first;
+            std::vector<int> partitionList = partitionGroupsIterator->second;
+
+            if (partitionList.size() > 0) {
+                std::vector<int>::iterator partitionListIterator;
+                std::map<int, std::vector<int>> tempCompositeMap;
+
+                for (partitionListIterator = partitionList.begin();
+                     partitionListIterator != partitionList.end(); ++partitionListIterator) {
+                    int partitionId = *partitionListIterator;
+                    aggregatePartitionId = std::to_string(partitionId) + "_" + aggregatePartitionId;
+
+                    std::map<int, std::vector<int>> currentStorageMap = masterGraphStorageMap[partitionId];
+                    std::map<int, std::vector<int>>::iterator currentStorageMapIterator;
+
+                    for (currentStorageMapIterator = currentStorageMap.begin();
+                         currentStorageMapIterator != currentStorageMap.end(); ++currentStorageMapIterator) {
+                        int startVetex = currentStorageMapIterator->first;
+                        std::vector<int> secondVertexVector = currentStorageMapIterator->second;
+
+                        std::vector<int> compositeMapSecondVertexVector = tempCompositeMap[startVetex];
+                        std::vector<int>::iterator secondVertexVectorIterator;
+
+                        for (secondVertexVectorIterator = secondVertexVector.begin();
+                             secondVertexVectorIterator != secondVertexVector.end(); ++secondVertexVectorIterator) {
+                            int secondVertex = *secondVertexVectorIterator;
+
+                            if (std::find(compositeMapSecondVertexVector.begin(), compositeMapSecondVertexVector.end(),
+                                          secondVertex) == compositeMapSecondVertexVector.end()) {
+                                compositeMapSecondVertexVector.push_back(secondVertex);
+                            }
+                        }
+
+                        tempCompositeMap[startVetex] = compositeMapSecondVertexVector;
+                    }
+
+                }
+
+                std::string adjustedAggregatePartitionId = aggregatePartitionId.substr(0,
+                                                                                       aggregatePartitionId.size() - 1);
+                compositeGraphIdList.push_back(adjustedAggregatePartitionId);
+                compositeMasterGraphStorageMap[adjustedAggregatePartitionId] = tempCompositeMap;
+            }
+        }
+
+        std::vector<std::string>::iterator compositeGraphIdListIterator;
+        std::thread *compositeCopyThreads = new std::thread[threadCount];
+        int compositeCopyCount = 0;
+
+        for (compositeGraphIdListIterator = compositeGraphIdList.begin();
+             compositeGraphIdListIterator != compositeGraphIdList.end(); ++compositeGraphIdListIterator) {
+            std::string compositeGraphId = *compositeGraphIdListIterator;
+
+            compositeCopyThreads[compositeCopyCount] = std::thread(
+                    &MetisPartitioner::writeSerializedCompositeMasterFiles, this, compositeGraphId);
+            compositeCopyCount++;
+        }
+
+        for (int tc = 0; tc < compositeCopyCount; tc++) {
+            compositeCopyThreads[tc].join();
+        }
+    }
+
+    partitioner_logger.log("###METIS###", "info");
+
 }
 
 void MetisPartitioner::populatePartMaps(std::map<int, int> partMap, int part) {
@@ -862,7 +1008,7 @@ string MetisPartitioner::reformatDataSet(string inputFilePath, int graphID) {
 }
 
 
-void MetisPartitioner::loadContentData(string inputAttributeFilePath, string graphAttributeType, int graphID) {
+void MetisPartitioner::loadContentData(string inputAttributeFilePath, string graphAttributeType, int graphID, string attrType="") {
     this->graphAttributeType = graphAttributeType;
 
     if (graphAttributeType == Conts::GRAPH_WITH_TEXT_ATTRIBUTES) {
@@ -874,6 +1020,34 @@ void MetisPartitioner::loadContentData(string inputAttributeFilePath, string gra
         string line;
 
         std::getline(dbFile, line);
+
+        //Infer attribute data type if not explicitly given from first line in attribute file
+        if (attrType == "") {
+            string firstLine = line;
+            //Get substring containing attribute values
+            int strpos = line.find(splitter);
+            string attributes = line.substr(strpos + 1, -1);
+
+            //Iterate through attribute string values to infer data type
+            vector<string> strArr = Utils::split(attributes, splitter);
+            for (vector<string>::iterator i = strArr.begin(); i != strArr.end(); i++) {
+                string value = *i;
+                if (value.find(".") != std::string::npos) { //Check if contains decimal point (float)
+                    attrType = "float";
+                    break;
+                } else {
+                    int convertedValue = stoi(value);
+                    //Check value and determine suitable datatype
+                    if (-125 <= convertedValue && convertedValue <= 127)
+                        attrType = "int8";
+                    else if (-32768 <= convertedValue && convertedValue <= 32767)
+                        attrType = "int16";
+                    else
+                        attrType = "int32";
+                }
+            }
+            cout << "Inferred feature type: " << attrType << endl;
+        }
 
         if (!line.empty()) {
             if (line.find(" ") != std::string::npos) {
@@ -910,8 +1084,9 @@ void MetisPartitioner::loadContentData(string inputAttributeFilePath, string gra
             std::istream_iterator<std::string> begin(ss), end;
             std::vector<std::string> arrayFeatures(begin, end);
             string sqlStatement = "UPDATE graph SET feature_count = '" + std::to_string(arrayFeatures.size() - 1) +
-                                  "' WHERE idgraph = '" + std::to_string(graphID) + "'";
+                                  "', feature_type = '" + attrType + "' WHERE idgraph = '" + std::to_string(graphID) + "'";
             cout << sqlStatement << endl;
+            cout << "Feature type: " << attrType << endl;
             dbLock.lock();
             this->sqlite.runUpdate(sqlStatement);
             dbLock.unlock();
@@ -922,4 +1097,26 @@ void MetisPartitioner::loadContentData(string inputAttributeFilePath, string gra
     }
 
     // TODO :: implement for graphs with json and xml attributes files
+}
+
+void MetisPartitioner::writeSerializedCompositeMasterFiles(std::string part) {
+    string outputFilePartMaster =
+            outputFilePath + "/" + std::to_string(this->graphID) + "_compositecentralstore_" + part;
+
+    std::map<int, std::vector<int>> partMasterEdgeMap = compositeMasterGraphStorageMap[part];
+
+    JasmineGraphHashMapCentralStore *hashMapCentralStore = new JasmineGraphHashMapCentralStore();
+    hashMapCentralStore->storePartEdgeMap(partMasterEdgeMap, outputFilePartMaster);
+
+    std::vector<std::string> graphIds = this->utils.split(part,'_');
+    std::vector<std::string>::iterator graphIdIterator;
+
+    this->utils.compressFile(outputFilePartMaster);
+    masterFileMutex.lock();
+    for (graphIdIterator = graphIds.begin(); graphIdIterator != graphIds.end(); ++graphIdIterator) {
+        std::string graphId = *graphIdIterator;
+        compositeCentralStoreFileList.insert(make_pair(std::atoi(graphId.c_str()), outputFilePartMaster + ".gz"));
+    }
+    masterFileMutex.unlock();
+    partitioner_logger.log("Serializing done for central part " + part, "info");
 }

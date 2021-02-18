@@ -55,15 +55,31 @@ public:
 
     static std::string copyCentralStoreToAggregator(std::string aggregatorHostName, std::string aggregatorPort, std::string aggregatorDataPort, int graphId, int partitionId, std::string masterIP);
 
+    static std::string copyCompositeCentralStoreToAggregator(std::string aggregatorHostName, std::string aggregatorPort,
+                                                             std::string aggregatorDataPort, std::string fileName,
+                                                             std::string masterIP);
+
     static std::vector<std::vector<string>> getWorkerCombination (SQLiteDBInterface sqlite, std::string graphId);
+
+    static std::vector<std::vector<string>> getCombinations (std::vector<string> inputVector);
 
     static long aggregateCentralStoreTriangles(SQLiteDBInterface sqlite, std::string graphId, std::string masterIP);
 
     static string countCentralStoreTriangles (std::string aggregatorHostName, std::string aggregatorPort, std::string host, std::string aggregatorPartitionId, std::string partitionIdList, std::string graphId, std::string masterIP);
 
+    static string countCompositeCentralStoreTriangles(std::string aggregatorHostName, std::string aggregatorPort,
+                                                      std::string compositeCentralStoreFileList,
+                                                      std::string masterIP, std::string availableFileList);
+
     static long countTriangles(std::string graphId, SQLiteDBInterface sqlite, std::string masterIP);
 
-    static long getTriangleCount(int graphId, std::string host, int port, int partitionId, std::string masterIP);
+    static string isFileAccessibleToWorker(std::string graphId, std::string partitionId,
+                                           std::string aggregatorHostName, std::string aggregatorPort,
+                                           std::string masterIP, std::string fileType,
+                                           std::string fileName);
+
+    static long getTriangleCount(int graphId, std::string host, int port, int dataPort, int partitionId,
+                                 std::string masterIP, bool isCompositeAggregation);
 
     static void getAndUpdateUploadTime(std::string graphID, SQLiteDBInterface sqlite);
 
@@ -73,9 +89,17 @@ public:
 
     static map<long, long> getOutDegreeDistributionHashMap(map<long, unordered_set<long>> graphMap);
 
+    static bool isGraphActive(string graphID, SQLiteDBInterface sqlite);
+
+
+    static std::vector<std::vector<string>> fileCombinations;
+    static std::map<std::string, std::string> combinationWorkerMap;
+    static std::map<long, std::map<long, std::vector<long>>> triangleTree;
+
 private:
     SQLiteDBInterface sqlite;
     std::string masterIP;
+
 
 };
 
