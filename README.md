@@ -53,7 +53,19 @@ First, this repository should be cloned into one of your computer's local direct
 ## 3. Running JasmineGraph
 JasmineGraph can be run by executing the run.sh script. This will start master on your local computer while workers are created in the list of the hosts mentioned in the conf/hosts.txt file.
 
-## 4. Contact Information
+## 4. Building and Running JasmineGraph on Docker
+JasmineGraph can be run inside a docker image. After cloning the project, build the image as follows:
+
+    cd docker
+    docker build -t jasminegraph .
+
+
+Run the image by providing the appropriate volume mount paths and parameters: 
+
+    docker run -v "/var/run/docker.sock:/var/run/docker.sock:rw" -v "/root/.ssh:/home/user/.ssh" -v "/tmp:/tmp" -v "/var/tmp/jasminegraph-localstore:/var/tmp/jasminegraph-localstore" -v "/var/tmp/jasminegraph-aggregate:/var/tmp/jasminegraph-aggregate" -v "/home/user/Documents/jasminegraph/metadb:/home/ubuntu/software/jasminegraph/metadb" -v "/home/user/Documents/MSc/jasminegraph/performancedb:/home/ubuntu/software/jasminegraph/performancedb" -p 7777:7777 -p 7778:7778 jasminegraph --MODE 1 --MASTERIP <docker0 interface ip> --WORKERS 4 --WORKERIP <docker0 interface ip> --ENABLE_NMON false
+
+
+## 5. Contact Information
 
 Please contact [Miyuru Dayarathna](miyurud at yahoo dot co dot uk) for further information. Please let us know about bug reports or any further improvements you wish to have in JasmineGraph.
 
