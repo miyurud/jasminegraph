@@ -67,12 +67,17 @@ public:
     static const string FRAGMENT_RESOLUTION_DONE;
     static const string INITIATE_FILES;
     static const string INITIATE_SERVER;
+    static const string INITIATE_ORG_SERVER;
     static const string INITIATE_CLIENT;
     static const string MERGE_FILES;
+    static const string INITIATE_AGG;
 };
 
 const int INSTANCE_DATA_LENGTH = 300;
+const int FED_DATA_LENGTH = 300;
 const int INSTANCE_LONG_DATA_LENGTH = 1024;
 const int MAX_CONNECTION_COUNT = 300;
+const int WEIGHTS_DATA_LENGTH = 1000000;
+const int DELAY = 5;
 
 #endif //JASMINEGRAPH_JASMINEGRAPHINSTANCEPROTOCOL_H

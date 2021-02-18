@@ -130,17 +130,24 @@ public:
 
     void initiateCommunication(std::string graphID, std::string trainingArgs, SQLiteDBInterface sqlite);
 
+    void initiateOrgCommunication(std::string graphID, std::string trainingArgs, SQLiteDBInterface sqlite);
+
     void initiateMerge(std::string graphID, std::string trainingArgs,SQLiteDBInterface sqlite);
 
     static bool initiateTrain(std::string host, int port, int dataPort,std::string trainingArgs,int iteration, string partCount);
 
     static bool initiateServer(std::string host, int port, int dataPort,std::string trainingArgs,int iteration, string partCount);
 
+    static bool initiateOrgServer(std::string host, int port, int dataPort,std::string trainingArgs,int iteration, string partCount);
+
+    static bool initiateAggregator(std::string host, int port, int dataPort,std::string trainingArgs,int iteration, string partCount);
+
     static bool initiateClient(std::string host, int port, int dataPort,std::string trainingArgs,int iteration, string partCount);
 
     static bool mergeFiles(std::string host, int port, int dataPort,std::string trainingArgs,int iteration, string partCount);
 
-    static const int FED_DATA_LENGTH = 300;
+    static bool receiveGlobalWeights(std::string host, int port, std::string trainingArgs, int iteration, std::string partCount);
+
 };
 
 #endif //JASMINEGRAPH_JASMINEGRAPHSERVER_H
