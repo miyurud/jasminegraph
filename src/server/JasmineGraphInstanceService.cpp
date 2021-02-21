@@ -64,6 +64,8 @@ void *instanceservicesession(void *dummyPt) {
 
         Utils utils;
         line = utils.trim_copy(line, " \f\n\r\t\v");
+        instance_logger.log("Received =========== : " + line, "info");
+
         if (line.compare(JasmineGraphInstanceProtocol::HANDSHAKE) == 0) {
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
             write(connFd, JasmineGraphInstanceProtocol::HANDSHAKE_OK.c_str(),
@@ -584,7 +586,7 @@ void *instanceservicesession(void *dummyPt) {
             write(connFd, result.c_str(), result.size());
             instance_logger.log("Sent : " + result, "info");
         } else if (line.compare(JasmineGraphInstanceProtocol::PAGE_RANK) == 0) {
-            instance_logger.log("Sent : page rank from instance service" , "info");
+            instance_logger.log("Received : page rank from instance service" , "info");
         } else if (line.compare(JasmineGraphInstanceProtocol::TRIANGLES) == 0) {
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::TRIANGLES, "info");
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
