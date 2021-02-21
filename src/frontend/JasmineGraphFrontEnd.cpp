@@ -861,9 +861,12 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             for (int i = 0; i < workerListSize; i++) {
 
                 string host = "localhost";
-             /*   Utils::worker currentWorker = workerList.at(i);
+                Utils::worker currentWorker = workerList.at(i);
                 string host = currentWorker.hostname;
-                string workerID = currentWorker.workerID;*/
+                string workerID = currentWorker.workerID;
+
+                int workerPort = atoi(string(currentWorker.port).c_str());
+                int workerDataPort = atoi(string(currentWorker.dataPort).c_str());
 
                 int sockfd;
                 char data[300];
@@ -898,7 +901,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 bcopy((char *) server->h_addr,
                       (char *) &serv_addr.sin_addr.s_addr,
                       server->h_length);
-                serv_addr.sin_port = htons(port);
+                serv_addr.sin_port = htons(workerPort);
                 if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
                     std::cerr << "ERROR connecting" << std::endl;
                 }
