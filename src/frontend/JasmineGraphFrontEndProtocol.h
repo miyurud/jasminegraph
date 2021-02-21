@@ -67,6 +67,7 @@ extern const string STREAM_TOPIC_NAME;
 extern const string PROCESS_DATASET;
 extern const string REFORMAT;
 extern const string TRIANGLES;
+extern const string PAGE_RANK;
 extern const string TRAIN;
 extern const string PREDICT;
 extern const string PARTITIONS;
