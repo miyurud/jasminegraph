@@ -57,6 +57,7 @@ public:
     static const string DELETE_GRAPH_FRAGMENT;
     static const string NPLACES;
     static const string TRIANGLES;
+    static const string PAGE_RANK;
     static const string SEND_CENTRALSTORE_TO_AGGREGATOR;
     static const string SEND_COMPOSITE_CENTRALSTORE_TO_AGGREGATOR;
     static const string AGGREGATE_CENTRALSTORE_TRIANGLES;

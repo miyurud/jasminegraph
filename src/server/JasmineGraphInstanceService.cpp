@@ -89,8 +89,7 @@ void *instanceservicesession(void *dummyPt) {
             exit(0);
         } else if (line.compare(JasmineGraphInstanceProtocol::READY) == 0) {
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-        }
-        else if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD) == 0) {
+        } else if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD) == 0) {
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD, "info");
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
@@ -120,8 +119,8 @@ void *instanceservicesession(void *dummyPt) {
             string fullFilePath =
                     utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
             int fileSize = atoi(size.c_str());
-            while (true){
-                if (utils.fileExists(fullFilePath)){
+            while (true) {
+                if (utils.fileExists(fullFilePath)) {
                     while (utils.getFileSize(fullFilePath) < fileSize) {
                         bzero(data, INSTANCE_DATA_LENGTH);
                         read(connFd, data, INSTANCE_DATA_LENGTH);
@@ -132,7 +131,7 @@ void *instanceservicesession(void *dummyPt) {
                         }
                     }
                     break;
-                }else{
+                } else {
                     sleep(1);
                     continue;
                 }
@@ -158,7 +157,7 @@ void *instanceservicesession(void *dummyPt) {
 
             string partitionID = rawname.substr(rawname.find_last_of("_") + 1);
             pthread_mutex_lock(&file_lock);
-            writeCatalogRecord(graphID +":"+partitionID);
+            writeCatalogRecord(graphID + ":" + partitionID);
             pthread_mutex_unlock(&file_lock);
 
             while (!utils.fileExists(fullFilePath)) {
@@ -214,8 +213,8 @@ void *instanceservicesession(void *dummyPt) {
                     utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
 
             int fileSize = atoi(size.c_str());
-            while (true){
-                if (utils.fileExists(fullFilePath)){
+            while (true) {
+                if (utils.fileExists(fullFilePath)) {
                     while (utils.getFileSize(fullFilePath) < fileSize) {
                         bzero(data, INSTANCE_DATA_LENGTH);
                         read(connFd, data, INSTANCE_DATA_LENGTH);
@@ -227,7 +226,7 @@ void *instanceservicesession(void *dummyPt) {
                         }
                     }
                     break;
-                }else{
+                } else {
                     sleep(1);
                     continue;
                 }
@@ -304,8 +303,8 @@ void *instanceservicesession(void *dummyPt) {
                     utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
 
             int fileSize = atoi(size.c_str());
-            while (true){
-                if (utils.fileExists(fullFilePath)){
+            while (true) {
+                if (utils.fileExists(fullFilePath)) {
                     while (utils.getFileSize(fullFilePath) < fileSize) {
                         bzero(data, INSTANCE_DATA_LENGTH);
                         read(connFd, data, INSTANCE_DATA_LENGTH);
@@ -317,7 +316,7 @@ void *instanceservicesession(void *dummyPt) {
                         }
                     }
                     break;
-                }else{
+                } else {
                     sleep(1);
                     continue;
                 }
@@ -393,8 +392,8 @@ void *instanceservicesession(void *dummyPt) {
             string fullFilePath =
                     utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
             int fileSize = atoi(size.c_str());
-            while (true){
-                if (utils.fileExists(fullFilePath)){
+            while (true) {
+                if (utils.fileExists(fullFilePath)) {
                     while (utils.getFileSize(fullFilePath) < fileSize) {
                         bzero(data, INSTANCE_DATA_LENGTH);
                         read(connFd, data, INSTANCE_DATA_LENGTH);
@@ -405,7 +404,7 @@ void *instanceservicesession(void *dummyPt) {
                         }
                     }
                     break;
-                }else{
+                } else {
                     sleep(1);
                     continue;
                 }
@@ -452,7 +451,7 @@ void *instanceservicesession(void *dummyPt) {
                       JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.size());
                 instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK, "info");
             }
-        }else if (line.compare(JasmineGraphInstanceProtocol::UPLOAD_RDF_ATTRIBUTES_CENTRAL) == 0) {
+        } else if (line.compare(JasmineGraphInstanceProtocol::UPLOAD_RDF_ATTRIBUTES_CENTRAL) == 0) {
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::UPLOAD_RDF_ATTRIBUTES_CENTRAL, "info");
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
@@ -482,8 +481,8 @@ void *instanceservicesession(void *dummyPt) {
             string fullFilePath =
                     utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
             int fileSize = atoi(size.c_str());
-            while (true){
-                if (utils.fileExists(fullFilePath)){
+            while (true) {
+                if (utils.fileExists(fullFilePath)) {
                     while (utils.getFileSize(fullFilePath) < fileSize) {
                         bzero(data, INSTANCE_DATA_LENGTH);
                         read(connFd, data, INSTANCE_DATA_LENGTH);
@@ -494,7 +493,7 @@ void *instanceservicesession(void *dummyPt) {
                         }
                     }
                     break;
-                }else{
+                } else {
                     sleep(1);
                     continue;
                 }
@@ -557,7 +556,7 @@ void *instanceservicesession(void *dummyPt) {
             read(connFd, data, INSTANCE_DATA_LENGTH);
             string partitionID = (data);
             instance_logger.log("Received partition ID: " + partitionID, "info");
-            deleteGraphPartition(graphID,partitionID);
+            deleteGraphPartition(graphID, partitionID);
             //pthread_mutex_lock(&file_lock);
             //TODO :: Update catalog file
             //pthread_mutex_unlock(&file_lock);
@@ -584,6 +583,8 @@ void *instanceservicesession(void *dummyPt) {
             string result = "1";
             write(connFd, result.c_str(), result.size());
             instance_logger.log("Sent : " + result, "info");
+        } else if (line.compare(JasmineGraphInstanceProtocol::PAGE_RANK) == 0) {
+            instance_logger.log("Sent : page rank from instance service" , "info");
         } else if (line.compare(JasmineGraphInstanceProtocol::TRIANGLES) == 0) {
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::TRIANGLES, "info");
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());

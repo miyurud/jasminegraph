@@ -855,6 +855,128 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
         } else if (line.compare(PAGE_RANK) == 0) {
             frontend_logger.log("Page Rank ----------", "info");
 
+
+            int sockfd;
+            char data[300];
+            bool loop = false;
+            socklen_t len;
+            struct sockaddr_in serv_addr;
+            struct hostent *server;
+            Utils utils;
+            long triangleCount;
+
+            sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+            if (sockfd < 0) {
+                std::cerr << "Cannot accept connection" << std::endl;
+                return 0;
+            }
+
+            if (host.find('@') != std::string::npos) {
+                host = utils.split(host, '@')[0];
+            }
+
+            frontend_logger.log("###FRONTEND### Get Host By Name : " + host, "info");
+
+            server = gethostbyname(host.c_str());
+            if (server == NULL) {
+                std::cerr << "ERROR, no host named " << server << std::endl;
+            }
+
+            bzero((char *) &serv_addr, sizeof(serv_addr));
+            serv_addr.sin_family = AF_INET;
+            bcopy((char *) server->h_addr,
+                  (char *) &serv_addr.sin_addr.s_addr,
+                  server->h_length);
+            serv_addr.sin_port = htons(port);
+            if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+                std::cerr << "ERROR connecting" << std::endl;
+            }
+
+            bzero(data, 301);
+            int result_wr = write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+
+            if(result_wr < 0) {
+                frontend_logger.log("Error writing to socket", "error");
+            }
+
+            frontend_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
+            bzero(data, 301);
+            read(sockfd, data, 300);
+            string response = (data);
+
+            response = utils.trim_copy(response, " \f\n\r\t\v");
+
+            if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
+                frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
+                result_wr = write(sockfd, masterIP.c_str(), masterIP.size());
+
+                if(result_wr < 0) {
+                    frontend_logger.log("Error writing to socket", "error");
+                }
+
+                frontend_logger.log("Sent : " + masterIP, "info");
+                bzero(data, 301);
+                read(sockfd, data, 300);
+                response = (data);
+
+                if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
+                    frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
+                } else {
+                    frontend_logger.log("Received : " + response, "error");
+                }
+                result_wr = write(sockfd, JasmineGraphInstanceProtocol::PAGE_RANK.c_str(),
+                                  JasmineGraphInstanceProtocol::PAGE_RANK.size());
+
+                if(result_wr < 0) {
+                    frontend_logger.log("Error writing to socket", "error");
+                }
+
+                frontend_logger.log("Sent : " + JasmineGraphInstanceProtocol::PAGE_RANK, "info");
+                bzero(data, 301);
+                read(sockfd, data, 300);
+                response = (data);
+                response = utils.trim_copy(response, " \f\n\r\t\v");
+/*
+                if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+                    frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+                    result_wr = write(sockfd, std::to_string(graphId).c_str(), std::to_string(graphId).size());
+
+                    if(result_wr < 0) {
+                        frontend_logger.log("Error writing to socket", "error");
+                    }
+
+                    frontend_logger.log("Sent : Graph ID " + std::to_string(graphId), "info");
+
+                    bzero(data, 301);
+                    read(sockfd, data, 300);
+                    response = (data);
+                    response = utils.trim_copy(response, " \f\n\r\t\v");
+                }
+
+                if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+                    frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+                    result_wr = write(sockfd, std::to_string(partitionId).c_str(), std::to_string(partitionId).size());
+
+                    if(result_wr < 0) {
+                        frontend_logger.log("Error writing to socket", "error");
+                    }
+
+                    frontend_logger.log("Sent : Partition ID " + std::to_string(partitionId), "info");
+
+                    bzero(data, 301);
+                    read(sockfd, data, 300);
+                    response = (data);
+                    frontend_logger.log("Got response : |" + response + "|", "info");
+                    response = utils.trim_copy(response, " \f\n\r\t\v");
+                    triangleCount = atol(response.c_str());
+                }
+*/
+            } else {
+                frontend_logger.log("There was an error in the upload process and the response is :: " + response,
+                                    "error");
+            }
+
         } else if (line.compare(PREDICT) == 0){
             int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
             if(result_wr < 0) {
