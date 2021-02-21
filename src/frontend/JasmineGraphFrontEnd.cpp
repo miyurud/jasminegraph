@@ -860,7 +860,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
             frontend_logger.log("worker list size ----------" + workerListSize, "info");
 
-            for (int i = 0; i < workerListSize; i++) {
+            for (int i = 0; i < 1; i++) {
 
                 Utils::worker currentWorker = workerList.at(i);
                 string host = currentWorker.hostname;
