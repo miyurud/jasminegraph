@@ -996,7 +996,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                     frontend_logger.log("There was an error in the upload process and the response is :: " + response,
                                         "error");
                 }*/
-            }
+
 
         } else if (line.compare(PREDICT) == 0){
             int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);

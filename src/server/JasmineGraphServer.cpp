@@ -2569,7 +2569,7 @@ void JasmineGraphServer::pageRank() {
 
         if (sockfd < 0) {
             std::cerr << "Cannot accept connection" << std::endl;
-           
+
         }
 
         std::string host = worker.hostname;
