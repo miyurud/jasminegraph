@@ -2568,7 +2568,7 @@ void JasmineGraphServer::pageRank() {
         sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
         if (sockfd < 0) {
-            std::cerr << "Cannot accept connection" << std::endl;
+            std::cout << "Cannot accept connection" << std::endl;
 
         }
 
@@ -2581,7 +2581,7 @@ void JasmineGraphServer::pageRank() {
 
         server = gethostbyname(host.c_str());
         if (server == NULL) {
-            std::cerr << "ERROR, no host named " << server << std::endl;
+            std::cout << "ERROR, no host named " << server << std::endl;
         }
 
         bzero((char *) &serv_addr, sizeof(serv_addr));
@@ -2591,7 +2591,7 @@ void JasmineGraphServer::pageRank() {
               server->h_length);
         serv_addr.sin_port = htons(port);
         if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
-            std::cerr << "ERROR connecting" << std::endl;
+            std::cout << "ERROR connecting" << std::endl;
             //TODO::exit
         }
 
