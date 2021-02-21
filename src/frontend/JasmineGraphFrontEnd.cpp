@@ -867,6 +867,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 string workerID = currentWorker.workerID;
 
                 frontend_logger.log("worker port----------" + currentWorker.port, "info");
+                frontend_logger.log("worker host----------" + currentWorker.hostname, "info");
 
                 int workerPort = atoi(string(currentWorker.port).c_str());
                 int workerDataPort = atoi(string(currentWorker.dataPort).c_str());
