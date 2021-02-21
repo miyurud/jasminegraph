@@ -855,7 +855,9 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
         } else if (line.compare(PAGE_RANK) == 0) {
             frontend_logger.log("Page Rank ----------", "info");
 
-            vector<Utils::worker> workerList = utils.getWorkerList(sqlite);
+            JasmineGraphServer *jasmineServer = new JasmineGraphServer();
+            jasmineServer->pageRank();
+            /*vector<Utils::worker> workerList = utils.getWorkerList(sqlite);
             int workerListSize = workerList.size();
 
             frontend_logger.log("worker list size ----------" + workerListSize, "info");
@@ -888,10 +890,10 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                     std::cerr << "Cannot accept connection" << std::endl;
                     return 0;
                 }
-/*
+*//*
                 if (host.find('@') != std::string::npos) {
                     host = utils.split(host, '@')[0];
-                }*/
+                }*//*
 
                 //frontend_logger.log("###FRONTEND### Get Host By Name : " + host, "info");
 
@@ -951,11 +953,11 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                     }
 
                     frontend_logger.log("Sent : " + JasmineGraphInstanceProtocol::PAGE_RANK, "info");
-                   /* bzero(data, 301);
+                   *//* bzero(data, 301);
                     read(sockfd, data, 300);
                     response = (data);
-                    response = utils.trim_copy(response, " \f\n\r\t\v");*/
-/*
+                    response = utils.trim_copy(response, " \f\n\r\t\v");*//*
+*//*
                 if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
                     frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
                     result_wr = write(sockfd, std::to_string(graphId).c_str(), std::to_string(graphId).size());
@@ -989,11 +991,11 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                     response = utils.trim_copy(response, " \f\n\r\t\v");
                     triangleCount = atol(response.c_str());
                 }
-*/
+*//*
                 } else {
                     frontend_logger.log("There was an error in the upload process and the response is :: " + response,
                                         "error");
-                }
+                }*/
             }
 
         } else if (line.compare(PREDICT) == 0){

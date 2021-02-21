@@ -2548,3 +2548,62 @@ void JasmineGraphServer::addInstanceDetailsToPerformanceDB(std::string host, std
 
     this->performanceSqlite.runInsert(insertPlaceQuery);
 }
+
+void JasmineGraphServer::pageRank() {
+    std::cout << "Page rank JasmineGraphServer" << std::endl;
+    std::vector<workers, std::allocator<workers>>::iterator mapIterator;
+    for (mapIterator = hostWorkerMap.begin(); mapIterator < hostWorkerMap.end(); mapIterator++) {
+        workers worker = *mapIterator;
+        Utils utils;
+        bool result = true;
+        std::cout << pthread_self() << " host : " << worker.hostname << " port : " << worker.port << " DPort : "
+                  << worker.dataPort << std::endl;
+        int sockfd;
+        char data[300];
+        bool loop = false;
+        socklen_t len;
+        struct sockaddr_in serv_addr;
+        struct hostent *server;
+
+        sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+        if (sockfd < 0) {
+            std::cerr << "Cannot accept connection" << std::endl;
+            return 0;
+        }
+
+        std::string host = worker.hostname;
+        int port = worker.port;
+
+        if (worker.hostname.find('@') != std::string::npos) {
+            host = utils.split(host, '@')[1];
+        }
+
+        server = gethostbyname(host.c_str());
+        if (server == NULL) {
+            std::cerr << "ERROR, no host named " << server << std::endl;
+        }
+
+        bzero((char *) &serv_addr, sizeof(serv_addr));
+        serv_addr.sin_family = AF_INET;
+        bcopy((char *) server->h_addr,
+              (char *) &serv_addr.sin_addr.s_addr,
+              server->h_length);
+        serv_addr.sin_port = htons(port);
+        if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+            std::cerr << "ERROR connecting" << std::endl;
+            //TODO::exit
+        }
+
+        bzero(data, 301);
+        write(sockfd, JasmineGraphInstanceProtocol::PAGE_RANK.c_str(), JasmineGraphInstanceProtocol::PAGE_RANK.size());
+        server_logger.log("Sent : " + JasmineGraphInstanceProtocol::SHUTDOWN, "info");
+       /* bzero(data, 301);
+        read(sockfd, data, 300);
+        string response = (data);
+
+        response = utils.trim_copy(response, " \f\n\r\t\v");
+        server_logger.log("Response : " + response, "info");*/
+    }
+
+}

@@ -133,6 +133,8 @@ public:
     static std::vector<JasmineGraphServer::workers> getHostWorkerMap();
 
     std::map<std::string, workerPartitions> getGraphPartitionedHosts(std::string graphID);
+
+    void pageRank();
 };
 
 
