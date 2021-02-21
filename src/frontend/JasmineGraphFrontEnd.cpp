@@ -852,7 +852,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
             JasminGraphTrainingInitiator *jasminGraphTrainingInitiator = new JasminGraphTrainingInitiator();
             jasminGraphTrainingInitiator->initiateTrainingLocally(graphID, trainData);
-        } else if (line.compare(PAGE_RANK)) {
+        } else if (line.compare(PAGE_RANK) == 0) {
             frontend_logger.log("Page Rank ----------", "info");
 
         } else if (line.compare(PREDICT) == 0){
