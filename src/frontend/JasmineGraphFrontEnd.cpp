@@ -860,7 +860,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
             frontend_logger.log("worker list size ----------" + workerListSize, "info");
 
-            for (int i = 0; i < 1; i++) {
+            for (int i = 0; i < workerListSize; i++) {
 
                 Utils::worker currentWorker = workerList.at(i);
                 string host = currentWorker.hostname;
@@ -951,10 +951,10 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                     }
 
                     frontend_logger.log("Sent : " + JasmineGraphInstanceProtocol::PAGE_RANK, "info");
-                    bzero(data, 301);
+                   /* bzero(data, 301);
                     read(sockfd, data, 300);
                     response = (data);
-                    response = utils.trim_copy(response, " \f\n\r\t\v");
+                    response = utils.trim_copy(response, " \f\n\r\t\v");*/
 /*
                 if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
                     frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
