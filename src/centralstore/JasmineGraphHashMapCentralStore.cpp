@@ -184,6 +184,7 @@ std::string JasmineGraphHashMapCentralStore::getFileSeparator() {
 void JasmineGraphHashMapCentralStore::toLocalSubGraphMap(const PartEdgeMapStore *edgeMapStoreData) {
     auto allEntries = edgeMapStoreData->entries();
     int tableSize = allEntries->size();
+    std::cout << tableSize << " => table size ============ = " << std::endl;
 
     for (int i = 0; i < tableSize; i = i + 1) {
         auto entry = allEntries->Get(i);
