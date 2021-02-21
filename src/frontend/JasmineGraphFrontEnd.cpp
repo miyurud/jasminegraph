@@ -858,11 +858,15 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             vector<Utils::worker> workerList = utils.getWorkerList(sqlite);
             int workerListSize = workerList.size();
 
+            frontend_logger.log("worker list size ----------" + workerListSize, "info");
+
             for (int i = 0; i < workerListSize; i++) {
 
                 Utils::worker currentWorker = workerList.at(i);
                 string host = currentWorker.hostname;
                 string workerID = currentWorker.workerID;
+
+                frontend_logger.log("worker port----------" + currentWorker.port, "info");
 
                 int workerPort = atoi(string(currentWorker.port).c_str());
                 int workerDataPort = atoi(string(currentWorker.dataPort).c_str());
