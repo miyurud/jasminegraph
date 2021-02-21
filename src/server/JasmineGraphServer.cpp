@@ -2597,7 +2597,7 @@ void JasmineGraphServer::pageRank() {
 
         bzero(data, 301);
         write(sockfd, JasmineGraphInstanceProtocol::PAGE_RANK.c_str(), JasmineGraphInstanceProtocol::PAGE_RANK.size());
-        server_logger.log("Sent : " + JasmineGraphInstanceProtocol::SHUTDOWN, "info");
+        server_logger.log("Sent : " + JasmineGraphInstanceProtocol::PAGE_RANK, "info");
        /* bzero(data, 301);
         read(sockfd, data, 300);
         string response = (data);
