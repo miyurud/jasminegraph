@@ -860,9 +860,9 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
             for (int i = 0; i < workerListSize; i++) {
 
-                Utils::worker currentWorker = workerList.at(i);
+             /*   Utils::worker currentWorker = workerList.at(i);
                 string host = currentWorker.hostname;
-                string workerID = currentWorker.workerID;
+                string workerID = currentWorker.workerID;*/
 
                 int sockfd;
                 char data[300];
@@ -880,12 +880,12 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                     std::cerr << "Cannot accept connection" << std::endl;
                     return 0;
                 }
-
+/*
                 if (host.find('@') != std::string::npos) {
                     host = utils.split(host, '@')[0];
-                }
+                }*/
 
-                frontend_logger.log("###FRONTEND### Get Host By Name : " + host, "info");
+                //frontend_logger.log("###FRONTEND### Get Host By Name : " + host, "info");
 
                 server = gethostbyname(host.c_str());
                 if (server == NULL) {
