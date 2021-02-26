@@ -590,6 +590,7 @@ void *instanceservicesession(void *dummyPt) {
             JasmineGraphHashMapLocalStore graphDB;
             graphDB = graphDBMapLocalStores["1_1"];
             map<long,long> degreeDistribution = graphDB.getOutDegreeDistributionHashMap();
+            std::map<long,long>::iterator it;
             for (it = degreeDistribution.begin(); it != degreeDistribution.end();++it) {
                 instance_logger.log("Degree first: " + it->first, "info");
                 instance_logger.log("Degree second: " + it->second, "info");
