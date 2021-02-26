@@ -591,6 +591,7 @@ void *instanceservicesession(void *dummyPt) {
             graphDB = graphDBMapLocalStores["1_1"];
             map<long,long> degreeDistribution = graphDB.getOutDegreeDistributionHashMap();
             std::map<long,long>::iterator it;
+            instance_logger.log("Degree size: " + degreeDistribution.size(), "info");
             for (it = degreeDistribution.begin(); it != degreeDistribution.end();++it) {
                 instance_logger.log("Degree first: " + it->first, "info");
                 instance_logger.log("Degree second: " + it->second, "info");
