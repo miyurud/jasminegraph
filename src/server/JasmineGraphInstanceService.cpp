@@ -587,6 +587,14 @@ void *instanceservicesession(void *dummyPt) {
             instance_logger.log("Sent : " + result, "info");
         } else if (line.compare(JasmineGraphInstanceProtocol::PAGE_RANK) == 0) {
             instance_logger.log("Received : page rank from instance service" , "info");
+            JasmineGraphHashMapLocalStore graphDB;
+            graphDB = graphDBMapLocalStores["1_1"];
+            map<long,long> degreeDistribution = graphDB.getOutDegreeDistributionHashMap();
+            for (it = degreeDistribution.begin(); it != degreeDistribution.end();++it) {
+                instance_logger.log("Degree first: " + it->first, "info");
+                instance_logger.log("Degree second: " + it->second, "info");
+
+            }
         } else if (line.compare(JasmineGraphInstanceProtocol::TRIANGLES) == 0) {
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::TRIANGLES, "info");
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
