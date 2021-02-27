@@ -595,21 +595,15 @@ void *instanceservicesession(void *dummyPt) {
             if (JasmineGraphInstanceService::isGraphDBExists("1", "1")) {
                 instance_logger.log("Partition 1_1 exists", "info");
                 JasmineGraphInstanceService::loadLocalStore("1", "1", graphDBMapLocalStores);
-            } else if (JasmineGraphInstanceService::isGraphDBExists("1", "0")) {
-                instance_logger.log("Partition 1_0 exists", "info");
-                JasmineGraphInstanceService::loadLocalStore("1","0",graphDBMapLocalStores);
-            } else if (JasmineGraphInstanceService::isGraphDBExists("1", "2")) {
-                instance_logger.log("Partition 1_2 exists", "info");
-                JasmineGraphInstanceService::loadLocalStore("1","2",graphDBMapLocalStores);
             }
-               // graphDB = graphDBMapLocalStores[graphIdentifier];
+            graphDB = graphDBMapLocalStores["1_1"];
 
             instance_logger.log("Size: " + std::to_string(graphDBMapLocalStores.size()), "info");
             for (it = graphDBMapLocalStores.begin(); it != graphDBMapLocalStores.end();++it) {
                 instance_logger.log("Degree first: " + it->first, "info");
             }
 
-           // instance_logger.log("Vertex Count: " + graphDB.getVertexCount(), "info");
+            instance_logger.log("Vertex Count: " + std::to_string(graphDB.getVertexCount()), "info");
             /*map<long,long> degreeDistribution = graphDB.getOutDegreeDistributionHashMap();
             std::map<long,long>::iterator it;
             instance_logger.log("Degree size: " + degreeDistribution.size(), "info");
