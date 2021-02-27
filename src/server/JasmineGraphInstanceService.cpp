@@ -586,20 +586,24 @@ void *instanceservicesession(void *dummyPt) {
             write(connFd, result.c_str(), result.size());
             instance_logger.log("Sent : " + result, "info");
         } else if (line.compare(JasmineGraphInstanceProtocol::PAGE_RANK) == 0) {
-            instance_logger.log("Received : page rank from instance service" , "info");
+            instance_logger.log("Received : page rank from instance service", "info");
             JasmineGraphHashMapLocalStore graphDB;
-           // graphDB = graphDBMapLocalStores["1_1"];
+            // graphDB = graphDBMapLocalStores["1_1"];
 
-            std::map<std::string,JasmineGraphHashMapLocalStore>::iterator it;
+            std::map<std::string, JasmineGraphHashMapLocalStore>::iterator it;
 
-            if (it == graphDBMapLocalStores.end()) {
-                if (JasmineGraphInstanceService::isGraphDBExists("1","1")) {
-                    JasmineGraphInstanceService::loadLocalStore("1","1",graphDBMapLocalStores);
-                }
-               // graphDB = graphDBMapLocalStores[graphIdentifier];
-            } else {
-              //  graphDB = graphDBMapLocalStores[graphIdentifier];
+            if (JasmineGraphInstanceService::isGraphDBExists("1", "1")) {
+                instance_logger.log("Partition 1_1 exists", "info");
+                JasmineGraphInstanceService::loadLocalStore("1", "1", graphDBMapLocalStores);
+            } else if (JasmineGraphInstanceService::isGraphDBExists("1", "0")) {
+                instance_logger.log("Partition 1_0 exists", "info");
+                JasmineGraphInstanceService::loadLocalStore("1","0",graphDBMapLocalStores);
+            } else if (JasmineGraphInstanceService::isGraphDBExists("1", "2")) {
+                instance_logger.log("Partition 1_2 exists", "info");
+                JasmineGraphInstanceService::loadLocalStore("1","2",graphDBMapLocalStores);
             }
+               // graphDB = graphDBMapLocalStores[graphIdentifier];
+
             instance_logger.log("Size: " + std::to_string(graphDBMapLocalStores.size()), "info");
             for (it = graphDBMapLocalStores.begin(); it != graphDBMapLocalStores.end();++it) {
                 instance_logger.log("Degree first: " + it->first, "info");
