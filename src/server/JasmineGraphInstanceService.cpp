@@ -621,6 +621,8 @@ void *instanceservicesession(void *dummyPt) {
                             }
                         }
                     }
+            } else {
+                instance_logger.log("part map empty -------", "info");
             }
 
             instance_logger.log("Vertex Count: " + std::to_string(graphDB.getVertexCount()), "info");
