@@ -591,10 +591,18 @@ void *instanceservicesession(void *dummyPt) {
            // graphDB = graphDBMapLocalStores["1_1"];
 
             std::map<std::string,JasmineGraphHashMapLocalStore>::iterator it;
+
+            if (it == graphDBMapLocalStores.end()) {
+                if (JasmineGraphInstanceService::isGraphDBExists(graphId,partitionId)) {
+                    JasmineGraphInstanceService::loadLocalStore(graphId,partitionId,graphDBMapLocalStores);
+                }
+               // graphDB = graphDBMapLocalStores[graphIdentifier];
+            } else {
+              //  graphDB = graphDBMapLocalStores[graphIdentifier];
+            }
             instance_logger.log("Size: " + std::to_string(graphDBMapLocalStores.size()), "info");
             for (it = graphDBMapLocalStores.begin(); it != graphDBMapLocalStores.end();++it) {
                 instance_logger.log("Degree first: " + it->first, "info");
-
             }
 
            // instance_logger.log("Vertex Count: " + graphDB.getVertexCount(), "info");
@@ -1633,10 +1641,10 @@ void JasmineGraphInstanceService::loadLocalStore(std::string graphId, std::strin
     std::string folderLocation = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
     JasmineGraphHashMapLocalStore  *jasmineGraphHashMapLocalStore = new JasmineGraphHashMapLocalStore(atoi(graphId.c_str()),atoi(partitionId.c_str()), folderLocation);
     jasmineGraphHashMapLocalStore->loadGraph();
-    graphDBMapLocalStores.insert(std::make_pair(graphIdentifier,*jasmineGraphHashMapLocalStore));
-    instance_logger.log("###INSTANCE### Loading Local Store : Completed", "info");
+    graphDBMapLocalStores.insert(std::make
+_pair(graphIdentifier,*jasmineGraphHashMapLocalStore));
+instance_logger.log("###INSTANCE### Loading Local Store : Completed", "info");
 }
-
 void JasmineGraphInstanceService::loadInstanceCentralStore(std::string graphId, std::string partitionId,
                                                            std::map<std::string, JasmineGraphHashMapCentralStore>& graphDBMapCentralStores) {
     std::string graphIdentifier = graphId + +"_centralstore_"+ partitionId;
