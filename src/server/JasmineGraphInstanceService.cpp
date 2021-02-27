@@ -588,8 +588,16 @@ void *instanceservicesession(void *dummyPt) {
         } else if (line.compare(JasmineGraphInstanceProtocol::PAGE_RANK) == 0) {
             instance_logger.log("Received : page rank from instance service" , "info");
             JasmineGraphHashMapLocalStore graphDB;
-            graphDB = graphDBMapLocalStores["1_1"];
-            instance_logger.log("Vertex Count: " + graphDB.getVertexCount(), "info");
+           // graphDB = graphDBMapLocalStores["1_1"];
+
+            <std::string,JasmineGraphHashMapLocalStore>:iterator it;
+            for (it = graphDBMapLocalStores.begin(); it != graphDBMapLocalStores.end();++it) {
+                instance_logger.log("Degree first: " + it->first, "info");
+                instance_logger.log("Degree second: " + it->second, "info");
+
+            }
+
+           // instance_logger.log("Vertex Count: " + graphDB.getVertexCount(), "info");
             /*map<long,long> degreeDistribution = graphDB.getOutDegreeDistributionHashMap();
             std::map<long,long>::iterator it;
             instance_logger.log("Degree size: " + degreeDistribution.size(), "info");
