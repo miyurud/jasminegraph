@@ -593,8 +593,8 @@ void *instanceservicesession(void *dummyPt) {
             std::map<std::string,JasmineGraphHashMapLocalStore>::iterator it;
 
             if (it == graphDBMapLocalStores.end()) {
-                if (JasmineGraphInstanceService::isGraphDBExists(graphId,partitionId)) {
-                    JasmineGraphInstanceService::loadLocalStore(graphId,partitionId,graphDBMapLocalStores);
+                if (JasmineGraphInstanceService::isGraphDBExists("1","1")) {
+                    JasmineGraphInstanceService::loadLocalStore("1","1",graphDBMapLocalStores);
                 }
                // graphDB = graphDBMapLocalStores[graphIdentifier];
             } else {
