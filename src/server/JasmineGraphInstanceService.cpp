@@ -589,7 +589,7 @@ void *instanceservicesession(void *dummyPt) {
             instance_logger.log("Received : page rank from instance service" , "info");
             JasmineGraphHashMapLocalStore graphDB;
             graphDB = graphDBMapLocalStores["1_1"];
-            instance_logger.log("Vertex Count: " + graphDB.getVertexCount(), "info");
+            instance_logger.log("Vertex Count: " + std::to_string(graphDB.getVertexCount()), "info");
             /*map<long,long> degreeDistribution = graphDB.getOutDegreeDistributionHashMap();
             std::map<long,long>::iterator it;
             instance_logger.log("Degree size: " + degreeDistribution.size(), "info");
