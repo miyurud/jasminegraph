@@ -603,6 +603,26 @@ void *instanceservicesession(void *dummyPt) {
                 instance_logger.log("Degree first: " + it->first, "info");
             }
 
+
+            std::map<int, std::vector<int>> partEdgeMap = graphDB->getEdgeHashMap("/var/tmp/jasminegraph-localstore/1_1");
+            if (!partEdgeMap.empty()) {
+                instance_logger.log("part map not empty -------", "info");
+
+                for (auto it = partEdgeMap.begin(); it != partEdgeMap.end(); ++it) {
+                        int vertex = it->first;
+                        std::vector<int> destinationSet = it->second;
+
+                        if (!destinationSet.empty()) {
+                            for (std::vector<int>::iterator itr = destinationSet.begin(); itr != destinationSet.end(); ++itr) {
+                                string edge;
+
+                                edge = std::to_string(vertex) + " " + std::to_string((*itr));
+                                instance_logger.log("edge list: " + edge, "info");
+                            }
+                        }
+                    }
+            }
+
             instance_logger.log("Vertex Count: " + std::to_string(graphDB.getVertexCount()), "info");
             /*map<long,long> degreeDistribution = graphDB.getOutDegreeDistributionHashMap();
             std::map<long,long>::iterator it;
