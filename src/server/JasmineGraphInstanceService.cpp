@@ -591,7 +591,7 @@ void *instanceservicesession(void *dummyPt) {
            // graphDB = graphDBMapLocalStores["1_1"];
 
             std::map<std::string,JasmineGraphHashMapLocalStore>::iterator it;
-            instance_logger.log("Size: " + std::to_string(graphDBMapLocalStores.size()), "info")
+            instance_logger.log("Size: " + std::to_string(graphDBMapLocalStores.size()), "info");
             for (it = graphDBMapLocalStores.begin(); it != graphDBMapLocalStores.end();++it) {
                 instance_logger.log("Degree first: " + it->first, "info");
 
