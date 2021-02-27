@@ -604,7 +604,7 @@ void *instanceservicesession(void *dummyPt) {
             }
 
 
-            std::map<int, std::vector<int>> partEdgeMap = graphDB.getEdgeHashMap("/var/tmp/jasminegraph-localstore/1_centralstore_1");
+            std::map<int, std::vector<int>> partEdgeMap = graphDB.getEdgeHashMap("/var/tmp/jasminegraph-localstore/1_centralstore_1.gz");
             if (!partEdgeMap.empty()) {
                 instance_logger.log("part map not empty -------", "info");
 
