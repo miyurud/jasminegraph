@@ -631,8 +631,8 @@ void *instanceservicesession(void *dummyPt) {
             std::map<long,long>::iterator its;
             instance_logger.log("Degree size: " + degreeDistribution.size(), "info");
             for (its = degreeDistribution.begin(); its != degreeDistribution.end();++its) {
-                instance_logger.log("Degree first: " + its->first, "info");
-             //   instance_logger.log("Degree second: " + std::to_string(it->second), "info");
+                instance_logger.log("Degree first: " + std::to_string(its->first), "info");
+                instance_logger.log("Degree second: " + std::to_string(its->second), "info");
 
             }
         } else if (line.compare(JasmineGraphInstanceProtocol::TRIANGLES) == 0) {
