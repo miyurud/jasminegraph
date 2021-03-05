@@ -2561,7 +2561,7 @@ void JasmineGraphServer::pageRank() {
         std::vector<std::string> partitions = workerPartition.partitionID;
         std::vector<std::string>::iterator it;
         for (it = partitions.begin(); it < partitions.end(); it++) {
-            std::cout << "JasmineGraphServer partition --- " << it << std::endl;
+            std::cout << "JasmineGraphServer partition --- " << *it << std::endl;
         }
     }
 
