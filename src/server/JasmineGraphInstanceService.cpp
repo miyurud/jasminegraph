@@ -606,7 +606,7 @@ void *instanceservicesession(void *dummyPt) {
                 JasmineGraphInstanceService::loadInstanceCentralStore("1", "1", graphDBMapCentralStores);
             }
             graphDB = graphDBMapLocalStores["1_1"];
-            centralDB = graphDBMapCentralStores["1_centralstore_1"]
+            centralDB = graphDBMapCentralStores["1_centralstore_1"];
 
             instance_logger.log("Size: " + std::to_string(graphDBMapLocalStores.size()), "info");
             for (it = graphDBMapLocalStores.begin(); it != graphDBMapLocalStores.end();++it) {
