@@ -643,20 +643,29 @@ void *instanceservicesession(void *dummyPt) {
             instance_logger.log("Vertex Count: " + std::to_string(graphDB.getVertexCount()), "info");
             map<long,long> degreeDistribution = graphDB.getOutDegreeDistributionHashMap();
             std::map<long,long>::iterator its;
+
+            map<long,long> degreeDistributionCentral = centralDB.getOutDegreeDistributionHashMap();
+            std::map<long,long>::iterator itcentral;
+
             instance_logger.log("Degree size: " + degreeDistribution.size(), "info");
             for (its = degreeDistribution.begin(); its != degreeDistribution.end();++its) {
                 instance_logger.log("Degree first: " + std::to_string(its->first), "info");
                 instance_logger.log("Degree second: " + std::to_string(its->second), "info");
 
+                for (itcentral = degreeDistributionCentral.begin(); itcentral != degreeDistributionCentral.end();++itcentral) {
+                    instance_logger.log("Central Degree first: " + std::to_string(itcentral->first), "info");
+                    instance_logger.log("Central Degree second: " + std::to_string(itcentral->second), "info");
+
+                    if ((its->first) == (itcentral->first)) {
+                        instance_logger.log("Common node: " + std::to_string(its->first), "info");
+
+                    }
+
+                }
+
+
             }
 
-            map<long,long> degreeDistributionCentral = centralDB.getOutDegreeDistributionHashMap();
-            std::map<long,long>::iterator itcentral;
-            for (itcentral = degreeDistributionCentral.begin(); itcentral != degreeDistributionCentral.end();++itcentral) {
-                instance_logger.log("Central Degree first: " + std::to_string(itcentral->first), "info");
-                instance_logger.log("Central Degree second: " + std::to_string(itcentral->second), "info");
-
-            }
         } else if (line.compare(JasmineGraphInstanceProtocol::TRIANGLES) == 0) {
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::TRIANGLES, "info");
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
