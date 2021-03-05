@@ -649,6 +649,14 @@ void *instanceservicesession(void *dummyPt) {
                 instance_logger.log("Degree second: " + std::to_string(its->second), "info");
 
             }
+
+            map<long,long> degreeDistributionCentral = centralDB.getOutDegreeDistributionHashMap();
+            std::map<long,long>::iterator itcentral;
+            for (itcentral = degreeDistributionCentral.begin(); itcentral != degreeDistributionCentral.end();++itcentral) {
+                instance_logger.log("Central Degree first: " + std::to_string(itcentral->first), "info");
+                instance_logger.log("Central Degree second: " + std::to_string(itcentral->second), "info");
+
+            }
         } else if (line.compare(JasmineGraphInstanceProtocol::TRIANGLES) == 0) {
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::TRIANGLES, "info");
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
