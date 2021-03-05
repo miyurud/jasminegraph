@@ -604,7 +604,7 @@ void *instanceservicesession(void *dummyPt) {
             }
 
 
-            std::map<int, std::vector<int>> partEdgeMap = graphDB.getEdgeHashMap("/var/tmp/jasminegraph-localstore/1_1");
+          /*  std::map<int, std::vector<int>> partEdgeMap = graphDB.getEdgeHashMap("/var/tmp/jasminegraph-localstore/1_1");
             if (!partEdgeMap.empty()) {
                 instance_logger.log("part map not empty -------", "info");
 
@@ -623,19 +623,18 @@ void *instanceservicesession(void *dummyPt) {
                     }
             } else {
                 instance_logger.log("part map empty -------", "info");
-            }
+            }*/
 
-            instance_logger.log("Out Degree Count: " + graphDB.getOutDegreeDistribution(), "info");
 
             instance_logger.log("Vertex Count: " + std::to_string(graphDB.getVertexCount()), "info");
-            /*map<long,long> degreeDistribution = graphDB.getOutDegreeDistributionHashMap();
+            map<long,long> degreeDistribution = graphDB.getOutDegreeDistributionHashMap();
             std::map<long,long>::iterator it;
             instance_logger.log("Degree size: " + degreeDistribution.size(), "info");
             for (it = degreeDistribution.begin(); it != degreeDistribution.end();++it) {
                 instance_logger.log("Degree first: " + it->first, "info");
                 instance_logger.log("Degree second: " + it->second, "info");
 
-            }*/
+            }
         } else if (line.compare(JasmineGraphInstanceProtocol::TRIANGLES) == 0) {
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::TRIANGLES, "info");
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
