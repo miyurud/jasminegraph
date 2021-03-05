@@ -628,10 +628,10 @@ void *instanceservicesession(void *dummyPt) {
 
             instance_logger.log("Vertex Count: " + std::to_string(graphDB.getVertexCount()), "info");
             map<long,long> degreeDistribution = graphDB.getOutDegreeDistributionHashMap();
-            std::map<long,long>::iterator it;
+            std::map<long,long>::iterator its;
             instance_logger.log("Degree size: " + degreeDistribution.size(), "info");
-            for (it = degreeDistribution.begin(); it != degreeDistribution.end();++it) {
-                instance_logger.log("Degree first: " + it->first, "info");
+            for (its = degreeDistribution.begin(); its != degreeDistribution.end();++its) {
+                instance_logger.log("Degree first: " + its->first, "info");
              //   instance_logger.log("Degree second: " + std::to_string(it->second), "info");
 
             }
