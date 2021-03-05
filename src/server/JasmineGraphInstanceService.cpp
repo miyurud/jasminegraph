@@ -658,12 +658,17 @@ void *instanceservicesession(void *dummyPt) {
 
                     if ((its->first) == (itcentral->first)) {
                         instance_logger.log("Common node: " + std::to_string(its->first), "info");
-
+                        degreeDistribution[its->first] = (its->second) + (itcentral->second);
                     }
 
                 }
 
 
+            }
+
+            for (its = degreeDistribution.begin(); its != degreeDistribution.end();++its) {
+                instance_logger.log("After Degree first: " + std::to_string(its->first), "info");
+                instance_logger.log("After Degree second: " + std::to_string(its->second), "info");
             }
 
         } else if (line.compare(JasmineGraphInstanceProtocol::TRIANGLES) == 0) {
