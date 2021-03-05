@@ -631,7 +631,7 @@ void *instanceservicesession(void *dummyPt) {
             std::map<long,long>::iterator it;
             instance_logger.log("Degree size: " + degreeDistribution.size(), "info");
             for (it = degreeDistribution.begin(); it != degreeDistribution.end();++it) {
-                instance_logger.log("Degree first: " + std::to_string(it->first), "info");
+                instance_logger.log("Degree first: " + it->first, "info");
              //   instance_logger.log("Degree second: " + std::to_string(it->second), "info");
 
             }
