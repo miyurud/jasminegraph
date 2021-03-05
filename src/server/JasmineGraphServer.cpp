@@ -2551,6 +2551,21 @@ void JasmineGraphServer::addInstanceDetailsToPerformanceDB(std::string host, std
 
 void JasmineGraphServer::pageRank() {
     std::cout << "Page rank JasmineGraphServer" << std::endl;
+
+    std::map<std::string, JasmineGraphServer::workerPartitions> graphPartitionedHosts = getGraphPartitionedHosts(
+            "1");
+    int partition_count = 0;
+    std::map<std::string, JasmineGraphServer::workerPartitions>::iterator mapIterator;
+    for (mapIterator = graphPartitionedHosts.begin(); mapIterator != graphPartitionedHosts.end(); mapIterator++) {
+        JasmineGraphServer::workerPartitions workerPartition = mapIterator->second;
+        std::vector<std::string> partitions = workerPartition.partitionID;
+        std::vector<std::string>::iterator it;
+        for (it = partitions.begin(); it < partitions.end(); it++) {
+            std::cout << "JasmineGraphServer partition --- " << it << std::endl;
+        }
+    }
+
+
     std::vector<workers, std::allocator<workers>>::iterator mapIterator;
     for (mapIterator = hostWorkerMap.begin(); mapIterator < hostWorkerMap.end(); mapIterator++) {
         workers worker = *mapIterator;
