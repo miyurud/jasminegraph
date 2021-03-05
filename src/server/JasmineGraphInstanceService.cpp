@@ -632,7 +632,7 @@ void *instanceservicesession(void *dummyPt) {
             instance_logger.log("Degree size: " + degreeDistribution.size(), "info");
             for (it = degreeDistribution.begin(); it != degreeDistribution.end();++it) {
                 instance_logger.log("Degree first: " + std::to_string(it->first), "info");
-                instance_logger.log("Degree second: " + std::to_string(it->second), "info");
+             //   instance_logger.log("Degree second: " + std::to_string(it->second), "info");
 
             }
         } else if (line.compare(JasmineGraphInstanceProtocol::TRIANGLES) == 0) {
