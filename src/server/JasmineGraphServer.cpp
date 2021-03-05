@@ -2555,9 +2555,9 @@ void JasmineGraphServer::pageRank() {
     std::map<std::string, JasmineGraphServer::workerPartitions> graphPartitionedHosts = getGraphPartitionedHosts(
             "1");
     int partition_count = 0;
-    std::map<std::string, JasmineGraphServer::workerPartitions>::iterator mapIterator;
-    for (mapIterator = graphPartitionedHosts.begin(); mapIterator != graphPartitionedHosts.end(); mapIterator++) {
-        JasmineGraphServer::workerPartitions workerPartition = mapIterator->second;
+    std::map<std::string, JasmineGraphServer::workerPartitions>::iterator workerit;
+    for (workerit = graphPartitionedHosts.begin(); workerit != graphPartitionedHosts.end(); workerit++) {
+        JasmineGraphServer::workerPartitions workerPartition = workerit->second;
         std::vector<std::string> partitions = workerPartition.partitionID;
         std::vector<std::string>::iterator it;
         for (it = partitions.begin(); it < partitions.end(); it++) {
