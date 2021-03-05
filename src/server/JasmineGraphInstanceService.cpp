@@ -588,21 +588,35 @@ void *instanceservicesession(void *dummyPt) {
         } else if (line.compare(JasmineGraphInstanceProtocol::PAGE_RANK) == 0) {
             instance_logger.log("Received : page rank from instance service", "info");
             JasmineGraphHashMapLocalStore graphDB;
+            JasmineGraphHashMapCentralStore centralDB;
+
             // graphDB = graphDBMapLocalStores["1_1"];
 
             std::map<std::string, JasmineGraphHashMapLocalStore>::iterator it;
+            std::map<std::string, JasmineGraphHashMapCentralStore>::iterator itcen;
+
 
             if (JasmineGraphInstanceService::isGraphDBExists("1", "1")) {
                 instance_logger.log("Partition 1_1 exists", "info");
                 JasmineGraphInstanceService::loadLocalStore("1", "1", graphDBMapLocalStores);
             }
+
+            if (JasmineGraphInstanceService::isInstanceCentralStoreExists("1", "1")) {
+                instance_logger.log("Partition CentralStore 1_1 exists", "info");
+                JasmineGraphInstanceService::loadInstanceCentralStore("1", "1", graphDBMapCentralStores);
+            }
             graphDB = graphDBMapLocalStores["1_1"];
+            centralDB = graphDBMapCentralStores["1_centralstore_1"]
 
             instance_logger.log("Size: " + std::to_string(graphDBMapLocalStores.size()), "info");
             for (it = graphDBMapLocalStores.begin(); it != graphDBMapLocalStores.end();++it) {
                 instance_logger.log("Degree first: " + it->first, "info");
             }
 
+            instance_logger.log("Central Store Size: " + std::to_string(graphDBMapCentralStores.size()), "info");
+            for (itcen = graphDBMapCentralStores.begin(); itcen != graphDBMapCentralStores.end();++itcen) {
+                instance_logger.log("Central store Degree first: " + itcen->first, "info");
+            }
 
           /*  std::map<int, std::vector<int>> partEdgeMap = graphDB.getEdgeHashMap("/var/tmp/jasminegraph-localstore/1_1");
             if (!partEdgeMap.empty()) {
