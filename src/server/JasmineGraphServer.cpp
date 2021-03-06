@@ -2615,13 +2615,29 @@ void JasmineGraphServer::pageRank() {
 
         bzero(data, 301);
         write(sockfd, JasmineGraphInstanceProtocol::PAGE_RANK.c_str(), JasmineGraphInstanceProtocol::PAGE_RANK.size());
-        server_logger.log("Sent : " + JasmineGraphInstanceProtocol::PAGE_RANK, "info");
-       /* bzero(data, 301);
-        read(sockfd, data, 300);
-        string response = (data);
+        if(result_wr < 0) {
+            server_logger.log("Error writing to socket", "error");
+        }
 
+        server_logger.log("Sent : " + JasmineGraphInstanceProtocol::PAGE_RANK, "info");
+        bzero(data, 301);
+        read(sockfd, data, 300);
+        response = (data);
         response = utils.trim_copy(response, " \f\n\r\t\v");
-        server_logger.log("Response : " + response, "info");*/
+
+
+        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+            server_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+            //std::cout << graphID << std::endl;
+            int graphID = 1;
+            result_wr = write(sockfd, std::to_string(graphID).c_str(), std::to_string(graphID).size());
+
+            if (result_wr < 0) {
+                server_logger.log("Error writing to socket", "error");
+            }
+
+            server_logger.log("Sent : Graph ID " + std::to_string(graphID), "info");
+        }
     }
 
 }

@@ -587,8 +587,19 @@ void *instanceservicesession(void *dummyPt) {
             instance_logger.log("Sent : " + result, "info");
         } else if (line.compare(JasmineGraphInstanceProtocol::PAGE_RANK) == 0) {
             instance_logger.log("Received : page rank from instance service", "info");
+
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string graphID = (data);
+            graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
+            instance_logger.log("Received Graph ID: " + graphID, "info");
+
             JasmineGraphHashMapLocalStore graphDB;
             JasmineGraphHashMapCentralStore centralDB;
+
+
 
             // graphDB = graphDBMapLocalStores["1_1"];
 
