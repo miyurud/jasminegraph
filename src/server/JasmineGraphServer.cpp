@@ -2560,6 +2560,9 @@ void JasmineGraphServer::pageRank() {
         JasmineGraphServer::workerPartitions workerPartition = workerit->second;
         std::vector<std::string> partitions = workerPartition.partitionID;
         std::vector<std::string>::iterator it;
+
+        std::cout << "JasmineGraphServer worker --- " << workerit->first << std::endl;
+
         for (it = partitions.begin(); it < partitions.end(); it++) {
             std::cout << "JasmineGraphServer partition --- " << *it << std::endl;
         }
