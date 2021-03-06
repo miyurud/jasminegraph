@@ -2614,7 +2614,7 @@ void JasmineGraphServer::pageRank() {
         }
 
         bzero(data, 301);
-        write(sockfd, JasmineGraphInstanceProtocol::PAGE_RANK.c_str(), JasmineGraphInstanceProtocol::PAGE_RANK.size());
+        int result_wr = write(sockfd, JasmineGraphInstanceProtocol::PAGE_RANK.c_str(), JasmineGraphInstanceProtocol::PAGE_RANK.size());
         if(result_wr < 0) {
             server_logger.log("Error writing to socket", "error");
         }
@@ -2622,7 +2622,7 @@ void JasmineGraphServer::pageRank() {
         server_logger.log("Sent : " + JasmineGraphInstanceProtocol::PAGE_RANK, "info");
         bzero(data, 301);
         read(sockfd, data, 300);
-        response = (data);
+        string response = (data);
         response = utils.trim_copy(response, " \f\n\r\t\v");
 
 
