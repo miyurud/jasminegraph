@@ -596,6 +596,15 @@ void *instanceservicesession(void *dummyPt) {
             graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
             instance_logger.log("Received Graph ID: " + graphID, "info");
 
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string partitionID = (data);
+            partitionID = utils.trim_copy(partitionID, " \f\n\r\t\v");
+            instance_logger.log("Received Partition ID: " + partitionID, "info");
+
             JasmineGraphHashMapLocalStore graphDB;
             JasmineGraphHashMapCentralStore centralDB;
 

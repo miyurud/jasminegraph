@@ -2637,6 +2637,24 @@ void JasmineGraphServer::pageRank() {
             }
 
             server_logger.log("Sent : Graph ID " + std::to_string(graphID), "info");
+
+            bzero(data, 301);
+            read(sockfd, data, 300);
+            string response = (data);
+            response = utils.trim_copy(response, " \f\n\r\t\v");
+
+            if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+                server_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+                //std::cout << graphID << std::endl;
+                int partitionID = 0;
+                result_wr = write(sockfd, std::to_string(partitionID).c_str(), std::to_string(partitionID).size());
+
+                if (result_wr < 0) {
+                    server_logger.log("Error writing to socket", "error");
+                }
+
+                server_logger.log("Sent : Partition ID " + std::to_string(partitionID), "info");
+            }
         }
     }
 
