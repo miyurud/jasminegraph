@@ -616,17 +616,17 @@ void *instanceservicesession(void *dummyPt) {
             std::map<std::string, JasmineGraphHashMapCentralStore>::iterator itcen;
 
 
-            if (JasmineGraphInstanceService::isGraphDBExists("1", "0")) {
-                instance_logger.log("Partition 1_0 exists", "info");
-                JasmineGraphInstanceService::loadLocalStore("1", "0", graphDBMapLocalStores);
+            if (JasmineGraphInstanceService::isGraphDBExists(graphID, partitionID)) {
+                instance_logger.log("Partition " + graphID + "_" + partitionID + " exists", "info");
+                JasmineGraphInstanceService::loadLocalStore(graphID, partitionID, graphDBMapLocalStores);
             }
 
-            if (JasmineGraphInstanceService::isInstanceCentralStoreExists("1", "0")) {
-                instance_logger.log("Partition CentralStore 1_0 exists", "info");
-                JasmineGraphInstanceService::loadInstanceCentralStore("1", "0", graphDBMapCentralStores);
+            if (JasmineGraphInstanceService::isInstanceCentralStoreExists(graphID, partitionID)) {
+                instance_logger.log("Partition CentralStore " + graphID + "_" + partitionID + " exists", "info");
+                JasmineGraphInstanceService::loadInstanceCentralStore(graphID, partitionID, graphDBMapCentralStores);
             }
-            graphDB = graphDBMapLocalStores["1_0"];
-            centralDB = graphDBMapCentralStores["1_centralstore_0"];
+            graphDB = graphDBMapLocalStores[graphID + "_" + partitionID];
+            centralDB = graphDBMapCentralStores[graphID + "_centralstore_" + partitionID];
 
             instance_logger.log("Size: " + std::to_string(graphDBMapLocalStores.size()), "info");
             for (it = graphDBMapLocalStores.begin(); it != graphDBMapLocalStores.end();++it) {
