@@ -668,19 +668,24 @@ void *instanceservicesession(void *dummyPt) {
             std::map<long,long>::iterator itcentral;
 
             instance_logger.log("Degree size: " + degreeDistribution.size(), "info");
-            for (its = degreeDistribution.begin(); its != degreeDistribution.end();++its) {
+            for (its = degreeDistributionCentral.begin(); its != degreeDistributionCentral.end();++its) {
                 instance_logger.log("Degree first: " + std::to_string(its->first), "info");
                 instance_logger.log("Degree second: " + std::to_string(its->second), "info");
 
-                for (itcentral = degreeDistributionCentral.begin(); itcentral != degreeDistributionCentral.end();++itcentral) {
+                bool centralNodeFound = false;
+                for (itcentral = degreeDistribution.begin(); itcentral != degreeDistribution.end();++itcentral) {
                     instance_logger.log("Central Degree first: " + std::to_string(itcentral->first), "info");
                     instance_logger.log("Central Degree second: " + std::to_string(itcentral->second), "info");
 
                     if ((its->first) == (itcentral->first)) {
                         instance_logger.log("Common node: " + std::to_string(its->first), "info");
                         degreeDistribution[its->first] = (its->second) + (itcentral->second);
+                        centralNodeFound = true;
                     }
 
+                }
+                if (!centralNodeFound) {
+                    degreeDistribution.insert(std::make_pair(its->first, its->second));
                 }
             }
 
