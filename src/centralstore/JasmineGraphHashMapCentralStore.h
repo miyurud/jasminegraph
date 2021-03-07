@@ -67,6 +67,8 @@ public:
 
     map<long, long> getOutDegreeDistributionHashMap();
 
+    map<long, long> getInDegreeDistributionHashMap();
+
     void initialize();
 
     void addVertex(string *attributes);
