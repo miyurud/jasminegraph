@@ -664,7 +664,7 @@ void *instanceservicesession(void *dummyPt) {
             map<long,long> degreeDistribution = graphDB.getInDegreeDistributionHashMap();
             std::map<long,long>::iterator its;
 
-            map<long,long> degreeDistributionCentral = centralDB.getOutDegreeDistributionHashMap();
+            /*map<long,long> degreeDistributionCentral = centralDB.getOutDegreeDistributionHashMap();
             std::map<long,long>::iterator itcentral;
 
             instance_logger.log("Degree size: " + degreeDistribution.size(), "info");
@@ -684,7 +684,7 @@ void *instanceservicesession(void *dummyPt) {
                 }
 
 
-            }
+            }*/
 
             for (its = degreeDistribution.begin(); its != degreeDistribution.end();++its) {
                 instance_logger.log("After Degree first: " + std::to_string(its->first), "info");
