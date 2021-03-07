@@ -246,7 +246,7 @@ void JasmineGraphServer::waitForAcknowledgement(int numberOfWorkers) {
     int timeDifference = 0;
     while (timeDifference < Conts::JASMINEGRAPH_WORKER_ACKNOWLEDGEMENT_TIMEOUT) {
         sleep(2); // Sleep for two seconds
-        std::string selectQuery = "select idworker from worker where status='started'";
+        std::string selectQuery = "select idworker f rom worker where status='started'";
         std::vector<vector<pair<string, string>>> output = this->sqlite.runSelect(selectQuery);
         int startedWorkers = output.size();
         if (numberOfWorkers == startedWorkers) {
@@ -2569,6 +2569,7 @@ void JasmineGraphServer::pageRank() {
     }
 
 
+    std::vector<JasmineGraphServer::workers> hostWorkerMap = JasmineGraphServer::getHostWorkerMap();
     std::vector<workers, std::allocator<workers>>::iterator mapIterator;
     for (mapIterator = hostWorkerMap.begin(); mapIterator < hostWorkerMap.end(); mapIterator++) {
         workers worker = *mapIterator;
