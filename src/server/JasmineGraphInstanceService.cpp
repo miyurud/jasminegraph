@@ -661,7 +661,7 @@ void *instanceservicesession(void *dummyPt) {
 
 
             instance_logger.log("Vertex Count: " + std::to_string(graphDB.getVertexCount()), "info");
-            map<long,long> degreeDistribution = graphDB.getOutDegreeDistributionHashMap();
+            map<long,long> degreeDistribution = graphDB.getInDegreeDistributionHashMap();
             std::map<long,long>::iterator its;
 
             map<long,long> degreeDistributionCentral = centralDB.getOutDegreeDistributionHashMap();
