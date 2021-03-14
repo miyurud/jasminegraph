@@ -605,6 +605,14 @@ void *instanceservicesession(void *dummyPt) {
             partitionID = utils.trim_copy(partitionID, " \f\n\r\t\v");
             instance_logger.log("Received Partition ID: " + partitionID, "info");
 
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string workerList = (data);
+            workerList = utils.trim_copy(workerList, " \f\n\r\t\v");
+            instance_logger.log("Received Worker List " + workerList, "info");
             JasmineGraphHashMapLocalStore graphDB;
             JasmineGraphHashMapCentralStore centralDB;
 
