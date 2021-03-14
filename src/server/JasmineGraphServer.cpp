@@ -2584,7 +2584,7 @@ void JasmineGraphServer::pageRank() {
         host = worker.hostname;
         port = worker.port;
 
-        workerList.append(host + ":" + port + ",");
+        workerList.append(host + ":" + std::to_string(port) + ",");
         if (worker.hostname.find('@') != std::string::npos) {
             host = utils.split(host, '@')[1];
         }
