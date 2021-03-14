@@ -2572,11 +2572,13 @@ void JasmineGraphServer::pageRank() {
     int port;
     std::string host;
     std::string workerList;
+    Utils utils;
+
     std::vector<JasmineGraphServer::workers> hostWorkerMap = JasmineGraphServer::getHostWorkerMap();
     std::vector<workers, std::allocator<workers>>::iterator mapIterator;
     for (mapIterator = hostWorkerMap.begin(); mapIterator < hostWorkerMap.end(); mapIterator++) {
         workers worker = *mapIterator;
-        Utils utils;
+
         bool result = true;
         std::cout << pthread_self() << " host : " << worker.hostname << " port : " << worker.port << " DPort : "
                   << worker.dataPort << std::endl;

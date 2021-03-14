@@ -613,6 +613,7 @@ void *instanceservicesession(void *dummyPt) {
             string workerList = (data);
             workerList = utils.trim_copy(workerList, " \f\n\r\t\v");
             instance_logger.log("Received Worker List " + workerList, "info");
+
             JasmineGraphHashMapLocalStore graphDB;
             JasmineGraphHashMapCentralStore centralDB;
 
