@@ -614,8 +614,8 @@ void *instanceservicesession(void *dummyPt) {
             workerList = utils.trim_copy(workerList, " \f\n\r\t\v");
             instance_logger.log("Received Worker List " + workerList, "info");
 
-            std::vector<string> workerSockets;
-            boost::split(workerSockets, workerList, boost::is_any_of(","));
+            /*std::vector<string> workerSockets;
+            boost::split(workerSockets, workerList, boost::is_any_of(","));*/
 
            /* for (vector<string>::iterator workerIt=workerSockets.begin(); workerIt!=workerSockets.end(); ++workerIt) {
                 instance_logger.log("Worker pair " + *workerIt, "info");
