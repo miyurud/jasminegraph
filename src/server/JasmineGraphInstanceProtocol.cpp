@@ -49,6 +49,8 @@ const string JasmineGraphInstanceProtocol::DELETE_GRAPH_FRAGMENT = "del-frag";
 const string JasmineGraphInstanceProtocol::NPLACES = "nplac";
 const string JasmineGraphInstanceProtocol::TRIANGLES = "tria";
 const string JasmineGraphInstanceProtocol::PAGE_RANK = "pgrn";
+const string JasmineGraphInstanceProtocol::OUT_DEGREE_DISTRIBUTION = "oddp";
+
 const string JasmineGraphInstanceProtocol::SEND_CENTRALSTORE_TO_AGGREGATOR = "aggre-copy";
 const string JasmineGraphInstanceProtocol::SEND_COMPOSITE_CENTRALSTORE_TO_AGGREGATOR = "composite-aggre-copy";
 const string JasmineGraphInstanceProtocol::AGGREGATE_CENTRALSTORE_TRIANGLES = "aggregate";

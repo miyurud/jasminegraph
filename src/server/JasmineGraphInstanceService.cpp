@@ -585,6 +585,9 @@ void *instanceservicesession(void *dummyPt) {
             string result = "1";
             write(connFd, result.c_str(), result.size());
             instance_logger.log("Sent : " + result, "info");
+        } else if (line.compare(JasmineGraphInstanceProtocol::OUT_DEGREE_DISTRIBUTION) == 0) {
+            instance_logger.log("Received : Out degree distribution", "info");
+
         } else if (line.compare(JasmineGraphInstanceProtocol::PAGE_RANK) == 0) {
             instance_logger.log("Received : page rank from instance service", "info");
 
@@ -624,8 +627,9 @@ void *instanceservicesession(void *dummyPt) {
                 boost::split(workerSocketPair, *workerIt, boost::is_any_of(":"));*/
 
 
-
-                /*int sockfd;
+                string host = "172.17.0.1";
+                int port = 7780;
+                int sockfd;
                 char data[300];
                 bool loop = false;
                 socklen_t len;
@@ -637,6 +641,7 @@ void *instanceservicesession(void *dummyPt) {
                 if (sockfd < 0) {
                     std::cout << "Cannot accept connection" << std::endl;
                 }
+
                 server = gethostbyname(host.c_str());
                 if (server == NULL) {
                     std::cout << "ERROR, no host named " << server << std::endl;
@@ -654,13 +659,15 @@ void *instanceservicesession(void *dummyPt) {
                 }
 
                 bzero(data, 301);
-                int result_wr = write(sockfd, JasmineGraphInstanceProtocol::PAGE_RANK.c_str(), JasmineGraphInstanceProtocol::PAGE_RANK.size());
+                int result_wr = write(sockfd, JasmineGraphInstanceProtocol::OUT_DEGREE_DISTRIBUTION.c_str(),
+                                      JasmineGraphInstanceProtocol::OUT_DEGREE_DISTRIBUTION.size());
+
                 if(result_wr < 0) {
                     server_logger.log("Error writing to socket", "error");
                 }
 
-                server_logger.log("Sent : " + JasmineGraphInstanceProtocol::PAGE_RANK, "info");
-                */
+                server_logger.log("Sent : " + JasmineGraphInstanceProtocol::OUT_DEGREE_DISTRIBUTION, "info");
+
 
 
             JasmineGraphHashMapLocalStore graphDB;
