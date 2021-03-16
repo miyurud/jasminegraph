@@ -614,6 +614,55 @@ void *instanceservicesession(void *dummyPt) {
             workerList = utils.trim_copy(workerList, " \f\n\r\t\v");
             instance_logger.log("Received Worker List " + workerList, "info");
 
+            std::vector<string> workerSockets;
+            boost::split(workerSockets, workerList, boost::is_any_of(","));
+
+           /* for (vector<string>::iterator workerIt=workerSockets.begin(); workerIt!=workerSockets.end(); ++workerIt) {
+                instance_logger.log("Worker pair " + *workerIt, "info");
+
+                std::vector<string> workerSocketPair;
+                boost::split(workerSocketPair, *workerIt, boost::is_any_of(":"));*/
+
+
+
+                /*int sockfd;
+                char data[300];
+                bool loop = false;
+                socklen_t len;
+                struct sockaddr_in serv_addr;
+                struct hostent *server;
+
+                sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+                if (sockfd < 0) {
+                    std::cout << "Cannot accept connection" << std::endl;
+                }
+                server = gethostbyname(host.c_str());
+                if (server == NULL) {
+                    std::cout << "ERROR, no host named " << server << std::endl;
+                }
+
+                bzero((char *) &serv_addr, sizeof(serv_addr));
+                serv_addr.sin_family = AF_INET;
+                bcopy((char *) server->h_addr,
+                      (char *) &serv_addr.sin_addr.s_addr,
+                      server->h_length);
+                serv_addr.sin_port = htons(port);
+                if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+                    std::cout << "ERROR connecting" << std::endl;
+                    //TODO::exit
+                }
+
+                bzero(data, 301);
+                int result_wr = write(sockfd, JasmineGraphInstanceProtocol::PAGE_RANK.c_str(), JasmineGraphInstanceProtocol::PAGE_RANK.size());
+                if(result_wr < 0) {
+                    server_logger.log("Error writing to socket", "error");
+                }
+
+                server_logger.log("Sent : " + JasmineGraphInstanceProtocol::PAGE_RANK, "info");
+                */
+
+
             JasmineGraphHashMapLocalStore graphDB;
             JasmineGraphHashMapCentralStore centralDB;
 

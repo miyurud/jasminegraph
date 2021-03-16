@@ -2593,6 +2593,8 @@ void JasmineGraphServer::pageRank() {
 
     }
 
+    workerList.pop_back();
+
     int sockfd;
     char data[300];
     bool loop = false;
