@@ -666,7 +666,7 @@ void *instanceservicesession(void *dummyPt) {
                     server_logger.log("Error writing to socket", "error");
                 }
 
-                server_logger.log("Sent : " + JasmineGraphInstanceProtocol::OUT_DEGREE_DISTRIBUTION, "info");
+                instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OUT_DEGREE_DISTRIBUTION, "info");
 
 
 
