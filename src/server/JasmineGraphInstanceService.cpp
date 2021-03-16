@@ -663,7 +663,7 @@ void *instanceservicesession(void *dummyPt) {
                                       JasmineGraphInstanceProtocol::OUT_DEGREE_DISTRIBUTION.size());
 
                 if(result_wr < 0) {
-                    server_logger.log("Error writing to socket", "error");
+                    instance_logger.log("Error writing to socket", "error");
                 }
 
                 instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OUT_DEGREE_DISTRIBUTION, "info");
