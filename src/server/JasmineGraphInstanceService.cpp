@@ -18,6 +18,8 @@ limitations under the License.
 #include "../util/logger/Logger.h"
 #include "JasmineGraphInstance.h"
 #include "../server/JasmineGraphServer.h"
+#include <bits/stdc++.h>
+#include <boost/algorithm/string.hpp>
 
 using namespace std;
 Logger instance_logger;
@@ -617,14 +619,15 @@ void *instanceservicesession(void *dummyPt) {
             workerList = utils.trim_copy(workerList, " \f\n\r\t\v");
             instance_logger.log("Received Worker List " + workerList, "info");
 
-            /*std::vector<string> workerSockets;
-            boost::split(workerSockets, workerList, boost::is_any_of(","));*/
+            std::vector<string> workerSockets;
+            boost::split(workerSockets, workerList, boost::is_any_of(","));
 
-           /* for (vector<string>::iterator workerIt=workerSockets.begin(); workerIt!=workerSockets.end(); ++workerIt) {
+            for (vector<string>::iterator workerIt=workerSockets.begin(); workerIt!=workerSockets.end(); ++workerIt) {
                 instance_logger.log("Worker pair " + *workerIt, "info");
 
-                std::vector<string> workerSocketPair;
-                boost::split(workerSocketPair, *workerIt, boost::is_any_of(":"));*/
+                std::vector <string> workerSocketPair;
+                boost::split(workerSocketPair, *workerIt, boost::is_any_of(":"));
+            }
 
 
                 string host = "172.17.0.1";
