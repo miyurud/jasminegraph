@@ -627,6 +627,11 @@ void *instanceservicesession(void *dummyPt) {
 
                 std::vector <string> workerSocketPair;
                 boost::split(workerSocketPair, *workerIt, boost::is_any_of(":"));
+
+                instance_logger.log("Worker ip " + workerSockerPair[0], "info");
+                instance_logger.log("Worker port " + workerSockerPair[1], "info");
+
+
             }
 
 
