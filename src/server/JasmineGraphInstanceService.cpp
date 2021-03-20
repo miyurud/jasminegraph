@@ -631,16 +631,13 @@ void *instanceservicesession(void *dummyPt) {
                 instance_logger.log("Worker ip " + workerSocketPair[0], "info");
                 instance_logger.log("Worker port " + workerSocketPair[1], "info");
 
+                if  (std::to_string(serverPort).compare(workerSocketPair[1]) == 0) {
+                    continue;
+                }
 
 
-            }
-
-            instance_logger.log("port -------- " + std::to_string(serverDataPort), "info");
-            instance_logger.log("port -------- " + std::to_string(serverPort), "info");
-
-
-                string host = "172.17.0.1";
-                int port = 7780;
+                string host = workerSocketPair[0];
+                int port = workerSocketPair[1];
                 int sockfd;
                 char data[300];
                 bool loop = false;
@@ -679,6 +676,14 @@ void *instanceservicesession(void *dummyPt) {
                 }
 
                 instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OUT_DEGREE_DISTRIBUTION, "info");
+
+            }
+
+            instance_logger.log("port -------- " + std::to_string(serverDataPort), "info");
+            instance_logger.log("port -------- " + std::to_string(serverPort), "info");
+
+
+
 
 
 
