@@ -682,7 +682,9 @@ void *instanceservicesession(void *dummyPt) {
             instance_logger.log("port -------- " + std::to_string(serverDataPort), "info");
             instance_logger.log("port -------- " + std::to_string(serverPort), "info");
 
-            JasmineGraphInstanceService::calculateLocalOutDegreeDistribution(graphID, partitionID);
+            JasmineGraphInstanceService::calculateLocalOutDegreeDistribution(graphID, partitionID,
+                                                                             graphDBMapLocalStores,
+                                                                             graphDBMapCentralStores);
 
         } else if (line.compare(JasmineGraphInstanceProtocol::TRIANGLES) == 0) {
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::TRIANGLES, "info");
@@ -2282,7 +2284,9 @@ void JasmineGraphInstanceService::trainPartition(string trainData){
     system(command.c_str());
 }
 
-map<long, long> JasmineGraphInstanceService::calculateLocalOutDegreeDistribution(string graphID, string partitionID) {
+map<long, long> JasmineGraphInstanceService::calculateLocalOutDegreeDistribution(string graphID, string partitionID,
+                                                                                 std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
+                                                                                 std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores) {
 
     JasmineGraphHashMapLocalStore graphDB;
     JasmineGraphHashMapCentralStore centralDB;
