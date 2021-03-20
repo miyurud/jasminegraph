@@ -682,9 +682,9 @@ void *instanceservicesession(void *dummyPt) {
             instance_logger.log("port -------- " + std::to_string(serverDataPort), "info");
             instance_logger.log("port -------- " + std::to_string(serverPort), "info");
 
-            JasmineGraphInstanceService::calculateLocalOutDegreeDistribution(graphID, partitionID,
+            /*JasmineGraphInstanceService::calculateLocalOutDegreeDistribution(graphID, partitionID,
                                                                              graphDBMapLocalStores,
-                                                                             graphDBMapCentralStores);
+                                                                             graphDBMapCentralStores);*/
 
         } else if (line.compare(JasmineGraphInstanceProtocol::TRIANGLES) == 0) {
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::TRIANGLES, "info");
