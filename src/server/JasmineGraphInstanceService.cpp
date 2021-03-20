@@ -635,8 +635,8 @@ void *instanceservicesession(void *dummyPt) {
 
             }
 
-            instance_logger.log("port -------- " + serverDataPort, "info");
-            instance_logger.log("port -------- " + serverPort, "info");
+            instance_logger.log("port -------- " + std::to_string(serverDataPort), "info");
+            instance_logger.log("port -------- " + std::to_string(serverPort), "info");
 
 
                 string host = "172.17.0.1";
