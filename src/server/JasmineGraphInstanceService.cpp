@@ -632,7 +632,11 @@ void *instanceservicesession(void *dummyPt) {
                 instance_logger.log("Worker port " + workerSocketPair[1], "info");
 
 
+
             }
+
+            instance_logger.log("port -------- " + serverDataPort, "info");
+            instance_logger.log("port -------- " + serverPort, "info");
 
 
                 string host = "172.17.0.1";
