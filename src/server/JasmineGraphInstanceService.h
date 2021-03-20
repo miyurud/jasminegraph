@@ -104,7 +104,10 @@ public:
 
     static std::map<int,std::vector<std::string>> iterationData;
 
-    static int partitionCounter;
+    static map<long, long> JasmineGraphInstanceService::calculateLocalOutDegreeDistribution(string graphID, string partitionID);
+
+
+        static int partitionCounter;
 };
 
 

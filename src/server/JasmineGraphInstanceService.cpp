@@ -682,99 +682,7 @@ void *instanceservicesession(void *dummyPt) {
             instance_logger.log("port -------- " + std::to_string(serverDataPort), "info");
             instance_logger.log("port -------- " + std::to_string(serverPort), "info");
 
-
-
-
-
-
-            JasmineGraphHashMapLocalStore graphDB;
-            JasmineGraphHashMapCentralStore centralDB;
-
-
-
-            // graphDB = graphDBMapLocalStores["1_1"];
-
-            std::map<std::string, JasmineGraphHashMapLocalStore>::iterator it;
-            std::map<std::string, JasmineGraphHashMapCentralStore>::iterator itcen;
-
-
-            if (JasmineGraphInstanceService::isGraphDBExists(graphID, partitionID)) {
-                instance_logger.log("Partition " + graphID + "_" + partitionID + " exists", "info");
-                JasmineGraphInstanceService::loadLocalStore(graphID, partitionID, graphDBMapLocalStores);
-            }
-
-            if (JasmineGraphInstanceService::isInstanceCentralStoreExists(graphID, partitionID)) {
-                instance_logger.log("Partition CentralStore " + graphID + "_" + partitionID + " exists", "info");
-                JasmineGraphInstanceService::loadInstanceCentralStore(graphID, partitionID, graphDBMapCentralStores);
-            }
-            graphDB = graphDBMapLocalStores[graphID + "_" + partitionID];
-            centralDB = graphDBMapCentralStores[graphID + "_centralstore_" + partitionID];
-
-            instance_logger.log("Size: " + std::to_string(graphDBMapLocalStores.size()), "info");
-            for (it = graphDBMapLocalStores.begin(); it != graphDBMapLocalStores.end();++it) {
-                instance_logger.log("Degree first: " + it->first, "info");
-            }
-
-            instance_logger.log("Central Store Size: " + std::to_string(graphDBMapCentralStores.size()), "info");
-            for (itcen = graphDBMapCentralStores.begin(); itcen != graphDBMapCentralStores.end();++itcen) {
-                instance_logger.log("Central store Degree first: " + itcen->first, "info");
-            }
-
-          /*  std::map<int, std::vector<int>> partEdgeMap = graphDB.getEdgeHashMap("/var/tmp/jasminegraph-localstore/1_1");
-            if (!partEdgeMap.empty()) {
-                instance_logger.log("part map not empty -------", "info");
-
-                for (auto it = partEdgeMap.begin(); it != partEdgeMap.end(); ++it) {
-                        int vertex = it->first;
-                        std::vector<int> destinationSet = it->second;
-
-                        if (!destinationSet.empty()) {
-                            for (std::vector<int>::iterator itr = destinationSet.begin(); itr != destinationSet.end(); ++itr) {
-                                string edge;
-
-                                edge = std::to_string(vertex) + " " + std::to_string((*itr));
-                                instance_logger.log("edge list: " + edge, "info");
-                            }
-                        }
-                    }
-            } else {
-                instance_logger.log("part map empty -------", "info");
-            }*/
-
-
-            instance_logger.log("Vertex Count: " + std::to_string(graphDB.getVertexCount()), "info");
-            map<long,long> degreeDistribution = graphDB.getInDegreeDistributionHashMap();
-            std::map<long,long>::iterator its;
-
-            map<long,long> degreeDistributionCentral = centralDB.getInDegreeDistributionHashMap();
-            std::map<long,long>::iterator itcentral;
-
-            instance_logger.log("Degree size: " + degreeDistribution.size(), "info");
-            for (its = degreeDistributionCentral.begin(); its != degreeDistributionCentral.end();++its) {
-                instance_logger.log("Degree first: " + std::to_string(its->first), "info");
-                instance_logger.log("Degree second: " + std::to_string(its->second), "info");
-
-                bool centralNodeFound = false;
-                for (itcentral = degreeDistribution.begin(); itcentral != degreeDistribution.end();++itcentral) {
-                    instance_logger.log("Central Degree first: " + std::to_string(itcentral->first), "info");
-                    instance_logger.log("Central Degree second: " + std::to_string(itcentral->second), "info");
-
-                    if ((its->first) == (itcentral->first)) {
-                        instance_logger.log("Common node: " + std::to_string(its->first), "info");
-                        degreeDistribution[its->first] = (its->second) + (itcentral->second);
-                        centralNodeFound = true;
-                    }
-
-                }
-                if (!centralNodeFound) {
-                    degreeDistribution.insert(std::make_pair(its->first, its->second));
-                }
-            }
-
-            for (its = degreeDistribution.begin(); its != degreeDistribution.end();++its) {
-                instance_logger.log("After Degree first: " + std::to_string(its->first), "info");
-                instance_logger.log("After Degree second: " + std::to_string(its->second), "info");
-            }
+            JasmineGraphInstanceService::calculateLocalOutDegreeDistribution(graphID, partitionID);
 
         } else if (line.compare(JasmineGraphInstanceProtocol::TRIANGLES) == 0) {
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::TRIANGLES, "info");
@@ -2372,4 +2280,96 @@ void JasmineGraphInstanceService::trainPartition(string trainData){
         command += " ";
     }
     system(command.c_str());
+}
+
+map<long, long> JasmineGraphInstanceService::calculateLocalOutDegreeDistribution(string graphID, string partitionID) {
+
+    JasmineGraphHashMapLocalStore graphDB;
+    JasmineGraphHashMapCentralStore centralDB;
+
+
+
+    // graphDB = graphDBMapLocalStores["1_1"];
+
+    std::map<std::string, JasmineGraphHashMapLocalStore>::iterator it;
+    std::map<std::string, JasmineGraphHashMapCentralStore>::iterator itcen;
+
+
+    if (JasmineGraphInstanceService::isGraphDBExists(graphID, partitionID)) {
+        instance_logger.log("Partition " + graphID + "_" + partitionID + " exists", "info");
+        JasmineGraphInstanceService::loadLocalStore(graphID, partitionID, graphDBMapLocalStores);
+    }
+
+    if (JasmineGraphInstanceService::isInstanceCentralStoreExists(graphID, partitionID)) {
+        instance_logger.log("Partition CentralStore " + graphID + "_" + partitionID + " exists", "info");
+        JasmineGraphInstanceService::loadInstanceCentralStore(graphID, partitionID, graphDBMapCentralStores);
+    }
+    graphDB = graphDBMapLocalStores[graphID + "_" + partitionID];
+    centralDB = graphDBMapCentralStores[graphID + "_centralstore_" + partitionID];
+
+    instance_logger.log("Size: " + std::to_string(graphDBMapLocalStores.size()), "info");
+    for (it = graphDBMapLocalStores.begin(); it != graphDBMapLocalStores.end();++it) {
+        instance_logger.log("Degree first: " + it->first, "info");
+    }
+
+    instance_logger.log("Central Store Size: " + std::to_string(graphDBMapCentralStores.size()), "info");
+    for (itcen = graphDBMapCentralStores.begin(); itcen != graphDBMapCentralStores.end();++itcen) {
+        instance_logger.log("Central store Degree first: " + itcen->first, "info");
+    }
+
+    /*  std::map<int, std::vector<int>> partEdgeMap = graphDB.getEdgeHashMap("/var/tmp/jasminegraph-localstore/1_1");
+      if (!partEdgeMap.empty()) {
+          instance_logger.log("part map not empty -------", "info");
+
+          for (auto it = partEdgeMap.begin(); it != partEdgeMap.end(); ++it) {
+                  int vertex = it->first;
+                  std::vector<int> destinationSet = it->second;
+
+                  if (!destinationSet.empty()) {
+                      for (std::vector<int>::iterator itr = destinationSet.begin(); itr != destinationSet.end(); ++itr) {
+                          string edge;
+
+                          edge = std::to_string(vertex) + " " + std::to_string((*itr));
+                          instance_logger.log("edge list: " + edge, "info");
+                      }
+                  }
+              }
+      } else {
+          instance_logger.log("part map empty -------", "info");
+      }*/
+
+
+    instance_logger.log("Vertex Count: " + std::to_string(graphDB.getVertexCount()), "info");
+    map<long,long> degreeDistribution = graphDB.getInDegreeDistributionHashMap();
+    std::map<long,long>::iterator its;
+
+    map<long,long> degreeDistributionCentral = centralDB.getInDegreeDistributionHashMap();
+    std::map<long,long>::iterator itcentral;
+
+    instance_logger.log("Degree size: " + degreeDistribution.size(), "info");
+    for (its = degreeDistributionCentral.begin(); its != degreeDistributionCentral.end();++its) {
+        instance_logger.log("Degree first: " + std::to_string(its->first), "info");
+        instance_logger.log("Degree second: " + std::to_string(its->second), "info");
+
+        bool centralNodeFound = false;
+        for (itcentral = degreeDistribution.begin(); itcentral != degreeDistribution.end();++itcentral) {
+            instance_logger.log("Central Degree first: " + std::to_string(itcentral->first), "info");
+            instance_logger.log("Central Degree second: " + std::to_string(itcentral->second), "info");
+
+            if ((its->first) == (itcentral->first)) {
+                instance_logger.log("Common node: " + std::to_string(its->first), "info");
+                degreeDistribution[its->first] = (its->second) + (itcentral->second);
+                centralNodeFound = true;
+            }
+
+        }
+        if (!centralNodeFound) {
+            degreeDistribution.insert(std::make_pair(its->first, its->second));
+        }
+    }
+
+    for (its = degreeDistribution.begin(); its != degreeDistribution.end();++its) {
+        instance_logger.log("After Degree first: " + std::to_string(its->first), "info");
+        instance_logger.log("After Degree second: " + std::to_string(its->second), "info");
+    }
 }
