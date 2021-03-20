@@ -608,8 +608,8 @@ void *instanceservicesession(void *dummyPt) {
             partitionID = utils.trim_copy(partitionID, " \f\n\r\t\v");
             instance_logger.log("Received Partition ID: " + partitionID, "info");
 
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+            /*write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");*/
 
 
 
@@ -697,12 +697,20 @@ void *instanceservicesession(void *dummyPt) {
                 }
             }
 
+            string outDegreeDistString;
             for (its = degreeDistribution.begin(); its != degreeDistribution.end();++its) {
+
+                outDegreeDistString.append(std::to_string(its->first) + ":" + std::to_string(its->second) + ",");
+
                 instance_logger.log("After Degree first: " + std::to_string(its->first), "info");
                 instance_logger.log("After Degree second: " + std::to_string(its->second), "info");
             }
 
+            outDegreeDistString.pop_back();
 
+
+            write(connFd, outDegreeDistString.c_str(), outDegreeDistString.size());
+            instance_logger.log("Sent : " + outDegreeDistString, "info");
 
         } else if (line.compare(JasmineGraphInstanceProtocol::PAGE_RANK) == 0) {
             instance_logger.log("Received : page rank from instance service", "info");
@@ -830,10 +838,9 @@ void *instanceservicesession(void *dummyPt) {
                         string response = (data);
                         response = utils.trim_copy(response, " \f\n\r\t\v");
 
-                        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-                            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+                            instance_logger.log("Received : " + response, "info");
 
-                        }
+
                     }
                 }
 
