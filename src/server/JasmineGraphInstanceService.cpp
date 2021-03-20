@@ -637,7 +637,7 @@ void *instanceservicesession(void *dummyPt) {
 
 
                 string host = workerSocketPair[0];
-                int port = workerSocketPair[1];
+                int port = stoi(workerSocketPair[1]);
                 int sockfd;
                 char data[300];
                 bool loop = false;
