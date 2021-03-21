@@ -937,11 +937,18 @@ void *instanceservicesession(void *dummyPt) {
                             boost::split(workerODegreeDistPair, *workerODegreeDistIt, boost::is_any_of(":"));
 
                             if  (degreeDistribution.count( std::stoi(workerODegreeDistPair[0]))) {
+                                instance_logger.log("Duplicate key found from other worker: " + workerODegreeDistPair[0], "info");
+
                                 long value = degreeDistribution[std::stoi(workerODegreeDistPair[0])];
+                                instance_logger.log("Duplicate key value from other worker: " + value, "info");
+
+
                                 degreeDistribution.insert(std::make_pair(std::stoi(workerODegreeDistPair[0]),
                                                                          std::stoi(workerODegreeDistPair[1]) + value));
 
                             } else {
+                                instance_logger.log("Duplicate key not found from other worker: " + workerODegreeDistPair[0], "info");
+
                                 degreeDistribution.insert(std::make_pair(std::stoi(workerODegreeDistPair[0]),
                                                                          std::stoi(workerODegreeDistPair[1])));
                             }
