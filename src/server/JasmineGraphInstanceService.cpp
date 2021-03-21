@@ -942,9 +942,9 @@ void *instanceservicesession(void *dummyPt) {
                                 long value = degreeDistribution[std::stoi(workerODegreeDistPair[0])];
                                 instance_logger.log("Duplicate key value from other worker: " + std::to_string(value), "info");
 
-
+                                long totalValue = std::stoi(workerODegreeDistPair[1]) + value;
                                 degreeDistribution.insert(std::make_pair(std::stoi(workerODegreeDistPair[0]),
-                                                                         std::stoi(workerODegreeDistPair[1]) + value));
+                                                                         totalValue));
 
                             } else {
                                 instance_logger.log("Duplicate key not found from other worker: " + workerODegreeDistPair[0], "info");
