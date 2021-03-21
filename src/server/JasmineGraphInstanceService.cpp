@@ -943,6 +943,9 @@ void *instanceservicesession(void *dummyPt) {
                                 instance_logger.log("Duplicate key value from other worker: " + std::to_string(value), "info");
 
                                 long totalValue = std::stoi(workerODegreeDistPair[1]) + value;
+
+                                instance_logger.log("Updated duplicate key value from other worker: " + std::to_string(totalValue), "info");
+
                                 degreeDistribution.insert(std::make_pair(std::stoi(workerODegreeDistPair[0]),
                                                                          totalValue));
 
