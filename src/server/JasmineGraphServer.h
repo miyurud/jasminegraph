@@ -126,6 +126,13 @@ public:
         std::vector<std::string> partitionID;
     };
 
+    struct workerPartition {
+        string hostname;
+        int port;
+        int dataPort;
+        string partitionID;
+    };
+
     static void updateMetaDB(std::vector<workers> hostWorkerMap,  std::map<int,std::string> partitionFileList, int graphID,
                  std::string uploadEndTime);
 
