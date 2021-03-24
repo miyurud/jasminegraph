@@ -2400,7 +2400,7 @@ void JasmineGraphServer::updateOperationalGraphList() {
     this->sqlite.runUpdate(sqlStatement2);
 }
 
-std::map<std::string, JasmineGraphServer::workerPartition> getWorkerPartitions(std::string graphID) {
+std::map<std::string, JasmineGraphServer::workerPartition> getWorkerPartitions(string graphID) {
     vector<pair<string, string>> hostHasPartition;
     SQLiteDBInterface refToSqlite = *new SQLiteDBInterface();
     refToSqlite.init();
