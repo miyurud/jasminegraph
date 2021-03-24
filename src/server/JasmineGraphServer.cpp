@@ -2404,6 +2404,7 @@ std::map<std::string, workerPartition> getWorkerPartitions(std::string graphID) 
     vector<pair<string, string>> hostHasPartition;
     SQLiteDBInterface refToSqlite = *new SQLiteDBInterface();
     refToSqlite.init();
+    map<std::string, workerPartition> graphPartitionedHosts;
     vector<vector<pair<string, string>>> hostPartitionResults = refToSqlite.runSelect(
             "SELECT name, worker_idworker, server_port, server_data_port, partition_idpartition FROM worker_has_partition INNER JOIN worker ON worker_"
             "idworker = idworker WHERE partition_graph_idgraph = '" + graphID + "'");
