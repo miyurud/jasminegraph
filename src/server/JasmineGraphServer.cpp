@@ -2418,8 +2418,8 @@ std::map<std::string, workerPartition> getWorkerPartitions(std::string graphID) 
         int serverDataPort = std::stoi(rowData.at(3).second);
         string partitionId = rowData.at(4).second;
 
-        cout << "name : " << name << " workerID : " workerID << " sport : " serverPort << " sdport : " serverDataPort
-        << " partitionId : " partitionId << endl;
+        cout << "name : " << name << " workerID : "<< workerID << " sport : " << serverPort << " sdport : " <<serverDataPort
+        << " partitionId : " << partitionId << endl;
         graphPartitionedHosts.insert((pair<string, JasmineGraphServer::workerPartition>(workerID,
                                                                                          {name, serverPort,
                                                                                           serverDataPort,
