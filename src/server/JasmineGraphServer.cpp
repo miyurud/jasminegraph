@@ -2429,7 +2429,7 @@ std::map<string, JasmineGraphServer::workerPartitions> JasmineGraphServer::getGr
         cout << "HOST ID : " << j->first << " Partition ID : " << j->second << endl;
         string hostname = j->first;
         if (hostPartitions.count(hostname) > 0) {
-            hostPartitions[hostname].push_back(j->second);
+           // hostPartitions[hostname].push_back(j->second);
         } else {
             vector<string> vec;
             vec.push_back(j->second);
