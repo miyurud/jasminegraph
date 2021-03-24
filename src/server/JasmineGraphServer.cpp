@@ -2400,6 +2400,34 @@ void JasmineGraphServer::updateOperationalGraphList() {
     this->sqlite.runUpdate(sqlStatement2);
 }
 
+std::map<std::string, workerPartitions> getWorkerPartitions(std::string graphID) {
+    vector<pair<string, string>> hostHasPartition;
+    SQLiteDBInterface refToSqlite = *new SQLiteDBInterface();
+    refToSqlite.init();
+    vector<vector<pair<string, string>>> hostPartitionResults = refToSqlite.runSelect(
+            "SELECT name, worker_idworker, server_port, server_data_port, partition_idpartition FROM worker_has_partition INNER JOIN worker ON worker_"
+            "idworker = idworker WHERE partition_graph_idgraph = '" + graphID + "'");
+
+    for (std::vector<vector<pair<string, string>>>::iterator i = hostPartitionResults.begin(); i != hostPartitionResults.end(); ++i) {
+        std::vector<pair<string, string>> rowData = *i;
+
+        string name = rowData.at(0).second;
+        string workerID = rowData.at(1).second;
+        string serverPort = rowData.at(2).second;
+        string serverDataPort = rowData.at(3).second;
+        string partitionId = rowData.at(4).second;
+
+        cout << "name : " << name << " workerID : " workerID << " sport : " serverPort << " sdport : " serverDataPort
+        << " partitionId : " partitionId << endl;
+        graphPartitionedHosts.insert((pair<string, JasmineGraphServer::workerPartitions>(workerID,
+                                                                                         {serverPort,
+                                                                                          serverDataPort,
+                                                                                          partitionId})));
+    }
+
+    return graphPartitionedHosts;
+}
+
 std::map<string, JasmineGraphServer::workerPartitions> JasmineGraphServer::getGraphPartitionedHosts(string graphID) {
 
     vector<pair<string, string>> hostHasPartition;
@@ -2429,7 +2457,7 @@ std::map<string, JasmineGraphServer::workerPartitions> JasmineGraphServer::getGr
         cout << "HOST ID : " << j->first << " Partition ID : " << j->second << endl;
         string hostname = j->first;
         if (hostPartitions.count(hostname) > 0) {
-           // hostPartitions[hostname].push_back(j->second);
+            hostPartitions[hostname].push_back(j->second);
         } else {
             vector<string> vec;
             vec.push_back(j->second);
@@ -2552,11 +2580,11 @@ void JasmineGraphServer::addInstanceDetailsToPerformanceDB(std::string host, std
 void JasmineGraphServer::pageRank() {
     std::cout << "Page rank JasmineGraphServer" << std::endl;
 
-    std::map<std::string, JasmineGraphServer::workerPartitions> graphPartitionedHosts = getGraphPartitionedHosts(
+    std::map<std::string, JasmineGraphServer::workerPartitions> graphPartitionedHosts = getWorkerPartitions(
             "1");
     int partition_count = 0;
     std::map<std::string, JasmineGraphServer::workerPartitions>::iterator workerit;
-    for (workerit = graphPartitionedHosts.begin(); workerit != graphPartitionedHosts.end(); workerit++) {
+    /*for (workerit = graphPartitionedHosts.begin(); workerit != graphPartitionedHosts.end(); workerit++) {
         JasmineGraphServer::workerPartitions workerPartition = workerit->second;
         std::vector<std::string> partitions = workerPartition.partitionID;
         std::vector<std::string>::iterator it;
@@ -2566,7 +2594,7 @@ void JasmineGraphServer::pageRank() {
         for (it = partitions.begin(); it < partitions.end(); it++) {
             std::cout << "JasmineGraphServer partition --- " << *it << std::endl;
         }
-    }
+    }*/
 
 
     int port;
