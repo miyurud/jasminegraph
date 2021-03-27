@@ -842,6 +842,7 @@ void *instanceservicesession(void *dummyPt) {
 
                 instance_logger.log("Worker ip " + workerSocketPair[0], "info");
                 instance_logger.log("Worker port " + workerSocketPair[1], "info");
+                instance_logger.log("Worker partition " + workerSocketPair[2], "info");
 
                 if  (std::to_string(serverPort).compare(workerSocketPair[1]) == 0) {
                     continue;
@@ -897,7 +898,7 @@ void *instanceservicesession(void *dummyPt) {
                 if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
                     instance_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
                     //std::cout << graphID << std::endl;
-                    int graphID = 1;
+                    int graphID = stoi(graphID);
                     result_wr = write(sockfd, std::to_string(graphID).c_str(), std::to_string(graphID).size());
 
                     if (result_wr < 0) {
@@ -913,7 +914,7 @@ void *instanceservicesession(void *dummyPt) {
                     if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
                         instance_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
                         //std::cout << graphID << std::endl;
-                        int partitionID = 0;
+                        int partitionID = stoi(workerSocketPair[2]);
                         result_wr = write(sockfd, std::to_string(partitionID).c_str(), std::to_string(partitionID).size());
 
                         if (result_wr < 0) {

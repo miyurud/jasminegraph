@@ -2581,27 +2581,30 @@ void JasmineGraphServer::addInstanceDetailsToPerformanceDB(std::string host, std
 void JasmineGraphServer::pageRank() {
     std::cout << "Page rank JasmineGraphServer" << std::endl;
 
-    std::map<std::string, JasmineGraphServer::workerPartition> graphPartitionedHosts = JasmineGraphServer::getWorkerPartitions(
-            "1");
+    int graphID = 1;
+    std::map<std::string, JasmineGraphServer::workerPartition> graphPartitionedHosts =
+            JasmineGraphServer::getWorkerPartitions(std::to_string(graphID));
     int partition_count = 0;
+    string partition;
+    string host;
+    int port
     std::map<std::string, JasmineGraphServer::workerPartition>::iterator workerit;
     for (workerit = graphPartitionedHosts.begin(); workerit != graphPartitionedHosts.end(); workerit++) {
         JasmineGraphServer::workerPartition workerPartition = workerit->second;
-        string partition = workerPartition.partitionID;
-        string host = workerPartition.hostname;
-        int port = workerPartition.port;
+        partition = workerPartition.partitionID;
+        host = workerPartition.hostname;
+        port = workerPartition.port;
 
         std::cout << "Partition ----------" << partition << std::endl;
         std::cout << "Host ----------" << host << std::endl;
         std::cout << "Port ----------" <<  port << std::endl;
 
-    }
 
+ /*   }*/
 
-    int port;
-    std::string host;
     std::string workerList;
     Utils utils;
+/*
 
     std::vector<JasmineGraphServer::workers> hostWorkerMap = JasmineGraphServer::getHostWorkerMap();
     std::vector<workers, std::allocator<workers>>::iterator mapIterator;
@@ -2611,15 +2614,14 @@ void JasmineGraphServer::pageRank() {
         bool result = true;
         std::cout << pthread_self() << " host : " << worker.hostname << " port : " << worker.port << " DPort : "
                   << worker.dataPort << std::endl;
+*/
 
-        host = worker.hostname;
-        port = worker.port;
 
         if (worker.hostname.find('@') != std::string::npos) {
             host = utils.split(host, '@')[1];
         }
 
-        workerList.append(host + ":" + std::to_string(port) + ",");
+        workerList.append(host + ":" + std::to_string(port) + ":" + partition + ",");
     }
 
     workerList.pop_back();
@@ -2668,7 +2670,7 @@ void JasmineGraphServer::pageRank() {
     if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
         server_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
         //std::cout << graphID << std::endl;
-        int graphID = 1;
+
         result_wr = write(sockfd, std::to_string(graphID).c_str(), std::to_string(graphID).size());
 
         if (result_wr < 0) {
@@ -2684,7 +2686,7 @@ void JasmineGraphServer::pageRank() {
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
             server_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
             //std::cout << graphID << std::endl;
-            int partitionID = 0;
+            int partitionID = stoi(partition);
             result_wr = write(sockfd, std::to_string(partitionID).c_str(), std::to_string(partitionID).size());
 
             if (result_wr < 0) {
