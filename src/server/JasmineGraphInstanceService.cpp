@@ -898,6 +898,7 @@ void *instanceservicesession(void *dummyPt) {
                 if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
                     instance_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
                     //std::cout << graphID << std::endl;
+                    int graphID = 1;
                     result_wr = write(sockfd, std::to_string(graphID).c_str(), std::to_string(graphID).size());
 
                     if (result_wr < 0) {
