@@ -2588,6 +2588,8 @@ void JasmineGraphServer::pageRank() {
     string partition;
     string host;
     int port;
+    std::string workerList;
+    Utils utils;
     std::map<std::string, JasmineGraphServer::workerPartition>::iterator workerit;
     for (workerit = graphPartitionedHosts.begin(); workerit != graphPartitionedHosts.end(); workerit++) {
         JasmineGraphServer::workerPartition workerPartition = workerit->second;
@@ -2602,8 +2604,7 @@ void JasmineGraphServer::pageRank() {
 
  /*   }*/
 
-    std::string workerList;
-    Utils utils;
+
 /*
 
     std::vector<JasmineGraphServer::workers> hostWorkerMap = JasmineGraphServer::getHostWorkerMap();
@@ -2617,7 +2618,7 @@ void JasmineGraphServer::pageRank() {
 */
 
 
-        if (worker.hostname.find('@') != std::string::npos) {
+        if (host.find('@') != std::string::npos) {
             host = utils.split(host, '@')[1];
         }
 
