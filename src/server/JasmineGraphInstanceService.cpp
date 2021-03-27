@@ -898,13 +898,12 @@ void *instanceservicesession(void *dummyPt) {
                 if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
                     instance_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
                     //std::cout << graphID << std::endl;
-                    int graphID = 1;
-                    result_wr = write(sockfd, std::to_string(graphID).c_str(), std::to_string(graphID).size());
+                    result_wr = write(sockfd, graphID.c_str(), graphID.size());
 
                     if (result_wr < 0) {
                         instance_logger.log("Error writing to socket", "error");
                     }
-                    instance_logger.log("Sent : Graph ID " + std::to_string(graphID), "info");
+                    instance_logger.log("Sent : Graph ID " + graphID, "info");
 
                     bzero(data, 301);
                     read(sockfd, data, 300);
