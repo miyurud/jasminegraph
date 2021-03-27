@@ -2578,12 +2578,11 @@ void JasmineGraphServer::addInstanceDetailsToPerformanceDB(std::string host, std
     this->performanceSqlite.runInsert(insertPlaceQuery);
 }
 
-void JasmineGraphServer::outDegreeDistribution() {
+void JasmineGraphServer::outDegreeDistribution(std::string graphID) {
     std::cout << "Page rank JasmineGraphServer" << std::endl;
 
-    int graphID = 1;
     std::map<std::string, JasmineGraphServer::workerPartition> graphPartitionedHosts =
-            JasmineGraphServer::getWorkerPartitions(std::to_string(graphID));
+            JasmineGraphServer::getWorkerPartitions(graphID);
     int partition_count = 0;
     string partition;
     string host;
@@ -2672,12 +2671,12 @@ void JasmineGraphServer::outDegreeDistribution() {
         server_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
         //std::cout << graphID << std::endl;
 
-        result_wr = write(sockfd, std::to_string(graphID).c_str(), std::to_string(graphID).size());
+        result_wr = write(sockfd, graphID.c_str(), graphID.size());
 
         if (result_wr < 0) {
             server_logger.log("Error writing to socket", "error");
         }
-        server_logger.log("Sent : Graph ID " + std::to_string(graphID), "info");
+        server_logger.log("Sent : Graph ID " + graphID, "info");
 
         bzero(data, 301);
         read(sockfd, data, 300);
@@ -2686,7 +2685,6 @@ void JasmineGraphServer::outDegreeDistribution() {
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
             server_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
-            //std::cout << graphID << std::endl;
             int partitionID = stoi(partition);
             result_wr = write(sockfd, std::to_string(partitionID).c_str(), std::to_string(partitionID).size());
 

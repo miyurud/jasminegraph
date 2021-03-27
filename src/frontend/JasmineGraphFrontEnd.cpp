@@ -855,8 +855,37 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
         } else if (line.compare(OUT_DEGREE_DISTRIBUTION) == 0) {
             frontend_logger.log("Out Degree Distribution ----------", "info");
 
+
+            int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
+            if (result_wr < 0) {
+                frontend_logger.log("Error writing to socket", "error");
+                loop = true;
+                continue;
+            }
+            result_wr = write(connFd, "\r\n", 2);
+            if (result_wr < 0) {
+                frontend_logger.log("Error writing to socket", "error");
+                loop = true;
+                continue;
+            }
+
+            // We get the name and the path to graph as a pair separated by |.
+            char graph_id[FRONTEND_DATA_LENGTH];
+            bzero(graph_id, FRONTEND_DATA_LENGTH + 1);
+            string name = "";
+            string path = "";
+
+            read(connFd, graph_id, FRONTEND_DATA_LENGTH);
+
+            string graphID(graph_id);
+
+            Utils utils;
+            graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
+            frontend_logger.log("Graph ID received: " + graphID, "info");
+
+
             JasmineGraphServer *jasmineServer = new JasmineGraphServer();
-            jasmineServer->outDegreeDistribution();
+            jasmineServer->outDegreeDistribution(graphID);
             /*vector<Utils::worker> workerList = utils.getWorkerList(sqlite);
             int workerListSize = workerList.size();
 
