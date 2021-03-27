@@ -856,7 +856,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             frontend_logger.log("Out Degree Distribution ----------", "info");
 
             JasmineGraphServer *jasmineServer = new JasmineGraphServer();
-            jasmineServer->pageRank();
+            jasmineServer->outDegreeDistribution();
             /*vector<Utils::worker> workerList = utils.getWorkerList(sqlite);
             int workerListSize = workerList.size();
 
