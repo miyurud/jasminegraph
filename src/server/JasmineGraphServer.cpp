@@ -2587,7 +2587,7 @@ void JasmineGraphServer::pageRank() {
     int partition_count = 0;
     string partition;
     string host;
-    int port
+    int port;
     std::map<std::string, JasmineGraphServer::workerPartition>::iterator workerit;
     for (workerit = graphPartitionedHosts.begin(); workerit != graphPartitionedHosts.end(); workerit++) {
         JasmineGraphServer::workerPartition workerPartition = workerit->second;
