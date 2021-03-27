@@ -852,8 +852,8 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
             JasminGraphTrainingInitiator *jasminGraphTrainingInitiator = new JasminGraphTrainingInitiator();
             jasminGraphTrainingInitiator->initiateTrainingLocally(graphID, trainData);
-        } else if (line.compare(PAGE_RANK) == 0) {
-            frontend_logger.log("Page Rank ----------", "info");
+        } else if (line.compare(OUT_DEGREE_DISTRIBUTION) == 0) {
+            frontend_logger.log("Out Degree Distribution ----------", "info");
 
             JasmineGraphServer *jasmineServer = new JasmineGraphServer();
             jasmineServer->pageRank();

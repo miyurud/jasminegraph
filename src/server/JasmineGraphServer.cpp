@@ -2578,7 +2578,7 @@ void JasmineGraphServer::addInstanceDetailsToPerformanceDB(std::string host, std
     this->performanceSqlite.runInsert(insertPlaceQuery);
 }
 
-void JasmineGraphServer::pageRank() {
+void JasmineGraphServer::outDegreeDistribution() {
     std::cout << "Page rank JasmineGraphServer" << std::endl;
 
     int graphID = 1;

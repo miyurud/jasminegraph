@@ -587,8 +587,8 @@ void *instanceservicesession(void *dummyPt) {
             string result = "1";
             write(connFd, result.c_str(), result.size());
             instance_logger.log("Sent : " + result, "info");
-        } else if (line.compare(JasmineGraphInstanceProtocol::OUT_DEGREE_DISTRIBUTION) == 0) {
-            instance_logger.log("Received : Out degree distribution", "info");
+        } else if (line.compare(JasmineGraphInstanceProtocol::SEND_OUT_DEGREE_DISTRIBUTION_TO_AGGREGATOR) == 0) {
+            instance_logger.log("Received : Out degree distribution to aggregator", "info");
 
 
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
@@ -712,8 +712,8 @@ void *instanceservicesession(void *dummyPt) {
             write(connFd, outDegreeDistString.c_str(), outDegreeDistString.size());
             instance_logger.log("Sent : " + outDegreeDistString, "info");
 
-        } else if (line.compare(JasmineGraphInstanceProtocol::PAGE_RANK) == 0) {
-            instance_logger.log("Received : page rank from instance service", "info");
+        } else if (line.compare(JasmineGraphInstanceProtocol::OUT_DEGREE_DISTRIBUTION) == 0) {
+            instance_logger.log("Received : out degree distribution from server", "info");
 
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
@@ -880,14 +880,14 @@ void *instanceservicesession(void *dummyPt) {
                 }
 
                 bzero(data, 301);
-                int result_wr = write(sockfd, JasmineGraphInstanceProtocol::OUT_DEGREE_DISTRIBUTION.c_str(),
-                                      JasmineGraphInstanceProtocol::OUT_DEGREE_DISTRIBUTION.size());
+                int result_wr = write(sockfd, JasmineGraphInstanceProtocol::SEND_OUT_DEGREE_DISTRIBUTION_TO_AGGREGATOR.c_str(),
+                                      JasmineGraphInstanceProtocol::SEND_OUT_DEGREE_DISTRIBUTION_TO_AGGREGATOR.size());
 
                 if(result_wr < 0) {
                     instance_logger.log("Error writing to socket", "error");
                 }
 
-                instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OUT_DEGREE_DISTRIBUTION, "info");
+                instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_OUT_DEGREE_DISTRIBUTION_TO_AGGREGATOR, "info");
 
                 bzero(data, 301);
                 read(sockfd, data, 300);
