@@ -139,7 +139,7 @@ public:
     //return hostWorkerMap
     static std::vector<JasmineGraphServer::workers> getHostWorkerMap();
 
-    static std::map<std::string, workerPartition> getWorkerPartitions(std::string graphID);
+    static std::map<std::string, workerPartition> getWorkerPartitions(string graphID);
 
     std::map<std::string, workerPartitions> getGraphPartitionedHosts(std::string graphID);
 
