@@ -2585,17 +2585,17 @@ void JasmineGraphServer::pageRank() {
             "1");
     int partition_count = 0;
     std::map<std::string, JasmineGraphServer::workerPartition>::iterator workerit;
-    /*for (workerit = graphPartitionedHosts.begin(); workerit != graphPartitionedHosts.end(); workerit++) {
-        JasmineGraphServer::workerPartitions workerPartition = workerit->second;
-        std::vector<std::string> partitions = workerPartition.partitionID;
-        std::vector<std::string>::iterator it;
+    for (workerit = graphPartitionedHosts.begin(); workerit != graphPartitionedHosts.end(); workerit++) {
+        JasmineGraphServer::workerPartition workerPartition = workerit->second;
+        string partition = workerPartition.partitionID;
+        string host = workerPartition.hostname;
+        int port = workerPartition.port;
 
-        std::cout << "JasmineGraphServer worker --- " << workerit->first << std::endl;
+        std::cout << "Partition ----------" << partition << std::endl;
+        std::cout << "Host ----------" << host << std::endl;
+        std::cout << "Port ----------" <<  port << std::endl;
 
-        for (it = partitions.begin(); it < partitions.end(); it++) {
-            std::cout << "JasmineGraphServer partition --- " << *it << std::endl;
-        }
-    }*/
+    }
 
 
     int port;
