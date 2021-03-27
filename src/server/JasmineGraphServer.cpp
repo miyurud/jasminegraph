@@ -2656,12 +2656,12 @@ void JasmineGraphServer::outDegreeDistribution() {
     }
 
     bzero(data, 301);
-    int result_wr = write(sockfd, JasmineGraphInstanceProtocol::PAGE_RANK.c_str(), JasmineGraphInstanceProtocol::PAGE_RANK.size());
+    int result_wr = write(sockfd, JasmineGraphInstanceProtocol::OUT_DEGREE_DISTRIBUTION.c_str(), JasmineGraphInstanceProtocol::OUT_DEGREE_DISTRIBUTION.size());
     if(result_wr < 0) {
         server_logger.log("Error writing to socket", "error");
     }
 
-    server_logger.log("Sent : " + JasmineGraphInstanceProtocol::PAGE_RANK, "info");
+    server_logger.log("Sent : " + JasmineGraphInstanceProtocol::OUT_DEGREE_DISTRIBUTION, "info");
     bzero(data, 301);
     read(sockfd, data, 300);
     string response = (data);
