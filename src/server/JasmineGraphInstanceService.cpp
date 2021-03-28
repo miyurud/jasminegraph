@@ -681,7 +681,7 @@ void *instanceservicesession(void *dummyPt) {
                 }
             }
 
-            string outDegreeDistString;
+           /* string outDegreeDistString;
             for (its = degreeDistribution.begin(); its != degreeDistribution.end();++its) {
 
                 outDegreeDistString.append(std::to_string(its->first) + ":" + std::to_string(its->second) + ",");
@@ -690,7 +690,7 @@ void *instanceservicesession(void *dummyPt) {
               //  instance_logger.log("After Degree second: " + std::to_string(its->second), "info");
             }
 
-            outDegreeDistString.pop_back();
+            outDegreeDistString.pop_back();*/
 
 
             write(connFd, outDegreeDistString.c_str(), outDegreeDistString.size());
@@ -726,7 +726,7 @@ void *instanceservicesession(void *dummyPt) {
             instance_logger.log("Received Worker List " + workerList, "info");
 
             std::vector<string> workerSockets;
-            //boost::split(workerSockets, workerList, boost::is_any_of(","));
+            boost::split(workerSockets, workerList, boost::is_any_of(","));
 
 
             // Calculate the out degree distribution in the current super worker.
