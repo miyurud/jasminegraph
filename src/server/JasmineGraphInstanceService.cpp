@@ -921,7 +921,7 @@ void *instanceservicesession(void *dummyPt) {
                             degreeDistString.append(response + ",");
                         }
 
-                        degreeDistString.pop_back()
+                        degreeDistString.pop_back();
 
                         std::vector<string> workerODegreeDist;
                         boost::split(workerODegreeDist, degreeDistString, boost::is_any_of(","));
