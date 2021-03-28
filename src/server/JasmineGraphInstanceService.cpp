@@ -726,7 +726,7 @@ void *instanceservicesession(void *dummyPt) {
             instance_logger.log("Received Worker List " + workerList, "info");
 
             std::vector<string> workerSockets;
-            boost::split(workerSockets, workerList, boost::is_any_of(","));
+            //boost::split(workerSockets, workerList, boost::is_any_of(","));
 
 
             // Calculate the out degree distribution in the current super worker.
