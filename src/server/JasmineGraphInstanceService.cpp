@@ -682,7 +682,6 @@ void *instanceservicesession(void *dummyPt) {
             }
 
             string outDegreeDistString;
-            /*
             for (its = degreeDistribution.begin(); its != degreeDistribution.end();++its) {
 
                 outDegreeDistString.append(std::to_string(its->first) + ":" + std::to_string(its->second) + ",");
@@ -691,11 +690,13 @@ void *instanceservicesession(void *dummyPt) {
               //  instance_logger.log("After Degree second: " + std::to_string(its->second), "info");
             }
 
-            outDegreeDistString.pop_back();*/
+            outDegreeDistString.pop_back();
 
 
             write(connFd, outDegreeDistString.c_str(), outDegreeDistString.size());
-           // instance_logger.log("Sent : " + outDegreeDistString, "info");
+            write(connFd, "outDegreeDistString".c_str(), "outDegreeDistString".size());
+
+            // instance_logger.log("Sent : " + outDegreeDistString, "info");
 
         } else if (line.compare(JasmineGraphInstanceProtocol::OUT_DEGREE_DISTRIBUTION) == 0) {
             instance_logger.log("Received : out degree distribution from server", "info");
