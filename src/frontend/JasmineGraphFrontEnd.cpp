@@ -887,14 +887,14 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             JasmineGraphServer *jasmineServer = new JasmineGraphServer();
             jasmineServer->outDegreeDistribution(graphID);
 
-            int result_wr = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
-            if (result_wr < 0) {
+            int result_wr_done = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
+            if (result_wr_done < 0) {
                 frontend_logger.log("Error writing to socket", "error");
                 loop = true;
                 continue;
             }
-            result_wr = write(connFd, "\r\n", 2);
-            if (result_wr < 0) {
+            result_wr_done = write(connFd, "\r\n", 2);
+            if (result_wr_done < 0) {
                 frontend_logger.log("Error writing to socket", "error");
                 loop = true;
                 continue;
