@@ -682,19 +682,30 @@ void *instanceservicesession(void *dummyPt) {
             }
 
             string outDegreeDistString;
+            int count = 0;
             for (its = degreeDistribution.begin(); its != degreeDistribution.end();++its) {
 
+                count++;
                 outDegreeDistString.append(std::to_string(its->first) + ":" + std::to_string(its->second) + ",");
+
+                if (count == 10) {
+                    outDegreeDistString.pop_back();
+                    write(connFd, outDegreeDistString.c_str(), outDegreeDistString.size());
+                    instance_logger.log("Sent : " + outDegreeDistString, "info");
+                    outDegreeDistString = "";
+                    count = 0;
+                }
 
               //  instance_logger.log("After Degree first: " + std::to_string(its->first), "info");
               //  instance_logger.log("After Degree second: " + std::to_string(its->second), "info");
             }
 
-            outDegreeDistString.pop_back();
+            string endString = "END";
+            write(connFd, endString.c_str(), endString.size());
+            instance_logger.log("Sent : " + endString, "info");
 
-            outDegreeDistString = "1:1";
-            write(connFd, outDegreeDistString.c_str(), outDegreeDistString.size());
-             instance_logger.log("Sent : " + outDegreeDistString, "info");
+
+
 
         } else if (line.compare(JasmineGraphInstanceProtocol::OUT_DEGREE_DISTRIBUTION) == 0) {
             instance_logger.log("Received : out degree distribution from server", "info");
@@ -894,15 +905,26 @@ void *instanceservicesession(void *dummyPt) {
 
                         instance_logger.log("Sent : Partition ID " + std::to_string(partitionID), "info");
 
-                        bzero(data, 301);
-                        read(sockfd, data, 300);
-                        string response = (data);
-                        response = utils.trim_copy(response, " \f\n\r\t\v");
+                        string degreeDistString;
+                        while (1) {
+                            bzero(data, 301);
+                            read(sockfd, data, 300);
+                            string response = (data);
+                            response = utils.trim_copy(response, " \f\n\r\t\v");
 
-                        instance_logger.log("Received : " + response, "info");
+                            instance_logger.log("Received : " + response, "info");
+
+                            if (response.compare("END") == 0) {
+                                instance_logger.log("End of degree dist", "info");
+                                break;
+                            }
+                            degreeDistString.append(response + ",");
+                        }
+
+                        degreeDistString.pop_back()
 
                         std::vector<string> workerODegreeDist;
-                        boost::split(workerODegreeDist, response, boost::is_any_of(","));
+                        boost::split(workerODegreeDist, degreeDistString, boost::is_any_of(","));
 
                         for (vector<string>::iterator workerODegreeDistIt=workerODegreeDist.begin(); workerODegreeDistIt!=workerODegreeDist.end(); ++workerODegreeDistIt) {
                             std::vector <string> workerODegreeDistPair;
