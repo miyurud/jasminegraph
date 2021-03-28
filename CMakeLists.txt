@@ -32,7 +32,7 @@ add_executable(JasmineGraph main.cpp src/server/JasmineGraphServer.cpp src/serve
         src/ml/trainer/python-c-api/Python_C_API.cpp src/ml/trainer/python-c-api/Python_C_API.h
         src/ml/trainer/JasmineGraphTrainingSchedular.cpp src/ml/trainer/JasmineGraphTrainingSchedular.h src/ml/trainer/JasminGraphTrainingInitiator.cpp src/ml/trainer/JasminGraphTrainingInitiator.h src/query/algorithms/linkprediction/JasminGraphLinkPredictor.h src/query/algorithms/linkprediction/JasminGraphLinkPredictor.cpp src/centralstore/JasmineGraphHashMapDuplicateCentralStore.cpp src/centralstore/JasmineGraphHashMapDuplicateCentralStore.h src/exception/JasmineGraphException.cpp src/exception/JasmineGraphException.h)
 
-target_compile_options(JasmineGraph PRIVATE -std=c++11 -I/usr/include/python3.6)
+target_compile_options(JasmineGraph PRIVATE -std=c++11 -I/usr/include/python3.5)
 
 if(CMAKE_ENABLE_DEBUG)
     message(STATUS "DEBUG enabled")
@@ -61,9 +61,9 @@ include_directories("$ENV{HOME}/software/xerces-c-3.2.2/include")
 target_link_libraries(JasmineGraph $ENV{HOME}/software/jsoncpp/src/lib_json/libjsoncpp.a)
 target_link_libraries(JasmineGraph $ENV{HOME}/software/cppkafka/build/src/lib/libcppkafka.so)
 
-set(PYTHON_EXECUTABLE "/usr/bin/python3.6")
-set(PYTHON_INCLUDE_DIR "/usr/include/python3.6m")
-set(PYTHON_LIBRARIES "/usr/lib/x86_64-linux-gnu/libpython3.6m.so")
+set(PYTHON_EXECUTABLE "/usr/bin/python3.5")
+set(PYTHON_INCLUDE_DIR "/usr/include/python3.5m")
+set(PYTHON_LIBRARIES "/usr/lib/x86_64-linux-gnu/libpython3.5m.so")
 
 include_directories(${PYTHON_INCLUDE_DIRS})
 include_directories(${PYTHON_DIRECTORIES})
