@@ -681,7 +681,8 @@ void *instanceservicesession(void *dummyPt) {
                 }
             }
 
-           /* string outDegreeDistString;
+            string outDegreeDistString;
+            /*
             for (its = degreeDistribution.begin(); its != degreeDistribution.end();++its) {
 
                 outDegreeDistString.append(std::to_string(its->first) + ":" + std::to_string(its->second) + ",");
