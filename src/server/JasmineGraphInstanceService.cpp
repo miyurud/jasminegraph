@@ -692,10 +692,8 @@ void *instanceservicesession(void *dummyPt) {
 
             outDegreeDistString.pop_back();
 
-
+            outDegreeDistString = "1:1";
             write(connFd, outDegreeDistString.c_str(), outDegreeDistString.size());
-            write(connFd, "outDegreeDistString".c_str(), "outDegreeDistString".size());
-
             // instance_logger.log("Sent : " + outDegreeDistString, "info");
 
         } else if (line.compare(JasmineGraphInstanceProtocol::OUT_DEGREE_DISTRIBUTION) == 0) {
