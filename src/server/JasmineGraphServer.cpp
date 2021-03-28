@@ -2596,27 +2596,6 @@ void JasmineGraphServer::outDegreeDistribution(std::string graphID) {
         host = workerPartition.hostname;
         port = workerPartition.port;
 
-        std::cout << "Partition ----------" << partition << std::endl;
-        std::cout << "Host ----------" << host << std::endl;
-        std::cout << "Port ----------" <<  port << std::endl;
-
-
- /*   }*/
-
-
-/*
-
-    std::vector<JasmineGraphServer::workers> hostWorkerMap = JasmineGraphServer::getHostWorkerMap();
-    std::vector<workers, std::allocator<workers>>::iterator mapIterator;
-    for (mapIterator = hostWorkerMap.begin(); mapIterator < hostWorkerMap.end(); mapIterator++) {
-        workers worker = *mapIterator;
-
-        bool result = true;
-        std::cout << pthread_self() << " host : " << worker.hostname << " port : " << worker.port << " DPort : "
-                  << worker.dataPort << std::endl;
-*/
-
-
         if (host.find('@') != std::string::npos) {
             host = utils.split(host, '@')[1];
         }
@@ -2669,7 +2648,6 @@ void JasmineGraphServer::outDegreeDistribution(std::string graphID) {
 
     if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
         server_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
-        //std::cout << graphID << std::endl;
 
         result_wr = write(sockfd, graphID.c_str(), graphID.size());
 
