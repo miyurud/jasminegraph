@@ -694,7 +694,7 @@ void *instanceservicesession(void *dummyPt) {
 
             outDegreeDistString = "1:1";
             write(connFd, outDegreeDistString.c_str(), outDegreeDistString.size());
-            // instance_logger.log("Sent : " + outDegreeDistString, "info");
+             instance_logger.log("Sent : " + outDegreeDistString, "info");
 
         } else if (line.compare(JasmineGraphInstanceProtocol::OUT_DEGREE_DISTRIBUTION) == 0) {
             instance_logger.log("Received : out degree distribution from server", "info");
