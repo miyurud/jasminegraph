@@ -76,6 +76,8 @@ public:
     static const string SEND_FILE_TYPE;
     static const string FILE_TYPE_CENTRALSTORE_AGGREGATE;
     static const string FILE_TYPE_CENTRALSTORE_COMPOSITE;
+    static const string GRAPH_STREAM_START;
+    static const string GRAPH_STREAM_START_ACK;
 };
 
 const int INSTANCE_DATA_LENGTH = 300;

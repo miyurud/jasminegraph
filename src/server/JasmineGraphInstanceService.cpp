@@ -18,6 +18,7 @@ limitations under the License.
 #include "../util/logger/Logger.h"
 #include "JasmineGraphInstance.h"
 #include "../server/JasmineGraphServer.h"
+#include "../localstore/incremental/JasmineGraphIncrementalLocalStore.h"
 
 using namespace std;
 Logger instance_logger;
@@ -45,6 +46,7 @@ void *instanceservicesession(void *dummyPt) {
     string profile = sessionargs->profile;
     int serverPort = sessionargs->port;
     int serverDataPort = sessionargs->dataPort;
+    JasmineGraphIncrementalLocalStore incrementalLocalStore;
 
 
     instance_logger.log("New service session started on thread " + to_string(pthread_self()), "info");
@@ -1391,6 +1393,36 @@ void *instanceservicesession(void *dummyPt) {
                 write(connFd, result.c_str(), result.size());
                 instance_logger.log("Sent : " + result, "info");
             }
+        } else if (line.compare(JasmineGraphInstanceProtocol::GRAPH_STREAM_START) == 0) {
+            write(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK.c_str(),
+                  JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK, "info");
+
+            int content_length;
+            instance_logger.log("Waiting for edge content length", "info");
+            auto return_status = read(connFd, &content_length, sizeof(4));
+            if (return_status > 0) {
+                content_length = ntohl(content_length);
+                instance_logger.log("Received content_length = " + std::to_string(content_length), "info");
+            } else {
+                instance_logger.log("Error while reading content length", "error");
+            }
+            char edge_content_buffer[content_length];
+
+            send(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK.c_str(), JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK.size(), 0);
+            instance_logger.log("Acked for content length", "info");
+
+            instance_logger.log("Waiting for edge data", "info");
+            return_status = read(connFd, &edge_content_buffer, sizeof(edge_content_buffer));
+            std::string edgeString;
+            if (return_status > 0) {
+                edgeString = std::string(edge_content_buffer);
+                instance_logger.log("Received edge data = " + edgeString, "info");
+            } else {
+                instance_logger.log("Error while reading content length", "error");
+            }
+            incrementalLocalStore.addEdgeFromString(edgeString);
+            
         }
     }
     instance_logger.log("Closing thread " + to_string(pthread_self()), "info");
