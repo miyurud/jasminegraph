@@ -1,6 +1,7 @@
 #include "./DataPublisher.h"
 
 #include "../../util/logger/Logger.h"
+#include "../../server/JasmineGraphInstanceProtocol.h"
 
 Logger data_publisher_logger;
 
@@ -24,8 +25,7 @@ void DataPublisher::publish(std::string message) {
         data_publisher_logger.error("Connection Failed!");
     }
     // Send initial start sending edge command
-    std::string STREAM_START = "stream-start";
-    send(this->sock, STREAM_START.c_str(), STREAM_START.length(), 0);
+    send(this->sock, JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK.c_str(), JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK.length(), 0);
 
     char start_ack[1024] = {0};
     auto ack_return_status = recv(this->sock, &start_ack, sizeof(start_ack), 0);
