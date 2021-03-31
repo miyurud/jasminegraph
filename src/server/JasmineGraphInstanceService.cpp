@@ -906,6 +906,7 @@ void *instanceservicesession(void *dummyPt) {
                         instance_logger.log("Sent : Partition ID " + std::to_string(partitionID), "info");
 
                         string degreeDistString;
+                        string end = "END";
                         while (1) {
                             bzero(data, 301);
                             read(sockfd, data, 300);
@@ -914,8 +915,14 @@ void *instanceservicesession(void *dummyPt) {
 
                             instance_logger.log("Received : " + response, "info");
 
-                            if (response.compare("END") == 0) {
-                                instance_logger.log("End of degree dist", "info");
+
+                            std::string::size_type i = response.find(end);
+
+                            if (i != std::string::npos) {
+                                instance_logger.log("End of message : " + response, "info");
+
+                                response.erase(i, end.length());
+                                degreeDistString.append(response + ",");
                                 break;
                             }
                             degreeDistString.append(response + ",");
