@@ -905,8 +905,9 @@ void *instanceservicesession(void *dummyPt) {
                         }
 
                         instance_logger.log("Sent : Partition ID " + std::to_string(partitionID), "info");
-/*
+
                         string degreeDistString;
+/*
                         string end = "END";
                         while (1) {
                             bzero(data, 301);
