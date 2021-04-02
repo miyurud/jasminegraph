@@ -792,6 +792,7 @@ void *instanceservicesession(void *dummyPt) {
             map<long,long> degreeDistributionCentral = centralDB.getInDegreeDistributionHashMap();
             std::map<long,long>::iterator itcentral;
 
+
            // instance_logger.log("Degree size: " + degreeDistribution.size(), "info");
             for (its = degreeDistributionCentral.begin(); its != degreeDistributionCentral.end();++its) {
             //    instance_logger.log("Degree first: " + std::to_string(its->first), "info");
@@ -817,7 +818,7 @@ void *instanceservicesession(void *dummyPt) {
 
             // Invoke other workers to calculate their own our degree distributions
 
-           /* for (vector<string>::iterator workerIt=workerSockets.begin(); workerIt!=workerSockets.end(); ++workerIt) {
+            for (vector<string>::iterator workerIt=workerSockets.begin(); workerIt!=workerSockets.end(); ++workerIt) {
                 instance_logger.log("Worker pair " + *workerIt, "info");
 
                 std::vector <string> workerSocketPair;
@@ -904,7 +905,7 @@ void *instanceservicesession(void *dummyPt) {
                         }
 
                         instance_logger.log("Sent : Partition ID " + std::to_string(partitionID), "info");
-
+/*
                         string degreeDistString;
                         string end = "END";
                         while (1) {
@@ -930,6 +931,7 @@ void *instanceservicesession(void *dummyPt) {
 
                         degreeDistString.pop_back();
 
+                        */
                         std::vector<string> workerODegreeDist;
                         boost::split(workerODegreeDist, degreeDistString, boost::is_any_of(","));
 
@@ -958,7 +960,7 @@ void *instanceservicesession(void *dummyPt) {
                         }
                 }
 
-            } */
+            }
 
             for (its = degreeDistribution.begin(); its != degreeDistribution.end();++its) {
                 instance_logger.log("After Merge Degree first: " + std::to_string(its->first), "info");
