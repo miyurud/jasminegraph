@@ -690,7 +690,7 @@ void *instanceservicesession(void *dummyPt) {
 
                 if (count == 10) {
                     outDegreeDistString.pop_back();
-                  //  write(connFd, outDegreeDistString.c_str(), outDegreeDistString.size());
+                    write(connFd, outDegreeDistString.c_str(), outDegreeDistString.size());
                     instance_logger.log("Sent : " + outDegreeDistString, "info");
                     outDegreeDistString = "";
                     count = 0;
