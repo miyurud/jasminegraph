@@ -688,13 +688,13 @@ void *instanceservicesession(void *dummyPt) {
                 count++;
                 outDegreeDistString.append(std::to_string(its->first) + ":" + std::to_string(its->second) + ",");
 
-                if (count == 10) {
+                /*if (count == 10) {
                     outDegreeDistString.pop_back();
                     write(connFd, outDegreeDistString.c_str(), outDegreeDistString.size());
                     instance_logger.log("Sent : " + outDegreeDistString, "info");
                     outDegreeDistString = "";
                     count = 0;
-                }
+                }*/
 
               //  instance_logger.log("After Degree first: " + std::to_string(its->first), "info");
               //  instance_logger.log("After Degree second: " + std::to_string(its->second), "info");
@@ -907,7 +907,7 @@ void *instanceservicesession(void *dummyPt) {
 
                         string degreeDistString;
                         string end = "END";
-                        while (1) {
+                        /*while (1) {
                             bzero(data, 301);
                             read(sockfd, data, 300);
                             string response = (data);
@@ -926,7 +926,7 @@ void *instanceservicesession(void *dummyPt) {
                                 break;
                             }
                             degreeDistString.append(response + ",");
-                        }
+                        }*/
 
                         degreeDistString.pop_back();
 
