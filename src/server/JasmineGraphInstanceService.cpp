@@ -681,20 +681,20 @@ void *instanceservicesession(void *dummyPt) {
                 }
             }
 
-            string outDegreeDistString;
+            /*string outDegreeDistString;
             int count = 0;
             for (its = degreeDistribution.begin(); its != degreeDistribution.end();++its) {
 
                 count++;
                 outDegreeDistString.append(std::to_string(its->first) + ":" + std::to_string(its->second) + ",");
 
-                /*if (count == 10) {
+                if (count == 10) {
                     outDegreeDistString.pop_back();
                     write(connFd, outDegreeDistString.c_str(), outDegreeDistString.size());
                     instance_logger.log("Sent : " + outDegreeDistString, "info");
                     outDegreeDistString = "";
                     count = 0;
-                }*/
+                }
 
               //  instance_logger.log("After Degree first: " + std::to_string(its->first), "info");
               //  instance_logger.log("After Degree second: " + std::to_string(its->second), "info");
@@ -706,7 +706,7 @@ void *instanceservicesession(void *dummyPt) {
 
 
 
-
+*/
         } else if (line.compare(JasmineGraphInstanceProtocol::OUT_DEGREE_DISTRIBUTION) == 0) {
             instance_logger.log("Received : out degree distribution from server", "info");
 
@@ -926,9 +926,9 @@ void *instanceservicesession(void *dummyPt) {
                                 break;
                             }
                             degreeDistString.append(response + ",");
-                        }*/
+                        }
 
-                        degreeDistString.pop_back();
+                        degreeDistString.pop_back();*/
 
                         std::vector<string> workerODegreeDist;
                         boost::split(workerODegreeDist, degreeDistString, boost::is_any_of(","));
