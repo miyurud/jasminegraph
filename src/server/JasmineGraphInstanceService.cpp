@@ -681,7 +681,7 @@ void *instanceservicesession(void *dummyPt) {
                 }
             }
 
-            /*string outDegreeDistString;
+        /*    string outDegreeDistString;
             int count = 0;
             for (its = degreeDistribution.begin(); its != degreeDistribution.end();++its) {
 
@@ -704,9 +704,9 @@ void *instanceservicesession(void *dummyPt) {
             write(connFd, endString.c_str(), endString.size());
             instance_logger.log("Sent : " + endString, "info");
 
-
-
 */
+
+
         } else if (line.compare(JasmineGraphInstanceProtocol::OUT_DEGREE_DISTRIBUTION) == 0) {
             instance_logger.log("Received : out degree distribution from server", "info");
 
@@ -817,7 +817,7 @@ void *instanceservicesession(void *dummyPt) {
 
             // Invoke other workers to calculate their own our degree distributions
 
-            for (vector<string>::iterator workerIt=workerSockets.begin(); workerIt!=workerSockets.end(); ++workerIt) {
+           /* for (vector<string>::iterator workerIt=workerSockets.begin(); workerIt!=workerSockets.end(); ++workerIt) {
                 instance_logger.log("Worker pair " + *workerIt, "info");
 
                 std::vector <string> workerSocketPair;
@@ -907,7 +907,7 @@ void *instanceservicesession(void *dummyPt) {
 
                         string degreeDistString;
                         string end = "END";
-                        /*while (1) {
+                        while (1) {
                             bzero(data, 301);
                             read(sockfd, data, 300);
                             string response = (data);
@@ -928,7 +928,7 @@ void *instanceservicesession(void *dummyPt) {
                             degreeDistString.append(response + ",");
                         }
 
-                        degreeDistString.pop_back();*/
+                        degreeDistString.pop_back();
 
                         std::vector<string> workerODegreeDist;
                         boost::split(workerODegreeDist, degreeDistString, boost::is_any_of(","));
@@ -958,7 +958,7 @@ void *instanceservicesession(void *dummyPt) {
                         }
                 }
 
-            }
+            } */
 
             for (its = degreeDistribution.begin(); its != degreeDistribution.end();++its) {
                 instance_logger.log("After Merge Degree first: " + std::to_string(its->first), "info");
