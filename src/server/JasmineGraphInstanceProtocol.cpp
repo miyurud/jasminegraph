@@ -51,7 +51,8 @@ const string JasmineGraphInstanceProtocol::TRIANGLES = "tria";
 const string JasmineGraphInstanceProtocol::PAGE_RANK = "pgrn";
 const string JasmineGraphInstanceProtocol::OUT_DEGREE_DISTRIBUTION = "odd";
 const string JasmineGraphInstanceProtocol::SEND_OUT_DEGREE_DISTRIBUTION_TO_AGGREGATOR = "odd-aggre";
-
+const string JasmineGraphInstanceProtocol::IN_DEGREE_DISTRIBUTION = "idd";
+const string JasmineGraphInstanceProtocol::SEND_IN_DEGREE_DISTRIBUTION_TO_AGGREGATOR = "idd-aggre";
 
 const string JasmineGraphInstanceProtocol::SEND_CENTRALSTORE_TO_AGGREGATOR = "aggre-copy";
 const string JasmineGraphInstanceProtocol::SEND_COMPOSITE_CENTRALSTORE_TO_AGGREGATOR = "composite-aggre-copy";

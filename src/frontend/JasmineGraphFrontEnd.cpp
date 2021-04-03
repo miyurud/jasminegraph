@@ -852,8 +852,8 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
             JasminGraphTrainingInitiator *jasminGraphTrainingInitiator = new JasminGraphTrainingInitiator();
             jasminGraphTrainingInitiator->initiateTrainingLocally(graphID, trainData);
-        } else if (line.compare(OUT_DEGREE_DISTRIBUTION) == 0) {
-            frontend_logger.log("Out Degree Distribution ----------", "info");
+        } else if (line.compare(IN_DEGREE) == 0) {
+            frontend_logger.log("In Degree Distribution ----------", "info");
 
 
             int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
@@ -869,7 +869,6 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 continue;
             }
 
-            // We get the name and the path to graph as a pair separated by |.
             char graph_id[FRONTEND_DATA_LENGTH];
             bzero(graph_id, FRONTEND_DATA_LENGTH + 1);
             string name = "";
@@ -885,7 +884,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
 
             JasmineGraphServer *jasmineServer = new JasmineGraphServer();
-            jasmineServer->outDegreeDistribution(graphID);
+            jasmineServer->inDegreeDistribution(graphID);
 
             int result_wr_done = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
             if (result_wr_done < 0) {

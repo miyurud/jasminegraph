@@ -33,6 +33,7 @@ const string VCOUNT= "vcnt";
 const string ECOUNT= "ecnt";
 const string PAGE_RANK= "pgrnk";
 extern const string OUT_DEGREE_DISTRIBUTION = "odd";
+const string IN_DEGREE = "idd";
 const string TRAIN = "train";
 const string PREDICT = "predict";
 const string PARTITIONS = "number-of-partitions";

@@ -2578,8 +2578,8 @@ void JasmineGraphServer::addInstanceDetailsToPerformanceDB(std::string host, std
     this->performanceSqlite.runInsert(insertPlaceQuery);
 }
 
-void JasmineGraphServer::outDegreeDistribution(std::string graphID) {
-    std::cout << "Page rank JasmineGraphServer" << std::endl;
+void JasmineGraphServer::inDegreeDistribution(std::string graphID) {
+    std::cout << "In degree distribution JasmineGraphServer" << std::endl;
 
     std::map<std::string, JasmineGraphServer::workerPartition> graphPartitionedHosts =
             JasmineGraphServer::getWorkerPartitions(graphID);
@@ -2634,12 +2634,12 @@ void JasmineGraphServer::outDegreeDistribution(std::string graphID) {
     }
 
     bzero(data, 301);
-    int result_wr = write(sockfd, JasmineGraphInstanceProtocol::OUT_DEGREE_DISTRIBUTION.c_str(), JasmineGraphInstanceProtocol::OUT_DEGREE_DISTRIBUTION.size());
+    int result_wr = write(sockfd, JasmineGraphInstanceProtocol::IN_DEGREE_DISTRIBUTION.c_str(), JasmineGraphInstanceProtocol::IN_DEGREE_DISTRIBUTION.size());
     if(result_wr < 0) {
         server_logger.log("Error writing to socket", "error");
     }
 
-    server_logger.log("Sent : " + JasmineGraphInstanceProtocol::OUT_DEGREE_DISTRIBUTION, "info");
+    server_logger.log("Sent : " + JasmineGraphInstanceProtocol::IN_DEGREE_DISTRIBUTION, "info");
     bzero(data, 301);
     read(sockfd, data, 300);
     string response = (data);

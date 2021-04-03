@@ -59,7 +59,9 @@ public:
     static const string TRIANGLES;
     static const string PAGE_RANK;
     static const string OUT_DEGREE_DISTRIBUTION;
+    static const string IN_DEGREE_DISTRIBUTION;
     static const string SEND_OUT_DEGREE_DISTRIBUTION_TO_AGGREGATOR;
+    static const string SEND_IN_DEGREE_DISTRIBUTION_TO_AGGREGATOR;
     static const string SEND_CENTRALSTORE_TO_AGGREGATOR;
     static const string SEND_COMPOSITE_CENTRALSTORE_TO_AGGREGATOR;
     static const string AGGREGATE_CENTRALSTORE_TRIANGLES;

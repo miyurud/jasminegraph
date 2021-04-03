@@ -143,7 +143,7 @@ public:
 
     std::map<std::string, workerPartitions> getGraphPartitionedHosts(std::string graphID);
 
-    void outDegreeDistribution(std::string graphID);
+    void inDegreeDistribution(std::string graphID);
 };
 
 
