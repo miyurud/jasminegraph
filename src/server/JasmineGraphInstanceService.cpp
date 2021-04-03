@@ -936,12 +936,13 @@ void *instanceservicesession(void *dummyPt) {
 
                         for (vector<string>::iterator workerODegreeDistIt=workerODegreeDist.begin(); workerODegreeDistIt!=workerODegreeDist.end(); ++workerODegreeDistIt) {
                             std::vector <string> workerODegreeDistPair;
-                            boost::split(workerODegreeDistPair, *workerODegreeDistIt, boost::is_any_of(":"));
-
-                            instance_logger.log("workerODegreeDistPair " + workerODegreeDistPair[0], "info");
-                            instance_logger.log("workerODegreeDistPair1 " + workerODegreeDistPair[1], "info");
+                            instance_logger.log("workerODegreeDistPair " + *workerODegreeDistIt, "info");
 
                             /*
+                            boost::split(workerODegreeDistPair, *workerODegreeDistIt, boost::is_any_of(":"));
+
+
+
                             if (degreeDistribution.count( std::stoi(workerODegreeDistPair[0]))) {
                                // instance_logger.log("Duplicate key found from other worker: " + workerODegreeDistPair[0], "info");
 
