@@ -689,7 +689,6 @@ void *instanceservicesession(void *dummyPt) {
                 outDegreeDistString.append(std::to_string(its->first) + ":" + std::to_string(its->second) + ",");
 
                 if (count == 10) {
-                    outDegreeDistString.pop_back();
                     write(connFd, outDegreeDistString.c_str(), outDegreeDistString.size());
                     instance_logger.log("Sent : " + outDegreeDistString, "info");
                     outDegreeDistString = "";
@@ -923,10 +922,9 @@ void *instanceservicesession(void *dummyPt) {
                                 instance_logger.log("End of message : " + response, "info");
 
                                 response.erase(i, end.length());
-                                degreeDistString.append(response + ",");
                                 break;
                             }
-                            degreeDistString.append(response + ",");
+                            degreeDistString.append(response);
                         }
 
                         degreeDistString.pop_back();
