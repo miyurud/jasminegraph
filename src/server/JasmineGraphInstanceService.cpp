@@ -933,7 +933,7 @@ void *instanceservicesession(void *dummyPt) {
 
                         std::vector<string> workerODegreeDist;
                         boost::split(workerODegreeDist, degreeDistString, boost::is_any_of(","));
-
+/*
                         for (vector<string>::iterator workerODegreeDistIt=workerODegreeDist.begin(); workerODegreeDistIt!=workerODegreeDist.end(); ++workerODegreeDistIt) {
                             std::vector <string> workerODegreeDistPair;
                             boost::split(workerODegreeDistPair, *workerODegreeDistIt, boost::is_any_of(":"));
@@ -954,7 +954,7 @@ void *instanceservicesession(void *dummyPt) {
                                 degreeDistribution.insert(std::make_pair(std::stoi(workerODegreeDistPair[0]),
                                                                          std::stoi(workerODegreeDistPair[1])));
                             }
-                        }
+                        } */
 
                         }
                 }
