@@ -927,7 +927,10 @@ void *instanceservicesession(void *dummyPt) {
                             degreeDistString.append(response);
                         }
 
-                        degreeDistString.pop_back();
+                        if (boost::algorithm::ends_with(degreeDistString, ",")) {
+                            instance_logger.log("End of message contains , ", "info");
+                            degreeDistString.pop_back();
+                        }
 
                         std::vector<string> workerODegreeDist;
                         boost::split(workerODegreeDist, degreeDistString, boost::is_any_of(","));
