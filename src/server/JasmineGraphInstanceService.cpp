@@ -960,11 +960,11 @@ void *instanceservicesession(void *dummyPt) {
                 }
 
             }
-
+/*
             for (its = degreeDistribution.begin(); its != degreeDistribution.end();++its) {
                 instance_logger.log("After Merge Degree first: " + std::to_string(its->first), "info");
                 instance_logger.log("After Merge Degree second: " + std::to_string(its->second), "info");
-            }
+            }*/
 
         } else if (line.compare(JasmineGraphInstanceProtocol::TRIANGLES) == 0) {
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::TRIANGLES, "info");
