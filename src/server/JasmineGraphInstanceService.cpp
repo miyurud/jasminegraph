@@ -894,7 +894,7 @@ void *instanceservicesession(void *dummyPt) {
                     string response = (data);
                     response = utils.trim_copy(response, " \f\n\r\t\v");
 
-                   /* if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+                    if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
                         instance_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
                         //std::cout << graphID << std::endl;
                         int partitionID = stoi(workerSocketPair[2]);
@@ -905,7 +905,7 @@ void *instanceservicesession(void *dummyPt) {
                         }
 
                         instance_logger.log("Sent : Partition ID " + std::to_string(partitionID), "info");
-
+/*
                         string degreeDistString;
                         string end = "END";
                         while (1) {
@@ -954,9 +954,9 @@ void *instanceservicesession(void *dummyPt) {
                                 degreeDistribution.insert(std::make_pair(std::stoi(workerODegreeDistPair[0]),
                                                                          std::stoi(workerODegreeDistPair[1])));
                             }
-                        }
+                        }*/
 
-                        } */
+                        }
                 }
 
             }
