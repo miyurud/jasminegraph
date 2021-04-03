@@ -681,7 +681,7 @@ void *instanceservicesession(void *dummyPt) {
                 }
             }
 
-        /*    string outDegreeDistString;
+           string outDegreeDistString;
             int count = 0;
             for (its = degreeDistribution.begin(); its != degreeDistribution.end();++its) {
 
@@ -704,7 +704,7 @@ void *instanceservicesession(void *dummyPt) {
             write(connFd, endString.c_str(), endString.size());
             instance_logger.log("Sent : " + endString, "info");
 
-*/
+
 
 
         } else if (line.compare(JasmineGraphInstanceProtocol::OUT_DEGREE_DISTRIBUTION) == 0) {
@@ -894,7 +894,7 @@ void *instanceservicesession(void *dummyPt) {
                     string response = (data);
                     response = utils.trim_copy(response, " \f\n\r\t\v");
 
-                    if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+                   /* if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
                         instance_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
                         //std::cout << graphID << std::endl;
                         int partitionID = stoi(workerSocketPair[2]);
@@ -907,7 +907,6 @@ void *instanceservicesession(void *dummyPt) {
                         instance_logger.log("Sent : Partition ID " + std::to_string(partitionID), "info");
 
                         string degreeDistString;
-/*
                         string end = "END";
                         while (1) {
                             bzero(data, 301);
@@ -932,7 +931,6 @@ void *instanceservicesession(void *dummyPt) {
 
                         degreeDistString.pop_back();
 
-                        */
                         std::vector<string> workerODegreeDist;
                         boost::split(workerODegreeDist, degreeDistString, boost::is_any_of(","));
 
@@ -958,7 +956,7 @@ void *instanceservicesession(void *dummyPt) {
                             }
                         }
 
-                        }
+                        } */
                 }
 
             }
