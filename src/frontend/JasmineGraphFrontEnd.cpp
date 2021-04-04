@@ -59,7 +59,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
         if (line.compare("\r\n") == 0) {
             continue;
         }
-        frontend_logger.log("Command received: " + line, "info");
+        frontend_logger.log("Command received: |" + line + "|", "info");
 
         Utils utils;
         line = utils.trim_copy(line, " \f\n\r\t\v");
