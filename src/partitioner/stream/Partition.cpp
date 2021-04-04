@@ -15,8 +15,11 @@
 #include <iostream>
 #include <sstream>
 #include <vector>
+#include "../../util/logger/Logger.h"
 
-// This addition is undirectional , Add both items of the pair as keys
+Logger streaming_partition_logger;
+
+// This addition is unidirectional , Add both items of the pair as keys
 void Partition::addEdge(std::pair<std::string, std::string> edge) {
     auto exsistFirstVertext = this->edgeList.find(edge.first);
     if (exsistFirstVertext != this->edgeList.end()) {
@@ -110,20 +113,24 @@ long Partition::edgeCutsCount() {
 float Partition::edgeCutsRatio() { return this->edgeCutsCount() / (this->getEdgesCount() + this->edgeCutsCount()); }
 
 void Partition::printEdgeCuts() {
-    std::cout << "Printing edge cuts of " << id << " partition" << std::endl;
+    streaming_partition_logger.debug("Printing edge cuts of " + std::to_string(id) + " partition");
+
     for (auto partition : this->edgeCuts) {
         for (auto edgeList : partition) {
-            std::cout << edgeList.first << " ____" << std::endl;
+                    streaming_partition_logger.debug("edgeList.first " + edgeList.first + " ____");
+            
             for (std::string vertext : edgeList.second) {
-                std::cout << "\t| ---> " << vertext << std::endl;
+                streaming_partition_logger.debug("\t| ===> " + vertext);
+                
             }
-            std::cout << "\n" << std::endl;
+        streaming_partition_logger.debug("\n");
+            
         }
     }
 }
 
 void Partition::printEdges() {
-    std::cout << "Printing edge list of " << id << " partition" << std::endl;
+    streaming_partition_logger.debug("Printing edge list of " + std::to_string(id) + " partition");
     std::unordered_set<std::string> compositeVertextIDs;
     for (auto edgeList : this->edgeList) {
         bool isFirst = true;
@@ -131,14 +138,14 @@ void Partition::printEdges() {
             std::string compositeVertextID = edgeList.first + vertext;
             if (compositeVertextIDs.find(compositeVertextID) == compositeVertextIDs.end()) {
                 if (isFirst) {
-                    std::cout << edgeList.first << " ____" << std::endl;
+                    streaming_partition_logger.debug("edgeList.first " + edgeList.first + " ____");
                     isFirst = false;
                 }
-                std::cout << "\t| ===> " << vertext << std::endl;
+                streaming_partition_logger.debug("\t| ===> " + vertext);
                 compositeVertextIDs.insert(edgeList.first + vertext);
             }
         }
-        std::cout << "\n" << std::endl;
+        streaming_partition_logger.debug("\n");
     }
 }
 

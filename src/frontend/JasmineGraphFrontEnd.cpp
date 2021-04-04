@@ -525,9 +525,9 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 std::string sId = std::string(sourceJson["id"]);
                 std::string dId = std::string(destinationJson["id"]);
 
-                partitionedEdge pe = graphPartitioner.addEdge({sId, dId});
-                sourceJson["pid"] = pe[0].second;
-                destinationJson["pid"] = pe[1].second;
+                partitionedEdge partitionedEdge = graphPartitioner.addEdge({sId, dId});
+                sourceJson["pid"] = partitionedEdge[0].second;
+                destinationJson["pid"] = partitionedEdge[1].second;
                 workerClient.publish(destinationJson.dump());
             }
             graphPartitioner.printStats();

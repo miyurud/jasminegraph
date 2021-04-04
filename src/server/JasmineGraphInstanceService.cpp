@@ -1422,7 +1422,6 @@ void *instanceservicesession(void *dummyPt) {
                 instance_logger.log("Error while reading content length", "error");
             }
             incrementalLocalStore.addEdgeFromString(edgeString);
-            
         }
     }
     instance_logger.log("Closing thread " + to_string(pthread_self()), "info");

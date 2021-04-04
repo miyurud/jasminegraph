@@ -17,6 +17,9 @@
 #include <cmath>
 #include <iostream>
 #include <vector>
+#include "../../util/logger/Logger.h"
+
+Logger streaming_partitioner_logger;
 
 partitionedEdge Partitioner::addEdge(std::pair<std::string, std::string> edge) {
     switch (this->algorithmInUse) {
@@ -211,7 +214,7 @@ partitionedEdge Partitioner::fennelPartitioning(std::pair<std::string, std::stri
  **/
 std::pair<long, long> Partitioner::deserialize(std::string data) {
     std::vector<std::string> v = Partition::_split(data, ' ');
-    std::cout << "Vertext 1 = " << stoi(v[0]) << std::endl;
-    std::cout << "Vertext 2 = " << stoi(v[1]) << std::endl;
+    streaming_partitioner_logger.debug("Vertext/Node 1 = " + stoi(v[0]));
+    streaming_partitioner_logger.debug("Vertext/Node 2 = " + stoi(v[1]));
     return {stoi(v[0]), stoi(v[1])};
 }
