@@ -852,7 +852,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
             JasminGraphTrainingInitiator *jasminGraphTrainingInitiator = new JasminGraphTrainingInitiator();
             jasminGraphTrainingInitiator->initiateTrainingLocally(graphID, trainData);
-        } else if (line.compare(IN_DEGREE) == 0) {
+        } else if (line.compare(OUT_DEGREE_DISTRIBUTION) == 0) {
             frontend_logger.log("In Degree Distribution ----------", "info");
 
 
