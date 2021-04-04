@@ -590,7 +590,6 @@ void *instanceservicesession(void *dummyPt) {
         } else if (line.compare(JasmineGraphInstanceProtocol::SEND_IN_DEGREE_DISTRIBUTION_TO_AGGREGATOR) == 0) {
             instance_logger.log("Received : In degree distribution to aggregator", "info");
 
-
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
             bzero(data, INSTANCE_DATA_LENGTH);
@@ -616,18 +615,14 @@ void *instanceservicesession(void *dummyPt) {
 
 
             if (JasmineGraphInstanceService::isGraphDBExists(graphID, partitionID)) {
-               // instance_logger.log("Partition " + graphID + "_" + partitionID + " exists", "info");
                 JasmineGraphInstanceService::loadLocalStore(graphID, partitionID, graphDBMapLocalStores);
             }
 
             if (JasmineGraphInstanceService::isInstanceCentralStoreExists(graphID, partitionID)) {
-               // instance_logger.log("Partition CentralStore " + graphID + "_" + partitionID + " exists", "info");
                 JasmineGraphInstanceService::loadInstanceCentralStore(graphID, partitionID, graphDBMapCentralStores);
             }
             graphDB = graphDBMapLocalStores[graphID + "_" + partitionID];
             centralDB = graphDBMapCentralStores[graphID + "_centralstore_" + partitionID];
-
-            instance_logger.log("Size: " + std::to_string(graphDBMapLocalStores.size()), "info");
 
             map<long,long> degreeDistribution = graphDB.getInDegreeDistributionHashMap();
             std::map<long,long>::iterator its;
@@ -636,20 +631,13 @@ void *instanceservicesession(void *dummyPt) {
             std::map<long,long>::iterator itcentral;
 
             for (its = degreeDistributionCentral.begin(); its != degreeDistributionCentral.end();++its) {
-               // instance_logger.log("Degree first: " + std::to_string(its->first), "info");
-               // instance_logger.log("Degree second: " + std::to_string(its->second), "info");
 
                 bool centralNodeFound = false;
                 for (itcentral = degreeDistribution.begin(); itcentral != degreeDistribution.end();++itcentral) {
-                   // instance_logger.log("Central Degree first: " + std::to_string(itcentral->first), "info");
-                  //  instance_logger.log("Central Degree second: " + std::to_string(itcentral->second), "info");
-
                     if ((its->first) == (itcentral->first)) {
-                    //    instance_logger.log("Common node: " + std::to_string(its->first), "info");
                         degreeDistribution[its->first] = (its->second) + (itcentral->second);
                         centralNodeFound = true;
                     }
-
                 }
                 if (!centralNodeFound) {
                     degreeDistribution.insert(std::make_pair(its->first, its->second));
@@ -663,21 +651,15 @@ void *instanceservicesession(void *dummyPt) {
                 count++;
                 inDegreeDistString.append(std::to_string(its->first) + ":" + std::to_string(its->second) + ",");
 
-                if (count == 10) {
+                if (count == JasmineGraphInstanceService::MESSAGE_SIZE) {
                     write(connFd, inDegreeDistString.c_str(), inDegreeDistString.size());
-                    instance_logger.log("Sent : " + inDegreeDistString, "info");
                     inDegreeDistString = "";
                     count = 0;
                 }
-
-              //  instance_logger.log("After Degree first: " + std::to_string(its->first), "info");
-              //  instance_logger.log("After Degree second: " + std::to_string(its->second), "info");
             }
 
-            string endString = "END";
-            write(connFd, endString.c_str(), endString.size());
-            instance_logger.log("Sent : " + endString, "info");
-
+            write(connFd, JasmineGraphInstanceService::END_OF_MESSAGE.c_str(), JasmineGraphInstanceService::END_OF_MESSAGE.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceService::END_OF_MESSAGE, "info");
         } else if (line.compare(JasmineGraphInstanceProtocol::IN_DEGREE_DISTRIBUTION) == 0) {
             instance_logger.log("Received : in degree distribution from server", "info");
 
@@ -710,60 +692,46 @@ void *instanceservicesession(void *dummyPt) {
             std::vector<string> workerSockets;
             boost::split(workerSockets, workerList, boost::is_any_of(","));
 
-
             // Calculate the out degree distribution in the current super worker.
-
             JasmineGraphHashMapLocalStore graphDB;
             JasmineGraphHashMapCentralStore centralDB;
             std::map<std::string, JasmineGraphHashMapLocalStore>::iterator it;
             std::map<std::string, JasmineGraphHashMapCentralStore>::iterator itcen;
 
-
             if (JasmineGraphInstanceService::isGraphDBExists(graphID, partitionID)) {
-              //  instance_logger.log("Partition " + graphID + "_" + partitionID + " exists", "info");
                 JasmineGraphInstanceService::loadLocalStore(graphID, partitionID, graphDBMapLocalStores);
             }
 
             if (JasmineGraphInstanceService::isInstanceCentralStoreExists(graphID, partitionID)) {
-             //   instance_logger.log("Partition CentralStore " + graphID + "_" + partitionID + " exists", "info");
                 JasmineGraphInstanceService::loadInstanceCentralStore(graphID, partitionID, graphDBMapCentralStores);
             }
+
             graphDB = graphDBMapLocalStores[graphID + "_" + partitionID];
             centralDB = graphDBMapCentralStores[graphID + "_centralstore_" + partitionID];
 
-           // instance_logger.log("Vertex Count: " + std::to_string(graphDB.getVertexCount()), "info");
             map<long,long> degreeDistribution = graphDB.getInDegreeDistributionHashMap();
             std::map<long,long>::iterator its;
 
             map<long,long> degreeDistributionCentral = centralDB.getInDegreeDistributionHashMap();
             std::map<long,long>::iterator itcentral;
 
-
-           // instance_logger.log("Degree size: " + degreeDistribution.size(), "info");
             for (its = degreeDistributionCentral.begin(); its != degreeDistributionCentral.end();++its) {
-            //    instance_logger.log("Degree first: " + std::to_string(its->first), "info");
-            //    instance_logger.log("Degree second: " + std::to_string(its->second), "info");
 
                 bool centralNodeFound = false;
                 for (itcentral = degreeDistribution.begin(); itcentral != degreeDistribution.end();++itcentral) {
-                //    instance_logger.log("Central Degree first: " + std::to_string(itcentral->first), "info");
-                  //  instance_logger.log("Central Degree second: " + std::to_string(itcentral->second), "info");
 
                     if ((its->first) == (itcentral->first)) {
-                      //  instance_logger.log("Common node: " + std::to_string(its->first), "info");
                         degreeDistribution[its->first] = (its->second) + (itcentral->second);
                         centralNodeFound = true;
                     }
-
                 }
                 if (!centralNodeFound) {
                     degreeDistribution.insert(std::make_pair(its->first, its->second));
                 }
             }
 
-
             // Invoke other workers to calculate their own our degree distributions
-
+            //todo  invoke other workers asynchronously
             for (vector<string>::iterator workerIt=workerSockets.begin(); workerIt!=workerSockets.end(); ++workerIt) {
                 instance_logger.log("Worker pair " + *workerIt, "info");
 
@@ -824,10 +792,8 @@ void *instanceservicesession(void *dummyPt) {
                 string response = (data);
                 response = utils.trim_copy(response, " \f\n\r\t\v");
 
-
                 if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
                     instance_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
-                    //std::cout << graphID << std::endl;
                     result_wr = write(sockfd, graphID.c_str(), graphID.size());
 
                     if (result_wr < 0) {
@@ -842,40 +808,32 @@ void *instanceservicesession(void *dummyPt) {
 
                     if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
                         instance_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
-                        //std::cout << graphID << std::endl;
                         int partitionID = stoi(workerSocketPair[2]);
                         result_wr = write(sockfd, std::to_string(partitionID).c_str(), std::to_string(partitionID).size());
 
                         if (result_wr < 0) {
                             instance_logger.log("Error writing to socket", "error");
                         }
-
                         instance_logger.log("Sent : Partition ID " + std::to_string(partitionID), "info");
 
                         string degreeDistString;
-                        string end = "END";
                         while (1) {
                             bzero(data, 301);
                             read(sockfd, data, 300);
                             string response = (data);
                             response = utils.trim_copy(response, " \f\n\r\t\v");
 
-                            instance_logger.log("Received : " + response, "info");
-
-
-                            std::string::size_type i = response.find(end);
-
+                            std::string::size_type i = response.find(JasmineGraphInstanceService::END_OF_MESSAGE);
                             if (i != std::string::npos) {
                                 instance_logger.log("End of message : " + response, "info");
-
-                                response.erase(i, end.length());
+                                response.erase(i, JasmineGraphInstanceService::END_OF_MESSAGE.length());
+                                //break when the end of message is received
                                 break;
                             }
                             degreeDistString.append(response);
                         }
 
                         if (boost::algorithm::ends_with(degreeDistString, ",")) {
-                            instance_logger.log("End of message contains , ", "info");
                             degreeDistString.pop_back();
                         }
 
@@ -884,42 +842,23 @@ void *instanceservicesession(void *dummyPt) {
 
                         for (vector<string>::iterator workerInDegreeDistIt=workerInDegreeDist.begin(); workerInDegreeDistIt!=workerInDegreeDist.end(); ++workerInDegreeDistIt) {
                             std::vector <string> workerInDegreeDistPair;
-                            instance_logger.log("workerInDegreeDistPair " + *workerInDegreeDistIt, "info");
-
 
                             boost::split(workerInDegreeDistPair, *workerInDegreeDistIt, boost::is_any_of(":"));
-
-
-
                             if (degreeDistribution.count( std::stoi(workerInDegreeDistPair[0]))) {
-                               // instance_logger.log("Duplicate key found from other worker: " + workerInDegreeDistPair[0], "info");
 
                                 long value = degreeDistribution[std::stoi(workerInDegreeDistPair[0])];
-                               // instance_logger.log("Duplicate key value from other worker: " + std::to_string(value), "info");
-
                                 long totalValue = std::stoi(workerInDegreeDistPair[1]) + value;
 
-                               // instance_logger.log("Updated duplicate key value from other worker: " + std::to_string(totalValue), "info");
                                 degreeDistribution[std::stoi(workerInDegreeDistPair[0])] = totalValue;
-
                             } else {
-                              //  instance_logger.log("Duplicate key not found from other worker: " + workerInDegreeDistPair[0], "info");
                                 degreeDistribution.insert(std::make_pair(std::stoi(workerInDegreeDistPair[0]),
                                                                          std::stoi(workerInDegreeDistPair[1])));
                             }
-
                         }
-
-                        }
+                    }
                 }
 
             }
-/*
-            for (its = degreeDistribution.begin(); its != degreeDistribution.end();++its) {
-                instance_logger.log("After Merge Degree first: " + std::to_string(its->first), "info");
-                instance_logger.log("After Merge Degree second: " + std::to_string(its->second), "info");
-            }*/
-
         } else if (line.compare(JasmineGraphInstanceProtocol::TRIANGLES) == 0) {
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::TRIANGLES, "info");
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
