@@ -63,9 +63,6 @@ struct instanceservicesessionargs {
 
 class JasmineGraphInstanceService {
 
-private:
-
-
 public:
     static const int MESSAGE_SIZE = 10;
     static const string END_OF_MESSAGE;
