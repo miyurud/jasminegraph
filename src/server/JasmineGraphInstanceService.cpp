@@ -739,10 +739,6 @@ void *instanceservicesession(void *dummyPt) {
                 std::vector <string> workerSocketPair;
                 boost::split(workerSocketPair, *workerIt, boost::is_any_of(":"));
 
-                instance_logger.log("Worker ip " + workerSocketPair[0], "info");
-                instance_logger.log("Worker port " + workerSocketPair[1], "info");
-                instance_logger.log("Worker partition " + workerSocketPair[2], "info");
-
                 if  (std::to_string(serverPort).compare(workerSocketPair[1]) == 0) {
                     continue;
                 }
@@ -826,7 +822,6 @@ void *instanceservicesession(void *dummyPt) {
 
                             std::string::size_type i = response.find(JasmineGraphInstanceService::END_OF_MESSAGE);
                             if (i != std::string::npos) {
-                                instance_logger.log("End of message : " + response, "info");
                                 response.erase(i, JasmineGraphInstanceService::END_OF_MESSAGE.length());
                                 //break when the end of message is received
                                 break;
