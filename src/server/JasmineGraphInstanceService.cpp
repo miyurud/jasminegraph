@@ -652,7 +652,7 @@ void *instanceservicesession(void *dummyPt) {
                 count++;
                 inDegreeDistString.append(std::to_string(its->first) + ":" + std::to_string(its->second) + ",");
 
-                if (count == MESSAGE_SIZE) {
+                if (count == JasmineGraphInstanceService::MESSAGE_SIZE) {
                     write(connFd, inDegreeDistString.c_str(), inDegreeDistString.size());
                     inDegreeDistString = "";
                     count = 0;
