@@ -2604,6 +2604,7 @@ void JasmineGraphServer::inDegreeDistribution(std::string graphID) {
     }
 
     workerList.pop_back();
+    std::cout << "Worker List " << workerList << std::endl;
 
     int sockfd;
     char data[300];
