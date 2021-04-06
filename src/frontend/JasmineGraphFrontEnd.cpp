@@ -59,7 +59,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
         if (line.compare("\r\n") == 0) {
             continue;
         }
-        frontend_logger.log("Command received: |" + line + "|", "info");
+        frontend_logger.log("Command received: " + line, "info");
 
         Utils utils;
         line = utils.trim_copy(line, " \f\n\r\t\v");
@@ -852,7 +852,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
             JasminGraphTrainingInitiator *jasminGraphTrainingInitiator = new JasminGraphTrainingInitiator();
             jasminGraphTrainingInitiator->initiateTrainingLocally(graphID, trainData);
-        } else if (line.compare(JasminGraphFrontEndProtocol::IN_DEGREE) == 0)  {
+        } else if (line.compare(IN_DEGREE) == 0)  {
             frontend_logger.log("In Degree Distribution ----------", "info");
 
 
