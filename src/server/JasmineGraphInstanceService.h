@@ -65,7 +65,7 @@ class JasmineGraphInstanceService {
 
 private:
     static const int MESSAGE_SIZE = 10;
-    static const string END_OF_MESSAGE = "eom";
+    static const string END_OF_MESSAGE;
 
 public:
     JasmineGraphInstanceService();

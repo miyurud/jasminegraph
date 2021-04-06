@@ -28,6 +28,7 @@ pthread_mutex_t map_lock;
 StatisticCollector collector;
 int JasmineGraphInstanceService::partitionCounter = 0;
 std::map<int,std::vector<std::string>> JasmineGraphInstanceService::iterationData;
+const string JasmineGraphInstanceService::END_OF_MESSAGE = "eom";
 
 char *converter(const std::string &s) {
     char *pc = new char[s.size() + 1];
