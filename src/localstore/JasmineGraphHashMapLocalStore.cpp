@@ -138,8 +138,6 @@ map<long, long> JasmineGraphHashMapLocalStore::getInDegreeDistributionHashMap() 
         unordered_set<long> distribution  = it->second;
 
         for (auto itr = distribution.begin(); itr != distribution.end(); ++itr) {
-
-
             std::map<long, long>::iterator distMapItr = distributionHashMap.find(*itr);
             if (distMapItr != distributionHashMap.end()) {
               long previousValue = distMapItr->second;
