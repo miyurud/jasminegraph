@@ -2579,7 +2579,6 @@ void JasmineGraphServer::addInstanceDetailsToPerformanceDB(std::string host, std
 }
 
 void JasmineGraphServer::inDegreeDistribution(std::string graphID) {
-    std::cout << "In degree distribution JasmineGraphServer" << std::endl;
 
     std::map<std::string, JasmineGraphServer::workerPartition> graphPartitionedHosts =
             JasmineGraphServer::getWorkerPartitions(graphID);

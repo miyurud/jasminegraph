@@ -146,8 +146,6 @@ map<long, long> JasmineGraphHashMapCentralStore::getInDegreeDistributionHashMap(
         unordered_set<long> distribution  = it->second;
 
         for (auto itr = distribution.begin(); itr != distribution.end(); ++itr) {
-
-
             std::map<long, long>::iterator distMapItr = distributionHashMap.find(*itr);
             if (distMapItr != distributionHashMap.end()) {
                 long previousValue = distMapItr->second;
@@ -205,7 +203,6 @@ std::string JasmineGraphHashMapCentralStore::getFileSeparator() {
 void JasmineGraphHashMapCentralStore::toLocalSubGraphMap(const PartEdgeMapStore *edgeMapStoreData) {
     auto allEntries = edgeMapStoreData->entries();
     int tableSize = allEntries->size();
-    std::cout << tableSize << " => table size ============ = " << std::endl;
 
     for (int i = 0; i < tableSize; i = i + 1) {
         auto entry = allEntries->Get(i);

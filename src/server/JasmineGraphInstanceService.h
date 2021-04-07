@@ -111,8 +111,7 @@ public:
                                                                std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
                                                                std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores);
 
-
-        static int partitionCounter;
+    static int partitionCounter;
 };
 
 
