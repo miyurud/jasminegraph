@@ -104,6 +104,8 @@ public:
 
     map<long, long> getOutDegreeDistributionHashMap();
 
+    map<long, long> getInDegreeDistributionHashMap();
+
     map<long, unordered_set<long>> getUnderlyingHashMap();
 
     void initialize();

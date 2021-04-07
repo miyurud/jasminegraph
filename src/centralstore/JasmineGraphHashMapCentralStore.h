@@ -67,6 +67,8 @@ public:
 
     map<long, long> getOutDegreeDistributionHashMap();
 
+    map<long, long> getInDegreeDistributionHashMap();
+
     void initialize();
 
     void addVertex(string *attributes);
@@ -83,4 +85,3 @@ public:
 
 
 #endif //JASMINEGRAPH_JASMINEGRAPHHASHMAPCENTRALSTORE_H
-

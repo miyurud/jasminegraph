@@ -62,7 +62,10 @@ struct instanceservicesessionargs {
 };
 
 class JasmineGraphInstanceService {
+
 public:
+    static const int MESSAGE_SIZE = 10;
+    static const string END_OF_MESSAGE;
     JasmineGraphInstanceService();
 
     int run(string profile, string masterHost, string hostName, int serverPort, int serverDataPort);
@@ -103,6 +106,10 @@ public:
     static void trainPartition(std::string trainData);
 
     static std::map<int,std::vector<std::string>> iterationData;
+
+    static map<long, long> calculateLocalOutDegreeDistribution(string graphID, string partitionID,
+                                                               std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
+                                                               std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores);
 
     static int partitionCounter;
 };
