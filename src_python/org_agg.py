@@ -25,6 +25,7 @@ import os
 
 # CONSTANTS
 HEADER_LENGTH = 10
+WEIGHT_FILE_PATH = "/home/ubuntu/software/jasminegraph/src-python/weights/"
 
 logging.basicConfig(
     level=logging.INFO, 
@@ -59,7 +60,7 @@ class Aggregator:
         self.clients = {}
         self.client_ids = {}
 
-        # Craete Aggregator socket
+        # Create Aggregator socket
         self.aggregator_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.aggregator_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.aggregator_socket.bind((self.IP, self.PORT))
@@ -74,7 +75,7 @@ class Aggregator:
         logging.info(str(self.partition_sizes))
         logging.info(str(self.weights))
 
-        if len(self.weights) == self.NUM_CLIENTS:
+        if (len(self.weights) == self.NUM_CLIENTS) and (self.partition_sizes > 0):
 
             avg_weight = sum(self.weights) / sum(self.partition_sizes)
 
@@ -90,15 +91,18 @@ class Aggregator:
             
             logging.info("___________________________________________________ Training round %s done ______________________________________________________", self.training_cycles)
         
+        else:
+
+            logging.error("Invalid patition size")
+    
     def send_model(self, client_socket):
 
         if self.ROUNDS == self.training_cycles:
             self.stop_flag = True
 
         weights = np.array(self.model_weights)
-        weights_path = "./weights/agg" + str(self.training_cycles) + ".npy"
+        weights_path = WEIGHT_FILE_PATH + "weights_round_" + str(self.training_cycles) + ".npy"
         np.save(weights_path,weights)
-
 
         data = {"STOP_FLAG":self.stop_flag,"WEIGHTS":weights}
 
@@ -119,7 +123,6 @@ class Aggregator:
                 return False
 
             message_length = int(message_header.decode('utf-8').strip())
-
 
             full_msg = b''
             while True:
@@ -167,16 +170,14 @@ class Aggregator:
                         client_id = message['ORG_ID']
                         weights = message['WEIGHTS']
 
-                    
-                        weights_path = "./weights/agg_a" + str(self.training_cycles) + ".npy"
+                        weights_path = WEIGHT_FILE_PATH + "weights_round_" + str(self.training_cycles) + ".npy"
                         np.save(weights_path,weights)
 
-                        num_examples = message["NUM_EXAMPLES"]   #// commented
-                        self.client_ids[notified_socket] = client_id #// commented
+                        num_examples = message["NUM_EXAMPLES"]
+                        self.client_ids[notified_socket] = client_id
                     
                     logging.info('Recieved model from client-%s at %s:%s',client_id, *self.clients[notified_socket])
-                    logging.info('Recieved model from client at %s:%s', *self.clients[notified_socket])
-                    self.update_model(weights,int(num_examples)) # commented
+                    self.update_model(weights,int(num_examples))
 
             for notified_socket in exception_sockets:
                 self.sockets_list.remove(notified_socket)
@@ -199,7 +200,7 @@ if __name__ == "__main__":
 
     args = dict(zip(arg_names, sys.argv[1:]))
 
-    logging.warning('####################################### New Training Session #######################################')
+    logging.info('####################################### New Training Session #######################################')
     logging.info('aggregator started , graph ID %s, number of clients %s, number of rounds %s',args['graph_id'],args['num_orgs'],args['num_rounds'])
 
     if 'IP' not in args.keys()  or args['IP'] == 'localhost':

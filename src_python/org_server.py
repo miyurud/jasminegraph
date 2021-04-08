@@ -81,7 +81,7 @@ class Server:
         self.partition_sizes.append(num_examples)
         self.weights.append(num_examples * new_weights)
 
-        if len(self.weights) == self.NUM_CLIENTS:
+        if (len(self.weights) == self.NUM_CLIENTS) and (self.partition_sizes > 0):
 
             avg_weight = sum(self.weights) / sum(self.partition_sizes)
 
@@ -133,6 +133,11 @@ class Server:
             
             logging.info("___________________________________________________ Training round %s done ______________________________________________________", self.training_cycles)
         
+        else:
+
+            logging.error("Invalid patition size")
+    
+    
     def send_model(self, client_socket):
 
         weights = np.array(self.model_weights)
@@ -226,7 +231,7 @@ if __name__ == "__main__":
 
     args = dict(zip(arg_names, sys.argv[1:]))
 
-    logging.warning('####################################### New Training Session #######################################')
+    logging.info('####################################### New Training Session #######################################')
     logging.info('Server started , org ID %s, number of clients %s, number of rounds %s',args['org_id'],args['num_clients'],args['num_rounds'])
 
     if 'IP' not in args.keys()  or args['IP'] == 'localhost':
