@@ -25,7 +25,7 @@ import os
 
 # CONSTANTS
 HEADER_LENGTH = 10
-WEIGHT_FILE_PATH = "/home/ubuntu/software/jasminegraph/src-python/weights/"
+WEIGHT_FILE_PATH = "/var/tmp/jasminegraph-localstore/"
 
 logging.basicConfig(
     level=logging.INFO, 

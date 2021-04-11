@@ -23,8 +23,8 @@ from timeit import default_timer as timer
 import os
 
 # CONSTANTS
-FLAG_PATH = "./temp/flag.txt"
-WEIGHTS_PATH = "./temp/weights.txt"
+FLAG_PATH = "/var/tmp/jasminegraph-localstore/flag.txt"
+WEIGHTS_PATH = "/var/tmp/jasminegraph-localstore/weights.txt"
 HEADER_LENGTH = 10
 
 logging.basicConfig(
