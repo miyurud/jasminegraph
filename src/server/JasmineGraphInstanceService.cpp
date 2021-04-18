@@ -760,13 +760,13 @@ void *instanceservicesession(void *dummyPt) {
 
                 if (sockfd < 0) {
                     std::cout << "Cannot accept connection" << std::endl;
-                    return;
+                    return 0;
                 }
 
                 server = gethostbyname(host.c_str());
                 if (server == NULL) {
                     std::cout << "ERROR, no host named " << server << std::endl;
-                    return;
+                    return 0;
                 }
 
                 bzero((char *) &serv_addr, sizeof(serv_addr));
@@ -777,7 +777,7 @@ void *instanceservicesession(void *dummyPt) {
                 serv_addr.sin_port = htons(port);
                 if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
                     std::cout << "ERROR connecting" << std::endl;
-                    return;
+                    return 0;
                 }
 
                 bzero(data, INSTANCE_DATA_LENGTH);
@@ -786,7 +786,7 @@ void *instanceservicesession(void *dummyPt) {
 
                 if(result_wr < 0) {
                     instance_logger.log("Error writing to socket", "error");
-                    return;
+                    return 0;
                 }
 
                 instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_IN_DEGREE_DISTRIBUTION_TO_AGGREGATOR, "info");
@@ -802,7 +802,7 @@ void *instanceservicesession(void *dummyPt) {
 
                     if (result_wr < 0) {
                         instance_logger.log("Error writing to socket", "error");
-                        return;
+                        return 0;
                     }
                     instance_logger.log("Sent : Graph ID " + graphID, "info");
 
@@ -818,7 +818,7 @@ void *instanceservicesession(void *dummyPt) {
 
                         if (result_wr < 0) {
                             instance_logger.log("Error writing to socket", "error");
-                            return;
+                            return 0;
                         }
                         instance_logger.log("Sent : Partition ID " + std::to_string(partitionID), "info");
 
@@ -838,7 +838,7 @@ void *instanceservicesession(void *dummyPt) {
                             degreeDistString.append(response);
                         }
 
-                        if (degreeDistString.back() == ",")) {
+                        if (degreeDistString.back() == ",") {
                             degreeDistString.pop_back();
                         }
 
