@@ -19,7 +19,6 @@ limitations under the License.
 #include "JasmineGraphInstance.h"
 #include "../server/JasmineGraphServer.h"
 #include <bits/stdc++.h>
-#include <boost/algorithm/string.hpp>
 
 using namespace std;
 Logger instance_logger;
@@ -635,8 +634,10 @@ void *instanceservicesession(void *dummyPt) {
                     if ((its->first) == (itcentral->first)) {
                         degreeDistribution[its->first] = (its->second) + (itcentral->second);
                         centralNodeFound = true;
+                        break;
                     }
                 }
+
                 if (!centralNodeFound) {
                     degreeDistribution.insert(std::make_pair(its->first, its->second));
                 }
@@ -688,7 +689,11 @@ void *instanceservicesession(void *dummyPt) {
             instance_logger.log("Received Worker List " + workerList, "info");
 
             std::vector<string> workerSockets;
-            boost::split(workerSockets, workerList, boost::is_any_of(","));
+            stringstream wl(workerList);
+            string intermediate;
+            while(getline(wl, intermediate, ',')) {
+                workerSockets.push_back(intermediate);
+            }
 
             // Calculate the out degree distribution in the current super worker.
             JasmineGraphHashMapLocalStore graphDB;
@@ -729,12 +734,14 @@ void *instanceservicesession(void *dummyPt) {
             }
 
             // Invoke other workers to calculate their own our degree distributions
-            //todo  invoke other workers asynchronously
+            //TODO(kasundharmadasa:  invoke other workers asynchronously)
             for (vector<string>::iterator workerIt=workerSockets.begin(); workerIt!=workerSockets.end(); ++workerIt) {
-                instance_logger.log("Worker pair " + *workerIt, "info");
-
                 std::vector <string> workerSocketPair;
-                boost::split(workerSocketPair, *workerIt, boost::is_any_of(":"));
+                stringstream wl(*workerIt);
+                string intermediate;
+                while(getline(wl, intermediate, ':')) {
+                    workerSocketPair.push_back(intermediate);
+                }
 
                 if  (std::to_string(serverPort).compare(workerSocketPair[1]) == 0) {
                     continue;
@@ -743,7 +750,7 @@ void *instanceservicesession(void *dummyPt) {
                 string host = workerSocketPair[0];
                 int port = stoi(workerSocketPair[1]);
                 int sockfd;
-                char data[300];
+                char data[INSTANCE_DATA_LENGTH];
                 bool loop = false;
                 socklen_t len;
                 struct sockaddr_in serv_addr;
@@ -753,11 +760,13 @@ void *instanceservicesession(void *dummyPt) {
 
                 if (sockfd < 0) {
                     std::cout << "Cannot accept connection" << std::endl;
+                    return;
                 }
 
                 server = gethostbyname(host.c_str());
                 if (server == NULL) {
                     std::cout << "ERROR, no host named " << server << std::endl;
+                    return;
                 }
 
                 bzero((char *) &serv_addr, sizeof(serv_addr));
@@ -768,21 +777,22 @@ void *instanceservicesession(void *dummyPt) {
                 serv_addr.sin_port = htons(port);
                 if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
                     std::cout << "ERROR connecting" << std::endl;
-                    //TODO::exit
+                    return;
                 }
 
-                bzero(data, 301);
+                bzero(data, INSTANCE_DATA_LENGTH);
                 int result_wr = write(sockfd, JasmineGraphInstanceProtocol::SEND_IN_DEGREE_DISTRIBUTION_TO_AGGREGATOR.c_str(),
                                       JasmineGraphInstanceProtocol::SEND_IN_DEGREE_DISTRIBUTION_TO_AGGREGATOR.size());
 
                 if(result_wr < 0) {
                     instance_logger.log("Error writing to socket", "error");
+                    return;
                 }
 
                 instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_IN_DEGREE_DISTRIBUTION_TO_AGGREGATOR, "info");
 
-                bzero(data, 301);
-                read(sockfd, data, 300);
+                bzero(data, INSTANCE_DATA_LENGTH);
+                read(sockfd, data, INSTANCE_DATA_LENGTH);
                 string response = (data);
                 response = utils.trim_copy(response, " \f\n\r\t\v");
 
@@ -792,11 +802,12 @@ void *instanceservicesession(void *dummyPt) {
 
                     if (result_wr < 0) {
                         instance_logger.log("Error writing to socket", "error");
+                        return;
                     }
                     instance_logger.log("Sent : Graph ID " + graphID, "info");
 
-                    bzero(data, 301);
-                    read(sockfd, data, 300);
+                    bzero(data, INSTANCE_DATA_LENGTH);
+                    read(sockfd, data, INSTANCE_DATA_LENGTH);
                     string response = (data);
                     response = utils.trim_copy(response, " \f\n\r\t\v");
 
@@ -807,13 +818,14 @@ void *instanceservicesession(void *dummyPt) {
 
                         if (result_wr < 0) {
                             instance_logger.log("Error writing to socket", "error");
+                            return;
                         }
                         instance_logger.log("Sent : Partition ID " + std::to_string(partitionID), "info");
 
                         string degreeDistString;
-                        while (1) {
-                            bzero(data, 301);
-                            read(sockfd, data, 300);
+                        while (true) {
+                            bzero(data, INSTANCE_DATA_LENGTH);
+                            read(sockfd, data, INSTANCE_DATA_LENGTH);
                             string response = (data);
                             response = utils.trim_copy(response, " \f\n\r\t\v");
 
@@ -826,26 +838,36 @@ void *instanceservicesession(void *dummyPt) {
                             degreeDistString.append(response);
                         }
 
-                        if (boost::algorithm::ends_with(degreeDistString, ",")) {
+                        if (degreeDistString.back() == ",")) {
                             degreeDistString.pop_back();
                         }
 
                         std::vector<string> workerInDegreeDist;
-                        boost::split(workerInDegreeDist, degreeDistString, boost::is_any_of(","));
+                        stringstream wl(degreeDistString);
+                        string intermediate;
+                        while(getline(wl, intermediate, ',')) {
+                            workerInDegreeDist.push_back(intermediate);
+                        }
 
                         for (vector<string>::iterator workerInDegreeDistIt=workerInDegreeDist.begin(); workerInDegreeDistIt!=workerInDegreeDist.end(); ++workerInDegreeDistIt) {
                             std::vector <string> workerInDegreeDistPair;
+                            long workerInDegreeDistKey = std::stoi(workerInDegreeDistPair[0]);
+                            long workerInDegreeDistValue = std::stoi(workerInDegreeDistPair[1]);
 
-                            boost::split(workerInDegreeDistPair, *workerInDegreeDistIt, boost::is_any_of(":"));
-                            if (degreeDistribution.count( std::stoi(workerInDegreeDistPair[0]))) {
+                            stringstream wl(*workerInDegreeDistIt);
+                            string intermediate;
+                            while(getline(wl, intermediate, ':')) {
+                                workerInDegreeDistPair.push_back(intermediate);
+                            }
 
-                                long value = degreeDistribution[std::stoi(workerInDegreeDistPair[0])];
-                                long totalValue = std::stoi(workerInDegreeDistPair[1]) + value;
+                            if (degreeDistribution.count(workerInDegreeDistKey)) {
 
-                                degreeDistribution[std::stoi(workerInDegreeDistPair[0])] = totalValue;
+                                long value = degreeDistribution[workerInDegreeDistKey];
+                                long totalValue = workerInDegreeDistValue + value;
+
+                                degreeDistribution[workerInDegreeDistKey] = totalValue;
                             } else {
-                                degreeDistribution.insert(std::make_pair(std::stoi(workerInDegreeDistPair[0]),
-                                                                         std::stoi(workerInDegreeDistPair[1])));
+                                degreeDistribution.insert(std::make_pair(workerInDegreeDistKey, workerInDegreeDistValue));
                             }
                         }
                     }

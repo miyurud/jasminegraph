@@ -70,13 +70,10 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             std::stringstream ss;
             std::vector < vector < pair < string, string>>> v = sqlite.runSelect(
                     "SELECT idgraph, name, upload_path, graph_status_idgraph_status FROM graph;");
-            for (std::vector < vector < pair < string, string>>>::iterator i = v.begin();
-            i != v.end();
-            ++i) {
+            for (std::vector < vector < pair < string, string>>>::iterator i = v.begin(); i != v.end(); ++i) {
                 ss << "|";
                 int counter = 0;
-                for (std::vector < pair < string, string >> ::iterator j = (i->begin()); j != i->end();
-                ++j) {
+                for (std::vector < pair < string, string >> ::iterator j = (i->begin()); j != i->end(); ++j) {
                     if (counter == 3) {
                         if (std::stoi(j->second) == Conts::GRAPH_STATUS::LOADING) {
                             ss << "loading|";
@@ -870,8 +867,6 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
             char graph_id[FRONTEND_DATA_LENGTH];
             bzero(graph_id, FRONTEND_DATA_LENGTH + 1);
-            string name = "";
-            string path = "";
 
             read(connFd, graph_id, FRONTEND_DATA_LENGTH);
 
@@ -1123,8 +1118,7 @@ void JasmineGraphFrontEnd::removeGraph(std::string graphID, SQLiteDBInterface sq
     vector<vector<pair<string, string>>> hostPartitionResults = sqlite.runSelect(
             "SELECT name, partition_idpartition FROM worker_has_partition INNER JOIN worker ON "
             "worker_has_partition.worker_idworker = worker.idworker WHERE partition_graph_idgraph = " + graphID + ";");
-    for (vector<vector<pair<string, string>>>::iterator i = hostPartitionResults.begin();
-    i != hostPartitionResults.end(); ++i) {
+    for (vector<vector<pair<string, string>>>::iterator i = hostPartitionResults.begin(); i != hostPartitionResults.end(); ++i) {
         int count = 0;
         string hostname;
         string partitionID;
