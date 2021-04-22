@@ -74,3 +74,4 @@ const string JasmineGraphInstanceProtocol::FILE_TYPE_CENTRALSTORE_AGGREGATE="fil
 const string JasmineGraphInstanceProtocol::FILE_TYPE_CENTRALSTORE_COMPOSITE="file-type-centralstore-composite";
 const string JasmineGraphInstanceProtocol::GRAPH_STREAM_START="stream-start";
 const string JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK="stream-start-ack";
+const string JasmineGraphInstanceProtocol::SEND_PRIORITY="send-priority";

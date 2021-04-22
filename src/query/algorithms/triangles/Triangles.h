@@ -19,6 +19,7 @@ limitations under the License.
 #include "../../../localstore/JasmineGraphHashMapLocalStore.h"
 #include "../../../centralstore/JasmineGraphHashMapCentralStore.h"
 #include "../../../centralstore/JasmineGraphHashMapDuplicateCentralStore.h"
+#include "../../../util/Conts.h"
 #include <map>
 #include <set>
 #include <algorithm>

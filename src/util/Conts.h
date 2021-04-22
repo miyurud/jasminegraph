@@ -17,6 +17,8 @@ limitations under the License.
 
 #include <string>
 
+extern int sleepFlag;
+
 class Conts {
 public:
     std::string BATCH_UPLOAD_FILE_LIST = "conf/batch-upload.txt";
