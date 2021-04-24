@@ -839,7 +839,7 @@ void *instanceservicesession(void *dummyPt) {
                         }
 
                         string suffix = ",";
-                        if (degreeDistString.rfind(suffix) == std::abs(degreeDistString.size()-suffix.size())) {
+                        if (degreeDistString.rfind(suffix) == std::abs(int(degreeDistString.size()-suffix.size()))) {
                             degreeDistString.pop_back();
                         }
 
