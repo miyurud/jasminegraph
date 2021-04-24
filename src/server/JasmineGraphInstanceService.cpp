@@ -18,7 +18,6 @@ limitations under the License.
 #include "../util/logger/Logger.h"
 #include "JasmineGraphInstance.h"
 #include "../server/JasmineGraphServer.h"
-#include <cstdlib>
 
 using namespace std;
 Logger instance_logger;
