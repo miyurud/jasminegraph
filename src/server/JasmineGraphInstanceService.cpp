@@ -838,8 +838,11 @@ void *instanceservicesession(void *dummyPt) {
                         }
 
                         string suffix = ",";
+                        instance_logger.log("degree string " + degreeDistString, "info");
                         if (degreeDistString.rfind(suffix) == std::abs(int(degreeDistString.size()-suffix.size()))) {
+
                             degreeDistString.pop_back();
+                            instance_logger.log("degree string after " + degreeDistString, "info");
                         }
 
                         std::vector<string> workerInDegreeDist;
