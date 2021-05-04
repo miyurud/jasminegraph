@@ -56,7 +56,7 @@ void DataPublisher::publish(std::string message) {
     // Receve ack for edge data content length
 
     if (return_status > 0) {
-        fprintf(stdout, "Received int = %d\n", ntohl(received_int));
+        data_publisher_logger.debug("Received int ="+std::to_string(ntohl(received_int)));
     } else {
         data_publisher_logger.error("Error while receiving content length ack\n");
     }

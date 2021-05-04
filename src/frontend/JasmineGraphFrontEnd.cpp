@@ -53,6 +53,27 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
     frontend_logger.log("Master IP: " + masterIP, "info");
     char data[FRONTEND_DATA_LENGTH];
     bzero(data, FRONTEND_DATA_LENGTH + 1);
+    Utils utils;
+    vector<Utils::worker> workerList = utils.getWorkerList(sqlite);
+    std::map<string, std::vector<string>> partitionMap;
+    for (int i = 0; i < workerList.size(); i++) {
+        Utils::worker currentWorker = workerList.at(i);
+        string host = currentWorker.hostname;
+        string workerID = currentWorker.workerID;
+        string partitionId;
+
+        std::vector<string> partitionList = partitionMap[workerID];
+
+        std::vector<string>::iterator partitionIterator;
+
+        for (partitionIterator = partitionList.begin(); partitionIterator != partitionList.end(); ++partitionIterator) {
+            int workerPort = atoi(string(currentWorker.port).c_str());
+            int workerDataPort = atoi(string(currentWorker.dataPort).c_str());
+            frontend_logger.log("====>PORT:" + std::to_string(workerPort), "info");
+
+            partitionId = *partitionIterator;
+        }
+    }
     DataPublisher workerClient(7780, "127.0.0.1");
     bool loop = false;
     while (!loop) {
