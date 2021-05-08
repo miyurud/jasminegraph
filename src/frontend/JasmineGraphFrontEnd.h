@@ -79,7 +79,7 @@ public:
                                            std::string fileName);
 
     static long getTriangleCount(int graphId, std::string host, int port, int dataPort, int partitionId,
-                                 std::string masterIP, bool isCompositeAggregation);
+                                 std::string masterIP, int uniqueId, bool isCompositeAggregation);
 
     static void getAndUpdateUploadTime(std::string graphID, SQLiteDBInterface sqlite);
 
@@ -90,6 +90,8 @@ public:
     static map<long, long> getOutDegreeDistributionHashMap(map<long, unordered_set<long>> graphMap);
 
     static bool isGraphActive(string graphID, SQLiteDBInterface sqlite);
+
+    static int getUid();
 
 
     static std::vector<std::vector<string>> fileCombinations;

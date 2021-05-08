@@ -47,6 +47,8 @@ std::map<std::string, std::string> JasmineGraphFrontEnd::combinationWorkerMap;
 std::map<long, std::map<long, std::vector<long>>> JasmineGraphFrontEnd::triangleTree;
 std::mutex fileCombinationMutex;
 std::mutex triangleTreeMutex;
+std::mutex processStatusMutex;
+std::set<ProcessInfo> processData;
 
 void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface sqlite) {
     frontend_logger.log("Thread No: " + to_string(pthread_self()), "info");
@@ -1220,6 +1222,7 @@ long JasmineGraphFrontEnd::countTriangles(std::string graphId, SQLiteDBInterface
     std::vector<std::future<string>> remoteCopyRes;
     PlacesToNodeMapper placesToNodeMapper;
     std::vector<std::string> compositeCentralStoreFiles;
+    int uniqueId = getUid();
 
     string sqlStatement = "SELECT worker_idworker, name,ip,user,server_port,server_data_port,partition_idpartition "
                           "FROM worker_has_partition INNER JOIN worker ON worker_has_partition.worker_idworker=worker.idworker "
@@ -1305,7 +1308,7 @@ long JasmineGraphFrontEnd::countTriangles(std::string graphId, SQLiteDBInterface
             partitionId = *partitionIterator;
             intermRes.push_back(
                     std::async(std::launch::async, JasmineGraphFrontEnd::getTriangleCount, atoi(graphId.c_str()), host,
-                               workerPort, workerDataPort, atoi(partitionId.c_str()), masterIP, isCompositeAggregation));
+                               workerPort, workerDataPort, atoi(partitionId.c_str()), masterIP, uniqueId, isCompositeAggregation));
         }
     }
 
@@ -1329,7 +1332,7 @@ long JasmineGraphFrontEnd::countTriangles(std::string graphId, SQLiteDBInterface
 
 
 long JasmineGraphFrontEnd::getTriangleCount(int graphId, std::string host, int port, int dataPort, int partitionId,
-                                            std::string masterIP, bool isCompositeAggregation) {
+                                            std::string masterIP, int uniqueId, bool isCompositeAggregation) {
 
     int sockfd;
     char data[300];
@@ -1339,6 +1342,40 @@ long JasmineGraphFrontEnd::getTriangleCount(int graphId, std::string host, int p
     struct hostent *server;
     Utils utils;
     long triangleCount;
+
+    //Below code is used to update the process details
+    processStatusMutex.lock();
+    std::set<ProcessInfo>::iterator processIterator;
+    bool processInfoExists = false;
+    for (processIterator = processData.begin(); processIterator != processData.end();++processIterator) {
+        ProcessInfo processInformation = *processIterator;
+
+        if (processInformation.graphId == graphId && processInformation.id == uniqueId) {
+            processInfoExists = true;
+            std::string workerIdentifier = host + ":" + std::to_string(port);
+            std::vector<std::string> workers = processInformation.workerList;
+            if (std::find(workers.begin(), workers.end(), workerIdentifier) == workers.end()) {
+                workers.push_back(workerIdentifier);
+                processInformation.workerList = workers;
+                processData.erase(processInformation);
+                processData.insert(processInformation);
+                break;
+            }
+        }
+    }
+
+    if (!processInfoExists) {
+        struct ProcessInfo processInformation;
+        std::string workerIdentifier = host + ":" + std::to_string(port);
+        std::vector<std::string> workerList;
+        processInformation.id = uniqueId;
+        processInformation.graphId = graphId;
+        processInformation.processName = "TRIANGLE-COUNT";
+        workerList.push_back(workerIdentifier);
+        processInformation.workerList = workerList;
+        processData.insert(processInformation);
+    }
+    processStatusMutex.unlock();
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -1556,6 +1593,23 @@ long JasmineGraphFrontEnd::getTriangleCount(int graphId, std::string host, int p
                 }
             }
         }
+
+        processStatusMutex.lock();
+        std::set<ProcessInfo>::iterator processCompleteIterator;
+        for (processCompleteIterator = processData.begin(); processCompleteIterator != processData.end(); ++processCompleteIterator) {
+            ProcessInfo processInformation = *processCompleteIterator;
+
+            if (processInformation.graphId == graphId) {
+                processData.erase(processInformation);
+                std::string workerIdentifier = host + ":" + std::to_string(port);
+                std::vector<std::string> workers = processInformation.workerList;
+                workers.erase(std::remove(workers.begin(), workers.end(), workerIdentifier), workers.end());
+                processInformation.workerList = workers;
+                processData.insert(processInformation);
+                break;
+            }
+        }
+        processStatusMutex.unlock();
 
         return triangleCount;
 
@@ -2631,4 +2685,9 @@ map<long, long> JasmineGraphFrontEnd::getOutDegreeDistributionHashMap(map<long, 
         distributionHashMap.insert(std::make_pair(it->first, distribution));
     }
     return distributionHashMap;
+}
+
+int JasmineGraphFrontEnd::getUid() {
+    static std::atomic<std::uint32_t> uid { 0 };
+    return ++uid;
 }
