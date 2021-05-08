@@ -32,7 +32,6 @@ private:
     std::string profile;
     std::string workerHosts;
     std::string enableNmon;
-    int numberOfWorkers = -1;
     static const int BUFFER_SIZE = 128;
     int serverPort;
     int serverDataPort;
@@ -106,11 +105,14 @@ public:
 
     void assignPartitionToWorker (std::string fileName, int graphId, std::string workerHost, int workerPort, int workerDataPort);
 
+    bool spawnNewWorker(string host, string port, string dataPort, string profile, string masterHost, string enableNmon);
+
     JasmineGraphFrontEnd *frontend;
     SQLiteDBInterface sqlite;
     PerformanceSQLiteDBInterface performanceSqlite;
     JasmineGraphBackend *backend;
     std::string masterHost;
+    int numberOfWorkers = -1;
 
     struct workers {
         std::string hostname;

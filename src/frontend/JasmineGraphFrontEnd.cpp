@@ -889,6 +889,50 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 frontend_logger.log("The graph is not fully accessible or not fully trained.", "error");
                 continue;
             }
+        } else if (line.compare(START_REMOTE_WORKER) == 0) {
+            int result_wr = write(connFd, REMOTE_WORKER_ARGS.c_str(), REMOTE_WORKER_ARGS.size());
+            if(result_wr < 0) {
+                frontend_logger.log("Error writing to socket", "error");
+            }
+            result_wr = write(connFd, "\r\n", 2);
+            if(result_wr < 0) {
+                frontend_logger.log("Error writing to socket", "error");
+            }
+
+            char worker_data[300];
+            bzero(worker_data, 301);
+
+            read(connFd, worker_data, 300);
+
+            string remote_worker_data(worker_data);
+
+            Utils utils;
+            remote_worker_data = utils.trim_copy(remote_worker_data, " \f\n\r\t\v");
+            frontend_logger.log("Data received: " + remote_worker_data, "info");
+            string host = "";
+            string port = "";
+            string dataPort = "";
+            string profile = "";
+            string masterHost = "";
+            string enableNmon = "";
+
+            std::vector<std::string> strArr = Utils::split(remote_worker_data, '|');
+
+            if (strArr.size() < 6) {
+                frontend_logger.log("Message format not recognized", "error");
+                continue;
+            }
+
+            host = strArr[0];
+            port = strArr[1];
+            dataPort = strArr[2];
+            profile = strArr[3];
+            masterHost = strArr[4];
+            enableNmon = strArr[5];
+
+            JasmineGraphServer *jasmineServer = new JasmineGraphServer();
+            bool isSpawned = jasmineServer->spawnNewWorker(host,port,dataPort,profile,masterHost,enableNmon);
+
         } else {
             frontend_logger.log("Message format not recognized " + line, "error");
         }
