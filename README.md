@@ -44,8 +44,8 @@ The following build tools, applications, and libraries need to be installed befo
     - Add pigz executable's path to ~/.bashrc file and refresh.
 - nlohmann_json (https://github.com/nlohmann/json)
     - Download the nolhmann latest release include.zip i:e [include.zip](https://github.com/nlohmann/json/releases/download/v3.9.1/include.zip) 
-    - Create a directory in JASMINE_HOME/software names `nlohmann_json`
-    - Extract the `include.zip` to  `<JASMINE_HOME>/software/nlohmann_json/`
+    - Create a directory in JASMINEGRAPH_HOME/software names `nlohmann_json`
+    - Extract the `include.zip` to  `<JASMINEGRAPH_HOME>/software/nlohmann_json/`
 - python3.5 (https://www.python.org/downloads/release/python-350/)
     - Read this [blog](https://passingcuriosity.com/2015/installing-python-from-source/) for more details on setting up python3.5
 - Recent versions of TensorFlow, numpy, scipy, sklearn, and networkx are required (but networkx must be <=1.11). You can install all the required packages using the following command:
