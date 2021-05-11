@@ -47,6 +47,7 @@ limitations under the License.
 void *instanceservicesession(void *dummyPt);
 void writeCatalogRecord(string record);
 void deleteGraphPartition(std::string graphID, std::string partitionID);
+void createFilters(string graphID, string partitionID);
 void removeGraphFragments(std::string graphID);
 long countLocalTriangles(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores, std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores, std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> graphDBMapDuplicateCentralStores);
 
@@ -112,8 +113,6 @@ public:
     void entityRes(string trainData);
 
     void generateLocalCandidateSets(int filterSize, int noClusters);
-
-    map<int, string> createFilters(map<int, vector<string>> entityData, int filterSize, int numHashes);
 
     vector<map<int, string>>
     createFilters(map<int, vector<string>> entityData, map<int, vector<int>> neighborhoodData, int filterSize,

@@ -69,6 +69,7 @@ extern const string REFORMAT;
 extern const string TRIANGLES;
 extern const string TRAIN;
 extern const string PREDICT;
+extern const string ENTITY_RESOLUTION;
 extern const string PARTITIONS;
 extern const string EMPTY;
 extern const string START_REMOTE_WORKER;

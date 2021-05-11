@@ -33,6 +33,7 @@ const string VCOUNT= "vcnt";
 const string ECOUNT= "ecnt";
 const string TRAIN = "train";
 const string PREDICT = "predict";
+const string ENTITY_RESOLUTION = "entity-res";
 const string PARTITIONS = "number-of-partitions";
 const string EMPTY = "empty";
 const string START_REMOTE_WORKER = "start-rmt-worker";

@@ -84,7 +84,7 @@ class Utils
 
     static void assignPartitionsToWorkers(int numberOfWorkers, SQLiteDBInterface sqlite);
 
-    string replace(string str, string old, string replacement);
+    std::string replace(std::string str, std::string old, std::string replacement);
 };
 
 #endif //JASMINEGRAPH_UTILS_H

@@ -64,6 +64,8 @@ public:
     static const string PERFORMANCE_STATISTICS;
     static const string INITIATE_TRAIN;
     static const string INITIATE_PREDICT;
+    static const string CREATE_BLOOM_FILTERS;
+    static const string BUCKET_LOCAL_CLUSTERS;
     static const string SEND_HOSTS;
     static const string INITIATE_MODEL_COLLECTION;
     static const string INITIATE_FRAGMENT_RESOLUTION;

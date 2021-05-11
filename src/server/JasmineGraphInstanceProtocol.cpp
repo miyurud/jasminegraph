@@ -55,6 +55,8 @@ const string JasmineGraphInstanceProtocol::AGGREGATE_COMPOSITE_CENTRALSTORE_TRIA
 const string JasmineGraphInstanceProtocol::PERFORMANCE_STATISTICS = "perf-stat";
 const string JasmineGraphInstanceProtocol::INITIATE_TRAIN = "initiate-train";
 const string JasmineGraphInstanceProtocol::INITIATE_PREDICT = "init-predict";
+const string JasmineGraphInstanceProtocol::CREATE_BLOOM_FILTERS = "create-bloom-filters";
+const string JasmineGraphInstanceProtocol::BUCKET_LOCAL_CLUSTERS = "bucket-local-clusters";
 const string JasmineGraphInstanceProtocol::SEND_HOSTS = "send-hosts";
 const string JasmineGraphInstanceProtocol::INITIATE_MODEL_COLLECTION = "initiate-model-collection";
 const string JasmineGraphInstanceProtocol::INITIATE_FRAGMENT_RESOLUTION = "frag-res";

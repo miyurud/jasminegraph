@@ -36,6 +36,7 @@ limitations under the License.
 #include "../metadb/SQLiteDBInterface.h"
 #include "../util/PlacesToNodeMapper.h"
 #include "../query/algorithms/triangles/Triangles.h"
+#include "../server/JasmineGraphServer.h"
 
 class JasmineGraphHashMapCentralStore;
 
@@ -46,6 +47,10 @@ public:
     JasmineGraphFrontEnd(SQLiteDBInterface db, std::string masterIP);
 
     int run();
+
+    void setServer(JasmineGraphServer s);
+
+    void initiateEntityResolution(std::string graphID, SQLiteDBInterface sqlite, std::string masterIP);
 
     static bool graphExists(std::string basic_string, SQLiteDBInterface sqlite);
 
@@ -99,6 +104,7 @@ public:
 private:
     SQLiteDBInterface sqlite;
     std::string masterIP;
+    JasmineGraphServer *server;
 
 
 };
