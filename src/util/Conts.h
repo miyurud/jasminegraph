@@ -69,6 +69,8 @@ public:
 
     static int GRAPH_TYPE_TEXT;
 
+    static int MAX_FE_SESSIONS;
+
 
 
     struct GRAPH_STATUS {

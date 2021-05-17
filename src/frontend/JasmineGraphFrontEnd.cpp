@@ -40,6 +40,7 @@ using json = nlohmann::json;
 using namespace std;
 
 static int connFd;
+static int maxFESession;
 Logger frontend_logger;
 static map<string,int> aggregatorWeightMap;
 std::vector<std::vector<string>> JasmineGraphFrontEnd::fileCombinations;
@@ -69,6 +70,16 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
     }
     bool loop = false;
     while (!loop) {
+        if(maxFESession == Conts::MAX_FE_SESSIONS + 1) {
+            maxFESession--;
+            std::string errorResponse = "Jasminegraph Server Busy. Please try again later.";
+            int result_wr = write(connFd, errorResponse.c_str(), 50);
+            if(result_wr < 0) {
+                frontend_logger.log("Error writing to socket", "error");
+            }
+            break;
+        }
+
         bzero(data, FRONTEND_DATA_LENGTH + 1);
         read(connFd, data, FRONTEND_DATA_LENGTH);
 
@@ -81,7 +92,9 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
         Utils utils;
         line = utils.trim_copy(line, " \f\n\r\t\v");
 
+
         if (line.compare(EXIT) == 0) {
+            maxFESession--;
             break;
         } else if (line.compare(LIST) == 0) {
             std::stringstream ss;
@@ -1059,11 +1072,12 @@ int JasmineGraphFrontEnd::run() {
     listen(listenFd, 10);
 
     std::thread* myThreads = new std::thread[20];
+    std::vector<std::thread> threadVector;
     len = sizeof(clntAdd);
 
     int noThread = 0;
 
-    while (noThread < 20) {
+    while (true) {
         frontend_logger.log("Frontend Listening", "info");
 
         //this is where client connects. svr will hang in this mode until client conn
@@ -1083,17 +1097,12 @@ int JasmineGraphFrontEnd::run() {
         frontendservicesessionargs1->sqlite = this->sqlite;
         frontendservicesessionargs1->connFd = connFd;
 
-        myThreads[noThread] = std::thread(frontendservicesesion, masterIP, connFd, this->sqlite);
+        threadVector.push_back(std::thread(frontendservicesesion, masterIP, connFd, this->sqlite));
 
         std::thread();
 
-        noThread++;
+        maxFESession++;
     }
-
-    for (int i = 0; i < noThread; i++) {
-        myThreads[i].join();
-    }
-
 
 }
 
