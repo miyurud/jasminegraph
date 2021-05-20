@@ -63,6 +63,10 @@ struct instanceservicesessionargs {
     std::map<std::string,JasmineGraphHashMapDuplicateCentralStore> graphDBMapDuplicateCentralStores;
 };
 
+
+int collectBloomFilters(instanceservicesessionargs *sessionargs, std::string host, int port, int dataPort,
+                        std::string graphID, std::string partition);
+
 class JasmineGraphInstanceService {
 public:
     JasmineGraphInstanceService();
