@@ -55,26 +55,16 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
     bzero(data, FRONTEND_DATA_LENGTH + 1);
     Utils utils;
     vector<Utils::worker> workerList = utils.getWorkerList(sqlite);
-    std::map<string, std::vector<string>> partitionMap;
+    vector<DataPublisher> workerClients;
+    
     for (int i = 0; i < workerList.size(); i++) {
         Utils::worker currentWorker = workerList.at(i);
-        string host = currentWorker.hostname;
+        string workerHost = currentWorker.hostname;
         string workerID = currentWorker.workerID;
-        string partitionId;
-
-        std::vector<string> partitionList = partitionMap[workerID];
-
-        std::vector<string>::iterator partitionIterator;
-
-        for (partitionIterator = partitionList.begin(); partitionIterator != partitionList.end(); ++partitionIterator) {
-            int workerPort = atoi(string(currentWorker.port).c_str());
-            int workerDataPort = atoi(string(currentWorker.dataPort).c_str());
-            frontend_logger.log("====>PORT:" + std::to_string(workerPort), "info");
-
-            partitionId = *partitionIterator;
-        }
+        int workerPort = atoi(string(currentWorker.port).c_str());
+        DataPublisher workerClient(workerPort, workerHost);
+        workerClients.push_back(workerClient);        
     }
-    DataPublisher workerClient(7780, "127.0.0.1");
     bool loop = false;
     while (!loop) {
         bzero(data, FRONTEND_DATA_LENGTH + 1);
@@ -549,7 +539,8 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 partitionedEdge partitionedEdge = graphPartitioner.addEdge({sId, dId});
                 sourceJson["pid"] = partitionedEdge[0].second;
                 destinationJson["pid"] = partitionedEdge[1].second;
-                workerClient.publish(destinationJson.dump());
+                workerClients.at((int)partitionedEdge[0].second).publish(sourceJson.dump());
+                workerClients.at((int)partitionedEdge[1].second).publish(destinationJson.dump());
             }
             graphPartitioner.printStats();
 

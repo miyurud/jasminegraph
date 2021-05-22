@@ -29,7 +29,7 @@ NodeManager::NodeManager(GraphConfig gConfig) {
     this->graphID = gConfig.graphID;
     this->partitionID = gConfig.partitionID;
 
-    std::string graphPrefix = "databases/g" + std::to_string(graphID);
+    std::string graphPrefix = "./streamingdb/g" + std::to_string(graphID);
     std::string dbPrefix = graphPrefix + "_p" + std::to_string(partitionID);
     std::string nodesDBPath = dbPrefix + "_nodes.db";
     this->index_db_loc = dbPrefix + "_nodes.index.db";
