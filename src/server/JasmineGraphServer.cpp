@@ -1946,48 +1946,43 @@ void JasmineGraphServer::initiateFiles(std::string graphID, std::string training
     }
 }
 
+
 void JasmineGraphServer::initiateCommunication(std::string graphID, std::string trainingArgs, SQLiteDBInterface sqlite) {
 
-    int count = 0;
-    JasmineGraphTrainingSchedular *schedular = new JasmineGraphTrainingSchedular();
-    map<string, map<int, int>> scheduleForAllHosts = schedular->schedulePartitionTraining(graphID);
-    std::map<std::string, JasmineGraphServer::workerPartitions> graphPartitionedHosts = this->getGraphPartitionedHosts(
-            graphID);
-    int partition_count = 0;
-    std::map<std::string, JasmineGraphServer::workerPartitions>::iterator mapIterator;
-    for (mapIterator = graphPartitionedHosts.begin(); mapIterator != graphPartitionedHosts.end(); mapIterator++) {
-        JasmineGraphServer::workerPartitions workerPartition = mapIterator->second;
-        std::vector<std::string> partitions = workerPartition.partitionID;
-        std::vector<std::string>::iterator it;
-        for (it = partitions.begin(); it < partitions.end(); it++) {
-            partition_count++;
-        }
-    }
-    std::thread *workerThreads = new std::thread[partition_count+1];
-
     Utils utils;
-    trainingArgs = trainingArgs;
-
     int fl_clients = stoi(utils.getJasmineGraphProperty("org.jasminegraph.fl_clients"));
-    workerThreads[0] = std::thread(initiateServer,"localhost", 7780, 7781,trainingArgs,fl_clients, "1");
+    int threadLimit = fl_clients+1;
+    std::thread *workerThreads = new std::thread[threadLimit];
 
-    count = 1;
-    std::map<std::string, JasmineGraphServer::workerPartitions>::iterator j;
-    for (j = graphPartitionedHosts.begin(); j != graphPartitionedHosts.end(); j++) {
-        JasmineGraphServer::workerPartitions workerPartition = j->second;
-        std::vector<std::string> partitions = workerPartition.partitionID;
-        string partitionCount = std::to_string(partitions.size());
-        std::vector<std::string>::iterator k;
-        map<int, int> scheduleOfHost = scheduleForAllHosts[j->first];
-        for (k = partitions.begin(); k != partitions.end(); k++) {
-            int iterationOfPart = scheduleOfHost[stoi(*k)];
-            workerThreads[count] = std::thread(initiateClient,"localhost", workerPartition.port, 
-                                        workerPartition.dataPort,trainingArgs + " " + *k, fl_clients, *k);
-            count++;
+    Utils::worker workerInstance;
+    vector<Utils::worker> workerVector = utils.getWorkerList(sqlite);
+
+    trainingArgs = trainingArgs;
+    int threadID = 0;
+
+    for (int i = 0; i < workerVector.size(); i++) {
+
+        workerInstance = workerVector[i];
+
+        int serverPort = stoi(workerInstance.port);
+        int serverDataPort = stoi(workerInstance.dataPort);
+
+        if (i==0) {
+
+            workerThreads[threadID] = std::thread(initiateServer,"localhost", serverPort, 
+                                                    serverDataPort,trainingArgs,fl_clients, to_string(i));
+            threadID++;
         }
-    }
 
-    for (int threadCount = 0; threadCount < count; threadCount++) {
+        workerThreads[threadID] = std::thread(initiateClient,"localhost", serverPort, serverDataPort,trainingArgs + 
+                                                    " " + to_string(i), fl_clients, to_string(i));
+        threadID++;
+
+    }
+   
+    workerThreads[0].join();
+
+    for (int threadCount = 1; threadCount < threadLimit; threadCount++) {
         workerThreads[threadCount].join();
     }
 
