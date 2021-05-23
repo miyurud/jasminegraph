@@ -497,3 +497,37 @@ void Utils::assignPartitionsToWorkers(int numberOfWorkers, SQLiteDBInterface sql
         sqlite.runInsert(sqlStatement);
     }
 }
+
+void Utils::updateSLAInformation(PerformanceSQLiteDBInterface perfSqlite, std::string graphId, int partitionCount,
+                                 long newSlaValue, std::string category) {
+
+    std::string query = "SELECT id, sla_value, attempt from graph_sla where graph_id='" + graphId +
+            "' and partition_count='" + std::to_string(partitionCount) + "' and category='" + category + "';";
+
+    std::vector<vector<pair<string, string>>> results = perfSqlite.runSelect(query);
+
+    if (results.size() == 1) {
+        std::string slaId = results[0][0].second;
+        std::string slaValueString = results[0][1].second;
+        std::string attemptString = results[0][2].second;
+
+        long slaValue = atol(slaValueString.c_str());
+        int attempts = atoi(attemptString.c_str());
+
+        if (attempts < 3) {
+            long newSla = ((slaValue * attempts) + newSlaValue) / (attempts + 1);
+
+            attempts++;
+
+            std::string updateQuery = "UPDATE graph_sla set sla_value='" + std::to_string(newSla) + "', attempt='" +
+                                      std::to_string(attempts) + "' where id = '" + slaId + "'";
+
+            perfSqlite.runUpdate(updateQuery);
+        }
+    } else {
+        std::string insertQuery = "insert into graph_sla (graph_id, partition_count, sla_value, category, attempt) VALUES ('" +
+                graphId + "'," + std::to_string(partitionCount) + "," + std::to_string(newSlaValue) + ",'" + category + "',1);";
+
+        perfSqlite.runInsert(insertQuery);
+    }
+}

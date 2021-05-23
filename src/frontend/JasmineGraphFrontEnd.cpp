@@ -40,7 +40,8 @@ using json = nlohmann::json;
 using namespace std;
 
 static int connFd;
-static int maxFESession;
+static int currentFESession;
+static bool canCalibrate = true;
 Logger frontend_logger;
 static map<string,int> aggregatorWeightMap;
 std::vector<std::vector<string>> JasmineGraphFrontEnd::fileCombinations;
@@ -51,7 +52,8 @@ std::mutex triangleTreeMutex;
 std::mutex processStatusMutex;
 std::set<ProcessInfo> processData;
 
-void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface sqlite) {
+void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface sqlite,
+                            PerformanceSQLiteDBInterface perfSqlite) {
     frontend_logger.log("Thread No: " + to_string(pthread_self()), "info");
     frontend_logger.log("Master IP: " + masterIP, "info");
     char data[FRONTEND_DATA_LENGTH];
@@ -70,8 +72,8 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
     }
     bool loop = false;
     while (!loop) {
-        if(maxFESession == Conts::MAX_FE_SESSIONS + 1) {
-            maxFESession--;
+        if(currentFESession == Conts::MAX_FE_SESSIONS + 1) {
+            currentFESession--;
             std::string errorResponse = "Jasminegraph Server Busy. Please try again later.";
             int result_wr = write(connFd, errorResponse.c_str(), 50);
             if(result_wr < 0) {
@@ -92,9 +94,15 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
         Utils utils;
         line = utils.trim_copy(line, " \f\n\r\t\v");
 
+        if (currentFESession > 1) {
+            canCalibrate = false;
+        } else if (currentFESession == 1) {
+            canCalibrate = true;
+        }
+
 
         if (line.compare(EXIT) == 0) {
-            maxFESession--;
+            currentFESession--;
             break;
         } else if (line.compare(LIST) == 0) {
             std::stringstream ss;
@@ -708,7 +716,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 }
             } else {
                 auto begin = chrono::high_resolution_clock::now();
-                long triangleCount = JasmineGraphFrontEnd::countTriangles(graph_id, sqlite, masterIP);
+                long triangleCount = JasmineGraphFrontEnd::countTriangles(graph_id, sqlite, perfSqlite, masterIP);
                 auto end = chrono::high_resolution_clock::now();
                 auto dur = end - begin;
                 auto msDuration = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
@@ -1027,9 +1035,10 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
     close(connFd);
 }
 
-JasmineGraphFrontEnd::JasmineGraphFrontEnd(SQLiteDBInterface db, std::string masterIP) {
+JasmineGraphFrontEnd::JasmineGraphFrontEnd(SQLiteDBInterface db, PerformanceSQLiteDBInterface perfDb, std::string masterIP) {
     this->sqlite = db;
     this->masterIP = masterIP;
+    this->perfSqlite = perfDb;
 }
 
 int JasmineGraphFrontEnd::run() {
@@ -1097,11 +1106,11 @@ int JasmineGraphFrontEnd::run() {
         frontendservicesessionargs1->sqlite = this->sqlite;
         frontendservicesessionargs1->connFd = connFd;
 
-        threadVector.push_back(std::thread(frontendservicesesion, masterIP, connFd, this->sqlite));
+        threadVector.push_back(std::thread(frontendservicesesion, masterIP, connFd, this->sqlite, this->perfSqlite));
 
         std::thread();
 
-        maxFESession++;
+        currentFESession++;
     }
 
 }
@@ -1219,19 +1228,22 @@ bool JasmineGraphFrontEnd::isGraphActive(std::string graphID, SQLiteDBInterface 
     return result;
 }
 
-long JasmineGraphFrontEnd::countTriangles(std::string graphId, SQLiteDBInterface sqlite, std::string masterIP) {
+long JasmineGraphFrontEnd::countTriangles(std::string graphId, SQLiteDBInterface sqlite,
+                                          PerformanceSQLiteDBInterface perfSqlite, std::string masterIP) {
     long result= 0;
     bool isCompositeAggregation = false;
     Utils utils;
     Utils::worker aggregatorWorker;
     vector<Utils::worker> workerList = utils.getWorkerList(sqlite);
     int workerListSize = workerList.size();
-    int counter = 0;
+    int partitionCount = 0;
     std::vector<std::future<long>> intermRes;
     std::vector<std::future<string>> remoteCopyRes;
     PlacesToNodeMapper placesToNodeMapper;
     std::vector<std::string> compositeCentralStoreFiles;
     int uniqueId = getUid();
+
+    auto begin = chrono::high_resolution_clock::now();
 
     string sqlStatement = "SELECT worker_idworker, name,ip,user,server_port,server_data_port,partition_idpartition "
                           "FROM worker_has_partition INNER JOIN worker ON worker_has_partition.worker_idworker=worker.idworker "
@@ -1300,7 +1312,6 @@ long JasmineGraphFrontEnd::countTriangles(std::string graphId, SQLiteDBInterface
 
     for (int i = 0; i < workerListSize; i++) {
         Utils::worker currentWorker = workerList.at(i);
-        int k = counter;
         string host = currentWorker.hostname;
         string workerID = currentWorker.workerID;
         string partitionId;
@@ -1310,6 +1321,7 @@ long JasmineGraphFrontEnd::countTriangles(std::string graphId, SQLiteDBInterface
         std::vector<string>::iterator partitionIterator;
 
         for (partitionIterator = partitionList.begin(); partitionIterator != partitionList.end(); ++partitionIterator) {
+            partitionCount++;
             int workerPort = atoi(string(currentWorker.port).c_str());
             int workerDataPort = atoi(string(currentWorker.dataPort).c_str());
             frontend_logger.log("====>PORT:" + std::to_string(workerPort), "info");
@@ -1330,6 +1342,16 @@ long JasmineGraphFrontEnd::countTriangles(std::string graphId, SQLiteDBInterface
         result += aggregatedTriangleCount;
         frontend_logger.log("###FRONTEND### Getting Triangle Count : Completed: Triangles " + to_string(result),
                             "info");
+    }
+
+    auto end = chrono::high_resolution_clock::now();
+    auto dur = end - begin;
+    auto msDuration = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
+
+    std::string durationString = std::to_string(msDuration);
+
+    if (canCalibrate) {
+        Utils::updateSLAInformation(perfSqlite, graphId, partitionCount, msDuration, Conts::SLA_CATEGORY::TRIANGLE_COUNT);
     }
 
 

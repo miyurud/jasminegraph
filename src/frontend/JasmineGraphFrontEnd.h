@@ -34,16 +34,18 @@ limitations under the License.
 #include <map>
 #include <dirent.h>
 #include "../metadb/SQLiteDBInterface.h"
+#include "../performancedb/PerformanceSQLiteDBInterface.h"
 #include "../util/PlacesToNodeMapper.h"
 #include "../query/algorithms/triangles/Triangles.h"
 
 class JasmineGraphHashMapCentralStore;
 
-void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface sqlite);
+void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface sqlite,
+                            PerformanceSQLiteDBInterface perfSqlite);
 
 class JasmineGraphFrontEnd {
 public:
-    JasmineGraphFrontEnd(SQLiteDBInterface db, std::string masterIP);
+    JasmineGraphFrontEnd(SQLiteDBInterface db, PerformanceSQLiteDBInterface perfDb, std::string masterIP);
 
     int run();
 
@@ -71,7 +73,8 @@ public:
                                                       std::string compositeCentralStoreFileList,
                                                       std::string masterIP, std::string availableFileList);
 
-    static long countTriangles(std::string graphId, SQLiteDBInterface sqlite, std::string masterIP);
+    static long countTriangles(std::string graphId, SQLiteDBInterface sqlite,
+                               PerformanceSQLiteDBInterface perfSqlite, std::string masterIP);
 
     static string isFileAccessibleToWorker(std::string graphId, std::string partitionId,
                                            std::string aggregatorHostName, std::string aggregatorPort,
@@ -101,6 +104,7 @@ public:
 private:
     SQLiteDBInterface sqlite;
     std::string masterIP;
+    PerformanceSQLiteDBInterface perfSqlite;
 
 
 };

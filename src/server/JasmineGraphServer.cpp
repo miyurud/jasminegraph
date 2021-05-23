@@ -29,7 +29,7 @@ static map<string, pair<int, int>> hostPortMap;
 
 void *runfrontend(void *dummyPt) {
     JasmineGraphServer *refToServer = (JasmineGraphServer *) dummyPt;
-    refToServer->frontend = new JasmineGraphFrontEnd(refToServer->sqlite, refToServer->masterHost);
+    refToServer->frontend = new JasmineGraphFrontEnd(refToServer->sqlite, refToServer->performanceSqlite, refToServer->masterHost);
     refToServer->frontend->run();
 }
 
