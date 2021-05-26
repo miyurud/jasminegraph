@@ -1027,6 +1027,78 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             JasmineGraphServer *jasmineServer = new JasmineGraphServer();
             bool isSpawned = jasmineServer->spawnNewWorker(host,port,dataPort,profile,masterHost,enableNmon);
 
+        } else if (line.compare(SLA) == 0) {
+            int result_wr = write(connFd, CATEGORY.c_str(), CATEGORY.size());
+            if(result_wr < 0) {
+                frontend_logger.log("Error writing to socket", "error");
+            }
+            result_wr = write(connFd, "\r\n", 2);
+            if(result_wr < 0) {
+                frontend_logger.log("Error writing to socket", "error");
+            }
+
+            char category[300];
+            bzero(category, 301);
+
+            read(connFd, category, 300);
+
+            string category_info(category);
+
+            Utils utils;
+            category_info = utils.trim_copy(category_info, " \f\n\r\t\v");
+            frontend_logger.log("Data received: " + category_info, "info");
+            std::stringstream ss;
+            std::vector<vector<pair<string, string>>> v = perfSqlite.runSelect(
+                    "SELECT graph_id, partition_count, sla_value FROM graph_sla where category='" + category_info + "';");
+            for (std::vector<vector<pair<string, string>>>::iterator i = v.begin(); i != v.end(); ++i) {
+                std::stringstream slass;
+                slass << "|";
+                int counter = 0;
+                for (std::vector<pair<string, string>>::iterator j = (i->begin()); j != i->end(); ++j) {
+                    if (counter == 0) {
+                        std::string graphId = j->second;
+                        std::string graphQuery = "SELECT name FROM graph where idgraph='" + graphId + "';";
+                        std::vector<vector<pair<string, string>>> graphData = sqlite.runSelect(graphQuery);
+                        if (graphData.size() == 0) {
+                            slass.str(std::string());
+                            break;
+                        }
+                        std::string graphName = graphData[0][0].second;
+                        slass << graphName << "|";
+                    } else {
+                        slass << j->second << "|";
+                    }
+                    counter++;
+                }
+                std::string entryString = slass.str();
+                if (entryString.size() > 0) {
+                    ss << entryString << "\n";
+                }
+            }
+            string result = ss.str();
+            if (result.size() == 0) {
+                int result_wr = write(connFd, EMPTY.c_str(), EMPTY.length());
+                if(result_wr < 0) {
+                    frontend_logger.log("Error writing to socket", "error");
+                    loop = true;
+                    continue;
+                }
+                result_wr = write(connFd, "\r\n", 2);
+
+                if(result_wr < 0) {
+                    frontend_logger.log("Error writing to socket", "error");
+                    loop = true;
+                    continue;
+                }
+
+            } else {
+                int result_wr = write(connFd, result.c_str(), result.length());
+                if(result_wr < 0) {
+                    frontend_logger.log("Error writing to socket", "error");
+                    loop = true;
+                    continue;
+                }
+            }
         } else {
             frontend_logger.log("Message format not recognized " + line, "error");
         }

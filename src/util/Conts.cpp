@@ -66,4 +66,4 @@ const std::string Conts::FLAGS::BATCH_SIZE = "batch_size";
 const std::string Conts::FLAGS::VALIDATE_ITER = "validate_iter";
 const std::string Conts::FLAGS::EPOCHS = "epochs";
 
-const std::string Conts::SLA_CATEGORY::TRIANGLE_COUNT = "triangle_count";
+const std::string Conts::SLA_CATEGORY::TRIANGLE_COUNT = "trian";
