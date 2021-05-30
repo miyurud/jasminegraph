@@ -81,10 +81,13 @@ public:
     static const string SEND_FILE_TYPE;
     static const string FILE_TYPE_CENTRALSTORE_AGGREGATE;
     static const string FILE_TYPE_CENTRALSTORE_COMPOSITE;
+    static const string GRAPH_STREAM_START;
+    static const string GRAPH_STREAM_START_ACK;
 };
 
 const int INSTANCE_DATA_LENGTH = 300;
 const int INSTANCE_LONG_DATA_LENGTH = 1024;
 const int MAX_CONNECTION_COUNT = 300;
+const int MAX_STREAMING_DATA_LENGTH = 1024;
 
 #endif //JASMINEGRAPH_JASMINEGRAPHINSTANCEPROTOCOL_H

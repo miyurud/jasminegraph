@@ -17,6 +17,13 @@ add_executable(JasmineGraph main.cpp src/server/JasmineGraphServer.cpp src/serve
         src/partitioner/local/RDFPartitioner.h src/backend/JasmineGraphBackend.cpp src/backend/JasmineGraphBackend.h
         src/backend/JasmineGraphBackendProtocol.cpp src/backend/JasmineGraphBackendProtocol.h src/util/logger/Logger.h src/util/logger/Logger.cpp
         src/server/JasmineGraphInstanceProtocol.cpp
+        src/centralstore/incremental/NodeManager.cpp
+        src/centralstore/incremental/NodeBlock.cpp
+        src/centralstore/incremental/PropertyLink.cpp
+        src/centralstore/incremental/RelationBlock.cpp
+        src/centralstore/incremental/DataPublisher.cpp
+        src/partitioner/stream/Partition.cpp
+        src/localstore/incremental/JasmineGraphIncrementalLocalStore.cpp
         src/server/JasmineGraphInstanceProtocol.h src/server/JasmineGraphInstanceFileTransferService.cpp src/server/JasmineGraphInstanceFileTransferService.h
         src/partitioner/local/RDFParser.cpp src/partitioner/local/RDFParser.h src/partitioner/stream/Partitioner.cpp src/partitioner/stream/JasmineGraphIncrementalStore.cpp
         src/server/JasmineGraphInstanceService.cpp src/server/JasmineGraphInstanceService.h src/util/PlacesToNodeMapper.cpp src/util/PlacesToNodeMapper.h
@@ -40,12 +47,12 @@ target_link_libraries(JasmineGraph pthread)
 target_link_libraries(JasmineGraph rdkafka)
 #target_link_libraries(JasmineGraph cppkafka)
 target_link_libraries(JasmineGraph Threads::Threads)
-
 include_directories("$ENV{HOME}/software/flatbuffers/include")
 include_directories("$ENV{HOME}/software/xerces/include")
 include_directories("$ENV{HOME}/software/spdlog/include")
 include_directories("$ENV{HOME}/software/jsoncpp/include")
 include_directories("$ENV{HOME}/software/cppkafka/include")
+include_directories("$ENV{HOME}/software/nlohmann_json/include/nlohmann")
 
 target_link_libraries(JasmineGraph /usr/local/lib/libmetis.a)
 target_link_libraries(JasmineGraph $ENV{HOME}/software/xerces-c-3.2.2/lib/libxerces-c.so)
@@ -61,3 +68,4 @@ set(PYTHON_LIBRARIES "/usr/lib/x86_64-linux-gnu/libpython3.5m.so")
 include_directories(${PYTHON_INCLUDE_DIRS})
 include_directories(${PYTHON_DIRECTORIES})
 target_link_libraries(JasmineGraph ${PYTHON_LIBRARIES})
+target_link_libraries(JasmineGraph m)

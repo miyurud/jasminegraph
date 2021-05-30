@@ -21,9 +21,9 @@ limitations under the License.
 
 Logger node_block_logger;
 
-NodeBlock::NodeBlock(std::string id, unsigned int address, unsigned int propRef, unsigned int edgeRef, char _label[],
-                     bool usage)
-    : id(id), addr(address), propRef(propRef), edgeRef(edgeRef), usage(usage) {
+NodeBlock::NodeBlock(std::string id, unsigned int address, unsigned int propRef, unsigned int edgeRef,
+                     unsigned char edgeRefPID, char _label[], bool usage)
+    : id(id), addr(address), propRef(propRef), edgeRef(edgeRef), edgeRefPID(edgeRefPID), usage(usage) {
     strcpy(label, _label);
 };
 
@@ -42,6 +42,7 @@ void NodeBlock::save() {
     NodeBlock::nodesDB->seekp(this->addr);
     NodeBlock::nodesDB->put(this->usage);
     NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(this->edgeRef)), sizeof(this->edgeRef));
+    NodeBlock::nodesDB->put(this->edgeRefPID);
     NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(this->propRef)), sizeof(this->propRef));
     NodeBlock::nodesDB->write(this->label, sizeof(this->label));
     NodeBlock::nodesDB->flush();  // Sync the file with in-memory stream
@@ -208,6 +209,7 @@ NodeBlock* NodeBlock::get(unsigned int blockAddress) {
     NodeBlock* nodeBlockPointer = NULL;
     NodeBlock::nodesDB->seekg(blockAddress);
     unsigned int edgeRef;
+    unsigned char edgeRefPID;
     unsigned int propRef;
     char usageBlock;
     char label[NodeBlock::LABEL_SIZE];
@@ -219,6 +221,11 @@ NodeBlock* NodeBlock::get(unsigned int blockAddress) {
 
     if (!NodeBlock::nodesDB->read(reinterpret_cast<char*>(&edgeRef), sizeof(unsigned int))) {
         node_block_logger.error("Error while reading edge reference data from block " + std::to_string(blockAddress));
+    }
+
+    if (!NodeBlock::nodesDB->read(reinterpret_cast<char*>(&edgeRefPID), sizeof(unsigned char))) {
+        node_block_logger.error("Error while reading edge reference partition ID data from block " +
+                                std::to_string(blockAddress));
     }
 
     if (!NodeBlock::nodesDB->read(reinterpret_cast<char*>(&propRef), sizeof(unsigned int))) {
@@ -236,7 +243,7 @@ NodeBlock* NodeBlock::get(unsigned int blockAddress) {
     if (strlen(label) != 0) {
         id = std::string(label);
     }
-    nodeBlockPointer = new NodeBlock(id, blockAddress, propRef, edgeRef, label, usage);
+    nodeBlockPointer = new NodeBlock(id, blockAddress, propRef, edgeRef, edgeRefPID, label, usage);
     if (nodeBlockPointer->id.length() == 0) {  // if label not found in node block look in the properties
         std::map<std::string, char*> props = nodeBlockPointer->getAllProperties();
         if (props["label"]) {

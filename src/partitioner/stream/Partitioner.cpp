@@ -11,34 +11,38 @@
  * limitations under the License.
  */
 
+#include "Partitioner.h"
+
 #include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <vector>
+#include "../../util/logger/Logger.h"
 
-#include "Partitioner.h"
+Logger streaming_partitioner_logger;
 
-partitionedEdge Partitioner::addEdge(std::pair<long, long> edge) {
+partitionedEdge Partitioner::addEdge(std::pair<std::string, std::string> edge) {
     switch (this->algorithmInUse) {
-        case Algorithms::HASH:
+        case spt::Algorithms::HASH:
             return this->hashPartitioning(edge);
             break;
-        case Algorithms::FENNEL:
+        case spt::Algorithms::FENNEL:
             return this->fennelPartitioning(edge);
             break;
-        case Algorithms::LDG:
+        case spt::Algorithms::LDG:
             return this->ldgPartitioning(edge);
             break;
         default:
             break;
     }
+    return this->hashPartitioning(edge);
 }
 /**
- * Linear diterministic greedy algorithem by Stanton and Kilot et al
- * equation for greedy assingment |N(v) ∩ Si| x (1 - |Si|/(n/k) )
+ * Linear deterministic greedy algorithem by Stanton and Kilot et al
+ * equation for greedy assignment |N(v) ∩ Si| x (1 - |Si|/(n/k) )
  *
  * **/
-partitionedEdge Partitioner::ldgPartitioning(std::pair<int, int> edge) {
+partitionedEdge Partitioner::ldgPartitioning(std::pair<std::string, std::string> edge) {
     std::vector<double> partitionScoresFirst(numberOfPartitions, 0);   // Calculate per incoming edge
     std::vector<double> partitionScoresSecond(numberOfPartitions, 0);  // Calculate per incoming edge
     bool firstVertextAlreadyExist(false);
@@ -48,8 +52,8 @@ partitionedEdge Partitioner::ldgPartitioning(std::pair<int, int> edge) {
     for (auto partition : partitions) {
         double partitionSize = partition.getVertextCount();
         long thisCostSecond, thisCostFirst = 0;
-        std::set<int> firstVertextNeighbors = partition.getNeighbors(edge.first);
-        std::set<int> secondVertextNeighbors = partition.getNeighbors(edge.second);
+        std::set<std::string> firstVertextNeighbors = partition.getNeighbors(edge.first);
+        std::set<std::string> secondVertextNeighbors = partition.getNeighbors(edge.second);
         double weightedGreedy =
             (1 - (partitionSize / ((double)this->totalVertices / (double)this->numberOfPartitions)));
 
@@ -99,9 +103,9 @@ partitionedEdge Partitioner::ldgPartitioning(std::pair<int, int> edge) {
     return {{edge.first, firstIndex}, {edge.second, secondIndex}};
 }
 
-partitionedEdge Partitioner::hashPartitioning(std::pair<int, int> edge) {
-    int firstIndex = edge.first % this->numberOfPartitions;    // Hash partitioning
-    int secondIndex = edge.second % this->numberOfPartitions;  // Hash partitioning
+partitionedEdge Partitioner::hashPartitioning(std::pair<std::string, std::string> edge) {
+    int firstIndex = std::hash<std::string>()(edge.first) % this->numberOfPartitions;    // Hash partitioning
+    int secondIndex = std::hash<std::string>()(edge.second) % this->numberOfPartitions;  // Hash partitioning
 
     if (firstIndex == secondIndex) {
         this->partitions[firstIndex].addEdge(edge);
@@ -137,7 +141,7 @@ and balancing of the partition sizes. Assign the vertext to partition P that max
  *   Total number of vertices and edges in the graph denoted as |V| = n and |E| = m.
  *   k is number of partitions
  **/
-partitionedEdge Partitioner::fennelPartitioning(std::pair<int, int> edge) {
+partitionedEdge Partitioner::fennelPartitioning(std::pair<std::string, std::string> edge) {
     std::vector<double> partitionScoresFirst(numberOfPartitions, 0);   // Calculate per incoming edge
     std::vector<double> partitionScoresSecond(numberOfPartitions, 0);  // Calculate per incoming edge
     const double gamma = 3 / 2.0;
@@ -150,8 +154,8 @@ partitionedEdge Partitioner::fennelPartitioning(std::pair<int, int> edge) {
     for (auto partition : partitions) {
         double partitionSize = partition.getVertextCount();
         long thisCostSecond, thisCostFirst = 0;
-        std::set<int> firstVertextNeighbors = partition.getNeighbors(edge.first);
-        std::set<int> secondVertextNeighbors = partition.getNeighbors(edge.second);
+        std::set<std::string> firstVertextNeighbors = partition.getNeighbors(edge.first);
+        std::set<std::string> secondVertextNeighbors = partition.getNeighbors(edge.second);
         double firstVertextIntraCost;
         double secondVertextIntraCost;
         if (partition.isExist(edge.first) && partition.isExist(edge.second)) {
@@ -209,8 +213,8 @@ partitionedEdge Partitioner::fennelPartitioning(std::pair<int, int> edge) {
  * Expect a space seperated pair of vertexts representing an edge in the graph.
  **/
 std::pair<long, long> Partitioner::deserialize(std::string data) {
-    std::vector<std::string> v = JasmineGraphIncrementalStore::_split(data, ' ');
-    // std::cout << "Vertext 1 = " << stoi(v[0]) << std::endl;
-    // std::cout << "Vertext 2 = " << stoi(v[1]) << std::endl;
+    std::vector<std::string> v = Partition::_split(data, ' ');
+    streaming_partitioner_logger.debug("Vertext/Node 1 = " + stoi(v[0]));
+    streaming_partitioner_logger.debug("Vertext/Node 2 = " + stoi(v[1]));
     return {stoi(v[0]), stoi(v[1])};
 }

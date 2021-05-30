@@ -17,6 +17,7 @@ limitations under the License.
 #include <map>
 #include <set>
 #include "JasmineGraphFrontEnd.h"
+#include <nlohmann/json.hpp>
 #include "../util/Conts.h"
 #include "../util/kafka/KafkaCC.h"
 #include "JasmineGraphFrontEndProtocol.h"
@@ -33,7 +34,9 @@ limitations under the License.
 #include "../query/algorithms/linkprediction/JasminGraphLinkPredictor.h"
 #include "../ml/trainer/JasmineGraphTrainingSchedular.h"
 #include "../ml/trainer/python-c-api/Python_C_API.h"
+#include "../centralstore/incremental/DataPublisher.h"
 
+using json = nlohmann::json;
 using namespace std;
 
 static int connFd;
@@ -50,6 +53,18 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
     frontend_logger.log("Master IP: " + masterIP, "info");
     char data[FRONTEND_DATA_LENGTH];
     bzero(data, FRONTEND_DATA_LENGTH + 1);
+    Utils utils;
+    vector<Utils::worker> workerList = utils.getWorkerList(sqlite);
+    vector<DataPublisher> workerClients;
+    
+    for (int i = 0; i < workerList.size(); i++) {
+        Utils::worker currentWorker = workerList.at(i);
+        string workerHost = currentWorker.hostname;
+        string workerID = currentWorker.workerID;
+        int workerPort = atoi(string(currentWorker.port).c_str());
+        DataPublisher workerClient(workerPort, workerHost);
+        workerClients.push_back(workerClient);        
+    }
     bool loop = false;
     while (!loop) {
         bzero(data, FRONTEND_DATA_LENGTH + 1);
@@ -500,17 +515,16 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                                                {"group.id",             "knnect"}};
             KafkaConnector kstream(configs);
             int numberOfPartitions = 4;
-            Partitioner graphPartitioner(numberOfPartitions);
+            Partitioner graphPartitioner(numberOfPartitions, 0, spt::Algorithms::HASH);
 
             kstream.Subscribe(topic_name_s);
-            frontend_logger.log("Start listning to " + topic_name_s, "info");
+            frontend_logger.log("Start listening to " + topic_name_s, "info");
             while (true) {
                 cppkafka::Message msg = kstream.consumer.poll();
                 if (!msg || msg.get_error()) {
                     continue;
                 }
                 string data(msg.get_payload());
-                // cout << "Payload = " << data << endl;
                 if (data == "-1") {  // Marks the end of stream
                     frontend_logger.log("Received the end of stream", "info");
                     break;
@@ -519,7 +533,18 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 frontend_logger.log(
                         "Received edge >> " + std::to_string(edge.first) + " --- " + std::to_string(edge.second),
                         "info");
-                graphPartitioner.addEdge(edge);
+                auto edgeJson = json::parse(data);
+                auto sourceJson = edgeJson["source"];
+                auto destinationJson = edgeJson["destination"];
+
+                std::string sId = std::string(sourceJson["id"]);
+                std::string dId = std::string(destinationJson["id"]);
+
+                partitionedEdge partitionedEdge = graphPartitioner.addEdge({sId, dId});
+                sourceJson["pid"] = partitionedEdge[0].second;
+                destinationJson["pid"] = partitionedEdge[1].second;
+                workerClients.at((int)partitionedEdge[0].second).publish(sourceJson.dump());
+                workerClients.at((int)partitionedEdge[1].second).publish(destinationJson.dump());
             }
             graphPartitioner.printStats();
 
