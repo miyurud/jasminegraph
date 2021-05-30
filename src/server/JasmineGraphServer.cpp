@@ -2027,27 +2027,21 @@ void JasmineGraphServer::initiateOrgCommunication(std::string graphID, std::stri
             server_logger.log(to_string(strArr.size()), "info");
 
             if (strArr.size()==3 && org_thread_count <= orgs_count){
-
                 trainThreads[org_thread_count] = std::thread(sendTrainCommand, host, port, trainingArgs);
                 org_thread_count++;
-
             }
         }
-
         file.close();
     }
 
     std::thread *communicationThread = new std::thread[1];
     communicationThread[0] = std::thread(receiveGlobalWeights,"localhost", 5000, "0", 1, "1");
     server_logger.log("Communication Thread Initiated", "info");
-
     trainingArgs = trainingArgs;
     int threadID = 0;
 
     for (int i = 0; i < workerVector.size(); i++) {
-
         workerInstance = workerVector[i];
-
         int serverPort = stoi(workerInstance.port);
         int serverDataPort = stoi(workerInstance.dataPort);
 
