@@ -1028,7 +1028,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             bool isSpawned = jasmineServer->spawnNewWorker(host,port,dataPort,profile,masterHost,enableNmon);
 
         } else if (line.compare(SLA) == 0) {
-            int result_wr = write(connFd, CATEGORY.c_str(), CATEGORY.size());
+            int result_wr = write(connFd, COMMAND.c_str(), COMMAND.size());
             if(result_wr < 0) {
                 frontend_logger.log("Error writing to socket", "error");
             }
@@ -1042,14 +1042,28 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
             read(connFd, category, 300);
 
-            string category_info(category);
+            string command_info(category);
 
             Utils utils;
-            category_info = utils.trim_copy(category_info, " \f\n\r\t\v");
-            frontend_logger.log("Data received: " + category_info, "info");
+            command_info = utils.trim_copy(command_info, " \f\n\r\t\v");
+            frontend_logger.log("Data received: " + command_info, "info");
+
+            std::vector<vector<pair<string, string>>> categoryResults = perfSqlite.runSelect(
+                    "SELECT id FROM sla_category where command='" + command_info + "';");
+
+            string slaCategoryIds;
+
+            for (std::vector<vector<pair<string, string>>>::iterator i = categoryResults.begin(); i != categoryResults.end(); ++i) {
+                for (std::vector<pair<string, string>>::iterator j = (i->begin()); j != i->end(); ++j) {
+                    slaCategoryIds = slaCategoryIds + "'" + j->second + "',";
+                }
+            }
+
+            string adjustedIdList = slaCategoryIds.substr(0, slaCategoryIds.size()-1);
+
             std::stringstream ss;
             std::vector<vector<pair<string, string>>> v = perfSqlite.runSelect(
-                    "SELECT graph_id, partition_count, sla_value FROM graph_sla where category='" + category_info + "';");
+                    "SELECT graph_id, partition_count, sla_value FROM graph_sla where id_sla_category in (" + adjustedIdList + ");");
             for (std::vector<vector<pair<string, string>>>::iterator i = v.begin(); i != v.end(); ++i) {
                 std::stringstream slass;
                 slass << "|";
@@ -1423,7 +1437,7 @@ long JasmineGraphFrontEnd::countTriangles(std::string graphId, SQLiteDBInterface
     std::string durationString = std::to_string(msDuration);
 
     if (canCalibrate) {
-        Utils::updateSLAInformation(perfSqlite, graphId, partitionCount, msDuration, Conts::SLA_CATEGORY::TRIANGLE_COUNT);
+        Utils::updateSLAInformation(perfSqlite, graphId, partitionCount, msDuration, TRIANGLES, Conts::SLA_CATEGORY::LATENCY);
     }
 
 

@@ -94,7 +94,7 @@ public:
     };
 
     struct SLA_CATEGORY {
-        static const std::string TRIANGLE_COUNT;
+        static const std::string LATENCY;
     };
 
 

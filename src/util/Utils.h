@@ -85,7 +85,7 @@ class Utils
     static void assignPartitionsToWorkers(int numberOfWorkers, SQLiteDBInterface sqlite);
 
     static void updateSLAInformation(PerformanceSQLiteDBInterface perfSqlite, std::string graphId, int partitionCount,
-            long newSlaValue, std::string category);
+            long newSlaValue, std::string command, std::string category);
 };
 
 #endif //JASMINEGRAPH_UTILS_H
