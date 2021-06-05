@@ -24,6 +24,8 @@ The following build tools, applications, and libraries need to be installed befo
 - cppkafka (https://github.com/mfontanini/cppkafka)
     - Install librdkafka - Follow the Readme in (https://github.com/edenhill/librdkafka)
     - Install boost library - use 'sudo apt-get install libboost-all-dev'
+    - Follow the guidelines in (https://github.com/mfontanini/cppkafka#compiling)
+    - When doing the above step for `cmake <OPTIONS> ..` use of `cmake ..` should be sufficient enough
     - Once cppkafka is built install it by running 'sudo make install' from the build directory
 - Xerces-c-3.2.2 (https://xerces.apache.org/xerces-c/)
     - Intallation guide is available at http://xerces.apache.org/xerces-c/build-3.html
@@ -37,15 +39,15 @@ The following build tools, applications, and libraries need to be installed befo
     - pigz, which stands for Parallel Implementation of GZip, is a fully functional
       replacement for gzip that exploits multiple processors and multiple cores to
       the hilt when compressing data.
-    - Jasminegraph by default uses pigz for file compression and decompression.
-    - However if pigz is not found, gzip is used instead.
+    - JasmineGraph by default uses pigz for file compression and decompression.
+    - However, if pigz is not found, gzip is used instead.
     - Download pigz from (http://zlib.net/pigz/) or (https://github.com/madler/pigz.git).
     - Type "make" in pigz directory to build the "pigz" executable. 
     - Add pigz executable's path to ~/.bashrc file and refresh.
 - nlohmann_json (https://github.com/nlohmann/json)
     - Download the nolhmann latest release include.zip i:e [include.zip](https://github.com/nlohmann/json/releases/download/v3.9.1/include.zip) 
-    - Create a directory in JASMINEGRAPH_HOME/software names `nlohmann_json`
-    - Extract the `include.zip` to  `<JASMINEGRAPH_HOME>/software/nlohmann_json/`
+    - Create a directory in your software directory named `nlohmann_json`
+    - Extract the `include.zip` to  `nlohmann_json` directory
 - python3.5 (https://www.python.org/downloads/release/python-350/)
     - Read this [blog](https://passingcuriosity.com/2015/installing-python-from-source/) for more details on setting up python3.5
 - Recent versions of TensorFlow, numpy, scipy, sklearn, and networkx are required (but networkx must be <=1.11). You can install all the required packages using the following command:
