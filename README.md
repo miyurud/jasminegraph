@@ -48,6 +48,8 @@ The following build tools, applications, and libraries need to be installed befo
     - Download the nolhmann latest release include.zip i:e [include.zip](https://github.com/nlohmann/json/releases/download/v3.9.1/include.zip) 
     - Create a directory in your software directory named `nlohmann_json`
     - Extract the `include.zip` to  `nlohmann_json` directory
+    - Issue "cmake ."
+    - Issue "make" followed by "sudo make install"
 - python3.5 (https://www.python.org/downloads/release/python-350/)
     - Read this [blog](https://passingcuriosity.com/2015/installing-python-from-source/) for more details on setting up python3.5
 - Recent versions of TensorFlow, numpy, scipy, sklearn, and networkx are required (but networkx must be <=1.11). You can install all the required packages using the following command:
