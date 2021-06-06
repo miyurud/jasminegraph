@@ -52,7 +52,7 @@ include_directories("$ENV{HOME}/software/xerces/include")
 include_directories("$ENV{HOME}/software/spdlog/include")
 include_directories("$ENV{HOME}/software/jsoncpp/include")
 include_directories("$ENV{HOME}/software/cppkafka/include")
-include_directories("$ENV{HOME}/software/nlohmann_json/include/nlohmann")
+include_directories("$ENV{HOME}/software/nlohmann_json/include")
 
 target_link_libraries(JasmineGraph /usr/local/lib/libmetis.a)
 target_link_libraries(JasmineGraph $ENV{HOME}/software/xerces-c-3.2.2/lib/libxerces-c.so)
