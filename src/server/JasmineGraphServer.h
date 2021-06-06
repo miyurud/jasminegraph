@@ -148,6 +148,8 @@ public:
 
     static bool receiveGlobalWeights(std::string host, int port, std::string trainingArgs, int iteration, std::string partCount);
 
+    static bool sendTrainCommand(std::string host, int port, std::string trainingArgs);
+
 };
 
 #endif //JASMINEGRAPH_JASMINEGRAPHSERVER_H
