@@ -74,8 +74,8 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
     while (!loop) {
         if(currentFESession == Conts::MAX_FE_SESSIONS + 1) {
             currentFESession--;
-            std::string errorResponse = "Jasminegraph Server Busy. Please try again later.";
-            int result_wr = write(connFd, errorResponse.c_str(), 50);
+            std::string errorResponse = "Jasminegraph Server is Busy. Please try again later.";
+            int result_wr = write(connFd, errorResponse.c_str(), errorResponse.length());
             if(result_wr < 0) {
                 frontend_logger.log("Error writing to socket", "error");
             }
@@ -97,6 +97,8 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
         if (currentFESession > 1) {
             canCalibrate = false;
         } else if (currentFESession == 1) {
+            canCalibrate = true;
+        } else {
             canCalibrate = true;
         }
 
@@ -1037,10 +1039,10 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 frontend_logger.log("Error writing to socket", "error");
             }
 
-            char category[300];
-            bzero(category, 301);
+            char category[FRONTEND_DATA_LENGTH];
+            bzero(category, FRONTEND_DATA_LENGTH + 1);
 
-            read(connFd, category, 300);
+            read(connFd, category, FRONTEND_DATA_LENGTH);
 
             string command_info(category);
 
