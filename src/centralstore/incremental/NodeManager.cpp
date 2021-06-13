@@ -17,6 +17,7 @@ limitations under the License.
 
 #include <exception>
 
+#include "../../util/Utils.h"
 #include "../../util/logger/Logger.h"
 #include "NodeBlock.h"  // To setup node DB
 #include "PropertyLink.h"
@@ -28,8 +29,11 @@ Logger node_manager_logger;
 NodeManager::NodeManager(GraphConfig gConfig) {
     this->graphID = gConfig.graphID;
     this->partitionID = gConfig.partitionID;
+    Utils utils;
 
-    std::string graphPrefix = "./streamingdb/g" + std::to_string(graphID);
+    std::string instanceDataFolderLocation =
+        utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+    std::string graphPrefix = instanceDataFolderLocation + "/g" + std::to_string(graphID);
     std::string dbPrefix = graphPrefix + "_p" + std::to_string(partitionID);
     std::string nodesDBPath = dbPrefix + "_nodes.db";
     this->index_db_loc = dbPrefix + "_nodes.index.db";

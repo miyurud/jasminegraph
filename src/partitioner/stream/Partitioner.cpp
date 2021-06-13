@@ -210,6 +210,7 @@ partitionedEdge Partitioner::fennelPartitioning(std::pair<std::string, std::stri
 }
 
 /**
+ * DEPRECATED: With new JSON edge schema
  * Expect a space seperated pair of vertexts representing an edge in the graph.
  **/
 std::pair<long, long> Partitioner::deserialize(std::string data) {

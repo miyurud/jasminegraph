@@ -13,19 +13,26 @@
 
 #include "./DataPublisher.h"
 
-#include "../../util/logger/Logger.h"
 #include "../../server/JasmineGraphInstanceProtocol.h"
+#include "../../util/logger/Logger.h"
 
 Logger data_publisher_logger;
 
 DataPublisher::DataPublisher(int worker_port, std::string worker_address) {
     this->worker_port = worker_port;
     this->worker_address = worker_address;
+    struct hostent *server;
+
+    server = gethostbyname(worker_address.c_str());
+    if (server == NULL) {
+        std::cerr << "ERROR, no host named " << server << std::endl;
+        exit(0);
+    }
+
+    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(worker_port);
-    if (inet_pton(AF_INET, worker_address.c_str(), &serv_addr.sin_addr) <= 0) {
-        data_publisher_logger.error("Invalid address/ Address not supported!");
-    }
 }
 
 void DataPublisher::publish(std::string message) {
@@ -38,7 +45,8 @@ void DataPublisher::publish(std::string message) {
         data_publisher_logger.error("Connection Failed!");
     }
     // Send initial start sending edge command
-    send(this->sock, JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK.c_str(), JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK.length(), 0);
+    send(this->sock, JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK.c_str(),
+         JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK.length(), 0);
 
     char start_ack[1024] = {0};
     auto ack_return_status = recv(this->sock, &start_ack, sizeof(start_ack), 0);
@@ -56,7 +64,7 @@ void DataPublisher::publish(std::string message) {
     // Receve ack for edge data content length
 
     if (return_status > 0) {
-        data_publisher_logger.debug("Received int ="+std::to_string(ntohl(received_int)));
+        data_publisher_logger.debug("Received int =" + std::to_string(ntohl(received_int)));
     } else {
         data_publisher_logger.error("Error while receiving content length ack\n");
     }
