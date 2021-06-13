@@ -529,10 +529,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                     frontend_logger.log("Received the end of stream", "info");
                     break;
                 }
-                // std::pair<long, long> edge = Partitioner::deserialize(data);
-                // frontend_logger.log(
-                //         "Received edge >> " + std::to_string(edge.first) + " --- " + std::to_string(edge.second),
-                //         "info");
+                
                 auto edgeJson = json::parse(data);
                 auto sourceJson = edgeJson["source"];
                 auto destinationJson = edgeJson["destination"];
