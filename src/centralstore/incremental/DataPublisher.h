@@ -12,10 +12,13 @@
  */
 
 #include <arpa/inet.h>
+#include <netdb.h>
 #include <stdio.h>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <iostream>
+#include <string.h>
+
 #ifndef WORKER_DATA_PUBLISHER
 #define WORKER_DATA_PUBLISHER
 

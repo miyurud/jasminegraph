@@ -514,7 +514,9 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             cppkafka::Configuration configs = {{"metadata.broker.list", "127.0.0.1:9092"},
                                                {"group.id",             "knnect"}};
             KafkaConnector kstream(configs);
-            int numberOfPartitions = 4;
+            std::string partitionCount = utils.getJasmineGraphProperty("org.jasminegraph.server.npartitions");
+            int numberOfPartitions = std::stoi(partitionCount);
+
             Partitioner graphPartitioner(numberOfPartitions, 0, spt::Algorithms::HASH);
 
             kstream.Subscribe(topic_name_s);
@@ -529,10 +531,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                     frontend_logger.log("Received the end of stream", "info");
                     break;
                 }
-                std::pair<long, long> edge = Partitioner::deserialize(data);
-                frontend_logger.log(
-                        "Received edge >> " + std::to_string(edge.first) + " --- " + std::to_string(edge.second),
-                        "info");
+                
                 auto edgeJson = json::parse(data);
                 auto sourceJson = edgeJson["source"];
                 auto destinationJson = edgeJson["destination"];
