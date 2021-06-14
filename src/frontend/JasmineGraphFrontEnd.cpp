@@ -514,7 +514,9 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             cppkafka::Configuration configs = {{"metadata.broker.list", "127.0.0.1:9092"},
                                                {"group.id",             "knnect"}};
             KafkaConnector kstream(configs);
-            int numberOfPartitions = 1;
+            std::string partitionCount = utils.getJasmineGraphProperty("org.jasminegraph.server.npartitions");
+            int numberOfPartitions = std::stoi(partitionCount);
+
             Partitioner graphPartitioner(numberOfPartitions, 0, spt::Algorithms::HASH);
 
             kstream.Subscribe(topic_name_s);
