@@ -84,6 +84,7 @@ public:
     static const string GRAPH_STREAM_START;
     static const string GRAPH_STREAM_START_ACK;
     static const string SEND_PRIORITY;
+    static const string GRAPH_STREAM_C_length_ACK;
 };
 
 const int INSTANCE_DATA_LENGTH = 300;

@@ -14,7 +14,7 @@ limitations under the License.
 #include "NodeManager.h"
 
 #include <sys/stat.h>
-
+#include <mutex>
 #include <exception>
 
 #include "../../util/Utils.h"
@@ -25,7 +25,7 @@ limitations under the License.
 #include "iostream"
 
 Logger node_manager_logger;
-
+std::mutex lockEdgeAdd;
 NodeManager::NodeManager(GraphConfig gConfig) {
     this->graphID = gConfig.graphID;
     this->partitionID = gConfig.partitionID;
@@ -133,6 +133,8 @@ NodeBlock *NodeManager::addNode(std::string nodeId) {
 }
 
 RelationBlock *NodeManager::addEdge(std::pair<std::string, std::string> edge) {
+    std::unique_lock<std::mutex> guard(lockEdgeAdd);
+    // lockEdgeAdd.lock();
     NodeBlock *sourceNode = this->addNode(edge.first);
     NodeBlock *destNode = this->addNode(edge.second);
     RelationBlock *newRelation = this->addRelation(*sourceNode, *destNode);
@@ -143,6 +145,7 @@ RelationBlock *NodeManager::addEdge(std::pair<std::string, std::string> edge) {
 
     node_manager_logger.debug("DEBUG: Source DB block address " + std::to_string(sourceNode->addr) +
                               " Destination DB block address " + std::to_string(destNode->addr));
+    // lockEdgeAdd.unlock();
     return newRelation;
 }
 

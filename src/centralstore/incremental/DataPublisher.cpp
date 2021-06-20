@@ -30,14 +30,14 @@ DataPublisher::DataPublisher(int worker_port, std::string worker_address) {
     }
 
     bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
-
+    
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(worker_port);
+
 }
 
 void DataPublisher::publish(std::string message) {
     char recever_buffer[MAX_STREAMING_DATA_LENGTH] = {0};
-
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         data_publisher_logger.error("Socket creation error!");
     }
@@ -45,13 +45,18 @@ void DataPublisher::publish(std::string message) {
         data_publisher_logger.error("Connection Failed!");
     }
     // Send initial start sending edge command
-    send(this->sock, JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK.c_str(),
-         JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK.length(), 0);
+    send(this->sock, JasmineGraphInstanceProtocol::GRAPH_STREAM_START.c_str(),
+         JasmineGraphInstanceProtocol::GRAPH_STREAM_START.length(), 0);
 
     char start_ack[1024] = {0};
+    // Wait to receve an ACK for initial start sending edge command
     auto ack_return_status = recv(this->sock, &start_ack, sizeof(start_ack), 0);
-    // Receve ACK for initial start sending edge command
-
+    std::string ack(start_ack);
+    if (JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK != ack)
+    {
+        data_publisher_logger.error("Error while receiving start command ack\n");
+    }
+    
     int message_length = message.length();
     int converted_number = htonl(message_length);
     data_publisher_logger.info("Sending content length\n");

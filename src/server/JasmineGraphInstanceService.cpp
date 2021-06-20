@@ -67,6 +67,9 @@ void *instanceservicesession(void *dummyPt) {
         read(connFd, data, INSTANCE_DATA_LENGTH);
 
         string line = (data);
+        if(line.length() == 0) {
+            continue;
+        }
         line = utils.trim_copy(line, " \f\n\r\t\v");
 
         Utils utils;
@@ -1783,17 +1786,14 @@ void *instanceservicesession(void *dummyPt) {
             } else {
                 instance_logger.log("Error while reading content length", "error");
             }
-            char edge_content_buffer[content_length];
-
-            send(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK.c_str(), JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK.size(), 0);
+            std::string nodeString(content_length, 0);
+            send(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.c_str(), JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.size(), 0);
             instance_logger.log("Acked for content length", "info");
 
             instance_logger.log("Waiting for edge data", "info");
-            return_status = read(connFd, &edge_content_buffer, sizeof(edge_content_buffer));
-            std::string edgeString;
+            return_status = read(connFd, &nodeString[0], content_length);
             if (return_status > 0) {
-                edgeString = std::string(edge_content_buffer);
-                instance_logger.log("Received edge data = " + edgeString, "info");
+                instance_logger.log("Received edge data = " + nodeString, "info");
             } else {
                 instance_logger.log("Error while reading content length", "error");
             }
