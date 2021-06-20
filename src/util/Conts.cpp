@@ -67,3 +67,9 @@ const std::string Conts::FLAGS::VALIDATE_ITER = "validate_iter";
 const std::string Conts::FLAGS::EPOCHS = "epochs";
 
 const std::string Conts::SLA_CATEGORY::LATENCY = "latency";
+
+const std::string Conts::PARAM_KEYS::MASTER_IP = "masterIP";
+const std::string Conts::PARAM_KEYS::GRAPH_ID = "graphID";
+const std::string Conts::PARAM_KEYS::PRIORITY = "priority";
+const std::string Conts::PARAM_KEYS::TRIANGLE_COUNT = "triangleCount";
+const std::string Conts::PARAM_KEYS::CAN_CALIBRATE = "canCalibrate";

@@ -37,15 +37,16 @@ limitations under the License.
 #include "../performancedb/PerformanceSQLiteDBInterface.h"
 #include "../util/PlacesToNodeMapper.h"
 #include "../query/algorithms/triangles/Triangles.h"
+#include "core/scheduler/JobScheduler.h"
 
 class JasmineGraphHashMapCentralStore;
 
 void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface sqlite,
-                            PerformanceSQLiteDBInterface perfSqlite);
+                            PerformanceSQLiteDBInterface perfSqlite, JobScheduler jobScheduler);
 
 class JasmineGraphFrontEnd {
 public:
-    JasmineGraphFrontEnd(SQLiteDBInterface db, PerformanceSQLiteDBInterface perfDb, std::string masterIP);
+    JasmineGraphFrontEnd(SQLiteDBInterface db, PerformanceSQLiteDBInterface perfDb, std::string masterIP, JobScheduler jobScheduler);
 
     int run();
 
@@ -105,6 +106,7 @@ private:
     SQLiteDBInterface sqlite;
     std::string masterIP;
     PerformanceSQLiteDBInterface perfSqlite;
+    JobScheduler jobScheduler;
 
 
 };

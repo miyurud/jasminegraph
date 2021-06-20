@@ -97,6 +97,14 @@ public:
         static const std::string LATENCY;
     };
 
+    struct PARAM_KEYS {
+        static const std::string MASTER_IP;
+        static const std::string GRAPH_ID;
+        static const std::string PRIORITY;
+        static const std::string TRIANGLE_COUNT;
+        static const std::string CAN_CALIBRATE;
+    };
+
 
 };
 

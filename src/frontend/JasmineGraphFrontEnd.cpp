@@ -35,6 +35,8 @@ limitations under the License.
 #include "../ml/trainer/JasmineGraphTrainingSchedular.h"
 #include "../ml/trainer/python-c-api/Python_C_API.h"
 #include "../centralstore/incremental/DataPublisher.h"
+#include "core/scheduler/JobScheduler.h"
+#include "core/CoreConstants.h"
 
 using json = nlohmann::json;
 using namespace std;
@@ -53,7 +55,7 @@ std::mutex processStatusMutex;
 std::set<ProcessInfo> processData;
 
 void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface sqlite,
-                            PerformanceSQLiteDBInterface perfSqlite) {
+                            PerformanceSQLiteDBInterface perfSqlite, JobScheduler jobScheduler) {
     frontend_logger.log("Thread No: " + to_string(pthread_self()), "info");
     frontend_logger.log("Master IP: " + masterIP, "info");
     char data[FRONTEND_DATA_LENGTH];
@@ -679,6 +681,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             }
         } else if (line.compare(TRIANGLES) == 0) {
             // add RDF graph
+            int uniqueId = JasmineGraphFrontEnd::getUid();
             int result_wr = write(connFd, GRAPHID_SEND.c_str(), FRONTEND_COMMAND_LENGTH);
             if (result_wr < 0) {
                 frontend_logger.log("Error writing to socket", "error");
@@ -716,14 +719,27 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 }
             } else {
                 auto begin = chrono::high_resolution_clock::now();
-                long triangleCount = JasmineGraphFrontEnd::countTriangles(graph_id, sqlite, perfSqlite, masterIP);
+                JobRequest jobDetails;
+                jobDetails.setJobId(std::to_string(uniqueId));
+                jobDetails.setJobType(TRIANGLES);
+                jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_ID, graph_id);
+                jobDetails.addParameter(Conts::PARAM_KEYS::MASTER_IP, masterIP);
+                if (canCalibrate) {
+                    jobDetails.addParameter(Conts::PARAM_KEYS::CAN_CALIBRATE, "true");
+                } else {
+                    jobDetails.addParameter(Conts::PARAM_KEYS::CAN_CALIBRATE, "false");
+                }
+
+                jobScheduler.pushJob(jobDetails);
+                JobResponse jobResponse = jobScheduler.getResult(jobDetails);
+                std::string triangleCount = jobResponse.getParameter(Conts::PARAM_KEYS::TRIANGLE_COUNT);
                 auto end = chrono::high_resolution_clock::now();
                 auto dur = end - begin;
                 auto msDuration = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
                 frontend_logger.log(
-                        "Triangle Count: " + to_string(triangleCount) + " Time Taken: " + to_string(msDuration) +
+                        "Triangle Count: " + triangleCount + " Time Taken: " + to_string(msDuration) +
                         " milliseconds", "info");
-                result_wr = write(connFd, to_string(triangleCount).c_str(), (int) to_string(triangleCount).length());
+                result_wr = write(connFd, triangleCount.c_str(), triangleCount.length());
                 if (result_wr < 0) {
                     frontend_logger.log("Error writing to socket", "error");
                 }
@@ -1121,10 +1137,12 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
     close(connFd);
 }
 
-JasmineGraphFrontEnd::JasmineGraphFrontEnd(SQLiteDBInterface db, PerformanceSQLiteDBInterface perfDb, std::string masterIP) {
+JasmineGraphFrontEnd::JasmineGraphFrontEnd(SQLiteDBInterface db, PerformanceSQLiteDBInterface perfDb, std::string masterIP,
+        JobScheduler jobScheduler) {
     this->sqlite = db;
     this->masterIP = masterIP;
     this->perfSqlite = perfDb;
+    this->jobScheduler = jobScheduler;
 }
 
 int JasmineGraphFrontEnd::run() {
@@ -1192,7 +1210,7 @@ int JasmineGraphFrontEnd::run() {
         frontendservicesessionargs1->sqlite = this->sqlite;
         frontendservicesessionargs1->connFd = connFd;
 
-        threadVector.push_back(std::thread(frontendservicesesion, masterIP, connFd, this->sqlite, this->perfSqlite));
+        threadVector.push_back(std::thread(frontendservicesesion, masterIP, connFd, this->sqlite, this->perfSqlite, this->jobScheduler));
 
         std::thread();
 

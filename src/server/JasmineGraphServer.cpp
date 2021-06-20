@@ -29,7 +29,8 @@ static map<string, pair<int, int>> hostPortMap;
 
 void *runfrontend(void *dummyPt) {
     JasmineGraphServer *refToServer = (JasmineGraphServer *) dummyPt;
-    refToServer->frontend = new JasmineGraphFrontEnd(refToServer->sqlite, refToServer->performanceSqlite, refToServer->masterHost);
+    refToServer->frontend = new JasmineGraphFrontEnd(refToServer->sqlite, refToServer->performanceSqlite,
+            refToServer->masterHost, refToServer->jobScheduler);
     refToServer->frontend->run();
 }
 
@@ -58,6 +59,8 @@ int JasmineGraphServer::run(std::string profile, std::string masterIp, int numbe
     this->sqlite.init();
     this->performanceSqlite = *new PerformanceSQLiteDBInterface();
     this->performanceSqlite.init();
+    this->jobScheduler = *new JobScheduler(this->sqlite, this->performanceSqlite);
+    this->jobScheduler.init();
     if (masterIp.empty()) {
         this->masterHost = utils.getJasmineGraphProperty("org.jasminegraph.server.host");
     } else {
