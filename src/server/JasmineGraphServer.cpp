@@ -2363,6 +2363,18 @@ int JasmineGraphServer::removePartitionThroughService(string host, int port, str
 }
 
 int JasmineGraphServer::initiateEntityResolution(vector<pair<string, string>> hostHasPartition, string graphID, std::string masterIP) {
+    string designatedWorkerHost;
+    int designatedWorkerPort;
+    //Identify coordinating worker
+    string coordinatorHost = hostHasPartition.at(0).first;
+    int workerPort = hostPortMap[coordinatorHost].first;
+    int orgCount;
+    std::thread *orgThreads = new std::thread[orgCount];
+
+    for (int i = 0; i < orgCount; i++) {
+        std::thread(JasmineGraphServer::signalOrganizations, coordinatorHost, designatedWorkerHost, to_string(designatedWorkerPort), graphID, masterIP);
+    }
+
     int count = 0;
     int partitionCount = hostPortMap.size();
     //Create Bloom filters
@@ -2377,7 +2389,7 @@ int JasmineGraphServer::initiateEntityResolution(vector<pair<string, string>> ho
         int port = hostPortMap[it->first].first;
         string partitionID = it->second;
         //Initialize threads for host
-        workerThreads[count++] = std::thread(createBloomFilters, hostname, port, graphID, partitionID, masterIP);
+        workerThreads[count++] = std::thread(JasmineGraphServer::createBloomFilters, hostname, port, graphID, partitionID, masterIP);
         sleep(1);
     }
 
@@ -2390,10 +2402,6 @@ int JasmineGraphServer::initiateEntityResolution(vector<pair<string, string>> ho
     //Bloom Filter creation end
 
     cout << "Sharing created Bloom filters with coordinator worker" << endl;
-    //Identify coordinating worker
-    string coordinatorHost = hostHasPartition.at(0).first;
-    int workerPort = hostPortMap[coordinatorHost].first;
-
     //Fetch worker details
     string sqlStatement = "SELECT host_idhost, server_port, server_data_port, partition_idpartition "
                           "FROM worker JOIN worker_has_partition ON worker_idworker = idworker"
@@ -2409,7 +2417,7 @@ int JasmineGraphServer::initiateEntityResolution(vector<pair<string, string>> ho
         workerPartitions.push_back({hostname, port, dataPort, partition});
     }
 
-    collectBloomFilters(coordinatorHost, workerPort, workerPort, graphID, workerPartitions, masterIP);
+    JasmineGraphServer::collectBloomFilters(coordinatorHost, workerPort, workerPort, graphID, workerPartitions, masterIP);
 
     for (int threadCount = 0; threadCount < count; threadCount++) {
         if(workerThreads[threadCount].joinable()) {
@@ -2417,24 +2425,26 @@ int JasmineGraphServer::initiateEntityResolution(vector<pair<string, string>> ho
         }
         std::cout << "Thread [A]: " << threadCount << " joined" << std::endl;
     }
+
     //Cluster Bloom Filters
     cout << "Clustering Bloom filters into" << partitionCount << "clusters" << endl;
-
     EntityResolver er;
-    er.clusterFilters(graphID, partitionCount, partitionCount);
+    this -> initiateClustering(coordinatorHost, workerPort, workerPort, graphID, 8, 8, masterIP);
 
     //Reshuffle clusters into workers
     cout << "Reshuffling cluster files to workers" << endl;
+    distributeClustersToWorkers(coordinatorHost, workerPort, workerPort, graphID, workerPartitions, masterIP);
 
     //Bucket local clusters
     cout << "Bucketing worker-local clusters" << endl;
-    for (std::vector<pair<string, string>>::iterator it = (hostHasPartition.begin()); it != hostHasPartition.end(); ++it) {
-        //Fetch hostname, port and partition id
-        string hostname = it -> first;
-        int port = hostPortMap[it->first].first;
-        string partitionID = it->second;
-        //Initialize threads for host
-        workerThreads[count++] = std::thread(createBloomFilters, hostname, port, graphID, partitionID, masterIP);
+    for (auto r: workerPartitions) {
+        string hostname = r[0];
+        string port = r[1];
+        string dataPort = r[2];
+        string partition = r[3];
+        vector<int> clusters = {stoi(partition)};
+
+        workerThreads[count++] = std::thread(bucketLocalClusters, hostname, port, graphID, clusters, masterIP);
         sleep(1);
     }
 
@@ -2445,7 +2455,158 @@ int JasmineGraphServer::initiateEntityResolution(vector<pair<string, string>> ho
         std::cout << "Thread [A]: " << threadCount << " joined" << std::endl;
     }
 
+    bool isCoordinator = false;
+    if (!isCoordinator) {
+        string host = designatedWorkerHost;
+        int port = designatedWorkerPort;
 
+        Utils utils;
+        std::cout << pthread_self() << " host : " << host << " port : " << port << std::endl;
+        int sockfd;
+        char data[300];
+        bool loop = false;
+        socklen_t len;
+        struct sockaddr_in serv_addr;
+        struct hostent *server;
+
+        sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+        if (sockfd < 0) {
+            std::cerr << "Cannot accept connection" << std::endl;
+            return 0;
+        }
+
+        if (host.find('@') != std::string::npos) {
+            host = utils.split(host, '@')[1];
+        }
+
+        server = gethostbyname(host.c_str());
+        if (server == NULL) {
+            std::cerr << "ERROR, no host named " << server << std::endl;
+        }
+
+        bzero((char *) &serv_addr, sizeof(serv_addr));
+        serv_addr.sin_family = AF_INET;
+        bcopy((char *) server->h_addr,
+              (char *) &serv_addr.sin_addr.s_addr,
+              server->h_length);
+        serv_addr.sin_port = htons(port);
+        if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+            std::cerr << "ERROR connecting" << std::endl;
+            //TODO::exit
+        }
+
+        bzero(data, 301);
+        int result_wr = write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+
+        if(result_wr < 0) {
+            server_logger.log("Error writing to socket", "error");
+        }
+
+        server_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
+        bzero(data, 301);
+        read(sockfd, data, 300);
+        string response = (data);
+
+        response = utils.trim_copy(response, " \f\n\r\t\v");
+
+        while (!loop) {
+            if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
+                server_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
+                result_wr = write(sockfd, masterIP.c_str(), masterIP.size());
+
+                if(result_wr < 0) {
+                    server_logger.log("Error writing to socket", "error");
+                }
+
+                server_logger.log("Sent : " + masterIP, "info");
+                bzero(data, 301);
+                read(sockfd, data, 300);
+                response = (data);
+
+                if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
+                    server_logger.log("Received : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
+                } else {
+                    server_logger.log("Received : " + response, "error");
+                }
+
+                bzero(data, 301);
+                read(sockfd, data, 300);
+                response = (data);
+                response = utils.trim_copy(response, " \f\n\r\t\v");
+
+                if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+                    server_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+                    result_wr = write(sockfd, graphID.c_str(), graphID.size());
+
+                    if(result_wr < 0) {
+                        server_logger.log("Error writing to socket", "error");
+                    }
+
+                    server_logger.log("Sent : Graph ID " + graphID, "info");
+
+                    JasmineGraphServer::collectBloomFiltersToMaster(coordinatorHost, workerPort, designatedWorkerHost,
+                                                designatedWorkerPort, designatedWorkerPort, graphID, 4, masterIP);
+                }
+
+            }
+
+
+        }
+    }
+}
+
+int JasmineGraphServer::signalOrganizations(string organizationHost, string designatedWorkerHost, string designatedWorkerPort, string graphID, string masterIP) {
+    Utils utils;
+    Logger instance_logger;
+    bool result = true;
+    std::cout << pthread_self() << " host : " << organizationHost << "port : " << 7777 << std::endl;
+    int sockfd;
+    char data[INSTANCE_DATA_LENGTH];
+    bool loop = false;
+    socklen_t len;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+
+    //Initialize socket connection
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sockfd < 0) {
+        std::cerr << "Cannot accept connection" << std::endl;
+        return 0;
+    }
+
+    if (organizationHost.find('@') != std::string::npos) {
+        organizationHost = utils.split(organizationHost, '@')[1];
+    }
+
+    server = gethostbyname(organizationHost.c_str());
+    if (server == NULL) {
+        std::cerr << "ERROR, no host named " << server << std::endl;
+    }
+
+    //Add socket connection parameters
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *) server->h_addr,
+          (char *) &serv_addr.sin_addr.s_addr,
+          server->h_length);
+    serv_addr.sin_port = htons(7777);
+
+    //Attempt connection
+    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+        std::cerr << "ERROR connecting" << std::endl;
+        //TODO::exit
+    }
+
+    //Write graph ID to socket
+    write(sockfd, graphID.c_str(), (graphID).size());
+    instance_logger.log("Sent : Graph ID " + graphID, "info");
+
+    string designatedWorkerDetails = designatedWorkerHost + "|" + designatedWorkerPort;
+    //Write graph ID to socket
+    write(sockfd, designatedWorkerDetails.c_str(), (designatedWorkerDetails).size());
+    instance_logger.log("Sent : Graph ID " + designatedWorkerDetails, "info");
 
 }
 
@@ -2653,10 +2814,6 @@ int JasmineGraphServer::collectBloomFilters(string destHost, int destPort, int d
             write(sockfd, graphID.c_str(), (graphID).size());
             instance_logger.log("Sent : Graph ID " + graphID, "info");
 
-            //Write graph ID to socket
-            write(sockfd, graphID.c_str(), (graphID).size());
-            instance_logger.log("Sent : Graph ID " + graphID, "info");
-
             //Convert host partition detail map to string
 
             string hostPartitionListStr = "";
@@ -2674,6 +2831,291 @@ int JasmineGraphServer::collectBloomFilters(string destHost, int destPort, int d
             //Write host partition details ID to socket
             write(sockfd, hostPartitionListStr.c_str(), (hostPartitionListStr).size());
             instance_logger.log("Sent : Partition ID " + hostPartitionListStr, "info");
+
+        }
+    }
+}
+
+int JasmineGraphServer::initiateClustering(string destHost, int destPort, int dataPort, string graphID, int partitionCount,
+                                       int noClusters, string masterIP) {
+    Utils utils;
+    Logger instance_logger;
+    bool result = true;
+    std::cout << pthread_self() << " host : " << destHost << " port : " << destPort << " DPort : " << dataPort << std::endl;
+    int sockfd;
+    char data[INSTANCE_DATA_LENGTH];
+    bool loop = false;
+    socklen_t len;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+
+    //Initialize socket connection
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sockfd < 0) {
+        std::cerr << "Cannot accept connection" << std::endl;
+        return 0;
+    }
+
+    if (destHost.find('@') != std::string::npos) {
+        destHost = utils.split(destHost, '@')[1];
+    }
+
+    server = gethostbyname(destHost.c_str());
+    if (server == NULL) {
+        std::cerr << "ERROR, no host named " << server << std::endl;
+    }
+
+    //Add socket connection parameters
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *) server->h_addr,
+          (char *) &serv_addr.sin_addr.s_addr,
+          server->h_length);
+    serv_addr.sin_port = htons(destPort);
+
+    //Attempt connection
+    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+        std::cerr << "ERROR connecting" << std::endl;
+        //TODO::exit
+    }
+
+    //Attempt handshake
+    bzero(data, INSTANCE_DATA_LENGTH);
+    write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
+    bzero(data, INSTANCE_DATA_LENGTH);
+    read(sockfd, data, INSTANCE_DATA_LENGTH);
+    string response = (data);
+
+    response = utils.trim_copy(response, " \f\n\r\t\v");
+    //Check if handshake is ok
+    if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
+        instance_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
+
+        string server_host = destHost;
+        write(sockfd, server_host.c_str(), server_host.size());
+        instance_logger.log("Sent : " + server_host, "info");
+
+        write(sockfd, JasmineGraphInstanceProtocol::INITIATE_CLUSTERING.c_str(),
+              JasmineGraphInstanceProtocol::INITIATE_CLUSTERING.size());
+        instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::INITIATE_CLUSTERING, "info");
+
+        bzero(data, INSTANCE_DATA_LENGTH);
+        read(sockfd, data, INSTANCE_DATA_LENGTH);
+        response = (data);
+        response = utils.trim_copy(response, " \f\n\r\t\v");
+
+        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+
+            //Write graph ID to socket
+            write(sockfd, graphID.c_str(), (graphID).size());
+            instance_logger.log("Sent : Graph ID " + graphID, "info");
+
+            //Write partition Count to socket
+            write(sockfd, to_string(partitionCount).c_str(), (to_string(partitionCount)).size());
+            instance_logger.log("Sent : Graph ID " + to_string(partitionCount), "info");
+
+            //Write cluster count to socket
+            write(sockfd, to_string(noClusters).c_str(), (to_string(noClusters)).size());
+            instance_logger.log("Sent : Graph ID " + to_string(noClusters), "info");
+        }
+    }
+}
+
+int
+JasmineGraphServer::distributeClustersToWorkers(string destHost, int destPort, int dataPort, string graphID, vector<vector<string>> workerClusterMap, string masterIP) {
+    Utils utils;
+    Logger instance_logger;
+    bool result = true;
+    std::cout << pthread_self() << " host : " << destHost << " port : " << destPort << " DPort : " << dataPort << std::endl;
+    int sockfd;
+    char data[INSTANCE_DATA_LENGTH];
+    bool loop = false;
+    socklen_t len;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+
+    //Initialize socket connection
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sockfd < 0) {
+        std::cerr << "Cannot accept connection" << std::endl;
+        return 0;
+    }
+
+    if (destHost.find('@') != std::string::npos) {
+        destHost = utils.split(destHost, '@')[1];
+    }
+
+    server = gethostbyname(destHost.c_str());
+    if (server == NULL) {
+        std::cerr << "ERROR, no host named " << server << std::endl;
+    }
+
+    //Add socket connection parameters
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *) server->h_addr,
+          (char *) &serv_addr.sin_addr.s_addr,
+          server->h_length);
+    serv_addr.sin_port = htons(destPort);
+
+    //Attempt connection
+    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+        std::cerr << "ERROR connecting" << std::endl;
+        //TODO::exit
+    }
+
+    //Attempt handshake
+    bzero(data, INSTANCE_DATA_LENGTH);
+    write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
+    bzero(data, INSTANCE_DATA_LENGTH);
+    read(sockfd, data, INSTANCE_DATA_LENGTH);
+    string response = (data);
+
+    response = utils.trim_copy(response, " \f\n\r\t\v");
+    //Check if handshake is ok
+    if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
+        instance_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
+
+        string server_host = destHost;
+        write(sockfd, server_host.c_str(), server_host.size());
+        instance_logger.log("Sent : " + server_host, "info");
+
+        write(sockfd, JasmineGraphInstanceProtocol::DISTRIBUTE_CLUSTERS.c_str(),
+              JasmineGraphInstanceProtocol::DISTRIBUTE_CLUSTERS.size());
+        instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::DISTRIBUTE_CLUSTERS, "info");
+
+        bzero(data, INSTANCE_DATA_LENGTH);
+        read(sockfd, data, INSTANCE_DATA_LENGTH);
+        response = (data);
+        response = utils.trim_copy(response, " \f\n\r\t\v");
+
+        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+
+            //Write graph ID to socket
+            write(sockfd, graphID.c_str(), (graphID).size());
+            instance_logger.log("Sent : Graph ID " + graphID, "info");
+
+            //Convert host and required cluster detail map to string
+
+            string hostPartitionListStr = "";
+            for (auto p: workerClusterMap) {
+                string hostname = p.at(0);
+                string port = p.at(1);
+                string dataPort = p.at(2);
+                string clusterID = p.at(3);
+
+                if (hostname != destHost)
+                    hostPartitionListStr += hostname + "," + port + "," + dataPort + "," + clusterID + "|";
+            }
+            hostPartitionListStr = hostPartitionListStr.substr(hostPartitionListStr.size() - 2);
+
+            //Write host partition details ID to socket
+            write(sockfd, hostPartitionListStr.c_str(), (hostPartitionListStr).size());
+            instance_logger.log("Sent : Partition ID " + hostPartitionListStr, "info");
+        }
+    }
+}
+
+int JasmineGraphServer::collectBloomFiltersToMaster(string host, int port, string coordinatorHost, int coordinatorPort, int dataPort, string graphID, int noClusters, string masterIP) {
+    Utils utils;
+    Logger instance_logger;
+    bool result = true;
+    std::cout << pthread_self() << " host : " << host << " port : " << port << " DPort : " << std::endl;
+    int sockfd;
+    char data[INSTANCE_DATA_LENGTH];
+    bool loop = false;
+    socklen_t len;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+
+    //Initialize socket connection
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sockfd < 0) {
+        std::cerr << "Cannot accept connection" << std::endl;
+        return 0;
+    }
+
+    if (host.find('@') != std::string::npos) {
+        host = utils.split(host, '@')[1];
+    }
+
+    server = gethostbyname(host.c_str());
+    if (server == NULL) {
+        std::cerr << "ERROR, no host named " << server << std::endl;
+    }
+
+    //Add socket connection parameters
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *) server->h_addr,
+          (char *) &serv_addr.sin_addr.s_addr,
+          server->h_length);
+    serv_addr.sin_port = htons(port);
+
+    //Attempt connection
+    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+        std::cerr << "ERROR connecting" << std::endl;
+        //TODO::exit
+    }
+
+    //Attempt handshake
+    bzero(data, INSTANCE_DATA_LENGTH);
+    write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
+    bzero(data, INSTANCE_DATA_LENGTH);
+    read(sockfd, data, INSTANCE_DATA_LENGTH);
+    string response = (data);
+
+    response = utils.trim_copy(response, " \f\n\r\t\v");
+    //Check if handshake is ok
+    if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
+        instance_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
+
+        string server_host = host;
+        write(sockfd, server_host.c_str(), server_host.size());
+        instance_logger.log("Sent : " + server_host, "info");
+
+        write(sockfd, JasmineGraphInstanceProtocol::COLLECT_CLUSTERS_TO_MASTER.c_str(),
+              JasmineGraphInstanceProtocol::COLLECT_CLUSTERS_TO_MASTER.size());
+        instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::COLLECT_CLUSTERS_TO_MASTER, "info");
+
+        bzero(data, INSTANCE_DATA_LENGTH);
+        read(sockfd, data, INSTANCE_DATA_LENGTH);
+        response = (data);
+        response = utils.trim_copy(response, " \f\n\r\t\v");
+
+        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+
+            //Write destination host to socket
+            string server_host = coordinatorHost;
+            write(sockfd, server_host.c_str(), server_host.size());
+            instance_logger.log("Sent : " + server_host, "info");
+
+            //Write destination port to socket
+            int server_port = coordinatorPort;
+            write(sockfd, to_string(server_port).c_str(), to_string(server_port).size());
+            instance_logger.log("Sent : " + server_port, "info");
+
+            //Write destination data port to socket
+            int server_data_port = dataPort;
+            write(sockfd, to_string(server_data_port).c_str(), to_string(server_data_port).size());
+            instance_logger.log("Sent : " + server_data_port, "info");
+
+            //Write graph ID to socket
+            write(sockfd, graphID.c_str(), (graphID).size());
+            instance_logger.log("Sent : Graph ID " + graphID, "info");
+
+            //Write no of clusters to socket
+            write(sockfd, to_string(noClusters).c_str(), to_string(noClusters).size());
+            instance_logger.log("Sent : Graph ID " + to_string(noClusters), "info");
 
         }
     }
@@ -2757,6 +3199,133 @@ int JasmineGraphServer::bucketLocalClusters(std::string host, int port, std::str
         }
 
         server_logger.log("Sent : " + JasmineGraphInstanceProtocol::BUCKET_LOCAL_CLUSTERS, "info");
+        bzero(data, 301);
+        read(sockfd, data, 300);
+        response = (data);
+        response = utils.trim_copy(response, " \f\n\r\t\v");
+
+        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+            server_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+            result_wr = write(sockfd, graphID.c_str(), graphID.size());
+
+            if(result_wr < 0) {
+                server_logger.log("Error writing to socket", "error");
+            }
+
+            server_logger.log("Sent : Graph ID " + graphID, "info");
+
+            bzero(data, 301);
+            read(sockfd, data, 300);
+            response = (data);
+            response = utils.trim_copy(response, " \f\n\r\t\v");
+
+            if (response.compare(JasmineGraphInstanceProtocol::SEND_PARTITION_ID) == 0) {
+                server_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_PARTITION_ID, "info");
+//                result_wr = write(sockfd, clusters.c_str(), clusters.size());
+
+                if(result_wr < 0) {
+                    server_logger.log("Error writing to socket", "error");
+                }
+
+//                server_logger.log("Sent : Partition ID " + clusters, "info");
+
+                bzero(data, 301);
+                read(sockfd, data, 300);
+                response = (data);
+                response = utils.trim_copy(response, " \f\n\r\t\v");
+                server_logger.log("Received last response : " + response, "info");
+                return 1;
+            } else {
+                close(sockfd);
+                return 0;
+            }
+        } else {
+            close(sockfd);
+            return 0;
+        }
+    }
+    close(sockfd);
+    return 0;
+}
+
+int JasmineGraphServer::computeCandidateSets(std::string host, int port, std::string graphID, vector<int> clusters, std::string masterIP) {
+    Utils utils;
+    std::cout << pthread_self() << " host : " << host << " port : " << port << std::endl;
+    int sockfd;
+    char data[300];
+    bool loop = false;
+    socklen_t len;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sockfd < 0) {
+        std::cerr << "Cannot accept connection" << std::endl;
+        return 0;
+    }
+
+    if (host.find('@') != std::string::npos) {
+        host = utils.split(host, '@')[1];
+    }
+
+    server = gethostbyname(host.c_str());
+    if (server == NULL) {
+        std::cerr << "ERROR, no host named " << server << std::endl;
+    }
+
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *) server->h_addr,
+          (char *) &serv_addr.sin_addr.s_addr,
+          server->h_length);
+    serv_addr.sin_port = htons(port);
+    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+        std::cerr << "ERROR connecting" << std::endl;
+        //TODO::exit
+    }
+
+    bzero(data, 301);
+    int result_wr = write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+
+    if(result_wr < 0) {
+        server_logger.log("Error writing to socket", "error");
+    }
+
+    server_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
+    bzero(data, 301);
+    read(sockfd, data, 300);
+    string response = (data);
+
+    response = utils.trim_copy(response, " \f\n\r\t\v");
+
+    if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
+        server_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
+        result_wr = write(sockfd, masterIP.c_str(), masterIP.size());
+
+        if(result_wr < 0) {
+            server_logger.log("Error writing to socket", "error");
+        }
+
+        server_logger.log("Sent : " + masterIP, "info");
+        bzero(data, 301);
+        read(sockfd, data, 300);
+        response = (data);
+
+        if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
+            server_logger.log("Received : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
+        } else {
+            server_logger.log("Received : " + response, "error");
+        }
+
+        result_wr = write(sockfd, JasmineGraphInstanceProtocol::COMPUTE_CANDIDATE_SETS.c_str(),
+                          JasmineGraphInstanceProtocol::COMPUTE_CANDIDATE_SETS.size());
+
+        if(result_wr < 0) {
+            server_logger.log("Error writing to socket", "error");
+        }
+
+        server_logger.log("Sent : " + JasmineGraphInstanceProtocol::COMPUTE_CANDIDATE_SETS, "info");
         bzero(data, 301);
         read(sockfd, data, 300);
         response = (data);

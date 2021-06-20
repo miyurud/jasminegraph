@@ -25,7 +25,7 @@ public:
 
     void seperateClusters(arma::Mat<float> &data, arma::Mat<short> pred, int clusterCount, std::string outfilePrefix);
 
-    std::map<unsigned long, std::vector<std::string>> bucketLocalClusters(int filterSize, std::vector<int> clusters);
+    std::map<unsigned long, std::vector<std::string>> bucketLocalClusters(std::string graphID, int filterSize, std::vector<int> clusters);
 
     std::map<unsigned long, std::set<std::string>> combineLocalBuckets(std::vector<std::map<unsigned long, std::vector<std::string>>> totalWorkerBuckets);
 

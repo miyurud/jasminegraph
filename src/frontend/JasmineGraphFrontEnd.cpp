@@ -953,29 +953,124 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
         }
         else if (line.compare(ENTITY_RESOLUTION) == 0) {
-//            string graphID;
-//            if (JasmineGraphFrontEnd::graphExistsByID(graphID, sqlite)) {
-//
-//            }
-//            else {
-//                frontend_logger.log("Graph does not exist or cannot be deleted with the current hosts setting",
-//                                    "error");
-//                result_wr = write(connFd, ERROR.c_str(), ERROR.size());
-//                if(result_wr < 0) {
-//                    frontend_logger.log("Error writing to socket", "error");
-//                    loop = true;
-//                    continue;
-//                }
-//                result_wr = write(connFd, "\n", 2);
-//                if(result_wr < 0) {
-//                    frontend_logger.log("Error writing to socket", "error");
-//                    loop = true;
-//                    continue;
-//                }
-//            }
+            bool coordinatingOrg;
+            if (coordinatingOrg) {
+                int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
+                if(result_wr < 0) {
+                    frontend_logger.log("Error writing to socket", "error");
+                    loop = true;
+                    continue;
+                }
+                result_wr = write(connFd, "\r\n", 2);
+                if(result_wr < 0) {
+                    frontend_logger.log("Error writing to socket", "error");
+                    loop = true;
+                    continue;
+                }
 
-        } else {
-            frontend_logger.log("Message format not recognized " + line, "error");
+                // We get the name and the path to graph as a pair separated by |.
+                char graph_id[FRONTEND_DATA_LENGTH];
+                char worker_and_port[FRONTEND_DATA_LENGTH];
+                bzero(graph_id, FRONTEND_DATA_LENGTH + 1);
+
+                read(connFd, graph_id, FRONTEND_DATA_LENGTH);
+                string graphID(graph_id);
+
+                read(connFd, worker_and_port, FRONTEND_DATA_LENGTH);
+                string designatedWorkerDetails(worker_and_port);
+
+                Utils utils;
+                graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
+
+                vector<string> strParams = utils.split(designatedWorkerDetails, '|');
+                string designatedHost = strParams[0];
+                string designatedPort = strParams[1];
+
+                frontend_logger.log("Graph ID received: " + graphID, "info");
+
+                if (JasmineGraphFrontEnd::graphExistsByID(graphID, sqlite)) {
+                    frontend_logger.log("Graph with ID " + graphID + " is being deleted now", "info");
+                    JasmineGraphFrontEnd::initiateEntityResolutionCoordinator(graphID, sqlite, masterIP);
+                    result_wr = write(connFd, DONE.c_str(), DONE.size());
+                    if(result_wr < 0) {
+                        frontend_logger.log("Error writing to socket", "error");
+                        loop = true;
+                        continue;
+                    }
+                    result_wr = write(connFd, "\n", 2);
+                    if(result_wr < 0) {
+                        frontend_logger.log("Error writing to socket", "error");
+                        loop = true;
+                        continue;
+                    }
+                } else {
+                    frontend_logger.log("Graph does not exist or cannot be deleted with the current hosts setting",
+                                        "error");
+                    result_wr = write(connFd, ERROR.c_str(), ERROR.size());
+                    if(result_wr < 0) {
+                        frontend_logger.log("Error writing to socket", "error");
+                        loop = true;
+                        continue;
+                    }
+                    result_wr = write(connFd, "\n", 2);
+                    if(result_wr < 0) {
+                        frontend_logger.log("Error writing to socket", "error");
+                        loop = true;
+                        continue;
+                    }
+                }
+            }
+            else {
+                int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
+                if(result_wr < 0) {
+                    frontend_logger.log("Error writing to socket", "error");
+                    loop = true;
+                    continue;
+                }
+                result_wr = write(connFd, "\r\n", 2);
+                if(result_wr < 0) {
+                    frontend_logger.log("Error writing to socket", "error");
+                    loop = true;
+                    continue;
+                }
+
+                // We get the name and the path to graph as a pair separated by |.
+                char graph_id[FRONTEND_DATA_LENGTH];
+                char worker_and_port[FRONTEND_DATA_LENGTH];
+                bzero(graph_id, FRONTEND_DATA_LENGTH + 1);
+
+                read(connFd, graph_id, FRONTEND_DATA_LENGTH);
+                string graphID(graph_id);
+
+                read(connFd, worker_and_port, FRONTEND_DATA_LENGTH);
+                string designatedWorkerDetails(worker_and_port);
+
+                Utils utils;
+                graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
+
+                vector<string> strParams = utils.split(designatedWorkerDetails, '|');
+                string designatedHost = strParams[0];
+                string designatedPort = strParams[1];
+
+                frontend_logger.log("Graph ID received: " + graphID, "info");
+
+                if (JasmineGraphFrontEnd::graphExistsByID(graphID, sqlite)) {
+                    frontend_logger.log("Graph with ID " + graphID + " is being deleted now", "info");
+                    JasmineGraphFrontEnd::initiateEntityResolutionOrg(graphID, sqlite, masterIP, designatedHost, designatedPort);
+                    result_wr = write(connFd, DONE.c_str(), DONE.size());
+                    if(result_wr < 0) {
+                        frontend_logger.log("Error writing to socket", "error");
+                        loop = true;
+                        continue;
+                    }
+                    result_wr = write(connFd, "\n", 2);
+                    if(result_wr < 0) {
+                        frontend_logger.log("Error writing to socket", "error");
+                        loop = true;
+                        continue;
+                    }
+            }
+
         }
     }
     frontend_logger.log("Closing thread " + to_string(pthread_self()) + " and connection", "info");
@@ -2602,6 +2697,33 @@ map<long, long> JasmineGraphFrontEnd::getOutDegreeDistributionHashMap(map<long, 
         distributionHashMap.insert(std::make_pair(it->first, distribution));
     }
     return distributionHashMap;
+}
+
+void JasmineGraphFrontEnd::initiateEntityResolutionCoordinator(std::string graphID, SQLiteDBInterface sqlite, std::string masterIP, string designatedWorkerHost, string designatedWorkerPort) {
+    vector<pair<string, string>> hostHasPartition;
+    vector<vector<pair<string, string>>> hostPartitionResults = sqlite.runSelect(
+            "SELECT name, partition_idpartition FROM worker_has_partition INNER JOIN worker ON "
+            "worker_has_partition.worker_idworker = worker.idworker WHERE partition_graph_idgraph = " + graphID + ";");
+    for (vector<vector<pair<string, string>>>::iterator i = hostPartitionResults.begin();
+         i != hostPartitionResults.end(); ++i) {
+        int count = 0;
+        string hostname;
+        string partitionID;
+        for (std::vector<pair<string, string>>::iterator j = (i->begin()); j != i->end(); ++j) {
+            if (count == 0) {
+                hostname = j->second;
+            } else {
+                partitionID = j->second;
+                hostHasPartition.push_back(pair<string, string>(hostname, partitionID));
+            }
+            count++;
+        }
+    }
+    for (std::vector<pair<string, string>>::iterator j = (hostHasPartition.begin()); j != hostHasPartition.end(); ++j) {
+        cout << "HOST ID : " << j->first << " Partition ID : " << j->second << endl;
+    }
+
+    server->initiateEntityResolution(hostHasPartition, graphID, masterIP);
 }
 
 void JasmineGraphFrontEnd::initiateEntityResolution(std::string graphID, SQLiteDBInterface sqlite, std::string masterIP) {

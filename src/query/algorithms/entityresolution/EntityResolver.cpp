@@ -59,36 +59,36 @@ vector<map<int, string>>
 EntityResolver::createFilters(map<int, vector<string>> entityData, map<int, vector<int>> neighborhoodData,
                               int filterSize = 256,
                               int numHashes = 4) {
-//Create bloom filters
+    //Create bloom filters
     cout << "Creating filters" << endl;
     Utils utils;
     map<int, string> attrFilters;
     map<int, string> structFilters;
-//For each entity create attr and structural bloom filters
+    //For each entity create attr and structural bloom filters
     for (const auto &entity: entityData) {
-//Create attr bloom filter
+    //Create attr bloom filter
         BloomFilter attrFilter(filterSize, numHashes);
         vector<string> attributes = entity.second;
-//Add node attributes to bloom filter
+    //Add node attributes to bloom filter
         for (auto attr: attributes) {
             cout << attr << endl;
             attrFilter.insert(attr);
         }
-//Convert bloom filter to appropriate string
+    //Convert bloom filter to appropriate string
         string filterStr = attrFilter.m_bits.to_string();
         cout << filterStr << endl;
         filterStr = utils.replace(filterStr, "0", ",0");
         filterStr = utils.replace(filterStr, "1", ",1");
         attrFilters[entity.first] = filterStr;
 
-//Create structural filter
+    //Create structural filter
         BloomFilter structFilter(256, 4);
-//For each neighbour add selected attribute to bloom filter
+    //For each neighbour add selected attribute to bloom filter
         for (auto neighbour: neighborhoodData[entity.first]) {
             string selectedAttr = entityData[neighbour][0];
             structFilter.insert(selectedAttr);
         }
-//Convert bloom filter to appropriate string
+    //Convert bloom filter to appropriate string
         filterStr = structFilter.m_bits.to_string();
         filterStr = utils.replace(filterStr, "0", ",0");
         filterStr = utils.replace(filterStr, "1", ",1");
@@ -145,7 +145,7 @@ void EntityResolver::clusterFilters(string graphID, int partitionCount, int noCl
     //For each cluster write bloom filters of said cluster into a separate file
     int clusterCount = model.getMeans().n_cols;
     //Separate attr filters into clusters
-    seperateClusters(data, pred, clusterCount, "AttrFiltersCluster_");
+    seperateClusters(data, pred, clusterCount, "AttrCluster_" + graphID);
     data.clear();
     //Separate struct filters into clusters
     //data.load(structFilterPath, arma::csv_ascii);
@@ -180,7 +180,7 @@ void seperateClusters(Mat<float> &data, Mat<short> pred, int clusterCount, strin
  * @param filterSize Size of the bloom filter
  * @param clusters Vector of worker-local clusters
  */
-map<unsigned long, vector<string>> EntityResolver::bucketLocalClusters(int filterSize, vector<int> clusters) {
+map<unsigned long, vector<string>> EntityResolver::bucketLocalClusters(string graphID, int filterSize, vector<int> clusters) {
 
     Utils utils;
 
@@ -189,14 +189,14 @@ map<unsigned long, vector<string>> EntityResolver::bucketLocalClusters(int filte
     for (int i = 0; i < clusterCount; i++) {
         //Load cluster file into memory
         string filename = utils.getJasmineGraphProperty("org.jasminegraph.entity.location") + "AttrFiltersCluster_" +
-                          to_string(clusters.at(i)) + ".txt";
+                          graphID + "_" + to_string(clusters.at(i)) + ".txt";
         Mat<float> clusterData;
         clusterData.load(filename, arma::csv_ascii);
         //Remove node id column
         clusterData.shed_col(0);
         inplace_trans(clusterData, "lowmem");
         //Create minhash signature of cluster
-        MinHash minHash(100, 256);
+        MinHash minHash(100, filterSize);
         Col<short> crv = minHash.generateCRV(clusterData, 50);
         //Store in matrix
         CRVs.col(i) = crv;
@@ -383,95 +383,95 @@ synchronizeCommonEntities(map<string, map<string, map<string, string>>> pairwise
     return partyCommonEntityMap;
 }
 
-void EntityResolver::entityRes(string trainData) {
-
-    Utils utils;
-    map<int, vector<string>> entityData;
-    map<int, vector<int>> neighborhoodData;
-
-    std::string filePath = "";
-    std::string edgefilePath = "";
-    std::string attrfilePath = "";
-    std::string attrFilterPath = "";
-    std::string structFilterPath = "";
-
-    std::vector<std::string> trainargs = Utils::split(trainData, ' ');
-    string graphID = trainargs[1];
-    string partitionID = trainargs[2];
-
-    //Read attributes from file
-    std::ifstream dataFile;
-    cout << "reading file" << endl;
-
-    filePath = utils.getJasmineGraphProperty("org.jasminegraph.entity.location");
-    dataFile.open("/home/damitha/ubuntu/entity_data/entityData.txt", std::ios::binary | std::ios::in);
-
-    char splitter;
-    string line;
-
-    std::getline(dataFile, line);
-    splitter = ' ';
-
-    cout << "Getting data" << endl;
-    while (!line.empty()) {
-
-        int strpos = line.find(splitter);
-        string nodeID = line.substr(0, strpos);
-        string weakIDStr = line.substr(strpos + 1, -1);
-        entityData[stoi(nodeID)] = utils.split(weakIDStr, splitter);
-        cout << line << endl;
-
-
-        std::getline(dataFile, line);
-        while (!line.empty() && line.find_first_not_of(splitter) == std::string::npos) {
-            std::getline(dataFile, line);
-        }
-    }
-    dataFile.close();
-
-    //Read edgelist from file
-    std::ifstream edgeFile;
-    std::cout << "reading file" << endl;
-
-    edgefilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.trainedmodelfolder")
-                   + graphID + "_" + partitionID;
-    edgeFile.open(edgefilePath);
-    std::getline(edgeFile, line);
-
-    splitter = ' ';
-
-    cout << "Getting neighbourhood data" << endl;
-    while (!line.empty()) {
-
-        int strpos = line.find(splitter);
-        string vertex1 = line.substr(0, strpos);
-        string vertex2 = line.substr(strpos + 1, -1);
-        if (neighborhoodData.size() <= 5) {
-            neighborhoodData[stoi(vertex1)].emplace_back(stoi(vertex2));
-        }
-
-
-        std::getline(edgeFile, line);
-        while (!line.empty() && line.find_first_not_of(splitter) == std::string::npos) {
-            std::getline(edgeFile, line);
-        }
-    }
-    edgeFile.close();
-
-    map<int, string> attrFilters = createFilters(entityData, 256, 4);
-
-    attrFilterPath =
-            utils.getJasmineGraphProperty("org.jasminegraph.entity.location") + "attrfilters_" + graphID + "_" +
-            partitionID + ".txt";
-    structFilterPath =
-            utils.getJasmineGraphProperty("org.jasminegraph.entity.location") + "structfilters_" + graphID + "_" +
-            partitionID + ".txt";
-
-    //Write attr and struct filters separately into files
-    writeToFile(attrFilterPath, attrFilters);
-//    writeBloomFiltersToFile(structFilterPath, structFilters);
-
-}
+//void EntityResolver::entityRes(string trainData) {
+//
+//    Utils utils;
+//    map<int, vector<string>> entityData;
+//    map<int, vector<int>> neighborhoodData;
+//
+//    std::string filePath = "";
+//    std::string edgefilePath = "";
+//    std::string attrfilePath = "";
+//    std::string attrFilterPath = "";
+//    std::string structFilterPath = "";
+//
+//    std::vector<std::string> trainargs = Utils::split(trainData, ' ');
+//    string graphID = trainargs[1];
+//    string partitionID = trainargs[2];
+//
+//    //Read attributes from file
+//    std::ifstream dataFile;
+//    cout << "reading file" << endl;
+//
+//    filePath = utils.getJasmineGraphProperty("org.jasminegraph.entity.location");
+//    dataFile.open("/home/damitha/ubuntu/entity_data/entityData.txt", std::ios::binary | std::ios::in);
+//
+//    char splitter;
+//    string line;
+//
+//    std::getline(dataFile, line);
+//    splitter = ' ';
+//
+//    cout << "Getting data" << endl;
+//    while (!line.empty()) {
+//
+//        int strpos = line.find(splitter);
+//        string nodeID = line.substr(0, strpos);
+//        string weakIDStr = line.substr(strpos + 1, -1);
+//        entityData[stoi(nodeID)] = utils.split(weakIDStr, splitter);
+//        cout << line << endl;
+//
+//
+//        std::getline(dataFile, line);
+//        while (!line.empty() && line.find_first_not_of(splitter) == std::string::npos) {
+//            std::getline(dataFile, line);
+//        }
+//    }
+//    dataFile.close();
+//
+//    //Read edgelist from file
+//    std::ifstream edgeFile;
+//    std::cout << "reading file" << endl;
+//
+//    edgefilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.trainedmodelfolder")
+//                   + graphID + "_" + partitionID;
+//    edgeFile.open(edgefilePath);
+//    std::getline(edgeFile, line);
+//
+//    splitter = ' ';
+//
+//    cout << "Getting neighbourhood data" << endl;
+//    while (!line.empty()) {
+//
+//        int strpos = line.find(splitter);
+//        string vertex1 = line.substr(0, strpos);
+//        string vertex2 = line.substr(strpos + 1, -1);
+//        if (neighborhoodData.size() <= 5) {
+//            neighborhoodData[stoi(vertex1)].emplace_back(stoi(vertex2));
+//        }
+//
+//
+//        std::getline(edgeFile, line);
+//        while (!line.empty() && line.find_first_not_of(splitter) == std::string::npos) {
+//            std::getline(edgeFile, line);
+//        }
+//    }
+//    edgeFile.close();
+//
+//    map<int, string> attrFilters = createFilters(entityData, 256, 4);
+//
+//    attrFilterPath =
+//            utils.getJasmineGraphProperty("org.jasminegraph.entity.location") + "attrfilters_" + graphID + "_" +
+//            partitionID + ".txt";
+//    structFilterPath =
+//            utils.getJasmineGraphProperty("org.jasminegraph.entity.location") + "structfilters_" + graphID + "_" +
+//            partitionID + ".txt";
+//
+//    //Write attr and struct filters separately into files
+//    writeToFile(attrFilterPath, attrFilters);
+////    writeBloomFiltersToFile(structFilterPath, structFilters);
+//
+//}
 
 Mat<short> EntityResolver::generateCRVs(int minhashSize, int noClusters) { //minHash def 100
     Mat<short> CRVs(minhashSize, noClusters);

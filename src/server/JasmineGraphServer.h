@@ -110,6 +110,20 @@ sendFileThroughService
 
     static int bucketLocalClusters(std::string host, int port, std::string graphID, std::vector<int> clusters, std::string masterIP);
 
+    static int computeCandidateSets(std::string host, int port, std::string graphID, std::vector<int> clusters, std::string masterIP);
+
+    int collectBloomFiltersToMaster(string host, int port, string coordinatorHost, int coordinatorPort, int dataPort, string graphID, int noClusters, string masterIP);
+
+    int initiateClustering(string destHost, int destPort, int dataPort, string graphID, int partitionCount, int noClusters, string masterIP);
+
+    int distributeClustersToWorkers(string destHost, int destPort, int dataPort, string graphID,
+                                    std::vector<std::vector<string>> workerClusterMap, string masterIP);
+
+    static int
+    signalOrganizations(string organizationHost, string designatedWorkerHost, string designatedWorkerPort,
+                        string graphID,
+                        string masterIP);
+
     static bool sendFileThroughService(std::string host, int dataPort, std::string fileName, std::string filePath, std::string masterIP);
 
     void assignPartitionToWorker (std::string fileName, int graphId, std::string workerHost, int workerPort, int workerDataPort);

@@ -50,7 +50,9 @@ public:
 
     void setServer(JasmineGraphServer s);
 
-    void initiateEntityResolution(std::string graphID, SQLiteDBInterface sqlite, std::string masterIP);
+    static void initiateEntityResolutionOrg(std::string graphID, SQLiteDBInterface sqlite, std::string masterIP, std::string designatedWorkerHost, std::string designatedWorkerPort);
+
+    static void initiateEntityResolutionCoordinator(std::string graphID, SQLiteDBInterface sqlite, std::string masterIP);
 
     static bool graphExists(std::string basic_string, SQLiteDBInterface sqlite);
 
