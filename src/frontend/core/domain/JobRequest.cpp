@@ -36,3 +36,11 @@ void JobRequest::addParameter(std::string key, std::string value) {
 std::string JobRequest::getParameter(std::string key) {
     return requestParams[key];
 }
+
+void JobRequest::setPriority(int priority) {
+    this->priority = priority;
+}
+
+int JobRequest::getPriority() {
+    return priority;
+}

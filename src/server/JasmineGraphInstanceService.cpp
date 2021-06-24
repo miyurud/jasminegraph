@@ -28,7 +28,9 @@ StatisticCollector collector;
 int JasmineGraphInstanceService::partitionCounter = 0;
 std::map<int,std::vector<std::string>> JasmineGraphInstanceService::iterationData;
 const string JasmineGraphInstanceService::END_OF_MESSAGE = "eom";
-int sleepFlag;
+int highestPriority = Conts::DEFAULT_THREAD_PRIORITY;
+std::atomic<int> workerHighPriorityTaskCount;
+std::mutex threadPriorityMutex;
 
 
 char *converter(const std::string &s) {
@@ -894,7 +896,36 @@ void *instanceservicesession(void *dummyPt) {
             string partitionId = (data);
             partitionId = utils.trim_copy(partitionId, " \f\n\r\t\v");
             instance_logger.log("Received Partition ID: " + partitionId, "info");
-            long localCount = countLocalTriangles(graphID,partitionId,graphDBMapLocalStores,graphDBMapCentralStores,graphDBMapDuplicateCentralStores);
+
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string priority = (data);
+            priority = utils.trim_copy(priority, " \f\n\r\t\v");
+            instance_logger.log("Received Priority : " + priority, "info");
+
+            int threadPriority = std::atoi(priority.c_str());
+
+            if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
+                threadPriorityMutex.lock();
+                workerHighPriorityTaskCount++;
+                highestPriority = threadPriority;
+                threadPriorityMutex.unlock();
+            }
+
+            long localCount = countLocalTriangles(graphID, partitionId, graphDBMapLocalStores, graphDBMapCentralStores,
+                                                  graphDBMapDuplicateCentralStores, threadPriority);
+
+            if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
+                threadPriorityMutex.lock();
+                workerHighPriorityTaskCount--;
+
+                if (workerHighPriorityTaskCount == 0) {
+                    highestPriority = Conts::DEFAULT_THREAD_PRIORITY;
+                }
+                threadPriorityMutex.unlock();
+            }
+
             std::string result = to_string(localCount);
             write(connFd, result.c_str(), result.size());
         } else if (line.compare(JasmineGraphInstanceProtocol::SEND_CENTRALSTORE_TO_AGGREGATOR) == 0) {
@@ -1123,8 +1154,36 @@ void *instanceservicesession(void *dummyPt) {
             partitionIdList = utils.trim_copy(partitionIdList, " \f\n\r\t\v");
             instance_logger.log("Received Partition ID List : " + partitionIdList, "info");
 
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string priority = (data);
+            priority = utils.trim_copy(priority, " \f\n\r\t\v");
+            instance_logger.log("Received priority: " + priority, "info");
 
-            std::string aggregatedTriangles= JasmineGraphInstanceService::aggregateCentralStoreTriangles(graphId, partitionId, partitionIdList);
+            int threadPriority = std::atoi(priority.c_str());
+
+            if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
+                threadPriorityMutex.lock();
+                workerHighPriorityTaskCount++;
+                highestPriority = threadPriority;
+                threadPriorityMutex.unlock();
+            }
+
+            std::string aggregatedTriangles= JasmineGraphInstanceService::aggregateCentralStoreTriangles(graphId,
+                                                                                                         partitionId,
+                                                                                                         partitionIdList,
+                                                                                                         threadPriority);
+
+            if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
+                threadPriorityMutex.lock();
+                workerHighPriorityTaskCount--;
+
+                if (workerHighPriorityTaskCount == 0) {
+                    highestPriority = Conts::DEFAULT_THREAD_PRIORITY;
+                }
+                threadPriorityMutex.unlock();
+            }
 
             std::vector<std::string> chunksVector;
 
@@ -1184,9 +1243,34 @@ void *instanceservicesession(void *dummyPt) {
 
             instance_logger.log("Received Composite File List : " + compositeFileList, "info");
 
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string priority = (data);
+            priority = utils.trim_copy(priority, " \f\n\r\t\v");
+            instance_logger.log("Received priority: " + priority, "info");
+
+            int threadPriority = std::atoi(priority.c_str());
+
+            if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
+                threadPriorityMutex.lock();
+                workerHighPriorityTaskCount++;
+                highestPriority = threadPriority;
+                threadPriorityMutex.unlock();
+            }
 
             std::string aggregatedTriangles= JasmineGraphInstanceService::aggregateCompositeCentralStoreTriangles(
-                    response, availableFiles);
+                    response, availableFiles, threadPriority);
+
+            if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
+                threadPriorityMutex.lock();
+                workerHighPriorityTaskCount--;
+
+                if (workerHighPriorityTaskCount == 0) {
+                    highestPriority = Conts::DEFAULT_THREAD_PRIORITY;
+                }
+                threadPriorityMutex.unlock();
+            }
 
             std::vector<std::string> chunksVector;
 
@@ -1725,7 +1809,7 @@ void *instanceservicesession(void *dummyPt) {
             instance_logger.log("Received Priority: " + priority, "info");
 
             int retrievedPriority = atoi(priority.c_str());
-            sleepFlag = retrievedPriority;
+            highestPriority = retrievedPriority;
         }
     }
     instance_logger.log("Closing thread " + to_string(pthread_self()), "info");
@@ -1855,7 +1939,11 @@ void writeCatalogRecord(string record) {
 
 
 
-long countLocalTriangles(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores, std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores, std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> graphDBMapDuplicateCentralStores) {
+long countLocalTriangles(std::string graphId, std::string partitionId,
+                         std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
+                         std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores,
+                         std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> graphDBMapDuplicateCentralStores,
+                         int threadPriority) {
     long result;
 
     instance_logger.log("###INSTANCE### Local Triangle Count : Started", "info");
@@ -1898,7 +1986,7 @@ long countLocalTriangles(std::string graphId, std::string partitionId, std::map<
         duplicateCentralGraphDB = graphDBMapDuplicateCentralStores[duplicateCentralGraphIdentifier];
     }
 
-    result = Triangles::run(graphDB,centralGraphDB,duplicateCentralGraphDB,graphId,partitionId);
+    result = Triangles::run(graphDB, centralGraphDB, duplicateCentralGraphDB, graphId, partitionId, threadPriority);
 
     instance_logger.log("###INSTANCE### Local Triangle Count : Completed: Triangles: " + to_string(result), "info");
 
@@ -2027,7 +2115,9 @@ std::string JasmineGraphInstanceService::copyCentralStoreToAggregator(std::strin
 
 }
 
-std::string JasmineGraphInstanceService::aggregateCentralStoreTriangles(std::string graphId, std::string partitionId, std::string partitionIdList) {
+string JasmineGraphInstanceService::aggregateCentralStoreTriangles(std::string graphId, std::string partitionId,
+                                                                   std::string partitionIdList,
+                                                                   int threadPriority) {
     Utils utils;
     instance_logger.log("###INSTANCE### Started Aggregating Central Store Triangles","info");
     std::string aggregatorFilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
@@ -2086,14 +2176,14 @@ std::string JasmineGraphInstanceService::aggregateCentralStoreTriangles(std::str
 
     map<long, long> distributionHashMap = JasmineGraphInstanceService::getOutDegreeDistributionHashMap(aggregatedCentralStore);
 
-    std::string triangles = Triangles::countCentralStoreTriangles(aggregatedCentralStore,distributionHashMap);
+    std::string triangles = Triangles::countCentralStoreTriangles(aggregatedCentralStore, distributionHashMap, threadPriority);
 
     return triangles;
 
 }
 
 string JasmineGraphInstanceService::aggregateCompositeCentralStoreTriangles(std::string compositeFileList,
-                                                                            std::string availableFileList) {
+                                                                            std::string availableFileList, int threadPriority) {
     Utils utils;
     instance_logger.log("###INSTANCE### Started Aggregating Composite Central Store Triangles","info");
     std::string aggregatorFilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
@@ -2167,7 +2257,8 @@ string JasmineGraphInstanceService::aggregateCompositeCentralStoreTriangles(std:
 
     map<long, long> distributionHashMap = JasmineGraphInstanceService::getOutDegreeDistributionHashMap(aggregatedCompositeCentralStore);
 
-    std::string triangles = Triangles::countCentralStoreTriangles(aggregatedCompositeCentralStore,distributionHashMap);
+    std::string triangles = Triangles::countCentralStoreTriangles(aggregatedCompositeCentralStore, distributionHashMap,
+                                                                  threadPriority);
 
     return triangles;
 }

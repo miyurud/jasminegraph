@@ -18,8 +18,11 @@ limitations under the License.
 #include <string>
 #include <set>
 #include <vector>
+#include <atomic>
 
-extern int sleepFlag;
+extern int highestPriority;
+extern std::atomic<int> highPriorityTaskCount;
+extern std::atomic<int> workerHighPriorityTaskCount;
 
 struct ProcessInfo {
     int id;
@@ -70,6 +73,12 @@ public:
     static int GRAPH_TYPE_TEXT;
 
     static int MAX_FE_SESSIONS;
+
+    static int DEFAULT_THREAD_PRIORITY;
+    static int HIGH_PRIORITY_DEFAULT_VALUE;
+
+    static int THREAD_SLEEP_TIME;       //Thread sleep time in milliseconds
+    static int MAX_HIGH_PRIORIY_TASKS;
 
 
 

@@ -35,10 +35,11 @@ public:
 
     static std::vector<std::vector<string>> getCombinations (std::vector<string> inputVector);
 
-    static long getTriangleCount(int graphId, std::string host, int port, int dataPort, int partitionId,
-                          std::string masterIP, int uniqueId, bool isCompositeAggregation);
+    static long getTriangleCount(int graphId, std::string host, int port, int dataPort, int partitionId, std::string masterIP,
+                     int uniqueId, bool isCompositeAggregation, int threadPriority);
 
-    static long aggregateCentralStoreTriangles(SQLiteDBInterface sqlite, std::string graphId, std::string masterIP);
+    static long aggregateCentralStoreTriangles(SQLiteDBInterface sqlite, std::string graphId, std::string masterIP,
+                                               int threadPriority);
 
     static string isFileAccessibleToWorker(std::string graphId, std::string partitionId,
                                            std::string aggregatorHostName, std::string aggregatorPort,
@@ -50,17 +51,17 @@ public:
                                                              std::string masterIP);
 
     static string countCompositeCentralStoreTriangles(std::string aggregatorHostName, std::string aggregatorPort,
-                                                      std::string compositeCentralStoreFileList,
-                                                      std::string masterIP, std::string availableFileList);
+                                                      std::string compositeCentralStoreFileList, std::string masterIP,
+                                                      std::string availableFileList, int threadPriority);
 
     static std::vector<std::vector<string>> getWorkerCombination (SQLiteDBInterface sqlite, std::string graphId);
 
     static std::string copyCentralStoreToAggregator(std::string aggregatorHostName, std::string aggregatorPort,
             std::string aggregatorDataPort, int graphId, int partitionId, std::string masterIP);
 
-    static string countCentralStoreTriangles (std::string aggregatorHostName, std::string aggregatorPort,
-            std::string host, std::string partitionId, std::string partitionIdList, std::string graphId,
-            std::string masterIP);
+    static string countCentralStoreTriangles(std::string aggregatorHostName, std::string aggregatorPort, std::string host,
+                               std::string partitionId, std::string partitionIdList, std::string graphId,
+                               std::string masterIP, int threadPriority);
 
     static std::vector<std::vector<string>> fileCombinations;
     static std::map<std::string, std::string> combinationWorkerMap;

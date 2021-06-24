@@ -41,6 +41,7 @@ limitations under the License.
 using json = nlohmann::json;
 using namespace std;
 
+std::atomic<int> highPriorityTaskCount;
 static int connFd;
 static int currentFESession;
 static bool canCalibrate = true;
@@ -718,10 +719,74 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                     frontend_logger.log("Error writing to socket", "error");
                 }
             } else {
+                int result_wr = write(connFd, PRIORITY.c_str(), PRIORITY.length());
+                if (result_wr < 0) {
+                    frontend_logger.log("Error writing to socket", "error");
+                }
+                result_wr = write(connFd, "\r\n", 2);
+                if (result_wr < 0) {
+                    frontend_logger.log("Error writing to socket", "error");
+                }
+
+                // We get the name and the path to graph as a pair separated by |.
+                char priority_data[300];
+                bzero(priority_data, 301);
+
+                read(connFd, priority_data, FRONTEND_DATA_LENGTH);
+
+                string priority(priority_data);
+
+                Utils utils;
+                priority = utils.trim_copy(priority, " \f\n\r\t\v");
+
+                if (!(std::find_if(priority.begin(),
+                                        priority.end(), [](unsigned char c) { return !std::isdigit(c); }) == priority.end())) {
+                    string error_message = "Priority should be numeric and > 1 or empty";
+                    result_wr = write(connFd, error_message.c_str(), error_message.length());
+
+                    if (result_wr < 0) {
+                        frontend_logger.log("Error writing to socket", "error");
+                    }
+
+                    result_wr = write(connFd, "\r\n", 2);
+
+                    if (result_wr < 0) {
+                        frontend_logger.log("Error writing to socket", "error");
+                    }
+                    break;
+                }
+
+                int threadPriority = std::atoi(priority.c_str());
+
+                //All high priority threads will be set the same high priority level
+                if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
+                    threadPriority = Conts::HIGH_PRIORITY_DEFAULT_VALUE;
+
+                    if (highPriorityTaskCount == Conts::MAX_HIGH_PRIORIY_TASKS) {
+                        string error_message = "System has reached the maximum high priority tasks allowed "
+                                               "at a given time. Please try again later.";
+                        result_wr = write(connFd, error_message.c_str(), error_message.length());
+
+                        if (result_wr < 0) {
+                            frontend_logger.log("Error writing to socket", "error");
+                        }
+
+                        result_wr = write(connFd, "\r\n", 2);
+
+                        if (result_wr < 0) {
+                            frontend_logger.log("Error writing to socket", "error");
+                        }
+                        break;
+                    } else {
+                        highPriorityTaskCount++;
+                    }
+                }
+
                 auto begin = chrono::high_resolution_clock::now();
                 JobRequest jobDetails;
                 jobDetails.setJobId(std::to_string(uniqueId));
                 jobDetails.setJobType(TRIANGLES);
+                jobDetails.setPriority(threadPriority);
                 jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_ID, graph_id);
                 jobDetails.addParameter(Conts::PARAM_KEYS::MASTER_IP, masterIP);
                 if (canCalibrate) {
@@ -733,6 +798,11 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 jobScheduler.pushJob(jobDetails);
                 JobResponse jobResponse = jobScheduler.getResult(jobDetails);
                 std::string triangleCount = jobResponse.getParameter(Conts::PARAM_KEYS::TRIANGLE_COUNT);
+
+                if (threadPriority == Conts::HIGH_PRIORITY_DEFAULT_VALUE) {
+                    highPriorityTaskCount--;
+                }
+
                 auto end = chrono::high_resolution_clock::now();
                 auto dur = end - begin;
                 auto msDuration = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();

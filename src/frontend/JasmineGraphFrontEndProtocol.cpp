@@ -42,3 +42,4 @@ const string START_REMOTE_WORKER = "start-rmt-worker";
 const string REMOTE_WORKER_ARGS = "remote-worker-args";
 const string SLA = "sla";
 const string COMMAND = "command";
+const string PRIORITY = "priority(>=1)";

@@ -25,12 +25,15 @@ private:
 
 public:
     int priority;
+
     std::string getJobId();
     void setJobId(std::string inputJobId);
     std::string getJobType();
     void setJobType(std::string inputJobType);
     void addParameter(std::string key, std::string value);
     std::string getParameter(std::string key);
+    void setPriority(int priority);
+    int getPriority();
 };
 
 
