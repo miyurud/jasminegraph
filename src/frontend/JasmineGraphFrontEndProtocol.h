@@ -75,6 +75,8 @@ extern const string PARTITIONS;
 extern const string EMPTY;
 extern const string START_REMOTE_WORKER;
 extern const string REMOTE_WORKER_ARGS;
+extern const string SLA;
+extern const string COMMAND;
 
 
 class JasminGraphFrontEndProtocol {

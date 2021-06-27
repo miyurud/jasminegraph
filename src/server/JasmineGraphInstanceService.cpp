@@ -28,6 +28,8 @@ StatisticCollector collector;
 int JasmineGraphInstanceService::partitionCounter = 0;
 std::map<int,std::vector<std::string>> JasmineGraphInstanceService::iterationData;
 const string JasmineGraphInstanceService::END_OF_MESSAGE = "eom";
+int sleepFlag;
+
 
 char *converter(const std::string &s) {
     char *pc = new char[s.size() + 1];
@@ -1712,6 +1714,18 @@ void *instanceservicesession(void *dummyPt) {
                 instance_logger.log("Error while reading content length", "error");
             }
             incrementalLocalStore.addEdgeFromString(edgeString);
+        } else if (line.compare(JasmineGraphInstanceProtocol::SEND_PRIORITY) == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_PRIORITY, "info");
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string priority = (data);
+            priority = utils.trim_copy(priority, " \f\n\r\t\v");
+            instance_logger.log("Received Priority: " + priority, "info");
+
+            int retrievedPriority = atoi(priority.c_str());
+            sleepFlag = retrievedPriority;
         }
     }
     instance_logger.log("Closing thread " + to_string(pthread_self()), "info");

@@ -16,6 +16,19 @@ limitations under the License.
 
 
 #include <string>
+#include <set>
+#include <vector>
+
+extern int sleepFlag;
+
+struct ProcessInfo {
+    int id;
+    int graphId;
+    std::string processName;
+    std::vector<std::string> workerList;
+};
+
+extern std::set<ProcessInfo> processData;
 
 class Conts {
 public:
@@ -56,6 +69,8 @@ public:
 
     static int GRAPH_TYPE_TEXT;
 
+    static int MAX_FE_SESSIONS;
+
 
 
     struct GRAPH_STATUS {
@@ -78,8 +93,16 @@ public:
         static const std::string EPOCHS;
     };
 
+    struct SLA_CATEGORY {
+        static const std::string LATENCY;
+    };
+
 
 };
 
+inline bool operator<(const ProcessInfo& lhs, const ProcessInfo& rhs)
+{
+    return lhs.id < rhs.id;
+}
 
 #endif //JASMINEGRAPH_CONTS_H

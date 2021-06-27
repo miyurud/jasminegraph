@@ -20,6 +20,7 @@ limitations under the License.
 #include "../localstore/JasmineGraphLocalStoreFactory.h"
 #include "../query/algorithms/triangles/Triangles.h"
 #include "../util/Utils.h"
+#include "../util/Conts.h"
 #include <string.h>
 #include <unistd.h>
 #include <stdio.h>

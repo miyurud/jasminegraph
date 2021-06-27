@@ -49,6 +49,7 @@ int Conts::JASMINEGRAPH_RUNTIME_PROFILE_MASTER = 1;
 int Conts::JASMINEGRAPH_RUNTIME_PROFILE_WORKER = 2;
 
 int Conts::RDF_NUM_OF_ATTRIBUTES = 7;
+int Conts::MAX_FE_SESSIONS = 20;
 
 
 const int Conts::GRAPH_STATUS::LOADING = 1;
@@ -64,3 +65,5 @@ const std::string Conts::FLAGS::LEARNING_RATE = "learning_rate";
 const std::string Conts::FLAGS::BATCH_SIZE = "batch_size";
 const std::string Conts::FLAGS::VALIDATE_ITER = "validate_iter";
 const std::string Conts::FLAGS::EPOCHS = "epochs";
+
+const std::string Conts::SLA_CATEGORY::LATENCY = "latency";
