@@ -96,8 +96,6 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
         if (currentFESession > 1) {
             canCalibrate = false;
-        } else if (currentFESession == 1) {
-            canCalibrate = true;
         } else {
             canCalibrate = true;
         }
@@ -1061,7 +1059,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 }
             }
 
-            string adjustedIdList = slaCategoryIds.substr(0, slaCategoryIds.size()-1);
+            string adjustedIdList = slaCategoryIds.substr(0, slaCategoryIds.size() - 1);
 
             std::stringstream ss;
             std::vector<vector<pair<string, string>>> v = perfSqlite.runSelect(

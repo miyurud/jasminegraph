@@ -539,7 +539,7 @@ void Utils::updateSLAInformation(PerformanceSQLiteDBInterface perfSqlite, std::s
             perfSqlite.runInsert(insertQuery);
         }
     } else {
-        util_logger.log("Invalid " + category + " for " + command + " command", "error");
+        util_logger.log("Invalid SLA " + category + " for " + command + " command", "error");
     }
 
 }
