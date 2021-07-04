@@ -45,13 +45,13 @@ void *instanceservicesession(void *dummyPt) {
     std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores = sessionargs->graphDBMapLocalStores;
     std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores = sessionargs->graphDBMapCentralStores;
     std::map<std::string,JasmineGraphHashMapDuplicateCentralStore> graphDBMapDuplicateCentralStores = sessionargs->graphDBMapDuplicateCentralStores;
+    std::map<std::string,JasmineGraphIncrementalLocalStore> incrementalLocalStoreMap = sessionargs->incrementalLocalStore;
 
     string serverName = sessionargs->host;
     string masterHost = sessionargs->masterHost;
     string profile = sessionargs->profile;
     int serverPort = sessionargs->port;
     int serverDataPort = sessionargs->dataPort;
-    JasmineGraphIncrementalLocalStore incrementalLocalStore;
 
 
     instance_logger.log("New service session started on thread " + to_string(pthread_self()), "info");
@@ -1773,6 +1773,12 @@ void *instanceservicesession(void *dummyPt) {
                 instance_logger.log("Sent : " + result, "info");
             }
         } else if (line.compare(JasmineGraphInstanceProtocol::GRAPH_STREAM_START) == 0) {
+            std::string graphIdentifier = graphId + "_"+partitionId;
+            if (!incrementalLocalStoreMap[graphIdentifier]) {
+                JasmineGraphInstanceService::loadStreamingStore(graphID, partitionID, incrementalLocalStoreMap);
+            } else {
+                incrementalLocalStore = incrementalLocalStoreMap[graphIdentifier];
+            }
             write(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK.c_str(),
                   JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK.size());
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK, "info");
@@ -1860,31 +1866,31 @@ int JasmineGraphInstanceService::run(string profile, string masterHost, string h
     int connectionCounter = 0;
     pthread_mutex_init(&file_lock, NULL);
     pthread_t threadA[MAX_CONNECTION_COUNT];
+    struct instanceservicesessionargs instanceservicesessionargs1;
+    std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores;
+    std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores;
+    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> graphDBMapDuplicateCentralStores;
+    std::map<std::string, JasmineGraphIncrementalLocalStore> incrementalLocalStore;
 
+    instanceservicesessionargs1.graphDBMapLocalStores = graphDBMapLocalStores;
+    instanceservicesessionargs1.graphDBMapCentralStores = graphDBMapCentralStores;
+    instanceservicesessionargs1.graphDBMapDuplicateCentralStores = graphDBMapDuplicateCentralStores;
+    instanceservicesessionargs1.incrementalLocalStore = incrementalLocalStore;
+    instanceservicesessionargs1.profile = profile;
+    instanceservicesessionargs1.masterHost = masterHost;
+    instanceservicesessionargs1.port = serverPort;
+    instanceservicesessionargs1.dataPort = serverDataPort;
+    instanceservicesessionargs1.host = host;
     // TODO :: What is the maximum number of connections allowed??
     instance_logger.log("Worker listening on port " + to_string(serverPort), "info");
     while (connectionCounter < MAX_CONNECTION_COUNT) {
         int connFd = accept(listenFd, (struct sockaddr *) &clntAdd, &len);
-        std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores;
-        std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores;
-        std::map<std::string,JasmineGraphHashMapDuplicateCentralStore> graphDBMapDuplicateCentralStores;
 
         if (connFd < 0) {
             instance_logger.log("Cannot accept connection to port " + to_string(serverPort), "error");
         } else {
             instance_logger.log("Connection successful to port " + to_string(serverPort), "info");
-            struct instanceservicesessionargs instanceservicesessionargs1;
             instanceservicesessionargs1.connFd = connFd;
-            instanceservicesessionargs1.graphDBMapLocalStores = graphDBMapLocalStores;
-            instanceservicesessionargs1.graphDBMapCentralStores = graphDBMapCentralStores;
-            instanceservicesessionargs1.graphDBMapDuplicateCentralStores = graphDBMapDuplicateCentralStores;
-            instanceservicesessionargs1.profile = profile;
-            instanceservicesessionargs1.masterHost = masterHost;
-            instanceservicesessionargs1.port = serverPort;
-            instanceservicesessionargs1.dataPort = serverDataPort;
-            instanceservicesessionargs1.host = host;
-
-
             pthread_create(&threadA[connectionCounter], NULL, instanceservicesession,
                            &instanceservicesessionargs1);
             //pthread_detach(threadA[connectionCounter]);
@@ -2025,6 +2031,16 @@ bool JasmineGraphInstanceService::isInstanceDuplicateCentralStoreExists(std::str
         return false;
     }
     return true;
+}
+
+void JasmineGraphInstanceService::loadStreamingStore(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphIncrementalLocalStore>& graphDBMapStreamingStores) {
+    instance_logger.log("###INSTANCE### Loading streaming Store : Started", "info");
+    std::string graphIdentifier = graphId + "_"+partitionId;
+    Utils utils;
+    std::string folderLocation = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+    JasmineGraphIncrementalLocalStore  *jasmineGraphStreamingLocalStore = new JasmineGraphIncrementalLocalStore(atoi(graphId.c_str()),atoi(partitionId.c_str()));
+    graphDBMapStreamingStores.insert(std::make_pair(graphIdentifier,*jasmineGraphStreamingLocalStore));
+    instance_logger.log("###INSTANCE### Loading Local Store : Completed", "info");
 }
 
 void JasmineGraphInstanceService::loadLocalStore(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapLocalStore>& graphDBMapLocalStores) {
