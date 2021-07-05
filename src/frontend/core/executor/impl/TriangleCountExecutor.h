@@ -21,6 +21,7 @@ limitations under the License.
 #include "../../../JasmineGraphFrontEndProtocol.h"
 #include "../../../../server/JasmineGraphInstanceProtocol.h"
 #include "../../../../server/JasmineGraphServer.h"
+#include "../../../../util/performance/PerformanceUtil.h"
 
 
 class TriangleCountExecutor: public AbstractExecutor {

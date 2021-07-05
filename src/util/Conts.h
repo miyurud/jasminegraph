@@ -23,6 +23,8 @@ limitations under the License.
 extern int highestPriority;
 extern std::atomic<int> highPriorityTaskCount;
 extern std::atomic<int> workerHighPriorityTaskCount;
+extern bool workerResponded;
+extern std::vector<std::string> highPriorityGraphList;
 
 struct ProcessInfo {
     int id;
@@ -69,6 +71,7 @@ public:
     static int COMPOSITE_CENTRAL_STORE_WORKER_THRESHOLD;
     static int NUMBER_OF_COMPOSITE_CENTRAL_STORES;
     static int RDF_NUM_OF_ATTRIBUTES;
+    static int MAX_SLA_CALIBRATE_ATTEMPTS;
 
     static int GRAPH_TYPE_TEXT;
 

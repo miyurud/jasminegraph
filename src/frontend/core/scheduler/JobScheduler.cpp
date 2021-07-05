@@ -22,6 +22,8 @@ std::priority_queue<JobRequest> jobQueue;
 std::vector<JobResponse> responseVector;
 std::map<std::string, JobResponse> responseMap;
 std::vector<std::future<void>> JobScheduler::intermRes;
+bool workerResponded;
+std::vector<std::string> highPriorityGraphList;
 
 JobScheduler::JobScheduler(SQLiteDBInterface sqlite, PerformanceSQLiteDBInterface perfDB) {
     this->sqlite = sqlite;

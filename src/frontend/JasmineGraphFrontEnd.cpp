@@ -36,6 +36,7 @@ limitations under the License.
 #include "../ml/trainer/python-c-api/Python_C_API.h"
 #include "../centralstore/incremental/DataPublisher.h"
 #include "core/scheduler/JobScheduler.h"
+#include "../util/performance/PerformanceUtil.h"
 #include "core/CoreConstants.h"
 
 using json = nlohmann::json;
@@ -101,6 +102,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             canCalibrate = false;
         } else {
             canCalibrate = true;
+            workerResponded = false;
         }
 
 
@@ -783,6 +785,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 }
 
                 auto begin = chrono::high_resolution_clock::now();
+                JasmineGraphFrontEnd::isResourcesSufficient(graph_id);
                 JobRequest jobDetails;
                 jobDetails.setJobId(std::to_string(uniqueId));
                 jobDetails.setJobType(TRIANGLES);
@@ -2895,4 +2898,12 @@ map<long, long> JasmineGraphFrontEnd::getOutDegreeDistributionHashMap(map<long, 
 int JasmineGraphFrontEnd::getUid() {
     static std::atomic<std::uint32_t> uid { 0 };
     return ++uid;
+}
+
+bool JasmineGraphFrontEnd::isResourcesSufficient(std::string graphId) {
+    PerformanceUtil performanceUtil;
+    performanceUtil.init();
+    std::vector<ResourceConsumption> placeResouceConsumptionList = performanceUtil.retrieveCurrentResourceUtilization();
+
+    return true;
 }

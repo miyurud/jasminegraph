@@ -521,7 +521,7 @@ void Utils::updateSLAInformation(PerformanceSQLiteDBInterface perfSqlite, std::s
             long slaValue = atol(slaValueString.c_str());
             int attempts = atoi(attemptString.c_str());
 
-            if (attempts < 3) {
+            if (attempts < Conts::MAX_SLA_CALIBRATE_ATTEMPTS) {
                 long newSla = ((slaValue * attempts) + newSlaValue) / (attempts + 1);
 
                 attempts++;

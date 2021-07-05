@@ -37,6 +37,10 @@ void TriangleCountExecutor::execute() {
     std::string canCalibrate = request.getParameter(Conts::PARAM_KEYS::CAN_CALIBRATE);
     int threadPriority = request.getPriority();
 
+    if (threadPriority == Conts::HIGH_PRIORITY_DEFAULT_VALUE) {
+        highPriorityGraphList.push_back(graphId);
+    }
+
     triangleCount_logger.log("###TRIANGLE-COUNT-EXECUTOR### Started with graph ID : " + graphId + " Master IP : " + masterIP, "info");
 
     long result= 0;
@@ -51,6 +55,7 @@ void TriangleCountExecutor::execute() {
     PlacesToNodeMapper placesToNodeMapper;
     std::vector<std::string> compositeCentralStoreFiles;
     int uniqueId = getUid();
+    int slaStatCount = 0;
 
     auto begin = chrono::high_resolution_clock::now();
 
@@ -141,6 +146,29 @@ void TriangleCountExecutor::execute() {
                                workerPort, workerDataPort, atoi(partitionId.c_str()), masterIP, uniqueId,
                                isCompositeAggregation, threadPriority));
         }
+    }
+
+    PerformanceUtil performanceUtil;
+    performanceUtil.init();
+
+    std::string query = "SELECT attempt from graph_sla where graph_id='" + graphId +
+                        "' and partition_count='" + std::to_string(partitionCount) + "' and id_sla_category='" + Conts::SLA_CATEGORY::LATENCY + "';";
+
+    std::vector<vector<pair<string, string>>> queryResults = perfDB.runSelect(query);
+
+    if (queryResults.size() > 0) {
+        std::string attemptString = queryResults[0][0].second;
+        int calibratedAttempts = atoi(attemptString.c_str());
+
+        if (calibratedAttempts >= Conts::MAX_SLA_CALIBRATE_ATTEMPTS) {
+            canCalibrate = "false";
+        }
+    }
+
+    while (!workerResponded && canCalibrate == "true") {
+        performanceUtil.collectSLAResourceConsumption(graphId,TRIANGLES,Conts::SLA_CATEGORY::LATENCY,slaStatCount,partitionCount);
+        slaStatCount++;
+        sleep(5);
     }
 
     for (auto &&futureCall:intermRes) {
@@ -377,6 +405,7 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
             triangleCount_logger.log("Got response : |" + response + "|", "info");
             response = utils.trim_copy(response, " \f\n\r\t\v");
             triangleCount = atol(response.c_str());
+            workerResponded = true;
         }
 
         if (isCompositeAggregation) {

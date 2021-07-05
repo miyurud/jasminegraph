@@ -97,6 +97,8 @@ public:
 
     static int getUid();
 
+    static bool isResourcesSufficient(std::string graphId);
+
 
     static std::vector<std::vector<string>> fileCombinations;
     static std::map<std::string, std::string> combinationWorkerMap;
