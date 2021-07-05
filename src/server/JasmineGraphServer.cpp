@@ -2564,6 +2564,14 @@ void JasmineGraphServer::addInstanceDetailsToPerformanceDB(std::string host, std
     for (it = portVector.begin(); it < portVector.end(); it++) {
         std::string isHostReporter = "false";
         int port = (*it);
+        std::string searchPlaceQuery = "select idplace from place where ip='" + ipAddress + "' and host_idhost='" +
+                hostId + "' and server_port='" + to_string(port) + "';";
+        vector<vector<pair<string,string>>> placeSearchResult = this->performanceSqlite.runSelect(searchPlaceQuery);
+
+        if (placeSearchResult.size() > 0) {
+            continue;
+        }
+
         if (count == 0) {
             std::string searchReporterQuery = "select idplace from place where ip='" + ipAddress + "' and is_host_reporter='true'";
             vector<vector<pair<string,string>>> searchResult = this->performanceSqlite.runSelect(searchReporterQuery);
