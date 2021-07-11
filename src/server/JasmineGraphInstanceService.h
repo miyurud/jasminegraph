@@ -21,6 +21,7 @@ limitations under the License.
 #include "../query/algorithms/triangles/Triangles.h"
 #include "../util/Utils.h"
 #include "../util/Conts.h"
+#include "../localstore/incremental/JasmineGraphIncrementalLocalStore.h"
 #include <string.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -64,7 +65,7 @@ struct instanceservicesessionargs {
     std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores;
     std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores;
     std::map<std::string,JasmineGraphHashMapDuplicateCentralStore> graphDBMapDuplicateCentralStores;
-    std::map<std::string, JasmineGraphIncrementalLocalStore> incrementalLocalStore;
+    std::map<std::string,JasmineGraphIncrementalLocalStore> incrementalLocalStore;
 };
 
 class JasmineGraphInstanceService {
@@ -80,7 +81,7 @@ public:
     static bool isInstanceCentralStoreExists(std::string graphId, std::string partitionId);
     static bool isInstanceDuplicateCentralStoreExists(std::string graphId, std::string partitionId);
     static void loadLocalStore(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapLocalStore>& graphDBMapLocalStores);
-    static void loadStreamingStore(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphIncrementalLocalStore>& graphDBMapStreamingStores);
+    static JasmineGraphIncrementalLocalStore loadStreamingStore(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphIncrementalLocalStore>& graphDBMapStreamingStores);
     static void loadInstanceCentralStore(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapCentralStore>& graphDBMapCentralStores);
     static void loadInstanceDuplicateCentralStore(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapDuplicateCentralStore>& graphDBMapDuplicateCentralStores);
     static JasmineGraphHashMapCentralStore loadCentralStore(std::string centralStoreFileName);

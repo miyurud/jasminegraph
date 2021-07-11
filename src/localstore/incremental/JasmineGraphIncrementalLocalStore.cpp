@@ -18,17 +18,16 @@ limitations under the License.
 #include <stdexcept>
 using json = nlohmann::json;
 
-#include "../../util/logger/Logger.h"
 #include "../../centralstore/incremental/RelationBlock.h"
-
+#include "../../util/logger/Logger.h"
 
 Logger incremental_localstore_logger;
 
 JasmineGraphIncrementalLocalStore::JasmineGraphIncrementalLocalStore(unsigned int graphID, unsigned int partitionID) {
     gc.graphID = graphID;
     gc.partitionID = partitionID;
-    gc.maxLabelSize = 43; // TODO tmkasun: read from .properties file
-    gc.openMode = "trunk"; // TODO tmkasun: read from .properties file
+    gc.maxLabelSize = 43;   // TODO tmkasun: read from .properties file
+    gc.openMode = "trunk";  // TODO tmkasun: read from .properties file
     this->nm = new NodeManager(gc);
 };
 
@@ -72,8 +71,9 @@ std::string JasmineGraphIncrementalLocalStore::addEdgeFromString(std::string edg
         }
 
         incremental_localstore_logger.log("Added successfully!", "Info");
-    } catch (const std::exception&) { // TODO tmkasun: Handle multiple types of exceptions
-        incremental_localstore_logger.log("Erroneous edge data = " + edgeString, "error");
+    } catch (const std::exception&) {  // TODO tmkasun: Handle multiple types of exceptions
+        incremental_localstore_logger.log("Error while processing edge data = " + edgeString 
+            + "Could be due to JSON parsing error or error while persisting the data to disk", "error");
         incremental_localstore_logger.log("Error malformed JSON attributes!", "error");
         // TODO tmkasun: handle JSON errors
     }
