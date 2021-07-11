@@ -13,13 +13,15 @@ limitations under the License.
 
 #include "TriangleCountExecutor.h"
 
+using namespace std::chrono;
+
 Logger triangleCount_logger;
 std::vector<std::vector<string>> TriangleCountExecutor::fileCombinations;
 std::map<std::string, std::string> TriangleCountExecutor::combinationWorkerMap;
 std::map<long, std::map<long, std::vector<long>>> TriangleCountExecutor::triangleTree;
-std::mutex processStatusMutex1;
-std::mutex fileCombinationMutex1;
-std::mutex triangleTreeMutex1;
+std::mutex processStatusMutex;
+std::mutex fileCombinationMutex;
+std::mutex triangleTreeMutex;
 
 TriangleCountExecutor::TriangleCountExecutor() {
 
@@ -56,6 +58,21 @@ void TriangleCountExecutor::execute() {
     std::vector<std::string> compositeCentralStoreFiles;
     int uniqueId = getUid();
     int slaStatCount = 0;
+
+    //Below code is used to update the process details
+    processStatusMutex.lock();
+    std::set<ProcessInfo>::iterator processIterator;
+    bool processInfoExists = false;
+    std::chrono::milliseconds startTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
+
+    struct ProcessInfo processInformation;
+    processInformation.id = uniqueId;
+    processInformation.graphId = graphId;
+    processInformation.processName = TRIANGLES;
+    processInformation.priority = threadPriority;
+    processInformation.startTimestamp = startTime.count();
+    processData.insert(processInformation);
+    processStatusMutex.unlock();
 
     auto begin = chrono::high_resolution_clock::now();
 
@@ -151,8 +168,9 @@ void TriangleCountExecutor::execute() {
     PerformanceUtil performanceUtil;
     performanceUtil.init();
 
-    std::string query = "SELECT attempt from graph_sla where graph_id='" + graphId +
-                        "' and partition_count='" + std::to_string(partitionCount) + "' and id_sla_category='" + Conts::SLA_CATEGORY::LATENCY + "';";
+    std::string query = "SELECT attempt from graph_sla INNER JOIN sla_category where graph_sla.id_sla_category=sla_category.id and "
+                        "graph_sla.graph_id='" + graphId + "' and graph_sla.partition_count='" + std::to_string(partitionCount) +
+                        "' and sla_category.category='" + Conts::SLA_CATEGORY::LATENCY + "';";
 
     std::vector<vector<pair<string, string>>> queryResults = perfDB.runSelect(query);
 
@@ -198,6 +216,17 @@ void TriangleCountExecutor::execute() {
         Utils::updateSLAInformation(perfDB, graphId, partitionCount, msDuration, TRIANGLES, Conts::SLA_CATEGORY::LATENCY);
     }
 
+    processStatusMutex.lock();
+    std::set<ProcessInfo>::iterator processCompleteIterator;
+    for (processCompleteIterator = processData.begin(); processCompleteIterator != processData.end(); ++processCompleteIterator) {
+        ProcessInfo processInformation = *processCompleteIterator;
+
+        if (processInformation.id == uniqueId) {
+            processData.erase(processInformation);
+            break;
+        }
+    }
+    processStatusMutex.unlock();
 
     triangleTree.clear();
     combinationWorkerMap.clear();
@@ -249,40 +278,6 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
     struct hostent *server;
     Utils utils;
     long triangleCount;
-
-    //Below code is used to update the process details
-    processStatusMutex1.lock();
-    std::set<ProcessInfo>::iterator processIterator;
-    bool processInfoExists = false;
-    for (processIterator = processData.begin(); processIterator != processData.end();++processIterator) {
-        ProcessInfo processInformation = *processIterator;
-
-        if (processInformation.graphId == graphId && processInformation.id == uniqueId) {
-            processInfoExists = true;
-            std::string workerIdentifier = host + ":" + std::to_string(port);
-            std::vector<std::string> workers = processInformation.workerList;
-            if (std::find(workers.begin(), workers.end(), workerIdentifier) == workers.end()) {
-                workers.push_back(workerIdentifier);
-                processInformation.workerList = workers;
-                processData.erase(processInformation);
-                processData.insert(processInformation);
-                break;
-            }
-        }
-    }
-
-    if (!processInfoExists) {
-        struct ProcessInfo processInformation;
-        std::string workerIdentifier = host + ":" + std::to_string(port);
-        std::vector<std::string> workerList;
-        processInformation.id = uniqueId;
-        processInformation.graphId = graphId;
-        processInformation.processName = "TRIANGLE-COUNT";
-        workerList.push_back(workerIdentifier);
-        processInformation.workerList = workerList;
-        processData.insert(processInformation);
-    }
-    processStatusMutex1.unlock();
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -451,14 +446,14 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
                 std::string adjustedAvailableFiles = availableFiles.substr(0, availableFiles.size()-1);
                 std::string adjustedTransferredFile = transferredFiles.substr(0, transferredFiles.size()-1);
 
-                fileCombinationMutex1.lock();
+                fileCombinationMutex.lock();
                 if (combinationWorkerMap.find(combinationKey) == combinationWorkerMap.end()) {
                     if (partitionIdSet.find(std::to_string(partitionId)) != partitionIdSet.end()) {
                         combinationWorkerMap[combinationKey] = std::to_string(partitionId);
                         isAggregateValid = true;
                     }
                 }
-                fileCombinationMutex1.unlock();
+                fileCombinationMutex.unlock();
 
                 if (isAggregateValid) {
                     std::set<string>::iterator transferRequireFileIterator;
@@ -485,7 +480,7 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
                     std::vector<std::string> triangles = Utils::split(compositeTriangles, ':');
                     std::vector<std::string>::iterator triangleIterator;
 
-                    triangleTreeMutex1.lock();
+                    triangleTreeMutex.lock();
 
                     for (triangleIterator = triangles.begin(); triangleIterator != triangles.end(); ++triangleIterator) {
                         std::string triangle = *triangleIterator;
@@ -514,27 +509,10 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
                             }
                         }
                     }
-                    triangleTreeMutex1.unlock();
+                    triangleTreeMutex.unlock();
                 }
             }
         }
-
-        processStatusMutex1.lock();
-        std::set<ProcessInfo>::iterator processCompleteIterator;
-        for (processCompleteIterator = processData.begin(); processCompleteIterator != processData.end(); ++processCompleteIterator) {
-            ProcessInfo processInformation = *processCompleteIterator;
-
-            if (processInformation.graphId == graphId) {
-                processData.erase(processInformation);
-                std::string workerIdentifier = host + ":" + std::to_string(port);
-                std::vector<std::string> workers = processInformation.workerList;
-                workers.erase(std::remove(workers.begin(), workers.end(), workerIdentifier), workers.end());
-                processInformation.workerList = workers;
-                processData.insert(processInformation);
-                break;
-            }
-        }
-        processStatusMutex1.unlock();
 
         return triangleCount;
 

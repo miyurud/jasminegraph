@@ -26,6 +26,9 @@ limitations under the License.
 #include <thread>
 #include <pthread.h>
 #include <future>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <netdb.h>
 
 
 #ifndef JASMINEGRAPH_PERFORMANCEUTIL_H
@@ -45,6 +48,7 @@ public:
     static int collectSLAResourceConsumption(std::string graphId, std::string command, std::string category,
             int iteration, int partitionCount);
     static std::vector<ResourceConsumption> retrieveCurrentResourceUtilization();
+    static bool isResourcesSufficient(std::string graphId, std::string command, std::string category);
 
 
 private:

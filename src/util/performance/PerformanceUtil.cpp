@@ -681,3 +681,72 @@ ResourceConsumption PerformanceUtil::retrieveRemoteResourceConsumption(std::stri
         }
     }
 }
+
+bool PerformanceUtil::isResourcesSufficient(std::string graphId, std::string command, std::string category) {
+    PerformanceUtil performanceUtil;
+    performanceUtil.init();
+    bool resourcesSufficient = true;
+    std::set<std::string> hostSet;
+    std::vector<ResourceConsumption> placeResouceConsumptionList = performanceUtil.retrieveCurrentResourceUtilization();
+
+    string sqlStatement = "SELECT worker_idworker, name,ip,user,server_port,server_data_port,partition_idpartition "
+                          "FROM worker_has_partition INNER JOIN worker ON worker_has_partition.worker_idworker=worker.idworker "
+                          "WHERE partition_graph_idgraph=" + graphId + ";";
+
+    std::vector<vector<pair<string, string>>> results = sqlLiteDB.runSelect(sqlStatement);
+
+    int partitionCount = results.size();
+
+    for (std::vector<vector<pair<string, string>>>::iterator i = results.begin(); i != results.end(); ++i) {
+        std::vector<pair<string, string>> rowData = *i;
+        string ip = rowData.at(2).second;
+
+        hostSet.insert(ip);
+    }
+
+    for (std::set<std::string>::iterator hostSetIterator = hostSet.begin(); hostSetIterator != hostSet.end(); ++hostSetIterator) {
+        std::string host = *hostSetIterator;
+        std::vector<ResourceConsumption>::iterator consumptionIterator;
+
+        for (consumptionIterator = placeResouceConsumptionList.begin(); consumptionIterator != placeResouceConsumptionList.end(); ++consumptionIterator) {
+            ResourceConsumption consumption = *consumptionIterator;
+
+            if (host == consumption.host) {
+                std::string hostMemoryAllocation;
+                int currentMemoryUsage = consumption.memoryUsage;
+
+                std::string hostMemoryAllocationQuery = "select total_memory from host where ip='" + host + "';";
+                std::string slaMemoryRequirementQuery = "select memory_usage from graph_place_sla_performance INNER JOIN "
+                                                        "graph_sla INNER JOIN sla_category INNER JOIN place "
+                                                        "ON graph_place_sla_performance.graph_sla_id=graph_sla.id AND "
+                                                        "graph_sla.partition_count='" + std::to_string(partitionCount) + "' "
+                                                                                                                         "AND graph_sla.id_sla_category=sla_category.id AND sla_category.command='" + command + "' "
+                                                                                                                                                                                                                "AND sla_category.category='" + category + "' "
+                                                                                                                                                                                                                                                           "AND graph_sla.graph_id='" + graphId + "'"
+                                                                                                                                                                                                                                                                                                  "AND graph_place_sla_performance.place_id=place.idplace AND place.is_host_reporter='true';";
+
+                std::vector<vector<pair<string, string>>> hostAllocationResults = perfDb.runSelect(hostMemoryAllocationQuery);
+                std::vector<vector<pair<string, string>>> slaRequirementResults = perfDb.runSelect(slaMemoryRequirementQuery);
+
+                if (hostAllocationResults.size() > 0 && slaRequirementResults.size() > 0) {
+                    hostMemoryAllocation = hostAllocationResults[0][0].second;
+                    std::string slaRequiredMemoryString = slaRequirementResults[0][0].second;
+
+                    int hostMemory = atoi(hostMemoryAllocation.c_str());
+                    int memoryRequirement = atoi(slaRequiredMemoryString.c_str());
+
+                    if ((currentMemoryUsage + memoryRequirement) >= hostMemory) {
+                        return false;
+                    }
+
+                } else {
+                    scheduler_logger.log("Insufficient entries to check the feasibility. Host Allocation Size : " +
+                                        std::to_string(hostAllocationResults.size()) + ". Sla Requirement: " + std::to_string(slaRequirementResults.size()), "error");
+                    return false;
+                }
+            }
+        }
+    }
+
+    return resourcesSufficient;
+}

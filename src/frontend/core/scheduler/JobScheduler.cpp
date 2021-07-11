@@ -36,10 +36,25 @@ JobScheduler::JobScheduler() {
 
 void *startScheduler(void *dummyPt) {
     JobScheduler *refToScheduler = (JobScheduler *) dummyPt;
+    PerformanceUtil performanceUtil;
+    performanceUtil.init();
     while (true) {
         if (jobQueue.size() > 0) {
             jobScheduler_Logger.log("##JOB SCHEDULER## Picked up Job", "info");
             JobRequest request = jobQueue.top();
+            int priority = request.priority;
+
+            if (priority == Conts::HIGH_PRIORITY_DEFAULT_VALUE) {
+                string perfCategory = request.getParameter(Conts::PARAM_KEYS::CATEGORY);
+                string command = request.getJobType();
+                string graphId = request.getParameter(Conts::PARAM_KEYS::GRAPH_ID);
+                bool isResourcesSufficient = performanceUtil.isResourcesSufficient(graphId,command,perfCategory);
+
+                if (!isResourcesSufficient) {
+                    std::this_thread::sleep_for(std::chrono::seconds(1));
+                }
+            }
+
             jobQueue.pop();
             JobScheduler::processJob(request, refToScheduler->sqlite, refToScheduler->perfSqlite);
             jobScheduler_Logger.log("##JOB SCHEDULER## Scheduled the job", "info");
@@ -74,14 +89,6 @@ JobResponse JobScheduler::getResult(JobRequest jobRequest) {
     bool responseFound = false;
 
     while (!responseFound) {
-        /*for (std::vector<JobResponse>::iterator jobResponseIterator = responseVector.begin();
-             jobResponseIterator != responseVector.end(); ++jobResponseIterator) {
-            JobResponse jobResponseTemp = *jobResponseIterator;
-            if (jobResponseTemp.getJobId() == jobRequest.getJobId()) {
-                responseFound = true;
-                jobResponse = jobResponseTemp;
-            }
-        }*/
         if (responseMap.find(jobRequest.getJobId()) != responseMap.end()) {
             jobResponse = responseMap[jobRequest.getJobId()];
             responseFound = true;

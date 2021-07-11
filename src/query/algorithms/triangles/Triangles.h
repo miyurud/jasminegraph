@@ -24,6 +24,7 @@ limitations under the License.
 #include <set>
 #include <algorithm>
 #include <chrono>
+#include <thread>
 
 class JasmineGraphHashMapCentralStore;
 class JasmineGraphHashMapDuplicateCentralStore;

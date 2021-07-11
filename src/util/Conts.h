@@ -28,8 +28,10 @@ extern std::vector<std::string> highPriorityGraphList;
 
 struct ProcessInfo {
     int id;
-    int graphId;
+    std::string graphId;
     std::string processName;
+    long startTimestamp;
+    int priority;
     std::vector<std::string> workerList;
 };
 
@@ -115,6 +117,7 @@ public:
         static const std::string PRIORITY;
         static const std::string TRIANGLE_COUNT;
         static const std::string CAN_CALIBRATE;
+        static const std::string CATEGORY;
     };
 
 

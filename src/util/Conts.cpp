@@ -78,3 +78,4 @@ const std::string Conts::PARAM_KEYS::GRAPH_ID = "graphID";
 const std::string Conts::PARAM_KEYS::PRIORITY = "priority";
 const std::string Conts::PARAM_KEYS::TRIANGLE_COUNT = "triangleCount";
 const std::string Conts::PARAM_KEYS::CAN_CALIBRATE = "canCalibrate";
+const std::string Conts::PARAM_KEYS::CATEGORY = "category";
