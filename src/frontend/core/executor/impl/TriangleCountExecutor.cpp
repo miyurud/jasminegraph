@@ -47,7 +47,7 @@ void TriangleCountExecutor::execute() {
 
     triangleCount_logger.log("###TRIANGLE-COUNT-EXECUTOR### Started with graph ID : " + graphId + " Master IP : " + masterIP, "info");
 
-    long result= 0;
+    long result = 0;
     bool isCompositeAggregation = false;
     Utils::worker aggregatorWorker;
     vector<Utils::worker> workerList = utils.getWorkerList(sqlite);
@@ -156,7 +156,6 @@ void TriangleCountExecutor::execute() {
             partitionCount++;
             int workerPort = atoi(string(currentWorker.port).c_str());
             int workerDataPort = atoi(string(currentWorker.dataPort).c_str());
-            triangleCount_logger.log("====>PORT:" + std::to_string(workerPort), "info");
 
             partitionId = *partitionIterator;
             intermRes.push_back(
