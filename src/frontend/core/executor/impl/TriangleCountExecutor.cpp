@@ -1,5 +1,5 @@
 /**
-Copyright 2019 JasminGraph Team
+Copyright 2021 JasmineGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -34,9 +34,11 @@ TriangleCountExecutor::TriangleCountExecutor(SQLiteDBInterface db, PerformanceSQ
 }
 
 void TriangleCountExecutor::execute() {
+    Utils utils;
     std::string masterIP= request.getParameter(Conts::PARAM_KEYS::MASTER_IP);
     std::string graphId = request.getParameter(Conts::PARAM_KEYS::GRAPH_ID);
-    std::string canCalibrate = request.getParameter(Conts::PARAM_KEYS::CAN_CALIBRATE);
+    std::string canCalibrateString = request.getParameter(Conts::PARAM_KEYS::CAN_CALIBRATE);
+    bool canCalibrate = utils.parseBoolean(canCalibrateString);
     int threadPriority = request.getPriority();
 
     if (threadPriority == Conts::HIGH_PRIORITY_DEFAULT_VALUE) {
@@ -47,7 +49,6 @@ void TriangleCountExecutor::execute() {
 
     long result= 0;
     bool isCompositeAggregation = false;
-    Utils utils;
     Utils::worker aggregatorWorker;
     vector<Utils::worker> workerList = utils.getWorkerList(sqlite);
     int workerListSize = workerList.size();
@@ -179,11 +180,11 @@ void TriangleCountExecutor::execute() {
         int calibratedAttempts = atoi(attemptString.c_str());
 
         if (calibratedAttempts >= Conts::MAX_SLA_CALIBRATE_ATTEMPTS) {
-            canCalibrate = "false";
+            canCalibrate = false;
         }
     }
 
-    while (!workerResponded && canCalibrate == "true") {
+    while (!workerResponded && canCalibrate) {
         performanceUtil.collectSLAResourceConsumption(graphId,TRIANGLES,Conts::SLA_CATEGORY::LATENCY,slaStatCount,partitionCount);
         slaStatCount++;
         sleep(5);
@@ -212,7 +213,7 @@ void TriangleCountExecutor::execute() {
 
     std::string durationString = std::to_string(msDuration);
 
-    if (canCalibrate == "true") {
+    if (canCalibrate) {
         Utils::updateSLAInformation(perfDB, graphId, partitionCount, msDuration, TRIANGLES, Conts::SLA_CATEGORY::LATENCY);
     }
 
@@ -1139,7 +1140,7 @@ TriangleCountExecutor::countCompositeCentralStoreTriangles(std::string aggregato
             string status = response.substr(response.size() - 5);
             std::string result = response.substr(0, response.size() - 5);
 
-            while (status == "/SEND") {
+            while (status.compare("/SEND") == 0) {
                 result_wr = write(sockfd, status.c_str(), status.size());
 
                 if(result_wr < 0) {

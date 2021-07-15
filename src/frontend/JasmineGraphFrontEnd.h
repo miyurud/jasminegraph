@@ -72,7 +72,7 @@ public:
     static bool isQueueTimeAcceptable(SQLiteDBInterface sqlite, PerformanceSQLiteDBInterface perfSqlite, std::string graphId,
             std::string command, std::string category);
 
-    static int runningHighPriorityTasks ();
+    static int getRunningHighPriorityTaskCount();
 
 
     static std::vector<std::vector<string>> fileCombinations;

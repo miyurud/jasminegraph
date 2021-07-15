@@ -764,7 +764,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                         performanceUtil.init();
 
                         bool resourceSufficient = performanceUtil.isResourcesSufficient(graph_id,TRIANGLES,Conts::SLA_CATEGORY::LATENCY);
-                        int runningHPTaskCount = JasmineGraphFrontEnd::runningHighPriorityTasks();
+                        int runningHPTaskCount = JasmineGraphFrontEnd::getRunningHighPriorityTaskCount();
 
                         if (resourceSufficient && runningHPTaskCount == highPriorityTaskCount) {
                             bool queueTimeAcceptable = JasmineGraphFrontEnd::isQueueTimeAcceptable(sqlite,perfSqlite,
@@ -1529,7 +1529,7 @@ bool JasmineGraphFrontEnd::isQueueTimeAcceptable(SQLiteDBInterface sqlite, Perfo
 
 }
 
-int JasmineGraphFrontEnd::runningHighPriorityTasks() {
+int JasmineGraphFrontEnd::getRunningHighPriorityTaskCount() {
     int taskCount = 0;
 
     std::set<ProcessInfo>::iterator processQueryIterator;
