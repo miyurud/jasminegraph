@@ -118,7 +118,7 @@ RelationBlock *NodeManager::addRelation(NodeBlock source, NodeBlock destination)
 
 NodeBlock *NodeManager::addNode(std::string nodeId) {
     unsigned int assignedNodeIndex;
-    node_manager_logger.debug("Adding node index " + std::string(this->nextNodeIndex));
+    node_manager_logger.debug("Adding node index " + std::to_string(this->nextNodeIndex));
     if (this->nodeIndex.find(nodeId) == this->nodeIndex.end()) {
         node_manager_logger.debug("Can't find NodeId (" + nodeId + ") in the index database");
         NodeBlock *sourceBlk = new NodeBlock(nodeId, this->nextNodeIndex * NodeBlock::BLOCK_SIZE);

@@ -14,9 +14,7 @@ limitations under the License.
 #include "JasmineGraphIncrementalLocalStore.h"
 
 #include <memory>
-#include <nlohmann/json.hpp>
 #include <stdexcept>
-using json = nlohmann::json;
 
 #include "../../centralstore/incremental/RelationBlock.h"
 #include "../../util/logger/Logger.h"
@@ -30,6 +28,22 @@ JasmineGraphIncrementalLocalStore::JasmineGraphIncrementalLocalStore(unsigned in
     gc.openMode = "trunk";  // TODO tmkasun: read from .properties file
     this->nm = new NodeManager(gc);
 };
+
+std::pair<std::string, unsigned int> JasmineGraphIncrementalLocalStore::getIDs(std::string edgeString) {
+    try {
+        auto edgeJson = json::parse(edgeString);
+        if (edgeJson.contains("properties")) {
+            auto edgeProperties = edgeJson["properties"];
+            return {edgeProperties["graphId"], 0};
+        }
+
+    } catch (const std::exception&) {  // TODO tmkasun: Handle multiple types of exceptions
+        incremental_localstore_logger.log(
+            "Error while processing edge data = " + edgeString +
+                "Could be due to JSON parsing error or error while persisting the data to disk",
+            "error");
+    }
+}
 
 std::string JasmineGraphIncrementalLocalStore::addEdgeFromString(std::string edgeString) {
     try {
@@ -72,8 +86,10 @@ std::string JasmineGraphIncrementalLocalStore::addEdgeFromString(std::string edg
 
         incremental_localstore_logger.log("Added successfully!", "Info");
     } catch (const std::exception&) {  // TODO tmkasun: Handle multiple types of exceptions
-        incremental_localstore_logger.log("Error while processing edge data = " + edgeString 
-            + "Could be due to JSON parsing error or error while persisting the data to disk", "error");
+        incremental_localstore_logger.log(
+            "Error while processing edge data = " + edgeString +
+                "Could be due to JSON parsing error or error while persisting the data to disk",
+            "error");
         incremental_localstore_logger.log("Error malformed JSON attributes!", "error");
         // TODO tmkasun: handle JSON errors
     }
