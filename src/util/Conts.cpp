@@ -50,6 +50,11 @@ int Conts::JASMINEGRAPH_RUNTIME_PROFILE_WORKER = 2;
 
 int Conts::RDF_NUM_OF_ATTRIBUTES = 7;
 int Conts::MAX_FE_SESSIONS = 20;
+int Conts::DEFAULT_THREAD_PRIORITY = 1;
+int Conts::HIGH_PRIORITY_DEFAULT_VALUE = 5;
+int Conts::THREAD_SLEEP_TIME = 30000;
+int Conts::MAX_HIGH_PRIORIY_TASKS = 2;
+int Conts::MAX_SLA_CALIBRATE_ATTEMPTS = 3;
 
 
 const int Conts::GRAPH_STATUS::LOADING = 1;
@@ -67,3 +72,10 @@ const std::string Conts::FLAGS::VALIDATE_ITER = "validate_iter";
 const std::string Conts::FLAGS::EPOCHS = "epochs";
 
 const std::string Conts::SLA_CATEGORY::LATENCY = "latency";
+
+const std::string Conts::PARAM_KEYS::MASTER_IP = "masterIP";
+const std::string Conts::PARAM_KEYS::GRAPH_ID = "graphID";
+const std::string Conts::PARAM_KEYS::PRIORITY = "priority";
+const std::string Conts::PARAM_KEYS::TRIANGLE_COUNT = "triangleCount";
+const std::string Conts::PARAM_KEYS::CAN_CALIBRATE = "canCalibrate";
+const std::string Conts::PARAM_KEYS::CATEGORY = "category";

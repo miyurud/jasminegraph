@@ -77,6 +77,7 @@ extern const string START_REMOTE_WORKER;
 extern const string REMOTE_WORKER_ARGS;
 extern const string SLA;
 extern const string COMMAND;
+extern const string PRIORITY;
 
 
 class JasminGraphFrontEndProtocol {

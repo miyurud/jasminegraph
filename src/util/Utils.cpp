@@ -17,7 +17,7 @@ limitations under the License.
 #include <pwd.h>
 #include <unistd.h>
 #include "Utils.h"
-#include "../frontend/JasmineGraphFrontEnd.h"
+//#include "../frontend/JasmineGraphFrontEnd.h"
 #include "Conts.h"
 #include "logger/Logger.h"
 
@@ -521,7 +521,7 @@ void Utils::updateSLAInformation(PerformanceSQLiteDBInterface perfSqlite, std::s
             long slaValue = atol(slaValueString.c_str());
             int attempts = atoi(attemptString.c_str());
 
-            if (attempts < 3) {
+            if (attempts < Conts::MAX_SLA_CALIBRATE_ATTEMPTS) {
                 long newSla = ((slaValue * attempts) + newSlaValue) / (attempts + 1);
 
                 attempts++;

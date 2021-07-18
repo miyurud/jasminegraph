@@ -17,9 +17,12 @@ limitations under the License.
 #include <map>
 #include <iostream>
 #include <fstream>
-#include "../frontend/JasmineGraphFrontEnd.h"
+//#include "../frontend/JasmineGraphFrontEnd.h"
+#include "../performancedb/PerformanceSQLiteDBInterface.h"
+#include "../metadb/SQLiteDBInterface.h"
 #include <algorithm>
 #include "Conts.h"
+#include <string.h>
 
 using std::map;
 

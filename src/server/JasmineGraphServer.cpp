@@ -29,7 +29,8 @@ static map<string, pair<int, int>> hostPortMap;
 
 void *runfrontend(void *dummyPt) {
     JasmineGraphServer *refToServer = (JasmineGraphServer *) dummyPt;
-    refToServer->frontend = new JasmineGraphFrontEnd(refToServer->sqlite, refToServer->performanceSqlite, refToServer->masterHost);
+    refToServer->frontend = new JasmineGraphFrontEnd(refToServer->sqlite, refToServer->performanceSqlite,
+            refToServer->masterHost, refToServer->jobScheduler);
     refToServer->frontend->run();
 }
 
@@ -58,6 +59,8 @@ int JasmineGraphServer::run(std::string profile, std::string masterIp, int numbe
     this->sqlite.init();
     this->performanceSqlite = *new PerformanceSQLiteDBInterface();
     this->performanceSqlite.init();
+    this->jobScheduler = *new JobScheduler(this->sqlite, this->performanceSqlite);
+    this->jobScheduler.init();
     if (masterIp.empty()) {
         this->masterHost = utils.getJasmineGraphProperty("org.jasminegraph.server.host");
     } else {
@@ -2561,6 +2564,14 @@ void JasmineGraphServer::addInstanceDetailsToPerformanceDB(std::string host, std
     for (it = portVector.begin(); it < portVector.end(); it++) {
         std::string isHostReporter = "false";
         int port = (*it);
+        std::string searchPlaceQuery = "select idplace from place where ip='" + ipAddress + "' and host_idhost='" +
+                hostId + "' and server_port='" + to_string(port) + "';";
+        vector<vector<pair<string,string>>> placeSearchResult = this->performanceSqlite.runSelect(searchPlaceQuery);
+
+        if (placeSearchResult.size() > 0) {
+            continue;
+        }
+
         if (count == 0) {
             std::string searchReporterQuery = "select idplace from place where ip='" + ipAddress + "' and is_host_reporter='true'";
             vector<vector<pair<string,string>>> searchResult = this->performanceSqlite.runSelect(searchReporterQuery);

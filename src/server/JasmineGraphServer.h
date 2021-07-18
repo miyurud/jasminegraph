@@ -23,6 +23,7 @@ limitations under the License.
 #include "../metadb/SQLiteDBInterface.h"
 #include "../performancedb/PerformanceSQLiteDBInterface.h"
 #include "../util/Conts.h"
+#include "../frontend/core/scheduler/JobScheduler.h"
 
 using std::map;
 
@@ -110,6 +111,7 @@ public:
     JasmineGraphFrontEnd *frontend;
     SQLiteDBInterface sqlite;
     PerformanceSQLiteDBInterface performanceSqlite;
+    JobScheduler jobScheduler;
     JasmineGraphBackend *backend;
     std::string masterHost;
     int numberOfWorkers = -1;

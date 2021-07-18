@@ -22,10 +22,12 @@ limitations under the License.
 Logger triangle_logger;
 
 long Triangles::run(JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCentralStore centralStore, JasmineGraphHashMapDuplicateCentralStore duplicateCentralStore, std::string hostName) {
-    return run(graphDB, centralStore, duplicateCentralStore, NULL,NULL);
+    return run(graphDB, centralStore, duplicateCentralStore, NULL, NULL, 0);
 }
 
-long Triangles::run(JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCentralStore centralStore, JasmineGraphHashMapDuplicateCentralStore duplicateCentralStore, std::string graphId, std::string partitionId) {
+long Triangles::run(JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCentralStore centralStore,
+                    JasmineGraphHashMapDuplicateCentralStore duplicateCentralStore, std::string graphId,
+                    std::string partitionId, int threadPriority) {
     triangle_logger.log("###TRIANGLE### Triangle Counting: Started","info");
     map<long, unordered_set<long>> localSubGraphMap = graphDB.getUnderlyingHashMap();
     map<long, unordered_set<long>> centralDBSubGraphMap = centralStore.getUnderlyingHashMap();
@@ -118,6 +120,9 @@ long Triangles::run(JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCe
                 std::set<long> orderedNuList(localSubGraphMap[u].begin(),localSubGraphMap[u].end());
                 std::set<long>::iterator nuListIterator;
                 for (nuListIterator = orderedNuList.begin();nuListIterator != orderedNuList.end();++nuListIterator) {
+                    if (threadPriority < highestPriority) {
+                        std::this_thread::sleep_for(std::chrono::milliseconds(Conts::THREAD_SLEEP_TIME));
+                    }
                     long nu = *nuListIterator;
                     if ((localSubGraphMap[temp].find(nu) != localSubGraphMap[temp].end()) || (localSubGraphMap[nu].find(temp) != localSubGraphMap[nu].end())) {
                         fullCount++;
@@ -158,8 +163,9 @@ long Triangles::run(JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCe
 }
 
 
-string Triangles::countCentralStoreTriangles(map<long, unordered_set<long>> centralStore,
-                                           map<long, long> distributionMap) {
+string
+Triangles::countCentralStoreTriangles(map<long, unordered_set<long>> centralStore, map<long, long> distributionMap,
+                                      int threadPriority) {
     std::map<long,long> degreeReverseLookupMap;
     std::vector<std::set<long>> degreeVector;
     std::map<long,std::set<long>> degreeMap;
@@ -223,6 +229,9 @@ string Triangles::countCentralStoreTriangles(map<long, unordered_set<long>> cent
                 std::unordered_set<long> nuList = centralStore[u];
                 std::unordered_set<long>::iterator nuListIterator;
                 for (nuListIterator = nuList.begin();nuListIterator != nuList.end();++nuListIterator) {
+                    if (threadPriority < highestPriority) {
+                        std::this_thread::sleep_for(std::chrono::milliseconds(Conts::THREAD_SLEEP_TIME));
+                    }
                     long nu = *nuListIterator;
                     if ((centralStore[temp].find(nu) != centralStore[temp].end()) || (centralStore[nu].find(temp) != centralStore[nu].end())) {
                         fullCount++;
