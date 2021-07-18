@@ -720,7 +720,7 @@ bool PerformanceUtil::isResourcesSufficient(std::string graphId, std::string com
                                                         "graph_sla INNER JOIN sla_category INNER JOIN place "
                                                         "ON graph_place_sla_performance.graph_sla_id=graph_sla.id AND "
                                                         "graph_sla.partition_count='" + std::to_string(partitionCount) + "' "
-                                                                                                                         "AND graph_sla.id_sla_category=sla_category.id AND sla_category.command='" + command + "' "
+                                                        "AND graph_sla.id_sla_category=sla_category.id AND sla_category.command='" + command + "' "
                                                                                                                                                                                                                 "AND sla_category.category='" + category + "' "
                                                                                                                                                                                                                                                            "AND graph_sla.graph_id='" + graphId + "'"
                                                                                                                                                                                                                                                                                                   "AND graph_place_sla_performance.place_id=place.idplace AND place.is_host_reporter='true';";
