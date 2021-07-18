@@ -48,7 +48,7 @@ void *instanceservicesession(void *dummyPt) {
         sessionargs->graphDBMapCentralStores;
     std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> graphDBMapDuplicateCentralStores =
         sessionargs->graphDBMapDuplicateCentralStores;
-    std::map<std::string, JasmineGraphIncrementalLocalStore> incrementalLocalStoreMap =
+    std::map<std::string, JasmineGraphIncrementalLocalStore*> incrementalLocalStoreMap =
         sessionargs->incrementalLocalStore;
 
     string serverName = sessionargs->host;
@@ -1778,14 +1778,7 @@ void *instanceservicesession(void *dummyPt) {
                 instance_logger.log("Sent : " + result, "info");
             }
         } else if (line.compare(JasmineGraphInstanceProtocol::GRAPH_STREAM_START) == 0) {
-            std::string graphIdentifier = graphId + "_" + partitionId;
-            JasmineGraphIncrementalLocalStore incrementalLocalStoreInstance;
-            if (!incrementalLocalStoreMap[graphIdentifier]) {
-                incrementalLocalStoreInstance =
-                    JasmineGraphInstanceService::loadStreamingStore(graphID, partitionID, incrementalLocalStoreMap);
-            } else {
-                incrementalLocalStoreInstance = incrementalLocalStoreMap[graphIdentifier];
-            }
+            
             write(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK.c_str(),
                   JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK.size());
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK, "info");
@@ -1811,7 +1804,22 @@ void *instanceservicesession(void *dummyPt) {
             } else {
                 instance_logger.log("Error while reading content length", "error");
             }
-            incrementalLocalStore.addEdgeFromString(edgeString);
+            
+            auto graphIdPartitionId = JasmineGraphIncrementalLocalStore::getIDs(nodeString);
+            std::string graphId = graphIdPartitionId.first;
+            std::string partitionId = std::to_string(graphIdPartitionId.second);
+            std::string graphIdentifier = graphId + "_" + partitionId;
+            JasmineGraphIncrementalLocalStore* incrementalLocalStoreInstance;
+            if (!incrementalLocalStoreMap[graphIdentifier]) {
+                incrementalLocalStoreInstance =
+                    JasmineGraphInstanceService::loadStreamingStore(graphId, partitionId, incrementalLocalStoreMap);
+            } else {
+                incrementalLocalStoreInstance = incrementalLocalStoreMap[graphIdentifier];
+            }
+            incrementalLocalStoreInstance->addEdgeFromString(nodeString);
+            send(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_END_OF_EDGE.c_str(),
+                 JasmineGraphInstanceProtocol::GRAPH_STREAM_END_OF_EDGE.size(), 0);
+            instance_logger.log("Sent CRLF string to mark the end", "info");
         } else if (line.compare(JasmineGraphInstanceProtocol::SEND_PRIORITY) == 0) {
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_PRIORITY, "info");
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
@@ -1876,7 +1884,7 @@ int JasmineGraphInstanceService::run(string profile, string masterHost, string h
     std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores;
     std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores;
     std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> graphDBMapDuplicateCentralStores;
-    std::map<std::string, JasmineGraphIncrementalLocalStore> incrementalLocalStore;
+    std::map<std::string, JasmineGraphIncrementalLocalStore*> incrementalLocalStore;
 
     serviceArguments.graphDBMapLocalStores = graphDBMapLocalStores;
     serviceArguments.graphDBMapCentralStores = graphDBMapCentralStores;
@@ -2047,16 +2055,16 @@ bool JasmineGraphInstanceService::isInstanceDuplicateCentralStoreExists(std::str
     return true;
 }
 
-JasmineGraphInstanceService::loadStreamingStore(
+JasmineGraphIncrementalLocalStore* JasmineGraphInstanceService::loadStreamingStore(
     std::string graphId, std::string partitionId,
-    std::map<std::string, JasmineGraphIncrementalLocalStore> &graphDBMapStreamingStores) {
+    std::map<std::string, JasmineGraphIncrementalLocalStore*> &graphDBMapStreamingStores) {
     std::string graphIdentifier = graphId + "_" + partitionId;
     instance_logger.log("###INSTANCE### Loading streaming Store for" + graphIdentifier + " : Started", "info");
     Utils utils;
     std::string folderLocation = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
     JasmineGraphIncrementalLocalStore *jasmineGraphStreamingLocalStore =
         new JasmineGraphIncrementalLocalStore(atoi(graphId.c_str()), atoi(partitionId.c_str()));
-    graphDBMapStreamingStores.insert(std::make_pair(graphIdentifier, *jasmineGraphStreamingLocalStore));
+    graphDBMapStreamingStores.insert(std::make_pair(graphIdentifier, jasmineGraphStreamingLocalStore));
     instance_logger.log("###INSTANCE### Loading Local Store : Completed", "info");
     return jasmineGraphStreamingLocalStore;
 }
