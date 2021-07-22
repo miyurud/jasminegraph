@@ -79,7 +79,8 @@ int PerformanceUtil::collectPerformanceStatistics() {
 }
 
 int PerformanceUtil::collectSLAResourceConsumption(std::string graphId, std::string command, std::string category,
-        int iteration, int partitionCount) {
+        int iteration, int partitionCount, std::string masterIP) {
+    scheduler_logger.log("Started Collecting SLA Resource Consumption", "info");
     int counter = 0;
     string slaCategoryId;
     std::vector<std::future<long>> intermRes;
@@ -113,8 +114,8 @@ int PerformanceUtil::collectSLAResourceConsumption(std::string graphId, std::str
         std::string hostId = place.at(5).second;
         std::string placeId = place.at(6).second;
 
-        if (ip.find("localhost") != std::string::npos) {
-            host = "localhost";
+        if (ip.find("localhost") != std::string::npos || ip.compare(masterIP) == 0) {
+            host = ip;
         } else {
             host = user + "@" + ip;
         }
@@ -133,7 +134,8 @@ int PerformanceUtil::collectSLAResourceConsumption(std::string graphId, std::str
             }
         }
 
-        if (isMaster.find("true") != std::string::npos || host == "localhost") {
+        if (isMaster.find("true") != std::string::npos || host == "localhost" || host.compare(masterIP) == 0) {
+            scheduler_logger.log("Started Collecting Master stats", "info");
             collectLocalSLAResourceUtilization(isHostReporter, requestResourceAllocation,hostId,placeId, graphId,
                                                slaCategoryId, iteration, partitionCount);
         } else {
@@ -146,7 +148,7 @@ int PerformanceUtil::collectSLAResourceConsumption(std::string graphId, std::str
 }
 
 
-std::vector<ResourceConsumption> PerformanceUtil::retrieveCurrentResourceUtilization() {
+std::vector<ResourceConsumption> PerformanceUtil::retrieveCurrentResourceUtilization(std::string masterIP) {
 
     std::string placeLoadQuery = "select ip, user, server_port, is_master, is_host_reporter,host_idhost,idplace from place";
     std::vector<vector<pair<string, string>>> placeList = perfDb.runSelect(placeLoadQuery);
@@ -167,7 +169,7 @@ std::vector<ResourceConsumption> PerformanceUtil::retrieveCurrentResourceUtiliza
         std::string hostId = place.at(5).second;
         std::string placeId = place.at(6).second;
 
-        if (ip.find("localhost") != std::string::npos) {
+        if (ip.find("localhost") != std::string::npos|| ip.compare(masterIP) == 0) {
             host = "localhost";
         } else {
             host = user + "@" + ip;
@@ -187,7 +189,8 @@ std::vector<ResourceConsumption> PerformanceUtil::retrieveCurrentResourceUtiliza
             }
         }
 
-        if ((isMaster.find("true") != std::string::npos || host == "localhost") && isHostReporter.find("true") != std::string::npos) {
+        if ((isMaster.find("true") != std::string::npos || host == "localhost" || host.compare(masterIP) == 0) &&
+                                                                isHostReporter.find("true") != std::string::npos) {
             resourceConsumption = retrieveLocalResourceConsumption(host,placeId);
             placeResourceConsumptionList.push_back(resourceConsumption);
         } else if (isHostReporter.find("true") != std::string::npos) {
@@ -682,12 +685,12 @@ ResourceConsumption PerformanceUtil::retrieveRemoteResourceConsumption(std::stri
     }
 }
 
-bool PerformanceUtil::isResourcesSufficient(std::string graphId, std::string command, std::string category) {
+bool PerformanceUtil::isResourcesSufficient(std::string graphId, std::string command, std::string category, std::string masterIP) {
     PerformanceUtil performanceUtil;
     performanceUtil.init();
     bool resourcesSufficient = true;
     std::set<std::string> hostSet;
-    std::vector<ResourceConsumption> placeResouceConsumptionList = performanceUtil.retrieveCurrentResourceUtilization();
+    std::vector<ResourceConsumption> placeResouceConsumptionList = performanceUtil.retrieveCurrentResourceUtilization(masterIP);
 
     string sqlStatement = "SELECT worker_idworker, name,ip,user,server_port,server_data_port,partition_idpartition "
                           "FROM worker_has_partition INNER JOIN worker ON worker_has_partition.worker_idworker=worker.idworker "

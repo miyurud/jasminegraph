@@ -21,6 +21,7 @@ class JobRequest {
 private:
     std::string jobId;
     std::string jobType;
+    std::string masterIP;
     std::map<std::string, std::string> requestParams;
 
 public:
@@ -34,6 +35,8 @@ public:
     std::string getParameter(std::string key);
     void setPriority(int priority);
     int getPriority();
+    void setMasterIP(std::string masterip);
+    std::string getMasterIP();
 };
 
 
