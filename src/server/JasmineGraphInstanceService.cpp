@@ -1810,7 +1810,8 @@ void *instanceservicesession(void *dummyPt) {
             std::string partitionId = std::to_string(graphIdPartitionId.second);
             std::string graphIdentifier = graphId + "_" + partitionId;
             JasmineGraphIncrementalLocalStore* incrementalLocalStoreInstance;
-            if (!incrementalLocalStoreMap[graphIdentifier]) {
+            
+            if (incrementalLocalStoreMap.find(graphIdentifier) == incrementalLocalStoreMap.end()) {
                 incrementalLocalStoreInstance =
                     JasmineGraphInstanceService::loadStreamingStore(graphId, partitionId, incrementalLocalStoreMap);
             } else {
@@ -2065,6 +2066,7 @@ JasmineGraphIncrementalLocalStore* JasmineGraphInstanceService::loadStreamingSto
     JasmineGraphIncrementalLocalStore *jasmineGraphStreamingLocalStore =
         new JasmineGraphIncrementalLocalStore(atoi(graphId.c_str()), atoi(partitionId.c_str()));
     graphDBMapStreamingStores.insert(std::make_pair(graphIdentifier, jasmineGraphStreamingLocalStore));
+    auto sg = graphDBMapStreamingStores.find(graphIdentifier);
     instance_logger.log("###INSTANCE### Loading Local Store : Completed", "info");
     return jasmineGraphStreamingLocalStore;
 }

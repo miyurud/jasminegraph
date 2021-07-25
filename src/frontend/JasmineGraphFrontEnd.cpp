@@ -506,7 +506,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 continue;
             }
         } else if (line.compare(ADD_STREAM_KAFKA) == 0) {
-            bool TESTING = true; // Test graph data bypassing kafka stream
+            bool TESTING = false; // Test graph data bypassing kafka stream
             if (TESTING) {
                 std::string testData[] = {
                     "{\"source\":{\"id\":\"0x97e58c7d37cba1a1e2ecbb2a5b23f8d127b6892d\",\"properties\":{"
@@ -566,46 +566,10 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
             read(connFd, topic_name, FRONTEND_DATA_LENGTH);
 
-            Utils utils;
             string topic_name_s(topic_name);
             topic_name_s = utils.trim_copy(topic_name_s, " \f\n\r\t\v");
-            // After getting the topic name , need to close the connection and ask the user to send the data to given topic
-
-            cppkafka::Configuration configs = {{"metadata.broker.list", "127.0.0.1:9092"},
-                                               {"group.id",             "knnect"}};
-            KafkaConnector kstream(configs);
-            std::string partitionCount = utils.getJasmineGraphProperty("org.jasminegraph.server.npartitions");
-            int numberOfPartitions = std::stoi(partitionCount);
-
-            Partitioner graphPartitioner(numberOfPartitions, 0, spt::Algorithms::HASH);
-
-            kstream.Subscribe(topic_name_s);
-            frontend_logger.log("Start listening to " + topic_name_s, "info");
-            while (true) {
-                cppkafka::Message msg = kstream.consumer.poll();
-                if (!msg || msg.get_error()) {
-                    continue;
-                }
-                string data(msg.get_payload());
-                if (data == "-1") {  // Marks the end of stream
-                    frontend_logger.log("Received the end of stream", "info");
-                    break;
-                }
-                
-                auto edgeJson = json::parse(data);
-                auto sourceJson = edgeJson["source"];
-                auto destinationJson = edgeJson["destination"];
-
-                std::string sourceID = std::string(sourceJson["id"]);
-                std::string destinationID = std::string(destinationJson["id"]);
-
-                partitionedEdge partitionedEdge = graphPartitioner.addEdge({sourceID, destinationID});
-                edgeJson["source"]["pid"] = std::to_string(partitionedEdge[0].second);
-                edgeJson["destination"]["pid"] = std::to_string(partitionedEdge[1].second);
-                workerClients.at((int)partitionedEdge[0].second)->publish(edgeJson.dump());
-                workerClients.at((int)partitionedEdge[1].second)->publish(edgeJson.dump());
-            }
-            graphPartitioner.printStats();
+            
+            std::thread streamingThread(KafkaConnector::startStream,topic_name, workerClients);
 
         } else if (line.compare(RMGR) == 0) {
             int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
