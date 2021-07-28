@@ -23,6 +23,7 @@ limitations under the License.
 #include "../metadb/SQLiteDBInterface.h"
 #include "../performancedb/PerformanceSQLiteDBInterface.h"
 #include "../util/Conts.h"
+#include "../frontend/core/scheduler/JobScheduler.h"
 
 using std::map;
 
@@ -133,6 +134,7 @@ sendFileThroughService
     JasmineGraphFrontEnd *frontend;
     SQLiteDBInterface sqlite;
     PerformanceSQLiteDBInterface performanceSqlite;
+    JobScheduler jobScheduler;
     JasmineGraphBackend *backend;
     std::string masterHost;
     int numberOfWorkers = -1;
@@ -149,13 +151,24 @@ sendFileThroughService
         std::vector<std::string> partitionID;
     };
 
+    struct workerPartition {
+        string hostname;
+        int port;
+        int dataPort;
+        string partitionID;
+    };
+
     static void updateMetaDB(std::vector<workers> hostWorkerMap,  std::map<int,std::string> partitionFileList, int graphID,
-                 std::string uploadEndTime);
+                             std::string uploadEndTime);
 
     //return hostWorkerMap
     static std::vector<JasmineGraphServer::workers> getHostWorkerMap();
 
+    static std::map<std::string, workerPartition> getWorkerPartitions(string graphID);
+
     std::map<std::string, workerPartitions> getGraphPartitionedHosts(std::string graphID);
+
+    void inDegreeDistribution(std::string graphID);
 };
 
 

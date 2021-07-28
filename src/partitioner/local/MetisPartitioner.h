@@ -28,6 +28,7 @@ limitations under the License.
 #include "../../metadb/SQLiteDBInterface.h"
 #include "../../util/Utils.h"
 #include "../../localstore/JasmineGraphHashMapLocalStore.h"
+#include "../../centralstore/JasmineGraphHashMapCentralStore.h"
 #include <cstddef>
 #include <algorithm>
 #include <thread>

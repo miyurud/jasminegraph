@@ -16,6 +16,26 @@ limitations under the License.
 
 
 #include <string>
+#include <set>
+#include <vector>
+#include <atomic>
+
+extern int highestPriority;
+extern std::atomic<int> highPriorityTaskCount;
+extern std::atomic<int> workerHighPriorityTaskCount;
+extern bool workerResponded;
+extern std::vector<std::string> highPriorityGraphList;
+
+struct ProcessInfo {
+    int id;
+    std::string graphId;
+    std::string processName;
+    long startTimestamp;
+    int priority;
+    std::vector<std::string> workerList;
+};
+
+extern std::set<ProcessInfo> processData;
 
 class Conts {
 public:
@@ -53,8 +73,17 @@ public:
     static int COMPOSITE_CENTRAL_STORE_WORKER_THRESHOLD;
     static int NUMBER_OF_COMPOSITE_CENTRAL_STORES;
     static int RDF_NUM_OF_ATTRIBUTES;
+    static int MAX_SLA_CALIBRATE_ATTEMPTS;
 
     static int GRAPH_TYPE_TEXT;
+
+    static int MAX_FE_SESSIONS;
+
+    static int DEFAULT_THREAD_PRIORITY;
+    static int HIGH_PRIORITY_DEFAULT_VALUE;
+
+    static int THREAD_SLEEP_TIME;       //Thread sleep time in milliseconds
+    static int MAX_HIGH_PRIORIY_TASKS;
 
 
 
@@ -78,8 +107,25 @@ public:
         static const std::string EPOCHS;
     };
 
+    struct SLA_CATEGORY {
+        static const std::string LATENCY;
+    };
+
+    struct PARAM_KEYS {
+        static const std::string MASTER_IP;
+        static const std::string GRAPH_ID;
+        static const std::string PRIORITY;
+        static const std::string TRIANGLE_COUNT;
+        static const std::string CAN_CALIBRATE;
+        static const std::string CATEGORY;
+    };
+
 
 };
 
+inline bool operator<(const ProcessInfo& lhs, const ProcessInfo& rhs)
+{
+    return lhs.id < rhs.id;
+}
 
 #endif //JASMINEGRAPH_CONTS_H

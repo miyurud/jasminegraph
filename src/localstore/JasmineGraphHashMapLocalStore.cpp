@@ -131,6 +131,25 @@ map<long, long> JasmineGraphHashMapLocalStore::getOutDegreeDistributionHashMap()
     return distributionHashMap;
 }
 
+map<long, long> JasmineGraphHashMapLocalStore::getInDegreeDistributionHashMap() {
+    map<long, long> distributionHashMap;
+
+    for (map<long, unordered_set<long>>::iterator it = localSubGraphMap.begin(); it != localSubGraphMap.end(); ++it) {
+        unordered_set<long> distribution  = it->second;
+
+        for (auto itr = distribution.begin(); itr != distribution.end(); ++itr) {
+            std::map<long, long>::iterator distMapItr = distributionHashMap.find(*itr);
+            if (distMapItr != distributionHashMap.end()) {
+                long previousValue = distMapItr->second;
+                distMapItr->second = previousValue + 1;
+            } else {
+                distributionHashMap.insert(std::make_pair(*itr, 1));
+            }
+        }
+    }
+    return distributionHashMap;
+}
+
 long JasmineGraphHashMapLocalStore::getVertexCount() {
     if (vertexCount == 0) {
         vertexCount = localSubGraphMap.size();

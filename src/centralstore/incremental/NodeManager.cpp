@@ -17,6 +17,7 @@ limitations under the License.
 
 #include <exception>
 
+#include "../../util/Utils.h"
 #include "../../util/logger/Logger.h"
 #include "NodeBlock.h"  // To setup node DB
 #include "PropertyLink.h"
@@ -28,12 +29,16 @@ Logger node_manager_logger;
 NodeManager::NodeManager(GraphConfig gConfig) {
     this->graphID = gConfig.graphID;
     this->partitionID = gConfig.partitionID;
+    Utils utils;
 
-    std::string graphPrefix = "databases/g" + std::to_string(graphID);
+    std::string instanceDataFolderLocation =
+        utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+    std::string graphPrefix = instanceDataFolderLocation + "/g" + std::to_string(graphID);
     std::string dbPrefix = graphPrefix + "_p" + std::to_string(partitionID);
     std::string nodesDBPath = dbPrefix + "_nodes.db";
     this->index_db_loc = dbPrefix + "_nodes.index.db";
-
+    // This needs to be set in order to prevent index DB key overflows
+    // Expected maximum length of a key in the dataset
     if (gConfig.maxLabelSize) {
         setIndexKeySize(gConfig.maxLabelSize);
     }
@@ -183,6 +188,7 @@ NodeBlock *NodeManager::get(std::string nodeId) {
     const unsigned int blockAddress = nodeIndex * NodeBlock::BLOCK_SIZE;
     NodeBlock::nodesDB->seekg(blockAddress);
     unsigned int edgeRef;
+    unsigned char edgeRefPID;
     unsigned int propRef;
     char usageBlock;
     char label[NodeBlock::LABEL_SIZE];
@@ -193,6 +199,10 @@ NodeBlock *NodeManager::get(std::string nodeId) {
 
     if (!NodeBlock::nodesDB->read(reinterpret_cast<char *>(&edgeRef), sizeof(unsigned int))) {
         node_manager_logger.error("Error while reading edge reference data from block " + std::to_string(blockAddress));
+    }
+
+    if (!NodeBlock::nodesDB->read(reinterpret_cast<char *>(&edgeRefPID), sizeof(unsigned char))) {
+        node_manager_logger.error("Error while reading usage data from block " + std::to_string(blockAddress));
     }
 
     if (!NodeBlock::nodesDB->read(reinterpret_cast<char *>(&propRef), sizeof(unsigned int))) {
@@ -207,7 +217,7 @@ NodeBlock *NodeManager::get(std::string nodeId) {
     node_manager_logger.debug("Length of label = " + std::to_string(strlen(label)));
     node_manager_logger.debug("DEBUG: raw edgeRef from DB (disk) " + std::to_string(edgeRef));
 
-    nodeBlockPointer = new NodeBlock(nodeId, blockAddress, propRef, edgeRef, label, usage);
+    nodeBlockPointer = new NodeBlock(nodeId, blockAddress, propRef, edgeRef, edgeRefPID, label, usage);
 
     node_manager_logger.debug("DEBUG: nodeBlockPointer after creating the object edgeRef " +
                               std::to_string(nodeBlockPointer->edgeRef));
