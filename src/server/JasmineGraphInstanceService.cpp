@@ -19,10 +19,10 @@ limitations under the License.
 #include "JasmineGraphInstance.h"
 #include "../server/JasmineGraphServer.h"
 #include "../localstore/incremental/JasmineGraphIncrementalLocalStore.h"
-#include "../query/algorithms/entityresolution/BloomFilter.hpp"
-#include "../query/algorithms/entityresolution/EntityResolver.hpp"
-#include "../query/algorithms/entityresolution/Kmeans.hpp"
-#include "../query/algorithms/entityresolution/MinHash.hpp"
+#include "../query/algorithms/entityresolution/BloomFilter.h"
+#include "../query/algorithms/entityresolution/EntityResolver.h"
+#include "../query/algorithms/entityresolution/Kmeans.h"
+#include "../query/algorithms/entityresolution/MinHash.h"
 #include <armadillo>
 #include <filesystem>
 
@@ -2979,8 +2979,7 @@ void JasmineGraphInstanceService::collectExecutionData(string iteration, string 
         vector<string> trainData;
         trainData.push_back(trainArgs);
         iterationData[stoi(iteration)] = trainData;
-    }
-    else {
+    } else {
         vector<string> trainData = iterationData[stoi(iteration)];
         trainData.push_back(trainArgs);
         iterationData[stoi(iteration)] = trainData;
@@ -2997,8 +2996,7 @@ void JasmineGraphInstanceService::collectExecutionData(string iteration, string 
         }
         JasmineGraphInstanceService::executeTrainingIterations(maxPartCountInVector);
         return;
-    }
-    else{
+    } else {
         return;
     }
 }

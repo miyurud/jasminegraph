@@ -102,7 +102,7 @@ sendFileThroughService
 
     static int removeFragmentThroughService(std::string host, int port, std::string graphID, std::string masterIP);
 
-    int initiateEntityResolution(std::vector<std::pair<std::string, std::string>> hostHasPartition, std::string graphID, std::string masterIP);
+    int initiateEntityResolution(std::vector<std::pair<std::string, std::string>> hostHasPartition, std::string graphID, std::string masterIP, , std::string designatedWorkerHost, int designatedWorkerPort);
 
     static int collectBloomFilters(string destHost, int destPort, int dataPort, string graphID,
                                    std::vector<std::vector<string>> workerPartitions, string masterIP);
@@ -113,7 +113,7 @@ sendFileThroughService
 
     static int computeCandidateSets(std::string host, int port, std::string graphID, std::vector<int> clusters, std::string masterIP);
 
-    int collectBloomFiltersToMaster(string host, int port, string coordinatorHost, int coordinatorPort, int dataPort, string graphID, int noClusters, string masterIP);
+    int collectBucketsToMaster(string host, int port, string coordinatorHost, int coordinatorPort, int dataPort, string graphID, int noClusters, string masterIP);
 
     int initiateClustering(string destHost, int destPort, int dataPort, string graphID, int partitionCount, int noClusters, string masterIP);
 

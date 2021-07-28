@@ -39,8 +39,13 @@ add_executable(JasmineGraph main.cpp src/server/JasmineGraphServer.cpp src/serve
         src/frontend/core/executor/AbstractExecutor.cpp src/frontend/core/executor/AbstractExecutor.h
         src/frontend/core/executor/impl/TriangleCountExecutor.cpp src/frontend/core/executor/impl/TriangleCountExecutor.h
         src/frontend/core/factory/ExecutorFactory.cpp src/frontend/core/factory/ExecutorFactory.h src/frontend/core/CoreConstants.cpp
-        src/frontend/core/CoreConstants.h)
-        src/query/algorithms/entityresolution/BloomFilter.hpp src/query/algorithms/entityresolution/MurmurHash3.h src/query/algorithms/entityresolution/MurmurHash3.cpp src/query/algorithms/entityresolution/Kmeans.hpp src/query/algorithms/entityresolution/MinHash.hpp src/query/algorithms/entityresolution/EntityResolver.cpp src/query/algorithms/entityresolution/EntityResolver.hpp src/query/algorithms/entityresolution/Kmeans.cpp src/query/algorithms/entityresolution/MinHash.cpp)
+        src/frontend/core/CoreConstants.h
+        src/query/algorithms/entityresolution/BloomFilter.h src/query/algorithms/entityresolution/MurmurHash3.h
+        src/query/algorithms/entityresolution/MurmurHash3.cpp src/query/algorithms/entityresolution/Kmeans.h
+        src/query/algorithms/entityresolution/MinHash.h src/query/algorithms/entityresolution/EntityResolver.cpp
+        src/query/algorithms/entityresolution/EntityResolver.h src/query/algorithms/entityresolution/Kmeans.cpp src/query/algorithms/entityresolution/MinHash.cpp src/query/algorithms/entityresolution/BloomFilter.cpp
+        )
+
 
 target_compile_options(JasmineGraph PRIVATE -std=c++11 -I/usr/include/python3.5)
 

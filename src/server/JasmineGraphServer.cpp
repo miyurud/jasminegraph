@@ -20,7 +20,7 @@ limitations under the License.
 
 #include "JasmineGraphInstanceProtocol.h"
 #include "../util/logger/Logger.h"
-#include "../query/algorithms/entityresolution/EntityResolver.hpp"
+#include "../query/algorithms/entityresolution/EntityResolver.h"
 
 Logger server_logger;
 
@@ -2365,17 +2365,32 @@ int JasmineGraphServer::removePartitionThroughService(string host, int port, str
     return 0;
 }
 
-int JasmineGraphServer::initiateEntityResolution(vector<pair<string, string>> hostHasPartition, string graphID, std::string masterIP) {
-    string designatedWorkerHost;
-    int designatedWorkerPort;
-    //Identify coordinating worker
-    string coordinatorHost = hostHasPartition.at(0).first;
-    int workerPort = hostPortMap[coordinatorHost].first;
-    int orgCount;
-    std::thread *orgThreads = new std::thread[orgCount];
+int JasmineGraphServer::initiateEntityResolution(vector<pair<string, string>> hostHasPartition, string graphID,
+                                                 std::string masterIP, string designatedWorkerHost,
+                                                 int designatedWorkerPort) {
+    bool isCoordinator = false;
 
-    for (int i = 0; i < orgCount; i++) {
-        std::thread(JasmineGraphServer::signalOrganizations, coordinatorHost, designatedWorkerHost, to_string(designatedWorkerPort), graphID, masterIP);
+    //Identify coordinating worker
+    string coordinatorHost;
+    int coordinatorPort;
+    if (isCoordinator) {
+        coordinatorHost = designatedWorkerHost;
+        coordinatorPort = designatedWorkerPort;
+    } else {
+        coordinatorHost = hostHasPartition.at(0).first;
+        coordinatorPort = hostPortMap[coordinatorHost].first;
+    }
+
+    //Signal other organizations to start ER process
+    vector<string> orgList;
+    if (isCoordinator) {
+        int orgCount;
+        std::thread *orgThreads = new std::thread[orgCount];
+
+        for (int i = 0; i < orgCount; i++) {
+            std::thread(JasmineGraphServer::signalOrganizations, orgList[i], designatedWorkerHost,
+                        to_string(designatedWorkerPort), graphID, masterIP);
+        }
     }
 
     int count = 0;
@@ -2420,23 +2435,16 @@ int JasmineGraphServer::initiateEntityResolution(vector<pair<string, string>> ho
         workerPartitions.push_back({hostname, port, dataPort, partition});
     }
 
-    JasmineGraphServer::collectBloomFilters(coordinatorHost, workerPort, workerPort, graphID, workerPartitions, masterIP);
-
-    for (int threadCount = 0; threadCount < count; threadCount++) {
-        if(workerThreads[threadCount].joinable()) {
-            workerThreads[threadCount].join();
-        }
-        std::cout << "Thread [A]: " << threadCount << " joined" << std::endl;
-    }
+    //Collect bloom filters to organization designated worker
+    JasmineGraphServer::collectBloomFilters(coordinatorHost, coordinatorPort, coordinatorPort, graphID, workerPartitions, masterIP);
 
     //Cluster Bloom Filters
     cout << "Clustering Bloom filters into" << partitionCount << "clusters" << endl;
-    EntityResolver er;
-    this -> initiateClustering(coordinatorHost, workerPort, workerPort, graphID, 8, 8, masterIP);
+    this -> initiateClustering(coordinatorHost, coordinatorPort, coordinatorPort, graphID, 8, 8, masterIP);
 
     //Reshuffle clusters into workers
     cout << "Reshuffling cluster files to workers" << endl;
-    distributeClustersToWorkers(coordinatorHost, workerPort, workerPort, graphID, workerPartitions, masterIP);
+    distributeClustersToWorkers(coordinatorHost, coordinatorPort, coordinatorPort, graphID, workerPartitions, masterIP);
 
     //Bucket local clusters
     cout << "Bucketing worker-local clusters" << endl;
@@ -2457,8 +2465,6 @@ int JasmineGraphServer::initiateEntityResolution(vector<pair<string, string>> ho
         }
         std::cout << "Thread [A]: " << threadCount << " joined" << std::endl;
     }
-
-    bool isCoordinator = false;
     if (!isCoordinator) {
         string host = designatedWorkerHost;
         int port = designatedWorkerPort;
@@ -2548,18 +2554,35 @@ int JasmineGraphServer::initiateEntityResolution(vector<pair<string, string>> ho
 
                     server_logger.log("Sent : Graph ID " + graphID, "info");
 
-                    JasmineGraphServer::collectBloomFiltersToMaster(coordinatorHost, workerPort, designatedWorkerHost,
-                                                designatedWorkerPort, designatedWorkerPort, graphID, 4, masterIP);
+                    JasmineGraphServer::collectBucketsToMaster(coordinatorHost, coordinatorPort, designatedWorkerHost,
+                                                               designatedWorkerPort, designatedWorkerPort, graphID, 4,
+                                                               masterIP);
                 }
 
             }
 
-
         }
+
+        //TODO: Integrate bucket combining and identifying candidate sets
+        //TODO: <Coordinator> instruct other organizations to share cluster files
+
+        //TODO: Compare recieved cluster file with own cluster file according to candidate set information
+        //TODO: Wait for other orgs to complete comparision and send their results
+        //TODO: Combine the recieved results
+        //TODO: Send combined results back to each organziation
+    }
+    else {
+        bool loop = false;
+        //TODO: Wait for coordinator to give instruction to share cluster files
+        while (!loop) {
+        }
+        //TODO: Compare recieved cluster file with own cluster file according to given instruction
+        //TODO: Send comparision results to the coordinator
     }
 }
 
-int JasmineGraphServer::signalOrganizations(string organizationHost, string designatedWorkerHost, string designatedWorkerPort, string graphID, string masterIP) {
+int JasmineGraphServer::signalOrganizations(string organizationHost, string designatedWorkerHost,
+                                            string designatedWorkerPort, string graphID, string masterIP) {
     Utils utils;
     Logger instance_logger;
     bool result = true;
@@ -2606,8 +2629,8 @@ int JasmineGraphServer::signalOrganizations(string organizationHost, string desi
     write(sockfd, graphID.c_str(), (graphID).size());
     instance_logger.log("Sent : Graph ID " + graphID, "info");
 
+    //Write designated worker details to socket
     string designatedWorkerDetails = designatedWorkerHost + "|" + designatedWorkerPort;
-    //Write graph ID to socket
     write(sockfd, designatedWorkerDetails.c_str(), (designatedWorkerDetails).size());
     instance_logger.log("Sent : Graph ID " + designatedWorkerDetails, "info");
 
@@ -2740,6 +2763,16 @@ int JasmineGraphServer::createBloomFilters(string host, int port, string graphID
     return 0;
 }
 
+/**
+ * Method call for notifying the organization's designated worker to collect bloom filter files
+ * @param destHost Organization designated worker host
+ * @param destPort Organization designated worker port
+ * @param dataPort Organization designated worker data port
+ * @param graphID ID of graph
+ * @param workerPartitions Mapping of which worker has which graph partition
+ * @param masterIP master node IP
+ * @return
+ */
 int JasmineGraphServer::collectBloomFilters(string destHost, int destPort, int dataPort, string graphID,
                                             vector<vector<string>> workerPartitions, string masterIP) {
     Utils utils;
@@ -2839,6 +2872,18 @@ int JasmineGraphServer::collectBloomFilters(string destHost, int destPort, int d
     }
 }
 
+/**
+ * Method call for notifying the organization's designated worker to initiate clustering after collecting the bloom filter files
+ * process
+ * @param destHost Organization designated worker host
+ * @param destPort Organization designated worker port
+ * @param dataPort Organization designated worker data port
+ * @param graphID ID of graph
+ * @param partitionCount Number of partitions the graph is partitioned into
+ * @param noClusters No of clusters the bloom filter should be clustered into
+ * @param masterIP master node IP
+ * @return
+ */
 int JasmineGraphServer::initiateClustering(string destHost, int destPort, int dataPort, string graphID, int partitionCount,
                                        int noClusters, string masterIP) {
     Utils utils;
@@ -3025,7 +3070,7 @@ JasmineGraphServer::distributeClustersToWorkers(string destHost, int destPort, i
     }
 }
 
-int JasmineGraphServer::collectBloomFiltersToMaster(string host, int port, string coordinatorHost, int coordinatorPort, int dataPort, string graphID, int noClusters, string masterIP) {
+int JasmineGraphServer::collectBucketsToMaster(string host, int port, string coordinatorHost, int coordinatorPort, int dataPort, string graphID, int noClusters, string masterIP) {
     Utils utils;
     Logger instance_logger;
     bool result = true;
@@ -3085,9 +3130,9 @@ int JasmineGraphServer::collectBloomFiltersToMaster(string host, int port, strin
         write(sockfd, server_host.c_str(), server_host.size());
         instance_logger.log("Sent : " + server_host, "info");
 
-        write(sockfd, JasmineGraphInstanceProtocol::COLLECT_CLUSTERS_TO_MASTER.c_str(),
-              JasmineGraphInstanceProtocol::COLLECT_CLUSTERS_TO_MASTER.size());
-        instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::COLLECT_CLUSTERS_TO_MASTER, "info");
+        write(sockfd, JasmineGraphInstanceProtocol::COLLECT_BUCKETS_TO_MASTER.c_str(),
+              JasmineGraphInstanceProtocol::COLLECT_BUCKETS_TO_MASTER.size());
+        instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::COLLECT_BUCKETS_TO_MASTER, "info");
 
         bzero(data, INSTANCE_DATA_LENGTH);
         read(sockfd, data, INSTANCE_DATA_LENGTH);

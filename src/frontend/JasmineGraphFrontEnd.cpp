@@ -1226,7 +1226,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             frontend_logger.log("Message format not recognized " + line, "error");
         }
         else if (line.compare(ENTITY_RESOLUTION) == 0) {
-            bool coordinatingOrg;
+            bool coordinatingOrg = false;
             if (coordinatingOrg) {
                 int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
                 if(result_wr < 0) {
@@ -1262,8 +1262,8 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 frontend_logger.log("Graph ID received: " + graphID, "info");
 
                 if (JasmineGraphFrontEnd::graphExistsByID(graphID, sqlite)) {
-                    frontend_logger.log("Graph with ID " + graphID + " is being deleted now", "info");
-                    JasmineGraphFrontEnd::initiateEntityResolutionCoordinator(graphID, sqlite, masterIP);
+                    frontend_logger.log("Graph with ID " + graphID + " exists", "info");
+                    JasmineGraphFrontEnd::initiateEntityResolutionCoordinator(graphID, sqlite, masterIP, designatedHost, designatedPort);
                     result_wr = write(connFd, DONE.c_str(), DONE.size());
                     if(result_wr < 0) {
                         frontend_logger.log("Error writing to socket", "error");
@@ -1277,7 +1277,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                         continue;
                     }
                 } else {
-                    frontend_logger.log("Graph does not exist or cannot be deleted with the current hosts setting",
+                    frontend_logger.log("Graph does not exist ",
                                         "error");
                     result_wr = write(connFd, ERROR.c_str(), ERROR.size());
                     if(result_wr < 0) {
@@ -1328,7 +1328,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 frontend_logger.log("Graph ID received: " + graphID, "info");
 
                 if (JasmineGraphFrontEnd::graphExistsByID(graphID, sqlite)) {
-                    frontend_logger.log("Graph with ID " + graphID + " is being deleted now", "info");
+                    frontend_logger.log("Graph with ID " + graphID + " exists", "info");
                     JasmineGraphFrontEnd::initiateEntityResolutionOrg(graphID, sqlite, masterIP, designatedHost, designatedPort);
                     result_wr = write(connFd, DONE.c_str(), DONE.size());
                     if(result_wr < 0) {
@@ -1669,7 +1669,9 @@ int JasmineGraphFrontEnd::getRunningHighPriorityTaskCount() {
     return taskCount;
 }
 
-void JasmineGraphFrontEnd::initiateEntityResolutionCoordinator(std::string graphID, SQLiteDBInterface sqlite, std::string masterIP, string designatedWorkerHost, string designatedWorkerPort) {
+void JasmineGraphFrontEnd::initiateEntityResolutionCoordinator(std::string graphID, SQLiteDBInterface sqlite,
+                                                                   std::string masterIP, string designatedWorkerHost,
+                                                                   string designatedWorkerPort) {
     vector<pair<string, string>> hostHasPartition;
     vector<vector<pair<string, string>>> hostPartitionResults = sqlite.runSelect(
             "SELECT name, partition_idpartition FROM worker_has_partition INNER JOIN worker ON "
@@ -1693,32 +1695,5 @@ void JasmineGraphFrontEnd::initiateEntityResolutionCoordinator(std::string graph
         cout << "HOST ID : " << j->first << " Partition ID : " << j->second << endl;
     }
 
-    server->initiateEntityResolution(hostHasPartition, graphID, masterIP);
-}
-
-void JasmineGraphFrontEnd::initiateEntityResolution(std::string graphID, SQLiteDBInterface sqlite, std::string masterIP) {
-    vector<pair<string, string>> hostHasPartition;
-    vector<vector<pair<string, string>>> hostPartitionResults = sqlite.runSelect(
-            "SELECT name, partition_idpartition FROM worker_has_partition INNER JOIN worker ON "
-            "worker_has_partition.worker_idworker = worker.idworker WHERE partition_graph_idgraph = " + graphID + ";");
-    for (vector<vector<pair<string, string>>>::iterator i = hostPartitionResults.begin();
-         i != hostPartitionResults.end(); ++i) {
-        int count = 0;
-        string hostname;
-        string partitionID;
-        for (std::vector<pair<string, string>>::iterator j = (i->begin()); j != i->end(); ++j) {
-            if (count == 0) {
-                hostname = j->second;
-            } else {
-                partitionID = j->second;
-                hostHasPartition.push_back(pair<string, string>(hostname, partitionID));
-            }
-            count++;
-        }
-    }
-    for (std::vector<pair<string, string>>::iterator j = (hostHasPartition.begin()); j != hostHasPartition.end(); ++j) {
-        cout << "HOST ID : " << j->first << " Partition ID : " << j->second << endl;
-    }
-
-    server->initiateEntityResolution(hostHasPartition, graphID, masterIP);
+    server->initiateEntityResolution(hostHasPartition, graphID, masterIP, designatedWorkerHost, stoi(designatedWorkerPort));
 }

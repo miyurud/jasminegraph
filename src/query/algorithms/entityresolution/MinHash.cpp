@@ -1,19 +1,26 @@
-//
-// Created by root on 4/16/21.
-//
+/**
+Copyright 2021 JasmineGraph Team
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+ */
 
-#include "MinHash.hpp"
+#include "MinHash.h"
 
 arma::Col<short> MinHash::generateCRV(arma::Mat<float> &data, uint8_t d, bool quietPrint) {
     display("Creating CRV", quietPrint);
     //Calculate density vector
     display("Create density vector", quietPrint);
     arma::Col<float> denVec = getDensity(data);
-//        denVec.print();
     //Discretize vector based on given threshold
     display("Discretize density vector", quietPrint);
     arma::Col<short> catVec = discretize(denVec, d);
-//        catVec.print();
 
     //For the determined cluster representative vector length, create minhash signature
     std::cout << "Creating minhash signature" << std::endl;
