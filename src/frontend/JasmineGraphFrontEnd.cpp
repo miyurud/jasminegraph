@@ -89,6 +89,11 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
         }
         frontend_logger.log("Command received: " + line, "info");
 
+        if (line.empty()) {
+            currentFESession--;
+            break;
+        }
+
         Utils utils;
         line = utils.trim_copy(line, " \f\n\r\t\v");
 
