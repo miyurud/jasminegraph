@@ -43,12 +43,13 @@ void *startScheduler(void *dummyPt) {
             jobScheduler_Logger.log("##JOB SCHEDULER## Picked up Job", "info");
             JobRequest request = jobQueue.top();
             int priority = request.priority;
+            std::string masterIP = request.getMasterIP();
 
             if (priority == Conts::HIGH_PRIORITY_DEFAULT_VALUE) {
                 string perfCategory = request.getParameter(Conts::PARAM_KEYS::CATEGORY);
                 string command = request.getJobType();
                 string graphId = request.getParameter(Conts::PARAM_KEYS::GRAPH_ID);
-                bool isResourcesSufficient = performanceUtil.isResourcesSufficient(graphId,command,perfCategory);
+                bool isResourcesSufficient = performanceUtil.isResourcesSufficient(graphId,command,perfCategory,masterIP);
 
                 if (!isResourcesSufficient) {
                     std::this_thread::sleep_for(std::chrono::seconds(1));

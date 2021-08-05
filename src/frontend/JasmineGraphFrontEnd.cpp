@@ -89,6 +89,11 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
         }
         frontend_logger.log("Command received: " + line, "info");
 
+        if (line.empty()) {
+            currentFESession--;
+            break;
+        }
+
         Utils utils;
         line = utils.trim_copy(line, " \f\n\r\t\v");
 
@@ -763,19 +768,16 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                         PerformanceUtil performanceUtil;
                         performanceUtil.init();
 
-                        bool resourceSufficient = performanceUtil.isResourcesSufficient(graph_id,TRIANGLES,Conts::SLA_CATEGORY::LATENCY);
+                        bool resourceSufficient = performanceUtil.isResourcesSufficient(graph_id,TRIANGLES,Conts::SLA_CATEGORY::LATENCY,masterIP);
                         int runningHPTaskCount = JasmineGraphFrontEnd::getRunningHighPriorityTaskCount();
 
-                        if (resourceSufficient && runningHPTaskCount == highPriorityTaskCount) {
+                        if (!resourceSufficient && runningHPTaskCount == highPriorityTaskCount) {
                             bool queueTimeAcceptable = JasmineGraphFrontEnd::isQueueTimeAcceptable(sqlite,perfSqlite,
                                     graph_id,TRIANGLES,Conts::SLA_CATEGORY::LATENCY);
 
                             if (!queueTimeAcceptable) {
                                 rejectJob = true;
                             }
-
-                        } else {
-                            rejectJob = true;
                         }
 
                         if (rejectJob) {
@@ -804,8 +806,8 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 jobDetails.setJobId(std::to_string(uniqueId));
                 jobDetails.setJobType(TRIANGLES);
                 jobDetails.setPriority(threadPriority);
+                jobDetails.setMasterIP(masterIP);
                 jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_ID, graph_id);
-                jobDetails.addParameter(Conts::PARAM_KEYS::MASTER_IP, masterIP);
                 jobDetails.addParameter(Conts::PARAM_KEYS::CATEGORY, Conts::SLA_CATEGORY::LATENCY);
                 if (canCalibrate) {
                     jobDetails.addParameter(Conts::PARAM_KEYS::CAN_CALIBRATE, "true");
