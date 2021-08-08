@@ -51,7 +51,7 @@ Logger frontend_logger;
 std::set<ProcessInfo> processData;
 
 void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface sqlite,
-                            PerformanceSQLiteDBInterface perfSqlite, JobScheduler jobScheduler) {
+                            PerformanceSQLiteDBInterface perfSqlite, JobScheduler jobScheduler, std::map<std::string, std::atomic<bool>> *streamsState) {
     frontend_logger.log("Thread No: " + to_string(pthread_self()), "info");
     frontend_logger.log("Master IP: " + masterIP, "info");
     char data[FRONTEND_DATA_LENGTH];
@@ -569,7 +569,38 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             string topic_name_s(topic_name);
             topic_name_s = utils.trim_copy(topic_name_s, " \f\n\r\t\v");
             
-            std::thread streamingThread(KafkaConnector::startStream,topic_name, workerClients);
+            std::thread streamingThread(KafkaConnector::startStream,topic_name_s, workerClients, streamsState);
+            streamsState->insert(topic_name_s, false);
+
+        } else if (line.compare(STOP_STREAM_KAFKA) == 0) {
+            frontend_logger.log("Start serving `" + STOP_STREAM_KAFKA + "` command", "info");
+            string message = "send kafka topic name";
+            int result_wr = write(connFd, message.c_str(), message.length());
+            if (result_wr < 0) {
+                frontend_logger.log("Error writing to socket", "error");
+                loop = true;
+                continue;
+            }
+            result_wr = write(connFd, "\r\n", 2);
+
+            if (result_wr < 0) {
+                frontend_logger.log("Error writing to socket", "error");
+                loop = true;
+                continue;
+            }
+
+            // Get the Kafka topic name
+            char topic_name[FRONTEND_DATA_LENGTH];
+            bzero(topic_name, FRONTEND_DATA_LENGTH + 1);
+
+            read(connFd, topic_name, FRONTEND_DATA_LENGTH);
+
+            string topic_name_s(topic_name);
+            topic_name_s = utils.trim_copy(topic_name_s, " \f\n\r\t\v");
+            if (streamsState->find(topic_name_s) != streamsState->end()) {
+                auto steamState = streamsState->find(topic_name_s);
+                steamState->second = true;
+            }
 
         } else if (line.compare(RMGR) == 0) {
             int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
@@ -1002,7 +1033,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
             JasminGraphTrainingInitiator *jasminGraphTrainingInitiator = new JasminGraphTrainingInitiator();
             jasminGraphTrainingInitiator->initiateTrainingLocally(graphID, trainData);
-        } else if (line.compare(IN_DEGREE) == 0)  {
+        } else if (line.compare(IN_DEGREE) == 0) {
             frontend_logger.log("Calculating In Degree Distribution", "info");
 
             int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
@@ -1044,7 +1075,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 loop = true;
                 continue;
             }
-        } else if (line.compare(PREDICT) == 0){
+        } else if (line.compare(PREDICT) == 0) {
             int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
             if(result_wr < 0) {
                 frontend_logger.log("Error writing to socket", "error");
@@ -1300,7 +1331,7 @@ int JasmineGraphFrontEnd::run() {
         frontendservicesessionargs1->sqlite = this->sqlite;
         frontendservicesessionargs1->connFd = connFd;
 
-        threadVector.push_back(std::thread(frontendservicesesion, masterIP, connFd, this->sqlite, this->perfSqlite, this->jobScheduler));
+        threadVector.push_back(std::thread(frontendservicesesion, masterIP, connFd, this->sqlite, this->perfSqlite, this->jobScheduler, this->streamsState));
 
         std::thread();
 
