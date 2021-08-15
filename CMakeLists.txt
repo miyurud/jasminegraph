@@ -41,7 +41,7 @@ add_executable(JasmineGraph main.cpp src/server/JasmineGraphServer.cpp src/serve
         src/frontend/core/factory/ExecutorFactory.cpp src/frontend/core/factory/ExecutorFactory.h src/frontend/core/CoreConstants.cpp
         src/frontend/core/CoreConstants.h)
 
-target_compile_options(JasmineGraph PRIVATE -std=c++11 -I/usr/include/python3.6)
+target_compile_options(JasmineGraph PRIVATE -std=c++11 -I/usr/include/python3.5)
 
 if(CMAKE_ENABLE_DEBUG)
     message(STATUS "DEBUG enabled")
@@ -67,12 +67,12 @@ target_link_libraries(JasmineGraph /usr/local/lib/libmetis.a)
 target_link_libraries(JasmineGraph $ENV{HOME}/software/xerces-c-3.2.2/lib/libxerces-c.so)
 target_link_libraries(JasmineGraph $ENV{HOME}/software/flatbuffers/libflatbuffers.a)
 include_directories("$ENV{HOME}/software/xerces-c-3.2.2/include")
-target_link_libraries(JasmineGraph $ENV{HOME}/software/jsoncpp/src/lib_json/libjsoncpp.a)
-target_link_libraries(JasmineGraph $ENV{HOME}/software/cppkafka/build/src/lib/libcppkafka.so)
+target_link_libraries(JasmineGraph $ENV{HOME}/software/jsoncpp/build/debug/src/lib_json/libjsoncpp.a)
+target_link_libraries(JasmineGraph $ENV{HOME}/software/cppkafka/build/usr/local/lib/libcppkafka.so)
 
-set(PYTHON_EXECUTABLE "/usr/bin/python3.6")
-set(PYTHON_INCLUDE_DIR "/usr/include/python3.6m")
-set(PYTHON_LIBRARIES "/usr/lib/x86_64-linux-gnu/libpython3.6m.so")
+set(PYTHON_EXECUTABLE "/usr/bin/python3.5")
+set(PYTHON_INCLUDE_DIR "/usr/include/python3.5m")
+set(PYTHON_LIBRARIES "/usr/lib/x86_64-linux-gnu/libpython3.5m.so")
 
 include_directories(${PYTHON_INCLUDE_DIRS})
 include_directories(${PYTHON_DIRECTORIES})
