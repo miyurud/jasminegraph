@@ -305,9 +305,10 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
     } else if (profile == "docker") {
         for (int i =0 ; i < workerPortsVector.size() ; i++) {
             if (masterHost == host || host == "localhost") {
-                serverStartScript = "docker run -v" + instanceDataFolder + ":" + instanceDataFolder +
+                serverStartScript = "docker run -v " + instanceDataFolder + ":" + instanceDataFolder +
                                     " -v " + aggregateDataFolder + ":" + aggregateDataFolder +
-                                    " -v " + nmonFileLocation + ":" + nmonFileLocation + " -p " +
+                                    " -v " + nmonFileLocation + ":" + nmonFileLocation +
+                                    " -v " + instanceDataFolder + "/" + to_string(i) + "/logs" + ":" + "/home/ubuntu/software/jasminegraph/logs" + " -p " +
                                     std::to_string(workerPortsVector.at(i)) + ":" +
                                     std::to_string(workerPortsVector.at(i)) + " -p " +
                                     std::to_string(workerDataPortsVector.at(i)) + ":" +
@@ -318,7 +319,8 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
             } else {
                 serverStartScript = "docker -H ssh://" + host + " run -v " + instanceDataFolder + ":" + instanceDataFolder +
                                     " -v " + aggregateDataFolder + ":" + aggregateDataFolder +
-                                    " -v "+ nmonFileLocation + ":" + nmonFileLocation+ " -p " +
+                                    " -v " + nmonFileLocation + ":" + nmonFileLocation +
+                                    " -v " + instanceDataFolder + "/" + to_string(i) + "/logs" + ":" + "/home/ubuntu/software/jasminegraph/logs" + " -p " +
                                     std::to_string(workerPortsVector.at(i)) + ":" +
                                     std::to_string(workerPortsVector.at(i)) + " -p " +
                                     std::to_string(workerDataPortsVector.at(i)) + ":" +
