@@ -409,7 +409,6 @@ int PerformanceUtil::collectRemoteSLAResourceUtilization(std::string host, int p
         scheduler_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-            //scheduler_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
             write(sockfd, isVMStatManager.c_str(), isVMStatManager.size());
             scheduler_logger.log("Sent : VM Manager Status " + isVMStatManager, "info");
 
@@ -520,7 +519,9 @@ int PerformanceUtil::collectLocalSLAResourceUtilization(std::string isVMStatMana
         if (isResourceAllocationRequired == "true") {
             std::string totalMemory = strArr[2];
             std::string totalCores = strArr[3];
-            string allocationUpdateSql = "update host set total_cpu_cores='" + totalCores + "',total_memory='" + totalMemory + "' where idhost='" + hostId + "'";
+            string allocationUpdateSql =
+                    "update host set total_cpu_cores='" + totalCores + "',total_memory='" + totalMemory +
+                    "' where idhost='" + hostId + "'";
 
             perfDb.runUpdate(allocationUpdateSql);
         }

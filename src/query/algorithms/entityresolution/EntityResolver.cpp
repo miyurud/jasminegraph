@@ -18,9 +18,12 @@ limitations under the License.
 #include "MinHash.h"
 #include "MurmurHash3.h"
 #include "../../../util/Utils.h"
+#include "../../../util/logger/Logger.h"
 
 using namespace std;
 using namespace arma;
+
+Logger logger;
 
 /**
  * Create attribute filters for entities given the feature infomation
@@ -42,12 +45,10 @@ map<int, string> EntityResolver::createFilters(map<int, vector<string>> entityDa
         vector<string> attributes = entity.second;
         //Add node attributes to bloom filter
         for (auto attr: attributes) {
-            cout << attr << endl;
             attrFilter.insert(attr);
         }
         //Convert bloom filter to appropriate string
         string filterStr = attrFilter.m_bits.to_string();
-        cout << filterStr << endl;
         filterStr = utils.replace(filterStr, "0", ",0");
         filterStr = utils.replace(filterStr, "1", ",1");
         attrFilters[entity.first] = filterStr;
@@ -75,29 +76,29 @@ EntityResolver::createFilters(map<int, vector<string>> entityData, map<int, vect
     map<int, string> structFilters;
     //For each entity create attr and structural bloom filters
     for (const auto &entity: entityData) {
-    //Create attr bloom filter
+        //Create attr bloom filter
         BloomFilter attrFilter(filterSize, numHashes);
         vector<string> attributes = entity.second;
-    //Add node attributes to bloom filter
+        //Add node attributes to bloom filter
         for (auto attr: attributes) {
             cout << attr << endl;
             attrFilter.insert(attr);
         }
-    //Convert bloom filter to appropriate string
+        //Convert bloom filter to appropriate string
         string filterStr = attrFilter.m_bits.to_string();
         cout << filterStr << endl;
         filterStr = utils.replace(filterStr, "0", ",0");
         filterStr = utils.replace(filterStr, "1", ",1");
         attrFilters[entity.first] = filterStr;
 
-    //Create structural filter
+        //Create structural filter
         BloomFilter structFilter(256, 4);
-    //For each neighbour add selected attribute to bloom filter
+        //For each neighbour add selected attribute to bloom filter
         for (auto neighbour: neighborhoodData[entity.first]) {
             string selectedAttr = entityData[neighbour][0];
             structFilter.insert(selectedAttr);
         }
-    //Convert bloom filter to appropriate string
+        //Convert bloom filter to appropriate string
         filterStr = structFilter.m_bits.to_string();
         filterStr = utils.replace(filterStr, "0", ",0");
         filterStr = utils.replace(filterStr, "1", ",1");
@@ -119,19 +120,18 @@ void EntityResolver::clusterFilters(string graphID, int partitionCount, int noCl
     int noWorkers = stoi(utils.getJasmineGraphProperty("org.jasminegraph.server.nworkers"));
     string partitionID = "0"; // use first worker related partitons
     std::string attrFilterPath = "";
-    //std::string structFilterPath = "";
 
     attrFilterPath =
             utils.getJasmineGraphProperty("org.jasminegraph.server.instance.entityresolutionfolder") + "AttrFilters_" +
             graphID + "_" + partitionID + ".txt";
-    //structFilterPath = utils.getJasmineGraphProperty("org.jasminegraph.entity.location")+"structfilters_" + graphID + "_" + partitionID + ".txt";
 
     Mat<float> data;
     data.load(attrFilterPath);
 
     for (int i = 1; i < partitionCount; i++) {
 
-        string filepath = "attrfilters_" + graphID + "_" + to_string(i) + ".txt";
+        string filepath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.entityresolutionfolder") + "AttrFilters_" +
+                          graphID + "_" + to_string(i) + ".txt";
         Mat<float> workerData;
         workerData.load(filepath);
         data = join_cols(data, workerData);
@@ -157,8 +157,6 @@ void EntityResolver::clusterFilters(string graphID, int partitionCount, int noCl
     seperateClusters(data, pred, clusterCount, "AttrCluster_" + graphID);
     data.clear();
     //Separate struct filters into clusters
-    //data.load(structFilterPath, arma::csv_ascii);
-    //seperateClusters(data, pred, clusterCount, "structfilterscluster");
 
 }
 
@@ -189,7 +187,8 @@ void seperateClusters(Mat<float> &data, Mat<short> pred, int clusterCount, strin
  * @param filterSize Size of the bloom filter
  * @param clusters Vector of worker-local clusters
  */
-map<unsigned long, vector<string>> EntityResolver::bucketLocalClusters(string graphID, int filterSize, vector<int> clusters) {
+map<unsigned long, vector<string>>
+EntityResolver::bucketLocalClusters(string graphID, int filterSize, vector<int> clusters) {
 
     Utils utils;
 
@@ -197,7 +196,7 @@ map<unsigned long, vector<string>> EntityResolver::bucketLocalClusters(string gr
     Mat<short> CRVs(filterSize, clusterCount);
     for (int i = 0; i < clusterCount; i++) {
         //Load cluster file into memory
-        string filename = utils.getJasmineGraphProperty("org.jasminegraph.entity.location") + "AttrFiltersCluster_" +
+        string filename = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.entityresolutionfolder") + "AttrCluster_" +
                           graphID + "_" + to_string(clusters.at(i)) + ".txt";
         Mat<float> clusterData;
         clusterData.load(filename, arma::csv_ascii);
@@ -357,7 +356,7 @@ synchronizeCommonEntities(map<string, map<string, map<string, string>>> pairwise
         vector<string> nextPartyIds;
         for (string id: currentPartyIds) {
             partyCommonEntityMap[currentParty].emplace_back(id);
-            //If id is present in the next party common entities, mark it to check in the next iterationa
+            //If id is present in the next party common entities, mark it to check in the next iterations
             if (commonEntityMap.find(id) != commonEntityMap.end()) {
                 nextPartyIds.emplace_back(pairwiseCommonEntities[currentParty][nextParty][id]);
             }
@@ -385,108 +384,20 @@ synchronizeCommonEntities(map<string, map<string, map<string, string>>> pairwise
         currentParty = nextParty;
         //Filtered next set of ids
         currentPartyIds = nextPartyIds;
-        //Change pointer to next paty in the chain
+        //Change pointer to next party in the chain
         nextParty = pairwiseCommonEntities[currentParty].begin()->first;
     }
 
     return partyCommonEntityMap;
 }
 
-//void EntityResolver::entityRes(string trainData) {
-//
-//    Utils utils;
-//    map<int, vector<string>> entityData;
-//    map<int, vector<int>> neighborhoodData;
-//
-//    std::string filePath = "";
-//    std::string edgefilePath = "";
-//    std::string attrfilePath = "";
-//    std::string attrFilterPath = "";
-//    std::string structFilterPath = "";
-//
-//    std::vector<std::string> trainargs = Utils::split(trainData, ' ');
-//    string graphID = trainargs[1];
-//    string partitionID = trainargs[2];
-//
-//    //Read attributes from file
-//    std::ifstream dataFile;
-//    cout << "reading file" << endl;
-//
-//    filePath = utils.getJasmineGraphProperty("org.jasminegraph.entity.location");
-//    dataFile.open("/home/damitha/ubuntu/entity_data/entityData.txt", std::ios::binary | std::ios::in);
-//
-//    char splitter;
-//    string line;
-//
-//    std::getline(dataFile, line);
-//    splitter = ' ';
-//
-//    cout << "Getting data" << endl;
-//    while (!line.empty()) {
-//
-//        int strpos = line.find(splitter);
-//        string nodeID = line.substr(0, strpos);
-//        string weakIDStr = line.substr(strpos + 1, -1);
-//        entityData[stoi(nodeID)] = utils.split(weakIDStr, splitter);
-//        cout << line << endl;
-//
-//
-//        std::getline(dataFile, line);
-//        while (!line.empty() && line.find_first_not_of(splitter) == std::string::npos) {
-//            std::getline(dataFile, line);
-//        }
-//    }
-//    dataFile.close();
-//
-//    //Read edgelist from file
-//    std::ifstream edgeFile;
-//    std::cout << "reading file" << endl;
-//
-//    edgefilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.trainedmodelfolder")
-//                   + graphID + "_" + partitionID;
-//    edgeFile.open(edgefilePath);
-//    std::getline(edgeFile, line);
-//
-//    splitter = ' ';
-//
-//    cout << "Getting neighbourhood data" << endl;
-//    while (!line.empty()) {
-//
-//        int strpos = line.find(splitter);
-//        string vertex1 = line.substr(0, strpos);
-//        string vertex2 = line.substr(strpos + 1, -1);
-//        if (neighborhoodData.size() <= 5) {
-//            neighborhoodData[stoi(vertex1)].emplace_back(stoi(vertex2));
-//        }
-//
-//
-//        std::getline(edgeFile, line);
-//        while (!line.empty() && line.find_first_not_of(splitter) == std::string::npos) {
-//            std::getline(edgeFile, line);
-//        }
-//    }
-//    edgeFile.close();
-//
-//    map<int, string> attrFilters = createFilters(entityData, 256, 4);
-//
-//    attrFilterPath =
-//            utils.getJasmineGraphProperty("org.jasminegraph.entity.location") + "attrfilters_" + graphID + "_" +
-//            partitionID + ".txt";
-//    structFilterPath =
-//            utils.getJasmineGraphProperty("org.jasminegraph.entity.location") + "structfilters_" + graphID + "_" +
-//            partitionID + ".txt";
-//
-//    //Write attr and struct filters separately into files
-//    writeToFile(attrFilterPath, attrFilters);
-////    writeBloomFiltersToFile(structFilterPath, structFilters);
-//
-//}
-
 Mat<short> EntityResolver::generateCRVs(int minhashSize, int noClusters) { //minHash def 100
     Mat<short> CRVs(minhashSize, noClusters);
+    Utils utils;
     for (int i = 0; i < noClusters; i++) {
         //Load cluster file into memory
-        string filename = "/root/CLionProjects/EntityResolution/cluster" + to_string(i) + "filters.txt";
+        string filename = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.entityresolutionfolder") +
+                          "AttrCluster_" + to_string(i) + ".txt";;
         Mat<float> clusterData;
         clusterData.load(filename, arma::csv_ascii);
         //Remove node id column

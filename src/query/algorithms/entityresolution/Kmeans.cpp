@@ -12,9 +12,13 @@ limitations under the License.
  */
 
 #include "Kmeans.h"
+#include "../../../util/logger/Logger.h"
 
 template <typename T>
 
+Logger logger;
+
+template <typename T>
 arma::Mat<T> Kmeans::getMeans() {
     return means;
 }
@@ -23,7 +27,7 @@ void Kmeans::fit(arma::Mat<T> &data, uint8_t noOfIterations, bool printMode = tr
     bool status = kmeans(means, data, k, arma::random_spread, noOfIterations, true);
 
     if(status == false) {
-        std::cout << "clustering failed" << std::endl;
+        logger.error("clustering failed");
     }
 }
 
@@ -31,7 +35,7 @@ void Kmeans::fit(arma::Mat<T> &data, arma::Mat<T> &means, uint8_t noOfIterations
     bool status = kmeans(means, data, k, arma::keep_existing, noOfIterations, true);
 
     if(status == false) {
-        std::cout << "clustering failed" << std::endl;
+        logger.error("clustering failed");
     }
 }
 

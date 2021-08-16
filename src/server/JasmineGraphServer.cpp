@@ -2384,7 +2384,7 @@ int JasmineGraphServer::initiateEntityResolution(vector<pair<string, string>> ho
     //Signal other organizations to start ER process
     vector<string> orgList;
     if (isCoordinator) {
-        int orgCount;
+        int orgCount = 3; //PLACEHOLDER
         std::thread *orgThreads = new std::thread[orgCount];
 
         for (int i = 0; i < orgCount; i++) {

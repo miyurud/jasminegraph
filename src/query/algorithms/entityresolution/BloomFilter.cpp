@@ -27,10 +27,6 @@ void BloomFilter::insert(std::string &str) {
             add(key, 2);
         }
     }
-//
-//        for (uint8_t s: str) {
-//            add(&s, 1);
-//        }
 }
 
 void BloomFilter::add(const char *data, std::size_t len) {

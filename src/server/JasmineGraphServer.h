@@ -97,12 +97,13 @@ public:
     static bool batchUploadCentralAttributeFile(std::string host, int port, int dataPort, int graphID, std::string filePath, std::string masterIP);
 
     static bool batchUploadCompositeCentralstoreFile(std::string host, int port, int dataPort, int graphID, std::string filePath, std::string masterIP);
-sendFileThroughService
+
     static int removePartitionThroughService(std::string host, int port, std::string graphID, std::string partitionID, std::string masterIP);
 
     static int removeFragmentThroughService(std::string host, int port, std::string graphID, std::string masterIP);
 
-    int initiateEntityResolution(std::vector<std::pair<std::string, std::string>> hostHasPartition, std::string graphID, std::string masterIP, , std::string designatedWorkerHost, int designatedWorkerPort);
+    int initiateEntityResolution(std::vector<std::pair<std::string, std::string>> hostHasPartition, std::string graphID,
+                                 std::string masterIP, std::string designatedWorkerHost, int designatedWorkerPort);
 
     static int collectBloomFilters(string destHost, int destPort, int dataPort, string graphID,
                                    std::vector<std::vector<string>> workerPartitions, string masterIP);
