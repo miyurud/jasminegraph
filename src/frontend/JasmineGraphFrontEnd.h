@@ -14,29 +14,31 @@ limitations under the License.
 #ifndef JASMINEGRAPH_JASMINEGRAPHFRONTEND_H
 #define JASMINEGRAPH_JASMINEGRAPHFRONTEND_H
 
-
-#include <string.h>
-#include <unistd.h>
-#include <stdio.h>
+#include <dirent.h>
 #include <netdb.h>
-#include <sys/types.h>
+#include <netinet/in.h>
+#include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <strings.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
-#include <netinet/in.h>
-#include <iostream>
-#include <fstream>
-#include <strings.h>
-#include <stdlib.h>
-#include <string>
-#include <pthread.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+#include <atomic>
 #include <chrono>
-#include <thread>
+#include <fstream>
+#include <iostream>
 #include <map>
-#include <dirent.h>
+#include <string>
+#include <thread>
+
 #include "../metadb/SQLiteDBInterface.h"
 #include "../performancedb/PerformanceSQLiteDBInterface.h"
-#include "../util/PlacesToNodeMapper.h"
 #include "../query/algorithms/triangles/Triangles.h"
+#include "../util/PlacesToNodeMapper.h"
 #include "core/scheduler/JobScheduler.h"
 
 class JasmineGraphHashMapCentralStore;
@@ -45,8 +47,9 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                             PerformanceSQLiteDBInterface perfSqlite, JobScheduler jobScheduler);
 
 class JasmineGraphFrontEnd {
-public:
-    JasmineGraphFrontEnd(SQLiteDBInterface db, PerformanceSQLiteDBInterface perfDb, std::string masterIP, JobScheduler jobScheduler);
+   public:
+    JasmineGraphFrontEnd(SQLiteDBInterface db, PerformanceSQLiteDBInterface perfDb, std::string masterIP,
+                         JobScheduler jobScheduler);
 
     int run();
 
@@ -55,7 +58,6 @@ public:
     static bool graphExistsByID(std::string id, SQLiteDBInterface sqlite);
 
     static void removeGraph(std::string graphID, SQLiteDBInterface sqlite, std::string masterIP);
-
 
     static void getAndUpdateUploadTime(std::string graphID, SQLiteDBInterface sqlite);
 
@@ -69,23 +71,22 @@ public:
 
     static int getUid();
 
-    static bool isQueueTimeAcceptable(SQLiteDBInterface sqlite, PerformanceSQLiteDBInterface perfSqlite, std::string graphId,
-            std::string command, std::string category);
+    static bool isQueueTimeAcceptable(SQLiteDBInterface sqlite, PerformanceSQLiteDBInterface perfSqlite,
+                                      std::string graphId, std::string command, std::string category);
 
     static int getRunningHighPriorityTaskCount();
-
 
     static std::vector<std::vector<string>> fileCombinations;
     static std::map<std::string, std::string> combinationWorkerMap;
     static std::map<long, std::map<long, std::vector<long>>> triangleTree;
+    std::map<std::string, std::atomic<bool>> *streamsState;
+    std::map<std::string, std::thread> streamingThreads;
 
-private:
+   private:
     SQLiteDBInterface sqlite;
     std::string masterIP;
     PerformanceSQLiteDBInterface perfSqlite;
     JobScheduler jobScheduler;
-
-
 };
 
 struct frontendservicesessionargs {
@@ -93,4 +94,4 @@ struct frontendservicesessionargs {
     int connFd;
 };
 
-#endif //JASMINGRAPH_JASMINGRAPHFRONTEND_H
+#endif  // JASMINGRAPH_JASMINGRAPHFRONTEND_H

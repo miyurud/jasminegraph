@@ -78,6 +78,7 @@ extern const string REMOTE_WORKER_ARGS;
 extern const string SLA;
 extern const string COMMAND;
 extern const string PRIORITY;
+extern const string STOP_STREAM_KAFKA;
 
 
 class JasminGraphFrontEndProtocol {

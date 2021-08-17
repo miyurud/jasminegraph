@@ -24,6 +24,7 @@ const string SHTDN = "shdn";
 const string SEND = "send";
 const string ERROR = "error";
 const string ADD_STREAM_KAFKA = "adstrmk";
+const string STOP_STREAM_KAFKA = "stopstrm";
 const string STREAM_TOPIC_NAME = "topicnm";
 const string PROCESS_DATASET = "process_dataset";
 const string REFORMAT = "reformat";

@@ -11,31 +11,86 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
+#include "JasmineGraphIncrementalLocalStore.h"
+
 #include <memory>
 #include <stdexcept>
-#include "JasmineGraphIncrementalLocalStore.h"
-#include <nlohmann/json.hpp>
-using json = nlohmann::json;
 
+#include "../../centralstore/incremental/RelationBlock.h"
 #include "../../util/logger/Logger.h"
 
 Logger incremental_localstore_logger;
 
-JasmineGraphIncrementalLocalStore::JasmineGraphIncrementalLocalStore(unsigned int graphID, unsigned int partitionID){
+JasmineGraphIncrementalLocalStore::JasmineGraphIncrementalLocalStore(unsigned int graphID, unsigned int partitionID) {
     gc.graphID = graphID;
     gc.partitionID = partitionID;
-    gc.maxLabelSize = 10;
-    gc.openMode = "trunk";
+    gc.maxLabelSize = 43;   // TODO tmkasun: read from .properties file
+    gc.openMode = "trunk";  // TODO tmkasun: read from .properties file
     this->nm = new NodeManager(gc);
 };
 
-std::string JasmineGraphIncrementalLocalStore::addEdgeFromString(std::string edgeString)
-{
+std::pair<std::string, unsigned int> JasmineGraphIncrementalLocalStore::getIDs(std::string edgeString) {
     try {
-        auto edge = json::parse(edgeString);
-        NodeBlock *sourceNode = this->nm->addNode(edge["id"]);
-    } catch (const std::exception &) {
+        auto edgeJson = json::parse(edgeString);
+        if (edgeJson.contains("properties")) {
+            auto edgeProperties = edgeJson["properties"];
+            return {edgeProperties["graphId"], 0};
+        }
+
+    } catch (const std::exception&) {  // TODO tmkasun: Handle multiple types of exceptions
+        incremental_localstore_logger.log(
+            "Error while processing edge data = " + edgeString +
+                "Could be due to JSON parsing error or error while persisting the data to disk",
+            "error");
+    }
+}
+
+std::string JasmineGraphIncrementalLocalStore::addEdgeFromString(std::string edgeString) {
+    try {
+        auto edgeJson = json::parse(edgeString);
+
+        auto sourceJson = edgeJson["source"];
+        auto destinationJson = edgeJson["destination"];
+
+        std::string sId = std::string(sourceJson["id"]);
+        std::string dId = std::string(destinationJson["id"]);
+
+        RelationBlock* newRelation = this->nm->addEdge({sId, dId});
+        if (!newRelation) {
+            return "";
+        }
+        char value[PropertyLink::MAX_VALUE_SIZE] = {};
+
+        if (edgeJson.contains("properties")) {
+            auto edgeProperties = edgeJson["properties"];
+            for (auto it = edgeProperties.begin(); it != edgeProperties.end(); it++) {
+                strcpy(value, it.value().get<std::string>().c_str());
+                newRelation->addProperty(std::string(it.key()), &value[0]);
+            }
+        }
+
+        if (sourceJson.contains("properties")) {
+            auto sourceProps = sourceJson["properties"];
+            for (auto it = sourceProps.begin(); it != sourceProps.end(); it++) {
+                strcpy(value, it.value().get<std::string>().c_str());
+                newRelation->getSource()->addProperty(std::string(it.key()), &value[0]);
+            }
+        }
+        if (destinationJson.contains("properties")) {
+            auto destProps = destinationJson["properties"];
+            for (auto it = destProps.begin(); it != destProps.end(); it++) {
+                strcpy(value, it.value().get<std::string>().c_str());
+                newRelation->getDestination()->addProperty(std::string(it.key()), &value[0]);
+            }
+        }
+
+        incremental_localstore_logger.log("Added successfully!", "Info");
+    } catch (const std::exception&) {  // TODO tmkasun: Handle multiple types of exceptions
+        incremental_localstore_logger.log(
+            "Error while processing edge data = " + edgeString +
+                "Could be due to JSON parsing error or error while persisting the data to disk",
+            "error");
         incremental_localstore_logger.log("Error malformed JSON attributes!", "error");
-        //TODO tmkasun: handle JSON errors
+        // TODO tmkasun: handle JSON errors
     }
 }

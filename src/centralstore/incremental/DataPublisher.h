@@ -32,6 +32,7 @@ class DataPublisher {
    public:
     DataPublisher(int, std::string);
     void publish(std::string);
+    ~DataPublisher();
 };
 
 #endif  // !Worker_data_publisher
