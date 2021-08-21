@@ -43,12 +43,18 @@ limitations under the License.
 #include <chrono>
 #include <ctime>
 #include <vector>
+#include <armadillo>
 
 void *instanceservicesession(void *dummyPt);
 void writeCatalogRecord(string record);
 void deleteGraphPartition(std::string graphID, std::string partitionID);
+void createFilters(string graphID, string partitionID);
 void removeGraphFragments(std::string graphID);
-long countLocalTriangles(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores, std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores, std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> graphDBMapDuplicateCentralStores);
+long countLocalTriangles(std::string graphId, std::string partitionId,
+                         std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
+                         std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores,
+                         std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> graphDBMapDuplicateCentralStores,
+                         int threadPriority);
 
 struct instanceservicesessionargs {
     string profile;
@@ -61,6 +67,10 @@ struct instanceservicesessionargs {
     std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores;
     std::map<std::string,JasmineGraphHashMapDuplicateCentralStore> graphDBMapDuplicateCentralStores;
 };
+
+
+int collectBloomFilters(instanceservicesessionargs *sessionargs, std::string host, int port, int dataPort,
+                        std::string graphID, std::string partition);
 
 class JasmineGraphInstanceService {
 
@@ -79,9 +89,10 @@ public:
     static void loadInstanceDuplicateCentralStore(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapDuplicateCentralStore>& graphDBMapDuplicateCentralStores);
     static JasmineGraphHashMapCentralStore loadCentralStore(std::string centralStoreFileName);
     static std::string copyCentralStoreToAggregator(std::string graphId, std::string partitionId, std::string aggregatorHost, std::string aggregatorPort, std::string host);
-    static std::string aggregateCentralStoreTriangles (std::string graphId, std::string partitionId, std::string partitionIdList);
-    static string aggregateCompositeCentralStoreTriangles(std::string compositeFileList,
-                                                          std::string availableFileList);
+    static string aggregateCentralStoreTriangles(std::string graphId, std::string partitionId, std::string partitionIdList,
+                                   int threadPriority);
+    static string aggregateCompositeCentralStoreTriangles(std::string compositeFileList, std::string availableFileList,
+                                                          int threadPriority);
     static map<long, long> getOutDegreeDistributionHashMap(map<long, unordered_set<long>> graphMap);
     static string requestPerformanceStatistics(std::string isVMStatManager, std::string isResourceAllocationRequested);
 
@@ -113,6 +124,18 @@ public:
                                                                std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores);
 
     static int partitionCounter;
+
+    void clusterFilters(string trainData, int noClusters);
+
+    void entityRes(string trainData);
+
+    void generateLocalCandidateSets(int filterSize, int noClusters);
+
+    vector<map<int, string>>
+    createFilters(map<int, vector<string>> entityData, map<int, vector<int>> neighborhoodData, int filterSize,
+                  int numHashes);
+
+    arma::Mat<short> generateCRVs(int minhashSize, int noClusters);
 };
 
 

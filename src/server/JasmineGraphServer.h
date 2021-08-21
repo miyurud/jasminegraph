@@ -23,6 +23,7 @@ limitations under the License.
 #include "../metadb/SQLiteDBInterface.h"
 #include "../performancedb/PerformanceSQLiteDBInterface.h"
 #include "../util/Conts.h"
+#include "../frontend/core/scheduler/JobScheduler.h"
 
 using std::map;
 
@@ -101,6 +102,30 @@ public:
 
     static int removeFragmentThroughService(std::string host, int port, std::string graphID, std::string masterIP);
 
+    int initiateEntityResolution(std::vector<std::pair<std::string, std::string>> hostHasPartition, std::string graphID,
+                                 std::string masterIP, std::string designatedWorkerHost, int designatedWorkerPort);
+
+    static int collectBloomFilters(string destHost, int destPort, int dataPort, string graphID,
+                                   std::vector<std::vector<string>> workerPartitions, string masterIP);
+
+    static int createBloomFilters(std::string host, int port, std::string graphID, std::string partitionID, std::string masterIP);
+
+    static int bucketLocalClusters(std::string host, int port, std::string graphID, std::vector<int> clusters, std::string masterIP);
+
+    static int computeCandidateSets(std::string host, int port, std::string graphID, std::vector<int> clusters, std::string masterIP);
+
+    int collectBucketsToMaster(string host, int port, string coordinatorHost, int coordinatorPort, int dataPort, string graphID, int noClusters, string masterIP);
+
+    int initiateClustering(string destHost, int destPort, int dataPort, string graphID, int partitionCount, int noClusters, string masterIP);
+
+    int distributeClustersToWorkers(string destHost, int destPort, int dataPort, string graphID,
+                                    std::vector<std::vector<string>> workerClusterMap, string masterIP);
+
+    static int
+    signalOrganizations(string organizationHost, string designatedWorkerHost, string designatedWorkerPort,
+                        string graphID,
+                        string masterIP);
+
     static bool sendFileThroughService(std::string host, int dataPort, std::string fileName, std::string filePath, std::string masterIP);
 
     void assignPartitionToWorker (std::string fileName, int graphId, std::string workerHost, int workerPort, int workerDataPort);
@@ -110,6 +135,7 @@ public:
     JasmineGraphFrontEnd *frontend;
     SQLiteDBInterface sqlite;
     PerformanceSQLiteDBInterface performanceSqlite;
+    JobScheduler jobScheduler;
     JasmineGraphBackend *backend;
     std::string masterHost;
     int numberOfWorkers = -1;

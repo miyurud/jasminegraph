@@ -69,6 +69,15 @@ public:
     static const string PERFORMANCE_STATISTICS;
     static const string INITIATE_TRAIN;
     static const string INITIATE_PREDICT;
+    static const string CREATE_BLOOM_FILTERS;
+    static const string COLLECT_BLOOM_FILTERS;
+    static const string SHARE_BLOOM_FILTERS;
+    static const string INITIATE_CLUSTERING;
+    static const string DISTRIBUTE_CLUSTERS;
+    static const string BUCKET_LOCAL_CLUSTERS;
+    static const string COLLECT_BUCKETS_TO_MASTER;
+    static const string SHARE_BUCKETED_CLUSTERS;
+    static const string COMPUTE_CANDIDATE_SETS;
     static const string SEND_HOSTS;
     static const string INITIATE_MODEL_COLLECTION;
     static const string INITIATE_FRAGMENT_RESOLUTION;

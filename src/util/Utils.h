@@ -17,9 +17,12 @@ limitations under the License.
 #include <map>
 #include <iostream>
 #include <fstream>
-#include "../frontend/JasmineGraphFrontEnd.h"
+//#include "../frontend/JasmineGraphFrontEnd.h"
+#include "../performancedb/PerformanceSQLiteDBInterface.h"
+#include "../metadb/SQLiteDBInterface.h"
 #include <algorithm>
 #include "Conts.h"
+#include <string.h>
 
 using std::map;
 
@@ -86,6 +89,8 @@ class Utils
 
     static void updateSLAInformation(PerformanceSQLiteDBInterface perfSqlite, std::string graphId, int partitionCount,
             long newSlaValue, std::string command, std::string category);
+
+    std::string replace(std::string str, std::string old, std::string replacement);
 };
 
 #endif //JASMINEGRAPH_UTILS_H

@@ -71,12 +71,14 @@ extern const string PAGE_RANK;
 extern const string OUT_DEGREE_DISTRIBUTION;
 extern const string TRAIN;
 extern const string PREDICT;
+extern const string ENTITY_RESOLUTION;
 extern const string PARTITIONS;
 extern const string EMPTY;
 extern const string START_REMOTE_WORKER;
 extern const string REMOTE_WORKER_ARGS;
 extern const string SLA;
 extern const string COMMAND;
+extern const string PRIORITY;
 
 
 class JasminGraphFrontEndProtocol {

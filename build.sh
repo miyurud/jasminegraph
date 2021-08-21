@@ -4,4 +4,4 @@ if [ "$1" == "--debug" ]; then
 else
     cmake clean .
 fi
-cmake --build . --target JasmineGraph -- -j 2
+cmake --build . --target JasmineGraph -- -o O2 -larmadillo -lstdc++ -lm -j 2

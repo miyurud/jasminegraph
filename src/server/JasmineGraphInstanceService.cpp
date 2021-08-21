@@ -19,8 +19,15 @@ limitations under the License.
 #include "JasmineGraphInstance.h"
 #include "../server/JasmineGraphServer.h"
 #include "../localstore/incremental/JasmineGraphIncrementalLocalStore.h"
+#include "../query/algorithms/entityresolution/BloomFilter.h"
+#include "../query/algorithms/entityresolution/EntityResolver.h"
+#include "../query/algorithms/entityresolution/Kmeans.h"
+#include "../query/algorithms/entityresolution/MinHash.h"
+#include <armadillo>
+#include <filesystem>
 
 using namespace std;
+using namespace arma;
 Logger instance_logger;
 pthread_mutex_t file_lock;
 pthread_mutex_t map_lock;
@@ -28,7 +35,9 @@ StatisticCollector collector;
 int JasmineGraphInstanceService::partitionCounter = 0;
 std::map<int,std::vector<std::string>> JasmineGraphInstanceService::iterationData;
 const string JasmineGraphInstanceService::END_OF_MESSAGE = "eom";
-int sleepFlag;
+int highestPriority = Conts::DEFAULT_THREAD_PRIORITY;
+std::atomic<int> workerHighPriorityTaskCount;
+std::mutex threadPriorityMutex;
 
 
 char *converter(const std::string &s) {
@@ -95,7 +104,8 @@ void *instanceservicesession(void *dummyPt) {
             exit(0);
         } else if (line.compare(JasmineGraphInstanceProtocol::READY) == 0) {
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-        } else if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD) == 0) {
+        }
+        else if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD) == 0) {
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD, "info");
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
@@ -894,7 +904,36 @@ void *instanceservicesession(void *dummyPt) {
             string partitionId = (data);
             partitionId = utils.trim_copy(partitionId, " \f\n\r\t\v");
             instance_logger.log("Received Partition ID: " + partitionId, "info");
-            long localCount = countLocalTriangles(graphID,partitionId,graphDBMapLocalStores,graphDBMapCentralStores,graphDBMapDuplicateCentralStores);
+
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string priority = (data);
+            priority = utils.trim_copy(priority, " \f\n\r\t\v");
+            instance_logger.log("Received Priority : " + priority, "info");
+
+            int threadPriority = std::atoi(priority.c_str());
+
+            if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
+                threadPriorityMutex.lock();
+                workerHighPriorityTaskCount++;
+                highestPriority = threadPriority;
+                threadPriorityMutex.unlock();
+            }
+
+            long localCount = countLocalTriangles(graphID, partitionId, graphDBMapLocalStores, graphDBMapCentralStores,
+                                                  graphDBMapDuplicateCentralStores, threadPriority);
+
+            if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
+                threadPriorityMutex.lock();
+                workerHighPriorityTaskCount--;
+
+                if (workerHighPriorityTaskCount == 0) {
+                    highestPriority = Conts::DEFAULT_THREAD_PRIORITY;
+                }
+                threadPriorityMutex.unlock();
+            }
+
             std::string result = to_string(localCount);
             write(connFd, result.c_str(), result.size());
         } else if (line.compare(JasmineGraphInstanceProtocol::SEND_CENTRALSTORE_TO_AGGREGATOR) == 0) {
@@ -1123,8 +1162,36 @@ void *instanceservicesession(void *dummyPt) {
             partitionIdList = utils.trim_copy(partitionIdList, " \f\n\r\t\v");
             instance_logger.log("Received Partition ID List : " + partitionIdList, "info");
 
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string priority = (data);
+            priority = utils.trim_copy(priority, " \f\n\r\t\v");
+            instance_logger.log("Received priority: " + priority, "info");
 
-            std::string aggregatedTriangles= JasmineGraphInstanceService::aggregateCentralStoreTriangles(graphId, partitionId, partitionIdList);
+            int threadPriority = std::atoi(priority.c_str());
+
+            if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
+                threadPriorityMutex.lock();
+                workerHighPriorityTaskCount++;
+                highestPriority = threadPriority;
+                threadPriorityMutex.unlock();
+            }
+
+            std::string aggregatedTriangles= JasmineGraphInstanceService::aggregateCentralStoreTriangles(graphId,
+                                                                                                         partitionId,
+                                                                                                         partitionIdList,
+                                                                                                         threadPriority);
+
+            if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
+                threadPriorityMutex.lock();
+                workerHighPriorityTaskCount--;
+
+                if (workerHighPriorityTaskCount == 0) {
+                    highestPriority = Conts::DEFAULT_THREAD_PRIORITY;
+                }
+                threadPriorityMutex.unlock();
+            }
 
             std::vector<std::string> chunksVector;
 
@@ -1177,16 +1244,41 @@ void *instanceservicesession(void *dummyPt) {
                 response = (data);
                 response = utils.trim_copy(response, " \f\n\r\t\v");
                 status = response.substr(response.size() - 5);
-                std::string fileList= response.substr(0, response.size() - 5);
+                std::string fileList = response.substr(0, response.size() - 5);
                 compositeFileList = compositeFileList + fileList;
             }
             response = compositeFileList;
 
             instance_logger.log("Received Composite File List : " + compositeFileList, "info");
 
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string priority = (data);
+            priority = utils.trim_copy(priority, " \f\n\r\t\v");
+            instance_logger.log("Received priority: " + priority, "info");
+
+            int threadPriority = std::atoi(priority.c_str());
+
+            if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
+                threadPriorityMutex.lock();
+                workerHighPriorityTaskCount++;
+                highestPriority = threadPriority;
+                threadPriorityMutex.unlock();
+            }
 
             std::string aggregatedTriangles= JasmineGraphInstanceService::aggregateCompositeCentralStoreTriangles(
-                    response, availableFiles);
+                    response, availableFiles, threadPriority);
+
+            if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
+                threadPriorityMutex.lock();
+                workerHighPriorityTaskCount--;
+
+                if (workerHighPriorityTaskCount == 0) {
+                    highestPriority = Conts::DEFAULT_THREAD_PRIORITY;
+                }
+                threadPriorityMutex.unlock();
+            }
 
             std::vector<std::string> chunksVector;
 
@@ -1545,7 +1637,7 @@ void *instanceservicesession(void *dummyPt) {
             instance_logger.log("Received ===>: " + listOfPartitions, "info");
             std::stringstream ss;
             ss << listOfPartitions;
-            while(true) {
+            while (true) {
                 write(connFd, JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_CHK.c_str(),
                       JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_CHK.size());
                 instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_CHK, "info");
@@ -1580,25 +1672,27 @@ void *instanceservicesession(void *dummyPt) {
 
             std::vector<string> notInGraphIDList;
 
-            for(std::vector<std::string>::iterator it = graphIDsFromFileSystem.begin(); it != graphIDsFromFileSystem.end(); it++){
+            for (std::vector<std::string>::iterator it = graphIDsFromFileSystem.begin();
+                 it != graphIDsFromFileSystem.end(); it++) {
                 bool found = false;
-                for(std::vector<std::string>::iterator itRemoteID = graphIDs.begin(); itRemoteID != graphIDs.end(); itRemoteID++){
+                for (std::vector<std::string>::iterator itRemoteID = graphIDs.begin();
+                     itRemoteID != graphIDs.end(); itRemoteID++) {
                     if (it->compare(itRemoteID->c_str()) == 0) {
                         found = true;
                         break;
                     }
                 }
-                if(!found) {
+                if (!found) {
                     notInGraphIDList.push_back(it->c_str());
                 }
             }
 
             string notInItemsString = "";
             std::vector<int> notInItemsList;
-            for(std::vector<string>::iterator it = notInGraphIDList.begin(); it != notInGraphIDList.end(); it++){
-                if(isdigit(it->c_str()[0])) {
+            for (std::vector<string>::iterator it = notInGraphIDList.begin(); it != notInGraphIDList.end(); it++) {
+                if (isdigit(it->c_str()[0])) {
                     bool found = false;
-                    for(std::vector<int>::iterator it2 = notInItemsList.begin(); it2 != notInItemsList.end(); it2++) {
+                    for (std::vector<int>::iterator it2 = notInItemsList.begin(); it2 != notInItemsList.end(); it2++) {
                         if (atoi(it->c_str()) == *it2) {
                             found = true;
                             break;
@@ -1611,9 +1705,9 @@ void *instanceservicesession(void *dummyPt) {
             }
 
             bool firstFlag = true;
-            for(std::vector<int>::iterator it = notInItemsList.begin(); it != notInItemsList.end(); it++){
+            for (std::vector<int>::iterator it = notInItemsList.begin(); it != notInItemsList.end(); it++) {
                 int x = *it;
-                if(firstFlag) {
+                if (firstFlag) {
                     notInItemsString = std::to_string(x);
                     firstFlag = false;
                 } else {
@@ -1650,7 +1744,8 @@ void *instanceservicesession(void *dummyPt) {
                 partitionId = utils.trim_copy(partitionId, " \f\n\r\t\v");
                 instance_logger.log("Received Partition ID: " + partitionId, "info");
 
-                string aggregateLocation = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
+                string aggregateLocation = utils.getJasmineGraphProperty(
+                        "org.jasminegraph.server.instance.aggregatefolder");
                 string fileName = graphId + "_centralstore_" + partitionId;
                 string fullFilePath = aggregateLocation + "/" + fileName;
                 string result = "false";
@@ -1672,7 +1767,8 @@ void *instanceservicesession(void *dummyPt) {
                 fileName = utils.trim_copy(fileName, " \f\n\r\t\v");
                 instance_logger.log("Received File name: " + fileName, "info");
 
-                string aggregateLocation = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
+                string aggregateLocation = utils.getJasmineGraphProperty(
+                        "org.jasminegraph.server.instance.aggregatefolder");
                 string fullFilePath = aggregateLocation + "/" + fileName;
                 string result = "false";
 
@@ -1684,6 +1780,434 @@ void *instanceservicesession(void *dummyPt) {
 
                 write(connFd, result.c_str(), result.size());
                 instance_logger.log("Sent : " + result, "info");
+            }
+        } else if (line.compare(JasmineGraphInstanceProtocol::CREATE_BLOOM_FILTERS) == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::CREATE_BLOOM_FILTERS, "info");
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string graphID = (data);
+            graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
+            instance_logger.log("Received Graph ID: " + graphID, "info");
+            write(connFd, JasmineGraphInstanceProtocol::SEND_PARTITION_ID.c_str(),
+                  JasmineGraphInstanceProtocol::SEND_PARTITION_ID.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_PARTITION_ID, "info");
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string partitionID = (data);
+            instance_logger.log("Received partition ID: " + partitionID, "info");
+
+            //pthread_mutex_lock(&file_lock);
+            //TODO :: Update catalog file
+            //pthread_mutex_unlock(&file_lock);
+            string result = "1";
+            write(connFd, result.c_str(), result.size());
+            createFilters(graphID, partitionID);
+            instance_logger.log("Sent : " + result, "info");
+            //share created filters with hostname and port
+        }
+        else if (line.compare(JasmineGraphInstanceProtocol::COLLECT_BLOOM_FILTERS) == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::COLLECT_BLOOM_FILTERS, "info");
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+            bzero(data, INSTANCE_DATA_LENGTH);
+
+            //Read requested graph from socket
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string graphID = (data);
+            graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
+            instance_logger.log("Received Graph ID: " + graphID, "info");
+
+            //Read host partition details from socket
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string hostPartitionListStr = (data);
+            graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
+            instance_logger.log("Received Graph ID: " + hostPartitionListStr, "info");
+
+            //Parse host partition details string
+            vector<string> partitionLocales = utils.split(hostPartitionListStr, '|');
+            //Iterate through each worker partition pair and collect from other workers
+            int count = 0;
+            std::thread *workerThreads = new std::thread[partitionLocales.size()];
+            for (auto p: partitionLocales) {
+                vector<string> workerPartition = utils.split(p, ',');
+                string hostname = workerPartition.at(0);
+                int port = stoi(workerPartition.at(1));
+                int dataPort = stoi(workerPartition.at(2));
+                string partition = workerPartition.at(3);
+
+                workerThreads[count++] = std::thread(collectBloomFilters, sessionargs, hostname, port, dataPort, graphID, partition);
+                sleep(1);
+            }
+
+
+        }
+        else if (line.compare(JasmineGraphInstanceProtocol::SHARE_BLOOM_FILTERS) == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::SHARE_BLOOM_FILTERS, "info");
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+            bzero(data, INSTANCE_DATA_LENGTH);
+            //Read destination host name
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string serverHostName = (data);
+            serverHostName = utils.trim_copy(serverHostName, " \f\n\r\t\v");
+            instance_logger.log("Received HostName: " + serverHostName, "info");
+
+            //Read destination port from socket
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string serverHostPort = (data);
+            serverHostPort = utils.trim_copy(serverHostPort, " \f\n\r\t\v");
+            instance_logger.log("Received Port: " + serverHostPort, "info");
+
+            //Read destination data port from socket
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string serverHostDataPort = (data);
+            serverHostDataPort = utils.trim_copy(serverHostDataPort, " \f\n\r\t\v");
+            instance_logger.log("Received Data Port: " + serverHostDataPort, "info");
+
+            //Read requested graph from socket
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string graphID = (data);
+            graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
+            instance_logger.log("Received Graph ID: " + graphID, "info");
+
+            //Read requested partition from socket
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string partitionID = (data);
+            partitionID = utils.trim_copy(partitionID, " \f\n\r\t\v");
+            instance_logger.log("Received Partition ID: " + partitionID, "info");
+
+            //Formulate corresponding filename
+            std::string fileName = "AttrFilters_" + graphID + "_" + partitionID;
+            std::string filePath =
+                    utils.getJasmineGraphProperty("org.jasminegraph.server.instance.entityresolutionfolder") + "/" +
+                    fileName;
+
+            //zip the folder
+            utils.compressDirectory(filePath);
+            fileName = fileName + ".tar.gz";
+            filePath = filePath + ".tar.gz";
+
+            int fileSize = utils.getFileSize(filePath);
+            std::string fileLength = to_string(fileSize);
+            //send file name
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            line = (data);
+            if (line.compare(JasmineGraphInstanceProtocol::SEND_FILE_NAME) == 0) {
+                write(connFd, fileName.c_str(), fileName.size());
+                instance_logger.log("Sent : File name " + fileName, "info");
+
+                bzero(data, INSTANCE_DATA_LENGTH);
+                read(connFd, data, INSTANCE_DATA_LENGTH);
+                line = (data);
+                //send file length
+                if (line.compare(JasmineGraphInstanceProtocol::SEND_FILE_LEN) == 0) {
+                    instance_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN, "info");
+                    write(connFd, fileLength.c_str(), fileLength.size());
+                    instance_logger.log("Sent : File length in bytes " + fileLength, "info");
+
+                    bzero(data, INSTANCE_DATA_LENGTH);
+                    read(connFd, data, INSTANCE_DATA_LENGTH);
+                    line = (data);
+                    //send content
+                    if (line.compare(JasmineGraphInstanceProtocol::SEND_FILE_CONT) == 0) {
+                        instance_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
+                        instance_logger.log("Going to send file through service", "info");
+                        JasmineGraphInstance::sendFileThroughService(serverHostName, stoi(serverHostDataPort), fileName,
+                                                                     filePath);
+                    }
+                }
+            }
+            int count = 0;
+            while (true) {
+                write(connFd, JasmineGraphInstanceProtocol::FILE_RECV_CHK.c_str(),
+                      JasmineGraphInstanceProtocol::FILE_RECV_CHK.size());
+                instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
+                instance_logger.log("Checking if file is received", "info");
+                bzero(data, INSTANCE_DATA_LENGTH);
+                read(connFd, data, INSTANCE_DATA_LENGTH);
+                line = (data);
+
+                if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_WAIT) == 0) {
+                    instance_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_WAIT, "info");
+                    instance_logger.log("Checking file status : " + to_string(count), "info");
+                    count++;
+                    sleep(1);
+                    continue;
+                } else if (line.compare(JasmineGraphInstanceProtocol::FILE_ACK) == 0) {
+                    instance_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_ACK, "info");
+                    instance_logger.log("File transfer completed", "info");
+                    break;
+                }
+            }
+            loop = true;
+
+        }
+        else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_CLUSTERING) == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::INITIATE_CLUSTERING, "info");
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+            bzero(data, INSTANCE_DATA_LENGTH);
+
+            //Read requested graph from socket
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string graphID = (data);
+            graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
+            instance_logger.log("Received Graph ID: " + graphID, "info");
+
+            //Read partition count from socket
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            int partitionCount = stoi(data);
+            graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
+            instance_logger.log("Received Graph ID: " + partitionCount, "info");
+
+            //Read cluster count from socket
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            int clusterCount = stoi(data);
+            graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
+            instance_logger.log("Received Graph ID: " + clusterCount, "info");
+
+            EntityResolver er;
+            er.clusterFilters(graphID, partitionCount, clusterCount);
+
+        }
+        else if (line.compare(JasmineGraphInstanceProtocol::DISTRIBUTE_CLUSTERS) == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::DISTRIBUTE_CLUSTERS, "info");
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+            bzero(data, INSTANCE_DATA_LENGTH);
+
+            //Read requested graph from socket
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string graphID = (data);
+            graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
+            instance_logger.log("Received Graph ID: " + graphID, "info");
+
+            //Read host partition details from socket
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string hostPartitionListStr = (data);
+            graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
+            instance_logger.log("Received Graph ID: " + hostPartitionListStr, "info");
+
+            //Parse host cluster details string
+            vector<string> partitionLocales = utils.split(hostPartitionListStr, '|');
+            //Iterate through each worker partition pair and collect from other workers
+            int count = 0;
+            std::thread *workerThreads = new std::thread[partitionLocales.size()];
+            for (auto p: partitionLocales) {
+                vector<string> workerPartition = utils.split(p, ',');
+                string hostname = workerPartition.at(0);
+                int port = stoi(workerPartition.at(1));
+                int dataPort = stoi(workerPartition.at(2));
+                string cluster = workerPartition.at(3);
+
+                string filename = "AttrCluster_" + graphID + cluster + ".txt";
+                string filepath =
+                        utils.getJasmineGraphProperty("org.jasminegraph.server.instance.entityresolutionfolder") + filename;
+
+                workerThreads[count++] = std::thread(JasmineGraphInstance::sendFileThroughService, hostname, dataPort,
+                                                     filename, filepath);
+                sleep(1);
+            }
+
+        }
+        else if (line.compare(JasmineGraphInstanceProtocol::BUCKET_LOCAL_CLUSTERS) == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BUCKET_LOCAL_CLUSTERS, "info");
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+            bzero(data, INSTANCE_DATA_LENGTH);
+            //Read destination host name
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string serverHostName = (data);
+            serverHostName = utils.trim_copy(serverHostName, " \f\n\r\t\v");
+            instance_logger.log("Received HostName: " + serverHostName, "info");
+
+            //Read requested graph from socket
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string graphID = (data);
+            graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
+            instance_logger.log("Received Graph ID: " + graphID, "info");
+
+            //Read requested partitions from socket
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string partitionID = (data);
+            partitionID = utils.trim_copy(partitionID, " \f\n\r\t\v");
+            instance_logger.log("Received Partition ID: " + partitionID, "info");
+
+            EntityResolver er;
+            er.bucketLocalClusters(graphID, 256, {stoi(partitionID)});
+        }
+        else if (line.compare(JasmineGraphInstanceProtocol::COMPUTE_CANDIDATE_SETS) == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::SHARE_BLOOM_FILTERS, "info");
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+            bzero(data, INSTANCE_DATA_LENGTH);
+            //Read destination host name
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string serverHostName = (data);
+            serverHostName = utils.trim_copy(serverHostName, " \f\n\r\t\v");
+            instance_logger.log("Received HostName: " + serverHostName, "info");
+
+            //Read destination port from socket
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string serverHostPort = (data);
+            serverHostPort = utils.trim_copy(serverHostPort, " \f\n\r\t\v");
+            instance_logger.log("Received Port: " + serverHostPort, "info");
+
+            //Read destination data port from socket
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string serverHostDataPort = (data);
+            serverHostDataPort = utils.trim_copy(serverHostDataPort, " \f\n\r\t\v");
+            instance_logger.log("Received Data Port: " + serverHostDataPort, "info");
+
+            //Read requested graph from socket
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string graphID = (data);
+            graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
+            instance_logger.log("Received Graph ID: " + graphID, "info");
+
+            //Read requested partition from socket
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string partitionID = (data);
+            partitionID = utils.trim_copy(partitionID, " \f\n\r\t\v");
+            instance_logger.log("Received Partition ID: " + partitionID, "info");
+
+            //Formulate corresponding filename
+            std::string fileName = "AttrFilters_" + graphID + "_" + partitionID;
+            std::string filePath =
+                    utils.getJasmineGraphProperty("org.jasminegraph.server.instance.entityresolutionfolder") + "/" +
+                    fileName;
+
+            //zip the folder
+            utils.compressDirectory(filePath);
+            fileName = fileName + ".tar.gz";
+            filePath = filePath + ".tar.gz";
+
+            int fileSize = utils.getFileSize(filePath);
+            std::string fileLength = to_string(fileSize);
+            //send file name
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            line = (data);
+            if (line.compare(JasmineGraphInstanceProtocol::SEND_FILE_NAME) == 0) {
+                write(connFd, fileName.c_str(), fileName.size());
+                instance_logger.log("Sent : File name " + fileName, "info");
+
+                bzero(data, INSTANCE_DATA_LENGTH);
+                read(connFd, data, INSTANCE_DATA_LENGTH);
+                line = (data);
+                //send file length
+                if (line.compare(JasmineGraphInstanceProtocol::SEND_FILE_LEN) == 0) {
+                    instance_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN, "info");
+                    write(connFd, fileLength.c_str(), fileLength.size());
+                    instance_logger.log("Sent : File length in bytes " + fileLength, "info");
+
+                    bzero(data, INSTANCE_DATA_LENGTH);
+                    read(connFd, data, INSTANCE_DATA_LENGTH);
+                    line = (data);
+                    //send content
+                    if (line.compare(JasmineGraphInstanceProtocol::SEND_FILE_CONT) == 0) {
+                        instance_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
+                        instance_logger.log("Going to send file through service", "info");
+                        JasmineGraphInstance::sendFileThroughService(serverHostName, stoi(serverHostDataPort), fileName,
+                                                                     filePath);
+                    }
+                }
+            }
+            int count = 0;
+            while (true) {
+                write(connFd, JasmineGraphInstanceProtocol::FILE_RECV_CHK.c_str(),
+                      JasmineGraphInstanceProtocol::FILE_RECV_CHK.size());
+                instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
+                instance_logger.log("Checking if file is received", "info");
+                bzero(data, INSTANCE_DATA_LENGTH);
+                read(connFd, data, INSTANCE_DATA_LENGTH);
+                line = (data);
+
+                if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_WAIT) == 0) {
+                    instance_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_WAIT, "info");
+                    instance_logger.log("Checking file status : " + to_string(count), "info");
+                    count++;
+                    sleep(1);
+                    continue;
+                } else if (line.compare(JasmineGraphInstanceProtocol::FILE_ACK) == 0) {
+                    instance_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_ACK, "info");
+                    instance_logger.log("File transfer completed", "info");
+                    break;
+                }
+            }
+            loop = true;
+
+        }
+        else if (line.compare(JasmineGraphInstanceProtocol::COLLECT_CLUSTERS_TO_MASTER) == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::COLLECT_CLUSTERS_TO_MASTER, "info");
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+            bzero(data, INSTANCE_DATA_LENGTH);
+
+            //Read coordinator host name
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string serverHostName = (data);
+            serverHostName = utils.trim_copy(serverHostName, " \f\n\r\t\v");
+            instance_logger.log("Received HostName: " + serverHostName, "info");
+
+            //Read coordinator port from socket
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string serverHostPort = (data);
+            serverHostPort = utils.trim_copy(serverHostPort, " \f\n\r\t\v");
+            instance_logger.log("Received Port: " + serverHostPort, "info");
+
+            //Read coordinator data port from socket
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string serverHostDataPort = (data);
+            serverHostDataPort = utils.trim_copy(serverHostDataPort, " \f\n\r\t\v");
+            instance_logger.log("Received Data Port: " + serverHostDataPort, "info");
+
+            //Read graph ID from socket
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string graphID = (data);
+            graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
+            instance_logger.log("Received Graph ID: " + graphID, "info");
+
+            //Read cluster count from socket
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            int noClusters = stoi(data);
+            graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
+            instance_logger.log("Received Graph ID: " + graphID, "info");
+
+            //Get cluster filenames and send to coordinator
+            int count = 0;
+            std::thread *workerThreads = new std::thread[noClusters];
+            string dir = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.entityresolutionfolder");
+            for (int i = 0; i < noClusters; i++) {
+                string filename = "/AttrCluster_" + graphID + "_" + to_string(i);
+                string filepath = dir + filename;
+                workerThreads[count++] = std::thread(JasmineGraphInstance::sendFileThroughService, serverHostName,
+                                                     stoi(serverHostDataPort), filename, filepath);
+                sleep(1);
             }
         } else if (line.compare(JasmineGraphInstanceProtocol::GRAPH_STREAM_START) == 0) {
             write(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK.c_str(),
@@ -1725,7 +2249,7 @@ void *instanceservicesession(void *dummyPt) {
             instance_logger.log("Received Priority: " + priority, "info");
 
             int retrievedPriority = atoi(priority.c_str());
-            sleepFlag = retrievedPriority;
+            highestPriority = retrievedPriority;
         }
     }
     instance_logger.log("Closing thread " + to_string(pthread_self()), "info");
@@ -1736,7 +2260,8 @@ JasmineGraphInstanceService::JasmineGraphInstanceService() {
 
 }
 
-int JasmineGraphInstanceService::run(string profile, string masterHost, string host,int serverPort, int serverDataPort) {
+int
+JasmineGraphInstanceService::run(string profile, string masterHost, string host, int serverPort, int serverDataPort) {
     int listenFd;
     socklen_t len;
     struct sockaddr_in svrAdd;
@@ -1839,14 +2364,16 @@ void deleteGraphPartition(std::string graphID, std::string partitionID) {
 void removeGraphFragments(std::string graphID) {
     Utils utils;
     //Delete all files in the datafolder starting with the graphID
-    string partitionFilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + graphID +"_*";
+    string partitionFilePath =
+            utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + graphID + "_*";
     utils.deleteDirectory(partitionFilePath);
 }
 
 void writeCatalogRecord(string record) {
     Utils utils;
     utils.createDirectory(utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder"));
-    string catalogFilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder")+"/catalog.txt";
+    string catalogFilePath =
+            utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/catalog.txt";
     ofstream outfile;
     outfile.open(catalogFilePath.c_str(), std::ios_base::app);
     outfile << record << endl;
@@ -1855,13 +2382,17 @@ void writeCatalogRecord(string record) {
 
 
 
-long countLocalTriangles(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores, std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores, std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> graphDBMapDuplicateCentralStores) {
+long countLocalTriangles(std::string graphId, std::string partitionId,
+                         std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
+                         std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores,
+                         std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> graphDBMapDuplicateCentralStores,
+                         int threadPriority) {
     long result;
 
     instance_logger.log("###INSTANCE### Local Triangle Count : Started", "info");
     std::string graphIdentifier = graphId + "_" + partitionId;
-    std::string centralGraphIdentifier = graphId + +"_centralstore_"+ partitionId;
-    std::string duplicateCentralGraphIdentifier = graphId + +"_centralstore_dp_"+ partitionId;
+    std::string centralGraphIdentifier = graphId + +"_centralstore_" + partitionId;
+    std::string duplicateCentralGraphIdentifier = graphId + +"_centralstore_dp_" + partitionId;
     JasmineGraphHashMapLocalStore graphDB;
     JasmineGraphHashMapCentralStore centralGraphDB;
     JasmineGraphHashMapDuplicateCentralStore duplicateCentralGraphDB;
@@ -1872,8 +2403,8 @@ long countLocalTriangles(std::string graphId, std::string partitionId, std::map<
 
 
     if (localMapIterator == graphDBMapLocalStores.end()) {
-        if (JasmineGraphInstanceService::isGraphDBExists(graphId,partitionId)) {
-            JasmineGraphInstanceService::loadLocalStore(graphId,partitionId,graphDBMapLocalStores);
+        if (JasmineGraphInstanceService::isGraphDBExists(graphId, partitionId)) {
+            JasmineGraphInstanceService::loadLocalStore(graphId, partitionId, graphDBMapLocalStores);
         }
         graphDB = graphDBMapLocalStores[graphIdentifier];
     } else {
@@ -1881,8 +2412,8 @@ long countLocalTriangles(std::string graphId, std::string partitionId, std::map<
     }
 
     if (centralStoreIterator == graphDBMapCentralStores.end()) {
-        if (JasmineGraphInstanceService::isInstanceCentralStoreExists(graphId,partitionId)) {
-            JasmineGraphInstanceService::loadInstanceCentralStore(graphId,partitionId,graphDBMapCentralStores);
+        if (JasmineGraphInstanceService::isInstanceCentralStoreExists(graphId, partitionId)) {
+            JasmineGraphInstanceService::loadInstanceCentralStore(graphId, partitionId, graphDBMapCentralStores);
         }
         centralGraphDB = graphDBMapCentralStores[centralGraphIdentifier];
     } else {
@@ -1890,15 +2421,16 @@ long countLocalTriangles(std::string graphId, std::string partitionId, std::map<
     }
 
     if (duplicateCentralStoreIterator == graphDBMapDuplicateCentralStores.end()) {
-        if (JasmineGraphInstanceService::isInstanceDuplicateCentralStoreExists(graphId,partitionId)) {
-            JasmineGraphInstanceService::loadInstanceDuplicateCentralStore(graphId,partitionId,graphDBMapDuplicateCentralStores);
+        if (JasmineGraphInstanceService::isInstanceDuplicateCentralStoreExists(graphId, partitionId)) {
+            JasmineGraphInstanceService::loadInstanceDuplicateCentralStore(graphId, partitionId,
+                                                                           graphDBMapDuplicateCentralStores);
         }
         duplicateCentralGraphDB = graphDBMapDuplicateCentralStores[duplicateCentralGraphIdentifier];
     } else {
         duplicateCentralGraphDB = graphDBMapDuplicateCentralStores[duplicateCentralGraphIdentifier];
     }
 
-    result = Triangles::run(graphDB,centralGraphDB,duplicateCentralGraphDB,graphId,partitionId);
+    result = Triangles::run(graphDB, centralGraphDB, duplicateCentralGraphDB, graphId, partitionId, threadPriority);
 
     instance_logger.log("###INSTANCE### Local Triangle Count : Completed: Triangles: " + to_string(result), "info");
 
@@ -1909,7 +2441,7 @@ long countLocalTriangles(std::string graphId, std::string partitionId, std::map<
 bool JasmineGraphInstanceService::isGraphDBExists(std::string graphId, std::string partitionId) {
     Utils utils;
     std::string dataFolder = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
-    std::string fileName = dataFolder + "/" + graphId + "_"+partitionId;
+    std::string fileName = dataFolder + "/" + graphId + "_" + partitionId;
     std::ifstream dbFile(fileName, std::ios::binary);
     if (!dbFile) {
         return false;
@@ -1920,7 +2452,7 @@ bool JasmineGraphInstanceService::isGraphDBExists(std::string graphId, std::stri
 bool JasmineGraphInstanceService::isInstanceCentralStoreExists(std::string graphId, std::string partitionId) {
     Utils utils;
     std::string dataFolder = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
-    std::string filename = dataFolder+"/"+graphId + +"_centralstore_"+ partitionId;
+    std::string filename = dataFolder + "/" + graphId + +"_centralstore_" + partitionId;
     std::ifstream dbFile(filename, std::ios::binary);
     if (!dbFile) {
         return false;
@@ -1931,7 +2463,7 @@ bool JasmineGraphInstanceService::isInstanceCentralStoreExists(std::string graph
 bool JasmineGraphInstanceService::isInstanceDuplicateCentralStoreExists(std::string graphId, std::string partitionId) {
     Utils utils;
     std::string dataFolder = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
-    std::string filename = dataFolder+"/"+graphId + +"_centralstore_dp_"+ partitionId;
+    std::string filename = dataFolder + "/" + graphId + +"_centralstore_dp_" + partitionId;
     std::ifstream dbFile(filename, std::ios::binary);
     if (!dbFile) {
         return false;
@@ -1949,6 +2481,7 @@ void JasmineGraphInstanceService::loadLocalStore(std::string graphId, std::strin
     graphDBMapLocalStores.insert(std::make_pair(graphIdentifier,*jasmineGraphHashMapLocalStore));
     instance_logger.log("###INSTANCE### Loading Local Store : Completed", "info");
 }
+
 void JasmineGraphInstanceService::loadInstanceCentralStore(std::string graphId, std::string partitionId,
                                                            std::map<std::string, JasmineGraphHashMapCentralStore>& graphDBMapCentralStores) {
     std::string graphIdentifier = graphId + +"_centralstore_"+ partitionId;
@@ -1981,31 +2514,31 @@ std::string JasmineGraphInstanceService::copyCentralStoreToAggregator(std::strin
     Utils utils;
     char buffer[128];
     std::string result = "SUCCESS";
-    std::string centralGraphIdentifier = graphId + +"_centralstore_"+ partitionId;
+    std::string centralGraphIdentifier = graphId + +"_centralstore_" + partitionId;
     std::string dataFolder = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
     std::string aggregatorFilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
 
-    if (JasmineGraphInstanceService::isInstanceCentralStoreExists(graphId,partitionId)) {
+    if (JasmineGraphInstanceService::isInstanceCentralStoreExists(graphId, partitionId)) {
         std::string centralStoreFile = dataFolder + "/" + centralGraphIdentifier;
         std::string copyCommand;
 
-        DIR* dir = opendir(aggregatorFilePath.c_str());
+        DIR *dir = opendir(aggregatorFilePath.c_str());
 
         if (dir) {
             closedir(dir);
         } else {
             std::string createDirCommand = "mkdir -p " + aggregatorFilePath;
-            FILE *createDirInput = popen(createDirCommand.c_str(),"r");
+            FILE *createDirInput = popen(createDirCommand.c_str(), "r");
             pclose(createDirInput);
         }
 
         if (aggregatorHost == host) {
-            copyCommand = "cp "+centralStoreFile+ " " + aggregatorFilePath;
+            copyCommand = "cp " + centralStoreFile + " " + aggregatorFilePath;
         } else {
-            copyCommand = "scp "+centralStoreFile+" "+ aggregatorHost+":"+aggregatorFilePath;
+            copyCommand = "scp " + centralStoreFile + " " + aggregatorHost + ":" + aggregatorFilePath;
         }
 
-        FILE *copyInput = popen(copyCommand.c_str(),"r");
+        FILE *copyInput = popen(copyCommand.c_str(), "r");
 
         if (copyInput) {
             // read the input
@@ -2015,7 +2548,7 @@ std::string JasmineGraphInstanceService::copyCentralStoreToAggregator(std::strin
                 }
             }
             if (!result.empty()) {
-                std::cout<<result<< std::endl;
+                std::cout << result << std::endl;
             }
             pclose(copyInput);
         }
@@ -2027,13 +2560,15 @@ std::string JasmineGraphInstanceService::copyCentralStoreToAggregator(std::strin
 
 }
 
-std::string JasmineGraphInstanceService::aggregateCentralStoreTriangles(std::string graphId, std::string partitionId, std::string partitionIdList) {
+string JasmineGraphInstanceService::aggregateCentralStoreTriangles(std::string graphId, std::string partitionId,
+                                                                   std::string partitionIdList,
+                                                                   int threadPriority) {
     Utils utils;
-    instance_logger.log("###INSTANCE### Started Aggregating Central Store Triangles","info");
+    instance_logger.log("###INSTANCE### Started Aggregating Central Store Triangles", "info");
     std::string aggregatorFilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
     std::vector<std::string> fileNames;
     map<long, unordered_set<long>> aggregatedCentralStore;
-    std::string centralGraphIdentifier = graphId + +"_centralstore_"+ partitionId;
+    std::string centralGraphIdentifier = graphId + +"_centralstore_" + partitionId;
     std::string dataFolder = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
     std::string workerCentralStoreFile = dataFolder + "/" + centralGraphIdentifier;
     instance_logger.log("###INSTANCE### Loading Central Store : Started " + workerCentralStoreFile,"info");
@@ -2086,14 +2621,14 @@ std::string JasmineGraphInstanceService::aggregateCentralStoreTriangles(std::str
 
     map<long, long> distributionHashMap = JasmineGraphInstanceService::getOutDegreeDistributionHashMap(aggregatedCentralStore);
 
-    std::string triangles = Triangles::countCentralStoreTriangles(aggregatedCentralStore,distributionHashMap);
+    std::string triangles = Triangles::countCentralStoreTriangles(aggregatedCentralStore, distributionHashMap, threadPriority);
 
     return triangles;
 
 }
 
 string JasmineGraphInstanceService::aggregateCompositeCentralStoreTriangles(std::string compositeFileList,
-                                                                            std::string availableFileList) {
+                                                                            std::string availableFileList, int threadPriority) {
     Utils utils;
     instance_logger.log("###INSTANCE### Started Aggregating Composite Central Store Triangles","info");
     std::string aggregatorFilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
@@ -2167,7 +2702,8 @@ string JasmineGraphInstanceService::aggregateCompositeCentralStoreTriangles(std:
 
     map<long, long> distributionHashMap = JasmineGraphInstanceService::getOutDegreeDistributionHashMap(aggregatedCompositeCentralStore);
 
-    std::string triangles = Triangles::countCentralStoreTriangles(aggregatedCompositeCentralStore,distributionHashMap);
+    std::string triangles = Triangles::countCentralStoreTriangles(aggregatedCompositeCentralStore, distributionHashMap,
+                                                                  threadPriority);
 
     return triangles;
 }
@@ -2192,7 +2728,7 @@ string JasmineGraphInstanceService::requestPerformanceStatistics(std::string isV
     std::time_t reportTime = std::chrono::system_clock::to_time_t(executedTime);
     std::string reportTimeString(std::ctime(&reportTime));
     reportTimeString = utils.trim_copy(reportTimeString, " \f\n\r\t\v");
-    std::string usageString = reportTimeString+","+to_string(memoryUsage)+","+to_string(cpuUsage);
+    std::string usageString = reportTimeString + "," + to_string(memoryUsage) + "," + to_string(cpuUsage);
     if (!vmLevelStatistics.empty()) {
         usageString = usageString + "," + vmLevelStatistics;
     }
@@ -2443,31 +2979,29 @@ void JasmineGraphInstanceService::collectExecutionData(string iteration, string 
         vector<string> trainData;
         trainData.push_back(trainArgs);
         iterationData[stoi(iteration)] = trainData;
-    }
-    else {
+    } else {
         vector<string> trainData = iterationData[stoi(iteration)];
         trainData.push_back(trainArgs);
         iterationData[stoi(iteration)] = trainData;
     }
     partitionCounter++;
     pthread_mutex_unlock(&map_lock);
-    if (partitionCounter == stoi(partCount)){
+    if (partitionCounter == stoi(partCount)) {
         int maxPartCountInVector = 0;
         instance_logger.log("Data collection done for all iterations", "info");
         for (auto bin = iterationData.begin(); bin != iterationData.end(); ++bin) {
-            if (maxPartCountInVector < bin->second.size()){
+            if (maxPartCountInVector < bin->second.size()) {
                 maxPartCountInVector = bin->second.size();
             }
         }
         JasmineGraphInstanceService::executeTrainingIterations(maxPartCountInVector);
         return;
-    }
-    else{
+    } else {
         return;
     }
 }
 
-void JasmineGraphInstanceService::executeTrainingIterations(int maxThreads){
+void JasmineGraphInstanceService::executeTrainingIterations(int maxThreads) {
     int iterCounter = 0;
     std::thread *threadList = new std::thread[maxThreads];
     for (auto bin = iterationData.begin(); bin != iterationData.end(); ++bin) {
@@ -2476,7 +3010,7 @@ void JasmineGraphInstanceService::executeTrainingIterations(int maxThreads){
 
         for (auto trainarg = partVector.begin(); trainarg != partVector.end(); ++trainarg) {
             string trainData = *trainarg;
-            threadList[count] = std::thread(trainPartition,trainData);
+            threadList[count] = std::thread(trainPartition, trainData);
             count++;
         }
         iterCounter++;
@@ -2490,7 +3024,7 @@ void JasmineGraphInstanceService::executeTrainingIterations(int maxThreads){
     partitionCounter = 0;
 }
 
-void JasmineGraphInstanceService::trainPartition(string trainData){
+void JasmineGraphInstanceService::trainPartition(string trainData) {
     Utils utils;
     std::vector<std::string> trainargs = Utils::split(trainData, ' ');
     string graphID;
@@ -2555,6 +3089,590 @@ map<long, long> JasmineGraphInstanceService::calculateLocalOutDegreeDistribution
         }
         if (!centralNodeFound) {
             degreeDistribution.insert(std::make_pair(its->first, its->second));
+        }
+    }
+}
+
+
+
+void writeBloomFiltersToFile(string filename, map<int, string> filterMap) {
+    //Write bloom filters into file
+
+    ofstream stream(filename);
+    cout << "Writing filters" << endl;
+    for (auto filter : filterMap) {
+        stream << to_string(filter.first) << filter.second << '\n';
+        // Add '\n' character  ^^^^
+    }
+    stream << '\n';
+    stream.flush();
+}
+
+/**
+ * Instance service for creating Bloom filters for a given paritiion of a given graph
+ * @param graphID Corresponding graph ID
+ * @param partitionID Corresponding graph ID
+ * @return
+ */
+void createFilters(string graphID, string partitionID) {
+    Utils utils;
+    map<int, vector<string>> entityData;
+
+    std::string filePath = "";
+    std::string attrfilePath = "";
+    std::string attrFilterPath = "";
+
+    //Read attributes from file
+    std::ifstream dataFile;
+    cout << "reading file" << endl;
+
+
+    filePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + graphID + +"_" +
+               partitionID;;
+    dataFile.open(filePath, std::ios::binary | std::ios::in);
+
+    char splitter;
+    string line;
+
+    std::getline(dataFile, line);
+    splitter = ' ';
+
+    cout << "Getting data" << endl;
+    while (!line.empty()) {
+
+        int strpos = line.find(splitter);
+        string nodeID = line.substr(0, strpos);
+        string weakIDStr = line.substr(strpos + 1, -1);
+        entityData[stoi(nodeID)] = utils.split(weakIDStr, splitter);
+        cout << line << endl;
+
+
+        std::getline(dataFile, line);
+        while (!line.empty() && line.find_first_not_of(splitter) == std::string::npos) {
+            std::getline(dataFile, line);
+        }
+    }
+    dataFile.close();
+
+    EntityResolver er;
+    map<int, string> attrFilters = er.createFilters(entityData, 256, 4);
+
+    attrFilterPath =
+            utils.getJasmineGraphProperty("org.jasminegraph.server.instance.entityresolutionfolder") + "AttrFilters_" +
+            graphID + "_" + partitionID + ".txt";
+
+    //Write attr and struct filters separately into files
+    writeBloomFiltersToFile(attrFilterPath, attrFilters);
+}
+
+
+int collectBloomFilters(instanceservicesessionargs *sessionargs,
+                        std::string host, int port, int dataPort,
+                        std::string graphID, std::string partition) {
+    Utils utils;
+    Logger instance_logger;
+    bool result = true;
+    std::cout << pthread_self() << " host : " << host << " port : " << port << " DPort : " << dataPort << std::endl;
+    int sockfd;
+    char data[INSTANCE_DATA_LENGTH];
+    bool loop = false;
+    socklen_t len;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+
+    //Initialize socket connection
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sockfd < 0) {
+        std::cerr << "Cannot accept connection" << std::endl;
+        return 0;
+    }
+
+    if (host.find('@') != std::string::npos) {
+        host = utils.split(host, '@')[1];
+    }
+
+    server = gethostbyname(host.c_str());
+    if (server == NULL) {
+        std::cerr << "ERROR, no host named " << server << std::endl;
+    }
+
+    //Add socket connection parameters
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *) server->h_addr,
+          (char *) &serv_addr.sin_addr.s_addr,
+          server->h_length);
+    serv_addr.sin_port = htons(port);
+
+    //Attempt connection
+    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+        std::cerr << "ERROR connecting" << std::endl;
+        //TODO::exit
+    }
+
+    //Attempt handshake
+    bzero(data, INSTANCE_DATA_LENGTH);
+    write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
+    bzero(data, INSTANCE_DATA_LENGTH);
+    read(sockfd, data, INSTANCE_DATA_LENGTH);
+    string response = (data);
+
+    response = utils.trim_copy(response, " \f\n\r\t\v");
+    //Check if handshake is ok
+    if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
+        instance_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
+
+        string server_host = host;
+        write(sockfd, server_host.c_str(), server_host.size());
+        instance_logger.log("Sent : " + server_host, "info");
+
+        write(sockfd, JasmineGraphInstanceProtocol::SHARE_BLOOM_FILTERS.c_str(),
+              JasmineGraphInstanceProtocol::SHARE_BLOOM_FILTERS.size());
+        instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SHARE_BLOOM_FILTERS, "info");
+
+        bzero(data, INSTANCE_DATA_LENGTH);
+        read(sockfd, data, INSTANCE_DATA_LENGTH);
+        response = (data);
+        response = utils.trim_copy(response, " \f\n\r\t\v");
+
+        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+
+            //Write destination host to socket
+            string server_host = sessionargs->host;
+            write(sockfd, server_host.c_str(), server_host.size());
+            instance_logger.log("Sent : " + server_host, "info");
+
+            //Write destination port to socket
+            int server_port = sessionargs->port;
+            write(sockfd, to_string(server_port).c_str(), to_string(server_port).size());
+            instance_logger.log("Sent : " + server_port, "info");
+
+            //Write destination data port to socket
+            int server_data_port = sessionargs->dataPort;
+            write(sockfd, to_string(server_data_port).c_str(), to_string(server_data_port).size());
+            instance_logger.log("Sent : " + server_data_port, "info");
+
+            //Write graph ID to socket
+            write(sockfd, graphID.c_str(), (graphID).size());
+            instance_logger.log("Sent : Graph ID " + graphID, "info");
+
+            //Write partition ID to socket
+            write(sockfd, partition.c_str(), (partition).size());
+            instance_logger.log("Sent : Partition ID " + partition, "info");
+
+            write(sockfd, JasmineGraphInstanceProtocol::SEND_FILE_NAME.c_str(),
+                  JasmineGraphInstanceProtocol::SEND_FILE_NAME.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_NAME, "info");
+
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(sockfd, data, INSTANCE_DATA_LENGTH);
+            string fileName = (data);
+            instance_logger.log("Received File name: " + fileName, "info");
+            write(sockfd, JasmineGraphInstanceProtocol::SEND_FILE_LEN.c_str(),
+                  JasmineGraphInstanceProtocol::SEND_FILE_LEN.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN, "info");
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(sockfd, data, INSTANCE_DATA_LENGTH);
+            string size = (data);
+            instance_logger.log("Received file size in bytes: " + size, "info");
+
+            write(sockfd, JasmineGraphInstanceProtocol::SEND_FILE_CONT.c_str(),
+                  JasmineGraphInstanceProtocol::SEND_FILE_CONT.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
+            string fullFilePath =
+                    utils.getJasmineGraphProperty("org.jasminegraph.server.instance.entityresolutionfolder") + "/" + fileName;
+            int fileSize = atoi(size.c_str());
+            while (utils.fileExists(fullFilePath) && utils.getFileSize(fullFilePath) < fileSize) {
+                bzero(data, INSTANCE_DATA_LENGTH);
+                read(sockfd, data, INSTANCE_DATA_LENGTH);
+                response = (data);
+
+                if (response.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
+                    write(sockfd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT.c_str(),
+                          JasmineGraphInstanceProtocol::FILE_RECV_WAIT.size());
+                }
+            }
+
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(sockfd, data, INSTANCE_DATA_LENGTH);
+            response = (data);
+
+            if (response.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
+                instance_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
+                write(sockfd, JasmineGraphInstanceProtocol::FILE_ACK.c_str(),
+                      JasmineGraphInstanceProtocol::FILE_ACK.size());
+                instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::FILE_ACK, "info");
+            }
+
+            utils.unzipDirectory(fullFilePath);
+        }
+    } else {
+        instance_logger.log("There was an error in bloom filter collection and the response is :: " + response,
+                            "error");
+    }
+
+    close(sockfd);
+    return 0;
+}
+
+map<unsigned long, set<string>> combineLocalBuckets(vector<map<unsigned long, vector<string>>> totalWorkerBuckets) {
+    map<unsigned long, set<string>> combinedBuckets;
+    for (auto workerBuckets: totalWorkerBuckets) {
+        for (auto bucket: workerBuckets) {
+            unsigned long bucketID = bucket.first;
+            vector<string> clusters = bucket.second;
+            set<string> existingBucket = combinedBuckets[bucketID];
+            copy(clusters.begin(), clusters.end(), std::inserter(existingBucket, existingBucket.end()));
+        }
+    }
+
+    return combinedBuckets;
+}
+
+/**
+ * Method call for party coordinator to combine buckets of clusters given by each party to compute the similar clusters
+ * Clusters that fall under the same bucket will be considered similar
+ * Buckets that have clusters from all the parties will be kept since only they correspond to the possible common entities
+ * across all parties
+ * @param allBuckets Map of party IDs to mapping of bucket IDs to sets of clusters of that party
+ * @return Map of bucket ID to clusters across all parties
+ */
+map<unsigned long, map<string, set<string>>>
+getSimilarClusters(map<string, map<unsigned long, set<string>>> allBuckets) {
+    map<unsigned long, map<string, set<string>>> combinedBuckets; //Map of bucket to organisation-cluster
+    //Combine all organization buckets
+    for (auto orgBuckets: allBuckets) {
+        string partyID = orgBuckets.first;
+
+        for (auto bucket: orgBuckets.second) {
+            unsigned long bucketID = bucket.first;
+            set<string> clusters = bucket.second;
+            combinedBuckets[bucketID][partyID].insert(clusters.begin(), clusters.end());
+        }
+    }
+
+    //Filter buckets
+    map<unsigned long, map<string, set<string>>> filteredBuckets;
+
+    for (auto bucket: combinedBuckets) {
+        if (bucket.second.size() >= 3) {
+            filteredBuckets[bucket.first] = bucket.second;
+        }
+    }
+
+    return filteredBuckets;
+}
+
+/**
+ * Compare filters against each other and get the most similar.
+ * Classify as similar or not using a similarity threshold
+ * @param selfFilters Filters coming from the party doing the computation
+ * @param otherFilters Filters from the other party
+ * @param similarityThreshold Similarity threshold for classification
+ * @return Vector of two maps
+ */
+vector<map<string, string>>
+compareFilters(Mat<short> &selfFilters, Mat<short> &otherFilters, float similarityThreshold = 0.9) {
+    map<string, string> commonEntityMapSelf;
+    map<string, string> commonEntityMapOther;
+
+    Row<short> denominator = arma::sum(selfFilters, 0) + arma::sum(otherFilters, 0); //denominator of dice coeff
+
+    //For each filter in self cluster, compare against filters from other clusters and determine most similar filter
+    for (int i = 0; i < selfFilters.n_cols; i++) {
+        //Compute dice coefficient values
+        Col<short> selfFilter = selfFilters.col(i);
+        Row<short> numerator =
+                2 * arma::sum(otherFilters.each_col() % selfFilter, 0); //Numerator to compute the dice coeff
+        Row<float> diceCoeff = (conv_to<Mat<float>>::from(numerator) / conv_to<Mat<float>>::from(denominator));
+
+        //Get the most similar filter and check if it's meets the similarity threshold
+        uword maxIndex = arma::index_max(diceCoeff); //arg max
+        if (diceCoeff(maxIndex) > similarityThreshold) {
+            //Assign the two filters as the same common entity
+            commonEntityMapSelf[to_string(i)] = to_string(maxIndex);
+            commonEntityMapOther[to_string(maxIndex)] = to_string(i);
+        }
+
+    }
+
+    return {commonEntityMapSelf, commonEntityMapOther};
+}
+
+/**
+ * @param results A vector of maps
+ */
+void combineFilterwiseResults(vector<map<string, string>> results) {
+    map<string, string> combinedEntityMap;
+    for (auto filterEntityMap: results) {
+        for (auto entity: filterEntityMap) {
+            combinedEntityMap[entity.first] = entity.second;
+        }
+    }
+}
+
+/**
+ * Compute the common entities accross all parties given a chainable pairwise common entity information
+ * @param pairwiseCommonEntities Map of party-ids to the mappings of common entities between other parties
+ * @return A map of party ID to a vector of cluster indices that correspond to the common entities
+ */
+map<string, vector<string>>
+synchronizeCommonEntities(map<string, map<string, map<string, string>>> pairwiseCommonEntities) {
+    map<string, vector<string>> partyCommonEntityMap;
+    string firstPassEndParty;
+
+    //Get common entitiy ids of self
+    string currentParty = "A"; //Self party ID
+    string nextParty = pairwiseCommonEntities[currentParty].begin()->first;
+    vector<string> currentPartyIds;
+    for (auto idPairs: pairwiseCommonEntities[currentParty][nextParty]) {
+        currentPartyIds.emplace_back(idPairs.first);
+    }
+
+    //First pass iteration through intermediate pairwise results
+    for (int i = 0; i < pairwiseCommonEntities.size(); i++) {
+        auto commonEntityMap = pairwiseCommonEntities[currentParty][nextParty];
+        //Iterate through common entity ids of currentParty with nextParty
+        vector<string> nextPartyIds;
+        for (string id: currentPartyIds) {
+            partyCommonEntityMap[currentParty].emplace_back(id);
+            //If id is present in the next party common entities, mark it to check in the next iterationa
+            if (commonEntityMap.find(id) != commonEntityMap.end()) {
+                nextPartyIds.emplace_back(pairwiseCommonEntities[currentParty][nextParty][id]);
+            }
+        }
+        //Party to iterate
+        currentParty = nextParty;
+        //Filtered next set of ids, when the loop terminates we will have entities of self which are common for all parties
+        currentPartyIds = nextPartyIds;
+        //Change pointer to next paty in the chain
+        nextParty = pairwiseCommonEntities[currentParty].begin()->first;
+    }
+
+    //Second pass to compute common entities across all entities
+    for (int i = 0; i < pairwiseCommonEntities.size(); i++) {
+        //Replace with the entities of current party which are common for all parties
+        partyCommonEntityMap[currentParty] = currentPartyIds;
+
+        nextParty = pairwiseCommonEntities[currentParty].begin()->first;
+        vector<string> nextPartyIds;
+        //For only the entities common for all, get mapping entities of next party
+        for (string id: currentPartyIds) {
+            nextPartyIds.emplace_back(pairwiseCommonEntities[currentParty][nextParty][id]);
+        }
+        //Party to iterate
+        currentParty = nextParty;
+        //Filtered next set of ids
+        currentPartyIds = nextPartyIds;
+        //Change pointer to next paty in the chain
+        nextParty = pairwiseCommonEntities[currentParty].begin()->first;
+    }
+
+    return partyCommonEntityMap;
+}
+
+void JasmineGraphInstanceService::entityRes(string trainData) {
+
+//    Utils utils;
+//    map<int, vector<string>> entityData;
+//    map<int, vector<int>> neighborhoodData;
+//
+//    std::string filePath = "";
+//    std::string edgefilePath = "";
+//    std::string attrfilePath = "";
+//    std::string attrFilterPath = "";
+//    std::string structFilterPath = "";
+//
+//    std::vector<std::string> trainargs = Utils::split(trainData, ' ');
+//    string graphID = trainargs[1];
+//    string partitionID = trainargs[2];
+//
+//    //Read attributes from file
+//    std::ifstream dataFile;
+//    cout << "reading file" << endl;
+//
+//
+//    filePath = utils.getJasmineGraphProperty("org.jasminegraph.entity.location");
+//    dataFile.open("/home/damitha/ubuntu/entity_data/entityData.txt", std::ios::binary | std::ios::in);
+//
+//    char splitter;
+//    string line;
+//
+//    std::getline(dataFile, line);
+//    splitter = ' ';
+//
+//    cout << "Getting data" << endl;
+//    while (!line.empty()) {
+//
+//        int strpos = line.find(splitter);
+//        string nodeID = line.substr(0, strpos);
+//        string weakIDStr = line.substr(strpos + 1, -1);
+//        entityData[stoi(nodeID)] = utils.split(weakIDStr, splitter);
+//        cout << line << endl;
+//
+//
+//        std::getline(dataFile, line);
+//        while (!line.empty() && line.find_first_not_of(splitter) == std::string::npos) {
+//            std::getline(dataFile, line);
+//        }
+//    }
+//    dataFile.close();
+//
+//    //Read edgelist from file
+//    std::ifstream edgeFile;
+//    std::cout << "reading file" << endl;
+//
+//    edgefilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.trainedmodelfolder")
+//                   + graphID + "_" + partitionID;
+//    edgeFile.open(edgefilePath);
+//    std::getline(edgeFile, line);
+//
+//    splitter = ' ';
+//
+//    cout << "Getting neighbourhood data" << endl;
+//    while (!line.empty()) {
+//
+//        int strpos = line.find(splitter);
+//        string vertex1 = line.substr(0, strpos);
+//        string vertex2 = line.substr(strpos + 1, -1);
+//        if (neighborhoodData.size() <= 5) {
+//            neighborhoodData[stoi(vertex1)].emplace_back(stoi(vertex2));
+//        }
+//
+//
+//        std::getline(edgeFile, line);
+//        while (!line.empty() && line.find_first_not_of(splitter) == std::string::npos) {
+//            std::getline(edgeFile, line);
+//        }
+//    }
+//    edgeFile.close();
+//
+//    map<int, string> attrFilters = createFilters(entityData, 256, 4);
+//
+//    attrFilterPath =
+//            utils.getJasmineGraphProperty("org.jasminegraph.entity.location") + "attrfilters_" + graphID + "_" +
+//            partitionID + ".txt";
+//    structFilterPath =
+//            utils.getJasmineGraphProperty("org.jasminegraph.entity.location") + "structfilters_" + graphID + "_" +
+//            partitionID + ".txt";
+
+    //Write attr and struct filters separately into files
+//    writeBloomFiltersToFile(attrFilterPath, attrFilters);
+//    writeBloomFiltersToFile(structFilterPath, structFilters);
+
+}
+
+/**
+ * Create attribute filters and structural filters for entities given the feature infomation and who its neighbors are
+ * @param entityData A map of node IDs to a vector of string values pertaining to the weak identifiers of that node
+ * @param neighborhoodData A map of node IDs to a vector its neighbors' node IDs
+ * @param filterSize The length of bloom filters
+ * @param numHashes  no of hash functions to use when creating the bloom filter
+ * @return Map of node IDs to bloom filter string
+ */
+vector<map<int, string>>
+JasmineGraphInstanceService::createFilters(map<int, vector<string>> entityData, map<int, vector<int>> neighborhoodData,
+                                           int filterSize = 256,
+                                           int numHashes = 4) {
+    //Create bloom filters
+    cout << "Creating filters" << endl;
+    Utils utils;
+    map<int, string> attrFilters;
+    map<int, string> structFilters;
+    //For each entity create attr and structural bloom filters
+    for (const auto &entity: entityData) {
+        //Create attr bloom filter
+        BloomFilter attrFilter(filterSize, numHashes);
+        vector<string> attributes = entity.second;
+        //Add node attributes to bloom filter
+        for (auto attr: attributes) {
+            cout << attr << endl;
+            attrFilter.insert(attr);
+        }
+        //Convert bloom filter to appropriate string
+        string filterStr = attrFilter.m_bits.to_string();
+        cout << filterStr << endl;
+        filterStr = utils.replace(filterStr, "0", ",0");
+        filterStr = utils.replace(filterStr, "1", ",1");
+        attrFilters[entity.first] = filterStr;
+
+        //Create structural filter
+        BloomFilter structFilter(256, 4);
+        //For each neighbour add selected attribute to bloom filter
+        for (auto neighbour: neighborhoodData[entity.first]) {
+            string selectedAttr = entityData[neighbour][0];
+            structFilter.insert(selectedAttr);
+        }
+        //Convert bloom filter to appropriate string
+        filterStr = structFilter.m_bits.to_string();
+        filterStr = utils.replace(filterStr, "0", ",0");
+        filterStr = utils.replace(filterStr, "1", ",1");
+        structFilters[entity.first] = filterStr;
+    }
+
+    return {attrFilters, structFilters};
+}
+
+Mat<short> JasmineGraphInstanceService::generateCRVs(int minhashSize, int noClusters) { //minHash def 100
+    Mat<short> CRVs(minhashSize, noClusters);
+    for (int i = 0; i < noClusters; i++) {
+        //Load cluster file into memory
+        string filename = "/root/CLionProjects/EntityResolution/cluster" + to_string(i) + "filters.txt";
+        Mat<float> clusterData;
+        clusterData.load(filename, arma::csv_ascii);
+        //Remove node id column
+        clusterData.shed_col(0);
+        inplace_trans(clusterData, "lowmem");
+        //Create minhash signature of cluster
+        MinHash minHash(minhashSize, 256);
+        Col<short> crv = minHash.generateCRV(clusterData, 50);
+        //Store in matrix
+        CRVs.col(i) = crv;
+    }
+}
+
+void JasmineGraphInstanceService::generateLocalCandidateSets(int filterSize = 256, int noClusters = 3) {
+
+    Utils utils;
+
+    Mat<short> CRVs(filterSize, noClusters);
+    for (int i = 0; i < noClusters; i++) {
+        //Load cluster file into memory
+        string filename =
+                utils.getJasmineGraphProperty("org.jasminegraph.entity.location") + to_string(i) + "filters.txt";
+        Mat<float> clusterData;
+        clusterData.load(filename, arma::csv_ascii);
+        //Remove node id column
+        clusterData.shed_col(0);
+        inplace_trans(clusterData, "lowmem");
+        //Create minhash signature of cluster
+        MinHash minHash(100, 256);
+        Col<short> crv = minHash.generateCRV(clusterData, 50);
+        //Store in matrix
+        CRVs.col(i) = crv;
+    }
+
+    //Generate local candidate sets
+    int bandLength = 10;
+    std::ostringstream s;
+    hash<string> stdhash;
+    map<unsigned long, vector<string>> lshBuckets;
+    for (int i = 0; i < noClusters; i++) {
+        Col<short> crv = CRVs.col(i);
+        crv.st().raw_print(s);
+        string crvStr = s.str();
+        crvStr = crvStr.substr(0, (crvStr.size() > 0) ? (crvStr.size() - 1) : 0);
+        crvStr.erase(remove(crvStr.begin(), crvStr.end(), ' '), crvStr.end());
+
+        for (int j = 0; j < bandLength; j++) {
+            //Select appropriate band
+            string crvband = crvStr.substr(j * bandLength, (j + 1) * bandLength);
+            unsigned long bucket = stdhash(crvband);
+            string name = "A" + to_string(i); //Party name + cluster id
+            lshBuckets[bucket].emplace_back(name);
         }
     }
 }

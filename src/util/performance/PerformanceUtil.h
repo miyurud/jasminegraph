@@ -26,10 +26,18 @@ limitations under the License.
 #include <thread>
 #include <pthread.h>
 #include <future>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <netdb.h>
 
 
 #ifndef JASMINEGRAPH_PERFORMANCEUTIL_H
 #define JASMINEGRAPH_PERFORMANCEUTIL_H
+
+struct ResourceConsumption {
+    int memoryUsage;
+    std::string host;
+};
 
 
 class PerformanceUtil {
@@ -37,6 +45,10 @@ public:
     //PerformanceUtil(SQLiteDBInterface sqlLiteDB, PerformanceSQLiteDBInterface perfDb);
     int init();
     static int collectPerformanceStatistics();
+    static int collectSLAResourceConsumption(std::string graphId, std::string command, std::string category,
+            int iteration, int partitionCount);
+    static std::vector<ResourceConsumption> retrieveCurrentResourceUtilization();
+    static bool isResourcesSufficient(std::string graphId, std::string command, std::string category);
 
 
 private:
@@ -44,6 +56,16 @@ private:
     //static PerformanceSQLiteDBInterface perfDb;
     static int collectRemotePerformanceData(std::string host, int port, std::string isVMStatManager, std::string isResourceAllocationRequired, std::string hostId, std::string placeId);
     static int collectLocalPerformanceData(std::string isVMStatManager, std::string isResourceAllocationRequired , std::string hostId, std::string placeId);
+    static int collectRemoteSLAResourceUtilization(std::string host, int port, std::string isVMStatManager,
+            std::string isResourceAllocationRequired, std::string hostId, std::string placeId, std::string graphId,
+            std::string slaCategoryId, int iteration, int partitionCount);
+    static int collectLocalSLAResourceUtilization(std::string isVMStatManager, std::string isResourceAllocationRequired ,
+            std::string hostId, std::string placeId, std::string graphId, std::string slaCategoryId,
+            int iteration, int partitionCount);
+    static ResourceConsumption retrieveRemoteResourceConsumption(std::string host, int port,
+            std::string hostId, std::string placeId);
+    static ResourceConsumption retrieveLocalResourceConsumption(std::string hostId, std::string placeId);
+
 };
 
 

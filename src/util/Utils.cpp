@@ -17,7 +17,7 @@ limitations under the License.
 #include <pwd.h>
 #include <unistd.h>
 #include "Utils.h"
-#include "../frontend/JasmineGraphFrontEnd.h"
+//#include "../frontend/JasmineGraphFrontEnd.h"
 #include "Conts.h"
 #include "logger/Logger.h"
 
@@ -521,7 +521,7 @@ void Utils::updateSLAInformation(PerformanceSQLiteDBInterface perfSqlite, std::s
             long slaValue = atol(slaValueString.c_str());
             int attempts = atoi(attemptString.c_str());
 
-            if (attempts < 3) {
+            if (attempts < Conts::MAX_SLA_CALIBRATE_ATTEMPTS) {
                 long newSla = ((slaValue * attempts) + newSlaValue) / (attempts + 1);
 
                 attempts++;
@@ -542,4 +542,22 @@ void Utils::updateSLAInformation(PerformanceSQLiteDBInterface perfSqlite, std::s
         util_logger.log("Invalid SLA " + category + " for " + command + " command", "error");
     }
 
+}
+
+
+string Utils::replace(string str, string old, string replacement) {
+    size_t index = 0;
+    while (true) {
+        /* Locate the substring to replace. */
+        index = str.find(old, index);
+        if (index == std::string::npos) {
+            return str;
+        }
+
+        /* Make the replacement. */
+        str.replace(index, 1, replacement);
+
+        /* Advance index forward so the next iteration doesn't pick it up as well. */
+        index += 2;
+    }
 }

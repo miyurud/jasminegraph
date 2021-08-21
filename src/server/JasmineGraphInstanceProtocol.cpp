@@ -60,6 +60,15 @@ const string JasmineGraphInstanceProtocol::AGGREGATE_COMPOSITE_CENTRALSTORE_TRIA
 const string JasmineGraphInstanceProtocol::PERFORMANCE_STATISTICS = "perf-stat";
 const string JasmineGraphInstanceProtocol::INITIATE_TRAIN = "initiate-train";
 const string JasmineGraphInstanceProtocol::INITIATE_PREDICT = "init-predict";
+const string JasmineGraphInstanceProtocol::CREATE_BLOOM_FILTERS = "create-bloom-filters";
+const string JasmineGraphInstanceProtocol::COLLECT_BLOOM_FILTERS = "collect-bloom-filters";
+const string JasmineGraphInstanceProtocol::SHARE_BLOOM_FILTERS = "share-bloom-filters";
+const string JasmineGraphInstanceProtocol::INITIATE_CLUSTERING = "initiate-clustering";
+const string JasmineGraphInstanceProtocol::DISTRIBUTE_CLUSTERS = "distribute-clusters";
+const string JasmineGraphInstanceProtocol::BUCKET_LOCAL_CLUSTERS = "bucket-local-clusters";
+const string JasmineGraphInstanceProtocol::COLLECT_BUCKETS_TO_MASTER = "collect-clusters-to-master";
+const string JasmineGraphInstanceProtocol::SHARE_BUCKETED_CLUSTERS = "share-bucketed-clusters";
+const string JasmineGraphInstanceProtocol::COMPUTE_CANDIDATE_SETS = "compute-candidate-sets";
 const string JasmineGraphInstanceProtocol::SEND_HOSTS = "send-hosts";
 const string JasmineGraphInstanceProtocol::INITIATE_MODEL_COLLECTION = "initiate-model-collection";
 const string JasmineGraphInstanceProtocol::INITIATE_FRAGMENT_RESOLUTION = "frag-res";

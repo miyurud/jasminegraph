@@ -30,7 +30,22 @@ add_executable(JasmineGraph main.cpp src/server/JasmineGraphServer.cpp src/serve
         src/localstore/JasmineGraphLocalStoreFactory.cpp src/localstore/JasmineGraphLocalStoreFactory.h src/query/algorithms/triangles/Triangles.cpp src/query/algorithms/triangles/Triangles.h
         src/centralstore/JasmineGraphHashMapCentralStore.cpp src/centralstore/JasmineGraphHashMapCentralStore.h src/util/scheduler/Scheduler.h src/util/scheduler/InterruptableSleep.h src/util/scheduler/Cron.h src/util/scheduler/ctpl_stl.h src/util/performance/PerformanceUtil.cpp src/util/performance/PerformanceUtil.h src/util/scheduler/SchedulerService.cpp src/util/scheduler/SchedulerService.h src/performancedb/PerformanceSQLiteDBInterface.cpp src/performancedb/PerformanceSQLiteDBInterface.h src/util/performance/StatisticCollector.cpp src/util/performance/StatisticCollector.h
         src/ml/trainer/python-c-api/Python_C_API.cpp src/ml/trainer/python-c-api/Python_C_API.h
-        src/ml/trainer/JasmineGraphTrainingSchedular.cpp src/ml/trainer/JasmineGraphTrainingSchedular.h src/ml/trainer/JasminGraphTrainingInitiator.cpp src/ml/trainer/JasminGraphTrainingInitiator.h src/query/algorithms/linkprediction/JasminGraphLinkPredictor.h src/query/algorithms/linkprediction/JasminGraphLinkPredictor.cpp src/centralstore/JasmineGraphHashMapDuplicateCentralStore.cpp src/centralstore/JasmineGraphHashMapDuplicateCentralStore.h src/exception/JasmineGraphException.cpp src/exception/JasmineGraphException.h)
+        src/ml/trainer/JasmineGraphTrainingSchedular.cpp src/ml/trainer/JasmineGraphTrainingSchedular.h src/ml/trainer/JasminGraphTrainingInitiator.cpp
+        src/ml/trainer/JasminGraphTrainingInitiator.h src/query/algorithms/linkprediction/JasminGraphLinkPredictor.h
+        src/query/algorithms/linkprediction/JasminGraphLinkPredictor.cpp src/centralstore/JasmineGraphHashMapDuplicateCentralStore.cpp
+        src/centralstore/JasmineGraphHashMapDuplicateCentralStore.h src/exception/JasmineGraphException.cpp src/exception/JasmineGraphException.h
+        src/frontend/core/scheduler/JobScheduler.cpp src/frontend/core/scheduler/JobScheduler.h src/frontend/core/domain/JobRequest.cpp
+        src/frontend/core/domain/JobRequest.h src/frontend/core/domain/JobResponse.cpp src/frontend/core/domain/JobResponse.h
+        src/frontend/core/executor/AbstractExecutor.cpp src/frontend/core/executor/AbstractExecutor.h
+        src/frontend/core/executor/impl/TriangleCountExecutor.cpp src/frontend/core/executor/impl/TriangleCountExecutor.h
+        src/frontend/core/factory/ExecutorFactory.cpp src/frontend/core/factory/ExecutorFactory.h src/frontend/core/CoreConstants.cpp
+        src/frontend/core/CoreConstants.h
+        src/query/algorithms/entityresolution/BloomFilter.h src/query/algorithms/entityresolution/MurmurHash3.h
+        src/query/algorithms/entityresolution/MurmurHash3.cpp src/query/algorithms/entityresolution/Kmeans.h
+        src/query/algorithms/entityresolution/MinHash.h src/query/algorithms/entityresolution/EntityResolver.cpp
+        src/query/algorithms/entityresolution/EntityResolver.h src/query/algorithms/entityresolution/Kmeans.cpp src/query/algorithms/entityresolution/MinHash.cpp src/query/algorithms/entityresolution/BloomFilter.cpp
+        )
+
 
 target_compile_options(JasmineGraph PRIVATE -std=c++11 -I/usr/include/python3.5)
 
@@ -45,6 +60,10 @@ endif()
 target_link_libraries(JasmineGraph sqlite3)
 target_link_libraries(JasmineGraph pthread)
 target_link_libraries(JasmineGraph rdkafka)
+target_link_libraries(JasmineGraph armadillo)
+target_link_libraries(JasmineGraph stdc++)
+target_link_libraries(JasmineGraph m)
+#target_link_libraries(JasmineGraph O2)
 #target_link_libraries(JasmineGraph cppkafka)
 target_link_libraries(JasmineGraph Threads::Threads)
 include_directories("$ENV{HOME}/software/flatbuffers/include")
