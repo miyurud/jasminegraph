@@ -62,6 +62,7 @@ public:
     static const string IN_DEGREE_DISTRIBUTION;
     static const string SEND_OUT_DEGREE_DISTRIBUTION_TO_AGGREGATOR;
     static const string SEND_IN_DEGREE_DISTRIBUTION_TO_AGGREGATOR;
+    static const string DP_CENTRALSTORE;
     static const string SEND_CENTRALSTORE_TO_AGGREGATOR;
     static const string SEND_COMPOSITE_CENTRALSTORE_TO_AGGREGATOR;
     static const string AGGREGATE_CENTRALSTORE_TRIANGLES;
