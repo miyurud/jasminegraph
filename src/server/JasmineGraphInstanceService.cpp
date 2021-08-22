@@ -697,7 +697,11 @@ void *instanceservicesession(void *dummyPt) {
             instance_logger.log("Received Worker List " + workerList, "info");
 
             std::vector<string> workerSockets;
-            boost::split(workerSockets, workerList, boost::is_any_of(","));
+            stringstream wl(workerList);
+            string intermediate;
+            while (getline(wl, intermediate, ',')) {
+                workerSockets.push_back(intermediate);
+            }
 
             duplicateCentralStore(serverPort, stoi(graphID), stoi(partitionID), workerSockets, "localhost");
         } else if (line.compare(JasmineGraphInstanceProtocol::IN_DEGREE_DISTRIBUTION) == 0) {
@@ -2749,18 +2753,25 @@ bool duplicateCentralStore(int thisWorkerPort, int graphID, int partitionID,
 
     for (vector<string>::iterator workerIt=workerSockets.begin(); workerIt!=workerSockets.end(); ++workerIt) {
 
-        std::vector <string> workerSocketPair;
-        boost::split(workerSocketPair, *workerIt, boost::is_any_of(":"));
-        struct stat s;
-        if (stat(centralStoreFile.c_str(),&s) == 0) {
-            if (s.st_mode & S_IFREG) {
+        std::vector<string> workerSocketPair;
+        stringstream wl(*workerIt);
+        string intermediate;
+        while (getline(wl, intermediate, ':')) {
+            workerSocketPair.push_back(intermediate);
+        }
+
+        if (workerSocketPair.size() != 4) {
+            instance_logger.log("Received worker socket information is invalid " , "error");;
+        }
+
+        struct stat fileStat;
+        if (stat(centralStoreFile.c_str(),&fileStat) == 0) {
+            if (fileStat.st_mode & S_IFREG) {
 
                 string host = workerSocketPair[0];
                 int port = stoi(workerSocketPair[1]);
                 int workerGraphID = stoi(workerSocketPair[2]);
                 int dataPort = stoi(workerSocketPair[3]);
-
-                instance_logger.log("thisWorkerPort " + to_string(thisWorkerPort) + " port " + to_string(port), "info");
 
                 if (port == thisWorkerPort) {
                     continue;
@@ -2770,7 +2781,7 @@ bool duplicateCentralStore(int thisWorkerPort, int graphID, int partitionID,
                 bool result = true;
                 std::cout << pthread_self() << " host : " << host << " port : " << port << " DPort : " << dataPort << std::endl;
                 int sockfd;
-                char data[300];
+                char data[INSTANCE_DATA_LENGTH];
                 bool loop = false;
                 socklen_t len;
                 struct sockaddr_in serv_addr;
@@ -2803,7 +2814,7 @@ bool duplicateCentralStore(int thisWorkerPort, int graphID, int partitionID,
                     //TODO::exit
                 }
 
-                bzero(data, 301);
+                bzero(data, INSTANCE_DATA_LENGTH);
                 int result_wr = write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
 
                 if(result_wr < 0) {
@@ -2811,8 +2822,8 @@ bool duplicateCentralStore(int thisWorkerPort, int graphID, int partitionID,
                 }
 
                 instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
-                bzero(data, 301);
-                read(sockfd, data, 300);
+                bzero(data, INSTANCE_DATA_LENGTH);
+                read(sockfd, data, INSTANCE_DATA_LENGTH);
                 string response = (data);
 
                 response = utils.trim_copy(response, " \f\n\r\t\v");
@@ -2827,8 +2838,8 @@ bool duplicateCentralStore(int thisWorkerPort, int graphID, int partitionID,
                     }
 
                     instance_logger.log("Sent : " + masterIP, "info");
-                    bzero(data, 301);
-                    read(sockfd, data, 300);
+                    bzero(data, INSTANCE_DATA_LENGTH);
+                    read(sockfd, data, INSTANCE_DATA_LENGTH);
                     response = (data);
 
                     if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
@@ -2845,8 +2856,8 @@ bool duplicateCentralStore(int thisWorkerPort, int graphID, int partitionID,
                     }
 
                     instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CENTRAL, "info");
-                    bzero(data, 301);
-                    read(sockfd, data, 300);
+                    bzero(data, INSTANCE_DATA_LENGTH);
+                    read(sockfd, data, INSTANCE_DATA_LENGTH);
                     response = (data);
                     response = utils.trim_copy(response, " \f\n\r\t\v");
 
@@ -2863,8 +2874,8 @@ bool duplicateCentralStore(int thisWorkerPort, int graphID, int partitionID,
                         int fileSize = utils.getFileSize(centralStoreFile);
                         std::string fileLength = to_string(fileSize);
 
-                        bzero(data, 301);
-                        read(sockfd, data, 300);
+                        bzero(data, INSTANCE_DATA_LENGTH);
+                        read(sockfd, data, INSTANCE_DATA_LENGTH);
                         response = (data);
                         response = utils.trim_copy(response, " \f\n\r\t\v");
 
@@ -2877,10 +2888,9 @@ bool duplicateCentralStore(int thisWorkerPort, int graphID, int partitionID,
                             }
 
                             instance_logger.log("Sent : File name " + fileName, "info");
-                            bzero(data, 301);
-                            read(sockfd, data, 300);
+                            bzero(data, INSTANCE_DATA_LENGTH);
+                            read(sockfd, data, INSTANCE_DATA_LENGTH);
                             response = (data);
-                            //response = utils.trim_copy(response, " \f\n\r\t\v");
 
                             if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_LEN) == 0) {
                                 instance_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN, "info");
@@ -2891,8 +2901,8 @@ bool duplicateCentralStore(int thisWorkerPort, int graphID, int partitionID,
                                 }
 
                                 instance_logger.log("Sent : File length in bytes " + fileLength, "info");
-                                bzero(data, 301);
-                                read(sockfd, data, 300);
+                                bzero(data, INSTANCE_DATA_LENGTH);
+                                read(sockfd, data, INSTANCE_DATA_LENGTH);
                                 response = (data);
                                 if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_CONT) == 0) {
                                     instance_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
@@ -2913,8 +2923,8 @@ bool duplicateCentralStore(int thisWorkerPort, int graphID, int partitionID,
 
                             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
                             instance_logger.log("Checking if file is received", "info");
-                            bzero(data, 301);
-                            read(sockfd, data, 300);
+                            bzero(data, INSTANCE_DATA_LENGTH);
+                            read(sockfd, data, INSTANCE_DATA_LENGTH);
                             response = (data);
                             if (response.compare(JasmineGraphInstanceProtocol::FILE_RECV_WAIT) == 0) {
                                 instance_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_WAIT, "info");
@@ -2938,8 +2948,8 @@ bool duplicateCentralStore(int thisWorkerPort, int graphID, int partitionID,
                             }
 
                             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
-                            bzero(data, 301);
-                            read(sockfd, data, 300);
+                            bzero(data, INSTANCE_DATA_LENGTH);
+                            read(sockfd, data, INSTANCE_DATA_LENGTH);
                             response = (data);
 
                             if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT) == 0) {
@@ -2967,7 +2977,7 @@ bool sendFileThroughService(std::string host, int dataPort, std::string fileName
                             std::string filePath, std::string masterIP) {
     Utils utils;
     int sockfd;
-    char data[300];
+    char data[INSTANCE_DATA_LENGTH];
     socklen_t len;
     struct sockaddr_in serv_addr;
     struct hostent *server;
@@ -3001,8 +3011,8 @@ bool sendFileThroughService(std::string host, int dataPort, std::string fileName
         instance_logger.log("Error writing to socket", "error");
     }
 
-    bzero(data, 301);
-    read(sockfd, data, 300);
+    bzero(data, INSTANCE_DATA_LENGTH);
+    read(sockfd, data, INSTANCE_DATA_LENGTH);
     string response = (data);
     response = utils.trim_copy(response, " \f\n\r\t\v");
 
@@ -3017,8 +3027,8 @@ bool sendFileThroughService(std::string host, int dataPort, std::string fileName
         }
 
         for (;;) {
-            unsigned char buff[1024] = {0};
-            int nread = fread(buff, 1, 1024, fp);
+            unsigned char buff[INSTANCE_FILE_BUFFER_LENGTH] = {0};
+            int nread = fread(buff, 1, INSTANCE_FILE_BUFFER_LENGTH, fp);
             instance_logger.log("Bytes read "  + to_string(nread), "info");
 
             /* If read was success, send data. */
@@ -3028,7 +3038,7 @@ bool sendFileThroughService(std::string host, int dataPort, std::string fileName
                 write(sockfd, buff, nread);
             }
 
-            if (nread < 1024) {
+            if (nread < INSTANCE_FILE_BUFFER_LENGTH) {
                 if (feof(fp))
                     printf("End of file\n");
                 if (ferror(fp))
