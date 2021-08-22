@@ -2761,7 +2761,8 @@ bool duplicateCentralStore(int thisWorkerPort, int graphID, int partitionID,
         }
 
         if (workerSocketPair.size() != 4) {
-            instance_logger.log("Received worker socket information is invalid " , "error");;
+            instance_logger.log("Received worker socket information is invalid " , "error");
+            return 0;
         }
 
         struct stat fileStat;
