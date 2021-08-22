@@ -1097,8 +1097,6 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
             char graph_id[FRONTEND_DATA_LENGTH];
             bzero(graph_id, FRONTEND_DATA_LENGTH + 1);
-            string name = "";
-            string path = "";
 
             read(connFd, graph_id, FRONTEND_DATA_LENGTH);
 
