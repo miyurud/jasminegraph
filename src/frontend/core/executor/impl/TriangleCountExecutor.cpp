@@ -35,7 +35,7 @@ TriangleCountExecutor::TriangleCountExecutor(SQLiteDBInterface db, PerformanceSQ
 
 void TriangleCountExecutor::execute() {
     Utils utils;
-    std::string masterIP= request.getParameter(Conts::PARAM_KEYS::MASTER_IP);
+    std::string masterIP= request.getMasterIP();
     std::string graphId = request.getParameter(Conts::PARAM_KEYS::GRAPH_ID);
     std::string canCalibrateString = request.getParameter(Conts::PARAM_KEYS::CAN_CALIBRATE);
     bool canCalibrate = utils.parseBoolean(canCalibrateString);
@@ -184,7 +184,7 @@ void TriangleCountExecutor::execute() {
     }
 
     while (!workerResponded && canCalibrate) {
-        performanceUtil.collectSLAResourceConsumption(graphId,TRIANGLES,Conts::SLA_CATEGORY::LATENCY,slaStatCount,partitionCount);
+        performanceUtil.collectSLAResourceConsumption(graphId,TRIANGLES,Conts::SLA_CATEGORY::LATENCY,slaStatCount,partitionCount,masterIP);
         slaStatCount++;
         sleep(5);
     }

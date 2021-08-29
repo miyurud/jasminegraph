@@ -44,3 +44,11 @@ void JobRequest::setPriority(int priority) {
 int JobRequest::getPriority() {
     return priority;
 }
+
+void JobRequest::setMasterIP(std::string masterip) {
+    this->masterIP = masterip;
+}
+
+std::string JobRequest::getMasterIP() {
+    return masterIP;
+}

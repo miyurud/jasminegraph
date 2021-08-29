@@ -46,9 +46,9 @@ public:
     int init();
     static int collectPerformanceStatistics();
     static int collectSLAResourceConsumption(std::string graphId, std::string command, std::string category,
-            int iteration, int partitionCount);
-    static std::vector<ResourceConsumption> retrieveCurrentResourceUtilization();
-    static bool isResourcesSufficient(std::string graphId, std::string command, std::string category);
+            int iteration, int partitionCount, std::string masterIP);
+    static std::vector<ResourceConsumption> retrieveCurrentResourceUtilization(std::string masterIP);
+    static bool isResourcesSufficient(std::string graphId, std::string command, std::string category, std::string masterIP);
 
 
 private:
