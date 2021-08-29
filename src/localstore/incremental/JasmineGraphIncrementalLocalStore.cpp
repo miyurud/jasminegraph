@@ -56,31 +56,30 @@ std::string JasmineGraphIncrementalLocalStore::addEdgeFromString(std::string edg
         std::string dId = std::string(destinationJson["id"]);
 
         RelationBlock* newRelation = this->nm->addEdge({sId, dId});
-        if (!newRelation) {
-            return "";
-        }
         char value[PropertyLink::MAX_VALUE_SIZE] = {};
-
-        if (edgeJson.contains("properties")) {
-            auto edgeProperties = edgeJson["properties"];
-            for (auto it = edgeProperties.begin(); it != edgeProperties.end(); it++) {
-                strcpy(value, it.value().get<std::string>().c_str());
-                newRelation->addProperty(std::string(it.key()), &value[0]);
+        if (newRelation != NULL) {
+            if (edgeJson.contains("properties")) {
+                auto edgeProperties = edgeJson["properties"];
+                for (auto it = edgeProperties.begin(); it != edgeProperties.end(); it++) {
+                    strcpy(value, it.value().get<std::string>().c_str());
+                    newRelation->addProperty(std::string(it.key()), &value[0]);
+                }
             }
         }
-
         if (sourceJson.contains("properties")) {
             auto sourceProps = sourceJson["properties"];
+            auto sourceNode = this->nm->get(sId);
             for (auto it = sourceProps.begin(); it != sourceProps.end(); it++) {
                 strcpy(value, it.value().get<std::string>().c_str());
-                newRelation->getSource()->addProperty(std::string(it.key()), &value[0]);
+                sourceNode->addProperty(std::string(it.key()), &value[0]);
             }
         }
         if (destinationJson.contains("properties")) {
             auto destProps = destinationJson["properties"];
+            auto destinationNode = this->nm->get(dId);
             for (auto it = destProps.begin(); it != destProps.end(); it++) {
                 strcpy(value, it.value().get<std::string>().c_str());
-                newRelation->getDestination()->addProperty(std::string(it.key()), &value[0]);
+                destinationNode->addProperty(std::string(it.key()), &value[0]);
             }
         }
 
