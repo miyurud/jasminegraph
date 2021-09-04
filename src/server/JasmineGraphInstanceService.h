@@ -127,6 +127,10 @@ public:
 
     void clusterFilters(string trainData, int noClusters);
 
+    static int collectBucketstoCoordinator(instanceservicesessionargs *sessionargs,
+                                    std::string host, int port, int dataPort,
+                                    std::string graphID, int clusterCount);
+
     void entityRes(string trainData);
 
     void generateLocalCandidateSets(int filterSize, int noClusters);

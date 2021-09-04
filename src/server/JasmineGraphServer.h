@@ -170,6 +170,11 @@ public:
     std::map<std::string, workerPartitions> getGraphPartitionedHosts(std::string graphID);
 
     void inDegreeDistribution(std::string graphID);
+
+    int collectBucketsToCoordinator(string host, int port, std::vector<std::string> orgHostList, std::vector<std::string> orgPortList, int dataPort,
+                                    string graphID, int noClusters, string masterIP);
+
+    int shareClustersWithOrg(string basicString, int port, std::string orgHost, int orgPort, string graphID, int count);
 };
 
 
