@@ -47,6 +47,7 @@ public:
     static int getTotalNumberofCores();
     static long getTotalMemoryUsage();
     static double getTotalCpuUsage();
+    static double getLoadAverage();
 };
 
 

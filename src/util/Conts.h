@@ -74,6 +74,7 @@ public:
     static int NUMBER_OF_COMPOSITE_CENTRAL_STORES;
     static int RDF_NUM_OF_ATTRIBUTES;
     static int MAX_SLA_CALIBRATE_ATTEMPTS;
+    static int LOAD_AVG_COLLECTING_GAP;
 
     static int GRAPH_TYPE_TEXT;
 

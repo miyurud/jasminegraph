@@ -46,7 +46,7 @@ public:
     int init();
     static int collectPerformanceStatistics();
     static int collectSLAResourceConsumption(std::string graphId, std::string command, std::string category,
-            int iteration, int partitionCount, std::string masterIP);
+            int partitionCount, std::string masterIP, int elapsedTime);
     static std::vector<ResourceConsumption> retrieveCurrentResourceUtilization(std::string masterIP);
     static bool isResourcesSufficient(std::string graphId, std::string command, std::string category, std::string masterIP);
 
@@ -58,10 +58,10 @@ private:
     static int collectLocalPerformanceData(std::string isVMStatManager, std::string isResourceAllocationRequired , std::string hostId, std::string placeId);
     static int collectRemoteSLAResourceUtilization(std::string host, int port, std::string isVMStatManager,
             std::string isResourceAllocationRequired, std::string hostId, std::string placeId, std::string graphId,
-            std::string slaCategoryId, int iteration, int partitionCount);
+            std::string slaCategoryId, int partitionCount, int elapsedTime);
     static int collectLocalSLAResourceUtilization(std::string isVMStatManager, std::string isResourceAllocationRequired ,
             std::string hostId, std::string placeId, std::string graphId, std::string slaCategoryId,
-            int iteration, int partitionCount);
+            int partitionCount, int elapsedTime);
     static ResourceConsumption retrieveRemoteResourceConsumption(std::string host, int port,
             std::string hostId, std::string placeId);
     static ResourceConsumption retrieveLocalResourceConsumption(std::string hostId, std::string placeId);

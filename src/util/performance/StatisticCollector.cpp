@@ -208,3 +208,11 @@ double StatisticCollector::getTotalCpuUsage() {
     return totalCPUUsage;
 }
 
+double StatisticCollector::getLoadAverage() {
+    double averages[3];
+
+    getloadavg(averages,3);
+
+    return averages[0];
+}
+

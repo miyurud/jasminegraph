@@ -2653,12 +2653,14 @@ string JasmineGraphInstanceService::requestPerformanceStatistics(std::string isV
     Utils utils;
     int memoryUsage = collector.getMemoryUsageByProcess();
     double cpuUsage = collector.getCpuUsage();
+    double loadAverage = collector.getLoadAverage();
     std::string vmLevelStatistics = collector.collectVMStatistics(isVMStatManager, isResourceAllocationRequested);
     auto executedTime = std::chrono::system_clock::now();
     std::time_t reportTime = std::chrono::system_clock::to_time_t(executedTime);
     std::string reportTimeString(std::ctime(&reportTime));
     reportTimeString = utils.trim_copy(reportTimeString, " \f\n\r\t\v");
-    std::string usageString = reportTimeString + "," + to_string(memoryUsage) + "," + to_string(cpuUsage);
+    std::string usageString = reportTimeString + "," + to_string(memoryUsage) + "," + to_string(cpuUsage) + "," +
+            to_string(loadAverage);
     if (!vmLevelStatistics.empty()) {
         usageString = usageString + "," + vmLevelStatistics;
     }

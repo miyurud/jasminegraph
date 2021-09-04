@@ -54,6 +54,7 @@ void TriangleCountExecutor::execute() {
     int workerListSize = workerList.size();
     int partitionCount = 0;
     std::vector<std::future<long>> intermRes;
+    std::vector<std::future<int>> statResponse;
     std::vector<std::future<string>> remoteCopyRes;
     PlacesToNodeMapper placesToNodeMapper;
     std::vector<std::string> compositeCentralStoreFiles;
@@ -181,12 +182,12 @@ void TriangleCountExecutor::execute() {
         if (calibratedAttempts >= Conts::MAX_SLA_CALIBRATE_ATTEMPTS) {
             canCalibrate = false;
         }
-    }
-
-    while (!workerResponded && canCalibrate) {
-        performanceUtil.collectSLAResourceConsumption(graphId,TRIANGLES,Conts::SLA_CATEGORY::LATENCY,slaStatCount,partitionCount,masterIP);
-        slaStatCount++;
-        sleep(5);
+    } else {
+        triangleCount_logger.log("###TRIANGLE-COUNT-EXECUTOR### Inserting initial record for SLA ", "info");
+        Utils::updateSLAInformation(perfDB, graphId, partitionCount, 0, TRIANGLES, Conts::SLA_CATEGORY::LATENCY);
+        statResponse.push_back(
+                std::async(std::launch::async, TriangleCountExecutor::collectPerformaceData, graphId.c_str(), TRIANGLES,
+                           Conts::SLA_CATEGORY::LATENCY, partitionCount, masterIP));
     }
 
     for (auto &&futureCall:intermRes) {
@@ -197,6 +198,7 @@ void TriangleCountExecutor::execute() {
         long aggregatedTriangleCount = TriangleCountExecutor::aggregateCentralStoreTriangles(sqlite, graphId, masterIP,
                                                                                              threadPriority);
         result += aggregatedTriangleCount;
+        workerResponded = true;
         triangleCount_logger.log("###TRIANGLE-COUNT-EXECUTOR### Getting Triangle Count : Completed: Triangles " + to_string(result),
                             "info");
         JobResponse jobResponse;
@@ -400,7 +402,6 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
             triangleCount_logger.log("Got response : |" + response + "|", "info");
             response = utils.trim_copy(response, " \f\n\r\t\v");
             triangleCount = atol(response.c_str());
-            workerResponded = true;
         }
 
         if (isCompositeAggregation) {
@@ -1557,4 +1558,29 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorH
 int TriangleCountExecutor::getUid() {
     static std::atomic<std::uint32_t> uid { 0 };
     return ++uid;
+}
+
+int TriangleCountExecutor::collectPerformaceData(std::string graphId, std::string command, std::string category,
+                                                 int partitionCount, std::string masterIP) {
+
+    int elapsedTime = 0;
+    time_t start;
+    time_t end;
+    PerformanceUtil performanceUtil;
+    performanceUtil.init();
+
+    start = time(0);
+
+    while(!workerResponded)
+    {
+
+        if(time(0)-start== Conts::LOAD_AVG_COLLECTING_GAP)
+        {
+            elapsedTime += Conts::LOAD_AVG_COLLECTING_GAP*1000;
+            performanceUtil.collectSLAResourceConsumption(graphId,command,category,partitionCount,masterIP,elapsedTime);
+            start = start + Conts::LOAD_AVG_COLLECTING_GAP;
+        }
+    }
+
+    return 0;
 }

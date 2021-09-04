@@ -546,7 +546,7 @@ void Utils::updateSLAInformation(PerformanceSQLiteDBInterface perfSqlite, std::s
         } else {
             std::string insertQuery = "insert into graph_sla (id_sla_category, graph_id, partition_count, sla_value, attempt) VALUES ('" +
                                       slaCategoryId + "','" + graphId + "'," + std::to_string(partitionCount) + "," +
-                                      std::to_string(newSlaValue) + ",1);";
+                                      std::to_string(newSlaValue) + ",0);";
 
             perfSqlite.runInsert(insertQuery);
         }
