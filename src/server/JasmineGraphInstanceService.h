@@ -122,6 +122,11 @@ public:
                                                                std::map<std::string,JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
                                                                std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores);
 
+    static bool duplicateCentralStore(int thisWorkerPort, int graphID, int partitionID,
+                               std::vector<string> workerSockets, std::string masterIP);
+
+    static bool sendFileThroughService(std::string host, int dataPort, std::string fileName,
+                                       std::string filePath, std::string masterIP);
     static int partitionCounter;
 };
 

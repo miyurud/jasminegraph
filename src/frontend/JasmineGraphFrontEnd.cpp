@@ -1079,6 +1079,48 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 loop = true;
                 continue;
             }
+        } else if (line.compare(DPCNTRL) == 0) {
+            frontend_logger.log("Duplicate Centralstore", "info");
+
+            int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
+            if (result_wr < 0) {
+                frontend_logger.log("Error writing to socket", "error");
+                loop = true;
+                continue;
+            }
+            result_wr = write(connFd, "\r\n", 2);
+            if (result_wr < 0) {
+                frontend_logger.log("Error writing to socket", "error");
+                loop = true;
+                continue;
+            }
+
+            char graph_id[FRONTEND_DATA_LENGTH];
+            bzero(graph_id, FRONTEND_DATA_LENGTH + 1);
+
+            read(connFd, graph_id, FRONTEND_DATA_LENGTH);
+
+            string graphID(graph_id);
+
+            Utils utils;
+            graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
+            frontend_logger.log("Graph ID received: " + graphID, "info");
+
+            JasmineGraphServer *jasmineServer = new JasmineGraphServer();
+            jasmineServer->duplicateCentralStore(graphID);
+
+            int result_wr_done = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
+            if (result_wr_done < 0) {
+                frontend_logger.log("Error writing to socket", "error");
+                loop = true;
+                continue;
+            }
+            result_wr_done = write(connFd, "\r\n", 2);
+            if (result_wr_done < 0) {
+                frontend_logger.log("Error writing to socket", "error");
+                loop = true;
+                continue;
+            }
         } else if (line.compare(PREDICT) == 0) {
             int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
             if(result_wr < 0) {

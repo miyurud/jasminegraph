@@ -62,6 +62,7 @@ public:
     static const string IN_DEGREE_DISTRIBUTION;
     static const string SEND_OUT_DEGREE_DISTRIBUTION_TO_AGGREGATOR;
     static const string SEND_IN_DEGREE_DISTRIBUTION_TO_AGGREGATOR;
+    static const string DP_CENTRALSTORE;
     static const string SEND_CENTRALSTORE_TO_AGGREGATOR;
     static const string SEND_COMPOSITE_CENTRALSTORE_TO_AGGREGATOR;
     static const string AGGREGATE_CENTRALSTORE_TRIANGLES;
@@ -90,6 +91,7 @@ public:
 
 const int INSTANCE_DATA_LENGTH = 300;
 const int INSTANCE_LONG_DATA_LENGTH = 1024;
+const int INSTANCE_FILE_BUFFER_LENGTH = 1024;
 const int MAX_CONNECTION_COUNT = 300;
 const int MAX_STREAMING_DATA_LENGTH = 1024;
 
