@@ -51,7 +51,7 @@ Logger frontend_logger;
 std::set<ProcessInfo> processData;
 
 void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface sqlite,
-                            PerformanceSQLiteDBInterface perfSqlite, JobScheduler jobScheduler, std::map<std::string, std::atomic<bool>> *streamsState) {
+                            PerformanceSQLiteDBInterface perfSqlite, JobScheduler jobScheduler) {
     frontend_logger.log("Thread No: " + to_string(pthread_self()), "info");
     frontend_logger.log("Master IP: " + masterIP, "info");
     char data[FRONTEND_DATA_LENGTH];
@@ -574,7 +574,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             string topic_name_s(topic_name);
             topic_name_s = utils.trim_copy(topic_name_s, " \f\n\r\t\v");
             
-            std::thread streamingThread(KafkaConnector::startStream,topic_name_s, workerClients, streamsState);
+            //std::thread streamingThread(KafkaConnector::startStream,topic_name_s, workerClients, streamsState);
             //TODO(miyurud):Temporarily commenting this line to enable building the project. Asked tmkasun to provide a
             // permanent fix later when he is available.
             //streamsState->insert(topic_name_s, false);
@@ -604,10 +604,10 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
             string topic_name_s(topic_name);
             topic_name_s = utils.trim_copy(topic_name_s, " \f\n\r\t\v");
-            if (streamsState->find(topic_name_s) != streamsState->end()) {
+            /*if (streamsState->find(topic_name_s) != streamsState->end()) {
                 auto steamState = streamsState->find(topic_name_s);
                 steamState->second = true;
-            }
+            }*/
 
         } else if (line.compare(RMGR) == 0) {
             int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
@@ -1337,7 +1337,7 @@ int JasmineGraphFrontEnd::run() {
 
         //TODO(miyurud):Temporarily commenting this line to enable building the project. Asked tmkasun to provide a
         // permanent fix later when he is available.
-        //threadVector.push_back(std::thread(frontendservicesesion, masterIP, connFd, this->sqlite, this->perfSqlite, this->jobScheduler, this->streamsState));
+        threadVector.push_back(std::thread(frontendservicesesion, masterIP, connFd, this->sqlite, this->perfSqlite, this->jobScheduler));
 
         std::thread();
 
