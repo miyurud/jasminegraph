@@ -1,0 +1,10 @@
+on: [push]
+
+jobs:
+  jasminegraph_build_job:
+    runs-on: ubuntu-latest
+    name: A job that builds JasmineGraph
+    steps:
+      - name: JasmineGraph build action step
+        id: jbuild
+        uses: actions/jasminegraph@latest
