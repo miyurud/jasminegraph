@@ -2908,7 +2908,7 @@ bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int 
                                 if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_CONT) == 0) {
                                     instance_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
                                     instance_logger.log("Going to send file through service", "info");
-                                    sendFileThroughService(host, dataPort, fileName, centralStoreFile, masterIP);
+                                    JasmineGraphInstanceService::sendFileThroughService(host, dataPort, fileName, centralStoreFile, masterIP);
                                 }
                             }
                         }
@@ -2974,7 +2974,7 @@ bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int 
     return 0;
 }
 
-bool sendFileThroughService(std::string host, int dataPort, std::string fileName,
+bool JasmineGraphInstanceService::sendFileThroughService(std::string host, int dataPort, std::string fileName,
                             std::string filePath, std::string masterIP) {
     Utils utils;
     int sockfd;
