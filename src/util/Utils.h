@@ -70,9 +70,11 @@ class Utils
     int getFileSize(std::string filePath);
 
     std::string getJasmineGraphHome();
-  
     // Static method to get running user's home directory
     static std::string getHomeDir();
+
+    void copyFile(const std::string sourceFilePath, const std::string destinationFilePath);
+
     void unzipFile(std::string filePath, const std::string mode = "pigz");
 
     int parseARGS(char **args, char *line);

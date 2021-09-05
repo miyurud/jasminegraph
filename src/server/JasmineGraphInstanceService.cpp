@@ -703,7 +703,7 @@ void *instanceservicesession(void *dummyPt) {
                 workerSockets.push_back(intermediate);
             }
 
-            duplicateCentralStore(serverPort, stoi(graphID), stoi(partitionID), workerSockets, "localhost");
+            JasmineGraphInstanceService::duplicateCentralStore(serverPort, stoi(graphID), stoi(partitionID), workerSockets, "localhost");
         } else if (line.compare(JasmineGraphInstanceProtocol::IN_DEGREE_DISTRIBUTION) == 0) {
             instance_logger.log("Received : in degree distribution from server", "info");
 
@@ -2730,7 +2730,7 @@ map<long, long> JasmineGraphInstanceService::calculateLocalOutDegreeDistribution
     }
 }
 
-bool duplicateCentralStore(int thisWorkerPort, int graphID, int partitionID,
+bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int graphID, int partitionID,
                      std::vector<string> workerSockets, std::string masterIP) {
 
     Utils utils;
