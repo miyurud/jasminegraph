@@ -292,6 +292,18 @@ std::string Utils::getHomeDir() {
 }
 
 /**
+ * This method copies the file
+ * @param filePath
+ */
+void Utils::copyFile(const std::string sourceFilePath, const std::string destinationFilePath) {
+
+    util_logger.log("Starting file copy source: " + sourceFilePath + " destination: " + destinationFilePath, "info");
+    std::string command = "cp " + sourceFilePath + " " + destinationFilePath;
+    FILE *copyInput = popen(command.c_str(),"r");
+    pclose(copyInput);
+}
+
+/**
  * This method returns the size of the file in bytes
  * @param filePath
  * @return

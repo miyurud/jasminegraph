@@ -703,7 +703,7 @@ void *instanceservicesession(void *dummyPt) {
                 workerSockets.push_back(intermediate);
             }
 
-            duplicateCentralStore(serverPort, stoi(graphID), stoi(partitionID), workerSockets, "localhost");
+            JasmineGraphInstanceService::duplicateCentralStore(serverPort, stoi(graphID), stoi(partitionID), workerSockets, "localhost");
         } else if (line.compare(JasmineGraphInstanceProtocol::IN_DEGREE_DISTRIBUTION) == 0) {
             instance_logger.log("Received : in degree distribution from server", "info");
 
@@ -2730,7 +2730,7 @@ map<long, long> JasmineGraphInstanceService::calculateLocalOutDegreeDistribution
     }
 }
 
-bool duplicateCentralStore(int thisWorkerPort, int graphID, int partitionID,
+bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int graphID, int partitionID,
                      std::vector<string> workerSockets, std::string masterIP) {
 
     Utils utils;
@@ -2908,7 +2908,7 @@ bool duplicateCentralStore(int thisWorkerPort, int graphID, int partitionID,
                                 if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_CONT) == 0) {
                                     instance_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
                                     instance_logger.log("Going to send file through service", "info");
-                                    sendFileThroughService(host, dataPort, fileName, centralStoreFile, masterIP);
+                                    JasmineGraphInstanceService::sendFileThroughService(host, dataPort, fileName, centralStoreFile, masterIP);
                                 }
                             }
                         }
@@ -2974,7 +2974,7 @@ bool duplicateCentralStore(int thisWorkerPort, int graphID, int partitionID,
     return 0;
 }
 
-bool sendFileThroughService(std::string host, int dataPort, std::string fileName,
+bool JasmineGraphInstanceService::sendFileThroughService(std::string host, int dataPort, std::string fileName,
                             std::string filePath, std::string masterIP) {
     Utils utils;
     int sockfd;
