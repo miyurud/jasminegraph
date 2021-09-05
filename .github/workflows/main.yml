@@ -7,4 +7,4 @@ jobs:
     steps:
       - name: JasmineGraph build action step
         id: jbuild
-        uses: miyurud/jasminegraph@latest
+        uses: actions/jasminegraph-action@latest
