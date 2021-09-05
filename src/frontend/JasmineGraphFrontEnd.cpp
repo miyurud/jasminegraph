@@ -575,7 +575,9 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             topic_name_s = utils.trim_copy(topic_name_s, " \f\n\r\t\v");
             
             std::thread streamingThread(KafkaConnector::startStream,topic_name_s, workerClients, streamsState);
-            streamsState->insert(topic_name_s, false);
+            //TODO(miyurud):Temporarily commenting this line to enable building the project. Asked tmkasun to provide a
+            // permanent fix later when he is available.
+            //streamsState->insert(topic_name_s, false);
 
         } else if (line.compare(STOP_STREAM_KAFKA) == 0) {
             frontend_logger.log("Start serving `" + STOP_STREAM_KAFKA + "` command", "info");
@@ -1333,7 +1335,9 @@ int JasmineGraphFrontEnd::run() {
         frontendservicesessionargs1->sqlite = this->sqlite;
         frontendservicesessionargs1->connFd = connFd;
 
-        threadVector.push_back(std::thread(frontendservicesesion, masterIP, connFd, this->sqlite, this->perfSqlite, this->jobScheduler, this->streamsState));
+        //TODO(miyurud):Temporarily commenting this line to enable building the project. Asked tmkasun to provide a
+        // permanent fix later when he is available.
+        //threadVector.push_back(std::thread(frontendservicesesion, masterIP, connFd, this->sqlite, this->perfSqlite, this->jobScheduler, this->streamsState));
 
         std::thread();
 
