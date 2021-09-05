@@ -2,9 +2,15 @@ name: Build
 
 on:
   push:
-    branches: [ * ]
+    branches:
+      - master
+      - fl
+      - fl_entity
   pull_request:
-    branches: [ * ]
+    branches:
+      - master
+      - fl
+      - fl_entity
 
 env:
   # Customize the build type here (Release, Debug, RelWithDebInfo, etc.)
