@@ -83,7 +83,7 @@ JasmineGraph is licensed under the [Apache License, Version 2.0](http://www.apac
 [GraphSAGE](https://github.com/williamleif/GraphSAGE/)  which is integrated in JasmineGraph to generate node embeddings is using MIT License.
 
 ## References
-More details of JasmineGraph/Acacia architecture is available from the following list of papers.
+More details of JasmineGraph's approach for managment and mining of large graph data is available from the following list of papers.
 
 - Damitha Senevirathne, Isuru Wijesiri, Suchitha Dehigaspitiya, Miyuru Dayarathna, Sanath Jayasena, Toyotaro Suzumura. 2020. "[Memory Efficient Graph Convolutional Network based Distributed Link Prediction](https://doi.org/10.1109/BigData50022.2020.9377874),"  2020 IEEE International Conference on Big Data (Big Data), Atlanta, GA, USA, pp. 2977-2986.
 - Anuradha Karunarathna, Dinika Senarath, Shalika Madhushanki, Chinthaka Weerakkody, Miyuru Dayarathna, Sanath Jayasena, Toyotaro Suzumura. 2020. "[Scalable Graph Convolutional Network based Link Prediction on a Distributed Graph Database Server.](https://doi.org/10.1109/CLOUD49709.2020.00028)," IEEE 13th International Conference on Cloud Computing (CLOUD),  Beijing, China, 2020, pp. 107-115.
