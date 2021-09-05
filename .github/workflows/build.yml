@@ -1,0 +1,24 @@
+name: Build
+
+on:
+  push:
+    branches: [ * ]
+  pull_request:
+    branches: [ * ]
+
+env:
+  # Customize the build type here (Release, Debug, RelWithDebInfo, etc.)
+  BUILD_TYPE: Release
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Build
+      # Build JasmineGraph docker image
+      run: |
+        cd docker
+        docker build -t jasminegraph .

@@ -1,3 +1,5 @@
+![Build](https://github.com/miyurud/jasminegraph/actions/workflows/build.yml/badge.svg)
+
 # JasmineGraph
 
 ## 1. Introduction
