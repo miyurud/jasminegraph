@@ -19,9 +19,10 @@ Logger triangleCount_logger;
 std::vector<std::vector<string>> TriangleCountExecutor::fileCombinations;
 std::map<std::string, std::string> TriangleCountExecutor::combinationWorkerMap;
 std::map<long, std::map<long, std::vector<long>>> TriangleCountExecutor::triangleTree;
-std::mutex processStatusMutex;
+
 std::mutex fileCombinationMutex;
 std::mutex triangleTreeMutex;
+std::mutex processStatusMutex;
 
 TriangleCountExecutor::TriangleCountExecutor() {
 

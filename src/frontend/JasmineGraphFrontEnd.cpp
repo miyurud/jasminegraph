@@ -803,16 +803,23 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                         PerformanceUtil performanceUtil;
                         performanceUtil.init();
 
-                        bool resourceSufficient = performanceUtil.isResourcesSufficient(graph_id,TRIANGLES,Conts::SLA_CATEGORY::LATENCY,masterIP);
+                        long jobAcceptableTime = performanceUtil.getResourceAvailableTime(graph_id, TRIANGLES,
+                                                                                          Conts::SLA_CATEGORY::LATENCY,
+                                                                                          masterIP);
+
                         int runningHPTaskCount = JasmineGraphFrontEnd::getRunningHighPriorityTaskCount();
 
-                        if (!resourceSufficient && runningHPTaskCount == highPriorityTaskCount) {
+                        /*if (jobAcceptableTime < 10000 && runningHPTaskCount == highPriorityTaskCount) {
                             bool queueTimeAcceptable = JasmineGraphFrontEnd::isQueueTimeAcceptable(sqlite,perfSqlite,
                                                                                                    graph_id,TRIANGLES,Conts::SLA_CATEGORY::LATENCY);
 
                             if (!queueTimeAcceptable) {
                                 rejectJob = true;
                             }
+                        }*/
+
+                        if (jobAcceptableTime > 10000) {
+                            rejectJob = true;
                         }
 
                         if (rejectJob) {

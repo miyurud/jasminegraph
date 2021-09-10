@@ -49,11 +49,6 @@ void *startScheduler(void *dummyPt) {
                 string perfCategory = request.getParameter(Conts::PARAM_KEYS::CATEGORY);
                 string command = request.getJobType();
                 string graphId = request.getParameter(Conts::PARAM_KEYS::GRAPH_ID);
-                bool isResourcesSufficient = performanceUtil.isResourcesSufficient(graphId,command,perfCategory,masterIP);
-
-                if (!isResourcesSufficient) {
-                    std::this_thread::sleep_for(std::chrono::seconds(1));
-                }
             }
 
             jobQueue.pop();

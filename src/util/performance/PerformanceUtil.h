@@ -29,6 +29,8 @@ limitations under the License.
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include "../Utils.h"
+#include <chrono>
 
 
 #ifndef JASMINEGRAPH_PERFORMANCEUTIL_H
@@ -48,7 +50,8 @@ public:
     static int collectSLAResourceConsumption(std::string graphId, std::string command, std::string category,
             int partitionCount, std::string masterIP, int elapsedTime);
     static std::vector<ResourceConsumption> retrieveCurrentResourceUtilization(std::string masterIP);
-    static bool isResourcesSufficient(std::string graphId, std::string command, std::string category, std::string masterIP);
+    static long getResourceAvailableTime(std::string graphId, std::string command, std::string category,
+                                         std::string masterIP);
 
 
 private:

@@ -19,12 +19,14 @@ limitations under the License.
 #include <set>
 #include <vector>
 #include <atomic>
+#include <mutex>
 
 extern int highestPriority;
 extern std::atomic<int> highPriorityTaskCount;
 extern std::atomic<int> workerHighPriorityTaskCount;
 extern bool workerResponded;
 extern std::vector<std::string> highPriorityGraphList;
+extern std::mutex processStatusMutex;
 
 struct ProcessInfo {
     int id;
@@ -75,6 +77,7 @@ public:
     static int RDF_NUM_OF_ATTRIBUTES;
     static int MAX_SLA_CALIBRATE_ATTEMPTS;
     static int LOAD_AVG_COLLECTING_GAP;
+    static double LOAD_AVG_THREASHOLD;
 
     static int GRAPH_TYPE_TEXT;
 
