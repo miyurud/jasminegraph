@@ -1,4 +1,6 @@
 ![Build](https://github.com/miyurud/jasminegraph/actions/workflows/build.yml/badge.svg)
+[![License](https://img.shields.io/github/license/miyurud/jasminegraph?color=blue)](https://opensource.org/licenses/Apache-2.0)
+[![GitHub last commit](https://img.shields.io/github/last-commit/miyurud/jasminegraph.svg)](https://github.com/miyurud/jasminegraph/commits/master)
 
 # JasmineGraph
 
