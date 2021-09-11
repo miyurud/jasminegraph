@@ -2195,15 +2195,14 @@ void *instanceservicesession(void *dummyPt) {
             bzero(data, INSTANCE_DATA_LENGTH);
             read(connFd, data, INSTANCE_DATA_LENGTH);
             int noClusters = stoi(data);
-            graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
-            instance_logger.log("Received Graph ID: " + graphID, "info");
+            instance_logger.log("Received cluster count: " + noClusters, "info");
 
             //Get cluster filenames and send to coordinator
             int count = 0;
             std::thread *workerThreads = new std::thread[noClusters];
             string dir = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.entityresolutionfolder");
             for (int i = 0; i < noClusters; i++) {
-                string filename = "/AttrCluster_" + graphID + "_" + to_string(i);
+                string filename = "/attrcluster_" + graphID + "_" + to_string(i);
                 string filepath = dir + filename;
                 workerThreads[count++] = std::thread(JasmineGraphInstance::sendFileThroughService, serverHostName,
                                                      stoi(serverHostDataPort), filename, filepath);
@@ -2249,15 +2248,14 @@ void *instanceservicesession(void *dummyPt) {
             bzero(data, INSTANCE_DATA_LENGTH);
             read(connFd, data, INSTANCE_DATA_LENGTH);
             int noClusters = stoi(data);
-            graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
-            instance_logger.log("Received Graph ID: " + graphID, "info");
+            instance_logger.log("Received cluster count: " + noClusters, "info");
 
             //Get cluster filenames and send to coordinator
             int count = 0;
             int orgCount = orgPortList.size();
             std::thread *workerThreads = new std::thread[orgCount];
             for (int i = 0; i < orgCount; i++) {
-                workerThreads[count++] = std::thread(JasmineGraphInstanceService::collectBucketstoCoordinator,
+                workerThreads[count++] = std::thread(JasmineGraphInstanceService::collectBucketsToCoordinator,
                                                      sessionargs, orgHostList[i], stoi(orgPortList[i]),
                                                      stoi(orgPortList[i]), graphID, noClusters);
                 sleep(1);
@@ -2267,7 +2265,6 @@ void *instanceservicesession(void *dummyPt) {
                 if(workerThreads[threadCount].joinable()) {
                     workerThreads[threadCount].join();
                 }
-                std::cout << "Thread [A]: " << threadCount << " joined" << std::endl;
             }
         }
         else if (line.compare(JasmineGraphInstanceProtocol::SHARE_BUCKETS_TO_COORDINATOR) == 0) {
@@ -2306,12 +2303,11 @@ void *instanceservicesession(void *dummyPt) {
             //Read cluster count from socket
             bzero(data, INSTANCE_DATA_LENGTH);
             read(connFd, data, INSTANCE_DATA_LENGTH);
-            int noClusters = stoi(data);
-            graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
-            instance_logger.log("Received Graph ID: " + graphID, "info");
+            int workerCount = stoi(data);
+            instance_logger.log("Received worker count: " + to_string(workerCount), "info");
 
-            for (int i = 0; i < noClusters; i++) {
-                string filename = "AttrCluster_" + graphID + to_string(i) + ".txt";
+            for (int i = 0; i < workerCount; i++) {
+                string filename = "/bucket_" + graphID + to_string(i) + ".txt";
                 string filepath =
                         utils.getJasmineGraphProperty("org.jasminegraph.server.instance.entityresolutionfolder") + filename;
                 JasmineGraphInstance::sendFileThroughService(coordinatorHost, stoi(coordinatorPort), filename, filepath);
@@ -2319,7 +2315,7 @@ void *instanceservicesession(void *dummyPt) {
 
         }
         else if (line.compare(JasmineGraphInstanceProtocol::SHARE_CLUSTER_FILES) == 0) {
-            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::SHARE_BUCKETS_TO_ORG, "info");
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::SHARE_CLUSTER_FILES, "info");
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
             bzero(data, INSTANCE_DATA_LENGTH);
@@ -2355,11 +2351,10 @@ void *instanceservicesession(void *dummyPt) {
             bzero(data, INSTANCE_DATA_LENGTH);
             read(connFd, data, INSTANCE_DATA_LENGTH);
             int noClusters = stoi(data);
-            graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
-            instance_logger.log("Received Graph ID: " + graphID, "info");
+            instance_logger.log("Received cluster count: " + noClusters, "info");
 
             for (int i = 0; i < noClusters; i++) {
-                string filename = "AttrCluster_" + graphID + to_string(i) + ".txt";
+                string filename = "/attrcluster_" + graphID + to_string(i) + ".txt";
                 string filepath =
                         utils.getJasmineGraphProperty("org.jasminegraph.server.instance.entityresolutionfolder") + filename;
                 JasmineGraphInstance::sendFileThroughService(orgHost, stoi(orgDataPort), filename, filepath);
@@ -3475,9 +3470,9 @@ int collectBloomFilters(instanceservicesessionargs *sessionargs,
     return 0;
 }
 
-int JasmineGraphInstanceService::collectBucketstoCoordinator(instanceservicesessionargs *sessionargs,
-                                std::string host, int port, int dataPort,
-                                std::string graphID, int clusterCount) {
+int JasmineGraphInstanceService::collectBucketsToCoordinator(instanceservicesessionargs *sessionargs,
+                                                             std::string host, int port, int dataPort,
+                                                             std::string graphID, int clusterCount) {
     Utils utils;
     Logger instance_logger;
     bool result = true;

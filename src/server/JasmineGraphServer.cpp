@@ -2455,7 +2455,8 @@ int JasmineGraphServer::initiateEntityResolution(vector<pair<string, string>> ho
         string partition = r[3];
         vector<int> clusters = {stoi(partition)};
 
-        workerThreads[count++] = std::thread(bucketLocalClusters, hostname, port, graphID, clusters, masterIP);
+        workerThreads[count++] = std::thread(JasmineGraphServer::bucketLocalClusters, hostname, stoi(port), graphID,
+                                             clusters, masterIP);
         sleep(1);
     }
 
@@ -2578,7 +2579,7 @@ int JasmineGraphServer::initiateEntityResolution(vector<pair<string, string>> ho
                 read(sockfd, data, INSTANCE_DATA_LENGTH);
                 string clusterShareHost = (data);
 
-                //Read coordinator data port from socket
+                //Read coordinator port from socket
                 bzero(data, INSTANCE_DATA_LENGTH);
                 read(sockfd, data, INSTANCE_DATA_LENGTH);
                 string clusterSharePort = (data);
@@ -2588,7 +2589,7 @@ int JasmineGraphServer::initiateEntityResolution(vector<pair<string, string>> ho
                 read(sockfd, data, INSTANCE_DATA_LENGTH);
                 string clusterShareDataPort = (data);
 
-                shareClustersWithOrg(designatedWorkerHost, designatedWorkerPort, clusterShareHost, clusterSharePort,
+                shareClustersWithOrg(designatedWorkerHost, designatedWorkerPort, clusterShareHost, stoi(clusterSharePort),
                                      graphID, clusterCount);
             }
         }
@@ -2702,12 +2703,6 @@ int JasmineGraphServer::initiateEntityResolution(vector<pair<string, string>> ho
         //TODO: Wait for other orgs to complete comparision and send their results
         //TODO: Combine the recieved results
         //TODO: Send combined results back to each organziation
-        loop = false;
-
-        while (!loop) {
-
-        }
-
     }
 }
 
@@ -3498,11 +3493,10 @@ int JasmineGraphServer::collectBucketsToCoordinator(string host, int port, vecto
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
 
-
             //Write org hosts to socket
             string orgHostListStr = "";
-            for (auto p: orgHostList) {
-                orgHostListStr += p + "|";
+            for (auto hostIter: orgHostList) {
+                orgHostListStr += hostIter + "|";
             }
             orgHostListStr = orgHostListStr.substr(orgHostListStr.size() - 2);
             write(sockfd, orgHostListStr.c_str(), orgHostListStr.size());
@@ -3510,8 +3504,8 @@ int JasmineGraphServer::collectBucketsToCoordinator(string host, int port, vecto
 
             //Write org ports to socket
             string orgPortListStr = "";
-            for (auto p: orgPortList) {
-                orgPortListStr += p + "|";
+            for (auto portIter: orgPortList) {
+                orgPortListStr += portIter + "|";
             }
             orgPortListStr = orgPortListStr.substr(orgPortListStr.size() - 2);
             write(sockfd, orgPortListStr.c_str(), orgPortListStr.size());
@@ -3528,7 +3522,7 @@ int JasmineGraphServer::collectBucketsToCoordinator(string host, int port, vecto
 
             //Write no of clusters to socket
             write(sockfd, to_string(noClusters).c_str(), to_string(noClusters).size());
-            instance_logger.log("Sent : Graph ID " + to_string(noClusters), "info");
+            instance_logger.log("Sent : no of clusters " + to_string(noClusters), "info");
 
         }
     }
@@ -4095,7 +4089,7 @@ int JasmineGraphServer::shareClustersWithOrg(string basicString, int port, strin
 
             //Write no of clusters to socket
             write(sockfd, to_string(count).c_str(), to_string(count).size());
-            instance_logger.log("Sent : Graph ID " + to_string(count), "info");
+            instance_logger.log("Sent : no of clusters " + to_string(count), "info");
 
         }
     }
