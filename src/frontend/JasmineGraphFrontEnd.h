@@ -57,7 +57,8 @@ public:
                                             std::string designatedWorkerHost, std::string designatedWorkerPort);
 
     static void initiateEntityResolutionCoordinator(std::string graphID, SQLiteDBInterface sqlite, std::string masterIP,
-                                                    std::string designatedWorkerHost, std::string designatedWorkerPort);
+                                                    std::string designatedWorkerHost, std::string designatedWorkerPort,
+                                                    std::string designatedWorkerDataPort);
 
     static bool graphExists(std::string basic_string, SQLiteDBInterface sqlite);
 

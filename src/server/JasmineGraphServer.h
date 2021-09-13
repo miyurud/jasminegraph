@@ -103,7 +103,8 @@ public:
     static int removeFragmentThroughService(std::string host, int port, std::string graphID, std::string masterIP);
 
     int initiateEntityResolution(std::vector<std::pair<std::string, std::string>> hostHasPartition, std::string graphID,
-                                 std::string masterIP, std::string designatedWorkerHost, int designatedWorkerPort);
+                                 std::string masterIP, std::string designatedWorkerHost, int designatedWorkerPort,
+                                 int designatedWorkerDataPort);
 
     static int collectBloomFilters(string destHost, int destPort, int dataPort, string graphID,
                                    std::vector<std::vector<string>> workerPartitions, string masterIP);
