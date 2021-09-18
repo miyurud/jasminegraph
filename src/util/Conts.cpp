@@ -56,7 +56,7 @@ int Conts::THREAD_SLEEP_TIME = 30000;
 int Conts::MAX_HIGH_PRIORIY_TASKS = 2;
 int Conts::MAX_SLA_CALIBRATE_ATTEMPTS = 3;
 int Conts::LOAD_AVG_COLLECTING_GAP = 5;
-double Conts::LOAD_AVG_THREASHOLD = 10;
+double Conts::LOAD_AVG_THREASHOLD = 3;
 
 
 const int Conts::GRAPH_STATUS::LOADING = 1;
@@ -75,9 +75,12 @@ const std::string Conts::FLAGS::EPOCHS = "epochs";
 
 const std::string Conts::SLA_CATEGORY::LATENCY = "latency";
 
+const std::string Conts::PARAM_KEYS::ERROR_MESSAGE = "errorResponse";
 const std::string Conts::PARAM_KEYS::MASTER_IP = "masterIP";
 const std::string Conts::PARAM_KEYS::GRAPH_ID = "graphID";
 const std::string Conts::PARAM_KEYS::PRIORITY = "priority";
 const std::string Conts::PARAM_KEYS::TRIANGLE_COUNT = "triangleCount";
 const std::string Conts::PARAM_KEYS::CAN_CALIBRATE = "canCalibrate";
 const std::string Conts::PARAM_KEYS::CATEGORY = "category";
+const std::string Conts::PARAM_KEYS::QUEUE_TIME = "queueTime";
+const std::string Conts::PARAM_KEYS::GRAPH_SLA = "graphSLA";

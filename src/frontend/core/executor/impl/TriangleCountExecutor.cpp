@@ -23,6 +23,7 @@ std::map<long, std::map<long, std::vector<long>>> TriangleCountExecutor::triangl
 std::mutex fileCombinationMutex;
 std::mutex triangleTreeMutex;
 std::mutex processStatusMutex;
+std::mutex responseVectorMutex;
 
 TriangleCountExecutor::TriangleCountExecutor() {
 
@@ -36,15 +37,44 @@ TriangleCountExecutor::TriangleCountExecutor(SQLiteDBInterface db, PerformanceSQ
 
 void TriangleCountExecutor::execute() {
     Utils utils;
+    int uniqueId = getUid();
     std::string masterIP= request.getMasterIP();
     std::string graphId = request.getParameter(Conts::PARAM_KEYS::GRAPH_ID);
     std::string canCalibrateString = request.getParameter(Conts::PARAM_KEYS::CAN_CALIBRATE);
+    std::string queueTime = request.getParameter(Conts::PARAM_KEYS::QUEUE_TIME);
+    std::string graphSLAString = request.getParameter(Conts::PARAM_KEYS::GRAPH_SLA);
+
     bool canCalibrate = utils.parseBoolean(canCalibrateString);
     int threadPriority = request.getPriority();
 
     if (threadPriority == Conts::HIGH_PRIORITY_DEFAULT_VALUE) {
         highPriorityGraphList.push_back(graphId);
     }
+
+    //Below code is used to update the process details
+    processStatusMutex.lock();
+    std::set<ProcessInfo>::iterator processIterator;
+    bool processInfoExists = false;
+    std::chrono::milliseconds startTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
+
+    struct ProcessInfo processInformation;
+    processInformation.id = uniqueId;
+    processInformation.graphId = graphId;
+    processInformation.processName = TRIANGLES;
+    processInformation.priority = threadPriority;
+    processInformation.startTimestamp = startTime.count();
+
+    if (!queueTime.empty()) {
+        long sleepTime = atol(queueTime.c_str());
+        processInformation.sleepTime = sleepTime;
+        processData.insert(processInformation);
+        processStatusMutex.unlock();
+        std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
+    } else {
+        processData.insert(processInformation);
+        processStatusMutex.unlock();
+    }
+
 
     triangleCount_logger.log("###TRIANGLE-COUNT-EXECUTOR### Started with graph ID : " + graphId + " Master IP : " + masterIP, "info");
 
@@ -59,23 +89,8 @@ void TriangleCountExecutor::execute() {
     std::vector<std::future<string>> remoteCopyRes;
     PlacesToNodeMapper placesToNodeMapper;
     std::vector<std::string> compositeCentralStoreFiles;
-    int uniqueId = getUid();
     int slaStatCount = 0;
 
-    //Below code is used to update the process details
-    processStatusMutex.lock();
-    std::set<ProcessInfo>::iterator processIterator;
-    bool processInfoExists = false;
-    std::chrono::milliseconds startTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
-
-    struct ProcessInfo processInformation;
-    processInformation.id = uniqueId;
-    processInformation.graphId = graphId;
-    processInformation.processName = TRIANGLES;
-    processInformation.priority = threadPriority;
-    processInformation.startTimestamp = startTime.count();
-    processData.insert(processInformation);
-    processStatusMutex.unlock();
 
     auto begin = chrono::high_resolution_clock::now();
 
@@ -206,7 +221,10 @@ void TriangleCountExecutor::execute() {
         jobResponse.setJobId(request.getJobId());
         jobResponse.addParameter(Conts::PARAM_KEYS::TRIANGLE_COUNT, std::to_string(result));
         responseVector.push_back(jobResponse);
+
+        responseVectorMutex.lock();
         responseMap[request.getJobId()] = jobResponse;
+        responseVectorMutex.unlock();
     }
 
     auto end = chrono::high_resolution_clock::now();

@@ -645,12 +645,12 @@ ResourceConsumption PerformanceUtil::retrieveRemoteResourceConsumption(std::stri
     }
 }
 
-long PerformanceUtil::getResourceAvailableTime(std::string graphId, std::string command, std::string category,
-                                               std::string masterIP) {
+std::vector<long> PerformanceUtil::getResourceAvailableTime(std::vector<std::string> graphIdList, std::string command, std::string category,
+                                               std::string masterIP, std::vector<JobRequest> &pendingHPJobList) {
     PerformanceUtil performanceUtil;
     performanceUtil.init();
-    bool resourcesSufficient = true;
     std::set<std::string> hostSet;
+    std::vector<long> jobScheduleVector;
 
     processStatusMutex.lock();
     set<ProcessInfo>::iterator processInfoIterator;
@@ -665,13 +665,22 @@ long PerformanceUtil::getResourceAvailableTime(std::string graphId, std::string 
         std::string currentGraphId = process.graphId;
 
         if (process.priority == Conts::HIGH_PRIORITY_DEFAULT_VALUE) {
-            long elapsedTime = currentTimestamp - process.startTimestamp;
+            long processScheduledTime = process.startTimestamp;
+            long initialSleepTime = process.sleepTime;
+            long elapsedTime = currentTimestamp - (processScheduledTime + initialSleepTime);
             long adjustedElapsedTime;
             long statCollectingGap = Conts::LOAD_AVG_COLLECTING_GAP * 1000;
             long requiredAdjustment = 0;
+            long requiredNewPoints = 0;
 
-            if (elapsedTime < statCollectingGap) {
+            if (elapsedTime < 0) {
                 adjustedElapsedTime = 0;
+                long jobIdleTime = (processScheduledTime + initialSleepTime) - currentTimestamp;
+                requiredAdjustment = jobIdleTime % statCollectingGap;
+                requiredNewPoints = (jobIdleTime / statCollectingGap) + 1;
+            } else if (elapsedTime < statCollectingGap) {
+                adjustedElapsedTime = 0;
+                requiredAdjustment = elapsedTime;
             } else if (elapsedTime % statCollectingGap == 0) {
                 adjustedElapsedTime = elapsedTime;
             } else {
@@ -697,7 +706,20 @@ long PerformanceUtil::getResourceAvailableTime(std::string graphId, std::string 
                 std::string placeId = rowData.at(0).second;
                 std::string loadAvg = rowData.at(1).second;
 
-                hostTmpLoadAvgMap[placeId].push_back(std::atof(loadAvg.c_str()));
+                std::vector<double> currentHostLdAvgList = hostTmpLoadAvgMap[placeId];
+
+                if (requiredNewPoints > 0 && currentHostLdAvgList.empty()) {
+                    int newPointCount = 0;
+
+                    while (newPointCount < requiredNewPoints) {
+                        currentHostLdAvgList.push_back(0);
+                        newPointCount++;
+                    }
+                }
+
+                currentHostLdAvgList.push_back(std::atof(loadAvg.c_str()));
+
+                hostTmpLoadAvgMap[placeId] = currentHostLdAvgList;
             }
 
             for (std::map<std::string,std::vector<double>>::iterator mapIterator = hostTmpLoadAvgMap.begin();
@@ -745,7 +767,99 @@ long PerformanceUtil::getResourceAvailableTime(std::string graphId, std::string 
 
     processStatusMutex.unlock();
 
-    std::string newJobLoadQuery = "select graph_place_sla_performance.place_id,graph_place_sla_performance.load_average,"
+
+    std::vector<std::string>::iterator graphIdListIterator;
+
+    for (graphIdListIterator = graphIdList.begin(); graphIdListIterator != graphIdList.end(); ++graphIdListIterator) {
+        std::string graphId = *graphIdListIterator;
+        scheduler_logger.log("###PERFORMANCE### New Job Graph ID:" + graphId, "info");
+        int loopCount = 0;
+
+        std::string newJobLoadQuery = "select graph_place_sla_performance.place_id,graph_place_sla_performance.load_average,"
+                                      "graph_place_sla_performance.elapsed_time from graph_place_sla_performance inner join graph_sla"
+                                      "  inner join sla_category where graph_place_sla_performance.graph_sla_id=graph_sla.id"
+                                      "  and graph_sla.id_sla_category=sla_category.id and graph_sla.graph_id='" + graphId +
+                                      "' and sla_category.command='" + command + "' and sla_category.category='" + category +
+                                      "' order by graph_place_sla_performance.place_id,graph_place_sla_performance.elapsed_time;";
+
+        std::vector<vector<pair<string, string>>> newJobLoadAvgResults = perfDb.runSelect(newJobLoadQuery);
+
+        std::map<std::string,std::vector<double>> newJobLoadAvgMap;
+
+        for (std::vector<vector<pair<string, string>>>::iterator i = newJobLoadAvgResults.begin(); i != newJobLoadAvgResults.end(); ++i) {
+            std::vector<pair<string, string>> rowData = *i;
+
+            std::string placeId = rowData.at(0).second;
+            std::string loadAvg = rowData.at(1).second;
+
+            newJobLoadAvgMap[placeId].push_back(std::atof(loadAvg.c_str()));
+        }
+
+        for (std::map<std::string,std::vector<double>>::iterator mapIterator = hostLoadAvgMap.begin();
+             mapIterator != hostLoadAvgMap.end(); ++mapIterator) {
+
+            std::string placeId = mapIterator->first;
+            std::vector<double> hostLoadVector = mapIterator->second;
+            hostLoadVector.push_back(0);
+
+            std::vector<double> newJobHostLoadVector = newJobLoadAvgMap[placeId];
+
+            if (newJobHostLoadVector.size() > 0) {
+                double newJobHostMaxLoad = *std::max_element(newJobHostLoadVector.begin(),newJobHostLoadVector.end());
+                double currentAggHostMaxLoad = *std::max_element(hostLoadVector.begin(),hostLoadVector.end());
+
+                scheduler_logger.log("###PERFORMANCE### New Job Max Load:" + std::to_string(newJobHostMaxLoad), "info");
+                scheduler_logger.log("###PERFORMANCE### Current Aggregated max load:" + std::to_string(currentAggHostMaxLoad), "info");
+
+                if (Conts::LOAD_AVG_THREASHOLD > currentAggHostMaxLoad + newJobHostMaxLoad) {
+                    jobAcceptableTime = 0;
+                } else {
+                    int maxValueIndex = std::max_element(hostLoadVector.begin(),hostLoadVector.end()) - hostLoadVector.begin();
+                    bool flag = true;
+
+                    for (int aggIndex = maxValueIndex; aggIndex != hostLoadVector.size(); ++aggIndex) {
+                        for (int currentJobIndex = 0; currentJobIndex != newJobHostLoadVector.size(); ++currentJobIndex) {
+                            if (aggIndex + currentJobIndex >= hostLoadVector.size()) {
+                                break;
+                            }
+
+                            if (hostLoadVector[aggIndex + currentJobIndex] + newJobHostLoadVector[currentJobIndex] > Conts::LOAD_AVG_THREASHOLD) {
+                                flag = false;
+                                break;
+                            }
+                        }
+
+                        if (flag && aggIndex * Conts::LOAD_AVG_COLLECTING_GAP * 1000 > jobAcceptableTime) {
+                            jobAcceptableTime = aggIndex * Conts::LOAD_AVG_COLLECTING_GAP * 1000;
+                        } else {
+                            flag = true;
+                        }
+
+                    }
+                }
+
+            }
+
+        }
+
+        scheduler_logger.log("###PERFORMANCE### New Job onboard after:" + std::to_string(jobAcceptableTime), "info");
+
+        JobRequest jobRequest = pendingHPJobList[loopCount];
+        std::string slaString = jobRequest.getParameter(Conts::PARAM_KEYS::GRAPH_SLA);
+        long graphSla = std::atol(slaString.c_str());
+
+        if (jobAcceptableTime > graphSla * 0.1) {
+            jobScheduleVector.push_back(-1);
+        } else {
+            PerformanceUtil::adjustAggregateLoadMap(hostLoadAvgMap,newJobLoadAvgMap,jobAcceptableTime);
+            jobScheduleVector.push_back(jobAcceptableTime);
+        }
+
+        loopCount++;
+    }
+
+
+    /*std::string newJobLoadQuery = "select graph_place_sla_performance.place_id,graph_place_sla_performance.load_average,"
                               "graph_place_sla_performance.elapsed_time from graph_place_sla_performance inner join graph_sla"
                               "  inner join sla_category where graph_place_sla_performance.graph_sla_id=graph_sla.id"
                               "  and graph_sla.id_sla_category=sla_category.id and graph_sla.graph_id='" + graphId +
@@ -815,73 +929,51 @@ long PerformanceUtil::getResourceAvailableTime(std::string graphId, std::string 
 
         }
 
-    }
-
-
-
-
-    /*std::vector<ResourceConsumption> placeResouceConsumptionList = performanceUtil.retrieveCurrentResourceUtilization(masterIP);
-
-    string sqlStatement = "SELECT worker_idworker, name,ip,user,server_port,server_data_port,partition_idpartition "
-                          "FROM worker_has_partition INNER JOIN worker ON worker_has_partition.worker_idworker=worker.idworker "
-                          "WHERE partition_graph_idgraph=" + graphId + ";";
-
-    std::vector<vector<pair<string, string>>> results = sqlLiteDB.runSelect(sqlStatement);
-
-    int partitionCount = results.size();
-
-    for (std::vector<vector<pair<string, string>>>::iterator i = results.begin(); i != results.end(); ++i) {
-        std::vector<pair<string, string>> rowData = *i;
-        string ip = rowData.at(2).second;
-
-        hostSet.insert(ip);
-    }
-
-    for (std::set<std::string>::iterator hostSetIterator = hostSet.begin(); hostSetIterator != hostSet.end(); ++hostSetIterator) {
-        std::string host = *hostSetIterator;
-        std::vector<ResourceConsumption>::iterator consumptionIterator;
-
-        for (consumptionIterator = placeResouceConsumptionList.begin(); consumptionIterator != placeResouceConsumptionList.end(); ++consumptionIterator) {
-            ResourceConsumption consumption = *consumptionIterator;
-
-            if (host == consumption.host) {
-                std::string hostMemoryAllocation;
-                int currentMemoryUsage = consumption.memoryUsage;
-
-                std::string hostMemoryAllocationQuery = "select total_memory from host where ip='" + host + "';";
-                std::string slaMemoryRequirementQuery = "select memory_usage from graph_place_sla_performance INNER JOIN "
-                                                        "graph_sla INNER JOIN sla_category INNER JOIN place "
-                                                        "ON graph_place_sla_performance.graph_sla_id=graph_sla.id AND "
-                                                        "graph_sla.partition_count='" + std::to_string(partitionCount) + "' "
-                                                        "AND graph_sla.id_sla_category=sla_category.id AND sla_category.command='" + command + "' "
-                                                                                                                                                                                                                "AND sla_category.category='" + category + "' "
-                                                                                                                                                                                                                                                           "AND graph_sla.graph_id='" + graphId + "'"
-                                                                                                                                                                                                                                                                                                  "AND graph_place_sla_performance.place_id=place.idplace AND place.is_host_reporter='true';";
-
-                std::vector<vector<pair<string, string>>> hostAllocationResults = perfDb.runSelect(hostMemoryAllocationQuery);
-                std::vector<vector<pair<string, string>>> slaRequirementResults = perfDb.runSelect(slaMemoryRequirementQuery);
-
-                if (hostAllocationResults.size() > 0 && slaRequirementResults.size() > 0) {
-                    hostMemoryAllocation = hostAllocationResults[0][0].second;
-                    std::string slaRequiredMemoryString = slaRequirementResults[0][0].second;
-
-                    int hostMemory = atoi(hostMemoryAllocation.c_str());
-                    int memoryRequirement = atoi(slaRequiredMemoryString.c_str());
-
-                    if ((currentMemoryUsage + memoryRequirement) >= hostMemory) {
-                        return false;
-                    }
-
-                } else {
-                    scheduler_logger.log("Insufficient entries to check the feasibility. Host Allocation Size : " +
-                                        std::to_string(hostAllocationResults.size()) + ". Sla Requirement: " + std::to_string(slaRequirementResults.size()), "error");
-                    return false;
-                }
-            }
-        }
     }*/
 
-    scheduler_logger.log("####PERFORMANCE#### New job Acceptable Time " + std::to_string(jobAcceptableTime), "info");
 
-    return jobAcceptableTime;
+    return jobScheduleVector;
+}
+
+void PerformanceUtil::adjustAggregateLoadMap(std::map<std::string, std::vector<double>> &aggregateLoadAvgMap,
+                                             std::map<std::string, std::vector<double>> &newJobLoadAvgMap,
+                                             long newJobAcceptanceTime) {
+    std::map<std::string, std::vector<double>>::iterator newJobIterator;
+
+    for (newJobIterator = newJobLoadAvgMap.begin();newJobIterator != newJobLoadAvgMap.end();
+                ++newJobIterator) {
+        std::string hostId = newJobIterator->first;
+        std::vector<double> newJobLoadVector = newJobIterator->second;
+        std::vector<double> newJobTmpLoadVector;
+
+        if (newJobAcceptanceTime > 0) {
+            for (long adjustCount = 0; adjustCount < newJobAcceptanceTime;
+                 adjustCount+=Conts::LOAD_AVG_COLLECTING_GAP * 1000) {
+                newJobTmpLoadVector.push_back(0);
+                newJobTmpLoadVector.insert(newJobTmpLoadVector.end(), newJobLoadVector.begin(),
+                                           newJobLoadVector.end());
+            }
+        } else {
+            newJobTmpLoadVector = newJobLoadVector;
+        }
+
+        std::vector<double> aggregateLoadVector = aggregateLoadAvgMap[hostId];
+
+        if (aggregateLoadVector.size() > 0) {
+            auto maxVectorSize = std::max(newJobTmpLoadVector.size(),aggregateLoadVector.size());
+            std::vector<double> aggregatedVector = std::vector<double>(maxVectorSize);
+
+            newJobTmpLoadVector.resize(maxVectorSize);
+            aggregateLoadVector.resize(maxVectorSize);
+
+            std::transform(aggregateLoadVector.begin(), aggregateLoadVector.end(),
+                           newJobTmpLoadVector.begin(),aggregatedVector.begin(),std::plus<double>());
+
+            aggregateLoadAvgMap[hostId] = aggregatedVector;
+
+        } else {
+            aggregateLoadAvgMap[hostId] = newJobTmpLoadVector;
+        }
+
+    }
 }

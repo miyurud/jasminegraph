@@ -27,11 +27,13 @@ extern std::atomic<int> workerHighPriorityTaskCount;
 extern bool workerResponded;
 extern std::vector<std::string> highPriorityGraphList;
 extern std::mutex processStatusMutex;
+extern std::mutex responseVectorMutex;
 
 struct ProcessInfo {
     int id;
     std::string graphId;
     std::string processName;
+    long sleepTime;
     long startTimestamp;
     int priority;
     std::vector<std::string> workerList;
@@ -116,12 +118,15 @@ public:
     };
 
     struct PARAM_KEYS {
+        static const std::string ERROR_MESSAGE;
         static const std::string MASTER_IP;
         static const std::string GRAPH_ID;
         static const std::string PRIORITY;
         static const std::string TRIANGLE_COUNT;
         static const std::string CAN_CALIBRATE;
         static const std::string CATEGORY;
+        static const std::string QUEUE_TIME;
+        static const std::string GRAPH_SLA;
     };
 
 

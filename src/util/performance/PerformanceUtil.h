@@ -30,6 +30,7 @@ limitations under the License.
 #include <sys/socket.h>
 #include <netdb.h>
 #include "../Utils.h"
+#include "../../frontend/core/domain/JobRequest.h"
 #include <chrono>
 
 
@@ -50,8 +51,8 @@ public:
     static int collectSLAResourceConsumption(std::string graphId, std::string command, std::string category,
             int partitionCount, std::string masterIP, int elapsedTime);
     static std::vector<ResourceConsumption> retrieveCurrentResourceUtilization(std::string masterIP);
-    static long getResourceAvailableTime(std::string graphId, std::string command, std::string category,
-                                         std::string masterIP);
+    static std::vector<long> getResourceAvailableTime(std::vector<std::string> graphIdList, std::string command, std::string category,
+                                         std::string masterIP, std::vector<JobRequest> &pendingHPJobList);
 
 
 private:
@@ -68,6 +69,8 @@ private:
     static ResourceConsumption retrieveRemoteResourceConsumption(std::string host, int port,
             std::string hostId, std::string placeId);
     static ResourceConsumption retrieveLocalResourceConsumption(std::string hostId, std::string placeId);
+    static void adjustAggregateLoadMap (std::map<std::string,std::vector<double>>& aggregateLoadAvgMap,
+            std::map<std::string,std::vector<double>>& newJobLoadAvgMap, long newJobAcceptanceTime);
 
 };
 

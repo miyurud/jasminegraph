@@ -794,59 +794,19 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
                 int threadPriority = std::atoi(priority.c_str());
 
-                //All high priority threads will be set the same high priority level
-                if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
-                    threadPriority = Conts::HIGH_PRIORITY_DEFAULT_VALUE;
-
-                    if (highPriorityTaskCount > 0) {
-                        bool rejectJob = false;
-                        PerformanceUtil performanceUtil;
-                        performanceUtil.init();
-
-                        long jobAcceptableTime = performanceUtil.getResourceAvailableTime(graph_id, TRIANGLES,
-                                                                                          Conts::SLA_CATEGORY::LATENCY,
-                                                                                          masterIP);
-
-                        int runningHPTaskCount = JasmineGraphFrontEnd::getRunningHighPriorityTaskCount();
-
-                        /*if (jobAcceptableTime < 10000 && runningHPTaskCount == highPriorityTaskCount) {
-                            bool queueTimeAcceptable = JasmineGraphFrontEnd::isQueueTimeAcceptable(sqlite,perfSqlite,
-                                                                                                   graph_id,TRIANGLES,Conts::SLA_CATEGORY::LATENCY);
-
-                            if (!queueTimeAcceptable) {
-                                rejectJob = true;
-                            }
-                        }*/
-
-                        if (jobAcceptableTime > 10000) {
-                            rejectJob = true;
-                        }
-
-                        if (rejectJob) {
-                            string error_message = "System has reached the maximum high priority tasks allowed "
-                                                   "at a given time. Please try again later.";
-                            result_wr = write(connFd, error_message.c_str(), error_message.length());
-
-                            if (result_wr < 0) {
-                                frontend_logger.log("Error writing to socket", "error");
-                            }
-
-                            result_wr = write(connFd, "\r\n", 2);
-
-                            if (result_wr < 0) {
-                                frontend_logger.log("Error writing to socket", "error");
-                            }
-                            break;
-                        }
-                    } else {
-                        highPriorityTaskCount++;
-                    }
-                }
-
                 auto begin = chrono::high_resolution_clock::now();
                 JobRequest jobDetails;
                 jobDetails.setJobId(std::to_string(uniqueId));
                 jobDetails.setJobType(TRIANGLES);
+
+                //All high priority threads will be set the same high priority level
+                if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
+                    threadPriority = Conts::HIGH_PRIORITY_DEFAULT_VALUE;
+                    long graphSLA = JasmineGraphFrontEnd::getSLAForGraphId(sqlite, perfSqlite, graph_id,
+                            TRIANGLES, Conts::SLA_CATEGORY::LATENCY);
+                    jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_SLA, std::to_string(graphSLA));
+                }
+
                 jobDetails.setPriority(threadPriority);
                 jobDetails.setMasterIP(masterIP);
                 jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_ID, graph_id);
@@ -859,6 +819,24 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
                 jobScheduler.pushJob(jobDetails);
                 JobResponse jobResponse = jobScheduler.getResult(jobDetails);
+                std::string errorMessage = jobResponse.getParameter(Conts::PARAM_KEYS::ERROR_MESSAGE);
+
+                if (!errorMessage.empty()) {
+                    string error_message = "Cannot process request now. Please try again later.";
+                    result_wr = write(connFd, error_message.c_str(), error_message.length());
+
+                    if (result_wr < 0) {
+                        frontend_logger.log("Error writing to socket", "error");
+                    }
+
+                    result_wr = write(connFd, "\r\n", 2);
+
+                    if (result_wr < 0) {
+                        frontend_logger.log("Error writing to socket", "error");
+                    }
+                    break;
+                }
+
                 std::string triangleCount = jobResponse.getParameter(Conts::PARAM_KEYS::TRIANGLE_COUNT);
 
                 if (threadPriority == Conts::HIGH_PRIORITY_DEFAULT_VALUE) {
@@ -1701,14 +1679,11 @@ int JasmineGraphFrontEnd::getUid() {
 }
 
 
-bool JasmineGraphFrontEnd::isQueueTimeAcceptable(SQLiteDBInterface sqlite, PerformanceSQLiteDBInterface perfSqlite, std::string graphId,
-                                                 std::string command, std::string category) {
+long JasmineGraphFrontEnd::getSLAForGraphId(SQLiteDBInterface sqlite, PerformanceSQLiteDBInterface perfSqlite,
+                                            std::string graphId,
+                                            std::string command, std::string category) {
 
-    bool queueTimeAcceptable = true;
-    std::chrono::milliseconds currentTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
-    long currentTimestamp = currentTime.count();
-    long maxTimeRemaining = 0;
-    int count = 0;
+    long graphSLAValue = 0;
 
     string sqlStatement = "SELECT worker_idworker, name,ip,user,server_port,server_data_port,partition_idpartition "
                           "FROM worker_has_partition INNER JOIN worker ON worker_has_partition.worker_idworker=worker.idworker "
@@ -1726,45 +1701,11 @@ bool JasmineGraphFrontEnd::isQueueTimeAcceptable(SQLiteDBInterface sqlite, Perfo
 
     if (slaResults.size() > 0) {
         string currentSlaString = slaResults[0][0].second;
-        long currentSla = atol(currentSlaString.c_str());
-
-        std::set<ProcessInfo>::iterator processQueryIterator;
-        for (processQueryIterator = processData.begin(); processQueryIterator != processData.end(); ++processQueryIterator) {
-            ProcessInfo processInformation = *processQueryIterator;
-
-            if (processInformation.priority == Conts::HIGH_PRIORITY_DEFAULT_VALUE) {
-                string highPriorityGraphId = processInformation.graphId;
-                long currentProcessStart = processInformation.startTimestamp;
-                long elapsedTime = currentTimestamp - currentProcessStart;
-
-                string highPrioritySlaQuery = "select graph_sla.sla_value from graph_sla,sla_category where "
-                                              "graph_sla.id_sla_category=sla_category.id and sla_category.command='" + command +
-                                              "' and sla_category.category='" + category + "' and graph_sla.graph_id='" +
-                                              highPriorityGraphId + "' and graph_sla.partition_count='" + std::to_string(partitionCount) + "';";
-
-                std::vector<vector<pair<string, string>>> currentSlaResults = perfSqlite.runSelect(graphSlaQuery);
-
-                string currentProcessSlaString = currentSlaResults[0][0].second;
-                long currentProcessSla = atol(currentProcessSlaString.c_str());
-
-                long remainingTime = currentProcessSla - elapsedTime;
-
-                if (count = 0) {
-                    maxTimeRemaining = remainingTime;
-                } else if (maxTimeRemaining < remainingTime) {
-                    maxTimeRemaining = remainingTime;
-                }
-                count++;
-            }
-        }
-
-        if (maxTimeRemaining > 0 && maxTimeRemaining > currentSla * 0.2) {
-            queueTimeAcceptable = false;
-        }
+        long graphSLAValue = atol(currentSlaString.c_str());
 
     }
 
-    return queueTimeAcceptable;
+    return graphSLAValue;
 
 }
 
