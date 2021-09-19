@@ -54,7 +54,7 @@ public:
     static std::vector<long> getResourceAvailableTime(std::vector<std::string> graphIdList, std::string command, std::string category,
                                          std::string masterIP, std::vector<JobRequest> &pendingHPJobList);
 
-
+    static void logLoadAverage();
 private:
     //static SQLiteDBInterface sqlLiteDB;
     //static PerformanceSQLiteDBInterface perfDb;

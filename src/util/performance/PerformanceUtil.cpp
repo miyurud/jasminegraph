@@ -855,6 +855,8 @@ std::vector<long> PerformanceUtil::getResourceAvailableTime(std::vector<std::str
             jobScheduleVector.push_back(jobAcceptableTime);
         }
 
+
+
         loopCount++;
     }
 
@@ -931,6 +933,20 @@ std::vector<long> PerformanceUtil::getResourceAvailableTime(std::vector<std::str
 
     }*/
 
+    std::map<std::string,std::vector<double>>::iterator logIterator;
+
+    for (logIterator = hostLoadAvgMap.begin(); logIterator!=hostLoadAvgMap.end();++logIterator) {
+        std::string hostId = logIterator->first;
+        std::vector<double> loadVector = logIterator->second;
+
+        std::vector<double>::iterator loadIterator;
+
+        for (loadIterator = loadVector.begin();loadIterator!=loadVector.end();++loadIterator) {
+            double load = *loadIterator;
+            std::cout << "###PERF### EXPECTED LOAD: " + std::to_string(load) << std::endl;
+        }
+    }
+
 
     return jobScheduleVector;
 }
@@ -976,4 +992,12 @@ void PerformanceUtil::adjustAggregateLoadMap(std::map<std::string, std::vector<d
         }
 
     }
+}
+
+void PerformanceUtil::logLoadAverage() {
+    StatisticCollector statisticCollector;
+
+    double currentLoadAverage = statisticCollector.getLoadAverage();
+
+    std::cout << "###PERF### CURRENT LOAD: " + std::to_string(currentLoadAverage) << std::endl;
 }

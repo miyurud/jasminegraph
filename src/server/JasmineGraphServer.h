@@ -55,6 +55,7 @@ private:
     static bool hasEnding(std::string const &fullString, std::string const &ending);
     std::vector<std::string> getWorkerVector(std::string workerList);
     void deleteNonOperationalGraphFragment(int graphID);
+    static void logLoadAverage(std::string name);
 public:
     ~JasmineGraphServer();
 
@@ -107,6 +108,7 @@ public:
     void assignPartitionToWorker (std::string fileName, int graphId, std::string workerHost, int workerPort, int workerDataPort);
 
     bool spawnNewWorker(string host, string port, string dataPort, string profile, string masterHost, string enableNmon);
+
 
     JasmineGraphFrontEnd *frontend;
     SQLiteDBInterface sqlite;

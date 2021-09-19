@@ -75,6 +75,8 @@ int JasmineGraphServer::run(std::string profile, std::string masterIp, int numbe
     addInstanceDetailsToPerformanceDB(masterHost,masterPortVector,"true");
     updateOperationalGraphList();
     start_workers();
+    std::thread *myThreads = new std::thread[1];
+    myThreads[0] = std::thread(logLoadAverage, "test");
     sleep(2);
     waitForAcknowledgement(numberofWorkers);
     resolveOperationalGraphs();
@@ -2958,6 +2960,29 @@ void JasmineGraphServer::duplicateCentralStore(std::string graphID) {
             server_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
         } else {
             server_logger.log("Error reading from socket", "error");
+        }
+    }
+}
+
+void JasmineGraphServer::logLoadAverage(std::string name) {
+    PerformanceUtil::logLoadAverage();
+
+    int elapsedTime = 0;
+    time_t start;
+    time_t end;
+    PerformanceUtil performanceUtil;
+    performanceUtil.init();
+
+    start = time(0);
+
+    while(true)
+    {
+
+        if(time(0)-start== Conts::LOAD_AVG_COLLECTING_GAP)
+        {
+            elapsedTime += Conts::LOAD_AVG_COLLECTING_GAP*1000;
+            PerformanceUtil::logLoadAverage();
+            start = start + Conts::LOAD_AVG_COLLECTING_GAP;
         }
     }
 }
