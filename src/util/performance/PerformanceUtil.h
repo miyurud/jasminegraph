@@ -42,30 +42,43 @@ struct ResourceConsumption {
     std::string host;
 };
 
+struct Place{
+    std::string ip;
+    std::string user;
+    std::string serverPort;
+    std::string isMaster;
+    std::string isHostReporter;
+    std::string hostId;
+    std::string placeId;
+};
+
 
 class PerformanceUtil {
 public:
     //PerformanceUtil(SQLiteDBInterface sqlLiteDB, PerformanceSQLiteDBInterface perfDb);
     int init();
     static int collectPerformanceStatistics();
-    static int collectSLAResourceConsumption(std::string graphId, std::string command, std::string category,
-            int partitionCount, std::string masterIP, int elapsedTime);
+    static int collectSLAResourceConsumption(std::vector<Place> placeList, std::string graphId,
+                                             std::string masterIP, int elapsedTime);
     static std::vector<ResourceConsumption> retrieveCurrentResourceUtilization(std::string masterIP);
     static std::vector<long> getResourceAvailableTime(std::vector<std::string> graphIdList, std::string command, std::string category,
                                          std::string masterIP, std::vector<JobRequest> &pendingHPJobList);
 
     static void logLoadAverage();
+    static std::vector<Place> getHostReporterList();
+    static void updateResourceConsumption(PerformanceSQLiteDBInterface performanceDb, std::string graphId, int partitionCount, std::vector<Place> placeList,
+                                          std::string slaCategoryId);
+    static std::string getSLACategoryId(std::string command, std::string category);
+
 private:
     //static SQLiteDBInterface sqlLiteDB;
     //static PerformanceSQLiteDBInterface perfDb;
     static int collectRemotePerformanceData(std::string host, int port, std::string isVMStatManager, std::string isResourceAllocationRequired, std::string hostId, std::string placeId);
     static int collectLocalPerformanceData(std::string isVMStatManager, std::string isResourceAllocationRequired , std::string hostId, std::string placeId);
     static int collectRemoteSLAResourceUtilization(std::string host, int port, std::string isVMStatManager,
-            std::string isResourceAllocationRequired, std::string hostId, std::string placeId, std::string graphId,
-            std::string slaCategoryId, int partitionCount, int elapsedTime);
-    static int collectLocalSLAResourceUtilization(std::string isVMStatManager, std::string isResourceAllocationRequired ,
-            std::string hostId, std::string placeId, std::string graphId, std::string slaCategoryId,
-            int partitionCount, int elapsedTime);
+                                                   std::string isResourceAllocationRequired, std::string placeId,
+                                                   int elapsedTime);
+    static int collectLocalSLAResourceUtilization(std::string placeId, int elapsedTime);
     static ResourceConsumption retrieveRemoteResourceConsumption(std::string host, int port,
             std::string hostId, std::string placeId);
     static ResourceConsumption retrieveLocalResourceConsumption(std::string hostId, std::string placeId);

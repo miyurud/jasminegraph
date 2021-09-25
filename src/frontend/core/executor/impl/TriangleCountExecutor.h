@@ -69,7 +69,7 @@ public:
     static std::map<std::string, std::string> combinationWorkerMap;
     static std::map<long, std::map<long, std::vector<long>>> triangleTree;
 
-    static int collectPerformaceData(std::string graphId, std::string command, std::string category,
+    static int collectPerformaceData(PerformanceSQLiteDBInterface perDB, std::string graphId, std::string command, std::string category,
                                      int partitionCount, std::string masterIP);
 
 private:

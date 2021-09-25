@@ -20,6 +20,7 @@ limitations under the License.
 #include <vector>
 #include <atomic>
 #include <mutex>
+#include <map>
 
 extern int highestPriority;
 extern std::atomic<int> highPriorityTaskCount;
@@ -39,7 +40,14 @@ struct ProcessInfo {
     std::vector<std::string> workerList;
 };
 
+struct ResourceUsageInfo{
+    std::string elapsedTime;
+    std::string loadAverage;
+    std::string memoryUsage;
+};
+
 extern std::set<ProcessInfo> processData;
+extern std::map<std::string,std::vector<ResourceUsageInfo>> resourceUsageMap;
 
 class Conts {
 public:

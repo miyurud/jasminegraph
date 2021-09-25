@@ -202,7 +202,7 @@ void TriangleCountExecutor::execute() {
         triangleCount_logger.log("###TRIANGLE-COUNT-EXECUTOR### Inserting initial record for SLA ", "info");
         Utils::updateSLAInformation(perfDB, graphId, partitionCount, 0, TRIANGLES, Conts::SLA_CATEGORY::LATENCY);
         statResponse.push_back(
-                std::async(std::launch::async, TriangleCountExecutor::collectPerformaceData, graphId.c_str(), TRIANGLES,
+                std::async(std::launch::async, TriangleCountExecutor::collectPerformaceData, perfDB, graphId.c_str(), TRIANGLES,
                            Conts::SLA_CATEGORY::LATENCY, partitionCount, masterIP));
     }
 
@@ -1579,7 +1579,7 @@ int TriangleCountExecutor::getUid() {
     return ++uid;
 }
 
-int TriangleCountExecutor::collectPerformaceData(std::string graphId, std::string command, std::string category,
+int TriangleCountExecutor::collectPerformaceData(PerformanceSQLiteDBInterface perDB, std::string graphId, std::string command, std::string category,
                                                  int partitionCount, std::string masterIP) {
 
     int elapsedTime = 0;
@@ -1587,6 +1587,10 @@ int TriangleCountExecutor::collectPerformaceData(std::string graphId, std::strin
     time_t end;
     PerformanceUtil performanceUtil;
     performanceUtil.init();
+    Utils utils;
+
+    std::vector<Place> placeList = performanceUtil.getHostReporterList();
+    std::string slaCategoryId = performanceUtil.getSLACategoryId(command,category);
 
     start = time(0);
 
@@ -1596,10 +1600,12 @@ int TriangleCountExecutor::collectPerformaceData(std::string graphId, std::strin
         if(time(0)-start== Conts::LOAD_AVG_COLLECTING_GAP)
         {
             elapsedTime += Conts::LOAD_AVG_COLLECTING_GAP*1000;
-            performanceUtil.collectSLAResourceConsumption(graphId,command,category,partitionCount,masterIP,elapsedTime);
+            performanceUtil.collectSLAResourceConsumption(placeList, graphId, masterIP,elapsedTime);
             start = start + Conts::LOAD_AVG_COLLECTING_GAP;
         }
     }
+
+    performanceUtil.updateResourceConsumption(perDB, graphId, partitionCount, placeList, slaCategoryId);
 
     return 0;
 }
