@@ -152,7 +152,7 @@ int PerformanceUtil::collectSLAResourceConsumption(std::vector<Place> placeList,
             host = user + "@" + ip;
         }
 
-        if (isHostReporter.find("true") != std::string::npos) {
+        /*if (isHostReporter.find("true") != std::string::npos) {
             std::string hostSearch = "select total_cpu_cores,total_memory from host where idhost='"+hostId+"'";
             std::vector<vector<pair<string, string>>> hostAllocationList = perfDb.runSelect(hostSearch);
 
@@ -164,7 +164,7 @@ int PerformanceUtil::collectSLAResourceConsumption(std::vector<Place> placeList,
             if (totalCPUCores.empty() || totalMemory.empty()) {
                 requestResourceAllocation = "true";
             }
-        }
+        }*/
 
         if (isMaster.find("true") != std::string::npos || host == "localhost" || host.compare(masterIP) == 0) {
             collectLocalSLAResourceUtilization(placeId, elapsedTime);
@@ -525,8 +525,8 @@ int PerformanceUtil::collectLocalSLAResourceUtilization(std::string placeId, int
     statisticCollector.init();
     string graphSlaId;
 
-    int memoryUsage = statisticCollector.getMemoryUsageByProcess();
-    double cpuUsage = statisticCollector.getCpuUsage();
+    //int memoryUsage = statisticCollector.getMemoryUsageByProcess();
+    //double cpuUsage = statisticCollector.getCpuUsage();
     double loadAgerage = statisticCollector.getLoadAverage();
 
     auto executedTime = std::chrono::system_clock::now();
@@ -537,7 +537,7 @@ int PerformanceUtil::collectLocalSLAResourceUtilization(std::string placeId, int
     ResourceUsageInfo resourceUsageInfo;
     resourceUsageInfo.elapsedTime = std::to_string(elapsedTime);
     resourceUsageInfo.loadAverage = std::to_string(loadAgerage);
-    resourceUsageInfo.memoryUsage = std::to_string(memoryUsage);
+    //resourceUsageInfo.memoryUsage = std::to_string(memoryUsage);
 
     if (!resourceUsageMap[placeId].empty()) {
         resourceUsageMap[placeId].push_back(resourceUsageInfo);
@@ -1093,7 +1093,7 @@ void PerformanceUtil::updateResourceConsumption(PerformanceSQLiteDBInterface per
             for (usageIterator = resourceUsageVector.begin(); usageIterator != resourceUsageVector.end(); ++usageIterator) {
                 ResourceUsageInfo usageInfo = *usageIterator;
 
-                valuesString += "('" + graphSlaId + "','" + placeId + "', '" + usageInfo.memoryUsage + "','" +
+                valuesString += "('" + graphSlaId + "','" + placeId + "', '','" +
                                 usageInfo.loadAverage + "','" + usageInfo.elapsedTime + "'),";
             }
 
