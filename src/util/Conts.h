@@ -29,6 +29,7 @@ extern bool workerResponded;
 extern std::vector<std::string> highPriorityGraphList;
 extern std::mutex processStatusMutex;
 extern std::mutex responseVectorMutex;
+extern bool isStatCollect;
 
 struct ProcessInfo {
     int id;

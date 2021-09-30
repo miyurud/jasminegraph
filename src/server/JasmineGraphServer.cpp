@@ -2977,7 +2977,10 @@ void JasmineGraphServer::logLoadAverage(std::string name) {
 
     while(true)
     {
-        std::this_thread::sleep_for(std::chrono::seconds(700));
+        if (isStatCollect) {
+            std::this_thread::sleep_for(std::chrono::seconds(60));
+            continue;
+        }
 
         if(time(0)-start== Conts::LOAD_AVG_COLLECTING_GAP)
         {

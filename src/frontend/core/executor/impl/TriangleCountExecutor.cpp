@@ -19,6 +19,7 @@ Logger triangleCount_logger;
 std::vector<std::vector<string>> TriangleCountExecutor::fileCombinations;
 std::map<std::string, std::string> TriangleCountExecutor::combinationWorkerMap;
 std::map<long, std::map<long, std::vector<long>>> TriangleCountExecutor::triangleTree;
+bool isStatCollect = false;
 
 std::mutex fileCombinationMutex;
 std::mutex triangleTreeMutex;
@@ -204,6 +205,7 @@ void TriangleCountExecutor::execute() {
         statResponse.push_back(
                 std::async(std::launch::async, TriangleCountExecutor::collectPerformaceData, perfDB, graphId.c_str(), TRIANGLES,
                            Conts::SLA_CATEGORY::LATENCY, partitionCount, masterIP));
+        isStatCollect = true;
     }
 
     for (auto &&futureCall:intermRes) {
@@ -235,6 +237,7 @@ void TriangleCountExecutor::execute() {
 
     if (canCalibrate) {
         Utils::updateSLAInformation(perfDB, graphId, partitionCount, msDuration, TRIANGLES, Conts::SLA_CATEGORY::LATENCY);
+        isStatCollect = false;
     }
 
     processStatusMutex.lock();
