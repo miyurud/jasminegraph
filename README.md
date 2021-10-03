@@ -54,6 +54,11 @@ The following build tools, applications, and libraries need to be installed befo
     - Extract the `include.zip` to  `nlohmann_json` directory
     - Issue "cmake ."
     - Issue "make" followed by "sudo make install"
+- xerces ([Download](https://xerces.apache.org/xerces-c/download.cgi))
+    - Install the `xerces-c`
+      - Download the archive from the xerces.apache.org website
+      - Unzip the archive xerces-c-3.2.3.zip
+      - Run `cmake .` & `sudo make install`
 - python3.5 (https://www.python.org/downloads/release/python-350/)
     - Read this [blog](https://passingcuriosity.com/2015/installing-python-from-source/) for more details on setting up python3.5
 - Recent versions of TensorFlow, numpy, scipy, sklearn, and networkx are required (but networkx must be <=1.11). You can install all the required packages using the following command:
