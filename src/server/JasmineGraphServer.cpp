@@ -2795,8 +2795,9 @@ int JasmineGraphServer::distributeSharedClustersToWorkers(string destHost, int d
                 string dataPort = p.at(2);
                 string clusterID = p.at(3);
 
-                if (hostname != destHost)
+                if (hostname != destHost){
                     hostPartitionListStr += hostname + "," + port + "," + dataPort + "," + clusterID + "|";
+                }
             }
             hostPartitionListStr = hostPartitionListStr.substr(hostPartitionListStr.size() - 2);
 

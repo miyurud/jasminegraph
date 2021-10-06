@@ -40,6 +40,8 @@ std::atomic<int> workerHighPriorityTaskCount;
 std::mutex threadPriorityMutex;
 
 
+void compareBloomFilters(string graphID, string orgID, string orgClusterID, string localClusterID);
+
 char *converter(const std::string &s) {
     char *pc = new char[s.size() + 1];
     std::strcpy(pc, s.c_str());
@@ -2014,7 +2016,7 @@ void *instanceservicesession(void *dummyPt) {
                 int dataPort = stoi(workerPartition.at(2));
                 string cluster = workerPartition.at(3);
 
-                string filename = "attrcluster_" + graphID + cluster + ".txt";
+                string filename = "attrcluster_" + graphID + "_" + cluster + ".txt";
                 string filepath =
                         utils.getJasmineGraphProperty("org.jasminegraph.server.instance.entityresolutionfolder") + filename;
 
@@ -2400,9 +2402,9 @@ void *instanceservicesession(void *dummyPt) {
                 int dataPort = stoi(workerPartition.at(2));
                 string cluster = workerPartition.at(3);
 
-                string filename = "attrcluster_" + orgID + "_" + graphID + cluster + ".txt";
+                string filename = "attrcluster_" + orgID + "_" + graphID  + "_" + cluster + ".txt";
                 string filepath =
-                        utils.getJasmineGraphProperty("org.jasminegraph.server.instance.entityresolutionfolder") + filename;
+                        utils.getJasmineGraphProperty("org.jasminegraph.server.instance.entityresolutionfolder") + "/" + filename;
 
                 workerThreads[count++] = std::thread(distributeSharedClustersToWorkers, hostname, port, dataPort,
                                                      filename, filepath);
@@ -2411,8 +2413,41 @@ void *instanceservicesession(void *dummyPt) {
 
 
         }
-        else if (line.compare(JasmineGraphInstanceProtocol::COLLECT_SHARED_CLUSTERS) == 0) {
+        else if (line.compare(JasmineGraphInstanceProtocol::COMPUTE_CANDIDATE_SETS) == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::COMPUTE_CANDIDATE_SETS, "info");
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+            bzero(data, INSTANCE_DATA_LENGTH);
 
+            //Read requested graph from socket
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string graphID = (data);
+            graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
+            instance_logger.log("Received Graph ID: " + graphID, "info");
+
+            //Read org ID from socket
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string orgID = (data);
+            graphID = utils.trim_copy(orgID, " \f\n\r\t\v");
+            instance_logger.log("Received org ID: " + orgID, "info");
+
+            //Read org cluster ID from socket
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string orgClusterID = (data);
+            graphID = utils.trim_copy(orgID, " \f\n\r\t\v");
+            instance_logger.log("Received org ID: " + orgClusterID, "info");
+
+            //Read local cluster ID from socket
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string localClusterID = (data);
+            graphID = utils.trim_copy(orgID, " \f\n\r\t\v");
+            instance_logger.log("Received org ID: " + localClusterID, "info");
+
+            compareBloomFilters(graphID, orgID, orgClusterID, localClusterID);
         }
         else if (line.compare(JasmineGraphInstanceProtocol::GRAPH_STREAM_START) == 0) {
             write(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK.c_str(),
@@ -2459,6 +2494,22 @@ void *instanceservicesession(void *dummyPt) {
     }
     instance_logger.log("Closing thread " + to_string(pthread_self()), "info");
     close(connFd);
+}
+
+void compareBloomFilters(string graphID, string orgID, string orgClusterID, string localClusterID) {
+    Utils utils;
+    string localClusterFilename = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.entityresolutionfolder") + "attrfilters_" +
+                                  graphID + "_" + localClusterID + ".txt";
+    string orgClusterFilename = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.entityresolutionfolder") + "attrfilters_" +
+                                  graphID + "_" + orgID + "_" + orgClusterID + ".txt";
+
+    Mat<short> localData;
+    localData.load(localClusterFilename);
+    Mat<short> recievedData;
+    recievedData.load(orgClusterFilename);
+
+    EntityResolver er;
+    er.compareFilters(localData, recievedData);
 }
 
 JasmineGraphInstanceService::JasmineGraphInstanceService() {
