@@ -3527,7 +3527,7 @@ int JasmineGraphServer::collectBucketsToCoordinator(string host, int port, vecto
     Utils utils;
     Logger instance_logger;
     bool result = true;
-    std::cout << pthread_self() << " host : " << host << " port : " << port << " DPort : " << std::endl;
+    instance_logger.info(" host : " + host + " port : " + port + " DPort : ");
     int sockfd;
     char data[INSTANCE_DATA_LENGTH];
     bool loop = false;
