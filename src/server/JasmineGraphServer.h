@@ -176,6 +176,9 @@ public:
                                     string graphID, int noClusters, string masterIP);
 
     int shareClustersWithOrg(string basicString, int port, std::string orgHost, int orgPort, string graphID, int count);
+
+    int distributeSharedClustersToWorkers(string destHost, int destPort, int dataPort, string graphID, string orgID,
+                                          vector<vector<string>> workerClusterMap, string masterIP);
 };
 
 

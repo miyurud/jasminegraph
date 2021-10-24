@@ -80,6 +80,8 @@ public:
     static const string SHARE_BUCKETS_TO_COORDINATOR;
     static const string SEND_CLUSTERING_INSTRUCTIONS;
     static const string SHARE_CLUSTER_FILES;
+    static const string DISTRUBUTE_SHARED_CLUSTERS;
+    static const string COLLECT_SHARED_CLUSTERS;
     static const string SHARE_BUCKETED_CLUSTERS;
     static const string COMPUTE_CANDIDATE_SETS;
     static const string SEND_HOSTS;
