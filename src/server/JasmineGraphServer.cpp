@@ -126,7 +126,17 @@ void JasmineGraphServer::start_workers() {
     int counter = 0;
 
     for (it = hostsList.begin(); it < hostsList.end(); it++) {
-        hostString += "(" + std::to_string(counter) + ", '" + (*it) + "', '" + (*it) + "', 'false'),";
+        std::string hostItem = (*it);
+        std::string ip_address = "";
+        std::string user = "";
+        if (hostItem.find('@') != std::string::npos) {
+            vector<string> splitted = utils.split(hostItem, '@');
+            ip_address = splitted[1];
+            user = splitted[0];
+        } else {
+            ip_address = hostItem;
+        }
+        hostString += "(" + std::to_string(counter) + ", '" + ip_address + "', '" + ip_address + "', 'false'),";
         counter++;
     }
 
@@ -169,8 +179,15 @@ void JasmineGraphServer::start_workers() {
         string sqlStatement = "INSERT INTO worker (idworker,host_idhost,name,ip,user,is_public,server_port,server_data_port) VALUES ";
         string valuesString;
         std::string hostName = *it;
+        string user = "";
+        string ip = hostName;
+        if (hostName.find('@') != std::string::npos) {
+            vector<string> splitted = utils.split(hostName, '@');
+            ip = splitted[1];
+            user = splitted[0];
+        }
         int portCount = 0;
-        std::string hostID = Utils::getHostID(hostName, this->sqlite);
+        std::string hostID = Utils::getHostID(ip, this->sqlite);
         std::vector<int> portVector = workerPortsMap[hostName];
         std::vector<int> dataPortVector = workerDataPortsMap[hostName];
 
@@ -182,8 +199,6 @@ void JasmineGraphServer::start_workers() {
             portCount++;
             //ToDO: Here for the moment we use host name as the IP address as the third parameter.
             //ToDO: We also keep user as empty string
-            string user = "";
-            string ip = hostName;
             string is_public = "false";
             valuesString += "(" + std::to_string(workerIDCounter) + ", " + hostID + ", \"" + hostName +
                             "\", \"" + ip + "\",\"" + user + "\", '" + is_public
@@ -199,8 +214,6 @@ void JasmineGraphServer::start_workers() {
             hostWorkerMap.push_back({*it, workerPort, workerDataPort});
             hostPortMap.insert(((pair<string, pair<int, int>>(*it, make_pair(workerPort, workerDataPort)))));
             hostListModeNWorkers--;
-            string user = "";
-            string ip = hostName;
             string is_public = "false";
             valuesString += "(" + std::to_string(workerIDCounter) + ", " + hostID + ", \"" + hostName +
                             "\", \"" + ip + "\",\"" + user + "\", '" + is_public
@@ -2061,7 +2074,7 @@ void JasmineGraphServer::addHostsToMetaDB(std::string host, std::vector<int> por
         int workerPort = portVector.at(i);
         int workerDataPort = dataPortVector.at(i);
 
-        if (!utils.hostExists(name, host, std::to_string(workerPort), this->sqlite)) {
+        if (!utils.hostExists(name, ip_address, std::to_string(workerPort), this->sqlite)) {
             string hostID = Utils::getHostID(name, this->sqlite);
             sqlStatement = ("INSERT INTO worker (host_idhost,name,ip,user,is_public,server_port,server_data_port) VALUES (\"" +
                             hostID + "\", \"" + name + "\", \"" + ip_address + "\",\""+user+"\", \"\",\""+ std::to_string(workerPort) +
