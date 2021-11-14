@@ -162,11 +162,11 @@ void JasmineGraphServer::start_workers() {
 
     sqlite.runUpdate("DELETE FROM worker");
 
-    string sqlStatement = "INSERT INTO worker (idworker,host_idhost,name,ip,user,is_public,server_port,server_data_port) VALUES ";
     int workerIDCounter = 0;
     it = hostsList.begin();
 
     for (it = hostsList.begin(); it < hostsList.end(); it++) {
+        string sqlStatement = "INSERT INTO worker (idworker,host_idhost,name,ip,user,is_public,server_port,server_data_port) VALUES ";
         string valuesString;
         std::string hostName = *it;
         int portCount = 0;
