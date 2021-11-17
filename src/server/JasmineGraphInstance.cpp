@@ -50,7 +50,7 @@ int JasmineGraphInstance::start_running(string profile, string hostName, string 
     pthread_create(&instanceCommunicatorThread, NULL, runInstanceService, this);
     pthread_create(&instanceFileTransferThread, NULL, runFileTransferService, this);
 
-    acknowledgeMaster(masterHost,hostName,std::to_string(serverPort));
+    //acknowledgeMaster(masterHost,hostName,std::to_string(serverPort));
 
     pthread_join(instanceCommunicatorThread,NULL);
     pthread_join(instanceFileTransferThread,NULL);
