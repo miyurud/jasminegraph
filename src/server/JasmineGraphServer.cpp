@@ -784,10 +784,15 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
 
 void JasmineGraphServer::assignPartitionToWorker(std::string fileName, int graphId, std::string workerHost, int workerPort, int workerDataPort) {
     SQLiteDBInterface refToSqlite = *new SQLiteDBInterface();
+    Utils utils;
     refToSqlite.init();
     size_t lastindex = fileName.find_last_of(".");
     string rawname = fileName.substr(0, lastindex);
     string partitionID = rawname.substr(rawname.find_last_of("_") + 1);
+
+    if (workerHost.find('@') != std::string::npos) {
+        workerHost = utils.split(workerHost, '@')[1];
+    }
 
     std::string workerSearchQuery = "select idworker from worker where ip='" + workerHost + "' and server_port='" + std::to_string(workerPort)+ "' and server_data_port='" + std::to_string(workerDataPort) + "'";
 
