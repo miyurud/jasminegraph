@@ -703,6 +703,10 @@ string TriangleCountExecutor::isFileAccessibleToWorker(std::string graphId, std:
         return 0;
     }
 
+    if (aggregatorHostName.find('@') != std::string::npos) {
+        aggregatorHostName = utils.split(aggregatorHostName, '@')[0];
+    }
+
     server = gethostbyname(aggregatorHostName.c_str());
     if (server == NULL) {
         std::cerr << "ERROR, no host named " << server << std::endl;
