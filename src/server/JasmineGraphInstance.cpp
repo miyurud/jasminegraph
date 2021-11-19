@@ -74,7 +74,7 @@ bool JasmineGraphInstance::acknowledgeMaster(string masterHost, string workerIP,
     }
 
     if (masterHost.find('@') != std::string::npos) {
-        masterHost = utils.split(masterHost, '@')[0];
+        masterHost = utils.split(masterHost, '@')[1];
     }
 
     graphInstance_logger.log("###INSTANCE### Get Host By Name : " + masterHost, "info");

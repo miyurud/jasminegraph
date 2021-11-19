@@ -311,7 +311,7 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
     }
 
     if (host.find('@') != std::string::npos) {
-        host = utils.split(host, '@')[0];
+        host = utils.split(host, '@')[1];
     }
 
     triangleCount_logger.log("###TRIANGLE-COUNT-EXECUTOR### Get Host By Name : " + host, "info");
@@ -704,7 +704,7 @@ string TriangleCountExecutor::isFileAccessibleToWorker(std::string graphId, std:
     }
 
     if (aggregatorHostName.find('@') != std::string::npos) {
-        aggregatorHostName = utils.split(aggregatorHostName, '@')[0];
+        aggregatorHostName = utils.split(aggregatorHostName, '@')[1];
     }
 
     server = gethostbyname(aggregatorHostName.c_str());
@@ -853,7 +853,7 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
     }
 
     if (aggregatorHostName.find('@') != std::string::npos) {
-        aggregatorHostName = utils.split(aggregatorHostName, '@')[0];
+        aggregatorHostName = utils.split(aggregatorHostName, '@')[1];
     }
 
     server = gethostbyname(aggregatorHostName.c_str());
@@ -1244,7 +1244,7 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
     }
 
     if (aggregatorHostName.find('@') != std::string::npos) {
-        aggregatorHostName = utils.split(aggregatorHostName, '@')[0];
+        aggregatorHostName = utils.split(aggregatorHostName, '@')[1];
     }
 
     server = gethostbyname(aggregatorHostName.c_str());
