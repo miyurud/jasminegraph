@@ -402,6 +402,10 @@ int PerformanceUtil::collectRemoteSLAResourceUtilization(std::string host, int p
         return 0;
     }
 
+    if (host.find('@') != std::string::npos) {
+        host = utils.split(host, '@')[1];
+    }
+
     server = gethostbyname(host.c_str());
     if (server == NULL) {
         std::cerr << "ERROR, no host named " << server << std::endl;
