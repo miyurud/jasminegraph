@@ -1011,7 +1011,7 @@ std::vector<long> PerformanceUtil::getResourceAvailableTime(std::vector<std::str
 
         for (loadIterator = loadVector.begin();loadIterator!=loadVector.end();++loadIterator) {
             double load = *loadIterator;
-            std::cout << "###PERF### EXPECTED LOAD: " + std::to_string(load) << std::endl;
+            std::cout << "###PERF### Host ID: " + hostId + "EXPECTED LOAD: " + std::to_string(load) << std::endl;
         }
     }
 

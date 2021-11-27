@@ -20,6 +20,7 @@ limitations under the License.
 #include "JasmineGraphInstanceFileTransferService.h"
 #include "JasmineGraphInstanceService.h"
 #include "../localstore/JasmineGraphHashMapLocalStore.h"
+#include "../util/performance/PerformanceUtil.h"
 
 using std::map;
 
@@ -53,6 +54,8 @@ public:
     JasmineGraphInstanceService *instanceService;
     JasmineGraphInstanceFileTransferService *ftpService;
     static bool sendFileThroughService(std::string host, int dataPort, std::string fileName, std::string filePath);
+
+    static void logLoadAverage(std::string name);
 };
 
 #endif //JASMINEGRAPH_JASMINEGRAPHINSTANCE_H

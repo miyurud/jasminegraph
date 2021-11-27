@@ -50,6 +50,9 @@ int JasmineGraphInstance::start_running(string profile, string hostName, string 
     pthread_create(&instanceCommunicatorThread, NULL, runInstanceService, this);
     pthread_create(&instanceFileTransferThread, NULL, runFileTransferService, this);
 
+    std::thread *myThreads = new std::thread[1];
+    myThreads[0] = std::thread(logLoadAverage, "worker");
+
     //acknowledgeMaster(masterHost,hostName,std::to_string(serverPort));
 
     pthread_join(instanceCommunicatorThread,NULL);
@@ -269,5 +272,32 @@ bool JasmineGraphInstance::sendFileThroughService(std::string host, int dataPort
 
         fclose(fp);
         close(sockfd);
+    }
+}
+
+void JasmineGraphInstance::logLoadAverage(std::string name) {
+    PerformanceUtil::logLoadAverage();
+
+    int elapsedTime = 0;
+    time_t start;
+    time_t end;
+    PerformanceUtil performanceUtil;
+    performanceUtil.init();
+
+    start = time(0);
+
+    while(true)
+    {
+        if (isStatCollect) {
+            std::this_thread::sleep_for(std::chrono::seconds(60));
+            continue;
+        }
+
+        if(time(0)-start== Conts::LOAD_AVG_COLLECTING_GAP)
+        {
+            elapsedTime += Conts::LOAD_AVG_COLLECTING_GAP*1000;
+            PerformanceUtil::logLoadAverage();
+            start = start + Conts::LOAD_AVG_COLLECTING_GAP;
+        }
     }
 }
