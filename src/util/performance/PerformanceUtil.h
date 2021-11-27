@@ -77,7 +77,7 @@ private:
     static int collectLocalPerformanceData(std::string isVMStatManager, std::string isResourceAllocationRequired , std::string hostId, std::string placeId);
     static int collectRemoteSLAResourceUtilization(std::string host, int port, std::string isVMStatManager,
                                                    std::string isResourceAllocationRequired, std::string placeId,
-                                                   int elapsedTime);
+                                                   int elapsedTime, std::string masterIP);
     static int collectLocalSLAResourceUtilization(std::string placeId, int elapsedTime);
     static ResourceConsumption retrieveRemoteResourceConsumption(std::string host, int port,
             std::string hostId, std::string placeId);
