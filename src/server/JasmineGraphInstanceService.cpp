@@ -2449,6 +2449,84 @@ void *instanceservicesession(void *dummyPt) {
 
             compareBloomFilters(graphID, orgID, orgClusterID, localClusterID);
         }
+        else if (line.compare(JasmineGraphInstanceProtocol::COLLECT_RESULTS_TO_MASTER) == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::COLLECT_RESULTS_TO_MASTER, "info");
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+            bzero(data, INSTANCE_DATA_LENGTH);
+
+            //Read designated worker host from socket
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string designatedWorkerHost = (data);
+            designatedWorkerHost = utils.trim_copy(designatedWorkerHost, " \f\n\r\t\v");
+            instance_logger.log("Received Graph ID: " + designatedWorkerHost, "info");
+
+            //Read designated worker port from socket
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string designatedWorkerPort = (data);
+            designatedWorkerPort = utils.trim_copy(designatedWorkerPort, " \f\n\r\t\v");
+            instance_logger.log("Received Graph ID: " + designatedWorkerPort, "info");
+
+            //Read designated worker data port from socket
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string designatedWorkerDataPort = (data);
+            designatedWorkerDataPort = utils.trim_copy(designatedWorkerDataPort, " \f\n\r\t\v");
+            instance_logger.log("Received Graph ID: " + designatedWorkerDataPort, "info");
+
+            //Read requested graph from socket
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string graphID = (data);
+            graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
+            instance_logger.log("Received Graph ID: " + graphID, "info");
+
+            string filename = "/worker_result_" + graphID + ".txt";
+            string filepath =
+                    utils.getJasmineGraphProperty("org.jasminegraph.server.instance.entityresolutionfolder") + filename;
+            JasmineGraphInstance::sendFileThroughService(designatedWorkerHost, stoi(designatedWorkerDataPort), filename, filepath);
+        }
+        else if (line.compare(JasmineGraphInstanceProtocol::COLLECT_RESULTS_TO_COORDINATOR) == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::COLLECT_RESULTS_TO_COORDINATOR, "info");
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+            bzero(data, INSTANCE_DATA_LENGTH);
+
+            //Read coordinator worker host from socket
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string coordinatorWorkerHost = (data);
+            coordinatorWorkerHost = utils.trim_copy(coordinatorWorkerHost, " \f\n\r\t\v");
+            instance_logger.log("Received Graph ID: " + coordinatorWorkerHost, "info");
+
+            //Read coordinator worker port from socket
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string coordinatorWorkerPort = (data);
+            coordinatorWorkerPort = utils.trim_copy(coordinatorWorkerPort, " \f\n\r\t\v");
+            instance_logger.log("Received Graph ID: " + coordinatorWorkerPort, "info");
+
+            //Read coordinator worker data port from socket
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string coordinatorWorkerDataPort = (data);
+            coordinatorWorkerDataPort = utils.trim_copy(coordinatorWorkerDataPort, " \f\n\r\t\v");
+            instance_logger.log("Received Graph ID: " + coordinatorWorkerDataPort, "info");
+
+            //Read requested graph from socket
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string graphID = (data);
+            graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
+            instance_logger.log("Received Graph ID: " + graphID, "info");
+
+            string filename = "/org_result_" + graphID + ".txt";
+            string filepath =
+                    utils.getJasmineGraphProperty("org.jasminegraph.server.instance.entityresolutionfolder") + filename;
+            JasmineGraphInstance::sendFileThroughService(coordinatorWorkerHost, stoi(coordinatorWorkerDataPort), filename, filepath);
+        }
         else if (line.compare(JasmineGraphInstanceProtocol::GRAPH_STREAM_START) == 0) {
             write(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK.c_str(),
                   JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK.size());

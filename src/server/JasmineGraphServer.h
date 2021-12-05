@@ -179,6 +179,14 @@ public:
 
     int distributeSharedClustersToWorkers(string destHost, int destPort, int dataPort, string graphID, string orgID,
                                           vector<vector<string>> workerClusterMap, string masterIP);
+
+    int collectComparisonResults(string host, int port, int dataPort, string designatedWorkerHost,
+                                 int designatedWorkerPort, int designatedWorkerDataPort,
+                                 string graphID);
+
+    int collectResultsToDesignatedWorker(string host, int port, int dataPort, string graphID);
+
+    int combineComparisonResults(vector<vector<string>> orgHostPorts, string graphID);
 };
 
 

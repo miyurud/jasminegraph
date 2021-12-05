@@ -84,6 +84,8 @@ public:
     static const string COLLECT_SHARED_CLUSTERS;
     static const string SHARE_BUCKETED_CLUSTERS;
     static const string COMPUTE_CANDIDATE_SETS;
+    static const string COLLECT_RESULTS_TO_MASTER;
+    static const string COLLECT_RESULTS_TO_COORDINATOR;
     static const string SEND_HOSTS;
     static const string INITIATE_MODEL_COLLECTION;
     static const string INITIATE_FRAGMENT_RESOLUTION;
