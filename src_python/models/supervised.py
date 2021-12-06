@@ -12,6 +12,7 @@ limitations under the License.
 """
 
 import logging
+from operator import mod
 import sys
 
 logging.basicConfig(
@@ -80,7 +81,7 @@ class Model:
         # Test split
         edge_splitter_test = EdgeSplitter(graph)
         self.graph_test, edge_ids_test, edge_labels_test = edge_splitter_test.train_test_split(
-            p=0.01, method="global", keep_connected=True, seed = 42
+            p=0.1, method="global", keep_connected=True, seed = 42
         )
 
         # Train split
@@ -135,13 +136,17 @@ class Model:
 
         return train_metrics,test_metrics
 
+    def predict(self,*args):
+        return self.model.predict(args)
+
+    def getModel(self):
+        return self.model
+
+    def saveModel(self):
+        self.model.save('model.h5')
 
 
 if __name__ == "__main__":
-
-    #path_weights = "./weights/weights_cora.npy"
-    #path_nodes = "./data/4_nodes_0.csv"
-    #path_edges = "./data/4_edges_0.csv"
 
     arg_names = [
         'path_weights',
@@ -153,10 +158,9 @@ if __name__ == "__main__":
     args = dict(zip(arg_names, sys.argv[1:]))
 
     nodes = pd.read_csv(args["path_nodes"],index_col=0)
-    #nodes = nodes.astype("float32")
-
     edges = pd.read_csv(args["path_edges"])
-    #edges = edges.astype({"source":"uint32","target":"uint32"})
+    edges = edges.astype({"source":"uint32","target":"uint32"})
+    path_weights = args["path_weights"]
 
     logging.warning('####################################### New Training Session #######################################')
 
@@ -166,20 +170,19 @@ if __name__ == "__main__":
     logging.info('Training started!')
     start = timer()
 
-    new_weights,history = model.fit(int(args["epochs"]))
+    new_weights,history = model.fit()
 
     end = timer()
     logging.info('Training done!')
 
     elapsed_time = end -start
-
-    # Save weights
-    np.save(args['path_weights'],new_weights)
-
+    np.save(path_weights, new_weights)
     eval = model.evaluate()
 
     f1_train = (2 * eval[0][2] * eval[0][4]) / (eval[0][2] + eval[0][4])
     f1_test = (2 * eval[1][2] * eval[1][4]) / (eval[1][2] + eval[1][4])
+
+    model.saveModel()
 
     logging.info('Training set : accuracy - %s, recall - %s, AUC - %s, F1 - %s, precision - %s',eval[0][1],eval[0][2],eval[0][3],f1_train,eval[0][4])
     logging.info('Testing set : accuracy - %s, recall - %s, AUC - %s, F1 - %s, precision - %s',eval[1][1],eval[1][2],eval[1][3],f1_test,eval[1][4])
