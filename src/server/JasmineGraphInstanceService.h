@@ -110,6 +110,8 @@ public:
 
     static void mergeFiles(string trainData);
 
+    static void initPredict(string trainData);
+
     static std::map<int,std::vector<std::string>> iterationData;
 
     static int partitionCounter;
