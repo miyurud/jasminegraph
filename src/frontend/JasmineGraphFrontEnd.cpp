@@ -311,9 +311,10 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                     string reformattedFilePath = partitioner->reformatDataSet(path, newGraphID);
                     partitioner->loadDataSet(reformattedFilePath, newGraphID);
                     partitioner->constructMetisFormat(Conts::GRAPH_TYPE_NORMAL_REFORMATTED);
-                    //fullFileList = partitioner->partitioneWithGPMetis(partitionCount);
+                    fullFileList = partitioner->partitioneWithGPMetis(partitionCount);
                 } else {
-                    //fullFileList = partitioner->partitioneWithGPMetis(partitionCount);
+
+                    fullFileList = partitioner->partitioneWithGPMetis(partitionCount);
                 }
                 frontend_logger.log("Upload done", "info");
                 jasmineServer->uploadGraphLocally(newGraphID, Conts::GRAPH_TYPE_NORMAL, fullFileList, masterIP);
