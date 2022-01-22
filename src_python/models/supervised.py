@@ -159,7 +159,7 @@ if __name__ == "__main__":
 
     nodes = pd.read_csv(args["path_nodes"],index_col=0)
     edges = pd.read_csv(args["path_edges"])
-    edges = edges.astype({"source":"uint32","target":"uint32"})
+    edges = edges.astype({"source":"uint32", "target":"uint32"})
     path_weights = args["path_weights"]
 
     logging.warning('####################################### New Training Session #######################################')
