@@ -56,7 +56,7 @@ int Conts::THREAD_SLEEP_TIME = 30000;
 int Conts::MAX_HIGH_PRIORIY_TASKS = 2;
 int Conts::MAX_SLA_CALIBRATE_ATTEMPTS = 3;
 int Conts::LOAD_AVG_COLLECTING_GAP = 5;
-double Conts::LOAD_AVG_THREASHOLD = 200;
+double Conts::LOAD_AVG_THREASHOLD = 500;
 
 
 const int Conts::GRAPH_STATUS::LOADING = 1;
