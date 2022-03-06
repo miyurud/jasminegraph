@@ -68,7 +68,17 @@ public:
     static std::vector<Place> getHostReporterList();
     static void updateResourceConsumption(PerformanceSQLiteDBInterface performanceDb, std::string graphId, int partitionCount, std::vector<Place> placeList,
                                           std::string slaCategoryId);
+    static void updateRemoteResourceConsumption(PerformanceSQLiteDBInterface performanceDb, std::string graphId, int partitionCount, std::vector<Place> placeList,
+                                          std::string slaCategoryId, std::string masterIP);
     static std::string getSLACategoryId(std::string command, std::string category);
+    static int initiateCollectingRemoteSLAResourceUtilization(std::string host, int port, std::string isVMStatManager,
+                                                              std::string isResourceAllocationRequired, std::string placeId,
+                                                              int elapsedTime, std::string masterIP);
+    static std::string requestRemoteLoadAverages(std::string host, int port,
+            std::string isVMStatManager,
+    std::string isResourceAllocationRequired,
+            std::string placeId, int elapsedTime,
+            std::string masterIP);
 
 private:
     //static SQLiteDBInterface sqlLiteDB;

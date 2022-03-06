@@ -160,6 +160,8 @@ public:
 
     static void trainPartition(std::string trainData);
 
+    static void startCollectingLoadAverage();
+
     static std::map<int,std::vector<std::string>> iterationData;
 
     static map<long, long> calculateLocalOutDegreeDistribution(string graphID, string partitionID,

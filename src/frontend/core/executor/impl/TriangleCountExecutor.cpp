@@ -484,6 +484,7 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
                 fileCombinationMutex.unlock();
 
                 if (isAggregateValid) {
+                    triangleCount_logger.log("###COMPOSITE### Found out Aggregate Valid Scenario ", "info");
                     std::set<string>::iterator transferRequireFileIterator;
 
                     for (transferRequireFileIterator = transferRequireFiles.begin();
@@ -1621,6 +1622,35 @@ int TriangleCountExecutor::collectPerformaceData(PerformanceSQLiteDBInterface pe
     std::vector<Place> placeList = performanceUtil.getHostReporterList();
     std::string slaCategoryId = performanceUtil.getSLACategoryId(command,category);
 
+    std::vector<Place>::iterator placeListIterator;
+
+    for (placeListIterator = placeList.begin(); placeListIterator != placeList.end(); ++placeListIterator) {
+        Place place = *placeListIterator;
+        std::string host;
+
+        std::string ip = place.ip;
+        std::string user = place.user;
+        std::string serverPort = place.serverPort;
+        std::string isMaster = place.isMaster;
+        std::string isHostReporter = place.isHostReporter;
+        std::string hostId = place.hostId;
+        std::string placeId = place.placeId;
+
+        if (ip.find("localhost") != std::string::npos || ip.compare(masterIP) == 0) {
+            host = ip;
+        } else {
+            host = user + "@" + ip;
+        }
+
+
+        if (isMaster.find("true") != std::string::npos || host == "localhost" || host.compare(masterIP) == 0) {
+
+        } else {
+            performanceUtil.initiateCollectingRemoteSLAResourceUtilization(host,atoi(serverPort.c_str()),isHostReporter,"false",
+                                                placeId,elapsedTime, masterIP);
+        }
+    }
+
     start = time(0);
 
     while(!workerResponded)
@@ -1634,6 +1664,7 @@ int TriangleCountExecutor::collectPerformaceData(PerformanceSQLiteDBInterface pe
         }
     }
 
+    performanceUtil.updateRemoteResourceConsumption(perDB,graphId,partitionCount,placeList,slaCategoryId,masterIP);
     performanceUtil.updateResourceConsumption(perDB, graphId, partitionCount, placeList, slaCategoryId);
 
     return 0;

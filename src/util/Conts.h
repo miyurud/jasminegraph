@@ -30,6 +30,9 @@ extern std::vector<std::string> highPriorityGraphList;
 extern std::mutex processStatusMutex;
 extern std::mutex responseVectorMutex;
 extern bool isStatCollect;
+extern bool isCalibrating;
+extern std::vector<std::string> loadAverageVector;
+extern bool collectValid;
 
 struct ProcessInfo {
     int id;
@@ -136,6 +139,7 @@ public:
         static const std::string CATEGORY;
         static const std::string QUEUE_TIME;
         static const std::string GRAPH_SLA;
+        static const std::string IS_CALIBRATING;
     };
 
 

@@ -169,8 +169,8 @@ int PerformanceUtil::collectSLAResourceConsumption(std::vector<Place> placeList,
         if (isMaster.find("true") != std::string::npos || host == "localhost" || host.compare(masterIP) == 0) {
             collectLocalSLAResourceUtilization(placeId, elapsedTime);
         } else {
-            collectRemoteSLAResourceUtilization(host,atoi(serverPort.c_str()),isHostReporter,requestResourceAllocation,
-                    placeId,elapsedTime, masterIP);
+            //collectRemoteSLAResourceUtilization(host,atoi(serverPort.c_str()),isHostReporter,requestResourceAllocation,
+             //       placeId,elapsedTime, masterIP);
         }
     }
 
@@ -1120,6 +1120,76 @@ void PerformanceUtil::updateResourceConsumption(PerformanceSQLiteDBInterface per
     }
 }
 
+void PerformanceUtil::updateRemoteResourceConsumption(PerformanceSQLiteDBInterface performanceDb, std::string graphId, int partitionCount,
+                                                      std::vector<Place> placeList, std::string slaCategoryId, std::string masterIP) {
+    std::vector<Place>::iterator placeListIterator;
+
+    for (placeListIterator = placeList.begin(); placeListIterator != placeList.end(); ++placeListIterator) {
+        Place place = *placeListIterator;
+        std::string host;
+
+        std::string ip = place.ip;
+        std::string user = place.user;
+        std::string serverPort = place.serverPort;
+        std::string isMaster = place.isMaster;
+        std::string isHostReporter = place.isHostReporter;
+        std::string hostId = place.hostId;
+        std::string placeId = place.placeId;
+        std::string graphSlaId;
+
+        if (ip.find("localhost") != std::string::npos || ip.compare(masterIP) == 0) {
+            host = ip;
+        } else {
+            host = user + "@" + ip;
+        }
+
+
+        if (isMaster.find("true") != std::string::npos || host == "localhost" || host.compare(masterIP) == 0) {
+
+        } else {
+            std::string loadString = requestRemoteLoadAverages(host,atoi(serverPort.c_str()),isHostReporter,"false",placeId,0,masterIP);
+            std::vector<std::string> loadVector = Utils::split(loadString, ',');
+            std::vector<std::string>::iterator loadVectorIterator;
+            string valuesString;
+            std::string query = "SELECT id from graph_sla where graph_id='" + graphId +
+                                "' and partition_count='" + std::to_string(partitionCount) + "' and id_sla_category='" + slaCategoryId + "';";
+
+            std::vector<vector<pair<string, string>>> results = performanceDb.runSelect(query);
+
+            if (results.size() == 1) {
+                graphSlaId = results[0][0].second;
+            } else {
+                std::string insertQuery = "insert into graph_sla (id_sla_category, graph_id, partition_count, sla_value, attempt) VALUES ('" +
+                                          slaCategoryId + "','" + graphId + "'," + std::to_string(partitionCount) + ",0,0);";
+
+                int slaId = performanceDb.runInsert(insertQuery);
+                graphSlaId = std::to_string(slaId);
+            }
+
+            if (loadVector.size() > 0) {
+                int elapsedTime = 0;
+                string slaPerfSql = "insert into graph_place_sla_performance (graph_sla_id, place_id, memory_usage, load_average, elapsed_time) "
+                                    "values ";
+
+                for (loadVectorIterator = loadVector.begin(); loadVectorIterator != loadVector.end(); ++loadVectorIterator) {
+                    std::string loadAverage = *loadVectorIterator;
+
+                    valuesString += "('" + graphSlaId + "','" + placeId + "', '','" +
+                            loadAverage + "','" + std::to_string(elapsedTime * 1000) + "'),";
+                    elapsedTime+=5;
+                }
+
+
+                valuesString = valuesString.substr(0, valuesString.length() -1);
+                slaPerfSql = slaPerfSql + valuesString;
+
+                performanceDb.runInsert(slaPerfSql);
+            }
+        }
+    }
+
+}
+
 std::string PerformanceUtil::getSLACategoryId(std::string command, std::string category) {
     std::string categoryQuery = "SELECT id from sla_category where command='" + command + "' and category='" + category + "'";
 
@@ -1132,4 +1202,170 @@ std::string PerformanceUtil::getSLACategoryId(std::string command, std::string c
         scheduler_logger.log("Invalid SLA " + category + " for " + command + " command", "error");
         return 0;
     }
+}
+
+int PerformanceUtil::initiateCollectingRemoteSLAResourceUtilization(std::string host, int port,
+                                                                    std::string isVMStatManager,
+                                                                    std::string isResourceAllocationRequired,
+                                                                    std::string placeId, int elapsedTime,
+                                                                    std::string masterIP) {
+    int sockfd;
+    char data[300];
+    bool loop = false;
+    socklen_t len;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+    Utils utils;
+    std::string graphSlaId;
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sockfd < 0) {
+        std::cerr << "Cannot accept connection" << std::endl;
+        return 0;
+    }
+
+    if (host.find('@') != std::string::npos) {
+        host = utils.split(host, '@')[1];
+    }
+
+    server = gethostbyname(host.c_str());
+    if (server == NULL) {
+        std::cerr << "ERROR, no host named " << server << std::endl;
+    }
+
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *) server->h_addr,
+          (char *) &serv_addr.sin_addr.s_addr,
+          server->h_length);
+    serv_addr.sin_port = htons(port);
+    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+        std::cerr << "ERROR connecting" << std::endl;
+    }
+
+    bzero(data, 301);
+    write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+    scheduler_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
+    bzero(data, 301);
+    read(sockfd, data, 300);
+    string response = (data);
+
+    response = utils.trim_copy(response, " \f\n\r\t\v");
+
+    if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
+        scheduler_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
+        write(sockfd, masterIP.c_str(), masterIP.size());
+        scheduler_logger.log("Sent : " + masterIP, "info");
+
+        bzero(data, 301);
+        read(sockfd, data, 300);
+        response = (data);
+        response = utils.trim_copy(response, " \f\n\r\t\v");
+        scheduler_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+
+        if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
+            write(sockfd, JasmineGraphInstanceProtocol::START_STAT_COLLECTION.c_str(),
+                  JasmineGraphInstanceProtocol::START_STAT_COLLECTION.size());
+            scheduler_logger.log("Sent : " + JasmineGraphInstanceProtocol::START_STAT_COLLECTION, "info");
+            bzero(data, 301);
+            read(sockfd, data, 300);
+            response = (data);
+            response = utils.trim_copy(response, " \f\n\r\t\v");
+            scheduler_logger.log("Received : " + response, "info");
+
+            if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+                scheduler_logger.log("REQUESTED REMOTE STAT COLLECTION ", "info");
+            }
+        }
+
+    }
+}
+
+std::string PerformanceUtil::requestRemoteLoadAverages(std::string host, int port, std::string isVMStatManager,
+                                               std::string isResourceAllocationRequired, std::string placeId,
+                                               int elapsedTime, std::string masterIP) {
+    int sockfd;
+    char data[300];
+    bool loop = false;
+    socklen_t len;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+    Utils utils;
+    std::string graphSlaId;
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sockfd < 0) {
+        std::cerr << "Cannot accept connection" << std::endl;
+        return 0;
+    }
+
+    if (host.find('@') != std::string::npos) {
+        host = utils.split(host, '@')[1];
+    }
+
+    server = gethostbyname(host.c_str());
+    if (server == NULL) {
+        std::cerr << "ERROR, no host named " << server << std::endl;
+    }
+
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *) server->h_addr,
+          (char *) &serv_addr.sin_addr.s_addr,
+          server->h_length);
+    serv_addr.sin_port = htons(port);
+    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+        std::cerr << "ERROR connecting" << std::endl;
+    }
+
+    bzero(data, 301);
+    write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+    scheduler_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
+    bzero(data, 301);
+    read(sockfd, data, 300);
+    string response = (data);
+
+    response = utils.trim_copy(response, " \f\n\r\t\v");
+
+    if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
+        scheduler_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
+        write(sockfd, masterIP.c_str(), masterIP.size());
+        scheduler_logger.log("Sent : " + masterIP, "info");
+
+        bzero(data, 301);
+        read(sockfd, data, 300);
+        response = (data);
+        response = utils.trim_copy(response, " \f\n\r\t\v");
+        scheduler_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+
+        if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
+            write(sockfd, JasmineGraphInstanceProtocol::REQUEST_COLLECTED_STATS.c_str(),
+                  JasmineGraphInstanceProtocol::REQUEST_COLLECTED_STATS.size());
+            scheduler_logger.log("Sent : " + JasmineGraphInstanceProtocol::REQUEST_COLLECTED_STATS, "info");
+            bzero(data, 301);
+            read(sockfd, data, 300);
+            response = (data);
+            response = utils.trim_copy(response, " \f\n\r\t\v");
+            string status = response.substr(response.size() - 5);
+            std::string result = response.substr(0, response.size() - 5);
+
+            while (status == "/SEND") {
+                write(sockfd, status.c_str(), status.size());
+
+                bzero(data, 301);
+                read(sockfd, data, 300);
+                response = (data);
+                response = utils.trim_copy(response, " \f\n\r\t\v");
+                status = response.substr(response.size() - 5);
+                std::string loadAverageString= response.substr(0, response.size() - 5);
+                result = result + loadAverageString;
+            }
+            response = result;
+        }
+
+    }
+
+    return response;
 }

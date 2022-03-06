@@ -32,6 +32,8 @@ const string JasmineGraphInstanceService::END_OF_MESSAGE = "eom";
 int highestPriority = Conts::DEFAULT_THREAD_PRIORITY;
 std::atomic<int> workerHighPriorityTaskCount;
 std::mutex threadPriorityMutex;
+std::vector<std::string> loadAverageVector;
+bool collectValid = false;
 
 
 char *converter(const std::string &s) {
@@ -1643,6 +1645,51 @@ void *instanceservicesession(void *dummyPt) {
             std::string memoryUsage = JasmineGraphInstanceService::requestPerformanceStatistics(
                 isVMStatManager, isResourceAllocationRequired);
             write(connFd, memoryUsage.c_str(), memoryUsage.size());
+        } else if (line.compare(JasmineGraphInstanceProtocol::START_STAT_COLLECTION)  == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::START_STAT_COLLECTION, "info");
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+            collectValid=true;
+            JasmineGraphInstanceService::startCollectingLoadAverage();
+        } else if (line.compare(JasmineGraphInstanceProtocol::REQUEST_COLLECTED_STATS)  == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::REQUEST_COLLECTED_STATS, "info");
+            collectValid = false;
+            std::string loadAverageString;
+
+            std::vector<std::string>::iterator loadVectorIterator;
+
+            for (loadVectorIterator = loadAverageVector.begin(); loadVectorIterator!= loadAverageVector.end(); ++ loadVectorIterator) {
+                std::string tempLoadAverage = *loadVectorIterator;
+                loadAverageString = loadAverageString + "," + tempLoadAverage;
+            }
+            loadAverageVector.clear();
+
+            loadAverageString = loadAverageString.substr(1, loadAverageString.length() - 1);
+
+            std::vector<std::string> chunksVector;
+
+            for (unsigned i = 0; i < loadAverageString.length(); i += INSTANCE_DATA_LENGTH - 10) {
+                std::string chunk = loadAverageString.substr(i, INSTANCE_DATA_LENGTH - 10);
+                if (i + INSTANCE_DATA_LENGTH - 10 < loadAverageString.length()) {
+                    chunk += "/SEND";
+                } else {
+                    chunk += "/CMPT";
+                }
+                chunksVector.push_back(chunk);
+            }
+
+            for (int loopCount = 0; loopCount < chunksVector.size(); loopCount++) {
+                if (loopCount == 0) {
+                    std::string chunk = chunksVector.at(loopCount);
+                    write(connFd, chunk.c_str(), chunk.size());
+                } else {
+                    bzero(data, INSTANCE_DATA_LENGTH);
+                    read(connFd, data, INSTANCE_DATA_LENGTH);
+                    string chunkStatus = (data);
+                    std::string chunk = chunksVector.at(loopCount);
+                    write(connFd, chunk.c_str(), chunk.size());
+                }
+            }
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_TRAIN) == 0) {
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::INITIATE_TRAIN, "info");
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
@@ -4233,4 +4280,28 @@ map<long, unordered_set<long>> getEdgesWorldToLocal(string graphID, string parti
     }
 
     return worldToLocalVertexMap;
+
+}
+
+void JasmineGraphInstanceService::startCollectingLoadAverage() {
+    int elapsedTime = 0;
+    time_t start;
+    time_t end;
+    StatisticCollector statisticCollector;
+
+
+    start = time(0);
+
+    while(collectValid)
+    {
+
+        if(time(0)-start== Conts::LOAD_AVG_COLLECTING_GAP)
+        {
+            elapsedTime += Conts::LOAD_AVG_COLLECTING_GAP*1000;
+            double loadAgerage = statisticCollector.getLoadAverage();
+            loadAverageVector.push_back(std::to_string(loadAgerage));
+            start = start + Conts::LOAD_AVG_COLLECTING_GAP;
+        }
+    }
+
 }
