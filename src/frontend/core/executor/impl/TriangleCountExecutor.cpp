@@ -1189,7 +1189,6 @@ TriangleCountExecutor::countCompositeCentralStoreTriangles(std::string aggregato
             response = result;
         }
 
-        triangleCount_logger.log("Aggregate Response : " + response , "info");
     } else {
         triangleCount_logger.log("There was an error in the upload process and the response is :: " + response,
                             "error");
