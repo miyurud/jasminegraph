@@ -219,15 +219,16 @@ void TriangleCountExecutor::execute() {
         workerResponded = true;
         triangleCount_logger.log("###TRIANGLE-COUNT-EXECUTOR### Getting Triangle Count : Completed: Triangles " + to_string(result),
                             "info");
-        JobResponse jobResponse;
-        jobResponse.setJobId(request.getJobId());
-        jobResponse.addParameter(Conts::PARAM_KEYS::TRIANGLE_COUNT, std::to_string(result));
-        responseVector.push_back(jobResponse);
-
-        responseVectorMutex.lock();
-        responseMap[request.getJobId()] = jobResponse;
-        responseVectorMutex.unlock();
     }
+
+    JobResponse jobResponse;
+    jobResponse.setJobId(request.getJobId());
+    jobResponse.addParameter(Conts::PARAM_KEYS::TRIANGLE_COUNT, std::to_string(result));
+    responseVector.push_back(jobResponse);
+
+    responseVectorMutex.lock();
+    responseMap[request.getJobId()] = jobResponse;
+    responseVectorMutex.unlock();
 
     auto end = chrono::high_resolution_clock::now();
     auto dur = end - begin;
@@ -1077,6 +1078,7 @@ TriangleCountExecutor::countCompositeCentralStoreTriangles(std::string aggregato
         }
 
         triangleCount_logger.log("Sent : " + masterIP, "info");
+        triangleCount_logger.log("Port : " + aggregatorPort, "info");
         bzero(data, 301);
         read(sockfd, data, 300);
         response = (data);
@@ -1187,7 +1189,7 @@ TriangleCountExecutor::countCompositeCentralStoreTriangles(std::string aggregato
             response = result;
         }
 
-
+        triangleCount_logger.log("Aggregate Response : " + response , "info");
     } else {
         triangleCount_logger.log("There was an error in the upload process and the response is :: " + response,
                             "error");
