@@ -221,6 +221,8 @@ void TriangleCountExecutor::execute() {
                             "info");
     }
 
+    workerResponded = true;
+
     JobResponse jobResponse;
     jobResponse.setJobId(request.getJobId());
     jobResponse.addParameter(Conts::PARAM_KEYS::TRIANGLE_COUNT, std::to_string(result));
@@ -428,6 +430,8 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
         }
 
         if (isCompositeAggregation) {
+
+            triangleCount_logger.log("###COMPOSITE### Started Compsite aggregation ", "info");
             static std::vector<std::vector<string>>::iterator combinationsIterator;
 
             for (int combinationIndex = 0; combinationIndex < fileCombinations.size(); ++combinationIndex) {
@@ -501,10 +505,14 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
                                                                                          masterIP,
                                                                                          adjustedAvailableFiles, threadPriority);
 
+                    triangleCount_logger.log("###COMPOSITE### Retrieved Composite triangle list ", "info");
+
                     std::vector<std::string> triangles = Utils::split(compositeTriangles, ':');
                     std::vector<std::string>::iterator triangleIterator;
 
                     triangleTreeMutex.lock();
+
+                    triangleCount_logger.log("###COMPOSITE### Triangle Tree locked ", "info");
 
                     for (triangleIterator = triangles.begin(); triangleIterator != triangles.end(); ++triangleIterator) {
                         std::string triangle = *triangleIterator;
@@ -533,10 +541,13 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
                             }
                         }
                     }
+                    triangleCount_logger.log("###COMPOSITE### Completed triangle tree update ", "info");
                     triangleTreeMutex.unlock();
                 }
             }
         }
+
+        triangleCount_logger.log("###COMPOSITE### Returning Total Triangles from executer ", "info");
 
         return triangleCount;
 
@@ -1188,6 +1199,8 @@ TriangleCountExecutor::countCompositeCentralStoreTriangles(std::string aggregato
             }
             response = result;
         }
+
+        triangleCount_logger.log("Aggregate Response Received" , "info");
 
     } else {
         triangleCount_logger.log("There was an error in the upload process and the response is :: " + response,
