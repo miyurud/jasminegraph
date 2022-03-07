@@ -25,7 +25,6 @@ std::mutex fileCombinationMutex;
 std::mutex triangleTreeMutex;
 std::mutex processStatusMutex;
 std::mutex responseVectorMutex;
-std::mutex aggregateWeightMutex;
 
 TriangleCountExecutor::TriangleCountExecutor() {
 
@@ -467,7 +466,8 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
                     continue;
                 }
 
-                aggregateWeightMutex.lock();
+                /*aggregateWeightMutex.lock();
+                triangleCount_logger.log("###COMPOSITE### Aggregator MUTEX Aquired ", "info");
                 for (partitionSetIterator = partitionSet.begin(); partitionSetIterator != partitionSet.end(); ++partitionSetIterator) {
                     std::string partitionIdString = *partitionSetIterator;
                     int currentPartitionId = atoi(partitionIdString.c_str());
@@ -489,11 +489,22 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
                     int currentWeight = aggregateWeightMap[entryWithMinValue.first];
                     currentWeight++;
                     aggregateWeightMap[entryWithMinValue.first] = currentWeight;
+                    triangleCount_logger.log("###COMPOSITE### Aggregator Initiated : Partition ID: " + std::to_string(partitionId) +" Host: " + host + " Port: " + std::to_string(port) + " Weight : " + std::to_string(currentWeight), "info");
                 } else {
                     continue;
                 }
 
+
+
                 aggregateWeightMutex.unlock();
+                triangleCount_logger.log("###COMPOSITE### Aggregator MUTEX Released ", "info");*/
+
+                if (proceedOrNot(partitionSet,partitionId)) {
+
+                } else {
+                    continue;
+                }
+
 
                 for (fileListIterator = fileList.begin(); fileListIterator != fileList.end(); ++fileListIterator) {
                     std::string fileName = *fileListIterator;
@@ -602,12 +613,9 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
                         triangleTreeMutex.unlock();
                     }
                 }
+                updateMap(partitionId);
 
-                aggregateWeightMutex.lock();
-                int currentWeight = aggregateWeightMap[entryWithMinValue.first];
-                currentWeight--;
-                aggregateWeightMap[entryWithMinValue.first] = currentWeight;
-                aggregateWeightMutex.unlock();
+
             }
         }
 
@@ -619,6 +627,57 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
         triangleCount_logger.log("There was an error in the upload process and the response is :: " + response,
                             "error");
     }
+}
+
+bool TriangleCountExecutor::proceedOrNot(std::set<string> partitionSet,int partitionId) {
+
+    const std::lock_guard<std::mutex> lock(aggregateWeightMutex);
+
+    //triangleCount_logger.log("###COMPOSITE### Aggregator MUTEX Aquired ", "info");
+    std::set<string>::iterator partitionSetIterator;
+    std::map<int,int> tempWeightMap;
+    for (partitionSetIterator = partitionSet.begin(); partitionSetIterator != partitionSet.end(); ++partitionSetIterator) {
+        std::string partitionIdString = *partitionSetIterator;
+        int currentPartitionId = atoi(partitionIdString.c_str());
+        tempWeightMap[currentPartitionId] = aggregateWeightMap[currentPartitionId];
+    }
+
+    int currentWorkerWeight = tempWeightMap[partitionId];
+    pair<int, int> entryWithMinValue = make_pair(partitionId,currentWorkerWeight);
+
+    map<int, int>::iterator currentEntry;
+
+    for (currentEntry = aggregateWeightMap.begin(); currentEntry != aggregateWeightMap.end(); ++currentEntry) {
+        if (entryWithMinValue.second > currentEntry->second) {
+            entryWithMinValue = make_pair(currentEntry->first,currentEntry->second);
+        }
+    }
+
+    if (entryWithMinValue.first == partitionId) {
+        int currentWeight = aggregateWeightMap[entryWithMinValue.first];
+        currentWeight++;
+        aggregateWeightMap[entryWithMinValue.first] = currentWeight;
+        triangleCount_logger.log("###COMPOSITE### Aggregator Initiated : Partition ID: " + std::to_string(partitionId) + " Weight : " + std::to_string(currentWeight), "info");
+        return true;
+    } else {
+        return false;
+    }
+
+
+
+    aggregateWeightMutex.unlock();
+    //triangleCount_logger.log("###COMPOSITE### Aggregator MUTEX Released ", "info");
+}
+
+bool TriangleCountExecutor::updateMap(int partitionId) {
+    //aggregateWeightMutex.lock();
+
+    //triangleCount_logger.log("###COMPOSITE### Aggregator MUTEX Aquired on completion", "info");
+    int currentWeight = aggregateWeightMap[partitionId];
+    currentWeight--;
+    aggregateWeightMap[partitionId] = currentWeight;
+    triangleCount_logger.log("###COMPOSITE### Aggregator Completed : Partition ID: " + std::to_string(partitionId) + " Weight : " + std::to_string(currentWeight), "info");
+    //triangleCount_logger.log("###COMPOSITE### Aggregator MUTEX Released on completion", "info");
 }
 
 long TriangleCountExecutor::aggregateCentralStoreTriangles(SQLiteDBInterface sqlite, std::string graphId,

@@ -65,6 +65,10 @@ public:
                                std::string partitionId, std::string partitionIdList, std::string graphId,
                                std::string masterIP, int threadPriority);
 
+    static bool proceedOrNot(std::set<string> partitionSet,int partitionId);
+
+    static bool updateMap(int partitionId);
+
     static std::vector<std::vector<string>> fileCombinations;
     static std::map<std::string, std::string> combinationWorkerMap;
     static std::map<long, std::map<long, std::vector<long>>> triangleTree;
