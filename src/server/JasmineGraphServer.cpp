@@ -26,6 +26,7 @@ Logger server_logger;
 static map<string, string> hostIDMap;
 static std::vector<JasmineGraphServer::workers> hostWorkerMap;
 static map<string, pair<int, int>> hostPortMap;
+std::map<int, int> aggregateWeightMap;
 
 void *runfrontend(void *dummyPt) {
     JasmineGraphServer *refToServer = (JasmineGraphServer *) dummyPt;
@@ -80,6 +81,7 @@ int JasmineGraphServer::run(std::string profile, std::string masterIp, int numbe
     sleep(2);
     waitForAcknowledgement(numberofWorkers);
     resolveOperationalGraphs();
+    initiateAggregateMap();
     return 0;
 }
 
@@ -400,6 +402,12 @@ bool JasmineGraphServer::spawnNewWorker(string host, string port, string dataPor
     startRemoteWorkers(workerPortsVector,workerDataPortsVector,host,profile,masterHost,enableNmon);
 
     return true;
+}
+
+void JasmineGraphServer::initiateAggregateMap() {
+    for (int i=1; i<= numberOfWorkers; i++) {
+        aggregateWeightMap[i]=0;
+    }
 }
 
 void JasmineGraphServer::resolveOperationalGraphs(){

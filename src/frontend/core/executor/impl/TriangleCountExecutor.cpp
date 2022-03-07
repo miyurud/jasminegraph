@@ -25,6 +25,7 @@ std::mutex fileCombinationMutex;
 std::mutex triangleTreeMutex;
 std::mutex processStatusMutex;
 std::mutex responseVectorMutex;
+std::mutex aggregateWeightMutex;
 
 TriangleCountExecutor::TriangleCountExecutor() {
 
@@ -437,12 +438,62 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
             for (int combinationIndex = 0; combinationIndex < fileCombinations.size(); ++combinationIndex) {
                 std::vector<string> fileList = fileCombinations.at(combinationIndex);
                 std::vector<string>::iterator fileListIterator;
+                std::vector<string>::iterator listIterator;
                 std::set<string> partitionIdSet;
+                std::set<string> partitionSet;
+                std::map<int,int> tempWeightMap;
+                std::set<string>::iterator partitionSetIterator;
                 std::set<string> transferRequireFiles;
                 std::string combinationKey = "";
                 std::string availableFiles = "";
                 std::string transferredFiles = "";
                 bool isAggregateValid = false;
+
+                for (listIterator = fileList.begin(); listIterator != fileList.end(); ++listIterator) {
+                    std::string fileName = *listIterator;
+
+                    size_t lastindex = fileName.find_last_of(".");
+                    string rawFileName = fileName.substr(0, lastindex);
+
+                    std::vector<std::string> fileNameParts = utils.split(rawFileName,'_');
+
+                    for (int index = 2; index < fileNameParts.size(); ++index) {
+                        partitionSet.insert(fileNameParts[index]);
+                    }
+
+                }
+
+                if (partitionSet.find(std::to_string(partitionId)) == partitionSet.end()) {
+                    continue;
+                }
+
+                aggregateWeightMutex.lock();
+                for (partitionSetIterator = partitionSet.begin(); partitionSetIterator != partitionSet.end(); ++partitionSetIterator) {
+                    std::string partitionIdString = *partitionSetIterator;
+                    int currentPartitionId = atoi(partitionIdString.c_str());
+                    tempWeightMap[currentPartitionId] = aggregateWeightMap[currentPartitionId];
+                }
+
+                int currentWorkerWeight = tempWeightMap[partitionId];
+                pair<int, int> entryWithMinValue = make_pair(partitionId,currentWorkerWeight);
+
+                map<int, int>::iterator currentEntry;
+
+                for (currentEntry = aggregateWeightMap.begin(); currentEntry != aggregateWeightMap.end(); ++currentEntry) {
+                    if (entryWithMinValue.second > currentEntry->second) {
+                        entryWithMinValue = make_pair(currentEntry->first,currentEntry->second);
+                    }
+                }
+
+                if (entryWithMinValue.first == partitionId) {
+                    int currentWeight = aggregateWeightMap[entryWithMinValue.first];
+                    currentWeight++;
+                    aggregateWeightMap[entryWithMinValue.first] = currentWeight;
+                } else {
+                    continue;
+                }
+
+                aggregateWeightMutex.unlock();
 
                 for (fileListIterator = fileList.begin(); fileListIterator != fileList.end(); ++fileListIterator) {
                     std::string fileName = *fileListIterator;
@@ -551,6 +602,12 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
                         triangleTreeMutex.unlock();
                     }
                 }
+
+                aggregateWeightMutex.lock();
+                int currentWeight = aggregateWeightMap[entryWithMinValue.first];
+                currentWeight--;
+                aggregateWeightMap[entryWithMinValue.first] = currentWeight;
+                aggregateWeightMutex.unlock();
             }
         }
 

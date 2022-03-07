@@ -69,6 +69,8 @@ public:
 
     void resolveOperationalGraphs();
 
+    void initiateAggregateMap();
+
     void backupPerformanceDB();
 
     void clearPerformanceDB();
