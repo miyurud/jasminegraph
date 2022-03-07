@@ -511,39 +511,45 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
                     std::vector<std::string> triangles = Utils::split(compositeTriangles, ':');
                     std::vector<std::string>::iterator triangleIterator;
 
-                    triangleTreeMutex.lock();
+                    if (triangles.size() > 0) {
 
-                    triangleCount_logger.log("###COMPOSITE### Triangle Tree locked ", "info");
 
-                    for (triangleIterator = triangles.begin(); triangleIterator != triangles.end(); ++triangleIterator) {
-                        std::string triangle = *triangleIterator;
+                        while (!triangleTreeMutex.try_lock()) {
+                            sleep(1);
+                        }
 
-                        if (!triangle.empty() && triangle != "NILL") {
-                            std::vector<std::string> triangleVertexList = Utils::split(triangle, ',');
+                        triangleCount_logger.log("###COMPOSITE### Triangle Tree locked ", "info");
 
-                            long vertexOne = std::atol(triangleVertexList.at(0).c_str());
-                            long vertexTwo = std::atol(triangleVertexList.at(1).c_str());
-                            long vertexThree = std::atol(triangleVertexList.at(2).c_str());
+                        for (triangleIterator = triangles.begin(); triangleIterator != triangles.end(); ++triangleIterator) {
+                            std::string triangle = *triangleIterator;
 
-                            std::map<long, std::vector<long>> itemRes = triangleTree[vertexOne];
+                            if (!triangle.empty() && triangle != "NILL") {
+                                std::vector<std::string> triangleVertexList = Utils::split(triangle, ',');
 
-                            std::map<long, std::vector<long>>::iterator itemResIterator = itemRes.find(vertexTwo);
+                                long vertexOne = std::atol(triangleVertexList.at(0).c_str());
+                                long vertexTwo = std::atol(triangleVertexList.at(1).c_str());
+                                long vertexThree = std::atol(triangleVertexList.at(2).c_str());
 
-                            if (itemResIterator != itemRes.end()) {
-                                std::vector<long> list = itemRes[vertexTwo];
+                                std::map<long, std::vector<long>> itemRes = triangleTree[vertexOne];
 
-                                if (std::find(list.begin(),list.end(),vertexThree) == list.end()) {
+                                std::map<long, std::vector<long>>::iterator itemResIterator = itemRes.find(vertexTwo);
+
+                                if (itemResIterator != itemRes.end()) {
+                                    std::vector<long> list = itemRes[vertexTwo];
+
+                                    if (std::find(list.begin(),list.end(),vertexThree) == list.end()) {
+                                        triangleTree[vertexOne][vertexTwo].push_back(vertexThree);
+                                        triangleCount++;
+                                    }
+                                } else {
                                     triangleTree[vertexOne][vertexTwo].push_back(vertexThree);
                                     triangleCount++;
                                 }
-                            } else {
-                                triangleTree[vertexOne][vertexTwo].push_back(vertexThree);
-                                triangleCount++;
                             }
                         }
+                        triangleCount_logger.log("###COMPOSITE### Completed triangle tree update ", "info");
+                        triangleTreeMutex.unlock();
                     }
-                    triangleCount_logger.log("###COMPOSITE### Completed triangle tree update ", "info");
-                    triangleTreeMutex.unlock();
                 }
             }
         }
