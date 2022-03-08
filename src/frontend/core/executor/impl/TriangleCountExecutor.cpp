@@ -22,7 +22,6 @@ std::map<long, std::map<long, std::vector<long>>> TriangleCountExecutor::triangl
 bool isStatCollect = false;
 
 std::mutex fileCombinationMutex;
-std::mutex triangleTreeMutex;
 std::mutex processStatusMutex;
 std::mutex responseVectorMutex;
 
@@ -571,46 +570,12 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
                     triangleCount_logger.log("###COMPOSITE### Retrieved Composite triangle list ", "info");
 
                     std::vector<std::string> triangles = Utils::split(compositeTriangles, ':');
-                    std::vector<std::string>::iterator triangleIterator;
+
 
                     if (triangles.size() > 0) {
 
+                        triangleCount += updateTriangleTreeAndGetTriangleCount(triangles);
 
-                        while (!triangleTreeMutex.try_lock()) {
-                            sleep(1);
-                        }
-
-                        triangleCount_logger.log("###COMPOSITE### Triangle Tree locked ", "info");
-
-                        for (triangleIterator = triangles.begin(); triangleIterator != triangles.end(); ++triangleIterator) {
-                            std::string triangle = *triangleIterator;
-
-                            if (!triangle.empty() && triangle != "NILL") {
-                                std::vector<std::string> triangleVertexList = Utils::split(triangle, ',');
-
-                                long vertexOne = std::atol(triangleVertexList.at(0).c_str());
-                                long vertexTwo = std::atol(triangleVertexList.at(1).c_str());
-                                long vertexThree = std::atol(triangleVertexList.at(2).c_str());
-
-                                std::map<long, std::vector<long>> itemRes = triangleTree[vertexOne];
-
-                                std::map<long, std::vector<long>>::iterator itemResIterator = itemRes.find(vertexTwo);
-
-                                if (itemResIterator != itemRes.end()) {
-                                    std::vector<long> list = itemRes[vertexTwo];
-
-                                    if (std::find(list.begin(),list.end(),vertexThree) == list.end()) {
-                                        triangleTree[vertexOne][vertexTwo].push_back(vertexThree);
-                                        triangleCount++;
-                                    }
-                                } else {
-                                    triangleTree[vertexOne][vertexTwo].push_back(vertexThree);
-                                    triangleCount++;
-                                }
-                            }
-                        }
-                        triangleCount_logger.log("###COMPOSITE### Completed triangle tree update ", "info");
-                        triangleTreeMutex.unlock();
                     }
                 }
                 updateMap(partitionId);
@@ -671,6 +636,7 @@ bool TriangleCountExecutor::proceedOrNot(std::set<string> partitionSet,int parti
 
 bool TriangleCountExecutor::updateMap(int partitionId) {
     //aggregateWeightMutex.lock();
+    const std::lock_guard<std::mutex> lock(aggregateWeightMutex);
 
     //triangleCount_logger.log("###COMPOSITE### Aggregator MUTEX Aquired on completion", "info");
     int currentWeight = aggregateWeightMap[partitionId];
@@ -678,6 +644,45 @@ bool TriangleCountExecutor::updateMap(int partitionId) {
     aggregateWeightMap[partitionId] = currentWeight;
     triangleCount_logger.log("###COMPOSITE### Aggregator Completed : Partition ID: " + std::to_string(partitionId) + " Weight : " + std::to_string(currentWeight), "info");
     //triangleCount_logger.log("###COMPOSITE### Aggregator MUTEX Released on completion", "info");
+}
+
+int TriangleCountExecutor::updateTriangleTreeAndGetTriangleCount(std::vector<std::string> triangles) {
+
+    const std::lock_guard<std::mutex> lock1(triangleTreeMutex);
+    std::vector<std::string>::iterator triangleIterator;
+    int aggregateCount = 0;
+
+    triangleCount_logger.log("###COMPOSITE### Triangle Tree locked ", "info");
+
+    for (triangleIterator = triangles.begin(); triangleIterator != triangles.end(); ++triangleIterator) {
+        std::string triangle = *triangleIterator;
+
+        if (!triangle.empty() && triangle != "NILL") {
+            std::vector<std::string> triangleVertexList = Utils::split(triangle, ',');
+
+            long vertexOne = std::atol(triangleVertexList.at(0).c_str());
+            long vertexTwo = std::atol(triangleVertexList.at(1).c_str());
+            long vertexThree = std::atol(triangleVertexList.at(2).c_str());
+
+            std::map<long, std::vector<long>> itemRes = triangleTree[vertexOne];
+
+            std::map<long, std::vector<long>>::iterator itemResIterator = itemRes.find(vertexTwo);
+
+            if (itemResIterator != itemRes.end()) {
+                std::vector<long> list = itemRes[vertexTwo];
+
+                if (std::find(list.begin(),list.end(),vertexThree) == list.end()) {
+                    triangleTree[vertexOne][vertexTwo].push_back(vertexThree);
+                    aggregateCount++;
+                }
+            } else {
+                triangleTree[vertexOne][vertexTwo].push_back(vertexThree);
+                aggregateCount++;
+            }
+        }
+    }
+
+    return aggregateCount;
 }
 
 long TriangleCountExecutor::aggregateCentralStoreTriangles(SQLiteDBInterface sqlite, std::string graphId,

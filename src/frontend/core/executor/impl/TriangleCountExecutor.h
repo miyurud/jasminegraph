@@ -69,6 +69,8 @@ public:
 
     static bool updateMap(int partitionId);
 
+    static int updateTriangleTreeAndGetTriangleCount(std::vector<std::string> triangles);
+
     static std::vector<std::vector<string>> fileCombinations;
     static std::map<std::string, std::string> combinationWorkerMap;
     static std::map<long, std::map<long, std::vector<long>>> triangleTree;

@@ -50,6 +50,7 @@ static bool canCalibrate = true;
 Logger frontend_logger;
 std::set<ProcessInfo> processData;
 std::mutex aggregateWeightMutex;
+std::mutex triangleTreeMutex;
 
 void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface sqlite,
                             PerformanceSQLiteDBInterface perfSqlite, JobScheduler jobScheduler) {
