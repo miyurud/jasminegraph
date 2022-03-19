@@ -726,6 +726,10 @@ void *instanceservicesession(void *dummyPt) {
                                                                              graphDBMapCentralStores);
             instance_logger.log("Degree Dist size: " + to_string(degreeDistribution.size()), "info");
 
+            for (map<long, long>::iterator it = degreeDistribution.begin(); it != degreeDistribution.end(); ++it) {
+                    instance_logger.log("degreeDistribution " + to_string(it -> first) + " " +
+                    to_string(it -> second) , "info");
+            }
         } else if (line.compare(JasmineGraphInstanceProtocol::OUT_DEGREE_DISTRIBUTION) == 0) {
             instance_logger.log("Received : out degree distribution from server", "info");
 
@@ -3043,25 +3047,6 @@ map<long, long> calculateLocalOutDegreeDist(string graphID, string partitionID,
 
     map<long, unordered_set<long>> centralGraphMap = centralDB.getUnderlyingHashMap();
     map<long, unordered_set<long>> localGraphMap = graphDB.getUnderlyingHashMap();
-
-    // just logging the vertices. Can remove later
-    /*for (map<long, unordered_set<long>>::iterator it = centralGraphMap.begin(); it != centralGraphMap.end(); ++it) {
-        unordered_set<long> distribution  = it->second;
-
-        for (auto itr = distribution.begin(); itr != distribution.end(); ++itr) {
-            instance_logger.log("centralGraphMap " + to_string(it -> first) + " " + to_string(*itr) , "info");
-
-        }
-    }
-
-    for (map<long, unordered_set<long>>::iterator it = localGraphMap.begin(); it != localGraphMap.end(); ++it) {
-        unordered_set<long> distribution  = it->second;
-
-        for (auto itr = distribution.begin(); itr != distribution.end(); ++itr) {
-            instance_logger.log("localGraphMap " + to_string(it -> first) + " " + to_string(*itr) , "info");
-
-        }
-    }*/
 
     //combine the degree distributions from local store and central store
     for (itcentral = degreeDistributionCentral.begin(); itcentral != degreeDistributionCentral.end(); ++itcentral) {
