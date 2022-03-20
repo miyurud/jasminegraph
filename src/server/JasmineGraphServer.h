@@ -148,6 +148,8 @@ public:
     void inDegreeDistribution(std::string graphID);
 
     void duplicateCentralStore(std::string graphID);
+
+    void egoNet(std::string graphID);
 };
 
 

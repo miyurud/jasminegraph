@@ -73,6 +73,15 @@ map<long, long> calculateLocalInDegreeDist(string graphID, string partitionID,
                                            std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
                                            std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores);
 
+map <long, map<long, unordered_set<long>>> calculateLocalEgoNet(string graphID, string partitionID, int serverPort,
+                                                                JasmineGraphHashMapLocalStore localDB,
+                                                                JasmineGraphHashMapCentralStore centralDB,
+                                                                std::vector<string> workerSockets);
+
+map<long, map<long, unordered_set<long>>> calculateEgoNet(string graphID, string partitionID,
+                                                          int serverPort, JasmineGraphHashMapLocalStore localDB,
+                                                          JasmineGraphHashMapCentralStore centralDB,
+                                                          string workerList);
 
 struct instanceservicesessionargs {
     string profile;
