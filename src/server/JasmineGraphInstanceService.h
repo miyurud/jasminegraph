@@ -55,6 +55,34 @@ long countLocalTriangles(std::string graphId, std::string partitionId,
                          std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> graphDBMapDuplicateCentralStores,
                          int threadPriority);
 
+map<long, long> calculateOutDegreeDist(string graphID, string partitionID, int serverPort,
+                                       std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
+                                       std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores,
+                                       std::vector<string> workerSockets);
+
+map<long, long> calculateLocalOutDegreeDist(string graphID, string partitionID,
+                                            std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
+                                            std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores);
+
+map<long, long> calculateInDegreeDist(string graphID, string partitionID, int serverPort,
+                                      std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
+                                      std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores,
+                                      std::vector<string> workerSockets);
+
+map<long, long> calculateLocalInDegreeDist(string graphID, string partitionID,
+                                           std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
+                                           std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores);
+
+map <long, map<long, unordered_set<long>>> calculateLocalEgoNet(string graphID, string partitionID, int serverPort,
+                                                                JasmineGraphHashMapLocalStore localDB,
+                                                                JasmineGraphHashMapCentralStore centralDB,
+                                                                std::vector<string> workerSockets);
+
+map<long, map<long, unordered_set<long>>> calculateEgoNet(string graphID, string partitionID,
+                                                          int serverPort, JasmineGraphHashMapLocalStore localDB,
+                                                          JasmineGraphHashMapCentralStore centralDB,
+                                                          string workerList);
+
 struct instanceservicesessionargs {
     string profile;
     string masterHost;
