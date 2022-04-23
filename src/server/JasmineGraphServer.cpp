@@ -2704,6 +2704,16 @@ void JasmineGraphServer::inDegreeDistribution(std::string graphID) {
 
 }
 
+long JasmineGraphServer::getGraphVertexCount(std::string graphID) {
+    SQLiteDBInterface refToSqlite = *new SQLiteDBInterface();
+    refToSqlite.init();
+    vector<vector<pair<string, string>>> output = refToSqlite.runSelect(
+            "SELECT vertexcount FROM graph WHERE idgraph = '" + graphID + "'");
+
+    long vertexCount = std::stoi(output[0][0].second);
+    return vertexCount;
+}
+
 void JasmineGraphServer::duplicateCentralStore(std::string graphID) {
 
     std::map<std::string, JasmineGraphServer::workerPartition> graphPartitionedHosts =
