@@ -687,7 +687,6 @@ int TriangleCountExecutor::updateTriangleTreeAndGetTriangleCount(std::vector<std
 
 long TriangleCountExecutor::aggregateCentralStoreTriangles(SQLiteDBInterface sqlite, std::string graphId,
                                                            std::string masterIP, int threadPriority) {
-    triangleCount_logger.log("Started Aggregating Central Store Triangles ", "error");
     std::vector<std::vector<string>> workerCombinations = getWorkerCombination(sqlite,graphId);
     std::map<string, int> workerWeightMap;
     std::vector<std::vector<string>>::iterator workerCombinationsIterator;
