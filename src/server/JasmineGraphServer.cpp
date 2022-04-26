@@ -329,7 +329,7 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                                     std::to_string(workerPortsVector.at(i)) + ":" +
                                     std::to_string(workerPortsVector.at(i)) + " -p " +
                                     std::to_string(workerDataPortsVector.at(i)) + ":" +
-                                    std::to_string(workerDataPortsVector.at(i)) + " chinthakarukshan/jasminegraph:latest --MODE 2 --HOST_NAME " + host +
+                                    std::to_string(workerDataPortsVector.at(i)) + " jasminegraph:latest --MODE 2 --HOST_NAME " + host +
                                     " --MASTERIP " + masterHost + " --SERVER_PORT " +
                                     std::to_string(workerPortsVector.at(i)) + " --SERVER_DATA_PORT " +
                                     std::to_string(workerDataPortsVector.at(i)) + " --ENABLE_NMON " + enableNmon;
@@ -341,7 +341,7 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                                     std::to_string(workerPortsVector.at(i)) + ":" +
                                     std::to_string(workerPortsVector.at(i)) + " -p " +
                                     std::to_string(workerDataPortsVector.at(i)) + ":" +
-                                    std::to_string(workerDataPortsVector.at(i)) + " chinthakarukshan/jasminegraph:latest --MODE 2 --HOST_NAME " + host +
+                                    std::to_string(workerDataPortsVector.at(i)) + " jasminegraph:latest --MODE 2 --HOST_NAME " + host +
                                     " --MASTERIP " + masterHost + " --SERVER_PORT " +
                                     std::to_string(workerPortsVector.at(i)) + " --SERVER_DATA_PORT " +
                                     std::to_string(workerDataPortsVector.at(i)) + " --ENABLE_NMON " + enableNmon;
