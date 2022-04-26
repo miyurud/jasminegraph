@@ -551,8 +551,6 @@ int PerformanceUtil::collectLocalSLAResourceUtilization(std::string placeId, int
     resourceUsageInfo.loadAverage = std::to_string(loadAgerage);
     //resourceUsageInfo.memoryUsage = std::to_string(memoryUsage);
 
-    std::cout << "###PERF### CURRENT LOAD: " + std::to_string(loadAgerage) << std::endl;
-
     if (!resourceUsageMap[placeId].empty()) {
         resourceUsageMap[placeId].push_back(resourceUsageInfo);
     } else {
