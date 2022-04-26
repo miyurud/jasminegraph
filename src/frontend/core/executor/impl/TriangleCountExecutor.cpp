@@ -1242,7 +1242,6 @@ TriangleCountExecutor::countCompositeCentralStoreTriangles(std::string aggregato
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
             triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
-            triangleCount_logger.log("Sent : Available File List" + availableFileList, "info");
             result_wr = write(sockfd, availableFileList.c_str(), availableFileList.size());
 
             if(result_wr < 0) {
@@ -1261,8 +1260,6 @@ TriangleCountExecutor::countCompositeCentralStoreTriangles(std::string aggregato
             triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
 
             std::vector<std::string> chunksVector;
-
-            triangleCount_logger.log("Sent : Composite Centralstore file List" + compositeCentralStoreFileList, "info");
 
             for (unsigned i = 0; i < compositeCentralStoreFileList.length(); i += INSTANCE_DATA_LENGTH - 10) {
                 std::string chunk = compositeCentralStoreFileList.substr(i, INSTANCE_DATA_LENGTH - 10);
