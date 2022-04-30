@@ -83,6 +83,23 @@ map<long, map<long, unordered_set<long>>> calculateEgoNet(string graphID, string
                                                           JasmineGraphHashMapCentralStore centralDB,
                                                           string workerList);
 
+void calculateLocalPageRank(string graphID, string partitionID, int serverPort, int top_k_page_rank_value,
+                            string graphVertexCount, JasmineGraphHashMapLocalStore localDB,
+                            JasmineGraphHashMapCentralStore centralDB,
+                            std::vector<string> workerSockets);
+
+map<long, float> getAuthorityScoresWorldToLocal(string graphID, string partitionID, int serverPort,
+                                                string graphVertexCount, JasmineGraphHashMapLocalStore localDB,
+                                                JasmineGraphHashMapCentralStore centralDB,
+                                                map<long, unordered_set<long>> graphVertexMap,
+                                                std::vector<string> workerSockets, long worldOnlyVertexCount);
+
+map<long, unordered_set<long>> getEdgesWorldToLocal(string graphID, string partitionID, int serverPort,
+                                                    string graphVertexCount, JasmineGraphHashMapLocalStore localDB,
+                                                    JasmineGraphHashMapCentralStore centralDB,
+                                                    map<long, unordered_set<long>> graphVertexMap,
+                                                    std::vector<string> workerSockets);
+
 struct instanceservicesessionargs {
     string profile;
     string masterHost;
