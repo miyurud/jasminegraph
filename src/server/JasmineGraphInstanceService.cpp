@@ -815,7 +815,7 @@ void *instanceservicesession(void *dummyPt) {
             read(connFd, data, INSTANCE_DATA_LENGTH);
             string graphVertexCount = (data);
             graphVertexCount = utils.trim_copy(graphVertexCount, " \f\n\r\t\v");
-            instance_logger.log("Received Graph Vertex Count " + graphVertexCount, "info");
+            instance_logger.log("Received Graph ID:" + graphID + " Vertex Count: " + graphVertexCount, "info");
 
             JasmineGraphHashMapLocalStore graphDB;
             JasmineGraphHashMapCentralStore centralDB;
@@ -834,7 +834,7 @@ void *instanceservicesession(void *dummyPt) {
 
             instance_logger.log("Start : Calculate Local page rank", "info");
 
-            calculateLocalPageRank(graphID, partitionID, serverPort, 100,
+            calculateLocalPageRank(graphID, partitionID, serverPort, TOP_K_PAGE_RANK,
                                    graphVertexCount, graphDB, centralDB,
                                    workerSockets);
             instance_logger.log("Finish : Calculate Local page rank.", "info");
@@ -3475,9 +3475,9 @@ map<long, map<long, unordered_set<long>>> calculateLocalEgoNet(string graphID, s
         std::string centralStoreFile = aggregatorFilePath + "/" + centralGraphIdentifier;
         instance_logger.log("###INSTANCE### centralstore " + centralStoreFile, "info");
 
-        struct stat s;
-        if (stat(centralStoreFile.c_str(), &s) == 0) {
-            if (s.st_mode & S_IFREG) {
+        struct stat centralStoreFileBuffer;
+        if (stat(centralStoreFile.c_str(), &centralStoreFileBuffer) == 0) {
+            if (centralStoreFileBuffer.st_mode & S_IFREG) {
                 JasmineGraphHashMapCentralStore centralStore = JasmineGraphInstanceService::loadCentralStore(
                         centralStoreFile);
                 map<long, unordered_set<long>> centralGraphMap = centralStore.getUnderlyingHashMap();
@@ -3651,7 +3651,7 @@ map<long, map<long, unordered_set<long>>> calculateEgoNet(string graphID, string
     }
 }
 
-void calculateLocalPageRank(string graphID, string partitionID, int serverPort, int k,
+void calculateLocalPageRank(string graphID, string partitionID, int serverPort, int top_k_page_rank_value,
                             string graphVertexCount, JasmineGraphHashMapLocalStore localDB,
                             JasmineGraphHashMapCentralStore centralDB,
                             std::vector<string> workerSockets) {
@@ -3756,13 +3756,14 @@ void calculateLocalPageRank(string graphID, string partitionID, int serverPort, 
                 auto rankMapItr = rankMap.find(itr);
 
                 double existingChildRank = 0;
+                double finalRank = 0;
                 if (rankMapItr != rankMap.end()) {
                     existingChildRank = rankMapItr->second;
-                    double finalRank = existingChildRank + distributedRank;
+                    finalRank = existingChildRank + distributedRank;
 
                     rankMapItr->second = finalRank;
                 } else {
-                    double finalRank = existingChildRank + distributedRank;
+                    finalRank = existingChildRank + distributedRank;
                     rankMap.insert(std::make_pair(itr, finalRank));
 
                 }
@@ -3774,11 +3775,10 @@ void calculateLocalPageRank(string graphID, string partitionID, int serverPort, 
 
     map<double, long> rankMapResults;
 
-    if (k == -1) {
+    if (top_k_page_rank_value == -1) {
         instance_logger.log("Page rank is not implemented", "info");
     } else {
         std::string resultTree = "";
-        instance_logger.log("tree size " + to_string(rankMap.size()), "info");
 
         for (map<long, double>::iterator rankMapItr = rankMap.begin(); rankMapItr != rankMap.end(); ++rankMapItr) {
             rankMapResults.insert(std::make_pair(rankMapItr->second, rankMapItr->first));
@@ -3871,7 +3871,7 @@ map<long, float> getAuthorityScoresWorldToLocal(string graphID, string partition
 
 
     map<long, float> authResultMap;
-    float f = 0;
+    float authorityScore = 0;
     for (map<long, unordered_set<long>>::iterator it = worldToLocalVertexMap.begin();
          it != worldToLocalVertexMap.end(); ++it) {
         unordered_set<long> distribution = it->second;
@@ -3882,8 +3882,8 @@ map<long, float> getAuthorityScoresWorldToLocal(string graphID, string partition
                 long degree = oddIterator->second;
                 map<long, float>::iterator authResultMapItr = authResultMap.find(it->first);
                 if (authResultMapItr != authResultMap.end()) {
-                    f = authResultMapItr->second;
-                    authResultMapItr->second = f + (alpha * (1.0 / degree) + mu);
+                    authorityScore = authResultMapItr->second;
+                    authResultMapItr->second = authorityScore + (alpha * (1.0 / degree) + mu);
                 } else {
                     authResultMap.insert(std::make_pair(it->first, (alpha * (1.0 / degree) + mu)));
                 }
