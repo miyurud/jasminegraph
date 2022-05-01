@@ -817,6 +817,20 @@ void *instanceservicesession(void *dummyPt) {
             graphVertexCount = utils.trim_copy(graphVertexCount, " \f\n\r\t\v");
             instance_logger.log("Received Graph ID:" + graphID + " Vertex Count: " + graphVertexCount, "info");
 
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string alphaValue = (data);
+            alphaValue = utils.trim_copy(alphaValue, " \f\n\r\t\v");
+            instance_logger.log("Received alpha: " + alphaValue, "info");
+
+            double alpha = std::stod(alphaValue);
+
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
             JasmineGraphHashMapLocalStore graphDB;
             JasmineGraphHashMapCentralStore centralDB;
 
@@ -834,7 +848,7 @@ void *instanceservicesession(void *dummyPt) {
 
             instance_logger.log("Start : Calculate Local page rank", "info");
 
-            calculateLocalPageRank(graphID, partitionID, serverPort, TOP_K_PAGE_RANK,
+            calculateLocalPageRank(graphID, alpha, partitionID, serverPort, TOP_K_PAGE_RANK,
                                    graphVertexCount, graphDB, centralDB,
                                    workerSockets);
             instance_logger.log("Finish : Calculate Local page rank.", "info");
@@ -3651,7 +3665,7 @@ map<long, map<long, unordered_set<long>>> calculateEgoNet(string graphID, string
     }
 }
 
-void calculateLocalPageRank(string graphID, string partitionID, int serverPort, int top_k_page_rank_value,
+void calculateLocalPageRank(string graphID, double alpha, string partitionID, int serverPort, int top_k_page_rank_value,
                             string graphVertexCount, JasmineGraphHashMapLocalStore localDB,
                             JasmineGraphHashMapCentralStore centralDB,
                             std::vector<string> workerSockets) {
@@ -3680,7 +3694,6 @@ void calculateLocalPageRank(string graphID, string partitionID, int serverPort, 
     long partitionVertexCount = localGraphMap.size();
     long worldOnlyVertexCount = atol(graphVertexCount.c_str()) - partitionVertexCount;
 
-    double alpha = 0.85;
     double damp = 1 - alpha;
     int M = partitionVertexCount + 1;
 

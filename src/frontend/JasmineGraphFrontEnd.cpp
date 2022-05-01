@@ -1095,21 +1095,32 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 continue;
             }
 
-            char graph_id[FRONTEND_DATA_LENGTH];
-            bzero(graph_id, FRONTEND_DATA_LENGTH + 1);
+            char page_rank_command[FRONTEND_DATA_LENGTH];
+            bzero(page_rank_command, FRONTEND_DATA_LENGTH + 1);
             string name = "";
             string path = "";
 
-            read(connFd, graph_id, FRONTEND_DATA_LENGTH);
+            read(connFd, page_rank_command, FRONTEND_DATA_LENGTH);
+            std::vector<std::string> strArr = Utils::split(page_rank_command, '|');
 
-            string graphID(graph_id);
+            string graphID;
+            graphID = strArr[0];
+            double alpha = PAGE_RANK_ALPHA;
+            if (strArr.size() > 1) {
+                alpha  = std::stod(strArr[1]);
+                if (alpha < 0 || alpha >= 1) {
+                        frontend_logger.log("Invalid value for alpha", "error");
+                        loop = true;
+                        continue;
+                }
+            }
 
             Utils utils;
             graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
             frontend_logger.log("Graph ID received: " + graphID, "info");
 
             JasmineGraphServer *jasmineServer = new JasmineGraphServer();
-            jasmineServer->pageRank(graphID);
+            jasmineServer->pageRank(graphID, alpha);
 
             int result_wr_done = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
             if (result_wr_done < 0) {
@@ -1711,7 +1722,7 @@ int JasmineGraphFrontEnd::getRunningHighPriorityTaskCount() {
     return taskCount;
 }
 
-void JasmineGraphServer::pageRank(std::string graphID) {
+void JasmineGraphServer::pageRank(std::string graphID, double alpha) {
 
     std::map<std::string, JasmineGraphServer::workerPartition> graphPartitionedHosts =
             JasmineGraphServer::getWorkerPartitions(graphID);
@@ -1844,6 +1855,10 @@ void JasmineGraphServer::pageRank(std::string graphID) {
         }
 
         frontend_logger.log("Sent : Host List ", "info");
+        bzero(data, 301);
+        read(sockfd, data, 300);
+        response = (data);
+        response = utils.trim_copy(response, " \f\n\r\t\v");
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
             frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
@@ -1859,6 +1874,34 @@ void JasmineGraphServer::pageRank(std::string graphID) {
         }
 
         frontend_logger.log("graph vertex count: " + std::to_string(graphVertexCount), "info");
+        bzero(data, 301);
+        read(sockfd, data, 300);
+        response = (data);
+        response = utils.trim_copy(response, " \f\n\r\t\v");
+
+        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+            frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+        } else {
+            frontend_logger.log("Error reading from socket", "error");
+        }
+
+        result_wr = write(sockfd, std::to_string(alpha).c_str(), std::to_string(alpha).size());
+
+        if (result_wr < 0) {
+            frontend_logger.log("Error writing to socket", "error");
+        }
+
+        frontend_logger.log("page rank alpha value sent : " + std::to_string(alpha), "info");
+        bzero(data, 301);
+        read(sockfd, data, 300);
+        response = (data);
+        response = utils.trim_copy(response, " \f\n\r\t\v");
+
+        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+            frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+        } else {
+            frontend_logger.log("Error reading from socket", "error");
+        }
     }
 }
 
