@@ -1118,6 +1118,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             Utils utils;
             graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
             frontend_logger.log("Graph ID received: " + graphID, "info");
+            frontend_logger.log("Alpha value: " + to_string(alpha), "info");
 
             JasmineGraphServer *jasmineServer = new JasmineGraphServer();
             jasmineServer->pageRank(graphID, alpha);
