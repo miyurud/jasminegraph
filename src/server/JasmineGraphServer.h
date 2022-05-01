@@ -149,7 +149,7 @@ public:
 
     void duplicateCentralStore(std::string graphID);
 
-    void pageRank(std::string graphID);
+    void pageRank(std::string graphID, double alpha);
 
     long getGraphVertexCount(std::string graphID);
 
