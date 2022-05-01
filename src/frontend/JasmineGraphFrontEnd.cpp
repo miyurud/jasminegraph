@@ -1750,6 +1750,7 @@ void JasmineGraphServer::pageRank(std::string graphID, double alpha) {
     }
 
     workerList.pop_back();
+    frontend_logger.log("Worker list " + workerList, "error");
 
     for (workerit = graphPartitionedHosts.begin(); workerit != graphPartitionedHosts.end(); workerit++) {
         JasmineGraphServer::workerPartition workerPartition = workerit->second;
