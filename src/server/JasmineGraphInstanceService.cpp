@@ -3802,7 +3802,7 @@ void calculateLocalPageRank(string graphID, double alpha, string partitionID, in
         for (map<double, long>::iterator rankMapItr = rankMapResults.end();
              rankMapItr != rankMapResults.begin(); --rankMapItr) {
 
-            if (count > 50) {
+            if (count > top_k_page_rank_value) {
                 break;
             }
             instance_logger.log(to_string(rankMapItr->first) + ":" + to_string(rankMapItr->second) + ",", "info");
