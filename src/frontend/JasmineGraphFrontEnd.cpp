@@ -824,8 +824,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 std::string errorMessage = jobResponse.getParameter(Conts::PARAM_KEYS::ERROR_MESSAGE);
 
                 if (!errorMessage.empty()) {
-                    string error_message = "Cannot process request now. Please try again later.";
-                    result_wr = write(connFd, error_message.c_str(), error_message.length());
+                    result_wr = write(connFd, errorMessage.c_str(), errorMessage.length());
 
                     if (result_wr < 0) {
                         frontend_logger.log("Error writing to socket", "error");

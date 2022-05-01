@@ -41,19 +41,6 @@ void *startScheduler(void *dummyPt) {
     while (true) {
         if (jobQueue.size() > 0) {
             jobScheduler_Logger.log("##JOB SCHEDULER## Jobs Available for Scheduling", "info");
-            /*jobScheduler_Logger.log("##JOB SCHEDULER## Picked up Job", "info");
-            JobRequest request = jobQueue.top();
-            int priority = request.priority;
-
-            if (priority == Conts::HIGH_PRIORITY_DEFAULT_VALUE) {
-                string perfCategory = request.getParameter(Conts::PARAM_KEYS::CATEGORY);
-                string command = request.getJobType();
-                string graphId = request.getParameter(Conts::PARAM_KEYS::GRAPH_ID);
-            }
-
-            jobQueue.pop();
-            JobScheduler::processJob(request, refToScheduler->sqlite, refToScheduler->perfSqlite);
-            jobScheduler_Logger.log("##JOB SCHEDULER## Scheduled the job", "info");*/
 
             std::vector<JobRequest> pendingHPJobList;
             std::vector<std::string> highPriorityGraphList;
@@ -88,7 +75,7 @@ void *startScheduler(void *dummyPt) {
                     if (queueTime  < 0) {
                         JobResponse failedJobResponse;
                         failedJobResponse.setJobId(hpRequest.getJobId());
-                        failedJobResponse.addParameter(Conts::PARAM_KEYS::ERROR_MESSAGE, "Rejecting the graph because "
+                        failedJobResponse.addParameter(Conts::PARAM_KEYS::ERROR_MESSAGE, "Rejecting the job request because "
                                                                                          "SLA cannot be maintained");
                         responseVectorMutex.lock();
                         responseMap[hpRequest.getJobId()] = failedJobResponse;

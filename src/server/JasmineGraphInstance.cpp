@@ -53,7 +53,6 @@ int JasmineGraphInstance::start_running(string profile, string hostName, string 
     std::thread *myThreads = new std::thread[1];
     myThreads[0] = std::thread(logLoadAverage, "worker");
 
-    //acknowledgeMaster(masterHost,hostName,std::to_string(serverPort));
 
     pthread_join(instanceCommunicatorThread,NULL);
     pthread_join(instanceFileTransferThread,NULL);

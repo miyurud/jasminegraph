@@ -1646,10 +1646,10 @@ void *instanceservicesession(void *dummyPt) {
                 isVMStatManager, isResourceAllocationRequired);
             write(connFd, memoryUsage.c_str(), memoryUsage.size());
         } else if (line.compare(JasmineGraphInstanceProtocol::START_STAT_COLLECTION)  == 0) {
-            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::START_STAT_COLLECTION, "info");
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::START_STAT_COLLECTION, "debug");
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            collectValid=true;
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "debug");
+            collectValid = true;
             JasmineGraphInstanceService::startCollectingLoadAverage();
         } else if (line.compare(JasmineGraphInstanceProtocol::REQUEST_COLLECTED_STATS)  == 0) {
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::REQUEST_COLLECTED_STATS, "info");
@@ -4295,7 +4295,7 @@ void JasmineGraphInstanceService::startCollectingLoadAverage() {
     while(collectValid)
     {
 
-        if(time(0)-start== Conts::LOAD_AVG_COLLECTING_GAP)
+        if(time(0)-start == Conts::LOAD_AVG_COLLECTING_GAP)
         {
             elapsedTime += Conts::LOAD_AVG_COLLECTING_GAP*1000;
             double loadAgerage = statisticCollector.getLoadAverage();

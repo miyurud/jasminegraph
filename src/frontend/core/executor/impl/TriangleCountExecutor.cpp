@@ -430,7 +430,7 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
 
         if (isCompositeAggregation) {
 
-            triangleCount_logger.log("###COMPOSITE### Started Compsite aggregation ", "info");
+            triangleCount_logger.log("###COMPOSITE### Started Composite aggregation ", "info");
             static std::vector<std::vector<string>>::iterator combinationsIterator;
 
             for (int combinationIndex = 0; combinationIndex < fileCombinations.size(); ++combinationIndex) {
@@ -450,8 +450,8 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
                 for (listIterator = fileList.begin(); listIterator != fileList.end(); ++listIterator) {
                     std::string fileName = *listIterator;
 
-                    size_t lastindex = fileName.find_last_of(".");
-                    string rawFileName = fileName.substr(0, lastindex);
+                    size_t lastIndex = fileName.find_last_of(".");
+                    string rawFileName = fileName.substr(0, lastIndex);
 
                     std::vector<std::string> fileNameParts = utils.split(rawFileName,'_');
 
@@ -465,38 +465,6 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
                     continue;
                 }
 
-                /*aggregateWeightMutex.lock();
-                triangleCount_logger.log("###COMPOSITE### Aggregator MUTEX Aquired ", "info");
-                for (partitionSetIterator = partitionSet.begin(); partitionSetIterator != partitionSet.end(); ++partitionSetIterator) {
-                    std::string partitionIdString = *partitionSetIterator;
-                    int currentPartitionId = atoi(partitionIdString.c_str());
-                    tempWeightMap[currentPartitionId] = aggregateWeightMap[currentPartitionId];
-                }
-
-                int currentWorkerWeight = tempWeightMap[partitionId];
-                pair<int, int> entryWithMinValue = make_pair(partitionId,currentWorkerWeight);
-
-                map<int, int>::iterator currentEntry;
-
-                for (currentEntry = aggregateWeightMap.begin(); currentEntry != aggregateWeightMap.end(); ++currentEntry) {
-                    if (entryWithMinValue.second > currentEntry->second) {
-                        entryWithMinValue = make_pair(currentEntry->first,currentEntry->second);
-                    }
-                }
-
-                if (entryWithMinValue.first == partitionId) {
-                    int currentWeight = aggregateWeightMap[entryWithMinValue.first];
-                    currentWeight++;
-                    aggregateWeightMap[entryWithMinValue.first] = currentWeight;
-                    triangleCount_logger.log("###COMPOSITE### Aggregator Initiated : Partition ID: " + std::to_string(partitionId) +" Host: " + host + " Port: " + std::to_string(port) + " Weight : " + std::to_string(currentWeight), "info");
-                } else {
-                    continue;
-                }
-
-
-
-                aggregateWeightMutex.unlock();
-                triangleCount_logger.log("###COMPOSITE### Aggregator MUTEX Released ", "info");*/
 
                 if (proceedOrNot(partitionSet,partitionId)) {
 
@@ -545,7 +513,6 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
                 fileCombinationMutex.unlock();
 
                 if (isAggregateValid) {
-                    triangleCount_logger.log("###COMPOSITE### Found out Aggregate Valid Scenario ", "info");
                     std::set<string>::iterator transferRequireFileIterator;
 
                     for (transferRequireFileIterator = transferRequireFiles.begin();
@@ -567,7 +534,7 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
                                                                                          masterIP,
                                                                                          adjustedAvailableFiles, threadPriority);
 
-                    triangleCount_logger.log("###COMPOSITE### Retrieved Composite triangle list ", "info");
+                    triangleCount_logger.log("###COMPOSITE### Retrieved Composite triangle list ", "debug");
 
                     std::vector<std::string> triangles = Utils::split(compositeTriangles, ':');
 
@@ -584,7 +551,7 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
             }
         }
 
-        triangleCount_logger.log("###COMPOSITE### Returning Total Triangles from executer ", "info");
+        triangleCount_logger.log("###COMPOSITE### Returning Total Triangles from executer ", "debug");
 
         return triangleCount;
 
@@ -598,7 +565,6 @@ bool TriangleCountExecutor::proceedOrNot(std::set<string> partitionSet,int parti
 
     const std::lock_guard<std::mutex> lock(aggregateWeightMutex);
 
-    //triangleCount_logger.log("###COMPOSITE### Aggregator MUTEX Aquired ", "info");
     std::set<string>::iterator partitionSetIterator;
     std::map<int,int> tempWeightMap;
     for (partitionSetIterator = partitionSet.begin(); partitionSetIterator != partitionSet.end(); ++partitionSetIterator) {
@@ -631,19 +597,15 @@ bool TriangleCountExecutor::proceedOrNot(std::set<string> partitionSet,int parti
 
 
     aggregateWeightMutex.unlock();
-    //triangleCount_logger.log("###COMPOSITE### Aggregator MUTEX Released ", "info");
 }
 
 bool TriangleCountExecutor::updateMap(int partitionId) {
-    //aggregateWeightMutex.lock();
     const std::lock_guard<std::mutex> lock(aggregateWeightMutex);
 
-    //triangleCount_logger.log("###COMPOSITE### Aggregator MUTEX Aquired on completion", "info");
     int currentWeight = aggregateWeightMap[partitionId];
     currentWeight--;
     aggregateWeightMap[partitionId] = currentWeight;
     triangleCount_logger.log("###COMPOSITE### Aggregator Completed : Partition ID: " + std::to_string(partitionId) + " Weight : " + std::to_string(currentWeight), "info");
-    //triangleCount_logger.log("###COMPOSITE### Aggregator MUTEX Released on completion", "info");
 }
 
 int TriangleCountExecutor::updateTriangleTreeAndGetTriangleCount(std::vector<std::string> triangles) {
@@ -652,7 +614,7 @@ int TriangleCountExecutor::updateTriangleTreeAndGetTriangleCount(std::vector<std
     std::vector<std::string>::iterator triangleIterator;
     int aggregateCount = 0;
 
-    triangleCount_logger.log("###COMPOSITE### Triangle Tree locked ", "info");
+    triangleCount_logger.log("###COMPOSITE### Triangle Tree locked ", "debug");
 
     for (triangleIterator = triangles.begin(); triangleIterator != triangles.end(); ++triangleIterator) {
         std::string triangle = *triangleIterator;
@@ -1766,11 +1728,9 @@ int TriangleCountExecutor::collectPerformaceData(PerformanceSQLiteDBInterface pe
         }
 
 
-        if (isMaster.find("true") != std::string::npos || host == "localhost" || host.compare(masterIP) == 0) {
-
-        } else {
+        if (!(isMaster.find("true") != std::string::npos || host == "localhost" || host.compare(masterIP) == 0)) {
             performanceUtil.initiateCollectingRemoteSLAResourceUtilization(host,atoi(serverPort.c_str()),isHostReporter,"false",
-                                                placeId,elapsedTime, masterIP);
+                                                                           placeId,elapsedTime, masterIP);
         }
     }
 
