@@ -455,6 +455,8 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
 
                     std::vector<std::string> fileNameParts = utils.split(rawFileName,'_');
 
+                    /*Partition numbers are extracted from  the file name. The starting index of partition number is 2.
+                     * Therefore the loop starts with 2*/
                     for (int index = 2; index < fileNameParts.size(); ++index) {
                         partitionSet.insert(fileNameParts[index]);
                     }
