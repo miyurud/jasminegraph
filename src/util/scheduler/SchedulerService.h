@@ -14,7 +14,7 @@ limitations under the License.
 #ifndef JASMINEGRAPH_SCHEDULERSERVICE_H
 #define JASMINEGRAPH_SCHEDULERSERVICE_H
 
-#include "../performance/PerformanceUtil.h"
+#include "../../performance/matrix/PerformanceUtil.h"
 #include "../Utils.h"
 #include "../logger/Logger.h"
 #include "../../performancedb/PerformanceSQLiteDBInterface.h"

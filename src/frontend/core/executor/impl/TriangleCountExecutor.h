@@ -21,7 +21,7 @@ limitations under the License.
 #include "../../../JasmineGraphFrontEndProtocol.h"
 #include "../../../../server/JasmineGraphInstanceProtocol.h"
 #include "../../../../server/JasmineGraphServer.h"
-#include "../../../../util/performance/PerformanceUtil.h"
+#include "../../../../performance/matrix/PerformanceUtil.h"
 #include <chrono>
 
 

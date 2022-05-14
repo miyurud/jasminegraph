@@ -15,21 +15,21 @@ limitations under the License.
 #include <sys/stat.h>
 #include <dirent.h>
 #include <string.h>
-#include "../Utils.h"
-#include "../Conts.h"
+#include "../../util/Utils.h"
+#include "../../util/Conts.h"
 #include "../../metadb/SQLiteDBInterface.h"
 #include "../../performancedb/PerformanceSQLiteDBInterface.h"
-#include "../PlacesToNodeMapper.h"
+#include "../../util/PlacesToNodeMapper.h"
 #include "../../server/JasmineGraphInstanceProtocol.h"
 #include "StatisticCollector.h"
-#include "../logger/Logger.h"
+#include "../../util/logger/Logger.h"
 #include <thread>
 #include <pthread.h>
 #include <future>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netdb.h>
-#include "../Utils.h"
+#include "../../util/Utils.h"
 #include "../../frontend/core/domain/JobRequest.h"
 #include <chrono>
 
