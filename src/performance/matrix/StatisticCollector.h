@@ -32,6 +32,7 @@ limitations under the License.
 #include <cmath>
 #include <sstream>
 #include <iomanip>
+#include "PerformanceUtil.h"
 
 
 class StatisticCollector {
@@ -48,6 +49,7 @@ public:
     static long getTotalMemoryUsage();
     static double getTotalCpuUsage();
     static double getLoadAverage();
+    static void logLoadAverage(std::string name);
 };
 
 

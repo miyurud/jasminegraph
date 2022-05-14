@@ -24,6 +24,7 @@ limitations under the License.
 #include "../performancedb/PerformanceSQLiteDBInterface.h"
 #include "../util/Conts.h"
 #include "../frontend/core/scheduler/JobScheduler.h"
+#include "../performance/matrix/StatisticCollector.h"
 
 using std::map;
 
@@ -55,7 +56,7 @@ private:
     static bool hasEnding(std::string const &fullString, std::string const &ending);
     std::vector<std::string> getWorkerVector(std::string workerList);
     void deleteNonOperationalGraphFragment(int graphID);
-    static void logLoadAverage(std::string name);
+
 public:
     ~JasmineGraphServer();
 
