@@ -36,7 +36,7 @@ limitations under the License.
 #include "../ml/trainer/python-c-api/Python_C_API.h"
 #include "../centralstore/incremental/DataPublisher.h"
 #include "core/scheduler/JobScheduler.h"
-#include "../performance/matrix/PerformanceUtil.h"
+#include "../performance/metrics/PerformanceUtil.h"
 #include "core/CoreConstants.h"
 
 using json = nlohmann::json;

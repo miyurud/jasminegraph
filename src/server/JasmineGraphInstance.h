@@ -20,7 +20,7 @@ limitations under the License.
 #include "JasmineGraphInstanceFileTransferService.h"
 #include "JasmineGraphInstanceService.h"
 #include "../localstore/JasmineGraphHashMapLocalStore.h"
-#include "../performance/matrix/PerformanceUtil.h"
+#include "../performance/metrics/PerformanceUtil.h"
 
 using std::map;
 

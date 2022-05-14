@@ -24,7 +24,7 @@ limitations under the License.
 #include "../performancedb/PerformanceSQLiteDBInterface.h"
 #include "../util/Conts.h"
 #include "../frontend/core/scheduler/JobScheduler.h"
-#include "../performance/matrix/StatisticCollector.h"
+#include "../performance/metrics/StatisticCollector.h"
 
 using std::map;
 

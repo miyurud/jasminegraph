@@ -18,7 +18,7 @@ limitations under the License.
 #include "../domain/JobResponse.h"
 #include "../../../metadb/SQLiteDBInterface.h"
 #include "../../../performancedb/PerformanceSQLiteDBInterface.h"
-#include "../../../performance/matrix/PerformanceUtil.h"
+#include "../../../performance/metrics/PerformanceUtil.h"
 #include "../CoreConstants.h"
 #include <thread>
 #include <chrono>

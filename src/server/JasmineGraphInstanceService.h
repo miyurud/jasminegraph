@@ -40,7 +40,7 @@ limitations under the License.
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <dirent.h>
-#include "../performance/matrix/StatisticCollector.h"
+#include "../performance/metrics/StatisticCollector.h"
 #include <chrono>
 #include <ctime>
 #include <vector>
