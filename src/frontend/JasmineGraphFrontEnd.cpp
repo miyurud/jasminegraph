@@ -1735,9 +1735,9 @@ void JasmineGraphServer::pageRank(std::string graphID, double alpha) {
     std::string workerList;
     Utils utils;
 
-    std::map<std::string, JasmineGraphServer::workerPartition>::iterator workerit;
-    for (workerit = graphPartitionedHosts.begin(); workerit != graphPartitionedHosts.end(); workerit++) {
-        JasmineGraphServer::workerPartition workerPartition = workerit->second;
+    std::map<std::string, JasmineGraphServer::workerPartition>::iterator workerIter;
+    for (workerIter = graphPartitionedHosts.begin(); workerIter != graphPartitionedHosts.end(); workerIter++) {
+        JasmineGraphServer::workerPartition workerPartition = workerIter->second;
         partition = workerPartition.partitionID;
         host = workerPartition.hostname;
         port = workerPartition.port;
@@ -1753,8 +1753,8 @@ void JasmineGraphServer::pageRank(std::string graphID, double alpha) {
     workerList.pop_back();
     frontend_logger.log("Worker list " + workerList, "error");
 
-    for (workerit = graphPartitionedHosts.begin(); workerit != graphPartitionedHosts.end(); workerit++) {
-        JasmineGraphServer::workerPartition workerPartition = workerit->second;
+    for (workerIter = graphPartitionedHosts.begin(); workerIter != graphPartitionedHosts.end(); workerIter++) {
+        JasmineGraphServer::workerPartition workerPartition = workerIter->second;
         partition = workerPartition.partitionID;
         host = workerPartition.hostname;
         port = workerPartition.port;
