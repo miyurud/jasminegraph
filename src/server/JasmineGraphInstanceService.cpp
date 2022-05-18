@@ -831,6 +831,17 @@ void *instanceservicesession(void *dummyPt) {
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
 
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string iterationsValue = (data);
+            alphaValue = utils.trim_copy(alphaValue, " \f\n\r\t\v");
+            instance_logger.log("Received alpha: " + alphaValue, "info");
+
+            int iterations = std::stoi(iterationsValue);
+
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
             JasmineGraphHashMapLocalStore graphDB;
             JasmineGraphHashMapCentralStore centralDB;
 
@@ -850,7 +861,7 @@ void *instanceservicesession(void *dummyPt) {
 
             calculateLocalPageRank(graphID, alpha, partitionID, serverPort, TOP_K_PAGE_RANK,
                                    graphVertexCount, graphDB, centralDB,
-                                   workerSockets);
+                                   workerSockets, iterations);
             instance_logger.log("Finish : Calculate Local page rank.", "info");
         } else if (line.compare(JasmineGraphInstanceProtocol::EGONET) == 0) {
 
@@ -3668,7 +3679,7 @@ map<long, map<long, unordered_set<long>>> calculateEgoNet(string graphID, string
 void calculateLocalPageRank(string graphID, double alpha, string partitionID, int serverPort, int top_k_page_rank_value,
                             string graphVertexCount, JasmineGraphHashMapLocalStore localDB,
                             JasmineGraphHashMapCentralStore centralDB,
-                            std::vector<string> workerSockets) {
+                            std::vector<string> workerSockets, int iterations) {
 
     map<long, unordered_set<long>> centralGraphMap = centralDB.getUnderlyingHashMap();
     map<long, unordered_set<long>> localGraphMap = localDB.getUnderlyingHashMap();
@@ -3723,9 +3734,7 @@ void calculateLocalPageRank(string graphID, double alpha, string partitionID, in
                                                                                            workerSockets);
 
     long entireGraphSize = atol(graphVertexCount.c_str());
-    int T = 2;
     float mu = (damp / entireGraphSize);
-    int ITERATION_COUNT = 10;
     unordered_map<float, float> resultTreeMap;
     // calculating local pagerank
     map<long, double> rankMap;
@@ -3746,7 +3755,7 @@ void calculateLocalPageRank(string graphID, double alpha, string partitionID, in
     }
 
     int count = 0;
-    while (count < ITERATION_COUNT) {
+    while (count < iterations) {
 
         for (localGraphMapIterator = localGraphMap.begin();
              localGraphMapIterator != localGraphMap.end(); ++localGraphMapIterator) {
@@ -3808,9 +3817,7 @@ void calculateLocalPageRank(string graphID, double alpha, string partitionID, in
             instance_logger.log(to_string(rankMapItr->first) + ":" + to_string(rankMapItr->second) + ",", "info");
             count++;
         }
-
     }
-
 }
 
 map<long, float> getAuthorityScoresWorldToLocal(string graphID, string partitionID, int serverPort,
