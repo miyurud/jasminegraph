@@ -1115,13 +1115,24 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 }
             }
 
+            int iterations = PAGE_RANK_ITERATIONS;
+            if (strArr.size() > 2) {
+                iterations  = std::stod(strArr[2]);
+                if (iterations <= 0 || iterations >= 100) {
+                    frontend_logger.log("Invalid value for iterations", "error");
+                    loop = true;
+                    continue;
+                }
+            }
+
             Utils utils;
             graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
             frontend_logger.log("Graph ID received: " + graphID, "info");
             frontend_logger.log("Alpha value: " + to_string(alpha), "info");
+            frontend_logger.log("Iterations value: " + to_string(iterations), "info");
 
             JasmineGraphServer *jasmineServer = new JasmineGraphServer();
-            jasmineServer->pageRank(graphID, alpha);
+            jasmineServer->pageRank(graphID, alpha, iterations);
 
             int result_wr_done = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
             if (result_wr_done < 0) {
@@ -1723,7 +1734,7 @@ int JasmineGraphFrontEnd::getRunningHighPriorityTaskCount() {
     return taskCount;
 }
 
-void JasmineGraphServer::pageRank(std::string graphID, double alpha) {
+void JasmineGraphServer::pageRank(std::string graphID, double alpha, int iterations) {
 
     std::map<std::string, JasmineGraphServer::workerPartition> graphPartitionedHosts =
             JasmineGraphServer::getWorkerPartitions(graphID);
@@ -1894,6 +1905,24 @@ void JasmineGraphServer::pageRank(std::string graphID, double alpha) {
         }
 
         frontend_logger.log("page rank alpha value sent : " + std::to_string(alpha), "info");
+        bzero(data, 301);
+        read(sockfd, data, 300);
+        response = (data);
+        response = utils.trim_copy(response, " \f\n\r\t\v");
+
+        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+            frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+        } else {
+            frontend_logger.log("Error reading from socket", "error");
+        }
+
+        result_wr = write(sockfd, std::to_string(iterations).c_str(), std::to_string(iterations).size());
+
+        if (result_wr < 0) {
+            frontend_logger.log("Error writing to socket", "error");
+        }
+
+        frontend_logger.log("page rank iterations value sent : " + std::to_string(iterations), "info");
         bzero(data, 301);
         read(sockfd, data, 300);
         response = (data);
