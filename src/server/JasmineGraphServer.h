@@ -149,6 +149,10 @@ public:
 
     void duplicateCentralStore(std::string graphID);
 
+    void pageRank(std::string graphID, double alpha, int iterations);
+
+    long getGraphVertexCount(std::string graphID);
+
     void egoNet(std::string graphID);
 };
 
