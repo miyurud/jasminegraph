@@ -60,8 +60,10 @@ public:
     static const string PAGE_RANK;
     static const string OUT_DEGREE_DISTRIBUTION;
     static const string IN_DEGREE_DISTRIBUTION;
-    static const string SEND_OUT_DEGREE_DISTRIBUTION_TO_AGGREGATOR;
-    static const string SEND_IN_DEGREE_DISTRIBUTION_TO_AGGREGATOR;
+    static const string WORKER_OUT_DEGREE_DISTRIBUTION;
+    static const string WORKER_IN_DEGREE_DISTRIBUTION;
+    static const string EGONET;
+    static const string WORKER_EGO_NET;
     static const string DP_CENTRALSTORE;
     static const string SEND_CENTRALSTORE_TO_AGGREGATOR;
     static const string SEND_COMPOSITE_CENTRALSTORE_TO_AGGREGATOR;
@@ -94,5 +96,8 @@ const int INSTANCE_LONG_DATA_LENGTH = 1024;
 const int INSTANCE_FILE_BUFFER_LENGTH = 1024;
 const int MAX_CONNECTION_COUNT = 300;
 const int MAX_STREAMING_DATA_LENGTH = 1024;
+
+const int TOP_K_PAGE_RANK = 100;
+
 
 #endif //JASMINEGRAPH_JASMINEGRAPHINSTANCEPROTOCOL_H

@@ -69,6 +69,7 @@ extern const string REFORMAT;
 extern const string TRIANGLES;
 extern const string PAGE_RANK;
 extern const string OUT_DEGREE_DISTRIBUTION;
+extern const string EGONET;
 extern const string DPCNTRL;
 extern const string TRAIN;
 extern const string PREDICT;
@@ -91,5 +92,7 @@ class JasminGraphFrontEndProtocol {
 const int FRONTEND_COMMAND_LENGTH = 4;
 const int FRONTEND_DATA_LENGTH = 300;
 
+const double PAGE_RANK_ALPHA = 0.85;
+const int PAGE_RANK_ITERATIONS = 10;
 
 #endif //JASMINGRAPH_JASMINGRAPHFRONTENDPROTOCOL_H
