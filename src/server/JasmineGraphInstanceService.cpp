@@ -775,6 +775,77 @@ void *instanceservicesession(void *dummyPt) {
                 workerSockets.push_back(intermediate);
             }
 
+            // Calculate the in degree distribution
+            map<long, long> degreeDistribution = calculateInDegreeDist(graphID, partitionID, serverPort,
+                                                                       graphDBMapLocalStores,
+                                                                       graphDBMapCentralStores, workerSockets);
+
+        } else if (line.compare(
+                JasmineGraphInstanceProtocol::WORKER_OUT_DEGREE_DISTRIBUTION) == 0) {
+            instance_logger.log("Received : Out degree distribution to aggregator", "info");
+
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string graphID = (data);
+            graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
+            instance_logger.log("Received Graph ID: " + graphID, "info");
+
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string partitionID = (data);
+            partitionID = utils.trim_copy(partitionID, " \f\n\r\t\v");
+            instance_logger.log("Received Partition ID: " + partitionID, "info");
+
+            map<long, long> degreeDistribution = calculateLocalOutDegreeDist(graphID, partitionID,
+                                                                             graphDBMapLocalStores,
+                                                                             graphDBMapCentralStores);
+            instance_logger.log("Degree Dist size: " + to_string(degreeDistribution.size()), "info");
+
+            for (map<long, long>::iterator it = degreeDistribution.begin(); it != degreeDistribution.end(); ++it) {
+                    instance_logger.log("degreeDistribution " + to_string(it -> first) + " " +
+                    to_string(it -> second) , "info");
+            }
+        } else if (line.compare(JasmineGraphInstanceProtocol::OUT_DEGREE_DISTRIBUTION) == 0) {
+            instance_logger.log("Received : out degree distribution from server", "info");
+
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string graphID = (data);
+            graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
+            instance_logger.log("Received Graph ID: " + graphID, "info");
+
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string partitionID = (data);
+            partitionID = utils.trim_copy(partitionID, " \f\n\r\t\v");
+            instance_logger.log("Received Partition ID: " + partitionID, "info");
+
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string workerList = (data);
+            workerList = utils.trim_copy(workerList, " \f\n\r\t\v");
+            instance_logger.log("Received Worker List " + workerList, "info");
+
+            std::vector<string> workerSockets;
+            stringstream wl(workerList);
+            string intermediate;
+            while (getline(wl, intermediate, ',')) {
+                workerSockets.push_back(intermediate);
+            }
+
             // Calculate the out degree distribution in the current super worker.
             map<long, long> degreeDistribution = calculateOutDegreeDist(graphID, partitionID, serverPort,
                                                                         graphDBMapLocalStores,
@@ -893,9 +964,13 @@ void *instanceservicesession(void *dummyPt) {
                     workerSocketPair.push_back(intermediate);
                 }
 
-                if (std::to_string(serverPort).compare(workerSocketPair[1]) == 0) {
-                    continue;
-                }
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string graphID = (data);
+            graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
+            instance_logger.log("Received Graph ID: " + graphID, "info");
 
                 string host = workerSocketPair[0];
                 int port = stoi(workerSocketPair[1]);
@@ -906,7 +981,11 @@ void *instanceservicesession(void *dummyPt) {
                 struct sockaddr_in serv_addr;
                 struct hostent *server;
 
-                sockfd = socket(AF_INET, SOCK_STREAM, 0);
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string partitionID = (data);
+            partitionID = utils.trim_copy(partitionID, " \f\n\r\t\v");
+            instance_logger.log("Received Partition ID: " + partitionID, "info");
 
                 if (sockfd < 0) {
                     std::cout << "Cannot accept connection" << std::endl;
@@ -3011,6 +3090,1194 @@ map<long, long> JasmineGraphInstanceService::calculateLocalOutDegreeDistribution
             degreeDistribution.insert(std::make_pair(its->first, its->second));
         }
     }
+}
+
+bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int graphID, int partitionID,
+                     std::vector<string> workerSockets, std::string masterIP) {
+
+    Utils utils;
+    std::string aggregatorFilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
+    std::string dataFilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+
+    std::string centralGraphIdentifierUnCompressed = to_string(graphID) +"_centralstore_"+ to_string(partitionID);
+    std::string centralStoreFileUnCompressed = dataFilePath + "/" + centralGraphIdentifierUnCompressed;
+    std::string centralStoreFileUnCompressedDestination = aggregatorFilePath + "/" + centralGraphIdentifierUnCompressed;
+
+    // temporary copy the central store into the aggregate folder in order to compress and send
+    utils.copyFile(centralStoreFileUnCompressed, aggregatorFilePath);
+
+    // compress the central store file before sending
+    utils.compressFile(centralStoreFileUnCompressedDestination);
+
+    std::string centralGraphIdentifier = to_string(graphID) +"_centralstore_"+ to_string(partitionID) + ".gz";
+    std::string centralStoreFile = aggregatorFilePath + "/" + centralGraphIdentifier;
+    instance_logger.log("###INSTANCE### centralstore " + centralStoreFile,"info");
+
+    for (vector<string>::iterator workerIt=workerSockets.begin(); workerIt!=workerSockets.end(); ++workerIt) {
+
+        std::vector<string> workerSocketPair;
+        stringstream wl(*workerIt);
+        string intermediate;
+        while (getline(wl, intermediate, ':')) {
+            workerSocketPair.push_back(intermediate);
+        }
+
+        if (workerSocketPair.size() != 4) {
+            instance_logger.log("Received worker socket information is invalid " , "error");
+            return 0;
+        }
+
+        struct stat fileStat;
+        if (stat(centralStoreFile.c_str(),&fileStat) == 0) {
+            if (fileStat.st_mode & S_IFREG) {
+
+                string host = workerSocketPair[0];
+                int port = stoi(workerSocketPair[1]);
+                int workerGraphID = stoi(workerSocketPair[2]);
+                int dataPort = stoi(workerSocketPair[3]);
+
+                if (port == thisWorkerPort) {
+                    continue;
+                }
+
+                Utils utils;
+                bool result = true;
+                std::cout << pthread_self() << " host : " << host << " port : " << port << " DPort : " << dataPort << std::endl;
+                int sockfd;
+                char data[INSTANCE_DATA_LENGTH];
+                bool loop = false;
+                socklen_t len;
+                struct sockaddr_in serv_addr;
+                struct hostent *server;
+
+                sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+                if (sockfd < 0) {
+                    instance_logger.log( "Cannot accept connection" , "error");
+                    return 0;
+                }
+
+                if (host.find('@') != std::string::npos) {
+                    host = utils.split(host, '@')[1];
+                }
+
+                server = gethostbyname(host.c_str());
+                if (server == NULL) {
+                    instance_logger.log("ERROR, no host named " , "error");;
+                }
+
+                bzero((char *) &serv_addr, sizeof(serv_addr));
+                serv_addr.sin_family = AF_INET;
+                bcopy((char *) server->h_addr,
+                      (char *) &serv_addr.sin_addr.s_addr,
+                      server->h_length);
+                serv_addr.sin_port = htons(port);
+                if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+                    instance_logger.log("ERROR connecting", "error");
+                    //TODO::exit
+                }
+
+                bzero(data, INSTANCE_DATA_LENGTH);
+                int result_wr = write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+
+                if(result_wr < 0) {
+                    instance_logger.log("Error writing to socket", "error");
+                }
+
+                instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
+                bzero(data, INSTANCE_DATA_LENGTH);
+                read(sockfd, data, INSTANCE_DATA_LENGTH);
+                string response = (data);
+
+                response = utils.trim_copy(response, " \f\n\r\t\v");
+
+                if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
+                    instance_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
+
+                    result_wr = write(sockfd, masterIP.c_str(), masterIP.size());
+
+                    if(result_wr < 0) {
+                        instance_logger.log("Error writing to socket", "error");
+                    }
+
+                    instance_logger.log("Sent : " + masterIP, "info");
+                    bzero(data, INSTANCE_DATA_LENGTH);
+                    read(sockfd, data, INSTANCE_DATA_LENGTH);
+                    response = (data);
+
+                    if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
+                        instance_logger.log("Received : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
+                    } else {
+                        instance_logger.log("Received : " + response, "error");
+                    }
+
+                    result_wr = write(sockfd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_CENTRAL.c_str(),
+                                      JasmineGraphInstanceProtocol::BATCH_UPLOAD_CENTRAL.size());
+
+                    if(result_wr < 0) {
+                        instance_logger.log("Error writing to socket", "error");
+                    }
+
+                    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CENTRAL, "info");
+                    bzero(data, INSTANCE_DATA_LENGTH);
+                    read(sockfd, data, INSTANCE_DATA_LENGTH);
+                    response = (data);
+                    response = utils.trim_copy(response, " \f\n\r\t\v");
+
+                    if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+                        instance_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+
+                        result_wr = write(sockfd, std::to_string(graphID).c_str(), std::to_string(graphID).size());
+                        if(result_wr < 0) {
+                            instance_logger.log("Error writing to socket", "error");
+                        }
+
+                        instance_logger.log("Sent : Graph ID " + std::to_string(graphID), "info");
+                        std::string fileName = utils.getFileName(centralStoreFile);
+                        int fileSize = utils.getFileSize(centralStoreFile);
+                        std::string fileLength = to_string(fileSize);
+
+                        bzero(data, INSTANCE_DATA_LENGTH);
+                        read(sockfd, data, INSTANCE_DATA_LENGTH);
+                        response = (data);
+                        response = utils.trim_copy(response, " \f\n\r\t\v");
+
+                        if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_NAME) == 0) {
+                            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_NAME, "info");
+                            result_wr = write(sockfd, fileName.c_str(), fileName.size());
+
+                            if(result_wr < 0) {
+                                instance_logger.log("Error writing to socket", "error");
+                            }
+
+                            instance_logger.log("Sent : File name " + fileName, "info");
+                            bzero(data, INSTANCE_DATA_LENGTH);
+                            read(sockfd, data, INSTANCE_DATA_LENGTH);
+                            response = (data);
+
+                            if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_LEN) == 0) {
+                                instance_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN, "info");
+                                result_wr = write(sockfd, fileLength.c_str(), fileLength.size());
+
+                                if(result_wr < 0) {
+                                    instance_logger.log("Error writing to socket", "error");
+                                }
+
+                                instance_logger.log("Sent : File length in bytes " + fileLength, "info");
+                                bzero(data, INSTANCE_DATA_LENGTH);
+                                read(sockfd, data, INSTANCE_DATA_LENGTH);
+                                response = (data);
+                                if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_CONT) == 0) {
+                                    instance_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
+                                    instance_logger.log("Going to send file through service", "info");
+                                    JasmineGraphInstanceService::sendFileThroughService(host, dataPort, fileName, centralStoreFile, masterIP);
+                                }
+                            }
+                        }
+                        int count = 0;
+
+                        while (true) {
+                            result_wr = write(sockfd, JasmineGraphInstanceProtocol::FILE_RECV_CHK.c_str(),
+                                              JasmineGraphInstanceProtocol::FILE_RECV_CHK.size());
+
+                            if(result_wr < 0) {
+                                instance_logger.log("Error writing to socket", "error");
+                            }
+
+                            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
+                            instance_logger.log("Checking if file is received", "info");
+                            bzero(data, INSTANCE_DATA_LENGTH);
+                            read(sockfd, data, INSTANCE_DATA_LENGTH);
+                            response = (data);
+                            if (response.compare(JasmineGraphInstanceProtocol::FILE_RECV_WAIT) == 0) {
+                                instance_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_WAIT, "info");
+                                instance_logger.log("Checking file status : " + to_string(count), "info");
+                                count++;
+                                sleep(1);
+                                continue;
+                            } else if (response.compare(JasmineGraphInstanceProtocol::FILE_ACK) == 0) {
+                                instance_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_ACK, "info");
+                                instance_logger.log("File transfer completed for file : " + centralStoreFile, "info");
+                                break;
+                            }
+                        };
+                        //Next we wait till the batch upload completes
+                        while (true) {
+                            result_wr = write(sockfd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK.c_str(),
+                                              JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK.size());
+
+                            if(result_wr < 0) {
+                                instance_logger.log("Error writing to socket", "error");
+                            }
+
+                            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
+                            bzero(data, INSTANCE_DATA_LENGTH);
+                            read(sockfd, data, INSTANCE_DATA_LENGTH);
+                            response = (data);
+
+                            if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT) == 0) {
+                                instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT, "info");
+                                sleep(1);
+                                continue;
+                            } else if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK) == 0) {
+                                instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK, "info");
+                                instance_logger.log("Batch upload completed", "info");
+                                break;
+                            }
+                        }
+                    }
+                } else {
+                    instance_logger.log("There was an error in the upload process and the response is :: " + response, "error");
+                }
+                close(sockfd);
+            }
+        }
+    }
+    return 0;
+}
+
+bool JasmineGraphInstanceService::sendFileThroughService(std::string host, int dataPort, std::string fileName,
+                            std::string filePath, std::string masterIP) {
+    Utils utils;
+    int sockfd;
+    char data[INSTANCE_DATA_LENGTH];
+    socklen_t len;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sockfd < 0) {
+        std::cerr << "Cannot accept connection" << std::endl;
+        return 0;
+    }
+
+    server = gethostbyname(host.c_str());
+    if (server == NULL) {
+        std::cerr << "ERROR, no host named " << server << std::endl;
+        exit(0);
+    }
+
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *) server->h_addr,
+          (char *) &serv_addr.sin_addr.s_addr,
+          server->h_length);
+    serv_addr.sin_port = htons(dataPort);
+    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+        std::cerr << "ERROR connecting to port " << dataPort << std::endl;
+    }
+
+    int result_wr = write(sockfd, fileName.c_str(), fileName.size());
+
+    if(result_wr < 0) {
+        instance_logger.log("Error writing to socket", "error");
+    }
+
+    bzero(data, INSTANCE_DATA_LENGTH);
+    read(sockfd, data, INSTANCE_DATA_LENGTH);
+    string response = (data);
+    response = utils.trim_copy(response, " \f\n\r\t\v");
+
+    if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE) == 0) {
+        std::cout << "Sending file " << filePath << " through port " << dataPort << std::endl;
+
+        FILE *fp = fopen(filePath.c_str(), "r");
+        if (fp == NULL) {
+            instance_logger.log("Error opening file", "error");
+            close(sockfd);
+            return 0;
+        }
+
+        for (;;) {
+            unsigned char buff[INSTANCE_FILE_BUFFER_LENGTH] = {0};
+            int nread = fread(buff, 1, INSTANCE_FILE_BUFFER_LENGTH, fp);
+            instance_logger.log("Bytes read "  + to_string(nread), "info");
+
+            /* If read was success, send data. */
+            if (nread > 0) {
+                instance_logger.log("Sending", "info");
+
+                write(sockfd, buff, nread);
+            }
+
+            if (nread < INSTANCE_FILE_BUFFER_LENGTH) {
+                if (feof(fp))
+                    printf("End of file\n");
+                if (ferror(fp))
+                    printf("Error reading\n");
+                break;
+            }
+        }
+
+        fclose(fp);
+        close(sockfd);
+    }
+}
+
+map<long, long> calculateOutDegreeDist(string graphID, string partitionID, int serverPort,
+                                       std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
+                                       std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores,
+                                       std::vector<string> workerSockets) {
+
+    Utils utils;
+    map<long, long> degreeDistribution = calculateLocalOutDegreeDist(graphID, partitionID,
+                                                                     graphDBMapLocalStores,
+                                                                     graphDBMapCentralStores);
+
+    // Invoke other workers to calculate their own out degree distributions
+    //todo  invoke other workers asynchronously
+    for (vector<string>::iterator workerIt = workerSockets.begin();
+         workerIt != workerSockets.end(); ++workerIt) {
+        instance_logger.log("Worker pair " + *workerIt, "info");
+
+        std::vector<string> workerSocketPair;
+        stringstream wl(*workerIt);
+        string intermediate;
+        while (getline(wl, intermediate, ':')) {
+            workerSocketPair.push_back(intermediate);
+        }
+        if (std::to_string(serverPort).compare(workerSocketPair[1]) == 0) {
+            continue;
+        }
+
+        string host = workerSocketPair[0];
+        int port = stoi(workerSocketPair[1]);
+        int sockfd;
+        char data[300];
+        bool loop = false;
+        socklen_t len;
+        struct sockaddr_in serv_addr;
+        struct hostent *server;
+
+        sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+        if (sockfd < 0) {
+            std::cout << "Cannot accept connection" << std::endl;
+        }
+
+        server = gethostbyname(host.c_str());
+        if (server == NULL) {
+            std::cout << "ERROR, no host named " << server << std::endl;
+        }
+
+        bzero((char *) &serv_addr, sizeof(serv_addr));
+        serv_addr.sin_family = AF_INET;
+        bcopy((char *) server->h_addr,
+              (char *) &serv_addr.sin_addr.s_addr,
+              server->h_length);
+        serv_addr.sin_port = htons(port);
+        if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+            std::cout << "ERROR connecting" << std::endl;
+            //TODO::exit
+        }
+
+        bzero(data, 301);
+        int result_wr = write(sockfd,
+                              JasmineGraphInstanceProtocol::WORKER_OUT_DEGREE_DISTRIBUTION.c_str(),
+                              JasmineGraphInstanceProtocol::WORKER_OUT_DEGREE_DISTRIBUTION.size());
+
+        if (result_wr < 0) {
+            instance_logger.log("Error writing to socket", "error");
+        }
+
+        instance_logger.log("Sent : " +
+                            JasmineGraphInstanceProtocol::WORKER_OUT_DEGREE_DISTRIBUTION,
+                            "info");
+
+        bzero(data, 301);
+        read(sockfd, data, 300);
+        string response = (data);
+        response = utils.trim_copy(response, " \f\n\r\t\v");
+
+        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+            result_wr = write(sockfd, graphID.c_str(), graphID.size());
+
+            if (result_wr < 0) {
+                instance_logger.log("Error writing to socket", "error");
+            }
+            instance_logger.log("Sent : Graph ID " + graphID, "info");
+
+            bzero(data, 301);
+            read(sockfd, data, 300);
+            string response = (data);
+            response = utils.trim_copy(response, " \f\n\r\t\v");
+
+            if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+                instance_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+                instance_logger.log("Partition ID  : " + workerSocketPair[2], "info");
+
+                string degreeDistString;
+
+                int partitionID = stoi(workerSocketPair[2]);
+                result_wr = write(sockfd, std::to_string(partitionID).c_str(),
+                                  std::to_string(partitionID).size());
+
+                if (result_wr < 0) {
+                    instance_logger.log("Error writing to socket", "error");
+                }
+                instance_logger.log("Sent : Partition ID " + std::to_string(partitionID), "info");
+
+            }
+        }
+
+    }
+
+    return degreeDistribution;
+}
+
+map<long, long> calculateLocalOutDegreeDist(string graphID, string partitionID,
+                                            std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
+                                            std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores) {
+    JasmineGraphHashMapLocalStore graphDB;
+    JasmineGraphHashMapCentralStore centralDB;
+    std::map<std::string, JasmineGraphHashMapLocalStore>::iterator it;
+    std::map<std::string, JasmineGraphHashMapCentralStore>::iterator itcen;
+
+    if (JasmineGraphInstanceService::isGraphDBExists(graphID, partitionID)) {
+        JasmineGraphInstanceService::loadLocalStore(graphID, partitionID, graphDBMapLocalStores);
+    }
+
+    if (JasmineGraphInstanceService::isInstanceCentralStoreExists(graphID, partitionID)) {
+        JasmineGraphInstanceService::loadInstanceCentralStore(graphID, partitionID,
+                                                              graphDBMapCentralStores);
+    }
+
+    graphDB = graphDBMapLocalStores[graphID + "_" + partitionID];
+    centralDB = graphDBMapCentralStores[graphID + "_centralstore_" + partitionID];
+
+    map<long, long> degreeDistributionLocal = graphDB.getOutDegreeDistributionHashMap();
+    std::map<long, long>::iterator itlocal;
+
+    map<long, long> degreeDistributionCentral = centralDB.getOutDegreeDistributionHashMap();
+    std::map<long, long>::iterator itcentral;
+
+    map<long, long> degreeDistributionCentralTotal;
+
+    map<long, unordered_set<long>> centralGraphMap = centralDB.getUnderlyingHashMap();
+    map<long, unordered_set<long>> localGraphMap = graphDB.getUnderlyingHashMap();
+
+    //combine the degree distributions from local store and central store
+    for (itcentral = degreeDistributionCentral.begin(); itcentral != degreeDistributionCentral.end(); ++itcentral) {
+
+        bool centralNodeFound = false;
+        for (itlocal = degreeDistributionLocal.begin(); itlocal != degreeDistributionLocal.end(); ++itlocal) {
+
+            if ((itcentral->first) == (itlocal->first)) {
+                degreeDistributionCentralTotal.insert(
+                        std::make_pair(itcentral->first, (itlocal->second + itcentral->second)));
+                centralNodeFound = true;
+                break;
+            }
+        }
+        if (!centralNodeFound) {
+            degreeDistributionCentralTotal.insert(std::make_pair(itcentral->first, itcentral->second));
+        }
+    }
+
+    return degreeDistributionCentralTotal;
+}
+
+map<long, long> calculateLocalInDegreeDist(string graphID, string partitionID,
+                                           std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
+                                           std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores) {
+
+    JasmineGraphHashMapLocalStore graphDB;
+    JasmineGraphHashMapCentralStore centralDB;
+
+    std::map<std::string, JasmineGraphHashMapLocalStore>::iterator it;
+    std::map<std::string, JasmineGraphHashMapCentralStore>::iterator itcen;
+
+    if (JasmineGraphInstanceService::isGraphDBExists(graphID, partitionID)) {
+        JasmineGraphInstanceService::loadLocalStore(graphID, partitionID, graphDBMapLocalStores);
+    }
+
+    if (JasmineGraphInstanceService::isInstanceCentralStoreExists(graphID, partitionID)) {
+        JasmineGraphInstanceService::loadInstanceCentralStore(graphID, partitionID, graphDBMapCentralStores);
+    }
+    graphDB = graphDBMapLocalStores[graphID + "_" + partitionID];
+    centralDB = graphDBMapCentralStores[graphID + "_centralstore_" + partitionID];
+
+    map<long, long> degreeDistribution = graphDB.getInDegreeDistributionHashMap();
+    std::map<long, long>::iterator its;
+
+    map<long, long> degreeDistributionCentral = centralDB.getInDegreeDistributionHashMap();
+    std::map<long, long>::iterator itcentral;
+
+    for (its = degreeDistributionCentral.begin(); its != degreeDistributionCentral.end(); ++its) {
+        bool centralNodeFound = false;
+        for (itcentral = degreeDistribution.begin(); itcentral != degreeDistribution.end(); ++itcentral) {
+            if ((its->first) == (itcentral->first)) {
+                degreeDistribution[its->first] = (its->second) + (itcentral->second);
+                centralNodeFound = true;
+            }
+        }
+        if (!centralNodeFound) {
+            degreeDistribution.insert(std::make_pair(its->first, its->second));
+        }
+    }
+
+    return degreeDistribution;
+}
+
+map<long, long> calculateInDegreeDist(string graphID, string partitionID, int serverPort,
+                                      std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
+                                      std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores,
+                                      std::vector<string> workerSockets) {
+    Utils utils;
+
+    map<long, long> degreeDistribution = calculateLocalInDegreeDist(graphID, partitionID, graphDBMapLocalStores,
+                                                                    graphDBMapCentralStores);
+
+    // Invoke other workers to calculate their own in degree distributions
+    //todo  invoke other workers asynchronously
+    for (vector<string>::iterator workerIt = workerSockets.begin(); workerIt != workerSockets.end(); ++workerIt) {
+        instance_logger.log("Worker pair " + *workerIt, "info");
+
+        std::vector<string> workerSocketPair;
+        stringstream wl(*workerIt);
+        string intermediate;
+        while (getline(wl, intermediate, ':')) {
+            workerSocketPair.push_back(intermediate);
+        }
+
+        if (std::to_string(serverPort).compare(workerSocketPair[1]) == 0) {
+            continue;
+        }
+
+        string host = workerSocketPair[0];
+        int port = stoi(workerSocketPair[1]);
+        int sockfd;
+        char data[300];
+        bool loop = false;
+        socklen_t len;
+        struct sockaddr_in serv_addr;
+        struct hostent *server;
+
+        sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+        if (sockfd < 0) {
+            std::cout << "Cannot accept connection" << std::endl;
+        }
+
+        server = gethostbyname(host.c_str());
+        if (server == NULL) {
+            std::cout << "ERROR, no host named " << server << std::endl;
+        }
+
+        bzero((char *) &serv_addr, sizeof(serv_addr));
+        serv_addr.sin_family = AF_INET;
+        bcopy((char *) server->h_addr,
+              (char *) &serv_addr.sin_addr.s_addr,
+              server->h_length);
+        serv_addr.sin_port = htons(port);
+        if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+            std::cout << "ERROR connecting" << std::endl;
+            //TODO::exit
+        }
+
+        bzero(data, 301);
+        int result_wr = write(sockfd, JasmineGraphInstanceProtocol::WORKER_IN_DEGREE_DISTRIBUTION.c_str(),
+                              JasmineGraphInstanceProtocol::WORKER_IN_DEGREE_DISTRIBUTION.size());
+
+        if (result_wr < 0) {
+            instance_logger.log("Error writing to socket", "error");
+        }
+
+        instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::WORKER_IN_DEGREE_DISTRIBUTION,
+                            "info");
+
+        bzero(data, 301);
+        read(sockfd, data, 300);
+        string response = (data);
+        response = utils.trim_copy(response, " \f\n\r\t\v");
+
+        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+            result_wr = write(sockfd, graphID.c_str(), graphID.size());
+
+            if (result_wr < 0) {
+                instance_logger.log("Error writing to socket", "error");
+            }
+            instance_logger.log("Sent : Graph ID " + graphID, "info");
+
+            bzero(data, 301);
+            read(sockfd, data, 300);
+            string response = (data);
+            response = utils.trim_copy(response, " \f\n\r\t\v");
+
+            if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+                instance_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+                string degreeDistString;
+
+                int partitionID = stoi(workerSocketPair[2]);
+                result_wr = write(sockfd, std::to_string(partitionID).c_str(), std::to_string(partitionID).size());
+
+                if (result_wr < 0) {
+                    instance_logger.log("Error writing to socket", "error");
+                }
+                instance_logger.log("Sent : Partition ID " + std::to_string(partitionID), "info");
+
+            }
+        }
+    }
+    return degreeDistribution;
+}
+
+map<long, map<long, unordered_set<long>>> calculateLocalEgoNet(string graphID, string partitionID,
+                                                               int serverPort, JasmineGraphHashMapLocalStore localDB,
+                                                               JasmineGraphHashMapCentralStore centralDB,
+                                                               std::vector<string> workerSockets) {
+
+    std::map<long, map<long, unordered_set<long>>> egonetMap;
+
+    map<long, unordered_set<long>> centralGraphMap = centralDB.getUnderlyingHashMap();
+    map<long, unordered_set<long>> localGraphMap = localDB.getUnderlyingHashMap();
+
+    for (map<long, unordered_set<long >>::iterator it = localGraphMap.begin(); it != localGraphMap.end(); ++it) {
+        unordered_set<long> neighbours = it->second;
+
+        map<long, unordered_set<long>> individualEgoNet;
+        individualEgoNet.insert(std::make_pair(it->first, neighbours));
+
+        for (unordered_set<long>::iterator neighbour = neighbours.begin(); neighbour != neighbours.end(); ++neighbour) {
+            unordered_set<long> neighboursOfNeighboursInSameEgoNet;
+
+            map<long, unordered_set<long>>::iterator localGraphMapItr = localGraphMap.find(*neighbour);
+            if (localGraphMapItr != localGraphMap.end()) {
+                unordered_set<long> neighboursOfNeighbour = localGraphMapItr->second;
+
+                for (auto neighboursOfNeighbourItr = neighboursOfNeighbour.begin(); neighboursOfNeighbourItr != neighboursOfNeighbour.end();
+                     ++neighboursOfNeighbourItr) {
+
+                    unordered_set<long>::iterator neighboursItr = neighbours.find(*neighboursOfNeighbourItr);
+                    if (neighboursItr != neighbours.end()) {
+                        neighboursOfNeighboursInSameEgoNet.insert(*neighboursItr);
+                    }
+                }
+            }
+            individualEgoNet.insert(std::make_pair(*neighbour, neighboursOfNeighboursInSameEgoNet));
+        }
+
+        egonetMap.insert(std::make_pair(it->first, individualEgoNet));
+    }
+
+    for (map<long, unordered_set<long>>::iterator it = centralGraphMap.begin(); it != centralGraphMap.end(); ++it) {
+        unordered_set<long> distribution = it->second;
+
+        map<long, map<long, unordered_set<long>>>::iterator egonetMapItr = egonetMap.find(it->first);
+
+        if (egonetMapItr == egonetMap.end()) {
+            map<long, unordered_set<long>> vertexMapFromCentralStore;
+            vertexMapFromCentralStore.insert(std::make_pair(it->first,
+                                                            distribution)); // Here we do not have the relation information among neighbours
+            egonetMap.insert(std::make_pair(it->first, vertexMapFromCentralStore));
+
+        } else {
+            map<long, unordered_set<long>> egonetSubGraph = egonetMapItr->second;
+
+            map<long, unordered_set<long>>::iterator egonetSubGraphItr = egonetSubGraph.find(it->first);
+            if (egonetSubGraphItr != egonetSubGraph.end()) {
+                unordered_set<long> egonetSubGraphNeighbours = egonetSubGraphItr->second;
+                egonetSubGraphNeighbours.insert(distribution.begin(), distribution.end());
+                egonetSubGraphItr->second = egonetSubGraphNeighbours;
+            }
+        }
+    }
+
+
+    for (vector<string>::iterator workerIt = workerSockets.begin(); workerIt != workerSockets.end(); ++workerIt) {
+
+        std::vector<string> workerSocketPair;
+        stringstream wl(*workerIt);
+        string intermediate;
+        while (getline(wl, intermediate, ':')) {
+            workerSocketPair.push_back(intermediate);
+        }
+
+        Utils utils;
+        std::string aggregatorFilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+        std::string centralGraphIdentifier = graphID + +"_centralstore_" + workerSocketPair[2];
+
+        std::string centralStoreFile = aggregatorFilePath + "/" + centralGraphIdentifier;
+        instance_logger.log("###INSTANCE### centralstore " + centralStoreFile, "info");
+
+        struct stat centralStoreFileBuffer;
+        if (stat(centralStoreFile.c_str(), &centralStoreFileBuffer) == 0) {
+            if (centralStoreFileBuffer.st_mode & S_IFREG) {
+                JasmineGraphHashMapCentralStore centralStore = JasmineGraphInstanceService::loadCentralStore(
+                        centralStoreFile);
+                map<long, unordered_set<long>> centralGraphMap = centralStore.getUnderlyingHashMap();
+
+                for (map<long, unordered_set<long>>::iterator centralGraphMapIterator = centralGraphMap.begin();
+                     centralGraphMapIterator != centralGraphMap.end(); ++centralGraphMapIterator) {
+                    long startVid = centralGraphMapIterator->first;
+                    unordered_set<long> endVidSet = centralGraphMapIterator->second;
+
+                    for (auto itr = endVidSet.begin(); itr != endVidSet.end(); ++itr) {
+
+                        map<long, map<long, unordered_set<long>>>::iterator egonetMapItr = egonetMap.find(*itr);
+
+                        if (egonetMapItr != egonetMap.end()) {
+
+                            map<long, unordered_set<long>> egonetSubGraph = egonetMapItr->second;
+                            map<long, unordered_set<long>>::iterator egonetSubGraphItr = egonetSubGraph.find(*itr);
+                            if (egonetSubGraphItr != egonetSubGraph.end()) {
+                                unordered_set<long> egonetSubGraphNeighbours = egonetSubGraphItr->second;
+                                egonetSubGraphNeighbours.insert(startVid);
+                                egonetSubGraphItr->second = egonetSubGraphNeighbours;
+                            }
+                        }
+
+                    }
+                }
+            }
+        }
+    }
+
+    return egonetMap;
+}
+
+map<long, map<long, unordered_set<long>>> calculateEgoNet(string graphID, string partitionID,
+                                                          int serverPort, JasmineGraphHashMapLocalStore localDB,
+                                                          JasmineGraphHashMapCentralStore centralDB,
+                                                          string workerList) {
+
+    std::vector<string> workerSockets;
+    stringstream wl(workerList);
+    string intermediate;
+    while (getline(wl, intermediate, ',')) {
+        workerSockets.push_back(intermediate);
+    }
+    map<long, map<long, unordered_set<long>>> egonetMap = calculateLocalEgoNet(graphID, partitionID,
+                                                                               serverPort, localDB, centralDB,
+                                                                               workerSockets);
+
+    //todo  invoke other workers asynchronously
+    for (vector<string>::iterator workerIt = workerSockets.begin();
+         workerIt != workerSockets.end(); ++workerIt) {
+        instance_logger.log("Worker pair " + *workerIt, "info");
+
+        std::vector<string> workerSocketPair;
+        stringstream wl(*workerIt);
+        string intermediate;
+        while (getline(wl, intermediate, ':')) {
+            workerSocketPair.push_back(intermediate);
+        }
+
+        if (std::to_string(serverPort).compare(workerSocketPair[1]) == 0) {
+            continue;
+        }
+
+        Utils utils;
+        string host = workerSocketPair[0];
+        int port = stoi(workerSocketPair[1]);
+        int sockfd;
+        char data[300];
+        bool loop = false;
+        socklen_t len;
+        struct sockaddr_in serv_addr;
+        struct hostent *server;
+
+        sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+        if (sockfd < 0) {
+            std::cout << "Cannot accept connection" << std::endl;
+        }
+
+        server = gethostbyname(host.c_str());
+        if (server == NULL) {
+            std::cout << "ERROR, no host named " << server << std::endl;
+        }
+
+        bzero((char *) &serv_addr, sizeof(serv_addr));
+        serv_addr.sin_family = AF_INET;
+        bcopy((char *) server->h_addr,
+              (char *) &serv_addr.sin_addr.s_addr,
+              server->h_length);
+        serv_addr.sin_port = htons(port);
+        if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+            std::cout << "ERROR connecting" << std::endl;
+            //TODO::exit
+        }
+
+        bzero(data, 301);
+        int result_wr = write(sockfd,
+                              JasmineGraphInstanceProtocol::WORKER_EGO_NET.c_str(),
+                              JasmineGraphInstanceProtocol::WORKER_EGO_NET.size());
+
+        if (result_wr < 0) {
+            instance_logger.log("Error writing to socket", "error");
+        }
+
+        instance_logger.log("Sent : " +
+                            JasmineGraphInstanceProtocol::WORKER_EGO_NET, "info");
+
+        bzero(data, 301);
+        read(sockfd, data, 300);
+        string response = (data);
+        response = utils.trim_copy(response, " \f\n\r\t\v");
+
+        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+            result_wr = write(sockfd, graphID.c_str(), graphID.size());
+
+            if (result_wr < 0) {
+                instance_logger.log("Error writing to socket", "error");
+            }
+            instance_logger.log("Sent : Graph ID " + graphID, "info");
+
+            bzero(data, 301);
+            read(sockfd, data, 300);
+            string response = (data);
+            response = utils.trim_copy(response, " \f\n\r\t\v");
+
+            if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+                instance_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+                instance_logger.log("Partition ID  : " + workerSocketPair[2], "info");
+
+                string egonetString;
+
+                int partitionID = stoi(workerSocketPair[2]);
+                result_wr = write(sockfd, std::to_string(partitionID).c_str(),
+                                  std::to_string(partitionID).size());
+
+                if (result_wr < 0) {
+                    instance_logger.log("Error writing to socket", "error");
+                }
+                instance_logger.log("Sent : Partition ID " + std::to_string(partitionID), "info");
+                bzero(data, 301);
+                read(sockfd, data, 300);
+                string response = (data);
+                response = utils.trim_copy(response, " \f\n\r\t\v");
+
+                if (!response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+                    instance_logger.log("Error reading from socket", "error");
+                }
+
+                result_wr = write(sockfd, workerList.c_str(), workerList.size());
+
+                if (result_wr < 0) {
+                    instance_logger.log("Error writing to socket", "error");
+                }
+
+                instance_logger.log("Sent : Host List ", "info");
+
+                bzero(data, 301);
+                read(sockfd, data, 300);
+                response = (data);
+                response = utils.trim_copy(response, " \f\n\r\t\v");
+
+                if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+                    instance_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+                } else {
+                    instance_logger.log("Error reading from socket", "error");
+                }
+            }
+        }
+    }
+}
+
+void calculateLocalPageRank(string graphID, double alpha, string partitionID, int serverPort, int top_k_page_rank_value,
+                            string graphVertexCount, JasmineGraphHashMapLocalStore localDB,
+                            JasmineGraphHashMapCentralStore centralDB,
+                            std::vector<string> workerSockets, int iterations) {
+
+    map<long, unordered_set<long>> centralGraphMap = centralDB.getUnderlyingHashMap();
+    map<long, unordered_set<long>> localGraphMap = localDB.getUnderlyingHashMap();
+    map<long, unordered_set<long>>::iterator localGraphMapIterator;
+    map<long, unordered_set<long>>::iterator centralGraphMapIterator;
+
+    std::vector<long> vertexVector;
+    for (localGraphMapIterator = localGraphMap.begin();
+         localGraphMapIterator != localGraphMap.end(); ++localGraphMapIterator) {
+        long startVid = localGraphMapIterator->first;
+        unordered_set<long> endVidSet = localGraphMapIterator->second;
+
+        for (auto itr = endVidSet.begin(); itr != endVidSet.end(); ++itr) {
+            if (localGraphMap.find(*itr) == localGraphMap.end()) {
+                unordered_set<long> valueSet;
+                localGraphMap.insert(std::make_pair(*itr, valueSet));
+            }
+        }
+    }
+
+    map<long, long> localOutDegreeDistMap = localDB.getOutDegreeDistributionHashMap();
+
+    long partitionVertexCount = localGraphMap.size();
+    long worldOnlyVertexCount = atol(graphVertexCount.c_str()) - partitionVertexCount;
+
+    double damp = 1 - alpha;
+    int M = partitionVertexCount + 1;
+
+    long adjacencyIndex[M];
+    int counter = 0;
+
+    for (localGraphMapIterator = localGraphMap.begin();
+         localGraphMapIterator != localGraphMap.end(); ++localGraphMapIterator) {
+        long startVid = localGraphMapIterator->first;
+
+        adjacencyIndex[counter] = startVid;
+        counter++;
+    }
+
+    adjacencyIndex[partitionVertexCount] = -1;
+
+    map<long, float> hMapAuthorityFlowWorldToLocal = getAuthorityScoresWorldToLocal(graphID, partitionID, serverPort,
+                                                                                    graphVertexCount, localDB,
+                                                                                    centralDB,
+                                                                                    localGraphMap, workerSockets,
+                                                                                    worldOnlyVertexCount);
+
+    map<long, unordered_set<long>> hMapFromVerticesWorldToLocalFLow = getEdgesWorldToLocal(graphID, partitionID,
+                                                                                           serverPort, graphVertexCount,
+                                                                                           localDB, centralDB,
+                                                                                           localGraphMap,
+                                                                                           workerSockets);
+
+    long entireGraphSize = atol(graphVertexCount.c_str());
+    float mu = (damp / entireGraphSize);
+    unordered_map<float, float> resultTreeMap;
+    // calculating local pagerank
+    map<long, double> rankMap;
+
+    // add world to local authority scores to the ranks of the current partition
+    for (auto &hMapAuthorityFlowWorldToLocalIterator: hMapAuthorityFlowWorldToLocal) {
+        long vertex = hMapAuthorityFlowWorldToLocalIterator.first;
+        float worldToLocalRank = hMapAuthorityFlowWorldToLocalIterator.second;
+
+        auto rankMapItr = rankMap.find(vertex);
+        if (rankMapItr != rankMap.end()) {
+            double existingRank = rankMapItr->second;
+            double finalRank = existingRank + worldToLocalRank;
+            rankMapItr->second = finalRank;
+        } else {
+            rankMap.insert(std::make_pair(vertex, worldToLocalRank));
+        }
+    }
+
+    int count = 0;
+    while (count < iterations) {
+
+        for (localGraphMapIterator = localGraphMap.begin();
+             localGraphMapIterator != localGraphMap.end(); ++localGraphMapIterator) {
+
+            long startVid = localGraphMapIterator->first;
+            unordered_set<long> endVidSet = localGraphMapIterator->second;
+            double existingParentRank = 1;
+
+            auto rankMapItr = rankMap.find(startVid);
+            if (rankMapItr != rankMap.end()) {
+                existingParentRank = rankMapItr->second;
+            } else {
+                rankMap.insert(std::make_pair(startVid, existingParentRank));
+            }
+
+            long degree = endVidSet.size();
+            double distributedRank = alpha * (existingParentRank / degree) + mu;
+
+            for (long itr: endVidSet) {
+                auto rankMapItr = rankMap.find(itr);
+
+                double existingChildRank = 0;
+                double finalRank = 0;
+                if (rankMapItr != rankMap.end()) {
+                    existingChildRank = rankMapItr->second;
+                    finalRank = existingChildRank + distributedRank;
+
+                    rankMapItr->second = finalRank;
+                } else {
+                    finalRank = existingChildRank + distributedRank;
+                    rankMap.insert(std::make_pair(itr, finalRank));
+
+                }
+            }
+        }
+
+        count++;
+    }
+
+    map<double, long> rankMapResults;
+
+    if (top_k_page_rank_value == -1) {
+        instance_logger.log("Page rank is not implemented", "info");
+    } else {
+        std::string resultTree = "";
+
+        for (map<long, double>::iterator rankMapItr = rankMap.begin(); rankMapItr != rankMap.end(); ++rankMapItr) {
+            rankMapResults.insert(std::make_pair(rankMapItr->second, rankMapItr->first));
+            resultTree.append(to_string(rankMapItr->first) + ":" + to_string(rankMapItr->second) + ",");
+        }
+
+        int count = 0;
+        for (map<double, long>::iterator rankMapItr = rankMapResults.end();
+             rankMapItr != rankMapResults.begin(); --rankMapItr) {
+
+            if (count > top_k_page_rank_value) {
+                break;
+            }
+            instance_logger.log(to_string(rankMapItr->first) + ":" + to_string(rankMapItr->second) + ",", "info");
+            count++;
+        }
+    }
+}
+
+map<long, float> getAuthorityScoresWorldToLocal(string graphID, string partitionID, int serverPort,
+                                                string graphVertexCount, JasmineGraphHashMapLocalStore localDB,
+                                                JasmineGraphHashMapCentralStore centralDB,
+                                                map<long, unordered_set<long>> graphVertexMap,
+                                                std::vector<string> workerSockets, long worldOnlyVertexCount) {
+
+    map<long, unordered_set<long>> worldToLocalVertexMap;
+    map<long, long> fromDegreeDist;
+
+    for (vector<string>::iterator workerIt = workerSockets.begin(); workerIt != workerSockets.end(); ++workerIt) {
+        std::vector<string> workerSocketPair;
+        stringstream wl(*workerIt);
+        string intermediate;
+        while (getline(wl, intermediate, ':')) {
+            workerSocketPair.push_back(intermediate);
+        }
+
+        Utils utils;
+        std::string aggregatorFilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+        std::string centralGraphIdentifier = graphID + +"_centralstore_" + workerSocketPair[2];
+
+        std::string centralStoreFile = aggregatorFilePath + "/" + centralGraphIdentifier;
+        instance_logger.log("###INSTANCE### centralstore " + centralStoreFile, "info");
+
+        struct stat s;
+        if (stat(centralStoreFile.c_str(), &s) == 0) {
+            if (s.st_mode & S_IFREG) {
+                JasmineGraphHashMapCentralStore centralStore = JasmineGraphInstanceService::loadCentralStore(
+                        centralStoreFile);
+                map<long, unordered_set<long>> centralGraphMap = centralStore.getUnderlyingHashMap();
+
+                for (map<long, unordered_set<long>>::iterator centralGraphMapIterator = centralGraphMap.begin();
+                     centralGraphMapIterator != centralGraphMap.end(); ++centralGraphMapIterator) {
+                    long startVid = centralGraphMapIterator->first;
+                    unordered_set<long> endVidSet = centralGraphMapIterator->second;
+
+                    for (auto itr = endVidSet.begin(); itr != endVidSet.end(); ++itr) {
+                        map<long, long>::iterator fromDegreeDistIterator = fromDegreeDist.find(startVid);
+                        if (fromDegreeDistIterator != fromDegreeDist.end()) {
+                            long degree = fromDegreeDistIterator->second;
+                            fromDegreeDistIterator->second = degree + 1;
+                        } else {
+                            fromDegreeDist.insert(std::make_pair(startVid, 1));
+                        }
+
+                        if (graphVertexMap.find(*itr) != graphVertexMap.end()) {
+                            map<long, unordered_set<long>>::iterator toIDiterator = worldToLocalVertexMap.find(*itr);
+                            if (toIDiterator != worldToLocalVertexMap.end()) {
+                                unordered_set<long> fromIDs = toIDiterator->second;
+                                fromIDs.insert(startVid);
+                                toIDiterator->second = fromIDs;
+                            } else {
+                                unordered_set<long> fromIDs;
+                                fromIDs.insert(startVid);
+                                worldToLocalVertexMap.insert(std::make_pair(*itr, fromIDs));
+                            }
+                        }
+
+                    }
+                }
+            }
+        }
+    }
+
+    double alpha = 0.85;
+    double damp = 1 - alpha;
+    long entireGraphSize = atol(graphVertexCount.c_str());
+    float mu = (damp / entireGraphSize);
+
+
+    map<long, float> authResultMap;
+    float authorityScore = 0;
+    for (map<long, unordered_set<long>>::iterator it = worldToLocalVertexMap.begin();
+         it != worldToLocalVertexMap.end(); ++it) {
+        unordered_set<long> distribution = it->second;
+
+        for (auto itr = distribution.begin(); itr != distribution.end(); ++itr) {
+            map<long, long>::iterator oddIterator = fromDegreeDist.find(*itr);
+            if (oddIterator != fromDegreeDist.end()) {
+                long degree = oddIterator->second;
+                map<long, float>::iterator authResultMapItr = authResultMap.find(it->first);
+                if (authResultMapItr != authResultMap.end()) {
+                    authorityScore = authResultMapItr->second;
+                    authResultMapItr->second = authorityScore + (alpha * (1.0 / degree) + mu);
+                } else {
+                    authResultMap.insert(std::make_pair(it->first, (alpha * (1.0 / degree) + mu)));
+                }
+            }
+        }
+    }
+
+    map<long, float> authResultMapAdjusted;
+    for (map<long, float>::iterator it = authResultMap.begin(); it != authResultMap.end(); ++it) {
+        float adjustedResult = (it->second) / worldOnlyVertexCount;
+        authResultMapAdjusted.insert(std::make_pair(it->first, adjustedResult));
+    }
+
+    return authResultMapAdjusted;
+}
+
+map<long, unordered_set<long>> getEdgesWorldToLocal(string graphID, string partitionID, int serverPort,
+                                                    string graphVertexCount, JasmineGraphHashMapLocalStore localDB,
+                                                    JasmineGraphHashMapCentralStore centralDB,
+                                                    map<long, unordered_set<long>> graphVertexMap,
+                                                    std::vector<string> workerSockets) {
+
+    map<long, unordered_set<long>> worldToLocalVertexMap;
+    for (vector<string>::iterator workerIt = workerSockets.begin(); workerIt != workerSockets.end(); ++workerIt) {
+        std::vector<string> workerSocketPair;
+        stringstream wl(*workerIt);
+        string intermediate;
+        while (getline(wl, intermediate, ':')) {
+            workerSocketPair.push_back(intermediate);
+        }
+
+        Utils utils;
+        std::string aggregatorFilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+        std::string centralGraphIdentifier = graphID + +"_centralstore_" + workerSocketPair[2];
+
+        std::string centralStoreFile = aggregatorFilePath + "/" + centralGraphIdentifier;
+        instance_logger.log("###INSTANCE### centralstore " + centralStoreFile, "info");
+
+        struct stat s;
+        if (stat(centralStoreFile.c_str(), &s) == 0) {
+            if (s.st_mode & S_IFREG) {
+                JasmineGraphHashMapCentralStore centralStore = JasmineGraphInstanceService::loadCentralStore(
+                        centralStoreFile);
+                map<long, unordered_set<long>> centralGraphMap = centralStore.getUnderlyingHashMap();
+
+                for (map<long, unordered_set<long>>::iterator centralGraphMapIterator = centralGraphMap.begin();
+                     centralGraphMapIterator != centralGraphMap.end(); ++centralGraphMapIterator) {
+                    long startVid = centralGraphMapIterator->first;
+                    unordered_set<long> endVidSet = centralGraphMapIterator->second;
+
+                    for (auto itr = endVidSet.begin(); itr != endVidSet.end(); ++itr) {
+                        if (graphVertexMap.find(*itr) != graphVertexMap.end()) {
+                            map<long, unordered_set<long>>::iterator toIDiterator = worldToLocalVertexMap.find(*itr);
+
+                            if (toIDiterator != worldToLocalVertexMap.end()) {
+                                unordered_set<long> fromIDs = toIDiterator->second;
+                                fromIDs.insert(startVid);
+                                toIDiterator->second = fromIDs;
+                            } else {
+                                unordered_set<long> fromIDs;
+                                fromIDs.insert(startVid);
+                                worldToLocalVertexMap.insert(std::make_pair(*itr, fromIDs));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return worldToLocalVertexMap;
 }
 
 bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int graphID, int partitionID,
