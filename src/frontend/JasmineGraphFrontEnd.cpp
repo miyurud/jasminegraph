@@ -59,14 +59,14 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
     Utils utils;
     vector<Utils::worker> workerList = utils.getWorkerList(sqlite);
     vector<DataPublisher*> workerClients;
-    
+
     for (int i = 0; i < workerList.size(); i++) {
         Utils::worker currentWorker = workerList.at(i);
         string workerHost = currentWorker.hostname;
         string workerID = currentWorker.workerID;
         int workerPort = atoi(string(currentWorker.port).c_str());
         DataPublisher* workerClient = new DataPublisher(workerPort, workerHost);
-        workerClients.push_back(workerClient);        
+        workerClients.push_back(workerClient);
     }
     bool loop = false;
     while (!loop) {
@@ -514,22 +514,22 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             bool TESTING = false; // Test graph data bypassing kafka stream
             if (TESTING) {
                 std::string testData[] = {
-                    "{\"source\":{\"id\":\"0x97e58c7d37cba1a1e2ecbb2a5b23f8d127b6892d\",\"properties\":{"
-                    "\"blockNumber\":\"448028\",\"timestamp\":\"1445954881\",\"tokenId\":\"4422\"}},\"destination\":{"
-                    "\"id\":\"0xb1a2b43a7433dd150bb82227ed519cd6b142d382\"},\"properties\":{\"blockNumber\":\"448028\","
-                    "\"timestamp\":\"1445954881\",\"tokenId\":\"4422\",\"graphId\":\"1\"}}",
-                    "{\"source\":{\"id\":\"0x97e58c7d37cba1a1e2ecbb2a5b23f8d127b6892d\",\"properties\":{"
-                    "\"blockNumber\":\"447862\",\"timestamp\":\"1445951915\",\"tokenId\":\"1343\"}},\"destination\":{"
-                    "\"id\":\"0x9b22a80d5c7b3374a05b446081f97d0a34079e7f\"},\"properties\":{\"blockNumber\":\"447862\","
-                    "\"timestamp\":\"1445951915\",\"tokenId\":\"1343\",\"graphId\":\"1\"}}",
-                    "{\"source\":{\"id\":\"0x97e58c7d37cba1a1e2ecbb2a5b23f8d127b6892d\",\"properties\":{"
-                    "\"blockNumber\":\"447786\",\"timestamp\":\"1445950900\",\"tokenId\":\"10000\"}},\"destination\":{"
-                    "\"id\":\"0x9b22a80d5c7b3374a05b446081f97d0a34079e7f\"},\"properties\":{\"blockNumber\":\"447786\","
-                    "\"timestamp\":\"1445950900\",\"tokenId\":\"10000\",\"graphId\":\"1\"}}",
-                    "{\"source\":{\"id\":\"0xb1a2b43a7433dd150bb82227ed519cd6b142d382\",\"properties\":{"
-                    "\"blockNumber\":\"447767\",\"timestamp\":\"1445950646\",\"tokenId\":\"20000\"}},\"destination\":{"
-                    "\"id\":\"0x97e58c7d37cba1a1e2ecbb2a5b23f8d127b6892d\"},\"properties\":{\"blockNumber\":\"447767\","
-                    "\"timestamp\":\"1445950646\",\"tokenId\":\"20000\",\"graphId\":\"1\"}}"};
+                        "{\"source\":{\"id\":\"0x97e58c7d37cba1a1e2ecbb2a5b23f8d127b6892d\",\"properties\":{"
+                        "\"blockNumber\":\"448028\",\"timestamp\":\"1445954881\",\"tokenId\":\"4422\"}},\"destination\":{"
+                        "\"id\":\"0xb1a2b43a7433dd150bb82227ed519cd6b142d382\"},\"properties\":{\"blockNumber\":\"448028\","
+                        "\"timestamp\":\"1445954881\",\"tokenId\":\"4422\",\"graphId\":\"1\"}}",
+                        "{\"source\":{\"id\":\"0x97e58c7d37cba1a1e2ecbb2a5b23f8d127b6892d\",\"properties\":{"
+                        "\"blockNumber\":\"447862\",\"timestamp\":\"1445951915\",\"tokenId\":\"1343\"}},\"destination\":{"
+                        "\"id\":\"0x9b22a80d5c7b3374a05b446081f97d0a34079e7f\"},\"properties\":{\"blockNumber\":\"447862\","
+                        "\"timestamp\":\"1445951915\",\"tokenId\":\"1343\",\"graphId\":\"1\"}}",
+                        "{\"source\":{\"id\":\"0x97e58c7d37cba1a1e2ecbb2a5b23f8d127b6892d\",\"properties\":{"
+                        "\"blockNumber\":\"447786\",\"timestamp\":\"1445950900\",\"tokenId\":\"10000\"}},\"destination\":{"
+                        "\"id\":\"0x9b22a80d5c7b3374a05b446081f97d0a34079e7f\"},\"properties\":{\"blockNumber\":\"447786\","
+                        "\"timestamp\":\"1445950900\",\"tokenId\":\"10000\",\"graphId\":\"1\"}}",
+                        "{\"source\":{\"id\":\"0xb1a2b43a7433dd150bb82227ed519cd6b142d382\",\"properties\":{"
+                        "\"blockNumber\":\"447767\",\"timestamp\":\"1445950646\",\"tokenId\":\"20000\"}},\"destination\":{"
+                        "\"id\":\"0x97e58c7d37cba1a1e2ecbb2a5b23f8d127b6892d\"},\"properties\":{\"blockNumber\":\"447767\","
+                        "\"timestamp\":\"1445950646\",\"tokenId\":\"20000\",\"graphId\":\"1\"}}"};
                 Partitioner graphPartitioner(1, 0, spt::Algorithms::HASH);
 
                 for (auto data : testData) {
@@ -573,7 +573,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
             string topic_name_s(topic_name);
             topic_name_s = utils.trim_copy(topic_name_s, " \f\n\r\t\v");
-            
+
             //std::thread streamingThread(KafkaConnector::startStream,topic_name_s, workerClients, streamsState);
             //TODO(miyurud):Temporarily commenting this line to enable building the project. Asked tmkasun to provide a
             // permanent fix later when he is available.
@@ -776,7 +776,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 priority = utils.trim_copy(priority, " \f\n\r\t\v");
 
                 if (!(std::find_if(priority.begin(),
-                                        priority.end(), [](unsigned char c) { return !std::isdigit(c); }) == priority.end())) {
+                                   priority.end(), [](unsigned char c) { return !std::isdigit(c); }) == priority.end())) {
                     string error_message = "Priority should be numeric and > 1 or empty";
                     result_wr = write(connFd, error_message.c_str(), error_message.length());
 
@@ -808,7 +808,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
                         if (!resourceSufficient && runningHPTaskCount == highPriorityTaskCount) {
                             bool queueTimeAcceptable = JasmineGraphFrontEnd::isQueueTimeAcceptable(sqlite,perfSqlite,
-                                    graph_id,TRIANGLES,Conts::SLA_CATEGORY::LATENCY);
+                                                                                                   graph_id,TRIANGLES,Conts::SLA_CATEGORY::LATENCY);
 
                             if (!queueTimeAcceptable) {
                                 rejectJob = true;
@@ -1079,6 +1079,48 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 loop = true;
                 continue;
             }
+        } else if (line.compare(OUT_DEGREE) == 0) {
+            frontend_logger.log("Calculating Out Degree Distribution", "info");
+
+            int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
+            if (result_wr < 0) {
+                frontend_logger.log("Error writing to socket", "error");
+                loop = true;
+                continue;
+            }
+            result_wr = write(connFd, "\r\n", 2);
+            if (result_wr < 0) {
+                frontend_logger.log("Error writing to socket", "error");
+                loop = true;
+                continue;
+            }
+
+            char graph_id[FRONTEND_DATA_LENGTH];
+            bzero(graph_id, FRONTEND_DATA_LENGTH + 1);
+
+            read(connFd, graph_id, FRONTEND_DATA_LENGTH);
+
+            string graphID(graph_id);
+
+            Utils utils;
+            graphID = utils.trim_copy(graphID, " \f\n\r\t\v");
+            frontend_logger.log("Graph ID received: " + graphID, "info");
+
+            JasmineGraphServer *jasmineServer = new JasmineGraphServer();
+            jasmineServer->outDegreeDistribution(graphID);
+
+            int result_wr_done = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
+            if (result_wr_done < 0) {
+                frontend_logger.log("Error writing to socket", "error");
+                loop = true;
+                continue;
+            }
+            result_wr_done = write(connFd, "\r\n", 2);
+            if (result_wr_done < 0) {
+                frontend_logger.log("Error writing to socket", "error");
+                loop = true;
+                continue;
+            }
         } else if (line.compare(PAGE_RANK) == 0) {
             frontend_logger.log("Calculating Page Rank", "info");
 
@@ -1109,9 +1151,9 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             if (strArr.size() > 1) {
                 alpha  = std::stod(strArr[1]);
                 if (alpha < 0 || alpha >= 1) {
-                        frontend_logger.log("Invalid value for alpha", "error");
-                        loop = true;
-                        continue;
+                    frontend_logger.log("Invalid value for alpha", "error");
+                    loop = true;
+                    continue;
                 }
             }
 
@@ -1414,7 +1456,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 }
 
 JasmineGraphFrontEnd::JasmineGraphFrontEnd(SQLiteDBInterface db, PerformanceSQLiteDBInterface perfDb, std::string masterIP,
-        JobScheduler jobScheduler) {
+                                           JobScheduler jobScheduler) {
     this->sqlite = db;
     this->masterIP = masterIP;
     this->perfSqlite = perfDb;
@@ -1653,7 +1695,7 @@ int JasmineGraphFrontEnd::getUid() {
 
 
 bool JasmineGraphFrontEnd::isQueueTimeAcceptable(SQLiteDBInterface sqlite, PerformanceSQLiteDBInterface perfSqlite, std::string graphId,
-        std::string command, std::string category) {
+                                                 std::string command, std::string category) {
 
     bool queueTimeAcceptable = true;
     std::chrono::milliseconds currentTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
@@ -1671,7 +1713,7 @@ bool JasmineGraphFrontEnd::isQueueTimeAcceptable(SQLiteDBInterface sqlite, Perfo
 
     string graphSlaQuery = "select graph_sla.sla_value from graph_sla,sla_category where graph_sla.id_sla_category=sla_category.id "
                            "and sla_category.command='" + command + "' and sla_category.category='" + category + "' and "
-                           "graph_sla.graph_id='" + graphId + "' and graph_sla.partition_count='" + std::to_string(partitionCount) + "';";
+                                                                                                                 "graph_sla.graph_id='" + graphId + "' and graph_sla.partition_count='" + std::to_string(partitionCount) + "';";
 
     std::vector<vector<pair<string, string>>> slaResults = perfSqlite.runSelect(graphSlaQuery);
 

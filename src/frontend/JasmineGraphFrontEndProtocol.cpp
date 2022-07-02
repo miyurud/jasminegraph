@@ -35,6 +35,7 @@ const string ECOUNT= "ecnt";
 const string PAGE_RANK= "pgrnk";
 const string OUT_DEGREE_DISTRIBUTION = "odd";
 const string IN_DEGREE = "idd";
+const string OUT_DEGREE = "odd";
 const string EGONET = "egnt";
 const string DPCNTRL = "dp-cntrl";
 const string TRAIN = "train";
