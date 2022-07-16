@@ -111,26 +111,6 @@ std::vector<Place> PerformanceUtil::getHostReporterList() {
 
 int PerformanceUtil::collectSLAResourceConsumption(std::vector<Place> placeList, std::string graphId,
         std::string masterIP, int elapsedTime) {
-    /*string slaCategoryId;
-    std::vector<std::future<long>> intermRes;
-    PlacesToNodeMapper placesToNodeMapper;
-
-    std::string placeLoadQuery = "select ip, user, server_port, is_master, is_host_reporter,host_idhost,idplace from place"
-                                 " where is_host_reporter='true'";
-    std::vector<vector<pair<string, string>>> placeList = perfDb.runSelect(placeLoadQuery);
-    std::vector<vector<pair<string, string>>>::iterator placeListIterator;
-
-    std::string categoryQuery = "SELECT id from sla_category where command='" + command + "' and category='" + category + "'";
-
-    std::vector<vector<pair<string, string>>> categoryResults = perfDb.runSelect(categoryQuery);
-
-    if (categoryResults.size() == 1) {
-        slaCategoryId = categoryResults[0][0].second;
-    } else {
-        scheduler_logger.log("Invalid SLA " + category + " for " + command + " command", "error");
-        return 0;
-    }*/
-
     std::vector<Place>::iterator placeListIterator;
 
     for (placeListIterator = placeList.begin(); placeListIterator != placeList.end(); ++placeListIterator) {
@@ -152,25 +132,9 @@ int PerformanceUtil::collectSLAResourceConsumption(std::vector<Place> placeList,
             host = user + "@" + ip;
         }
 
-        /*if (isHostReporter.find("true") != std::string::npos) {
-            std::string hostSearch = "select total_cpu_cores,total_memory from host where idhost='"+hostId+"'";
-            std::vector<vector<pair<string, string>>> hostAllocationList = perfDb.runSelect(hostSearch);
-
-            vector<pair<string, string>> firstHostAllocation = hostAllocationList.at(0);
-
-            std::string totalCPUCores = firstHostAllocation.at(0).second;
-            std::string totalMemory = firstHostAllocation.at(1).second;
-
-            if (totalCPUCores.empty() || totalMemory.empty()) {
-                requestResourceAllocation = "true";
-            }
-        }*/
 
         if (isMaster.find("true") != std::string::npos || host == "localhost" || host.compare(masterIP) == 0) {
             collectLocalSLAResourceUtilization(placeId, elapsedTime);
-        } else {
-            //collectRemoteSLAResourceUtilization(host,atoi(serverPort.c_str()),isHostReporter,requestResourceAllocation,
-             //       placeId,elapsedTime, masterIP);
         }
     }
 
@@ -493,36 +457,6 @@ int PerformanceUtil::collectRemoteSLAResourceUtilization(std::string host, int p
 
                         resourceUsageMap[placeId] = resourceUsageVector;
                     }
-
-                    /*if (isVMStatManager == "true" && strArr.size() > 3 && isResourceAllocationRequired == "true") {
-                        std::string totalMemory = strArr[6];
-                        std::string totalCores = strArr[7];
-                        string allocationUpdateSql = "update host set total_cpu_cores='" + totalCores + "',total_memory='" + totalMemory + "' where idhost='" + hostId + "'";
-
-                        perfDb.runUpdate(allocationUpdateSql);
-                    }
-
-                    std::string query = "SELECT id from graph_sla where graph_id='" + graphId +
-                                        "' and partition_count='" + std::to_string(partitionCount) + "' and id_sla_category='" + slaCategoryId + "';";
-
-                    std::vector<vector<pair<string, string>>> results = perfDb.runSelect(query);
-
-                    if (results.size() == 1) {
-                        graphSlaId = results[0][0].second;
-                    } else {
-                        std::string insertQuery = "insert into graph_sla (id_sla_category, graph_id, partition_count, sla_value, attempt) VALUES ('" +
-                                                  slaCategoryId + "','" + graphId + "'," + std::to_string(partitionCount) + ",0,0);";
-
-                        int slaId = perfDb.runInsert(insertQuery);
-                        graphSlaId = std::to_string(slaId);
-                    }
-
-                    string slaPerfSql = "insert into graph_place_sla_performance (graph_sla_id, place_id, memory_usage, load_average, elapsed_time) "
-                                        "values ('" + graphSlaId + "','" + placeId + "', '" + memoryUsage + "','" +
-                                        loadAverage + "',' " + std::to_string(elapsedTime) + " ')";
-
-                    perfDb.runInsert(slaPerfSql);*/
-
 
                 }
             }
