@@ -106,6 +106,8 @@ public:
     static int THREAD_SLEEP_TIME;       //Thread sleep time in milliseconds
     static int MAX_HIGH_PRIORIY_TASKS;
 
+    static int SCHEDULER_SLEEP_TIME;
+
 
 
     struct GRAPH_STATUS {
