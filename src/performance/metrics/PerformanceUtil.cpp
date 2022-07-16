@@ -198,7 +198,8 @@ std::vector<ResourceConsumption> PerformanceUtil::retrieveCurrentResourceUtiliza
 
 
 
-int PerformanceUtil::collectRemotePerformanceData(std::string host, int port, std::string isVMStatManager, std::string isResourceAllocationRequired, std::string hostId, std::string placeId) {
+int PerformanceUtil::collectRemotePerformanceData(std::string host, int port, std::string isVMStatManager,
+        std::string isResourceAllocationRequired, std::string hostId, std::string placeId) {
     int sockfd;
     char data[300];
     bool loop = false;
