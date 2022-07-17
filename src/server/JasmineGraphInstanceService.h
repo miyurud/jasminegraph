@@ -74,31 +74,30 @@ map<long, long> calculateLocalInDegreeDist(string graphID, string partitionID,
                                            std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores);
 
 map <long, map<long, unordered_set<long>>> calculateLocalEgoNet(string graphID, string partitionID, int serverPort,
-                                                                JasmineGraphHashMapLocalStore localDB,
-                                                                JasmineGraphHashMapCentralStore centralDB,
-                                                                std::vector<string> workerSockets);
+        JasmineGraphHashMapLocalStore localDB,
+JasmineGraphHashMapCentralStore centralDB,
+        std::vector<string> workerSockets);
 
-map<long, map<long, unordered_set<long>>> calculateEgoNet(string graphID, string partitionID,
-                                                          int serverPort, JasmineGraphHashMapLocalStore localDB,
-                                                          JasmineGraphHashMapCentralStore centralDB,
-                                                          string workerList);
+void calculateEgoNet(string graphID, string partitionID,
+int serverPort, JasmineGraphHashMapLocalStore localDB,
+JasmineGraphHashMapCentralStore centralDB, string workerList);
 
-void calculateLocalPageRank(string graphID, double alpha, string partitionID, int serverPort, int top_k_page_rank_value,
-                            string graphVertexCount, JasmineGraphHashMapLocalStore localDB,
-                            JasmineGraphHashMapCentralStore centralDB,
-                            std::vector<string> workerSockets, int iterations);
+map<long, double> calculateLocalPageRank(string graphID, double alpha, string partitionID, int serverPort, int top_k_page_rank_value,
+        string graphVertexCount, JasmineGraphHashMapLocalStore localDB,
+        JasmineGraphHashMapCentralStore centralDB,
+std::vector<string> workerSockets, int iterations);
 
 map<long, float> getAuthorityScoresWorldToLocal(string graphID, string partitionID, int serverPort,
-                                                string graphVertexCount, JasmineGraphHashMapLocalStore localDB,
-                                                JasmineGraphHashMapCentralStore centralDB,
-                                                map<long, unordered_set<long>> graphVertexMap,
-                                                std::vector<string> workerSockets, long worldOnlyVertexCount);
+        string graphVertexCount, JasmineGraphHashMapLocalStore localDB,
+        JasmineGraphHashMapCentralStore centralDB,
+map<long, unordered_set<long>> graphVertexMap,
+        std::vector<string> workerSockets, long worldOnlyVertexCount);
 
 map<long, unordered_set<long>> getEdgesWorldToLocal(string graphID, string partitionID, int serverPort,
-                                                    string graphVertexCount, JasmineGraphHashMapLocalStore localDB,
-                                                    JasmineGraphHashMapCentralStore centralDB,
-                                                    map<long, unordered_set<long>> graphVertexMap,
-                                                    std::vector<string> workerSockets);
+        string graphVertexCount, JasmineGraphHashMapLocalStore localDB,
+        JasmineGraphHashMapCentralStore centralDB,
+map<long, unordered_set<long>> graphVertexMap,
+        std::vector<string> workerSockets);
 
 struct instanceservicesessionargs {
     string profile;
@@ -127,14 +126,14 @@ public:
     static bool isInstanceDuplicateCentralStoreExists(std::string graphId, std::string partitionId);
     static void loadLocalStore(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapLocalStore>& graphDBMapLocalStores);
     static JasmineGraphIncrementalLocalStore* loadStreamingStore(
-        std::string graphId, std::string partitionId,
-        std::map<std::string, JasmineGraphIncrementalLocalStore*>& graphDBMapStreamingStores);
+            std::string graphId, std::string partitionId,
+            std::map<std::string, JasmineGraphIncrementalLocalStore*>& graphDBMapStreamingStores);
     static void loadInstanceCentralStore(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapCentralStore>& graphDBMapCentralStores);
     static void loadInstanceDuplicateCentralStore(std::string graphId, std::string partitionId, std::map<std::string,JasmineGraphHashMapDuplicateCentralStore>& graphDBMapDuplicateCentralStores);
     static JasmineGraphHashMapCentralStore loadCentralStore(std::string centralStoreFileName);
     static std::string copyCentralStoreToAggregator(std::string graphId, std::string partitionId, std::string aggregatorHost, std::string aggregatorPort, std::string host);
     static string aggregateCentralStoreTriangles(std::string graphId, std::string partitionId, std::string partitionIdList,
-                                   int threadPriority);
+                                                 int threadPriority);
     static string aggregateCompositeCentralStoreTriangles(std::string compositeFileList, std::string availableFileList,
                                                           int threadPriority);
     static map<long, long> getOutDegreeDistributionHashMap(map<long, unordered_set<long>> graphMap);
@@ -168,7 +167,7 @@ public:
                                                                std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores);
 
     static bool duplicateCentralStore(int thisWorkerPort, int graphID, int partitionID,
-                               std::vector<string> workerSockets, std::string masterIP);
+                                      std::vector<string> workerSockets, std::string masterIP);
 
     static bool sendFileThroughService(std::string host, int dataPort, std::string fileName,
                                        std::string filePath, std::string masterIP);

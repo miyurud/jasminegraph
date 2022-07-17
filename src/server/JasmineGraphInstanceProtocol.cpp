@@ -53,6 +53,7 @@ const string JasmineGraphInstanceProtocol::OUT_DEGREE_DISTRIBUTION = "odd";
 const string JasmineGraphInstanceProtocol::WORKER_OUT_DEGREE_DISTRIBUTION = "odd-worker";
 const string JasmineGraphInstanceProtocol::IN_DEGREE_DISTRIBUTION = "idd";
 const string JasmineGraphInstanceProtocol::WORKER_IN_DEGREE_DISTRIBUTION = "idd-worker";
+const string JasmineGraphInstanceProtocol::WORKER_PAGE_RANK_DISTRIBUTION = "pgrn-worker";
 const string JasmineGraphInstanceProtocol::EGONET = "egont";
 const string JasmineGraphInstanceProtocol::WORKER_EGO_NET = "egont-worker";
 const string JasmineGraphInstanceProtocol::DP_CENTRALSTORE = "dp-central";
