@@ -2770,7 +2770,6 @@ void JasmineGraphServer::outDegreeDistribution(std::string graphID) {
     string response = (data);
     response = utils.trim_copy(response, " \f\n\r\t\v");
 
-
     if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
         server_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
 
@@ -2794,7 +2793,6 @@ void JasmineGraphServer::outDegreeDistribution(std::string graphID) {
             if (result_wr < 0) {
                 server_logger.log("Error writing to socket", "error");
             }
-
             server_logger.log("Sent : Partition ID " + std::to_string(partitionID), "info");
 
             bzero(data, 301);
@@ -2809,12 +2807,10 @@ void JasmineGraphServer::outDegreeDistribution(std::string graphID) {
                 if (result_wr < 0) {
                     server_logger.log("Error writing to socket", "error");
                 }
-
                 server_logger.log("Sent : Host List ", "info");
             }
         }
     }
-
 }
 
 long JasmineGraphServer::getGraphVertexCount(std::string graphID) {
