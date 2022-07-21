@@ -49,7 +49,7 @@ The following build tools, applications, and libraries need to be installed befo
     - Type "make" in pigz directory to build the "pigz" executable. 
     - Add pigz executable's path to ~/.bashrc file and refresh.
 - nlohmann_json (https://github.com/nlohmann/json)
-    - Download the nolhmann latest release include.zip i:e [include.zip](https://github.com/nlohmann/json/releases/download/v3.9.1/include.zip) 
+    - Download the nolhmann latest release sources i:e [v3.9.1.zip](https://github.com/nlohmann/json/archive/refs/tags/v3.9.1.zip) 
     - Create a directory in your software directory named `nlohmann_json`
     - Extract the `include.zip` to  `nlohmann_json` directory
     - Issue "cmake ."
