@@ -18,8 +18,10 @@ The following build tools, applications, and libraries need to be installed befo
     - Clone the flatbuffers repository to $ENV{HOME}/software
     - Checkout Tag [v1.12.0](https://github.com/google/flatbuffers/archive/v1.12.0.zip)
     - Follow https://google.github.io/flatbuffers/flatbuffers_guide_building.html link to build flatbuffers
-- Metis (http://glaros.dtc.umn.edu/gkhome/metis/metis/download)
-    - Follow the installation guidelines provided in this [URL](http://glaros.dtc.umn.edu/gkhome/metis/metis/download).
+- Metis
+    - First, clone the GKlib package from the following URL and build it and install it following the [guidelines](https://github.com/KarypisLab/GKlib#readme). [GKlib](https://github.com/KarypisLab/GKlib.git).
+    - Download Metis version 5.1.1 sources from this [URL](https://github.com/KarypisLab/METIS/archive/refs/tags/v5.1.1-DistDGL-v0.5.zip).
+    - Build and install the Metis following the [guidelines](https://github.com/KarypisLab/METIS#building-and-installing-metis).
 - SpdLog (https://github.com/gabime/spdlog)
     - Clone or download the repository from the above link
     - Issue "cmake ."
