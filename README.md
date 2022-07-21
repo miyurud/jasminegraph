@@ -22,6 +22,8 @@ The following build tools, applications, and libraries need to be installed befo
     - First, clone the GKlib package from the following URL and build it and install it following the [guidelines](https://github.com/KarypisLab/GKlib#readme). [GKlib](https://github.com/KarypisLab/GKlib.git).
     - Download Metis version 5.1.1 sources from this [URL](https://github.com/KarypisLab/METIS/archive/refs/tags/v5.1.1-DistDGL-v0.5.zip).
     - Build and install the Metis following the [guidelines](https://github.com/KarypisLab/METIS#building-and-installing-metis).
+    - Path for `metis.h` header could be set by updating the environment variables as follows,
+      `export CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH:/home/username/local/include`
 - SpdLog (https://github.com/gabime/spdlog)
     - Clone or download the repository from the above link
     - Issue "cmake ."
