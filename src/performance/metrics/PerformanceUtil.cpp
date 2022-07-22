@@ -487,9 +487,7 @@ int PerformanceUtil::collectLocalSLAResourceUtilization(std::string placeId, int
         resourceUsageMap[placeId].push_back(resourceUsageInfo);
     } else {
         std::vector<ResourceUsageInfo> resourceUsageVector;
-
         resourceUsageVector.push_back(resourceUsageInfo);
-
         resourceUsageMap[placeId] = resourceUsageVector;
     }
 
@@ -573,7 +571,6 @@ ResourceConsumption PerformanceUtil::retrieveRemoteResourceConsumption(std::stri
         scheduler_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-            //scheduler_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
             write(sockfd, isVMStatManager.c_str(), isVMStatManager.size());
             scheduler_logger.log("Sent : VM Manager Status " + isVMStatManager, "info");
 
