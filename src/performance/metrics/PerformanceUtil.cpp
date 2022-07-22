@@ -472,7 +472,7 @@ int PerformanceUtil::collectLocalSLAResourceUtilization(std::string placeId, int
     statisticCollector.init();
     string graphSlaId;
 
-    double loadAgerage = statisticCollector.getLoadAverage();
+    double loadAverage = statisticCollector.getLoadAverage();
 
     auto executedTime = std::chrono::system_clock::now();
     std::time_t reportTime = std::chrono::system_clock::to_time_t(executedTime);
@@ -481,7 +481,7 @@ int PerformanceUtil::collectLocalSLAResourceUtilization(std::string placeId, int
 
     ResourceUsageInfo resourceUsageInfo;
     resourceUsageInfo.elapsedTime = std::to_string(elapsedTime);
-    resourceUsageInfo.loadAverage = std::to_string(loadAgerage);
+    resourceUsageInfo.loadAverage = std::to_string(loadAverage);
 
     if (!resourceUsageMap[placeId].empty()) {
         resourceUsageMap[placeId].push_back(resourceUsageInfo);
