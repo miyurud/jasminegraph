@@ -21,7 +21,7 @@ limitations under the License.
 #include "../../../JasmineGraphFrontEndProtocol.h"
 #include "../../../../server/JasmineGraphInstanceProtocol.h"
 #include "../../../../server/JasmineGraphServer.h"
-#include "../../../../util/performance/PerformanceUtil.h"
+#include "../../../../performance/metrics/PerformanceUtil.h"
 #include <chrono>
 
 
@@ -65,9 +65,18 @@ public:
                                std::string partitionId, std::string partitionIdList, std::string graphId,
                                std::string masterIP, int threadPriority);
 
+    static bool proceedOrNot(std::set<string> partitionSet,int partitionId);
+
+    static bool updateMap(int partitionId);
+
+    static int updateTriangleTreeAndGetTriangleCount(std::vector<std::string> triangles);
+
     static std::vector<std::vector<string>> fileCombinations;
     static std::map<std::string, std::string> combinationWorkerMap;
     static std::map<long, std::map<long, std::vector<long>>> triangleTree;
+
+    static int collectPerformaceData(PerformanceSQLiteDBInterface perDB, std::string graphId, std::string command, std::string category,
+                                     int partitionCount, std::string masterIP);
 
 private:
     SQLiteDBInterface sqlite;

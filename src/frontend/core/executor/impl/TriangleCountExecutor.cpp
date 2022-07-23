@@ -19,9 +19,11 @@ Logger triangleCount_logger;
 std::vector<std::vector<string>> TriangleCountExecutor::fileCombinations;
 std::map<std::string, std::string> TriangleCountExecutor::combinationWorkerMap;
 std::map<long, std::map<long, std::vector<long>>> TriangleCountExecutor::triangleTree;
-std::mutex processStatusMutex;
+bool isStatCollect = false;
+
 std::mutex fileCombinationMutex;
-std::mutex triangleTreeMutex;
+std::mutex processStatusMutex;
+std::mutex responseVectorMutex;
 
 TriangleCountExecutor::TriangleCountExecutor() {
 
@@ -35,30 +37,19 @@ TriangleCountExecutor::TriangleCountExecutor(SQLiteDBInterface db, PerformanceSQ
 
 void TriangleCountExecutor::execute() {
     Utils utils;
+    int uniqueId = getUid();
     std::string masterIP= request.getMasterIP();
     std::string graphId = request.getParameter(Conts::PARAM_KEYS::GRAPH_ID);
     std::string canCalibrateString = request.getParameter(Conts::PARAM_KEYS::CAN_CALIBRATE);
+    std::string queueTime = request.getParameter(Conts::PARAM_KEYS::QUEUE_TIME);
+    std::string graphSLAString = request.getParameter(Conts::PARAM_KEYS::GRAPH_SLA);
+
     bool canCalibrate = utils.parseBoolean(canCalibrateString);
     int threadPriority = request.getPriority();
 
     if (threadPriority == Conts::HIGH_PRIORITY_DEFAULT_VALUE) {
         highPriorityGraphList.push_back(graphId);
     }
-
-    triangleCount_logger.log("###TRIANGLE-COUNT-EXECUTOR### Started with graph ID : " + graphId + " Master IP : " + masterIP, "info");
-
-    long result = 0;
-    bool isCompositeAggregation = false;
-    Utils::worker aggregatorWorker;
-    vector<Utils::worker> workerList = utils.getWorkerList(sqlite);
-    int workerListSize = workerList.size();
-    int partitionCount = 0;
-    std::vector<std::future<long>> intermRes;
-    std::vector<std::future<string>> remoteCopyRes;
-    PlacesToNodeMapper placesToNodeMapper;
-    std::vector<std::string> compositeCentralStoreFiles;
-    int uniqueId = getUid();
-    int slaStatCount = 0;
 
     //Below code is used to update the process details
     processStatusMutex.lock();
@@ -72,8 +63,34 @@ void TriangleCountExecutor::execute() {
     processInformation.processName = TRIANGLES;
     processInformation.priority = threadPriority;
     processInformation.startTimestamp = startTime.count();
-    processData.insert(processInformation);
-    processStatusMutex.unlock();
+
+    if (!queueTime.empty()) {
+        long sleepTime = atol(queueTime.c_str());
+        processInformation.sleepTime = sleepTime;
+        processData.insert(processInformation);
+        processStatusMutex.unlock();
+        std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
+    } else {
+        processData.insert(processInformation);
+        processStatusMutex.unlock();
+    }
+
+
+    triangleCount_logger.log("###TRIANGLE-COUNT-EXECUTOR### Started with graph ID : " + graphId + " Master IP : " + masterIP, "info");
+
+    long result = 0;
+    bool isCompositeAggregation = false;
+    Utils::worker aggregatorWorker;
+    vector<Utils::worker> workerList = utils.getWorkerList(sqlite);
+    int workerListSize = workerList.size();
+    int partitionCount = 0;
+    std::vector<std::future<long>> intermRes;
+    std::vector<std::future<int>> statResponse;
+    std::vector<std::future<string>> remoteCopyRes;
+    PlacesToNodeMapper placesToNodeMapper;
+    std::vector<std::string> compositeCentralStoreFiles;
+    int slaStatCount = 0;
+
 
     auto begin = chrono::high_resolution_clock::now();
 
@@ -181,12 +198,13 @@ void TriangleCountExecutor::execute() {
         if (calibratedAttempts >= Conts::MAX_SLA_CALIBRATE_ATTEMPTS) {
             canCalibrate = false;
         }
-    }
-
-    while (!workerResponded && canCalibrate) {
-        performanceUtil.collectSLAResourceConsumption(graphId,TRIANGLES,Conts::SLA_CATEGORY::LATENCY,slaStatCount,partitionCount,masterIP);
-        slaStatCount++;
-        sleep(5);
+    } else {
+        triangleCount_logger.log("###TRIANGLE-COUNT-EXECUTOR### Inserting initial record for SLA ", "info");
+        Utils::updateSLAInformation(perfDB, graphId, partitionCount, 0, TRIANGLES, Conts::SLA_CATEGORY::LATENCY);
+        statResponse.push_back(
+                std::async(std::launch::async, TriangleCountExecutor::collectPerformaceData, perfDB, graphId.c_str(), TRIANGLES,
+                           Conts::SLA_CATEGORY::LATENCY, partitionCount, masterIP));
+        isStatCollect = true;
     }
 
     for (auto &&futureCall:intermRes) {
@@ -197,14 +215,21 @@ void TriangleCountExecutor::execute() {
         long aggregatedTriangleCount = TriangleCountExecutor::aggregateCentralStoreTriangles(sqlite, graphId, masterIP,
                                                                                              threadPriority);
         result += aggregatedTriangleCount;
+        workerResponded = true;
         triangleCount_logger.log("###TRIANGLE-COUNT-EXECUTOR### Getting Triangle Count : Completed: Triangles " + to_string(result),
                             "info");
-        JobResponse jobResponse;
-        jobResponse.setJobId(request.getJobId());
-        jobResponse.addParameter(Conts::PARAM_KEYS::TRIANGLE_COUNT, std::to_string(result));
-        responseVector.push_back(jobResponse);
-        responseMap[request.getJobId()] = jobResponse;
     }
+
+    workerResponded = true;
+
+    JobResponse jobResponse;
+    jobResponse.setJobId(request.getJobId());
+    jobResponse.addParameter(Conts::PARAM_KEYS::TRIANGLE_COUNT, std::to_string(result));
+    responseVector.push_back(jobResponse);
+
+    responseVectorMutex.lock();
+    responseMap[request.getJobId()] = jobResponse;
+    responseVectorMutex.unlock();
 
     auto end = chrono::high_resolution_clock::now();
     auto dur = end - begin;
@@ -214,6 +239,7 @@ void TriangleCountExecutor::execute() {
 
     if (canCalibrate) {
         Utils::updateSLAInformation(perfDB, graphId, partitionCount, msDuration, TRIANGLES, Conts::SLA_CATEGORY::LATENCY);
+        isStatCollect = false;
     }
 
     processStatusMutex.lock();
@@ -287,7 +313,7 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
     }
 
     if (host.find('@') != std::string::npos) {
-        host = utils.split(host, '@')[0];
+        host = utils.split(host, '@')[1];
     }
 
     triangleCount_logger.log("###TRIANGLE-COUNT-EXECUTOR### Get Host By Name : " + host, "info");
@@ -400,21 +426,54 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
             triangleCount_logger.log("Got response : |" + response + "|", "info");
             response = utils.trim_copy(response, " \f\n\r\t\v");
             triangleCount = atol(response.c_str());
-            workerResponded = true;
         }
 
         if (isCompositeAggregation) {
+
+            triangleCount_logger.log("###COMPOSITE### Started Composite aggregation ", "info");
             static std::vector<std::vector<string>>::iterator combinationsIterator;
 
             for (int combinationIndex = 0; combinationIndex < fileCombinations.size(); ++combinationIndex) {
                 std::vector<string> fileList = fileCombinations.at(combinationIndex);
                 std::vector<string>::iterator fileListIterator;
+                std::vector<string>::iterator listIterator;
                 std::set<string> partitionIdSet;
+                std::set<string> partitionSet;
+                std::map<int,int> tempWeightMap;
+                std::set<string>::iterator partitionSetIterator;
                 std::set<string> transferRequireFiles;
                 std::string combinationKey = "";
                 std::string availableFiles = "";
                 std::string transferredFiles = "";
                 bool isAggregateValid = false;
+
+                for (listIterator = fileList.begin(); listIterator != fileList.end(); ++listIterator) {
+                    std::string fileName = *listIterator;
+
+                    size_t lastIndex = fileName.find_last_of(".");
+                    string rawFileName = fileName.substr(0, lastIndex);
+
+                    std::vector<std::string> fileNameParts = utils.split(rawFileName,'_');
+
+                    /*Partition numbers are extracted from  the file name. The starting index of partition number is 2.
+                     * Therefore the loop starts with 2*/
+                    for (int index = 2; index < fileNameParts.size(); ++index) {
+                        partitionSet.insert(fileNameParts[index]);
+                    }
+
+                }
+
+                if (partitionSet.find(std::to_string(partitionId)) == partitionSet.end()) {
+                    continue;
+                }
+
+
+                if (proceedOrNot(partitionSet,partitionId)) {
+
+                } else {
+                    continue;
+                }
+
 
                 for (fileListIterator = fileList.begin(); fileListIterator != fileList.end(); ++fileListIterator) {
                     std::string fileName = *fileListIterator;
@@ -477,42 +536,24 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
                                                                                          masterIP,
                                                                                          adjustedAvailableFiles, threadPriority);
 
+                    triangleCount_logger.log("###COMPOSITE### Retrieved Composite triangle list ", "debug");
+
                     std::vector<std::string> triangles = Utils::split(compositeTriangles, ':');
-                    std::vector<std::string>::iterator triangleIterator;
 
-                    triangleTreeMutex.lock();
 
-                    for (triangleIterator = triangles.begin(); triangleIterator != triangles.end(); ++triangleIterator) {
-                        std::string triangle = *triangleIterator;
+                    if (triangles.size() > 0) {
 
-                        if (!triangle.empty() && triangle != "NILL") {
-                            std::vector<std::string> triangleVertexList = Utils::split(triangle, ',');
+                        triangleCount += updateTriangleTreeAndGetTriangleCount(triangles);
 
-                            long vertexOne = std::atol(triangleVertexList.at(0).c_str());
-                            long vertexTwo = std::atol(triangleVertexList.at(1).c_str());
-                            long vertexThree = std::atol(triangleVertexList.at(2).c_str());
-
-                            std::map<long, std::vector<long>> itemRes = triangleTree[vertexOne];
-
-                            std::map<long, std::vector<long>>::iterator itemResIterator = itemRes.find(vertexTwo);
-
-                            if (itemResIterator != itemRes.end()) {
-                                std::vector<long> list = itemRes[vertexTwo];
-
-                                if (std::find(list.begin(),list.end(),vertexThree) == list.end()) {
-                                    triangleTree[vertexOne][vertexTwo].push_back(vertexThree);
-                                    triangleCount++;
-                                }
-                            } else {
-                                triangleTree[vertexOne][vertexTwo].push_back(vertexThree);
-                                triangleCount++;
-                            }
-                        }
                     }
-                    triangleTreeMutex.unlock();
                 }
+                updateMap(partitionId);
+
+
             }
         }
+
+        triangleCount_logger.log("###COMPOSITE### Returning Total Triangles from executer ", "debug");
 
         return triangleCount;
 
@@ -520,6 +561,92 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
         triangleCount_logger.log("There was an error in the upload process and the response is :: " + response,
                             "error");
     }
+}
+
+bool TriangleCountExecutor::proceedOrNot(std::set<string> partitionSet,int partitionId) {
+
+    const std::lock_guard<std::mutex> lock(aggregateWeightMutex);
+
+    std::set<string>::iterator partitionSetIterator;
+    std::map<int,int> tempWeightMap;
+    for (partitionSetIterator = partitionSet.begin(); partitionSetIterator != partitionSet.end(); ++partitionSetIterator) {
+        std::string partitionIdString = *partitionSetIterator;
+        int currentPartitionId = atoi(partitionIdString.c_str());
+        tempWeightMap[currentPartitionId] = aggregateWeightMap[currentPartitionId];
+    }
+
+    int currentWorkerWeight = tempWeightMap[partitionId];
+    pair<int, int> entryWithMinValue = make_pair(partitionId,currentWorkerWeight);
+
+    map<int, int>::iterator currentEntry;
+
+    for (currentEntry = aggregateWeightMap.begin(); currentEntry != aggregateWeightMap.end(); ++currentEntry) {
+        if (entryWithMinValue.second > currentEntry->second) {
+            entryWithMinValue = make_pair(currentEntry->first,currentEntry->second);
+        }
+    }
+
+    if (entryWithMinValue.first == partitionId) {
+        int currentWeight = aggregateWeightMap[entryWithMinValue.first];
+        currentWeight++;
+        aggregateWeightMap[entryWithMinValue.first] = currentWeight;
+        triangleCount_logger.log("###COMPOSITE### Aggregator Initiated : Partition ID: " + std::to_string(partitionId) + " Weight : " + std::to_string(currentWeight), "info");
+        return true;
+    } else {
+        return false;
+    }
+
+
+
+    aggregateWeightMutex.unlock();
+}
+
+bool TriangleCountExecutor::updateMap(int partitionId) {
+    const std::lock_guard<std::mutex> lock(aggregateWeightMutex);
+
+    int currentWeight = aggregateWeightMap[partitionId];
+    currentWeight--;
+    aggregateWeightMap[partitionId] = currentWeight;
+    triangleCount_logger.log("###COMPOSITE### Aggregator Completed : Partition ID: " + std::to_string(partitionId) + " Weight : " + std::to_string(currentWeight), "info");
+}
+
+int TriangleCountExecutor::updateTriangleTreeAndGetTriangleCount(std::vector<std::string> triangles) {
+
+    const std::lock_guard<std::mutex> lock1(triangleTreeMutex);
+    std::vector<std::string>::iterator triangleIterator;
+    int aggregateCount = 0;
+
+    triangleCount_logger.log("###COMPOSITE### Triangle Tree locked ", "debug");
+
+    for (triangleIterator = triangles.begin(); triangleIterator != triangles.end(); ++triangleIterator) {
+        std::string triangle = *triangleIterator;
+
+        if (!triangle.empty() && triangle != "NILL") {
+            std::vector<std::string> triangleVertexList = Utils::split(triangle, ',');
+
+            long vertexOne = std::atol(triangleVertexList.at(0).c_str());
+            long vertexTwo = std::atol(triangleVertexList.at(1).c_str());
+            long vertexThree = std::atol(triangleVertexList.at(2).c_str());
+
+            std::map<long, std::vector<long>> itemRes = triangleTree[vertexOne];
+
+            std::map<long, std::vector<long>>::iterator itemResIterator = itemRes.find(vertexTwo);
+
+            if (itemResIterator != itemRes.end()) {
+                std::vector<long> list = itemRes[vertexTwo];
+
+                if (std::find(list.begin(),list.end(),vertexThree) == list.end()) {
+                    triangleTree[vertexOne][vertexTwo].push_back(vertexThree);
+                    aggregateCount++;
+                }
+            } else {
+                triangleTree[vertexOne][vertexTwo].push_back(vertexThree);
+                aggregateCount++;
+            }
+        }
+    }
+
+    return aggregateCount;
 }
 
 long TriangleCountExecutor::aggregateCentralStoreTriangles(SQLiteDBInterface sqlite, std::string graphId,
@@ -680,6 +807,10 @@ string TriangleCountExecutor::isFileAccessibleToWorker(std::string graphId, std:
         return 0;
     }
 
+    if (aggregatorHostName.find('@') != std::string::npos) {
+        aggregatorHostName = utils.split(aggregatorHostName, '@')[1];
+    }
+
     server = gethostbyname(aggregatorHostName.c_str());
     if (server == NULL) {
         std::cerr << "ERROR, no host named " << server << std::endl;
@@ -826,7 +957,7 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
     }
 
     if (aggregatorHostName.find('@') != std::string::npos) {
-        aggregatorHostName = utils.split(aggregatorHostName, '@')[0];
+        aggregatorHostName = utils.split(aggregatorHostName, '@')[1];
     }
 
     server = gethostbyname(aggregatorHostName.c_str());
@@ -1049,6 +1180,7 @@ TriangleCountExecutor::countCompositeCentralStoreTriangles(std::string aggregato
         }
 
         triangleCount_logger.log("Sent : " + masterIP, "info");
+        triangleCount_logger.log("Port : " + aggregatorPort, "info");
         bzero(data, 301);
         read(sockfd, data, 300);
         response = (data);
@@ -1156,6 +1288,7 @@ TriangleCountExecutor::countCompositeCentralStoreTriangles(std::string aggregato
             response = result;
         }
 
+        triangleCount_logger.log("Aggregate Response Received" , "info");
 
     } else {
         triangleCount_logger.log("There was an error in the upload process and the response is :: " + response,
@@ -1217,7 +1350,7 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
     }
 
     if (aggregatorHostName.find('@') != std::string::npos) {
-        aggregatorHostName = utils.split(aggregatorHostName, '@')[0];
+        aggregatorHostName = utils.split(aggregatorHostName, '@')[1];
     }
 
     server = gethostbyname(aggregatorHostName.c_str());
@@ -1401,6 +1534,10 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorH
         return 0;
     }
 
+    if (host.find('@') != std::string::npos) {
+        host = utils.split(host, '@')[1];
+    }
+
     server = gethostbyname(host.c_str());
     if (server == NULL) {
         std::cerr << "ERROR, no host named " << server << std::endl;
@@ -1557,4 +1694,63 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorH
 int TriangleCountExecutor::getUid() {
     static std::atomic<std::uint32_t> uid { 0 };
     return ++uid;
+}
+
+int TriangleCountExecutor::collectPerformaceData(PerformanceSQLiteDBInterface perDB, std::string graphId, std::string command, std::string category,
+                                                 int partitionCount, std::string masterIP) {
+
+    int elapsedTime = 0;
+    time_t start;
+    time_t end;
+    PerformanceUtil performanceUtil;
+    performanceUtil.init();
+    Utils utils;
+
+    std::vector<Place> placeList = performanceUtil.getHostReporterList();
+    std::string slaCategoryId = performanceUtil.getSLACategoryId(command,category);
+
+    std::vector<Place>::iterator placeListIterator;
+
+    for (placeListIterator = placeList.begin(); placeListIterator != placeList.end(); ++placeListIterator) {
+        Place place = *placeListIterator;
+        std::string host;
+
+        std::string ip = place.ip;
+        std::string user = place.user;
+        std::string serverPort = place.serverPort;
+        std::string isMaster = place.isMaster;
+        std::string isHostReporter = place.isHostReporter;
+        std::string hostId = place.hostId;
+        std::string placeId = place.placeId;
+
+        if (ip.find("localhost") != std::string::npos || ip.compare(masterIP) == 0) {
+            host = ip;
+        } else {
+            host = user + "@" + ip;
+        }
+
+
+        if (!(isMaster.find("true") != std::string::npos || host == "localhost" || host.compare(masterIP) == 0)) {
+            performanceUtil.initiateCollectingRemoteSLAResourceUtilization(host,atoi(serverPort.c_str()),isHostReporter,"false",
+                                                                           placeId,elapsedTime, masterIP);
+        }
+    }
+
+    start = time(0);
+
+    while(!workerResponded)
+    {
+
+        if(time(0)-start== Conts::LOAD_AVG_COLLECTING_GAP)
+        {
+            elapsedTime += Conts::LOAD_AVG_COLLECTING_GAP*1000;
+            performanceUtil.collectSLAResourceConsumption(placeList, graphId, masterIP,elapsedTime);
+            start = start + Conts::LOAD_AVG_COLLECTING_GAP;
+        }
+    }
+
+    performanceUtil.updateRemoteResourceConsumption(perDB,graphId,partitionCount,placeList,slaCategoryId,masterIP);
+    performanceUtil.updateResourceConsumption(perDB, graphId, partitionCount, placeList, slaCategoryId);
+
+    return 0;
 }

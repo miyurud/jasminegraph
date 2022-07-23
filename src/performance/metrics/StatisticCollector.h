@@ -27,11 +27,12 @@ limitations under the License.
 #include <limits>
 #include <fstream>
 #include <thread>
-#include "../Utils.h"
+#include "../../util/Utils.h"
 #include <algorithm>
 #include <cmath>
 #include <sstream>
 #include <iomanip>
+#include "PerformanceUtil.h"
 
 
 class StatisticCollector {
@@ -47,6 +48,8 @@ public:
     static int getTotalNumberofCores();
     static long getTotalMemoryUsage();
     static double getTotalCpuUsage();
+    static double getLoadAverage();
+    static void logLoadAverage(std::string name);
 };
 
 

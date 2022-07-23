@@ -24,6 +24,7 @@ limitations under the License.
 #include "../performancedb/PerformanceSQLiteDBInterface.h"
 #include "../util/Conts.h"
 #include "../frontend/core/scheduler/JobScheduler.h"
+#include "../performance/metrics/StatisticCollector.h"
 
 using std::map;
 
@@ -55,6 +56,7 @@ private:
     static bool hasEnding(std::string const &fullString, std::string const &ending);
     std::vector<std::string> getWorkerVector(std::string workerList);
     void deleteNonOperationalGraphFragment(int graphID);
+
 public:
     ~JasmineGraphServer();
 
@@ -67,6 +69,8 @@ public:
     void waitForAcknowledgement(int numberOfWorkers);
 
     void resolveOperationalGraphs();
+
+    void initiateAggregateMap();
 
     void backupPerformanceDB();
 
@@ -107,6 +111,7 @@ public:
     void assignPartitionToWorker (std::string fileName, int graphId, std::string workerHost, int workerPort, int workerDataPort);
 
     bool spawnNewWorker(string host, string port, string dataPort, string profile, string masterHost, string enableNmon);
+
 
     JasmineGraphFrontEnd *frontend;
     SQLiteDBInterface sqlite;

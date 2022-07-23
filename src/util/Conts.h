@@ -19,23 +19,42 @@ limitations under the License.
 #include <set>
 #include <vector>
 #include <atomic>
+#include <mutex>
+#include <map>
 
 extern int highestPriority;
 extern std::atomic<int> highPriorityTaskCount;
 extern std::atomic<int> workerHighPriorityTaskCount;
 extern bool workerResponded;
 extern std::vector<std::string> highPriorityGraphList;
+extern std::mutex processStatusMutex;
+extern std::mutex responseVectorMutex;
+extern bool isStatCollect;
+extern bool isCalibrating;
+extern std::vector<std::string> loadAverageVector;
+extern bool collectValid;
+extern std::map<int, int> aggregateWeightMap;
+extern std::mutex aggregateWeightMutex;
+extern std::mutex triangleTreeMutex;
 
 struct ProcessInfo {
     int id;
     std::string graphId;
     std::string processName;
+    long sleepTime;
     long startTimestamp;
     int priority;
     std::vector<std::string> workerList;
 };
 
+struct ResourceUsageInfo{
+    std::string elapsedTime;
+    std::string loadAverage;
+    std::string memoryUsage;
+};
+
 extern std::set<ProcessInfo> processData;
+extern std::map<std::string,std::vector<ResourceUsageInfo>> resourceUsageMap;
 
 class Conts {
 public:
@@ -74,6 +93,8 @@ public:
     static int NUMBER_OF_COMPOSITE_CENTRAL_STORES;
     static int RDF_NUM_OF_ATTRIBUTES;
     static int MAX_SLA_CALIBRATE_ATTEMPTS;
+    static int LOAD_AVG_COLLECTING_GAP;
+    static double LOAD_AVG_THREASHOLD;
 
     static int GRAPH_TYPE_TEXT;
 
@@ -84,6 +105,8 @@ public:
 
     static int THREAD_SLEEP_TIME;       //Thread sleep time in milliseconds
     static int MAX_HIGH_PRIORIY_TASKS;
+
+    static int SCHEDULER_SLEEP_TIME;
 
 
 
@@ -112,12 +135,16 @@ public:
     };
 
     struct PARAM_KEYS {
+        static const std::string ERROR_MESSAGE;
         static const std::string MASTER_IP;
         static const std::string GRAPH_ID;
         static const std::string PRIORITY;
         static const std::string TRIANGLE_COUNT;
         static const std::string CAN_CALIBRATE;
         static const std::string CATEGORY;
+        static const std::string QUEUE_TIME;
+        static const std::string GRAPH_SLA;
+        static const std::string IS_CALIBRATING;
     };
 
 

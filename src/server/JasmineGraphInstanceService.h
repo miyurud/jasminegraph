@@ -40,7 +40,7 @@ limitations under the License.
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <dirent.h>
-#include "../util/performance/StatisticCollector.h"
+#include "../performance/metrics/StatisticCollector.h"
 #include <chrono>
 #include <ctime>
 #include <vector>
@@ -159,6 +159,8 @@ public:
     static void executeTrainingIterations(int maxThreads);
 
     static void trainPartition(std::string trainData);
+
+    static void startCollectingLoadAverage();
 
     static std::map<int,std::vector<std::string>> iterationData;
 
