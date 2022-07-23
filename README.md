@@ -30,11 +30,11 @@ The following build tools, applications, and libraries need to be installed befo
     - Issue "make" followed by "sudo make install"
 - SQLite3 (https://www.sqlite.org/download.html)
 - cppkafka (https://github.com/mfontanini/cppkafka)
-    - Install librdkafka - Follow the Readme in (https://github.com/edenhill/librdkafka)
-    - Install boost library - use 'sudo apt-get install libboost-all-dev'
-    - Follow the guidelines in (https://github.com/mfontanini/cppkafka#compiling)
+    - Install librdkafka - Follow the Readme in (https://github.com/edenhill/librdkafka) - use `sudo apt install librdkafka-dev`
+    - Install boost library - use `sudo apt-get install libboost-all-dev`
+    - Follow the guidelines in (https://github.com/mfontanini/cppkafka#compiling) - use cppkafka release [v0.3.1](https://github.com/mfontanini/cppkafka/archive/refs/tags/v0.3.1.zip)
     - When doing the above step for `cmake <OPTIONS> ..` use of `cmake ..` should be sufficient enough
-    - Once cppkafka is built install it by running 'sudo make install' from the build directory
+    - Once cppkafka is built install it by running `sudo make install` from the build directory
 - Xerces-c-3.2.2 (https://xerces.apache.org/xerces-c/)
     - Intallation guide is available at http://xerces.apache.org/xerces-c/build-3.html
     - When configuring Xerces skip the use of transcoder ICU by using the flag --disable-transcoder-icu
