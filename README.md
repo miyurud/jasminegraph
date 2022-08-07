@@ -29,6 +29,12 @@ The following build tools, applications, and libraries need to be installed befo
     - Issue "cmake ."
     - Issue "make" followed by "sudo make install"
 - SQLite3 (https://www.sqlite.org/download.html)
+    - Download the `sqlite-autoconf-3390200` from this [URL](https://www.sqlite.org/2022/sqlite-autoconf-3390200.tar.gz). 
+    - Extract `sqlite-autoconf-3390200.tar.gz` to some location. E.g., `/media/user/software/sqlite-autoconf-3390200-install`
+    - Change to that location and run `./configure --prefix=/media/user/software/sqlite-autoconf-3390200`
+    - Issue "make" followed by "sudo make install"
+    - Once installed specify the `target_link_libraries` path to `libsqlite3`.
+      E.g., `target_link_libraries(JasmineGraph /media/user/software/sqlite-autoconf-3390200/lib/libsqlite3.so)`
 - cppkafka (https://github.com/mfontanini/cppkafka)
     - Install librdkafka - Follow the Readme in (https://github.com/edenhill/librdkafka) - use `sudo apt install librdkafka-dev`
     - Install boost library - use `sudo apt-get install libboost-all-dev`
