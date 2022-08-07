@@ -37,8 +37,14 @@ The following build tools, applications, and libraries need to be installed befo
     - Once cppkafka is built install it by running `sudo make install` from the build directory
 - Xerces-c-3.2.2 (https://xerces.apache.org/xerces-c/)
     - Intallation guide is available at http://xerces.apache.org/xerces-c/build-3.html
-    - When configuring Xerces skip the use of transcoder ICU by using the flag --disable-transcoder-icu
-    - Once installed specify the target_link_libraries path to xerces.
+    - [Download](https://xerces.apache.org/xerces-c/download.cgi) the [archive](https://dlcdn.apache.org//xerces/c/3/sources/xerces-c-3.2.3.zip) from the xerces.apache.org website
+    - Unzip the archive xerces-c-3.2.3.zip to a location like `/media/user/software/xerces-c-3.2.3-install`
+    - When configuring Xerces skip the use of transcoder ICU by using the flag `--disable-transcoder-icu`
+
+        E.g., `./configure --prefix=/media/user/software/xerces-c-3.2.3 --disable-transcoder-icu`
+
+    - Run `cmake .` & `sudo make install`
+    - Once installed specify the `target_link_libraries` path to xerces.
 - Jsoncpp(https://github.com/open-source-parsers/jsoncpp)
     - Install the release https://github.com/open-source-parsers/jsoncpp/releases/tag/1.8.4
     - Issue "cmake ."
@@ -58,11 +64,6 @@ The following build tools, applications, and libraries need to be installed befo
     - Extract the `include.zip` to  `nlohmann_json` directory
     - Issue "cmake ."
     - Issue "make" followed by "sudo make install"
-- xerces ([Download](https://xerces.apache.org/xerces-c/download.cgi))
-    - Install the `xerces-c`
-      - Download the archive from the xerces.apache.org website
-      - Unzip the archive xerces-c-3.2.3.zip
-      - Run `cmake .` & `sudo make install`
 - python3.5 (https://www.python.org/downloads/release/python-350/)
     - Read this [blog](https://passingcuriosity.com/2015/installing-python-from-source/) for more details on setting up python3.5
 - Recent versions of TensorFlow, numpy, scipy, sklearn, and networkx are required (but networkx must be <=1.11). You can install all the required packages using the following command:
