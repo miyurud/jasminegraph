@@ -555,3 +555,47 @@ void Utils::updateSLAInformation(PerformanceSQLiteDBInterface perfSqlite, std::s
     }
 
 }
+
+void Utils::copyToDirectory(std::string currentPath, std::string copyPath) {
+
+    std::string command = "mkdir -p " +copyPath + "&& " + "cp "+ currentPath + " " + copyPath;
+    system(command.c_str());
+
+}
+
+void Utils::editFlagOne(std::string flagPath){
+
+    std::string filePath = flagPath;
+    ofstream stream;
+    char flag[] = "1";
+
+    stream.open(filePath);
+    stream << flag << endl;
+    stream.close();
+}
+
+void Utils::editFlagZero(std::string flagPath){
+
+    std::string filePath = flagPath;
+    ofstream stream;
+    char flag[] = "0";
+
+    stream.open(filePath);
+    stream << flag << endl;
+    stream.close();
+}
+
+std::string Utils::checkFlag(std::string flagPath){
+
+    std::string filePath = flagPath;
+    std::string bitVal;
+    ifstream infile(filePath);
+
+    if (infile.good()){
+
+        getline(infile, bitVal);
+    }
+
+    infile.close();
+    return bitVal;
+}

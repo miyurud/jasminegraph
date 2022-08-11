@@ -15,9 +15,8 @@ limitations under the License.
 
 const string JasmineGraphInstanceProtocol::HANDSHAKE = "hske";
 const string JasmineGraphInstanceProtocol::HANDSHAKE_OK = "hske-ok";
-const string JasmineGraphInstanceProtocol::HOST_OK = "hst-ok";
 const string JasmineGraphInstanceProtocol::CLOSE = "close";
-const string JasmineGraphInstanceProtocol::CLOSE_ACK = "close-ok";
+const string JasmineGraphInstanceProtocol::CLOSE_ACK = "close-ok" ;
 const string JasmineGraphInstanceProtocol::SHUTDOWN = "shdn";
 const string JasmineGraphInstanceProtocol::SHUTDOWN_ACK = "shdn-ok";
 const string JasmineGraphInstanceProtocol::READY = "ready";
@@ -25,7 +24,6 @@ const string JasmineGraphInstanceProtocol::OK = "ok";
 const string JasmineGraphInstanceProtocol::ERROR = "error";
 const string JasmineGraphInstanceProtocol::BATCH_UPLOAD = "upload-g";
 const string JasmineGraphInstanceProtocol::BATCH_UPLOAD_CENTRAL = "upload-g-c";
-const string JasmineGraphInstanceProtocol::BATCH_UPLOAD_COMPOSITE_CENTRAL = "upload-g-c-c";
 const string JasmineGraphInstanceProtocol::UPLOAD_RDF_ATTRIBUTES = "upload-attrib";
 const string JasmineGraphInstanceProtocol::UPLOAD_RDF_ATTRIBUTES_CENTRAL = "upload-attrib-c";
 const string JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK = "upload-g-chk";
@@ -83,3 +81,10 @@ const string JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK = "stream-star
 const string JasmineGraphInstanceProtocol::SEND_PRIORITY = "send-priority";
 const string JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK = "stream-c-length-ack";
 const string JasmineGraphInstanceProtocol::GRAPH_STREAM_END_OF_EDGE = "\r\n"; // CRLF equivelent in HTTP
+
+const string JasmineGraphInstanceProtocol::INITIATE_FILES = "initiate-file";
+const string JasmineGraphInstanceProtocol::INITIATE_SERVER = "initiate-server";
+const string JasmineGraphInstanceProtocol::INITIATE_ORG_SERVER = "initiate-org-server";
+const string JasmineGraphInstanceProtocol::INITIATE_CLIENT = "initiate-client";
+const string JasmineGraphInstanceProtocol::MERGE_FILES = "merge-files";
+const string JasmineGraphInstanceProtocol::INITIATE_AGG = "initiate-agg";

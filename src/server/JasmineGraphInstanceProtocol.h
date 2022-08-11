@@ -80,6 +80,12 @@ public:
     static const string INITIATE_FRAGMENT_RESOLUTION;
     static const string FRAGMENT_RESOLUTION_CHK;
     static const string FRAGMENT_RESOLUTION_DONE;
+    static const string INITIATE_FILES;
+    static const string INITIATE_SERVER;
+    static const string INITIATE_ORG_SERVER;
+    static const string INITIATE_CLIENT;
+    static const string MERGE_FILES;
+    static const string INITIATE_AGG;
     static const string ACKNOWLEDGE_MASTER;
     static const string WORKER_INFO_SEND;
     static const string UPDATE_DONE;
@@ -95,6 +101,7 @@ public:
 };
 
 const int INSTANCE_DATA_LENGTH = 300;
+const int FED_DATA_LENGTH = 300;
 const int INSTANCE_LONG_DATA_LENGTH = 1024;
 const int INSTANCE_FILE_BUFFER_LENGTH = 1024;
 const int MAX_CONNECTION_COUNT = 300;
@@ -102,5 +109,7 @@ const int MAX_STREAMING_DATA_LENGTH = 1024;
 
 const int TOP_K_PAGE_RANK = 100;
 
+const int WEIGHTS_DATA_LENGTH = 1000000;
+const int DELAY = 5;
 
 #endif //JASMINEGRAPH_JASMINEGRAPHINSTANCEPROTOCOL_H

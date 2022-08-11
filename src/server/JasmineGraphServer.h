@@ -14,10 +14,12 @@ limitations under the License.
 #ifndef JASMINEGRAPH_JASMINEGRAPHSERVER_H
 #define JASMINEGRAPH_JASMINEGRAPHSERVER_H
 
+#include <iostream>
 #include <map>
 #include <thread>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string>
 #include "../frontend/JasmineGraphFrontEnd.h"
 #include "../backend/JasmineGraphBackend.h"
 #include "../metadb/SQLiteDBInterface.h"
@@ -25,6 +27,7 @@ limitations under the License.
 #include "../util/Conts.h"
 #include "../frontend/core/scheduler/JobScheduler.h"
 #include "../performance/metrics/StatisticCollector.h"
+#include "../util/Utils.h"
 
 using std::map;
 
@@ -163,5 +166,30 @@ public:
     void egoNet(std::string graphID);
 };
 
+    void initiateFiles(std::string graphID, std::string trainingArgs);
+
+    void initiateCommunication(std::string graphID, std::string trainingArgs, SQLiteDBInterface sqlite);
+
+    void initiateOrgCommunication(std::string graphID, std::string trainingArgs, SQLiteDBInterface sqlite);
+
+    void initiateMerge(std::string graphID, std::string trainingArgs,SQLiteDBInterface sqlite);
+
+    static bool initiateTrain(std::string host, int port, int dataPort,std::string trainingArgs,int iteration, string partCount);
+
+    static bool initiateServer(std::string host, int port, int dataPort,std::string trainingArgs,int iteration, string partCount);
+
+    static bool initiateOrgServer(std::string host, int port, int dataPort,std::string trainingArgs,int iteration, string partCount);
+
+    static bool initiateAggregator(std::string host, int port, int dataPort,std::string trainingArgs,int iteration, string partCount);
+
+    static bool initiateClient(std::string host, int port, int dataPort,std::string trainingArgs,int iteration, string partCount);
+
+    static bool mergeFiles(std::string host, int port, int dataPort,std::string trainingArgs,int iteration, string partCount);
+
+    static bool receiveGlobalWeights(std::string host, int port, std::string trainingArgs, int iteration, std::string partCount);
+
+    static bool sendTrainCommand(std::string host, int port, std::string trainingArgs);
+
+};
 
 #endif //JASMINEGRAPH_JASMINEGRAPHSERVER_H
