@@ -3815,7 +3815,7 @@ bool JasmineGraphServer::sendTrainCommand(std::string host, int port, std::strin
     }
 
     bzero(data, FED_DATA_LENGTH);
-    write(sockfd, JasmineGraphInstanceProtocol::TRAIN.c_str(), JasmineGraphInstanceProtocol::TRAIN.size());
+    write(sockfd, JasmineGraphInstanceProtocol::INITIATE_TRAIN.c_str(), JasmineGraphInstanceProtocol::INITIATE_TRAIN.size());
     bzero(data, FED_DATA_LENGTH);
     read(sockfd, data, FED_DATA_LENGTH);
     std::string command = trainingArgs;

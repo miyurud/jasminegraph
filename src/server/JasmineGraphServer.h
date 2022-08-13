@@ -164,7 +164,6 @@ public:
     long getGraphVertexCount(std::string graphID);
 
     void egoNet(std::string graphID);
-};
 
     void initiateFiles(std::string graphID, std::string trainingArgs);
 

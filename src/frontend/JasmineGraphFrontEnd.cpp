@@ -37,6 +37,7 @@ limitations under the License.
 #include "core/scheduler/JobScheduler.h"
 #include "../performance/metrics/PerformanceUtil.h"
 #include "core/CoreConstants.h"
+#include <nlohmann/json.hpp>
 
 #include "flatbuffers/flatbuffers.h"
 #include <iostream> // C++ header file for printing
@@ -1059,8 +1060,6 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             jasmineServer->initiateFiles(graphID, trainData);
             jasmineServer->initiateMerge(graphID, trainData, sqlite);
 
-        }
-
         } else if (line.compare(TRAIN) == 0) {
             string message = "Available main flags:\n";
             int result_wr = write(connFd, message.c_str(), message.size());
@@ -1084,64 +1083,55 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 frontend_logger.log("Error writing to socket", "error");
             }
 
+            write(connFd, flags.c_str(), flags.size());
+            write(connFd, "\n", 2);
+            message = "Send --<flag1> <value1> --<flag2> <value2> .. \n";
+            write(connFd, message.c_str(), message.size());
 
-	string message = "Available main flags:\n";
-	write(connFd, message.c_str(), message.size());
-	string flags =
-		Conts::FLAGS::GRAPH_ID + " " + Conts::FLAGS::MODEL_ID;
-	write(connFd, flags.c_str(), flags.size());
-	write(connFd, "\n", 2);
-	message = "Send --<flag1> <value1> --<flag2> <value2> .. \n";
-	write(connFd, message.c_str(), message.size());
+            char train_data[300];
+            bzero(train_data, 301);
+            read(connFd, train_data, 300);
 
-	char train_data[300];
-	bzero(train_data, 301);
-	read(connFd, train_data, 300);
+            string trainData(train_data);
+            trainData = utils.trim_copy(trainData, " \f\n\r\t\v");
+            frontend_logger.log("Data received: " + trainData, "info");
 
-	string trainData(train_data);
-	trainData = utils.trim_copy(trainData, " \f\n\r\t\v");
-	frontend_logger.log("Data received: " + trainData, "info");
+            std::vector<std::string> trainargs = Utils::split(trainData, ' ');
+            std::vector<std::string>::iterator itr = std::find(trainargs.begin(), trainargs.end(), "--graph_id");
+            std::string graphID;
+            std::string modelID;
+            if (itr != trainargs.cend()) {
+                int index = std::distance(trainargs.begin(), itr);
+                graphID = trainargs[index + 1];
 
-	std::vector<std::string> trainargs = Utils::split(trainData, ' ');
-	std::vector<std::string>::iterator itr = std::find(trainargs.begin(), trainargs.end(), "--graph_id");
-	std::string graphID;
-	std::string modelID;
-	if (itr != trainargs.cend()) {
-	    int index = std::distance(trainargs.begin(), itr);
-	    graphID = trainargs[index + 1];
+            } else {
+                frontend_logger.log("graph_id should be given as an argument", "error");
+                continue;
+            }
 
-	} else {
-	    frontend_logger.log("graph_id should be given as an argument", "error");
-	    continue;
-	}
+            if (trainargs.size() == 0) {
+                frontend_logger.log("Message format not recognized", "error");
+                break;
+            }
 
-	if (trainargs.size() == 0) {
-	    frontend_logger.log("Message format not recognized", "error");
-	    break;
-	}
-
-	if (!JasmineGraphFrontEnd::isGraphActive(graphID, sqlite)) {
-	string error_message = "Graph is not in the active status";
-	frontend_logger.log(error_message, "error");
-	result_wr = write(connFd, error_message.c_str(), error_message.length());
-	if (result_wr < 0) {
-	    frontend_logger.log("Error writing to socket", "error");
-	}
-	result_wr = write(connFd, "\r\n", 2);
-	if (result_wr < 0) {
-	    frontend_logger.log("Error writing to socket", "error");
-	}
-	continue;
-	}
+            if (!JasmineGraphFrontEnd::isGraphActive(graphID, sqlite)) {
+            string error_message = "Graph is not in the active status";
+            frontend_logger.log(error_message, "error");
+            result_wr = write(connFd, error_message.c_str(), error_message.length());
+            if (result_wr < 0) {
+                frontend_logger.log("Error writing to socket", "error");
+            }
+            result_wr = write(connFd, "\r\n", 2);
+            if (result_wr < 0) {
+                frontend_logger.log("Error writing to socket", "error");
+            }
+            continue;
+            }
 
             Utils utils;
             std::string federatedEnabled = utils.getJasmineGraphProperty("org.jasminegraph.federated.enabled");
 
-
-
             if (federatedEnabled=="true"){
-
-
                 JasmineGraphServer *jasmineServer = new JasmineGraphServer();
                 if (utils.getJasmineGraphProperty("org.jasminegraph.fl.org.training") == "true") {
                     jasmineServer->initiateOrgCommunication(graphID, trainData, sqlite);
@@ -1158,9 +1148,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
             }
 
-        }
-
-            else if (line.compare(IN_DEGREE) == 0) {
+        } else if (line.compare(IN_DEGREE) == 0) {
             frontend_logger.log("Calculating In Degree Distribution", "info");
 
             int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
