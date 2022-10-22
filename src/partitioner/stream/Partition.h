@@ -15,7 +15,8 @@
 #include <set>
 #include <unordered_set>
 #include <vector>
-
+#include <string>
+using std::string;
 #ifndef JASMINE_PARTITION
 #define JASMINE_PARTITION
 

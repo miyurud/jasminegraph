@@ -101,7 +101,7 @@ private:
     std::map<long, string> predicatesTemp;
     std::map<long, std::set<long> > graphStorage;
     std::map<long, std::map<long, std::set<string>>> relationsMap;
-    std::map<long, std::map<long, vector<string>>> attributeMap;
+    std::map<long, std::map<long, std::vector<string>>> attributeMap;
 
     long edgeCount=0;
     long vertexCount=0;

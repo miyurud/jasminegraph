@@ -11,7 +11,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
-#include "Python.h"
+#include "python3.10/Python.h"
 #include "Python_C_API.h"
 
 using namespace std;
