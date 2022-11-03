@@ -10,15 +10,18 @@ namespace JasmineGraph {
 namespace AttributeStore {
 
 struct AttributeStore;
+struct AttributeStoreBuilder;
 
 struct AttributeStoreEntry;
+struct AttributeStoreEntryBuilder;
 
 struct AttributeStore FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef AttributeStoreBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_ENTRIES = 4
   };
-  const flatbuffers::Vector<flatbuffers::Offset<AttributeStoreEntry>> *entries() const {
-    return GetPointer<const flatbuffers::Vector<flatbuffers::Offset<AttributeStoreEntry>> *>(VT_ENTRIES);
+  const flatbuffers::Vector<flatbuffers::Offset<JasmineGraph::AttributeStore::AttributeStoreEntry>> *entries() const {
+    return GetPointer<const flatbuffers::Vector<flatbuffers::Offset<JasmineGraph::AttributeStore::AttributeStoreEntry>> *>(VT_ENTRIES);
   }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -30,9 +33,10 @@ struct AttributeStore FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
 };
 
 struct AttributeStoreBuilder {
+  typedef AttributeStore Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
-  void add_entries(flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<AttributeStoreEntry>>> entries) {
+  void add_entries(flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<JasmineGraph::AttributeStore::AttributeStoreEntry>>> entries) {
     fbb_.AddOffset(AttributeStore::VT_ENTRIES, entries);
   }
   explicit AttributeStoreBuilder(flatbuffers::FlatBufferBuilder &_fbb)
@@ -49,7 +53,7 @@ struct AttributeStoreBuilder {
 
 inline flatbuffers::Offset<AttributeStore> CreateAttributeStore(
     flatbuffers::FlatBufferBuilder &_fbb,
-    flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<AttributeStoreEntry>>> entries = 0) {
+    flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<JasmineGraph::AttributeStore::AttributeStoreEntry>>> entries = 0) {
   AttributeStoreBuilder builder_(_fbb);
   builder_.add_entries(entries);
   return builder_.Finish();
@@ -57,14 +61,15 @@ inline flatbuffers::Offset<AttributeStore> CreateAttributeStore(
 
 inline flatbuffers::Offset<AttributeStore> CreateAttributeStoreDirect(
     flatbuffers::FlatBufferBuilder &_fbb,
-    const std::vector<flatbuffers::Offset<AttributeStoreEntry>> *entries = nullptr) {
-  auto entries__ = entries ? _fbb.CreateVector<flatbuffers::Offset<AttributeStoreEntry>>(*entries) : 0;
+    std::vector<flatbuffers::Offset<JasmineGraph::AttributeStore::AttributeStoreEntry>> *entries = nullptr) {
+  auto entries__ = entries ? _fbb.CreateVectorOfSortedTables<JasmineGraph::AttributeStore::AttributeStoreEntry>(entries) : 0;
   return JasmineGraph::AttributeStore::CreateAttributeStore(
       _fbb,
       entries__);
 }
 
 struct AttributeStoreEntry FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef AttributeStoreEntryBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_KEY = 4,
     VT_VALUE = 6
@@ -92,6 +97,7 @@ struct AttributeStoreEntry FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table 
 };
 
 struct AttributeStoreEntryBuilder {
+  typedef AttributeStoreEntry Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
   void add_key(int64_t key) {

@@ -1,0 +1,3 @@
+/home/sandaruwan/ubuntu/software/jasminegraph/CMakeFiles/JasmineGraph.dir
+/home/sandaruwan/ubuntu/software/jasminegraph/CMakeFiles/edit_cache.dir
+/home/sandaruwan/ubuntu/software/jasminegraph/CMakeFiles/rebuild_cache.dir

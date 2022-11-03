@@ -55,7 +55,7 @@ The following build tools, applications, and libraries need to be installed befo
     - Install the release https://github.com/open-source-parsers/jsoncpp/releases/tag/1.8.4
     - Issue "cmake ."
     - Issue "make" followed by "sudo make install"
-- pigz (optional)
+<!-- - pigz (optional)
     - pigz, which stands for Parallel Implementation of GZip, is a fully functional
       replacement for gzip that exploits multiple processors and multiple cores to
       the hilt when compressing data.
@@ -69,7 +69,7 @@ The following build tools, applications, and libraries need to be installed befo
     - Create a directory in your software directory named `nlohmann_json`
     - Extract the `include.zip` to  `nlohmann_json` directory
     - Issue "cmake ."
-    - Issue "make" followed by "sudo make install"
+    - Issue "make" followed by "sudo make install" -->
 - python3.5 (https://www.python.org/downloads/release/python-350/)
     - Read this [blog](https://passingcuriosity.com/2015/installing-python-from-source/) for more details on setting up python3.5
 - Recent versions of TensorFlow, numpy, scipy, sklearn, and networkx are required (but networkx must be <=1.11). You can install all the required packages using the following command:

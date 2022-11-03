@@ -47,7 +47,6 @@ if(CMAKE_ENABLE_DEBUG)
     message(STATUS "DEBUG enabled")
     target_compile_options(JasmineGraph PRIVATE -g)
 endif()
-
 #target_link_libraries(JasmineGraph /usr/local/lib/libmetis.so)
 #target_link_libraries(JasmineGraph /usr/local/lib/libxerces-c-3.2.so)
 #TODO: Need to install the library separately
@@ -65,7 +64,7 @@ include_directories("$ENV{HOME}/software/nlohmann_json/include")
 
 target_link_libraries(JasmineGraph /home/sandaruwan/local/lib/libmetis.so)
 target_link_libraries(JasmineGraph /usr/local/lib/libxerces-c.so)
-target_link_libraries(JasmineGraph /usr/local/lib/libflatbuffers.a)
+target_link_libraries(JasmineGraph /home/sandaruwan/ubuntu/software/flatbuffers/libflatbuffers.a)
 include_directories("$ENV{HOME}/software/xerces-c-3.2.2/include")
 target_link_libraries(JasmineGraph /usr/local/lib/libjsoncpp.a)
 target_link_libraries(JasmineGraph /usr/local/lib/libcppkafka.so)

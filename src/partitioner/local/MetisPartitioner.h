@@ -24,7 +24,7 @@ limitations under the License.
 #include <vector>
 #include <unordered_set>
 #include <set>
-#include "metis.h"
+#include "metis/metis.h"
 #include "../../metadb/SQLiteDBInterface.h"
 #include "../../util/Utils.h"
 #include "../../localstore/JasmineGraphHashMapLocalStore.h"
