@@ -17,6 +17,7 @@ limitations under the License.
 #include <map>
 #include <set>
 #include <thread>
+#include <spdlog/spdlog.h>
 #include "JasmineGraphFrontEnd.h"
 #include <nlohmann/json.hpp>
 #include "../util/Conts.h"
@@ -39,6 +40,7 @@ limitations under the License.
 #include "core/scheduler/JobScheduler.h"
 #include "../performance/metrics/PerformanceUtil.h"
 #include "core/CoreConstants.h"
+#include "../centralstore/incremental/RelationBlock.h"
 
 using json = nlohmann::json;
 using namespace std;
@@ -52,8 +54,9 @@ Logger frontend_logger;
 std::set<ProcessInfo> processData;
 std::mutex aggregateWeightMutex;
 std::mutex triangleTreeMutex;
+std::string stream_topic_name;
 // Thread function
-void listen_to_kafka_topic(KafkaConnector &kstream,Partitioner &graphPartitioner,vector<DataPublisher*> &workerClients)
+void listen_to_kafka_topic(KafkaConnector &kstream, Partitioner &graphPartitioner, vector<DataPublisher*> &workerClients)
 {
     while (true) {
         cppkafka::Message msg = kstream.consumer.poll();
@@ -62,7 +65,7 @@ void listen_to_kafka_topic(KafkaConnector &kstream,Partitioner &graphPartitioner
         }
         string data(msg.get_payload());
         if (data == "-1") {  // Marks the end of stream
-            frontend_logger.log("Received the end of stream", "info");
+            frontend_logger.log("Received the end of `" +stream_topic_name+"` input kafka stream", "info");
             break;
         }
         auto edgeJson = json::parse(data);
@@ -75,7 +78,9 @@ void listen_to_kafka_topic(KafkaConnector &kstream,Partitioner &graphPartitioner
         destinationJson["pid"] = partitionedEdge[1].second;
         workerClients.at((int) partitionedEdge[0].second)->publish(sourceJson.dump());
         workerClients.at((int) partitionedEdge[1].second)->publish(destinationJson.dump());
+
     }
+
     graphPartitioner.printStats();
 }
 
@@ -89,16 +94,18 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
     vector<Utils::worker> workerList = utils.getWorkerList(sqlite);
     vector<DataPublisher*> workerClients;
 //  Initiate Kafka consumer
-    thread th1;
-    cppkafka::Configuration configs = {{"metadata.broker.list", "127.0.0.1:9092"},
+    thread input_stream_handler;
+    std::string kafka_server_IP = utils.getJasmineGraphProperty("org.jasminegraph.server.streaming.kafka.host");
+    cppkafka::Configuration configs = {{"metadata.broker.list", kafka_server_IP},
                                        {"group.id",             "knnect"}};
     KafkaConnector kstream(configs);
     std::string partitionCount = utils.getJasmineGraphProperty("org.jasminegraph.server.npartitions");
     int numberOfPartitions = std::stoi(partitionCount);
 
-    Partitioner graphPartitioner(numberOfPartitions, 0, spt::Algorithms::HASH);
+    Partitioner graphPartitioner(numberOfPartitions, 1, spt::Algorithms::HASH);
 
     for (int i = 0; i < workerList.size(); i++) {
+
         Utils::worker currentWorker = workerList.at(i);
         string workerHost = currentWorker.hostname;
         string workerID = currentWorker.workerID;
@@ -565,12 +572,12 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 continue;
             }
 
-            // We get the name .
+            // We get the name here.
             char topic_name[FRONTEND_DATA_LENGTH];
             bzero(topic_name, FRONTEND_DATA_LENGTH + 1);
             read(connFd, topic_name, FRONTEND_DATA_LENGTH);
 
-            string con_message = "successfully get kafka topic";
+            string con_message = "Received the kafka topic";
             int con_result_wr = write(connFd, con_message.c_str(), con_message.length());
             if (con_result_wr < 0) {
                 frontend_logger.log("Error writing to socket", "error");
@@ -580,16 +587,16 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
             Utils utils;
             string topic_name_s(topic_name);
-            frontend_logger.log("sandaruwan " , "info");
             topic_name_s = utils.trim_copy(topic_name_s, " \f\n\r\t\v");
+            stream_topic_name=topic_name_s;
             kstream.Subscribe(topic_name_s);
             frontend_logger.log("Start listening to " + topic_name_s, "info");
-            th1 = thread(listen_to_kafka_topic, std::ref(kstream),std::ref(graphPartitioner),std::ref(workerClients));
+            input_stream_handler = thread(listen_to_kafka_topic, std::ref(kstream),std::ref(graphPartitioner),std::ref(workerClients));
 
         } else if (line.compare(STOP_STREAM_KAFKA) == 0) {
             frontend_logger.log("Start serving `" + STOP_STREAM_KAFKA + "` command", "info");
             kstream.Unsubscribe();
-            string message = "Successfully stop kafka stream";
+            string message = "Successfully stop `" + stream_topic_name + "` input kafka stream";
             int result_wr = write(connFd, message.c_str(), message.length());
             if (result_wr < 0) {
                 frontend_logger.log("Error writing to socket", "error");
