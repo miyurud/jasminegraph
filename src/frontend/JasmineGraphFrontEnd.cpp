@@ -41,6 +41,7 @@ limitations under the License.
 #include "../performance/metrics/PerformanceUtil.h"
 #include "core/CoreConstants.h"
 #include "../centralstore/incremental/RelationBlock.h"
+#include <cctype>
 
 using json = nlohmann::json;
 using namespace std;
@@ -56,10 +57,10 @@ std::mutex aggregateWeightMutex;
 std::mutex triangleTreeMutex;
 std::string stream_topic_name;
 // Thread function
-void listen_to_kafka_topic(KafkaConnector &kstream, Partitioner &graphPartitioner, vector<DataPublisher*> &workerClients)
+void listen_to_kafka_topic(KafkaConnector *kstream, Partitioner &graphPartitioner, vector<DataPublisher*> &workerClients)
 {
     while (true) {
-        cppkafka::Message msg = kstream.consumer.poll();
+        cppkafka::Message msg = kstream->consumer.poll();
         if (!msg || msg.get_error()) {
             continue;
         }
@@ -76,11 +77,20 @@ void listen_to_kafka_topic(KafkaConnector &kstream, Partitioner &graphPartitione
         partitionedEdge partitionedEdge = graphPartitioner.addEdge({sId, dId});
         sourceJson["pid"] = partitionedEdge[0].second;
         destinationJson["pid"] = partitionedEdge[1].second;
+        string source = sourceJson.dump();
+        string destination = destinationJson.dump();
+        json obj ;
+        obj["source"] = sourceJson;
+        obj["destination"] = destinationJson;
+        long temp_s = partitionedEdge[0].second;
+        long temp_d = partitionedEdge[1].second;
         workerClients.at((int) partitionedEdge[0].second)->publish(sourceJson.dump());
         workerClients.at((int) partitionedEdge[1].second)->publish(destinationJson.dump());
-
+//      storing Node block
+        if (temp_s ==temp_d){
+            workerClients.at((int) partitionedEdge[0].second)->publish_relation(obj.dump());
+        }
     }
-
     graphPartitioner.printStats();
 }
 
@@ -93,15 +103,15 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
     Utils utils;
     vector<Utils::worker> workerList = utils.getWorkerList(sqlite);
     vector<DataPublisher*> workerClients;
-//  Initiate Kafka consumer
+
+//  Initiate Thread
     thread input_stream_handler;
-    std::string kafka_server_IP = utils.getJasmineGraphProperty("org.jasminegraph.server.streaming.kafka.host");
-    cppkafka::Configuration configs = {{"metadata.broker.list", kafka_server_IP},
-                                       {"group.id",             "knnect"}};
-    KafkaConnector kstream(configs);
+//  Initiate kafka consumer parameters
     std::string partitionCount = utils.getJasmineGraphProperty("org.jasminegraph.server.npartitions");
     int numberOfPartitions = std::stoi(partitionCount);
-
+    std::string kafka_server_IP ;
+    cppkafka::Configuration configs;
+    KafkaConnector* kstream;
     Partitioner graphPartitioner(numberOfPartitions, 1, spt::Algorithms::HASH);
 
     for (int i = 0; i < workerList.size(); i++) {
@@ -556,6 +566,81 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 continue;
             }
         } else if (line.compare(ADD_STREAM_KAFKA) == 0) {
+            Utils utils;
+            string msg_1 = "DO you want to use default KAFKA consumer(y/n) ? ";
+            int result_wr_1 = write(connFd, msg_1.c_str(), msg_1.length());
+            if (result_wr_1 < 0) {
+                frontend_logger.log("Error writing to socket", "error");
+                loop = true;
+                continue;
+            }
+            result_wr_1 = write(connFd, "\r\n", 2);
+            if (result_wr_1 < 0) {
+                frontend_logger.log("Error writing to socket", "error");
+                loop = true;
+                continue;
+            }
+
+            // Get user response.
+            char user_res[FRONTEND_DATA_LENGTH];
+            bzero(user_res, FRONTEND_DATA_LENGTH + 1);
+            read(connFd, user_res, FRONTEND_DATA_LENGTH);
+            string user_res_s(user_res);
+            user_res_s = utils.trim_copy(user_res_s, " \f\n\r\t\v");
+            for (char& c : user_res_s) {
+                c = tolower(c);
+            }
+//          use default kafka consumer details
+            if (user_res_s =="y"){
+                kafka_server_IP = utils.getJasmineGraphProperty("org.jasminegraph.server.streaming.kafka.host");
+                configs = {{"metadata.broker.list", kafka_server_IP},
+                           {"group.id",             "knnect"}};
+            }
+//          user need to start relevant kafka cluster using relevant IP address
+//          read relevant IP address from given file path
+            else{
+                string message = "Send file path to the kafka configuration file.";
+                int result_wr = write(connFd, message.c_str(), message.length());
+                if (result_wr < 0) {
+                    frontend_logger.log("Error writing to socket", "error");
+                    loop = true;
+                    continue;
+                }
+                result_wr = write(connFd, "\r\n", 2);
+                if (result_wr < 0) {
+                    frontend_logger.log("Error writing to socket", "error");
+                    loop = true;
+                    continue;
+                }
+
+                // We get the file path here.
+                char file_path[FRONTEND_DATA_LENGTH];
+                bzero(file_path, FRONTEND_DATA_LENGTH + 1);
+                read(connFd, file_path, FRONTEND_DATA_LENGTH);
+                string file_path_s(file_path);
+                file_path_s = utils.trim_copy(file_path_s, " \f\n\r\t\v");
+                //reading kafka_server IP from the given file.
+                std::vector<std::string>::iterator it;
+                vector<std::string> vec = utils.getFileContent(file_path_s);
+                it = vec.begin();
+                for (it = vec.begin(); it < vec.end(); it++) {
+                    std::string item = *it;
+                    if (item.length() > 0 && !(item.rfind("#", 0) == 0)) {
+                        std::vector<std::string> vec2 = utils.split(item, '=');
+                        if (vec2.at(0).compare("kafka.host") == 0) {
+                            if (item.substr(item.length() - 1, item.length()).compare("=") != 0) {
+                                std::string kafka_server_IP= vec2.at(1);
+                            } else {
+                                std::string kafka_server_IP= " ";
+                            }
+                        }
+                    }
+                }
+//              set the config according to given IP address
+                configs = {{"metadata.broker.list", kafka_server_IP},
+                           {"group.id",             "knnect"}};
+            }
+
             frontend_logger.log("Start serving `" + ADD_STREAM_KAFKA + "` command", "info");
             string message = "send kafka topic name";
             int result_wr = write(connFd, message.c_str(), message.length());
@@ -565,14 +650,13 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 continue;
             }
             result_wr = write(connFd, "\r\n", 2);
-
             if (result_wr < 0) {
                 frontend_logger.log("Error writing to socket", "error");
                 loop = true;
                 continue;
             }
 
-            // We get the name here.
+            // We get the topic name here.
             char topic_name[FRONTEND_DATA_LENGTH];
             bzero(topic_name, FRONTEND_DATA_LENGTH + 1);
             read(connFd, topic_name, FRONTEND_DATA_LENGTH);
@@ -585,17 +669,21 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 continue;
             }
 
-            Utils utils;
+//          create kafka consumer and graph partitioner
+            kstream = new KafkaConnector(configs);
+            Partitioner graphPartitioner(numberOfPartitions, 1, spt::Algorithms::HASH);
+
             string topic_name_s(topic_name);
             topic_name_s = utils.trim_copy(topic_name_s, " \f\n\r\t\v");
             stream_topic_name=topic_name_s;
-            kstream.Subscribe(topic_name_s);
+            kstream->Subscribe(topic_name_s);
             frontend_logger.log("Start listening to " + topic_name_s, "info");
-            input_stream_handler = thread(listen_to_kafka_topic, std::ref(kstream),std::ref(graphPartitioner),std::ref(workerClients));
+            input_stream_handler = thread(listen_to_kafka_topic, kstream,std::ref(graphPartitioner),std::ref(workerClients));
 
         } else if (line.compare(STOP_STREAM_KAFKA) == 0) {
             frontend_logger.log("Start serving `" + STOP_STREAM_KAFKA + "` command", "info");
-            kstream.Unsubscribe();
+//          Unsubscribe the kafka consumer.
+            kstream->Unsubscribe();
             string message = "Successfully stop `" + stream_topic_name + "` input kafka stream";
             int result_wr = write(connFd, message.c_str(), message.length());
             if (result_wr < 0) {
@@ -1435,6 +1523,9 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
         } else {
             frontend_logger.log("Message format not recognized " + line, "error");
         }
+    }
+    if (input_stream_handler.joinable()){
+        input_stream_handler.join();
     }
     frontend_logger.log("Closing thread " + to_string(pthread_self()) + " and connection", "info");
     close(connFd);
