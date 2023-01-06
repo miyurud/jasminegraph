@@ -13,6 +13,7 @@
 
 import sys
 import pandas as pd
+import os
 
 arg_names = [
         'path_localstore', 
@@ -21,6 +22,14 @@ arg_names = [
         'graph_id',
         'partition_id',
     ]
+
+folder_path = "data"
+if os.path.exists(folder_path):
+        print("Folder path \"" + folder_path + "\" exists")
+        pass
+else:
+        print("Data folder created")
+        os.makedirs(folder_path)
 
 args = dict(zip(arg_names, sys.argv[1:]))
 
