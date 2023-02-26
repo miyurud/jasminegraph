@@ -22,6 +22,7 @@ import logging
 from timeit import default_timer as timer
 import gc
 import math
+import os
 
 logging.basicConfig(
     level=logging.INFO, 
@@ -207,6 +208,15 @@ class Server:
 if __name__ == "__main__":
 
     from models.supervised import Model
+
+    # Create weights folder
+    folder_path = "weights"
+    if os.path.exists(folder_path):
+        logging.info("Folder path \"" + folder_path + "\" exists")
+        pass
+    else:
+        logging.info("Weights folder created")
+        os.makedirs(folder_path)
 
     arg_names = [
         'path_weights',
