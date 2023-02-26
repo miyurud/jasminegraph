@@ -1972,7 +1972,6 @@ void JasmineGraphServer::initiateCommunication(std::string graphID, std::string 
             workerThreads[threadID] = std::thread(initiateServer,"localhost", serverPort, 
                                                     serverDataPort,trainingArgs,fl_clients, to_string(i));
             threadID++;
-            sleep(3);
         }
 
         workerThreads[threadID] = std::thread(initiateClient,"localhost", serverPort, serverDataPort,trainingArgs + 
