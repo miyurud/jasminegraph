@@ -14,6 +14,16 @@
 import sys
 import pandas as pd
 import os
+import logging
+
+logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s : [%(levelname)s]  %(message)s',
+        handlers=[
+                logging.FileHandler('merge.log'),
+                logging.StreamHandler(sys.stdout)
+        ]
+)
 
 arg_names = [
         'path_localstore', 
@@ -25,10 +35,10 @@ arg_names = [
 
 folder_path = "data"
 if os.path.exists(folder_path):
-        print("Folder path \"" + folder_path + "\" exists")
+        logging.info("Folder path \"" + folder_path + "\" exists")
         pass
 else:
-        print("Data folder created")
+        logging.info("Data folder created")
         os.makedirs(folder_path)
 
 args = dict(zip(arg_names, sys.argv[1:]))
