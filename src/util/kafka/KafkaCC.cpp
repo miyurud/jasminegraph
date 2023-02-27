@@ -15,7 +15,9 @@ using namespace cppkafka;
 Logger kafka_client_logger;
 
 void KafkaConnector::Subscribe(string topic) { consumer.subscribe({topic}); }
+void KafkaConnector::Unsubscribe() { consumer.unsubscribe(); }
 
+GroupInformationList KafkaConnector::Get_consumer_groups() { consumer.get_consumer_groups(); }
 void *KafkaConnector::startStream(string topicName, std::vector<DataPublisher *> workerClients,
                                   std::map<std::string, std::atomic<bool>> *streamsState) {
     Utils utils;

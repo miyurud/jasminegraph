@@ -29,6 +29,12 @@ The following build tools, applications, and libraries need to be installed befo
     - Issue "cmake ."
     - Issue "make" followed by "sudo make install"
 - SQLite3 (https://www.sqlite.org/download.html)
+    - Download the `sqlite-autoconf-3390200` from this [URL](https://www.sqlite.org/2022/sqlite-autoconf-3390200.tar.gz). 
+    - Extract `sqlite-autoconf-3390200.tar.gz` to some location. E.g., `/media/user/software/sqlite-autoconf-3390200-install`
+    - Change to that location and run `./configure --prefix=/media/user/software/sqlite-autoconf-3390200`
+    - Issue "make" followed by "sudo make install"
+    - Once installed specify the `target_link_libraries` path to `libsqlite3`.
+      E.g., `target_link_libraries(JasmineGraph /media/user/software/sqlite-autoconf-3390200/lib/libsqlite3.so)`
 - cppkafka (https://github.com/mfontanini/cppkafka)
     - Install librdkafka - Follow the Readme in (https://github.com/edenhill/librdkafka) - use `sudo apt install librdkafka-dev`
     - Install boost library - use `sudo apt-get install libboost-all-dev`
@@ -37,8 +43,14 @@ The following build tools, applications, and libraries need to be installed befo
     - Once cppkafka is built install it by running `sudo make install` from the build directory
 - Xerces-c-3.2.2 (https://xerces.apache.org/xerces-c/)
     - Intallation guide is available at http://xerces.apache.org/xerces-c/build-3.html
-    - When configuring Xerces skip the use of transcoder ICU by using the flag --disable-transcoder-icu
-    - Once installed specify the target_link_libraries path to xerces.
+    - [Download](https://xerces.apache.org/xerces-c/download.cgi) the [archive](https://dlcdn.apache.org//xerces/c/3/sources/xerces-c-3.2.3.zip) from the xerces.apache.org website
+    - Unzip the archive xerces-c-3.2.3.zip to a location like `/media/user/software/xerces-c-3.2.3-install`
+    - When configuring Xerces skip the use of transcoder ICU by using the flag `--disable-transcoder-icu`
+
+        E.g., `./configure --prefix=/media/user/software/xerces-c-3.2.3 --disable-transcoder-icu`
+
+    - Run `cmake .` & `sudo make install`
+    - Once installed specify the `target_link_libraries` path to xerces.
 - Jsoncpp(https://github.com/open-source-parsers/jsoncpp)
     - Install the release https://github.com/open-source-parsers/jsoncpp/releases/tag/1.8.4
     - Issue "cmake ."
@@ -58,11 +70,6 @@ The following build tools, applications, and libraries need to be installed befo
     - Extract the `include.zip` to  `nlohmann_json` directory
     - Issue "cmake ."
     - Issue "make" followed by "sudo make install"
-- xerces ([Download](https://xerces.apache.org/xerces-c/download.cgi))
-    - Install the `xerces-c`
-      - Download the archive from the xerces.apache.org website
-      - Unzip the archive xerces-c-3.2.3.zip
-      - Run `cmake .` & `sudo make install`
 - python3.5 (https://www.python.org/downloads/release/python-350/)
     - Read this [blog](https://passingcuriosity.com/2015/installing-python-from-source/) for more details on setting up python3.5
 - Recent versions of TensorFlow, numpy, scipy, sklearn, and networkx are required (but networkx must be <=1.11). You can install all the required packages using the following command:
@@ -98,9 +105,10 @@ JasmineGraph is licensed under the [Apache License, Version 2.0](http://www.apac
 ## References
 More details of JasmineGraph's approach for managment and mining of large graph data is available from the following list of papers.
 
-- Damitha Senevirathne, Isuru Wijesiri, Suchitha Dehigaspitiya, Miyuru Dayarathna, Sanath Jayasena, Toyotaro Suzumura. 2020. "[Memory Efficient Graph Convolutional Network based Distributed Link Prediction](https://doi.org/10.1109/BigData50022.2020.9377874),"  2020 IEEE International Conference on Big Data (Big Data), Atlanta, GA, USA, pp. 2977-2986.
-- Anuradha Karunarathna, Dinika Senarath, Shalika Madhushanki, Chinthaka Weerakkody, Miyuru Dayarathna, Sanath Jayasena, Toyotaro Suzumura. 2020. "[Scalable Graph Convolutional Network based Link Prediction on a Distributed Graph Database Server.](https://doi.org/10.1109/CLOUD49709.2020.00028)," IEEE 13th International Conference on Cloud Computing (CLOUD),  Beijing, China, 2020, pp. 107-115.
-- Miyuru Dayarathna, Sathya Bandara, Nandula Jayamaha, Mahen Herath, Achala Madhushan, Sanath Jayasena, Toyotaro Suzumura. 2017. "[An X10-Based Distributed Streaming Graph Database Engine.](https://doi.org/10.1109/HiPC.2017.00036)," 2017 IEEE 24th International Conference on High Performance Computing (HiPC), Jaipur, 2017, pp. 243-252.
-- Miyuru Dayarathna, Isuru Herath, Yasima Dewmini, Gayan Mettananda, Sameera Nandasiri, Sanath Jayasena, Toyotaro Suzumura. 2016 "[Acacia-RDF: An X10-Based Scalable Distributed RDF Graph Database Engine.](https://doi.org/10.1109/CLOUD.2016.0075)," 2016 IEEE 9th International Conference on Cloud Computing (CLOUD), San Francisco, CA, 2016, pp. 521-528.
+- Chinthaka Weerakkody, Miyuru Dayarathna, Sanath Jayasena, and Toyotaro Suzumura. 2022. "[Guaranteeing Service Level Agreements for Triangle Counting via Observation-based Admission Control Algorithm.](https://doi.org/10.1109/CLOUD55607.2022.00050)," in 2022 IEEE 15th International Conference on Cloud Computing (CLOUD), Barcelona, Spain, 2022 pp. 283-288.
+- Damitha Senevirathne, Isuru Wijesiri, Suchitha Dehigaspitiya, Miyuru Dayarathna, Sanath Jayasena, and Toyotaro Suzumura. 2020. "[Memory Efficient Graph Convolutional Network based Distributed Link Prediction](https://doi.org/10.1109/BigData50022.2020.9377874),"  2020 IEEE International Conference on Big Data (Big Data), Atlanta, GA, USA, pp. 2977-2986.
+- Anuradha Karunarathna, Dinika Senarath, Shalika Madhushanki, Chinthaka Weerakkody, Miyuru Dayarathna, Sanath Jayasena, and Toyotaro Suzumura. 2020. "[Scalable Graph Convolutional Network based Link Prediction on a Distributed Graph Database Server.](https://doi.org/10.1109/CLOUD49709.2020.00028)," IEEE 13th International Conference on Cloud Computing (CLOUD),  Beijing, China, 2020, pp. 107-115.
+- Miyuru Dayarathna, Sathya Bandara, Nandula Jayamaha, Mahen Herath, Achala Madhushan, Sanath Jayasena, and Toyotaro Suzumura. 2017. "[An X10-Based Distributed Streaming Graph Database Engine.](https://doi.org/10.1109/HiPC.2017.00036)," 2017 IEEE 24th International Conference on High Performance Computing (HiPC), Jaipur, 2017, pp. 243-252.
+- Miyuru Dayarathna, Isuru Herath, Yasima Dewmini, Gayan Mettananda, Sameera Nandasiri, Sanath Jayasena, and Toyotaro Suzumura. 2016 "[Acacia-RDF: An X10-Based Scalable Distributed RDF Graph Database Engine.](https://doi.org/10.1109/CLOUD.2016.0075)," 2016 IEEE 9th International Conference on Cloud Computing (CLOUD), San Francisco, CA, 2016, pp. 521-528.
 doi: 10.1109/CLOUD.2016.0075
 - Miyuru Dayarathna and Toyotaro Suzumura. 2014. "[Towards scalable distributed graph database engine for hybrid clouds.](http://dx.doi.org/10.1109/DataCloud.2014.9)" *In Proceedings of the 5th International Workshop on Data-Intensive Computing in the Clouds (DataCloud '14).* IEEE Press, Piscataway, NJ, USA, 1-8.

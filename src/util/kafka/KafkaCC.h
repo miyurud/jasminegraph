@@ -11,6 +11,8 @@ public:
     _configs = configs;
   };
   void Subscribe(std::string topic);
+  void Unsubscribe();
+  cppkafka::GroupInformationList Get_consumer_groups();
   void static *startStream(std::string topicName, std::vector<DataPublisher*> workerClients, std::map<std::string, std::atomic<bool>> *streamsState);
 
 private:
