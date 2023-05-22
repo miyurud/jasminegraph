@@ -88,7 +88,8 @@ void listen_to_kafka_topic(KafkaConnector *kstream, Partitioner &graphPartitione
         workerClients.at((int) partitionedEdge[1].second)->publish(destinationJson.dump());
 //      storing Node block
         if (temp_s ==temp_d){
-            workerClients.at((int) partitionedEdge[0].second)->publish_relation(obj.dump());
+            //+miyurud: Temorarily commeting the following line to make the code build
+            //workerClients.at((int) partitionedEdge[0].second)->publish_relation(obj.dump());
         }
     }
     graphPartitioner.printStats();
