@@ -638,35 +638,6 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 loop = true;
                 continue;
             }
-            //TODO to be removed after completing streaming implementation
-            bool TESTING = false; // Test graph data bypassing kafka stream
-            if (TESTING) {
-                std::string testData[] = {
-                        "{\"source\":{\"id\":\"0x97e58c7d37cba1a1e2ecbb2a5b23f8d127b6892d\",\"properties\":{"
-                        "\"blockNumber\":\"448028\",\"timestamp\":\"1445954881\",\"tokenId\":\"4422\"}},\"destination\":{"
-                        "\"id\":\"0xb1a2b43a7433dd150bb82227ed519cd6b142d382\"},\"properties\":{\"blockNumber\":\"448028\","
-                        "\"timestamp\":\"1445954881\",\"tokenId\":\"4422\",\"graphId\":\"1\"}}",
-                        "{\"source\":{\"id\":\"0x97e58c7d37cba1a1e2ecbb2a5b23f8d127b6892d\",\"properties\":{"
-                        "\"blockNumber\":\"447862\",\"timestamp\":\"1445951915\",\"tokenId\":\"1343\"}},\"destination\":{"
-                        "\"id\":\"0x9b22a80d5c7b3374a05b446081f97d0a34079e7f\"},\"properties\":{\"blockNumber\":\"447862\","
-                        "\"timestamp\":\"1445951915\",\"tokenId\":\"1343\",\"graphId\":\"1\"}}",
-                        "{\"source\":{\"id\":\"0x97e58c7d37cba1a1e2ecbb2a5b23f8d127b6892d\",\"properties\":{"
-                        "\"blockNumber\":\"447786\",\"timestamp\":\"1445950900\",\"tokenId\":\"10000\"}},\"destination\":{"
-                        "\"id\":\"0x9b22a80d5c7b3374a05b446081f97d0a34079e7f\"},\"properties\":{\"blockNumber\":\"447786\","
-                        "\"timestamp\":\"1445950900\",\"tokenId\":\"10000\",\"graphId\":\"1\"}}",
-                        "{\"source\":{\"id\":\"0xb1a2b43a7433dd150bb82227ed519cd6b142d382\",\"properties\":{"
-                        "\"blockNumber\":\"447767\",\"timestamp\":\"1445950646\",\"tokenId\":\"20000\"}},\"destination\":{"
-                        "\"id\":\"0x97e58c7d37cba1a1e2ecbb2a5b23f8d127b6892d\"},\"properties\":{\"blockNumber\":\"447767\","
-                        "\"timestamp\":\"1445950646\",\"tokenId\":\"20000\",\"graphId\":\"1\"}}"};
-                Partitioner graphPartitioner(1, 0, spt::Algorithms::HASH);
-
-                for (auto data : testData) {
-                    auto edgeJson = json::parse(data);
-                    auto sourceJson = edgeJson["source"];
-                    auto destinationJson = edgeJson["destination"];
-
-                    std::string sourceID = std::string(sourceJson["id"]);
-                    std::string destinationID = std::string(destinationJson["id"]);
 
             // Get user response.
             char user_res[FRONTEND_DATA_LENGTH];
