@@ -70,8 +70,8 @@ The following build tools, applications, and libraries need to be installed befo
     - Extract the `include.zip` to  `nlohmann_json` directory
     - Issue "cmake ."
     - Issue "make" followed by "sudo make install"
-- python3.5 (https://www.python.org/downloads/release/python-350/)
-    - Read this [blog](https://passingcuriosity.com/2015/installing-python-from-source/) for more details on setting up python3.5
+- python3.11 (https://www.python.org/downloads/release/python-3110/)
+    - Read this [blog](https://computingforgeeks.com/how-to-install-python-on-ubuntu-linux/) for more details on setting up python3.11
 - Recent versions of TensorFlow, numpy, scipy, sklearn, and networkx are required (but networkx must be <=1.11). You can install all the required packages using the following command:
 
    pip install -r ./GraphSAGE/requirements
