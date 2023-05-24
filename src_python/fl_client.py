@@ -234,4 +234,3 @@ if __name__ == "__main__":
     elapsed_time = end -start
     logging.info('Federated training done!')
     logging.info('Training report : Elapsed time %s seconds, graph ID %s, partition ID %s, epochs %s',elapsed_time,args['graph_id'],args['partition_id'],args['epochs'])
-    

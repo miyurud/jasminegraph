@@ -240,8 +240,6 @@ if __name__ == "__main__":
     if 'PORT' not in args.keys():
         args['port'] = 5050
 
-    print (args['IP'])
-    
     model_weights = ""
     while True:
         time.sleep(5)
@@ -261,7 +259,6 @@ if __name__ == "__main__":
     
             break
 
-    print (model_weights)
     server = Server(model_weights=model_weights,org_id=args['org_id'],rounds=int(args['num_rounds']),num_clients=int(args['num_clients']),ip=args['IP'],port=int(args['port']))
     
     logging.info('Federated training started!')

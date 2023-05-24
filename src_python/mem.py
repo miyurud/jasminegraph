@@ -11,7 +11,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-
 def mem(num_of_nodes,num_of_edges,num_of_features,feature_data_type,edge_data_type):
     """
     This function is used for estimating memory usage of a given graph partition
