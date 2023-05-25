@@ -13,13 +13,16 @@ limitations under the License.
 
 #include <iostream>
 #include <map>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string>
 #include "JasmineGraphServer.h"
 #include "JasmineGraphInstance.h"
 #include "../util/Utils.h"
 #include "../partitioner/local/MetisPartitioner.h"
-
 #include "JasmineGraphInstanceProtocol.h"
 #include "../util/logger/Logger.h"
+#include "../ml/trainer/JasmineGraphTrainingSchedular.h"
 
 Logger server_logger;
 
@@ -2988,4 +2991,835 @@ void JasmineGraphServer::duplicateCentralStore(std::string graphID) {
             server_logger.log("Error reading from socket", "error");
         }
     }
+}
+
+void JasmineGraphServer::initiateFiles(std::string graphID, std::string trainingArgs) {
+
+    int count = 0;
+    JasmineGraphTrainingSchedular *schedular = new JasmineGraphTrainingSchedular();
+    map<string, map<int, int>> scheduleForAllHosts = schedular->schedulePartitionTraining(graphID);
+    std::map<std::string, JasmineGraphServer::workerPartitions> graphPartitionedHosts = this->getGraphPartitionedHosts(
+            graphID);
+    int partition_count = 0;
+    std::map<std::string, JasmineGraphServer::workerPartitions>::iterator mapIterator;
+    for (mapIterator = graphPartitionedHosts.begin(); mapIterator != graphPartitionedHosts.end(); mapIterator++) {
+        JasmineGraphServer::workerPartitions workerPartition = mapIterator->second;
+        std::vector<std::string> partitions = workerPartition.partitionID;
+        std::vector<std::string>::iterator it;
+        for (it = partitions.begin(); it < partitions.end(); it++) {
+            partition_count++;
+        }
+    }
+
+    std::thread *workerThreads = new std::thread[partition_count];
+
+    Utils utils;
+    string prefix = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.trainedmodelfolder");
+    string attr_prefix = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+    trainingArgs = trainingArgs;
+    std::map<std::string, JasmineGraphServer::workerPartitions>::iterator j;
+    for (j = graphPartitionedHosts.begin(); j != graphPartitionedHosts.end(); j++) {
+        JasmineGraphServer::workerPartitions workerPartition = j->second;
+        std::vector<std::string> partitions = workerPartition.partitionID;
+        string partitionCount = std::to_string(partitions.size());
+        std::vector<std::string>::iterator k;
+        map<int, int> scheduleOfHost = scheduleForAllHosts[j->first];
+        for (k = partitions.begin(); k != partitions.end(); k++) {
+            int iterationOfPart = scheduleOfHost[stoi(*k)];
+            workerThreads[count] = std::thread(initiateTrain, j->first, workerPartition.port, workerPartition.dataPort,
+                                                trainingArgs + " " + *k, iterationOfPart, partitionCount);
+            count++;
+            sleep(3);
+        }
+    }
+
+    for (int threadCount = 0; threadCount < count; threadCount++) {
+        workerThreads[threadCount].join();
+        server_logger.log("Thread : "+ to_string(threadCount) + " joined", "info");
+    }
+}
+
+
+void JasmineGraphServer::initiateCommunication(std::string graphID, std::string trainingArgs, SQLiteDBInterface sqlite) {
+
+    Utils utils;
+    int fl_clients = stoi(utils.getJasmineGraphProperty("org.jasminegraph.fl_clients"));
+    int threadLimit = fl_clients + 1;
+    std::thread *workerThreads = new std::thread[threadLimit];
+
+    Utils::worker workerInstance;
+    vector<Utils::worker> workerVector = utils.getWorkerList(sqlite);
+
+    trainingArgs = trainingArgs;
+    int threadID = 0;
+
+    for (int i = 0; i < workerVector.size(); i++) {
+
+        workerInstance = workerVector[i];
+
+        int serverPort = stoi(workerInstance.port);
+        int serverDataPort = stoi(workerInstance.dataPort);
+
+        if (i==0) {
+
+            workerThreads[threadID] = std::thread(initiateServer,"localhost", serverPort,
+                                                    serverDataPort,trainingArgs,fl_clients, to_string(i));
+            threadID++;
+        }
+
+        workerThreads[threadID] = std::thread(initiateClient,"localhost", serverPort, serverDataPort,trainingArgs +
+                                                    " " + to_string(i), fl_clients, to_string(i));
+        threadID++;
+
+    }
+
+    workerThreads[0].join();
+
+    for (int threadCount = 1; threadCount < threadLimit; threadCount++) {
+        workerThreads[threadCount].join();
+    }
+
+    server_logger.log("Federated learning commands sent", "info");
+
+}
+
+void JasmineGraphServer::initiateOrgCommunication(std::string graphID, std::string trainingArgs, SQLiteDBInterface sqlite) {
+
+    Utils utils;
+    int fl_clients = stoi(utils.getJasmineGraphProperty("org.jasminegraph.fl_clients"));
+    int orgs_count = stoi(utils.getJasmineGraphProperty("org.jasminegraph.fl.num.orgs"));
+    std::string flagPath = utils.getJasmineGraphProperty("org.jasminegraph.fl.flag.file");
+    int threadLimit = fl_clients+1;
+    int org_thread_count = 0;
+    std::thread *workerThreads = new std::thread[threadLimit];
+
+    utils.editFlagOne(flagPath);
+    Utils::worker workerInstance;
+    vector<Utils::worker> workerVector = utils.getWorkerList(sqlite);
+
+    std::thread *trainThreads = new std::thread[orgs_count];
+
+    if (utils.getJasmineGraphProperty("org.jasminegraph.fl.aggregator") == "true"){
+
+        std::thread *orgAggThread = new std::thread[1];
+        orgAggThread[0] = std::thread(initiateAggregator,"localhost",  stoi(workerVector[0].port),
+                                        stoi(workerVector[0].dataPort),trainingArgs,fl_clients, "1");
+        orgAggThread[0].join();
+
+    }
+
+    std::ifstream file(utils.getJasmineGraphProperty("org.jasminegraph.fl.organization.file"));
+
+    if (file.good()){
+        if (file.is_open()) {
+            std::string line;
+            while (std::getline(file, line)) {
+                line = utils.trim_copy(line, " \f\n\r\t\v");
+                std::vector<std::string> strArr = Utils::split(line.c_str(), '|');
+                std::string host = strArr[0].c_str();
+                int port = stoi(strArr[1].c_str());
+                std::string trainingArgs = "--graph_id " + strArr[2];
+
+                if (strArr.size()==3 && org_thread_count <= orgs_count){
+                    trainThreads[org_thread_count] = std::thread(sendTrainCommand, host, port, trainingArgs);
+                    org_thread_count++;
+                }
+            }
+            file.close();
+            server_logger.log("Organizational details loading successful", "info");
+
+        }
+    } else {
+
+        server_logger.log("Error loading organization details", "info");
+
+    }
+
+    std::thread *communicationThread = new std::thread[1];
+    communicationThread[0] = std::thread(receiveGlobalWeights,"localhost", 5000, "0", 1, "1");
+    server_logger.log("Communication Thread Initiated", "info");
+    trainingArgs = trainingArgs;
+    int threadID = 0;
+
+    for (int i = 0; i < workerVector.size(); i++) {
+        workerInstance = workerVector[i];
+        int serverPort = stoi(workerInstance.port);
+        int serverDataPort = stoi(workerInstance.dataPort);
+
+        if (i==0) {
+
+            workerThreads[threadID] = std::thread(initiateOrgServer,"localhost", serverPort,
+                                                    serverDataPort,trainingArgs,fl_clients, to_string(i));
+            threadID++;
+        }
+
+        workerThreads[threadID] = std::thread(initiateClient,"localhost", serverPort, serverDataPort,trainingArgs +
+                                                    " " + to_string(i), fl_clients, to_string(i));
+        threadID++;
+
+    }
+
+    workerThreads[0].join();
+    communicationThread[0].join();
+
+    for (int threadCount = 1; threadCount < threadLimit; threadCount++) {
+        workerThreads[threadCount].join();
+    }
+
+    server_logger.log("Federated learning commands sent", "info");
+
+}
+
+void JasmineGraphServer::initiateMerge(std::string graphID, std::string trainingArgs,SQLiteDBInterface sqlite) {
+
+    int count = 0;
+    JasmineGraphTrainingSchedular *schedular = new JasmineGraphTrainingSchedular();
+    map<string, map<int, int>> scheduleForAllHosts = schedular->schedulePartitionTraining(graphID);
+    std::map<std::string, JasmineGraphServer::workerPartitions> graphPartitionedHosts = this->getGraphPartitionedHosts(
+            graphID);
+    int partition_count = 0;
+    std::map<std::string, JasmineGraphServer::workerPartitions>::iterator mapIterator;
+    for (mapIterator = graphPartitionedHosts.begin(); mapIterator != graphPartitionedHosts.end(); mapIterator++) {
+        JasmineGraphServer::workerPartitions workerPartition = mapIterator->second;
+        std::vector<std::string> partitions = workerPartition.partitionID;
+        std::vector<std::string>::iterator it;
+        for (it = partitions.begin(); it < partitions.end(); it++) {
+            partition_count++;
+        }
+    }
+
+    std::thread *workerThreads = new std::thread[partition_count+1];
+
+    Utils utils;
+    trainingArgs = trainingArgs;
+
+    int fl_clients = stoi(utils.getJasmineGraphProperty("org.jasminegraph.fl_clients"));
+    std::map<std::string, JasmineGraphServer::workerPartitions>::iterator j;
+    for (j = graphPartitionedHosts.begin(); j != graphPartitionedHosts.end(); j++) {
+        JasmineGraphServer::workerPartitions workerPartition = j->second;
+        std::vector<std::string> partitions = workerPartition.partitionID;
+        string partitionCount = std::to_string(partitions.size());
+        std::vector<std::string>::iterator k;
+        map<int, int> scheduleOfHost = scheduleForAllHosts[j->first];
+        for (k = partitions.begin(); k != partitions.end(); k++) {
+            int iterationOfPart = scheduleOfHost[stoi(*k)];
+
+            workerThreads[count] = std::thread(mergeFiles,"localhost", workerPartition.port,
+                                    workerPartition.dataPort,trainingArgs + " " + *k, fl_clients, *k);
+            count++;
+        }
+    }
+
+    std::cout << count <<std::endl;
+
+    for (int threadCount = 0; threadCount < count; threadCount++) {
+        workerThreads[threadCount].join();
+    }
+
+    server_logger.log("Merge Commands Sent", "info");
+}
+
+bool JasmineGraphServer::initiateTrain(std::string host, int port, int dataPort,std::string trainingArgs,int iteration, string partCount) {
+    Utils utils;
+    bool result = true;
+    int sockfd;
+    char data[FED_DATA_LENGTH];
+    bool loop = false;
+    socklen_t len;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sockfd < 0) {
+        server_logger.log("Cannot accept connection", "error");
+        return 0;
+    }
+
+    if (host.find('@') != std::string::npos) {
+        host = utils.split(host, '@')[1];
+    }
+
+    server = gethostbyname(host.c_str());
+    if (server == NULL) {
+        server_logger.log("ERROR, can not find the host", "error");
+    }
+
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *) server->h_addr,
+          (char *) &serv_addr.sin_addr.s_addr,
+          server->h_length);
+    serv_addr.sin_port = htons(port);
+    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+        server_logger.log("ERROR connecting", "error");
+        //TODO::exit
+    }
+
+    bzero(data, FED_DATA_LENGTH);
+    write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+    server_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
+    bzero(data, FED_DATA_LENGTH);
+    read(sockfd, data, FED_DATA_LENGTH);
+    string response = (data);
+
+    response = utils.trim_copy(response, " \f\n\r\t\v");
+
+    if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
+        server_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
+        string server_host = utils.getJasmineGraphProperty("org.jasminegraph.server.host");
+        write(sockfd, server_host.c_str(), server_host.size());
+        server_logger.log("Sent : " + server_host, "info");
+
+        write(sockfd, JasmineGraphInstanceProtocol::INITIATE_FILES.c_str(),
+              JasmineGraphInstanceProtocol::INITIATE_FILES.size());
+        server_logger.log("Sent : " + JasmineGraphInstanceProtocol::INITIATE_FILES, "info");
+        bzero(data, FED_DATA_LENGTH);
+        read(sockfd, data, FED_DATA_LENGTH);
+        response = (data);
+        response = utils.trim_copy(response, " \f\n\r\t\v");
+        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+            server_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+            write(sockfd, (trainingArgs).c_str(), (trainingArgs).size());
+            server_logger.log("Sent : args " + trainingArgs, "info");
+            bzero(data, FED_DATA_LENGTH);
+            return 0;
+            }
+    } else {
+        server_logger.log("There was an error in the invoking training process and the response is :: " + response,
+                        "error");
+    }
+
+    close(sockfd);
+    return 0;
+}
+
+bool JasmineGraphServer::initiateServer(std::string host, int port, int dataPort,std::string trainingArgs,int iteration, string partCount) {
+
+    Utils utils;
+    bool result = true;
+    int sockfd;
+    char data[FED_DATA_LENGTH];
+    bool loop = false;
+    socklen_t len;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sockfd < 0) {
+        server_logger.log("Cannot accept connection", "error");
+        return 0;
+    }
+
+    if (host.find('@') != std::string::npos) {
+        host = utils.split(host, '@')[1];
+    }
+
+    server = gethostbyname(host.c_str());
+    if (server == NULL) {
+        server_logger.log("ERROR, can not find the host", "error");
+    }
+
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *) server->h_addr,
+          (char *) &serv_addr.sin_addr.s_addr,
+          server->h_length);
+    serv_addr.sin_port = htons(port);
+    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+        server_logger.log("ERROR connecting", "error");
+        //TODO::exit
+    }
+
+    bzero(data, FED_DATA_LENGTH);
+    write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+    server_logger.log("Sent fed : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
+    bzero(data, FED_DATA_LENGTH);
+    read(sockfd, data, FED_DATA_LENGTH);
+    string response = (data);
+
+    response = utils.trim_copy(response, " \f\n\r\t\v");
+
+    if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
+        server_logger.log("Received fed : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
+        string server_host = utils.getJasmineGraphProperty("org.jasminegraph.server.host");
+        write(sockfd, server_host.c_str(), server_host.size());
+        server_logger.log("Sent fed : " + server_host, "info");
+
+        write(sockfd, JasmineGraphInstanceProtocol::INITIATE_SERVER.c_str(),
+              JasmineGraphInstanceProtocol::INITIATE_SERVER.size());
+        server_logger.log("Sent fed : " + JasmineGraphInstanceProtocol::INITIATE_SERVER, "info");
+        bzero(data, FED_DATA_LENGTH);
+        read(sockfd, data, FED_DATA_LENGTH);
+        response = (data);
+        response = utils.trim_copy(response, " \f\n\r\t\v");
+        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+            server_logger.log("Received fed : " + JasmineGraphInstanceProtocol::OK, "info");
+            write(sockfd, (trainingArgs).c_str(), (trainingArgs).size());
+            server_logger.log("Sent fed : training args " + trainingArgs, "info");
+            bzero(data, FED_DATA_LENGTH);
+            return 0;
+            }
+    } else {
+        server_logger.log("There was an error in the invoking training process and the response is :: " + response,
+                        "error");
+    }
+
+    close(sockfd);
+    return 0;
+}
+
+bool JasmineGraphServer::initiateClient(std::string host, int port, int dataPort,std::string trainingArgs,int iteration, string partCount) {
+    Utils utils;
+    bool result = true;
+    int sockfd;
+    char data[FED_DATA_LENGTH];
+    bool loop = false;
+    socklen_t len;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sockfd < 0) {
+        server_logger.log("Cannot accept connection", "error");
+        return 0;
+    }
+
+    if (host.find('@') != std::string::npos) {
+        host = utils.split(host, '@')[1];
+    }
+
+    server = gethostbyname(host.c_str());
+    if (server == NULL) {
+        server_logger.log("ERROR, can not find the host", "error");
+    }
+
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *) server->h_addr,
+          (char *) &serv_addr.sin_addr.s_addr,
+          server->h_length);
+    serv_addr.sin_port = htons(port);
+    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+        server_logger.log("ERROR connecting", "error");
+        //TODO::exit
+    }
+
+    bzero(data, FED_DATA_LENGTH);
+    write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+    server_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
+    bzero(data, FED_DATA_LENGTH);
+    read(sockfd, data, FED_DATA_LENGTH);
+    string response = (data);
+
+    response = utils.trim_copy(response, " \f\n\r\t\v");
+
+    if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
+        server_logger.log("Received fed : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
+        string server_host = utils.getJasmineGraphProperty("org.jasminegraph.server.host");
+        write(sockfd, server_host.c_str(), server_host.size());
+        server_logger.log("Sent fed : " + server_host, "info");
+
+        write(sockfd, JasmineGraphInstanceProtocol::INITIATE_CLIENT.c_str(),
+              JasmineGraphInstanceProtocol::INITIATE_CLIENT.size());
+        server_logger.log("Sent fed : " + JasmineGraphInstanceProtocol::INITIATE_CLIENT, "info");
+        bzero(data, FED_DATA_LENGTH);
+        read(sockfd, data, FED_DATA_LENGTH);
+        response = (data);
+        response = utils.trim_copy(response, " \f\n\r\t\v");
+        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+            server_logger.log("Received fed : " + JasmineGraphInstanceProtocol::OK, "info");
+            write(sockfd, (trainingArgs).c_str(), (trainingArgs).size());
+            server_logger.log("Sent fed : training args " + trainingArgs, "info");
+            bzero(data, FED_DATA_LENGTH);
+            return 0;
+            }
+    } else {
+        server_logger.log("There was an error in the invoking training process and the response is :: " + response,
+                        "error");
+    }
+
+    close(sockfd);
+    return 0;
+}
+
+bool JasmineGraphServer::initiateAggregator(std::string host, int port, int dataPort,std::string trainingArgs,int iteration, string partCount) {
+    Utils utils;
+    bool result = true;
+    int sockfd;
+    char data[FED_DATA_LENGTH];
+    bool loop = false;
+    socklen_t len;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sockfd < 0) {
+        server_logger.log("Cannot accept connection", "error");
+        return 0;
+    }
+
+    if (host.find('@') != std::string::npos) {
+        host = utils.split(host, '@')[1];
+    }
+
+    server = gethostbyname(host.c_str());
+    if (server == NULL) {
+        server_logger.log("ERROR, can not find the host", "error");
+    }
+
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *) server->h_addr,
+          (char *) &serv_addr.sin_addr.s_addr,
+          server->h_length);
+    serv_addr.sin_port = htons(port);
+    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+        server_logger.log("ERROR connecting", "error");
+        //TODO::exit
+    }
+
+    bzero(data, FED_DATA_LENGTH);
+    write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+    server_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
+    bzero(data, FED_DATA_LENGTH);
+    read(sockfd, data, FED_DATA_LENGTH);
+    string response = (data);
+
+    response = utils.trim_copy(response, " \f\n\r\t\v");
+
+    if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
+        server_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
+        string server_host = utils.getJasmineGraphProperty("org.jasminegraph.server.host");
+        write(sockfd, server_host.c_str(), server_host.size());
+        server_logger.log("Sent : " + server_host, "info");
+
+        write(sockfd, JasmineGraphInstanceProtocol::INITIATE_AGG.c_str(),
+              JasmineGraphInstanceProtocol::INITIATE_AGG.size());
+        server_logger.log("Sent : " + JasmineGraphInstanceProtocol::INITIATE_AGG, "info");
+        bzero(data, FED_DATA_LENGTH);
+        read(sockfd, data, FED_DATA_LENGTH);
+        response = (data);
+        response = utils.trim_copy(response, " \f\n\r\t\v");
+        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+            server_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+            write(sockfd, (trainingArgs).c_str(), (trainingArgs).size());
+            server_logger.log("Sent : training args " + trainingArgs, "info");
+            bzero(data, FED_DATA_LENGTH);
+            return 0;
+            }
+    } else {
+        server_logger.log("There was an error in the invoking training process and the response is :: " + response,
+                        "error");
+    }
+
+    close(sockfd);
+    return 0;
+}
+
+bool JasmineGraphServer::initiateOrgServer(std::string host, int port, int dataPort,std::string trainingArgs,int iteration, string partCount) {
+
+    Utils utils;
+    bool result = true;
+    int sockfd;
+    char data[FED_DATA_LENGTH];
+    bool loop = false;
+    socklen_t len;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sockfd < 0) {
+        server_logger.log("Cannot accept connection", "error");
+        return 0;
+    }
+
+    if (host.find('@') != std::string::npos) {
+        host = utils.split(host, '@')[1];
+    }
+
+    server = gethostbyname(host.c_str());
+    if (server == NULL) {
+        server_logger.log("ERROR, can not find the host", "error");
+    }
+
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *) server->h_addr,
+          (char *) &serv_addr.sin_addr.s_addr,
+          server->h_length);
+    serv_addr.sin_port = htons(port);
+    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+        server_logger.log("Error connecting", "error");
+        //TODO::exit
+    }
+
+    bzero(data, FED_DATA_LENGTH);
+    write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+    server_logger.log("Sent fed : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
+    bzero(data, FED_DATA_LENGTH);
+    read(sockfd, data, FED_DATA_LENGTH);
+    string response = (data);
+
+    response = utils.trim_copy(response, " \f\n\r\t\v");
+
+    if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
+        server_logger.log("Received fed : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
+        string server_host = utils.getJasmineGraphProperty("org.jasminegraph.server.host");
+        write(sockfd, server_host.c_str(), server_host.size());
+        server_logger.log("Sent fed : " + server_host, "info");
+
+        write(sockfd, JasmineGraphInstanceProtocol::INITIATE_ORG_SERVER.c_str(),
+              JasmineGraphInstanceProtocol::INITIATE_ORG_SERVER.size());
+        server_logger.log("Sent fed : " + JasmineGraphInstanceProtocol::INITIATE_ORG_SERVER, "info");
+        bzero(data, FED_DATA_LENGTH);
+        read(sockfd, data, FED_DATA_LENGTH);
+        response = (data);
+        response = utils.trim_copy(response, " \f\n\r\t\v");
+        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+            server_logger.log("Received fed : " + JasmineGraphInstanceProtocol::OK, "info");
+            write(sockfd, (trainingArgs).c_str(), (trainingArgs).size());
+            server_logger.log("Sent fed : training args " + trainingArgs, "info");
+            bzero(data, FED_DATA_LENGTH);
+            return 0;
+            }
+    } else {
+        server_logger.log("There was an error in the invoking training process and the response is :: " + response,
+                        "error");
+    }
+
+    close(sockfd);
+    return 0;
+}
+
+bool JasmineGraphServer::receiveGlobalWeights(std::string host, int port, std::string trainingArgs, int iteration, std::string partCount) {
+
+    int HEADER_LENGTH = 10;
+    Utils utils;
+    bool result = true;
+    int sockfd;
+
+    bool loop = false;
+    socklen_t len;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+
+    std::string weights_file = utils.getJasmineGraphProperty("org.jasminegraph.fl.weights.file");
+    std::string flagPath = utils.getJasmineGraphProperty("org.jasminegraph.fl.flag.file");
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sockfd < 0) {
+        server_logger.log("Cannot accept connection", "error");
+        return 0;
+    }
+    if (host.find('@') != std::string::npos) {
+        host = utils.split(host, '@')[1];
+    }
+    server = gethostbyname(host.c_str());
+    if (server == NULL) {
+        server_logger.log("ERROR, can not find the host", "error");
+    }
+
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *) server->h_addr,
+          (char *) &serv_addr.sin_addr.s_addr,
+          server->h_length);
+    serv_addr.sin_port = htons(port);
+
+
+    while (true){
+
+        if (!(connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)) {
+            break;
+        }
+    }
+
+    bool isTrue = false;
+    int count = 0;
+
+    while (true) {
+
+        char data[WEIGHTS_DATA_LENGTH];
+        read(sockfd, data, WEIGHTS_DATA_LENGTH);
+        std::string length = "";
+
+        for (int i=0; i< HEADER_LENGTH; i++) {
+            if (data[i] != NULL){
+                length += data[i];
+            }
+        }
+        server_logger.log("message length : " + length, "info");
+        char content[stoi(length)];
+        int full_size = stoi(length) + HEADER_LENGTH;
+
+        for (int i=0; i < full_size; i++) {
+
+            content[i] = data[i];
+        }
+
+        ofstream stream;
+        std::ofstream file(weights_file, std::ios::out);
+        file.write(content, full_size);
+        utils.editFlagZero(flagPath);
+        server_logger.log("Done writting to the weight file", "info");
+        std::string path = weights_file+ to_string(count) + ".txt";
+        count++;
+        std::ofstream file1(path, std::ios::out | std::ios::out);
+        file1.write(content, full_size);
+
+        while (true) {
+            sleep(DELAY);
+            if (utils.checkFlag(flagPath) == "1"){
+
+                ifstream infile {weights_file };
+                server_logger.log("Weight file opened", "info");
+                string file_contents { istreambuf_iterator<char>(infile), istreambuf_iterator<char>() };
+                server_logger.log("Reading weights", "info");
+                write(sockfd, file_contents.c_str(), file_contents.size());
+                server_logger.log("Writing to the socket", "info");
+                break;
+
+            } else if (utils.checkFlag(flagPath) == "STOP"){
+
+                isTrue = true;
+                break;
+            }
+        }
+        server_logger.log("Round completed", "info");
+        sleep(DELAY);
+
+        if (isTrue==true) {
+            break;
+        }
+    }
+    close(sockfd);
+    return 0;
+}
+
+bool JasmineGraphServer::mergeFiles(std::string host, int port, int dataPort,std::string trainingArgs,int iteration, string partCount) {
+    Utils utils;
+    bool result = true;
+    int sockfd;
+    char data[FED_DATA_LENGTH];
+    bool loop = false;
+    socklen_t len;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sockfd < 0) {
+        server_logger.log("Cannot accept connection", "error");
+        return 0;
+    }
+
+    if (host.find('@') != std::string::npos) {
+        host = utils.split(host, '@')[1];
+    }
+
+    server = gethostbyname(host.c_str());
+    if (server == NULL) {
+        server_logger.log("ERROR, can not find the host", "error");
+    }
+
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *) server->h_addr,
+          (char *) &serv_addr.sin_addr.s_addr,
+          server->h_length);
+    serv_addr.sin_port = htons(port);
+    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+        server_logger.log("ERROR connecting", "error");
+        //TODO::exit
+    }
+
+    bzero(data, FED_DATA_LENGTH);
+    write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+    server_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
+    bzero(data, FED_DATA_LENGTH);
+    read(sockfd, data, FED_DATA_LENGTH);
+    string response = (data);
+
+    response = utils.trim_copy(response, " \f\n\r\t\v");
+
+    if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
+        server_logger.log("Received merge : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
+        string server_host = utils.getJasmineGraphProperty("org.jasminegraph.server.host");
+        write(sockfd, server_host.c_str(), server_host.size());
+        server_logger.log("Sent merge : " + server_host, "info");
+
+        write(sockfd, JasmineGraphInstanceProtocol::MERGE_FILES.c_str(),
+              JasmineGraphInstanceProtocol::MERGE_FILES.size());
+        server_logger.log("Sent merge : " + JasmineGraphInstanceProtocol::MERGE_FILES, "info");
+        bzero(data, FED_DATA_LENGTH);
+        read(sockfd, data, FED_DATA_LENGTH);
+        response = (data);
+        response = utils.trim_copy(response, " \f\n\r\t\v");
+        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+            server_logger.log("Received merge : " + JasmineGraphInstanceProtocol::OK, "info");
+            write(sockfd, (trainingArgs).c_str(), (trainingArgs).size());
+            server_logger.log("Sent merge : training args " + trainingArgs, "info");
+            bzero(data, FED_DATA_LENGTH);
+            return 0;
+            }
+    } else {
+        server_logger.log("There was an error in the invoking training process and the response is :: " + response,
+                        "error");
+    }
+
+    close(sockfd);
+    return 0;
+}
+
+bool JasmineGraphServer::sendTrainCommand(std::string host, int port, std::string trainingArgs) {
+    Utils utils;
+    bool result = true;
+    int sockfd;
+    char data[FED_DATA_LENGTH];
+    bool loop = false;
+    socklen_t len;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sockfd < 0) {
+        server_logger.log("Cannot accept connection", "error");
+        return 0;
+    }
+
+    if (host.find('@') != std::string::npos) {
+        host = utils.split(host, '@')[1];
+    }
+
+    server = gethostbyname(host.c_str());
+    if (server == NULL) {
+        server_logger.log("ERROR, can not find the host", "error");
+    }
+
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *) server->h_addr,
+          (char *) &serv_addr.sin_addr.s_addr,
+          server->h_length);
+    serv_addr.sin_port = htons(port);
+    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+        server_logger.log("ERROR connecting", "error");
+        //TODO::exit
+    }
+
+    bzero(data, FED_DATA_LENGTH);
+    write(sockfd, JasmineGraphInstanceProtocol::INITIATE_TRAIN.c_str(), JasmineGraphInstanceProtocol::INITIATE_TRAIN.size());
+    bzero(data, FED_DATA_LENGTH);
+    read(sockfd, data, FED_DATA_LENGTH);
+    std::string command = trainingArgs;
+    write(sockfd, command.c_str(), command.size());
+    close(sockfd);
+    return 0;
 }
