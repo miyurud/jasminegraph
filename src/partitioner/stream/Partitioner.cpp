@@ -123,12 +123,10 @@ void Partitioner::printStats() {
         double edgesCount = partition.getEdgesCount();
         double edgeCutsCount = partition.edgeCutsCount();
         double edgeCutRatio =  partition.edgeCutsRatio();
-        std::cout << id << " => Vertext count = " << vertexCount << std::endl;
-        std::cout << id << " => Edges count = " << edgesCount << std::endl;
-        std::cout << id << " => Edge cuts count = " << edgeCutsCount << std::endl;
-        std::cout << id << " => Cut ratio = " << edgeCutRatio << std::endl;
-        // partition.printEdgeCuts();
-        // partition.printEdges();
+        streaming_partitioner_logger.info(std::to_string(id) + " => Vertex count = " + std::to_string(vertexCount));
+        streaming_partitioner_logger.info(std::to_string(id) + " => Edges count = " + std::to_string(edgesCount));
+        streaming_partitioner_logger.info(std::to_string(id) + " => Edge cuts count = " + std::to_string(edgeCutsCount));
+        streaming_partitioner_logger.info(std::to_string(id) + " => Cut ratio = " + std::to_string(edgeCutRatio));
         id++;
     }
 }
