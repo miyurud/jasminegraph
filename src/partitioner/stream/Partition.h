@@ -15,7 +15,6 @@
 #include <set>
 #include <unordered_set>
 #include <vector>
-#include <string>
 
 #ifndef JASMINE_PARTITION
 #define JASMINE_PARTITION
@@ -42,8 +41,6 @@ class Partition {
     int id;
     int numberOfPartitions;  // Size of the cluster TODO: can be removed
 
-    int vertexCount;
-
    public:
     Partition(int id, int numberOfPartitions) {
         this->id = id;
@@ -51,14 +48,12 @@ class Partition {
         for (size_t i = 0; i < numberOfPartitions; i++) {
             this->edgeCuts.push_back({});
         }
-        this->vertexCount = 0;
     };
     void addEdge(std::pair<std::string, std::string> edge);
     std::set<std::string> getNeighbors(std::string);
     double partitionScore(std::string vertex);
     double getEdgesCount();
     double getVertextCount();
-    double getVertextCountQuick();
     void addToEdgeCuts(std::string resident, std::string foreign, int partitionId);
     float edgeCutsRatio();
     template <typename Out>
@@ -68,7 +63,6 @@ class Partition {
     void printEdgeCuts();
     void printEdges();
     bool isExist(std::string);
-    bool isExistInEdgeCuts(std::string);
 };
 
 #endif

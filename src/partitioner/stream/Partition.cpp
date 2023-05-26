@@ -26,10 +26,6 @@ void Partition::addEdge(std::pair<std::string, std::string> edge) {
         this->edgeList[edge.first].insert(edge.second);
     } else {
         this->edgeList[edge.first] = std::set<std::string>({edge.second});
-
-        if(!isExistInEdgeCuts(edge.first)){
-            this->vertexCount += 1;
-        }
     }
 
     auto exsistSecondVertext = this->edgeList.find(edge.second);
@@ -37,10 +33,6 @@ void Partition::addEdge(std::pair<std::string, std::string> edge) {
         this->edgeList[edge.second].insert(edge.first);
     } else {
         this->edgeList[edge.second] = std::set<std::string>({edge.first});
-
-        if(!isExistInEdgeCuts(edge.second)){
-            this->vertexCount += 1;
-        }
     }
 }
 
@@ -82,10 +74,6 @@ double Partition::getVertextCount() {
     return edgeListVetices + edgeCutVertices;
 }
 
-double Partition::getVertextCountQuick() {
-    return this->vertexCount;
-}
-
 template <typename Out>
 void Partition::_split(const std::string &s, char delim, Out result) {
     std::stringstream ss(s);
@@ -103,9 +91,6 @@ std::vector<std::string> Partition::_split(const std::string &s, char delim) {
 
 void Partition::addToEdgeCuts(std::string resident, std::string foreign, int partitionId) {
     if (partitionId < this->numberOfPartitions) {
-        if (!isExist(resident)) {
-            this->vertexCount += 1;
-        }
         auto exsistResidentVertex = this->edgeCuts[partitionId].find(resident);
         if (exsistResidentVertex != this->edgeCuts[partitionId].end()) {
             this->edgeCuts[partitionId][resident].insert(foreign);
@@ -168,21 +153,7 @@ bool Partition::isExist(std::string vertext) {
     bool inEdgeList = this->edgeList.find(vertext) != this->edgeList.end();
     bool inEdgeCuts = false;
     for (size_t i = 0; i < this->numberOfPartitions; i++) {
-        if (this->edgeCuts[i].find(vertext) != this->edgeCuts[i].end()){
-            inEdgeCuts = true;
-            break;
-        }
+        inEdgeCuts = this->edgeCuts[i].find(vertext) != this->edgeCuts[i].end();
     }
     return inEdgeCuts || inEdgeList;
-}
-
-bool Partition::isExistInEdgeCuts(std::string vertext) {
-    bool inEdgeCuts = false;
-    for (size_t i = 0; i < this->numberOfPartitions; i++) {
-        if (this->edgeCuts[i].find(vertext) != this->edgeCuts[i].end()){
-            inEdgeCuts = true;
-            break;
-        }
-    }
-    return inEdgeCuts;
 }
