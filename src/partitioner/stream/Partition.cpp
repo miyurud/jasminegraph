@@ -172,8 +172,6 @@ bool Partition::isExist(std::string vertext) {
             inEdgeCuts = true;
             break;
         }
-
-//        inEdgeCuts = this->edgeCuts[i].find(vertext) != this->edgeCuts[i].end();
     }
     return inEdgeCuts || inEdgeList;
 }
