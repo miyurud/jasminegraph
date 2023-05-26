@@ -119,12 +119,14 @@ partitionedEdge Partitioner::hashPartitioning(std::pair<std::string, std::string
 void Partitioner::printStats() {
     int id = 0;
     for (auto partition : this->partitions) {
-        std::cout << id << " => Vertext count = " << partition.getVertextCount() << std::endl;
-        std::cout << id << " => Edges count = " << partition.getEdgesCount() << std::endl;
-        std::cout << id << " => Edge cuts count = " << partition.edgeCutsCount() << std::endl;
-        std::cout << id << " => Cut ratio = " << partition.edgeCutsRatio() << std::endl;
-        // partition.printEdgeCuts();
-        // partition.printEdges();
+        double vertexCount = partition.getVertextCount();
+        double edgesCount = partition.getEdgesCount();
+        double edgeCutsCount = partition.edgeCutsCount();
+        double edgeCutRatio =  partition.edgeCutsRatio();
+        streaming_partitioner_logger.info(std::to_string(id) + " => Vertex count = " + std::to_string(vertexCount));
+        streaming_partitioner_logger.info(std::to_string(id) + " => Edges count = " + std::to_string(edgesCount));
+        streaming_partitioner_logger.info(std::to_string(id) + " => Edge cuts count = " + std::to_string(edgeCutsCount));
+        streaming_partitioner_logger.info(std::to_string(id) + " => Cut ratio = " + std::to_string(edgeCutRatio));
         id++;
     }
 }
@@ -151,9 +153,8 @@ partitionedEdge Partitioner::fennelPartitioning(std::pair<std::string, std::stri
     bool secondVertextAlreadyExist(false);
 
     int id = 0;
-    for (auto partition : partitions) {
-        double partitionSize = partition.getVertextCount();
-        long thisCostSecond, thisCostFirst = 0;
+    for (auto& partition : partitions) {
+
         std::set<std::string> firstVertextNeighbors = partition.getNeighbors(edge.first);
         std::set<std::string> secondVertextNeighbors = partition.getNeighbors(edge.second);
         double firstVertextIntraCost;
@@ -165,27 +166,17 @@ partitionedEdge Partitioner::fennelPartitioning(std::pair<std::string, std::stri
         }
         double firstVertextInterCost = firstVertextNeighbors.size();
         double secondVertextInterCost = secondVertextNeighbors.size();
-        if (firstVertextNeighbors.size() == 0) {
-            // firstVertextIntraCost = alpha * gamma * pow(firstVertextNeighbors.size(), (gamma - 1));
-            firstVertextIntraCost = alpha * (pow(partitionSize + 1, gamma) - pow(partitionSize, gamma));
-        } else {
+
+        double partitionSize = partition.getVertextCountQuick();
+        firstVertextIntraCost = alpha * (pow(partitionSize + 1, gamma) - pow(partitionSize, gamma));
+        secondVertextIntraCost = firstVertextIntraCost;
+
+        if (firstVertextNeighbors.size() != 0) {
             if (firstVertextNeighbors.find(edge.second) != firstVertextNeighbors.end())
                 return {{edge.first, id}, {edge.second, id}};  // Nothing to do, edge already exisit
         }
 
         partitionScoresFirst[id] = firstVertextInterCost - firstVertextIntraCost;
-
-        if (secondVertextNeighbors.size() == 0) {
-            // secondVertextIntraCost = alpha * gamma * pow(secondVertextNeighbors.size(), (gamma - 1));
-            secondVertextIntraCost = firstVertextIntraCost;
-        } else {
-            if (secondVertextNeighbors.find(edge.second) != secondVertextNeighbors.end())
-                return {{edge.first, id},
-                        {edge.second, id}};  // Nothing to do, edge already exisit, Because of the symmetrical nature of
-                                             // undirected edgelist implementation this is already checked when finding
-                                             // neighbors of the first edge above
-        }
-
         partitionScoresSecond[id] = secondVertextInterCost - secondVertextIntraCost;
         id++;
     }
@@ -195,8 +186,6 @@ partitionedEdge Partitioner::fennelPartitioning(std::pair<std::string, std::stri
     int firstIndex =
         distance(partitionScoresFirst.begin(), max_element(partitionScoresFirst.begin(), partitionScoresFirst.end()));
 
-    // partitionScoresSecond[firstIndex] -= alpha * (pow(partitions[firstIndex].getVertextCount() + 2, gamma) -
-    //                                               pow(partitions[firstIndex].getVertextCount() + 1, gamma));
     int secondIndex = distance(partitionScoresSecond.begin(),
                                max_element(partitionScoresSecond.begin(), partitionScoresSecond.end()));
     if (firstIndex == secondIndex) {
