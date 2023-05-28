@@ -1,6 +1,10 @@
 name: Build
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
 
 env:
   # Customize the build type here (Release, Debug, RelWithDebInfo, etc.)
@@ -12,9 +16,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-
+      with:
+        ref: ${{github.head_ref}}
+        fetch-depth: 0
     - name: Build
       # Build JasmineGraph docker image
-      run: |
-        cd docker
-        docker build -t jasminegraph .
+      run: docker build -t jasminegraph .
