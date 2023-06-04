@@ -1103,15 +1103,13 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                     frontend_logger.log("Error writing to socket", "error");
                 }
             }
-
         } else if (line.compare(MERGE) == 0) {
 
             Utils utils;
             std::string federatedEnabled = utils.getJasmineGraphProperty("org.jasminegraph.federated.enabled");
             string message = "Available main flags:\n";
             write(connFd, message.c_str(), message.size());
-            string flags =
-            Conts::FLAGS::GRAPH_ID;
+            string flags = Conts::FLAGS::GRAPH_ID;
             write(connFd, flags.c_str(), flags.size());
             write(connFd, "\n", 2);
             message = "Send --<flag1> <value1> \n";
@@ -1202,17 +1200,17 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             }
 
             if (!JasmineGraphFrontEnd::isGraphActive(graphID, sqlite)) {
-            string error_message = "Graph is not in the active status";
-            frontend_logger.log(error_message, "error");
-            result_wr = write(connFd, error_message.c_str(), error_message.length());
-            if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
-            }
-            result_wr = write(connFd, "\r\n", 2);
-            if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
-            }
-            continue;
+                string error_message = "Graph is not in the active status";
+                frontend_logger.log(error_message, "error");
+                result_wr = write(connFd, error_message.c_str(), error_message.length());
+                if (result_wr < 0) {
+                    frontend_logger.log("Error writing to socket", "error");
+                }
+                result_wr = write(connFd, "\r\n", 2);
+                if (result_wr < 0) {
+                    frontend_logger.log("Error writing to socket", "error");
+                }
+                continue;
             }
 
             Utils utils;
@@ -1236,6 +1234,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             }
 
         } else if (line.compare(IN_DEGREE) == 0) {
+
             frontend_logger.log("Calculating In Degree Distribution", "info");
 
             int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);

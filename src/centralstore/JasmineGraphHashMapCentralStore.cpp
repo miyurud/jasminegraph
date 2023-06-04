@@ -12,6 +12,10 @@ limitations under the License.
  */
 
 #include "JasmineGraphHashMapCentralStore.h"
+#include "../util/logger/Logger.h"
+using namespace std;
+
+Logger hashmap_centralstore_logger;
 
 JasmineGraphHashMapCentralStore::JasmineGraphHashMapCentralStore() {
 
@@ -134,6 +138,9 @@ map<long, long> JasmineGraphHashMapCentralStore::getOutDegreeDistributionHashMap
 
     for (map<long, unordered_set<long>>::iterator it = centralSubgraphMap.begin(); it != centralSubgraphMap.end(); ++it) {
         long distribution = (it->second).size();
+        auto key = it->first;
+        auto nodes = it->second;
+        unordered_set<long> neighboursOfNeighbour = nodes;
         distributionHashMap.insert(std::make_pair(it->first, distribution));
     }
     return distributionHashMap;
