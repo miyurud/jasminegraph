@@ -213,6 +213,8 @@ std::vector<std::map<int, std::string>> MetisPartitioner::partitioneWithGPMetis(
     std::string metisBinDir = utils.getJasmineGraphProperty("org.jasminegraph.partitioner.metis.bin");
     string metisCommand =
             metisBinDir + "/gpmetis " + this->outputFilePath + "/grf " + to_string(this->nParts) + " 2>&1";
+    partitioner_logger.log("metisCommand " + metisCommand, "info");
+
     FILE *input = popen(metisCommand.c_str(), "r");
     if (input) {
         // read the input
@@ -222,6 +224,7 @@ std::vector<std::map<int, std::string>> MetisPartitioner::partitioneWithGPMetis(
             }
         }
         pclose(input);
+        partitioner_logger.log(result, "info");
         if (!result.empty() && result.find("Premature") != std::string::npos) {
             vertexCount -= 1;
             string newHeader = std::to_string(vertexCount) + ' ' + std::to_string(edgeCountForMetis);
