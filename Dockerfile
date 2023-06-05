@@ -1,7 +1,7 @@
 FROM miyurud/jasminegraph
 WORKDIR /home/ubuntu/software
 RUN apt-get update
-RUN git clone https://github.com/miyurud/jasminegraph.git
+COPY . jasminegraph/
 ENV HOME="/home/ubuntu"
 RUN mkdir -p /var/tmp/nmon
 WORKDIR /home/ubuntu/software/jasminegraph
