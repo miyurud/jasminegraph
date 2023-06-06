@@ -19,7 +19,6 @@ limitations under the License.
 #include <thread>
 #include <spdlog/spdlog.h>
 #include "JasmineGraphFrontEnd.h"
-#include <nlohmann/json.hpp>
 #include "../util/Conts.h"
 #include "../util/kafka/KafkaCC.h"
 #include "JasmineGraphFrontEndProtocol.h"
@@ -42,6 +41,11 @@ limitations under the License.
 #include "core/CoreConstants.h"
 #include "../centralstore/incremental/RelationBlock.h"
 #include <cctype>
+#include <nlohmann/json.hpp>
+
+#include "flatbuffers/flatbuffers.h"
+#include <iostream> // C++ header file for printing
+#include <fstream> // C++ header file for file access
 
 using json = nlohmann::json;
 using namespace std;
@@ -394,6 +398,60 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 }
             } else {
                 frontend_logger.log("Graph data file does not exist on the specified path", "error");
+                continue;
+            }
+        } else if (line.compare(ADMDL) == 0) {
+            //TODO add error handling
+            write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
+            write(connFd, "\r\n", 2);
+
+            char graph_data[FRONTEND_DATA_LENGTH];
+            bzero(graph_data, FRONTEND_DATA_LENGTH + 1);
+            string name = "";
+            string path = "";
+
+            read(connFd, graph_data, FRONTEND_DATA_LENGTH);
+
+            std::time_t time = chrono::system_clock::to_time_t(chrono::system_clock::now());
+            string uploadStartTime = ctime(&time);
+            string gData(graph_data);
+
+            Utils utils;
+            gData = utils.trim_copy(gData, " \f\n\r\t\v");
+            frontend_logger.log("Data received: " + gData, "info");
+
+            std::vector<std::string> strArr = Utils::split(gData, '|');
+
+            if (strArr.size() < 2) {
+                frontend_logger.log("Message format not recognized", "error");
+                continue;
+            }
+
+            name = strArr[0];
+            path = strArr[1];
+
+            if (JasmineGraphFrontEnd::modelExists(path, sqlite)) {
+                frontend_logger.log("Model exists", "error");
+                continue;
+            }
+
+            if (utils.fileExists(path)) {
+                frontend_logger.log("Path exists", "info");
+                std::string toDir = utils.getJasmineGraphProperty("org.jasminegraph.server.modelDir");
+                utils.copyToDirectory(path, toDir);
+
+                string sqlStatement =
+                        "INSERT INTO model (name,upload_path,upload_time,model_status_idmodel_status"
+                        ")VALUES(\"" + name + "\", \"" + path +
+                        "\", \"" + uploadStartTime + "\",\"" + to_string(Conts::GRAPH_STATUS::LOADING) + "\")";
+
+                int newModelID = sqlite.runInsert(sqlStatement);
+
+                frontend_logger.log("Upload done", "info");
+                write(connFd, DONE.c_str(), DONE.size());
+                write(connFd, "\n", 2);
+            } else {
+                frontend_logger.log("Model file does not exist on the specified path", "error");
                 continue;
             }
         } else if (line.compare(ADGR_CUST) == 0) {
@@ -1045,6 +1103,50 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                     frontend_logger.log("Error writing to socket", "error");
                 }
             }
+
+        } else if (line.compare(MERGE) == 0) {
+
+            Utils utils;
+            std::string federatedEnabled = utils.getJasmineGraphProperty("org.jasminegraph.federated.enabled");
+            string message = "Available main flags:\n";
+            write(connFd, message.c_str(), message.size());
+            string flags =
+            Conts::FLAGS::GRAPH_ID;
+            write(connFd, flags.c_str(), flags.size());
+            write(connFd, "\n", 2);
+            message = "Send --<flag1> <value1> \n";
+            write(connFd, message.c_str(), message.size());
+
+            char train_data[300];
+            bzero(train_data, 301);
+            read(connFd, train_data, 300);
+
+            string trainData(train_data);
+            trainData = utils.trim_copy(trainData, " \f\n\r\t\v");
+            frontend_logger.log("Data received: " + trainData, "info");
+
+            std::vector<std::string> trainargs = Utils::split(trainData, ' ');
+            std::vector<std::string>::iterator itr = std::find(trainargs.begin(), trainargs.end(), "--graph_id");
+            std::string graphID;
+
+            if (itr != trainargs.cend()) {
+                int index = std::distance(trainargs.begin(), itr);
+                graphID = trainargs[index + 1];
+
+            } else {
+                frontend_logger.log("graph_id should be given as an argument", "error");
+                continue;
+            }
+
+            if (trainargs.size() == 0) {
+                frontend_logger.log("Message format not recognized", "error");
+                break;
+            }
+
+            JasmineGraphServer *jasmineServer = new JasmineGraphServer();
+            jasmineServer->initiateFiles(graphID, trainData);
+            jasmineServer->initiateMerge(graphID, trainData, sqlite);
+
         } else if (line.compare(TRAIN) == 0) {
             string message = "Available main flags:\n";
             int result_wr = write(connFd, message.c_str(), message.size());
@@ -1068,23 +1170,27 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 frontend_logger.log("Error writing to socket", "error");
             }
 
+            write(connFd, flags.c_str(), flags.size());
+            write(connFd, "\n", 2);
+            message = "Send --<flag1> <value1> --<flag2> <value2> .. \n";
+            write(connFd, message.c_str(), message.size());
+
             char train_data[300];
             bzero(train_data, 301);
-
             read(connFd, train_data, 300);
 
             string trainData(train_data);
-
-            Utils utils;
             trainData = utils.trim_copy(trainData, " \f\n\r\t\v");
             frontend_logger.log("Data received: " + trainData, "info");
 
-            std::vector <std::string> trainargs = Utils::split(trainData, ' ');
+            std::vector<std::string> trainargs = Utils::split(trainData, ' ');
             std::vector<std::string>::iterator itr = std::find(trainargs.begin(), trainargs.end(), "--graph_id");
             std::string graphID;
+            std::string modelID;
             if (itr != trainargs.cend()) {
                 int index = std::distance(trainargs.begin(), itr);
                 graphID = trainargs[index + 1];
+
             } else {
                 frontend_logger.log("graph_id should be given as an argument", "error");
                 continue;
@@ -1096,21 +1202,39 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             }
 
             if (!JasmineGraphFrontEnd::isGraphActive(graphID, sqlite)) {
-                string error_message = "Graph is not in the active status";
-                frontend_logger.log(error_message, "error");
-                result_wr = write(connFd, error_message.c_str(), error_message.length());
-                if (result_wr < 0) {
-                    frontend_logger.log("Error writing to socket", "error");
-                }
-                result_wr = write(connFd, "\r\n", 2);
-                if (result_wr < 0) {
-                    frontend_logger.log("Error writing to socket", "error");
-                }
-                continue;
+            string error_message = "Graph is not in the active status";
+            frontend_logger.log(error_message, "error");
+            result_wr = write(connFd, error_message.c_str(), error_message.length());
+            if (result_wr < 0) {
+                frontend_logger.log("Error writing to socket", "error");
+            }
+            result_wr = write(connFd, "\r\n", 2);
+            if (result_wr < 0) {
+                frontend_logger.log("Error writing to socket", "error");
+            }
+            continue;
             }
 
-            JasminGraphTrainingInitiator *jasminGraphTrainingInitiator = new JasminGraphTrainingInitiator();
-            jasminGraphTrainingInitiator->initiateTrainingLocally(graphID, trainData);
+            Utils utils;
+            std::string federatedEnabled = utils.getJasmineGraphProperty("org.jasminegraph.federated.enabled");
+
+            if (federatedEnabled=="true"){
+                JasmineGraphServer *jasmineServer = new JasmineGraphServer();
+                if (utils.getJasmineGraphProperty("org.jasminegraph.fl.org.training") == "true") {
+                    jasmineServer->initiateOrgCommunication(graphID, trainData, sqlite);
+
+                } else {
+                    jasmineServer->initiateCommunication(graphID, trainData, sqlite);
+
+                }
+
+            }else{
+
+                JasminGraphTrainingInitiator *jasminGraphTrainingInitiator = new JasminGraphTrainingInitiator();
+                jasminGraphTrainingInitiator->initiateTrainingLocally(graphID,trainData);
+
+            }
+
         } else if (line.compare(IN_DEGREE) == 0) {
             frontend_logger.log("Calculating In Degree Distribution", "info");
 
@@ -2148,3 +2272,31 @@ void JasmineGraphServer::egoNet(std::string graphID) {
     }
 }
 
+
+
+bool JasmineGraphFrontEnd::modelExists(string path, SQLiteDBInterface sqlite) {
+    bool result = true;
+    string stmt =
+            "SELECT COUNT( * ) FROM model WHERE upload_path LIKE '" + path + "' AND model_status_idmodel_status = '" +
+            to_string(Conts::GRAPH_STATUS::OPERATIONAL) + "';";
+    std::vector<vector<pair<string, string>>> v = sqlite.runSelect(stmt);
+    int count = std::stoi(v[0][0].second);
+    if (count == 0) {
+        result = false;
+    }
+    return result;
+}
+
+bool JasmineGraphFrontEnd::modelExistsByID(string id, SQLiteDBInterface sqlite) {
+    bool result = true;
+    string stmt = "SELECT COUNT( * ) FROM model WHERE idmodel = " + id + " and model_status_idmodel_status = " +
+                  to_string(Conts::GRAPH_STATUS::OPERATIONAL);
+    std::vector<vector<pair<string, string>>> v = sqlite.runSelect(stmt);
+    int count = std::stoi(v[0][0].second);
+
+    if (count == 0) {
+        result = false;
+    }
+
+    return result;
+}

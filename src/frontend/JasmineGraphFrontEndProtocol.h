@@ -82,6 +82,8 @@ extern const string COMMAND;
 extern const string PRIORITY;
 extern const string STOP_STREAM_KAFKA;
 
+extern const string ADMDL;
+extern const string MERGE;
 
 class JasminGraphFrontEndProtocol {
     //Note that this protocol do not need a handshake session since the communication in most of the time is conducted

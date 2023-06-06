@@ -85,12 +85,21 @@ class Utils
 
     void unzipDirectory(std::string filePath);
 
+    void copyToDirectory(std::string currentPath, std::string copyPath);
+
     static std::string getHostID(std::string hostName, SQLiteDBInterface sqlite);
 
     static void assignPartitionsToWorkers(int numberOfWorkers, SQLiteDBInterface sqlite);
 
     static void updateSLAInformation(PerformanceSQLiteDBInterface perfSqlite, std::string graphId, int partitionCount,
             long newSlaValue, std::string command, std::string category);
+
+    void editFlagZero(std::string flagPath);
+
+    void editFlagOne(std::string flagPath);
+
+    std::string checkFlag(std::string flagPath);
+
 };
 
 #endif //JASMINEGRAPH_UTILS_H
