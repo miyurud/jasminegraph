@@ -3088,8 +3088,6 @@ void JasmineGraphServer::initiateCommunication(std::string graphID, std::string 
         count++;
     }
 
-    std::cout << "Federated learning commands sent" <<std::endl;
-
 }
 
 void JasmineGraphServer::initiateOrgCommunication(std::string graphID, std::string trainingArgs, SQLiteDBInterface sqlite) {
@@ -3187,7 +3185,6 @@ void JasmineGraphServer::initiateMerge(std::string graphID, std::string training
     std::map<std::string, JasmineGraphServer::workerPartition> graphPartitionedHosts = this->getWorkerPartitions(
             graphID);
     int partition_count = graphPartitionedHosts.size();
-    std::cout << "trainingArgs " << trainingArgs << " " << std::endl;
 
     std::cout << partition_count << std::endl;
     std::thread *workerThreads = new std::thread[partition_count+1];

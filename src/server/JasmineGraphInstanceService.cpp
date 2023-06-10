@@ -692,8 +692,6 @@ void *instanceservicesession(void *dummyPt) {
                 }
                 string workerPartitionID = workerSocketPair[2];
 
-                instance_logger.log("Worker partition ID " + workerPartitionID, "info");
-
                 JasmineGraphHashMapCentralStore centralDB;
 
                 std::map<std::string, JasmineGraphHashMapCentralStore>::iterator itcen;
@@ -3217,16 +3215,8 @@ void JasmineGraphInstanceService::createPartitionFiles(std::string graphID, std:
         outputFilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.trainedmodelfolder") + "/" +
                          graphID + "_centralstore_" + partitionID;
 
-        std::ifstream infile(inputFilePath);
-        int a, b;
-        while (infile >> a >> b)
-        {
-            instance_logger.log(to_string(a) + " " + to_string(b), "info");
-
-        }
     }
     std::map<int, std::vector<int>> partEdgeMap = hashMapLocalStore->getEdgeHashMap(inputFilePath);
-    instance_logger.log("partEdgeMap " + to_string(partEdgeMap.empty()), "info");
 
         if (!partEdgeMap.empty()) {
         std::ofstream localFile(outputFilePath);
@@ -3702,7 +3692,7 @@ map<long, long> calculateOutDegreeDist(string graphID, string partitionID, int s
                                                                      graphDBMapLocalStores,
                                                                      graphDBMapCentralStores);
 
-    instance_logger.log("degreeDistribution size " + to_string(degreeDistribution.size()), "info");
+    instance_logger.log("degreeDistribution of graph " + to_string(graphID) + " size " + to_string(degreeDistribution.size()), "info");
 
     string instanceDataFolderLocation = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
     string attributeFilePart = instanceDataFolderLocation + "/" + graphID + "_odd_" + partitionID;
@@ -3746,7 +3736,6 @@ map<long, long> calculateLocalOutDegreeDist(string graphID, string partitionID,
     map<long, long> degreeDistributionLocal = graphDB.getOutDegreeDistributionHashMap();
     std::map<long, long>::iterator itlocal;
 
-    //map<long, long> degreeDistributionCentral = centralDB.getOutDegreeDistributionHashMap();
     std::map<long, unordered_set<long>>::iterator itcentral;
 
     map<long, long> degreeDistributionCentralTotal;
@@ -3768,7 +3757,7 @@ map<long, long> calculateLocalOutDegreeDist(string graphID, string partitionID,
     auto t_end = std::chrono::high_resolution_clock::now();
     double elapsed_time_ms = std::chrono::duration<double, std::milli>(t_end-t_start).count();
 
-    instance_logger.log("Elapsed time odd -----------------: " + to_string(elapsed_time_ms), "info");
+    instance_logger.log("Elapsed time out degree distribution -----------------: " + to_string(elapsed_time_ms), "info");
     return degreeDistributionLocal;
 }
 
@@ -3815,9 +3804,6 @@ map<long, long> calculateInDegreeDist(string graphID, string partitionID, int se
         }
         string workerPartitionID = workerSocketPair[2];
 
-
-        instance_logger.log("Worker partition ID " + workerPartitionID, "info");
-
         JasmineGraphHashMapCentralStore centralDB;
 
         std::map<std::string, JasmineGraphHashMapCentralStore>::iterator itcen;
@@ -3850,7 +3836,7 @@ map<long, long> calculateInDegreeDist(string graphID, string partitionID, int se
     auto t_end = std::chrono::high_resolution_clock::now();
     double elapsed_time_ms = std::chrono::duration<double, std::milli>(t_end-t_start).count();
 
-    instance_logger.log("Elapsed time idd -----------------: " + to_string(elapsed_time_ms), "info");
+    instance_logger.log("Elapsed time in degree distribution -----------------: " + to_string(elapsed_time_ms), "info");
 
     instance_logger.log("In Degree Dist size: " + to_string(degreeDistribution.size()), "info");
 
