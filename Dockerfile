@@ -4,21 +4,21 @@ RUN mkdir software
 WORKDIR /home/ubuntu/software
 
 RUN apt-get update
-RUN apt-get install -y apt-transport-https
+RUN apt-get install --no-install-recommends -y apt-transport-https
 RUN apt-get update
-RUN apt-get install -y curl gnupg2 ca-certificates software-properties-common nlohmann-json3-dev
-RUN apt-get install -y git cmake build-essential sqlite3 libsqlite3-dev libssl-dev librdkafka-dev libboost-all-dev libtool libxerces-c-dev libflatbuffers-dev python3-pip
+RUN apt-get install --no-install-recommends -y curl gnupg2 ca-certificates software-properties-common nlohmann-json3-dev
+RUN apt-get install --no-install-recommends -y git cmake build-essential sqlite3 libsqlite3-dev libssl-dev librdkafka-dev libboost-all-dev libtool libxerces-c-dev libflatbuffers-dev python3-pip
 RUN add-apt-repository ppa:deadsnakes/ppa
-RUN apt-get install -y python3.5-dev
-RUN apt-get install -y libjsoncpp-dev libspdlog-dev pigz
+RUN apt-get install --no-install-recommends -y python3.5-dev
+RUN apt-get install --no-install-recommends -y libjsoncpp-dev libspdlog-dev pigz
 
 RUN curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
 RUN add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
 RUN apt-get update
-RUN apt-get install -y docker-ce-cli
+RUN apt-get install --no-install-recommends -y docker-ce-cli
 
-RUN git clone https://github.com/chinthakarukshan/metis.git
-RUN git clone https://github.com/mfontanini/cppkafka.git
+RUN git clone --single-branch --depth 1 https://github.com/chinthakarukshan/metis.git
+RUN git clone --single-branch --depth 1 https://github.com/mfontanini/cppkafka.git
 
 WORKDIR /home/ubuntu/software/metis
 RUN tar -xzf metis-5.1.0.tar.gz
