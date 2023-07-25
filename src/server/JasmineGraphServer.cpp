@@ -3654,7 +3654,7 @@ bool JasmineGraphServer::receiveGlobalWeights(std::string host, int port, std::s
         std::string length = "";
 
         for (int i=0; i< HEADER_LENGTH; i++) {
-            if (data[i] != NULL){
+            if (data[i]){
                 length += data[i];
             }
         }

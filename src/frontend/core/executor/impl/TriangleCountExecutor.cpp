@@ -561,6 +561,7 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
         triangleCount_logger.log("There was an error in the upload process and the response is :: " + response,
                             "error");
     }
+    return 0;
 }
 
 bool TriangleCountExecutor::proceedOrNot(std::set<string> partitionSet,int partitionId) {
@@ -586,19 +587,19 @@ bool TriangleCountExecutor::proceedOrNot(std::set<string> partitionSet,int parti
         }
     }
 
+    bool result;
     if (entryWithMinValue.first == partitionId) {
         int currentWeight = aggregateWeightMap[entryWithMinValue.first];
         currentWeight++;
         aggregateWeightMap[entryWithMinValue.first] = currentWeight;
         triangleCount_logger.log("###COMPOSITE### Aggregator Initiated : Partition ID: " + std::to_string(partitionId) + " Weight : " + std::to_string(currentWeight), "info");
-        return true;
+        result = true;
     } else {
-        return false;
+        result = false;
     }
 
-
-
     aggregateWeightMutex.unlock();
+    return result;
 }
 
 void TriangleCountExecutor::updateMap(int partitionId) {

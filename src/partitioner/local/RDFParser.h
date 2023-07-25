@@ -61,7 +61,7 @@ public:
 
     ~GetConfig();
 
-    void readConfigFile(std::string &, int id) throw(std::runtime_error);
+    void readConfigFile(std::string &, int id) /* throw(std::runtime_error) */;
 
 
     char *getOptionA() { return m_OptionA; };

@@ -74,7 +74,7 @@ bool JasmineGraphInstance::acknowledgeMaster(string masterHost, string workerIP,
 
     if (sockfd < 0) {
         std::cerr << "Cannot accept connection" << std::endl;
-        return 0;
+        return false;
     }
 
     if (masterHost.find('@') != std::string::npos) {
@@ -156,17 +156,18 @@ bool JasmineGraphInstance::acknowledgeMaster(string masterHost, string workerIP,
                 response = (data);
 
                 if (response.compare(JasmineGraphInstanceProtocol::UPDATE_DONE) == 0) {
-                    return 1;
+                    return true;
                 }
             }
 
             if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-                return 1;
+                return true;
             }
         }
 
-        return 0;
+        return false;
     }
+    return false;
 }
 
 void JasmineGraphInstance::startNmonAnalyzer(string enableNmon, int serverPort) {

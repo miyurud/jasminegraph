@@ -136,7 +136,7 @@ GetConfig::~GetConfig() {
  */
 
 void GetConfig::readConfigFile(string &configFile, int graphId)
-throw(std::runtime_error) {
+/* throw(std::runtime_error) */ {
 
     struct stat fileStatus;
     this->graphID = graphId;
