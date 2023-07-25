@@ -23,7 +23,7 @@ limitations under the License.
 class JasminGraphLinkPredictor {
 public:
 
-    int initiateLinkPrediction(std::string graphID, std::string path, std::string masterIP);
+    void initiateLinkPrediction(std::string graphID, std::string path, std::string masterIP);
 
     int sendQueryToWorker(std::string host, int port, int dataPort, int selectedHostPartitionsNo, std::string graphID,
                           std::string vertexCount,

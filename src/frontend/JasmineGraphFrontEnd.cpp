@@ -103,7 +103,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                             PerformanceSQLiteDBInterface perfSqlite, JobScheduler jobScheduler) {
     frontend_logger.log("Thread No: " + to_string(pthread_self()), "info");
     frontend_logger.log("Master IP: " + masterIP, "info");
-    char data[FRONTEND_DATA_LENGTH];
+    char data[FRONTEND_DATA_LENGTH+1];
     bzero(data, FRONTEND_DATA_LENGTH + 1);
     Utils utils;
     vector<Utils::worker> workerList = utils.getWorkerList(sqlite);
@@ -240,7 +240,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             }
 
             // We get the name and the path to graph as a pair separated by |.
-            char graph_data[FRONTEND_DATA_LENGTH];
+            char graph_data[FRONTEND_DATA_LENGTH+1];
             bzero(graph_data, FRONTEND_DATA_LENGTH + 1);
             string name = "";
             string path = "";
@@ -316,8 +316,8 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             }
 
             // We get the name and the path to graph as a pair separated by |.
-            char graph_data[FRONTEND_DATA_LENGTH];
-            char partition_count[FRONTEND_DATA_LENGTH];
+            char graph_data[FRONTEND_DATA_LENGTH+1];
+            char partition_count[FRONTEND_DATA_LENGTH + 1];
             bzero(graph_data, FRONTEND_DATA_LENGTH + 1);
             string name = "";
             string path = "";
@@ -405,7 +405,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
             write(connFd, "\r\n", 2);
 
-            char graph_data[FRONTEND_DATA_LENGTH];
+            char graph_data[FRONTEND_DATA_LENGTH + 1];
             bzero(graph_data, FRONTEND_DATA_LENGTH + 1);
             string name = "";
             string path = "";
@@ -503,7 +503,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 continue;
             }
 
-            char type[20];
+            char type[21];
             bzero(type, 21);
             read(connFd, type, 20);
             string graphType(type);
@@ -537,7 +537,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 loop = true;
                 continue;
             }
-            char graph_data[FRONTEND_DATA_LENGTH];
+            char graph_data[FRONTEND_DATA_LENGTH+1];
             bzero(graph_data, FRONTEND_DATA_LENGTH + 1);
             string name = "";
             string edgeListPath = "";
@@ -641,7 +641,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             }
 
             // Get user response.
-            char user_res[FRONTEND_DATA_LENGTH];
+            char user_res[FRONTEND_DATA_LENGTH + 1];
             bzero(user_res, FRONTEND_DATA_LENGTH + 1);
             read(connFd, user_res, FRONTEND_DATA_LENGTH);
             string user_res_s(user_res);
@@ -673,7 +673,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 }
 
                 // We get the file path here.
-                char file_path[FRONTEND_DATA_LENGTH];
+                char file_path[FRONTEND_DATA_LENGTH + 1];
                 bzero(file_path, FRONTEND_DATA_LENGTH + 1);
                 read(connFd, file_path, FRONTEND_DATA_LENGTH);
                 string file_path_s(file_path);
@@ -716,7 +716,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             }
 
             // We get the topic name here.
-            char topic_name[FRONTEND_DATA_LENGTH];
+            char topic_name[FRONTEND_DATA_LENGTH + 1];
             bzero(topic_name, FRONTEND_DATA_LENGTH + 1);
             read(connFd, topic_name, FRONTEND_DATA_LENGTH);
 
@@ -772,7 +772,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             }
 
             // We get the name and the path to graph as a pair separated by |.
-            char graph_id[FRONTEND_DATA_LENGTH];
+            char graph_id[FRONTEND_DATA_LENGTH + 1];
             bzero(graph_id, FRONTEND_DATA_LENGTH + 1);
             string name = "";
             string path = "";
@@ -832,7 +832,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             }
 
             // We get the name and the path to graph as a pair separated by |.
-            char graph_data[FRONTEND_DATA_LENGTH];
+            char graph_data[FRONTEND_DATA_LENGTH + 1];
             bzero(graph_data, FRONTEND_DATA_LENGTH + 1);
 
 
@@ -877,7 +877,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             }
 
             // We get the name and the path to graph as a pair separated by |.
-            char graph_id_data[300];
+            char graph_id_data[301];
             bzero(graph_id_data, 301);
             string name = "";
 
@@ -913,7 +913,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 }
 
                 // We get the name and the path to graph as a pair separated by |.
-                char priority_data[300];
+                char priority_data[301];
                 bzero(priority_data, 301);
 
                 read(connFd, priority_data, FRONTEND_DATA_LENGTH);
@@ -1015,7 +1015,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 frontend_logger.log("Error writing to socket", "error");
             }
 
-            char graph_id_data[300];
+            char graph_id_data[301];
             bzero(graph_id_data, 301);
             string name = "";
 
@@ -1064,7 +1064,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 frontend_logger.log("Error writing to socket", "error");
             }
 
-            char graph_id_data[300];
+            char graph_id_data[301];
             bzero(graph_id_data, 301);
             string name = "";
 
@@ -1117,7 +1117,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             message = "Send --<flag1> <value1> \n";
             write(connFd, message.c_str(), message.size());
 
-            char train_data[300];
+            char train_data[301];
             bzero(train_data, 301);
             read(connFd, train_data, 300);
 
@@ -1175,7 +1175,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             message = "Send --<flag1> <value1> --<flag2> <value2> .. \n";
             write(connFd, message.c_str(), message.size());
 
-            char train_data[300];
+            char train_data[301];
             bzero(train_data, 301);
             read(connFd, train_data, 300);
 
@@ -1251,7 +1251,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 continue;
             }
 
-            char graph_id[FRONTEND_DATA_LENGTH];
+            char graph_id[FRONTEND_DATA_LENGTH + 1];
             bzero(graph_id, FRONTEND_DATA_LENGTH + 1);
 
             read(connFd, graph_id, FRONTEND_DATA_LENGTH);
@@ -1293,7 +1293,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 continue;
             }
 
-            char graph_id[FRONTEND_DATA_LENGTH];
+            char graph_id[FRONTEND_DATA_LENGTH + 1];
             bzero(graph_id, FRONTEND_DATA_LENGTH + 1);
 
             read(connFd, graph_id, FRONTEND_DATA_LENGTH);
@@ -1335,7 +1335,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 continue;
             }
 
-            char page_rank_command[FRONTEND_DATA_LENGTH];
+            char page_rank_command[FRONTEND_DATA_LENGTH + 1];
             bzero(page_rank_command, FRONTEND_DATA_LENGTH + 1);
             string name = "";
             string path = "";
@@ -1402,7 +1402,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 continue;
             }
 
-            char graph_id[FRONTEND_DATA_LENGTH];
+            char graph_id[FRONTEND_DATA_LENGTH + 1];
             bzero(graph_id, FRONTEND_DATA_LENGTH + 1);
 
             read(connFd, graph_id, FRONTEND_DATA_LENGTH);
@@ -1444,7 +1444,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 continue;
             }
 
-            char graph_id[FRONTEND_DATA_LENGTH];
+            char graph_id[FRONTEND_DATA_LENGTH + 1];
             bzero(graph_id, FRONTEND_DATA_LENGTH + 1);
 
             read(connFd, graph_id, FRONTEND_DATA_LENGTH);
@@ -1480,7 +1480,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 frontend_logger.log("Error writing to socket", "error");
             }
 
-            char predict_data[300];
+            char predict_data[301];
             bzero(predict_data, 301);
             string graphID = "";
             string path = "";
@@ -1525,7 +1525,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 frontend_logger.log("Error writing to socket", "error");
             }
 
-            char worker_data[300];
+            char worker_data[301];
             bzero(worker_data, 301);
 
             read(connFd, worker_data, 300);
@@ -1569,7 +1569,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 frontend_logger.log("Error writing to socket", "error");
             }
 
-            char category[FRONTEND_DATA_LENGTH];
+            char category[FRONTEND_DATA_LENGTH + 1];
             bzero(category, FRONTEND_DATA_LENGTH + 1);
 
             read(connFd, category, FRONTEND_DATA_LENGTH);
@@ -1654,6 +1654,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
     }
     frontend_logger.log("Closing thread " + to_string(pthread_self()) + " and connection", "info");
     close(connFd);
+    return NULL;
 }
 
 JasmineGraphFrontEnd::JasmineGraphFrontEnd(SQLiteDBInterface db, PerformanceSQLiteDBInterface perfDb, std::string masterIP,
@@ -1982,7 +1983,7 @@ void JasmineGraphServer::pageRank(std::string graphID, double alpha, int iterati
         }
 
         int sockfd;
-        char data[300];
+        char data[301];
         bool loop = false;
         socklen_t len;
         struct sockaddr_in serv_addr;
@@ -2172,7 +2173,7 @@ void JasmineGraphServer::egoNet(std::string graphID) {
     workerList.pop_back();
 
     int sockfd;
-    char data[300];
+    char data[301];
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;

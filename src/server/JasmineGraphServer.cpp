@@ -36,12 +36,14 @@ void *runfrontend(void *dummyPt) {
     refToServer->frontend = new JasmineGraphFrontEnd(refToServer->sqlite, refToServer->performanceSqlite,
             refToServer->masterHost, refToServer->jobScheduler);
     refToServer->frontend->run();
+    return NULL;
 }
 
 void *runbackend(void *dummyPt) {
     JasmineGraphServer *refToServer = (JasmineGraphServer *) dummyPt;
     refToServer->backend = new JasmineGraphBackend(refToServer->sqlite, refToServer->numberOfWorkers);
     refToServer->backend->run();
+    return NULL;
 }
 
 
@@ -482,7 +484,7 @@ void JasmineGraphServer::resolveOperationalGraphs(){
         workerPort = std::stoi(j->second);
 
         int sockfd;
-        char data[300];
+        char data[301];
         bool loop = false;
         socklen_t len;
         struct sockaddr_in serv_addr;
@@ -650,7 +652,7 @@ void JasmineGraphServer::deleteNonOperationalGraphFragment(int graphID) {
     }
 }
 
-int JasmineGraphServer::shutdown_workers() {
+void JasmineGraphServer::shutdown_workers() {
     std::cout << "Shutting the workers down" << std::endl;
     std::vector<workers, std::allocator<workers>>::iterator mapIterator;
     for (mapIterator = hostWorkerMap.begin(); mapIterator < hostWorkerMap.end(); mapIterator++) {
@@ -660,7 +662,7 @@ int JasmineGraphServer::shutdown_workers() {
         std::cout << pthread_self() << " host : " << worker.hostname << " port : " << worker.port << " DPort : "
                   << worker.dataPort << std::endl;
         int sockfd;
-        char data[300];
+        char data[301];
         bool loop = false;
         socklen_t len;
         struct sockaddr_in serv_addr;
@@ -670,7 +672,7 @@ int JasmineGraphServer::shutdown_workers() {
 
         if (sockfd < 0) {
             std::cerr << "Cannot accept connection" << std::endl;
-            return 0;
+            return;
         }
 
         std::string host = worker.hostname;
@@ -823,7 +825,7 @@ bool JasmineGraphServer::batchUploadFile(std::string host, int port, int dataPor
     bool result = true;
     std::cout << pthread_self() << " host : " << host << " port : " << port << " DPort : " << dataPort << std::endl;
     int sockfd;
-    char data[300];
+    char data[301];
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
@@ -1020,7 +1022,7 @@ bool JasmineGraphServer::batchUploadCentralStore(std::string host, int port, int
                                                  std::string filePath, std::string masterIP) {
     Utils utils;
     int sockfd;
-    char data[300];
+    char data[301];
     struct sockaddr_in serv_addr;
     struct hostent *server;
 
@@ -1258,7 +1260,7 @@ bool JasmineGraphServer::batchUploadAttributeFile(std::string host, int port, in
                                                   std::string filePath, std::string masterIP) {
     Utils utils;
     int sockfd;
-    char data[300];
+    char data[301];
     struct sockaddr_in serv_addr;
     struct hostent *server;
 
@@ -1456,7 +1458,7 @@ bool JasmineGraphServer::batchUploadCentralAttributeFile(std::string host, int p
                                                          std::string filePath, std::string masterIP) {
     Utils utils;
     int sockfd;
-    char data[300];
+    char data[301];
     struct sockaddr_in serv_addr;
     struct hostent *server;
 
@@ -1654,7 +1656,7 @@ bool JasmineGraphServer::batchUploadCompositeCentralstoreFile(std::string host, 
                                                               std::string filePath, std::string masterIP) {
     Utils utils;
     int sockfd;
-    char data[300];
+    char data[301];
     struct sockaddr_in serv_addr;
     struct hostent *server;
 
@@ -1849,7 +1851,7 @@ bool JasmineGraphServer::sendFileThroughService(std::string host, int dataPort, 
                                                 std::string filePath, std::string masterIP) {
     Utils utils;
     int sockfd;
-    char data[300];
+    char data[301];
     socklen_t len;
     struct sockaddr_in serv_addr;
     struct hostent *server;
@@ -1858,7 +1860,7 @@ bool JasmineGraphServer::sendFileThroughService(std::string host, int dataPort, 
 
     if (sockfd < 0) {
         std::cerr << "Cannot accept connection" << std::endl;
-        return 0;
+        return false;
     }
 
     server = gethostbyname(host.c_str());
@@ -1895,7 +1897,7 @@ bool JasmineGraphServer::sendFileThroughService(std::string host, int dataPort, 
         if (fp == NULL) {
             //printf("Error opening file\n");
             close(sockfd);
-            return 0;
+            return false;
         }
 
         for (;;) {
@@ -1920,7 +1922,9 @@ bool JasmineGraphServer::sendFileThroughService(std::string host, int dataPort, 
 
         fclose(fp);
         close(sockfd);
+        return true;
     }
+    return false;
 }
 
 void JasmineGraphServer::copyArtifactsToWorkers(std::string workerPath, std::string artifactLocation,
@@ -2165,7 +2169,7 @@ int JasmineGraphServer::removeFragmentThroughService(string host, int port, stri
     Utils utils;
     std::cout << pthread_self() << " host : " << host << " port : " << port << std::endl;
     int sockfd;
-    char data[300];
+    char data[301];
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
@@ -2273,7 +2277,7 @@ int JasmineGraphServer::removePartitionThroughService(string host, int port, str
     Utils utils;
     std::cout << pthread_self() << " host : " << host << " port : " << port << std::endl;
     int sockfd;
-    char data[300];
+    char data[301];
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
@@ -2649,7 +2653,7 @@ void JasmineGraphServer::inDegreeDistribution(std::string graphID) {
     workerList.pop_back();
 
     int sockfd;
-    char data[300];
+    char data[301];
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
@@ -2762,7 +2766,7 @@ void JasmineGraphServer::outDegreeDistribution(std::string graphID) {
     workerList.pop_back();
 
     int sockfd;
-    char data[300];
+    char data[301];
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
@@ -2892,7 +2896,7 @@ void JasmineGraphServer::duplicateCentralStore(std::string graphID) {
         }
 
         int sockfd;
-        char data[300];
+        char data[301];
         bool loop = false;
         socklen_t len;
         struct sockaddr_in serv_addr;
