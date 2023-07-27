@@ -3270,14 +3270,27 @@ bool JasmineGraphServer::initiateTrain(std::string host, int port, int dataPort,
         string server_host = utils.getJasmineGraphProperty("org.jasminegraph.server.host");
         write(sockfd, server_host.c_str(), server_host.size());
         server_logger.log("Sent : " + server_host, "info");
-
-        write(sockfd, JasmineGraphInstanceProtocol::INITIATE_FILES.c_str(),
-              JasmineGraphInstanceProtocol::INITIATE_FILES.size());
-        server_logger.log("Sent : " + JasmineGraphInstanceProtocol::INITIATE_FILES, "info");
-        bzero(data, FED_DATA_LENGTH);
-        read(sockfd, data, FED_DATA_LENGTH);
+        bzero(data, 301);
+        read(sockfd, data, 300);
         response = (data);
         response = utils.trim_copy(response, " \f\n\r\t\v");
+
+        if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
+            server_logger.log("Received : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
+        }
+
+        write(sockfd, JasmineGraphInstanceProtocol::INITIATE_FILES.c_str(),
+          JasmineGraphInstanceProtocol::INITIATE_FILES.size());
+        server_logger.log("Sent : " + JasmineGraphInstanceProtocol::INITIATE_FILES, "info");
+        bzero(data, FED_DATA_LENGTH);
+        server_logger.log("AAAAAAAAAA : ", "info");
+
+        read(sockfd, data, FED_DATA_LENGTH);
+        server_logger.log("AAAAAAAAAA : 2", "info");
+
+        response = (data);
+        response = utils.trim_copy(response, " \f\n\r\t\v");
+        server_logger.log("Sent : " + response, "info");
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
             server_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
             write(sockfd, (trainingArgs).c_str(), (trainingArgs).size());
@@ -3290,7 +3303,10 @@ bool JasmineGraphServer::initiateTrain(std::string host, int port, int dataPort,
                         "error");
     }
 
+    server_logger.log("AAAAAAAAAA : 3", "info");
     close(sockfd);
+    server_logger.log("AAAAAAAAAA : 4", "info");
+
     return 0;
 }
 
@@ -3753,6 +3769,15 @@ bool JasmineGraphServer::mergeFiles(std::string host, int port, int dataPort,std
         string server_host = utils.getJasmineGraphProperty("org.jasminegraph.server.host");
         write(sockfd, server_host.c_str(), server_host.size());
         server_logger.log("Sent merge : " + server_host, "info");
+
+        bzero(data, 301);
+        read(sockfd, data, 300);
+        response = (data);
+        response = utils.trim_copy(response, " \f\n\r\t\v");
+
+        if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
+            server_logger.log("Received : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
+        }
 
         write(sockfd, JasmineGraphInstanceProtocol::MERGE_FILES.c_str(),
               JasmineGraphInstanceProtocol::MERGE_FILES.size());
