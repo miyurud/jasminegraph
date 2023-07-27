@@ -53,8 +53,6 @@ target_link_libraries(JasmineGraph sqlite3)
 target_link_libraries(JasmineGraph pthread)
 target_link_libraries(JasmineGraph rdkafka)
 target_link_libraries(JasmineGraph Threads::Threads)
-#include_directories("$ENV{HOME}/software/cppkafka/include")
-
 target_link_libraries(JasmineGraph /usr/lib/x86_64-linux-gnu/libxerces-c.so)
 target_link_libraries(JasmineGraph /usr/lib/x86_64-linux-gnu/libflatbuffers.a)
 target_link_libraries(JasmineGraph /usr/lib/x86_64-linux-gnu/libjsoncpp.a)
