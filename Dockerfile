@@ -17,15 +17,14 @@ RUN add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubunt
 RUN apt-get update
 RUN apt-get install --no-install-recommends -y docker-ce-cli
 
-RUN git clone --single-branch --depth 1 https://github.com/chinthakarukshan/metis.git
 RUN git clone --single-branch --depth 1 https://github.com/mfontanini/cppkafka.git
 
-WORKDIR /home/ubuntu/software/metis
-RUN tar -xzf metis-5.1.0.tar.gz
-WORKDIR /home/ubuntu/software/metis/metis-5.1.0
-RUN sed -i '/#define IDXTYPEWIDTH 32/c\#define IDXTYPEWIDTH 64' include/metis.h
-RUN make config shared=1 cc=gcc
-RUN make -j4 install
+WORKDIR /home/ubuntu/software
+RUN git clone --single-branch --depth 1 --branch v5.1.1-DistDGL-v0.5 https://github.com/KarypisLab/METIS.git
+WORKDIR /home/ubuntu/software/METIS
+RUN git submodule update --init
+RUN make config shared=1 cc=gcc prefix=/usr/local
+RUN make install
 
 RUN mkdir /home/ubuntu/software/cppkafka/build
 WORKDIR /home/ubuntu/software/cppkafka/build
