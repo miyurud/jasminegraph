@@ -327,7 +327,7 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
     } else if (profile == "docker") {
         std::string image_tag;
         char *env_testing = getenv("TESTING");
-        if (env_testing == NULL || strcasecmp(env_testing, "true")) {
+        if (env_testing == NULL || strcasecmp(env_testing, "true") != 0) {
             image_tag = "latest";
         } else {
             image_tag = "test";

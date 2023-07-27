@@ -587,15 +587,13 @@ bool TriangleCountExecutor::proceedOrNot(std::set<string> partitionSet,int parti
         }
     }
 
-    bool result;
+    bool result = false;
     if (entryWithMinValue.first == partitionId) {
         int currentWeight = aggregateWeightMap[entryWithMinValue.first];
         currentWeight++;
         aggregateWeightMap[entryWithMinValue.first] = currentWeight;
         triangleCount_logger.log("###COMPOSITE### Aggregator Initiated : Partition ID: " + std::to_string(partitionId) + " Weight : " + std::to_string(currentWeight), "info");
         result = true;
-    } else {
-        result = false;
     }
 
     aggregateWeightMutex.unlock();
