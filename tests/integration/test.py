@@ -13,6 +13,9 @@ limitations under the License.
 
 import sys
 import socket
+import logging
+
+logging.getLogger().setLevel(logging.INFO)
 
 HOST = '127.0.0.1'
 PORT = 7777 # The port used by the server
@@ -44,7 +47,7 @@ def expect_response(sock, expected):
     data = recv_all(sock, len(expected))
     print(data.decode('utf-8'), end='')
     if data != expected:
-        print(f'Output mismatch\nexpected : {expected}\nreceived : {data}', file=sys.stderr)
+        logging.warning(f'Output mismatch\nexpected : {expected}\nreceived : {data}')
         passedAll = False
         return False
     return True
@@ -56,7 +59,8 @@ def send_and_expect_response(sock, testName, send, expected, exitOnFail=False):
     if not expect_response(sock, expected + LINE_END):
         failedTests.append(testName)
         if exitOnFail:
-            print('\nFailed some tests,', file=sys.stderr)
+            print()
+            logging.fatal('Failed some tests,', file=sys.stderr)
             print(*failedTests, sep='\n', file=sys.stderr)
             sys.exit(1)
 
@@ -66,41 +70,52 @@ failedTests = []
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
     sock.connect((HOST, PORT))
 
-    print("\nTesting lst")
+    print()
+    logging.info("Testing lst")
     send_and_expect_response(sock, 'Initial lst', LIST, EMPTY)
 
-    print("\nTesting adgr")
+    print()
+    logging.info("Testing adgr")
     send_and_expect_response(sock, 'adgr', ADGR, SEND, exitOnFail=True)
     send_and_expect_response(sock, 'adgr', b'powergrid|/var/tmp/data/powergrid.dl', DONE, exitOnFail=True)
 
-    print("\nTesting lst after adgr")
+    print()
+    logging.info("Testing lst after adgr")
     send_and_expect_response(sock, "lst after adgr", LIST, b'|1|powergrid|/var/tmp/data/powergrid.dl|op|')
 
-    print("\nTesting ecnt")
+    print()
+    logging.info("Testing ecnt")
     send_and_expect_response(sock, "ecnt", ECNT, b'graphid-send')
     send_and_expect_response(sock, "ecnt", b'1', b'6594')
 
-    print("\nTesting vcnt")
+    print()
+    logging.info("Testing vcnt")
     send_and_expect_response(sock, "vcnt", VCNT, b'graphid-send')
     send_and_expect_response(sock, "vcnt", b'1', b'4941')
 
-    print("\nTesting trian")
+    print()
+    logging.info("Testing trian")
     send_and_expect_response(sock, "trian", TRIAN, b'grap', exitOnFail=True)
     send_and_expect_response(sock, "trian", b'1', b'priority(>=1)', exitOnFail=True)
     send_and_expect_response(sock, "trian", b'1', b'651')
 
-    print("\nTesting rmgr")
+    print()
+    logging.info("Testing rmgr")
     send_and_expect_response(sock, 'rmgr', RMGR, SEND)
     send_and_expect_response(sock, 'rmgr', b'1', DONE)
 
-    print("\nTesting lst after rmgr")
+    print()
+    logging.info("Testing lst after rmgr")
     send_and_expect_response(sock, 'lst after rmgr', LIST, EMPTY)
 
-    print("\nShutting down")
+    print()
+    logging.info("Shutting down")
     sock.sendall(SHDN + LINE_END)
 
     if passedAll:
-        print('\nPassed all tests')
+        print()
+        logging.info('Passed all tests')
     else:
-        print('\nFailed some tests', file=sys.stderr)
+        print()
+        logging.critical('Failed some tests')
         print(*failedTests, sep='\n', file=sys.stderr)
