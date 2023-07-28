@@ -504,9 +504,9 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 continue;
             }
 
-            char type[21];
-            bzero(type, 21);
-            read(connFd, type, 20);
+            char type[FRONTEND_GRAPH_TYPE_LENGTH + 1];
+            bzero(type, FRONTEND_GRAPH_TYPE_LENGTH + 1);
+            read(connFd, type, FRONTEND_GRAPH_TYPE_LENGTH);
             string graphType(type);
             graphType = utils.trim_copy(graphType, " \f\n\r\t\v");
 
