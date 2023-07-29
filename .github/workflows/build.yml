@@ -23,3 +23,7 @@ jobs:
     - name: Build
       # Build JasmineGraph docker image
       run: docker build -t jasminegraph .
+    - name: Run Integration Tests
+      run: |
+        chmod +x test-docker.sh
+        ./test-docker.sh

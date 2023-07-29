@@ -68,19 +68,11 @@ std::vector<std::string> Utils::getFileContent(std::string file) {
     ifstream in(file);
 
     std::string str;
-    //map<std::string, std::string>* result = new map<std::string, std::string>();
     vector<std::string> *vec = new vector<std::string>();
     while (std::getline(in, str)) {
-        // output the line
-        //std::cout << str << std::endl;
-
         // now we loop back and get the next line in 'str'
 
-        //if (str.length() > 0 && !(str.rfind("#", 0) == 0)) {
         if (str.length() > 0) {
-            //std::vector<std::string> vec = split(str, '=');
-            //std::cout << vec.size() << std::endl;
-            //result->insert(std::pair<std::string, std::string>(vec.at(0), vec.at(1)));
             vec->insert(vec->begin(), str);
         }
     }
@@ -220,9 +212,12 @@ std::vector<std::string> Utils::getListOfFilesInDirectory(const std::string dirN
         }
         pclose(input);
         if (!result.empty()) {
-            std::vector<std::string> vec = split(result, '\r\n');
+            std::vector<std::string> vec = split(result, '\n');
             for(std::vector<std::string>::iterator it = vec.begin(); it != vec.end(); ++it){
                 std::string line = it->c_str();
+                if (line.back() == '\r') {
+                    line.pop_back();
+                }
                 if (line.rfind("-", 0) == 0) {
                     std::string file = line.substr(line.find_last_of(' ') + 1);
                     results.push_back(file);

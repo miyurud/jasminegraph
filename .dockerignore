@@ -1,0 +1,14 @@
+tests
+metadb
+performancedb
+docs
+logs
+.git
+.github
+.vscode
+.idea
+.dockerignore
+.gitignore
+test-docker.sh
+README.md
+LICENSE

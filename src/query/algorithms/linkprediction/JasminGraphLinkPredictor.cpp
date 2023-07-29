@@ -17,7 +17,7 @@ limitations under the License.
 
 Logger predictor_logger;
 
-int JasminGraphLinkPredictor::initiateLinkPrediction(std::string graphID, std::string path, std::string masterIP) {
+void JasminGraphLinkPredictor::initiateLinkPrediction(std::string graphID, std::string path, std::string masterIP) {
 
     JasmineGraphServer *jasmineServer = new JasmineGraphServer();
     std::map<std::string, JasmineGraphServer::workerPartitions> graphPartitionedHosts = jasmineServer->getGraphPartitionedHosts(
@@ -88,7 +88,7 @@ int JasminGraphLinkPredictor::sendQueryToWorker(std::string host, int port, int 
     bool result = true;
     std::cout << pthread_self() << " host : " << host << " port : " << port << " DPort : " << dataPort << std::endl;
     int sockfd;
-    char data[300];
+    char data[301];
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;

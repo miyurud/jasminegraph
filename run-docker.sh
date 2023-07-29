@@ -69,6 +69,7 @@ else
     fi
 fi
 
+export LD_LIBRARY_PATH=/home/ubuntu/software/METIS/build/libmetis
 if [ $MODE -eq 1 ] ;
 then
     ./JasmineGraph "docker" $MODE $MASTERIP $WORKERS $WORKERIP $ENABLE_NMON

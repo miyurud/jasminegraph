@@ -297,7 +297,7 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
                                              std::string masterIP,
                                              int uniqueId, bool isCompositeAggregation, int threadPriority) {
     int sockfd;
-    char data[300];
+    char data[301];
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
@@ -561,6 +561,7 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
         triangleCount_logger.log("There was an error in the upload process and the response is :: " + response,
                             "error");
     }
+    return 0;
 }
 
 bool TriangleCountExecutor::proceedOrNot(std::set<string> partitionSet,int partitionId) {
@@ -586,22 +587,20 @@ bool TriangleCountExecutor::proceedOrNot(std::set<string> partitionSet,int parti
         }
     }
 
+    bool result = false;
     if (entryWithMinValue.first == partitionId) {
         int currentWeight = aggregateWeightMap[entryWithMinValue.first];
         currentWeight++;
         aggregateWeightMap[entryWithMinValue.first] = currentWeight;
         triangleCount_logger.log("###COMPOSITE### Aggregator Initiated : Partition ID: " + std::to_string(partitionId) + " Weight : " + std::to_string(currentWeight), "info");
-        return true;
-    } else {
-        return false;
+        result = true;
     }
 
-
-
     aggregateWeightMutex.unlock();
+    return result;
 }
 
-bool TriangleCountExecutor::updateMap(int partitionId) {
+void TriangleCountExecutor::updateMap(int partitionId) {
     const std::lock_guard<std::mutex> lock(aggregateWeightMutex);
 
     int currentWeight = aggregateWeightMap[partitionId];
@@ -792,7 +791,7 @@ string TriangleCountExecutor::isFileAccessibleToWorker(std::string graphId, std:
                                                        std::string masterIP, std::string fileType,
                                                        std::string fileName) {
     int sockfd;
-    char data[300];
+    char data[301];
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
@@ -936,7 +935,7 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
                                                                          std::string aggregatorDataPort,
                                                                          std::string fileName, std::string masterIP) {
     int sockfd;
-    char data[300];
+    char data[301];
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
@@ -1127,7 +1126,7 @@ TriangleCountExecutor::countCompositeCentralStoreTriangles(std::string aggregato
                                                            std::string masterIP,
                                                            std::string availableFileList, int threadPriority) {
     int sockfd;
-    char data[300];
+    char data[301];
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
@@ -1240,8 +1239,8 @@ TriangleCountExecutor::countCompositeCentralStoreTriangles(std::string aggregato
                     std::string chunk = chunksVector.at(loopCount);
                     write(sockfd, chunk.c_str(), chunk.size());
                 } else {
-                    bzero(data, INSTANCE_DATA_LENGTH);
-                    read(sockfd, data, INSTANCE_DATA_LENGTH);
+                    bzero(data, 301);
+                    read(sockfd, data, 300);
                     string chunkStatus = (data);
                     std::string chunk = chunksVector.at(loopCount);
                     write(sockfd, chunk.c_str(), chunk.size());
@@ -1328,7 +1327,7 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
                                                                 std::string aggregatorDataPort, int graphId,
                                                                 int partitionId, std::string masterIP) {
     int sockfd;
-    char data[300];
+    char data[301];
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
@@ -1520,7 +1519,7 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorH
                                                          std::string graphId,
                                                          std::string masterIP, int threadPriority) {
     int sockfd;
-    char data[300];
+    char data[301];
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;

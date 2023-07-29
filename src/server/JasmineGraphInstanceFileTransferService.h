@@ -37,7 +37,7 @@ class JasmineGraphInstanceFileTransferService {
 public:
     JasmineGraphInstanceFileTransferService();
 
-    int run(int dataPort);
+    void run(int dataPort);
 
 };
 
