@@ -3,7 +3,8 @@ from __future__ import print_function
 
 from layers import Layer
 
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
 flags = tf.app.flags
 FLAGS = flags.FLAGS
 

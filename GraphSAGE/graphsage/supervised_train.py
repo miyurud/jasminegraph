@@ -3,7 +3,7 @@ from __future__ import print_function
 
 import os
 import time
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 import numpy as np
 import sklearn
 from sklearn import metrics
@@ -16,6 +16,7 @@ from utils import preprocess_data
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 
+tf.disable_v2_behavior()
 # Set random seed
 seed = 123
 np.random.seed(seed)
@@ -25,7 +26,7 @@ tf.set_random_seed(seed)
 flags = tf.app.flags
 FLAGS = flags.FLAGS
 
-tf.app.flags.DEFINE_boolean('log_device_placement', False,
+flags.DEFINE_boolean('log_device_placement', False,
                             """Whether to log device placement.""")
 #core params..
 flags.DEFINE_string('model', 'graphsage_mean', 'model names. See README for possible values.')
