@@ -27,11 +27,12 @@ int SQLiteDBInterface::init() {
         return (-1);
     } else {
         db_logger.log("Database opened successfully", "info");
+        return 0;
     }
 }
 
 int SQLiteDBInterface::finalize() {
-    sqlite3_close(database);
+    return sqlite3_close(database);
 }
 
 SQLiteDBInterface::SQLiteDBInterface() {
@@ -70,12 +71,14 @@ vector<vector<pair<string, string> >> SQLiteDBInterface::runSelect(std::string q
 }
 
 // This function inserts a new row to the DB and returns the last inserted row id
+// returns -1 on error
 int SQLiteDBInterface::runInsert(std::string query) {
     char *zErrMsg = 0;
     int rc = sqlite3_exec(database, query.c_str(), NULL, NULL, &zErrMsg);
     if (rc != SQLITE_OK) {
         db_logger.log("SQL Error: " + string(zErrMsg) + " " + query, "error");
         sqlite3_free(zErrMsg);
+        return -1;
     } else {
         db_logger.log("Insert operation done successfully", "info");
         vector<vector<pair<string, string>>> dbResults;
@@ -86,6 +89,7 @@ int SQLiteDBInterface::runInsert(std::string query) {
         if (rc2 != SQLITE_OK) {
             db_logger.log("SQL Error: " + string(zErrMsg) + " " + query, "error");
             sqlite3_free(zErrMsg);
+            return -1;
         } else {
             return std::stoi(dbResults[0][0].second);
         }

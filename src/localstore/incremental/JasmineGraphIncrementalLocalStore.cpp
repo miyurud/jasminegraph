@@ -45,7 +45,7 @@ std::pair<std::string, unsigned int> JasmineGraphIncrementalLocalStore::getIDs(s
     }
 }
 
-std::string JasmineGraphIncrementalLocalStore::addEdgeFromString(std::string edgeString) {
+void JasmineGraphIncrementalLocalStore::addEdgeFromString(std::string edgeString) {
     try {
         auto edgeJson = json::parse(edgeString);
 
@@ -57,7 +57,7 @@ std::string JasmineGraphIncrementalLocalStore::addEdgeFromString(std::string edg
 
         RelationBlock* newRelation = this->nm->addEdge({sId, dId});
         if (!newRelation) {
-            return "";
+            return;
         }
         char value[PropertyLink::MAX_VALUE_SIZE] = {};
 

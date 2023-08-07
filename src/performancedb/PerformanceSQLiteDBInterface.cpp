@@ -27,11 +27,12 @@ int PerformanceSQLiteDBInterface::init() {
         return (-1);
     } else {
         perfdb_logger.log("Database opened successfully", "info");
+        return 0;
     }
 }
 
 int PerformanceSQLiteDBInterface::finalize() {
-    sqlite3_close(database);
+    return sqlite3_close(database);
 }
 
 PerformanceSQLiteDBInterface::PerformanceSQLiteDBInterface() {
@@ -76,6 +77,7 @@ int PerformanceSQLiteDBInterface::runInsert(std::string query) {
     if (rc != SQLITE_OK) {
         perfdb_logger.log("SQL Error: " + string(zErrMsg), "error");
         sqlite3_free(zErrMsg);
+        return -1;
     } else {
         perfdb_logger.log("Insert operation done successfully", "info");
         vector<vector<pair<string, string>>> dbResults;
@@ -86,6 +88,7 @@ int PerformanceSQLiteDBInterface::runInsert(std::string query) {
         if (rc2 != SQLITE_OK) {
             fprintf(stderr, "SQL error: %s\n", zErrMsg);
             sqlite3_free(zErrMsg);
+            return -1;
         } else {
             return std::stoi(dbResults[0][0].second);
         }

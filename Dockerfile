@@ -7,6 +7,7 @@ RUN apt-get update
 RUN apt-get install --no-install-recommends -y apt-transport-https
 RUN apt-get update
 RUN apt-get install --no-install-recommends -y curl gnupg2 ca-certificates software-properties-common nlohmann-json3-dev
+
 RUN apt-get install --no-install-recommends -y git cmake build-essential sqlite3 libsqlite3-dev libssl-dev librdkafka-dev libboost-all-dev libtool libxerces-c-dev libflatbuffers-dev
 RUN add-apt-repository ppa:deadsnakes/ppa
 RUN apt-get install --no-install-recommends -y python3.11-dev
@@ -38,6 +39,7 @@ ENV HOME="/home/ubuntu"
 ENV JASMINEGRAPH_HOME="/home/ubuntu/software/jasminegraph"
 RUN mkdir /home/ubuntu/software/jasminegraph
 WORKDIR /home/ubuntu/software/jasminegraph
+
 COPY ./GraphSAGE/requirements ./GraphSAGE/requirements
 RUN pip install -r ./GraphSAGE/requirements
 COPY . .

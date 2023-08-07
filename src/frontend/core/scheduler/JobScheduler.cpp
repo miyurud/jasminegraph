@@ -91,6 +91,7 @@ void *startScheduler(void *dummyPt) {
             std::this_thread::sleep_for(std::chrono::seconds(Conts::SCHEDULER_SLEEP_TIME));
         }
     }
+    return NULL;
 }
 
 void JobScheduler::init() {
