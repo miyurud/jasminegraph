@@ -40,9 +40,6 @@ RUN mkdir /home/ubuntu/software/jasminegraph
 WORKDIR /home/ubuntu/software/jasminegraph
 COPY ./GraphSAGE/requirements ./GraphSAGE/requirements
 RUN pip install -r ./GraphSAGE/requirements
-RUN apt-get install net-tools -y 
-RUN apt-get install netcat -y
-RUN apt-get install telnet -y
 COPY . .
 
 RUN sh build.sh
