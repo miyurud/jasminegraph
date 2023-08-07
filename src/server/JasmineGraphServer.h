@@ -81,7 +81,7 @@ public:
 
     void addInstanceDetailsToPerformanceDB(std::string host, std::vector<int> portVector, std::string isMaster);
 
-    int shutdown_workers();
+    void shutdown_workers();
 
     int run(std::string profile, std::string masterIp, int numberofWorkers, std::string workerIps, std::string enableNmon);
 
@@ -130,6 +130,7 @@ public:
         int dataPort;
     };
 
+//Deprecated (07-08-2023): workerPartitions should not be used in future. Instead use workerPartition.
     struct workerPartitions {
         int port;
         int dataPort;
@@ -140,7 +141,7 @@ public:
         string hostname;
         int port;
         int dataPort;
-        string partitionID;
+        string partitionID; //Deprecated (07-08-2023) : This should be a vector of partition IDs instead of a single partiton ID.
     };
 
     static void updateMetaDB(std::vector<workers> hostWorkerMap,  std::map<int,std::string> partitionFileList, int graphID,

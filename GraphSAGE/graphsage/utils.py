@@ -23,16 +23,6 @@ N_WALKS = 50
 flags = tf.app.flags
 FLAGS = flags.FLAGS
 
-def log_dir():
-
-    log_dir = FLAGS.base_log_dir + "jasminegraph-local_trained_model_store/"
-    log_dir += "{graph_id:s}_model_{train_worker:s}".format(
-        graph_id = FLAGS.train_prefix.split("/")[-1],
-        train_worker = FLAGS.train_worker
-    )
-    if not os.path.exists(log_dir):
-        os.makedirs(log_dir)
-    return log_dir
 
 def preprocess_data(prefix,attr_prefix,worker,isLabel=False,isFeatures=False,normalize=True,load_walks=False):
 

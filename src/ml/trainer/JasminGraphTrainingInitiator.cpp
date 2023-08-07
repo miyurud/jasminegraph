@@ -47,8 +47,8 @@ void JasminGraphTrainingInitiator::initiateTrainingLocally(std::string graphID, 
     string attr_prefix = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
     string trainarg_prefix = "Graphsage Unsupervised_train ";
     trainingArgs =
-            trainarg_prefix + trainingArgs + " --train_prefix " + prefix + graphID + " --train_attr_prefix " +
-            attr_prefix + graphID;
+            trainarg_prefix + trainingArgs + " --train_prefix " + prefix + "/" + graphID + " --train_attr_prefix " +
+            attr_prefix + "/" + graphID;
 
 
     std::map<std::string, JasmineGraphServer::workerPartitions>::iterator j;
@@ -157,7 +157,7 @@ bool JasminGraphTrainingInitiator::initiateTrain(std::string host, int port, int
         }
 
         result_wr = write(sockfd, JasmineGraphInstanceProtocol::INITIATE_TRAIN.c_str(),
-                          JasmineGraphInstanceProtocol::INITIATE_TRAIN.size());
+              JasmineGraphInstanceProtocol::INITIATE_TRAIN.size());
         if(result_wr < 0) {
             trainer_log.log("Error writing to socket", "error");
             return false;
