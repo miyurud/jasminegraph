@@ -37,6 +37,7 @@ RUN make install
 
 ENV HOME="/home/ubuntu"
 ENV JASMINEGRAPH_HOME="/home/ubuntu/software/jasminegraph"
+
 RUN mkdir /home/ubuntu/software/jasminegraph
 WORKDIR /home/ubuntu/software/jasminegraph
 
