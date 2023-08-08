@@ -32,24 +32,26 @@ SEND=b'send'
 DONE=b'done'
 LINE_END=b'\r\n'
 
-def recv_all(sock, n_bytes):
-    buffer = bytearray()
-    read = 0
-    while read < n_bytes:
-        received = sock.recv(n_bytes - read)
-        if received:
-            read += len(received)
-            buffer.extend(received)
-    return bytes(buffer)
-
 def expect_response(sock, expected):
     global passedAll
-    data = recv_all(sock, len(expected))
+    buffer = bytearray()
+    read = 0
+    expected_len = len(expected)
+    while read < expected_len:
+        received = sock.recv(expected_len - read)
+        received_len = len(received)
+        if received:
+            if received != expected[read:read + received_len]:
+                buffer.extend(received)
+                data = bytes(buffer)
+                logging.warning(f'Output mismatch\nexpected : {expected}\nreceived : {data}')
+                passedAll = False
+                return False
+            read += received_len
+            buffer.extend(received)
+    data = bytes(buffer)
     print(data.decode('utf-8'), end='')
-    if data != expected:
-        logging.warning(f'Output mismatch\nexpected : {expected}\nreceived : {data}')
-        passedAll = False
-        return False
+    assert data == expected
     return True
 
 def send_and_expect_response(sock, testName, send, expected, exitOnFail=False):
@@ -60,7 +62,7 @@ def send_and_expect_response(sock, testName, send, expected, exitOnFail=False):
         failedTests.append(testName)
         if exitOnFail:
             print()
-            logging.fatal('Failed some tests,', file=sys.stderr)
+            logging.fatal('Failed some tests,')
             print(*failedTests, sep='\n', file=sys.stderr)
             sys.exit(1)
 
