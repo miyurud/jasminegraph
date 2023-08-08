@@ -25,7 +25,7 @@ class JasmineGraphIncrementalLocalStore
    public:
     GraphConfig gc;
     NodeManager *nm;
-    std::string addEdgeFromString(std::string edgeString);
+    void addEdgeFromString(std::string edgeString);
     static std::pair<std::string, unsigned int> getIDs(std::string edgeString );
     JasmineGraphIncrementalLocalStore(unsigned int graphID = 0, unsigned int partitionID = 0 );
 };

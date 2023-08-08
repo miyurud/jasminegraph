@@ -44,6 +44,7 @@ RUN apt-get install net-tools -y
 RUN apt-get install netcat -y
 RUN apt-get install telnet -y
 COPY . .
+RUN mkdir /home/ubuntu/datasets
 
 RUN sh build.sh
 ENTRYPOINT ["/home/ubuntu/software/jasminegraph/run-docker.sh"]

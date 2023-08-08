@@ -31,8 +31,6 @@ map<string, std::map<int, int>> JasmineGraphTrainingSchedular::schedulePartition
 
     string sqlStatement = "SELECT host_idhost, name FROM worker_has_partition INNER JOIN worker ON worker_idworker = "
                           "idworker WHERE partition_graph_idgraph = " + graphID + " group by host_idhost";
-
-
     std::vector<vector<pair<string, string>>> result = refToSqlite.runSelect(sqlStatement);
     for (vector<vector<pair<string, string>>>::iterator i = result.begin(); i != result.end(); ++i) {
         int count = 0;

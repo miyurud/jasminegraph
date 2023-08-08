@@ -67,7 +67,7 @@ public:
 
     static bool proceedOrNot(std::set<string> partitionSet,int partitionId);
 
-    static bool updateMap(int partitionId);
+    static void updateMap(int partitionId);
 
     static int updateTriangleTreeAndGetTriangleCount(std::vector<std::string> triangles);
 

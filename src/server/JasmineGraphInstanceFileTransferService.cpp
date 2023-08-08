@@ -23,7 +23,7 @@ void *filetransferservicesession(void *dummyPt) {
     filetransferservicesessionargs *sessionargs = (filetransferservicesessionargs *) dummyPt;
     int connFd = sessionargs->connFd;
     Utils utils;
-    char data[300];
+    char data[301];
     bzero(data, 301);
     read(connFd, data, 300);
     string fileName = (data);
@@ -44,12 +44,13 @@ void *filetransferservicesession(void *dummyPt) {
         }
     } while (bytesReceived > 0);
     file.close();
+    return NULL;
 }
 
 JasmineGraphInstanceFileTransferService::JasmineGraphInstanceFileTransferService() {
 }
 
-int JasmineGraphInstanceFileTransferService::run(int dataPort) {
+void JasmineGraphInstanceFileTransferService::run(int dataPort) {
 
     int listenFd;
     socklen_t len;
@@ -60,7 +61,7 @@ int JasmineGraphInstanceFileTransferService::run(int dataPort) {
     listenFd = socket(AF_INET, SOCK_STREAM, 0);
     if (listenFd < 0) {
         std::cerr << "Cannot open socket" << std::endl;
-        return 0;
+        return;
     }
 
     bzero((char *) &svrAdd, sizeof(svrAdd));
@@ -79,7 +80,7 @@ int JasmineGraphInstanceFileTransferService::run(int dataPort) {
     //bind socket
     if (bind(listenFd, (struct sockaddr *) &svrAdd, sizeof(svrAdd)) < 0) {
         std::cerr << "Cannot bind on port " + dataPort << std::endl;
-        return 0;
+        return;
     }
     int connFd;
     listen(listenFd, 10);
