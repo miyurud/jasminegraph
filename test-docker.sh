@@ -1,9 +1,10 @@
 #!/bin/bash
 
 PROJECT_ROOT="$(pwd)"
-mkdir -p logs/
-
+TIMEOUT_SECONDS=600
 run_id="$(date +%y%m%d_%H%M%S)"
+
+mkdir -p logs/
 
 stop_and_remove_containers () {
     docker ps -q | xargs docker kill &>/dev/null
@@ -28,7 +29,7 @@ while ! nc -zvn 127.0.0.1 7777 &>/dev/null; do
     sleep .2
 done
 
-timeout 600 python3 -u tests/integration/test.py |& tee "logs/${run_id}_test.txt"
+timeout "${TIMEOUT_SECONDS}" python3 -u tests/integration/test.py |& tee "logs/${run_id}_test.txt"
 exit_code="${PIPESTATUS[0]}"
 rm -rf tests/integration/env
 stop_and_remove_containers
