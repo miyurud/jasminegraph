@@ -84,7 +84,6 @@ JasmineGraph can be run by executing the run.sh script. This will start master o
 ## 4. Building and Running JasmineGraph on Docker
 JasmineGraph can be run inside a docker image. After cloning the project, build the image as follows:
 
-    cd docker
     docker build -t jasminegraph .
 
 
