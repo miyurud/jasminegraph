@@ -42,6 +42,8 @@ WORKDIR /home/ubuntu/software/jasminegraph
 
 COPY ./GraphSAGE ./GraphSAGE
 RUN pip install -r ./GraphSAGE/requirements
+RUN pip install joblib
+RUN pip install threadpoolctl
 
 COPY ./conf ./conf
 COPY ./src ./src
