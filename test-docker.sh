@@ -25,7 +25,7 @@ cd tests/integration
 rm -rf env
 cp -r env_init env
 cd "$PROJECT_ROOT"
-build_and_run_docker &>/dev/null
+build_and_run_docker #&>/dev/null
 
 # sleep until server starts listening
 while ! nc -zvn 127.0.0.1 7777 &>/dev/null; do
