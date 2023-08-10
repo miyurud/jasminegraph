@@ -7,10 +7,13 @@ RUN apt-get update
 RUN apt-get install --no-install-recommends -y apt-transport-https
 RUN apt-get update
 RUN apt-get install --no-install-recommends -y curl gnupg2 ca-certificates software-properties-common nlohmann-json3-dev
-RUN apt-get install --no-install-recommends -y git cmake build-essential sqlite3 libsqlite3-dev libssl-dev librdkafka-dev libboost-all-dev libtool libxerces-c-dev libflatbuffers-dev python3-pip
+
+RUN apt-get install --no-install-recommends -y git cmake build-essential sqlite3 libsqlite3-dev libssl-dev librdkafka-dev libboost-all-dev libtool libxerces-c-dev libflatbuffers-dev
 RUN add-apt-repository ppa:deadsnakes/ppa
-RUN apt-get install --no-install-recommends -y python3.5-dev
+RUN apt-get install --no-install-recommends -y python3.11-dev
+RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
 RUN apt-get install --no-install-recommends -y libjsoncpp-dev libspdlog-dev pigz
+RUN python3.11 get-pip.py
 
 RUN curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
 RUN add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
@@ -38,10 +41,10 @@ ENV JASMINEGRAPH_HOME="/home/ubuntu/software/jasminegraph"
 RUN mkdir /home/ubuntu/software/jasminegraph
 WORKDIR /home/ubuntu/software/jasminegraph
 
-RUN pip install tensorflow==2.5.3
-RUN pip install -U scikit-learn
 COPY ./GraphSAGE ./GraphSAGE
 RUN pip install -r ./GraphSAGE/requirements
+RUN pip install joblib
+RUN pip install threadpoolctl
 
 COPY ./conf ./conf
 COPY ./src ./src

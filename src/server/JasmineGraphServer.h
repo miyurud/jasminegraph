@@ -130,6 +130,7 @@ public:
         int dataPort;
     };
 
+//Deprecated (07-08-2023): workerPartitions should not be used in future. Instead use workerPartition.
     struct workerPartitions {
         int port;
         int dataPort;
@@ -140,7 +141,7 @@ public:
         string hostname;
         int port;
         int dataPort;
-        string partitionID;
+        string partitionID; //Deprecated (07-08-2023) : This should be a vector of partition IDs instead of a single partiton ID.
     };
 
     static void updateMetaDB(std::vector<workers> hostWorkerMap,  std::map<int,std::string> partitionFileList, int graphID,

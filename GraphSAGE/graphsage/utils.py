@@ -6,14 +6,16 @@ import json
 import sys
 import os
 
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 import networkx as nx
 from networkx.readwrite import json_graph
+
+tf.disable_v2_behavior()
 
 version_info = list(map(int, nx.__version__.split('.')))
 major = version_info[0]
 minor = version_info[1]
-assert (major <= 1) and (minor <= 11), "networkx major version > 1.11"
+assert (major <= 3) and (minor <= 1), "networkx major version > 1.11"
 
 WALK_LEN = 5
 N_WALKS = 50
@@ -30,7 +32,7 @@ def preprocess_data(prefix,attr_prefix,worker,isLabel=False,isFeatures=False,nor
     G_central = nx.read_edgelist(prefix + '_centralstore_' + worker, nodetype=int)
     G = nx.compose(G_local, G_central)
     nodes_key_list = list(G.nodes())
-    save_dir = FLAGS.base_log_dir + "/jasminegraph-local_trained_model_store/"
+    save_dir = FLAGS.base_log_dir + "jasminegraph-local_trained_model_store/"
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
@@ -39,15 +41,17 @@ def preprocess_data(prefix,attr_prefix,worker,isLabel=False,isFeatures=False,nor
     test_val_frac = 0.2
     for i, n in enumerate(nodes_key_list):
         if i < len(nodes_key_list) * test_val_frac:
-            G.node[n]["test"] = True
-            G.node[n]["val"] = False
+            G.nodes[n]["test"] = True
+            G.nodes[n]["val"] = False
         if len(nodes_key_list) * test_val_frac <= i < 2 * len(nodes_key_list) * test_val_frac:
-            G.node[n]["test"] = False
-            G.node[n]["val"] = True
+            G.nodes[n]["test"] = False
+            G.nodes[n]["val"] = True
         if i >= 2 * len(nodes_key_list) * test_val_frac:
-            G.node[n]["test"] = False
-            G.node[n]["val"] = False
-    if isinstance(G.nodes()[0], int):
+            G.nodes[n]["test"] = False
+            G.nodes[n]["val"] = False
+
+    list_of_nodes = list(G.nodes())
+    if isinstance(list_of_nodes[0], int):
         conversion = lambda n: int(n)
     else:
         conversion = lambda n: n
@@ -115,7 +119,7 @@ def preprocess_data(prefix,attr_prefix,worker,isLabel=False,isFeatures=False,nor
 
     broken_count = 0
     for node in G.nodes():
-        if not 'val' in G.node[node] or not 'test' in G.node[node]:
+        if not 'val' in G.nodes[node] or not 'test' in G.nodes[node]:
             G.remove_node(node)
             broken_count += 1
     print("Removed {:d} nodes that lacked proper annotations due to networkx versioning issues".format(broken_count))
@@ -124,16 +128,16 @@ def preprocess_data(prefix,attr_prefix,worker,isLabel=False,isFeatures=False,nor
     ## (some datasets might already have this..)
     print("Loaded data.. now preprocessing..")
     for edge in G.edges():
-        if (G.node[edge[0]]['val'] or G.node[edge[1]]['val'] or
-                G.node[edge[0]]['test'] or G.node[edge[1]]['test']):
+        if (G.nodes[edge[0]]['val'] or G.nodes[edge[1]]['val'] or
+                G.nodes[edge[0]]['test'] or G.nodes[edge[1]]['test']):
             G[edge[0]][edge[1]]['train_removed'] = True
         else:
             G[edge[0]][edge[1]]['train_removed'] = False
-        if(G.node[edge[0]]['val'] and G.node[edge[1]]['val']):
+        if(G.nodes[edge[0]]['val'] and G.nodes[edge[1]]['val']):
             G[edge[0]][edge[1]]['validation'] = True
         else:
             G[edge[0]][edge[1]]['validation'] = False
-        if(G.node[edge[0]]['test'] and G.node[edge[1]]['test']):
+        if(G.nodes[edge[0]]['test'] and G.nodes[edge[1]]['test']):
             G[edge[0]][edge[1]]['testing'] = True
         else:
             G[edge[0]][edge[1]]['testing'] = False
@@ -141,7 +145,7 @@ def preprocess_data(prefix,attr_prefix,worker,isLabel=False,isFeatures=False,nor
     if normalize and not feat_data is None:
         # comes here only if normalize == true and the data set has feat
         from sklearn.preprocessing import StandardScaler
-        train_ids = np.array([node_map[n] for n in G.nodes() if not G.node[n]['val'] and not G.node[n]['test']])
+        train_ids = np.array([node_map[n] for n in list(G.nodes()) if not G.nodes[n]['val'] and not G.nodes[n]['test']])
         train_feats = feat_data[train_ids]
         scaler = StandardScaler()
         scaler.fit(train_feats)
@@ -153,11 +157,11 @@ def preprocess_data(prefix,attr_prefix,worker,isLabel=False,isFeatures=False,nor
         return G, feat_data, node_map, walks, G_local
 
 def load_data(prefix, worker,isLabel, normalize=True, load_walks=False):
-    save_dir = FLAGS.base_log_dir + "/jasminegraph-local_trained_model_store/"
+    save_dir = FLAGS.base_log_dir + "jasminegraph-local_trained_model_store/"
     G_data = json.load(open(save_dir + str(FLAGS.graph_id) + "_" + worker + "-G.json"))
     G = json_graph.node_link_graph(G_data)
 
-    if isinstance(G.nodes()[0], int):
+    if isinstance(G.nodes[0], int):
         conversion = lambda n: int(n)
     else:
         conversion = lambda n: n
@@ -184,7 +188,7 @@ def load_data(prefix, worker,isLabel, normalize=True, load_walks=False):
     ## (necessary because of networkx weirdness with the Reddit data)
     broken_count = 0
     for node in G.nodes():
-        if not 'val' in G.node[node] or not 'test' in G.node[node]:
+        if not 'val' in G.nodes[node] or not 'test' in G.nodes[node]:
             G.remove_node(node)
             broken_count += 1
     print("Removed {:d} nodes that lacked proper annotations due to networkx versioning issues".format(broken_count))
@@ -193,16 +197,16 @@ def load_data(prefix, worker,isLabel, normalize=True, load_walks=False):
     ## (some datasets might already have this..)
     print("Loaded data.. now preprocessing..")
     for edge in G.edges():
-        if (G.node[edge[0]]['val'] or G.node[edge[1]]['val'] or
-                G.node[edge[0]]['test'] or G.node[edge[1]]['test']):
+        if (G.nodes[edge[0]]['val'] or G.nodes[edge[1]]['val'] or
+                G.nodes[edge[0]]['test'] or G.nodes[edge[1]]['test']):
             G[edge[0]][edge[1]]['train_removed'] = True
         else:
             G[edge[0]][edge[1]]['train_removed'] = False
-        if(G.node[edge[0]]['val'] and G.node[edge[1]]['val']):
+        if(G.nodes[edge[0]]['val'] and G.nodes[edge[1]]['val']):
             G[edge[0]][edge[1]]['validation'] = True
         else:
             G[edge[0]][edge[1]]['validation'] = False
-        if(G.node[edge[0]]['test'] and G.node[edge[1]]['test']):
+        if(G.nodes[edge[0]]['test'] and G.nodes[edge[1]]['test']):
             G[edge[0]][edge[1]]['testing'] = True
         else:
             G[edge[0]][edge[1]]['testing'] = False
@@ -210,7 +214,7 @@ def load_data(prefix, worker,isLabel, normalize=True, load_walks=False):
     if normalize and not feats is None:
         # comes here only if normalize == true and the data set has feat
         from sklearn.preprocessing import StandardScaler
-        train_ids = np.array([id_map[n] for n in G.nodes() if not G.node[n]['val'] and not G.node[n]['test']])
+        train_ids = np.array([id_map[n] for n in G.nodes() if not G.nodes[n]['val'] and not G.nodes[n]['test']])
         train_feats = feats[train_ids]
         scaler = StandardScaler()
         scaler.fit(train_feats)
@@ -252,7 +256,7 @@ if __name__ == "__main__":
     out_file = sys.argv[2]
     G_data = json.load(open(graph_file))
     G = json_graph.node_link_graph(G_data)
-    nodes = [n for n in G.nodes() if not G.node[n]["val"] and not G.node[n]["test"]]
+    nodes = [n for n in G.nodes() if not G.nodes[n]["val"] and not G.nodes[n]["test"]]
     G = G.subgraph(nodes)
     pairs = run_random_walks(G, nodes)
     with open(out_file, "w") as fp:

@@ -1,5 +1,5 @@
 #!/bin/bash
-
+set -ex
 PROJECT_ROOT="$(pwd)"
 TIMEOUT_SECONDS=600
 run_id="$(date +%y%m%d_%H%M%S)"
@@ -7,8 +7,11 @@ run_id="$(date +%y%m%d_%H%M%S)"
 mkdir -p logs/
 
 stop_and_remove_containers () {
-    docker ps -q | xargs docker kill &>/dev/null
-    docker container prune -f &>/dev/null
+    if [ "$(docker ps -q)" ]; then
+       docker ps -a -q | xargs docker rm -f &>/dev/null
+    else
+        echo "No containers to stop and remove."
+    fi    
 }
 
 build_and_run_docker () {
@@ -22,7 +25,7 @@ cd tests/integration
 rm -rf env
 cp -r env_init env
 cd "$PROJECT_ROOT"
-build_and_run_docker &>/dev/null
+build_and_run_docker #&>/dev/null
 
 # sleep until server starts listening
 while ! nc -zvn 127.0.0.1 7777 &>/dev/null; do

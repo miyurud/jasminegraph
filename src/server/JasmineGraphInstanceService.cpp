@@ -2016,7 +2016,7 @@ void *instanceservicesession(void *dummyPt) {
             std::transform(predictargs.begin(), predictargs.end(), std::back_inserter(predict_agrs_vector), converter);
 
             std::string path = "cd " + utils.getJasmineGraphProperty("org.jasminegraph.graphsage") + " && ";
-            std::string command = path + "python3.5 predict.py ";
+            std::string command = path + "python3.11 predict.py ";
 
             int argc = predictargs.size();
             for (int i = 0; i < argc; ++i) {
@@ -3167,7 +3167,7 @@ void JasmineGraphInstanceService::trainPartition(string trainData) {
     std::transform(trainargs.begin(), trainargs.end(), std::back_inserter(vc), converter);
 
     std::string path = "cd " + utils.getJasmineGraphProperty("org.jasminegraph.graphsage") + " && ";
-    std::string command = path + "python3 -m unsupervised_train ";
+    std::string command = path + "python3.11 -m unsupervised_train ";
 
     int argc = trainargs.size();
     for (int i = 0; i < argc - 2; ++i) {
@@ -4480,7 +4480,7 @@ void JasmineGraphInstanceService::initServer(string trainData){
     std::transform(trainargs.begin(), trainargs.end(), std::back_inserter(vc), converter);
 
     std::string path = "cd " + utils.getJasmineGraphProperty("org.jasminegraph.fl.location") + " && ";
-    std::string command = path + "python3 fl_server.py "+ utils.getJasmineGraphProperty("org.jasminegraph.fl.weights") + " "
+    std::string command = path + "python3.11 fl_server.py "+ utils.getJasmineGraphProperty("org.jasminegraph.fl.weights") + " "
                                 + utils.getJasmineGraphProperty("org.jasminegraph.fl.dataDir")
                                 + " " + utils.getJasmineGraphProperty("org.jasminegraph.fl.dataDir")+ " "+ graphID + " 0 "
                                 + utils.getJasmineGraphProperty("org.jasminegraph.fl_clients")
@@ -4505,7 +4505,7 @@ void JasmineGraphInstanceService::initOrgServer(string trainData){
     std::transform(trainargs.begin(), trainargs.end(), std::back_inserter(vc), converter);
 
     std::string path = "cd " + utils.getJasmineGraphProperty("org.jasminegraph.fl.location") + " && ";
-    std::string command = path + "python3 org_server.py " + graphID+ " " + utils.getJasmineGraphProperty("org.jasminegraph.fl_clients")
+    std::string command = path + "python3.11 org_server.py " + graphID+ " " + utils.getJasmineGraphProperty("org.jasminegraph.fl_clients")
                                     + " " + utils.getJasmineGraphProperty("org.jasminegraph.fl.epochs")
                                     +" localhost 5050 > org_server_logs.txt";
     popen(command.c_str(), "r");
@@ -4528,7 +4528,7 @@ void JasmineGraphInstanceService::initAgg(string trainData){
     std::transform(trainargs.begin(), trainargs.end(), std::back_inserter(vc), converter);
 
     std::string path = "cd " + utils.getJasmineGraphProperty("org.jasminegraph.fl.location") + " && ";
-    std::string command = path + "python3 org_agg.py "+ " "
+    std::string command = path + "python3.11 org_agg.py "+ " "
                                 + utils.getJasmineGraphProperty("org.jasminegraph.fl.dataDir")
                                 + " " + utils.getJasmineGraphProperty("org.jasminegraph.fl.dataDir")+ " " + "4" + " 0 "
                                 + utils.getJasmineGraphProperty("org.jasminegraph.fl.num.orgs")
@@ -4554,7 +4554,7 @@ void JasmineGraphInstanceService::initClient(string trainData){
     std::transform(trainargs.begin(), trainargs.end(), std::back_inserter(vc), converter);
 
     std::string path = "cd " + utils.getJasmineGraphProperty("org.jasminegraph.fl.location") + " && ";
-    std::string command = path + "python3 fl_client.py "+ utils.getJasmineGraphProperty("org.jasminegraph.fl.weights") + " "
+    std::string command = path + "python3.11 fl_client.py "+ utils.getJasmineGraphProperty("org.jasminegraph.fl.weights") + " "
                                 + utils.getJasmineGraphProperty("org.jasminegraph.fl.dataDir")
                                 + " " + utils.getJasmineGraphProperty("org.jasminegraph.fl.dataDir")+ " "+ graphID + " " + partitionID + " "
                                 + utils.getJasmineGraphProperty("org.jasminegraph.fl.epochs")
@@ -4572,7 +4572,7 @@ void JasmineGraphInstanceService::mergeFiles(string trainData){
     string partitionID = trainargs[2];
 
     std::string path = "cd " + utils.getJasmineGraphProperty("org.jasminegraph.fl.location") + " && ";
-    std::string command = path + "python3 merge.py "+ utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder")+ " "
+    std::string command = path + "python3.11 merge.py "+ utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder")+ " "
                                 + utils.getJasmineGraphProperty("org.jasminegraph.server.instance.trainedmodelfolder") + " "
                                 + utils.getJasmineGraphProperty("org.jasminegraph.fl.dataDir") + " " + graphID + " " + partitionID + " > merge_logs"
                                 + partitionID +".txt";

@@ -1,9 +1,10 @@
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 
 import models as models
 import layers as layers
 from aggregators import MeanAggregator, MaxPoolingAggregator, MeanPoolingAggregator, SeqAggregator, GCNAggregator
 
+tf.disable_v2_behavior()
 flags = tf.app.flags
 FLAGS = flags.FLAGS
 

@@ -41,7 +41,7 @@ add_executable(JasmineGraph main.cpp src/server/JasmineGraphServer.cpp src/serve
         src/frontend/core/factory/ExecutorFactory.cpp src/frontend/core/factory/ExecutorFactory.h src/frontend/core/CoreConstants.cpp
         src/frontend/core/CoreConstants.h)
 
-target_compile_options(JasmineGraph PRIVATE -std=c++11 -I/usr/include/python3.5)
+target_compile_options(JasmineGraph PRIVATE -std=c++11 -I/usr/include/python3.11)
 
 if(CMAKE_ENABLE_DEBUG)
     message(STATUS "DEBUG enabled")
@@ -58,9 +58,9 @@ target_link_libraries(JasmineGraph /usr/lib/x86_64-linux-gnu/libflatbuffers.a)
 target_link_libraries(JasmineGraph /usr/lib/x86_64-linux-gnu/libjsoncpp.a)
 target_link_libraries(JasmineGraph /usr/local/lib/libcppkafka.so)
 
-set(PYTHON_EXECUTABLE "/usr/bin/python3.5")
-set(PYTHON_INCLUDE_DIR "/usr/include/python3.5m")
-set(PYTHON_LIBRARIES "/usr/lib/x86_64-linux-gnu/libpython3.5m.so")
+set(PYTHON_EXECUTABLE "/usr/bin/python3.11")
+set(PYTHON_INCLUDE_DIR "/usr/include/python3.11m")
+set(PYTHON_LIBRARIES "/usr/lib/x86_64-linux-gnu/libpython3.11.so")
 
 include_directories(${PYTHON_INCLUDE_DIRS})
 include_directories(${PYTHON_DIRECTORIES})
