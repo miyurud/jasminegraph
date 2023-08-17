@@ -17,6 +17,7 @@ limitations under the License.
 #include "../util/sqlite3/sqlite3.h"
 #include <vector>
 #include <map>
+#include <string>
 
 class SQLiteDBInterface {
 private:
