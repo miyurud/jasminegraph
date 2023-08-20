@@ -34,7 +34,7 @@ class NodeManager {
     unsigned int graphID = 0;
     unsigned int partitionID = 0;
     static const std::string FILE_MODE;
-    unsigned long INDEX_KEY_SIZE = 5;  // Size of an index key entry in bytes
+    unsigned long INDEX_KEY_SIZE = 6;  // Size of an index key entry in bytes
 
     int dbSize(std::string path);
     void persistNodeIndex();
@@ -59,6 +59,10 @@ class NodeManager {
     NodeBlock* addNode(std::string);  // will redurn DB block address
     NodeBlock* get(std::string);
     std::list<NodeBlock> getGraph(int limit = 10);
+
+    RelationBlock *addCentralRelation(NodeBlock source, NodeBlock destination);
+
+    RelationBlock *addCentralEdge(std::pair<std::string, std::string> edge);
 };
 
 #endif
