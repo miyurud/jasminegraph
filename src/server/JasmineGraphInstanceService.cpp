@@ -927,7 +927,7 @@ void *instanceservicesession(void *dummyPt) {
                       (char *) &serv_addr.sin_addr.s_addr,
                       server->h_length);
                 serv_addr.sin_port = htons(port);
-                if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+                if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
                     std::cout << "ERROR connecting" << std::endl;
                     //TODO::exit
                 }
@@ -2926,7 +2926,7 @@ int JasmineGraphInstanceService::collectTrainedModelThreadFunction(instanceservi
     serv_addr.sin_family = AF_INET;
     bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
     serv_addr.sin_port = htons(port);
-    if (connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
         // TODO::exit
     }
@@ -3296,7 +3296,7 @@ bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int 
                       (char *) &serv_addr.sin_addr.s_addr,
                       server->h_length);
                 serv_addr.sin_port = htons(port);
-                if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+                if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
                     instance_logger.log("ERROR connecting", "error");
                     //TODO::exit
                 }
@@ -3488,7 +3488,7 @@ bool JasmineGraphInstanceService::sendFileThroughService(std::string host, int d
           (char *) &serv_addr.sin_addr.s_addr,
           server->h_length);
     serv_addr.sin_port = htons(dataPort);
-    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting to port " << dataPort << std::endl;
     }
 
@@ -3601,7 +3601,7 @@ map<long, long> calculateOutDegreeDist(string graphID, string partitionID, int s
               (char *) &serv_addr.sin_addr.s_addr,
               server->h_length);
         serv_addr.sin_port = htons(port);
-        if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+        if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
             std::cout << "ERROR connecting" << std::endl;
             //TODO::exit
         }
@@ -3816,7 +3816,7 @@ map<long, long> calculateInDegreeDist(string graphID, string partitionID, int se
               (char *) &serv_addr.sin_addr.s_addr,
               server->h_length);
         serv_addr.sin_port = htons(port);
-        if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+        if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
             std::cout << "ERROR connecting" << std::endl;
             //TODO::exit
         }
@@ -4057,7 +4057,7 @@ void calculateEgoNet(string graphID, string partitionID,
               (char *) &serv_addr.sin_addr.s_addr,
               server->h_length);
         serv_addr.sin_port = htons(port);
-        if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+        if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
             std::cout << "ERROR connecting" << std::endl;
             //TODO::exit
         }
