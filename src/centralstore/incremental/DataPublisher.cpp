@@ -15,6 +15,7 @@
 
 #include "../../server/JasmineGraphInstanceProtocol.h"
 #include "../../util/logger/Logger.h"
+#include "../../util/Utils.h"
 
 Logger data_publisher_logger;
 
@@ -36,7 +37,7 @@ DataPublisher::DataPublisher(int worker_port, std::string worker_address) {
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         data_publisher_logger.error("Socket creation error!");
     }
-    if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         data_publisher_logger.error("Connection Failed!");
     }
 }

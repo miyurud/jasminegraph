@@ -594,3 +594,14 @@ std::string Utils::checkFlag(std::string flagPath){
     infile.close();
     return bitVal;
 }
+
+int Utils::connect_wrapper(int sock, const sockaddr *addr, socklen_t slen) {
+    int retry = 0;
+    do {
+        if (retry) sleep(retry * 2);
+        if (connect(sock, addr, slen) == 0) {
+            return 0;
+        }
+    } while (retry++ < 4);
+    return -1;
+}
