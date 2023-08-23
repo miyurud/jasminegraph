@@ -521,7 +521,7 @@ void JasmineGraphServer::resolveOperationalGraphs(){
               (char *) &serv_addr.sin_addr.s_addr,
               server->h_length);
         serv_addr.sin_port = htons(workerPort);
-        if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+        if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
             std::cerr << "ERROR connecting" << std::endl;
             //TODO::exit
         }
@@ -703,7 +703,7 @@ void JasmineGraphServer::shutdown_workers() {
               (char *) &serv_addr.sin_addr.s_addr,
               server->h_length);
         serv_addr.sin_port = htons(port);
-        if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+        if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
             std::cerr << "ERROR connecting" << std::endl;
             //TODO::exit
         }
@@ -863,7 +863,7 @@ bool JasmineGraphServer::batchUploadFile(std::string host, int port, int dataPor
           (char *) &serv_addr.sin_addr.s_addr,
           server->h_length);
     serv_addr.sin_port = htons(port);
-    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
         //TODO::exit
     }
@@ -1058,7 +1058,7 @@ bool JasmineGraphServer::batchUploadCentralStore(std::string host, int port, int
           (char *) &serv_addr.sin_addr.s_addr,
           server->h_length);
     serv_addr.sin_port = htons(port);
-    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
     }
 
@@ -1296,7 +1296,7 @@ bool JasmineGraphServer::batchUploadAttributeFile(std::string host, int port, in
           (char *) &serv_addr.sin_addr.s_addr,
           server->h_length);
     serv_addr.sin_port = htons(port);
-    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
     }
 
@@ -1494,7 +1494,7 @@ bool JasmineGraphServer::batchUploadCentralAttributeFile(std::string host, int p
           (char *) &serv_addr.sin_addr.s_addr,
           server->h_length);
     serv_addr.sin_port = htons(port);
-    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
     }
 
@@ -1692,7 +1692,7 @@ bool JasmineGraphServer::batchUploadCompositeCentralstoreFile(std::string host, 
           (char *) &serv_addr.sin_addr.s_addr,
           server->h_length);
     serv_addr.sin_port = htons(port);
-    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
     }
 
@@ -1885,7 +1885,7 @@ bool JasmineGraphServer::sendFileThroughService(std::string host, int dataPort, 
           (char *) &serv_addr.sin_addr.s_addr,
           server->h_length);
     serv_addr.sin_port = htons(dataPort);
-    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting to port " << dataPort << std::endl;
     }
 
@@ -2207,7 +2207,7 @@ int JasmineGraphServer::removeFragmentThroughService(string host, int port, stri
           (char *) &serv_addr.sin_addr.s_addr,
           server->h_length);
     serv_addr.sin_port = htons(port);
-    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
         //TODO::exit
     }
@@ -2315,7 +2315,7 @@ int JasmineGraphServer::removePartitionThroughService(string host, int port, str
           (char *) &serv_addr.sin_addr.s_addr,
           server->h_length);
     serv_addr.sin_port = htons(port);
-    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
         //TODO::exit
     }
@@ -2685,7 +2685,7 @@ void JasmineGraphServer::inDegreeDistribution(std::string graphID) {
           (char *) &serv_addr.sin_addr.s_addr,
           server->h_length);
     serv_addr.sin_port = htons(port);
-    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         std::cout << "ERROR connecting" << std::endl;
         //TODO::exit
     }
@@ -2798,7 +2798,7 @@ void JasmineGraphServer::outDegreeDistribution(std::string graphID) {
           (char *) &serv_addr.sin_addr.s_addr,
           server->h_length);
     serv_addr.sin_port = htons(port);
-    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         std::cout << "ERROR connecting" << std::endl;
         //TODO::exit
     }
@@ -2928,7 +2928,7 @@ void JasmineGraphServer::duplicateCentralStore(std::string graphID) {
               (char *) &serv_addr.sin_addr.s_addr,
               server->h_length);
         serv_addr.sin_port = htons(port);
-        if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+        if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
             std::cout << "ERROR connecting" << std::endl;
             //TODO::exit
         }
@@ -3239,7 +3239,7 @@ bool JasmineGraphServer::initiateTrain(std::string host, int port, int dataPort,
     Utils utils;
     bool result = true;
     int sockfd;
-    char data[FED_DATA_LENGTH];
+    char data[FED_DATA_LENGTH + 1];
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
@@ -3267,7 +3267,7 @@ bool JasmineGraphServer::initiateTrain(std::string host, int port, int dataPort,
           (char *) &serv_addr.sin_addr.s_addr,
           server->h_length);
     serv_addr.sin_port = htons(port);
-    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         server_logger.log("ERROR connecting", "error");
         //TODO::exit
     }
@@ -3351,7 +3351,7 @@ bool JasmineGraphServer::initiateServer(std::string host, int port, int dataPort
           (char *) &serv_addr.sin_addr.s_addr,
           server->h_length);
     serv_addr.sin_port = htons(port);
-    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         server_logger.log("ERROR connecting", "error");
         //TODO::exit
     }
@@ -3426,7 +3426,7 @@ bool JasmineGraphServer::initiateClient(std::string host, int port, int dataPort
           (char *) &serv_addr.sin_addr.s_addr,
           server->h_length);
     serv_addr.sin_port = htons(port);
-    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         server_logger.log("ERROR connecting", "error");
         //TODO::exit
     }
@@ -3501,7 +3501,7 @@ bool JasmineGraphServer::initiateAggregator(std::string host, int port, int data
           (char *) &serv_addr.sin_addr.s_addr,
           server->h_length);
     serv_addr.sin_port = htons(port);
-    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         server_logger.log("ERROR connecting", "error");
         //TODO::exit
     }
@@ -3577,7 +3577,7 @@ bool JasmineGraphServer::initiateOrgServer(std::string host, int port, int dataP
           (char *) &serv_addr.sin_addr.s_addr,
           server->h_length);
     serv_addr.sin_port = htons(port);
-    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         server_logger.log("Error connecting", "error");
         //TODO::exit
     }
@@ -3659,7 +3659,7 @@ bool JasmineGraphServer::receiveGlobalWeights(std::string host, int port, std::s
 
     while (true){
 
-        if (!(connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)) {
+        if (!(Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)) {
             break;
         }
     }
@@ -3730,7 +3730,7 @@ bool JasmineGraphServer::mergeFiles(std::string host, int port, int dataPort,std
     Utils utils;
     bool result = true;
     int sockfd;
-    char data[FED_DATA_LENGTH];
+    char data[FED_DATA_LENGTH + 1];
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
@@ -3758,7 +3758,7 @@ bool JasmineGraphServer::mergeFiles(std::string host, int port, int dataPort,std
           (char *) &serv_addr.sin_addr.s_addr,
           server->h_length);
     serv_addr.sin_port = htons(port);
-    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         server_logger.log("ERROR connecting", "error");
         //TODO::exit
     }
@@ -3842,7 +3842,7 @@ bool JasmineGraphServer::sendTrainCommand(std::string host, int port, std::strin
           (char *) &serv_addr.sin_addr.s_addr,
           server->h_length);
     serv_addr.sin_port = htons(port);
-    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         server_logger.log("ERROR connecting", "error");
         //TODO::exit
     }
