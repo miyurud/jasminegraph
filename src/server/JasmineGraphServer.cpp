@@ -2631,6 +2631,11 @@ void JasmineGraphServer::addInstanceDetailsToPerformanceDB(std::string host, std
     }
 
     hostString = hostString.substr(0, hostString.length() - 1);
+
+    if (hostString.length() == 0) {
+        return;
+    }
+
     insertPlaceQuery = insertPlaceQuery + hostString;
 
     this->performanceSqlite.runInsert(insertPlaceQuery);
