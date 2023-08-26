@@ -27,6 +27,7 @@ EMPTY = b'empty'
 RMGR = b'rmgr'
 VCNT = b'vcnt'
 ECNT = b'ecnt'
+MERGE = b'merge'
 TRAIN = b'train'
 TRIAN = b'trian'
 SHDN = b'shdn'
@@ -119,6 +120,18 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                              exitOnFail=True)
     send_and_expect_response(sock, "adgr-cust", b'cora|/var/tmp/data/cora/cora.cites|/var/tmp/data/cora/cora.content',
                              DONE, exitOnFail=True)
+
+    print()
+    logging.info("Testing lst after adgr-cust")
+    send_and_expect_response(sock, "lst after adgr-cust", LIST,  b'|1|powergrid|/var/tmp/data/powergrid.dl|op|' + LINE_END +
+                                                                 b'|2|cora|/var/tmp/data/cora/cora.cites|op|')
+
+    print()
+    logging.info("Testing merge")
+    send_and_expect_response(sock, "merge", MERGE, b'Available main flags:' + LINE_END +
+                                                b'graph_id' + LINE_END +
+                                                b'Send --<flag1> <value1>')
+    send_and_expect_response(sock, "merge", b'--graph_id 1', DONE, exitOnFail=True)
 
     print()
     logging.info("Testing train")
