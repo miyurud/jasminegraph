@@ -121,6 +121,13 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                              DONE, exitOnFail=True)
 
     print()
+    logging.info("Testing train")
+    send_and_expect_response(sock, "train", TRAIN, b'Available main flags:' + LINE_END +
+                             b'graph_id learning_rate batch_size validate_iter epochs' + LINE_END +
+                             b'Send --<flag1> <value1> --<flag2> <value2> ..', exitOnFail=True)
+    send_and_expect_response(sock, "train", b'--graph_id 2', DONE, exitOnFail=True)
+
+    print()
     logging.info("Testing rmgr")
     send_and_expect_response(sock, 'rmgr', RMGR, SEND)
     send_and_expect_response(sock, 'rmgr', b'1', DONE)

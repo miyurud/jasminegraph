@@ -1158,20 +1158,6 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             string flags =
                     Conts::FLAGS::GRAPH_ID + " " + Conts::FLAGS::LEARNING_RATE + " " + Conts::FLAGS::BATCH_SIZE + " " +
                     Conts::FLAGS::VALIDATE_ITER + " " + Conts::FLAGS::EPOCHS;
-            result_wr = write(connFd, flags.c_str(), flags.size());
-            if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
-            }
-            result_wr = write(connFd, "\r\n", 2);
-            if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
-            }
-            message = "Send --<flag1> <value1> --<flag2> <value2> ..\r\n";
-            result_wr = write(connFd, message.c_str(), message.size());
-            if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
-            }
-
             write(connFd, flags.c_str(), flags.size());
             write(connFd, "\r\n", 2);
             message = "Send --<flag1> <value1> --<flag2> <value2> ..\r\n";
