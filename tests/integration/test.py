@@ -18,19 +18,22 @@ import logging
 logging.getLogger().setLevel(logging.INFO)
 
 HOST = '127.0.0.1'
-PORT = 7777 # The port used by the server
+PORT = 7777  # The port used by the server
 
-LIST=b'lst'
-ADGR=b'adgr'
-EMPTY=b'empty'
-RMGR=b'rmgr'
-VCNT=b'vcnt'
-ECNT=b'ecnt'
-TRIAN=b'trian'
-SHDN=b'shdn'
-SEND=b'send'
-DONE=b'done'
-LINE_END=b'\r\n'
+LIST = b'lst'
+ADGR = b'adgr'
+ADGR_CUST = b'adgr-cust'
+EMPTY = b'empty'
+RMGR = b'rmgr'
+VCNT = b'vcnt'
+ECNT = b'ecnt'
+TRAIN = b'train'
+TRIAN = b'trian'
+SHDN = b'shdn'
+SEND = b'send'
+DONE = b'done'
+LINE_END = b'\r\n'
+
 
 def expect_response(sock, expected):
     global passedAll
@@ -54,6 +57,7 @@ def expect_response(sock, expected):
     assert data == expected
     return True
 
+
 def send_and_expect_response(sock, testName, send, expected, exitOnFail=False):
     global failedTests
     sock.sendall(send + LINE_END)
@@ -65,6 +69,7 @@ def send_and_expect_response(sock, testName, send, expected, exitOnFail=False):
             logging.fatal('Failed some tests,')
             print(*failedTests, sep='\n', file=sys.stderr)
             sys.exit(1)
+
 
 passedAll = True
 failedTests = []
@@ -100,6 +105,20 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
     send_and_expect_response(sock, "trian", TRIAN, b'grap', exitOnFail=True)
     send_and_expect_response(sock, "trian", b'1', b'priority(>=1)', exitOnFail=True)
     send_and_expect_response(sock, "trian", b'1', b'651')
+
+    print()
+    logging.info("Testing adgr-cust")
+    send_and_expect_response(sock, "adgr-cust", ADGR_CUST, b'Select a custom graph upload option' + LINE_END +
+                             b'1 : Graph with edge list + text attributes list' + LINE_END +
+                             b'2 : Graph with edge list + JSON attributes list' + LINE_END +
+                             b'3 : Graph with edge list + XML attributes list', exitOnFail=True)
+    send_and_expect_response(sock, "adgr-cust",
+                             b'1',
+                             b'Send <name>|<path to edge list>|<path to attribute file>|' +
+                             b'(optional)<attribute data type: int8. int16, int32 or float>',
+                             exitOnFail=True)
+    send_and_expect_response(sock, "adgr-cust", b'cora|/var/tmp/data/cora/cora.cites|/var/tmp/data/cora/cora.content',
+                             DONE, exitOnFail=True)
 
     print()
     logging.info("Testing rmgr")
