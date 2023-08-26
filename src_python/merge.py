@@ -43,20 +43,20 @@ else:
 
 args = dict(zip(arg_names, sys.argv[1:]))
 
-path_attributes_localstore = args['path_datafolder'] + args['graph_id'] + '_attributes_' + args['partition_id']
+path_attributes_localstore = args['path_datafolder'] + "/" + args['graph_id'] + '_attributes_' + args['partition_id']
 node_attributes_localstore = pd.read_csv(path_attributes_localstore , sep='\s+', lineterminator='\n',header=None)
 node_attributes_localstore.set_index(0,inplace=True)
 
-path_edges_localstore = args['path_modelstore'] + args['graph_id'] + '_' + args['partition_id']
+path_edges_localstore = args['path_modelstore'] + "/" + args['graph_id'] + '_' + args['partition_id']
 edges_localstore = pd.read_csv(path_edges_localstore, sep='\s+', lineterminator='\n', header=None)
 edges_localstore.columns = ["source","target"]
 
 
-path_attributes_centralstore = args['path_datafolder'] + args['graph_id'] + '_centralstore_attributes_' + args['partition_id']
+path_attributes_centralstore = args['path_datafolder'] + "/" + args['graph_id'] + '_centralstore_attributes_' + args['partition_id']
 node_attributes_centralstore = pd.read_csv(path_attributes_centralstore , sep='\s+', lineterminator='\n',header=None)
 node_attributes_centralstore.set_index(0,inplace=True)
 
-path_edges_centralstore = args['path_modelstore'] + args['graph_id'] + '_centralstore_' + args['partition_id']
+path_edges_centralstore = args['path_modelstore'] + "/" + args['graph_id'] + '_centralstore_' + args['partition_id']
 edges_centralstore = pd.read_csv(path_edges_centralstore, sep='\s+', lineterminator='\n', header=None)
 edges_centralstore.columns = ["source","target"]
 
