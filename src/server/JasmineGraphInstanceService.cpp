@@ -4570,6 +4570,8 @@ void JasmineGraphInstanceService::mergeFiles(string trainData){
     std::vector<std::string> trainargs = Utils::split(trainData, ' ');
     string graphID = trainargs[1];
     string partitionID = trainargs[2];
+    FILE* fp;
+    int exit_status;
 
     std::string path = "cd " + utils.getJasmineGraphProperty("org.jasminegraph.fl.location") + " && ";
     std::string command = path + "python3.11 merge.py "+ utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder")+ " "
@@ -4577,5 +4579,13 @@ void JasmineGraphInstanceService::mergeFiles(string trainData){
                                 + utils.getJasmineGraphProperty("org.jasminegraph.fl.dataDir") + " " + graphID + " " + partitionID + " > merge_logs"
                                 + partitionID +".txt";
 
-    popen(command.c_str(), "r");
+    fp = popen(command.c_str(), "r");
+    if (fp == NULL) {
+        instance_logger.log("Merge Command Execution Failed for Graph ID - Patition ID: " + graphID + " - " + partitionID, "error");
+    }
+    
+    exit_status = pclose(fp);
+    if (exit_status == -1) {
+        instance_logger.log("Merge Command Execution Failed for Graph ID - Patition ID: " + graphID + " - " + partitionID + "; Error : " + strerror(errno) , "error");
+    }
 }

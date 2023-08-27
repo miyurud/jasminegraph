@@ -131,7 +131,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
     send_and_expect_response(sock, "merge", MERGE, b'Available main flags:' + LINE_END +
                                                 b'graph_id' + LINE_END +
                                                 b'Send --<flag1> <value1>')
-    send_and_expect_response(sock, "merge", b'--graph_id 2', b'', exitOnFail=True)
+    send_and_expect_response(sock, "merge", b'--graph_id 2', DONE, exitOnFail=True)
 
     print()
     logging.info("Testing train")

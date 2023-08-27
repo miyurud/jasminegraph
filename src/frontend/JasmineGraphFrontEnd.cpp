@@ -1148,6 +1148,8 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             JasmineGraphServer *jasmineServer = new JasmineGraphServer();
             jasmineServer->initiateFiles(graphID, trainData);
             jasmineServer->initiateMerge(graphID, trainData, sqlite);
+            write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
+            write(connFd, "\r\n", 2);
 
         } else if (line.compare(TRAIN) == 0) {
             string message = "Available main flags:\r\n";
