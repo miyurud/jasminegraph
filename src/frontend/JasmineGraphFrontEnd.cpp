@@ -1224,6 +1224,8 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 jasminGraphTrainingInitiator->initiateTrainingLocally(graphID, trainData);
 
             }
+            write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
+            write(connFd, "\r\n", 2);
 
         } else if (line.compare(IN_DEGREE) == 0) {
             frontend_logger.log("Calculating In Degree Distribution", "info");

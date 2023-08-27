@@ -3108,12 +3108,12 @@ void JasmineGraphServer::initiateCommunication(std::string graphID, std::string 
 
         if (i==0) {
 
-            workerThreads[threadID] = std::thread(initiateServer,"localhost", serverPort,
+            workerThreads[threadID] = std::thread(initiateServer,workerInstance.hostname, serverPort,
                                                     serverDataPort,trainingArgs,fl_clients, to_string(i));
             threadID++;
         }
 
-        workerThreads[threadID] = std::thread(initiateClient,"localhost", serverPort, serverDataPort,trainingArgs +
+        workerThreads[threadID] = std::thread(initiateClient,workerInstance.hostname, serverPort, serverDataPort,trainingArgs +
                                                     " " + to_string(i), fl_clients, to_string(i));
         threadID++;
 
