@@ -16,6 +16,9 @@ limitations under the License.
 #include <sys/stat.h>
 #include <pwd.h>
 #include <unistd.h>
+#include <chrono>
+#include <ctime>
+#include <iomanip>
 #include "Utils.h"
 //#include "../frontend/JasmineGraphFrontEnd.h"
 #include "Conts.h"
@@ -610,4 +613,15 @@ int Utils::connect_wrapper(int sock, const sockaddr *addr, socklen_t slen) {
         }
     } while (retry++ < 4);
     return -1;
+}
+
+std::string Utils::getCurrentTimestamp() {
+    auto now = chrono::system_clock::now();
+    time_t time = chrono::system_clock::to_time_t(now);
+    tm tm_time;
+    localtime_r(&time, &tm_time);
+    stringstream timestamp;
+    timestamp << put_time(&tm_time, "%y%m%d_%H%M%S"); // Format can be customized
+
+    return timestamp.str();
 }
