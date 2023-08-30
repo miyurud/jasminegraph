@@ -92,8 +92,10 @@ void *instanceservicesession(void *dummyPt) {
             line = (data);
             line = utils.trim_copy(line, " \f\n\r\t\v");
             string server_hostname = line;
-            write(connFd, JasmineGraphInstanceProtocol::HOST_OK.c_str(), JasmineGraphInstanceProtocol::HOST_OK.size());
             instance_logger.log("Received hostname : " + line, "info");
+
+            instance_logger.log("Sending : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
+            write(connFd, JasmineGraphInstanceProtocol::HOST_OK.c_str(), JasmineGraphInstanceProtocol::HOST_OK.size());
             std::cout << "ServerName : " << server_hostname << std::endl;
         } else if (line.compare(JasmineGraphInstanceProtocol::CLOSE) == 0) {
             write(connFd, JasmineGraphInstanceProtocol::CLOSE_ACK.c_str(),
@@ -1688,7 +1690,7 @@ void *instanceservicesession(void *dummyPt) {
             string trainData(data);
 
             std::vector<std::string> trainargs = Utils::split(trainData, ' ');
-
+            instance_logger.info("Train Data : " + trainData);
             string graphID;
             string partitionID = trainargs[trainargs.size() - 1];
 
@@ -1760,7 +1762,7 @@ void *instanceservicesession(void *dummyPt) {
             string trainData(data);
 
             std::vector<std::string> trainargs = Utils::split(trainData, ' ');
-
+            instance_logger.info("Train Data : " + trainData);
             string graphID;
             string partitionID = trainargs[trainargs.size() - 1];
 
@@ -1782,6 +1784,7 @@ void *instanceservicesession(void *dummyPt) {
             bzero(data, INSTANCE_DATA_LENGTH);
             read(connFd, data, INSTANCE_DATA_LENGTH);
             string trainData(data);
+            instance_logger.log("Train Data : " + trainData, "info");
 
             std::vector<std::string> trainargs = Utils::split(trainData, ' ');
 
