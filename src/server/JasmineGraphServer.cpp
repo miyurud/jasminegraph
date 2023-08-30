@@ -3402,6 +3402,14 @@ bool JasmineGraphServer::initiateServer(std::string host, int port, int dataPort
         string server_host = utils.getJasmineGraphProperty("org.jasminegraph.server.host");
         write(sockfd, server_host.c_str(), server_host.size());
         server_logger.log("Sent fed : " + server_host, "info");
+        bzero(data, 301);
+        read(sockfd, data, 300);
+        response = (data);
+        response = utils.trim_copy(response, " \f\n\r\t\v");
+
+        if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
+            server_logger.log("Received : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
+        }
 
         write(sockfd, JasmineGraphInstanceProtocol::INITIATE_SERVER.c_str(),
               JasmineGraphInstanceProtocol::INITIATE_SERVER.size());
@@ -3477,6 +3485,14 @@ bool JasmineGraphServer::initiateClient(std::string host, int port, int dataPort
         string server_host = utils.getJasmineGraphProperty("org.jasminegraph.server.host");
         write(sockfd, server_host.c_str(), server_host.size());
         server_logger.log("Sent fed : " + server_host, "info");
+        bzero(data, 301);
+        read(sockfd, data, 300);
+        response = (data);
+        response = utils.trim_copy(response, " \f\n\r\t\v");
+
+        if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
+            server_logger.log("Received : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
+        }
 
         write(sockfd, JasmineGraphInstanceProtocol::INITIATE_CLIENT.c_str(),
               JasmineGraphInstanceProtocol::INITIATE_CLIENT.size());
