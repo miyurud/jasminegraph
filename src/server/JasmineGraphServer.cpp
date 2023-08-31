@@ -340,7 +340,8 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                                         " jasminegraph:test --MODE 2 --HOST_NAME " + host +
                                         " --MASTERIP " + masterHost + " --SERVER_PORT " +
                                         std::to_string(workerPortsVector.at(i)) + " --SERVER_DATA_PORT " +
-                                        std::to_string(workerDataPortsVector.at(i)) + " --ENABLE_NMON " + enableNmon;
+                                        std::to_string(workerDataPortsVector.at(i)) + " --ENABLE_NMON " + enableNmon +
+                                        " >/tmp/worker_logs/worker_" + to_string(i) + ".log 2>&1";
                 } else {
                     serverStartScript = "docker run -v " + instanceDataFolder + ":" + instanceDataFolder +
                                         " -v " + aggregateDataFolder + ":" + aggregateDataFolder +
@@ -368,7 +369,8 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                                         " jasminegraph:test --MODE 2 --HOST_NAME " + host +
                                         " --MASTERIP " + masterHost + " --SERVER_PORT " +
                                         std::to_string(workerPortsVector.at(i)) + " --SERVER_DATA_PORT " +
-                                        std::to_string(workerDataPortsVector.at(i)) + " --ENABLE_NMON " + enableNmon;
+                                        std::to_string(workerDataPortsVector.at(i)) + " --ENABLE_NMON " + enableNmon +
+                                        " >/tmp/worker_logs/worker_" + to_string(i) + ".log 2>&1";
                 } else {
                     serverStartScript = "docker -H ssh://" + host + " run -v " + instanceDataFolder + ":" + instanceDataFolder +
                                         " -v " + aggregateDataFolder + ":" + aggregateDataFolder +

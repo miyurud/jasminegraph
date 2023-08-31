@@ -7,7 +7,6 @@ WORKDIR /home/ubuntu/software/jasminegraph
 COPY ./GraphSAGE ./GraphSAGE
 RUN pip install -r ./GraphSAGE/requirements
 
-COPY ./conf ./conf
 COPY ./build.sh ./build.sh
 COPY ./run-docker.sh ./run-docker.sh
 COPY ./CMakeLists.txt ./CMakeLists.txt
@@ -17,5 +16,7 @@ COPY ./main.cpp ./main.cpp
 COPY ./src ./src
 
 RUN sh build.sh
+COPY ./conf ./conf
+
 ENTRYPOINT ["/home/ubuntu/software/jasminegraph/run-docker.sh"]
 CMD ["bash"]
