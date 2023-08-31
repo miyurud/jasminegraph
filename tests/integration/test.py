@@ -121,3 +121,4 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         print()
         logging.critical('Failed some tests')
         print(*failedTests, sep='\n', file=sys.stderr)
+        sys.exit(1)

@@ -16,10 +16,12 @@ limitations under the License.
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <unordered_map>
 #include <vector>
 //#include "../frontend/JasmineGraphFrontEnd.h"
-#include <string.h>
 #include <arpa/inet.h>
+#include <string.h>
+
 #include <algorithm>
 
 #include "../metadb/SQLiteDBInterface.h"
@@ -27,8 +29,12 @@ limitations under the License.
 #include "Conts.h"
 
 using std::map;
+using std::unordered_map;
 
 class Utils {
+   private:
+    static unordered_map<std::string, std::string> propertiesMap;
+
    public:
     struct worker {
         std::string workerID;

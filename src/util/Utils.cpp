@@ -24,6 +24,8 @@ limitations under the License.
 using namespace std;
 Logger util_logger;
 
+unordered_map<std::string, std::string> Utils::propertiesMap;
+
 map<std::string, std::string> Utils::getBatchUploadFileList(std::string file) {
     std::vector<std::string> batchUploadFileContent = getFileContent(file);
     std::vector<std::string>::iterator iterator1 = batchUploadFileContent.begin();
@@ -81,24 +83,28 @@ std::vector<std::string> Utils::getFileContent(std::string file) {
 };
 
 std::string Utils::getJasmineGraphProperty(std::string key) {
-    std::vector<std::string>::iterator it;
-    vector<std::string> vec = getFileContent("conf/jasminegraph-server.properties");
-    it = vec.begin();
+    if (Utils::propertiesMap.empty()) {
+        std::vector<std::string>::iterator it;
+        vector<std::string> vec = getFileContent("conf/jasminegraph-server.properties");
+        it = vec.begin();
 
-    for (it = vec.begin(); it < vec.end(); it++) {
-        std::string item = *it;
-        if (item.length() > 0 && !(item.rfind("#", 0) == 0)) {
-            std::vector<std::string> vec2 = split(item, '=');
-            if (vec2.at(0).compare(key) == 0) {
-                if (item.substr(item.length() - 1, item.length()).compare("=") != 0) {
-                    return vec2.at(1);
+        for (it = vec.begin(); it < vec.end(); it++) {
+            std::string item = *it;
+            if (item.length() > 0 && !(item.rfind("#", 0) == 0)) {
+                std::vector<std::string> vec2 = split(item, '=');
+                if (vec2.size() == 2){
+                    Utils::propertiesMap[vec2.at(0)] = vec2.at(1);
                 } else {
-                    return " ";
+                    Utils::propertiesMap[vec2.at(0)] =  string(" ");
                 }
             }
         }
     }
-
+    unordered_map<std::string,std::string>::iterator it = Utils::propertiesMap.find(key);
+    if(it != Utils::propertiesMap.end())
+    {
+        return it->second;
+    }
     return NULL;
 }
 
