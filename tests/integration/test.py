@@ -147,7 +147,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
 
     print()
     logging.info("Testing lst after rmgr")
-    send_and_expect_response(sock, 'lst after rmgr', LIST, EMPTY)
+    send_and_expect_response(sock, 'lst after rmgr', LIST, b'|2|cora|/var/tmp/data/cora/cora.cites|op|')
 
     print()
     logging.info("Shutting down")
