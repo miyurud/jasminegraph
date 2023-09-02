@@ -349,7 +349,8 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                                         std::to_string(workerDataPortsVector.at(i)) + " --ENABLE_NMON " + enableNmon +
                                         " >/tmp/worker_logs/worker_" + to_string(i) + ".log 2>&1";
                 } else {
-                    serverStartScript = "docker run -v " + instanceDataFolder + ":" + instanceDataFolder +
+                    serverStartScript = "docker run -v " + instanceFolderLocal + ":" + instanceFolder +
+                                        " -v " + federatedLearningLocationLocal + ":" + federatedLearningLocation + //todo improve to support workers on different hosts
                                         " -v " + aggregateDataFolder + ":" + aggregateDataFolder +
                                         " -v " + nmonFileLocation + ":" + nmonFileLocation +
                                         " -v " + graphsagelocation + ":" + graphsagelocation +
@@ -364,16 +365,7 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                                         std::to_string(workerPortsVector.at(i)) + " --SERVER_DATA_PORT " +
                                         std::to_string(workerDataPortsVector.at(i)) + " --ENABLE_NMON " + enableNmon;
                 }
-                serverStartScript = "docker run -v " + instanceFolderLocal + ":" + instanceFolder +
-                        " -v " + federatedLearningLocationLocal + ":" + federatedLearningLocation +   //todo improve to support workers on different hosts
-                                    " -v " + instanceDataFolder + "/" + to_string(i) + "/logs" + ":" + "/home/ubuntu/software/jasminegraph/logs" + " -p " +
-                                    std::to_string(workerPortsVector.at(i)) + ":" +
-                                    std::to_string(workerPortsVector.at(i)) + " -p " +
-                                    std::to_string(workerDataPortsVector.at(i)) + ":" +
-                                    std::to_string(workerDataPortsVector.at(i)) + " jasminegraph:latest --MODE 2 --HOST_NAME " + host +
-                                    " --MASTERIP " + masterHost + " --SERVER_PORT " +
-                                    std::to_string(workerPortsVector.at(i)) + " --SERVER_DATA_PORT " +
-                                    std::to_string(workerDataPortsVector.at(i)) + " --ENABLE_NMON " + enableNmon;
+
             } else {
                 if (is_testing) {
                     serverStartScript = "docker -H ssh://" + host + " run -p " +
@@ -388,7 +380,8 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                                         std::to_string(workerDataPortsVector.at(i)) + " --ENABLE_NMON " + enableNmon +
                                         " >/tmp/worker_logs/worker_" + to_string(i) + ".log 2>&1";
                 } else {
-                    serverStartScript = "docker -H ssh://" + host + " run -v " + instanceDataFolder + ":" + instanceDataFolder +
+                    serverStartScript = "docker -H ssh://" + host + " run -v " + instanceFolderLocal + ":" + instanceFolder +
+                            " -v " + federatedLearningLocationLocal + ":" + federatedLearningLocation + //todo improve to support workers on different hosts
                                         " -v " + aggregateDataFolder + ":" + aggregateDataFolder +
                                         " -v " + nmonFileLocation + ":" + nmonFileLocation +
                                         " -v " + graphsagelocation + ":" + graphsagelocation +
@@ -403,18 +396,6 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                                         std::to_string(workerPortsVector.at(i)) + " --SERVER_DATA_PORT " +
                                         std::to_string(workerDataPortsVector.at(i)) + " --ENABLE_NMON " + enableNmon;
                 }
-                serverStartScript = "docker -H ssh://" + host + " run -v " + instanceDataFolder + ":" + instanceDataFolder +
-                                    " -v " + aggregateDataFolder + ":" + aggregateDataFolder +
-                                    " -v " + federatedLearningLocationLocal + ":" + federatedLearningLocation +   //todo improve to support workers on different hosts
-                                    " -v " + nmonFileLocation + ":" + nmonFileLocation +
-                                    " -v " + instanceDataFolder + "/" + to_string(i) + "/logs" + ":" + "/home/ubuntu/software/jasminegraph/logs" + " -p " +
-                                    std::to_string(workerPortsVector.at(i)) + ":" +
-                                    std::to_string(workerPortsVector.at(i)) + " -p " +
-                                    std::to_string(workerDataPortsVector.at(i)) + ":" +
-                                    std::to_string(workerDataPortsVector.at(i)) + " jasminegraph:latest --MODE 2 --HOST_NAME " + host +
-                                    " --MASTERIP " + masterHost + " --SERVER_PORT " +
-                                    std::to_string(workerPortsVector.at(i)) + " --SERVER_DATA_PORT " +
-                                    std::to_string(workerDataPortsVector.at(i)) + " --ENABLE_NMON " + enableNmon;
             }
             server_logger.log(serverStartScript, "info");
             popen(serverStartScript.c_str(),"r");
