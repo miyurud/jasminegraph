@@ -13,22 +13,29 @@ limitations under the License.
 #ifndef JASMINEGRAPH_UTILS_H
 #define JASMINEGRAPH_UTILS_H
 
-#include <vector>
-#include <map>
-#include <iostream>
 #include <fstream>
+#include <iostream>
+#include <map>
+#include <unordered_map>
+#include <vector>
 //#include "../frontend/JasmineGraphFrontEnd.h"
-#include "../performancedb/PerformanceSQLiteDBInterface.h"
-#include "../metadb/SQLiteDBInterface.h"
-#include <algorithm>
-#include "Conts.h"
+#include <arpa/inet.h>
 #include <string.h>
 
-using std::map;
+#include <algorithm>
 
-class Utils
-{
-  public:
+#include "../metadb/SQLiteDBInterface.h"
+#include "../performancedb/PerformanceSQLiteDBInterface.h"
+#include "Conts.h"
+
+using std::map;
+using std::unordered_map;
+
+class Utils {
+   private:
+    static unordered_map<std::string, std::string> propertiesMap;
+
+   public:
     struct worker {
         std::string workerID;
         std::string hostname;
@@ -49,8 +56,7 @@ class Utils
 
     static std::vector<std::string> split(const std::string &, char delimiter);
 
-    std::string trim_copy(const std::string &,
-                          const std::string &);
+    std::string trim_copy(const std::string &, const std::string &);
 
     bool parseBoolean(const std::string str);
 
@@ -92,7 +98,7 @@ class Utils
     static void assignPartitionsToWorkers(int numberOfWorkers, SQLiteDBInterface sqlite);
 
     static void updateSLAInformation(PerformanceSQLiteDBInterface perfSqlite, std::string graphId, int partitionCount,
-            long newSlaValue, std::string command, std::string category);
+                                     long newSlaValue, std::string command, std::string category);
 
     void editFlagZero(std::string flagPath);
 
@@ -100,6 +106,7 @@ class Utils
 
     std::string checkFlag(std::string flagPath);
 
+    static int connect_wrapper(int sock, const sockaddr *addr, socklen_t slen);
 };
 
-#endif //JASMINEGRAPH_UTILS_H
+#endif  // JASMINEGRAPH_UTILS_H

@@ -1,0 +1,28 @@
+version: '3.0'
+services:
+  jasminegraph:
+    image: jasminegraph:test
+    ports:
+      - '7777:7777'
+      - '7778:7778'
+    volumes:
+      - '/var/run/docker.sock:/var/run/docker.sock:rw'
+      - './env/databases/metadb:/home/ubuntu/software/jasminegraph/metadb'
+      - './env/databases/performancedb:/home/ubuntu/software/jasminegraph/performancedb'
+      - './env/data:/var/tmp/data'
+      - './env/logs:/tmp/worker_logs'
+    environment:
+      - TESTING=true
+    networks:
+      - jasminenet
+    command: --MODE 1 --MASTERIP 172.28.5.1 --WORKERS 2 --WORKERIP 172.28.5.1 --ENABLE_NMON false
+
+networks:
+  jasminenet:
+    name: jasminenet
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.5.0/24
+          ip_range: 172.28.5.0/24
+          gateway: 172.28.5.1

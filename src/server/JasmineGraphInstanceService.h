@@ -119,7 +119,7 @@ public:
     static const string END_OF_MESSAGE;
     JasmineGraphInstanceService();
 
-    int run(string profile, string masterHost, string hostName, int serverPort, int serverDataPort);
+    void run(string profile, string masterHost, string hostName, int serverPort, int serverDataPort);
 
     static bool isGraphDBExists(std::string graphId, std::string partitionId);
     static bool isInstanceCentralStoreExists(std::string graphId, std::string partitionId);

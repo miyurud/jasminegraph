@@ -22,12 +22,14 @@ void *runInstanceService(void *dummyPt) {
     refToInstance->instanceService = new JasmineGraphInstanceService();
     refToInstance->instanceService->run(refToInstance->profile, refToInstance->masterHostName, refToInstance->hostName, refToInstance->serverPort,
                                         refToInstance->serverDataPort);
+    return NULL;
 }
 
 void *runFileTransferService(void *dummyPt) {
     JasmineGraphInstance *refToInstance = (JasmineGraphInstance *) dummyPt;
     refToInstance->ftpService = new JasmineGraphInstanceFileTransferService();
     refToInstance->ftpService->run(refToInstance->serverDataPort);
+    return NULL;
 }
 
 int JasmineGraphInstance::start_running(string profile, string hostName, string masterHost,int serverPort, int serverDataPort, string enableNmon) {
@@ -56,12 +58,12 @@ int JasmineGraphInstance::start_running(string profile, string hostName, string 
 
     pthread_join(instanceCommunicatorThread,NULL);
     pthread_join(instanceFileTransferThread,NULL);
-
+    return 0;
     }
 
 bool JasmineGraphInstance::acknowledgeMaster(string masterHost, string workerIP, string workerPort) {
     int sockfd;
-    char data[300];
+    char data[301];
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
@@ -72,7 +74,7 @@ bool JasmineGraphInstance::acknowledgeMaster(string masterHost, string workerIP,
 
     if (sockfd < 0) {
         std::cerr << "Cannot accept connection" << std::endl;
-        return 0;
+        return false;
     }
 
     if (masterHost.find('@') != std::string::npos) {
@@ -92,7 +94,7 @@ bool JasmineGraphInstance::acknowledgeMaster(string masterHost, string workerIP,
           (char *) &serv_addr.sin_addr.s_addr,
           server->h_length);
     serv_addr.sin_port = htons(Conts::JASMINEGRAPH_BACKEND_PORT);
-    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
     }
 
@@ -154,17 +156,18 @@ bool JasmineGraphInstance::acknowledgeMaster(string masterHost, string workerIP,
                 response = (data);
 
                 if (response.compare(JasmineGraphInstanceProtocol::UPDATE_DONE) == 0) {
-                    return 1;
+                    return true;
                 }
             }
 
             if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-                return 1;
+                return true;
             }
         }
 
-        return 0;
+        return false;
     }
+    return false;
 }
 
 void JasmineGraphInstance::startNmonAnalyzer(string enableNmon, int serverPort) {
@@ -205,7 +208,7 @@ bool JasmineGraphInstance::sendFileThroughService(std::string host, int dataPort
                                                 std::string filePath) {
     Utils utils;
     int sockfd;
-    char data[300];
+    char data[301];
     socklen_t len;
     struct sockaddr_in serv_addr;
     struct hostent *server;
@@ -214,7 +217,7 @@ bool JasmineGraphInstance::sendFileThroughService(std::string host, int dataPort
 
     if (sockfd < 0) {
         std::cerr << "Cannot accept connection" << std::endl;
-        return 0;
+        return false;
     }
 
     server = gethostbyname(host.c_str());
@@ -229,8 +232,9 @@ bool JasmineGraphInstance::sendFileThroughService(std::string host, int dataPort
           (char *) &serv_addr.sin_addr.s_addr,
           server->h_length);
     serv_addr.sin_port = htons(dataPort);
-    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting to port " << dataPort << std::endl;
+        return false;
     }
 
     fileName =  "jasminegraph-local_trained_model_store/"+fileName;
@@ -247,7 +251,7 @@ bool JasmineGraphInstance::sendFileThroughService(std::string host, int dataPort
         if (fp == NULL) {
             printf("Error opening file\n");
             close(sockfd);
-            return 0;
+            return false;
         }
         for (;;) {
             unsigned char buff[1024] = {0};
@@ -263,15 +267,19 @@ bool JasmineGraphInstance::sendFileThroughService(std::string host, int dataPort
             if (nread < 1024) {
                 if (feof(fp))
                     //printf("End of file\n");
-                    if (ferror(fp))
+                    if (ferror(fp)){
                         printf("Error reading\n");
+                        return false;
+                    }
                 break;
             }
         }
 
         fclose(fp);
         close(sockfd);
+        return true;
     }
+    return false;
 }
 
 void JasmineGraphInstance::logLoadAverage(std::string name) {

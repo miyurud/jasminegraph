@@ -27,7 +27,7 @@ void *backendservicesesion(void *dummyPt) {
     int connFd = sessionargs->connFd;
     SQLiteDBInterface sqLiteDbInterface = sessionargs->sqlite;
     backend_logger.log("Thread No: " + to_string(pthread_self()), "info");
-    char data[300];
+    char data[301];
     bzero(data, 301);
     bool loop = false;
     while (!loop) {
@@ -46,7 +46,7 @@ void *backendservicesesion(void *dummyPt) {
             write(connFd, HANDSHAKE_OK.c_str(), HANDSHAKE_OK.size());
             write(connFd, "\r\n", 2);
 
-            char host[300];
+            char host[301];
             bzero(host, 301);
             read(connFd, host, 300);
             string hostname(host);
@@ -66,7 +66,7 @@ void *backendservicesesion(void *dummyPt) {
             }
 
             // We get the name and the path to graph as a pair separated by |.
-            char worker_info_data[300];
+            char worker_info_data[301];
             bzero(worker_info_data, 301);
             string name = "";
 
@@ -92,6 +92,7 @@ void *backendservicesesion(void *dummyPt) {
     }
     backend_logger.log("Closing thread " + to_string(pthread_self()) + " and connection", "info");
     close(connFd);
+    return NULL;
 }
 
 JasmineGraphBackend::JasmineGraphBackend(SQLiteDBInterface db, int numberOfWorkers) {
@@ -170,4 +171,5 @@ int JasmineGraphBackend::run() {
     for (int i = 0; i < noThread; i++) {
         pthread_join(threadA[i], NULL);
     }
+    return 1;
 }

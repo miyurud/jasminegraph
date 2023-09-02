@@ -13,14 +13,33 @@ limitations under the License.
 
 #include "Logger.h"
 
+#include <pthread.h>
 #include <spdlog/sinks/daily_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
+#include <stdlib.h>
+
+#include <iostream>
+
+using namespace std;
+
+static string get_worker_name();
 
 auto logger = spdlog::stdout_color_mt("logger");
 auto daily_logger = spdlog::daily_logger_mt("JasmineGraph", "logs/server_logs.log", 00, 01);
+string worker_name = get_worker_name();
+
+static string get_worker_name() {
+    char *worker_id = getenv("WORKER_ID");
+    if (worker_id) {
+        return string("WORKER ") + string(worker_id);
+    }
+    return string("MASTER");
+}
 
 void Logger::log(std::string message, const std::string log_type) {
+    pthread_t tid = pthread_self();
+    message = "[" + worker_name + " : " + to_string(tid) + "] " + message;
     if (log_type.compare("info") == 0) {
         daily_logger->info(message);
         logger->info(message);

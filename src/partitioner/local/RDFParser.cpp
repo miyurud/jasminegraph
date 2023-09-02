@@ -136,7 +136,7 @@ GetConfig::~GetConfig() {
  */
 
 void GetConfig::readConfigFile(string &configFile, int graphId)
-throw(std::runtime_error) {
+/* throw(std::runtime_error) */ {
 
     struct stat fileStatus;
     this->graphID = graphId;
@@ -404,7 +404,7 @@ long GetConfig::addToArticles(std::map<string, long> *map, string URI) {
     return id;
 }
 
-long GetConfig::addToEdges(std::map<pair<int, int>, int> *map, long node_1, long node_2, long article_id) {
+void GetConfig::addToEdges(std::map<pair<int, int>, int> *map, long node_1, long node_2, long article_id) {
 
     map->insert({{node_1, node_2}, article_id});
 

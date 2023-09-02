@@ -21,7 +21,7 @@ Logger scheduler_logger;
 SQLiteDBInterface sqlLiteDB = *new SQLiteDBInterface();
 PerformanceSQLiteDBInterface perfDb = *new PerformanceSQLiteDBInterface();
 
-int PerformanceUtil::init() {
+void PerformanceUtil::init() {
     sqlLiteDB.init();
     perfDb.init();
 }
@@ -198,10 +198,10 @@ std::vector<ResourceConsumption> PerformanceUtil::retrieveCurrentResourceUtiliza
 
 
 
-int PerformanceUtil::collectRemotePerformanceData(std::string host, int port, std::string isVMStatManager,
+void PerformanceUtil::collectRemotePerformanceData(std::string host, int port, std::string isVMStatManager,
         std::string isResourceAllocationRequired, std::string hostId, std::string placeId) {
     int sockfd;
-    char data[300];
+    char data[301];
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
@@ -212,7 +212,7 @@ int PerformanceUtil::collectRemotePerformanceData(std::string host, int port, st
 
     if (sockfd < 0) {
         std::cerr << "Cannot accept connection" << std::endl;
-        return 0;
+        return;
     }
 
     server = gethostbyname(host.c_str());
@@ -226,7 +226,7 @@ int PerformanceUtil::collectRemotePerformanceData(std::string host, int port, st
           (char *) &serv_addr.sin_addr.s_addr,
           server->h_length);
     serv_addr.sin_port = htons(port);
-    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
     }
 
@@ -307,7 +307,7 @@ int PerformanceUtil::collectRemotePerformanceData(std::string host, int port, st
     }
 }
 
-int PerformanceUtil::collectLocalPerformanceData(std::string isVMStatManager, std::string isResourceAllocationRequired, std::string hostId, std::string placeId) {
+void PerformanceUtil::collectLocalPerformanceData(std::string isVMStatManager, std::string isResourceAllocationRequired, std::string hostId, std::string placeId) {
     StatisticCollector statisticCollector;
     Utils utils;
     statisticCollector.init();
@@ -352,7 +352,7 @@ int PerformanceUtil::collectRemoteSLAResourceUtilization(std::string host, int p
                                                          std::string isResourceAllocationRequired, std::string placeId,
                                                          int elapsedTime, std::string masterIP) {
     int sockfd;
-    char data[300];
+    char data[301];
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
@@ -382,7 +382,7 @@ int PerformanceUtil::collectRemoteSLAResourceUtilization(std::string host, int p
           (char *) &serv_addr.sin_addr.s_addr,
           server->h_length);
     serv_addr.sin_port = htons(port);
-    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
     }
 
@@ -466,7 +466,7 @@ int PerformanceUtil::collectRemoteSLAResourceUtilization(std::string host, int p
     }
 }
 
-int PerformanceUtil::collectLocalSLAResourceUtilization(std::string placeId, int elapsedTime) {
+void PerformanceUtil::collectLocalSLAResourceUtilization(std::string placeId, int elapsedTime) {
     StatisticCollector statisticCollector;
     Utils utils;
     statisticCollector.init();
@@ -514,7 +514,7 @@ ResourceConsumption PerformanceUtil::retrieveRemoteResourceConsumption(std::stri
     ResourceConsumption placeResourceConsumption;
 
     int sockfd;
-    char data[300];
+    char data[301];
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
@@ -542,7 +542,7 @@ ResourceConsumption PerformanceUtil::retrieveRemoteResourceConsumption(std::stri
           (char *) &serv_addr.sin_addr.s_addr,
           server->h_length);
     serv_addr.sin_port = htons(port);
-    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
     }
 
@@ -1025,13 +1025,13 @@ std::string PerformanceUtil::getSLACategoryId(std::string command, std::string c
     }
 }
 
-int PerformanceUtil::initiateCollectingRemoteSLAResourceUtilization(std::string host, int port,
+void PerformanceUtil::initiateCollectingRemoteSLAResourceUtilization(std::string host, int port,
                                                                     std::string isVMStatManager,
                                                                     std::string isResourceAllocationRequired,
                                                                     std::string placeId, int elapsedTime,
                                                                     std::string masterIP) {
     int sockfd;
-    char data[300];
+    char data[301];
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
@@ -1043,7 +1043,7 @@ int PerformanceUtil::initiateCollectingRemoteSLAResourceUtilization(std::string 
 
     if (sockfd < 0) {
         std::cerr << "Cannot accept connection" << std::endl;
-        return 0;
+        return;
     }
 
     if (host.find('@') != std::string::npos) {
@@ -1061,7 +1061,7 @@ int PerformanceUtil::initiateCollectingRemoteSLAResourceUtilization(std::string 
           (char *) &serv_addr.sin_addr.s_addr,
           server->h_length);
     serv_addr.sin_port = htons(port);
-    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
     }
 
@@ -1107,7 +1107,7 @@ std::string PerformanceUtil::requestRemoteLoadAverages(std::string host, int por
                                                std::string isResourceAllocationRequired, std::string placeId,
                                                int elapsedTime, std::string masterIP) {
     int sockfd;
-    char data[300];
+    char data[301];
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
@@ -1137,7 +1137,7 @@ std::string PerformanceUtil::requestRemoteLoadAverages(std::string host, int por
           (char *) &serv_addr.sin_addr.s_addr,
           server->h_length);
     serv_addr.sin_port = htons(port);
-    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
     }
 

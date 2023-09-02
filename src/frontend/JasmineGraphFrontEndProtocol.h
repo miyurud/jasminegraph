@@ -93,6 +93,7 @@ class JasminGraphFrontEndProtocol {
 
 const int FRONTEND_COMMAND_LENGTH = 4;
 const int FRONTEND_DATA_LENGTH = 300;
+const int FRONTEND_GRAPH_TYPE_LENGTH = 20;
 
 const double PAGE_RANK_ALPHA = 0.85;
 const int PAGE_RANK_ITERATIONS = 10;
