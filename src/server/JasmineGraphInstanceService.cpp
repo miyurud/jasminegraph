@@ -3586,7 +3586,6 @@ map<long, long> calculateOutDegreeDist(string graphID, string partitionID, int s
                                                                      graphDBMapLocalStores,
                                                                      graphDBMapCentralStores);
 
-    instance_logger.log("degreeDistribution of graph " + to_string(graphID) + " size " + to_string(degreeDistribution.size()), "info");
 
     string instanceDataFolderLocation = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
     string attributeFilePart = instanceDataFolderLocation + "/" + graphID + "_odd_" + partitionID;
