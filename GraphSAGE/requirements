@@ -19,10 +19,3 @@ six==1.16.0
 tensorboard==2.13.0
 termcolor==2.3.0
 Werkzeug==2.3.6
-scikit-learn==0.24.2
-sklearn==0.0
-stellargraph==1.2.1
-tensorflow-cpu==2.6.2
-pandas==1.1.5
-chardet==4.0.0
-xgboost
