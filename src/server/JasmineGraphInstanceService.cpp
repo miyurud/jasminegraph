@@ -92,8 +92,10 @@ void *instanceservicesession(void *dummyPt) {
             line = (data);
             line = utils.trim_copy(line, " \f\n\r\t\v");
             string server_hostname = line;
-            write(connFd, JasmineGraphInstanceProtocol::HOST_OK.c_str(), JasmineGraphInstanceProtocol::HOST_OK.size());
             instance_logger.log("Received hostname : " + line, "info");
+
+            instance_logger.log("Sending : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
+            write(connFd, JasmineGraphInstanceProtocol::HOST_OK.c_str(), JasmineGraphInstanceProtocol::HOST_OK.size());
             std::cout << "ServerName : " << server_hostname << std::endl;
         } else if (line.compare(JasmineGraphInstanceProtocol::CLOSE) == 0) {
             write(connFd, JasmineGraphInstanceProtocol::CLOSE_ACK.c_str(),
@@ -1688,7 +1690,7 @@ void *instanceservicesession(void *dummyPt) {
             string trainData(data);
 
             std::vector<std::string> trainargs = Utils::split(trainData, ' ');
-
+            instance_logger.info("Received options : " + trainData);
             string graphID;
             string partitionID = trainargs[trainargs.size() - 1];
 
@@ -1760,7 +1762,7 @@ void *instanceservicesession(void *dummyPt) {
             string trainData(data);
 
             std::vector<std::string> trainargs = Utils::split(trainData, ' ');
-
+            instance_logger.info("Received options : " + trainData);
             string graphID;
             string partitionID = trainargs[trainargs.size() - 1];
 
@@ -1782,6 +1784,7 @@ void *instanceservicesession(void *dummyPt) {
             bzero(data, INSTANCE_DATA_LENGTH);
             read(connFd, data, INSTANCE_DATA_LENGTH);
             string trainData(data);
+            instance_logger.log("Train Data : " + trainData, "info");
 
             std::vector<std::string> trainargs = Utils::split(trainData, ' ');
 
@@ -3167,13 +3170,14 @@ void JasmineGraphInstanceService::trainPartition(string trainData) {
     std::transform(trainargs.begin(), trainargs.end(), std::back_inserter(vc), converter);
 
     std::string path = "cd " + utils.getJasmineGraphProperty("org.jasminegraph.graphsage") + " && ";
-    std::string command = path + "python3.11 -m unsupervised_train ";
+    std::string command = path + "python3.11 -m unsupervised_train >  /home/ubuntu/software/jasminegraph/logs/unsupervised_train" + partitionID + "-" + Utils::getCurrentTimestamp() + ".txt" ;
 
     int argc = trainargs.size();
     for (int i = 0; i < argc - 2; ++i) {
         command += trainargs[i + 2];
         command += " ";
     }
+    instance_logger.log("Executing : " + command, "info");
     system(command.c_str());
 }
 
@@ -4480,11 +4484,13 @@ void JasmineGraphInstanceService::initServer(string trainData){
     std::transform(trainargs.begin(), trainargs.end(), std::back_inserter(vc), converter);
 
     std::string path = "cd " + utils.getJasmineGraphProperty("org.jasminegraph.fl.location") + " && ";
-    std::string command = path + "python3.11 fl_server.py "+ utils.getJasmineGraphProperty("org.jasminegraph.fl.weights") + " "
+    std::string command = path + "python3.8 fl_server.py "+ utils.getJasmineGraphProperty("org.jasminegraph.fl.weights") + " "
                                 + utils.getJasmineGraphProperty("org.jasminegraph.fl.dataDir")
                                 + " " + utils.getJasmineGraphProperty("org.jasminegraph.fl.dataDir")+ " "+ graphID + " 0 "
                                 + utils.getJasmineGraphProperty("org.jasminegraph.fl_clients")
-                                + " " + utils.getJasmineGraphProperty("org.jasminegraph.fl.epochs") +" localhost 5000 > server_logs.txt";
+                                + " " + utils.getJasmineGraphProperty("org.jasminegraph.fl.epochs") +" localhost 5000 > " 
+                                + "/home/ubuntu/software/jasminegraph/logs/server_logs-" + Utils::getCurrentTimestamp() + ".txt";
+    instance_logger.log("Executing : " + command, "info");
     popen(command.c_str(), "r");
 }
 
@@ -4507,7 +4513,8 @@ void JasmineGraphInstanceService::initOrgServer(string trainData){
     std::string path = "cd " + utils.getJasmineGraphProperty("org.jasminegraph.fl.location") + " && ";
     std::string command = path + "python3.11 org_server.py " + graphID+ " " + utils.getJasmineGraphProperty("org.jasminegraph.fl_clients")
                                     + " " + utils.getJasmineGraphProperty("org.jasminegraph.fl.epochs")
-                                    +" localhost 5050 > org_server_logs.txt";
+                                    +" localhost 5050 > /home/ubuntu/software/jasminegraph/logs/org_server_logs-" + Utils::getCurrentTimestamp() + ".txt";
+    instance_logger.log("Executing : " + command, "info");
     popen(command.c_str(), "r");
 }
 
@@ -4532,7 +4539,9 @@ void JasmineGraphInstanceService::initAgg(string trainData){
                                 + utils.getJasmineGraphProperty("org.jasminegraph.fl.dataDir")
                                 + " " + utils.getJasmineGraphProperty("org.jasminegraph.fl.dataDir")+ " " + "4" + " 0 "
                                 + utils.getJasmineGraphProperty("org.jasminegraph.fl.num.orgs")
-                                + " " + utils.getJasmineGraphProperty("org.jasminegraph.fl.epochs") +" localhost 5000 > agg_logs.txt";
+                                + " " + utils.getJasmineGraphProperty("org.jasminegraph.fl.epochs") +" localhost 5000 > " 
+                                + "/home/ubuntu/software/jasminegraph/logs/agg_logs-" + Utils::getCurrentTimestamp() + ".txt";
+    instance_logger.log("Executing : " + command, "info");
     popen(command.c_str(), "r");
 }
 
@@ -4554,13 +4563,14 @@ void JasmineGraphInstanceService::initClient(string trainData){
     std::transform(trainargs.begin(), trainargs.end(), std::back_inserter(vc), converter);
 
     std::string path = "cd " + utils.getJasmineGraphProperty("org.jasminegraph.fl.location") + " && ";
-    std::string command = path + "python3.11 fl_client.py "+ utils.getJasmineGraphProperty("org.jasminegraph.fl.weights") + " "
+    std::string command = path + "python3.8 fl_client.py "+ utils.getJasmineGraphProperty("org.jasminegraph.fl.weights") + " "
                                 + utils.getJasmineGraphProperty("org.jasminegraph.fl.dataDir")
                                 + " " + utils.getJasmineGraphProperty("org.jasminegraph.fl.dataDir")+ " "+ graphID + " " + partitionID + " "
                                 + utils.getJasmineGraphProperty("org.jasminegraph.fl.epochs")
                                 + " localhost " + utils.getJasmineGraphProperty("org.jasminegraph.fl.org.port")
-                                + " > client_logs_" + partitionID +".txt";
+                                + " > /home/ubuntu/software/jasminegraph/logs/client_logs_" + partitionID + "-" + Utils::getCurrentTimestamp() + ".txt";
 
+    instance_logger.log("Executing : " + command, "info");
     popen(command.c_str(), "r");
 }
 
@@ -4570,12 +4580,23 @@ void JasmineGraphInstanceService::mergeFiles(string trainData){
     std::vector<std::string> trainargs = Utils::split(trainData, ' ');
     string graphID = trainargs[1];
     string partitionID = trainargs[2];
+    FILE* fp;
+    int exit_status;
 
     std::string path = "cd " + utils.getJasmineGraphProperty("org.jasminegraph.fl.location") + " && ";
     std::string command = path + "python3.11 merge.py "+ utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder")+ " "
                                 + utils.getJasmineGraphProperty("org.jasminegraph.server.instance.trainedmodelfolder") + " "
-                                + utils.getJasmineGraphProperty("org.jasminegraph.fl.dataDir") + " " + graphID + " " + partitionID + " > merge_logs"
-                                + partitionID +".txt";
+                                + utils.getJasmineGraphProperty("org.jasminegraph.fl.dataDir") + " " + graphID + " " + partitionID 
+                                + " > /home/ubuntu/software/jasminegraph/logs/merge_logs" + partitionID + "-" + Utils::getCurrentTimestamp() + ".txt";
 
-    popen(command.c_str(), "r");
+    instance_logger.log("Executing : " + command, "info");
+    fp = popen(command.c_str(), "r");
+    if (fp == NULL) {
+        instance_logger.log("Merge Command Execution Failed for Graph ID - Patition ID: " + graphID + " - " + partitionID, "error");
+    }
+    
+    exit_status = pclose(fp);
+    if (exit_status == -1) {
+        instance_logger.log("Merge Command Execution Failed for Graph ID - Patition ID: " + graphID + " - " + partitionID + "; Error : " + strerror(errno) , "error");
+    }
 }

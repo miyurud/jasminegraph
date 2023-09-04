@@ -89,7 +89,7 @@ class Client:
 
         weights_path = self.weights_path + 'weights_' + self.graph_id + '_' + self.partition_id + ".npy"
 
-        weights = np.array(self.MODEL.get_weights())
+        weights = self.MODEL.get_weights()
 
         data = {"CLIENT_ID":self.partition_id,"WEIGHTS":weights,"NUM_EXAMPLES":self.graph_params[0]}
 

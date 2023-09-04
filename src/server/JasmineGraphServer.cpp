@@ -3108,12 +3108,12 @@ void JasmineGraphServer::initiateCommunication(std::string graphID, std::string 
 
         if (i==0) {
 
-            workerThreads[threadID] = std::thread(initiateServer,"localhost", serverPort,
+            workerThreads[threadID] = std::thread(initiateServer,workerInstance.hostname, serverPort,
                                                     serverDataPort,trainingArgs,fl_clients, to_string(i));
             threadID++;
         }
 
-        workerThreads[threadID] = std::thread(initiateClient,"localhost", serverPort, serverDataPort,trainingArgs +
+        workerThreads[threadID] = std::thread(initiateClient,workerInstance.hostname, serverPort, serverDataPort,trainingArgs +
                                                     " " + to_string(i), fl_clients, to_string(i));
         threadID++;
 
@@ -3402,6 +3402,14 @@ bool JasmineGraphServer::initiateServer(std::string host, int port, int dataPort
         string server_host = utils.getJasmineGraphProperty("org.jasminegraph.server.host");
         write(sockfd, server_host.c_str(), server_host.size());
         server_logger.log("Sent fed : " + server_host, "info");
+        bzero(data, 301);
+        read(sockfd, data, 300);
+        response = (data);
+        response = utils.trim_copy(response, " \f\n\r\t\v");
+
+        if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
+            server_logger.log("Received : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
+        }
 
         write(sockfd, JasmineGraphInstanceProtocol::INITIATE_SERVER.c_str(),
               JasmineGraphInstanceProtocol::INITIATE_SERVER.size());
@@ -3477,6 +3485,14 @@ bool JasmineGraphServer::initiateClient(std::string host, int port, int dataPort
         string server_host = utils.getJasmineGraphProperty("org.jasminegraph.server.host");
         write(sockfd, server_host.c_str(), server_host.size());
         server_logger.log("Sent fed : " + server_host, "info");
+        bzero(data, 301);
+        read(sockfd, data, 300);
+        response = (data);
+        response = utils.trim_copy(response, " \f\n\r\t\v");
+
+        if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
+            server_logger.log("Received : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
+        }
 
         write(sockfd, JasmineGraphInstanceProtocol::INITIATE_CLIENT.c_str(),
               JasmineGraphInstanceProtocol::INITIATE_CLIENT.size());

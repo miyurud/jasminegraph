@@ -115,7 +115,7 @@ class Server:
         if self.ROUNDS == self.training_cycles:
             self.stop_flag = True
 
-        weights = np.array(self.GLOBAL_WEIGHTS)
+        weights = self.GLOBAL_WEIGHTS
 
         data = {"STOP_FLAG":self.stop_flag,"WEIGHTS":weights}
 
