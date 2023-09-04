@@ -1899,10 +1899,11 @@ void *instanceservicesession(void *dummyPt) {
             workerThreads[1] =
                 std::thread(&JasmineGraphInstanceService::createPartitionFiles, graphID, partitionID, "centralstore");
 
-            for (int threadCount = 0; threadCount < 2; threadCount++) {
-                workerThreads[threadCount].join();
-                std::cout << "Thread " << threadCount << " joined" << std::endl;
-            }
+            workerThreads[0].join();
+            instance_logger.log("WorkerThread 0 joined", "info");
+
+            workerThreads[1].join();
+            instance_logger.log("WorkerThread 1 joined", "info");
 
             write(connFd, JasmineGraphInstanceProtocol::SEND_PARTITION_ITERATION.c_str(),
                   JasmineGraphInstanceProtocol::SEND_PARTITION_ITERATION.size());
