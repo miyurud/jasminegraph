@@ -3095,10 +3095,7 @@ void JasmineGraphServer::initiateFiles(std::string graphID, std::string training
             sleep(3);
     }
 
-    std::cout << "count " << count << std::endl;
     for (int threadCount = 0; threadCount < count; threadCount++) {
-        std::cout << "threadCount " << threadCount << std::endl;
-
         workerThreads[threadCount].join();
         server_logger.log("Thread : "+ to_string(threadCount) + " joined", "info");
     }
@@ -3113,8 +3110,6 @@ void JasmineGraphServer::initiateCommunication(std::string graphID, std::string 
     std::map<std::string, JasmineGraphServer::workerPartition> graphPartitionedHosts = this->getWorkerPartitions(
             graphID);
     int partition_count = graphPartitionedHosts.size();
-
-    std::cout << partition_count << std::endl;
 
     Utils utils;
     trainingArgs = trainingArgs;
@@ -3235,7 +3230,6 @@ void JasmineGraphServer::initiateMerge(std::string graphID, std::string training
             graphID);
     int partition_count = graphPartitionedHosts.size();
 
-    std::cout << partition_count << std::endl;
     std::thread *workerThreads = new std::thread[partition_count+1];
 
     Utils utils;
@@ -3282,7 +3276,6 @@ bool JasmineGraphServer::initiateTrain(std::string host, int port, int dataPort,
 
     server = gethostbyname(host.c_str());
     if (server == NULL) {
-        std::cerr << "ERROR, no host named " << server << std::endl;
         server_logger.log("ERROR, can not find the host", "error");
     }
 
