@@ -3266,7 +3266,7 @@ void JasmineGraphServer::initiateMerge(std::string graphID, std::string training
         }
     }
 
-    std::thread *workerThreads = new std::thread[partition_count+1];
+    std::thread *workerThreads = new std::thread[partition_count + 1];
 
     Utils utils;
     trainingArgs = trainingArgs;
@@ -3284,20 +3284,21 @@ void JasmineGraphServer::initiateMerge(std::string graphID, std::string training
             int iterationOfPart = scheduleOfHost[stoi(*k)];
 
             workerThreads[count] = std::thread(mergeFiles, workerPartition.hostname, workerPartition.port,
-                                    workerPartition.dataPort,trainingArgs + " " + *k, fl_clients, *k);
+                                               workerPartition.dataPort, trainingArgs + " " + *k, fl_clients, *k);
             count++;
+        }
+
+        std::cout << count << std::endl;
+
+        for (int threadCount = 0; threadCount < count; threadCount++) {
+            workerThreads[threadCount].join();
+        }
+
+        server_logger.log("Merge Commands Sent", "info");
     }
-
-    std::cout << count <<std::endl;
-
-    for (int threadCount = 0; threadCount < count; threadCount++) {
-        workerThreads[threadCount].join();
-    }
-
-    server_logger.log("Merge Commands Sent", "info");
 }
 
-bool JasmineGraphServer::initiateTrain(std::string host, int port, int dataPort,std::string trainingArgs,int iteration, string partCount) {
+bool JasmineGraphServer::initiateTrain(std::string host, int port, int dataPort,std::string trainingArgs,int iteration) {
     Utils utils;
     bool result = true;
     int sockfd;
