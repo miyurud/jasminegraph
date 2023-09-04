@@ -18,19 +18,23 @@ import logging
 logging.getLogger().setLevel(logging.INFO)
 
 HOST = '127.0.0.1'
-PORT = 7777 # The port used by the server
+PORT = 7777  # The port used by the server
 
-LIST=b'lst'
-ADGR=b'adgr'
-EMPTY=b'empty'
-RMGR=b'rmgr'
-VCNT=b'vcnt'
-ECNT=b'ecnt'
-TRIAN=b'trian'
-SHDN=b'shdn'
-SEND=b'send'
-DONE=b'done'
-LINE_END=b'\r\n'
+LIST = b'lst'
+ADGR = b'adgr'
+ADGR_CUST = b'adgr-cust'
+EMPTY = b'empty'
+RMGR = b'rmgr'
+VCNT = b'vcnt'
+ECNT = b'ecnt'
+MERGE = b'merge'
+TRAIN = b'train'
+TRIAN = b'trian'
+SHDN = b'shdn'
+SEND = b'send'
+DONE = b'done'
+LINE_END = b'\r\n'
+
 
 def expect_response(sock, expected):
     global passedAll
@@ -54,6 +58,7 @@ def expect_response(sock, expected):
     assert data == expected
     return True
 
+
 def send_and_expect_response(sock, testName, send, expected, exitOnFail=False):
     global failedTests
     sock.sendall(send + LINE_END)
@@ -65,6 +70,7 @@ def send_and_expect_response(sock, testName, send, expected, exitOnFail=False):
             logging.fatal('Failed some tests,')
             print(*failedTests, sep='\n', file=sys.stderr)
             sys.exit(1)
+
 
 passedAll = True
 failedTests = []
@@ -102,13 +108,46 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
     send_and_expect_response(sock, "trian", b'1', b'651')
 
     print()
+    logging.info("Testing adgr-cust")
+    send_and_expect_response(sock, "adgr-cust", ADGR_CUST, b'Select a custom graph upload option' + LINE_END +
+                             b'1 : Graph with edge list + text attributes list' + LINE_END +
+                             b'2 : Graph with edge list + JSON attributes list' + LINE_END +
+                             b'3 : Graph with edge list + XML attributes list', exitOnFail=True)
+    send_and_expect_response(sock, "adgr-cust",
+                             b'1',
+                             b'Send <name>|<path to edge list>|<path to attribute file>|' +
+                             b'(optional)<attribute data type: int8. int16, int32 or float>',
+                             exitOnFail=True)
+    send_and_expect_response(sock, "adgr-cust", b'cora|/var/tmp/data/cora/cora.cites|/var/tmp/data/cora/cora.content',
+                             DONE, exitOnFail=True)
+
+    print()
+    logging.info("Testing lst after adgr-cust")
+    send_and_expect_response(sock, "lst after adgr-cust", LIST,  b'|1|powergrid|/var/tmp/data/powergrid.dl|op|' + LINE_END +
+                                                                 b'|2|cora|/var/tmp/data/cora/cora.cites|op|')
+
+    print()
+    logging.info("Testing merge")
+    send_and_expect_response(sock, "merge", MERGE, b'Available main flags:' + LINE_END +
+                                                b'graph_id' + LINE_END +
+                                                b'Send --<flag1> <value1>')
+    send_and_expect_response(sock, "merge", b'--graph_id 2', DONE, exitOnFail=True)
+
+    print()
+    logging.info("Testing train")
+    send_and_expect_response(sock, "train", TRAIN, b'Available main flags:' + LINE_END +
+                             b'graph_id learning_rate batch_size validate_iter epochs' + LINE_END +
+                             b'Send --<flag1> <value1> --<flag2> <value2> ..', exitOnFail=True)
+    send_and_expect_response(sock, "train", b'--graph_id 2', DONE, exitOnFail=True)
+
+    print()
     logging.info("Testing rmgr")
     send_and_expect_response(sock, 'rmgr', RMGR, SEND)
     send_and_expect_response(sock, 'rmgr', b'1', DONE)
 
     print()
     logging.info("Testing lst after rmgr")
-    send_and_expect_response(sock, 'lst after rmgr', LIST, EMPTY)
+    send_and_expect_response(sock, 'lst after rmgr', LIST, b'|2|cora|/var/tmp/data/cora/cora.cites|op|')
 
     print()
     logging.info("Shutting down")

@@ -1147,6 +1147,8 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             JasmineGraphServer *jasmineServer = new JasmineGraphServer();
             jasmineServer->initiateFiles(graphID, trainData);
             jasmineServer->initiateMerge(graphID, trainData, sqlite);
+            write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
+            write(connFd, "\r\n", 2);
 
         } else if (line.compare(TRAIN) == 0) {
             string message = "Available main flags:\r\n";
@@ -1157,20 +1159,6 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             string flags =
                     Conts::FLAGS::GRAPH_ID + " " + Conts::FLAGS::LEARNING_RATE + " " + Conts::FLAGS::BATCH_SIZE + " " +
                     Conts::FLAGS::VALIDATE_ITER + " " + Conts::FLAGS::EPOCHS;
-            result_wr = write(connFd, flags.c_str(), flags.size());
-            if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
-            }
-            result_wr = write(connFd, "\r\n", 2);
-            if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
-            }
-            message = "Send --<flag1> <value1> --<flag2> <value2> ..\r\n";
-            result_wr = write(connFd, message.c_str(), message.size());
-            if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
-            }
-
             write(connFd, flags.c_str(), flags.size());
             write(connFd, "\r\n", 2);
             message = "Send --<flag1> <value1> --<flag2> <value2> ..\r\n";
@@ -1222,9 +1210,11 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             if (federatedEnabled == "true") {
                 JasmineGraphServer *jasmineServer = new JasmineGraphServer();
                 if (utils.getJasmineGraphProperty("org.jasminegraph.fl.org.training") == "true") {
+                    frontend_logger.log("Initiate org communication", "info");
                     jasmineServer->initiateOrgCommunication(graphID, trainData, sqlite);
 
                 } else {
+                    frontend_logger.log("Initiate communication", "info");
                     jasmineServer->initiateCommunication(graphID, trainData, sqlite);
 
                 }
@@ -1235,6 +1225,8 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 jasminGraphTrainingInitiator->initiateTrainingLocally(graphID, trainData);
 
             }
+            write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
+            write(connFd, "\r\n", 2);
 
         } else if (line.compare(IN_DEGREE) == 0) {
 

@@ -107,6 +107,7 @@ class Utils {
     std::string checkFlag(std::string flagPath);
 
     static int connect_wrapper(int sock, const sockaddr *addr, socklen_t slen);
+    static std::string getCurrentTimestamp();
 };
 
 #endif  // JASMINEGRAPH_UTILS_H
