@@ -4492,7 +4492,7 @@ void JasmineGraphInstanceService::initServer(string trainData){
     instance_logger.log("Executing : " + command, "info");
     int exit_status = system(command.c_str());
     if (exit_status == -1) {
-        instance_logger.error("fl_client.py Execution Failed");
+        instance_logger.error("Failed executing python server for query");
     }
 }
 
@@ -4519,7 +4519,7 @@ void JasmineGraphInstanceService::initOrgServer(string trainData){
     instance_logger.log("Executing : " + command, "info");
     int exit_status = system(command.c_str());
     if (exit_status == -1) {
-        instance_logger.error("fl_client.py Execution Failed");
+        instance_logger.error("Failed executing python server for multi-organization query");
     }
 }
 
@@ -4549,7 +4549,7 @@ void JasmineGraphInstanceService::initAgg(string trainData){
     instance_logger.log("Executing : " + command, "info");
     int exit_status = system(command.c_str());
     if (exit_status == -1) {
-        instance_logger.error("fl_client.py Execution Failed");
+        instance_logger.error("Failed to execute organization level aggregations");
     }
 }
 
@@ -4581,7 +4581,7 @@ void JasmineGraphInstanceService::initClient(string trainData){
     instance_logger.log("Executing : " + command, "info");
     int exit_status = system(command.c_str());
     if (exit_status == -1) {
-        instance_logger.error("fl_client.py Execution Failed");
+        instance_logger.error("Could not start python client");
     }
 }
 
