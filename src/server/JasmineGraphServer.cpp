@@ -3298,7 +3298,7 @@ void JasmineGraphServer::initiateMerge(std::string graphID, std::string training
     }
 }
 
-bool JasmineGraphServer::initiateTrain(std::string host, int port, int dataPort,std::string trainingArgs,int iteration) {
+bool JasmineGraphServer::initiateTrain(std::string host, int port, int dataPort,std::string trainingArgs,int iteration, string partCount) {
     Utils utils;
     bool result = true;
     int sockfd;
@@ -3391,7 +3391,7 @@ bool JasmineGraphServer::initiateTrain(std::string host, int port, int dataPort,
     return 0;
 }
 
-bool JasmineGraphServer::initiateServer(std::string host, int port, int dataPort,std::string trainingArgs,int iteration) {
+bool JasmineGraphServer::initiateServer(std::string host, int port, int dataPort,std::string trainingArgs,int iteration, string partCount) {
 
     Utils utils;
     bool result = true;

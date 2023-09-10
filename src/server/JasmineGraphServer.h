@@ -174,9 +174,9 @@ public:
 
     void initiateMerge(std::string graphID, std::string trainingArgs,SQLiteDBInterface sqlite);
 
-    static bool initiateTrain(std::string host, int port, int dataPort,std::string trainingArgs,int iteration);
+    static bool initiateTrain(std::string host, int port, int dataPort,std::string trainingArgs,int iteration, string partCount);
 
-    static bool initiateServer(std::string host, int port, int dataPort,std::string trainingArgs,int iteration);
+    static bool initiateServer(std::string host, int port, int dataPort,std::string trainingArgs,int iteration, string partCount);
 
     static bool initiateOrgServer(std::string host, int port, int dataPort,std::string trainingArgs,int iteration, string partCount);
 
