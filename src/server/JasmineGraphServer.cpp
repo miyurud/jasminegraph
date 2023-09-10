@@ -3396,7 +3396,7 @@ bool JasmineGraphServer::initiateServer(std::string host, int port, int dataPort
     Utils utils;
     bool result = true;
     int sockfd;
-    char data[FED_DATA_LENGTH];
+    char data[FED_DATA_LENGTH + 1];
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
@@ -3489,7 +3489,7 @@ bool JasmineGraphServer::initiateClient(std::string host, int port, int dataPort
     Utils utils;
     bool result = true;
     int sockfd;
-    char data[FED_DATA_LENGTH];
+    char data[FED_DATA_LENGTH + 1];
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
