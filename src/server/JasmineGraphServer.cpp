@@ -297,7 +297,6 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
     std::string nmonFileLocation = utils.getJasmineGraphProperty("org.jasminegraph.server.nmon.file.location");
     std::string graphsagelocation = utils.getJasmineGraphProperty("org.jasminegraph.graphsage");
     std::string federatedLearningLocation = utils.getJasmineGraphProperty("org.jasminegraph.fl.location");
-    std::string federatedLearningLocationLocal = utils.getJasmineGraphProperty("org.jasminegraph.fl.location.local");
 
     std::string instanceFolder = utils.getJasmineGraphProperty("org.jasminegraph.server.instance");
     std::string instanceFolderLocal = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.local");
@@ -350,7 +349,6 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                                         " >/tmp/worker_logs/worker_" + to_string(i) + ".log 2>&1";
                 } else {
                     serverStartScript = "docker run -v " + instanceFolderLocal + ":" + instanceFolder +
-                                        " -v " + federatedLearningLocationLocal + ":" + federatedLearningLocation + //todo improve to support workers on different hosts
                                         " -v " + aggregateDataFolder + ":" + aggregateDataFolder +
                                         " -v " + nmonFileLocation + ":" + nmonFileLocation +
                                         " -v " + graphsagelocation + ":" + graphsagelocation +
@@ -381,7 +379,6 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                                         " >/tmp/worker_logs/worker_" + to_string(i) + ".log 2>&1";
                 } else {
                     serverStartScript = "docker -H ssh://" + host + " run -v " + instanceFolderLocal + ":" + instanceFolder +
-                            " -v " + federatedLearningLocationLocal + ":" + federatedLearningLocation + //todo improve to support workers on different hosts
                                         " -v " + aggregateDataFolder + ":" + aggregateDataFolder +
                                         " -v " + nmonFileLocation + ":" + nmonFileLocation +
                                         " -v " + graphsagelocation + ":" + graphsagelocation +
