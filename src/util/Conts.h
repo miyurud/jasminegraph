@@ -146,6 +146,7 @@ public:
         static const std::string QUEUE_TIME;
         static const std::string GRAPH_SLA;
         static const std::string IS_CALIBRATING;
+        static const std::string AUTO_CALIBRATION;
     };
 
 

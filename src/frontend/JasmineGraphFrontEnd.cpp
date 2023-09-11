@@ -950,12 +950,30 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 jobDetails.setJobId(std::to_string(uniqueId));
                 jobDetails.setJobType(TRIANGLES);
 
+                long graphSLA;
                 //All high priority threads will be set the same high priority level
                 if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
                     threadPriority = Conts::HIGH_PRIORITY_DEFAULT_VALUE;
-                    long graphSLA = JasmineGraphFrontEnd::getSLAForGraphId(sqlite, perfSqlite, graph_id,
+                    graphSLA = JasmineGraphFrontEnd::getSLAForGraphId(sqlite, perfSqlite, graph_id,
                                                                            TRIANGLES, Conts::SLA_CATEGORY::LATENCY);
                     jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_SLA, std::to_string(graphSLA));
+                }
+
+                if (graphSLA==0){
+                    if (JasmineGraphFrontEnd::areRunningJobsForSameGraph()){
+                        if(canCalibrate){
+                            //initial calibration
+                            jobDetails.addParameter(Conts::PARAM_KEYS::AUTO_CALIBRATION, "false");
+                        }
+                        else{
+                            //auto calibration
+                            jobDetails.addParameter(Conts::PARAM_KEYS::AUTO_CALIBRATION, "true");
+                        }
+                    }
+                    else{
+                        //TODO(ASHOK12011234): Need to investigate for multiple graphs
+                        frontend_logger.log("Can't calibrate the graph now", "error");
+                    }
                 }
 
                 jobDetails.setPriority(threadPriority);
@@ -1942,6 +1960,38 @@ int JasmineGraphFrontEnd::getRunningHighPriorityTaskCount() {
     }
 
     return taskCount;
+}
+
+/*
+    Method to check if all the running jobs are for the same graph
+*/
+bool JasmineGraphFrontEnd::areRunningJobsForSameGraph(){
+    if (processData.empty()) {
+        return true; // No running jobs
+    }
+
+    std::string commonGraphId; // To store the common graph ID among running jobs
+    bool firstJob = true; // To track if it's the first job being checked
+
+    std::set<ProcessInfo>::iterator processQueryIterator;
+
+    for (processQueryIterator = processData.begin();
+         processQueryIterator != processData.end(); ++processQueryIterator) {
+        ProcessInfo processInformation = *processQueryIterator;
+
+        if (firstJob) {
+            commonGraphId = processInformation.graphId;
+            firstJob = false;
+        } else {
+            if (commonGraphId != processInformation.graphId) {
+                // Graph IDs are not the same, so return false
+                return false;
+            }
+        }
+    }
+
+    // All jobs have the same graph ID, so return true
+    return true;
 }
 
 void JasmineGraphServer::pageRank(std::string graphID, double alpha, int iterations) {
