@@ -24,6 +24,7 @@ bool isStatCollect = false;
 std::mutex fileCombinationMutex;
 std::mutex processStatusMutex;
 std::mutex responseVectorMutex;
+std::mutex initialRecordMutex;
 
 TriangleCountExecutor::TriangleCountExecutor() {
 
@@ -189,6 +190,7 @@ void TriangleCountExecutor::execute() {
                         "graph_sla.graph_id='" + graphId + "' and graph_sla.partition_count='" + std::to_string(partitionCount) +
                         "' and sla_category.category='" + Conts::SLA_CATEGORY::LATENCY + "';";
 
+    initialRecordMutex.lock();
     std::vector<vector<pair<string, string>>> queryResults = perfDB.runSelect(query);
 
     if (queryResults.size() > 0) {
@@ -206,6 +208,7 @@ void TriangleCountExecutor::execute() {
                            Conts::SLA_CATEGORY::LATENCY, partitionCount, masterIP));
         isStatCollect = true;
     }
+    initialRecordMutex.unlock();
 
     for (auto &&futureCall:intermRes) {
         result += futureCall.get();

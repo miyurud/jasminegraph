@@ -29,6 +29,7 @@ extern bool workerResponded;
 extern std::vector<std::string> highPriorityGraphList;
 extern std::mutex processStatusMutex;
 extern std::mutex responseVectorMutex;
+extern std::mutex initialRecordMutex;
 extern bool isStatCollect;
 extern bool isCalibrating;
 extern std::vector<std::string> loadAverageVector;
