@@ -12,14 +12,24 @@ jobs:
         steps:
             - uses: actions/checkout@v3
 
+            - name: Install tools
+              run: |
+                sudo apt-get update && sudo apt-get install -y --no-install-recommends cpplint shfmt
+                sudo wget https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64 -O /bin/hadolint && sudo chmod +x /bin/hadolint
+                pip install install pylint
+
             - name: cpplint check
               if: ${{!contains(github.event.pull_request.labels.*.name, 'Skip cpplint Check')}}
-              run: |
-                sudo apt-get install cpplint
-                cpplint --linelength=120 --filter=-build,-runtime,-readability/todo,-whitespace/todo,-readability/casting,-readability/braces,-readability/fn_size,-legal/copyright --exclude=./src/util/sqlite3/ --recursive .
+              run: cpplint --linelength=120 --filter=-build,-runtime,-readability/todo,-whitespace/todo,-readability/casting,-readability/braces,-readability/fn_size,-legal/copyright --exclude=./src/util/sqlite3/ --recursive .
 
             - name: pylint check
               if: ${{!contains(github.event.pull_request.labels.*.name, 'Skip pylint Check')}}
-              run: |
-                pip install install pylint
-                pylint --recursive=y .
+              run: pylint --recursive=y .
+            
+            - name: hadolint check
+              if: ${{!contains(github.event.pull_request.labels.*.name, 'Skip hadolint Check')}}
+              run: find . -type f -name '*Dockerfile*' -print0 | xargs -0 hadolint --ignore DL3008 --ignore DL3041 -t warning
+
+            - name: shfmt check
+              if: ${{!contains(github.event.pull_request.labels.*.name, 'Skip shfmt Check')}}
+              run: find . -type f -name '*.sh' -print0 | xargs -0 shfmt -d -s -i 4 -ci
