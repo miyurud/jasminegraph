@@ -6,7 +6,7 @@ TIMEOUT_SECONDS=600
 RUN_ID="$(date +%y%m%d_%H%M%S)"
 LOG_DIR="${PROJECT_ROOT}/logs/${RUN_ID}"
 while [ -d "$LOG_DIR"]; do
-    tmp_id="$((${tmp_id}+1))"
+    tmp_id="$((tmp_id + 1))"
     new_run="${RUN_ID}_${tmp_id}"
     LOG_DIR="${PROJECT_ROOT}/logs/${RUN_ID}"
 done
@@ -19,16 +19,15 @@ BUILD_LOG="${LOG_DIR}/build.log"
 RUN_LOG="${LOG_DIR}/run_master.log"
 TEST_LOG="${LOG_DIR}/test.log"
 
-
-stop_and_remove_containers () {
+stop_and_remove_containers() {
     if [ "$(docker ps -q)" ]; then
-       docker ps -a -q | xargs docker rm -f &>/dev/null
+        docker ps -a -q | xargs docker rm -f &>/dev/null
     else
         echo "No containers to stop and remove."
-    fi    
+    fi
 }
 
-build_and_run_docker () {
+build_and_run_docker() {
     stop_and_remove_containers
     cd "$PROJECT_ROOT"
     docker build -t jasminegraph:test . |& tee "$BUILD_LOG"
