@@ -65,3 +65,7 @@ if [ $MODE -eq 1 ]; then
 else
     ./JasmineGraph "docker" $MODE $HOST_NAME $MASTERIP $SERVER_PORT $SERVER_DATA_PORT $ENABLE_NMON
 fi
+
+if [ "$TESTING" = "true" ]; then
+    chmod -R go+w /tmp/jasminegraph
+fi
