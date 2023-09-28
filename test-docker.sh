@@ -18,12 +18,19 @@ mkdir "$LOG_DIR"
 BUILD_LOG="${LOG_DIR}/build.log"
 RUN_LOG="${LOG_DIR}/run_master.log"
 TEST_LOG="${LOG_DIR}/test.log"
+WORKER_LOG_DIR="/tmp/jasminegraph"
+rm -rf "${WORKER_LOG_DIR}"
+mkdir -p "${WORKER_LOG_DIR}"
 
 stop_and_remove_containers() {
-    if [ "$(docker ps -q)" ]; then
+    if [ "$(docker ps -a -q)" ]; then
         docker ps -a -q | xargs docker rm -f &>/dev/null
     else
         echo "No containers to stop and remove."
+    fi
+    docker run -v '/tmp/jasminegraph:/tmp/jasminegraph' --entrypoint /bin/bash jasminegraph:test -c 'rm -rf /tmp/jasminegraph/*' || echo 'Not removing existing tmp logs'
+    if [ "$(docker ps -a -q)" ]; then
+        docker ps -a -q | xargs docker rm -f &>/dev/null
     fi
 }
 
@@ -39,13 +46,12 @@ build_and_run_docker() {
         rm -rf "${TEST_ROOT}/env"
         exit "$build_status"
     fi
-    docker compose -f "${TEST_ROOT}/docker-compose.yml" up |& tee "$RUN_LOG" &>/dev/null &
+    docker compose -f "${TEST_ROOT}/docker-compose.yml" up >"$RUN_LOG" 2>&1 &
 }
 
 cd "$TEST_ROOT"
 rm -rf env
 cp -r env_init env
-mkdir -p env/logs
 cd "$PROJECT_ROOT"
 build_and_run_docker
 
@@ -77,23 +83,44 @@ if [ "$exit_code" == '124' ]; then
 fi
 
 cd "$TEST_ROOT"
-for f in env/logs/*; do
-    fname="$(basename ${f})"
-    cp "$f" "${LOG_DIR}/run_${fname}"
+for d in "${WORKER_LOG_DIR}"/worker_*; do
+    echo
+    worker_name="$(basename ${d})"
+    cp -r "$d" "${LOG_DIR}/${worker_name}"
 done
+
 cd "$LOG_DIR"
 if [ "$exit_code" != '0' ]; then
     echo
     echo -e '\e[33;1mMaster log:\e[0m'
     cat "$RUN_LOG"
 
-    for f in run_worker_*; do
+    for d in worker_*; do
+        cd "${LOG_DIR}/${d}"
         echo
-        echo -e '\e[33;1m'"${f:4:-4}"' log:\e[0m'
-        cat "$f"
+        echo -e '\e[33;1m'"${d}"' log:\e[0m'
+        cat worker.log
+
+        for f in merge_*.log; do
+            echo
+            echo -e '\e[33;1m'"${d} ${f::-4}"' log:\e[0m'
+            cat "$f"
+        done
+
+        for f in fl_client_*.log; do
+            echo
+            echo -e '\e[33;1m'"${d} ${f::-4}"' log:\e[0m'
+            cat "$f"
+        done
+
+        for f in fl_server_*.log; do
+            echo
+            echo -e '\e[33;1m'"${d} ${f::-4}"' log:\e[0m'
+            cat "$f"
+        done
     done
 fi
 
-rm -rf "${TEST_ROOT}/env"
 stop_and_remove_containers
+rm -rf "${TEST_ROOT}/env" "${WORKER_LOG_DIR}"
 exit "$exit_code"

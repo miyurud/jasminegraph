@@ -16,6 +16,7 @@ limitations under the License.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
+#include <sys/stat.h>
 #include "JasmineGraphServer.h"
 #include "JasmineGraphInstance.h"
 #include "../util/Utils.h"
@@ -329,6 +330,14 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
         char *env_testing = getenv("TESTING");
         bool is_testing = (env_testing != NULL && strcasecmp(env_testing, "true") == 0);
         for (int i =0 ; i < workerPortsVector.size() ; i++) {
+            std::string worker_logdir = "/tmp/jasminegraph/worker_" + to_string(i);
+            if (access(worker_logdir.c_str(), F_OK) != 0) {
+                if (mkdir(worker_logdir.c_str(), 0777)) {
+                    server_logger.error("Couldn't create worker log dir: " + worker_logdir);
+                }
+            } else {
+                chmod(worker_logdir.c_str(), 0777);
+            }
             if (masterHost == host || host == "localhost") {
                 if (is_testing) {
                     serverStartScript = "docker run -p " +
@@ -336,12 +345,13 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                                         std::to_string(workerPortsVector.at(i)) + " -p " +
                                         std::to_string(workerDataPortsVector.at(i)) + ":" +
                                         std::to_string(workerDataPortsVector.at(i)) +
+                                        " -v " + worker_logdir + ":/tmp/jasminegraph" +
                                         " -e WORKER_ID=" + to_string(i) +
                                         " jasminegraph:test --MODE 2 --HOST_NAME " + host +
                                         " --MASTERIP " + masterHost + " --SERVER_PORT " +
                                         std::to_string(workerPortsVector.at(i)) + " --SERVER_DATA_PORT " +
                                         std::to_string(workerDataPortsVector.at(i)) + " --ENABLE_NMON " + enableNmon +
-                                        " >/tmp/worker_logs/worker_" + to_string(i) + ".log 2>&1";
+                                        " >" + worker_logdir + "/worker.log 2>&1";
                 } else {
                     serverStartScript = "docker run -v " + instanceDataFolder + ":" + instanceDataFolder +
                                         " -v " + aggregateDataFolder + ":" + aggregateDataFolder +
@@ -370,7 +380,7 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                                         " --MASTERIP " + masterHost + " --SERVER_PORT " +
                                         std::to_string(workerPortsVector.at(i)) + " --SERVER_DATA_PORT " +
                                         std::to_string(workerDataPortsVector.at(i)) + " --ENABLE_NMON " + enableNmon +
-                                        " >/tmp/worker_logs/worker_" + to_string(i) + ".log 2>&1";
+                                        " >" + worker_logdir + "/worker.log 2>&1";
                 } else {
                     serverStartScript = "docker -H ssh://" + host + " run -v " + instanceDataFolder + ":" + instanceDataFolder +
                                         " -v " + aggregateDataFolder + ":" + aggregateDataFolder +
