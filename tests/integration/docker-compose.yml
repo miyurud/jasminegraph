@@ -10,7 +10,7 @@ services:
       - './env/databases/metadb:/home/ubuntu/software/jasminegraph/metadb'
       - './env/databases/performancedb:/home/ubuntu/software/jasminegraph/performancedb'
       - './env/data:/var/tmp/data'
-      - './env/logs:/tmp/worker_logs'
+      - '/tmp/jasminegraph:/tmp/jasminegraph'
     environment:
       - TESTING=true
     networks:

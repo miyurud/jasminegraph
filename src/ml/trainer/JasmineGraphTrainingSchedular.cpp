@@ -24,30 +24,28 @@ Logger trainScheduler_logger;
 
 map<string, std::map<int, int>> JasmineGraphTrainingSchedular::schedulePartitionTraining(std::string graphID) {
 
-    map<string, std::map<int, int>> scheduleForEachWorker;
+    map<string, std::map<int, int>> scheduleForEachHost;
     vector<pair<string, string>> hostData;
     SQLiteDBInterface refToSqlite = *new SQLiteDBInterface();
     refToSqlite.init();
 
-    string sqlStatement = "SELECT worker_idworker, name FROM worker_has_partition INNER JOIN worker ON worker_idworker = "
-                          "idworker WHERE partition_graph_idgraph = " + graphID;
-
+    string sqlStatement = "SELECT host_idhost, name FROM worker_has_partition INNER JOIN worker ON worker_idworker = "
+                          "idworker WHERE partition_graph_idgraph = " + graphID + " group by host_idhost";
     std::vector<vector<pair<string, string>>> result = refToSqlite.runSelect(sqlStatement);
     for (vector<vector<pair<string, string>>>::iterator i = result.begin(); i != result.end(); ++i) {
         int count = 0;
-        string workerID;
+        string hostID;
         string hostname;
         for (std::vector<pair<string, string>>::iterator j = (i->begin()); j != i->end(); ++j) {
             if (count == 0) {
-                workerID = j->second;
+                hostID = j->second;
             } else {
                 hostname = j->second;
-                hostData.push_back(pair<string, string>(workerID, hostname));
+                hostData.push_back(pair<string, string>(hostID, hostname));
             }
             count++;
         }
     }
-
     string id_partition = "";
     string vertexCount = "";
     string centralvertexCount = "";
@@ -57,8 +55,9 @@ map<string, std::map<int, int>> JasmineGraphTrainingSchedular::schedulePartition
     trainScheduler_logger.log("Scheduling training order for each worker", "info");
     for (std::vector<pair<string, string>>::iterator j = (hostData.begin()); j != hostData.end(); ++j) {
         sqlStatement = "SELECT idpartition, vertexcount, central_vertexcount, graph_idgraph FROM partition INNER JOIN "
-                       "worker_has_partition w ON w.partition_idpartition = partition.idpartition"
-                       " WHERE partition.graph_idgraph =  "+ graphID +" AND w.worker_idworker = " + j->first;
+                       "(SELECT host_idhost, partition_idpartition, partition_graph_idgraph, worker_idworker FROM "
+                       "worker_has_partition INNER JOIN worker ON worker_idworker = idworker) AS a ON partition.idpartition = "
+                       "a.partition_idpartition WHERE partition.graph_idgraph =  "+ graphID +" AND a.host_idhost = " + j->first;
         std::vector<vector<pair<string, string>>> results = refToSqlite.runSelect(sqlStatement);
         std::map<int, int> vertexCountToPartitionId;
         for (std::vector<vector<pair<string, string>>>::iterator i = results.begin(); i != results.end(); ++i) {
@@ -89,9 +88,9 @@ map<string, std::map<int, int>> JasmineGraphTrainingSchedular::schedulePartition
         }
         std::map<int, int> scheduledPartitionSets = packPartitionsToMemory(memoryEstimationForEachPartition,
                                                                            availableMemory);
-        scheduleForEachWorker.insert(make_pair(j->first, scheduledPartitionSets));
+        scheduleForEachHost.insert(make_pair(j->second, scheduledPartitionSets));
     }
-    return scheduleForEachWorker;
+    return scheduleForEachHost;
 }
 
 long JasmineGraphTrainingSchedular::estimateMemory(int vertexCount, string graph_id) {

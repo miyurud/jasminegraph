@@ -334,6 +334,14 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
         char *env_testing = getenv("TESTING");
         bool is_testing = (env_testing != NULL && strcasecmp(env_testing, "true") == 0);
         for (int i =0 ; i < workerPortsVector.size() ; i++) {
+            std::string worker_logdir = "/tmp/jasminegraph/worker_" + to_string(i);
+            if (access(worker_logdir.c_str(), F_OK) != 0) {
+                if (mkdir(worker_logdir.c_str(), 0777)) {
+                    server_logger.error("Couldn't create worker log dir: " + worker_logdir);
+                }
+            } else {
+                chmod(worker_logdir.c_str(), 0777);
+            }
             if (masterHost == host || host == "localhost") {
                 if (is_testing) {
                     serverStartScript = "docker run -p " +
@@ -341,14 +349,15 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                                         std::to_string(workerPortsVector.at(i)) + " -p " +
                                         std::to_string(workerDataPortsVector.at(i)) + ":" +
                                         std::to_string(workerDataPortsVector.at(i)) +
+                                        " -v " + worker_logdir + ":/tmp/jasminegraph" +
                                         " -e WORKER_ID=" + to_string(i) +
                                         " jasminegraph:test --MODE 2 --HOST_NAME " + host +
                                         " --MASTERIP " + masterHost + " --SERVER_PORT " +
                                         std::to_string(workerPortsVector.at(i)) + " --SERVER_DATA_PORT " +
                                         std::to_string(workerDataPortsVector.at(i)) + " --ENABLE_NMON " + enableNmon +
-                                        " >/tmp/worker_logs/worker_" + to_string(i) + ".log 2>&1";
+                                        " >" + worker_logdir + "/worker.log 2>&1";
                 } else {
-                    serverStartScript = "docker run -v " + instanceFolderLocal + ":" + instanceFolder +
+                    serverStartScript = "docker run -v " + instanceDataFolder + ":" + instanceDataFolder +
                                         " -v " + aggregateDataFolder + ":" + aggregateDataFolder +
                                         " -v " + nmonFileLocation + ":" + nmonFileLocation +
                                         " -v " + graphsagelocation + ":" + graphsagelocation +
@@ -363,7 +372,6 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                                         std::to_string(workerPortsVector.at(i)) + " --SERVER_DATA_PORT " +
                                         std::to_string(workerDataPortsVector.at(i)) + " --ENABLE_NMON " + enableNmon;
                 }
-
             } else {
                 if (is_testing) {
                     serverStartScript = "docker -H ssh://" + host + " run -p " +
@@ -376,9 +384,9 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                                         " --MASTERIP " + masterHost + " --SERVER_PORT " +
                                         std::to_string(workerPortsVector.at(i)) + " --SERVER_DATA_PORT " +
                                         std::to_string(workerDataPortsVector.at(i)) + " --ENABLE_NMON " + enableNmon +
-                                        " >/tmp/worker_logs/worker_" + to_string(i) + ".log 2>&1";
+                                        " >" + worker_logdir + "/worker.log 2>&1";
                 } else {
-                    serverStartScript = "docker -H ssh://" + host + " run -v " + instanceFolderLocal + ":" + instanceFolder +
+                    serverStartScript = "docker -H ssh://" + host + " run -v " + instanceDataFolder + ":" + instanceDataFolder +
                                         " -v " + aggregateDataFolder + ":" + aggregateDataFolder +
                                         " -v " + nmonFileLocation + ":" + nmonFileLocation +
                                         " -v " + graphsagelocation + ":" + graphsagelocation +
@@ -2501,8 +2509,8 @@ std::map<std::string, JasmineGraphServer::workerPartition> JasmineGraphServer::g
         int serverDataPort = std::stoi(rowData.at(3).second);
         string partitionId = rowData.at(4).second;
 
-        cout << "name : " << name << " workerID : "<< workerID << " sport : " << serverPort << " sdport : " <<serverDataPort
-             << " partitionId : " << partitionId << endl;
+        server_logger.info("name : " + name + " workerID : " + workerID + " sport : " + std::to_string(serverPort) + " sdport : " + std::to_string(serverDataPort)
+             + " partitionId : " + partitionId);
         graphPartitionedHosts.insert((pair<string, JasmineGraphServer::workerPartition>(workerID,
                                                                                         {name, serverPort,
                                                                                          serverDataPort,
@@ -3072,35 +3080,37 @@ void JasmineGraphServer::initiateFiles(std::string graphID, std::string training
     int count = 0;
     JasmineGraphTrainingSchedular *schedular = new JasmineGraphTrainingSchedular();
     map<string, map<int, int>> scheduleForAllHosts = schedular->schedulePartitionTraining(graphID);
-    std::map<std::string, JasmineGraphServer::workerPartitions> graphPartitionedHosts = this->getGraphPartitionedHosts(
+    std::map<std::string, JasmineGraphServer::workerPartition> graphPartitionedHosts = this->getWorkerPartitions(
             graphID);
     int partition_count = 0;
-    std::map<std::string, JasmineGraphServer::workerPartitions>::iterator mapIterator;
+    std::map<std::string, JasmineGraphServer::workerPartition>::iterator mapIterator;
     for (mapIterator = graphPartitionedHosts.begin(); mapIterator != graphPartitionedHosts.end(); mapIterator++) {
-        JasmineGraphServer::workerPartitions workerPartition = mapIterator->second;
-        std::vector<std::string> partitions = workerPartition.partitionID;
+        JasmineGraphServer::workerPartition workerPartition = mapIterator->second;
+        std::vector<std::string> partitions;
+        partitions.push_back(workerPartition.partitionID);
         std::vector<std::string>::iterator it;
         for (it = partitions.begin(); it < partitions.end(); it++) {
             partition_count++;
         }
     }
 
-    std::thread *workerThreads = new std::thread[partition_count];
+    std::thread *workerThreads = new std::thread[partition_count + 1];
 
     Utils utils;
     string prefix = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.trainedmodelfolder");
     string attr_prefix = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
     trainingArgs = trainingArgs;
-    std::map<std::string, JasmineGraphServer::workerPartitions>::iterator j;
+    std::map<std::string, JasmineGraphServer::workerPartition>::iterator j;
     for (j = graphPartitionedHosts.begin(); j != graphPartitionedHosts.end(); j++) {
-        JasmineGraphServer::workerPartitions workerPartition = j->second;
-        std::vector<std::string> partitions = workerPartition.partitionID;
+        JasmineGraphServer::workerPartition workerPartition = j->second;
+        std::vector<std::string> partitions;
+        partitions.push_back(workerPartition.partitionID);
         string partitionCount = std::to_string(partitions.size());
         std::vector<std::string>::iterator k;
         map<int, int> scheduleOfHost = scheduleForAllHosts[j->first];
         for (k = partitions.begin(); k != partitions.end(); k++) {
             int iterationOfPart = scheduleOfHost[stoi(*k)];
-            workerThreads[count] = std::thread(initiateTrain, j->first, workerPartition.port, workerPartition.dataPort,
+            workerThreads[count] = std::thread(initiateTrain, workerPartition.hostname, workerPartition.port, workerPartition.dataPort,
                                                 trainingArgs + " " + *k, iterationOfPart, partitionCount);
             count++;
             sleep(3);
@@ -3222,12 +3232,12 @@ void JasmineGraphServer::initiateOrgCommunication(std::string graphID, std::stri
 
         if (i==0) {
 
-            workerThreads[threadID] = std::thread(initiateOrgServer,"localhost", serverPort,
+            workerThreads[threadID] = std::thread(initiateOrgServer,workerInstance.hostname, serverPort,
                                                     serverDataPort,trainingArgs,fl_clients, to_string(i));
             threadID++;
         }
 
-        workerThreads[threadID] = std::thread(initiateClient,"localhost", serverPort, serverDataPort,trainingArgs +
+        workerThreads[threadID] = std::thread(initiateClient,workerInstance.hostname, serverPort, serverDataPort,trainingArgs +
                                                     " " + to_string(i), fl_clients, to_string(i));
         threadID++;
 
@@ -3267,7 +3277,6 @@ void JasmineGraphServer::initiateMerge(std::string graphID, std::string training
 
     Utils utils;
     trainingArgs = trainingArgs;
-
     int fl_clients = stoi(utils.getJasmineGraphProperty("org.jasminegraph.fl_clients"));
     std::map<std::string, JasmineGraphServer::workerPartition>::iterator j;
     for (j = graphPartitionedHosts.begin(); j != graphPartitionedHosts.end(); j++) {
@@ -3279,20 +3288,17 @@ void JasmineGraphServer::initiateMerge(std::string graphID, std::string training
         map<int, int> scheduleOfHost = scheduleForAllHosts[j->first];
         for (k = partitions.begin(); k != partitions.end(); k++) {
             int iterationOfPart = scheduleOfHost[stoi(*k)];
-
             workerThreads[count] = std::thread(mergeFiles, workerPartition.hostname, workerPartition.port,
                                                workerPartition.dataPort, trainingArgs + " " + *k, fl_clients, *k);
             count++;
         }
-
-        std::cout << count << std::endl;
-
-        for (int threadCount = 0; threadCount < count; threadCount++) {
-            workerThreads[threadCount].join();
-        }
-
-        server_logger.log("Merge Commands Sent", "info");
     }
+
+    for (int threadCount = 0; threadCount < count; threadCount++) {
+        workerThreads[threadCount].join();
+    }
+
+    server_logger.log("Merge Commands Sent", "info");
 }
 
 bool JasmineGraphServer::initiateTrain(std::string host, int port, int dataPort,std::string trainingArgs,int iteration, string partCount) {
@@ -3449,15 +3455,6 @@ bool JasmineGraphServer::initiateServer(std::string host, int port, int dataPort
             server_logger.log("Received : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
         }
 
-        bzero(data, 301);
-        read(sockfd, data, 300);
-        response = (data);
-        if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
-            server_logger.log("Received : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
-        } else {
-            server_logger.log("Received : " + response, "error");
-        }
-
         write(sockfd, JasmineGraphInstanceProtocol::INITIATE_SERVER.c_str(),
               JasmineGraphInstanceProtocol::INITIATE_SERVER.size());
         server_logger.log("Sent fed : " + JasmineGraphInstanceProtocol::INITIATE_SERVER, "info");
@@ -3542,14 +3539,6 @@ bool JasmineGraphServer::initiateClient(std::string host, int port, int dataPort
             server_logger.log("Received : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
         }
 
-        bzero(data, 301);
-        read(sockfd, data, 300);
-        response = (data);
-        if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
-            server_logger.log("Received : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
-        } else {
-            server_logger.log("Received : " + response, "error");
-        }
 
         write(sockfd, JasmineGraphInstanceProtocol::INITIATE_CLIENT.c_str(),
               JasmineGraphInstanceProtocol::INITIATE_CLIENT.size());
