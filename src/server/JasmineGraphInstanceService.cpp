@@ -2386,8 +2386,8 @@ void *instanceservicesession(void *dummyPt) {
         }
     }
     instance_logger.log("Closing thread " + to_string(pthread_self()), "info");
-    pthread_exit(NULL);
     close(connFd);
+    pthread_exit(NULL);
     return NULL;
 }
 
