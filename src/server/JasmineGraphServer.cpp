@@ -16,6 +16,7 @@ limitations under the License.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
+#include <sys/stat.h>
 #include "JasmineGraphServer.h"
 #include "JasmineGraphInstance.h"
 #include "../util/Utils.h"

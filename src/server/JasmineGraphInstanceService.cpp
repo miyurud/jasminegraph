@@ -4277,15 +4277,17 @@ void JasmineGraphInstanceService::initServer(string trainData){
     std::vector<char *> vc;
     std::transform(trainargs.begin(), trainargs.end(), std::back_inserter(vc), converter);
 
+    std::string log_file = "/tmp/jasminegraph/fl_server_" + partitionID + ".log";
     std::string path = "cd " + utils.getJasmineGraphProperty("org.jasminegraph.fl.location") + " && ";
     std::string command = path + "python3.8 fl_server.py "+ utils.getJasmineGraphProperty("org.jasminegraph.fl.weights") + " "
                                 + utils.getJasmineGraphProperty("org.jasminegraph.fl.dataDir")
                                 + " " + utils.getJasmineGraphProperty("org.jasminegraph.fl.dataDir")+ " "+ graphID + " 0 "
                                 + utils.getJasmineGraphProperty("org.jasminegraph.fl_clients")
-                                + " " + utils.getJasmineGraphProperty("org.jasminegraph.fl.epochs") +" localhost 5000 > "
-                                + "/home/ubuntu/software/jasminegraph/logs/server_logs-" + Utils::getCurrentTimestamp() + ".txt";
+                                + " " + utils.getJasmineGraphProperty("org.jasminegraph.fl.epochs") +" localhost 5000" 
+                                + " >>" + log_file + " 2>&1";
     instance_logger.log("Executing : " + command, "info");
     int exit_status = system(command.c_str());
+    chmod(log_file.c_str(), 0666);
     if (exit_status == -1) {
         instance_logger.error("Failed executing python server for query");
     }
@@ -4365,16 +4367,18 @@ void JasmineGraphInstanceService::initClient(string trainData){
     std::vector<char *> vc;
     std::transform(trainargs.begin(), trainargs.end(), std::back_inserter(vc), converter);
 
+    std::string log_file = "/tmp/jasminegraph/fl_client_" + partitionID + ".log";
     std::string path = "cd " + utils.getJasmineGraphProperty("org.jasminegraph.fl.location") + " && ";
     std::string command = path + "python3.8 fl_client.py "+ utils.getJasmineGraphProperty("org.jasminegraph.fl.weights") + " "
                                 + utils.getJasmineGraphProperty("org.jasminegraph.fl.dataDir")
                                 + " " + utils.getJasmineGraphProperty("org.jasminegraph.fl.dataDir")+ " "+ graphID + " " + partitionID + " "
                                 + utils.getJasmineGraphProperty("org.jasminegraph.fl.epochs")
                                 + " localhost " + utils.getJasmineGraphProperty("org.jasminegraph.fl.org.port")
-                                + " > /home/ubuntu/software/jasminegraph/logs/client_logs_" + partitionID + "-" + Utils::getCurrentTimestamp() + ".txt";
+                                + " >>" + log_file + " 2>&1";
 
     instance_logger.log("Executing : " + command, "info");
     int exit_status = system(command.c_str());
+    chmod(log_file.c_str(), 0666);
     if (exit_status == -1) {
         instance_logger.error("Could not start python client");
     }
@@ -4388,14 +4392,16 @@ void JasmineGraphInstanceService::mergeFiles(string trainData){
     string partitionID = trainargs[2];
     int exit_status;
 
+    std::string log_file = "/tmp/jasminegraph/merge_" + partitionID + ".log";
     std::string path = "cd " + utils.getJasmineGraphProperty("org.jasminegraph.fl.location") + " && ";
     std::string command = path + "python3.8 merge.py "+ utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder")+ " "
                                 + utils.getJasmineGraphProperty("org.jasminegraph.server.instance.trainedmodelfolder") + " "
-                                + utils.getJasmineGraphProperty("org.jasminegraph.fl.dataDir") + " " + graphID + " " + partitionID
-                                + " > /home/ubuntu/software/jasminegraph/logs/merge_logs" + partitionID + "-" + Utils::getCurrentTimestamp() + ".txt";
+                                + utils.getJasmineGraphProperty("org.jasminegraph.fl.dataDir") + " " + graphID + " " + partitionID 
+                                + " >>" + log_file + " 2>&1";
 
     instance_logger.log("Executing : " + command, "info");
     exit_status = system(command.c_str());
+    chmod(log_file.c_str(), 0666);
     if (exit_status == -1) {
         instance_logger.error("Merge Command Execution Failed for Graph ID - Patition ID: " + graphID + " - " + partitionID + "; Error : " + strerror(errno));
     }
