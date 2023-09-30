@@ -2387,7 +2387,7 @@ void *instanceservicesession(void *dummyPt) {
     }
     instance_logger.log("Closing thread " + to_string(pthread_self()), "info");
     close(connFd);
-    pthread_exit(NULL);
+    pthread_exit(nullptr);
     return NULL;
 }
 
@@ -4087,7 +4087,7 @@ map<long, double> calculateLocalPageRank(string graphID, double alpha, string pa
         std::vector<long> values;
 
         while( getline( buffer, temp, '\t') ) {
-            values.push_back( ::strtod(temp.c_str(), 0));
+            values.push_back( ::strtod(temp.c_str(), nullptr));
         }
         if (values.size() == 2) {
             long nodeID = values[0];

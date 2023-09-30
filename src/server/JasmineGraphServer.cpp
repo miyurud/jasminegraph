@@ -3095,7 +3095,7 @@ void JasmineGraphServer::initiateFiles(std::string graphID, std::string training
         }
     }
 
-    std::thread *workerThreads = new std::thread[partition_count + 1];
+    std::thread workerThreads[partition_count + 1];
 
     Utils utils;
     string prefix = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.trainedmodelfolder");

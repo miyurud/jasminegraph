@@ -15,7 +15,7 @@ limitations under the License.
 #include "../util/logger/Logger.h"
 using namespace std;
 
-Logger hashmap_centralstore_logger;
+const Logger hashmap_centralstore_logger;
 
 JasmineGraphHashMapCentralStore::JasmineGraphHashMapCentralStore() {
 

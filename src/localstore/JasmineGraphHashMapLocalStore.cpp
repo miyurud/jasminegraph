@@ -17,7 +17,7 @@ limitations under the License.
 #include <fstream>
 
 using namespace std;
-Logger hashmap_localstore_logger;
+const Logger hashmap_localstore_logger;
 
 JasmineGraphHashMapLocalStore::JasmineGraphHashMapLocalStore(int graphid, int partitionid, std::string folderLocation) {
     graphId = graphid;
