@@ -12,9 +12,12 @@ limitations under the License.
  */
 
 #include "JasmineGraphHashMapLocalStore.h"
+#include "../util/logger/Logger.h"
 #include <iostream>
 #include <fstream>
 
+using namespace std;
+const Logger hashmap_localstore_logger;
 
 JasmineGraphHashMapLocalStore::JasmineGraphHashMapLocalStore(int graphid, int partitionid, std::string folderLocation) {
     graphId = graphid;
@@ -80,7 +83,9 @@ void JasmineGraphHashMapLocalStore::toLocalSubGraphMap(const PartEdgeMapStore *e
         auto entry = allEntries->Get(i);
         long key = entry->key();
         auto value = entry->value();
+
         const flatbuffers::Vector<int> &vector = *value;
+
         unordered_set<long> valueSet(vector.begin(), vector.end());
         localSubGraphMap.insert(std::make_pair(key, valueSet));
     }
@@ -143,7 +148,10 @@ map<long, long> JasmineGraphHashMapLocalStore::getInDegreeDistributionHashMap() 
                 long previousValue = distMapItr->second;
                 distMapItr->second = previousValue + 1;
             } else {
-                distributionHashMap.insert(std::make_pair(*itr, 1));
+                std::map<long, unordered_set<long>>::iterator graphItr = localSubGraphMap.find(*itr);
+                if (graphItr != localSubGraphMap.end()) {
+                    distributionHashMap.insert(std::make_pair(*itr, 1));
+                }
             }
         }
     }
@@ -285,6 +293,7 @@ bool JasmineGraphHashMapLocalStore::loadPartEdgeMap(const std::string filePath) 
 
     dbFile.seekg(0, std::ios::end);
     int length = dbFile.tellg();
+
     dbFile.seekg(0, std::ios::beg);
     char *data = new char[length];
     dbFile.read(data, length);

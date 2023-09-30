@@ -1106,7 +1106,6 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                     frontend_logger.log("Error writing to socket", "error");
                 }
             }
-
         } else if (line.compare(MERGE) == 0) {
 
             Utils utils;
@@ -1230,6 +1229,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             write(connFd, "\r\n", 2);
 
         } else if (line.compare(IN_DEGREE) == 0) {
+
             frontend_logger.log("Calculating In Degree Distribution", "info");
 
             int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
