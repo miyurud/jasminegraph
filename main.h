@@ -17,6 +17,5 @@ limitations under the License.
 #endif //JASMINEGRAPH_MAIN_H
 
 #include "src/server/JasmineGraphServer.h"
-#include "src/util/sqlite3/sqlite3.h"
 #include "src/util/Utils.h"
 #include <thread>
