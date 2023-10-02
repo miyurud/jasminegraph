@@ -133,7 +133,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 //  Initiate kafka consumer parameters
     std::string partitionCount = utils.getJasmineGraphProperty("org.jasminegraph.server.npartitions");
     int numberOfPartitions = std::stoi(partitionCount);
-    std::string kafka_server_IP ;
+    std::string kafka_server_IP;
     cppkafka::Configuration configs;
     KafkaConnector* kstream;
     Partitioner graphPartitioner(numberOfPartitions, 1, spt::Algorithms::HASH);
