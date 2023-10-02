@@ -67,7 +67,7 @@ void listen_to_kafka_topic(KafkaConnector *kstream, Partitioner &graphPartitione
         }
         string data(msg.get_payload());
         if (data == "-1") {  // Marks the end of stream
-            frontend_logger.log("Received the end of `" +stream_topic_name+"` input kafka stream", "info");
+            frontend_logger.log("Received the end of `" + stream_topic_name + "` input kafka stream", "info");
             break;
         }
         auto edgeJson = json::parse(data);
