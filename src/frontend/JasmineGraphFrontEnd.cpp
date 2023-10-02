@@ -189,7 +189,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             break;
         } else if (line.compare(LIST) == 0) {
             std::stringstream ss;
-            std::vector < vector < pair < string, string>>> v = sqlite.runSelect(
+            std::vector <vector< pair< string, string>>> v = sqlite.runSelect(
                     "SELECT idgraph, name, upload_path, graph_status_idgraph_status FROM graph;");
             for (std::vector < vector < pair < string, string>>>::iterator i = v.begin(); i != v.end(); ++i) {
                 ss << "|";
