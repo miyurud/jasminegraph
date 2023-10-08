@@ -30,6 +30,7 @@ ECNT = b'ecnt'
 MERGE = b'merge'
 TRAIN = b'train'
 TRIAN = b'trian'
+PGRNK = b'pgrnk'
 SHDN = b'shdn'
 SEND = b'send'
 DONE = b'done'
@@ -106,6 +107,11 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
     send_and_expect_response(sock, "trian", TRIAN, b'grap', exitOnFail=True)
     send_and_expect_response(sock, "trian", b'1', b'priority(>=1)', exitOnFail=True)
     send_and_expect_response(sock, "trian", b'1', b'651')
+
+    print()
+    logging.info("Testing pgrnk")
+    send_and_expect_response(sock, "pgrnk", PGRNK, b'send', exitOnFail=True)
+    send_and_expect_response(sock, "pgrnk", b'1|0.5|40', DONE, exitOnFail=True)
 
     print()
     logging.info("Testing adgr-cust")
