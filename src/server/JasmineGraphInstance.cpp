@@ -297,11 +297,14 @@ void JasmineGraphInstance::logLoadAverage(std::string name) {
             continue;
         }
 
-        if(time(0)-start== Conts::LOAD_AVG_COLLECTING_GAP)
+        time_t elapsed = time(0) - start;
+        if(elapsed >= Conts::LOAD_AVG_COLLECTING_GAP)
         {
             elapsedTime += Conts::LOAD_AVG_COLLECTING_GAP*1000;
             PerformanceUtil::logLoadAverage();
             start = start + Conts::LOAD_AVG_COLLECTING_GAP;
+        } else {
+            sleep(Conts::LOAD_AVG_COLLECTING_GAP - elapsed);
         }
     }
 }
