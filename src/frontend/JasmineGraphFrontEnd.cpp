@@ -1246,7 +1246,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             graphID = strArr[0];
             double alpha = PAGE_RANK_ALPHA;
             if (strArr.size() > 1) {
-                alpha  = std::stod(strArr[1]);
+                alpha = std::stod(strArr[1]);
                 if (alpha < 0 || alpha >= 1) {
                     frontend_logger.log("Invalid value for alpha", "error");
                     loop = true;
