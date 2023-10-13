@@ -653,7 +653,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                         std::vector<std::string> vec2 = utils.split(item, '=');
                         if (vec2.at(0).compare("kafka.host") == 0) {
                             if (item.substr(item.length() - 1, item.length()).compare("=") != 0) {
-                                std::string kafka_server_IP= vec2.at(1);
+                                std::string kafka_server_IP = vec2.at(1);
                             } else {
                                 std::string kafka_server_IP= " ";
                             }
