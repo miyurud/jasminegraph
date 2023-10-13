@@ -1420,7 +1420,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 frontend_logger.log("Error writing to socket", "error");
             }
             result_wr = write(connFd, "\r\n", 2);
-            if(result_wr < 0) {
+            if (result_wr < 0) {
                 frontend_logger.log("Error writing to socket", "error");
             }
 
