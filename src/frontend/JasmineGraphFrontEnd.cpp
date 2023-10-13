@@ -1102,7 +1102,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             trainData = utils.trim_copy(trainData, " \f\n\r\t\v");
             frontend_logger.log("Data received: " + trainData, "info");
 
-            std::vector <std::string> trainargs = Utils::split(trainData, ' ');
+            std::vector<std::string> trainargs = Utils::split(trainData, ' ');
             std::vector<std::string>::iterator itr = std::find(trainargs.begin(), trainargs.end(), "--graph_id");
             std::string graphID;
             if (itr != trainargs.cend()) {
