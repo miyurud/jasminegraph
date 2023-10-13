@@ -474,7 +474,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             string graphType(type);
             graphType = utils.trim_copy(graphType, " \f\n\r\t\v");
 
-            std::unordered_set <std::string> s = {"1", "2", "3"};
+            std::unordered_set<std::string> s = {"1", "2", "3"};
             if (s.find(graphType) == s.end()) {
                 frontend_logger.log("Graph type not recognized", "error");
                 continue;
