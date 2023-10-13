@@ -352,7 +352,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             gData = utils.trim_copy(gData, " \f\n\r\t\v");
             frontend_logger.log("Data received: " + gData, "info");
 
-            std::vector <std::string> strArr = Utils::split(gData, '|');
+            std::vector<std::string> strArr = Utils::split(gData, '|');
 
             if (strArr.size() < 2) {
                 frontend_logger.log("Message format not recognized", "error");
