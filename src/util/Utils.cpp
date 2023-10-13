@@ -606,8 +606,20 @@ std::string Utils::checkFlag(std::string flagPath){
 
 int Utils::connect_wrapper(int sock, const sockaddr *addr, socklen_t slen) {
     int retry = 0;
+
+    struct timeval tv = {1, 0};
+
+    if (setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (char *)&tv, sizeof(tv)) == -1) {
+        data_publisher_logger.error("Failed to set send timeout option for socket");
+    }
+
+    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char *)&tv, sizeof(tv)) == -1) {
+        data_publisher_logger.error("Failed to set recieve timeout option for socket");
+    }
+
     do {
         if (retry) sleep(retry * 2);
+        util_logger.info("Trying to connect to [" + to_string(retry) + "]: " + string(inet_ntoa(((struct sockaddr_in *)addr)->sin_addr)) + ":" + to_string(ntohs(((struct sockaddr_in *)addr)->sin_port)));
         if (connect(sock, addr, slen) == 0) {
             return 0;
         }
