@@ -1456,7 +1456,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             enableNmon = strArr[5];
 
             JasmineGraphServer *jasmineServer = new JasmineGraphServer();
-            bool isSpawned = jasmineServer->spawnNewWorker(host,port,dataPort,profile,masterHost,enableNmon);
+            bool isSpawned = jasmineServer->spawnNewWorker(host, port, dataPort, profile, masterHost, enableNmon);
 
         } else if (line.compare(SLA) == 0) {
             int result_wr = write(connFd, COMMAND.c_str(), COMMAND.size());
