@@ -1055,7 +1055,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             } else {
                 string sqlStatement = "SELECT edgecount from graph where idgraph=" + graph_id;
 
-                std::vector < vector < pair < string, string>>> output = sqlite.runSelect(sqlStatement);
+                std::vector<vector<pair<string, string>>> output = sqlite.runSelect(sqlStatement);
 
                 int edgeCount = std::stoi(output[0][0].second);
                 frontend_logger.log("Edge Count: " + to_string(edgeCount), "info");
