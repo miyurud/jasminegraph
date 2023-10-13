@@ -73,3 +73,7 @@ build/
 # Log files
 logs/
 .trash/
+
+#CLion
+.run/
+Makefile

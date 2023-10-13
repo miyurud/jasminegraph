@@ -47,6 +47,9 @@ void TriangleCountExecutor::execute() {
     bool canCalibrate = utils.parseBoolean(canCalibrateString);
     int threadPriority = request.getPriority();
 
+    std::string autoCalibrateString = request.getParameter(Conts::PARAM_KEYS::AUTO_CALIBRATION);
+    bool autoCalibrate = utils.parseBoolean(autoCalibrateString);
+
     if (threadPriority == Conts::HIGH_PRIORITY_DEFAULT_VALUE) {
         highPriorityGraphList.push_back(graphId);
     }
@@ -203,7 +206,7 @@ void TriangleCountExecutor::execute() {
         Utils::updateSLAInformation(perfDB, graphId, partitionCount, 0, TRIANGLES, Conts::SLA_CATEGORY::LATENCY);
         statResponse.push_back(
                 std::async(std::launch::async, TriangleCountExecutor::collectPerformaceData, perfDB, graphId.c_str(), TRIANGLES,
-                           Conts::SLA_CATEGORY::LATENCY, partitionCount, masterIP));
+                           Conts::SLA_CATEGORY::LATENCY, partitionCount, masterIP, autoCalibrate));
         isStatCollect = true;
     }
 
@@ -237,7 +240,7 @@ void TriangleCountExecutor::execute() {
 
     std::string durationString = std::to_string(msDuration);
 
-    if (canCalibrate) {
+    if (canCalibrate || autoCalibrate) {
         Utils::updateSLAInformation(perfDB, graphId, partitionCount, msDuration, TRIANGLES, Conts::SLA_CATEGORY::LATENCY);
         isStatCollect = false;
     }
@@ -1696,7 +1699,7 @@ int TriangleCountExecutor::getUid() {
 }
 
 int TriangleCountExecutor::collectPerformaceData(PerformanceSQLiteDBInterface perDB, std::string graphId, std::string command, std::string category,
-                                                 int partitionCount, std::string masterIP) {
+                                                 int partitionCount, std::string masterIP, bool autoCalibrate) {
 
     int elapsedTime = 0;
     time_t start;
@@ -1736,6 +1739,7 @@ int TriangleCountExecutor::collectPerformaceData(PerformanceSQLiteDBInterface pe
     }
 
     start = time(0);
+    performanceUtil.collectSLAResourceConsumption(placeList, graphId, command, category, masterIP, elapsedTime,autoCalibrate);
 
     while(!workerResponded)
     {
@@ -1743,7 +1747,7 @@ int TriangleCountExecutor::collectPerformaceData(PerformanceSQLiteDBInterface pe
         if(time(0)-start== Conts::LOAD_AVG_COLLECTING_GAP)
         {
             elapsedTime += Conts::LOAD_AVG_COLLECTING_GAP*1000;
-            performanceUtil.collectSLAResourceConsumption(placeList, graphId, masterIP,elapsedTime);
+            performanceUtil.collectSLAResourceConsumption(placeList, graphId, command, category, masterIP, elapsedTime,autoCalibrate);
             start = start + Conts::LOAD_AVG_COLLECTING_GAP;
         }
     }

@@ -86,5 +86,6 @@ const std::string Conts::PARAM_KEYS::CAN_CALIBRATE = "canCalibrate";
 const std::string Conts::PARAM_KEYS::CATEGORY = "category";
 const std::string Conts::PARAM_KEYS::QUEUE_TIME = "queueTime";
 const std::string Conts::PARAM_KEYS::GRAPH_SLA = "graphSLA";
+const std::string Conts::PARAM_KEYS::AUTO_CALIBRATION = "autoCalibration";
 
 const std::string Conts::FLAGS::MODEL_ID = "model_id";

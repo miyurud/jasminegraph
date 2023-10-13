@@ -109,8 +109,8 @@ std::vector<Place> PerformanceUtil::getHostReporterList() {
 
 }
 
-int PerformanceUtil::collectSLAResourceConsumption(std::vector<Place> placeList, std::string graphId,
-        std::string masterIP, int elapsedTime) {
+int PerformanceUtil::collectSLAResourceConsumption(std::vector<Place> placeList, std::string graphId, std::string command, std::string category,
+                                                   std::string masterIP, int elapsedTime, bool autoCalibrate) {
     std::vector<Place>::iterator placeListIterator;
 
     for (placeListIterator = placeList.begin(); placeListIterator != placeList.end(); ++placeListIterator) {
@@ -134,8 +134,7 @@ int PerformanceUtil::collectSLAResourceConsumption(std::vector<Place> placeList,
 
 
         if (isMaster.find("true") != std::string::npos || host == "localhost" || host.compare(masterIP) == 0) {
-            collectLocalSLAResourceUtilization(placeId, elapsedTime);
-        }
+            collectLocalSLAResourceUtilization(graphId, placeId, command, category, elapsedTime, autoCalibrate);        }
     }
 
     return 0;
@@ -466,7 +465,9 @@ int PerformanceUtil::collectRemoteSLAResourceUtilization(std::string host, int p
     }
 }
 
-void PerformanceUtil::collectLocalSLAResourceUtilization(std::string placeId, int elapsedTime) {
+void PerformanceUtil::collectLocalSLAResourceUtilization(std::string graphId, std::string placeId,
+                                                         std::string command, std::string category,
+                                                         int elapsedTime, bool autoCalibrate) {
     StatisticCollector statisticCollector;
     Utils utils;
     statisticCollector.init();
@@ -481,7 +482,13 @@ void PerformanceUtil::collectLocalSLAResourceUtilization(std::string placeId, in
 
     ResourceUsageInfo resourceUsageInfo;
     resourceUsageInfo.elapsedTime = std::to_string(elapsedTime);
-    resourceUsageInfo.loadAverage = std::to_string(loadAverage);
+
+    if(!autoCalibrate){
+        resourceUsageInfo.loadAverage = std::to_string(loadAverage);
+    }else{
+        double aggregatedLoadAverage = getAggregatedLoadAverage(graphId, placeId, command, category, elapsedTime);
+        resourceUsageInfo.loadAverage = std::to_string(loadAverage - aggregatedLoadAverage);
+    }
 
     if (!resourceUsageMap[placeId].empty()) {
         resourceUsageMap[placeId].push_back(resourceUsageInfo);
@@ -1189,4 +1196,86 @@ std::string PerformanceUtil::requestRemoteLoadAverages(std::string host, int por
     }
 
     return response;
+}
+
+double PerformanceUtil::getAggregatedLoadAverage(std::string graphId, std::string placeId, std::string command, std::string category, int elapsedTime){
+    PerformanceUtil performanceUtil;
+    performanceUtil.init();
+
+    processStatusMutex.lock();
+    set<ProcessInfo>::iterator processInfoIterator;
+    std::chrono::milliseconds currentTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
+    long currentTimestamp = currentTime.count();
+    double aggregatedLoadAverage = 0;
+
+    for (processInfoIterator = processData.begin(); processInfoIterator != processData.end(); ++processInfoIterator) {
+        ProcessInfo process = *processInfoIterator;
+        std::string currentGraphId = process.graphId;
+
+        double previousLoad,nextLoad,currentLoad;
+        long xAxisValue;
+
+        if (process.priority == Conts::HIGH_PRIORITY_DEFAULT_VALUE && graphId != currentGraphId) {
+            long processScheduledTime = process.startTimestamp;
+            long initialSleepTime = process.sleepTime;
+            long elapsedTime = currentTimestamp - (processScheduledTime + initialSleepTime);
+            long adjustedElapsedTime;
+            long statCollectingGap = Conts::LOAD_AVG_COLLECTING_GAP * 1000;
+            long requiredAdjustment = 0;
+
+            if (elapsedTime < 0) {
+                continue;
+            } else if (elapsedTime % statCollectingGap == 0) {
+                adjustedElapsedTime = elapsedTime;
+
+                std::string slaLoadQuery = "select graph_place_sla_performance.place_id,graph_place_sla_performance.load_average,"
+                                           "graph_place_sla_performance.elapsed_time from graph_place_sla_performance inner join graph_sla"
+                                           "  inner join sla_category where graph_place_sla_performance.graph_sla_id=graph_sla.id"
+                                           "  and graph_sla.id_sla_category=sla_category.id and graph_sla.graph_id='" + currentGraphId +
+                                           "' and sla_category.command='" + command + "' and graph_place_sla_performance.place_id='" + placeId +
+                                           "' and sla_category.category='" + category +
+                                           "' and graph_place_sla_performance.elapsed_time ='" + std::to_string(adjustedElapsedTime) +
+                                           "' order by graph_place_sla_performance.place_id,graph_place_sla_performance.elapsed_time;";
+
+                std::vector<vector<pair<string, string>>> loadAvgResults = perfDb.runSelect(slaLoadQuery);
+                if (loadAvgResults.empty()) {
+                    continue;
+                }
+
+                currentLoad = std::atof(loadAvgResults[0][1].second.c_str());
+                aggregatedLoadAverage+=currentLoad;
+                continue;
+            } else {
+                adjustedElapsedTime = elapsedTime - statCollectingGap;
+                requiredAdjustment = elapsedTime % statCollectingGap;
+
+                std::string slaLoadQuery =
+                        "select graph_place_sla_performance.place_id,graph_place_sla_performance.load_average,"
+                        "graph_place_sla_performance.elapsed_time from graph_place_sla_performance inner join graph_sla"
+                        "  inner join sla_category where graph_place_sla_performance.graph_sla_id=graph_sla.id"
+                        "  and graph_sla.id_sla_category=sla_category.id and graph_sla.graph_id='" + currentGraphId +
+                        "' and sla_category.command='" + command + "' and graph_place_sla_performance.place_id='" +
+                        placeId +
+                        "' and sla_category.category='" + category +
+                        "' and graph_place_sla_performance.elapsed_time > '" + std::to_string(adjustedElapsedTime) +
+                        "' order by graph_place_sla_performance.place_id,graph_place_sla_performance.elapsed_time LIMIT 2;";
+
+                std::vector<vector<pair<string, string>>> loadAvgResults = perfDb.runSelect(slaLoadQuery);
+                if (loadAvgResults.empty()) {
+                    continue;
+                }
+
+                previousLoad = std::atof(loadAvgResults[0][1].second.c_str());
+                xAxisValue = std::atof(loadAvgResults[0][2].second.c_str());
+                nextLoad = std::atof(loadAvgResults[1][1].second.c_str());
+            }
+
+            double slope = (nextLoad - previousLoad) / statCollectingGap;   //m= (y2-y1)/(x2-x1)
+            double intercept = previousLoad - slope * xAxisValue; //c = y1 - mx1
+            currentLoad = slope * (xAxisValue + requiredAdjustment) + (intercept); //y = mx + c
+            aggregatedLoadAverage += currentLoad ;
+        }
+    }
+    processStatusMutex.unlock();
+    return aggregatedLoadAverage;
 }
