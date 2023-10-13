@@ -303,7 +303,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 appConfig.readConfigFile(path, newGraphID);
 
                 MetisPartitioner *metisPartitioner = new MetisPartitioner(&sqlite);
-                vector <std::map<int, string>> fullFileList;
+                vector<std::map<int, string>> fullFileList;
                 string input_file_path = utils.getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID) + "/" +
                                          to_string(newGraphID);
                 metisPartitioner->loadDataSet(input_file_path, newGraphID);
