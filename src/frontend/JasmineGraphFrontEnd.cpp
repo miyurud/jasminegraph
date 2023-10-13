@@ -194,7 +194,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             for (std::vector <vector<pair< string, string>>>::iterator i = v.begin(); i != v.end(); ++i) {
                 ss << "|";
                 int counter = 0;
-                for (std::vector < pair < string, string >> ::iterator j = (i->begin()); j != i->end(); ++j) {
+                for (std::vector<pair<string, string >> ::iterator j = (i->begin()); j != i->end(); ++j) {
                     if (counter == 3) {
                         if (std::stoi(j->second) == Conts::GRAPH_STATUS::LOADING) {
                             ss << "loading|";
