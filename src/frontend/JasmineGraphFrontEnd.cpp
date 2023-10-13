@@ -611,7 +611,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             read(connFd, user_res, FRONTEND_DATA_LENGTH);
             string user_res_s(user_res);
             user_res_s = utils.trim_copy(user_res_s, " \f\n\r\t\v");
-            for (char& c : user_res_s) {
+            for (char &c : user_res_s) {
                 c = tolower(c);
             }
 //          use default kafka consumer details
