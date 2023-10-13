@@ -13,9 +13,9 @@
 
 #include "./DataPublisher.h"
 
-#include "../../server/JasmineGraphInstanceProtocol.h"
-#include "../../util/logger/Logger.h"
-#include "../../util/Utils.h"
+#include "../server/JasmineGraphInstanceProtocol.h"
+#include "../util/logger/Logger.h"
+#include "../util/Utils.h"
 
 Logger data_publisher_logger;
 
@@ -42,8 +42,21 @@ DataPublisher::DataPublisher(int worker_port, std::string worker_address) {
     }
 }
 
-DataPublisher::~DataPublisher() { close(sock); }
+DataPublisher::~DataPublisher() {
+    char data[300];
+    Utils utils;
 
+    data_publisher_logger.log("Closing the connection ", "info");
+    send(this->sock, JasmineGraphInstanceProtocol::GRAPH_STREAM_STOP.c_str(),
+         JasmineGraphInstanceProtocol::GRAPH_STREAM_STOP.length(), 0);
+    bzero(data, 301);
+    read(this->sock, data, 300);
+    string response = (data);
+    response = utils.trim_copy(response, " \f\n\r\t\v");
+    data_publisher_logger.log("Response : " + response, "info");
+    close(sock);
+
+}
 void DataPublisher::publish(std::string message) {
     char recever_buffer[MAX_STREAMING_DATA_LENGTH] = {0};
 
@@ -63,23 +76,23 @@ void DataPublisher::publish(std::string message) {
 
     int message_length = message.length();
     int converted_number = htonl(message_length);
-    data_publisher_logger.info("Sending content length\n");
+//    data_publisher_logger.info("Sending content length\n");
     // Sending edge data content length
     send(this->sock, &converted_number, sizeof(converted_number), 0);
 
     int received_int = 0;
-    data_publisher_logger.info("Waiting for content length ack\n");
+//    data_publisher_logger.info("Waiting for content length ack\n");
     auto return_status = recv(this->sock, &received_int, sizeof(received_int), 0);
     // Receve ack for edge data content length
 
     if (return_status > 0) {
-        data_publisher_logger.info("Received int =" + std::to_string(ntohl(received_int)));
+//        data_publisher_logger.info("Received int =" + std::to_string(ntohl(received_int)));
     } else {
         data_publisher_logger.error("Error while receiving content length ack\n");
     }
     // Sending edge data
     send(this->sock, message.c_str(), message.length(), 0);
-    data_publisher_logger.info("Edge data sent\n");
+//    data_publisher_logger.info("Edge data sent\n");
     char CRLF;
     do {
         // read a single byte
@@ -103,3 +116,67 @@ void DataPublisher::publish(std::string message) {
         }
     } while (true);
 }
+
+void DataPublisher::publish_edge(std::string message) {
+    char recever_buffer[MAX_STREAMING_DATA_LENGTH] = {0};
+
+    // Send initial start sending edge command
+    send(this->sock, JasmineGraphInstanceProtocol::GRAPH_STREAM_START.c_str(),
+         JasmineGraphInstanceProtocol::GRAPH_STREAM_START.length(), 0);
+
+    char start_ack[1024] = {0};
+    // Wait to receve an ACK for initial start sending edge command
+    auto ack_return_status = recv(this->sock, &start_ack, sizeof(start_ack), 0);
+    std::string ack(start_ack);
+    std::cout << ack << std::endl;
+    std::cout << JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK << std::endl;
+    if (JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK != ack) {
+        data_publisher_logger.error("Error while receiving start command ack\n");
+    }
+
+    int message_length = message.length();
+    int converted_number = htonl(message_length);
+//    data_publisher_logger.info("Sending content length\n");
+    // Sending edge data content length
+    send(this->sock, &converted_number, sizeof(converted_number), 0);
+
+    int received_int = 0;
+//    data_publisher_logger.info("Waiting for content length ack\n");
+    auto return_status = recv(this->sock, &received_int, sizeof(received_int), 0);
+    // Receve ack for edge data content length
+
+    if (return_status > 0) {
+//        data_publisher_logger.info("Received int =" + std::to_string(ntohl(received_int)));
+    } else {
+        data_publisher_logger.error("Error while receiving content length ack\n");
+    }
+    // Sending edge data
+    send(this->sock, message.c_str(), message.length(), 0);
+//    data_publisher_logger.info("Edge data sent\n");
+    char CRLF;
+    do {
+        // read a single byte
+        auto return_status = recv(this->sock, &CRLF, sizeof(CRLF), 0);
+        if (return_status < 1) {
+            // error or disconnect
+            return;
+        }
+
+        // has end of line been reached?
+        if (CRLF == '\r') {
+            // read a single byte
+            auto return_status = recv(this->sock, &CRLF, sizeof(CRLF), 0);
+            if (return_status < 1) {
+                // error or disconnect
+                return;
+            }
+            if (CRLF == '\n') {
+                break;  // yes
+            }
+        }
+    } while (true);
+}
+
+
+
+

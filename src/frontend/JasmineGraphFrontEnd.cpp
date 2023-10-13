@@ -19,6 +19,7 @@ limitations under the License.
 #include <thread>
 #include <spdlog/spdlog.h>
 #include "JasmineGraphFrontEnd.h"
+#include <nlohmann/json.hpp>
 #include "../util/Conts.h"
 #include "../util/kafka/KafkaCC.h"
 #include "JasmineGraphFrontEndProtocol.h"
@@ -35,17 +36,12 @@ limitations under the License.
 #include "../query/algorithms/linkprediction/JasminGraphLinkPredictor.h"
 #include "../ml/trainer/JasmineGraphTrainingSchedular.h"
 #include "../ml/trainer/python-c-api/Python_C_API.h"
-#include "../centralstore/incremental/DataPublisher.h"
+#include "../nativestore/DataPublisher.h"
 #include "core/scheduler/JobScheduler.h"
 #include "../performance/metrics/PerformanceUtil.h"
 #include "core/CoreConstants.h"
-#include "../centralstore/incremental/RelationBlock.h"
+#include "../nativestore/RelationBlock.h"
 #include <cctype>
-#include <nlohmann/json.hpp>
-
-#include "flatbuffers/flatbuffers.h"
-#include <iostream> // C++ header file for printing
-#include <fstream> // C++ header file for file access
 
 using json = nlohmann::json;
 using namespace std;
@@ -60,10 +56,10 @@ std::set<ProcessInfo> processData;
 std::mutex aggregateWeightMutex;
 std::mutex triangleTreeMutex;
 std::string stream_topic_name;
-
 // Thread function
-void
-listen_to_kafka_topic(KafkaConnector *kstream, Partitioner &graphPartitioner, vector<DataPublisher *> &workerClients) {
+void listen_to_kafka_topic(KafkaConnector *kstream, Partitioner &graphPartitioner, vector<DataPublisher*> &workerClients)
+{
+    int count = 0;
     while (true) {
         cppkafka::Message msg = kstream->consumer.poll();
         if (!msg || msg.get_error()) {
@@ -77,24 +73,46 @@ listen_to_kafka_topic(KafkaConnector *kstream, Partitioner &graphPartitioner, ve
         auto edgeJson = json::parse(data);
         auto sourceJson = edgeJson["source"];
         auto destinationJson = edgeJson["destination"];
+        auto edgePropertyJson = edgeJson["properties"];
         std::string sId = std::string(sourceJson["id"]);
         std::string dId = std::string(destinationJson["id"]);
         partitionedEdge partitionedEdge = graphPartitioner.addEdge({sId, dId});
         sourceJson["pid"] = partitionedEdge[0].second;
         destinationJson["pid"] = partitionedEdge[1].second;
-        string source = sourceJson.dump();
-        string destination = destinationJson.dump();
+
         json obj;
         obj["source"] = sourceJson;
         obj["destination"] = destinationJson;
+        obj["properties"] = edgePropertyJson;
         long temp_s = partitionedEdge[0].second;
         long temp_d = partitionedEdge[1].second;
-        workerClients.at((int) partitionedEdge[0].second)->publish(sourceJson.dump());
-        workerClients.at((int) partitionedEdge[1].second)->publish(destinationJson.dump());
-//      storing Node block
+
+//      storing edge node
         if (temp_s == temp_d) {
-            //+miyurud: Temorarily commeting the following line to make the code build
-            //workerClients.at((int) partitionedEdge[0].second)->publish_relation(obj.dump());
+            json graphIdentifier;
+            graphIdentifier["graphId"] = obj["source"]["properties"]["graphId"];
+            graphIdentifier["pid"] = temp_s;
+            obj["graphIdentifier"] = graphIdentifier;
+            workerClients.at((int) temp_s)->publish_edge(obj.dump());
+        } else {
+            json obj1 = obj;
+            json graphIdentifier1;
+            graphIdentifier1["graphId"] = obj["source"]["properties"]["graphId"];
+            graphIdentifier1["pid"] = temp_s;
+            obj1["graphIdentifier"] = graphIdentifier1;
+
+            json obj2 = obj;
+            json graphIdentifier2;
+            graphIdentifier2["graphId"] = obj["destination"]["properties"]["graphId"];
+            graphIdentifier2["pid"] = temp_d;
+            obj2["graphIdentifier"] = graphIdentifier2;
+
+            workerClients.at((int) temp_s)->publish_edge(obj1.dump());
+            workerClients.at((int) temp_d)->publish_edge(obj2.dump());
+        }
+        count++;
+        if (count % 1000 == 0) {
+            cout << count << endl;
         }
     }
     graphPartitioner.printStats();
@@ -104,11 +122,11 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                             PerformanceSQLiteDBInterface perfSqlite, JobScheduler jobScheduler) {
     frontend_logger.log("Thread No: " + to_string(pthread_self()), "info");
     frontend_logger.log("Master IP: " + masterIP, "info");
-    char data[FRONTEND_DATA_LENGTH + 1];
+    char data[FRONTEND_DATA_LENGTH];
     bzero(data, FRONTEND_DATA_LENGTH + 1);
     Utils utils;
     vector<Utils::worker> workerList = utils.getWorkerList(sqlite);
-    vector<DataPublisher *> workerClients;
+    vector<DataPublisher*> workerClients;
 
 //  Initiate Thread
     thread input_stream_handler;
@@ -117,7 +135,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
     int numberOfPartitions = std::stoi(partitionCount);
     std::string kafka_server_IP;
     cppkafka::Configuration configs;
-    KafkaConnector *kstream;
+    KafkaConnector* kstream;
     Partitioner graphPartitioner(numberOfPartitions, 1, spt::Algorithms::HASH);
 
     for (int i = 0; i < workerList.size(); i++) {
@@ -126,16 +144,16 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
         string workerHost = currentWorker.hostname;
         string workerID = currentWorker.workerID;
         int workerPort = atoi(string(currentWorker.port).c_str());
-        DataPublisher *workerClient = new DataPublisher(workerPort, workerHost);
+        DataPublisher* workerClient = new DataPublisher(workerPort, workerHost);
         workerClients.push_back(workerClient);
     }
     bool loop = false;
     while (!loop) {
-        if (currentFESession == Conts::MAX_FE_SESSIONS + 1) {
+        if(currentFESession == Conts::MAX_FE_SESSIONS + 1) {
             currentFESession--;
             std::string errorResponse = "Jasminegraph Server is Busy. Please try again later.";
             int result_wr = write(connFd, errorResponse.c_str(), errorResponse.length());
-            if (result_wr < 0) {
+            if(result_wr < 0) {
                 frontend_logger.log("Error writing to socket", "error");
             }
             break;
@@ -171,12 +189,12 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             break;
         } else if (line.compare(LIST) == 0) {
             std::stringstream ss;
-            std::vector<vector<pair<string, string>>> v = sqlite.runSelect(
+            std::vector <vector< pair< string, string>>> v = sqlite.runSelect(
                     "SELECT idgraph, name, upload_path, graph_status_idgraph_status FROM graph;");
-            for (std::vector<vector<pair<string, string>>>::iterator i = v.begin(); i != v.end(); ++i) {
+            for (std::vector <vector<pair< string, string>>>::iterator i = v.begin(); i != v.end(); ++i) {
                 ss << "|";
                 int counter = 0;
-                for (std::vector<pair<string, string >>::iterator j = (i->begin()); j != i->end(); ++j) {
+                for (std::vector<pair<string, string >> ::iterator j = (i->begin()); j != i->end(); ++j) {
                     if (counter == 3) {
                         if (std::stoi(j->second) == Conts::GRAPH_STATUS::LOADING) {
                             ss << "loading|";
@@ -192,7 +210,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                     }
                     counter++;
                 }
-                ss << "\r\n";
+                ss << "\n";
             }
             string result = ss.str();
             if (result.size() == 0) {
@@ -241,7 +259,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             }
 
             // We get the name and the path to graph as a pair separated by |.
-            char graph_data[FRONTEND_DATA_LENGTH + 1];
+            char graph_data[FRONTEND_DATA_LENGTH];
             bzero(graph_data, FRONTEND_DATA_LENGTH + 1);
             string name = "";
             string path = "";
@@ -317,8 +335,8 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             }
 
             // We get the name and the path to graph as a pair separated by |.
-            char graph_data[FRONTEND_DATA_LENGTH + 1];
-            char partition_count[FRONTEND_DATA_LENGTH + 1];
+            char graph_data[FRONTEND_DATA_LENGTH];
+            char partition_count[FRONTEND_DATA_LENGTH];
             bzero(graph_data, FRONTEND_DATA_LENGTH + 1);
             string name = "";
             string path = "";
@@ -381,7 +399,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 jasmineServer->uploadGraphLocally(newGraphID, Conts::GRAPH_TYPE_NORMAL, fullFileList, masterIP);
                 utils.deleteDirectory(utils.getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
                 string workerCountQuery = "select count(*) from worker";
-                std::vector<vector<pair<string, string>>> results = sqlite.runSelect(workerCountQuery);
+                std::vector<vector<pair< string, string>>> results = sqlite.runSelect(workerCountQuery);
                 string workerCount = results[0][0].second;
                 int nWorkers = atoi(workerCount.c_str());
                 JasmineGraphFrontEnd::getAndUpdateUploadTime(to_string(newGraphID), sqlite);
@@ -391,7 +409,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                     loop = true;
                     continue;
                 }
-                result_wr = write(connFd, "\r\n", 2);
+                result_wr = write(connFd, "\n", 2);
                 if (result_wr < 0) {
                     frontend_logger.log("Error writing to socket", "error");
                     loop = true;
@@ -401,62 +419,8 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 frontend_logger.log("Graph data file does not exist on the specified path", "error");
                 continue;
             }
-        } else if (line.compare(ADMDL) == 0) {
-            //TODO add error handling
-            write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
-            write(connFd, "\r\n", 2);
-
-            char graph_data[FRONTEND_DATA_LENGTH + 1];
-            bzero(graph_data, FRONTEND_DATA_LENGTH + 1);
-            string name = "";
-            string path = "";
-
-            read(connFd, graph_data, FRONTEND_DATA_LENGTH);
-
-            std::time_t time = chrono::system_clock::to_time_t(chrono::system_clock::now());
-            string uploadStartTime = ctime(&time);
-            string gData(graph_data);
-
-            Utils utils;
-            gData = utils.trim_copy(gData, " \f\n\r\t\v");
-            frontend_logger.log("Data received: " + gData, "info");
-
-            std::vector<std::string> strArr = Utils::split(gData, '|');
-
-            if (strArr.size() < 2) {
-                frontend_logger.log("Message format not recognized", "error");
-                continue;
-            }
-
-            name = strArr[0];
-            path = strArr[1];
-
-            if (JasmineGraphFrontEnd::modelExists(path, sqlite)) {
-                frontend_logger.log("Model exists", "error");
-                continue;
-            }
-
-            if (utils.fileExists(path)) {
-                frontend_logger.log("Path exists", "info");
-                std::string toDir = utils.getJasmineGraphProperty("org.jasminegraph.server.modelDir");
-                utils.copyToDirectory(path, toDir);
-
-                string sqlStatement =
-                        "INSERT INTO model (name,upload_path,upload_time,model_status_idmodel_status"
-                        ")VALUES(\"" + name + "\", \"" + path +
-                        "\", \"" + uploadStartTime + "\",\"" + to_string(Conts::GRAPH_STATUS::LOADING) + "\")";
-
-                int newModelID = sqlite.runInsert(sqlStatement);
-
-                frontend_logger.log("Upload done", "info");
-                write(connFd, DONE.c_str(), DONE.size());
-                write(connFd, "\r\n", 2);
-            } else {
-                frontend_logger.log("Model file does not exist on the specified path", "error");
-                continue;
-            }
         } else if (line.compare(ADGR_CUST) == 0) {
-            string message = "Select a custom graph upload option\r\n";
+            string message = "Select a custom graph upload option\n";
             int result_wr = write(connFd, message.c_str(), message.size());
             if (result_wr < 0) {
                 frontend_logger.log("Error writing to socket", "error");
@@ -470,7 +434,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 loop = true;
                 continue;
             }
-            result_wr = write(connFd, "\r\n", 2);
+            result_wr = write(connFd, "\n", 2);
             if (result_wr < 0) {
                 frontend_logger.log("Error writing to socket", "error");
                 loop = true;
@@ -483,7 +447,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 loop = true;
                 continue;
             }
-            result_wr = write(connFd, "\r\n", 2);
+            result_wr = write(connFd, "\n", 2);
             if (result_wr < 0) {
                 frontend_logger.log("Error writing to socket", "error");
                 loop = true;
@@ -496,7 +460,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 loop = true;
                 continue;
             }
-            result_wr = write(connFd, "\r\n", 2);
+            result_wr = write(connFd, "\n", 2);
 
             if (result_wr < 0) {
                 frontend_logger.log("Error writing to socket", "error");
@@ -504,9 +468,9 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 continue;
             }
 
-            char type[FRONTEND_GRAPH_TYPE_LENGTH + 1];
-            bzero(type, FRONTEND_GRAPH_TYPE_LENGTH + 1);
-            read(connFd, type, FRONTEND_GRAPH_TYPE_LENGTH);
+            char type[20];
+            bzero(type, 21);
+            read(connFd, type, 20);
             string graphType(type);
             graphType = utils.trim_copy(graphType, " \f\n\r\t\v");
 
@@ -531,14 +495,14 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             // If data type is not specified, it will be inferred from values present in the first line of the attribute file
             // The provided data type should be the largest in the following order: float > int32 > int16 > int8
             // Inferred data type will be the largest type based on the values present in the attribute file first line
-            message = "Send <name>|<path to edge list>|<path to attribute file>|(optional)<attribute data type: int8. int16, int32 or float>\r\n";
+            message = "Send <name>|<path to edge list>|<path to attribute file>|(optional)<attribute data type: int8. int16, int32 or float>\n";
             result_wr = write(connFd, message.c_str(), message.size());
             if (result_wr < 0) {
                 frontend_logger.log("Error writing to socket", "error");
                 loop = true;
                 continue;
             }
-            char graph_data[FRONTEND_DATA_LENGTH + 1];
+            char graph_data[FRONTEND_DATA_LENGTH];
             bzero(graph_data, FRONTEND_DATA_LENGTH + 1);
             string name = "";
             string edgeListPath = "";
@@ -615,7 +579,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                     loop = true;
                     continue;
                 }
-                result_wr = write(connFd, "\r\n", 2);
+                result_wr = write(connFd, "\n", 2);
                 if (result_wr < 0) {
                     frontend_logger.log("Error writing to socket", "error");
                     loop = true;
@@ -642,16 +606,16 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             }
 
             // Get user response.
-            char user_res[FRONTEND_DATA_LENGTH + 1];
+            char user_res[FRONTEND_DATA_LENGTH];
             bzero(user_res, FRONTEND_DATA_LENGTH + 1);
             read(connFd, user_res, FRONTEND_DATA_LENGTH);
             string user_res_s(user_res);
             user_res_s = utils.trim_copy(user_res_s, " \f\n\r\t\v");
-            for (char &c: user_res_s) {
+            for (char &c : user_res_s) {
                 c = tolower(c);
             }
 //          use default kafka consumer details
-            if (user_res_s == "y") {
+            if (user_res_s == "y"){
                 kafka_server_IP = utils.getJasmineGraphProperty("org.jasminegraph.server.streaming.kafka.host");
                 configs = {{"metadata.broker.list", kafka_server_IP},
                            {"group.id",             "knnect"}};
@@ -674,7 +638,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 }
 
                 // We get the file path here.
-                char file_path[FRONTEND_DATA_LENGTH + 1];
+                char file_path[FRONTEND_DATA_LENGTH];
                 bzero(file_path, FRONTEND_DATA_LENGTH + 1);
                 read(connFd, file_path, FRONTEND_DATA_LENGTH);
                 string file_path_s(file_path);
@@ -717,7 +681,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             }
 
             // We get the topic name here.
-            char topic_name[FRONTEND_DATA_LENGTH + 1];
+            char topic_name[FRONTEND_DATA_LENGTH];
             bzero(topic_name, FRONTEND_DATA_LENGTH + 1);
             read(connFd, topic_name, FRONTEND_DATA_LENGTH);
 
@@ -738,8 +702,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             stream_topic_name = topic_name_s;
             kstream->Subscribe(topic_name_s);
             frontend_logger.log("Start listening to " + topic_name_s, "info");
-            input_stream_handler = thread(listen_to_kafka_topic, kstream, std::ref(graphPartitioner),
-                                          std::ref(workerClients));
+            input_stream_handler = thread(listen_to_kafka_topic, kstream,std::ref(graphPartitioner), std::ref(workerClients));
 
         } else if (line.compare(STOP_STREAM_KAFKA) == 0) {
             frontend_logger.log("Start serving `" + STOP_STREAM_KAFKA + "` command", "info");
@@ -774,7 +737,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             }
 
             // We get the name and the path to graph as a pair separated by |.
-            char graph_id[FRONTEND_DATA_LENGTH + 1];
+            char graph_id[FRONTEND_DATA_LENGTH];
             bzero(graph_id, FRONTEND_DATA_LENGTH + 1);
             string name = "";
             string path = "";
@@ -796,7 +759,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                     loop = true;
                     continue;
                 }
-                result_wr = write(connFd, "\r\n", 2);
+                result_wr = write(connFd, "\n", 2);
                 if (result_wr < 0) {
                     frontend_logger.log("Error writing to socket", "error");
                     loop = true;
@@ -811,7 +774,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                     loop = true;
                     continue;
                 }
-                result_wr = write(connFd, "\r\n", 2);
+                result_wr = write(connFd, "\n", 2);
                 if (result_wr < 0) {
                     frontend_logger.log("Error writing to socket", "error");
                     loop = true;
@@ -834,7 +797,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             }
 
             // We get the name and the path to graph as a pair separated by |.
-            char graph_data[FRONTEND_DATA_LENGTH + 1];
+            char graph_data[FRONTEND_DATA_LENGTH];
             bzero(graph_data, FRONTEND_DATA_LENGTH + 1);
 
 
@@ -879,7 +842,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             }
 
             // We get the name and the path to graph as a pair separated by |.
-            char graph_id_data[301];
+            char graph_id_data[300];
             bzero(graph_id_data, 301);
             string name = "";
 
@@ -915,7 +878,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 }
 
                 // We get the name and the path to graph as a pair separated by |.
-                char priority_data[301];
+                char priority_data[300];
                 bzero(priority_data, 301);
 
                 read(connFd, priority_data, FRONTEND_DATA_LENGTH);
@@ -926,8 +889,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 priority = utils.trim_copy(priority, " \f\n\r\t\v");
 
                 if (!(std::find_if(priority.begin(),
-                                   priority.end(), [](unsigned char c) { return !std::isdigit(c); }) ==
-                      priority.end())) {
+                                   priority.end(), [](unsigned char c) { return !std::isdigit(c); }) == priority.end())) {
                     string error_message = "Priority should be numeric and > 1 or empty";
                     result_wr = write(connFd, error_message.c_str(), error_message.length());
 
@@ -1036,7 +998,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 frontend_logger.log("Error writing to socket", "error");
             }
 
-            char graph_id_data[301];
+            char graph_id_data[300];
             bzero(graph_id_data, 301);
             string name = "";
 
@@ -1085,7 +1047,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 frontend_logger.log("Error writing to socket", "error");
             }
 
-            char graph_id_data[301];
+            char graph_id_data[300];
             bzero(graph_id_data, 301);
             string name = "";
 
@@ -1124,6 +1086,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                     frontend_logger.log("Error writing to socket", "error");
                 }
             }
+
         } else if (line.compare(MERGE) == 0) {
 
             Utils utils;
@@ -1165,11 +1128,9 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             JasmineGraphServer *jasmineServer = new JasmineGraphServer();
             jasmineServer->initiateFiles(graphID, trainData);
             jasmineServer->initiateMerge(graphID, trainData, sqlite);
-            write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
-            write(connFd, "\r\n", 2);
 
         } else if (line.compare(TRAIN) == 0) {
-            string message = "Available main flags:\r\n";
+            string message = "Available main flags:\n";
             int result_wr = write(connFd, message.c_str(), message.size());
             if (result_wr < 0) {
                 frontend_logger.log("Error writing to socket", "error");
@@ -1184,20 +1145,21 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
             char train_data[301];
             bzero(train_data, 301);
+
             read(connFd, train_data, 300);
 
             string trainData(train_data);
+
+            Utils utils;
             trainData = utils.trim_copy(trainData, " \f\n\r\t\v");
             frontend_logger.log("Data received: " + trainData, "info");
 
             std::vector<std::string> trainargs = Utils::split(trainData, ' ');
             std::vector<std::string>::iterator itr = std::find(trainargs.begin(), trainargs.end(), "--graph_id");
             std::string graphID;
-            std::string modelID;
             if (itr != trainargs.cend()) {
                 int index = std::distance(trainargs.begin(), itr);
                 graphID = trainargs[index + 1];
-
             } else {
                 frontend_logger.log("graph_id should be given as an argument", "error");
                 continue;
@@ -1228,11 +1190,9 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             if (federatedEnabled == "true") {
                 JasmineGraphServer *jasmineServer = new JasmineGraphServer();
                 if (utils.getJasmineGraphProperty("org.jasminegraph.fl.org.training") == "true") {
-                    frontend_logger.log("Initiate org communication", "info");
                     jasmineServer->initiateOrgCommunication(graphID, trainData, sqlite);
 
                 } else {
-                    frontend_logger.log("Initiate communication", "info");
                     jasmineServer->initiateCommunication(graphID, trainData, sqlite);
 
                 }
@@ -1243,8 +1203,6 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 jasminGraphTrainingInitiator->initiateTrainingLocally(graphID, trainData);
 
             }
-            write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
-            write(connFd, "\r\n", 2);
 
         } else if (line.compare(IN_DEGREE) == 0) {
 
@@ -1263,7 +1221,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 continue;
             }
 
-            char graph_id[FRONTEND_DATA_LENGTH + 1];
+            char graph_id[FRONTEND_DATA_LENGTH];
             bzero(graph_id, FRONTEND_DATA_LENGTH + 1);
 
             read(connFd, graph_id, FRONTEND_DATA_LENGTH);
@@ -1305,7 +1263,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 continue;
             }
 
-            char graph_id[FRONTEND_DATA_LENGTH + 1];
+            char graph_id[FRONTEND_DATA_LENGTH];
             bzero(graph_id, FRONTEND_DATA_LENGTH + 1);
 
             read(connFd, graph_id, FRONTEND_DATA_LENGTH);
@@ -1347,7 +1305,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 continue;
             }
 
-            char page_rank_command[FRONTEND_DATA_LENGTH + 1];
+            char page_rank_command[FRONTEND_DATA_LENGTH];
             bzero(page_rank_command, FRONTEND_DATA_LENGTH + 1);
             string name = "";
             string path = "";
@@ -1369,7 +1327,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
             int iterations = PAGE_RANK_ITERATIONS;
             if (strArr.size() > 2) {
-                iterations = std::stod(strArr[2]);
+                iterations  = std::stod(strArr[2]);
                 if (iterations <= 0 || iterations >= 100) {
                     frontend_logger.log("Invalid value for iterations", "error");
                     loop = true;
@@ -1414,7 +1372,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 continue;
             }
 
-            char graph_id[FRONTEND_DATA_LENGTH + 1];
+            char graph_id[FRONTEND_DATA_LENGTH];
             bzero(graph_id, FRONTEND_DATA_LENGTH + 1);
 
             read(connFd, graph_id, FRONTEND_DATA_LENGTH);
@@ -1456,7 +1414,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 continue;
             }
 
-            char graph_id[FRONTEND_DATA_LENGTH + 1];
+            char graph_id[FRONTEND_DATA_LENGTH];
             bzero(graph_id, FRONTEND_DATA_LENGTH + 1);
 
             read(connFd, graph_id, FRONTEND_DATA_LENGTH);
@@ -1484,15 +1442,15 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             }
         } else if (line.compare(PREDICT) == 0) {
             int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
-            if (result_wr < 0) {
+            if(result_wr < 0) {
                 frontend_logger.log("Error writing to socket", "error");
             }
             result_wr = write(connFd, "\r\n", 2);
-            if (result_wr < 0) {
+            if(result_wr < 0) {
                 frontend_logger.log("Error writing to socket", "error");
             }
 
-            char predict_data[301];
+            char predict_data[300];
             bzero(predict_data, 301);
             string graphID = "";
             string path = "";
@@ -1514,7 +1472,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             graphID = strArr[0];
             path = strArr[1];
 
-            if (JasmineGraphFrontEnd::isGraphActiveAndTrained(graphID, sqlite)) {
+            if(JasmineGraphFrontEnd::isGraphActiveAndTrained(graphID, sqlite)) {
                 if (utils.fileExists(path)) {
                     std::cout << "Path exists" << endl;
                     JasminGraphLinkPredictor *jasminGraphLinkPredictor = new JasminGraphLinkPredictor();
@@ -1529,7 +1487,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             }
         } else if (line.compare(START_REMOTE_WORKER) == 0) {
             int result_wr = write(connFd, REMOTE_WORKER_ARGS.c_str(), REMOTE_WORKER_ARGS.size());
-            if (result_wr < 0) {
+            if(result_wr < 0) {
                 frontend_logger.log("Error writing to socket", "error");
             }
             result_wr = write(connFd, "\r\n", 2);
@@ -1537,7 +1495,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 frontend_logger.log("Error writing to socket", "error");
             }
 
-            char worker_data[301];
+            char worker_data[300];
             bzero(worker_data, 301);
 
             read(connFd, worker_data, 300);
@@ -1577,11 +1535,11 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 frontend_logger.log("Error writing to socket", "error");
             }
             result_wr = write(connFd, "\r\n", 2);
-            if (result_wr < 0) {
+            if(result_wr < 0) {
                 frontend_logger.log("Error writing to socket", "error");
             }
 
-            char category[FRONTEND_DATA_LENGTH + 1];
+            char category[FRONTEND_DATA_LENGTH];
             bzero(category, FRONTEND_DATA_LENGTH + 1);
 
             read(connFd, category, FRONTEND_DATA_LENGTH);
@@ -1597,8 +1555,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
             string slaCategoryIds;
 
-            for (std::vector<vector<pair<string, string>>>::iterator i = categoryResults.begin();
-                 i != categoryResults.end(); ++i) {
+            for (std::vector<vector<pair<string, string>>>::iterator i = categoryResults.begin(); i != categoryResults.end(); ++i) {
                 for (std::vector<pair<string, string>>::iterator j = (i->begin()); j != i->end(); ++j) {
                     slaCategoryIds = slaCategoryIds + "'" + j->second + "',";
                 }
@@ -1608,8 +1565,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
             std::stringstream ss;
             std::vector<vector<pair<string, string>>> v = perfSqlite.runSelect(
-                    "SELECT graph_id, partition_count, sla_value FROM graph_sla where id_sla_category in (" +
-                    adjustedIdList + ");");
+                    "SELECT graph_id, partition_count, sla_value FROM graph_sla where id_sla_category in (" + adjustedIdList + ");");
             for (std::vector<vector<pair<string, string>>>::iterator i = v.begin(); i != v.end(); ++i) {
                 std::stringstream slass;
                 slass << "|";
@@ -1638,14 +1594,14 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             string result = ss.str();
             if (result.size() == 0) {
                 int result_wr = write(connFd, EMPTY.c_str(), EMPTY.length());
-                if (result_wr < 0) {
+                if(result_wr < 0) {
                     frontend_logger.log("Error writing to socket", "error");
                     loop = true;
                     continue;
                 }
                 result_wr = write(connFd, "\r\n", 2);
 
-                if (result_wr < 0) {
+                if(result_wr < 0) {
                     frontend_logger.log("Error writing to socket", "error");
                     loop = true;
                     continue;
@@ -1653,7 +1609,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
             } else {
                 int result_wr = write(connFd, result.c_str(), result.length());
-                if (result_wr < 0) {
+                if(result_wr < 0) {
                     frontend_logger.log("Error writing to socket", "error");
                     loop = true;
                     continue;
@@ -1663,16 +1619,14 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             frontend_logger.log("Message format not recognized " + line, "error");
         }
     }
-    if (input_stream_handler.joinable()) {
+    if (input_stream_handler.joinable()){
         input_stream_handler.join();
     }
     frontend_logger.log("Closing thread " + to_string(pthread_self()) + " and connection", "info");
     close(connFd);
-    return NULL;
 }
 
-JasmineGraphFrontEnd::JasmineGraphFrontEnd(SQLiteDBInterface db, PerformanceSQLiteDBInterface perfDb,
-                                           std::string masterIP,
+JasmineGraphFrontEnd::JasmineGraphFrontEnd(SQLiteDBInterface db, PerformanceSQLiteDBInterface perfDb, std::string masterIP,
                                            JobScheduler jobScheduler) {
     this->sqlite = db;
     this->masterIP = masterIP;
@@ -1719,7 +1673,7 @@ int JasmineGraphFrontEnd::run() {
 
     listen(listenFd, 10);
 
-    std::thread *myThreads = new std::thread[20];
+    std::thread* myThreads = new std::thread[20];
     std::vector<std::thread> threadVector;
     len = sizeof(clntAdd);
 
@@ -1740,15 +1694,14 @@ int JasmineGraphFrontEnd::run() {
 
         frontend_logger.log("Master IP" + masterIP, "info");
 
-        struct frontendservicesessionargs *frontendservicesessionargs1 = (struct frontendservicesessionargs *) malloc(
-                sizeof(struct frontendservicesessionargs) * 1);;
+        struct frontendservicesessionargs *frontendservicesessionargs1 =(struct frontendservicesessionargs*) malloc(
+                sizeof(struct frontendservicesessionargs)*1 );;
         frontendservicesessionargs1->sqlite = this->sqlite;
         frontendservicesessionargs1->connFd = connFd;
 
         //TODO(miyurud):Temporarily commenting this line to enable building the project. Asked tmkasun to provide a
         // permanent fix later when he is available.
-        threadVector.push_back(std::thread(frontendservicesesion, masterIP, connFd, this->sqlite, this->perfSqlite,
-                                           this->jobScheduler));
+        threadVector.push_back(std::thread(frontendservicesesion, masterIP, connFd, this->sqlite, this->perfSqlite, this->jobScheduler));
 
         std::thread();
 
@@ -1804,8 +1757,7 @@ void JasmineGraphFrontEnd::removeGraph(std::string graphID, SQLiteDBInterface sq
     vector<vector<pair<string, string>>> hostPartitionResults = sqlite.runSelect(
             "SELECT name, partition_idpartition FROM worker_has_partition INNER JOIN worker ON "
             "worker_has_partition.worker_idworker = worker.idworker WHERE partition_graph_idgraph = " + graphID + ";");
-    for (vector<vector<pair<string, string>>>::iterator i = hostPartitionResults.begin();
-         i != hostPartitionResults.end(); ++i) {
+    for (vector<vector<pair<string, string>>>::iterator i = hostPartitionResults.begin(); i != hostPartitionResults.end(); ++i) {
         int count = 0;
         string hostname;
         string partitionID;
@@ -1843,8 +1795,7 @@ bool JasmineGraphFrontEnd::isGraphActiveAndTrained(std::string graphID, SQLiteDB
     bool result = true;
     string stmt =
             "SELECT COUNT( * ) FROM graph WHERE idgraph LIKE '" + graphID + "' AND graph_status_idgraph_status = '" +
-            to_string(Conts::GRAPH_STATUS::OPERATIONAL) + "' AND train_status = '" + (Conts::TRAIN_STATUS::TRAINED) +
-            "';";
+            to_string(Conts::GRAPH_STATUS::OPERATIONAL) + "' AND train_status = '"+(Conts::TRAIN_STATUS::TRAINED) +"';";
     std::vector<vector<pair<string, string>>> v = sqlite.runSelect(stmt);
     int count = std::stoi(v[0][0].second);
     if (count == 0) {
@@ -1891,10 +1842,10 @@ void JasmineGraphFrontEnd::getAndUpdateUploadTime(std::string graphID, SQLiteDBI
 }
 
 JasmineGraphHashMapCentralStore JasmineGraphFrontEnd::loadCentralStore(std::string centralStoreFileName) {
-    frontend_logger.log("Loading Central Store File : Started " + centralStoreFileName, "info");
+    frontend_logger.log("Loading Central Store File : Started " + centralStoreFileName,"info");
     JasmineGraphHashMapCentralStore *jasmineGraphHashMapCentralStore = new JasmineGraphHashMapCentralStore();
     jasmineGraphHashMapCentralStore->loadGraph(centralStoreFileName);
-    frontend_logger.log("Loading Central Store File : Completed", "info");
+    frontend_logger.log("Loading Central Store File : Completed","info");
     return *jasmineGraphHashMapCentralStore;
 }
 
@@ -1909,7 +1860,7 @@ map<long, long> JasmineGraphFrontEnd::getOutDegreeDistributionHashMap(map<long, 
 }
 
 int JasmineGraphFrontEnd::getUid() {
-    static std::atomic<std::uint32_t> uid{0};
+    static std::atomic<std::uint32_t> uid { 0 };
     return ++uid;
 }
 
@@ -1928,11 +1879,9 @@ long JasmineGraphFrontEnd::getSLAForGraphId(SQLiteDBInterface sqlite, Performanc
 
     int partitionCount = results.size();
 
-    string graphSlaQuery =
-            "select graph_sla.sla_value from graph_sla,sla_category where graph_sla.id_sla_category=sla_category.id "
-            "and sla_category.command='" + command + "' and sla_category.category='" + category + "' and "
-                                                                                                  "graph_sla.graph_id='" +
-            graphId + "' and graph_sla.partition_count='" + std::to_string(partitionCount) + "';";
+    string graphSlaQuery = "select graph_sla.sla_value from graph_sla,sla_category where graph_sla.id_sla_category=sla_category.id "
+                           "and sla_category.command='" + command + "' and sla_category.category='" + category + "' and "
+                                                                                                                 "graph_sla.graph_id='" + graphId + "' and graph_sla.partition_count='" + std::to_string(partitionCount) + "';";
 
     std::vector<vector<pair<string, string>>> slaResults = perfSqlite.runSelect(graphSlaQuery);
 
@@ -1950,8 +1899,7 @@ int JasmineGraphFrontEnd::getRunningHighPriorityTaskCount() {
     int taskCount = 0;
 
     std::set<ProcessInfo>::iterator processQueryIterator;
-    for (processQueryIterator = processData.begin();
-         processQueryIterator != processData.end(); ++processQueryIterator) {
+    for (processQueryIterator = processData.begin(); processQueryIterator != processData.end(); ++processQueryIterator) {
         ProcessInfo processInformation = *processQueryIterator;
 
         if (processInformation.priority == Conts::HIGH_PRIORITY_DEFAULT_VALUE) {
@@ -2036,7 +1984,7 @@ void JasmineGraphServer::pageRank(std::string graphID, double alpha, int iterati
         }
 
         int sockfd;
-        char data[301];
+        char data[300];
         bool loop = false;
         socklen_t len;
         struct sockaddr_in serv_addr;
@@ -2226,7 +2174,7 @@ void JasmineGraphServer::egoNet(std::string graphID) {
     workerList.pop_back();
 
     int sockfd;
-    char data[301];
+    char data[300];
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
@@ -2256,7 +2204,7 @@ void JasmineGraphServer::egoNet(std::string graphID) {
     bzero(data, 301);
     int result_wr = write(sockfd, JasmineGraphInstanceProtocol::EGONET.c_str(),
                           JasmineGraphInstanceProtocol::EGONET.size());
-    if (result_wr < 0) {
+    if(result_wr < 0) {
         frontend_logger.log("Error writing to socket", "error");
     }
 
@@ -2326,30 +2274,3 @@ void JasmineGraphServer::egoNet(std::string graphID) {
     }
 }
 
-
-bool JasmineGraphFrontEnd::modelExists(string path, SQLiteDBInterface sqlite) {
-    bool result = true;
-    string stmt =
-            "SELECT COUNT( * ) FROM model WHERE upload_path LIKE '" + path + "' AND model_status_idmodel_status = '" +
-            to_string(Conts::GRAPH_STATUS::OPERATIONAL) + "';";
-    std::vector<vector<pair<string, string>>> v = sqlite.runSelect(stmt);
-    int count = std::stoi(v[0][0].second);
-    if (count == 0) {
-        result = false;
-    }
-    return result;
-}
-
-bool JasmineGraphFrontEnd::modelExistsByID(string id, SQLiteDBInterface sqlite) {
-    bool result = true;
-    string stmt = "SELECT COUNT( * ) FROM model WHERE idmodel = " + id + " and model_status_idmodel_status = " +
-                  to_string(Conts::GRAPH_STATUS::OPERATIONAL);
-    std::vector<vector<pair<string, string>>> v = sqlite.runSelect(stmt);
-    int count = std::stoi(v[0][0].second);
-
-    if (count == 0) {
-        result = false;
-    }
-
-    return result;
-}

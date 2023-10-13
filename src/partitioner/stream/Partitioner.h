@@ -14,7 +14,7 @@
 #define JASMINE_PARTITIONER_HEADER
 #include <vector>
 
-#include "../../centralstore/incremental/NodeManager.h"
+#include "../../nativestore/NodeManager.h"
 #include "./Partition.h"
 
 typedef std::vector<std::pair<std::string, long>> partitionedEdge;

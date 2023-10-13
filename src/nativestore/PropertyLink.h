@@ -36,6 +36,8 @@ class PropertyLink {
     static std::string DB_PATH;
     static std::fstream* propertiesDB;
 
+
+
     PropertyLink(unsigned int);
     PropertyLink(unsigned int, std::string, char*, unsigned int);
     bool isEmpty();

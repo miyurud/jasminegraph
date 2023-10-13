@@ -31,8 +31,12 @@ class DataPublisher {
 
    public:
     DataPublisher(int, std::string);
+    void publish_edge(std::string);
     void publish(std::string);
+
     ~DataPublisher();
+
+    void publish_central_relation(std::string message);
 };
 
 #endif  // !Worker_data_publisher
