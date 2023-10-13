@@ -702,7 +702,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             stream_topic_name = topic_name_s;
             kstream->Subscribe(topic_name_s);
             frontend_logger.log("Start listening to " + topic_name_s, "info");
-            input_stream_handler = thread(listen_to_kafka_topic, kstream,std::ref(graphPartitioner),std::ref(workerClients));
+            input_stream_handler = thread(listen_to_kafka_topic, kstream,std::ref(graphPartitioner), std::ref(workerClients));
 
         } else if (line.compare(STOP_STREAM_KAFKA) == 0) {
             frontend_logger.log("Start serving `" + STOP_STREAM_KAFKA + "` command", "info");
