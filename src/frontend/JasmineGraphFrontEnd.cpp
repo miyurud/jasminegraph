@@ -622,7 +622,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             }
 //          user need to start relevant kafka cluster using relevant IP address
 //          read relevant IP address from given file path
-            else{
+            else {
                 string message = "Send file path to the kafka configuration file.";
                 int result_wr = write(connFd, message.c_str(), message.length());
                 if (result_wr < 0) {
