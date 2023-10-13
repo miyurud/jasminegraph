@@ -615,7 +615,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 c = tolower(c);
             }
 //          use default kafka consumer details
-            if (user_res_s =="y"){
+            if (user_res_s == "y"){
                 kafka_server_IP = utils.getJasmineGraphProperty("org.jasminegraph.server.streaming.kafka.host");
                 configs = {{"metadata.broker.list", kafka_server_IP},
                            {"group.id",             "knnect"}};
