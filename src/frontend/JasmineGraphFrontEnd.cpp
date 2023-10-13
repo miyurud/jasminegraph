@@ -555,7 +555,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 int newGraphID = sqlite.runInsert(sqlStatement);
                 JasmineGraphServer *jasmineServer = new JasmineGraphServer();
                 MetisPartitioner *partitioner = new MetisPartitioner(&sqlite);
-                vector <std::map<int, string>> fullFileList;
+                vector<std::map<int, string>> fullFileList;
                 partitioner->loadContentData(attributeListPath, graphAttributeType, newGraphID, attrDataType);
                 partitioner->loadDataSet(edgeListPath, newGraphID);
                 int result = partitioner->constructMetisFormat(Conts::GRAPH_TYPE_NORMAL);
