@@ -61,7 +61,7 @@ public:
 
     ~GetConfig();
 
-    void readConfigFile(std::string &, int id) throw(std::runtime_error);
+    void readConfigFile(std::string &, int id) /* throw(std::runtime_error) */;
 
 
     char *getOptionA() { return m_OptionA; };
@@ -72,7 +72,7 @@ public:
 
     long addToAuthors(std::map<std::string, long> *map, std::string URI);
 
-    long addToEdges(std::map<pair<int, int>, int> *map, long node_1, long node_2, long article_id);
+    void addToEdges(std::map<pair<int, int>, int> *map, long node_1, long node_2, long article_id);
 
     long addToArticles(std::map<std::string, long> *map, std::string URI);
 

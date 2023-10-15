@@ -14,7 +14,7 @@ limitations under the License.
 #ifndef JASMINEGRAPH_PERFORMANCESQLITEDBINTERFACE_H
 #define JASMINEGRAPH_PERFORMANCESQLITEDBINTERFACE_H
 
-#include "../util/sqlite3/sqlite3.h"
+#include <sqlite3.h>
 #include <vector>
 #include <map>
 

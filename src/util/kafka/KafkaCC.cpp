@@ -66,4 +66,5 @@ void *KafkaConnector::startStream(string topicName, std::vector<DataPublisher *>
         workerClients.at((int)partitionedEdge[1].second)->publish(edgeJson.dump());
     }
     graphPartitioner.printStats();
+    return NULL;
 }

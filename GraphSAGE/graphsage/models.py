@@ -1,6 +1,6 @@
 from collections import namedtuple
 
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 import math
 
 import layers as layers
@@ -9,6 +9,7 @@ import metrics as metrics
 from prediction import BipartiteEdgePredLayer
 from aggregators import MeanAggregator, MaxPoolingAggregator, MeanPoolingAggregator, SeqAggregator, GCNAggregator
 
+tf.disable_v2_behavior()
 flags = tf.app.flags
 FLAGS = flags.FLAGS
 

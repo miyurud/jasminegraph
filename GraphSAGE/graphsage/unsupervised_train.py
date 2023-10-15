@@ -3,7 +3,7 @@ from __future__ import print_function
 
 import os
 import time
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 import numpy as np
 import datetime
 
@@ -14,16 +14,18 @@ from utils import preprocess_data
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 
+tf.disable_v2_behavior()
+
 # Set random seed
 seed = 123
 np.random.seed(seed)
-tf.set_random_seed(seed)
+tf.random.set_random_seed(seed)
 
 # Settings
 flags = tf.app.flags
 FLAGS = flags.FLAGS
 
-tf.app.flags.DEFINE_boolean('log_device_placement', False,
+flags.DEFINE_boolean('log_device_placement', False,
                             """Whether to log device placement.""")
 #core params..
 flags.DEFINE_string('model', 'graphsage_mean', 'model names. See README for possible values.')
@@ -66,7 +68,7 @@ GPU_MEM_FRACTION = 0.8
 
 def log_dir():
 
-    log_dir = FLAGS.base_log_dir + "/jasminegraph-local_trained_model_store/"
+    log_dir = FLAGS.base_log_dir + "jasminegraph-local_trained_model_store/"
     log_dir += "{graph_id:s}_model_{train_worker:s}".format(
         graph_id = FLAGS.train_prefix.split("/")[-1],
         train_worker = FLAGS.train_worker
@@ -414,9 +416,9 @@ def train(train_data, G_local,test_data=None):
 
         if FLAGS.model == "n2v":
             # stopping the gradient for the already trained nodes
-            train_ids = tf.constant([[id_map[n]] for n in G.nodes_iter() if not G.node[n]['val'] and not G.node[n]['test']],
+            train_ids = tf.constant([[id_map[n]] for n in G.nodes_iter() if not G._node[n]['val'] and not G._node[n]['test']],
                     dtype=tf.int32)
-            test_ids = tf.constant([[id_map[n]] for n in G.nodes_iter() if G.node[n]['val'] or G.node[n]['test']], 
+            test_ids = tf.constant([[id_map[n]] for n in G.nodes_iter() if G._node[n]['val'] or G._node[n]['test']],
                     dtype=tf.int32)
             update_nodes = tf.nn.embedding_lookup(model.context_embeds, tf.squeeze(test_ids))
             no_update_nodes = tf.nn.embedding_lookup(model.context_embeds,tf.squeeze(train_ids))
@@ -427,7 +429,7 @@ def train(train_data, G_local,test_data=None):
 
             # run random walks
             from graphsage.utils import run_random_walks
-            nodes = [n for n in G.nodes_iter() if G.node[n]["val"] or G.node[n]["test"]]
+            nodes = [n for n in G.nodes_iter() if G._node[n]["val"] or G._node[n]["test"]]
             start_time = time.time()
             pairs = run_random_walks(G, nodes, num_walks=50)
             walk_time = time.time() - start_time

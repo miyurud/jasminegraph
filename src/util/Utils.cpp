@@ -16,6 +16,9 @@ limitations under the License.
 #include <sys/stat.h>
 #include <pwd.h>
 #include <unistd.h>
+#include <chrono>
+#include <ctime>
+#include <iomanip>
 #include "Utils.h"
 //#include "../frontend/JasmineGraphFrontEnd.h"
 #include "Conts.h"
@@ -23,6 +26,8 @@ limitations under the License.
 
 using namespace std;
 Logger util_logger;
+
+unordered_map<std::string, std::string> Utils::propertiesMap;
 
 map<std::string, std::string> Utils::getBatchUploadFileList(std::string file) {
     std::vector<std::string> batchUploadFileContent = getFileContent(file);
@@ -68,19 +73,11 @@ std::vector<std::string> Utils::getFileContent(std::string file) {
     ifstream in(file);
 
     std::string str;
-    //map<std::string, std::string>* result = new map<std::string, std::string>();
     vector<std::string> *vec = new vector<std::string>();
     while (std::getline(in, str)) {
-        // output the line
-        //std::cout << str << std::endl;
-
         // now we loop back and get the next line in 'str'
 
-        //if (str.length() > 0 && !(str.rfind("#", 0) == 0)) {
         if (str.length() > 0) {
-            //std::vector<std::string> vec = split(str, '=');
-            //std::cout << vec.size() << std::endl;
-            //result->insert(std::pair<std::string, std::string>(vec.at(0), vec.at(1)));
             vec->insert(vec->begin(), str);
         }
     }
@@ -89,24 +86,28 @@ std::vector<std::string> Utils::getFileContent(std::string file) {
 };
 
 std::string Utils::getJasmineGraphProperty(std::string key) {
-    std::vector<std::string>::iterator it;
-    vector<std::string> vec = getFileContent("conf/jasminegraph-server.properties");
-    it = vec.begin();
+    if (Utils::propertiesMap.empty()) {
+        std::vector<std::string>::iterator it;
+        vector<std::string> vec = getFileContent("conf/jasminegraph-server.properties");
+        it = vec.begin();
 
-    for (it = vec.begin(); it < vec.end(); it++) {
-        std::string item = *it;
-        if (item.length() > 0 && !(item.rfind("#", 0) == 0)) {
-            std::vector<std::string> vec2 = split(item, '=');
-            if (vec2.at(0).compare(key) == 0) {
-                if (item.substr(item.length() - 1, item.length()).compare("=") != 0) {
-                    return vec2.at(1);
+        for (it = vec.begin(); it < vec.end(); it++) {
+            std::string item = *it;
+            if (item.length() > 0 && !(item.rfind("#", 0) == 0)) {
+                std::vector<std::string> vec2 = split(item, '=');
+                if (vec2.size() == 2){
+                    Utils::propertiesMap[vec2.at(0)] = vec2.at(1);
                 } else {
-                    return " ";
+                    Utils::propertiesMap[vec2.at(0)] =  string(" ");
                 }
             }
         }
     }
-
+    unordered_map<std::string,std::string>::iterator it = Utils::propertiesMap.find(key);
+    if(it != Utils::propertiesMap.end())
+    {
+        return it->second;
+    }
     return NULL;
 }
 
@@ -220,9 +221,12 @@ std::vector<std::string> Utils::getListOfFilesInDirectory(const std::string dirN
         }
         pclose(input);
         if (!result.empty()) {
-            std::vector<std::string> vec = split(result, '\r\n');
+            std::vector<std::string> vec = split(result, '\n');
             for(std::vector<std::string>::iterator it = vec.begin(); it != vec.end(); ++it){
                 std::string line = it->c_str();
+                if (line.back() == '\r') {
+                    line.pop_back();
+                }
                 if (line.rfind("-", 0) == 0) {
                     std::string file = line.substr(line.find_last_of(' ') + 1);
                     results.push_back(file);
@@ -598,4 +602,38 @@ std::string Utils::checkFlag(std::string flagPath){
 
     infile.close();
     return bitVal;
+}
+
+int Utils::connect_wrapper(int sock, const sockaddr *addr, socklen_t slen) {
+    int retry = 0;
+
+    struct timeval tv = {1, 0};
+
+    if (setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (char *)&tv, sizeof(tv)) == -1) {
+        util_logger.error("Failed to set send timeout option for socket");
+    }
+
+    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char *)&tv, sizeof(tv)) == -1) {
+        util_logger.error("Failed to set recieve timeout option for socket");
+    }
+
+    do {
+        if (retry) sleep(retry * 2);
+        util_logger.info("Trying to connect to [" + to_string(retry) + "]: " + string(inet_ntoa(((const struct sockaddr_in *)addr)->sin_addr)) + ":" + to_string(ntohs(((const struct sockaddr_in *)addr)->sin_port)));
+        if (connect(sock, addr, slen) == 0) {
+            return 0;
+        }
+    } while (retry++ < 4);
+    return -1;
+}
+
+std::string Utils::getCurrentTimestamp() {
+    auto now = chrono::system_clock::now();
+    time_t time = chrono::system_clock::to_time_t(now);
+    tm tm_time;
+    localtime_r(&time, &tm_time);
+    stringstream timestamp;
+    timestamp << put_time(&tm_time, "%y%m%d_%H%M%S"); // Format can be customized
+
+    return timestamp.str();
 }

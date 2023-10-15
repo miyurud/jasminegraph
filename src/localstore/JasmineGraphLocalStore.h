@@ -16,6 +16,7 @@ limitations under the License.
 
 #include <map>
 #include <unordered_set>
+#include <string>
 
 using std::map;
 using std::unordered_set;

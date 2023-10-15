@@ -67,7 +67,7 @@ map<long, long> calculateLocalOutDegreeDist(string graphID, string partitionID,
 map<long, long> calculateInDegreeDist(string graphID, string partitionID, int serverPort,
                                       std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
                                       std::map<std::string,JasmineGraphHashMapCentralStore> graphDBMapCentralStores,
-                                      std::vector<string> workerSockets);
+                                      std::vector<string> workerSockets, string workerList);
 
 map<long, long> calculateLocalInDegreeDist(string graphID, string partitionID,
                                            std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
@@ -87,7 +87,7 @@ map<long, double> calculateLocalPageRank(string graphID, double alpha, string pa
         JasmineGraphHashMapCentralStore centralDB,
 std::vector<string> workerSockets, int iterations);
 
-map<long, float> getAuthorityScoresWorldToLocal(string graphID, string partitionID, int serverPort,
+map<long, double> getAuthorityScoresWorldToLocal(string graphID, string partitionID, int serverPort,
         string graphVertexCount, JasmineGraphHashMapLocalStore localDB,
         JasmineGraphHashMapCentralStore centralDB,
 map<long, unordered_set<long>> graphVertexMap,
@@ -119,7 +119,7 @@ public:
     static const string END_OF_MESSAGE;
     JasmineGraphInstanceService();
 
-    int run(string profile, string masterHost, string hostName, int serverPort, int serverDataPort);
+    void run(string profile, string masterHost, string hostName, int serverPort, int serverDataPort);
 
     static bool isGraphDBExists(std::string graphId, std::string partitionId);
     static bool isInstanceCentralStoreExists(std::string graphId, std::string partitionId);
@@ -185,6 +185,7 @@ public:
                                        std::string filePath, std::string masterIP);
     static int partitionCounter;
 
+    static std::thread workerThread;
 };
 
 

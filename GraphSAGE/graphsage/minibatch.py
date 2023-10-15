@@ -25,16 +25,16 @@ class EdgeMinibatchIterator(object):
             **kwargs):
 
         self.G = G
-        self.nodes = G.nodes()
+        self.nodes = list(G.nodes())
         self.local_nodes = G_local.nodes()
-        self.central_nodes = list(set(G.nodes())-set(G_local.nodes()))
+        self.central_nodes = list(set(list(G.nodes()))-set(G_local.nodes()))
         self.id2idx = id2idx
         self.placeholders = placeholders
         self.batch_size = batch_size
         self.max_degree = max_degree
         self.batch_num = 0
 
-        self.nodes = np.random.permutation(G.nodes())
+        self.nodes = np.random.permutation(list(G.nodes()))
         self.adj, self.deg = self.construct_adj()
         self.test_adj = self.construct_test_adj()
         if context_pairs is None:
@@ -52,12 +52,12 @@ class EdgeMinibatchIterator(object):
             else:
                 self.train_edges = self.val_edges = self.edges
 
-        print(len([n for n in G.nodes() if not G.node[n]['test'] and not G.node[n]['val']]), 'train nodes')
-        print(len([n for n in G.nodes() if G.node[n]['test'] or G.node[n]['val']]), 'test nodes')
+        print(len([n for n in list(G.nodes()) if not G.nodes[n]['test'] and not G.nodes[n]['val']]), 'train nodes')
+        print(len([n for n in list(G.nodes()) if G.nodes[n]['test'] or G.nodes[n]['val']]), 'test nodes')
         self.val_set_size = len(self.val_edges)
 
     def _n2v_prune(self, edges):
-        is_val = lambda n : self.G.node[n]["val"] or self.G.node[n]["test"]
+        is_val = lambda n : self.G.nodes[n]["val"] or self.G.nodes[n]["test"]
         return [e for e in edges if not is_val(e[1])]
 
     def _remove_isolated(self, edge_list):
@@ -67,11 +67,11 @@ class EdgeMinibatchIterator(object):
         count = 0
         for n1, n2 in edge_list:
             count +=1
-            if not n1 in self.G.node or not n2 in self.G.node:
+            if not n1 in list(self.G.nodes()) or not n2 in list(self.G.nodes()):
                 missing += 1
                 continue
-            if (self.G.node[n1]['test'] and self.G.node[n2]['test']) \
-                    or (self.G.node[n1]['val'] and self.G.node[n2]['val']):
+            if (self.G.nodes[n1]['test'] and self.G.nodes[n2]['test']) \
+                    or (self.G.nodes[n1]['val'] and self.G.nodes[n2]['val']):
                 continue
             else:
                 new_edge_list.append((n1,n2))
@@ -82,8 +82,8 @@ class EdgeMinibatchIterator(object):
         adj = len(self.id2idx)*np.ones((len(self.id2idx)+1, self.max_degree))
         deg = np.zeros((len(self.id2idx),))
 
-        for nodeid in self.G.nodes():
-            if self.G.node[nodeid]['test'] or self.G.node[nodeid]['val']:
+        for nodeid in list(self.G.nodes()):
+            if self.G.nodes[nodeid]['test'] or self.G.nodes[nodeid]['val']:
                 continue
             neighbors = np.array([self.id2idx[neighbor] 
                 for neighbor in self.G.neighbors(nodeid)
@@ -100,7 +100,7 @@ class EdgeMinibatchIterator(object):
 
     def construct_test_adj(self):
         adj = len(self.id2idx)*np.ones((len(self.id2idx)+1, self.max_degree))
-        for nodeid in self.G.nodes():
+        for nodeid in list(self.G.nodes()):
             neighbors = np.array([self.id2idx[neighbor] 
                 for neighbor in self.G.neighbors(nodeid)])
             if len(neighbors) == 0:
@@ -183,8 +183,8 @@ class EdgeMinibatchIterator(object):
         train_edges = []
         val_edges = []
         for n1, n2 in self.G.edges():
-            if (self.G.node[n1]['val'] or self.G.node[n1]['test'] 
-                    or self.G.node[n2]['val'] or self.G.node[n2]['test']):
+            if (self.G.nodes[n1]['val'] or self.G.nodes[n1]['test'] 
+                    or self.G.nodes[n2]['val'] or self.G.nodes[n2]['test']):
                 val_edges.append((n1,n2))
             else:
                 train_edges.append((n1,n2))
@@ -217,7 +217,7 @@ class NodeMinibatchIterator(object):
             **kwargs):
 
         self.G = G
-        self.nodes = G.nodes()
+        self.nodes = list(G.nodes())
         self.id2idx = id2idx
         self.placeholders = placeholders
         self.batch_size = batch_size
@@ -229,11 +229,11 @@ class NodeMinibatchIterator(object):
         self.adj, self.deg = self.construct_adj()
         self.test_adj = self.construct_test_adj()
 
-        self.val_nodes = [n for n in self.G.nodes() if self.G.node[n]['val']]
-        self.test_nodes = [n for n in self.G.nodes() if self.G.node[n]['test']]
+        self.val_nodes = [n for n in list(self.G.nodes()) if self.G.nodes[n]['val']]
+        self.test_nodes = [n for n in list(self.G.nodes()) if self.G.nodes[n]['test']]
 
         self.no_train_nodes_set = set(self.val_nodes + self.test_nodes)
-        self.train_nodes = set(G.nodes()).difference(self.no_train_nodes_set)
+        self.train_nodes = set(list(G.nodes())).difference(self.no_train_nodes_set)
         # don't train on nodes that only have edges to test set
         self.train_nodes = [n for n in self.train_nodes if self.deg[id2idx[n]] > 0]
 
@@ -251,8 +251,8 @@ class NodeMinibatchIterator(object):
         adj = len(self.id2idx)*np.ones((len(self.id2idx)+1, self.max_degree))
         deg = np.zeros((len(self.id2idx),))
 
-        for nodeid in self.G.nodes():
-            if self.G.node[nodeid]['test'] or self.G.node[nodeid]['val']:
+        for nodeid in list(self.G.nodes()):
+            if self.G.nodes[nodeid]['test'] or self.G.nodes[nodeid]['val']:
                 continue
             neighbors = np.array([self.id2idx[neighbor]
                 for neighbor in self.G.neighbors(nodeid)
@@ -269,7 +269,7 @@ class NodeMinibatchIterator(object):
 
     def construct_test_adj(self):
         adj = len(self.id2idx)*np.ones((len(self.id2idx)+1, self.max_degree))
-        for nodeid in self.G.nodes():
+        for nodeid in list(self.G.nodes()):
             neighbors = np.array([self.id2idx[neighbor] 
                 for neighbor in self.G.neighbors(nodeid)])
             if len(neighbors) == 0:

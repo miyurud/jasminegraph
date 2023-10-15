@@ -67,7 +67,7 @@ public:
 
     static bool proceedOrNot(std::set<string> partitionSet,int partitionId);
 
-    static bool updateMap(int partitionId);
+    static void updateMap(int partitionId);
 
     static int updateTriangleTreeAndGetTriangleCount(std::vector<std::string> triangles);
 
@@ -76,7 +76,7 @@ public:
     static std::map<long, std::map<long, std::vector<long>>> triangleTree;
 
     static int collectPerformaceData(PerformanceSQLiteDBInterface perDB, std::string graphId, std::string command, std::string category,
-                                     int partitionCount, std::string masterIP);
+                                     int partitionCount, std::string masterIP, bool autoCalibrate);
 
 private:
     SQLiteDBInterface sqlite;

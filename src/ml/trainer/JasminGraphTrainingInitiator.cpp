@@ -86,7 +86,7 @@ bool JasminGraphTrainingInitiator::initiateTrain(std::string host, int port, int
     bool result = true;
     std::cout << pthread_self() << " host : " << host << " port : " << port << " DPort : " << dataPort << std::endl;
     int sockfd;
-    char data[DATA_LENGTH];
+    char data[DATA_LENGTH + 1];
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
@@ -114,12 +114,12 @@ bool JasminGraphTrainingInitiator::initiateTrain(std::string host, int port, int
           (char *) &serv_addr.sin_addr.s_addr,
           server->h_length);
     serv_addr.sin_port = htons(port);
-    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
         //TODO::exit
     }
 
-    bzero(data, DATA_LENGTH);
+    bzero(data, DATA_LENGTH + 1);
     int result_wr = write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
     if(result_wr < 0) {
         trainer_log.log("Error writing to socket", "error");
@@ -127,7 +127,7 @@ bool JasminGraphTrainingInitiator::initiateTrain(std::string host, int port, int
     }
 
     trainer_log.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
-    bzero(data, DATA_LENGTH);
+    bzero(data, DATA_LENGTH + 1);
     read(sockfd, data, DATA_LENGTH);
     string response = (data);
 
@@ -144,7 +144,7 @@ bool JasminGraphTrainingInitiator::initiateTrain(std::string host, int port, int
 
         trainer_log.log("Sent : " + server_host, "info");
 
-        bzero(data, DATA_LENGTH);
+        bzero(data, DATA_LENGTH + 1);
         read(sockfd, data, DATA_LENGTH);
         string response = (data);
 
@@ -164,7 +164,7 @@ bool JasminGraphTrainingInitiator::initiateTrain(std::string host, int port, int
         }
 
         trainer_log.log("Sent : " + JasmineGraphInstanceProtocol::INITIATE_TRAIN, "info");
-        bzero(data, DATA_LENGTH);
+        bzero(data, DATA_LENGTH + 1);
         read(sockfd, data, DATA_LENGTH);
         response = (data);
         response = utils.trim_copy(response, " \f\n\r\t\v");
@@ -178,7 +178,7 @@ bool JasminGraphTrainingInitiator::initiateTrain(std::string host, int port, int
             }
 
             trainer_log.log("Sent : training args " + trainingArgs, "info");
-            bzero(data, DATA_LENGTH);
+            bzero(data, DATA_LENGTH + 1);
             read(sockfd, data, DATA_LENGTH);
             response = (data);
             response = utils.trim_copy(response, " \f\n\r\t\v");
@@ -192,7 +192,7 @@ bool JasminGraphTrainingInitiator::initiateTrain(std::string host, int port, int
 
                 trainer_log.log("Sent : partition iteration " + to_string(iteration), "info");
 
-                bzero(data, DATA_LENGTH);
+                bzero(data, DATA_LENGTH + 1);
                 read(sockfd, data, DATA_LENGTH);
                 response = (data);
                 response = utils.trim_copy(response, " \f\n\r\t\v");
