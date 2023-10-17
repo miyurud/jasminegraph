@@ -8,6 +8,7 @@ HOST_NAME=${HOST_NAME}
 SERVER_PORT=${SERVER_PORT}
 SERVER_DATA_PORT=${SERVER_DATA_PORT}
 ENABLE_NMON=${ENABLE_NMON}
+PROFILE=${PROFILE}
 
 while [ $# -gt 0 ]; do
 
@@ -19,6 +20,11 @@ while [ $# -gt 0 ]; do
 
     shift
 done
+
+# Set default value for PROFILE if not provided
+if [ -z "$PROFILE" ]; then
+    PROFILE="docker"
+fi
 
 if [ -z "$MODE" ]; then
     echo "MODE OF OPERATION SHOULD BE SPECIFIED"
@@ -61,9 +67,9 @@ fi
 
 export LD_LIBRARY_PATH=/usr/local/lib
 if [ $MODE -eq 1 ]; then
-    ./JasmineGraph "docker" $MODE $MASTERIP $WORKERS $WORKERIP $ENABLE_NMON
+    ./JasmineGraph $PROFILE $MODE $MASTERIP $WORKERS $WORKERIP $ENABLE_NMON
 else
-    ./JasmineGraph "docker" $MODE $HOST_NAME $MASTERIP $SERVER_PORT $SERVER_DATA_PORT $ENABLE_NMON
+    ./JasmineGraph $PROFILE $MODE $HOST_NAME $MASTERIP $SERVER_PORT $SERVER_DATA_PORT $ENABLE_NMON
 fi
 
 if [ "$TESTING" = "true" ]; then

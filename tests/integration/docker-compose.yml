@@ -15,7 +15,7 @@ services:
       - TESTING=true
     networks:
       - jasminenet
-    command: --MODE 1 --MASTERIP 172.28.5.1 --WORKERS 2 --WORKERIP 172.28.5.1 --ENABLE_NMON false
+    command: --MODE 1 --MASTERIP 172.28.5.1 --WORKERS 2 --WORKERIP 172.28.5.2,172.28.5.3 --ENABLE_NMON false --PROFILE k8s
 
 networks:
   jasminenet:
@@ -25,4 +25,4 @@ networks:
       config:
         - subnet: 172.28.5.0/24
           ip_range: 172.28.5.0/24
-          gateway: 172.28.5.1
+          gateway: 172.28.5.0

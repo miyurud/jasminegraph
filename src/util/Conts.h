@@ -96,6 +96,10 @@ public:
     static int LOAD_AVG_COLLECTING_GAP;
     static double LOAD_AVG_THREASHOLD;
 
+    static std::string PROFILE_NATIVE;
+    static std::string PROFILE_DOCKER;
+    static std::string PROFILE_K8S;
+
     static int GRAPH_TYPE_TEXT;
 
     static int MAX_FE_SESSIONS;
