@@ -1707,7 +1707,39 @@ void *instanceservicesession(void *dummyPt) {
                 workerThreads[threadCount].join();
             }
 
-        } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_SERVER) == 0) {
+        } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_FED_PREDICT) == 0) {
+
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::INITIATE_FED_PREDICT, "info");
+            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+            bzero(data, INSTANCE_DATA_LENGTH);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string trainData(data);
+
+            std::vector<std::string> trainargs = Utils::split(trainData, ' ');
+
+            string graphID;
+            string partitionID = trainargs[trainargs.size() - 1];
+
+            for (int i = 0; i < trainargs.size(); i++) {
+                if (trainargs[i] == "--graph_id") {
+                    graphID = trainargs[i + 1];
+                    break;
+                }
+            }
+
+            std::thread *workerThreads = new std::thread[2];
+            workerThreads[0] = std::thread(&JasmineGraphInstanceService::createPartitionFiles, graphID, partitionID,
+                                           "local");
+            workerThreads[1] = std::thread(&JasmineGraphInstanceService::createPartitionFiles, graphID, partitionID,
+                                           "centralstore");
+
+            for (int threadCount = 0; threadCount < 2; threadCount++) {
+                workerThreads[threadCount].join();
+            }
+        }
+
+        else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_SERVER) == 0) {
 
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::INITIATE_SERVER, "info");
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
