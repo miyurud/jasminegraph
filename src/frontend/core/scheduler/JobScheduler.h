@@ -14,18 +14,19 @@ limitations under the License.
 #ifndef JASMINEGRAPH_JOBSCHEDULER_H
 #define JASMINEGRAPH_JOBSCHEDULER_H
 
-#include "../domain/JobRequest.h"
-#include "../domain/JobResponse.h"
-#include "../../../metadb/SQLiteDBInterface.h"
-#include "../../../performancedb/PerformanceSQLiteDBInterface.h"
-#include "../../../performance/metrics/PerformanceUtil.h"
-#include "../CoreConstants.h"
-#include <thread>
 #include <chrono>
 #include <future>
+#include <thread>
+
+#include "../../../metadb/SQLiteDBInterface.h"
+#include "../../../performance/metrics/PerformanceUtil.h"
+#include "../../../performancedb/PerformanceSQLiteDBInterface.h"
+#include "../CoreConstants.h"
+#include "../domain/JobRequest.h"
+#include "../domain/JobResponse.h"
 
 class JobScheduler {
-public:
+ public:
     JobScheduler(SQLiteDBInterface sqlite, PerformanceSQLiteDBInterface perfDB);
 
     JobScheduler();
@@ -45,10 +46,6 @@ public:
     static std::vector<std::future<void>> intermRes;
 };
 
-inline bool operator<(const JobRequest& lhs, const JobRequest& rhs)
-{
-    return lhs.priority < rhs.priority;
-}
+inline bool operator<(const JobRequest& lhs, const JobRequest& rhs) { return lhs.priority < rhs.priority; }
 
-
-#endif //JASMINEGRAPH_JOBSCHEDULER_H
+#endif  // JASMINEGRAPH_JOBSCHEDULER_H

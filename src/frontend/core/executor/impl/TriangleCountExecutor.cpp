@@ -25,11 +25,10 @@ std::mutex fileCombinationMutex;
 std::mutex processStatusMutex;
 std::mutex responseVectorMutex;
 
-TriangleCountExecutor::TriangleCountExecutor() {
+TriangleCountExecutor::TriangleCountExecutor() {}
 
-}
-
-TriangleCountExecutor::TriangleCountExecutor(SQLiteDBInterface db, PerformanceSQLiteDBInterface perfDb, JobRequest jobRequest) {
+TriangleCountExecutor::TriangleCountExecutor(SQLiteDBInterface db, PerformanceSQLiteDBInterface perfDb,
+                                             JobRequest jobRequest) {
     this->sqlite = db;
     this->perfDB = perfDb;
     this->request = jobRequest;
@@ -38,7 +37,7 @@ TriangleCountExecutor::TriangleCountExecutor(SQLiteDBInterface db, PerformanceSQ
 void TriangleCountExecutor::execute() {
     Utils utils;
     int uniqueId = getUid();
-    std::string masterIP= request.getMasterIP();
+    std::string masterIP = request.getMasterIP();
     std::string graphId = request.getParameter(Conts::PARAM_KEYS::GRAPH_ID);
     std::string canCalibrateString = request.getParameter(Conts::PARAM_KEYS::CAN_CALIBRATE);
     std::string queueTime = request.getParameter(Conts::PARAM_KEYS::QUEUE_TIME);
@@ -54,7 +53,7 @@ void TriangleCountExecutor::execute() {
         highPriorityGraphList.push_back(graphId);
     }
 
-    //Below code is used to update the process details
+    // Below code is used to update the process details
     processStatusMutex.lock();
     std::set<ProcessInfo>::iterator processIterator;
     bool processInfoExists = false;
@@ -78,8 +77,8 @@ void TriangleCountExecutor::execute() {
         processStatusMutex.unlock();
     }
 
-
-    triangleCount_logger.log("###TRIANGLE-COUNT-EXECUTOR### Started with graph ID : " + graphId + " Master IP : " + masterIP, "info");
+    triangleCount_logger.log(
+        "###TRIANGLE-COUNT-EXECUTOR### Started with graph ID : " + graphId + " Master IP : " + masterIP, "info");
 
     long result = 0;
     bool isCompositeAggregation = false;
@@ -94,12 +93,13 @@ void TriangleCountExecutor::execute() {
     std::vector<std::string> compositeCentralStoreFiles;
     int slaStatCount = 0;
 
-
     auto begin = chrono::high_resolution_clock::now();
 
-    string sqlStatement = "SELECT worker_idworker, name,ip,user,server_port,server_data_port,partition_idpartition "
-                          "FROM worker_has_partition INNER JOIN worker ON worker_has_partition.worker_idworker=worker.idworker "
-                          "WHERE partition_graph_idgraph=" + graphId + ";";
+    string sqlStatement =
+        "SELECT worker_idworker, name,ip,user,server_port,server_data_port,partition_idpartition "
+        "FROM worker_has_partition INNER JOIN worker ON worker_has_partition.worker_idworker=worker.idworker "
+        "WHERE partition_graph_idgraph=" +
+        graphId + ";";
 
     std::vector<vector<pair<string, string>>> results = sqlite.runSelect(sqlStatement);
 
@@ -108,7 +108,8 @@ void TriangleCountExecutor::execute() {
     }
 
     if (isCompositeAggregation) {
-        std::string aggregatorFilePath = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
+        std::string aggregatorFilePath =
+            utils.getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
         std::vector<std::string> graphFiles = utils.getListOfFilesInDirectory(aggregatorFilePath);
 
         std::vector<std::string>::iterator graphFilesIterator;
@@ -117,7 +118,8 @@ void TriangleCountExecutor::execute() {
         for (graphFilesIterator = graphFiles.begin(); graphFilesIterator != graphFiles.end(); ++graphFilesIterator) {
             std::string graphFileName = *graphFilesIterator;
 
-            if ((graphFileName.find(compositeFileNameFormat) == 0) && (graphFileName.find(".gz") != std::string::npos)) {
+            if ((graphFileName.find(compositeFileNameFormat) == 0) &&
+                (graphFileName.find(".gz") != std::string::npos)) {
                 compositeCentralStoreFiles.push_back(graphFileName);
             }
         }
@@ -141,10 +143,10 @@ void TriangleCountExecutor::execute() {
         if ((ip.find("localhost") != std::string::npos) || ip == masterIP) {
             host = ip;
         } else {
-            host = user + "@" + ip;;
+            host = user + "@" + ip;
         }
 
-        if( partitionMap.find(workerID) == partitionMap.end()){
+        if (partitionMap.find(workerID) == partitionMap.end()) {
             std::vector<string> partitionVec;
             partitionVec.push_back(partitionId);
             partitionMap.insert(std::pair<string, std::vector<string>>(workerID, partitionVec));
@@ -153,12 +155,12 @@ void TriangleCountExecutor::execute() {
             partitionVec.push_back(partitionId);
         }
 
-        triangleCount_logger.log("###TRIANGLE-COUNT-EXECUTOR### Getting Triangle Count : Host " + host + " Server Port " +
-                            serverPort + " PartitionId " + partitionId, "info");
-
+        triangleCount_logger.log("###TRIANGLE-COUNT-EXECUTOR### Getting Triangle Count : Host " + host +
+                                     " Server Port " + serverPort + " PartitionId " + partitionId,
+                                 "info");
     }
 
-    for (auto &&futureCall:remoteCopyRes) {
+    for (auto &&futureCall : remoteCopyRes) {
         futureCall.wait();
     }
 
@@ -178,19 +180,20 @@ void TriangleCountExecutor::execute() {
             int workerDataPort = atoi(string(currentWorker.dataPort).c_str());
 
             partitionId = *partitionIterator;
-            intermRes.push_back(
-                    std::async(std::launch::async, TriangleCountExecutor::getTriangleCount, atoi(graphId.c_str()), host,
-                               workerPort, workerDataPort, atoi(partitionId.c_str()), masterIP, uniqueId,
-                               isCompositeAggregation, threadPriority));
+            intermRes.push_back(std::async(
+                std::launch::async, TriangleCountExecutor::getTriangleCount, atoi(graphId.c_str()), host, workerPort,
+                workerDataPort, atoi(partitionId.c_str()), masterIP, uniqueId, isCompositeAggregation, threadPriority));
         }
     }
 
     PerformanceUtil performanceUtil;
     performanceUtil.init();
 
-    std::string query = "SELECT attempt from graph_sla INNER JOIN sla_category where graph_sla.id_sla_category=sla_category.id and "
-                        "graph_sla.graph_id='" + graphId + "' and graph_sla.partition_count='" + std::to_string(partitionCount) +
-                        "' and sla_category.category='" + Conts::SLA_CATEGORY::LATENCY + "';";
+    std::string query =
+        "SELECT attempt from graph_sla INNER JOIN sla_category where graph_sla.id_sla_category=sla_category.id and "
+        "graph_sla.graph_id='" +
+        graphId + "' and graph_sla.partition_count='" + std::to_string(partitionCount) +
+        "' and sla_category.category='" + Conts::SLA_CATEGORY::LATENCY + "';";
 
     std::vector<vector<pair<string, string>>> queryResults = perfDB.runSelect(query);
 
@@ -204,23 +207,23 @@ void TriangleCountExecutor::execute() {
     } else {
         triangleCount_logger.log("###TRIANGLE-COUNT-EXECUTOR### Inserting initial record for SLA ", "info");
         Utils::updateSLAInformation(perfDB, graphId, partitionCount, 0, TRIANGLES, Conts::SLA_CATEGORY::LATENCY);
-        statResponse.push_back(
-                std::async(std::launch::async, TriangleCountExecutor::collectPerformaceData, perfDB, graphId.c_str(), TRIANGLES,
-                           Conts::SLA_CATEGORY::LATENCY, partitionCount, masterIP, autoCalibrate));
+        statResponse.push_back(std::async(std::launch::async, TriangleCountExecutor::collectPerformaceData, perfDB,
+                                          graphId.c_str(), TRIANGLES, Conts::SLA_CATEGORY::LATENCY, partitionCount,
+                                          masterIP, autoCalibrate));
         isStatCollect = true;
     }
 
-    for (auto &&futureCall:intermRes) {
+    for (auto &&futureCall : intermRes) {
         result += futureCall.get();
     }
 
     if (!isCompositeAggregation) {
-        long aggregatedTriangleCount = TriangleCountExecutor::aggregateCentralStoreTriangles(sqlite, graphId, masterIP,
-                                                                                             threadPriority);
+        long aggregatedTriangleCount =
+            TriangleCountExecutor::aggregateCentralStoreTriangles(sqlite, graphId, masterIP, threadPriority);
         result += aggregatedTriangleCount;
         workerResponded = true;
-        triangleCount_logger.log("###TRIANGLE-COUNT-EXECUTOR### Getting Triangle Count : Completed: Triangles " + to_string(result),
-                            "info");
+        triangleCount_logger.log(
+            "###TRIANGLE-COUNT-EXECUTOR### Getting Triangle Count : Completed: Triangles " + to_string(result), "info");
     }
 
     workerResponded = true;
@@ -241,13 +244,15 @@ void TriangleCountExecutor::execute() {
     std::string durationString = std::to_string(msDuration);
 
     if (canCalibrate || autoCalibrate) {
-        Utils::updateSLAInformation(perfDB, graphId, partitionCount, msDuration, TRIANGLES, Conts::SLA_CATEGORY::LATENCY);
+        Utils::updateSLAInformation(perfDB, graphId, partitionCount, msDuration, TRIANGLES,
+                                    Conts::SLA_CATEGORY::LATENCY);
         isStatCollect = false;
     }
 
     processStatusMutex.lock();
     std::set<ProcessInfo>::iterator processCompleteIterator;
-    for (processCompleteIterator = processData.begin(); processCompleteIterator != processData.end(); ++processCompleteIterator) {
+    for (processCompleteIterator = processData.begin(); processCompleteIterator != processData.end();
+         ++processCompleteIterator) {
         ProcessInfo processInformation = *processCompleteIterator;
 
         if (processInformation.id == uniqueId) {
@@ -265,14 +270,13 @@ std::vector<std::vector<string>> TriangleCountExecutor::getCombinations(std::vec
     std::vector<std::vector<string>> combinationsList;
     std::vector<std::vector<int>> combinations;
 
-    //Below algorithm will get all the combinations of 3 workers for given set of workers
+    // Below algorithm will get all the combinations of 3 workers for given set of workers
     std::string bitmask(3, 1);
     bitmask.resize(inputVector.size(), 0);
 
     do {
         std::vector<int> combination;
-        for (int i = 0; i < inputVector.size(); ++i)
-        {
+        for (int i = 0; i < inputVector.size(); ++i) {
             if (bitmask[i]) {
                 combination.push_back(i);
             }
@@ -280,11 +284,13 @@ std::vector<std::vector<string>> TriangleCountExecutor::getCombinations(std::vec
         combinations.push_back(combination);
     } while (std::prev_permutation(bitmask.begin(), bitmask.end()));
 
-    for (std::vector<std::vector<int>>::iterator combinationsIterator = combinations.begin() ; combinationsIterator != combinations.end(); ++combinationsIterator) {
+    for (std::vector<std::vector<int>>::iterator combinationsIterator = combinations.begin();
+         combinationsIterator != combinations.end(); ++combinationsIterator) {
         std::vector<int> combination = *combinationsIterator;
         std::vector<string> tempWorkerIdCombination;
 
-        for (std::vector<int>::iterator combinationIterator = combination.begin();combinationIterator != combination.end(); ++combinationIterator) {
+        for (std::vector<int>::iterator combinationIterator = combination.begin();
+             combinationIterator != combination.end(); ++combinationIterator) {
             int index = *combinationIterator;
 
             tempWorkerIdCombination.push_back(inputVector.at(index));
@@ -297,8 +303,8 @@ std::vector<std::vector<string>> TriangleCountExecutor::getCombinations(std::vec
 }
 
 long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int port, int dataPort, int partitionId,
-                                             std::string masterIP,
-                                             int uniqueId, bool isCompositeAggregation, int threadPriority) {
+                                             std::string masterIP, int uniqueId, bool isCompositeAggregation,
+                                             int threadPriority) {
     int sockfd;
     char data[301];
     bool loop = false;
@@ -326,20 +332,19 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
         std::cerr << "ERROR, no host named " << server << std::endl;
     }
 
-    bzero((char *) &serv_addr, sizeof(serv_addr));
+    bzero((char *)&serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *) server->h_addr,
-          (char *) &serv_addr.sin_addr.s_addr,
-          server->h_length);
+    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
     serv_addr.sin_port = htons(port);
-    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
     }
 
     bzero(data, 301);
-    int result_wr = write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+    int result_wr =
+        write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
 
-    if(result_wr < 0) {
+    if (result_wr < 0) {
         triangleCount_logger.log("Error writing to socket", "error");
     }
 
@@ -354,7 +359,7 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
         triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
         result_wr = write(sockfd, masterIP.c_str(), masterIP.size());
 
-        if(result_wr < 0) {
+        if (result_wr < 0) {
             triangleCount_logger.log("Error writing to socket", "error");
         }
 
@@ -371,7 +376,7 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
         result_wr = write(sockfd, JasmineGraphInstanceProtocol::TRIANGLES.c_str(),
                           JasmineGraphInstanceProtocol::TRIANGLES.size());
 
-        if(result_wr < 0) {
+        if (result_wr < 0) {
             triangleCount_logger.log("Error writing to socket", "error");
         }
 
@@ -385,7 +390,7 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
             triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
             result_wr = write(sockfd, std::to_string(graphId).c_str(), std::to_string(graphId).size());
 
-            if(result_wr < 0) {
+            if (result_wr < 0) {
                 triangleCount_logger.log("Error writing to socket", "error");
             }
 
@@ -401,7 +406,7 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
             triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
             result_wr = write(sockfd, std::to_string(partitionId).c_str(), std::to_string(partitionId).size());
 
-            if(result_wr < 0) {
+            if (result_wr < 0) {
                 triangleCount_logger.log("Error writing to socket", "error");
             }
 
@@ -417,7 +422,7 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
             triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
             result_wr = write(sockfd, std::to_string(threadPriority).c_str(), std::to_string(threadPriority).size());
 
-            if(result_wr < 0) {
+            if (result_wr < 0) {
                 triangleCount_logger.log("Error writing to socket", "error");
             }
 
@@ -432,7 +437,6 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
         }
 
         if (isCompositeAggregation) {
-
             triangleCount_logger.log("###COMPOSITE### Started Composite aggregation ", "info");
             static std::vector<std::vector<string>>::iterator combinationsIterator;
 
@@ -442,7 +446,7 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
                 std::vector<string>::iterator listIterator;
                 std::set<string> partitionIdSet;
                 std::set<string> partitionSet;
-                std::map<int,int> tempWeightMap;
+                std::map<int, int> tempWeightMap;
                 std::set<string>::iterator partitionSetIterator;
                 std::set<string> transferRequireFiles;
                 std::string combinationKey = "";
@@ -456,27 +460,23 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
                     size_t lastIndex = fileName.find_last_of(".");
                     string rawFileName = fileName.substr(0, lastIndex);
 
-                    std::vector<std::string> fileNameParts = utils.split(rawFileName,'_');
+                    std::vector<std::string> fileNameParts = utils.split(rawFileName, '_');
 
                     /*Partition numbers are extracted from  the file name. The starting index of partition number is 2.
                      * Therefore the loop starts with 2*/
                     for (int index = 2; index < fileNameParts.size(); ++index) {
                         partitionSet.insert(fileNameParts[index]);
                     }
-
                 }
 
                 if (partitionSet.find(std::to_string(partitionId)) == partitionSet.end()) {
                     continue;
                 }
 
-
-                if (proceedOrNot(partitionSet,partitionId)) {
-
+                if (proceedOrNot(partitionSet, partitionId)) {
                 } else {
                     continue;
                 }
-
 
                 for (fileListIterator = fileList.begin(); fileListIterator != fileList.end(); ++fileListIterator) {
                     std::string fileName = *fileListIterator;
@@ -487,7 +487,7 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
                     size_t lastindex = fileName.find_last_of(".");
                     string rawFileName = fileName.substr(0, lastindex);
 
-                    std::vector<std::string> fileNameParts = utils.split(rawFileName,'_');
+                    std::vector<std::string> fileNameParts = utils.split(rawFileName, '_');
 
                     for (int index = 2; index < fileNameParts.size(); ++index) {
                         if (fileNameParts[index] == std::to_string(partitionId)) {
@@ -504,9 +504,9 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
                     }
                 }
 
-                std::string adjustedCombinationKey = combinationKey.substr(0, combinationKey.size()-1);
-                std::string adjustedAvailableFiles = availableFiles.substr(0, availableFiles.size()-1);
-                std::string adjustedTransferredFile = transferredFiles.substr(0, transferredFiles.size()-1);
+                std::string adjustedCombinationKey = combinationKey.substr(0, combinationKey.size() - 1);
+                std::string adjustedAvailableFiles = availableFiles.substr(0, availableFiles.size() - 1);
+                std::string adjustedTransferredFile = transferredFiles.substr(0, transferredFiles.size() - 1);
 
                 fileCombinationMutex.lock();
                 if (combinationWorkerMap.find(combinationKey) == combinationWorkerMap.end()) {
@@ -523,10 +523,9 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
                     for (transferRequireFileIterator = transferRequireFiles.begin();
                          transferRequireFileIterator != transferRequireFiles.end(); ++transferRequireFileIterator) {
                         std::string transferFileName = *transferRequireFileIterator;
-                        std::string fileAccessible = isFileAccessibleToWorker(std::to_string(graphId), std::string(),
-                                                                              host, std::to_string(port), masterIP,
-                                                                              JasmineGraphInstanceProtocol::FILE_TYPE_CENTRALSTORE_COMPOSITE,
-                                                                              transferFileName);
+                        std::string fileAccessible = isFileAccessibleToWorker(
+                            std::to_string(graphId), std::string(), host, std::to_string(port), masterIP,
+                            JasmineGraphInstanceProtocol::FILE_TYPE_CENTRALSTORE_COMPOSITE, transferFileName);
 
                         if (fileAccessible.compare("false") == 0) {
                             copyCompositeCentralStoreToAggregator(host, std::to_string(port), std::to_string(dataPort),
@@ -534,25 +533,19 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
                         }
                     }
 
-                    std::string compositeTriangles = countCompositeCentralStoreTriangles(host, std::to_string(port),
-                                                                                         adjustedTransferredFile,
-                                                                                         masterIP,
-                                                                                         adjustedAvailableFiles, threadPriority);
+                    std::string compositeTriangles =
+                        countCompositeCentralStoreTriangles(host, std::to_string(port), adjustedTransferredFile,
+                                                            masterIP, adjustedAvailableFiles, threadPriority);
 
                     triangleCount_logger.log("###COMPOSITE### Retrieved Composite triangle list ", "debug");
 
                     std::vector<std::string> triangles = Utils::split(compositeTriangles, ':');
 
-
                     if (triangles.size() > 0) {
-
                         triangleCount += updateTriangleTreeAndGetTriangleCount(triangles);
-
                     }
                 }
                 updateMap(partitionId);
-
-
             }
         }
 
@@ -562,31 +555,31 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
 
     } else {
         triangleCount_logger.log("There was an error in the upload process and the response is :: " + response,
-                            "error");
+                                 "error");
     }
     return 0;
 }
 
-bool TriangleCountExecutor::proceedOrNot(std::set<string> partitionSet,int partitionId) {
-
+bool TriangleCountExecutor::proceedOrNot(std::set<string> partitionSet, int partitionId) {
     const std::lock_guard<std::mutex> lock(aggregateWeightMutex);
 
     std::set<string>::iterator partitionSetIterator;
-    std::map<int,int> tempWeightMap;
-    for (partitionSetIterator = partitionSet.begin(); partitionSetIterator != partitionSet.end(); ++partitionSetIterator) {
+    std::map<int, int> tempWeightMap;
+    for (partitionSetIterator = partitionSet.begin(); partitionSetIterator != partitionSet.end();
+         ++partitionSetIterator) {
         std::string partitionIdString = *partitionSetIterator;
         int currentPartitionId = atoi(partitionIdString.c_str());
         tempWeightMap[currentPartitionId] = aggregateWeightMap[currentPartitionId];
     }
 
     int currentWorkerWeight = tempWeightMap[partitionId];
-    pair<int, int> entryWithMinValue = make_pair(partitionId,currentWorkerWeight);
+    pair<int, int> entryWithMinValue = make_pair(partitionId, currentWorkerWeight);
 
     map<int, int>::iterator currentEntry;
 
     for (currentEntry = aggregateWeightMap.begin(); currentEntry != aggregateWeightMap.end(); ++currentEntry) {
         if (entryWithMinValue.second > currentEntry->second) {
-            entryWithMinValue = make_pair(currentEntry->first,currentEntry->second);
+            entryWithMinValue = make_pair(currentEntry->first, currentEntry->second);
         }
     }
 
@@ -595,7 +588,9 @@ bool TriangleCountExecutor::proceedOrNot(std::set<string> partitionSet,int parti
         int currentWeight = aggregateWeightMap[entryWithMinValue.first];
         currentWeight++;
         aggregateWeightMap[entryWithMinValue.first] = currentWeight;
-        triangleCount_logger.log("###COMPOSITE### Aggregator Initiated : Partition ID: " + std::to_string(partitionId) + " Weight : " + std::to_string(currentWeight), "info");
+        triangleCount_logger.log("###COMPOSITE### Aggregator Initiated : Partition ID: " + std::to_string(partitionId) +
+                                     " Weight : " + std::to_string(currentWeight),
+                                 "info");
         result = true;
     }
 
@@ -609,11 +604,12 @@ void TriangleCountExecutor::updateMap(int partitionId) {
     int currentWeight = aggregateWeightMap[partitionId];
     currentWeight--;
     aggregateWeightMap[partitionId] = currentWeight;
-    triangleCount_logger.log("###COMPOSITE### Aggregator Completed : Partition ID: " + std::to_string(partitionId) + " Weight : " + std::to_string(currentWeight), "info");
+    triangleCount_logger.log("###COMPOSITE### Aggregator Completed : Partition ID: " + std::to_string(partitionId) +
+                                 " Weight : " + std::to_string(currentWeight),
+                             "info");
 }
 
 int TriangleCountExecutor::updateTriangleTreeAndGetTriangleCount(std::vector<std::string> triangles) {
-
     const std::lock_guard<std::mutex> lock1(triangleTreeMutex);
     std::vector<std::string>::iterator triangleIterator;
     int aggregateCount = 0;
@@ -637,7 +633,7 @@ int TriangleCountExecutor::updateTriangleTreeAndGetTriangleCount(std::vector<std
             if (itemResIterator != itemRes.end()) {
                 std::vector<long> list = itemRes[vertexTwo];
 
-                if (std::find(list.begin(),list.end(),vertexThree) == list.end()) {
+                if (std::find(list.begin(), list.end(), vertexThree) == list.end()) {
                     triangleTree[vertexOne][vertexTwo].push_back(vertexThree);
                     aggregateCount++;
                 }
@@ -653,26 +649,28 @@ int TriangleCountExecutor::updateTriangleTreeAndGetTriangleCount(std::vector<std
 
 long TriangleCountExecutor::aggregateCentralStoreTriangles(SQLiteDBInterface sqlite, std::string graphId,
                                                            std::string masterIP, int threadPriority) {
-    std::vector<std::vector<string>> workerCombinations = getWorkerCombination(sqlite,graphId);
+    std::vector<std::vector<string>> workerCombinations = getWorkerCombination(sqlite, graphId);
     std::map<string, int> workerWeightMap;
     std::vector<std::vector<string>>::iterator workerCombinationsIterator;
     std::vector<std::future<string>> triangleCountResponse;
     std::string result = "";
     long aggregatedTriangleCount = 0;
 
-    for (workerCombinationsIterator = workerCombinations.begin(); workerCombinationsIterator != workerCombinations.end(); ++workerCombinationsIterator) {
+    for (workerCombinationsIterator = workerCombinations.begin();
+         workerCombinationsIterator != workerCombinations.end(); ++workerCombinationsIterator) {
         std::vector<string> workerCombination = *workerCombinationsIterator;
         std::map<string, int>::iterator workerWeightMapIterator;
         std::vector<std::future<string>> remoteGraphCopyResponse;
         int minimumWeight = 0;
         std::string minWeightWorker;
         string aggregatorHost = "";
-        std::string partitionIdList="";
+        std::string partitionIdList = "";
 
         std::vector<string>::iterator workerCombinationIterator;
         std::vector<string>::iterator aggregatorCopyCombinationIterator;
 
-        for (workerCombinationIterator = workerCombination.begin();workerCombinationIterator != workerCombination.end(); ++workerCombinationIterator) {
+        for (workerCombinationIterator = workerCombination.begin();
+             workerCombinationIterator != workerCombination.end(); ++workerCombinationIterator) {
             std::string workerId = *workerCombinationIterator;
 
             workerWeightMapIterator = workerWeightMap.find(workerId);
@@ -690,9 +688,11 @@ long TriangleCountExecutor::aggregateCentralStoreTriangles(SQLiteDBInterface sql
             }
         }
 
-        string aggregatorSqlStatement = "SELECT ip,user,server_port,server_data_port,partition_idpartition "
-                                        "FROM worker_has_partition INNER JOIN worker ON worker_has_partition.worker_idworker=worker.idworker "
-                                        "WHERE partition_graph_idgraph=" + graphId + " and idworker=" + minWeightWorker + ";";
+        string aggregatorSqlStatement =
+            "SELECT ip,user,server_port,server_data_port,partition_idpartition "
+            "FROM worker_has_partition INNER JOIN worker ON worker_has_partition.worker_idworker=worker.idworker "
+            "WHERE partition_graph_idgraph=" +
+            graphId + " and idworker=" + minWeightWorker + ";";
 
         std::vector<vector<pair<string, string>>> result = sqlite.runSelect(aggregatorSqlStatement);
 
@@ -710,14 +710,18 @@ long TriangleCountExecutor::aggregateCentralStoreTriangles(SQLiteDBInterface sql
             aggregatorHost = aggregatorUser + "@" + aggregatorIp;
         }
 
-        for (aggregatorCopyCombinationIterator = workerCombination.begin();aggregatorCopyCombinationIterator != workerCombination.end(); ++aggregatorCopyCombinationIterator) {
+        for (aggregatorCopyCombinationIterator = workerCombination.begin();
+             aggregatorCopyCombinationIterator != workerCombination.end(); ++aggregatorCopyCombinationIterator) {
             std::string workerId = *aggregatorCopyCombinationIterator;
             string host = "";
 
             if (workerId != minWeightWorker) {
-                string sqlStatement = "SELECT ip,user,server_port,server_data_port,partition_idpartition "
-                                      "FROM worker_has_partition INNER JOIN worker ON worker_has_partition.worker_idworker=worker.idworker "
-                                      "WHERE partition_graph_idgraph=" + graphId + " and idworker=" + workerId + ";";
+                string sqlStatement =
+                    "SELECT ip,user,server_port,server_data_port,partition_idpartition "
+                    "FROM worker_has_partition INNER JOIN worker ON "
+                    "worker_has_partition.worker_idworker=worker.idworker "
+                    "WHERE partition_graph_idgraph=" +
+                    graphId + " and idworker=" + workerId + ";";
 
                 std::vector<vector<pair<string, string>>> result = sqlite.runSelect(sqlStatement);
 
@@ -737,38 +741,32 @@ long TriangleCountExecutor::aggregateCentralStoreTriangles(SQLiteDBInterface sql
 
                 partitionIdList += partitionId + ",";
 
-                std::string centralStoreAvailable = isFileAccessibleToWorker(graphId, partitionId, aggregatorHost,
-                                                                             aggregatorPort, masterIP,
-                                                                             JasmineGraphInstanceProtocol::FILE_TYPE_CENTRALSTORE_AGGREGATE,
-                                                                             std::string());
+                std::string centralStoreAvailable = isFileAccessibleToWorker(
+                    graphId, partitionId, aggregatorHost, aggregatorPort, masterIP,
+                    JasmineGraphInstanceProtocol::FILE_TYPE_CENTRALSTORE_AGGREGATE, std::string());
 
                 if (centralStoreAvailable.compare("false") == 0) {
                     remoteGraphCopyResponse.push_back(
-                            std::async(std::launch::async, TriangleCountExecutor::copyCentralStoreToAggregator, aggregatorHost, aggregatorPort, aggregatorDataPort,
-                                       atoi(graphId.c_str()), atoi(partitionId.c_str()), masterIP));
+                        std::async(std::launch::async, TriangleCountExecutor::copyCentralStoreToAggregator,
+                                   aggregatorHost, aggregatorPort, aggregatorDataPort, atoi(graphId.c_str()),
+                                   atoi(partitionId.c_str()), masterIP));
                 }
-
-
             }
-
         }
 
-        for (auto &&futureCallCopy:remoteGraphCopyResponse) {
+        for (auto &&futureCallCopy : remoteGraphCopyResponse) {
             futureCallCopy.get();
         }
 
-        std::string adjustedPartitionIdList = partitionIdList.substr(0, partitionIdList.size()-1);
+        std::string adjustedPartitionIdList = partitionIdList.substr(0, partitionIdList.size() - 1);
         workerWeightMap[minWeightWorker] = minimumWeight;
 
-        triangleCountResponse.push_back(
-                std::async(std::launch::async, TriangleCountExecutor::countCentralStoreTriangles, aggregatorHost,
-                           aggregatorPort, aggregatorHost,
-                           aggregatorPartitionId, adjustedPartitionIdList, graphId, masterIP, threadPriority));
-
-
+        triangleCountResponse.push_back(std::async(
+            std::launch::async, TriangleCountExecutor::countCentralStoreTriangles, aggregatorHost, aggregatorPort,
+            aggregatorHost, aggregatorPartitionId, adjustedPartitionIdList, graphId, masterIP, threadPriority));
     }
 
-    for (auto &&futureCall:triangleCountResponse) {
+    for (auto &&futureCall : triangleCountResponse) {
         result = result + ":" + futureCall.get();
     }
 
@@ -776,7 +774,7 @@ long TriangleCountExecutor::aggregateCentralStoreTriangles(SQLiteDBInterface sql
     std::vector<std::string>::iterator triangleIterator;
     std::set<std::string> uniqueTriangleSet;
 
-    for (triangleIterator = triangles.begin();triangleIterator!=triangles.end();++triangleIterator) {
+    for (triangleIterator = triangles.begin(); triangleIterator != triangles.end(); ++triangleIterator) {
         std::string triangle = *triangleIterator;
 
         if (!triangle.empty() && triangle != "NILL") {
@@ -818,21 +816,20 @@ string TriangleCountExecutor::isFileAccessibleToWorker(std::string graphId, std:
         std::cerr << "ERROR, no host named " << server << std::endl;
     }
 
-    bzero((char *) &serv_addr, sizeof(serv_addr));
+    bzero((char *)&serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *) server->h_addr,
-          (char *) &serv_addr.sin_addr.s_addr,
-          server->h_length);
+    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
     serv_addr.sin_port = htons(atoi(aggregatorPort.c_str()));
-    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
-        //TODO::exit
+        // TODO::exit
     }
 
     bzero(data, 301);
-    int result_wr = write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+    int result_wr =
+        write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
 
-    if(result_wr < 0) {
+    if (result_wr < 0) {
         triangleCount_logger.log("Error writing to socket", "error");
     }
 
@@ -864,7 +861,7 @@ string TriangleCountExecutor::isFileAccessibleToWorker(std::string graphId, std:
         result_wr = write(sockfd, JasmineGraphInstanceProtocol::CHECK_FILE_ACCESSIBLE.c_str(),
                           JasmineGraphInstanceProtocol::CHECK_FILE_ACCESSIBLE.size());
 
-        if(result_wr < 0) {
+        if (result_wr < 0) {
             triangleCount_logger.log("Error writing to socket", "error");
         }
 
@@ -874,9 +871,9 @@ string TriangleCountExecutor::isFileAccessibleToWorker(std::string graphId, std:
         response = utils.trim_copy(response, " \f\n\r\t\v");
 
         if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_TYPE) == 0) {
-            result_wr = write(sockfd, fileType.c_str(),fileType.size());
+            result_wr = write(sockfd, fileType.c_str(), fileType.size());
 
-            if(result_wr < 0) {
+            if (result_wr < 0) {
                 triangleCount_logger.log("Error writing to socket", "error");
             }
 
@@ -887,9 +884,9 @@ string TriangleCountExecutor::isFileAccessibleToWorker(std::string graphId, std:
 
             if (fileType.compare(JasmineGraphInstanceProtocol::FILE_TYPE_CENTRALSTORE_AGGREGATE) == 0) {
                 if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-                    result_wr = write(sockfd, graphId.c_str(),graphId.size());
+                    result_wr = write(sockfd, graphId.c_str(), graphId.size());
 
-                    if(result_wr < 0) {
+                    if (result_wr < 0) {
                         triangleCount_logger.log("Error writing to socket", "error");
                     }
 
@@ -899,9 +896,9 @@ string TriangleCountExecutor::isFileAccessibleToWorker(std::string graphId, std:
                     response = utils.trim_copy(response, " \f\n\r\t\v");
 
                     if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-                        result_wr = write(sockfd, partitionId.c_str(),partitionId.size());
+                        result_wr = write(sockfd, partitionId.c_str(), partitionId.size());
 
-                        if(result_wr < 0) {
+                        if (result_wr < 0) {
                             triangleCount_logger.log("Error writing to socket", "error");
                         }
 
@@ -915,9 +912,9 @@ string TriangleCountExecutor::isFileAccessibleToWorker(std::string graphId, std:
                 if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
                     size_t lastindex = fileName.find_last_of(".");
                     string rawname = fileName.substr(0, lastindex);
-                    result_wr = write(sockfd, rawname.c_str(),rawname.size());
+                    result_wr = write(sockfd, rawname.c_str(), rawname.size());
 
-                    if(result_wr < 0) {
+                    if (result_wr < 0) {
                         triangleCount_logger.log("Error writing to socket", "error");
                     }
 
@@ -967,21 +964,20 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
         std::cerr << "ERROR, no host named " << server << std::endl;
     }
 
-    bzero((char *) &serv_addr, sizeof(serv_addr));
+    bzero((char *)&serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *) server->h_addr,
-          (char *) &serv_addr.sin_addr.s_addr,
-          server->h_length);
+    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
     serv_addr.sin_port = htons(atoi(aggregatorPort.c_str()));
-    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
-        //TODO::exit
+        // TODO::exit
     }
 
     bzero(data, 301);
-    int result_wr = write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+    int result_wr =
+        write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
 
-    if(result_wr < 0) {
+    if (result_wr < 0) {
         triangleCount_logger.log("Error writing to socket", "error");
     }
 
@@ -996,7 +992,7 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
         triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
         result_wr = write(sockfd, masterIP.c_str(), masterIP.size());
 
-        if(result_wr < 0) {
+        if (result_wr < 0) {
             triangleCount_logger.log("Error writing to socket", "error");
         }
 
@@ -1013,12 +1009,12 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
         result_wr = write(sockfd, JasmineGraphInstanceProtocol::SEND_COMPOSITE_CENTRALSTORE_TO_AGGREGATOR.c_str(),
                           JasmineGraphInstanceProtocol::SEND_COMPOSITE_CENTRALSTORE_TO_AGGREGATOR.size());
 
-        if(result_wr < 0) {
+        if (result_wr < 0) {
             triangleCount_logger.log("Error writing to socket", "error");
         }
 
         triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_COMPOSITE_CENTRALSTORE_TO_AGGREGATOR,
-                            "info");
+                                 "info");
         bzero(data, 301);
         read(sockfd, data, 300);
         response = (data);
@@ -1028,7 +1024,7 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
             triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_NAME, "info");
             result_wr = write(sockfd, fileName.c_str(), fileName.size());
 
-            if(result_wr < 0) {
+            if (result_wr < 0) {
                 triangleCount_logger.log("Error writing to socket", "error");
             }
 
@@ -1043,7 +1039,7 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
                 triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN, "info");
                 result_wr = write(sockfd, fileLength.c_str(), fileLength.size());
 
-                if(result_wr < 0) {
+                if (result_wr < 0) {
                     triangleCount_logger.log("Error writing to socket", "error");
                 }
 
@@ -1069,7 +1065,7 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
             result_wr = write(sockfd, JasmineGraphInstanceProtocol::FILE_RECV_CHK.c_str(),
                               JasmineGraphInstanceProtocol::FILE_RECV_CHK.size());
 
-            if(result_wr < 0) {
+            if (result_wr < 0) {
                 triangleCount_logger.log("Error writing to socket", "error");
             }
 
@@ -1092,12 +1088,12 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
             }
         }
 
-        //Next we wait till the batch upload completes
+        // Next we wait till the batch upload completes
         while (true) {
             result_wr = write(sockfd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK.c_str(),
                               JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK.size());
 
-            if(result_wr < 0) {
+            if (result_wr < 0) {
                 triangleCount_logger.log("Error writing to socket", "error");
             }
 
@@ -1118,16 +1114,16 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
         }
     } else {
         triangleCount_logger.log("There was an error in the upload process and the response is :: " + response,
-                            "error");
+                                 "error");
     }
     return response;
 }
 
-string
-TriangleCountExecutor::countCompositeCentralStoreTriangles(std::string aggregatorHostName, std::string aggregatorPort,
-                                                           std::string compositeCentralStoreFileList,
-                                                           std::string masterIP,
-                                                           std::string availableFileList, int threadPriority) {
+string TriangleCountExecutor::countCompositeCentralStoreTriangles(std::string aggregatorHostName,
+                                                                  std::string aggregatorPort,
+                                                                  std::string compositeCentralStoreFileList,
+                                                                  std::string masterIP, std::string availableFileList,
+                                                                  int threadPriority) {
     int sockfd;
     char data[301];
     bool loop = false;
@@ -1148,21 +1144,20 @@ TriangleCountExecutor::countCompositeCentralStoreTriangles(std::string aggregato
         std::cerr << "ERROR, no host named " << server << std::endl;
     }
 
-    bzero((char *) &serv_addr, sizeof(serv_addr));
+    bzero((char *)&serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *) server->h_addr,
-          (char *) &serv_addr.sin_addr.s_addr,
-          server->h_length);
+    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
     serv_addr.sin_port = htons(atoi(aggregatorPort.c_str()));
-    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
-        //TODO::exit
+        // TODO::exit
     }
 
     bzero(data, 301);
-    int result_wr = write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+    int result_wr =
+        write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
 
-    if(result_wr < 0) {
+    if (result_wr < 0) {
         triangleCount_logger.log("Error writing to socket", "error");
     }
 
@@ -1177,7 +1172,7 @@ TriangleCountExecutor::countCompositeCentralStoreTriangles(std::string aggregato
         triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
         result_wr = write(sockfd, masterIP.c_str(), masterIP.size());
 
-        if(result_wr < 0) {
+        if (result_wr < 0) {
             triangleCount_logger.log("Error writing to socket", "error");
         }
 
@@ -1195,12 +1190,12 @@ TriangleCountExecutor::countCompositeCentralStoreTriangles(std::string aggregato
         result_wr = write(sockfd, JasmineGraphInstanceProtocol::AGGREGATE_COMPOSITE_CENTRALSTORE_TRIANGLES.c_str(),
                           JasmineGraphInstanceProtocol::AGGREGATE_COMPOSITE_CENTRALSTORE_TRIANGLES.size());
 
-        if(result_wr < 0) {
+        if (result_wr < 0) {
             triangleCount_logger.log("Error writing to socket", "error");
         }
 
         triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::AGGREGATE_COMPOSITE_CENTRALSTORE_TRIANGLES,
-                            "info");
+                                 "info");
         bzero(data, 301);
         read(sockfd, data, 300);
         response = (data);
@@ -1210,7 +1205,7 @@ TriangleCountExecutor::countCompositeCentralStoreTriangles(std::string aggregato
             triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
             result_wr = write(sockfd, availableFileList.c_str(), availableFileList.size());
 
-            if(result_wr < 0) {
+            if (result_wr < 0) {
                 triangleCount_logger.log("Error writing to socket", "error");
             }
 
@@ -1260,7 +1255,7 @@ TriangleCountExecutor::countCompositeCentralStoreTriangles(std::string aggregato
             triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
             result_wr = write(sockfd, std::to_string(threadPriority).c_str(), std::to_string(threadPriority).size());
 
-            if(result_wr < 0) {
+            if (result_wr < 0) {
                 triangleCount_logger.log("Error writing to socket", "error");
             }
 
@@ -1276,7 +1271,7 @@ TriangleCountExecutor::countCompositeCentralStoreTriangles(std::string aggregato
             while (status.compare("/SEND") == 0) {
                 result_wr = write(sockfd, status.c_str(), status.size());
 
-                if(result_wr < 0) {
+                if (result_wr < 0) {
                     triangleCount_logger.log("Error writing to socket", "error");
                 }
                 bzero(data, 301);
@@ -1284,17 +1279,17 @@ TriangleCountExecutor::countCompositeCentralStoreTriangles(std::string aggregato
                 response = (data);
                 response = utils.trim_copy(response, " \f\n\r\t\v");
                 status = response.substr(response.size() - 5);
-                std::string triangleResponse= response.substr(0, response.size() - 5);
+                std::string triangleResponse = response.substr(0, response.size() - 5);
                 result = result + triangleResponse;
             }
             response = result;
         }
 
-        triangleCount_logger.log("Aggregate Response Received" , "info");
+        triangleCount_logger.log("Aggregate Response Received", "info");
 
     } else {
         triangleCount_logger.log("There was an error in the upload process and the response is :: " + response,
-                            "error");
+                                 "error");
     }
     return response;
 }
@@ -1303,12 +1298,13 @@ std::vector<std::vector<string>> TriangleCountExecutor::getWorkerCombination(SQL
                                                                              std::string graphId) {
     std::set<string> workerIdSet;
 
-    string sqlStatement = "SELECT worker_idworker "
-                          "FROM worker_has_partition INNER JOIN worker ON worker_has_partition.worker_idworker=worker.idworker "
-                          "WHERE partition_graph_idgraph=" + graphId + ";";
+    string sqlStatement =
+        "SELECT worker_idworker "
+        "FROM worker_has_partition INNER JOIN worker ON worker_has_partition.worker_idworker=worker.idworker "
+        "WHERE partition_graph_idgraph=" +
+        graphId + ";";
 
     std::vector<vector<pair<string, string>>> results = sqlite.runSelect(sqlStatement);
-
 
     for (std::vector<vector<pair<string, string>>>::iterator i = results.begin(); i != results.end(); ++i) {
         std::vector<pair<string, string>> rowData = *i;
@@ -1360,21 +1356,20 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
         std::cerr << "ERROR, no host named " << server << std::endl;
     }
 
-    bzero((char *) &serv_addr, sizeof(serv_addr));
+    bzero((char *)&serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *) server->h_addr,
-          (char *) &serv_addr.sin_addr.s_addr,
-          server->h_length);
+    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
     serv_addr.sin_port = htons(atoi(aggregatorPort.c_str()));
-    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
-        //TODO::exit
+        // TODO::exit
     }
 
     bzero(data, 301);
-    int result_wr = write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+    int result_wr =
+        write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
 
-    if(result_wr < 0) {
+    if (result_wr < 0) {
         triangleCount_logger.log("Error writing to socket", "error");
     }
 
@@ -1389,7 +1384,7 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
         triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
         result_wr = write(sockfd, masterIP.c_str(), masterIP.size());
 
-        if(result_wr < 0) {
+        if (result_wr < 0) {
             triangleCount_logger.log("Error writing to socket", "error");
         }
 
@@ -1406,12 +1401,11 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
         result_wr = write(sockfd, JasmineGraphInstanceProtocol::SEND_CENTRALSTORE_TO_AGGREGATOR.c_str(),
                           JasmineGraphInstanceProtocol::SEND_CENTRALSTORE_TO_AGGREGATOR.size());
 
-        if(result_wr < 0) {
+        if (result_wr < 0) {
             triangleCount_logger.log("Error writing to socket", "error");
         }
 
-        triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_CENTRALSTORE_TO_AGGREGATOR,
-                            "info");
+        triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_CENTRALSTORE_TO_AGGREGATOR, "info");
         bzero(data, 301);
         read(sockfd, data, 300);
         response = (data);
@@ -1421,7 +1415,7 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
             triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_NAME, "info");
             result_wr = write(sockfd, fileName.c_str(), fileName.size());
 
-            if(result_wr < 0) {
+            if (result_wr < 0) {
                 triangleCount_logger.log("Error writing to socket", "error");
             }
 
@@ -1436,7 +1430,7 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
                 triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN, "info");
                 result_wr = write(sockfd, fileLength.c_str(), fileLength.size());
 
-                if(result_wr < 0) {
+                if (result_wr < 0) {
                     triangleCount_logger.log("Error writing to socket", "error");
                 }
 
@@ -1450,7 +1444,8 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
                 if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_CONT) == 0) {
                     triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
                     triangleCount_logger.log("Going to send file through service", "info");
-                    jasmineServer->sendFileThroughService(aggregatorHostName, std::atoi(aggregatorDataPort.c_str()), fileName, centralStoreFile, masterIP);
+                    jasmineServer->sendFileThroughService(aggregatorHostName, std::atoi(aggregatorDataPort.c_str()),
+                                                          fileName, centralStoreFile, masterIP);
                 }
             }
         }
@@ -1461,7 +1456,7 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
             result_wr = write(sockfd, JasmineGraphInstanceProtocol::FILE_RECV_CHK.c_str(),
                               JasmineGraphInstanceProtocol::FILE_RECV_CHK.size());
 
-            if(result_wr < 0) {
+            if (result_wr < 0) {
                 triangleCount_logger.log("Error writing to socket", "error");
             }
 
@@ -1470,7 +1465,7 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
             bzero(data, 301);
             read(sockfd, data, 300);
             response = (data);
-            //response = utils.trim_copy(response, " \f\n\r\t\v");
+            // response = utils.trim_copy(response, " \f\n\r\t\v");
 
             if (response.compare(JasmineGraphInstanceProtocol::FILE_RECV_WAIT) == 0) {
                 triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_WAIT, "info");
@@ -1485,12 +1480,12 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
             }
         }
 
-        //Next we wait till the batch upload completes
+        // Next we wait till the batch upload completes
         while (true) {
             result_wr = write(sockfd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK.c_str(),
                               JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK.size());
 
-            if(result_wr < 0) {
+            if (result_wr < 0) {
                 triangleCount_logger.log("Error writing to socket", "error");
             }
 
@@ -1511,15 +1506,14 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
         }
     } else {
         triangleCount_logger.log("There was an error in the upload process and the response is :: " + response,
-                            "error");
+                                 "error");
     }
     return response;
 }
 
 string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorHostName, std::string aggregatorPort,
-                                                         std::string host,
-                                                         std::string partitionId, std::string partitionIdList,
-                                                         std::string graphId,
+                                                         std::string host, std::string partitionId,
+                                                         std::string partitionIdList, std::string graphId,
                                                          std::string masterIP, int threadPriority) {
     int sockfd;
     char data[301];
@@ -1545,21 +1539,20 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorH
         std::cerr << "ERROR, no host named " << server << std::endl;
     }
 
-    bzero((char *) &serv_addr, sizeof(serv_addr));
+    bzero((char *)&serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *) server->h_addr,
-          (char *) &serv_addr.sin_addr.s_addr,
-          server->h_length);
+    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
     serv_addr.sin_port = htons(atoi(aggregatorPort.c_str()));
-    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
-        //TODO::exit
+        // TODO::exit
     }
 
     bzero(data, 301);
-    int result_wr = write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+    int result_wr =
+        write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
 
-    if(result_wr < 0) {
+    if (result_wr < 0) {
         triangleCount_logger.log("Error writing to socket", "error");
     }
 
@@ -1574,7 +1567,7 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorH
         triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
         result_wr = write(sockfd, masterIP.c_str(), masterIP.size());
 
-        if(result_wr < 0) {
+        if (result_wr < 0) {
             triangleCount_logger.log("Error writing to socket", "error");
         }
 
@@ -1591,12 +1584,11 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorH
         result_wr = write(sockfd, JasmineGraphInstanceProtocol::AGGREGATE_CENTRALSTORE_TRIANGLES.c_str(),
                           JasmineGraphInstanceProtocol::AGGREGATE_CENTRALSTORE_TRIANGLES.size());
 
-        if(result_wr < 0) {
+        if (result_wr < 0) {
             triangleCount_logger.log("Error writing to socket", "error");
         }
 
-        triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::AGGREGATE_CENTRALSTORE_TRIANGLES,
-                            "info");
+        triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::AGGREGATE_CENTRALSTORE_TRIANGLES, "info");
         bzero(data, 301);
         read(sockfd, data, 300);
         response = (data);
@@ -1606,7 +1598,7 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorH
             triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
             result_wr = write(sockfd, graphId.c_str(), graphId.size());
 
-            if(result_wr < 0) {
+            if (result_wr < 0) {
                 triangleCount_logger.log("Error writing to socket", "error");
             }
 
@@ -1622,7 +1614,7 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorH
             triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
             result_wr = write(sockfd, partitionId.c_str(), partitionId.size());
 
-            if(result_wr < 0) {
+            if (result_wr < 0) {
                 triangleCount_logger.log("Error writing to socket", "error");
             }
 
@@ -1638,7 +1630,7 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorH
             triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
             result_wr = write(sockfd, partitionIdList.c_str(), partitionIdList.size());
 
-            if(result_wr < 0) {
+            if (result_wr < 0) {
                 triangleCount_logger.log("Error writing to socket", "error");
             }
 
@@ -1654,7 +1646,7 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorH
             triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
             result_wr = write(sockfd, std::to_string(threadPriority).c_str(), std::to_string(threadPriority).size());
 
-            if(result_wr < 0) {
+            if (result_wr < 0) {
                 triangleCount_logger.log("Error writing to socket", "error");
             }
 
@@ -1670,7 +1662,7 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorH
             while (status == "/SEND") {
                 result_wr = write(sockfd, status.c_str(), status.size());
 
-                if(result_wr < 0) {
+                if (result_wr < 0) {
                     triangleCount_logger.log("Error writing to socket", "error");
                 }
                 bzero(data, 301);
@@ -1678,29 +1670,27 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorH
                 response = (data);
                 response = utils.trim_copy(response, " \f\n\r\t\v");
                 status = response.substr(response.size() - 5);
-                std::string triangleResponse= response.substr(0, response.size() - 5);
+                std::string triangleResponse = response.substr(0, response.size() - 5);
                 result = result + triangleResponse;
             }
             response = result;
         }
 
-
     } else {
         triangleCount_logger.log("There was an error in the upload process and the response is :: " + response,
-                            "error");
+                                 "error");
     }
     return response;
 }
 
-
 int TriangleCountExecutor::getUid() {
-    static std::atomic<std::uint32_t> uid { 0 };
+    static std::atomic<std::uint32_t> uid{0};
     return ++uid;
 }
 
-int TriangleCountExecutor::collectPerformaceData(PerformanceSQLiteDBInterface perDB, std::string graphId, std::string command, std::string category,
-                                                 int partitionCount, std::string masterIP, bool autoCalibrate) {
-
+int TriangleCountExecutor::collectPerformaceData(PerformanceSQLiteDBInterface perDB, std::string graphId,
+                                                 std::string command, std::string category, int partitionCount,
+                                                 std::string masterIP, bool autoCalibrate) {
     int elapsedTime = 0;
     time_t start;
     time_t end;
@@ -1709,7 +1699,7 @@ int TriangleCountExecutor::collectPerformaceData(PerformanceSQLiteDBInterface pe
     Utils utils;
 
     std::vector<Place> placeList = performanceUtil.getHostReporterList();
-    std::string slaCategoryId = performanceUtil.getSLACategoryId(command,category);
+    std::string slaCategoryId = performanceUtil.getSLACategoryId(command, category);
 
     std::vector<Place>::iterator placeListIterator;
 
@@ -1731,28 +1721,26 @@ int TriangleCountExecutor::collectPerformaceData(PerformanceSQLiteDBInterface pe
             host = user + "@" + ip;
         }
 
-
         if (!(isMaster.find("true") != std::string::npos || host == "localhost" || host.compare(masterIP) == 0)) {
-            performanceUtil.initiateCollectingRemoteSLAResourceUtilization(host,atoi(serverPort.c_str()),isHostReporter,"false",
-                                                                           placeId,elapsedTime, masterIP);
+            performanceUtil.initiateCollectingRemoteSLAResourceUtilization(
+                host, atoi(serverPort.c_str()), isHostReporter, "false", placeId, elapsedTime, masterIP);
         }
     }
 
     start = time(0);
-    performanceUtil.collectSLAResourceConsumption(placeList, graphId, command, category, masterIP, elapsedTime,autoCalibrate);
+    performanceUtil.collectSLAResourceConsumption(placeList, graphId, command, category, masterIP, elapsedTime,
+                                                  autoCalibrate);
 
-    while(!workerResponded)
-    {
-
-        if(time(0)-start== Conts::LOAD_AVG_COLLECTING_GAP)
-        {
-            elapsedTime += Conts::LOAD_AVG_COLLECTING_GAP*1000;
-            performanceUtil.collectSLAResourceConsumption(placeList, graphId, command, category, masterIP, elapsedTime,autoCalibrate);
+    while (!workerResponded) {
+        if (time(0) - start == Conts::LOAD_AVG_COLLECTING_GAP) {
+            elapsedTime += Conts::LOAD_AVG_COLLECTING_GAP * 1000;
+            performanceUtil.collectSLAResourceConsumption(placeList, graphId, command, category, masterIP, elapsedTime,
+                                                          autoCalibrate);
             start = start + Conts::LOAD_AVG_COLLECTING_GAP;
         }
     }
 
-    performanceUtil.updateRemoteResourceConsumption(perDB,graphId,partitionCount,placeList,slaCategoryId,masterIP);
+    performanceUtil.updateRemoteResourceConsumption(perDB, graphId, partitionCount, placeList, slaCategoryId, masterIP);
     performanceUtil.updateResourceConsumption(perDB, graphId, partitionCount, placeList, slaCategoryId);
 
     return 0;

@@ -14,50 +14,49 @@ limitations under the License.
 #ifndef JASMINEGRAPH_METISPARTITIONER_H
 #define JASMINEGRAPH_METISPARTITIONER_H
 
-#include <string>
+#include <flatbuffers/util.h>
 #include <string.h>
+
+#include <algorithm>
+#include <cstddef>
 #include <fstream>
 #include <iostream>
-#include <sstream>
 #include <map>
-#include <unordered_map>
-#include <vector>
-#include <unordered_set>
+#include <mutex>
 #include <set>
-#include "metis.h"
+#include <sstream>
+#include <string>
+#include <thread>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
+
+#include "../../centralstore/JasmineGraphHashMapCentralStore.h"
+#include "../../localstore/JasmineGraphHashMapLocalStore.h"
 #include "../../metadb/SQLiteDBInterface.h"
 #include "../../util/Utils.h"
-#include "../../localstore/JasmineGraphHashMapLocalStore.h"
-#include "../../centralstore/JasmineGraphHashMapCentralStore.h"
-#include <cstddef>
-#include <algorithm>
-#include <thread>
-#include <mutex>
 #include "RDFParser.h"
-#include <flatbuffers/util.h>
-
+#include "metis.h"
 
 using std::string;
 
-
 class MetisPartitioner {
-public:
+ public:
     void loadDataSet(string inputFilePath, int graphID);
 
-    //void partitionGraph();
+    // void partitionGraph();
     int constructMetisFormat(string graph_type);
 
-    std::vector<std::map<int,std::string>> partitioneWithGPMetis(string partitionCount);
+    std::vector<std::map<int, std::string>> partitioneWithGPMetis(string partitionCount);
 
-    //reformat the vertex list by mapping vertex values to new sequntial IDs
+    // reformat the vertex list by mapping vertex values to new sequntial IDs
     std::string reformatDataSet(string inputFilePath, int graphID);
 
-    void loadContentData(string inputAttributeFilePath, string graphAttributeType,int graphID, string attrType);
+    void loadContentData(string inputAttributeFilePath, string graphAttributeType, int graphID, string attrType);
 
     MetisPartitioner(SQLiteDBInterface *);
 
-
-private:
+ private:
     idx_t edgeCount = 0;
     idx_t edgeCountForMetis = 0;
     idx_t largestVertex = 0;
@@ -72,13 +71,13 @@ private:
     int smallestVertex = std::numeric_limits<int>::max();
     string graphAttributeType;
 
-    std::map<int,std::string> partitionFileList;
-    std::map<int,std::string> centralStoreFileList;
-    std::map<int,std::string> compositeCentralStoreFileList;
-    std::map<int,std::string> centralStoreDuplicateFileList;
-    std::map<int,std::string> partitionAttributeFileList;
-    std::map<int,std::string> centralStoreAttributeFileList;
-    std::vector<std::map<int,std::string>> fullFileList;
+    std::map<int, std::string> partitionFileList;
+    std::map<int, std::string> centralStoreFileList;
+    std::map<int, std::string> compositeCentralStoreFileList;
+    std::map<int, std::string> centralStoreDuplicateFileList;
+    std::map<int, std::string> partitionAttributeFileList;
+    std::map<int, std::string> centralStoreAttributeFileList;
+    std::vector<std::map<int, std::string>> fullFileList;
 
     std::map<int, std::vector<int>> graphStorageMap;
     std::map<int, std::vector<int>> graphEdgeMap;
@@ -89,7 +88,7 @@ private:
     std::map<int, std::map<int, std::vector<int>>> masterGraphStorageMap;
     std::map<string, std::map<int, std::vector<int>>> compositeMasterGraphStorageMap;
     std::map<int, std::map<int, std::vector<int>>> duplicateMasterGraphStorageMap;
-    std::map<int, std::map<int,std::map<int, std::vector<int>>>> commonCentralStoreEdgeMap;
+    std::map<int, std::map<int, std::map<int, std::vector<int>>>> commonCentralStoreEdgeMap;
     std::vector<int> xadj;
     std::vector<int> adjncy;
     std::map<std::pair<int, int>, int> edgeMap;
@@ -98,10 +97,9 @@ private:
     std::map<int, int> idToVertexMap;
     std::map<int, std::string> attributeDataMap;
 
+    void createPartitionFiles(std::map<int, int> partMap);
 
-    void createPartitionFiles(std::map<int,int> partMap);
-
-    void populatePartMaps(std::map<int,int> partMap, int part);
+    void populatePartMaps(std::map<int, int> partMap, int part);
 
     void writePartitionFiles(int part);
 
@@ -124,5 +122,4 @@ private:
     void writeTextAttributeFilesForMasterParts(int part);
 };
 
-
-#endif //JASMINGRAPH_METISPARTITIONER_H
+#endif  // JASMINGRAPH_METISPARTITIONER_H

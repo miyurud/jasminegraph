@@ -14,32 +14,33 @@ limitations under the License.
 #ifndef JASMINEGRAPH_JASMINEGRAPHBACKEND_H
 #define JASMINEGRAPH_JASMINEGRAPHBACKEND_H
 
-#include <string.h>
-#include <unistd.h>
-#include <stdio.h>
 #include <netdb.h>
-#include <sys/types.h>
-#include <sys/socket.h>
 #include <netinet/in.h>
-#include <iostream>
-#include <fstream>
-#include <strings.h>
-#include <stdlib.h>
-#include <string>
 #include <pthread.h>
-#include <thread>
-#include "../metadb/SQLiteDBInterface.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <strings.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <unistd.h>
 
+#include <fstream>
+#include <iostream>
+#include <string>
+#include <thread>
+
+#include "../metadb/SQLiteDBInterface.h"
 
 void *backendservicesesion(void *dummyPt);
 
 class JasmineGraphBackend {
-public:
+ public:
     JasmineGraphBackend(SQLiteDBInterface db, int numberOfWorkers);
 
     int run();
 
-private:
+ private:
     SQLiteDBInterface sqlite;
     int workerCount;
 };
@@ -49,5 +50,4 @@ struct backendservicesessionargs {
     int connFd;
 };
 
-
-#endif //JASMINEGRAPH_JASMINEGRAPHBACKEND_H
+#endif  // JASMINEGRAPH_JASMINEGRAPHBACKEND_H

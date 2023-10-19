@@ -11,8 +11,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
-#include <string>
 #include "SQLiteDBInterface.h"
+
+#include <string>
+
 #include "../util/Utils.h"
 #include "../util/logger/Logger.h"
 
@@ -31,15 +33,11 @@ int SQLiteDBInterface::init() {
     }
 }
 
-int SQLiteDBInterface::finalize() {
-    return sqlite3_close(database);
-}
+int SQLiteDBInterface::finalize() { return sqlite3_close(database); }
 
-SQLiteDBInterface::SQLiteDBInterface() {
+SQLiteDBInterface::SQLiteDBInterface() {}
 
-}
-
-typedef vector<vector<pair<string, string> >> table_type;
+typedef vector<vector<pair<string, string>>> table_type;
 
 static int callback(void *ptr, int argc, char **argv, char **azColName) {
     int i;
@@ -48,13 +46,13 @@ static int callback(void *ptr, int argc, char **argv, char **azColName) {
 
     for (i = 0; i < argc; i++) {
         results.push_back(make_pair(azColName[i], argv[i] ? argv[i] : "NULL"));
-        //printf("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
+        // printf("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
     }
     dbResults->push_back(results);
     return 0;
 }
 
-vector<vector<pair<string, string> >> SQLiteDBInterface::runSelect(std::string query) {
+vector<vector<pair<string, string>>> SQLiteDBInterface::runSelect(std::string query) {
     char *zErrMsg = 0;
     int rc;
     vector<vector<pair<string, string>>> dbResults;
@@ -126,8 +124,7 @@ void SQLiteDBInterface::runUpdate(std::string query) {
 int SQLiteDBInterface::RunSqlNoCallback(const char *zSql) {
     sqlite3_stmt *stmt = NULL;
     int rc = sqlite3_prepare_v2(database, zSql, -1, &stmt, NULL);
-    if (rc != SQLITE_OK)
-        return rc;
+    if (rc != SQLITE_OK) return rc;
 
     int rowCount = 0;
     rc = sqlite3_step(stmt);
@@ -146,7 +143,7 @@ int SQLiteDBInterface::RunSqlNoCallback(const char *zSql) {
             } else if (type == SQLITE_TEXT) {
                 const unsigned char *valChar = sqlite3_column_text(stmt, colIndex);
                 printf("columnName = %s,Text val = %s", columnName, valChar);
-                //free((void *) valChar);
+                // free((void *) valChar);
             } else if (type == SQLITE_BLOB) {
                 printf("columnName = %s,BLOB", columnName);
             } else if (type == SQLITE_NULL) {

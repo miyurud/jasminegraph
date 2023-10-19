@@ -12,9 +12,11 @@ limitations under the License.
  */
 
 #include "JasmineGraphHashMapLocalStore.h"
-#include "../util/logger/Logger.h"
-#include <iostream>
+
 #include <fstream>
+#include <iostream>
+
+#include "../util/logger/Logger.h"
 
 using namespace std;
 const Logger hashmap_localstore_logger;
@@ -29,9 +31,7 @@ JasmineGraphHashMapLocalStore::JasmineGraphHashMapLocalStore(std::string folderL
     instanceDataFolderLocation = folderLocation;
 }
 
-JasmineGraphHashMapLocalStore::JasmineGraphHashMapLocalStore() {
-}
-
+JasmineGraphHashMapLocalStore::JasmineGraphHashMapLocalStore() {}
 
 bool JasmineGraphHashMapLocalStore::storeGraph() {
     bool result = false;
@@ -40,8 +40,8 @@ bool JasmineGraphHashMapLocalStore::storeGraph() {
     std::string edgeStorePath = instanceDataFolderLocation + getFileSeparator() + EDGE_STORE_NAME;
 
     std::map<long, std::unordered_set<long>>::iterator localSubGraphMapIterator;
-    for (localSubGraphMapIterator = localSubGraphMap.begin();
-         localSubGraphMapIterator != localSubGraphMap.end(); localSubGraphMapIterator++) {
+    for (localSubGraphMapIterator = localSubGraphMap.begin(); localSubGraphMapIterator != localSubGraphMap.end();
+         localSubGraphMapIterator++) {
         long key = localSubGraphMapIterator->first;
         unordered_set<long> value = localSubGraphMapIterator->second;
 
@@ -58,11 +58,10 @@ bool JasmineGraphHashMapLocalStore::storeGraph() {
 
     builder.Finish(edgeStore);
 
-    flatbuffers::SaveFile(edgeStorePath.c_str(), (const char *) builder.GetBufferPointer(), (size_t) builder.GetSize(),
+    flatbuffers::SaveFile(edgeStorePath.c_str(), (const char *)builder.GetBufferPointer(), (size_t)builder.GetSize(),
                           true);
 
     result = true;
-
 
     return result;
 }
@@ -92,12 +91,11 @@ void JasmineGraphHashMapLocalStore::toLocalSubGraphMap(const PartEdgeMapStore *e
 }
 
 long JasmineGraphHashMapLocalStore::getEdgeCount() {
-
     if (edgeCount == 0) {
         std::map<long, std::unordered_set<long>>::iterator localSubGraphMapIterator;
         long mapSize = localSubGraphMap.size();
-        for (localSubGraphMapIterator = localSubGraphMap.begin();
-             localSubGraphMapIterator != localSubGraphMap.end(); localSubGraphMapIterator++) {
+        for (localSubGraphMapIterator = localSubGraphMap.begin(); localSubGraphMapIterator != localSubGraphMap.end();
+             localSubGraphMapIterator++) {
             edgeCount = edgeCount + localSubGraphMapIterator->second.size();
         }
     }
@@ -140,7 +138,7 @@ map<long, long> JasmineGraphHashMapLocalStore::getInDegreeDistributionHashMap() 
     map<long, long> distributionHashMap;
 
     for (map<long, unordered_set<long>>::iterator it = localSubGraphMap.begin(); it != localSubGraphMap.end(); ++it) {
-        unordered_set<long> distribution  = it->second;
+        unordered_set<long> distribution = it->second;
 
         for (auto itr = distribution.begin(); itr != distribution.end(); ++itr) {
             std::map<long, long>::iterator distMapItr = distributionHashMap.find(*itr);
@@ -175,19 +173,14 @@ void JasmineGraphHashMapLocalStore::addEdge(long startVid, long endVid) {
     }
 }
 
-map<long, unordered_set<long>> JasmineGraphHashMapLocalStore::getUnderlyingHashMap() {
-    return localSubGraphMap;
-}
+map<long, unordered_set<long>> JasmineGraphHashMapLocalStore::getUnderlyingHashMap() { return localSubGraphMap; }
 
-void JasmineGraphHashMapLocalStore::initialize() {
+void JasmineGraphHashMapLocalStore::initialize() {}
 
-}
+void JasmineGraphHashMapLocalStore::addVertex(string *attributes) {}
 
-void JasmineGraphHashMapLocalStore::addVertex(string *attributes) {
-
-}
-
-bool JasmineGraphHashMapLocalStore::storeAttributes(std::map<long, std::vector<string>> attributeMap, const string storePath) {
+bool JasmineGraphHashMapLocalStore::storeAttributes(std::map<long, std::vector<string>> attributeMap,
+                                                    const string storePath) {
     this->localAttributeMap = attributeMap;
     bool result = false;
     flatbuffers::FlatBufferBuilder builder;
@@ -209,7 +202,7 @@ bool JasmineGraphHashMapLocalStore::storeAttributes(std::map<long, std::vector<s
 
     builder.Finish(attributeStore);
 
-    flatbuffers::SaveFile(storePath.c_str(), (const char *) builder.GetBufferPointer(), (size_t) builder.GetSize(), true);
+    flatbuffers::SaveFile(storePath.c_str(), (const char *)builder.GetBufferPointer(), (size_t)builder.GetSize(), true);
 
     result = true;
 
@@ -308,7 +301,8 @@ bool JasmineGraphHashMapLocalStore::loadPartEdgeMap(const std::string filePath) 
     return result;
 }
 
-bool JasmineGraphHashMapLocalStore::storePartEdgeMap(std::map<int, std::vector<int>> edgeMap, const std::string savePath) {
+bool JasmineGraphHashMapLocalStore::storePartEdgeMap(std::map<int, std::vector<int>> edgeMap,
+                                                     const std::string savePath) {
     bool result = false;
     flatbuffers::FlatBufferBuilder builder;
     std::vector<flatbuffers::Offset<PartEdgeMapStoreEntry>> edgeStoreEntriesVector;
@@ -329,7 +323,7 @@ bool JasmineGraphHashMapLocalStore::storePartEdgeMap(std::map<int, std::vector<i
 
     builder.Finish(edgeStore);
 
-    flatbuffers::SaveFile(savePath.c_str(), (const char *) builder.GetBufferPointer(), (size_t) builder.GetSize(), true);
+    flatbuffers::SaveFile(savePath.c_str(), (const char *)builder.GetBufferPointer(), (size_t)builder.GetSize(), true);
 
     result = true;
 

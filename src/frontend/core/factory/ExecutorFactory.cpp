@@ -12,6 +12,7 @@ limitations under the License.
  */
 
 #include "ExecutorFactory.h"
+
 #include "../executor/impl/TriangleCountExecutor.h"
 
 ExecutorFactory::ExecutorFactory(SQLiteDBInterface db, PerformanceSQLiteDBInterface perfDb) {

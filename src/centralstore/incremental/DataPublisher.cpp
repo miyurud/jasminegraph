@@ -14,8 +14,8 @@
 #include "./DataPublisher.h"
 
 #include "../../server/JasmineGraphInstanceProtocol.h"
-#include "../../util/logger/Logger.h"
 #include "../../util/Utils.h"
+#include "../../util/logger/Logger.h"
 
 Logger data_publisher_logger;
 

@@ -13,16 +13,15 @@ limitations under the License.
 #ifndef JASMINEGRAPH_UTILS_H
 #define JASMINEGRAPH_UTILS_H
 
+#include <arpa/inet.h>
+
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <string>
 #include <unordered_map>
 #include <vector>
-//#include "../frontend/JasmineGraphFrontEnd.h"
-#include <arpa/inet.h>
-#include <string.h>
-
-#include <algorithm>
 
 #include "../metadb/SQLiteDBInterface.h"
 #include "../performancedb/PerformanceSQLiteDBInterface.h"
@@ -32,10 +31,10 @@ using std::map;
 using std::unordered_map;
 
 class Utils {
-   private:
+ private:
     static unordered_map<std::string, std::string> propertiesMap;
 
-   public:
+ public:
     struct worker {
         std::string workerID;
         std::string hostname;

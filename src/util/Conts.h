@@ -14,13 +14,12 @@ limitations under the License.
 #ifndef JASMINEGRAPH_CONTS_H
 #define JASMINEGRAPH_CONTS_H
 
-
-#include <string>
-#include <set>
-#include <vector>
 #include <atomic>
-#include <mutex>
 #include <map>
+#include <mutex>
+#include <set>
+#include <string>
+#include <vector>
 
 extern int highestPriority;
 extern std::atomic<int> highPriorityTaskCount;
@@ -47,38 +46,38 @@ struct ProcessInfo {
     std::vector<std::string> workerList;
 };
 
-struct ResourceUsageInfo{
+struct ResourceUsageInfo {
     std::string elapsedTime;
     std::string loadAverage;
     std::string memoryUsage;
 };
 
 extern std::set<ProcessInfo> processData;
-extern std::map<std::string,std::vector<ResourceUsageInfo>> resourceUsageMap;
+extern std::map<std::string, std::vector<ResourceUsageInfo>> resourceUsageMap;
 
 class Conts {
-public:
+ public:
     std::string BATCH_UPLOAD_FILE_LIST = "conf/batch-upload.txt";
     std::string JASMINEGRAPH_SERVER_PROPS_FILE = "conf/acacia-server.properties";
     std::string JASMINEGRAPH_SERVER_PUBLIC_HOSTS_FILE = "machines_public.txt";
     std::string JASMINEGRAPH_SERVER_PRIVATE_HOSTS_FILE = "machines.txt";
     static std::string JASMINEGRAPH_EXECUTABLE;
     static std::string JASMINEGRAPH_HOME;
-    static std::string GRAPH_TYPE_RDF ;
-    static std::string GRAPH_TYPE_NORMAL ;
+    static std::string GRAPH_TYPE_RDF;
+    static std::string GRAPH_TYPE_NORMAL;
     static std::string GRAPH_TYPE_NORMAL_REFORMATTED;
     static std::string GRAPH_WITH_TEXT_ATTRIBUTES;
     static std::string GRAPH_WITH_JSON_ATTRIBUTES;
     static std::string GRAPH_WITH_XML_ATTRIBUTES;
 
-    static std::string GRAPH_WITH_ATTRIBUTES;       //To identify that there are additional attribute files to be uploaded through workers
+    static std::string
+        GRAPH_WITH_ATTRIBUTES;  // To identify that there are additional attribute files to be uploaded through workers
 
     struct GRAPH_WITH {
-        static std::string TEXT_ATTRIBUTES;         //Graph is uploaded with edge list and a plain text attribute file
-        static std::string JSON_ATTRIBUTES;         //Graph is uploaded with edge list and a JSON formatted attribute file
-        static std::string XML_ATTRIBUTES;          //Graph is uploaded with edge list and a XML formatted attribute file
+        static std::string TEXT_ATTRIBUTES;  // Graph is uploaded with edge list and a plain text attribute file
+        static std::string JSON_ATTRIBUTES;  // Graph is uploaded with edge list and a JSON formatted attribute file
+        static std::string XML_ATTRIBUTES;   // Graph is uploaded with edge list and a XML formatted attribute file
     };
-
 
     int JASMINEGRAPH_PARTITION_INDEX_PORT;
     static int JASMINEGRAPH_FRONTEND_PORT;
@@ -103,18 +102,18 @@ public:
     static int DEFAULT_THREAD_PRIORITY;
     static int HIGH_PRIORITY_DEFAULT_VALUE;
 
-    static int THREAD_SLEEP_TIME;       //Thread sleep time in milliseconds
+    static int THREAD_SLEEP_TIME;  // Thread sleep time in milliseconds
     static int MAX_HIGH_PRIORIY_TASKS;
 
     static int SCHEDULER_SLEEP_TIME;
 
-
-
     struct GRAPH_STATUS {
-        static const int LOADING;           //Graph partitions are being uploaded
-        static const int OPERATIONAL;       //Graph is uploaded and all its partitions are accessible in the current hosts setting
-        static const int DELETING;          //Graph partitions are being deleted
-        static const int NONOPERATIONAL;    //Graph is uploaded but some partitions of it are not accessible with the current set of active hosts
+        static const int LOADING;  // Graph partitions are being uploaded
+        static const int
+            OPERATIONAL;  // Graph is uploaded and all its partitions are accessible in the current hosts setting
+        static const int DELETING;        // Graph partitions are being deleted
+        static const int NONOPERATIONAL;  // Graph is uploaded but some partitions of it are not accessible with the
+                                          // current set of active hosts
     };
 
     struct TRAIN_STATUS {
@@ -148,13 +147,8 @@ public:
         static const std::string IS_CALIBRATING;
         static const std::string AUTO_CALIBRATION;
     };
-
-
 };
 
-inline bool operator<(const ProcessInfo& lhs, const ProcessInfo& rhs)
-{
-    return lhs.id < rhs.id;
-}
+inline bool operator<(const ProcessInfo& lhs, const ProcessInfo& rhs) { return lhs.id < rhs.id; }
 
-#endif //JASMINEGRAPH_CONTS_H
+#endif  // JASMINEGRAPH_CONTS_H

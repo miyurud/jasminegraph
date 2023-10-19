@@ -11,34 +11,32 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
-#include "Python.h"
 #include "Python_C_API.h"
+
+#include "Python.h"
 
 using namespace std;
 
 void Python_C_API::train(int argc, char *argv[]) {
-
-    if (argc%2 != 0) {
+    if (argc % 2 != 0) {
         fprintf(stderr, "Usage: [--flag name] [args]\n");
     }
-    FILE* file;
+    FILE *file;
     wchar_t *program = Py_DecodeLocale(argv[0], NULL);
-    wchar_t** _argv;
-    for(int i=0; i<argc; i++){
+    wchar_t **_argv;
+    for (int i = 0; i < argc; i++) {
         wchar_t *arg = Py_DecodeLocale(argv[i], NULL);
         _argv[i] = arg;
     }
 
     Py_Initialize();
     PySys_SetArgv(argc, _argv);
-    file = fopen("./GraphSAGE/graphsage/unsupervised_train.py","r");
+    file = fopen("./GraphSAGE/graphsage/unsupervised_train.py", "r");
     PyRun_SimpleFile(file, "./GraphSAGE/graphsage/unsupervised_train.py");
     Py_Finalize();
-
 }
 
 int Python_C_API::predict(int argc, char *argv[]) {
-
     PyObject *pName, *pModule, *pFunc;
     PyObject *pArgs, *pValue;
     int i;
@@ -76,8 +74,7 @@ int Python_C_API::predict(int argc, char *argv[]) {
             PyObject_CallObject(pFunc, pArgs);
             Py_DECREF(pArgs);
         } else {
-            if (PyErr_Occurred())
-                PyErr_Print();
+            if (PyErr_Occurred()) PyErr_Print();
             fprintf(stderr, "Cannot find function \"%s\"\n", "predict");
         }
         Py_XDECREF(pFunc);

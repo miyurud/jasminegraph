@@ -12,6 +12,7 @@
  */
 
 #include "JasmineGraphIncrementalStore.h"
+
 #include <iostream>
 #include <sstream>
 #include <vector>
@@ -107,7 +108,9 @@ long JasmineGraphIncrementalStore::edgeCutsCount() {
     return total;
 }
 
-float JasmineGraphIncrementalStore::edgeCutsRatio() { return this->edgeCutsCount() / (this->getEdgesCount() + this->edgeCutsCount()); }
+float JasmineGraphIncrementalStore::edgeCutsRatio() {
+    return this->edgeCutsCount() / (this->getEdgesCount() + this->edgeCutsCount());
+}
 
 void JasmineGraphIncrementalStore::printEdgeCuts() {
     std::cout << "Printing edge cuts of " << id << " partition" << std::endl;

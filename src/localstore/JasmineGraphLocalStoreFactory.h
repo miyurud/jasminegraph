@@ -16,12 +16,9 @@ limitations under the License.
 
 #include "JasmineGraphHashMapLocalStore.h"
 
-
 class JasmineGraphLocalStoreFactory {
-public:
-    static JasmineGraphHashMapLocalStore load (std::string graphId, std::string partitionId, std::string baseDir);
-
+ public:
+    static JasmineGraphHashMapLocalStore load(std::string graphId, std::string partitionId, std::string baseDir);
 };
 
-
-#endif //JASMINEGRAPH_JASMINEGRAPHLOCALSTOREFACTORY_H
+#endif  // JASMINEGRAPH_JASMINEGRAPHLOCALSTOREFACTORY_H

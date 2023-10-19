@@ -14,33 +14,32 @@ limitations under the License.
 #ifndef JASMINEGRAPH_TRIANGLES_H
 #define JASMINEGRAPH_TRIANGLES_H
 
-
-#include <string>
-#include "../../../localstore/JasmineGraphHashMapLocalStore.h"
-#include "../../../centralstore/JasmineGraphHashMapCentralStore.h"
-#include "../../../centralstore/JasmineGraphHashMapDuplicateCentralStore.h"
-#include "../../../util/Conts.h"
-#include <map>
-#include <set>
 #include <algorithm>
 #include <chrono>
+#include <map>
+#include <set>
+#include <string>
 #include <thread>
+
+#include "../../../centralstore/JasmineGraphHashMapCentralStore.h"
+#include "../../../centralstore/JasmineGraphHashMapDuplicateCentralStore.h"
+#include "../../../localstore/JasmineGraphHashMapLocalStore.h"
+#include "../../../util/Conts.h"
 
 class JasmineGraphHashMapCentralStore;
 class JasmineGraphHashMapDuplicateCentralStore;
 
 class Triangles {
-public:
-    static long run (JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCentralStore centralStore, JasmineGraphHashMapDuplicateCentralStore duplicateCentralStore, std::string hostName);
+ public:
+    static long run(JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCentralStore centralStore,
+                    JasmineGraphHashMapDuplicateCentralStore duplicateCentralStore, std::string hostName);
 
     static long run(JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCentralStore centralStore,
                     JasmineGraphHashMapDuplicateCentralStore duplicateCentralStore, std::string graphId,
                     std::string partitionId, int threadPriority);
 
-    static string countCentralStoreTriangles(map<long, unordered_set<long>> centralStore, map<long, long> distributionMap,
-                               int threadPriority);
-
+    static string countCentralStoreTriangles(map<long, unordered_set<long>> centralStore,
+                                             map<long, long> distributionMap, int threadPriority);
 };
 
-
-#endif //JASMINEGRAPH_TRIANGLES_H
+#endif  // JASMINEGRAPH_TRIANGLES_H

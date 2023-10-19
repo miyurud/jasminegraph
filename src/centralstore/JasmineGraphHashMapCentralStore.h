@@ -14,35 +14,36 @@ limitations under the License.
 #ifndef JASMINEGRAPH_JASMINEGRAPHHASHMAPCENTRALSTORE_H
 #define JASMINEGRAPH_JASMINEGRAPHHASHMAPCENTRALSTORE_H
 
-#include "../localstore/JasmineGraphLocalStore.h"
+#include <flatbuffers/util.h>
+
 #include <map>
 #include <set>
+
+#include "../localstore/JasmineGraphLocalStore.h"
 #include "../util/Utils.h"
-#include "../util/dbutil/edgestore_generated.h"
 #include "../util/dbutil/attributestore_generated.h"
+#include "../util/dbutil/edgestore_generated.h"
 #include "../util/dbutil/partedgemapstore_generated.h"
-#include <flatbuffers/util.h>
 
 using std::string;
 using namespace JasmineGraph::Edgestore;
 using namespace JasmineGraph::AttributeStore;
 using namespace JasmineGraph::PartEdgeMapStore;
 
-
-class JasmineGraphHashMapCentralStore: public JasmineGraphLocalStore {
-private:
+class JasmineGraphHashMapCentralStore : public JasmineGraphLocalStore {
+ private:
     string VERTEX_STORE_NAME = "jasminegraph.nodestore.db";
     string CENTRAL_STORE_NAME = "jasminegraph.centralstore.db";
     string ATTRIBUTE_STORE_NAME = "jasminegraph.attributestore.db";
 
     int graphId = 0;
-    int  partitionId = 0;
+    int partitionId = 0;
 
     string instanceDataFolderLocation;
-    std::map<long,unordered_set<long>> centralSubgraphMap;
+    std::map<long, unordered_set<long>> centralSubgraphMap;
 
     long vertexCount = 0;
-    long edgeCount =0;
+    long edgeCount = 0;
 
     std::string getFileSeparator();
 
@@ -50,7 +51,7 @@ private:
 
     void toLocalAttributeMap(const AttributeStore *attributeStoreData);
 
-public:
+ public:
     JasmineGraphHashMapCentralStore();
 
     JasmineGraphHashMapCentralStore(int graphId, int partitionId);
@@ -82,6 +83,4 @@ public:
     bool storePartEdgeMap(std::map<int, std::vector<int>> edgeMap, const std::string savePath);
 };
 
-
-
-#endif //JASMINEGRAPH_JASMINEGRAPHHASHMAPCENTRALSTORE_H
+#endif  // JASMINEGRAPH_JASMINEGRAPHHASHMAPCENTRALSTORE_H

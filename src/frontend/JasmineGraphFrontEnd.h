@@ -47,7 +47,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                             PerformanceSQLiteDBInterface perfSqlite, JobScheduler jobScheduler);
 
 class JasmineGraphFrontEnd {
-   public:
+ public:
     JasmineGraphFrontEnd(SQLiteDBInterface db, PerformanceSQLiteDBInterface perfDb, std::string masterIP,
                          JobScheduler jobScheduler);
 
@@ -75,8 +75,8 @@ class JasmineGraphFrontEnd {
 
     static int getUid();
 
-    static long getSLAForGraphId(SQLiteDBInterface sqlite, PerformanceSQLiteDBInterface perfSqlite,
-                                 std::string graphId, std::string command, std::string category);
+    static long getSLAForGraphId(SQLiteDBInterface sqlite, PerformanceSQLiteDBInterface perfSqlite, std::string graphId,
+                                 std::string command, std::string category);
 
     static int getRunningHighPriorityTaskCount();
     static bool areRunningJobsForSameGraph();
@@ -86,7 +86,7 @@ class JasmineGraphFrontEnd {
     std::map<std::string, std::atomic<bool>> *streamsState;
     std::map<std::string, std::thread> streamingThreads;
 
-   private:
+ private:
     SQLiteDBInterface sqlite;
     std::string masterIP;
     PerformanceSQLiteDBInterface perfSqlite;

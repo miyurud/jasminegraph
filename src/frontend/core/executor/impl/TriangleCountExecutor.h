@@ -14,19 +14,19 @@ limitations under the License.
 #ifndef JASMINEGRAPH_TRIANGLECOUNTEXECUTOR_H
 #define JASMINEGRAPH_TRIANGLECOUNTEXECUTOR_H
 
-#include "../AbstractExecutor.h"
-#include "../../CoreConstants.h"
-#include "../../../../metadb/SQLiteDBInterface.h"
-#include "../../../../performancedb/PerformanceSQLiteDBInterface.h"
-#include "../../../JasmineGraphFrontEndProtocol.h"
-#include "../../../../server/JasmineGraphInstanceProtocol.h"
-#include "../../../../server/JasmineGraphServer.h"
-#include "../../../../performance/metrics/PerformanceUtil.h"
 #include <chrono>
 
+#include "../../../../metadb/SQLiteDBInterface.h"
+#include "../../../../performance/metrics/PerformanceUtil.h"
+#include "../../../../performancedb/PerformanceSQLiteDBInterface.h"
+#include "../../../../server/JasmineGraphInstanceProtocol.h"
+#include "../../../../server/JasmineGraphServer.h"
+#include "../../../JasmineGraphFrontEndProtocol.h"
+#include "../../CoreConstants.h"
+#include "../AbstractExecutor.h"
 
-class TriangleCountExecutor: public AbstractExecutor {
-public:
+class TriangleCountExecutor : public AbstractExecutor {
+ public:
     TriangleCountExecutor();
 
     TriangleCountExecutor(SQLiteDBInterface db, PerformanceSQLiteDBInterface perfDb, JobRequest jobRequest);
@@ -35,17 +35,16 @@ public:
 
     int getUid();
 
-    static std::vector<std::vector<string>> getCombinations (std::vector<string> inputVector);
+    static std::vector<std::vector<string>> getCombinations(std::vector<string> inputVector);
 
-    static long getTriangleCount(int graphId, std::string host, int port, int dataPort, int partitionId, std::string masterIP,
-                     int uniqueId, bool isCompositeAggregation, int threadPriority);
+    static long getTriangleCount(int graphId, std::string host, int port, int dataPort, int partitionId,
+                                 std::string masterIP, int uniqueId, bool isCompositeAggregation, int threadPriority);
 
     static long aggregateCentralStoreTriangles(SQLiteDBInterface sqlite, std::string graphId, std::string masterIP,
                                                int threadPriority);
 
-    static string isFileAccessibleToWorker(std::string graphId, std::string partitionId,
-                                           std::string aggregatorHostName, std::string aggregatorPort,
-                                           std::string masterIP, std::string fileType,
+    static string isFileAccessibleToWorker(std::string graphId, std::string partitionId, std::string aggregatorHostName,
+                                           std::string aggregatorPort, std::string masterIP, std::string fileType,
                                            std::string fileName);
 
     static std::string copyCompositeCentralStoreToAggregator(std::string aggregatorHostName, std::string aggregatorPort,
@@ -56,16 +55,17 @@ public:
                                                       std::string compositeCentralStoreFileList, std::string masterIP,
                                                       std::string availableFileList, int threadPriority);
 
-    static std::vector<std::vector<string>> getWorkerCombination (SQLiteDBInterface sqlite, std::string graphId);
+    static std::vector<std::vector<string>> getWorkerCombination(SQLiteDBInterface sqlite, std::string graphId);
 
     static std::string copyCentralStoreToAggregator(std::string aggregatorHostName, std::string aggregatorPort,
-            std::string aggregatorDataPort, int graphId, int partitionId, std::string masterIP);
+                                                    std::string aggregatorDataPort, int graphId, int partitionId,
+                                                    std::string masterIP);
 
-    static string countCentralStoreTriangles(std::string aggregatorHostName, std::string aggregatorPort, std::string host,
-                               std::string partitionId, std::string partitionIdList, std::string graphId,
-                               std::string masterIP, int threadPriority);
+    static string countCentralStoreTriangles(std::string aggregatorHostName, std::string aggregatorPort,
+                                             std::string host, std::string partitionId, std::string partitionIdList,
+                                             std::string graphId, std::string masterIP, int threadPriority);
 
-    static bool proceedOrNot(std::set<string> partitionSet,int partitionId);
+    static bool proceedOrNot(std::set<string> partitionSet, int partitionId);
 
     static void updateMap(int partitionId);
 
@@ -75,13 +75,13 @@ public:
     static std::map<std::string, std::string> combinationWorkerMap;
     static std::map<long, std::map<long, std::vector<long>>> triangleTree;
 
-    static int collectPerformaceData(PerformanceSQLiteDBInterface perDB, std::string graphId, std::string command, std::string category,
-                                     int partitionCount, std::string masterIP, bool autoCalibrate);
+    static int collectPerformaceData(PerformanceSQLiteDBInterface perDB, std::string graphId, std::string command,
+                                     std::string category, int partitionCount, std::string masterIP,
+                                     bool autoCalibrate);
 
-private:
+ private:
     SQLiteDBInterface sqlite;
     PerformanceSQLiteDBInterface perfDB;
 };
 
-
-#endif //JASMINEGRAPH_TRIANGLECOUNTEXECUTOR_H
+#endif  // JASMINEGRAPH_TRIANGLECOUNTEXECUTOR_H

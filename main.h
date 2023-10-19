@@ -14,8 +14,9 @@ limitations under the License.
 #ifndef JASMINEGRAPH_MAIN_H
 #define JASMINEGRAPH_MAIN_H
 
-#endif //JASMINEGRAPH_MAIN_H
+#endif  // JASMINEGRAPH_MAIN_H
+
+#include <thread>
 
 #include "src/server/JasmineGraphServer.h"
 #include "src/util/Utils.h"
-#include <thread>

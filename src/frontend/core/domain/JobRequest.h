@@ -14,17 +14,17 @@ limitations under the License.
 #ifndef JASMINEGRAPH_JOBREQUEST_H
 #define JASMINEGRAPH_JOBREQUEST_H
 
-#include <string>
 #include <map>
+#include <string>
 
 class JobRequest {
-private:
+ private:
     std::string jobId;
     std::string jobType;
     std::string masterIP;
     std::map<std::string, std::string> requestParams;
 
-public:
+ public:
     int priority;
 
     std::string getJobId();
@@ -39,5 +39,4 @@ public:
     std::string getMasterIP();
 };
 
-
-#endif //JASMINEGRAPH_JOBREQUEST_H
+#endif  // JASMINEGRAPH_JOBREQUEST_H

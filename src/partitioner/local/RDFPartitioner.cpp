@@ -16,14 +16,11 @@ limitations under the License.
 using namespace std;
 using namespace __gnu_cxx;
 
-
-RDFPartitioner::RDFPartitioner(SQLiteDBInterface *sqlite) {
-    this->sqlite = *sqlite;
-}
+RDFPartitioner::RDFPartitioner(SQLiteDBInterface *sqlite) { this->sqlite = *sqlite; }
 
 void RDFPartitioner::convertWithoutDistribution(string graphName, int graphID, string inputFilePath,
-                                                string outputFilePath, int nParts,
-                                                bool isDistributedCentralPartitions, int nThreads, int nPlaces) {
+                                                string outputFilePath, int nParts, bool isDistributedCentralPartitions,
+                                                int nThreads, int nPlaces) {
     this->outputFilePath = outputFilePath;
     this->nParts = nParts;
     this->graphName = graphName;
@@ -34,7 +31,7 @@ void RDFPartitioner::convertWithoutDistribution(string graphName, int graphID, s
 }
 
 void RDFPartitioner::distributeEdges() {
-    //method implementation
+    // method implementation
 }
 
 void RDFPartitioner::loadDataSet(string inputFilePath, string outputFilePath, int graphID) {
@@ -46,7 +43,6 @@ void RDFPartitioner::loadDataSet(string inputFilePath, string outputFilePath, in
     dbFile.open(inputFilePath, std::ios::binary | std::ios::in);
     std::cout << "File is loading..." << std::endl;
 
-
     string subject;
     string predicate;
     string object;
@@ -54,7 +50,6 @@ void RDFPartitioner::loadDataSet(string inputFilePath, string outputFilePath, in
     string line;
 
     while (std::getline(dbFile, line)) {
-
         string subject_str;
         string predicate_str;
         string object_str;
@@ -63,14 +58,11 @@ void RDFPartitioner::loadDataSet(string inputFilePath, string outputFilePath, in
         std::getline(stream, subject_str, splitter);
         stream >> predicate_str >> object_str;
 
-
         long firstVertex = addToNodes(&nodes, subject_str);
 
         long relation = addToPredicates(&predicates, predicate_str);
 
-
         long secondVertex = addToNodes(&nodes, object_str);
-
 
         std::string secondVertexStr = std::to_string(secondVertex);
 
@@ -78,8 +70,6 @@ void RDFPartitioner::loadDataSet(string inputFilePath, string outputFilePath, in
 
         graphStorage[firstVertex].insert(secondVertex);
         edgeCount++;
-
-
     }
     writeRelationData();
 }
@@ -93,9 +83,7 @@ long RDFPartitioner::addToNodes(std::map<string, long> *map, string URI) {
         return search->second;
     }
 
-
     nodesTemp.insert({id, URI});
-
 
     map->insert({URI, id});
     return id;
@@ -110,14 +98,11 @@ long RDFPartitioner::addToPredicates(std::map<string, long> *map, string URI) {
         return search->second;
     }
 
-
     predicatesTemp.insert({id, URI});
-
 
     map->insert({URI, id});
     return id;
 }
-
 
 void RDFPartitioner::addToMap(std::map<long, std::map<long, std::set<string>>> *map, long vertex, long relation,
                               string value) {
@@ -128,21 +113,15 @@ void RDFPartitioner::addToMap(std::map<long, std::map<long, std::set<string>>> *
     } else {
         std::map<long, std::set<string>> miniMap = map->find(vertex)->second;
 
-
         auto it = miniMap.find(relation);
         if (it == miniMap.end()) {
-
             relationsMap[vertex][relation].insert(value);
 
         } else {
-
             relationsMap[vertex][relation].insert(value);
-
-
         }
     }
 }
-
 
 void RDFPartitioner::convert(string graphName, int graphID, string inputFilePath, string outputFilePath, int nParts,
                              bool isDistributedCentralPartitions, int nThreads, int nPlaces) {
@@ -150,7 +129,6 @@ void RDFPartitioner::convert(string graphName, int graphID, string inputFilePath
                                isDistributedCentralPartitions, nThreads, nPlaces);
 
     distributeEdges();
-
 }
 
 void RDFPartitioner::writeRelationData() {
@@ -168,32 +146,25 @@ void RDFPartitioner::writeRelationData() {
 
                 std::cout << object << "\n";
                 file << object << "\n";
-
             }
         }
     }
 
-
     file.close();
     std::cout << "Data was written to the file path- /tmp/RDF/" << std::to_string(this->graphID) << ".txt" << std::endl;
-
 
     ofstream metisInputfile;
     metisInputfile.open("./tmp/RDF/" + std::to_string(this->graphID) + "_metisInput.txt");
 
+    for (auto ii = graphStorage.begin(); ii != graphStorage.end(); ++ii) {
+        metisInputfile << "Key: " << ii->first << " value: ";
 
-    for( auto ii=graphStorage.begin(); ii!=graphStorage.end(); ++ii)
-    {
-        metisInputfile<< "Key: "<< ii->first << " value: ";
-
-        for (auto it=ii->second.begin(); it!=ii->second.end(); ++it)
-        {
+        for (auto it = ii->second.begin(); it != ii->second.end(); ++it) {
             metisInputfile << *it << " ";
         }
         metisInputfile << endl;
     }
     metisInputfile.close();
-    std::cout << "Data was written to the file path- /tmp/RDF/" << std::to_string(this->graphID) << "_metisInput.txt" << std::endl;
-
-
+    std::cout << "Data was written to the file path- /tmp/RDF/" << std::to_string(this->graphID) << "_metisInput.txt"
+              << std::endl;
 }

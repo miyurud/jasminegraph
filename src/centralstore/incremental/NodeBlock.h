@@ -25,10 +25,10 @@ class RelationBlock;  // Forward declaration
 #define NODE_BLOCK
 
 class NodeBlock {
-   private:
+ private:
     bool isDirected = false;
 
-   public:
+ public:
     unsigned int addr = 0;
     std::string id = "";  // Node ID for this block ie: citation paper ID, Facebook accout ID, Twitter account ID etc
     char usage = false;   // Whether this block is in use or not

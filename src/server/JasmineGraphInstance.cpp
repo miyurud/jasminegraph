@@ -12,27 +12,29 @@ limitations under the License.
  */
 
 #include "JasmineGraphInstance.h"
-#include "../util/logger/Logger.h"
+
 #include "../util/Utils.h"
+#include "../util/logger/Logger.h"
 
 Logger graphInstance_logger;
 
 void *runInstanceService(void *dummyPt) {
-    JasmineGraphInstance *refToInstance = (JasmineGraphInstance *) dummyPt;
+    JasmineGraphInstance *refToInstance = (JasmineGraphInstance *)dummyPt;
     refToInstance->instanceService = new JasmineGraphInstanceService();
-    refToInstance->instanceService->run(refToInstance->profile, refToInstance->masterHostName, refToInstance->hostName, refToInstance->serverPort,
-                                        refToInstance->serverDataPort);
+    refToInstance->instanceService->run(refToInstance->profile, refToInstance->masterHostName, refToInstance->hostName,
+                                        refToInstance->serverPort, refToInstance->serverDataPort);
     return NULL;
 }
 
 void *runFileTransferService(void *dummyPt) {
-    JasmineGraphInstance *refToInstance = (JasmineGraphInstance *) dummyPt;
+    JasmineGraphInstance *refToInstance = (JasmineGraphInstance *)dummyPt;
     refToInstance->ftpService = new JasmineGraphInstanceFileTransferService();
     refToInstance->ftpService->run(refToInstance->serverDataPort);
     return NULL;
 }
 
-int JasmineGraphInstance::start_running(string profile, string hostName, string masterHost,int serverPort, int serverDataPort, string enableNmon) {
+int JasmineGraphInstance::start_running(string profile, string hostName, string masterHost, int serverPort,
+                                        int serverDataPort, string enableNmon) {
     graphInstance_logger.info("Worker started");
 
     this->hostName = hostName;
@@ -52,11 +54,10 @@ int JasmineGraphInstance::start_running(string profile, string hostName, string 
     std::thread *myThreads = new std::thread[1];
     myThreads[0] = std::thread(logLoadAverage, "worker");
 
-
-    pthread_join(instanceCommunicatorThread,NULL);
-    pthread_join(instanceFileTransferThread,NULL);
+    pthread_join(instanceCommunicatorThread, NULL);
+    pthread_join(instanceFileTransferThread, NULL);
     return 0;
-    }
+}
 
 bool JasmineGraphInstance::acknowledgeMaster(string masterHost, string workerIP, string workerPort) {
     int sockfd;
@@ -85,20 +86,19 @@ bool JasmineGraphInstance::acknowledgeMaster(string masterHost, string workerIP,
         std::cerr << "ERROR, no host named " << server << std::endl;
     }
 
-    bzero((char *) &serv_addr, sizeof(serv_addr));
+    bzero((char *)&serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *) server->h_addr,
-          (char *) &serv_addr.sin_addr.s_addr,
-          server->h_length);
+    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
     serv_addr.sin_port = htons(Conts::JASMINEGRAPH_BACKEND_PORT);
-    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
     }
 
     bzero(data, 301);
-    int result_wr = write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+    int result_wr =
+        write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
 
-    if(result_wr < 0) {
+    if (result_wr < 0) {
         graphInstance_logger.log("Error writing to socket", "error");
     }
 
@@ -114,7 +114,7 @@ bool JasmineGraphInstance::acknowledgeMaster(string masterHost, string workerIP,
 
         result_wr = write(sockfd, workerIP.c_str(), workerIP.size());
 
-        if(result_wr < 0) {
+        if (result_wr < 0) {
             graphInstance_logger.log("Error writing to socket", "error");
         }
 
@@ -127,9 +127,10 @@ bool JasmineGraphInstance::acknowledgeMaster(string masterHost, string workerIP,
         if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
             graphInstance_logger.log("Received : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
 
-            result_wr = write(sockfd, JasmineGraphInstanceProtocol::ACKNOWLEDGE_MASTER.c_str(), JasmineGraphInstanceProtocol::ACKNOWLEDGE_MASTER.size());
+            result_wr = write(sockfd, JasmineGraphInstanceProtocol::ACKNOWLEDGE_MASTER.c_str(),
+                              JasmineGraphInstanceProtocol::ACKNOWLEDGE_MASTER.size());
 
-            if(result_wr < 0) {
+            if (result_wr < 0) {
                 graphInstance_logger.log("Error writing to socket", "error");
             }
 
@@ -140,10 +141,10 @@ bool JasmineGraphInstance::acknowledgeMaster(string masterHost, string workerIP,
             response = utils.trim_copy(response, " \f\n\r\t\v");
 
             if (response.compare(JasmineGraphInstanceProtocol::WORKER_INFO_SEND) == 0) {
-                std::string workerInfo = workerIP+ "|" + workerPort;
+                std::string workerInfo = workerIP + "|" + workerPort;
                 result_wr = write(sockfd, workerInfo.c_str(), workerInfo.size());
 
-                if(result_wr < 0) {
+                if (result_wr < 0) {
                     graphInstance_logger.log("Error writing to socket", "error");
                 }
 
@@ -174,7 +175,8 @@ void JasmineGraphInstance::startNmonAnalyzer(string enableNmon, int serverPort) 
         std::string numberOfSnapshots = utils.getJasmineGraphProperty("org.jasminegraph.server.nmon.snapshots");
         std::string snapshotGap = utils.getJasmineGraphProperty("org.jasminegraph.server.nmon.snapshot.gap");
         std::string nmonFileName = nmonFileLocation + "nmon.log." + std::to_string(serverPort);
-        std::string nmonStartupCommand = "nmon_x86_64_ubuntu18 -c "+ numberOfSnapshots + " -s " + snapshotGap + " -T -F " + nmonFileName;
+        std::string nmonStartupCommand =
+            "nmon_x86_64_ubuntu18 -c " + numberOfSnapshots + " -s " + snapshotGap + " -T -F " + nmonFileName;
 
         char buffer[BUFFER_SIZE];
         std::string result = "";
@@ -189,7 +191,7 @@ void JasmineGraphInstance::startNmonAnalyzer(string enableNmon, int serverPort) 
                 }
             }
             if (!result.empty()) {
-                graphInstance_logger.log("Error in performance database backup process","error");
+                graphInstance_logger.log("Error in performance database backup process", "error");
             }
 
             pclose(input);
@@ -197,12 +199,10 @@ void JasmineGraphInstance::startNmonAnalyzer(string enableNmon, int serverPort) 
     }
 }
 
-bool JasmineGraphInstance::isRunning() {
-    return true;
-}
+bool JasmineGraphInstance::isRunning() { return true; }
 
 bool JasmineGraphInstance::sendFileThroughService(std::string host, int dataPort, std::string fileName,
-                                                std::string filePath) {
+                                                  std::string filePath) {
     Utils utils;
     int sockfd;
     char data[301];
@@ -223,18 +223,16 @@ bool JasmineGraphInstance::sendFileThroughService(std::string host, int dataPort
         exit(0);
     }
 
-    bzero((char *) &serv_addr, sizeof(serv_addr));
+    bzero((char *)&serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *) server->h_addr,
-          (char *) &serv_addr.sin_addr.s_addr,
-          server->h_length);
+    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
     serv_addr.sin_port = htons(dataPort);
-    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting to port " << dataPort << std::endl;
         return false;
     }
 
-    fileName =  "jasminegraph-local_trained_model_store/"+fileName;
+    fileName = "jasminegraph-local_trained_model_store/" + fileName;
     write(sockfd, fileName.c_str(), fileName.size());
 
     bzero(data, 301);
@@ -253,18 +251,18 @@ bool JasmineGraphInstance::sendFileThroughService(std::string host, int dataPort
         for (;;) {
             unsigned char buff[1024] = {0};
             int nread = fread(buff, 1, 1024, fp);
-            //printf("Bytes read %d \n", nread);
+            // printf("Bytes read %d \n", nread);
 
             /* If read was success, send data. */
             if (nread > 0) {
-                //printf("Sending \n");
+                // printf("Sending \n");
                 write(sockfd, buff, nread);
             }
 
             if (nread < 1024) {
                 if (feof(fp))
-                    //printf("End of file\n");
-                    if (ferror(fp)){
+                    // printf("End of file\n");
+                    if (ferror(fp)) {
                         printf("Error reading\n");
                         return false;
                     }
@@ -290,17 +288,15 @@ void JasmineGraphInstance::logLoadAverage(std::string name) {
 
     start = time(0);
 
-    while(true)
-    {
+    while (true) {
         if (isStatCollect) {
             std::this_thread::sleep_for(std::chrono::seconds(60));
             continue;
         }
 
         time_t elapsed = time(0) - start;
-        if(elapsed >= Conts::LOAD_AVG_COLLECTING_GAP)
-        {
-            elapsedTime += Conts::LOAD_AVG_COLLECTING_GAP*1000;
+        if (elapsed >= Conts::LOAD_AVG_COLLECTING_GAP) {
+            elapsedTime += Conts::LOAD_AVG_COLLECTING_GAP * 1000;
             PerformanceUtil::logLoadAverage();
             start = start + Conts::LOAD_AVG_COLLECTING_GAP;
         } else {

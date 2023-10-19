@@ -14,26 +14,26 @@ limitations under the License.
 #ifndef JASMINEGRAPH_ABSTRACTEXECUTOR_H
 #define JASMINEGRAPH_ABSTRACTEXECUTOR_H
 
-#include "../domain/JobRequest.h"
-#include "../domain/JobResponse.h"
-#include "../../../util/logger/Logger.h"
-#include "../../../util/Utils.h"
 #include <pthread.h>
-#include <thread>
+
 #include <chrono>
 #include <future>
+#include <thread>
+
+#include "../../../util/Utils.h"
+#include "../../../util/logger/Logger.h"
+#include "../domain/JobRequest.h"
+#include "../domain/JobResponse.h"
 
 using namespace std;
 
-
 class AbstractExecutor {
-public:
+ public:
     AbstractExecutor();
     AbstractExecutor(JobRequest jobRequest);
-    virtual void execute()=0;
+    virtual void execute() = 0;
 
     JobRequest request;
 };
 
-
-#endif //JASMINEGRAPH_ABSTRACTEXECUTOR_H
+#endif  // JASMINEGRAPH_ABSTRACTEXECUTOR_H

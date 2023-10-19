@@ -14,23 +14,22 @@ limitations under the License.
 #ifndef JASMINEGRAPH_JSONPARSER_H
 #define JASMINEGRAPH_JSONPARSER_H
 
+#include <string.h>
+
 #include <fstream>
 #include <iostream>
+#include <map>
 #include <sstream>
 #include <string>
-#include <string.h>
-#include <map>
 #include <vector>
-#include "../../util/Utils.h"
 
+#include "../../util/Utils.h"
 
 using std::string;
 using namespace std;
 
-
 class JSONParser {
-public:
-
+ public:
     JSONParser();
 
     void jsonParse(string inputFilePath);
@@ -43,16 +42,14 @@ public:
 
     void countFileds();
 
-private:
-    
+ private:
     std::map<std::string, int> fieldsMap;
-    std::map<long , int> vertexToIDMap;
+    std::map<long, int> vertexToIDMap;
     std::map<std::string, int> fieldCounts;
 
     string inputFilePath;
     string outputFilePath;
     Utils utils;
-
 };
 
-#endif //JASMINEGRAPH_JSONPARSER_H
+#endif  // JASMINEGRAPH_JSONPARSER_H

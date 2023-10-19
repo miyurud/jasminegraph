@@ -13,19 +13,10 @@ limitations under the License.
 
 #include "JobResponse.h"
 
-std::string JobResponse::getJobId() {
-    return jobId;
-}
+std::string JobResponse::getJobId() { return jobId; }
 
-void JobResponse::setJobId(std::string inputJobId) {
-    jobId = inputJobId;
-}
+void JobResponse::setJobId(std::string inputJobId) { jobId = inputJobId; }
 
+void JobResponse::addParameter(std::string key, std::string value) { responseParams[key] = value; }
 
-void JobResponse::addParameter(std::string key, std::string value) {
-    responseParams[key] = value;
-}
-
-std::string JobResponse::getParameter(std::string key) {
-    return responseParams[key];
-}
+std::string JobResponse::getParameter(std::string key) { return responseParams[key]; }

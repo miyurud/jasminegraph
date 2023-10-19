@@ -15,14 +15,16 @@ limitations under the License.
 #define JASMINEGRAPH_PERFORMANCESQLITEDBINTERFACE_H
 
 #include <sqlite3.h>
-#include <vector>
-#include <map>
 
+#include <map>
+#include <string>
+#include <vector>
 
 class PerformanceSQLiteDBInterface {
-private:
+ private:
     sqlite3 *database;
-public:
+
+ public:
     int init();
 
     int finalize();
@@ -40,5 +42,4 @@ public:
     PerformanceSQLiteDBInterface();
 };
 
-
-#endif //JASMINEGRAPH_PERFORMANCESQLITEDBINTERFACE_H
+#endif  // JASMINEGRAPH_PERFORMANCESQLITEDBINTERFACE_H

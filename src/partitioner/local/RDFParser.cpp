@@ -11,19 +11,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
+#include "RDFParser.h"
+
+#include <errno.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+#include <fstream>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
-
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <errno.h>
-#include <fstream>
-
-
-#include "RDFParser.h"
-
 
 using namespace xercesc;
 using namespace std;
@@ -39,8 +37,7 @@ static std::map<long, string[7]> articlesMap;
 GetConfig::GetConfig() {
     try {
         XMLPlatformUtils::Initialize();  // Initialize Xerces infrastructure
-    }
-    catch (XMLException &e) {
+    } catch (XMLException &e) {
         char *message = XMLString::transcode(e.getMessage());
         cerr << "XML toolkit initialization error: " << message << endl;
         XMLString::release(&message);
@@ -62,7 +59,6 @@ GetConfig::GetConfig() {
     TAG_month_of = XMLString::transcode("akts:month-of");
     TAG_has_date = XMLString::transcode("akt:has-date");
 
-
     TAG_Article_Reference = XMLString::transcode("akt:Article-Reference");
     TAG_Book_Section_Reference = XMLString::transcode("akt:Book-Section-Reference");
     TAG_Thesis_Reference = XMLString::transcode("akt:Thesis-Reference");
@@ -71,7 +67,6 @@ GetConfig::GetConfig() {
 
     TAG_Person = XMLString::transcode("akt:Person");
     TAG_full_name = XMLString::transcode("akt:full-name");
-
 
     m_ConfigFileParser = new XercesDOMParser;
 }
@@ -108,8 +103,7 @@ GetConfig::~GetConfig() {
         XMLString::release(&TAG_Conference_Proceedings_Reference);
         XMLString::release(&TAG_Person);
         XMLString::release(&TAG_full_name);
-    }
-    catch (...) {
+    } catch (...) {
         cerr << "Unknown exception encountered while trying to release unknown TAG" << endl;
     }
 
@@ -117,8 +111,7 @@ GetConfig::~GetConfig() {
 
     try {
         XMLPlatformUtils::Terminate();  // Terminate after release of memory
-    }
-    catch (xercesc::XMLException &e) {
+    } catch (xercesc::XMLException &e) {
         char *message = xercesc::XMLString::transcode(e.getMessage());
 
         cerr << "Unknown exception encountered" << message << endl;
@@ -135,26 +128,24 @@ GetConfig::~GetConfig() {
  *  @param in configFile The text string name of the HLA configuration file.
  */
 
-void GetConfig::readConfigFile(string &configFile, int graphId)
-/* throw(std::runtime_error) */ {
-
+void GetConfig::readConfigFile(string &configFile, int graphId) {
+    /* throw(std::runtime_error) */
     struct stat fileStatus;
     this->graphID = graphId;
     ofstream file;
 
     errno = 0;
-    if (stat(configFile.c_str(), &fileStatus) == -1) // ==0 ok; ==-1 error
-    {
-        if (errno == ENOENT)      // errno declared by include file errno.h
-            throw (std::runtime_error("Path file_name does not exist, or path is an empty string."));
+    if (stat(configFile.c_str(), &fileStatus) == -1) {
+        if (errno == ENOENT)  // errno declared by include file errno.h
+            throw(std::runtime_error("Path file_name does not exist, or path is an empty string."));
         else if (errno == ENOTDIR)
-            throw (std::runtime_error("A component of the path is not a directory."));
+            throw(std::runtime_error("A component of the path is not a directory."));
         else if (errno == ELOOP)
-            throw (std::runtime_error("Too many symbolic links encountered while traversing the path."));
+            throw(std::runtime_error("Too many symbolic links encountered while traversing the path."));
         else if (errno == EACCES)
-            throw (std::runtime_error("Permission denied."));
+            throw(std::runtime_error("Permission denied."));
         else if (errno == ENAMETOOLONG)
-            throw (std::runtime_error("File can not be read\n"));
+            throw(std::runtime_error("File can not be read\n"));
     }
 
     // Configure DOM parser.
@@ -165,15 +156,11 @@ void GetConfig::readConfigFile(string &configFile, int graphId)
     m_ConfigFileParser->setLoadExternalDTD(false);
 
     try {
-
-
         m_ConfigFileParser->parse(configFile.c_str());
         DOMDocument *xmlDoc = m_ConfigFileParser->getDocument();
 
-
         DOMElement *elementRoot = xmlDoc->getDocumentElement();
-        if (!elementRoot) throw (std::runtime_error("empty XML document"));
-
+        if (!elementRoot) throw(std::runtime_error("empty XML document"));
 
         DOMNodeList *children = elementRoot->getChildNodes();
         const XMLSize_t nodeCount = children->getLength();
@@ -189,22 +176,16 @@ void GetConfig::readConfigFile(string &configFile, int graphId)
             string type;
             string volume;
 
-
             DOMNode *currentNode = children->item(xx);
-            if (currentNode->getNodeType() &&  // true is not NULL
-                currentNode->getNodeType() == DOMNode::ELEMENT_NODE) // is element
-            {
-
+            if (currentNode->getNodeType() &&  // is not NULL and is element
+                currentNode->getNodeType() == DOMNode::ELEMENT_NODE) {
                 // Found node which is an Element. Re-cast node as element
-                DOMElement *currentElement
-                        = dynamic_cast< xercesc::DOMElement * >( currentNode );
+                DOMElement *currentElement = dynamic_cast<xercesc::DOMElement *>(currentNode);
                 if (XMLString::equals(currentElement->getTagName(), TAG_Article_Reference) ||
                     XMLString::equals(currentElement->getTagName(), TAG_Book_Reference) ||
                     XMLString::equals(currentElement->getTagName(), TAG_Thesis_Reference) ||
                     XMLString::equals(currentElement->getTagName(), TAG_Book_Section_Reference) ||
                     XMLString::equals(currentElement->getTagName(), TAG_Conference_Proceedings_Reference)) {
-
-
                     if (XMLString::equals(currentElement->getTagName(), TAG_Article_Reference)) {
                         type = "0";
                     } else if (XMLString::equals(currentElement->getTagName(), TAG_Book_Reference)) {
@@ -217,7 +198,6 @@ void GetConfig::readConfigFile(string &configFile, int graphId)
 
                     } else if (XMLString::equals(currentElement->getTagName(), TAG_Conference_Proceedings_Reference)) {
                         type = "4";
-
                     }
                     attributes[1] = type;
 
@@ -225,20 +205,13 @@ void GetConfig::readConfigFile(string &configFile, int graphId)
                     const XMLSize_t nodeCount2 = children2->getLength();
 
                     for (XMLSize_t xx2 = 0; xx2 < nodeCount2; ++xx2) {
-
                         DOMNode *currentNode2 = children2->item(xx2);
-                        if (currentNode2->getNodeType() &&  // true is not NULL
-                            currentNode2->getNodeType() == DOMNode::ELEMENT_NODE) // is element
-                        {
-
-
-                            DOMElement *currentElement2
-                                    = dynamic_cast< xercesc::DOMElement * >( currentNode2 );
+                        if (currentNode2->getNodeType() &&  // is not NULL and is element
+                            currentNode2->getNodeType() == DOMNode::ELEMENT_NODE) {
+                            DOMElement *currentElement2 = dynamic_cast<xercesc::DOMElement *>(currentNode2);
                             if (XMLString::equals(currentElement2->getTagName(), TAG_has_author)) {
-
                                 DOMNode *child = currentElement2->getFirstElementChild();
-                                DOMElement *childElement
-                                        = dynamic_cast< xercesc::DOMElement * >( child );
+                                DOMElement *childElement = dynamic_cast<xercesc::DOMElement *>(child);
                                 DOMNode *author_name = childElement->getFirstElementChild();
                                 const XMLCh *author = author_name->getTextContent();
                                 Author_name = XMLString::transcode(author);
@@ -247,110 +220,76 @@ void GetConfig::readConfigFile(string &configFile, int graphId)
                                 authorsInArticle.push_back(id);
 
                             } else if (XMLString::equals(currentElement2->getTagName(), TAG_has_title)) {
-
                                 const XMLCh *paper = currentElement2->getTextContent();
                                 paper_title = XMLString::transcode(paper);
                                 long id = addToArticles(&articles, paper_title);
                                 articleID = id;
                                 attributes[0] = paper_title;
 
-
                             } else if (XMLString::equals(currentElement2->getTagName(), TAG_article_of_journal)) {
                                 DOMNode *child = currentElement2->getFirstElementChild();
-                                DOMElement *childElement
-                                        = dynamic_cast< xercesc::DOMElement * >( child );
+                                DOMElement *childElement = dynamic_cast<xercesc::DOMElement *>(child);
                                 DOMNode *journalName = childElement->getFirstElementChild();
                                 const XMLCh *journal = journalName->getTextContent();
                                 journal_name = XMLString::transcode(journal);
                                 attributes[2] = journal_name;
 
-
                             } else if (XMLString::equals(currentElement2->getTagName(), TAG_has_volume)) {
-
                                 const XMLCh *vol = currentElement2->getTextContent();
 
                                 volume = XMLString::transcode(vol);
                                 attributes[6] = volume;
 
-
                             } else if (XMLString::equals(currentElement2->getTagName(), TAG_has_date)) {
-
-
                                 DOMNode *child = currentElement2->getFirstElementChild();
-                                DOMElement *childElement
-                                        = dynamic_cast< xercesc::DOMElement * >( child );
-
+                                DOMElement *childElement = dynamic_cast<xercesc::DOMElement *>(child);
 
                                 DOMNodeList *dateElements = childElement->getChildNodes();
                                 const XMLSize_t elementCount = dateElements->getLength();
 
-
                                 for (XMLSize_t e = 0; e < elementCount; ++e) {
-
                                     DOMNode *dateEle = dateElements->item(e);
-                                    if (dateEle->getNodeType() &&
-                                        dateEle->getNodeType() == DOMNode::ELEMENT_NODE) // is element
-                                    {
-
-
-                                        DOMElement *currentDateElement = dynamic_cast< xercesc::DOMElement * >( dateEle );
+                                    if (dateEle->getNodeType() &&  // is not null and is element
+                                        dateEle->getNodeType() == DOMNode::ELEMENT_NODE) {
+                                        DOMElement *currentDateElement = dynamic_cast<xercesc::DOMElement *>(dateEle);
                                         if (XMLString::equals(currentDateElement->getTagName(), TAG_year_of)) {
-
                                             const XMLCh *yearOf = currentDateElement->getTextContent();
                                             year = XMLString::transcode(yearOf);
                                             attributes[5] = year;
 
                                         } else if (XMLString::equals(currentDateElement->getTagName(), TAG_month_of)) {
-
                                             const XMLCh *monthOf = currentDateElement->getTextContent();
                                             month = XMLString::transcode(monthOf);
                                             attributes[4] = month;
-
                                         }
                                     }
                                 }
 
-
                             } else if (XMLString::equals(currentElement2->getTagName(), TAG_has_web_address)) {
-
                                 const XMLCh *web_add = currentElement2->getTextContent();
                                 web_address = XMLString::transcode(web_add);
                                 attributes[3] = web_address;
-
-
                             }
-
                         }
                     }
-
-
                 }
 
                 if (attributes->size() > 0) {
-                    //articlesMap.insert({articleID, attributes});
-
+                    // articlesMap.insert({articleID, attributes});
                 }
                 for (int i = 0; i < authorsInArticle.size(); i++) {
-
                     for (int j = i + 1; j < authorsInArticle.size(); j++) {
-
                         edgelist.push_back(make_pair(authorsInArticle.at(i), authorsInArticle.at(j)));
                         addToEdges(&edgeMap, authorsInArticle.at(i), authorsInArticle.at(j), articleID);
 
                         file << authorsInArticle.at(i) << ' ' << authorsInArticle.at(j);
-
                     }
                 }
 
                 writeEdgesToFile();
-
             }
-
-
         }
-
-    }
-    catch (xercesc::XMLException &e) {
+    } catch (xercesc::XMLException &e) {
         char *message = xercesc::XMLString::transcode(e.getMessage());
         ostringstream errBuf;
         errBuf << "Error parsing file: " << message << flush;
@@ -359,17 +298,15 @@ void GetConfig::readConfigFile(string &configFile, int graphId)
 }
 
 void GetConfig::writeEdgesToFile() {
-
     ofstream file;
     this->utils.createDirectory(utils.getHomeDir() + "/.jasminegraph/");
     this->utils.createDirectory(utils.getHomeDir() + "/.jasminegraph/tmp/");
     this->utils.createDirectory(utils.getHomeDir() + "/.jasminegraph/tmp/" + to_string(this->graphID));
-    file.open(utils.getHomeDir() + "/.jasminegraph/tmp/" + std::to_string(this->graphID) + "/" + std::to_string(this->graphID));
+    file.open(utils.getHomeDir() + "/.jasminegraph/tmp/" + std::to_string(this->graphID) + "/" +
+              std::to_string(this->graphID));
     for (int i = 0; i < edgelist.size(); i++) {
-        file << edgelist[i].first << " "
-             << edgelist[i].second << endl;
+        file << edgelist[i].first << " " << edgelist[i].second << endl;
     }
-
 
     file.close();
 }
@@ -399,25 +336,14 @@ long GetConfig::addToArticles(std::map<string, long> *map, string URI) {
 
     articlesTemp.insert({id, URI});
 
-
     map->insert({URI, id});
     return id;
 }
 
 void GetConfig::addToEdges(std::map<pair<int, int>, int> *map, long node_1, long node_2, long article_id) {
-
     map->insert({{node_1, node_2}, article_id});
-
-
 }
 
-std::map<std::pair<int, int>, int> GetConfig::getEdgeMap() {
-    return edgeMap;
-}
+std::map<std::pair<int, int>, int> GetConfig::getEdgeMap() { return edgeMap; }
 
-std::map<long, string[7]> GetConfig::getAttributesMap() {
-    return articlesMap;
-}
-
-
-
+std::map<long, string[7]> GetConfig::getAttributesMap() { return articlesMap; }

@@ -12,27 +12,23 @@ limitations under the License.
  */
 
 #include "SchedulerService.h"
+
 #include "Scheduler.h"
 
 using namespace Bosma;
 
 Logger schedulerservice_logger;
 
-
 void SchedulerService::startScheduler() {
-
     Utils utils;
 
     std::string schedulerEnabled = utils.getJasmineGraphProperty("org.jasminegraph.scheduler.enabled");
 
     if (schedulerEnabled == "true") {
-
-        schedulerservice_logger.log("#######SCHEDULER ENABLED#####","info");
+        schedulerservice_logger.log("#######SCHEDULER ENABLED#####", "info");
 
         startPerformanceScheduler();
     }
-
-
 }
 
 void SchedulerService::startPerformanceScheduler() {
@@ -44,7 +40,8 @@ void SchedulerService::startPerformanceScheduler() {
 
     Bosma::Scheduler scheduler(max_n_threads);
 
-    std::string performanceSchedulerTiming = utils.getJasmineGraphProperty("org.jasminegraph.scheduler.performancecollector.timing");
+    std::string performanceSchedulerTiming =
+        utils.getJasmineGraphProperty("org.jasminegraph.scheduler.performancecollector.timing");
 
     scheduler.every(std::chrono::seconds(atoi(performanceSchedulerTiming.c_str())), util.collectPerformanceStatistics);
 

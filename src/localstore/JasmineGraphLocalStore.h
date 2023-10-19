@@ -15,16 +15,16 @@ limitations under the License.
 #define JASMINEGRAPH_JASMINEGRAPHLOCALSTORE_H
 
 #include <map>
-#include <unordered_set>
 #include <string>
+#include <unordered_set>
 
 using std::map;
-using std::unordered_set;
 using std::string;
+using std::unordered_set;
 
 class JasmineGraphLocalStore {
-private:
-public:
+ private:
+ public:
     bool loadGraph();
 
     bool storeGraph();
@@ -44,5 +44,4 @@ public:
     long getEdgeCount();
 };
 
-
-#endif //JASMINEGRAPH_JASMINEGRAPHLOCALSTORE_H
+#endif  // JASMINEGRAPH_JASMINEGRAPHLOCALSTORE_H

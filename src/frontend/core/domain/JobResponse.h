@@ -14,20 +14,19 @@ limitations under the License.
 #ifndef JASMINEGRAPH_JOBRESPONSE_H
 #define JASMINEGRAPH_JOBRESPONSE_H
 
-#include <string>
 #include <map>
+#include <string>
 
 class JobResponse {
-private:
+ private:
     std::string jobId;
     std::map<std::string, std::string> responseParams;
 
-public:
+ public:
     std::string getJobId();
     void setJobId(std::string inputJobId);
     void addParameter(std::string key, std::string value);
     std::string getParameter(std::string key);
 };
 
-
-#endif //JASMINEGRAPH_JOBRESPONSE_H
+#endif  // JASMINEGRAPH_JOBRESPONSE_H
