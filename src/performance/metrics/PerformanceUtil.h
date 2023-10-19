@@ -58,8 +58,8 @@ public:
     //PerformanceUtil(SQLiteDBInterface sqlLiteDB, PerformanceSQLiteDBInterface perfDb);
     void init();
     static int collectPerformanceStatistics();
-    static int collectSLAResourceConsumption(std::vector<Place> placeList, std::string graphId,
-                                             std::string masterIP, int elapsedTime);
+    static int collectSLAResourceConsumption(std::vector<Place> placeList, std::string graphId,std::string command, std::string category,
+                                             std::string masterIP, int elapsedTime, bool autoCalibrate);
     static std::vector<ResourceConsumption> retrieveCurrentResourceUtilization(std::string masterIP);
     static std::vector<long> getResourceAvailableTime(std::vector<std::string> graphIdList, std::string command, std::string category,
                                          std::string masterIP, std::vector<JobRequest> &pendingHPJobList);
@@ -79,7 +79,8 @@ public:
     std::string isResourceAllocationRequired,
             std::string placeId, int elapsedTime,
             std::string masterIP);
-
+    static double getAggregatedLoadAverage(std::string graphId, std::string placeId, std::string command,
+                                           std::string category, int elapsedTime);
 private:
     //static SQLiteDBInterface sqlLiteDB;
     //static PerformanceSQLiteDBInterface perfDb;
@@ -88,7 +89,7 @@ private:
     static int collectRemoteSLAResourceUtilization(std::string host, int port, std::string isVMStatManager,
                                                    std::string isResourceAllocationRequired, std::string placeId,
                                                    int elapsedTime, std::string masterIP);
-    static void collectLocalSLAResourceUtilization(std::string placeId, int elapsedTime);
+    static void collectLocalSLAResourceUtilization(std::string graphId, std::string placeId, std::string command, std::string category, int elapsedTime, bool autoCalibrate);
     static ResourceConsumption retrieveRemoteResourceConsumption(std::string host, int port,
             std::string hostId, std::string placeId);
     static ResourceConsumption retrieveLocalResourceConsumption(std::string hostId, std::string placeId);
