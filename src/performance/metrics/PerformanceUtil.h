@@ -11,28 +11,28 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <dirent.h>
+#include <netdb.h>
+#include <pthread.h>
 #include <string.h>
-#include "../../util/Utils.h"
-#include "../../util/Conts.h"
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+#include <chrono>
+#include <future>
+#include <thread>
+
+#include "../../frontend/core/domain/JobRequest.h"
 #include "../../metadb/SQLiteDBInterface.h"
 #include "../../performancedb/PerformanceSQLiteDBInterface.h"
-#include "../../util/PlacesToNodeMapper.h"
 #include "../../server/JasmineGraphInstanceProtocol.h"
-#include "StatisticCollector.h"
-#include "../../util/logger/Logger.h"
-#include <thread>
-#include <pthread.h>
-#include <future>
-#include <unistd.h>
-#include <sys/socket.h>
-#include <netdb.h>
+#include "../../util/Conts.h"
+#include "../../util/PlacesToNodeMapper.h"
 #include "../../util/Utils.h"
-#include "../../frontend/core/domain/JobRequest.h"
-#include <chrono>
-
+#include "../../util/logger/Logger.h"
+#include "StatisticCollector.h"
 
 #ifndef JASMINEGRAPH_PERFORMANCEUTIL_H
 #define JASMINEGRAPH_PERFORMANCEUTIL_H
@@ -42,7 +42,7 @@ struct ResourceConsumption {
     std::string host;
 };
 
-struct Place{
+struct Place {
     std::string ip;
     std::string user;
     std::string serverPort;
@@ -52,51 +52,56 @@ struct Place{
     std::string placeId;
 };
 
-
 class PerformanceUtil {
-public:
-    //PerformanceUtil(SQLiteDBInterface sqlLiteDB, PerformanceSQLiteDBInterface perfDb);
+ public:
+    // PerformanceUtil(SQLiteDBInterface sqlLiteDB, PerformanceSQLiteDBInterface perfDb);
     void init();
     static int collectPerformanceStatistics();
-    static int collectSLAResourceConsumption(std::vector<Place> placeList, std::string graphId,std::string command, std::string category,
-                                             std::string masterIP, int elapsedTime, bool autoCalibrate);
+    static int collectSLAResourceConsumption(std::vector<Place> placeList, std::string graphId, std::string command,
+                                             std::string category, std::string masterIP, int elapsedTime,
+                                             bool autoCalibrate);
     static std::vector<ResourceConsumption> retrieveCurrentResourceUtilization(std::string masterIP);
-    static std::vector<long> getResourceAvailableTime(std::vector<std::string> graphIdList, std::string command, std::string category,
-                                         std::string masterIP, std::vector<JobRequest> &pendingHPJobList);
+    static std::vector<long> getResourceAvailableTime(std::vector<std::string> graphIdList, std::string command,
+                                                      std::string category, std::string masterIP,
+                                                      std::vector<JobRequest>& pendingHPJobList);
 
     static void logLoadAverage();
     static std::vector<Place> getHostReporterList();
-    static void updateResourceConsumption(PerformanceSQLiteDBInterface performanceDb, std::string graphId, int partitionCount, std::vector<Place> placeList,
-                                          std::string slaCategoryId);
-    static void updateRemoteResourceConsumption(PerformanceSQLiteDBInterface performanceDb, std::string graphId, int partitionCount, std::vector<Place> placeList,
-                                          std::string slaCategoryId, std::string masterIP);
+    static void updateResourceConsumption(PerformanceSQLiteDBInterface performanceDb, std::string graphId,
+                                          int partitionCount, std::vector<Place> placeList, std::string slaCategoryId);
+    static void updateRemoteResourceConsumption(PerformanceSQLiteDBInterface performanceDb, std::string graphId,
+                                                int partitionCount, std::vector<Place> placeList,
+                                                std::string slaCategoryId, std::string masterIP);
     static std::string getSLACategoryId(std::string command, std::string category);
     static void initiateCollectingRemoteSLAResourceUtilization(std::string host, int port, std::string isVMStatManager,
-                                                              std::string isResourceAllocationRequired, std::string placeId,
-                                                              int elapsedTime, std::string masterIP);
-    static std::string requestRemoteLoadAverages(std::string host, int port,
-            std::string isVMStatManager,
-    std::string isResourceAllocationRequired,
-            std::string placeId, int elapsedTime,
-            std::string masterIP);
+                                                               std::string isResourceAllocationRequired,
+                                                               std::string placeId, int elapsedTime,
+                                                               std::string masterIP);
+    static std::string requestRemoteLoadAverages(std::string host, int port, std::string isVMStatManager,
+                                                 std::string isResourceAllocationRequired, std::string placeId,
+                                                 int elapsedTime, std::string masterIP);
     static double getAggregatedLoadAverage(std::string graphId, std::string placeId, std::string command,
                                            std::string category, int elapsedTime);
-private:
-    //static SQLiteDBInterface sqlLiteDB;
-    //static PerformanceSQLiteDBInterface perfDb;
-    static void collectRemotePerformanceData(std::string host, int port, std::string isVMStatManager, std::string isResourceAllocationRequired, std::string hostId, std::string placeId);
-    static void collectLocalPerformanceData(std::string isVMStatManager, std::string isResourceAllocationRequired , std::string hostId, std::string placeId);
+
+ private:
+    // static SQLiteDBInterface sqlLiteDB;
+    // static PerformanceSQLiteDBInterface perfDb;
+    static void collectRemotePerformanceData(std::string host, int port, std::string isVMStatManager,
+                                             std::string isResourceAllocationRequired, std::string hostId,
+                                             std::string placeId);
+    static void collectLocalPerformanceData(std::string isVMStatManager, std::string isResourceAllocationRequired,
+                                            std::string hostId, std::string placeId);
     static int collectRemoteSLAResourceUtilization(std::string host, int port, std::string isVMStatManager,
                                                    std::string isResourceAllocationRequired, std::string placeId,
                                                    int elapsedTime, std::string masterIP);
-    static void collectLocalSLAResourceUtilization(std::string graphId, std::string placeId, std::string command, std::string category, int elapsedTime, bool autoCalibrate);
-    static ResourceConsumption retrieveRemoteResourceConsumption(std::string host, int port,
-            std::string hostId, std::string placeId);
+    static void collectLocalSLAResourceUtilization(std::string graphId, std::string placeId, std::string command,
+                                                   std::string category, int elapsedTime, bool autoCalibrate);
+    static ResourceConsumption retrieveRemoteResourceConsumption(std::string host, int port, std::string hostId,
+                                                                 std::string placeId);
     static ResourceConsumption retrieveLocalResourceConsumption(std::string hostId, std::string placeId);
-    static void adjustAggregateLoadMap (std::map<std::string,std::vector<double>>& aggregateLoadAvgMap,
-            std::map<std::string,std::vector<double>>& newJobLoadAvgMap, long newJobAcceptanceTime);
-
+    static void adjustAggregateLoadMap(std::map<std::string, std::vector<double>>& aggregateLoadAvgMap,
+                                       std::map<std::string, std::vector<double>>& newJobLoadAvgMap,
+                                       long newJobAcceptanceTime);
 };
 
-
-#endif //JASMINEGRAPH_PERFORMANCEUTIL_H
+#endif  // JASMINEGRAPH_PERFORMANCEUTIL_H

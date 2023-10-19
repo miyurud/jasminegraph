@@ -11,16 +11,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
-#include <vector>
-#include <sstream>
-#include <sys/stat.h>
+#include "Utils.h"
+
 #include <pwd.h>
+#include <sys/stat.h>
 #include <unistd.h>
+
 #include <chrono>
 #include <ctime>
 #include <iomanip>
-#include "Utils.h"
-//#include "../frontend/JasmineGraphFrontEnd.h"
+#include <sstream>
+#include <vector>
+
 #include "Conts.h"
 #include "logger/Logger.h"
 
@@ -37,20 +39,18 @@ map<std::string, std::string> Utils::getBatchUploadFileList(std::string file) {
         std::string str = *iterator1;
 
         if (str.length() > 0 && !(str.rfind("#", 0) == 0)) {
-
             std::vector<std::string> vec = split(str, ':');
 
-//            ifstream batchUploadConfFile(vec.at(1));
-//            string line;
-//
-//            if (batchUploadConfFile.is_open()) {
-//                while (getline(batchUploadConfFile, line)) {
-//                    cout << line << '\n';
-//                }
-//            }
+            //            ifstream batchUploadConfFile(vec.at(1));
+            //            string line;
+            //
+            //            if (batchUploadConfFile.is_open()) {
+            //                while (getline(batchUploadConfFile, line)) {
+            //                    cout << line << '\n';
+            //                }
+            //            }
 
             result->insert(std::pair<std::string, std::string>(vec.at(0), vec.at(1)));
-
         }
 
         iterator1++;
@@ -95,17 +95,16 @@ std::string Utils::getJasmineGraphProperty(std::string key) {
             std::string item = *it;
             if (item.length() > 0 && !(item.rfind("#", 0) == 0)) {
                 std::vector<std::string> vec2 = split(item, '=');
-                if (vec2.size() == 2){
+                if (vec2.size() == 2) {
                     Utils::propertiesMap[vec2.at(0)] = vec2.at(1);
                 } else {
-                    Utils::propertiesMap[vec2.at(0)] =  string(" ");
+                    Utils::propertiesMap[vec2.at(0)] = string(" ");
                 }
             }
         }
     }
-    unordered_map<std::string,std::string>::iterator it = Utils::propertiesMap.find(key);
-    if(it != Utils::propertiesMap.end())
-    {
+    unordered_map<std::string, std::string>::iterator it = Utils::propertiesMap.find(key);
+    if (it != Utils::propertiesMap.end()) {
         return it->second;
     }
     return NULL;
@@ -113,8 +112,8 @@ std::string Utils::getJasmineGraphProperty(std::string key) {
 
 std::vector<Utils::worker> Utils::getWorkerList(SQLiteDBInterface sqlite) {
     vector<worker> workerVector;
-    std::vector<vector<pair<string, string>>> v = sqlite.runSelect(
-            "SELECT idworker,user,ip,server_port,server_data_port FROM worker;");
+    std::vector<vector<pair<string, string>>> v =
+        sqlite.runSelect("SELECT idworker,user,ip,server_port,server_data_port FROM worker;");
     for (int i = 0; i < v.size(); i++) {
         string workerID = v[i][0].second;
         string user = v[i][1].second;
@@ -128,7 +127,6 @@ std::vector<Utils::worker> Utils::getWorkerList(SQLiteDBInterface sqlite) {
         workerInstance.hostname = ip;
         workerInstance.port = serverPort;
         workerInstance.dataPort = serverDataPort;
-
 
         workerVector.push_back(workerInstance);
     }
@@ -152,22 +150,15 @@ std::vector<std::string> Utils::getHostListFromProperties() {
     return result;
 }
 
-
-inline std::string trim_right_copy(
-        const std::string &s,
-        const std::string &delimiters = " \f\n\r\t\v") {
+inline std::string trim_right_copy(const std::string &s, const std::string &delimiters = " \f\n\r\t\v") {
     return s.substr(0, s.find_last_not_of(delimiters) + 1);
 }
 
-inline std::string trim_left_copy(
-        const std::string &s,
-        const std::string &delimiters = " \f\n\r\t\v") {
+inline std::string trim_left_copy(const std::string &s, const std::string &delimiters = " \f\n\r\t\v") {
     return s.substr(s.find_first_not_of(delimiters));
 }
 
-std::string Utils::trim_copy(
-        const std::string &s,
-        const std::string &delimiters = " \f\n\r\t\v") {
+std::string Utils::trim_copy(const std::string &s, const std::string &delimiters = " \f\n\r\t\v") {
     return trim_left_copy(trim_right_copy(s, delimiters), delimiters);
 }
 
@@ -199,9 +190,9 @@ bool Utils::fileExists(std::string fileName) {
  */
 void Utils::createDirectory(const std::string dirName) {
     if (mkdir(dirName.c_str(), 0777) == -1) {
-        //std::cout << "Error : " << strerror(errno) << endl;
+        // std::cout << "Error : " << strerror(errno) << endl;
     } else {
-        //util_logger.log("Directory " + dirName + " created successfully", "info");
+        // util_logger.log("Directory " + dirName + " created successfully", "info");
     }
 }
 
@@ -222,7 +213,7 @@ std::vector<std::string> Utils::getListOfFilesInDirectory(const std::string dirN
         pclose(input);
         if (!result.empty()) {
             std::vector<std::string> vec = split(result, '\n');
-            for(std::vector<std::string>::iterator it = vec.begin(); it != vec.end(); ++it){
+            for (std::vector<std::string>::iterator it = vec.begin(); it != vec.end(); ++it) {
                 std::string line = it->c_str();
                 if (line.back() == '\r') {
                     line.pop_back();
@@ -245,16 +236,17 @@ std::vector<std::string> Utils::getListOfFilesInDirectory(const std::string dirN
  * This method deletes a directory with all its content
  * @param dirName
  */
-//TODO :: find a possible solution to handle the permission denied error when trying to delete a protected directory. popen does not work either
+// TODO :: find a possible solution to handle the permission denied error when trying to delete a protected directory.
+// popen does not work either
 void Utils::deleteDirectory(const std::string dirName) {
     string command = "rm -rf " + dirName;
     system(command.c_str());
     util_logger.log(dirName + " deleted successfully", "info");
 }
 
-bool Utils::is_number(const std::string& compareString) {
-    return !compareString.empty() && std::find_if(compareString.begin(),
-                                                  compareString.end(), [](char c) { return !std::isdigit(c); }) == compareString.end();
+bool Utils::is_number(const std::string &compareString) {
+    return !compareString.empty() && std::find_if(compareString.begin(), compareString.end(),
+                                                  [](char c) { return !std::isdigit(c); }) == compareString.end();
 }
 
 /**
@@ -271,12 +263,11 @@ std::string Utils::getJasmineGraphHome() {
     std::string test = Conts::JASMINEGRAPH_HOME;
     std::string jasminegraph_home;
 
-    char const* temp = getenv(test.c_str());
-    if(temp != NULL)
-    {
+    char const *temp = getenv(test.c_str());
+    if (temp != NULL) {
         jasminegraph_home = std::string(temp);
     }
-    if(jasminegraph_home.empty()) {
+    if (jasminegraph_home.empty()) {
         util_logger.log("Returning empty value for " + Conts::JASMINEGRAPH_HOME, "warn");
     }
     return jasminegraph_home;
@@ -288,8 +279,7 @@ std::string Utils::getJasmineGraphHome() {
  */
 std::string Utils::getHomeDir() {
     const char *homedir;
-    if ((homedir = getenv("HOME")) == NULL)
-    {
+    if ((homedir = getenv("HOME")) == NULL) {
         homedir = getpwuid(getuid())->pw_dir;
     }
     return string(homedir);
@@ -300,10 +290,9 @@ std::string Utils::getHomeDir() {
  * @param filePath
  */
 void Utils::copyFile(const std::string sourceFilePath, const std::string destinationFilePath) {
-
     util_logger.log("Starting file copy source: " + sourceFilePath + " destination: " + destinationFilePath, "info");
     std::string command = "cp " + sourceFilePath + " " + destinationFilePath;
-    FILE *copyInput = popen(command.c_str(),"r");
+    FILE *copyInput = popen(command.c_str(), "r");
     pclose(copyInput);
 }
 
@@ -313,7 +302,7 @@ void Utils::copyFile(const std::string sourceFilePath, const std::string destina
  * @return
  */
 int Utils::getFileSize(std::string filePath) {
-    //const clock_t begin_time = clock();
+    // const clock_t begin_time = clock();
     ifstream file(filePath.c_str(), ifstream::in | ifstream::binary);
     if (!file.is_open()) {
         return -1;
@@ -321,7 +310,7 @@ int Utils::getFileSize(std::string filePath) {
     file.seekg(0, ios::end);
     int fileSize = file.tellg();
     file.close();
-    //std::cout << "TIME FOR READ : "<<float( clock () - begin_time ) /  CLOCKS_PER_SEC << std::endl;
+    // std::cout << "TIME FOR READ : "<<float( clock () - begin_time ) /  CLOCKS_PER_SEC << std::endl;
     return fileSize;
 }
 
@@ -361,7 +350,7 @@ void Utils::compressFile(const std::string filePath, const std::string mode) {
  * this method extracts a gzip file
  * @param filePath
  */
-void Utils::unzipFile(std::string filePath, const std::string mode ) {
+void Utils::unzipFile(std::string filePath, const std::string mode) {
     char buffer[128];
     std::string result = "";
     std::string command = mode + " -f -d " + filePath + " 2>&1";
@@ -389,10 +378,11 @@ void Utils::unzipFile(std::string filePath, const std::string mode ) {
     }
 }
 
-int Utils::parseARGS(char **args, char *line){
-    int tmp=0;
-    args[tmp] = strtok( line, ":" );
-    while ( (args[++tmp] = strtok(NULL, ":" ) ) != NULL );
+int Utils::parseARGS(char **args, char *line) {
+    int tmp = 0;
+    args[tmp] = strtok(line, ":");
+    while ((args[++tmp] = strtok(NULL, ":")) != NULL) {
+    }
     return tmp - 1;
 }
 
@@ -402,8 +392,9 @@ int Utils::parseARGS(char **args, char *line){
  */
 bool Utils::hostExists(string name, string ip, std::string workerPort, SQLiteDBInterface sqlite) {
     bool result = true;
-    string stmt = "SELECT COUNT( * ) FROM worker WHERE name LIKE '" + name + "' AND ip LIKE '" + ip + "' AND server_port LIKE '"+ workerPort +"';";
-    if (ip == ""){
+    string stmt = "SELECT COUNT( * ) FROM worker WHERE name LIKE '" + name + "' AND ip LIKE '" + ip +
+                  "' AND server_port LIKE '" + workerPort + "';";
+    if (ip == "") {
         stmt = "SELECT COUNT( * ) FROM worker WHERE name LIKE '" + name + "';";
     }
     std::vector<vector<pair<string, string>>> v = sqlite.runSelect(stmt);
@@ -416,13 +407,12 @@ bool Utils::hostExists(string name, string ip, std::string workerPort, SQLiteDBI
 
 string Utils::getHostID(string hostName, SQLiteDBInterface sqlite) {
     map<string, string> hostIDMap;
-    std::vector<vector<pair<string, string>>> v = sqlite.runSelect("SELECT idhost FROM host where name LIKE '" +
-            hostName + "';");
+    std::vector<vector<pair<string, string>>> v =
+        sqlite.runSelect("SELECT idhost FROM host where name LIKE '" + hostName + "';");
     string id = v[0][0].second;
 
     return id;
 }
-
 
 /**
  * This method compresses directories using tar
@@ -431,7 +421,7 @@ string Utils::getHostID(string hostName, SQLiteDBInterface sqlite) {
 void Utils::compressDirectory(const std::string filePath) {
     char buffer[128];
     std::string result = "";
-    std::string command = "tar -czvf " + filePath + ".tar.gz "+ filePath;
+    std::string command = "tar -czvf " + filePath + ".tar.gz " + filePath;
     char *commandChar = new char[command.length() + 1];
     strcpy(commandChar, command.c_str());
     FILE *input = popen(commandChar, "r");
@@ -445,7 +435,7 @@ void Utils::compressDirectory(const std::string filePath) {
         if (!result.empty()) {
             util_logger.log("Directory compression failed with error: " + result, "error");
         } else {
-            //util_logger.log("File in " + filePath + " compressed with gzip", "info");
+            // util_logger.log("File in " + filePath + " compressed with gzip", "info");
         }
     } else {
         perror("popen");
@@ -457,11 +447,10 @@ void Utils::compressDirectory(const std::string filePath) {
  * this method extracts a tar.gz directory
  * @param filePath
  */
-void Utils::unzipDirectory(std::string filePath){
-
+void Utils::unzipDirectory(std::string filePath) {
     char buffer[128];
     std::string result = "";
-    std::string command = "tar -xzvf " + filePath ;
+    std::string command = "tar -xzvf " + filePath;
     char *commandChar = new char[command.length() + 1];
     strcpy(commandChar, command.c_str());
     FILE *input = popen(commandChar, "r");
@@ -475,7 +464,7 @@ void Utils::unzipDirectory(std::string filePath){
         if (!result.empty()) {
             util_logger.log("Directory decompression failed with error : " + result, "error");
         } else {
-            //util_logger.log("File in " + filePath + " extracted with gzip", "info");
+            // util_logger.log("File in " + filePath + " extracted with gzip", "info");
         }
     } else {
         perror("popen");
@@ -486,11 +475,11 @@ void Utils::unzipDirectory(std::string filePath){
 void Utils::assignPartitionsToWorkers(int numberOfWorkers, SQLiteDBInterface sqlite) {
     sqlite.runUpdate("DELETE FROM worker_has_partition");
 
-    std::vector<vector<pair<string, string>>> v = sqlite.runSelect(
-            "SELECT idpartition, graph_idgraph FROM partition;");
+    std::vector<vector<pair<string, string>>> v = sqlite.runSelect("SELECT idpartition, graph_idgraph FROM partition;");
     int workerCounter = 0;
     string valueString;
-    string sqlStatement = "INSERT INTO worker_has_partition (partition_idpartition, partition_graph_idgraph, worker_idworker) VALUES ";
+    string sqlStatement =
+        "INSERT INTO worker_has_partition (partition_idpartition, partition_graph_idgraph, worker_idworker) VALUES ";
     std::stringstream ss;
     if (v.size() > 0) {
         for (std::vector<vector<pair<string, string>>>::iterator i = v.begin(); i != v.end(); ++i) {
@@ -516,8 +505,8 @@ void Utils::assignPartitionsToWorkers(int numberOfWorkers, SQLiteDBInterface sql
 
 void Utils::updateSLAInformation(PerformanceSQLiteDBInterface perfSqlite, std::string graphId, int partitionCount,
                                  long newSlaValue, std::string command, std::string category) {
-
-    std::string categoryQuery = "SELECT id from sla_category where command='" + command + "' and category='" + category + "'";
+    std::string categoryQuery =
+        "SELECT id from sla_category where command='" + command + "' and category='" + category + "'";
 
     std::vector<vector<pair<string, string>>> categoryResults = perfSqlite.runSelect(categoryQuery);
 
@@ -525,7 +514,8 @@ void Utils::updateSLAInformation(PerformanceSQLiteDBInterface perfSqlite, std::s
         string slaCategoryId = categoryResults[0][0].second;
 
         std::string query = "SELECT id, sla_value, attempt from graph_sla where graph_id='" + graphId +
-                            "' and partition_count='" + std::to_string(partitionCount) + "' and id_sla_category='" + slaCategoryId + "';";
+                            "' and partition_count='" + std::to_string(partitionCount) + "' and id_sla_category='" +
+                            slaCategoryId + "';";
 
         std::vector<vector<pair<string, string>>> results = perfSqlite.runSelect(query);
 
@@ -548,27 +538,24 @@ void Utils::updateSLAInformation(PerformanceSQLiteDBInterface perfSqlite, std::s
                 perfSqlite.runUpdate(updateQuery);
             }
         } else {
-            std::string insertQuery = "insert into graph_sla (id_sla_category, graph_id, partition_count, sla_value, attempt) VALUES ('" +
-                                      slaCategoryId + "','" + graphId + "'," + std::to_string(partitionCount) + "," +
-                                      std::to_string(newSlaValue) + ",0);";
+            std::string insertQuery =
+                "insert into graph_sla (id_sla_category, graph_id, partition_count, sla_value, attempt) VALUES ('" +
+                slaCategoryId + "','" + graphId + "'," + std::to_string(partitionCount) + "," +
+                std::to_string(newSlaValue) + ",0);";
 
             perfSqlite.runInsert(insertQuery);
         }
     } else {
         util_logger.log("Invalid SLA " + category + " for " + command + " command", "error");
     }
-
 }
 
 void Utils::copyToDirectory(std::string currentPath, std::string copyPath) {
-
-    std::string command = "mkdir -p " +copyPath + "&& " + "cp "+ currentPath + " " + copyPath;
+    std::string command = "mkdir -p " + copyPath + "&& " + "cp " + currentPath + " " + copyPath;
     system(command.c_str());
-
 }
 
-void Utils::editFlagOne(std::string flagPath){
-
+void Utils::editFlagOne(std::string flagPath) {
     std::string filePath = flagPath;
     ofstream stream;
     char flag[] = "1";
@@ -578,8 +565,7 @@ void Utils::editFlagOne(std::string flagPath){
     stream.close();
 }
 
-void Utils::editFlagZero(std::string flagPath){
-
+void Utils::editFlagZero(std::string flagPath) {
     std::string filePath = flagPath;
     ofstream stream;
     char flag[] = "0";
@@ -589,14 +575,12 @@ void Utils::editFlagZero(std::string flagPath){
     stream.close();
 }
 
-std::string Utils::checkFlag(std::string flagPath){
-
+std::string Utils::checkFlag(std::string flagPath) {
     std::string filePath = flagPath;
     std::string bitVal;
     ifstream infile(filePath);
 
-    if (infile.good()){
-
+    if (infile.good()) {
         getline(infile, bitVal);
     }
 
@@ -619,7 +603,9 @@ int Utils::connect_wrapper(int sock, const sockaddr *addr, socklen_t slen) {
 
     do {
         if (retry) sleep(retry * 2);
-        util_logger.info("Trying to connect to [" + to_string(retry) + "]: " + string(inet_ntoa(((const struct sockaddr_in *)addr)->sin_addr)) + ":" + to_string(ntohs(((const struct sockaddr_in *)addr)->sin_port)));
+        util_logger.info("Trying to connect to [" + to_string(retry) +
+                         "]: " + string(inet_ntoa(((const struct sockaddr_in *)addr)->sin_addr)) + ":" +
+                         to_string(ntohs(((const struct sockaddr_in *)addr)->sin_port)));
         if (connect(sock, addr, slen) == 0) {
             return 0;
         }
@@ -633,7 +619,7 @@ std::string Utils::getCurrentTimestamp() {
     tm tm_time;
     localtime_r(&time, &tm_time);
     stringstream timestamp;
-    timestamp << put_time(&tm_time, "%y%m%d_%H%M%S"); // Format can be customized
+    timestamp << put_time(&tm_time, "%y%m%d_%H%M%S");  // Format can be customized
 
     return timestamp.str();
 }

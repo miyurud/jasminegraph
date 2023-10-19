@@ -14,31 +14,28 @@ limitations under the License.
 #include "Conts.h"
 
 std::string Conts::JASMINEGRAPH_EXECUTABLE = "run.sh";
-std::string Conts::JASMINEGRAPH_HOME  = "JASMINEGRAPH_HOME";
+std::string Conts::JASMINEGRAPH_HOME = "JASMINEGRAPH_HOME";
 
-std::string Conts::GRAPH_TYPE_RDF  = "RDF_GRAPH";
-std::string Conts::GRAPH_TYPE_NORMAL  = "NORMAL_GRAPH";
-std::string Conts::GRAPH_TYPE_NORMAL_REFORMATTED  = "REFORMATTED_GRAPH";
+std::string Conts::GRAPH_TYPE_RDF = "RDF_GRAPH";
+std::string Conts::GRAPH_TYPE_NORMAL = "NORMAL_GRAPH";
+std::string Conts::GRAPH_TYPE_NORMAL_REFORMATTED = "REFORMATTED_GRAPH";
 std::string Conts::GRAPH_WITH_TEXT_ATTRIBUTES = "TEXT_ATT";
 std::string Conts::GRAPH_WITH_JSON_ATTRIBUTES = "JSON_ATT";
 std::string Conts::GRAPH_WITH_XML_ATTRIBUTES = "XML_ATT";
 
-std::string Conts::GRAPH_WITH_ATTRIBUTES  = "GRAPH_WITH_ATTRIBUTES";
-
-
+std::string Conts::GRAPH_WITH_ATTRIBUTES = "GRAPH_WITH_ATTRIBUTES";
 
 std::string Conts::GRAPH_WITH::TEXT_ATTRIBUTES = "1 : Graph with edge list + text attributes list";
 std::string Conts::GRAPH_WITH::JSON_ATTRIBUTES = "2 : Graph with edge list + JSON attributes list";
 std::string Conts::GRAPH_WITH::XML_ATTRIBUTES = "3 : Graph with edge list + XML attributes list";
 
-
 int Conts::JASMINEGRAPH_FRONTEND_PORT = 7777;
 int Conts::JASMINEGRAPH_BACKEND_PORT = 7778;
 int Conts::JASMINEGRAPH_VERTEXCOUNTER_PORT = 7779;
-int Conts::JASMINEGRAPH_INSTANCE_PORT = 7780;//Worker port
-int Conts::JASMINEGRAPH_INSTANCE_DATA_PORT = 7781;//Data Port
+int Conts::JASMINEGRAPH_INSTANCE_PORT = 7780;       // Worker port
+int Conts::JASMINEGRAPH_INSTANCE_DATA_PORT = 7781;  // Data Port
 
-int Conts::GRAPH_TYPE_TEXT= 1 ;//Data Port
+int Conts::GRAPH_TYPE_TEXT = 1;  // Data Port
 
 int Conts::JASMINEGRAPH_WORKER_ACKNOWLEDGEMENT_TIMEOUT = 30000;
 
@@ -59,7 +56,6 @@ int Conts::LOAD_AVG_COLLECTING_GAP = 5;
 double Conts::LOAD_AVG_THREASHOLD = 20;
 
 int Conts::SCHEDULER_SLEEP_TIME = 2;
-
 
 const int Conts::GRAPH_STATUS::LOADING = 1;
 const int Conts::GRAPH_STATUS::OPERATIONAL = 2;

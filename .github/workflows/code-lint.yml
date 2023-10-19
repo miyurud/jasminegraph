@@ -28,7 +28,7 @@ jobs:
 
             - name: cpplint check
               if: ${{!contains(github.event.pull_request.labels.*.name, 'Skip cpplint Check')}}
-              run: cpplint --linelength=120 --filter=-build,-runtime,-readability/todo,-whitespace/todo,-readability/casting,-readability/braces,-readability/fn_size,-legal/copyright --exclude=./src/util/sqlite3/ --recursive .
+              run: cpplint --linelength=120 --filter=-build,-runtime,-readability/todo,-whitespace/todo,-readability/casting,-readability/braces,-readability/fn_size,-legal/copyright --recursive .
 
             - name: pylint check
               if: ${{!contains(github.event.pull_request.labels.*.name, 'Skip pylint Check')}}
