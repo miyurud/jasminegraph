@@ -13,15 +13,15 @@ limitations under the License.
 #ifndef JASMINEGRAPH_UTILS_H
 #define JASMINEGRAPH_UTILS_H
 
+#include <arpa/inet.h>
+
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <string>
 #include <unordered_map>
 #include <vector>
-#include <arpa/inet.h>
-#include <string.h>
-
-#include <algorithm>
 
 #include "../metadb/SQLiteDBInterface.h"
 #include "../performancedb/PerformanceSQLiteDBInterface.h"

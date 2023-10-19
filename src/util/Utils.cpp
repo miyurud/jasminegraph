@@ -14,6 +14,7 @@ limitations under the License.
 #include "Utils.h"
 
 #include <pwd.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
 

@@ -17,6 +17,7 @@ limitations under the License.
 #include <sqlite3.h>
 
 #include <map>
+#include <string>
 #include <vector>
 
 class PerformanceSQLiteDBInterface {
