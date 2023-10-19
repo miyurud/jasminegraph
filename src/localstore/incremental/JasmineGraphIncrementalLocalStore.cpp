@@ -36,7 +36,6 @@ std::pair<std::string, unsigned int> JasmineGraphIncrementalLocalStore::getIDs(s
             auto edgeProperties = edgeJson["properties"];
             return {edgeProperties["graphId"], 0};
         }
-
     } catch (const std::exception&) {  // TODO tmkasun: Handle multiple types of exceptions
         incremental_localstore_logger.log(
             "Error while processing edge data = " + edgeString +

@@ -13,9 +13,9 @@
 
 #include <map>
 #include <set>
+#include <string>
 #include <unordered_set>
 #include <vector>
-#include <string>
 
 #ifndef JASMINE_PARTITION
 #define JASMINE_PARTITION
@@ -36,13 +36,13 @@ class JasmineGraphIncrementalStore {
      *  |                       |                              |
      *  ↓                       ↓                              ↓
      * {res->(foreign,..)} {res->(foreign,..) }     ...   {res->(foreign,..) }
-     * 
+     *
      * **/
     std::vector<std::map<int, std::unordered_set<int>>> edgeCuts;
     int id;
     int numberOfPartitions;  // Size of the cluster TODO: can be removed
 
-   public:
+ public:
     JasmineGraphIncrementalStore(int id, int numberOfPartitions) {
         this->id = id;
         this->numberOfPartitions = numberOfPartitions;

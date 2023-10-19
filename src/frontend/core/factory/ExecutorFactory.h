@@ -15,22 +15,21 @@ limitations under the License.
 #define JASMINEGRAPH_EXECUTORFACTORY_H
 
 #include <string>
-#include "../domain/JobRequest.h"
-#include "../executor/AbstractExecutor.h"
+
 #include "../../../metadb/SQLiteDBInterface.h"
 #include "../../../performancedb/PerformanceSQLiteDBInterface.h"
 #include "../../JasmineGraphFrontEndProtocol.h"
-
+#include "../domain/JobRequest.h"
+#include "../executor/AbstractExecutor.h"
 
 class ExecutorFactory {
-public:
+ public:
     ExecutorFactory(SQLiteDBInterface db, PerformanceSQLiteDBInterface perfDb);
     AbstractExecutor* getExecutor(JobRequest jobRequest);
 
-private:
+ private:
     SQLiteDBInterface sqliteDB;
     PerformanceSQLiteDBInterface perfDB;
 };
 
-
-#endif //JASMINEGRAPH_EXECUTORFACTORY_H
+#endif  // JASMINEGRAPH_EXECUTORFACTORY_H

@@ -13,9 +13,9 @@
 
 #include <map>
 #include <set>
+#include <string>
 #include <unordered_set>
 #include <vector>
-#include <string>
 
 #ifndef JASMINE_PARTITION
 #define JASMINE_PARTITION
@@ -36,7 +36,7 @@ class Partition {
      *  |                       |                              |
      *  ↓                       ↓                              ↓
      * {res->(foreign,..)} {res->(foreign,..) }     ...   {res->(foreign,..) }
-     * 
+     *
      * **/
     std::vector<std::map<std::string, std::unordered_set<std::string>>> edgeCuts;
     int id;
@@ -44,7 +44,7 @@ class Partition {
 
     int vertexCount;
 
-   public:
+ public:
     Partition(int id, int numberOfPartitions) {
         this->id = id;
         this->numberOfPartitions = numberOfPartitions;

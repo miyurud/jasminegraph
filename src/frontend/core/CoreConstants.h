@@ -14,18 +14,16 @@ limitations under the License.
 #ifndef JASMINEGRAPH_CORECONSTANTS_H
 #define JASMINEGRAPH_CORECONSTANTS_H
 
+#include <map>
+#include <queue>
+
 #include "domain/JobRequest.h"
 #include "domain/JobResponse.h"
-#include <queue>
-#include <map>
 
 extern std::priority_queue<JobRequest> jobQueue;
 extern std::vector<JobResponse> responseVector;
 extern std::map<std::string, JobResponse> responseMap;
 
-class CoreConstants {
+class CoreConstants {};
 
-};
-
-
-#endif //JASMINEGRAPH_CORECONSTANTS_H
+#endif  // JASMINEGRAPH_CORECONSTANTS_H

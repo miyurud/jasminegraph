@@ -14,7 +14,6 @@ limitations under the License.
 #ifndef JASMINGRAPH_JASMINGRAPHFRONTENDPROTOCOL_H
 #define JASMINGRAPH_JASMINGRAPHFRONTENDPROTOCOL_H
 
-
 #include <iostream>
 
 using namespace std;
@@ -86,9 +85,9 @@ extern const string ADMDL;
 extern const string MERGE;
 
 class JasminGraphFrontEndProtocol {
-    //Note that this protocol do not need a handshake session since the communication in most of the time is conducted
-    //between JasminGraph and Humans.
-    //The commands ending with -send are asking the graph id to be sent. The precommand.
+    // Note that this protocol do not need a handshake session since the communication in most of the time is conducted
+    // between JasminGraph and Humans.
+    // The commands ending with -send are asking the graph id to be sent. The precommand.
 };
 
 const int FRONTEND_COMMAND_LENGTH = 4;
@@ -98,4 +97,4 @@ const int FRONTEND_GRAPH_TYPE_LENGTH = 20;
 const double PAGE_RANK_ALPHA = 0.85;
 const int PAGE_RANK_ITERATIONS = 10;
 
-#endif //JASMINGRAPH_JASMINGRAPHFRONTENDPROTOCOL_H
+#endif  // JASMINGRAPH_JASMINGRAPHFRONTENDPROTOCOL_H

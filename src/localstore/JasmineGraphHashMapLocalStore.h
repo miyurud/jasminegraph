@@ -14,19 +14,21 @@ limitations under the License.
 #ifndef JASMINEGRAPH_JASMINEGRAPHHASHMAPLOCALSTORE_H
 #define JASMINEGRAPH_JASMINEGRAPHHASHMAPLOCALSTORE_H
 
-#include "JasmineGraphLocalStore.h"
-#include "../util/dbutil/edgestore_generated.h"
-#include "../util/dbutil/attributestore_generated.h"
-#include "../util/dbutil/partedgemapstore_generated.h"
 #include <flatbuffers/util.h>
+
 #include <fstream>
+
+#include "../util/dbutil/attributestore_generated.h"
+#include "../util/dbutil/edgestore_generated.h"
+#include "../util/dbutil/partedgemapstore_generated.h"
+#include "JasmineGraphLocalStore.h"
 
 using namespace JasmineGraph::Edgestore;
 using namespace JasmineGraph::AttributeStore;
 using namespace JasmineGraph::PartEdgeMapStore;
 
 class JasmineGraphHashMapLocalStore : public JasmineGraphLocalStore {
-private:
+ private:
     std::string VERTEX_STORE_NAME = "jasminegraph.nodestore.db";
     std::string EDGE_STORE_NAME = "jasminegraph.edgestore.db";
     std::string ATTRIBUTE_STORE_NAME = "jasminegraph.attributestore";
@@ -42,14 +44,13 @@ private:
     long edgeCount;
     int *distributionArray;
 
-
     std::string getFileSeparator();
 
     void toLocalSubGraphMap(const PartEdgeMapStore *edgeMapStoreData);
 
     void toLocalAttributeMap(const AttributeStore *attributeStoreData);
 
-public:
+ public:
     JasmineGraphHashMapLocalStore(int graphid, int partitionid, std::string folderLocation);
 
     JasmineGraphHashMapLocalStore(std::string folderLocation);
@@ -58,7 +59,8 @@ public:
 
     inline bool loadGraph() {
         bool result = false;
-        std::string edgeStorePath = instanceDataFolderLocation + getFileSeparator() + std::to_string(graphId)+"_"+std::to_string(partitionId);
+        std::string edgeStorePath = instanceDataFolderLocation + getFileSeparator() + std::to_string(graphId) + "_" +
+                                    std::to_string(partitionId);
 
         std::ifstream dbFile;
         dbFile.open(edgeStorePath, std::ios::binary | std::ios::in);
@@ -125,5 +127,4 @@ public:
     map<int, std::vector<int>> getEdgeHashMap(const std::string filePath);
 };
 
-
-#endif //JASMINEGRAPH_JASMINEGRAPHHASHMAPLOCALSTORE_H
+#endif  // JASMINEGRAPH_JASMINEGRAPHHASHMAPLOCALSTORE_H

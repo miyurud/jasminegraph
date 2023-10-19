@@ -15,22 +15,25 @@ limitations under the License.
 #define JASMINEGRAPH_JASMINEGRAPHINSTANCE_H
 
 #include <map>
+
+#include "../localstore/JasmineGraphHashMapLocalStore.h"
 #include "../localstore/JasmineGraphLocalStore.h"
 #include "../metadb/SQLiteDBInterface.h"
+#include "../performance/metrics/PerformanceUtil.h"
 #include "JasmineGraphInstanceFileTransferService.h"
 #include "JasmineGraphInstanceService.h"
-#include "../localstore/JasmineGraphHashMapLocalStore.h"
-#include "../performance/metrics/PerformanceUtil.h"
 
 using std::map;
 
 class JasmineGraphInstance {
-private:
+ private:
     map<std::string, JasmineGraphLocalStore> graphDBMapLocalStores;
     static const int BUFFER_SIZE = 128;
-public:
+
+ public:
     SQLiteDBInterface sqlite;
-    int start_running(string profile, string hostName, string masterHost,int serverPort, int serverDataPort, string enableNmon);
+    int start_running(string profile, string hostName, string masterHost, int serverPort, int serverDataPort,
+                      string enableNmon);
 
     bool acknowledgeMaster(string masterHost, string workerIP, string workerPort);
 
@@ -58,4 +61,4 @@ public:
     static void logLoadAverage(std::string name);
 };
 
-#endif //JASMINEGRAPH_JASMINEGRAPHINSTANCE_H
+#endif  // JASMINEGRAPH_JASMINEGRAPHINSTANCE_H

@@ -18,7 +18,7 @@
 #include "./Partition.h"
 
 typedef std::vector<std::pair<std::string, long>> partitionedEdge;
-namespace spt { // spt : Streaming Partitioner
+namespace spt {  // spt : Streaming Partitioner
 enum Algorithms { HASH, FENNEL, LDG };
 
 }
@@ -33,7 +33,7 @@ class Partitioner {
     // perPartitionCap is : Number of vertices that can be store in this partition, This is a dynamic shared pointer
     // containing a value depending on the whole graph size and # of partitions
 
-   public:
+ public:
     Partitioner(int numberOfPartitions, int graphID, spt::Algorithms alog)
         : numberOfPartitions(numberOfPartitions), graphID(graphID), algorithmInUse(alog) {
         for (size_t i = 0; i < numberOfPartitions; i++) {

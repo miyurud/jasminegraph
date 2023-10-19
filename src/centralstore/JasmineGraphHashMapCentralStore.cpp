@@ -12,14 +12,13 @@ limitations under the License.
  */
 
 #include "JasmineGraphHashMapCentralStore.h"
+
 #include "../util/logger/Logger.h"
 using namespace std;
 
 const Logger hashmap_centralstore_logger;
 
-JasmineGraphHashMapCentralStore::JasmineGraphHashMapCentralStore() {
-
-}
+JasmineGraphHashMapCentralStore::JasmineGraphHashMapCentralStore() {}
 
 JasmineGraphHashMapCentralStore::JasmineGraphHashMapCentralStore(std::string folderLocation) {
     this->instanceDataFolderLocation = folderLocation;
@@ -32,12 +31,12 @@ JasmineGraphHashMapCentralStore::JasmineGraphHashMapCentralStore(int graphId, in
     Utils utils;
 
     instanceDataFolderLocation = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
-
 }
 
 bool JasmineGraphHashMapCentralStore::loadGraph() {
     bool result = false;
-    std::string edgeStorePath = instanceDataFolderLocation + getFileSeparator() + std::to_string(graphId) + "_centralstore_" + std::to_string(partitionId);
+    std::string edgeStorePath = instanceDataFolderLocation + getFileSeparator() + std::to_string(graphId) +
+                                "_centralstore_" + std::to_string(partitionId);
 
     std::ifstream dbFile;
     dbFile.open(edgeStorePath, std::ios::binary | std::ios::in);
@@ -99,11 +98,12 @@ bool JasmineGraphHashMapCentralStore::storeGraph() {
     bool result = false;
     flatbuffers::FlatBufferBuilder builder;
     std::vector<flatbuffers::Offset<EdgeStoreEntry>> edgeStoreEntriesVector;
-    std::string edgeStorePath = instanceDataFolderLocation + getFileSeparator() + getFileSeparator() + std::to_string(graphId) + "_centralstore_" + std::to_string(partitionId);
+    std::string edgeStorePath = instanceDataFolderLocation + getFileSeparator() + getFileSeparator() +
+                                std::to_string(graphId) + "_centralstore_" + std::to_string(partitionId);
 
     std::map<long, std::unordered_set<long>>::iterator localSubGraphMapIterator;
-    for (localSubGraphMapIterator = centralSubgraphMap.begin();
-         localSubGraphMapIterator != centralSubgraphMap.end(); localSubGraphMapIterator++) {
+    for (localSubGraphMapIterator = centralSubgraphMap.begin(); localSubGraphMapIterator != centralSubgraphMap.end();
+         localSubGraphMapIterator++) {
         long key = localSubGraphMapIterator->first;
         unordered_set<long> value = localSubGraphMapIterator->second;
 
@@ -120,23 +120,21 @@ bool JasmineGraphHashMapCentralStore::storeGraph() {
 
     builder.Finish(edgeStore);
 
-    flatbuffers::SaveFile(edgeStorePath.c_str(), (const char *) builder.GetBufferPointer(), (size_t) builder.GetSize(),
+    flatbuffers::SaveFile(edgeStorePath.c_str(), (const char *)builder.GetBufferPointer(), (size_t)builder.GetSize(),
                           true);
 
     result = true;
 
-
     return result;
 }
 
-map<long, unordered_set<long>> JasmineGraphHashMapCentralStore::getUnderlyingHashMap() {
-    return centralSubgraphMap;
-}
+map<long, unordered_set<long>> JasmineGraphHashMapCentralStore::getUnderlyingHashMap() { return centralSubgraphMap; }
 
 map<long, long> JasmineGraphHashMapCentralStore::getOutDegreeDistributionHashMap() {
     map<long, long> distributionHashMap;
 
-    for (map<long, unordered_set<long>>::iterator it = centralSubgraphMap.begin(); it != centralSubgraphMap.end(); ++it) {
+    for (map<long, unordered_set<long>>::iterator it = centralSubgraphMap.begin(); it != centralSubgraphMap.end();
+         ++it) {
         long distribution = (it->second).size();
         auto key = it->first;
         auto nodes = it->second;
@@ -149,8 +147,9 @@ map<long, long> JasmineGraphHashMapCentralStore::getOutDegreeDistributionHashMap
 map<long, long> JasmineGraphHashMapCentralStore::getInDegreeDistributionHashMap() {
     map<long, long> distributionHashMap;
 
-    for (map<long, unordered_set<long>>::iterator it = centralSubgraphMap.begin(); it != centralSubgraphMap.end(); ++it) {
-        unordered_set<long> distribution  = it->second;
+    for (map<long, unordered_set<long>>::iterator it = centralSubgraphMap.begin(); it != centralSubgraphMap.end();
+         ++it) {
+        unordered_set<long> distribution = it->second;
 
         for (auto itr = distribution.begin(); itr != distribution.end(); ++itr) {
             std::map<long, long>::iterator distMapItr = distributionHashMap.find(*itr);
@@ -165,9 +164,7 @@ map<long, long> JasmineGraphHashMapCentralStore::getInDegreeDistributionHashMap(
     return distributionHashMap;
 }
 
-void JasmineGraphHashMapCentralStore::addVertex(string *attributes) {
-
-}
+void JasmineGraphHashMapCentralStore::addVertex(string *attributes) {}
 
 void JasmineGraphHashMapCentralStore::addEdge(long startVid, long endVid) {
     map<long, unordered_set<long>>::iterator entryIterator = centralSubgraphMap.find(startVid);
@@ -219,7 +216,6 @@ void JasmineGraphHashMapCentralStore::toLocalSubGraphMap(const PartEdgeMapStore 
         unordered_set<long> valueSet(vector.begin(), vector.end());
         centralSubgraphMap.insert(std::make_pair(key, valueSet));
     }
-
 }
 
 bool JasmineGraphHashMapCentralStore::storePartEdgeMap(std::map<int, std::vector<int>> edgeMap,
@@ -244,7 +240,7 @@ bool JasmineGraphHashMapCentralStore::storePartEdgeMap(std::map<int, std::vector
 
     builder.Finish(edgeStore);
 
-    flatbuffers::SaveFile(savePath.c_str(), (const char *) builder.GetBufferPointer(), (size_t) builder.GetSize(), true);
+    flatbuffers::SaveFile(savePath.c_str(), (const char *)builder.GetBufferPointer(), (size_t)builder.GetSize(), true);
 
     result = true;
 

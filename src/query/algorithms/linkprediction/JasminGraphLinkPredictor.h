@@ -16,20 +16,18 @@ limitations under the License.
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string>
+
 #include <map>
+#include <string>
+
 #include "../../../server/JasmineGraphServer.h"
 
 class JasminGraphLinkPredictor {
-public:
-
+ public:
     void initiateLinkPrediction(std::string graphID, std::string path, std::string masterIP);
 
     int sendQueryToWorker(std::string host, int port, int dataPort, int selectedHostPartitionsNo, std::string graphID,
-                          std::string vertexCount,
-                          std::string filePath,
-                          std::string hostsList, std::string masterIP);
+                          std::string vertexCount, std::string filePath, std::string hostsList, std::string masterIP);
 };
 
-
-#endif //JASMINEGRAPH_JASMINGRAPHLINKPREDICTOR_H
+#endif  // JASMINEGRAPH_JASMINGRAPHLINKPREDICTOR_H

@@ -27,21 +27,20 @@ int StatisticCollector::init() {
 
     file = fopen("/proc/cpuinfo", "r");
     numProcessors = 0;
-    while(fgets(line, 128, file) != NULL){
+    while (fgets(line, 128, file) != NULL) {
         if (strncmp(line, "processor", 9) == 0) numProcessors++;
     }
     fclose(file);
     return 0;
 }
 
-
 int StatisticCollector::getMemoryUsageByProcess() {
     FILE* file = fopen("/proc/self/status", "r");
     int result = -1;
     char line[128];
 
-    while (fgets(line, 128, file) != NULL){
-        if (strncmp(line, "VmSize:", 7) == 0){
+    while (fgets(line, 128, file) != NULL) {
+        if (strncmp(line, "VmSize:", 7) == 0) {
             result = parseLine(line);
             break;
         }
@@ -49,15 +48,13 @@ int StatisticCollector::getMemoryUsageByProcess() {
     fclose(file);
     std::cout << "Memory Usage: " + std::to_string(result) << std::endl;
     return result;
-
-
 }
 
-int StatisticCollector::parseLine(char* line){
+int StatisticCollector::parseLine(char* line) {
     int i = strlen(line);
     const char* p = line;
-    while (*p <'0' || *p > '9') p++;
-    line[i-3] = '\0';
+    while (*p < '0' || *p > '9') p++;
+    line[i - 3] = '\0';
     i = atoi(p);
     return i;
 }
@@ -68,14 +65,11 @@ double StatisticCollector::getCpuUsage() {
     double percent;
 
     now = times(&timeSample);
-    if (now <= lastCPU || timeSample.tms_stime < lastSysCPU ||
-        timeSample.tms_utime < lastUserCPU){
-        //Overflow detection. Just skip this value.
+    if (now <= lastCPU || timeSample.tms_stime < lastSysCPU || timeSample.tms_utime < lastUserCPU) {
+        // Overflow detection. Just skip this value.
         percent = -1.0;
-    }
-    else{
-        percent = (timeSample.tms_stime - lastSysCPU) +
-                  (timeSample.tms_utime - lastUserCPU);
+    } else {
+        percent = (timeSample.tms_stime - lastSysCPU) + (timeSample.tms_utime - lastUserCPU);
         percent /= (now - lastCPU);
         percent /= numProcessors;
         percent *= 100;
@@ -87,8 +81,8 @@ double StatisticCollector::getCpuUsage() {
     return percent;
 }
 
-std::string
-StatisticCollector::collectVMStatistics(std::string isVMStatManager, std::string isTotalAllocationRequired) {
+std::string StatisticCollector::collectVMStatistics(std::string isVMStatManager,
+                                                    std::string isTotalAllocationRequired) {
     std::string vmLevelStatistics;
 
     if (isVMStatManager == "true") {
@@ -101,7 +95,6 @@ StatisticCollector::collectVMStatistics(std::string isVMStatManager, std::string
 
         vmLevelStatistics = std::to_string(totalMemoryUsed) + "," + cpuUsageString + ",";
     }
-
 
     if (isTotalAllocationRequired == "true") {
         long totalMemory = getTotalMemoryAllocated();
@@ -116,10 +109,10 @@ StatisticCollector::collectVMStatistics(std::string isVMStatManager, std::string
 long StatisticCollector::getTotalMemoryAllocated() {
     std::string token;
     std::ifstream file("/proc/meminfo");
-    while(file >> token) {
-        if(token == "MemTotal:") {
+    while (file >> token) {
+        if (token == "MemTotal:") {
             unsigned long mem;
-            if(file >> mem) {
+            if (file >> mem) {
                 return mem;
             } else {
                 return 0;
@@ -144,8 +137,8 @@ long StatisticCollector::getTotalMemoryUsage() {
     unsigned long cached;
     unsigned long sReclaimable;
     unsigned long memUsage;
-    while(file >> token) {
-        if(token == "MemTotal:") {
+    while (file >> token) {
+        if (token == "MemTotal:") {
             file >> memTotal;
         } else if (token == "MemFree:") {
             file >> memFree;
@@ -158,7 +151,7 @@ long StatisticCollector::getTotalMemoryUsage() {
         }
         file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     }
-    memUsage = memTotal-(memFree+buffers+cached+sReclaimable);
+    memUsage = memTotal - (memFree + buffers + cached + sReclaimable);
     return memUsage;
 }
 
@@ -171,8 +164,7 @@ double StatisticCollector::getTotalCpuUsage() {
     int count = 0;
     double totalCPUUsage = 0;
 
-
-    FILE *input = popen(mpstatCommand.c_str(), "r");
+    FILE* input = popen(mpstatCommand.c_str(), "r");
 
     if (input) {
         // read the input
@@ -182,16 +174,19 @@ double StatisticCollector::getTotalCpuUsage() {
             }
         }
         if (!result.empty()) {
-            std::vector<std::string> splittedStats = utils.split(result,'\n');
+            std::vector<std::string> splittedStats = utils.split(result, '\n');
             int length = splittedStats.size();
-            std::string parameterNames = splittedStats[length-2];
-            std::string parameterValues = splittedStats[length-1];
-            std::vector<std::string> splittedParamNames = utils.split(parameterNames,' ');
-            splittedParamNames.erase(std::remove(splittedParamNames.begin(), splittedParamNames.end(), ""), splittedParamNames.end());
-            std::vector<std::string> splittedParamValues = utils.split(parameterValues,' ');
-            splittedParamValues.erase(std::remove(splittedParamValues.begin(), splittedParamValues.end(), ""), splittedParamValues.end());
+            std::string parameterNames = splittedStats[length - 2];
+            std::string parameterValues = splittedStats[length - 1];
+            std::vector<std::string> splittedParamNames = utils.split(parameterNames, ' ');
+            splittedParamNames.erase(std::remove(splittedParamNames.begin(), splittedParamNames.end(), ""),
+                                     splittedParamNames.end());
+            std::vector<std::string> splittedParamValues = utils.split(parameterValues, ' ');
+            splittedParamValues.erase(std::remove(splittedParamValues.begin(), splittedParamValues.end(), ""),
+                                      splittedParamValues.end());
 
-            for (paramNameIterator = splittedParamNames.begin(); paramNameIterator != splittedParamNames.end(); ++paramNameIterator) {
+            for (paramNameIterator = splittedParamNames.begin(); paramNameIterator != splittedParamNames.end();
+                 ++paramNameIterator) {
                 std::string paramName = *paramNameIterator;
 
                 if (paramName.find("%") != std::string::npos && paramName.find("idle") == std::string::npos) {
@@ -213,7 +208,7 @@ double StatisticCollector::getTotalCpuUsage() {
 double StatisticCollector::getLoadAverage() {
     double averages[3];
 
-    getloadavg(averages,3);
+    getloadavg(averages, 3);
 
     return averages[0];
 }
@@ -229,17 +224,15 @@ void StatisticCollector::logLoadAverage(std::string name) {
 
     start = time(0);
 
-    while(true)
-    {
+    while (true) {
         if (isStatCollect) {
             std::this_thread::sleep_for(std::chrono::seconds(60));
             continue;
         }
 
         time_t elapsed = time(0) - start;
-        if(elapsed >= Conts::LOAD_AVG_COLLECTING_GAP)
-        {
-            elapsedTime += Conts::LOAD_AVG_COLLECTING_GAP*1000;
+        if (elapsed >= Conts::LOAD_AVG_COLLECTING_GAP) {
+            elapsedTime += Conts::LOAD_AVG_COLLECTING_GAP * 1000;
             PerformanceUtil::logLoadAverage();
             start = start + Conts::LOAD_AVG_COLLECTING_GAP;
         } else {

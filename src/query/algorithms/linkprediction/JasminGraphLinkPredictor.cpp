@@ -12,16 +12,16 @@ limitations under the License.
  */
 
 #include "JasminGraphLinkPredictor.h"
-#include "../../../util/logger/Logger.h"
+
 #include "../../../server/JasmineGraphInstanceProtocol.h"
+#include "../../../util/logger/Logger.h"
 
 Logger predictor_logger;
 
 void JasminGraphLinkPredictor::initiateLinkPrediction(std::string graphID, std::string path, std::string masterIP) {
-
     JasmineGraphServer *jasmineServer = new JasmineGraphServer();
-    std::map<std::string, JasmineGraphServer::workerPartitions> graphPartitionedHosts = jasmineServer->getGraphPartitionedHosts(
-            graphID);
+    std::map<std::string, JasmineGraphServer::workerPartitions> graphPartitionedHosts =
+        jasmineServer->getGraphPartitionedHosts(graphID);
 
     std::map<std::string, JasmineGraphServer::workerPartitions> remainHostMap;
     std::string selectedHostName;
@@ -32,8 +32,8 @@ void JasminGraphLinkPredictor::initiateLinkPrediction(std::string graphID, std::
     int count = 0;
 
     /*Select the idle worker*/
-//    TODO :: Need to select the idle worker to allocate predicting task.
-//     For this time the first worker of the map is allocated
+    //    TODO :: Need to select the idle worker to allocate predicting task.
+    //     For this time the first worker of the map is allocated
 
     for (std::map<std::string, JasmineGraphServer::workerPartitions>::iterator it = (graphPartitionedHosts.begin());
          it != graphPartitionedHosts.end(); ++it) {
@@ -51,12 +51,10 @@ void JasminGraphLinkPredictor::initiateLinkPrediction(std::string graphID, std::
     std::string hostsList = "none|";
     for (std::map<std::string, JasmineGraphServer::workerPartitions>::iterator it = (remainHostMap.begin());
          it != remainHostMap.end(); ++it) {
-        std::string hostDetail =
-                it->first + "," + std::to_string((remainHostMap[it->first]).port) + "," +
-                std::to_string((remainHostMap[it->first]).dataPort) + ",";
+        std::string hostDetail = it->first + "," + std::to_string((remainHostMap[it->first]).port) + "," +
+                                 std::to_string((remainHostMap[it->first]).dataPort) + ",";
         for (std::vector<std::string>::iterator j = ((remainHostMap[it->first].partitionID).begin());
              j != (remainHostMap[it->first].partitionID).end(); ++j) {
-
             if (std::next(j) == (remainHostMap[it->first].partitionID).end()) {
                 hostDetail = hostDetail + *j;
             } else {
@@ -72,8 +70,10 @@ void JasminGraphLinkPredictor::initiateLinkPrediction(std::string graphID, std::
     std::string vertexCount;
     SQLiteDBInterface refToSqlite = *new SQLiteDBInterface();
     refToSqlite.init();
-    string sqlStatement = "SELECT vertexcount FROM graph WHERE "
-                          "idgraph = " + graphID;
+    string sqlStatement =
+        "SELECT vertexcount FROM graph WHERE "
+        "idgraph = " +
+        graphID;
     std::vector<vector<pair<string, string>>> v = refToSqlite.runSelect(sqlStatement);
     vertexCount = (v[0][0].second);
 
@@ -82,8 +82,8 @@ void JasminGraphLinkPredictor::initiateLinkPrediction(std::string graphID, std::
 }
 
 int JasminGraphLinkPredictor::sendQueryToWorker(std::string host, int port, int dataPort, int selectedHostPartitionsNo,
-                                                std::string graphID, std::string vertexCount,
-                                                std::string filePath, std::string hostsList, std::string masterIP) {
+                                                std::string graphID, std::string vertexCount, std::string filePath,
+                                                std::string hostsList, std::string masterIP) {
     Utils utils;
     bool result = true;
     std::cout << pthread_self() << " host : " << host << " port : " << port << " DPort : " << dataPort << std::endl;
@@ -110,15 +110,13 @@ int JasminGraphLinkPredictor::sendQueryToWorker(std::string host, int port, int 
         std::cerr << "ERROR, no host named " << server << std::endl;
     }
 
-    bzero((char *) &serv_addr, sizeof(serv_addr));
+    bzero((char *)&serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *) server->h_addr,
-          (char *) &serv_addr.sin_addr.s_addr,
-          server->h_length);
+    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
     serv_addr.sin_port = htons(port);
-    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
-        //TODO::exit
+        // TODO::exit
     }
     bzero(data, 301);
     write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
@@ -193,7 +191,6 @@ int JasminGraphLinkPredictor::sendQueryToWorker(std::string host, int port, int 
                             predictor_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
                             predictor_logger.log("Going to send file through service", "info");
                             JasmineGraphServer::sendFileThroughService(host, dataPort, fileName, filePath, masterIP);
-
                         }
                     }
                 }
@@ -208,8 +205,7 @@ int JasminGraphLinkPredictor::sendQueryToWorker(std::string host, int port, int 
                     response = (data);
 
                     if (response.compare(JasmineGraphInstanceProtocol::FILE_RECV_WAIT) == 0) {
-                        predictor_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_WAIT,
-                                             "info");
+                        predictor_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_WAIT, "info");
                         predictor_logger.log("Checking file status : " + to_string(count), "info");
                         count++;
                         sleep(1);

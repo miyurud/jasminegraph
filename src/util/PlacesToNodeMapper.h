@@ -14,21 +14,19 @@ limitations under the License.
 #ifndef JASMINEGRAPH_PLACESTONODEMAPPER_H
 #define JASMINEGRAPH_PLACESTONODEMAPPER_H
 
-
 #include <string>
+
 #include "Utils.h"
 
-
 class PlacesToNodeMapper {
-
-private:
+ private:
     static int numberOfWorkers;
-public:
+
+ public:
     static std::string getHost(long placeId);
     static std::vector<int> getInstancePorts(long placeId);
     static std::vector<int> getInstancePortsList(long placeId);
     static std::vector<int> getFileTransferServicePort(long placeId);
 };
 
-
-#endif //JASMINEGRAPH_PLACESTONODEMAPPER_H
+#endif  // JASMINEGRAPH_PLACESTONODEMAPPER_H

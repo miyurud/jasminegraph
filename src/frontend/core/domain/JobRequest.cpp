@@ -13,42 +13,22 @@ limitations under the License.
 
 #include "JobRequest.h"
 
-std::string JobRequest::getJobId() {
-    return jobId;
-}
+std::string JobRequest::getJobId() { return jobId; }
 
-void JobRequest::setJobId(std::string inputJobId) {
-    jobId = inputJobId;
-}
+void JobRequest::setJobId(std::string inputJobId) { jobId = inputJobId; }
 
-std::string JobRequest::getJobType() {
-    return jobType;
-}
+std::string JobRequest::getJobType() { return jobType; }
 
-void JobRequest::setJobType(std::string inputJobType) {
-    jobType = inputJobType;
-}
+void JobRequest::setJobType(std::string inputJobType) { jobType = inputJobType; }
 
-void JobRequest::addParameter(std::string key, std::string value) {
-    requestParams[key] = value;
-}
+void JobRequest::addParameter(std::string key, std::string value) { requestParams[key] = value; }
 
-std::string JobRequest::getParameter(std::string key) {
-    return requestParams[key];
-}
+std::string JobRequest::getParameter(std::string key) { return requestParams[key]; }
 
-void JobRequest::setPriority(int priority) {
-    this->priority = priority;
-}
+void JobRequest::setPriority(int priority) { this->priority = priority; }
 
-int JobRequest::getPriority() {
-    return priority;
-}
+int JobRequest::getPriority() { return priority; }
 
-void JobRequest::setMasterIP(std::string masterip) {
-    this->masterIP = masterip;
-}
+void JobRequest::setMasterIP(std::string masterip) { this->masterIP = masterip; }
 
-std::string JobRequest::getMasterIP() {
-    return masterIP;
-}
+std::string JobRequest::getMasterIP() { return masterIP; }

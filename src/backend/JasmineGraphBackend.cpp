@@ -12,10 +12,11 @@ limitations under the License.
  */
 
 #include "JasmineGraphBackend.h"
-#include "../util/Utils.h"
+
 #include "../util/Conts.h"
-#include "JasmineGraphBackendProtocol.h"
+#include "../util/Utils.h"
 #include "../util/logger/Logger.h"
+#include "JasmineGraphBackendProtocol.h"
 
 using namespace std;
 
@@ -23,7 +24,7 @@ Utils utils;
 Logger backend_logger;
 
 void *backendservicesesion(void *dummyPt) {
-    backendservicesessionargs *sessionargs = (backendservicesessionargs *) dummyPt;
+    backendservicesessionargs *sessionargs = (backendservicesessionargs *)dummyPt;
     int connFd = sessionargs->connFd;
     SQLiteDBInterface sqLiteDbInterface = sessionargs->sqlite;
     backend_logger.log("Thread No: " + to_string(pthread_self()), "info");
@@ -35,7 +36,7 @@ void *backendservicesesion(void *dummyPt) {
         read(connFd, data, 300);
 
         string line(data);
-        backend_logger.log("Command received: " + line , "info");
+        backend_logger.log("Command received: " + line, "info");
         line = utils.trim_copy(line, " \f\n\r\t\v");
 
         if (line.compare(EXIT_BACKEND) == 0) {
@@ -52,16 +53,16 @@ void *backendservicesesion(void *dummyPt) {
             string hostname(host);
             Utils utils;
             hostname = utils.trim_copy(hostname, " \f\n\r\t\v");
-            write(connFd, HOST_OK.c_str(),HOST_OK.size());
-            backend_logger.log("Hostname of the worker: " + hostname , "info");
+            write(connFd, HOST_OK.c_str(), HOST_OK.size());
+            backend_logger.log("Hostname of the worker: " + hostname, "info");
 
         } else if (line.compare(ACKNOWLEGE_MASTER) == 0) {
             int result_wr = write(connFd, WORKER_INFO_SEND.c_str(), WORKER_INFO_SEND.size());
-            if(result_wr < 0) {
+            if (result_wr < 0) {
                 backend_logger.log("Error writing to socket", "error");
             }
             result_wr = write(connFd, "\r\n", 2);
-            if(result_wr < 0) {
+            if (result_wr < 0) {
                 backend_logger.log("Error writing to socket", "error");
             }
 
@@ -73,20 +74,18 @@ void *backendservicesesion(void *dummyPt) {
             read(connFd, worker_info_data, 300);
 
             string worker_info(worker_info_data);
-            worker_info.erase(std::remove(worker_info.begin(), worker_info.end(), '\n'),
-                              worker_info.end());
-            worker_info.erase(std::remove(worker_info.begin(), worker_info.end(), '\r'),
-                              worker_info.end());
+            worker_info.erase(std::remove(worker_info.begin(), worker_info.end(), '\n'), worker_info.end());
+            worker_info.erase(std::remove(worker_info.begin(), worker_info.end(), '\r'), worker_info.end());
 
             std::vector<std::string> strArr = Utils::split(worker_info, '|');
 
-            std::string updateQuery = "update worker set status='started' where ip='" + strArr[0] + "' and server_port='" + strArr[1] + "';";
+            std::string updateQuery =
+                "update worker set status='started' where ip='" + strArr[0] + "' and server_port='" + strArr[1] + "';";
 
             sqLiteDbInterface.runUpdate(updateQuery);
             break;
 
-        }
-        else {
+        } else {
             backend_logger.log("Message format not recognized", "error");
         }
     }
@@ -109,7 +108,7 @@ int JasmineGraphBackend::run() {
     struct sockaddr_in svrAdd;
     struct sockaddr_in clntAdd;
 
-    //create socket
+    // create socket
     listenFd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (listenFd < 0) {
@@ -117,7 +116,7 @@ int JasmineGraphBackend::run() {
         return 0;
     }
 
-    bzero((char *) &svrAdd, sizeof(svrAdd));
+    bzero((char *)&svrAdd, sizeof(svrAdd));
 
     svrAdd.sin_family = AF_INET;
     svrAdd.sin_addr.s_addr = INADDR_ANY;
@@ -130,9 +129,8 @@ int JasmineGraphBackend::run() {
         exit(1);
     }
 
-
-    //bind socket
-    if (bind(listenFd, (struct sockaddr *) &svrAdd, sizeof(svrAdd)) < 0) {
+    // bind socket
+    if (bind(listenFd, (struct sockaddr *)&svrAdd, sizeof(svrAdd)) < 0) {
         backend_logger.log("Cannot bind on port " + portNo, "error");
         return 0;
     }
@@ -147,8 +145,8 @@ int JasmineGraphBackend::run() {
     while (noThread < workerCount) {
         backend_logger.log("Backend Listening", "info");
 
-        //this is where client connects. svr will hang in this mode until client conn
-        int connFd = accept(listenFd, (struct sockaddr *) &clntAdd, &len);
+        // this is where client connects. svr will hang in this mode until client conn
+        int connFd = accept(listenFd, (struct sockaddr *)&clntAdd, &len);
 
         if (connFd < 0) {
             backend_logger.log("Cannot accept connection", "error");
@@ -161,9 +159,7 @@ int JasmineGraphBackend::run() {
         backendservicesessionargs1.sqlite = this->sqlite;
         backendservicesessionargs1.connFd = connFd;
 
-
-        pthread_create(&threadA[noThread], NULL, backendservicesesion,
-                       &backendservicesessionargs1);
+        pthread_create(&threadA[noThread], NULL, backendservicesesion, &backendservicesessionargs1);
 
         noThread++;
     }

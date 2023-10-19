@@ -12,10 +12,11 @@ limitations under the License.
  */
 
 #include "JobScheduler.h"
-#include "../../../util/logger/Logger.h"
+
 #include "../../../util/Conts.h"
-#include "../factory/ExecutorFactory.h"
+#include "../../../util/logger/Logger.h"
 #include "../executor/AbstractExecutor.h"
+#include "../factory/ExecutorFactory.h"
 
 Logger jobScheduler_Logger;
 std::priority_queue<JobRequest> jobQueue;
@@ -30,12 +31,10 @@ JobScheduler::JobScheduler(SQLiteDBInterface sqlite, PerformanceSQLiteDBInterfac
     this->perfSqlite = perfDB;
 }
 
-JobScheduler::JobScheduler() {
-
-}
+JobScheduler::JobScheduler() {}
 
 void *startScheduler(void *dummyPt) {
-    JobScheduler *refToScheduler = (JobScheduler *) dummyPt;
+    JobScheduler *refToScheduler = (JobScheduler *)dummyPt;
     PerformanceUtil performanceUtil;
     performanceUtil.init();
     while (true) {
@@ -58,25 +57,27 @@ void *startScheduler(void *dummyPt) {
                 }
             }
 
-
             if (pendingHPJobList.size() > 0) {
-                jobScheduler_Logger.log("##JOB SCHEDULER## High Priority Jobs in Queue: " + std::to_string(pendingHPJobList.size()), "info");
+                jobScheduler_Logger.log(
+                    "##JOB SCHEDULER## High Priority Jobs in Queue: " + std::to_string(pendingHPJobList.size()),
+                    "info");
                 std::string masterIP = pendingHPJobList[0].getMasterIP();
                 std::string jobType = pendingHPJobList[0].getJobType();
                 std::string category = pendingHPJobList[0].getParameter(Conts::PARAM_KEYS::CATEGORY);
 
-                std::vector<long> scheduleTimeVector = performanceUtil.getResourceAvailableTime(highPriorityGraphList,
-                        jobType, category, masterIP, pendingHPJobList);
+                std::vector<long> scheduleTimeVector = performanceUtil.getResourceAvailableTime(
+                    highPriorityGraphList, jobType, category, masterIP, pendingHPJobList);
 
                 for (int index = 0; index != pendingHPJobList.size(); ++index) {
                     JobRequest hpRequest = pendingHPJobList[index];
                     long queueTime = scheduleTimeVector[index];
 
-                    if (queueTime  < 0) {
+                    if (queueTime < 0) {
                         JobResponse failedJobResponse;
                         failedJobResponse.setJobId(hpRequest.getJobId());
-                        failedJobResponse.addParameter(Conts::PARAM_KEYS::ERROR_MESSAGE, "Rejecting the job request because "
-                                                                                         "SLA cannot be maintained");
+                        failedJobResponse.addParameter(Conts::PARAM_KEYS::ERROR_MESSAGE,
+                                                       "Rejecting the job request because "
+                                                       "SLA cannot be maintained");
                         responseVectorMutex.lock();
                         responseMap[hpRequest.getJobId()] = failedJobResponse;
                         responseVectorMutex.unlock();
@@ -100,8 +101,7 @@ void JobScheduler::init() {
 }
 
 void JobScheduler::processJob(JobRequest request, SQLiteDBInterface sqlite, PerformanceSQLiteDBInterface perfDB) {
-    intermRes.push_back(
-            std::async(std::launch::async, JobScheduler::executeJob, request, sqlite, perfDB));
+    intermRes.push_back(std::async(std::launch::async, JobScheduler::executeJob, request, sqlite, perfDB));
 }
 
 void JobScheduler::executeJob(JobRequest request, SQLiteDBInterface sqlite, PerformanceSQLiteDBInterface perfDB) {
@@ -110,9 +110,7 @@ void JobScheduler::executeJob(JobRequest request, SQLiteDBInterface sqlite, Perf
     abstractExecutor->execute();
 }
 
-void JobScheduler::pushJob(JobRequest jobDetails) {
-    jobQueue.push(jobDetails);
-}
+void JobScheduler::pushJob(JobRequest jobDetails) { jobQueue.push(jobDetails); }
 
 JobResponse JobScheduler::getResult(JobRequest jobRequest) {
     JobResponse jobResponse;

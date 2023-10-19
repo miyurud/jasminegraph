@@ -54,13 +54,13 @@ enum class RelationOffsets : int {
  * **/
 
 class RelationBlock {
-   private:
+ private:
     std::string id;
     bool updateRelationRecords(RelationOffsets, unsigned int);
     NodeBlock *sourceBlock;
     NodeBlock *destinationBlock;
 
-   public:
+ public:
     RelationBlock(unsigned int addr, NodeRelation source, NodeRelation destination, unsigned int propertyAddress)
         : addr(addr), source(source), destination(destination), propertyAddress(propertyAddress){};
 

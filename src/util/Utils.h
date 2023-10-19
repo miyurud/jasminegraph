@@ -18,7 +18,6 @@ limitations under the License.
 #include <map>
 #include <unordered_map>
 #include <vector>
-//#include "../frontend/JasmineGraphFrontEnd.h"
 #include <arpa/inet.h>
 #include <string.h>
 
@@ -32,10 +31,10 @@ using std::map;
 using std::unordered_map;
 
 class Utils {
-   private:
+ private:
     static unordered_map<std::string, std::string> propertiesMap;
 
-   public:
+ public:
     struct worker {
         std::string workerID;
         std::string hostname;

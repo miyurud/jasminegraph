@@ -11,23 +11,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
-#include "boost/property_tree/ptree.hpp"
-#include "boost/property_tree/json_parser.hpp"
-#include <boost/foreach.hpp>
-#include <boost/optional/optional.hpp>
-
 #include "JSONParser.h"
 
+#include <jsoncpp/json/json.h>
+
+#include <boost/foreach.hpp>
+#include <boost/optional/optional.hpp>
+#include <chrono>
+#include <ctime>
 #include <sstream>
 #include <string>
-#include <jsoncpp/json/json.h>
-#include <ctime>
-#include <chrono>
 #include <thread>
+
 #include "../../util/logger/Logger.h"
+#include "boost/property_tree/json_parser.hpp"
+#include "boost/property_tree/ptree.hpp"
 
 Logger jsonparser_logger;
-
 
 class Value;
 
@@ -35,27 +35,21 @@ namespace pt = boost::property_tree;
 
 using namespace std;
 
-
-JSONParser::JSONParser() {
-
-
-}
+JSONParser::JSONParser() {}
 
 void JSONParser::jsonParse(string filePath) {
-
     this->inputFilePath = filePath;
     this->outputFilePath = utils.getHomeDir() + "/.jasminegraph/tmp/JSONParser/output";
     const clock_t begin = clock();
     readFile();
     float time = float(clock() - begin) / CLOCKS_PER_SEC;
-    jsonparser_logger.log("FieldMap size : "+to_string(fieldsMap.size()), "info");
-    jsonparser_logger.log("Time for 1st read : "+to_string(time), "info");
+    jsonparser_logger.log("FieldMap size : " + to_string(fieldsMap.size()), "info");
+    jsonparser_logger.log("Time for 1st read : " + to_string(time), "info");
     const clock_t begin2 = clock();
     attributeFileCreate();
     float time2 = float(clock() - begin2) / CLOCKS_PER_SEC;
-    jsonparser_logger.log("Time for 2nd read : "+to_string(time2), "info");
+    jsonparser_logger.log("Time for 2nd read : " + to_string(time2), "info");
 }
-
 
 void JSONParser::attributeFileCreate() {
     ofstream attrFile;
@@ -127,15 +121,13 @@ void JSONParser::createEdgeList() {
     int mapped_id = 0;
 
     while (std::getline(infile, line)) {
-
         if (!reader.parse(line, root)) {
             jsonparser_logger.log("File format mismatch", "error");
             exit(1);
         } else {
-
             string id = root["id"].asString();
             const Json::Value references = root["references"];
-            if (references.empty()){
+            if (references.empty()) {
                 continue;
             }
             long idValue = stol(id);
@@ -158,14 +150,13 @@ void JSONParser::createEdgeList() {
                 }
 
                 file << mapped_id << " " << mapped_ref_id << endl;
-
             }
         }
     }
     file.close();
 }
 
-void JSONParser::countFileds(){
+void JSONParser::countFileds() {
     std::ifstream infile(this->inputFilePath);
     std::string line;
     Json::Reader reader;
@@ -173,7 +164,6 @@ void JSONParser::countFileds(){
     int field_counter = 0;
 
     while (std::getline(infile, line)) {
-
         if (!reader.parse(line, root)) {
             jsonparser_logger.log("File format mismatch", "error");
             exit(1);
@@ -198,7 +188,7 @@ void JSONParser::countFileds(){
 
     for (auto it = fieldCounts.begin(); it != fieldCounts.end(); ++it) {
         std::string field = it->first;
-        if (it->second > 821){
+        if (it->second > 821) {
             if (fieldsMap.find(field) == fieldsMap.end()) {
                 fieldsMap.insert(make_pair(field, field_counter));
                 field_counter++;

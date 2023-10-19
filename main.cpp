@@ -11,14 +11,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
-
-#include <iostream>
-#include <unistd.h>
 #include "main.h"
+
+#include <unistd.h>
+
+#include <future>
+#include <iostream>
+
 #include "src/server/JasmineGraphInstance.h"
 #include "src/util/logger/Logger.h"
 #include "src/util/scheduler/SchedulerService.h"
-#include <future>
 
 unsigned int microseconds = 10000000;
 JasmineGraphServer *server;
@@ -31,26 +33,26 @@ void fnExit3(void) {
     puts("Shutting down the server.");
 }
 
-
 int main(int argc, char *argv[]) {
     atexit(fnExit3);
     Utils utils;
 
     if (argc <= 1) {
-    main_logger.log("\"Use argument 1 to start JasmineGraph in Master mode. Use 2 "
-                    "<hostName> <serverPort> <serverDataPort> to start as worker","error");
+        main_logger.log(
+            "\"Use argument 1 to start JasmineGraph in Master mode. Use 2 "
+            "<hostName> <serverPort> <serverDataPort> to start as worker",
+            "error");
         return -1;
     }
     std::cout << argc << std::endl;
 
     int mode = atoi(argv[2]);
     std::string JASMINEGRAPH_HOME = utils.getJasmineGraphHome();
-    std::string profile = argv[1]; //This can be either "docker" or "native"
+    std::string profile = argv[1];  // This can be either "docker" or "native"
     std::string enableNmon = "false";
 
     main_logger.log("Using JASMINE_GRAPH_HOME", "info");
     std::cout << JASMINEGRAPH_HOME << std::endl;
-
 
     if (mode == Conts::JASMINEGRAPH_RUNTIME_PROFILE_MASTER) {
         std::string masterIp = argv[3];
@@ -59,7 +61,7 @@ int main(int argc, char *argv[]) {
         enableNmon = argv[6];
         server = new JasmineGraphServer();
         thread schedulerThread(SchedulerService::startScheduler);
-        server->run(profile,masterIp,numberOfWorkers, workerIps, enableNmon);
+        server->run(profile, masterIp, numberOfWorkers, workerIps, enableNmon);
 
         while (server->isRunning()) {
             usleep(microseconds);
@@ -67,11 +69,12 @@ int main(int argc, char *argv[]) {
 
         schedulerThread.join();
         delete server;
-    } else if (mode == Conts::JASMINEGRAPH_RUNTIME_PROFILE_WORKER){
-        main_logger.log(to_string(argc),"info");
+    } else if (mode == Conts::JASMINEGRAPH_RUNTIME_PROFILE_WORKER) {
+        main_logger.log(to_string(argc), "info");
 
         if (argc < 5) {
-            main_logger.log("Need Four arguments. Use 2 <hostName> <serverPort> <serverDataPort> to start as worker","info");
+            main_logger.log("Need Four arguments. Use 2 <hostName> <serverPort> <serverDataPort> to start as worker",
+                            "info");
             return -1;
         }
 
@@ -84,7 +87,7 @@ int main(int argc, char *argv[]) {
 
         std::cout << "In worker mode" << std::endl;
         instance = new JasmineGraphInstance();
-        instance->start_running(profile, hostName, masterHost, serverPort,serverDataPort, enableNmon);
+        instance->start_running(profile, hostName, masterHost, serverPort, serverDataPort, enableNmon);
 
         while (instance->isRunning()) {
             usleep(microseconds);

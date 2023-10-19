@@ -17,6 +17,7 @@
 #include <cmath>
 #include <iostream>
 #include <vector>
+
 #include "../../util/logger/Logger.h"
 
 Logger streaming_partitioner_logger;
@@ -122,10 +123,11 @@ void Partitioner::printStats() {
         double vertexCount = partition.getVertextCount();
         double edgesCount = partition.getEdgesCount();
         double edgeCutsCount = partition.edgeCutsCount();
-        double edgeCutRatio =  partition.edgeCutsRatio();
+        double edgeCutRatio = partition.edgeCutsRatio();
         streaming_partitioner_logger.info(std::to_string(id) + " => Vertex count = " + std::to_string(vertexCount));
         streaming_partitioner_logger.info(std::to_string(id) + " => Edges count = " + std::to_string(edgesCount));
-        streaming_partitioner_logger.info(std::to_string(id) + " => Edge cuts count = " + std::to_string(edgeCutsCount));
+        streaming_partitioner_logger.info(std::to_string(id) +
+                                          " => Edge cuts count = " + std::to_string(edgeCutsCount));
         streaming_partitioner_logger.info(std::to_string(id) + " => Cut ratio = " + std::to_string(edgeCutRatio));
         id++;
     }
@@ -154,7 +156,6 @@ partitionedEdge Partitioner::fennelPartitioning(std::pair<std::string, std::stri
 
     int id = 0;
     for (auto& partition : partitions) {
-
         std::set<std::string> firstVertextNeighbors = partition.getNeighbors(edge.first);
         std::set<std::string> secondVertextNeighbors = partition.getNeighbors(edge.second);
         double firstVertextIntraCost;

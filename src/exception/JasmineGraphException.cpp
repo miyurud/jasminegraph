@@ -13,10 +13,6 @@ limitations under the License.
 
 #include "JasmineGraphException.h"
 
-class JasmineGraphException: public std::exception
-{
-    virtual const char* what() const throw()
-    {
-        return "JasmineGraph exception";
-    }
+class JasmineGraphException : public std::exception {
+    virtual const char* what() const throw() { return "JasmineGraph exception"; }
 } jException;

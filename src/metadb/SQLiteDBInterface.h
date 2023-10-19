@@ -15,14 +15,16 @@ limitations under the License.
 #define JASMINEGRAPH_SQLITEDBINTERFACE_H
 
 #include <sqlite3.h>
-#include <vector>
+
 #include <map>
 #include <string>
+#include <vector>
 
 class SQLiteDBInterface {
-private:
+ private:
     sqlite3 *database;
-public:
+
+ public:
     int init();
 
     int finalize();
@@ -40,5 +42,4 @@ public:
     SQLiteDBInterface();
 };
 
-
-#endif //JASMINEGRAPH_SQLITEDBINTERFACE_H
+#endif  // JASMINEGRAPH_SQLITEDBINTERFACE_H

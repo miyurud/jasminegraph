@@ -13,9 +13,7 @@ limitations under the License.
 
 #include "JasmineGraphHashMapDuplicateCentralStore.h"
 
-JasmineGraphHashMapDuplicateCentralStore::JasmineGraphHashMapDuplicateCentralStore() {
-
-}
+JasmineGraphHashMapDuplicateCentralStore::JasmineGraphHashMapDuplicateCentralStore() {}
 
 JasmineGraphHashMapDuplicateCentralStore::JasmineGraphHashMapDuplicateCentralStore(std::string folderLocation) {
     this->instanceDataFolderLocation = folderLocation;
@@ -28,12 +26,12 @@ JasmineGraphHashMapDuplicateCentralStore::JasmineGraphHashMapDuplicateCentralSto
     Utils utils;
 
     instanceDataFolderLocation = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
-
 }
 
 bool JasmineGraphHashMapDuplicateCentralStore::loadGraph() {
     bool result = false;
-    std::string edgeStorePath = instanceDataFolderLocation + getFileSeparator() + std::to_string(graphId) + "_centralstore_dp_" + std::to_string(partitionId);
+    std::string edgeStorePath = instanceDataFolderLocation + getFileSeparator() + std::to_string(graphId) +
+                                "_centralstore_dp_" + std::to_string(partitionId);
 
     std::ifstream dbFile;
     dbFile.open(edgeStorePath, std::ios::binary | std::ios::in);
@@ -95,7 +93,8 @@ bool JasmineGraphHashMapDuplicateCentralStore::storeGraph() {
     bool result = false;
     flatbuffers::FlatBufferBuilder builder;
     std::vector<flatbuffers::Offset<EdgeStoreEntry>> edgeStoreEntriesVector;
-    std::string edgeStorePath = instanceDataFolderLocation + getFileSeparator() + getFileSeparator() + std::to_string(graphId) + "_centralstore_dp_" + std::to_string(partitionId);
+    std::string edgeStorePath = instanceDataFolderLocation + getFileSeparator() + getFileSeparator() +
+                                std::to_string(graphId) + "_centralstore_dp_" + std::to_string(partitionId);
 
     std::map<long, std::unordered_set<long>>::iterator localSubGraphMapIterator;
     for (localSubGraphMapIterator = centralDuplicateStoreSubgraphMap.begin();
@@ -116,11 +115,10 @@ bool JasmineGraphHashMapDuplicateCentralStore::storeGraph() {
 
     builder.Finish(edgeStore);
 
-    flatbuffers::SaveFile(edgeStorePath.c_str(), (const char *) builder.GetBufferPointer(), (size_t) builder.GetSize(),
+    flatbuffers::SaveFile(edgeStorePath.c_str(), (const char *)builder.GetBufferPointer(), (size_t)builder.GetSize(),
                           true);
 
     result = true;
-
 
     return result;
 }
@@ -132,16 +130,15 @@ map<long, unordered_set<long>> JasmineGraphHashMapDuplicateCentralStore::getUnde
 map<long, long> JasmineGraphHashMapDuplicateCentralStore::getOutDegreeDistributionHashMap() {
     map<long, long> distributionHashMap;
 
-    for (map<long, unordered_set<long>>::iterator it = centralDuplicateStoreSubgraphMap.begin(); it != centralDuplicateStoreSubgraphMap.end(); ++it) {
+    for (map<long, unordered_set<long>>::iterator it = centralDuplicateStoreSubgraphMap.begin();
+         it != centralDuplicateStoreSubgraphMap.end(); ++it) {
         long distribution = (it->second).size();
         distributionHashMap.insert(std::make_pair(it->first, distribution));
     }
     return distributionHashMap;
 }
 
-void JasmineGraphHashMapDuplicateCentralStore::addVertex(string *attributes) {
-
-}
+void JasmineGraphHashMapDuplicateCentralStore::addVertex(string *attributes) {}
 
 void JasmineGraphHashMapDuplicateCentralStore::addEdge(long startVid, long endVid) {
     map<long, unordered_set<long>>::iterator entryIterator = centralDuplicateStoreSubgraphMap.find(startVid);
@@ -193,11 +190,10 @@ void JasmineGraphHashMapDuplicateCentralStore::toLocalSubGraphMap(const PartEdge
         unordered_set<long> valueSet(vector.begin(), vector.end());
         centralDuplicateStoreSubgraphMap.insert(std::make_pair(key, valueSet));
     }
-
 }
 
 bool JasmineGraphHashMapDuplicateCentralStore::storePartEdgeMap(std::map<int, std::vector<int>> edgeMap,
-                                                       const std::string savePath) {
+                                                                const std::string savePath) {
     bool result = false;
     flatbuffers::FlatBufferBuilder builder;
     std::vector<flatbuffers::Offset<PartEdgeMapStoreEntry>> edgeStoreEntriesVector;
@@ -218,7 +214,7 @@ bool JasmineGraphHashMapDuplicateCentralStore::storePartEdgeMap(std::map<int, st
 
     builder.Finish(edgeStore);
 
-    flatbuffers::SaveFile(savePath.c_str(), (const char *) builder.GetBufferPointer(), (size_t) builder.GetSize(), true);
+    flatbuffers::SaveFile(savePath.c_str(), (const char *)builder.GetBufferPointer(), (size_t)builder.GetSize(), true);
 
     result = true;
 
