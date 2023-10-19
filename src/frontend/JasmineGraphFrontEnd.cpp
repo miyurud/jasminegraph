@@ -1564,14 +1564,6 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                         frontend_logger.log("Graph edge file does not exist on the specified path", "error");
                         continue;
                     }
-            if (JasmineGraphFrontEnd::isGraphActiveAndTrained(graphID, sqlite)) {
-                if (utils.fileExists(path)) {
-                    std::cout << "Path exists" << endl;
-                    JasminGraphLinkPredictor *jasminGraphLinkPredictor = new JasminGraphLinkPredictor();
-                    jasminGraphLinkPredictor->initiateLinkPrediction(graphID, path, masterIP);
-                } else {
-                    frontend_logger.log("The graph is not fully accessible or not fully trained.", "error");
-                    continue;
                 }
             }
         } else if (line.compare(START_REMOTE_WORKER) == 0) {
