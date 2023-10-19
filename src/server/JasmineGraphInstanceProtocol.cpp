@@ -90,3 +90,4 @@ const string JasmineGraphInstanceProtocol::INITIATE_ORG_SERVER = "initiate-org-s
 const string JasmineGraphInstanceProtocol::INITIATE_CLIENT = "initiate-client";
 const string JasmineGraphInstanceProtocol::MERGE_FILES = "merge-files";
 const string JasmineGraphInstanceProtocol::INITIATE_AGG = "initiate-agg";
+const string JasmineGraphInstanceProtocol::INITIATE_FED_PREDICT = "initiate-fed-predict";
