@@ -59,6 +59,7 @@ stop_tests_on_failure() {
             if [ "$failCnt" = 0 ]; then
                 failCnt=1
             else
+                sleep 5
                 if pgrep python3 &>/dev/null; then
                     echo "Master has stopped. Stopping tests..."
                     pkill python3
