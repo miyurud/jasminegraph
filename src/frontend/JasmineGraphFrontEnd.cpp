@@ -1764,8 +1764,6 @@ int JasmineGraphFrontEnd::run() {
         threadVector.push_back(
             std::thread(frontendservicesesion, masterIP, connFd, this->sqlite, this->perfSqlite, this->jobScheduler));
 
-        std::thread();
-
         currentFESession++;
     }
 }

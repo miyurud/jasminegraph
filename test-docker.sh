@@ -49,6 +49,27 @@ build_and_run_docker() {
     docker compose -f "${TEST_ROOT}/docker-compose.yml" up >"$RUN_LOG" 2>&1 &
 }
 
+stop_tests_on_failure() {
+    set +ex
+    failCnt=0
+    while true; do
+        if nc -zvn 127.0.0.1 7777 &>/dev/null; then
+            failCnt=0
+        else
+            if [ "$failCnt" = 0 ]; then
+                failCnt=1
+            else
+                if pgrep python3 &>/dev/null; then
+                    echo "Master has stopped. Stopping tests..."
+                    pkill python3
+                fi
+                break
+            fi
+        fi
+        sleep 1;
+    done
+}
+
 cd "$TEST_ROOT"
 rm -rf env
 cp -r env_init env
@@ -73,10 +94,12 @@ while ! nc -zvn 127.0.0.1 7777 &>/dev/null; do
     sleep .5
 done
 
+stop_tests_on_failure &
+
 timeout "$TIMEOUT_SECONDS" python3 -u "${TEST_ROOT}/test.py" |& tee "$TEST_LOG"
 exit_code="${PIPESTATUS[0]}"
 set +ex
-if [ "$exit_code" == '124' ]; then
+if [ "$exit_code" = '124' ]; then
     echo
     echo -e '\e[31;1mERROR: Test Timeout\e[0m'
     echo
