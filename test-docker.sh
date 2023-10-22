@@ -66,7 +66,7 @@ stop_tests_on_failure() {
                 break
             fi
         fi
-        sleep 1;
+        sleep 1
     done
 }
 
