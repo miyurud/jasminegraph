@@ -29,7 +29,6 @@ limitations under the License.
 #include "../centralstore/incremental/DataPublisher.h"
 #include "../centralstore/incremental/RelationBlock.h"
 #include "../metadb/SQLiteDBInterface.h"
-#include "../ml/trainer/JasminGraphTrainingInitiator.h"
 #include "../ml/trainer/JasmineGraphTrainingSchedular.h"
 #include "../ml/trainer/python-c-api/Python_C_API.h"
 #include "../partitioner/local/JSONParser.h"
@@ -1620,7 +1619,6 @@ static void edge_count_command(int connFd, SQLiteDBInterface sqlite, bool *loop_
 }
 
 static void merge_command(int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p) {
-    std::string federatedEnabled = Utils::getJasmineGraphProperty("org.jasminegraph.federated.enabled");
     string message = "Available main flags:\r\n";
     int result_wr = write(connFd, message.c_str(), message.size());
     if (result_wr < 0) {
@@ -1785,18 +1783,12 @@ static void train_command(int connFd, SQLiteDBInterface sqlite, bool *loop_exit_
         return;
     }
 
-    std::string federatedEnabled = Utils::getJasmineGraphProperty("org.jasminegraph.federated.enabled");
-
-    if (federatedEnabled == "true") {
-        if (Utils::getJasmineGraphProperty("org.jasminegraph.fl.org.training") == "true") {
-            frontend_logger.info("Initiate org communication");
-            JasmineGraphServer::initiateOrgCommunication(graphID, trainData, sqlite);
-        } else {
-            frontend_logger.info("Initiate communication");
-            JasmineGraphServer::initiateCommunication(graphID, trainData, sqlite);
-        }
+    if (Utils::getJasmineGraphProperty("org.jasminegraph.fl.org.training") == "true") {
+        frontend_logger.info("Initiate org communication");
+        JasmineGraphServer::initiateOrgCommunication(graphID, trainData, sqlite);
     } else {
-        JasminGraphTrainingInitiator::initiateTrainingLocally(graphID, trainData);
+        frontend_logger.info("Initiate communication");
+        JasmineGraphServer::initiateCommunication(graphID, trainData, sqlite);
     }
 
     result_wr = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
