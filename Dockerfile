@@ -4,8 +4,6 @@ ENV JASMINEGRAPH_HOME="/home/ubuntu/software/jasminegraph"
 
 WORKDIR /home/ubuntu/software/jasminegraph
 
-COPY ./GraphSAGE ./GraphSAGE
-
 COPY ./build.sh ./build.sh
 COPY ./CMakeLists.txt ./CMakeLists.txt
 COPY ./main.h ./main.h

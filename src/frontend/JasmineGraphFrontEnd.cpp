@@ -29,7 +29,6 @@ limitations under the License.
 #include "../centralstore/incremental/DataPublisher.h"
 #include "../centralstore/incremental/RelationBlock.h"
 #include "../metadb/SQLiteDBInterface.h"
-#include "../ml/trainer/JasminGraphTrainingInitiator.h"
 #include "../ml/trainer/JasmineGraphTrainingSchedular.h"
 #include "../ml/trainer/python-c-api/Python_C_API.h"
 #include "../partitioner/local/JSONParser.h"
@@ -1111,8 +1110,6 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 }
             }
         } else if (line.compare(MERGE) == 0) {
-            Utils utils;
-            std::string federatedEnabled = utils.getJasmineGraphProperty("org.jasminegraph.federated.enabled");
             string message = "Available main flags:\r\n";
             write(connFd, message.c_str(), message.size());
             string flags = Conts::FLAGS::GRAPH_ID;
@@ -1206,24 +1203,16 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 continue;
             }
 
-            Utils utils;
-            std::string federatedEnabled = utils.getJasmineGraphProperty("org.jasminegraph.federated.enabled");
-
-            if (federatedEnabled == "true") {
-                JasmineGraphServer *jasmineServer = new JasmineGraphServer();
-                if (utils.getJasmineGraphProperty("org.jasminegraph.fl.org.training") == "true") {
-                    frontend_logger.log("Initiate org communication", "info");
-                    jasmineServer->initiateOrgCommunication(graphID, trainData, sqlite);
-
-                } else {
-                    frontend_logger.log("Initiate communication", "info");
-                    jasmineServer->initiateCommunication(graphID, trainData, sqlite);
-                }
+            JasmineGraphServer *jasmineServer = new JasmineGraphServer();
+            if (utils.getJasmineGraphProperty("org.jasminegraph.fl.org.training") == "true") {
+                frontend_logger.log("Initiate org communication", "info");
+                jasmineServer->initiateOrgCommunication(graphID, trainData, sqlite);
 
             } else {
-                JasminGraphTrainingInitiator *jasminGraphTrainingInitiator = new JasminGraphTrainingInitiator();
-                jasminGraphTrainingInitiator->initiateTrainingLocally(graphID, trainData);
+                frontend_logger.log("Initiate communication", "info");
+                jasmineServer->initiateCommunication(graphID, trainData, sqlite);
             }
+
             write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
             write(connFd, "\r\n", 2);
 
