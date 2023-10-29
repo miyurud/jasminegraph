@@ -1732,11 +1732,14 @@ int TriangleCountExecutor::collectPerformaceData(PerformanceSQLiteDBInterface pe
                                                   autoCalibrate);
 
     while (!workerResponded) {
-        if (time(0) - start == Conts::LOAD_AVG_COLLECTING_GAP) {
+        time_t elapsed = time(0) - start;
+        if (elapsed >= Conts::LOAD_AVG_COLLECTING_GAP) {
             elapsedTime += Conts::LOAD_AVG_COLLECTING_GAP * 1000;
             performanceUtil.collectSLAResourceConsumption(placeList, graphId, command, category, masterIP, elapsedTime,
                                                           autoCalibrate);
             start = start + Conts::LOAD_AVG_COLLECTING_GAP;
+        } else {
+            sleep(Conts::LOAD_AVG_COLLECTING_GAP - elapsed);
         }
     }
 
