@@ -599,7 +599,7 @@ int Utils::connect_wrapper(int sock, const sockaddr *addr, socklen_t slen) {
     }
 
     if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char *)&tv, sizeof(tv)) == -1) {
-        util_logger.error("Failed to set recieve timeout option for socket");
+        util_logger.error("Failed to set receive timeout option for socket");
     }
 
     do {
@@ -608,6 +608,10 @@ int Utils::connect_wrapper(int sock, const sockaddr *addr, socklen_t slen) {
                          "]: " + string(inet_ntoa(((const struct sockaddr_in *)addr)->sin_addr)) + ":" +
                          to_string(ntohs(((const struct sockaddr_in *)addr)->sin_port)));
         if (connect(sock, addr, slen) == 0) {
+            tv = {0, 0};
+            if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char *)&tv, sizeof(tv)) == -1) {
+                util_logger.error("Failed to set receive timeout option for socket after successful connection");
+            }
             return 0;
         }
     } while (retry++ < 4);
