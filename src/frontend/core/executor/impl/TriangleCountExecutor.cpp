@@ -1692,8 +1692,6 @@ int TriangleCountExecutor::collectPerformaceData(PerformanceSQLiteDBInterface pe
                                                  std::string command, std::string category, int partitionCount,
                                                  std::string masterIP, bool autoCalibrate) {
     int elapsedTime = 0;
-    time_t start;
-    time_t end;
     PerformanceUtil performanceUtil;
     performanceUtil.init();
     Utils utils;
@@ -1727,17 +1725,12 @@ int TriangleCountExecutor::collectPerformaceData(PerformanceSQLiteDBInterface pe
         }
     }
 
-    start = time(0);
     performanceUtil.collectSLAResourceConsumption(placeList, graphId, command, category, masterIP, elapsedTime,
                                                   autoCalibrate);
-
     while (!workerResponded) {
-        if (time(0) - start == Conts::LOAD_AVG_COLLECTING_GAP) {
-            elapsedTime += Conts::LOAD_AVG_COLLECTING_GAP * 1000;
-            performanceUtil.collectSLAResourceConsumption(placeList, graphId, command, category, masterIP, elapsedTime,
-                                                          autoCalibrate);
-            start = start + Conts::LOAD_AVG_COLLECTING_GAP;
-        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(Conts::LOAD_AVG_COLLECTING_GAP*1000));
+        elapsedTime += Conts::LOAD_AVG_COLLECTING_GAP * 1000;
+        performanceUtil.collectSLAResourceConsumption(placeList, graphId, command, category, masterIP, elapsedTime, autoCalibrate);
     }
 
     performanceUtil.updateRemoteResourceConsumption(perDB, graphId, partitionCount, placeList, slaCategoryId, masterIP);
