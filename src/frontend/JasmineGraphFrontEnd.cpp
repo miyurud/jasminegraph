@@ -1460,7 +1460,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                     frontend_logger.log("Error writing to socket", "error");
                 }
 
-                char predict_data[300];
+                char predict_data[301];
                 bzero(predict_data, 301);
                 string graphID = "";
                 string modelID = "";
@@ -1492,7 +1492,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 if (result_wr < 0) {
                     frontend_logger.log("Error writing to socket", "error");
                 }
-                char predict_data[300];
+                char predict_data[301];
                 bzero(predict_data, 301);
                 string graphID = "";
                 string path = "";
