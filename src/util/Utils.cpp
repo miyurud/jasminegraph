@@ -301,7 +301,7 @@ int Utils::compressFile(const std::string filePath, std::string mode) {
     }
     std::string command = mode + " -f " + filePath + " 2>&1";
     int status = system(command.c_str());
-    if (status!=0) {
+    if (status != 0) {
         util_logger.error("File compression failed with code " + std::to_string(status));
     }
     return status;
@@ -320,7 +320,7 @@ int Utils::unzipFile(std::string filePath, std::string mode) {
     }
     std::string command = mode + " -f -d " + filePath + " 2>&1";
     int status = system(command.c_str());
-    if (status!=0) {
+    if (status != 0) {
         util_logger.error("File decompression failed with code " + std::to_string(status));
     }
     return status;
@@ -361,7 +361,7 @@ string Utils::getHostID(string hostName, SQLiteDBInterface sqlite) {
 int Utils::compressDirectory(const std::string filePath) {
     std::string command = "tar -czf " + filePath + ".tar.gz " + filePath;
     int status = system(command.c_str());
-    if (status!=0) {
+    if (status != 0) {
         util_logger.error("Directory compression failed with code " + std::to_string(status));
     }
     return status;
@@ -374,7 +374,7 @@ int Utils::compressDirectory(const std::string filePath) {
 int Utils::unzipDirectory(std::string filePath) {
     std::string command = "tar -xzf " + filePath;
     int status = system(command.c_str());
-    if (status!=0) {
+    if (status != 0) {
         util_logger.error("Directory compression failed with code " + std::to_string(status));
     }
     return status;
@@ -461,7 +461,7 @@ void Utils::updateSLAInformation(PerformanceSQLiteDBInterface perfSqlite, std::s
 int Utils::copyToDirectory(std::string currentPath, std::string copyPath) {
     std::string command = "mkdir -p " + copyPath + "&& " + "cp " + currentPath + " " + copyPath;
     int status = system(command.c_str());
-    if (status!=0) {
+    if (status != 0) {
         util_logger.error("copyToDirectory failed with code " + std::to_string(status));
     }
     return status;

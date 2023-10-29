@@ -284,7 +284,8 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
     std::string workerPath = Utils::getJasmineGraphProperty("org.jasminegraph.worker.path");
     std::string artifactPath = Utils::getJasmineGraphProperty("org.jasminegraph.artifact.path");
     std::string instanceDataFolder = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
-    std::string aggregateDataFolder = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
+    std::string aggregateDataFolder =
+        Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
     std::string nmonFileLocation = Utils::getJasmineGraphProperty("org.jasminegraph.server.nmon.file.location");
     std::string graphsagelocation = Utils::getJasmineGraphProperty("org.jasminegraph.graphsage");
     std::string federatedLearningLocation = Utils::getJasmineGraphProperty("org.jasminegraph.fl.location");

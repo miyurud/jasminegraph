@@ -171,7 +171,8 @@ void *instanceservicesession(void *dummyPt) {
             Utils::unzipFile(fullFilePath);
             size_t lastindex = fileName.find_last_of(".");
             string rawname = fileName.substr(0, lastindex);
-            fullFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + rawname;
+            fullFilePath =
+                Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + rawname;
 
             string partitionID = rawname.substr(rawname.find_last_of("_") + 1);
             pthread_mutex_lock(&file_lock);
@@ -267,7 +268,8 @@ void *instanceservicesession(void *dummyPt) {
             Utils::unzipFile(fullFilePath);
             size_t lastindex = fileName.find_last_of(".");
             string rawname = fileName.substr(0, lastindex);
-            fullFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + rawname;
+            fullFilePath =
+                Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + rawname;
 
             while (!Utils::fileExists(fullFilePath)) {
                 bzero(data, INSTANCE_DATA_LENGTH + 1);
@@ -357,7 +359,8 @@ void *instanceservicesession(void *dummyPt) {
             Utils::unzipFile(fullFilePath);
             size_t lastindex = fileName.find_last_of(".");
             string rawname = fileName.substr(0, lastindex);
-            fullFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + rawname;
+            fullFilePath =
+                Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + rawname;
 
             while (!Utils::fileExists(fullFilePath)) {
                 bzero(data, INSTANCE_DATA_LENGTH + 1);
@@ -445,7 +448,8 @@ void *instanceservicesession(void *dummyPt) {
             Utils::unzipFile(fullFilePath);
             size_t lastindex = fileName.find_last_of(".");
             string rawname = fileName.substr(0, lastindex);
-            fullFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + rawname;
+            fullFilePath =
+                Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + rawname;
 
             while (!Utils::fileExists(fullFilePath)) {
                 bzero(data, INSTANCE_DATA_LENGTH + 1);
@@ -533,7 +537,8 @@ void *instanceservicesession(void *dummyPt) {
             Utils::unzipFile(fullFilePath);
             size_t lastindex = fileName.find_last_of(".");
             string rawname = fileName.substr(0, lastindex);
-            fullFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + rawname;
+            fullFilePath =
+                Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + rawname;
 
             while (!Utils::fileExists(fullFilePath)) {
                 bzero(data, INSTANCE_DATA_LENGTH + 1);
@@ -1335,7 +1340,8 @@ void *instanceservicesession(void *dummyPt) {
             Utils::unzipFile(fullFilePath);
             size_t lastindex = fileName.find_last_of(".");
             string rawname = fileName.substr(0, lastindex);
-            fullFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + rawname;
+            fullFilePath =
+                Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + rawname;
             std::string aggregatorFilePath =
                 Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
 
@@ -1438,7 +1444,8 @@ void *instanceservicesession(void *dummyPt) {
             Utils::unzipFile(fullFilePath);
             size_t lastindex = fileName.find_last_of(".");
             string rawname = fileName.substr(0, lastindex);
-            fullFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + rawname;
+            fullFilePath =
+                Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + rawname;
             std::string aggregatorFilePath =
                 Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
 
@@ -2053,7 +2060,8 @@ void *instanceservicesession(void *dummyPt) {
             predictargs.push_back(graphID);
             predictargs.push_back(vertexCount);
             predictargs.push_back(fullFilePath);
-            predictargs.push_back(Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.trainedmodelfolder"));
+            predictargs.push_back(
+                Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.trainedmodelfolder"));
             predictargs.push_back(to_string(totalPartitions + stoi(ownPartitions)));
             std::vector<char *> predict_agrs_vector;
             std::transform(predictargs.begin(), predictargs.end(), std::back_inserter(predict_agrs_vector), converter);
@@ -2492,17 +2500,21 @@ int deleteGraphPartition(std::string graphID, std::string partitionID) {
     string centalStoreFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" +
                                  graphID + +"_centralstore_" + partitionID;
     status |= Utils::deleteDirectory(centalStoreFilePath);
-    string centalStoreDuplicateFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") +
-                                          "/" + graphID + +"_centralstore_dp_" + partitionID;
+    string centalStoreDuplicateFilePath =
+        Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + graphID +
+        +"_centralstore_dp_" + partitionID;
     status |= Utils::deleteDirectory(centalStoreDuplicateFilePath);
     string attributeFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" +
                                graphID + +"_attributes_" + partitionID;
     status |= Utils::deleteDirectory(attributeFilePath);
-    string attributeCentalStoreFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") +
-                                          "/" + graphID + +"_centralstore_attributes_" + partitionID;
+    string attributeCentalStoreFilePath =
+        Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + graphID +
+        +"_centralstore_attributes_" + partitionID;
     status |= Utils::deleteDirectory(attributeCentalStoreFilePath);
-    if (status == 0) instance_logger.info("Graph partition and centralstore files are now deleted");
-    else instance_logger.warn("Graph partition and centralstore files deleting failed");
+    if (status == 0)
+        instance_logger.info("Graph partition and centralstore files are now deleted");
+    else
+        instance_logger.warn("Graph partition and centralstore files deleting failed");
     return status;
 }
 
@@ -3098,8 +3110,8 @@ void JasmineGraphInstanceService::createPartitionFiles(std::string graphID, std:
     JasmineGraphHashMapLocalStore *hashMapLocalStore = new JasmineGraphHashMapLocalStore();
     string inputFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" +
                            graphID + "_" + partitionID;
-    string outputFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.trainedmodelfolder") + "/" +
-                            graphID + "_" + partitionID;
+    string outputFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.trainedmodelfolder") +
+                            "/" + graphID + "_" + partitionID;
     if (fileType == "centralstore") {
         inputFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + graphID +
                         "_centralstore_" + partitionID;
