@@ -73,8 +73,6 @@ class RDFPartitioner {
 
     string inputFilePath;
 
-    Utils utils;
-
     std::map<string, long> nodes;
     std::map<long, string> nodesTemp;
     std::map<string, long> predicates;

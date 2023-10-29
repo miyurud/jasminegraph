@@ -84,7 +84,6 @@ void JasminGraphLinkPredictor::initiateLinkPrediction(std::string graphID, std::
 int JasminGraphLinkPredictor::sendQueryToWorker(std::string host, int port, int dataPort, int selectedHostPartitionsNo,
                                                 std::string graphID, std::string vertexCount, std::string filePath,
                                                 std::string hostsList, std::string masterIP) {
-    Utils utils;
     bool result = true;
     std::cout << pthread_self() << " host : " << host << " port : " << port << " DPort : " << dataPort << std::endl;
     int sockfd;
@@ -102,7 +101,7 @@ int JasminGraphLinkPredictor::sendQueryToWorker(std::string host, int port, int 
     }
 
     if (host.find('@') != std::string::npos) {
-        host = utils.split(host, '@')[1];
+        host = Utils::split(host, '@')[1];
     }
 
     server = gethostbyname(host.c_str());
@@ -125,11 +124,11 @@ int JasminGraphLinkPredictor::sendQueryToWorker(std::string host, int port, int 
     read(sockfd, data, 300);
     string response = (data);
 
-    response = utils.trim_copy(response, " \f\n\r\t\v");
+    response = Utils::trim_copy(response, " \f\n\r\t\v");
 
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
         predictor_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
-        string server_host = utils.getJasmineGraphProperty("org.jasminegraph.server.host");
+        string server_host = Utils::getJasmineGraphProperty("org.jasminegraph.server.host");
         write(sockfd, server_host.c_str(), server_host.size());
         predictor_logger.log("Sent : " + server_host, "info");
 
@@ -139,7 +138,7 @@ int JasminGraphLinkPredictor::sendQueryToWorker(std::string host, int port, int 
         bzero(data, 301);
         read(sockfd, data, 300);
         response = (data);
-        response = utils.trim_copy(response, " \f\n\r\t\v");
+        response = Utils::trim_copy(response, " \f\n\r\t\v");
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
             predictor_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
@@ -153,14 +152,14 @@ int JasminGraphLinkPredictor::sendQueryToWorker(std::string host, int port, int 
             predictor_logger.log("Sent : No of partition in selected host " + to_string(selectedHostPartitionsNo),
                                  "info");
 
-            std::string fileName = utils.getFileName(filePath);
-            int fileSize = utils.getFileSize(filePath);
+            std::string fileName = Utils::getFileName(filePath);
+            int fileSize = Utils::getFileSize(filePath);
             std::string fileLength = to_string(fileSize);
 
             bzero(data, 301);
             read(sockfd, data, 300);
             response = (data);
-            response = utils.trim_copy(response, " \f\n\r\t\v");
+            response = Utils::trim_copy(response, " \f\n\r\t\v");
             if (response.compare(JasmineGraphInstanceProtocol::SEND_HOSTS) == 0) {
                 predictor_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_HOSTS, "info");
                 /*Create a string with host details*/

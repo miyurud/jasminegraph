@@ -20,9 +20,7 @@ using namespace Bosma;
 Logger schedulerservice_logger;
 
 void SchedulerService::startScheduler() {
-    Utils utils;
-
-    std::string schedulerEnabled = utils.getJasmineGraphProperty("org.jasminegraph.scheduler.enabled");
+    std::string schedulerEnabled = Utils::getJasmineGraphProperty("org.jasminegraph.scheduler.enabled");
 
     if (schedulerEnabled == "true") {
         schedulerservice_logger.log("#######SCHEDULER ENABLED#####", "info");
@@ -34,14 +32,13 @@ void SchedulerService::startScheduler() {
 void SchedulerService::startPerformanceScheduler() {
     unsigned int max_n_threads = 12;
 
-    Utils utils;
     PerformanceUtil util;
     util.init();
 
     Bosma::Scheduler scheduler(max_n_threads);
 
     std::string performanceSchedulerTiming =
-        utils.getJasmineGraphProperty("org.jasminegraph.scheduler.performancecollector.timing");
+        Utils::getJasmineGraphProperty("org.jasminegraph.scheduler.performancecollector.timing");
 
     scheduler.every(std::chrono::seconds(atoi(performanceSchedulerTiming.c_str())), util.collectPerformanceStatistics);
 

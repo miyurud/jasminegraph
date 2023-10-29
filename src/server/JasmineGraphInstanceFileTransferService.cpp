@@ -23,14 +23,13 @@ pthread_mutex_t thread_lock = PTHREAD_MUTEX_INITIALIZER;
 void *filetransferservicesession(void *dummyPt) {
     filetransferservicesessionargs *sessionargs = (filetransferservicesessionargs *)dummyPt;
     int connFd = sessionargs->connFd;
-    Utils utils;
     char data[301];
     bzero(data, 301);
     read(connFd, data, 300);
     string fileName = (data);
-    // fileName = utils.trim_copy(fileName, " \f\n\r\t\v");
+    // fileName = Utils::trim_copy(fileName, " \f\n\r\t\v");
     string filePathWithName =
-        utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
+        Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
 
     write(connFd, JasmineGraphInstanceProtocol::SEND_FILE.c_str(), JasmineGraphInstanceProtocol::SEND_FILE.size());
     int bytesReceived = 0;

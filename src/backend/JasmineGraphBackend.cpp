@@ -20,7 +20,6 @@ limitations under the License.
 
 using namespace std;
 
-Utils utils;
 Logger backend_logger;
 
 void *backendservicesesion(void *dummyPt) {
@@ -37,7 +36,7 @@ void *backendservicesesion(void *dummyPt) {
 
         string line(data);
         backend_logger.log("Command received: " + line, "info");
-        line = utils.trim_copy(line, " \f\n\r\t\v");
+        line = Utils::trim_copy(line, " \f\n\r\t\v");
 
         if (line.compare(EXIT_BACKEND) == 0) {
             write(connFd, EXIT_ACK.c_str(), EXIT_ACK.size());
@@ -51,8 +50,7 @@ void *backendservicesesion(void *dummyPt) {
             bzero(host, 301);
             read(connFd, host, 300);
             string hostname(host);
-            Utils utils;
-            hostname = utils.trim_copy(hostname, " \f\n\r\t\v");
+            hostname = Utils::trim_copy(hostname, " \f\n\r\t\v");
             write(connFd, HOST_OK.c_str(), HOST_OK.size());
             backend_logger.log("Hostname of the worker: " + hostname, "info");
 

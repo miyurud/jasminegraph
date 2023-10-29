@@ -39,7 +39,7 @@ JSONParser::JSONParser() {}
 
 void JSONParser::jsonParse(string filePath) {
     this->inputFilePath = filePath;
-    this->outputFilePath = utils.getHomeDir() + "/.jasminegraph/tmp/JSONParser/output";
+    this->outputFilePath = Utils::getHomeDir() + "/.jasminegraph/tmp/JSONParser/output";
     const clock_t begin = clock();
     readFile();
     float time = float(clock() - begin) / CLOCKS_PER_SEC;
@@ -95,10 +95,10 @@ void JSONParser::attributeFileCreate() {
 }
 
 void JSONParser::readFile() {
-    this->utils.createDirectory(utils.getHomeDir() + "/.jasminegraph/");
-    this->utils.createDirectory(utils.getHomeDir() + "/.jasminegraph/tmp");
-    this->utils.createDirectory(utils.getHomeDir() + "/.jasminegraph/tmp/JSONParser");
-    this->utils.createDirectory(utils.getHomeDir() + "/.jasminegraph/tmp/JSONParser/output");
+    Utils::createDirectory(Utils::getHomeDir() + "/.jasminegraph/");
+    Utils::createDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp");
+    Utils::createDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp/JSONParser");
+    Utils::createDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp/JSONParser/output");
 
     std::thread *workerThreads = new std::thread[2];
     workerThreads[0] = std::thread(&JSONParser::createEdgeList, this);

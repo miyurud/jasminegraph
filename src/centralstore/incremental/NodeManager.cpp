@@ -30,10 +30,9 @@ std::mutex lockEdgeAdd;
 NodeManager::NodeManager(GraphConfig gConfig) {
     this->graphID = gConfig.graphID;
     this->partitionID = gConfig.partitionID;
-    Utils utils;
 
     std::string instanceDataFolderLocation =
-        utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+        Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
     std::string graphPrefix = instanceDataFolderLocation + "/g" + std::to_string(graphID);
     std::string dbPrefix = graphPrefix + "_p" + std::to_string(partitionID);
     std::string nodesDBPath = dbPrefix + "_nodes.db";

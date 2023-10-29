@@ -43,54 +43,51 @@ class Utils {
         std::string dataPort;
     };
 
-    map<std::string, std::string> getBatchUploadFileList(std::string file);
+    static std::string getJasmineGraphProperty(std::string key);
 
-    std::string getJasmineGraphProperty(std::string key);
+    static std::vector<worker> getWorkerList(SQLiteDBInterface sqlite);
 
-    std::vector<worker> getWorkerList(SQLiteDBInterface sqlite);
+    static std::vector<std::string> getHostListFromProperties();
 
-    std::vector<std::string> getHostListFromProperties();
-
-    std::vector<std::string> getFileContent(std::string);
+    static std::vector<std::string> getFileContent(std::string);
 
     static std::vector<std::string> split(const std::string &, char delimiter);
 
-    std::string trim_copy(const std::string &, const std::string &);
+    static std::string trim_copy(const std::string &, const std::string &);
 
-    bool parseBoolean(const std::string str);
+    static bool parseBoolean(const std::string str);
 
-    bool fileExists(std::string fileName);
+    static bool fileExists(std::string fileName);
 
-    void compressFile(const std::string filePath, const std::string mode = "pigz");
-    bool is_number(const std::string &compareString);
+    static int compressFile(const std::string filePath, std::string mode = "pigz");
 
-    void createDirectory(const std::string dirName);
+    static bool is_number(const std::string &compareString);
 
-    std::vector<std::string> getListOfFilesInDirectory(const std::string dirName);
+    static void createDirectory(const std::string dirName);
 
-    void deleteDirectory(const std::string dirName);
+    static std::vector<std::string> getListOfFilesInDirectory(const std::string dirName);
 
-    std::string getFileName(std::string filePath);
+    static int deleteDirectory(const std::string dirName);
 
-    int getFileSize(std::string filePath);
+    static std::string getFileName(std::string filePath);
 
-    std::string getJasmineGraphHome();
-    // Static method to get running user's home directory
+    static int getFileSize(std::string filePath);
+
+    static std::string getJasmineGraphHome();
+
     static std::string getHomeDir();
 
-    void copyFile(const std::string sourceFilePath, const std::string destinationFilePath);
+    static int copyFile(const std::string sourceFilePath, const std::string destinationFilePath);
 
-    void unzipFile(std::string filePath, const std::string mode = "pigz");
+    static int unzipFile(std::string filePath, std::string mode = "pigz");
 
-    int parseARGS(char **args, char *line);
+    static bool hostExists(std::string name, std::string ip, std::string workerPort, SQLiteDBInterface sqlite);
 
-    bool hostExists(std::string name, std::string ip, std::string workerPort, SQLiteDBInterface sqlite);
+    static int compressDirectory(const std::string filePath);
 
-    void compressDirectory(const std::string filePath);
+    static int unzipDirectory(std::string filePath);
 
-    void unzipDirectory(std::string filePath);
-
-    void copyToDirectory(std::string currentPath, std::string copyPath);
+    static int copyToDirectory(std::string currentPath, std::string copyPath);
 
     static std::string getHostID(std::string hostName, SQLiteDBInterface sqlite);
 
@@ -99,11 +96,11 @@ class Utils {
     static void updateSLAInformation(PerformanceSQLiteDBInterface perfSqlite, std::string graphId, int partitionCount,
                                      long newSlaValue, std::string command, std::string category);
 
-    void editFlagZero(std::string flagPath);
+    static void editFlagZero(std::string flagPath);
 
-    void editFlagOne(std::string flagPath);
+    static void editFlagOne(std::string flagPath);
 
-    std::string checkFlag(std::string flagPath);
+    static std::string checkFlag(std::string flagPath);
 
     static int connect_wrapper(int sock, const sockaddr *addr, socklen_t slen);
     static std::string getCurrentTimestamp();

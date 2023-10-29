@@ -22,8 +22,7 @@ using namespace std;
 Logger perfdb_logger;
 
 int PerformanceSQLiteDBInterface::init() {
-    Utils utils;
-    int rc = sqlite3_open(utils.getJasmineGraphProperty("org.jasminegraph.performance.db.location").c_str(), &database);
+    int rc = sqlite3_open(Utils::getJasmineGraphProperty("org.jasminegraph.performance.db.location").c_str(), &database);
     if (rc) {
         perfdb_logger.log("Cannot open database: " + string(sqlite3_errmsg(database)), "error");
         return (-1);

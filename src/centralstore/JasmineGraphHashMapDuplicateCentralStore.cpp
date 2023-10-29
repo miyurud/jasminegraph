@@ -23,9 +23,7 @@ JasmineGraphHashMapDuplicateCentralStore::JasmineGraphHashMapDuplicateCentralSto
     this->graphId = graphId;
     this->partitionId = partitionId;
 
-    Utils utils;
-
-    instanceDataFolderLocation = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+    instanceDataFolderLocation = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
 }
 
 bool JasmineGraphHashMapDuplicateCentralStore::loadGraph() {

@@ -66,7 +66,6 @@ bool JasmineGraphInstance::acknowledgeMaster(string masterHost, string workerIP,
     socklen_t len;
     struct sockaddr_in serv_addr;
     struct hostent *server;
-    Utils utils;
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -76,7 +75,7 @@ bool JasmineGraphInstance::acknowledgeMaster(string masterHost, string workerIP,
     }
 
     if (masterHost.find('@') != std::string::npos) {
-        masterHost = utils.split(masterHost, '@')[1];
+        masterHost = Utils::split(masterHost, '@')[1];
     }
 
     graphInstance_logger.log("###INSTANCE### Get Host By Name : " + masterHost, "info");
@@ -107,7 +106,7 @@ bool JasmineGraphInstance::acknowledgeMaster(string masterHost, string workerIP,
     read(sockfd, data, 300);
     string response = (data);
 
-    response = utils.trim_copy(response, " \f\n\r\t\v");
+    response = Utils::trim_copy(response, " \f\n\r\t\v");
 
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
         graphInstance_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
@@ -122,7 +121,7 @@ bool JasmineGraphInstance::acknowledgeMaster(string masterHost, string workerIP,
         bzero(data, 301);
         read(sockfd, data, 300);
         response = (data);
-        response = utils.trim_copy(response, " \f\n\r\t\v");
+        response = Utils::trim_copy(response, " \f\n\r\t\v");
 
         if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
             graphInstance_logger.log("Received : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
@@ -138,7 +137,7 @@ bool JasmineGraphInstance::acknowledgeMaster(string masterHost, string workerIP,
             bzero(data, 301);
             read(sockfd, data, 300);
             response = (data);
-            response = utils.trim_copy(response, " \f\n\r\t\v");
+            response = Utils::trim_copy(response, " \f\n\r\t\v");
 
             if (response.compare(JasmineGraphInstanceProtocol::WORKER_INFO_SEND) == 0) {
                 std::string workerInfo = workerIP + "|" + workerPort;
@@ -169,11 +168,10 @@ bool JasmineGraphInstance::acknowledgeMaster(string masterHost, string workerIP,
 }
 
 void JasmineGraphInstance::startNmonAnalyzer(string enableNmon, int serverPort) {
-    Utils utils;
     if (enableNmon == "true") {
-        std::string nmonFileLocation = utils.getJasmineGraphProperty("org.jasminegraph.server.nmon.file.location");
-        std::string numberOfSnapshots = utils.getJasmineGraphProperty("org.jasminegraph.server.nmon.snapshots");
-        std::string snapshotGap = utils.getJasmineGraphProperty("org.jasminegraph.server.nmon.snapshot.gap");
+        std::string nmonFileLocation = Utils::getJasmineGraphProperty("org.jasminegraph.server.nmon.file.location");
+        std::string numberOfSnapshots = Utils::getJasmineGraphProperty("org.jasminegraph.server.nmon.snapshots");
+        std::string snapshotGap = Utils::getJasmineGraphProperty("org.jasminegraph.server.nmon.snapshot.gap");
         std::string nmonFileName = nmonFileLocation + "nmon.log." + std::to_string(serverPort);
         std::string nmonStartupCommand =
             "nmon_x86_64_ubuntu18 -c " + numberOfSnapshots + " -s " + snapshotGap + " -T -F " + nmonFileName;
@@ -203,7 +201,6 @@ bool JasmineGraphInstance::isRunning() { return true; }
 
 bool JasmineGraphInstance::sendFileThroughService(std::string host, int dataPort, std::string fileName,
                                                   std::string filePath) {
-    Utils utils;
     int sockfd;
     char data[301];
     socklen_t len;
@@ -238,7 +235,7 @@ bool JasmineGraphInstance::sendFileThroughService(std::string host, int dataPort
     bzero(data, 301);
     read(sockfd, data, 300);
     string response = (data);
-    response = utils.trim_copy(response, " \f\n\r\t\v");
+    response = Utils::trim_copy(response, " \f\n\r\t\v");
     if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE) == 0) {
         std::cout << "Sending file " << filePath << " through port " << dataPort << std::endl;
 

@@ -35,7 +35,6 @@ void fnExit3(void) {
 
 int main(int argc, char *argv[]) {
     atexit(fnExit3);
-    Utils utils;
 
     if (argc <= 1) {
         main_logger.log(
@@ -47,7 +46,7 @@ int main(int argc, char *argv[]) {
     std::cout << argc << std::endl;
 
     int mode = atoi(argv[2]);
-    std::string JASMINEGRAPH_HOME = utils.getJasmineGraphHome();
+    std::string JASMINEGRAPH_HOME = Utils::getJasmineGraphHome();
     std::string profile = argv[1];  // This can be either "docker" or "native"
     std::string enableNmon = "false";
 
