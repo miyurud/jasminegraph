@@ -64,6 +64,7 @@ std::string stream_topic_name;
 
 static void list_command(int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p);
 static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p);
+static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p);
 
 // Thread function
 void listen_to_kafka_topic(KafkaConnector *kstream, Partitioner &graphPartitioner,
@@ -178,102 +179,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
         } else if (line.compare(ADRDF) == 0) {
             add_rdf_command(masterIP, connFd, sqlite, &loop_exit);
         } else if (line.compare(ADGR) == 0) {
-            int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
-            if (result_wr < 0) {
-                frontend_logger.error("Error writing to socket");
-                loop_exit = true;
-                continue;
-            }
-            result_wr = write(connFd, "\r\n", 2);
-            if (result_wr < 0) {
-                frontend_logger.error("Error writing to socket");
-                loop_exit = true;
-                continue;
-            }
-
-            // We get the name and the path to graph as a pair separated by |.
-            char graph_data[FRONTEND_DATA_LENGTH + 1];
-            char partition_count[FRONTEND_DATA_LENGTH + 1];
-            bzero(graph_data, FRONTEND_DATA_LENGTH + 1);
-            string name = "";
-            string path = "";
-            string partitionCount = "";
-
-            read(connFd, graph_data, FRONTEND_DATA_LENGTH);
-
-            std::time_t time = chrono::system_clock::to_time_t(chrono::system_clock::now());
-            string uploadStartTime = ctime(&time);
-            string gData(graph_data);
-
-            gData = Utils::trim_copy(gData, " \f\n\r\t\v");
-            frontend_logger.info("Data received: " + gData);
-
-            std::vector<std::string> strArr = Utils::split(gData, '|');
-
-            if (strArr.size() < 2) {
-                frontend_logger.error("Message format not recognized");
-                continue;
-            }
-
-            name = strArr[0];
-            path = strArr[1];
-
-            if (strArr.size() == 3) {
-                partitionCount = strArr[2];
-            }
-
-            if (JasmineGraphFrontEnd::graphExists(path, sqlite)) {
-                frontend_logger.error("Graph exists");
-                continue;
-            }
-
-            if (Utils::fileExists(path)) {
-                frontend_logger.info("Path exists");
-
-                string sqlStatement =
-                    "INSERT INTO graph (name,upload_path,upload_start_time,upload_end_time,graph_status_idgraph_status,"
-                    "vertexcount,centralpartitioncount,edgecount) VALUES(\"" +
-                    name + "\", \"" + path + "\", \"" + uploadStartTime + "\", \"\",\"" +
-                    to_string(Conts::GRAPH_STATUS::LOADING) + "\", \"\", \"\", \"\")";
-                int newGraphID = sqlite.runInsert(sqlStatement);
-                JasmineGraphServer *jasmineServer = new JasmineGraphServer();
-                MetisPartitioner *partitioner = new MetisPartitioner(&sqlite);
-                vector<std::map<int, string>> fullFileList;
-
-                partitioner->loadDataSet(path, newGraphID);
-                int result = partitioner->constructMetisFormat(Conts::GRAPH_TYPE_NORMAL);
-                if (result == 0) {
-                    string reformattedFilePath = partitioner->reformatDataSet(path, newGraphID);
-                    partitioner->loadDataSet(reformattedFilePath, newGraphID);
-                    partitioner->constructMetisFormat(Conts::GRAPH_TYPE_NORMAL_REFORMATTED);
-                    fullFileList = partitioner->partitioneWithGPMetis(partitionCount);
-                } else {
-                    fullFileList = partitioner->partitioneWithGPMetis(partitionCount);
-                }
-                frontend_logger.info("Upload done");
-                jasmineServer->uploadGraphLocally(newGraphID, Conts::GRAPH_TYPE_NORMAL, fullFileList, masterIP);
-                Utils::deleteDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
-                string workerCountQuery = "select count(*) from worker";
-                std::vector<vector<pair<string, string>>> results = sqlite.runSelect(workerCountQuery);
-                string workerCount = results[0][0].second;
-                int nWorkers = atoi(workerCount.c_str());
-                JasmineGraphFrontEnd::getAndUpdateUploadTime(to_string(newGraphID), sqlite);
-                int result_wr = write(connFd, DONE.c_str(), DONE.size());
-                if (result_wr < 0) {
-                    frontend_logger.error("Error writing to socket");
-                    loop_exit = true;
-                    continue;
-                }
-                result_wr = write(connFd, "\r\n", 2);
-                if (result_wr < 0) {
-                    frontend_logger.error("Error writing to socket");
-                    loop_exit = true;
-                    continue;
-                }
-            } else {
-                frontend_logger.error("Graph data file does not exist on the specified path");
-                continue;
-            }
+            add_graph_command(masterIP, connFd, sqlite, &loop_exit);
         } else if (line.compare(ADMDL) == 0) {
             // TODO add error handling
             write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
@@ -2328,8 +2234,117 @@ static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface 
         Utils::deleteDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
         Utils::deleteDirectory("/tmp/" + std::to_string(newGraphID));
         JasmineGraphFrontEnd::getAndUpdateUploadTime(to_string(newGraphID), sqlite);
+        int result_wr = write(connFd, DONE.c_str(), DONE.size());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        result_wr = write(connFd, "\r\n", 2);
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+        }
     } else {
         frontend_logger.error("Graph data file does not exist on the specified path");
+    }
+}
+
+static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p) {
+    int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
         return;
+    }
+    result_wr = write(connFd, "\r\n", 2);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+
+    // We get the name and the path to graph as a pair separated by |.
+    char graph_data[FRONTEND_DATA_LENGTH + 1];
+    char partition_count[FRONTEND_DATA_LENGTH + 1];
+    bzero(graph_data, FRONTEND_DATA_LENGTH + 1);
+    string name = "";
+    string path = "";
+    string partitionCount = "";
+
+    read(connFd, graph_data, FRONTEND_DATA_LENGTH);
+
+    std::time_t time = chrono::system_clock::to_time_t(chrono::system_clock::now());
+    string uploadStartTime = ctime(&time);
+    string gData(graph_data);
+
+    gData = Utils::trim_copy(gData, " \f\n\r\t\v");
+    frontend_logger.info("Data received: " + gData);
+
+    std::vector<std::string> strArr = Utils::split(gData, '|');
+
+    if (strArr.size() < 2) {
+        frontend_logger.error("Message format not recognized");
+        // TODO: inform client?
+        return;
+    }
+
+    name = strArr[0];
+    path = strArr[1];
+
+    if (strArr.size() == 3) {
+        partitionCount = strArr[2];
+    }
+
+    if (JasmineGraphFrontEnd::graphExists(path, sqlite)) {
+        frontend_logger.error("Graph exists");
+        // TODO: inform client?
+        return;
+    }
+
+    if (Utils::fileExists(path)) {
+        frontend_logger.info("Path exists");
+
+        string sqlStatement =
+            "INSERT INTO graph (name,upload_path,upload_start_time,upload_end_time,graph_status_idgraph_status,"
+            "vertexcount,centralpartitioncount,edgecount) VALUES(\"" +
+            name + "\", \"" + path + "\", \"" + uploadStartTime + "\", \"\",\"" +
+            to_string(Conts::GRAPH_STATUS::LOADING) + "\", \"\", \"\", \"\")";
+        int newGraphID = sqlite.runInsert(sqlStatement);
+        JasmineGraphServer *jasmineServer = new JasmineGraphServer();
+        MetisPartitioner *partitioner = new MetisPartitioner(&sqlite);
+        vector<std::map<int, string>> fullFileList;
+
+        partitioner->loadDataSet(path, newGraphID);
+        int result = partitioner->constructMetisFormat(Conts::GRAPH_TYPE_NORMAL);
+        if (result == 0) {
+            string reformattedFilePath = partitioner->reformatDataSet(path, newGraphID);
+            partitioner->loadDataSet(reformattedFilePath, newGraphID);
+            partitioner->constructMetisFormat(Conts::GRAPH_TYPE_NORMAL_REFORMATTED);
+            fullFileList = partitioner->partitioneWithGPMetis(partitionCount);
+        } else {
+            fullFileList = partitioner->partitioneWithGPMetis(partitionCount);
+        }
+        frontend_logger.info("Upload done");
+        jasmineServer->uploadGraphLocally(newGraphID, Conts::GRAPH_TYPE_NORMAL, fullFileList, masterIP);
+        Utils::deleteDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
+        string workerCountQuery = "select count(*) from worker";
+        std::vector<vector<pair<string, string>>> results = sqlite.runSelect(workerCountQuery);
+        string workerCount = results[0][0].second;
+        int nWorkers = atoi(workerCount.c_str());
+        JasmineGraphFrontEnd::getAndUpdateUploadTime(to_string(newGraphID), sqlite);
+        int result_wr = write(connFd, DONE.c_str(), DONE.size());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        result_wr = write(connFd, "\r\n", 2);
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+        }
+    } else {
+        frontend_logger.error("Graph data file does not exist on the specified path");
     }
 }
