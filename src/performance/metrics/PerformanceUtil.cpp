@@ -1266,7 +1266,7 @@ double PerformanceUtil::getAggregatedLoadAverage(std::string graphId, std::strin
                     xAxisValue = std::atof(loadAvgResults[0][2].second.c_str());
                     nextLoad = std::atof(loadAvgResults[1][1].second.c_str());
                 } else if (loadAvgResults.size() == 1) {
-                    //TODO(ASHOK12011234) : Handle the case where there is only one row in the result.
+                    // TODO(ASHOK12011234) : Handle the case where there is only one row in the result.
                     continue;
                 } else {
                     continue;
