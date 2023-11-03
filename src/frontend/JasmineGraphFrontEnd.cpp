@@ -72,6 +72,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
                                      KafkaConnector *&kstream, thread &input_stream_handler,
                                      vector<DataPublisher *> &workerClients, int numberOfPartitions, bool *loop_exit_p);
 static void stop_stream_kafka_command(int connFd, KafkaConnector *kstream, bool *loop_exit_p);
+static void process_dataset_command(int connFd, bool *loop_exit_p);
 
 // Thread function
 void listen_to_kafka_topic(KafkaConnector *kstream, Partitioner &graphPartitioner,
@@ -199,47 +200,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
         } else if (line.compare(RMGR) == 0) {
             remove_graph_command(masterIP, connFd, sqlite, &loop_exit);
         } else if (line.compare(PROCESS_DATASET) == 0) {
-            int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
-            if (result_wr < 0) {
-                frontend_logger.error("Error writing to socket");
-                loop_exit = true;
-                continue;
-            }
-            result_wr = write(connFd, "\r\n", 2);
-            if (result_wr < 0) {
-                frontend_logger.error("Error writing to socket");
-                loop_exit = true;
-                continue;
-            }
-
-            // We get the name and the path to graph as a pair separated by |.
-            char graph_data[FRONTEND_DATA_LENGTH + 1];
-            bzero(graph_data, FRONTEND_DATA_LENGTH + 1);
-
-            read(connFd, graph_data, FRONTEND_DATA_LENGTH);
-
-            string gData(graph_data);
-
-            gData = Utils::trim_copy(gData, " \f\n\r\t\v");
-            frontend_logger.info("Data received: " + gData);
-
-            if (gData.length() == 0) {
-                frontend_logger.error("Message format not recognized");
-                break;
-            }
-            string path = gData;
-
-            if (Utils::fileExists(path)) {
-                frontend_logger.info("Path exists");
-
-                JSONParser *jsonParser = new JSONParser();
-                jsonParser->jsonParse(path);
-                frontend_logger.info("Reformatted files created on /home/.jasminegraph/tmp/JSONParser/output");
-
-            } else {
-                frontend_logger.error("Graph data file does not exist on the specified path");
-                break;
-            }
+            process_dataset_command(connFd, &loop_exit);
         } else if (line.compare(TRIANGLES) == 0) {
             // add RDF graph
             int uniqueId = JasmineGraphFrontEnd::getUid();
@@ -2391,5 +2352,48 @@ static void stop_stream_kafka_command(int connFd, KafkaConnector *kstream, bool 
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
+    }
+}
+
+static void process_dataset_command(int connFd, bool *loop_exit_p) {
+    int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    result_wr = write(connFd, "\r\n", 2);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+
+    // We get the name and the path to graph as a pair separated by |.
+    char graph_data[FRONTEND_DATA_LENGTH + 1];
+    bzero(graph_data, FRONTEND_DATA_LENGTH + 1);
+
+    read(connFd, graph_data, FRONTEND_DATA_LENGTH);
+
+    string gData(graph_data);
+
+    gData = Utils::trim_copy(gData, " \f\n\r\t\v");
+    frontend_logger.info("Data received: " + gData);
+
+    if (gData.length() == 0) {
+        frontend_logger.error("Message format not recognized");
+        // TODO: Inform client?
+        return;
+    }
+    string path = gData;
+
+    if (Utils::fileExists(path)) {
+        frontend_logger.info("Path exists");
+
+        JSONParser *jsonParser = new JSONParser();
+        jsonParser->jsonParse(path);
+        frontend_logger.info("Reformatted files created on /home/.jasminegraph/tmp/JSONParser/output");
+    } else {
+        frontend_logger.error("Graph data file does not exist on the specified path");
     }
 }
