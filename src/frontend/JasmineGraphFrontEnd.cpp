@@ -80,6 +80,7 @@ static void edge_count_command(int connFd, SQLiteDBInterface sqlite, bool *loop_
 static void merge_command(int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p);
 static void train_command(int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p);
 static void in_degree_command(int connFd, bool *loop_exit_p);
+static void out_degree_command(int connFd, bool *loop_exit_p);
 
 // Thread function
 void listen_to_kafka_topic(KafkaConnector *kstream, Partitioner &graphPartitioner,
@@ -221,46 +222,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
         } else if (line.compare(IN_DEGREE) == 0) {
             in_degree_command(connFd, &loop_exit);
         } else if (line.compare(OUT_DEGREE) == 0) {
-            frontend_logger.info("Calculating Out Degree Distribution");
-
-            int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
-            if (result_wr < 0) {
-                frontend_logger.error("Error writing to socket");
-                loop_exit = true;
-                continue;
-            }
-            result_wr = write(connFd, "\r\n", 2);
-            if (result_wr < 0) {
-                frontend_logger.error("Error writing to socket");
-                loop_exit = true;
-                continue;
-            }
-
-            char graph_id[FRONTEND_DATA_LENGTH + 1];
-            bzero(graph_id, FRONTEND_DATA_LENGTH + 1);
-
-            read(connFd, graph_id, FRONTEND_DATA_LENGTH);
-
-            string graphID(graph_id);
-
-            graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
-            frontend_logger.info("Graph ID received: " + graphID);
-
-            JasmineGraphServer *jasmineServer = new JasmineGraphServer();
-            jasmineServer->outDegreeDistribution(graphID);
-
-            int result_wr_done = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
-            if (result_wr_done < 0) {
-                frontend_logger.error("Error writing to socket");
-                loop_exit = true;
-                continue;
-            }
-            result_wr_done = write(connFd, "\r\n", 2);
-            if (result_wr_done < 0) {
-                frontend_logger.error("Error writing to socket");
-                loop_exit = true;
-                continue;
-            }
+            out_degree_command(connFd, &loop_exit);
         } else if (line.compare(PAGE_RANK) == 0) {
             frontend_logger.info("Calculating Page Rank");
 
@@ -2508,6 +2470,48 @@ static void in_degree_command(int connFd, bool *loop_exit_p) {
 
     JasmineGraphServer *jasmineServer = new JasmineGraphServer();
     jasmineServer->inDegreeDistribution(graphID);
+
+    result_wr = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    result_wr = write(connFd, "\r\n", 2);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+    }
+}
+
+static void out_degree_command(int connFd, bool *loop_exit_p) {
+    frontend_logger.info("Calculating Out Degree Distribution");
+
+    int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    result_wr = write(connFd, "\r\n", 2);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+
+    char graph_id[FRONTEND_DATA_LENGTH + 1];
+    bzero(graph_id, FRONTEND_DATA_LENGTH + 1);
+
+    read(connFd, graph_id, FRONTEND_DATA_LENGTH);
+
+    string graphID(graph_id);
+
+    graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
+    frontend_logger.info("Graph ID received: " + graphID);
+
+    JasmineGraphServer *jasmineServer = new JasmineGraphServer();
+    jasmineServer->outDegreeDistribution(graphID);
 
     result_wr = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
     if (result_wr < 0) {
