@@ -78,6 +78,7 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
 static void vertex_count_command(int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p);
 static void edge_count_command(int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p);
 static void merge_command(int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p);
+static void train_command(int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p);
 
 // Thread function
 void listen_to_kafka_topic(KafkaConnector *kstream, Partitioner &graphPartitioner,
@@ -215,78 +216,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
         } else if (line.compare(MERGE) == 0) {
             merge_command(connFd, sqlite, &loop_exit);
         } else if (line.compare(TRAIN) == 0) {
-            string message = "Available main flags:\r\n";
-            int result_wr = write(connFd, message.c_str(), message.size());
-            if (result_wr < 0) {
-                frontend_logger.error("Error writing to socket");
-            }
-            string flags = Conts::FLAGS::GRAPH_ID + " " + Conts::FLAGS::LEARNING_RATE + " " + Conts::FLAGS::BATCH_SIZE +
-                           " " + Conts::FLAGS::VALIDATE_ITER + " " + Conts::FLAGS::EPOCHS;
-            write(connFd, flags.c_str(), flags.size());
-            write(connFd, "\r\n", 2);
-            message = "Send --<flag1> <value1> --<flag2> <value2> ..\r\n";
-            write(connFd, message.c_str(), message.size());
-
-            char train_data[301];
-            bzero(train_data, 301);
-            read(connFd, train_data, 300);
-
-            string trainData(train_data);
-            trainData = Utils::trim_copy(trainData, " \f\n\r\t\v");
-            frontend_logger.info("Data received: " + trainData);
-
-            std::vector<std::string> trainargs = Utils::split(trainData, ' ');
-            std::vector<std::string>::iterator itr = std::find(trainargs.begin(), trainargs.end(), "--graph_id");
-            std::string graphID;
-            std::string modelID;
-            if (itr != trainargs.cend()) {
-                int index = std::distance(trainargs.begin(), itr);
-                graphID = trainargs[index + 1];
-
-            } else {
-                frontend_logger.error("graph_id should be given as an argument");
-                continue;
-            }
-
-            if (trainargs.size() == 0) {
-                frontend_logger.error("Message format not recognized");
-                break;
-            }
-
-            if (!JasmineGraphFrontEnd::isGraphActive(graphID, sqlite)) {
-                string error_message = "Graph is not in the active status";
-                frontend_logger.error(error_message);
-                result_wr = write(connFd, error_message.c_str(), error_message.length());
-                if (result_wr < 0) {
-                    frontend_logger.error("Error writing to socket");
-                }
-                result_wr = write(connFd, "\r\n", 2);
-                if (result_wr < 0) {
-                    frontend_logger.error("Error writing to socket");
-                }
-                continue;
-            }
-
-            std::string federatedEnabled = Utils::getJasmineGraphProperty("org.jasminegraph.federated.enabled");
-
-            if (federatedEnabled == "true") {
-                JasmineGraphServer *jasmineServer = new JasmineGraphServer();
-                if (Utils::getJasmineGraphProperty("org.jasminegraph.fl.org.training") == "true") {
-                    frontend_logger.info("Initiate org communication");
-                    jasmineServer->initiateOrgCommunication(graphID, trainData, sqlite);
-
-                } else {
-                    frontend_logger.info("Initiate communication");
-                    jasmineServer->initiateCommunication(graphID, trainData, sqlite);
-                }
-
-            } else {
-                JasminGraphTrainingInitiator *jasminGraphTrainingInitiator = new JasminGraphTrainingInitiator();
-                jasminGraphTrainingInitiator->initiateTrainingLocally(graphID, trainData);
-            }
-            write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
-            write(connFd, "\r\n", 2);
-
+            train_command(connFd, sqlite, &loop_exit);
         } else if (line.compare(IN_DEGREE) == 0) {
             frontend_logger.info("Calculating In Degree Distribution");
 
@@ -2480,5 +2410,109 @@ static void merge_command(int connFd, SQLiteDBInterface sqlite, bool *loop_exit_
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
+    }
+}
+
+static void train_command(int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p) {
+    string message = "Available main flags:\r\n";
+    int result_wr = write(connFd, message.c_str(), message.size());
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    string flags = Conts::FLAGS::GRAPH_ID + " " + Conts::FLAGS::LEARNING_RATE + " " + Conts::FLAGS::BATCH_SIZE + " " +
+                   Conts::FLAGS::VALIDATE_ITER + " " + Conts::FLAGS::EPOCHS;
+    result_wr = write(connFd, flags.c_str(), flags.size());
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    result_wr = write(connFd, "\r\n", 2);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    message = "Send --<flag1> <value1> --<flag2> <value2> ..\r\n";
+    result_wr = write(connFd, message.c_str(), message.size());
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+
+    char train_data[301];
+    bzero(train_data, 301);
+    read(connFd, train_data, 300);
+
+    string trainData(train_data);
+    trainData = Utils::trim_copy(trainData, " \f\n\r\t\v");
+    frontend_logger.info("Data received: " + trainData);
+
+    std::vector<std::string> trainargs = Utils::split(trainData, ' ');
+    std::vector<std::string>::iterator itr = std::find(trainargs.begin(), trainargs.end(), "--graph_id");
+    std::string graphID;
+    std::string modelID;
+    if (itr != trainargs.cend()) {
+        int index = std::distance(trainargs.begin(), itr);
+        graphID = trainargs[index + 1];
+    } else {
+        frontend_logger.error("graph_id should be given as an argument");
+        // TODO: Inform client?
+        return;
+    }
+
+    if (trainargs.size() == 0) {
+        frontend_logger.error("Message format not recognized");
+        // TODO: Inform client?
+        return;
+    }
+
+    if (!JasmineGraphFrontEnd::isGraphActive(graphID, sqlite)) {
+        string error_message = "Graph is not in the active status";
+        frontend_logger.error(error_message);
+        result_wr = write(connFd, error_message.c_str(), error_message.length());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        result_wr = write(connFd, "\r\n", 2);
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+        }
+        return;
+    }
+
+    std::string federatedEnabled = Utils::getJasmineGraphProperty("org.jasminegraph.federated.enabled");
+
+    if (federatedEnabled == "true") {
+        JasmineGraphServer *jasmineServer = new JasmineGraphServer();
+        if (Utils::getJasmineGraphProperty("org.jasminegraph.fl.org.training") == "true") {
+            frontend_logger.info("Initiate org communication");
+            jasmineServer->initiateOrgCommunication(graphID, trainData, sqlite);
+        } else {
+            frontend_logger.info("Initiate communication");
+            jasmineServer->initiateCommunication(graphID, trainData, sqlite);
+        }
+    } else {
+        JasminGraphTrainingInitiator *jasminGraphTrainingInitiator = new JasminGraphTrainingInitiator();
+        jasminGraphTrainingInitiator->initiateTrainingLocally(graphID, trainData);
+    }
+
+    result_wr = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    result_wr = write(connFd, "\r\n", 2);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
     }
 }
