@@ -66,6 +66,7 @@ static void list_command(int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p
 static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p);
 static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p);
 static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p);
+static void remove_graph_command(std::string masterIP, int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p);
 static void add_model_command(int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p);
 static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, cppkafka::Configuration &configs,
                                      KafkaConnector *&kstream, thread &input_stream_handler,
@@ -196,63 +197,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
         } else if (line.compare(STOP_STREAM_KAFKA) == 0) {
             stop_stream_kafka_command(connFd, kstream, &loop_exit);
         } else if (line.compare(RMGR) == 0) {
-            int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
-            if (result_wr < 0) {
-                frontend_logger.error("Error writing to socket");
-                loop_exit = true;
-                continue;
-            }
-            result_wr = write(connFd, "\r\n", 2);
-            if (result_wr < 0) {
-                frontend_logger.error("Error writing to socket");
-                loop_exit = true;
-                continue;
-            }
-
-            // We get the name and the path to graph as a pair separated by |.
-            char graph_id[FRONTEND_DATA_LENGTH + 1];
-            bzero(graph_id, FRONTEND_DATA_LENGTH + 1);
-            string name = "";
-            string path = "";
-
-            read(connFd, graph_id, FRONTEND_DATA_LENGTH);
-
-            string graphID(graph_id);
-
-            graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
-            frontend_logger.info("Graph ID received: " + graphID);
-
-            if (JasmineGraphFrontEnd::graphExistsByID(graphID, sqlite)) {
-                frontend_logger.info("Graph with ID " + graphID + " is being deleted now");
-                JasmineGraphFrontEnd::removeGraph(graphID, sqlite, masterIP);
-                result_wr = write(connFd, DONE.c_str(), DONE.size());
-                if (result_wr < 0) {
-                    frontend_logger.error("Error writing to socket");
-                    loop_exit = true;
-                    continue;
-                }
-                result_wr = write(connFd, "\r\n", 2);
-                if (result_wr < 0) {
-                    frontend_logger.error("Error writing to socket");
-                    loop_exit = true;
-                    continue;
-                }
-            } else {
-                frontend_logger.error("Graph does not exist or cannot be deleted with the current hosts setting");
-                result_wr = write(connFd, ERROR.c_str(), ERROR.size());
-                if (result_wr < 0) {
-                    frontend_logger.error("Error writing to socket");
-                    loop_exit = true;
-                    continue;
-                }
-                result_wr = write(connFd, "\r\n", 2);
-                if (result_wr < 0) {
-                    frontend_logger.error("Error writing to socket");
-                    loop_exit = true;
-                    continue;
-                }
-            }
-
+            remove_graph_command(masterIP, connFd, sqlite, &loop_exit);
         } else if (line.compare(PROCESS_DATASET) == 0) {
             int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
             if (result_wr < 0) {
@@ -2178,6 +2123,64 @@ static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInt
         }
     } else {
         frontend_logger.error("Graph data file does not exist on the specified path");
+    }
+}
+
+static void remove_graph_command(std::string masterIP, int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p) {
+    int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    result_wr = write(connFd, "\r\n", 2);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+
+    // We get the name and the path to graph as a pair separated by |.
+    char graph_id[FRONTEND_DATA_LENGTH + 1];
+    bzero(graph_id, FRONTEND_DATA_LENGTH + 1);
+    string name = "";
+    string path = "";
+
+    read(connFd, graph_id, FRONTEND_DATA_LENGTH);
+
+    string graphID(graph_id);
+
+    graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
+    frontend_logger.info("Graph ID received: " + graphID);
+
+    if (JasmineGraphFrontEnd::graphExistsByID(graphID, sqlite)) {
+        frontend_logger.info("Graph with ID " + graphID + " is being deleted now");
+        JasmineGraphFrontEnd::removeGraph(graphID, sqlite, masterIP);
+        result_wr = write(connFd, DONE.c_str(), DONE.size());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        result_wr = write(connFd, "\r\n", 2);
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+    } else {
+        frontend_logger.error("Graph does not exist or cannot be deleted with the current hosts setting");
+        result_wr = write(connFd, ERROR.c_str(), ERROR.size());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        result_wr = write(connFd, "\r\n", 2);
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+        }
     }
 }
 
