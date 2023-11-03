@@ -47,7 +47,6 @@ limitations under the License.
 #include "JasmineGraphFrontEndProtocol.h"
 #include "core/CoreConstants.h"
 #include "core/scheduler/JobScheduler.h"
-#include "flatbuffers/flatbuffers.h"
 
 using json = nlohmann::json;
 using namespace std;
@@ -62,6 +61,8 @@ std::set<ProcessInfo> processData;
 std::mutex aggregateWeightMutex;
 std::mutex triangleTreeMutex;
 std::string stream_topic_name;
+
+static void list_command(int connFd, SQLiteDBInterface sqlite, bool *loop_p);
 
 // Thread function
 void listen_to_kafka_topic(KafkaConnector *kstream, Partitioner &graphPartitioner,
@@ -168,55 +169,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             currentFESession--;
             break;
         } else if (line.compare(LIST) == 0) {
-            std::stringstream ss;
-            std::vector<vector<pair<string, string>>> v =
-                sqlite.runSelect("SELECT idgraph, name, upload_path, graph_status_idgraph_status FROM graph;");
-            for (std::vector<vector<pair<string, string>>>::iterator i = v.begin(); i != v.end(); ++i) {
-                ss << "|";
-                int counter = 0;
-                for (std::vector<pair<string, string>>::iterator j = (i->begin()); j != i->end(); ++j) {
-                    if (counter == 3) {
-                        if (std::stoi(j->second) == Conts::GRAPH_STATUS::LOADING) {
-                            ss << "loading|";
-                        } else if (std::stoi(j->second) == Conts::GRAPH_STATUS::DELETING) {
-                            ss << "deleting|";
-                        } else if (std::stoi(j->second) == Conts::GRAPH_STATUS::NONOPERATIONAL) {
-                            ss << "nop|";
-                        } else if (std::stoi(j->second) == Conts::GRAPH_STATUS::OPERATIONAL) {
-                            ss << "op|";
-                        }
-                    } else {
-                        ss << j->second << "|";
-                    }
-                    counter++;
-                }
-                ss << "\r\n";
-            }
-            string result = ss.str();
-            if (result.size() == 0) {
-                int result_wr = write(connFd, EMPTY.c_str(), EMPTY.length());
-                if (result_wr < 0) {
-                    frontend_logger.log("Error writing to socket", "error");
-                    loop = true;
-                    continue;
-                }
-                result_wr = write(connFd, "\r\n", 2);
-
-                if (result_wr < 0) {
-                    frontend_logger.log("Error writing to socket", "error");
-                    loop = true;
-                    continue;
-                }
-
-            } else {
-                int result_wr = write(connFd, result.c_str(), result.length());
-                if (result_wr < 0) {
-                    frontend_logger.log("Error writing to socket", "error");
-                    loop = true;
-                    continue;
-                }
-            }
-
+            list_command(connFd, sqlite, &loop);
         } else if (line.compare(SHTDN) == 0) {
             JasmineGraphServer *jasmineServer = new JasmineGraphServer();
             jasmineServer->shutdown_workers();
@@ -2328,4 +2281,52 @@ bool JasmineGraphFrontEnd::modelExistsByID(string id, SQLiteDBInterface sqlite) 
     }
 
     return result;
+}
+
+static void list_command(int connFd, SQLiteDBInterface sqlite, bool *loop_p) {
+    std::stringstream ss;
+    std::vector<vector<pair<string, string>>> v =
+        sqlite.runSelect("SELECT idgraph, name, upload_path, graph_status_idgraph_status FROM graph;");
+    for (std::vector<vector<pair<string, string>>>::iterator i = v.begin(); i != v.end(); ++i) {
+        ss << "|";
+        int counter = 0;
+        for (std::vector<pair<string, string>>::iterator j = (i->begin()); j != i->end(); ++j) {
+            if (counter == 3) {
+                if (std::stoi(j->second) == Conts::GRAPH_STATUS::LOADING) {
+                    ss << "loading|";
+                } else if (std::stoi(j->second) == Conts::GRAPH_STATUS::DELETING) {
+                    ss << "deleting|";
+                } else if (std::stoi(j->second) == Conts::GRAPH_STATUS::NONOPERATIONAL) {
+                    ss << "nop|";
+                } else if (std::stoi(j->second) == Conts::GRAPH_STATUS::OPERATIONAL) {
+                    ss << "op|";
+                }
+            } else {
+                ss << j->second << "|";
+            }
+            counter++;
+        }
+        ss << "\r\n";
+    }
+    string result = ss.str();
+    if (result.size() == 0) {
+        int result_wr = write(connFd, EMPTY.c_str(), EMPTY.length());
+        if (result_wr < 0) {
+            frontend_logger.log("Error writing to socket", "error");
+            *loop_p = true;
+            return;
+        }
+
+        result_wr = write(connFd, "\r\n", 2);
+        if (result_wr < 0) {
+            frontend_logger.log("Error writing to socket", "error");
+            *loop_p = true;
+        }
+    } else {
+        int result_wr = write(connFd, result.c_str(), result.length());
+        if (result_wr < 0) {
+            frontend_logger.log("Error writing to socket", "error");
+            *loop_p = true;
+        }
+    }
 }
