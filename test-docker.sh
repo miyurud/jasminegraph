@@ -5,7 +5,7 @@ TEST_ROOT="${PROJECT_ROOT}/tests/integration"
 TIMEOUT_SECONDS=180
 RUN_ID="$(date +%y%m%d_%H%M%S)"
 LOG_DIR="${PROJECT_ROOT}/logs/${RUN_ID}"
-while [ -d "$LOG_DIR"]; do
+while [ -d "$LOG_DIR" ]; do
     tmp_id="$((tmp_id + 1))"
     new_run="${RUN_ID}_${tmp_id}"
     LOG_DIR="${PROJECT_ROOT}/logs/${RUN_ID}"
