@@ -84,7 +84,7 @@ class JasmineGraphServer {
 
     void addInstanceDetailsToPerformanceDB(std::string host, std::vector<int> portVector, std::string isMaster);
 
-    void shutdown_workers();
+    static void shutdown_workers();
 
     int run(std::string profile, std::string masterIp, int numberofWorkers, std::string workerIps,
             std::string enableNmon);

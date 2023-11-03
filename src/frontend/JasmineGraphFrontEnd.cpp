@@ -171,8 +171,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
         } else if (line.compare(LIST) == 0) {
             list_command(connFd, sqlite, &loop);
         } else if (line.compare(SHTDN) == 0) {
-            JasmineGraphServer *jasmineServer = new JasmineGraphServer();
-            jasmineServer->shutdown_workers();
+            JasmineGraphServer::shutdown_workers();
             close(connFd);
             exit(0);
         } else if (line.compare(ADRDF) == 0) {
