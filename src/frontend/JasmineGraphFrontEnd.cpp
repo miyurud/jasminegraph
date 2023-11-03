@@ -65,6 +65,7 @@ std::string stream_topic_name;
 static void list_command(int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p);
 static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p);
 static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p);
+static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p);
 static void add_model_command(int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p);
 
 // Thread function
@@ -184,177 +185,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
         } else if (line.compare(ADMDL) == 0) {
             add_model_command(connFd, sqlite, &loop_exit);
         } else if (line.compare(ADGR_CUST) == 0) {
-            string message = "Select a custom graph upload option\r\n";
-            int result_wr = write(connFd, message.c_str(), message.size());
-            if (result_wr < 0) {
-                frontend_logger.error("Error writing to socket");
-                loop_exit = true;
-                continue;
-            }
-            result_wr =
-                write(connFd, Conts::GRAPH_WITH::TEXT_ATTRIBUTES.c_str(), Conts::GRAPH_WITH::TEXT_ATTRIBUTES.size());
-            if (result_wr < 0) {
-                frontend_logger.error("Error writing to socket");
-                loop_exit = true;
-                continue;
-            }
-            result_wr = write(connFd, "\r\n", 2);
-            if (result_wr < 0) {
-                frontend_logger.error("Error writing to socket");
-                loop_exit = true;
-                continue;
-            }
-            result_wr =
-                write(connFd, Conts::GRAPH_WITH::JSON_ATTRIBUTES.c_str(), Conts::GRAPH_WITH::JSON_ATTRIBUTES.size());
-            if (result_wr < 0) {
-                frontend_logger.error("Error writing to socket");
-                loop_exit = true;
-                continue;
-            }
-            result_wr = write(connFd, "\r\n", 2);
-            if (result_wr < 0) {
-                frontend_logger.error("Error writing to socket");
-                loop_exit = true;
-                continue;
-            }
-            result_wr =
-                write(connFd, Conts::GRAPH_WITH::XML_ATTRIBUTES.c_str(), Conts::GRAPH_WITH::XML_ATTRIBUTES.size());
-            if (result_wr < 0) {
-                frontend_logger.error("Error writing to socket");
-                loop_exit = true;
-                continue;
-            }
-            result_wr = write(connFd, "\r\n", 2);
-
-            if (result_wr < 0) {
-                frontend_logger.error("Error writing to socket");
-                loop_exit = true;
-                continue;
-            }
-
-            char type[FRONTEND_GRAPH_TYPE_LENGTH + 1];
-            bzero(type, FRONTEND_GRAPH_TYPE_LENGTH + 1);
-            read(connFd, type, FRONTEND_GRAPH_TYPE_LENGTH);
-            string graphType(type);
-            graphType = Utils::trim_copy(graphType, " \f\n\r\t\v");
-
-            std::unordered_set<std::string> s = {"1", "2", "3"};
-            if (s.find(graphType) == s.end()) {
-                frontend_logger.error("Graph type not recognized");
-                continue;
-            }
-
-            string graphAttributeType = "";
-            if (graphType == "1") {
-                graphAttributeType = Conts::GRAPH_WITH_TEXT_ATTRIBUTES;
-            } else if (graphType == "2") {
-                graphAttributeType = Conts::GRAPH_WITH_JSON_ATTRIBUTES;
-            } else if (graphType == "3") {
-                graphAttributeType = Conts::GRAPH_WITH_XML_ATTRIBUTES;
-            }
-
-            // We get the name and the path to graph edge list and attribute list as a triplet separated by | .
-            // <name>|<path to edge list>|<path to attribute file>|(optional)<attribute data type: int8. int16, int32 or
-            // float> Data types based on numpy array data types for numerical values with int8 referring to 8bit
-            // integers etc. If data type is not specified, it will be inferred from values present in the first line of
-            // the attribute file The provided data type should be the largest in the following order: float > int32 >
-            // int16 > int8 Inferred data type will be the largest type based on the values present in the attribute
-            // file first line
-            message =
-                "Send <name>|<path to edge list>|<path to attribute file>|(optional)<attribute data type: int8. int16, "
-                "int32 or float>\r\n";
-            result_wr = write(connFd, message.c_str(), message.size());
-            if (result_wr < 0) {
-                frontend_logger.error("Error writing to socket");
-                loop_exit = true;
-                continue;
-            }
-            char graph_data[FRONTEND_DATA_LENGTH + 1];
-            bzero(graph_data, FRONTEND_DATA_LENGTH + 1);
-            string name = "";
-            string edgeListPath = "";
-            string attributeListPath = "";
-            string attrDataType = "";
-
-            read(connFd, graph_data, FRONTEND_DATA_LENGTH);
-
-            std::time_t time = chrono::system_clock::to_time_t(chrono::system_clock::now());
-            string uploadStartTime = ctime(&time);
-            string gData(graph_data);
-
-            gData = Utils::trim_copy(gData, " \f\n\r\t\v");
-            frontend_logger.info("Data received: " + gData);
-
-            std::vector<std::string> strArr = Utils::split(gData, '|');
-
-            if (strArr.size() != 3 && strArr.size() != 4) {
-                frontend_logger.error("Message format not recognized");
-                continue;
-            }
-
-            name = strArr[0];
-            edgeListPath = strArr[1];
-            attributeListPath = strArr[2];
-            // If data type is specified
-            if (strArr.size() == 4) {
-                attrDataType = strArr[3];
-                if (attrDataType != "int8" && attrDataType != "int16" && attrDataType != "int32" &&
-                    attrDataType != "float") {
-                    frontend_logger.error("Data type not recognized");
-                    continue;
-                }
-            }
-
-            if (JasmineGraphFrontEnd::graphExists(edgeListPath, sqlite)) {
-                frontend_logger.error("Graph exists");
-                continue;
-            }
-
-            if (Utils::fileExists(edgeListPath) && Utils::fileExists(attributeListPath)) {
-                std::cout << "Paths exists" << endl;
-
-                string sqlStatement =
-                    "INSERT INTO graph (name,upload_path,upload_start_time,upload_end_time,graph_status_idgraph_status,"
-                    "vertexcount,centralpartitioncount,edgecount) VALUES(\"" +
-                    name + "\", \"" + edgeListPath + "\", \"" + uploadStartTime + "\", \"\",\"" +
-                    to_string(Conts::GRAPH_STATUS::LOADING) + "\", \"\", \"\", \"\")";
-                int newGraphID = sqlite.runInsert(sqlStatement);
-                JasmineGraphServer *jasmineServer = new JasmineGraphServer();
-                MetisPartitioner *partitioner = new MetisPartitioner(&sqlite);
-                vector<std::map<int, string>> fullFileList;
-                partitioner->loadContentData(attributeListPath, graphAttributeType, newGraphID, attrDataType);
-                partitioner->loadDataSet(edgeListPath, newGraphID);
-                int result = partitioner->constructMetisFormat(Conts::GRAPH_TYPE_NORMAL);
-                if (result == 0) {
-                    string reformattedFilePath = partitioner->reformatDataSet(edgeListPath, newGraphID);
-                    partitioner->loadDataSet(reformattedFilePath, newGraphID);
-                    partitioner->constructMetisFormat(Conts::GRAPH_TYPE_NORMAL_REFORMATTED);
-                    fullFileList = partitioner->partitioneWithGPMetis("");
-                } else {
-                    fullFileList = partitioner->partitioneWithGPMetis("");
-                }
-                // Graph type should be changed to identify graphs with attributes
-                // because this graph type has additional attribute files to be uploaded
-                jasmineServer->uploadGraphLocally(newGraphID, Conts::GRAPH_WITH_ATTRIBUTES, fullFileList, masterIP);
-                Utils::deleteDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
-                Utils::deleteDirectory("/tmp/" + std::to_string(newGraphID));
-                JasmineGraphFrontEnd::getAndUpdateUploadTime(to_string(newGraphID), sqlite);
-                result_wr = write(connFd, DONE.c_str(), DONE.size());
-                if (result_wr < 0) {
-                    frontend_logger.error("Error writing to socket");
-                    loop_exit = true;
-                    continue;
-                }
-                result_wr = write(connFd, "\r\n", 2);
-                if (result_wr < 0) {
-                    frontend_logger.error("Error writing to socket");
-                    loop_exit = true;
-                    continue;
-                }
-            } else {
-                frontend_logger.error("Graph data file does not exist on the specified path");
-                continue;
-            }
+            add_graph_cust_command(masterIP, connFd, sqlite, &loop_exit);
         } else if (line.compare(ADD_STREAM_KAFKA) == 0) {
             string msg_1 = "DO you want to use default KAFKA consumer(y/n) ? ";
             int result_wr_1 = write(connFd, msg_1.c_str(), msg_1.length());
@@ -2292,6 +2123,179 @@ static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterfac
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
+        }
+    } else {
+        frontend_logger.error("Graph data file does not exist on the specified path");
+    }
+}
+
+static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p) {
+    string message = "Select a custom graph upload option\r\n";
+    int result_wr = write(connFd, message.c_str(), message.size());
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    result_wr = write(connFd, Conts::GRAPH_WITH::TEXT_ATTRIBUTES.c_str(), Conts::GRAPH_WITH::TEXT_ATTRIBUTES.size());
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    result_wr = write(connFd, "\r\n", 2);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    result_wr = write(connFd, Conts::GRAPH_WITH::JSON_ATTRIBUTES.c_str(), Conts::GRAPH_WITH::JSON_ATTRIBUTES.size());
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    result_wr = write(connFd, "\r\n", 2);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    result_wr = write(connFd, Conts::GRAPH_WITH::XML_ATTRIBUTES.c_str(), Conts::GRAPH_WITH::XML_ATTRIBUTES.size());
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    result_wr = write(connFd, "\r\n", 2);
+
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+
+    char type[FRONTEND_GRAPH_TYPE_LENGTH + 1];
+    bzero(type, FRONTEND_GRAPH_TYPE_LENGTH + 1);
+    read(connFd, type, FRONTEND_GRAPH_TYPE_LENGTH);
+    string graphType(type);
+    graphType = Utils::trim_copy(graphType, " \f\n\r\t\v");
+
+    std::unordered_set<std::string> s = {"1", "2", "3"};
+    if (s.find(graphType) == s.end()) {
+        frontend_logger.error("Graph type not recognized");
+        // TODO: inform client?
+        return;
+    }
+
+    string graphAttributeType = "";
+    if (graphType == "1") {
+        graphAttributeType = Conts::GRAPH_WITH_TEXT_ATTRIBUTES;
+    } else if (graphType == "2") {
+        graphAttributeType = Conts::GRAPH_WITH_JSON_ATTRIBUTES;
+    } else if (graphType == "3") {
+        graphAttributeType = Conts::GRAPH_WITH_XML_ATTRIBUTES;
+    }
+
+    // We get the name and the path to graph edge list and attribute list as a triplet separated by | .
+    // <name>|<path to edge list>|<path to attribute file>|(optional)<attribute data type: int8. int16, int32 or
+    // float> Data types based on numpy array data types for numerical values with int8 referring to 8bit
+    // integers etc. If data type is not specified, it will be inferred from values present in the first line of
+    // the attribute file The provided data type should be the largest in the following order: float > int32 >
+    // int16 > int8 Inferred data type will be the largest type based on the values present in the attribute
+    // file first line
+    message =
+        "Send <name>|<path to edge list>|<path to attribute file>|(optional)<attribute data type: int8. int16, "
+        "int32 or float>\r\n";
+    result_wr = write(connFd, message.c_str(), message.size());
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    char graph_data[FRONTEND_DATA_LENGTH + 1];
+    bzero(graph_data, FRONTEND_DATA_LENGTH + 1);
+    string name = "";
+    string edgeListPath = "";
+    string attributeListPath = "";
+    string attrDataType = "";
+
+    read(connFd, graph_data, FRONTEND_DATA_LENGTH);
+
+    std::time_t time = chrono::system_clock::to_time_t(chrono::system_clock::now());
+    string uploadStartTime = ctime(&time);
+    string gData(graph_data);
+
+    gData = Utils::trim_copy(gData, " \f\n\r\t\v");
+    frontend_logger.info("Data received: " + gData);
+
+    std::vector<std::string> strArr = Utils::split(gData, '|');
+
+    if (strArr.size() != 3 && strArr.size() != 4) {
+        frontend_logger.error("Message format not recognized");
+        // TODO: inform client?
+        return;
+    }
+
+    name = strArr[0];
+    edgeListPath = strArr[1];
+    attributeListPath = strArr[2];
+    // If data type is specified
+    if (strArr.size() == 4) {
+        attrDataType = strArr[3];
+        if (attrDataType != "int8" && attrDataType != "int16" && attrDataType != "int32" && attrDataType != "float") {
+            frontend_logger.error("Data type not recognized");
+            // TODO: inform client?
+            return;
+        }
+    }
+
+    if (JasmineGraphFrontEnd::graphExists(edgeListPath, sqlite)) {
+        frontend_logger.error("Graph exists");
+        // TODO: inform client?
+        return;
+    }
+
+    if (Utils::fileExists(edgeListPath) && Utils::fileExists(attributeListPath)) {
+        std::cout << "Paths exists" << endl;
+
+        string sqlStatement =
+            "INSERT INTO graph (name,upload_path,upload_start_time,upload_end_time,graph_status_idgraph_status,"
+            "vertexcount,centralpartitioncount,edgecount) VALUES(\"" +
+            name + "\", \"" + edgeListPath + "\", \"" + uploadStartTime + "\", \"\",\"" +
+            to_string(Conts::GRAPH_STATUS::LOADING) + "\", \"\", \"\", \"\")";
+        int newGraphID = sqlite.runInsert(sqlStatement);
+        JasmineGraphServer *jasmineServer = new JasmineGraphServer();
+        MetisPartitioner *partitioner = new MetisPartitioner(&sqlite);
+        vector<std::map<int, string>> fullFileList;
+        partitioner->loadContentData(attributeListPath, graphAttributeType, newGraphID, attrDataType);
+        partitioner->loadDataSet(edgeListPath, newGraphID);
+        int result = partitioner->constructMetisFormat(Conts::GRAPH_TYPE_NORMAL);
+        if (result == 0) {
+            string reformattedFilePath = partitioner->reformatDataSet(edgeListPath, newGraphID);
+            partitioner->loadDataSet(reformattedFilePath, newGraphID);
+            partitioner->constructMetisFormat(Conts::GRAPH_TYPE_NORMAL_REFORMATTED);
+            fullFileList = partitioner->partitioneWithGPMetis("");
+        } else {
+            fullFileList = partitioner->partitioneWithGPMetis("");
+        }
+        // Graph type should be changed to identify graphs with attributes
+        // because this graph type has additional attribute files to be uploaded
+        jasmineServer->uploadGraphLocally(newGraphID, Conts::GRAPH_WITH_ATTRIBUTES, fullFileList, masterIP);
+        Utils::deleteDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
+        Utils::deleteDirectory("/tmp/" + std::to_string(newGraphID));
+        JasmineGraphFrontEnd::getAndUpdateUploadTime(to_string(newGraphID), sqlite);
+        result_wr = write(connFd, DONE.c_str(), DONE.size());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        result_wr = write(connFd, "\r\n", 2);
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
         }
     } else {
         frontend_logger.error("Graph data file does not exist on the specified path");
