@@ -73,6 +73,8 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
                                      vector<DataPublisher *> &workerClients, int numberOfPartitions, bool *loop_exit_p);
 static void stop_stream_kafka_command(int connFd, KafkaConnector *kstream, bool *loop_exit_p);
 static void process_dataset_command(int connFd, bool *loop_exit_p);
+static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterface sqlite,
+                              PerformanceSQLiteDBInterface perfSqlite, JobScheduler jobScheduler, bool *loop_exit_p);
 
 // Thread function
 void listen_to_kafka_topic(KafkaConnector *kstream, Partitioner &graphPartitioner,
@@ -202,158 +204,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
         } else if (line.compare(PROCESS_DATASET) == 0) {
             process_dataset_command(connFd, &loop_exit);
         } else if (line.compare(TRIANGLES) == 0) {
-            // add RDF graph
-            int uniqueId = JasmineGraphFrontEnd::getUid();
-            int result_wr = write(connFd, GRAPHID_SEND.c_str(), FRONTEND_COMMAND_LENGTH);
-            if (result_wr < 0) {
-                frontend_logger.error("Error writing to socket");
-            }
-            result_wr = write(connFd, "\r\n", 2);
-            if (result_wr < 0) {
-                frontend_logger.error("Error writing to socket");
-            }
-
-            // We get the name and the path to graph as a pair separated by |.
-            char graph_id_data[301];
-            bzero(graph_id_data, 301);
-            string name = "";
-
-            read(connFd, graph_id_data, 300);
-
-            string graph_id(graph_id_data);
-            graph_id.erase(std::remove(graph_id.begin(), graph_id.end(), '\n'), graph_id.end());
-            graph_id.erase(std::remove(graph_id.begin(), graph_id.end(), '\r'), graph_id.end());
-
-            if (!JasmineGraphFrontEnd::graphExistsByID(graph_id, sqlite)) {
-                string error_message = "The specified graph id does not exist";
-                result_wr = write(connFd, error_message.c_str(), FRONTEND_COMMAND_LENGTH);
-
-                if (result_wr < 0) {
-                    frontend_logger.error("Error writing to socket");
-                }
-
-                result_wr = write(connFd, "\r\n", 2);
-
-                if (result_wr < 0) {
-                    frontend_logger.error("Error writing to socket");
-                }
-            } else {
-                int result_wr = write(connFd, PRIORITY.c_str(), PRIORITY.length());
-                if (result_wr < 0) {
-                    frontend_logger.error("Error writing to socket");
-                }
-                result_wr = write(connFd, "\r\n", 2);
-                if (result_wr < 0) {
-                    frontend_logger.error("Error writing to socket");
-                }
-
-                // We get the name and the path to graph as a pair separated by |.
-                char priority_data[301];
-                bzero(priority_data, 301);
-
-                read(connFd, priority_data, FRONTEND_DATA_LENGTH);
-
-                string priority(priority_data);
-
-                priority = Utils::trim_copy(priority, " \f\n\r\t\v");
-
-                if (!(std::find_if(priority.begin(), priority.end(),
-                                   [](unsigned char c) { return !std::isdigit(c); }) == priority.end())) {
-                    string error_message = "Priority should be numeric and > 1 or empty";
-                    result_wr = write(connFd, error_message.c_str(), error_message.length());
-
-                    if (result_wr < 0) {
-                        frontend_logger.error("Error writing to socket");
-                    }
-
-                    result_wr = write(connFd, "\r\n", 2);
-
-                    if (result_wr < 0) {
-                        frontend_logger.error("Error writing to socket");
-                    }
-                    break;
-                }
-
-                int threadPriority = std::atoi(priority.c_str());
-
-                auto begin = chrono::high_resolution_clock::now();
-                JobRequest jobDetails;
-                jobDetails.setJobId(std::to_string(uniqueId));
-                jobDetails.setJobType(TRIANGLES);
-
-                long graphSLA;
-                // All high priority threads will be set the same high priority level
-                if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
-                    threadPriority = Conts::HIGH_PRIORITY_DEFAULT_VALUE;
-                    graphSLA = JasmineGraphFrontEnd::getSLAForGraphId(sqlite, perfSqlite, graph_id, TRIANGLES,
-                                                                      Conts::SLA_CATEGORY::LATENCY);
-                    jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_SLA, std::to_string(graphSLA));
-                }
-
-                if (graphSLA == 0) {
-                    if (JasmineGraphFrontEnd::areRunningJobsForSameGraph()) {
-                        if (canCalibrate) {
-                            // initial calibration
-                            jobDetails.addParameter(Conts::PARAM_KEYS::AUTO_CALIBRATION, "false");
-                        } else {
-                            // auto calibration
-                            jobDetails.addParameter(Conts::PARAM_KEYS::AUTO_CALIBRATION, "true");
-                        }
-                    } else {
-                        // TODO(ASHOK12011234): Need to investigate for multiple graphs
-                        frontend_logger.error("Can't calibrate the graph now");
-                    }
-                }
-
-                jobDetails.setPriority(threadPriority);
-                jobDetails.setMasterIP(masterIP);
-                jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_ID, graph_id);
-                jobDetails.addParameter(Conts::PARAM_KEYS::CATEGORY, Conts::SLA_CATEGORY::LATENCY);
-                if (canCalibrate) {
-                    jobDetails.addParameter(Conts::PARAM_KEYS::CAN_CALIBRATE, "true");
-                } else {
-                    jobDetails.addParameter(Conts::PARAM_KEYS::CAN_CALIBRATE, "false");
-                }
-
-                jobScheduler.pushJob(jobDetails);
-                JobResponse jobResponse = jobScheduler.getResult(jobDetails);
-                std::string errorMessage = jobResponse.getParameter(Conts::PARAM_KEYS::ERROR_MESSAGE);
-
-                if (!errorMessage.empty()) {
-                    result_wr = write(connFd, errorMessage.c_str(), errorMessage.length());
-
-                    if (result_wr < 0) {
-                        frontend_logger.error("Error writing to socket");
-                    }
-
-                    result_wr = write(connFd, "\r\n", 2);
-
-                    if (result_wr < 0) {
-                        frontend_logger.error("Error writing to socket");
-                    }
-                    break;
-                }
-
-                std::string triangleCount = jobResponse.getParameter(Conts::PARAM_KEYS::TRIANGLE_COUNT);
-
-                if (threadPriority == Conts::HIGH_PRIORITY_DEFAULT_VALUE) {
-                    highPriorityTaskCount--;
-                }
-
-                auto end = chrono::high_resolution_clock::now();
-                auto dur = end - begin;
-                auto msDuration = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
-                frontend_logger.info("Triangle Count: " + triangleCount + " Time Taken: " + to_string(msDuration) +
-                                     " milliseconds");
-                result_wr = write(connFd, triangleCount.c_str(), triangleCount.length());
-                if (result_wr < 0) {
-                    frontend_logger.error("Error writing to socket");
-                }
-                result_wr = write(connFd, "\r\n", 2);
-                if (result_wr < 0) {
-                    frontend_logger.error("Error writing to socket");
-                }
-            }
+            triangles_command(masterIP, connFd, sqlite, perfSqlite, jobScheduler, &loop_exit);
         } else if (line.compare(VCOUNT) == 0) {
             int result_wr = write(connFd, GRAPHID_SEND.c_str(), GRAPHID_SEND.size());
             if (result_wr < 0) {
@@ -2395,5 +2246,173 @@ static void process_dataset_command(int connFd, bool *loop_exit_p) {
         frontend_logger.info("Reformatted files created on /home/.jasminegraph/tmp/JSONParser/output");
     } else {
         frontend_logger.error("Graph data file does not exist on the specified path");
+    }
+}
+
+static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterface sqlite,
+                              PerformanceSQLiteDBInterface perfSqlite, JobScheduler jobScheduler, bool *loop_exit_p) {
+    // add RDF graph
+    int uniqueId = JasmineGraphFrontEnd::getUid();
+    int result_wr = write(connFd, GRAPHID_SEND.c_str(), FRONTEND_COMMAND_LENGTH);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    result_wr = write(connFd, "\r\n", 2);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+
+    // We get the name and the path to graph as a pair separated by |.
+    char graph_id_data[301];
+    bzero(graph_id_data, 301);
+    string name = "";
+
+    read(connFd, graph_id_data, 300);
+
+    string graph_id(graph_id_data);
+    graph_id.erase(std::remove(graph_id.begin(), graph_id.end(), '\n'), graph_id.end());
+    graph_id.erase(std::remove(graph_id.begin(), graph_id.end(), '\r'), graph_id.end());
+
+    if (!JasmineGraphFrontEnd::graphExistsByID(graph_id, sqlite)) {
+        string error_message = "The specified graph id does not exist";
+        result_wr = write(connFd, error_message.c_str(), FRONTEND_COMMAND_LENGTH);
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+
+        result_wr = write(connFd, "\r\n", 2);
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+        }
+    } else {
+        int result_wr = write(connFd, PRIORITY.c_str(), PRIORITY.length());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        result_wr = write(connFd, "\r\n", 2);
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+
+        // We get the name and the path to graph as a pair separated by |.
+        char priority_data[301];
+        bzero(priority_data, 301);
+
+        read(connFd, priority_data, FRONTEND_DATA_LENGTH);
+
+        string priority(priority_data);
+
+        priority = Utils::trim_copy(priority, " \f\n\r\t\v");
+
+        if (!(std::find_if(priority.begin(), priority.end(), [](unsigned char c) { return !std::isdigit(c); }) ==
+              priority.end())) {
+            *loop_exit_p = true;
+            string error_message = "Priority should be numeric and > 1 or empty";
+            result_wr = write(connFd, error_message.c_str(), error_message.length());
+            if (result_wr < 0) {
+                frontend_logger.error("Error writing to socket");
+                return;
+            }
+
+            result_wr = write(connFd, "\r\n", 2);
+            if (result_wr < 0) {
+                frontend_logger.error("Error writing to socket");
+            }
+            return;
+        }
+
+        int threadPriority = std::atoi(priority.c_str());
+
+        auto begin = chrono::high_resolution_clock::now();
+        JobRequest jobDetails;
+        jobDetails.setJobId(std::to_string(uniqueId));
+        jobDetails.setJobType(TRIANGLES);
+
+        long graphSLA;
+        // All high priority threads will be set the same high priority level
+        if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
+            threadPriority = Conts::HIGH_PRIORITY_DEFAULT_VALUE;
+            graphSLA = JasmineGraphFrontEnd::getSLAForGraphId(sqlite, perfSqlite, graph_id, TRIANGLES,
+                                                              Conts::SLA_CATEGORY::LATENCY);
+            jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_SLA, std::to_string(graphSLA));
+        }
+
+        if (graphSLA == 0) {
+            if (JasmineGraphFrontEnd::areRunningJobsForSameGraph()) {
+                if (canCalibrate) {
+                    // initial calibration
+                    jobDetails.addParameter(Conts::PARAM_KEYS::AUTO_CALIBRATION, "false");
+                } else {
+                    // auto calibration
+                    jobDetails.addParameter(Conts::PARAM_KEYS::AUTO_CALIBRATION, "true");
+                }
+            } else {
+                // TODO(ASHOK12011234): Need to investigate for multiple graphs
+                frontend_logger.error("Can't calibrate the graph now");
+            }
+        }
+
+        jobDetails.setPriority(threadPriority);
+        jobDetails.setMasterIP(masterIP);
+        jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_ID, graph_id);
+        jobDetails.addParameter(Conts::PARAM_KEYS::CATEGORY, Conts::SLA_CATEGORY::LATENCY);
+        if (canCalibrate) {
+            jobDetails.addParameter(Conts::PARAM_KEYS::CAN_CALIBRATE, "true");
+        } else {
+            jobDetails.addParameter(Conts::PARAM_KEYS::CAN_CALIBRATE, "false");
+        }
+
+        jobScheduler.pushJob(jobDetails);
+        JobResponse jobResponse = jobScheduler.getResult(jobDetails);
+        std::string errorMessage = jobResponse.getParameter(Conts::PARAM_KEYS::ERROR_MESSAGE);
+
+        if (!errorMessage.empty()) {
+            *loop_exit_p = true;
+            result_wr = write(connFd, errorMessage.c_str(), errorMessage.length());
+
+            if (result_wr < 0) {
+                frontend_logger.error("Error writing to socket");
+                return;
+            }
+            result_wr = write(connFd, "\r\n", 2);
+            if (result_wr < 0) {
+                frontend_logger.error("Error writing to socket");
+            }
+            return;
+        }
+
+        std::string triangleCount = jobResponse.getParameter(Conts::PARAM_KEYS::TRIANGLE_COUNT);
+
+        if (threadPriority == Conts::HIGH_PRIORITY_DEFAULT_VALUE) {
+            highPriorityTaskCount--;
+        }
+
+        auto end = chrono::high_resolution_clock::now();
+        auto dur = end - begin;
+        auto msDuration = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
+        frontend_logger.info("Triangle Count: " + triangleCount + " Time Taken: " + to_string(msDuration) +
+                             " milliseconds");
+        result_wr = write(connFd, triangleCount.c_str(), triangleCount.length());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        result_wr = write(connFd, "\r\n", 2);
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+        }
     }
 }
