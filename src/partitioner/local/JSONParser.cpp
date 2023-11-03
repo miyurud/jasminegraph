@@ -17,6 +17,7 @@ limitations under the License.
 
 #include <boost/foreach.hpp>
 #include <boost/optional/optional.hpp>
+#include <boost/property_tree/ptree.hpp>
 #include <chrono>
 #include <ctime>
 #include <sstream>
@@ -24,8 +25,6 @@ limitations under the License.
 #include <thread>
 
 #include "../../util/logger/Logger.h"
-#include "boost/property_tree/json_parser.hpp"
-#include "boost/property_tree/ptree.hpp"
 
 Logger jsonparser_logger;
 
