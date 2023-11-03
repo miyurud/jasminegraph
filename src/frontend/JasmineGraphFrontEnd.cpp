@@ -75,7 +75,7 @@ void listen_to_kafka_topic(KafkaConnector *kstream, Partitioner &graphPartitione
         }
         string data(msg.get_payload());
         if (data == "-1") {  // Marks the end of stream
-            frontend_logger.log("Received the end of `" + stream_topic_name + "` input kafka stream", "info");
+            frontend_logger.info("Received the end of `" + stream_topic_name + "` input kafka stream");
             break;
         }
         auto edgeJson = json::parse(data);
@@ -106,8 +106,8 @@ void listen_to_kafka_topic(KafkaConnector *kstream, Partitioner &graphPartitione
 
 void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface sqlite,
                             PerformanceSQLiteDBInterface perfSqlite, JobScheduler jobScheduler) {
-    frontend_logger.log("Thread No: " + to_string(pthread_self()), "info");
-    frontend_logger.log("Master IP: " + masterIP, "info");
+    frontend_logger.info("Thread No: " + to_string(pthread_self()));
+    frontend_logger.info("Master IP: " + masterIP);
     char data[FRONTEND_DATA_LENGTH + 1];
     bzero(data, FRONTEND_DATA_LENGTH + 1);
     vector<Utils::worker> workerList = Utils::getWorkerList(sqlite);
@@ -138,7 +138,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             std::string errorResponse = "Jasminegraph Server is Busy. Please try again later.";
             int result_wr = write(connFd, errorResponse.c_str(), errorResponse.length());
             if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
             }
             break;
         }
@@ -150,7 +150,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
         if (line.compare("\r\n") == 0) {
             continue;
         }
-        frontend_logger.log("Command received: " + line, "info");
+        frontend_logger.info("Command received: " + line);
 
         if (line.empty()) {
             currentFESession--;
@@ -180,13 +180,13 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
         } else if (line.compare(ADGR) == 0) {
             int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
             if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
             result_wr = write(connFd, "\r\n", 2);
             if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
@@ -206,12 +206,12 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             string gData(graph_data);
 
             gData = Utils::trim_copy(gData, " \f\n\r\t\v");
-            frontend_logger.log("Data received: " + gData, "info");
+            frontend_logger.info("Data received: " + gData);
 
             std::vector<std::string> strArr = Utils::split(gData, '|');
 
             if (strArr.size() < 2) {
-                frontend_logger.log("Message format not recognized", "error");
+                frontend_logger.error("Message format not recognized");
                 continue;
             }
 
@@ -223,12 +223,12 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             }
 
             if (JasmineGraphFrontEnd::graphExists(path, sqlite)) {
-                frontend_logger.log("Graph exists", "error");
+                frontend_logger.error("Graph exists");
                 continue;
             }
 
             if (Utils::fileExists(path)) {
-                frontend_logger.log("Path exists", "info");
+                frontend_logger.info("Path exists");
 
                 string sqlStatement =
                     "INSERT INTO graph (name,upload_path,upload_start_time,upload_end_time,graph_status_idgraph_status,"
@@ -250,7 +250,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 } else {
                     fullFileList = partitioner->partitioneWithGPMetis(partitionCount);
                 }
-                frontend_logger.log("Upload done", "info");
+                frontend_logger.info("Upload done");
                 jasmineServer->uploadGraphLocally(newGraphID, Conts::GRAPH_TYPE_NORMAL, fullFileList, masterIP);
                 Utils::deleteDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
                 string workerCountQuery = "select count(*) from worker";
@@ -260,18 +260,18 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 JasmineGraphFrontEnd::getAndUpdateUploadTime(to_string(newGraphID), sqlite);
                 int result_wr = write(connFd, DONE.c_str(), DONE.size());
                 if (result_wr < 0) {
-                    frontend_logger.log("Error writing to socket", "error");
+                    frontend_logger.error("Error writing to socket");
                     loop_exit = true;
                     continue;
                 }
                 result_wr = write(connFd, "\r\n", 2);
                 if (result_wr < 0) {
-                    frontend_logger.log("Error writing to socket", "error");
+                    frontend_logger.error("Error writing to socket");
                     loop_exit = true;
                     continue;
                 }
             } else {
-                frontend_logger.log("Graph data file does not exist on the specified path", "error");
+                frontend_logger.error("Graph data file does not exist on the specified path");
                 continue;
             }
         } else if (line.compare(ADMDL) == 0) {
@@ -291,12 +291,12 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             string gData(graph_data);
 
             gData = Utils::trim_copy(gData, " \f\n\r\t\v");
-            frontend_logger.log("Data received: " + gData, "info");
+            frontend_logger.info("Data received: " + gData);
 
             std::vector<std::string> strArr = Utils::split(gData, '|');
 
             if (strArr.size() < 2) {
-                frontend_logger.log("Message format not recognized", "error");
+                frontend_logger.error("Message format not recognized");
                 continue;
             }
 
@@ -304,12 +304,12 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             path = strArr[1];
 
             if (JasmineGraphFrontEnd::modelExists(path, sqlite)) {
-                frontend_logger.log("Model exists", "error");
+                frontend_logger.error("Model exists");
                 continue;
             }
 
             if (Utils::fileExists(path)) {
-                frontend_logger.log("Path exists", "info");
+                frontend_logger.info("Path exists");
                 std::string toDir = Utils::getJasmineGraphProperty("org.jasminegraph.server.modelDir");
                 Utils::copyToDirectory(path, toDir);
 
@@ -321,58 +321,58 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
                 int newModelID = sqlite.runInsert(sqlStatement);
 
-                frontend_logger.log("Upload done", "info");
+                frontend_logger.info("Upload done");
                 write(connFd, DONE.c_str(), DONE.size());
                 write(connFd, "\r\n", 2);
             } else {
-                frontend_logger.log("Model file does not exist on the specified path", "error");
+                frontend_logger.error("Model file does not exist on the specified path");
                 continue;
             }
         } else if (line.compare(ADGR_CUST) == 0) {
             string message = "Select a custom graph upload option\r\n";
             int result_wr = write(connFd, message.c_str(), message.size());
             if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
             result_wr =
                 write(connFd, Conts::GRAPH_WITH::TEXT_ATTRIBUTES.c_str(), Conts::GRAPH_WITH::TEXT_ATTRIBUTES.size());
             if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
             result_wr = write(connFd, "\r\n", 2);
             if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
             result_wr =
                 write(connFd, Conts::GRAPH_WITH::JSON_ATTRIBUTES.c_str(), Conts::GRAPH_WITH::JSON_ATTRIBUTES.size());
             if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
             result_wr = write(connFd, "\r\n", 2);
             if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
             result_wr =
                 write(connFd, Conts::GRAPH_WITH::XML_ATTRIBUTES.c_str(), Conts::GRAPH_WITH::XML_ATTRIBUTES.size());
             if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
             result_wr = write(connFd, "\r\n", 2);
 
             if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
@@ -385,7 +385,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
             std::unordered_set<std::string> s = {"1", "2", "3"};
             if (s.find(graphType) == s.end()) {
-                frontend_logger.log("Graph type not recognized", "error");
+                frontend_logger.error("Graph type not recognized");
                 continue;
             }
 
@@ -410,7 +410,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 "int32 or float>\r\n";
             result_wr = write(connFd, message.c_str(), message.size());
             if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
@@ -428,12 +428,12 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             string gData(graph_data);
 
             gData = Utils::trim_copy(gData, " \f\n\r\t\v");
-            frontend_logger.log("Data received: " + gData, "info");
+            frontend_logger.info("Data received: " + gData);
 
             std::vector<std::string> strArr = Utils::split(gData, '|');
 
             if (strArr.size() != 3 && strArr.size() != 4) {
-                frontend_logger.log("Message format not recognized", "error");
+                frontend_logger.error("Message format not recognized");
                 continue;
             }
 
@@ -445,13 +445,13 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 attrDataType = strArr[3];
                 if (attrDataType != "int8" && attrDataType != "int16" && attrDataType != "int32" &&
                     attrDataType != "float") {
-                    frontend_logger.log("Data type not recognized", "error");
+                    frontend_logger.error("Data type not recognized");
                     continue;
                 }
             }
 
             if (JasmineGraphFrontEnd::graphExists(edgeListPath, sqlite)) {
-                frontend_logger.log("Graph exists", "error");
+                frontend_logger.error("Graph exists");
                 continue;
             }
 
@@ -486,31 +486,31 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 JasmineGraphFrontEnd::getAndUpdateUploadTime(to_string(newGraphID), sqlite);
                 result_wr = write(connFd, DONE.c_str(), DONE.size());
                 if (result_wr < 0) {
-                    frontend_logger.log("Error writing to socket", "error");
+                    frontend_logger.error("Error writing to socket");
                     loop_exit = true;
                     continue;
                 }
                 result_wr = write(connFd, "\r\n", 2);
                 if (result_wr < 0) {
-                    frontend_logger.log("Error writing to socket", "error");
+                    frontend_logger.error("Error writing to socket");
                     loop_exit = true;
                     continue;
                 }
             } else {
-                frontend_logger.log("Graph data file does not exist on the specified path", "error");
+                frontend_logger.error("Graph data file does not exist on the specified path");
                 continue;
             }
         } else if (line.compare(ADD_STREAM_KAFKA) == 0) {
             string msg_1 = "DO you want to use default KAFKA consumer(y/n) ? ";
             int result_wr_1 = write(connFd, msg_1.c_str(), msg_1.length());
             if (result_wr_1 < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
             result_wr_1 = write(connFd, "\r\n", 2);
             if (result_wr_1 < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
@@ -534,13 +534,13 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 string message = "Send file path to the kafka configuration file.";
                 int result_wr = write(connFd, message.c_str(), message.length());
                 if (result_wr < 0) {
-                    frontend_logger.log("Error writing to socket", "error");
+                    frontend_logger.error("Error writing to socket");
                     loop_exit = true;
                     continue;
                 }
                 result_wr = write(connFd, "\r\n", 2);
                 if (result_wr < 0) {
-                    frontend_logger.log("Error writing to socket", "error");
+                    frontend_logger.error("Error writing to socket");
                     loop_exit = true;
                     continue;
                 }
@@ -572,17 +572,17 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 configs = {{"metadata.broker.list", kafka_server_IP}, {"group.id", "knnect"}};
             }
 
-            frontend_logger.log("Start serving `" + ADD_STREAM_KAFKA + "` command", "info");
+            frontend_logger.info("Start serving `" + ADD_STREAM_KAFKA + "` command");
             string message = "send kafka topic name";
             int result_wr = write(connFd, message.c_str(), message.length());
             if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
             result_wr = write(connFd, "\r\n", 2);
             if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
@@ -595,7 +595,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             string con_message = "Received the kafka topic";
             int con_result_wr = write(connFd, con_message.c_str(), con_message.length());
             if (con_result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
@@ -608,38 +608,38 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             topic_name_s = Utils::trim_copy(topic_name_s, " \f\n\r\t\v");
             stream_topic_name = topic_name_s;
             kstream->Subscribe(topic_name_s);
-            frontend_logger.log("Start listening to " + topic_name_s, "info");
+            frontend_logger.info("Start listening to " + topic_name_s);
             input_stream_handler =
                 thread(listen_to_kafka_topic, kstream, std::ref(graphPartitioner), std::ref(workerClients));
 
         } else if (line.compare(STOP_STREAM_KAFKA) == 0) {
-            frontend_logger.log("Start serving `" + STOP_STREAM_KAFKA + "` command", "info");
+            frontend_logger.info("Start serving `" + STOP_STREAM_KAFKA + "` command");
             //          Unsubscribe the kafka consumer.
             kstream->Unsubscribe();
             string message = "Successfully stop `" + stream_topic_name + "` input kafka stream";
             int result_wr = write(connFd, message.c_str(), message.length());
             if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
             result_wr = write(connFd, "\r\n", 2);
 
             if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
         } else if (line.compare(RMGR) == 0) {
             int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
             if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
             result_wr = write(connFd, "\r\n", 2);
             if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
@@ -655,35 +655,34 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             string graphID(graph_id);
 
             graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
-            frontend_logger.log("Graph ID received: " + graphID, "info");
+            frontend_logger.info("Graph ID received: " + graphID);
 
             if (JasmineGraphFrontEnd::graphExistsByID(graphID, sqlite)) {
-                frontend_logger.log("Graph with ID " + graphID + " is being deleted now", "info");
+                frontend_logger.info("Graph with ID " + graphID + " is being deleted now");
                 JasmineGraphFrontEnd::removeGraph(graphID, sqlite, masterIP);
                 result_wr = write(connFd, DONE.c_str(), DONE.size());
                 if (result_wr < 0) {
-                    frontend_logger.log("Error writing to socket", "error");
+                    frontend_logger.error("Error writing to socket");
                     loop_exit = true;
                     continue;
                 }
                 result_wr = write(connFd, "\r\n", 2);
                 if (result_wr < 0) {
-                    frontend_logger.log("Error writing to socket", "error");
+                    frontend_logger.error("Error writing to socket");
                     loop_exit = true;
                     continue;
                 }
             } else {
-                frontend_logger.log("Graph does not exist or cannot be deleted with the current hosts setting",
-                                    "error");
+                frontend_logger.error("Graph does not exist or cannot be deleted with the current hosts setting");
                 result_wr = write(connFd, ERROR.c_str(), ERROR.size());
                 if (result_wr < 0) {
-                    frontend_logger.log("Error writing to socket", "error");
+                    frontend_logger.error("Error writing to socket");
                     loop_exit = true;
                     continue;
                 }
                 result_wr = write(connFd, "\r\n", 2);
                 if (result_wr < 0) {
-                    frontend_logger.log("Error writing to socket", "error");
+                    frontend_logger.error("Error writing to socket");
                     loop_exit = true;
                     continue;
                 }
@@ -692,13 +691,13 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
         } else if (line.compare(PROCESS_DATASET) == 0) {
             int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
             if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
             result_wr = write(connFd, "\r\n", 2);
             if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
@@ -712,23 +711,23 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             string gData(graph_data);
 
             gData = Utils::trim_copy(gData, " \f\n\r\t\v");
-            frontend_logger.log("Data received: " + gData, "info");
+            frontend_logger.info("Data received: " + gData);
 
             if (gData.length() == 0) {
-                frontend_logger.log("Message format not recognized", "error");
+                frontend_logger.error("Message format not recognized");
                 break;
             }
             string path = gData;
 
             if (Utils::fileExists(path)) {
-                frontend_logger.log("Path exists", "info");
+                frontend_logger.info("Path exists");
 
                 JSONParser *jsonParser = new JSONParser();
                 jsonParser->jsonParse(path);
-                frontend_logger.log("Reformatted files created on /home/.jasminegraph/tmp/JSONParser/output", "info");
+                frontend_logger.info("Reformatted files created on /home/.jasminegraph/tmp/JSONParser/output");
 
             } else {
-                frontend_logger.log("Graph data file does not exist on the specified path", "error");
+                frontend_logger.error("Graph data file does not exist on the specified path");
                 break;
             }
         } else if (line.compare(TRIANGLES) == 0) {
@@ -736,11 +735,11 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             int uniqueId = JasmineGraphFrontEnd::getUid();
             int result_wr = write(connFd, GRAPHID_SEND.c_str(), FRONTEND_COMMAND_LENGTH);
             if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
             }
             result_wr = write(connFd, "\r\n", 2);
             if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
             }
 
             // We get the name and the path to graph as a pair separated by |.
@@ -759,22 +758,22 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 result_wr = write(connFd, error_message.c_str(), FRONTEND_COMMAND_LENGTH);
 
                 if (result_wr < 0) {
-                    frontend_logger.log("Error writing to socket", "error");
+                    frontend_logger.error("Error writing to socket");
                 }
 
                 result_wr = write(connFd, "\r\n", 2);
 
                 if (result_wr < 0) {
-                    frontend_logger.log("Error writing to socket", "error");
+                    frontend_logger.error("Error writing to socket");
                 }
             } else {
                 int result_wr = write(connFd, PRIORITY.c_str(), PRIORITY.length());
                 if (result_wr < 0) {
-                    frontend_logger.log("Error writing to socket", "error");
+                    frontend_logger.error("Error writing to socket");
                 }
                 result_wr = write(connFd, "\r\n", 2);
                 if (result_wr < 0) {
-                    frontend_logger.log("Error writing to socket", "error");
+                    frontend_logger.error("Error writing to socket");
                 }
 
                 // We get the name and the path to graph as a pair separated by |.
@@ -793,13 +792,13 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                     result_wr = write(connFd, error_message.c_str(), error_message.length());
 
                     if (result_wr < 0) {
-                        frontend_logger.log("Error writing to socket", "error");
+                        frontend_logger.error("Error writing to socket");
                     }
 
                     result_wr = write(connFd, "\r\n", 2);
 
                     if (result_wr < 0) {
-                        frontend_logger.log("Error writing to socket", "error");
+                        frontend_logger.error("Error writing to socket");
                     }
                     break;
                 }
@@ -831,7 +830,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                         }
                     } else {
                         // TODO(ASHOK12011234): Need to investigate for multiple graphs
-                        frontend_logger.log("Can't calibrate the graph now", "error");
+                        frontend_logger.error("Can't calibrate the graph now");
                     }
                 }
 
@@ -853,13 +852,13 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                     result_wr = write(connFd, errorMessage.c_str(), errorMessage.length());
 
                     if (result_wr < 0) {
-                        frontend_logger.log("Error writing to socket", "error");
+                        frontend_logger.error("Error writing to socket");
                     }
 
                     result_wr = write(connFd, "\r\n", 2);
 
                     if (result_wr < 0) {
-                        frontend_logger.log("Error writing to socket", "error");
+                        frontend_logger.error("Error writing to socket");
                     }
                     break;
                 }
@@ -873,26 +872,25 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 auto end = chrono::high_resolution_clock::now();
                 auto dur = end - begin;
                 auto msDuration = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
-                frontend_logger.log(
-                    "Triangle Count: " + triangleCount + " Time Taken: " + to_string(msDuration) + " milliseconds",
-                    "info");
+                frontend_logger.info("Triangle Count: " + triangleCount + " Time Taken: " + to_string(msDuration) +
+                                     " milliseconds");
                 result_wr = write(connFd, triangleCount.c_str(), triangleCount.length());
                 if (result_wr < 0) {
-                    frontend_logger.log("Error writing to socket", "error");
+                    frontend_logger.error("Error writing to socket");
                 }
                 result_wr = write(connFd, "\r\n", 2);
                 if (result_wr < 0) {
-                    frontend_logger.log("Error writing to socket", "error");
+                    frontend_logger.error("Error writing to socket");
                 }
             }
         } else if (line.compare(VCOUNT) == 0) {
             int result_wr = write(connFd, GRAPHID_SEND.c_str(), GRAPHID_SEND.size());
             if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
             }
             result_wr = write(connFd, "\r\n", 2);
             if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
             }
 
             char graph_id_data[301];
@@ -910,11 +908,11 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 string error_message = "The specified graph id does not exist";
                 result_wr = write(connFd, error_message.c_str(), FRONTEND_COMMAND_LENGTH);
                 if (result_wr < 0) {
-                    frontend_logger.log("Error writing to socket", "error");
+                    frontend_logger.error("Error writing to socket");
                 }
                 result_wr = write(connFd, "\r\n", 2);
                 if (result_wr < 0) {
-                    frontend_logger.log("Error writing to socket", "error");
+                    frontend_logger.error("Error writing to socket");
                 }
             } else {
                 string sqlStatement = "SELECT vertexcount from graph where idgraph=" + graph_id;
@@ -922,24 +920,24 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 std::vector<vector<pair<string, string>>> output = sqlite.runSelect(sqlStatement);
 
                 int vertexCount = std::stoi(output[0][0].second);
-                frontend_logger.log("Vertex Count: " + to_string(vertexCount), "info");
+                frontend_logger.info("Vertex Count: " + to_string(vertexCount));
                 result_wr = write(connFd, to_string(vertexCount).c_str(), to_string(vertexCount).length());
                 if (result_wr < 0) {
-                    frontend_logger.log("Error writing to socket", "error");
+                    frontend_logger.error("Error writing to socket");
                 }
                 result_wr = write(connFd, "\r\n", 2);
                 if (result_wr < 0) {
-                    frontend_logger.log("Error writing to socket", "error");
+                    frontend_logger.error("Error writing to socket");
                 }
             }
         } else if (line.compare(ECOUNT) == 0) {
             int result_wr = write(connFd, GRAPHID_SEND.c_str(), GRAPHID_SEND.size());
             if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
             }
             result_wr = write(connFd, "\r\n", 2);
             if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
             }
 
             char graph_id_data[301];
@@ -957,11 +955,11 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 string error_message = "The specified graph id does not exist";
                 result_wr = write(connFd, error_message.c_str(), FRONTEND_COMMAND_LENGTH);
                 if (result_wr < 0) {
-                    frontend_logger.log("Error writing to socket", "error");
+                    frontend_logger.error("Error writing to socket");
                 }
                 result_wr = write(connFd, "\r\n", 2);
                 if (result_wr < 0) {
-                    frontend_logger.log("Error writing to socket", "error");
+                    frontend_logger.error("Error writing to socket");
                 }
             } else {
                 string sqlStatement = "SELECT edgecount from graph where idgraph=" + graph_id;
@@ -969,14 +967,14 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 std::vector<vector<pair<string, string>>> output = sqlite.runSelect(sqlStatement);
 
                 int edgeCount = std::stoi(output[0][0].second);
-                frontend_logger.log("Edge Count: " + to_string(edgeCount), "info");
+                frontend_logger.info("Edge Count: " + to_string(edgeCount));
                 result_wr = write(connFd, to_string(edgeCount).c_str(), to_string(edgeCount).length());
                 if (result_wr < 0) {
-                    frontend_logger.log("Error writing to socket", "error");
+                    frontend_logger.error("Error writing to socket");
                 }
                 result_wr = write(connFd, "\r\n", 2);
                 if (result_wr < 0) {
-                    frontend_logger.log("Error writing to socket", "error");
+                    frontend_logger.error("Error writing to socket");
                 }
             }
         } else if (line.compare(MERGE) == 0) {
@@ -995,7 +993,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
             string trainData(train_data);
             trainData = Utils::trim_copy(trainData, " \f\n\r\t\v");
-            frontend_logger.log("Data received: " + trainData, "info");
+            frontend_logger.info("Data received: " + trainData);
 
             std::vector<std::string> trainargs = Utils::split(trainData, ' ');
             std::vector<std::string>::iterator itr = std::find(trainargs.begin(), trainargs.end(), "--graph_id");
@@ -1006,12 +1004,12 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 graphID = trainargs[index + 1];
 
             } else {
-                frontend_logger.log("graph_id should be given as an argument", "error");
+                frontend_logger.error("graph_id should be given as an argument");
                 continue;
             }
 
             if (trainargs.size() == 0) {
-                frontend_logger.log("Message format not recognized", "error");
+                frontend_logger.error("Message format not recognized");
                 break;
             }
 
@@ -1025,7 +1023,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             string message = "Available main flags:\r\n";
             int result_wr = write(connFd, message.c_str(), message.size());
             if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
             }
             string flags = Conts::FLAGS::GRAPH_ID + " " + Conts::FLAGS::LEARNING_RATE + " " + Conts::FLAGS::BATCH_SIZE +
                            " " + Conts::FLAGS::VALIDATE_ITER + " " + Conts::FLAGS::EPOCHS;
@@ -1040,7 +1038,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
             string trainData(train_data);
             trainData = Utils::trim_copy(trainData, " \f\n\r\t\v");
-            frontend_logger.log("Data received: " + trainData, "info");
+            frontend_logger.info("Data received: " + trainData);
 
             std::vector<std::string> trainargs = Utils::split(trainData, ' ');
             std::vector<std::string>::iterator itr = std::find(trainargs.begin(), trainargs.end(), "--graph_id");
@@ -1051,25 +1049,25 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 graphID = trainargs[index + 1];
 
             } else {
-                frontend_logger.log("graph_id should be given as an argument", "error");
+                frontend_logger.error("graph_id should be given as an argument");
                 continue;
             }
 
             if (trainargs.size() == 0) {
-                frontend_logger.log("Message format not recognized", "error");
+                frontend_logger.error("Message format not recognized");
                 break;
             }
 
             if (!JasmineGraphFrontEnd::isGraphActive(graphID, sqlite)) {
                 string error_message = "Graph is not in the active status";
-                frontend_logger.log(error_message, "error");
+                frontend_logger.error(error_message);
                 result_wr = write(connFd, error_message.c_str(), error_message.length());
                 if (result_wr < 0) {
-                    frontend_logger.log("Error writing to socket", "error");
+                    frontend_logger.error("Error writing to socket");
                 }
                 result_wr = write(connFd, "\r\n", 2);
                 if (result_wr < 0) {
-                    frontend_logger.log("Error writing to socket", "error");
+                    frontend_logger.error("Error writing to socket");
                 }
                 continue;
             }
@@ -1079,11 +1077,11 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             if (federatedEnabled == "true") {
                 JasmineGraphServer *jasmineServer = new JasmineGraphServer();
                 if (Utils::getJasmineGraphProperty("org.jasminegraph.fl.org.training") == "true") {
-                    frontend_logger.log("Initiate org communication", "info");
+                    frontend_logger.info("Initiate org communication");
                     jasmineServer->initiateOrgCommunication(graphID, trainData, sqlite);
 
                 } else {
-                    frontend_logger.log("Initiate communication", "info");
+                    frontend_logger.info("Initiate communication");
                     jasmineServer->initiateCommunication(graphID, trainData, sqlite);
                 }
 
@@ -1095,17 +1093,17 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             write(connFd, "\r\n", 2);
 
         } else if (line.compare(IN_DEGREE) == 0) {
-            frontend_logger.log("Calculating In Degree Distribution", "info");
+            frontend_logger.info("Calculating In Degree Distribution");
 
             int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
             if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
             result_wr = write(connFd, "\r\n", 2);
             if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
@@ -1118,35 +1116,35 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             string graphID(graph_id);
 
             graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
-            frontend_logger.log("Graph ID received: " + graphID, "info");
+            frontend_logger.info("Graph ID received: " + graphID);
 
             JasmineGraphServer *jasmineServer = new JasmineGraphServer();
             jasmineServer->inDegreeDistribution(graphID);
 
             int result_wr_done = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
             if (result_wr_done < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
             result_wr_done = write(connFd, "\r\n", 2);
             if (result_wr_done < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
         } else if (line.compare(OUT_DEGREE) == 0) {
-            frontend_logger.log("Calculating Out Degree Distribution", "info");
+            frontend_logger.info("Calculating Out Degree Distribution");
 
             int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
             if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
             result_wr = write(connFd, "\r\n", 2);
             if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
@@ -1159,35 +1157,35 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             string graphID(graph_id);
 
             graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
-            frontend_logger.log("Graph ID received: " + graphID, "info");
+            frontend_logger.info("Graph ID received: " + graphID);
 
             JasmineGraphServer *jasmineServer = new JasmineGraphServer();
             jasmineServer->outDegreeDistribution(graphID);
 
             int result_wr_done = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
             if (result_wr_done < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
             result_wr_done = write(connFd, "\r\n", 2);
             if (result_wr_done < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
         } else if (line.compare(PAGE_RANK) == 0) {
-            frontend_logger.log("Calculating Page Rank", "info");
+            frontend_logger.info("Calculating Page Rank");
 
             int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
             if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
             result_wr = write(connFd, "\r\n", 2);
             if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
@@ -1206,7 +1204,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             if (strArr.size() > 1) {
                 alpha = std::stod(strArr[1]);
                 if (alpha < 0 || alpha >= 1) {
-                    frontend_logger.log("Invalid value for alpha", "error");
+                    frontend_logger.error("Invalid value for alpha");
                     loop_exit = true;
                     continue;
                 }
@@ -1216,44 +1214,44 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             if (strArr.size() > 2) {
                 iterations = std::stod(strArr[2]);
                 if (iterations <= 0 || iterations >= 100) {
-                    frontend_logger.log("Invalid value for iterations", "error");
+                    frontend_logger.error("Invalid value for iterations");
                     loop_exit = true;
                     continue;
                 }
             }
 
             graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
-            frontend_logger.log("Graph ID received: " + graphID, "info");
-            frontend_logger.log("Alpha value: " + to_string(alpha), "info");
-            frontend_logger.log("Iterations value: " + to_string(iterations), "info");
+            frontend_logger.info("Graph ID received: " + graphID);
+            frontend_logger.info("Alpha value: " + to_string(alpha));
+            frontend_logger.info("Iterations value: " + to_string(iterations));
 
             JasmineGraphServer *jasmineServer = new JasmineGraphServer();
             jasmineServer->pageRank(graphID, alpha, iterations);
 
             int result_wr_done = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
             if (result_wr_done < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
             result_wr_done = write(connFd, "\r\n", 2);
             if (result_wr_done < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
         } else if (line.compare(EGONET) == 0) {
-            frontend_logger.log("Calculating EgoNet", "info");
+            frontend_logger.info("Calculating EgoNet");
 
             int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
             if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
             result_wr = write(connFd, "\r\n", 2);
             if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
@@ -1266,35 +1264,35 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             string graphID(graph_id);
 
             graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
-            frontend_logger.log("Graph ID received: " + graphID, "info");
+            frontend_logger.info("Graph ID received: " + graphID);
 
             JasmineGraphServer *jasmineServer = new JasmineGraphServer();
             jasmineServer->egoNet(graphID);
 
             int result_wr_done = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
             if (result_wr_done < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
             result_wr_done = write(connFd, "\r\n", 2);
             if (result_wr_done < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
         } else if (line.compare(DPCNTRL) == 0) {
-            frontend_logger.log("Duplicate Centralstore", "info");
+            frontend_logger.info("Duplicate Centralstore");
 
             int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
             if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
             result_wr = write(connFd, "\r\n", 2);
             if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
@@ -1307,20 +1305,20 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             string graphID(graph_id);
 
             graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
-            frontend_logger.log("Graph ID received: " + graphID, "info");
+            frontend_logger.info("Graph ID received: " + graphID);
 
             JasmineGraphServer *jasmineServer = new JasmineGraphServer();
             jasmineServer->duplicateCentralStore(graphID);
 
             int result_wr_done = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
             if (result_wr_done < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
             result_wr_done = write(connFd, "\r\n", 2);
             if (result_wr_done < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
                 loop_exit = true;
                 continue;
             }
@@ -1332,11 +1330,11 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 // Need to define the protocol for the predict command in federated learning context
                 int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
                 if (result_wr < 0) {
-                    frontend_logger.log("Error writing to socket", "error");
+                    frontend_logger.error("Error writing to socket");
                 }
                 result_wr = write(connFd, "\r\n", 3);
                 if (result_wr < 0) {
-                    frontend_logger.log("Error writing to socket", "error");
+                    frontend_logger.error("Error writing to socket");
                 }
 
                 char predict_data[301];
@@ -1349,12 +1347,12 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 string predictData(predict_data);
 
                 predictData = Utils::trim_copy(predictData, " \f\n\r\t\v");
-                frontend_logger.log("Data received: " + predictData, "info");
+                frontend_logger.info("Data received: " + predictData);
 
                 std::vector<std::string> strArr = Utils::split(predictData, '|');
 
                 if (strArr.size() != 3) {
-                    frontend_logger.log("Message format not recognized", "error");
+                    frontend_logger.error("Message format not recognized");
                     continue;
                 }
 
@@ -1365,11 +1363,11 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             } else {
                 int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
                 if (result_wr < 0) {
-                    frontend_logger.log("Error writing to socket", "error");
+                    frontend_logger.error("Error writing to socket");
                 }
                 result_wr = write(connFd, "\r\n", 2);
                 if (result_wr < 0) {
-                    frontend_logger.log("Error writing to socket", "error");
+                    frontend_logger.error("Error writing to socket");
                 }
                 char predict_data[301];
                 bzero(predict_data, 301);
@@ -1380,12 +1378,12 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                 string predictData(predict_data);
 
                 predictData = Utils::trim_copy(predictData, " \f\n\r\t\v");
-                frontend_logger.log("Data received: " + predictData, "info");
+                frontend_logger.info("Data received: " + predictData);
 
                 std::vector<std::string> strArr = Utils::split(predictData, '|');
 
                 if (strArr.size() != 2) {
-                    frontend_logger.log("Message format not recognized", "error");
+                    frontend_logger.error("Message format not recognized");
                     continue;
                 }
 
@@ -1398,7 +1396,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                         JasminGraphLinkPredictor *jasminGraphLinkPredictor = new JasminGraphLinkPredictor();
                         jasminGraphLinkPredictor->initiateLinkPrediction(graphID, path, masterIP);
                     } else {
-                        frontend_logger.log("Graph edge file does not exist on the specified path", "error");
+                        frontend_logger.error("Graph edge file does not exist on the specified path");
                         continue;
                     }
                 }
@@ -1406,11 +1404,11 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
         } else if (line.compare(START_REMOTE_WORKER) == 0) {
             int result_wr = write(connFd, REMOTE_WORKER_ARGS.c_str(), REMOTE_WORKER_ARGS.size());
             if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
             }
             result_wr = write(connFd, "\r\n", 2);
             if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
             }
 
             char worker_data[301];
@@ -1421,7 +1419,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             string remote_worker_data(worker_data);
 
             remote_worker_data = Utils::trim_copy(remote_worker_data, " \f\n\r\t\v");
-            frontend_logger.log("Data received: " + remote_worker_data, "info");
+            frontend_logger.info("Data received: " + remote_worker_data);
             string host = "";
             string port = "";
             string dataPort = "";
@@ -1432,7 +1430,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             std::vector<std::string> strArr = Utils::split(remote_worker_data, '|');
 
             if (strArr.size() < 6) {
-                frontend_logger.log("Message format not recognized", "error");
+                frontend_logger.error("Message format not recognized");
                 continue;
             }
 
@@ -1449,11 +1447,11 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
         } else if (line.compare(SLA) == 0) {
             int result_wr = write(connFd, COMMAND.c_str(), COMMAND.size());
             if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
             }
             result_wr = write(connFd, "\r\n", 2);
             if (result_wr < 0) {
-                frontend_logger.log("Error writing to socket", "error");
+                frontend_logger.error("Error writing to socket");
             }
 
             char category[FRONTEND_DATA_LENGTH + 1];
@@ -1464,7 +1462,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             string command_info(category);
 
             command_info = Utils::trim_copy(command_info, " \f\n\r\t\v");
-            frontend_logger.log("Data received: " + command_info, "info");
+            frontend_logger.info("Data received: " + command_info);
 
             std::vector<vector<pair<string, string>>> categoryResults =
                 perfSqlite.runSelect("SELECT id FROM sla_category where command='" + command_info + "';");
@@ -1513,14 +1511,14 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             if (result.size() == 0) {
                 int result_wr = write(connFd, EMPTY.c_str(), EMPTY.length());
                 if (result_wr < 0) {
-                    frontend_logger.log("Error writing to socket", "error");
+                    frontend_logger.error("Error writing to socket");
                     loop_exit = true;
                     continue;
                 }
                 result_wr = write(connFd, "\r\n", 2);
 
                 if (result_wr < 0) {
-                    frontend_logger.log("Error writing to socket", "error");
+                    frontend_logger.error("Error writing to socket");
                     loop_exit = true;
                     continue;
                 }
@@ -1528,19 +1526,19 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             } else {
                 int result_wr = write(connFd, result.c_str(), result.length());
                 if (result_wr < 0) {
-                    frontend_logger.log("Error writing to socket", "error");
+                    frontend_logger.error("Error writing to socket");
                     loop_exit = true;
                     continue;
                 }
             }
         } else {
-            frontend_logger.log("Message format not recognized " + line, "error");
+            frontend_logger.error("Message format not recognized " + line);
         }
     }
     if (input_stream_handler.joinable()) {
         input_stream_handler.join();
     }
-    frontend_logger.log("Closing thread " + to_string(pthread_self()) + " and connection", "info");
+    frontend_logger.info("Closing thread " + to_string(pthread_self()) + " and connection");
     close(connFd);
     return NULL;
 }
@@ -1566,7 +1564,7 @@ int JasmineGraphFrontEnd::run() {
     listenFd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (listenFd < 0) {
-        frontend_logger.log("Cannot open socket", "error");
+        frontend_logger.error("Cannot open socket");
         return 0;
     }
 
@@ -1585,7 +1583,7 @@ int JasmineGraphFrontEnd::run() {
 
     // bind socket
     if (bind(listenFd, (struct sockaddr *)&svrAdd, sizeof(svrAdd)) < 0) {
-        frontend_logger.log("Cannot bind on port " + portNo, "error");
+        frontend_logger.error("Cannot bind on port " + portNo);
         return 0;
     }
 
@@ -1598,19 +1596,19 @@ int JasmineGraphFrontEnd::run() {
     int noThread = 0;
 
     while (true) {
-        frontend_logger.log("Frontend Listening", "info");
+        frontend_logger.info("Frontend Listening");
 
         // this is where client connects. svr will hang in this mode until client conn
         connFd = accept(listenFd, (struct sockaddr *)&clntAdd, &len);
 
         if (connFd < 0) {
-            frontend_logger.log("Cannot accept connection", "error");
+            frontend_logger.error("Cannot accept connection");
             return 0;
         } else {
-            frontend_logger.log("Connection successful", "info");
+            frontend_logger.info("Connection successful");
         }
 
-        frontend_logger.log("Master IP" + masterIP, "info");
+        frontend_logger.info("Master IP" + masterIP);
 
         struct frontendservicesessionargs *frontendservicesessionargs1 =
             (struct frontendservicesessionargs *)malloc(sizeof(struct frontendservicesessionargs) * 1);
@@ -1753,14 +1751,14 @@ void JasmineGraphFrontEnd::getAndUpdateUploadTime(std::string graphID, SQLiteDBI
     time_t end = mktime(&tm);
     double difTime = difftime(end, start);
     sqlite.runUpdate("UPDATE graph SET upload_time = " + to_string(difTime) + " WHERE idgraph = " + graphID);
-    frontend_logger.log("Upload time updated in the database", "info");
+    frontend_logger.info("Upload time updated in the database");
 }
 
 JasmineGraphHashMapCentralStore JasmineGraphFrontEnd::loadCentralStore(std::string centralStoreFileName) {
-    frontend_logger.log("Loading Central Store File : Started " + centralStoreFileName, "info");
+    frontend_logger.info("Loading Central Store File : Started " + centralStoreFileName);
     JasmineGraphHashMapCentralStore *jasmineGraphHashMapCentralStore = new JasmineGraphHashMapCentralStore();
     jasmineGraphHashMapCentralStore->loadGraph(centralStoreFileName);
-    frontend_logger.log("Loading Central Store File : Completed", "info");
+    frontend_logger.info("Loading Central Store File : Completed");
     return *jasmineGraphHashMapCentralStore;
 }
 
@@ -1885,7 +1883,7 @@ void JasmineGraphServer::pageRank(std::string graphID, double alpha, int iterati
     }
 
     workerList.pop_back();
-    frontend_logger.log("Worker list " + workerList, "error");
+    frontend_logger.error("Worker list " + workerList);
 
     for (workerIter = graphPartitionedHosts.begin(); workerIter != graphPartitionedHosts.end(); workerIter++) {
         JasmineGraphServer::workerPartition workerPartition = workerIter->second;
@@ -1928,27 +1926,27 @@ void JasmineGraphServer::pageRank(std::string graphID, double alpha, int iterati
         int result_wr = write(sockfd, JasmineGraphInstanceProtocol::PAGE_RANK.c_str(),
                               JasmineGraphInstanceProtocol::PAGE_RANK.size());
         if (result_wr < 0) {
-            frontend_logger.log("Error writing to socket", "error");
+            frontend_logger.error("Error writing to socket");
         }
 
-        frontend_logger.log("Sent : " + JasmineGraphInstanceProtocol::PAGE_RANK, "info");
+        frontend_logger.info("Sent : " + JasmineGraphInstanceProtocol::PAGE_RANK);
         bzero(data, 301);
         read(sockfd, data, 300);
         string response = (data);
         response = Utils::trim_copy(response, " \f\n\r\t\v");
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-            frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+            frontend_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
         } else {
-            frontend_logger.log("Error reading from socket", "error");
+            frontend_logger.error("Error reading from socket");
         }
 
         result_wr = write(sockfd, graphID.c_str(), graphID.size());
 
         if (result_wr < 0) {
-            frontend_logger.log("Error writing to socket", "error");
+            frontend_logger.error("Error writing to socket");
         }
-        frontend_logger.log("Sent : Graph ID " + graphID, "info");
+        frontend_logger.info("Sent : Graph ID " + graphID);
 
         bzero(data, 301);
         read(sockfd, data, 300);
@@ -1956,9 +1954,9 @@ void JasmineGraphServer::pageRank(std::string graphID, double alpha, int iterati
         response = Utils::trim_copy(response, " \f\n\r\t\v");
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-            frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+            frontend_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
         } else {
-            frontend_logger.log("Error reading from socket", "error");
+            frontend_logger.error("Error reading from socket");
         }
 
         int partitionID = stoi(partition);
@@ -1966,10 +1964,10 @@ void JasmineGraphServer::pageRank(std::string graphID, double alpha, int iterati
         result_wr = write(sockfd, std::to_string(partitionID).c_str(), std::to_string(partitionID).size());
 
         if (result_wr < 0) {
-            frontend_logger.log("Error writing to socket", "error");
+            frontend_logger.error("Error writing to socket");
         }
 
-        frontend_logger.log("Sent : Partition ID " + std::to_string(partitionID), "info");
+        frontend_logger.info("Sent : Partition ID " + std::to_string(partitionID));
 
         bzero(data, 301);
         read(sockfd, data, 300);
@@ -1977,82 +1975,82 @@ void JasmineGraphServer::pageRank(std::string graphID, double alpha, int iterati
         response = Utils::trim_copy(response, " \f\n\r\t\v");
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-            frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+            frontend_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
         } else {
-            frontend_logger.log("Error reading from socket", "error");
+            frontend_logger.error("Error reading from socket");
         }
 
         result_wr = write(sockfd, workerList.c_str(), workerList.size());
 
         if (result_wr < 0) {
-            frontend_logger.log("Error writing to socket", "error");
+            frontend_logger.error("Error writing to socket");
         }
 
-        frontend_logger.log("Sent : Host List ", "info");
+        frontend_logger.info("Sent : Host List ");
         bzero(data, 301);
         read(sockfd, data, 300);
         response = (data);
         response = Utils::trim_copy(response, " \f\n\r\t\v");
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-            frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+            frontend_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
         } else {
-            frontend_logger.log("Error reading from socket", "error");
+            frontend_logger.error("Error reading from socket");
         }
 
         long graphVertexCount = JasmineGraphServer::getGraphVertexCount(graphID);
         result_wr = write(sockfd, std::to_string(graphVertexCount).c_str(), std::to_string(graphVertexCount).size());
 
         if (result_wr < 0) {
-            frontend_logger.log("Error writing to socket", "error");
+            frontend_logger.error("Error writing to socket");
         }
 
-        frontend_logger.log("graph vertex count: " + std::to_string(graphVertexCount), "info");
+        frontend_logger.info("graph vertex count: " + std::to_string(graphVertexCount));
         bzero(data, 301);
         read(sockfd, data, 300);
         response = (data);
         response = Utils::trim_copy(response, " \f\n\r\t\v");
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-            frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+            frontend_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
         } else {
-            frontend_logger.log("Error reading from socket", "error");
+            frontend_logger.error("Error reading from socket");
         }
 
         result_wr = write(sockfd, std::to_string(alpha).c_str(), std::to_string(alpha).size());
 
         if (result_wr < 0) {
-            frontend_logger.log("Error writing to socket", "error");
+            frontend_logger.error("Error writing to socket");
         }
 
-        frontend_logger.log("page rank alpha value sent : " + std::to_string(alpha), "info");
+        frontend_logger.info("page rank alpha value sent : " + std::to_string(alpha));
         bzero(data, 301);
         read(sockfd, data, 300);
         response = (data);
         response = Utils::trim_copy(response, " \f\n\r\t\v");
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-            frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+            frontend_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
         } else {
-            frontend_logger.log("Error reading from socket", "error");
+            frontend_logger.error("Error reading from socket");
         }
 
         result_wr = write(sockfd, std::to_string(iterations).c_str(), std::to_string(iterations).size());
 
         if (result_wr < 0) {
-            frontend_logger.log("Error writing to socket", "error");
+            frontend_logger.error("Error writing to socket");
         }
 
-        frontend_logger.log("page rank iterations value sent : " + std::to_string(iterations), "info");
+        frontend_logger.info("page rank iterations value sent : " + std::to_string(iterations));
         bzero(data, 301);
         read(sockfd, data, 300);
         response = (data);
         response = Utils::trim_copy(response, " \f\n\r\t\v");
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-            frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+            frontend_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
         } else {
-            frontend_logger.log("Error reading from socket", "error");
+            frontend_logger.error("Error reading from socket");
         }
     }
 }
@@ -2114,27 +2112,27 @@ void JasmineGraphServer::egoNet(std::string graphID) {
     int result_wr =
         write(sockfd, JasmineGraphInstanceProtocol::EGONET.c_str(), JasmineGraphInstanceProtocol::EGONET.size());
     if (result_wr < 0) {
-        frontend_logger.log("Error writing to socket", "error");
+        frontend_logger.error("Error writing to socket");
     }
 
-    frontend_logger.log("Sent : " + JasmineGraphInstanceProtocol::EGONET, "info");
+    frontend_logger.info("Sent : " + JasmineGraphInstanceProtocol::EGONET);
     bzero(data, 301);
     read(sockfd, data, 300);
     string response = (data);
     response = Utils::trim_copy(response, " \f\n\r\t\v");
 
     if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-        frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+        frontend_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
     } else {
-        frontend_logger.log("Error reading from socket", "error");
+        frontend_logger.error("Error reading from socket");
     }
 
     result_wr = write(sockfd, graphID.c_str(), graphID.size());
 
     if (result_wr < 0) {
-        frontend_logger.log("Error writing to socket", "error");
+        frontend_logger.error("Error writing to socket");
     }
-    frontend_logger.log("Sent : Graph ID " + graphID, "info");
+    frontend_logger.info("Sent : Graph ID " + graphID);
 
     bzero(data, 301);
     read(sockfd, data, 300);
@@ -2142,9 +2140,9 @@ void JasmineGraphServer::egoNet(std::string graphID) {
     response = Utils::trim_copy(response, " \f\n\r\t\v");
 
     if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-        frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+        frontend_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
     } else {
-        frontend_logger.log("Error reading from socket", "error");
+        frontend_logger.error("Error reading from socket");
     }
 
     int partitionID = stoi(partition);
@@ -2152,10 +2150,10 @@ void JasmineGraphServer::egoNet(std::string graphID) {
     result_wr = write(sockfd, std::to_string(partitionID).c_str(), std::to_string(partitionID).size());
 
     if (result_wr < 0) {
-        frontend_logger.log("Error writing to socket", "error");
+        frontend_logger.error("Error writing to socket");
     }
 
-    frontend_logger.log("Sent : Partition ID " + std::to_string(partitionID), "info");
+    frontend_logger.info("Sent : Partition ID " + std::to_string(partitionID));
 
     bzero(data, 301);
     read(sockfd, data, 300);
@@ -2163,23 +2161,23 @@ void JasmineGraphServer::egoNet(std::string graphID) {
     response = Utils::trim_copy(response, " \f\n\r\t\v");
 
     if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-        frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+        frontend_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
     } else {
-        frontend_logger.log("Error reading from socket", "error");
+        frontend_logger.error("Error reading from socket");
     }
 
     result_wr = write(sockfd, workerList.c_str(), workerList.size());
 
     if (result_wr < 0) {
-        frontend_logger.log("Error writing to socket", "error");
+        frontend_logger.error("Error writing to socket");
     }
 
-    frontend_logger.log("Sent : Host List ", "info");
+    frontend_logger.info("Sent : Host List ");
 
     if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-        frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+        frontend_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
     } else {
-        frontend_logger.log("Error reading from socket", "error");
+        frontend_logger.error("Error reading from socket");
     }
 }
 
@@ -2238,20 +2236,20 @@ static void list_command(int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p
     if (result.size() == 0) {
         int result_wr = write(connFd, EMPTY.c_str(), EMPTY.length());
         if (result_wr < 0) {
-            frontend_logger.log("Error writing to socket", "error");
+            frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
             return;
         }
 
         result_wr = write(connFd, "\r\n", 2);
         if (result_wr < 0) {
-            frontend_logger.log("Error writing to socket", "error");
+            frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
         }
     } else {
         int result_wr = write(connFd, result.c_str(), result.length());
         if (result_wr < 0) {
-            frontend_logger.log("Error writing to socket", "error");
+            frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
         }
     }
