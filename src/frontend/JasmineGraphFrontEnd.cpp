@@ -76,6 +76,7 @@ static void process_dataset_command(int connFd, bool *loop_exit_p);
 static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterface sqlite,
                               PerformanceSQLiteDBInterface perfSqlite, JobScheduler jobScheduler, bool *loop_exit_p);
 static void vertex_count_command(int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p);
+static void edge_count_command(int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p);
 
 // Thread function
 void listen_to_kafka_topic(KafkaConnector *kstream, Partitioner &graphPartitioner,
@@ -209,52 +210,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
         } else if (line.compare(VCOUNT) == 0) {
             vertex_count_command(connFd, sqlite, &loop_exit);
         } else if (line.compare(ECOUNT) == 0) {
-            int result_wr = write(connFd, GRAPHID_SEND.c_str(), GRAPHID_SEND.size());
-            if (result_wr < 0) {
-                frontend_logger.error("Error writing to socket");
-            }
-            result_wr = write(connFd, "\r\n", 2);
-            if (result_wr < 0) {
-                frontend_logger.error("Error writing to socket");
-            }
-
-            char graph_id_data[301];
-            bzero(graph_id_data, 301);
-            string name = "";
-
-            read(connFd, graph_id_data, 300);
-
-            string graph_id(graph_id_data);
-
-            graph_id.erase(std::remove(graph_id.begin(), graph_id.end(), '\n'), graph_id.end());
-            graph_id.erase(std::remove(graph_id.begin(), graph_id.end(), '\r'), graph_id.end());
-
-            if (!JasmineGraphFrontEnd::graphExistsByID(graph_id, sqlite)) {
-                string error_message = "The specified graph id does not exist";
-                result_wr = write(connFd, error_message.c_str(), FRONTEND_COMMAND_LENGTH);
-                if (result_wr < 0) {
-                    frontend_logger.error("Error writing to socket");
-                }
-                result_wr = write(connFd, "\r\n", 2);
-                if (result_wr < 0) {
-                    frontend_logger.error("Error writing to socket");
-                }
-            } else {
-                string sqlStatement = "SELECT edgecount from graph where idgraph=" + graph_id;
-
-                std::vector<vector<pair<string, string>>> output = sqlite.runSelect(sqlStatement);
-
-                int edgeCount = std::stoi(output[0][0].second);
-                frontend_logger.info("Edge Count: " + to_string(edgeCount));
-                result_wr = write(connFd, to_string(edgeCount).c_str(), to_string(edgeCount).length());
-                if (result_wr < 0) {
-                    frontend_logger.error("Error writing to socket");
-                }
-                result_wr = write(connFd, "\r\n", 2);
-                if (result_wr < 0) {
-                    frontend_logger.error("Error writing to socket");
-                }
-            }
+            edge_count_command(connFd, sqlite, &loop_exit);
         } else if (line.compare(MERGE) == 0) {
             std::string federatedEnabled = Utils::getJasmineGraphProperty("org.jasminegraph.federated.enabled");
             string message = "Available main flags:\r\n";
@@ -2419,6 +2375,65 @@ static void vertex_count_command(int connFd, SQLiteDBInterface sqlite, bool *loo
         int vertexCount = std::stoi(output[0][0].second);
         frontend_logger.info("Vertex Count: " + to_string(vertexCount));
         result_wr = write(connFd, to_string(vertexCount).c_str(), to_string(vertexCount).length());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        result_wr = write(connFd, "\r\n", 2);
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+        }
+    }
+}
+
+static void edge_count_command(int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p) {
+    int result_wr = write(connFd, GRAPHID_SEND.c_str(), GRAPHID_SEND.size());
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    result_wr = write(connFd, "\r\n", 2);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+
+    char graph_id_data[301];
+    bzero(graph_id_data, 301);
+    string name = "";
+
+    read(connFd, graph_id_data, 300);
+
+    string graph_id(graph_id_data);
+
+    graph_id.erase(std::remove(graph_id.begin(), graph_id.end(), '\n'), graph_id.end());
+    graph_id.erase(std::remove(graph_id.begin(), graph_id.end(), '\r'), graph_id.end());
+
+    if (!JasmineGraphFrontEnd::graphExistsByID(graph_id, sqlite)) {
+        string error_message = "The specified graph id does not exist";
+        result_wr = write(connFd, error_message.c_str(), FRONTEND_COMMAND_LENGTH);
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        result_wr = write(connFd, "\r\n", 2);
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+        }
+    } else {
+        string sqlStatement = "SELECT edgecount from graph where idgraph=" + graph_id;
+
+        std::vector<vector<pair<string, string>>> output = sqlite.runSelect(sqlStatement);
+
+        int edgeCount = std::stoi(output[0][0].second);
+        frontend_logger.info("Edge Count: " + to_string(edgeCount));
+        result_wr = write(connFd, to_string(edgeCount).c_str(), to_string(edgeCount).length());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
