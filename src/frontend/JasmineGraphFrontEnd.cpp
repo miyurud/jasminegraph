@@ -79,6 +79,7 @@ static void vertex_count_command(int connFd, SQLiteDBInterface sqlite, bool *loo
 static void edge_count_command(int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p);
 static void merge_command(int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p);
 static void train_command(int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p);
+static void in_degree_command(int connFd, bool *loop_exit_p);
 
 // Thread function
 void listen_to_kafka_topic(KafkaConnector *kstream, Partitioner &graphPartitioner,
@@ -218,46 +219,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
         } else if (line.compare(TRAIN) == 0) {
             train_command(connFd, sqlite, &loop_exit);
         } else if (line.compare(IN_DEGREE) == 0) {
-            frontend_logger.info("Calculating In Degree Distribution");
-
-            int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
-            if (result_wr < 0) {
-                frontend_logger.error("Error writing to socket");
-                loop_exit = true;
-                continue;
-            }
-            result_wr = write(connFd, "\r\n", 2);
-            if (result_wr < 0) {
-                frontend_logger.error("Error writing to socket");
-                loop_exit = true;
-                continue;
-            }
-
-            char graph_id[FRONTEND_DATA_LENGTH + 1];
-            bzero(graph_id, FRONTEND_DATA_LENGTH + 1);
-
-            read(connFd, graph_id, FRONTEND_DATA_LENGTH);
-
-            string graphID(graph_id);
-
-            graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
-            frontend_logger.info("Graph ID received: " + graphID);
-
-            JasmineGraphServer *jasmineServer = new JasmineGraphServer();
-            jasmineServer->inDegreeDistribution(graphID);
-
-            int result_wr_done = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
-            if (result_wr_done < 0) {
-                frontend_logger.error("Error writing to socket");
-                loop_exit = true;
-                continue;
-            }
-            result_wr_done = write(connFd, "\r\n", 2);
-            if (result_wr_done < 0) {
-                frontend_logger.error("Error writing to socket");
-                loop_exit = true;
-                continue;
-            }
+            in_degree_command(connFd, &loop_exit);
         } else if (line.compare(OUT_DEGREE) == 0) {
             frontend_logger.info("Calculating Out Degree Distribution");
 
@@ -658,6 +620,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             }
         } else {
             frontend_logger.error("Message format not recognized " + line);
+            // TODO: Inform client?
         }
     }
     if (input_stream_handler.joinable()) {
@@ -2514,5 +2477,47 @@ static void train_command(int connFd, SQLiteDBInterface sqlite, bool *loop_exit_
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
         return;
+    }
+}
+
+static void in_degree_command(int connFd, bool *loop_exit_p) {
+    frontend_logger.info("Calculating In Degree Distribution");
+
+    int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    result_wr = write(connFd, "\r\n", 2);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+
+    char graph_id[FRONTEND_DATA_LENGTH + 1];
+    bzero(graph_id, FRONTEND_DATA_LENGTH + 1);
+
+    read(connFd, graph_id, FRONTEND_DATA_LENGTH);
+
+    string graphID(graph_id);
+
+    graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
+    frontend_logger.info("Graph ID received: " + graphID);
+
+    JasmineGraphServer *jasmineServer = new JasmineGraphServer();
+    jasmineServer->inDegreeDistribution(graphID);
+
+    result_wr = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    result_wr = write(connFd, "\r\n", 2);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
     }
 }
