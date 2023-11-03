@@ -70,6 +70,7 @@ static void add_model_command(int connFd, SQLiteDBInterface sqlite, bool *loop_e
 static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, cppkafka::Configuration &configs,
                                      KafkaConnector *&kstream, thread &input_stream_handler,
                                      vector<DataPublisher *> &workerClients, int numberOfPartitions, bool *loop_exit_p);
+static void stop_stream_kafka_command(int connFd, KafkaConnector *kstream, bool *loop_exit_p);
 
 // Thread function
 void listen_to_kafka_topic(KafkaConnector *kstream, Partitioner &graphPartitioner,
@@ -193,23 +194,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             add_stream_kafka_command(connFd, kafka_server_IP, configs, kstream, input_stream_handler, workerClients,
                                      numberOfPartitions, &loop_exit);
         } else if (line.compare(STOP_STREAM_KAFKA) == 0) {
-            frontend_logger.info("Start serving `" + STOP_STREAM_KAFKA + "` command");
-            //          Unsubscribe the kafka consumer.
-            kstream->Unsubscribe();
-            string message = "Successfully stop `" + stream_topic_name + "` input kafka stream";
-            int result_wr = write(connFd, message.c_str(), message.length());
-            if (result_wr < 0) {
-                frontend_logger.error("Error writing to socket");
-                loop_exit = true;
-                continue;
-            }
-            result_wr = write(connFd, "\r\n", 2);
-
-            if (result_wr < 0) {
-                frontend_logger.error("Error writing to socket");
-                loop_exit = true;
-                continue;
-            }
+            stop_stream_kafka_command(connFd, kstream, &loop_exit);
         } else if (line.compare(RMGR) == 0) {
             int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
             if (result_wr < 0) {
@@ -2385,4 +2370,23 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     kstream->Subscribe(topic_name_s);
     frontend_logger.info("Start listening to " + topic_name_s);
     input_stream_handler = thread(listen_to_kafka_topic, kstream, std::ref(graphPartitioner), std::ref(workerClients));
+}
+
+static void stop_stream_kafka_command(int connFd, KafkaConnector *kstream, bool *loop_exit_p) {
+    frontend_logger.info("Start serving `" + STOP_STREAM_KAFKA + "` command");
+    //          Unsubscribe the kafka consumer.
+    kstream->Unsubscribe();
+    string message = "Successfully stop `" + stream_topic_name + "` input kafka stream";
+    int result_wr = write(connFd, message.c_str(), message.length());
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    result_wr = write(connFd, "\r\n", 2);
+
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+    }
 }
