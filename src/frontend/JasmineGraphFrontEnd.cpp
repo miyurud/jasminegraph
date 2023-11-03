@@ -82,6 +82,7 @@ static void train_command(int connFd, SQLiteDBInterface sqlite, bool *loop_exit_
 static void in_degree_command(int connFd, bool *loop_exit_p);
 static void out_degree_command(int connFd, bool *loop_exit_p);
 static void page_rank_command(int connFd, bool *loop_exit_p);
+static void egonet_command(int connFd, bool *loop_exit_p);
 
 // Thread function
 void listen_to_kafka_topic(KafkaConnector *kstream, Partitioner &graphPartitioner,
@@ -227,46 +228,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
         } else if (line.compare(PAGE_RANK) == 0) {
             page_rank_command(connFd, &loop_exit);
         } else if (line.compare(EGONET) == 0) {
-            frontend_logger.info("Calculating EgoNet");
-
-            int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
-            if (result_wr < 0) {
-                frontend_logger.error("Error writing to socket");
-                loop_exit = true;
-                continue;
-            }
-            result_wr = write(connFd, "\r\n", 2);
-            if (result_wr < 0) {
-                frontend_logger.error("Error writing to socket");
-                loop_exit = true;
-                continue;
-            }
-
-            char graph_id[FRONTEND_DATA_LENGTH + 1];
-            bzero(graph_id, FRONTEND_DATA_LENGTH + 1);
-
-            read(connFd, graph_id, FRONTEND_DATA_LENGTH);
-
-            string graphID(graph_id);
-
-            graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
-            frontend_logger.info("Graph ID received: " + graphID);
-
-            JasmineGraphServer *jasmineServer = new JasmineGraphServer();
-            jasmineServer->egoNet(graphID);
-
-            int result_wr_done = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
-            if (result_wr_done < 0) {
-                frontend_logger.error("Error writing to socket");
-                loop_exit = true;
-                continue;
-            }
-            result_wr_done = write(connFd, "\r\n", 2);
-            if (result_wr_done < 0) {
-                frontend_logger.error("Error writing to socket");
-                loop_exit = true;
-                continue;
-            }
+            egonet_command(connFd, &loop_exit);
         } else if (line.compare(DPCNTRL) == 0) {
             frontend_logger.info("Duplicate Centralstore");
 
@@ -2516,6 +2478,48 @@ static void page_rank_command(int connFd, bool *loop_exit_p) {
 
     JasmineGraphServer *jasmineServer = new JasmineGraphServer();
     jasmineServer->pageRank(graphID, alpha, iterations);
+
+    result_wr = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    result_wr = write(connFd, "\r\n", 2);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+    }
+}
+
+static void egonet_command(int connFd, bool *loop_exit_p) {
+    frontend_logger.info("Calculating EgoNet");
+
+    int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    result_wr = write(connFd, "\r\n", 2);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+
+    char graph_id[FRONTEND_DATA_LENGTH + 1];
+    bzero(graph_id, FRONTEND_DATA_LENGTH + 1);
+
+    read(connFd, graph_id, FRONTEND_DATA_LENGTH);
+
+    string graphID(graph_id);
+
+    graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
+    frontend_logger.info("Graph ID received: " + graphID);
+
+    JasmineGraphServer *jasmineServer = new JasmineGraphServer();
+    jasmineServer->egoNet(graphID);
 
     result_wr = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
     if (result_wr < 0) {
