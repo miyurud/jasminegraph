@@ -81,6 +81,7 @@ static void merge_command(int connFd, SQLiteDBInterface sqlite, bool *loop_exit_
 static void train_command(int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p);
 static void in_degree_command(int connFd, bool *loop_exit_p);
 static void out_degree_command(int connFd, bool *loop_exit_p);
+static void page_rank_command(int connFd, bool *loop_exit_p);
 
 // Thread function
 void listen_to_kafka_topic(KafkaConnector *kstream, Partitioner &graphPartitioner,
@@ -224,71 +225,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
         } else if (line.compare(OUT_DEGREE) == 0) {
             out_degree_command(connFd, &loop_exit);
         } else if (line.compare(PAGE_RANK) == 0) {
-            frontend_logger.info("Calculating Page Rank");
-
-            int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
-            if (result_wr < 0) {
-                frontend_logger.error("Error writing to socket");
-                loop_exit = true;
-                continue;
-            }
-            result_wr = write(connFd, "\r\n", 2);
-            if (result_wr < 0) {
-                frontend_logger.error("Error writing to socket");
-                loop_exit = true;
-                continue;
-            }
-
-            char page_rank_command[FRONTEND_DATA_LENGTH + 1];
-            bzero(page_rank_command, FRONTEND_DATA_LENGTH + 1);
-            string name = "";
-            string path = "";
-
-            read(connFd, page_rank_command, FRONTEND_DATA_LENGTH);
-            std::vector<std::string> strArr = Utils::split(page_rank_command, '|');
-
-            string graphID;
-            graphID = strArr[0];
-            double alpha = PAGE_RANK_ALPHA;
-            if (strArr.size() > 1) {
-                alpha = std::stod(strArr[1]);
-                if (alpha < 0 || alpha >= 1) {
-                    frontend_logger.error("Invalid value for alpha");
-                    loop_exit = true;
-                    continue;
-                }
-            }
-
-            int iterations = PAGE_RANK_ITERATIONS;
-            if (strArr.size() > 2) {
-                iterations = std::stod(strArr[2]);
-                if (iterations <= 0 || iterations >= 100) {
-                    frontend_logger.error("Invalid value for iterations");
-                    loop_exit = true;
-                    continue;
-                }
-            }
-
-            graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
-            frontend_logger.info("Graph ID received: " + graphID);
-            frontend_logger.info("Alpha value: " + to_string(alpha));
-            frontend_logger.info("Iterations value: " + to_string(iterations));
-
-            JasmineGraphServer *jasmineServer = new JasmineGraphServer();
-            jasmineServer->pageRank(graphID, alpha, iterations);
-
-            int result_wr_done = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
-            if (result_wr_done < 0) {
-                frontend_logger.error("Error writing to socket");
-                loop_exit = true;
-                continue;
-            }
-            result_wr_done = write(connFd, "\r\n", 2);
-            if (result_wr_done < 0) {
-                frontend_logger.error("Error writing to socket");
-                loop_exit = true;
-                continue;
-            }
+            page_rank_command(connFd, &loop_exit);
         } else if (line.compare(EGONET) == 0) {
             frontend_logger.info("Calculating EgoNet");
 
@@ -2512,6 +2449,73 @@ static void out_degree_command(int connFd, bool *loop_exit_p) {
 
     JasmineGraphServer *jasmineServer = new JasmineGraphServer();
     jasmineServer->outDegreeDistribution(graphID);
+
+    result_wr = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    result_wr = write(connFd, "\r\n", 2);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+    }
+}
+
+static void page_rank_command(int connFd, bool *loop_exit_p) {
+    frontend_logger.info("Calculating Page Rank");
+
+    int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    result_wr = write(connFd, "\r\n", 2);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+
+    char page_rank_command[FRONTEND_DATA_LENGTH + 1];
+    bzero(page_rank_command, FRONTEND_DATA_LENGTH + 1);
+    string name = "";
+    string path = "";
+
+    read(connFd, page_rank_command, FRONTEND_DATA_LENGTH);
+    std::vector<std::string> strArr = Utils::split(page_rank_command, '|');
+
+    string graphID;
+    graphID = strArr[0];
+    double alpha = PAGE_RANK_ALPHA;
+    if (strArr.size() > 1) {
+        alpha = std::stod(strArr[1]);
+        if (alpha < 0 || alpha >= 1) {
+            frontend_logger.error("Invalid value for alpha");
+            // TODO: Inform client?
+            return;
+        }
+    }
+
+    int iterations = PAGE_RANK_ITERATIONS;
+    if (strArr.size() > 2) {
+        iterations = std::stod(strArr[2]);
+        if (iterations <= 0 || iterations >= 100) {
+            frontend_logger.error("Invalid value for iterations");
+            // TODO: Inform client?
+            return;
+        }
+    }
+
+    graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
+    frontend_logger.info("Graph ID received: " + graphID);
+    frontend_logger.info("Alpha value: " + to_string(alpha));
+    frontend_logger.info("Iterations value: " + to_string(iterations));
+
+    JasmineGraphServer *jasmineServer = new JasmineGraphServer();
+    jasmineServer->pageRank(graphID, alpha, iterations);
 
     result_wr = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
     if (result_wr < 0) {
