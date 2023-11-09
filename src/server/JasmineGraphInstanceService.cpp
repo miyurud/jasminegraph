@@ -398,7 +398,6 @@ void *instanceservicesession(void *dummyPt) {
             bzero(data, INSTANCE_DATA_LENGTH + 1);
             read(connFd, data, INSTANCE_DATA_LENGTH);
             string fileName = (data);
-            // fileName = Utils::trim_copy(fileName, " \f\n\r\t\v");
             instance_logger.log("Received File name: " + fileName, "info");
             write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_LEN.c_str(),
                   JasmineGraphInstanceProtocol::SEND_FILE_LEN.size());
@@ -487,7 +486,6 @@ void *instanceservicesession(void *dummyPt) {
             bzero(data, INSTANCE_DATA_LENGTH + 1);
             read(connFd, data, INSTANCE_DATA_LENGTH);
             string fileName = (data);
-            // fileName = Utils::trim_copy(fileName, " \f\n\r\t\v");
             instance_logger.log("Received File name: " + fileName, "info");
             write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_LEN.c_str(),
                   JasmineGraphInstanceProtocol::SEND_FILE_LEN.size());

@@ -1459,7 +1459,6 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
             bzero(data, 301);
             read(sockfd, data, 300);
             response = (data);
-            // response = Utils::trim_copy(response, " \f\n\r\t\v");
 
             if (response.compare(JasmineGraphInstanceProtocol::FILE_RECV_WAIT) == 0) {
                 triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_WAIT, "info");

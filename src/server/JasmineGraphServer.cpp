@@ -971,7 +971,6 @@ bool JasmineGraphServer::batchUploadFile(std::string host, int port, int dataPor
                 bzero(data, FED_DATA_LENGTH + 1);
                 read(sockfd, data, FED_DATA_LENGTH);
                 response = (data);
-                // response = Utils::trim_copy(response, " \f\n\r\t\v");
 
                 if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_LEN) == 0) {
                     server_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN, "info");
@@ -985,7 +984,6 @@ bool JasmineGraphServer::batchUploadFile(std::string host, int port, int dataPor
                     bzero(data, FED_DATA_LENGTH + 1);
                     read(sockfd, data, FED_DATA_LENGTH);
                     response = (data);
-                    // response = Utils::trim_copy(response, " \f\n\r\t\v");
 
                     if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_CONT) == 0) {
                         server_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
@@ -1164,7 +1162,6 @@ bool JasmineGraphServer::batchUploadCentralStore(std::string host, int port, int
                 bzero(data, FED_DATA_LENGTH + 1);
                 read(sockfd, data, FED_DATA_LENGTH);
                 response = (data);
-                // response = Utils::trim_copy(response, " \f\n\r\t\v");
 
                 if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_LEN) == 0) {
                     server_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN, "info");
@@ -1178,7 +1175,6 @@ bool JasmineGraphServer::batchUploadCentralStore(std::string host, int port, int
                     bzero(data, FED_DATA_LENGTH + 1);
                     read(sockfd, data, FED_DATA_LENGTH);
                     response = (data);
-                    // response = Utils::trim_copy(response, " \f\n\r\t\v");
 
                     if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_CONT) == 0) {
                         server_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
@@ -1202,7 +1198,6 @@ bool JasmineGraphServer::batchUploadCentralStore(std::string host, int port, int
                 bzero(data, FED_DATA_LENGTH + 1);
                 read(sockfd, data, FED_DATA_LENGTH);
                 response = (data);
-                // response = Utils::trim_copy(response, " \f\n\r\t\v");
 
                 if (response.compare(JasmineGraphInstanceProtocol::FILE_RECV_WAIT) == 0) {
                     server_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_WAIT, "info");
@@ -1398,7 +1393,6 @@ bool JasmineGraphServer::batchUploadAttributeFile(std::string host, int port, in
                 bzero(data, FED_DATA_LENGTH + 1);
                 read(sockfd, data, FED_DATA_LENGTH);
                 response = (data);
-                // response = Utils::trim_copy(response, " \f\n\r\t\v");
 
                 if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_LEN) == 0) {
                     server_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN, "info");
@@ -1412,7 +1406,6 @@ bool JasmineGraphServer::batchUploadAttributeFile(std::string host, int port, in
                     bzero(data, FED_DATA_LENGTH + 1);
                     read(sockfd, data, FED_DATA_LENGTH);
                     response = (data);
-                    // response = Utils::trim_copy(response, " \f\n\r\t\v");
 
                     if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_CONT) == 0) {
                         server_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
@@ -1436,7 +1429,6 @@ bool JasmineGraphServer::batchUploadAttributeFile(std::string host, int port, in
                 bzero(data, FED_DATA_LENGTH + 1);
                 read(sockfd, data, FED_DATA_LENGTH);
                 response = (data);
-                // response = Utils::trim_copy(response, " \f\n\r\t\v");
 
                 if (response.compare(JasmineGraphInstanceProtocol::FILE_RECV_WAIT) == 0) {
                     server_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_WAIT, "info");
@@ -1594,7 +1586,6 @@ bool JasmineGraphServer::batchUploadCentralAttributeFile(std::string host, int p
                 bzero(data, FED_DATA_LENGTH + 1);
                 read(sockfd, data, FED_DATA_LENGTH);
                 response = (data);
-                // response = Utils::trim_copy(response, " \f\n\r\t\v");
 
                 if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_LEN) == 0) {
                     server_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN, "info");
@@ -1608,7 +1599,6 @@ bool JasmineGraphServer::batchUploadCentralAttributeFile(std::string host, int p
                     bzero(data, FED_DATA_LENGTH + 1);
                     read(sockfd, data, FED_DATA_LENGTH);
                     response = (data);
-                    // response = Utils::trim_copy(response, " \f\n\r\t\v");
 
                     if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_CONT) == 0) {
                         server_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
@@ -1632,7 +1622,6 @@ bool JasmineGraphServer::batchUploadCentralAttributeFile(std::string host, int p
                 bzero(data, FED_DATA_LENGTH + 1);
                 read(sockfd, data, FED_DATA_LENGTH);
                 response = (data);
-                // response = Utils::trim_copy(response, " \f\n\r\t\v");
 
                 if (response.compare(JasmineGraphInstanceProtocol::FILE_RECV_WAIT) == 0) {
                     server_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_WAIT, "info");
