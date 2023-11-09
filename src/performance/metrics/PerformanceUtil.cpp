@@ -1191,7 +1191,6 @@ double PerformanceUtil::getAggregatedLoadAverage(std::string graphId, std::strin
     PerformanceUtil performanceUtil;
     performanceUtil.init();
 
-    processStatusMutex.lock();
     set<ProcessInfo>::iterator processInfoIterator;
     std::chrono::milliseconds currentTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
     long currentTimestamp = currentTime.count();
@@ -1252,13 +1251,17 @@ double PerformanceUtil::getAggregatedLoadAverage(std::string graphId, std::strin
                     "' order by graph_place_sla_performance.place_id,graph_place_sla_performance.elapsed_time LIMIT 2;";
 
                 std::vector<vector<pair<string, string>>> loadAvgResults = perfDb.runSelect(slaLoadQuery);
-                if (loadAvgResults.empty()) {
+
+                if (loadAvgResults.size() >= 2) {
+                    previousLoad = std::atof(loadAvgResults[0][1].second.c_str());
+                    xAxisValue = std::atof(loadAvgResults[0][2].second.c_str());
+                    nextLoad = std::atof(loadAvgResults[1][1].second.c_str());
+                } else if (loadAvgResults.size() == 1) {
+                    // TODO(ASHOK12011234) : Handle the case where there is only one row in the result.
+                    continue;
+                } else {
                     continue;
                 }
-
-                previousLoad = std::atof(loadAvgResults[0][1].second.c_str());
-                xAxisValue = std::atof(loadAvgResults[0][2].second.c_str());
-                nextLoad = std::atof(loadAvgResults[1][1].second.c_str());
             }
 
             double slope = (nextLoad - previousLoad) / statCollectingGap;           // m= (y2-y1)/(x2-x1)
@@ -1267,6 +1270,5 @@ double PerformanceUtil::getAggregatedLoadAverage(std::string graphId, std::strin
             aggregatedLoadAverage += currentLoad;
         }
     }
-    processStatusMutex.unlock();
     return aggregatedLoadAverage;
 }
