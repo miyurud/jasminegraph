@@ -19,22 +19,20 @@ using namespace std;
 Logger node_logger;
 
 std::string PlacesToNodeMapper::getHost(long placeId) {
-    Utils utils;
-    std::vector<std::string> hostList = utils.getHostListFromProperties();
+    std::vector<std::string> hostList = Utils::getHostListFromProperties();
     std::string& host = hostList.at(placeId);
     return host;
 }
 
 std::vector<int> PlacesToNodeMapper::getInstancePortsList(long placeId) {
-    Utils utils;
     int numberOfWorkersPerHost;
     int numberOfWorkers = 0;
     int hostListModeNWorkers;
     std::vector<int> portList;
-    std::vector<std::string> hostList = utils.getHostListFromProperties();
-    std::string nWorkers = utils.getJasmineGraphProperty("org.jasminegraph.server.nworkers");
+    std::vector<std::string> hostList = Utils::getHostListFromProperties();
+    std::string nWorkers = Utils::getJasmineGraphProperty("org.jasminegraph.server.nworkers");
     int workerPort = Conts::JASMINEGRAPH_INSTANCE_PORT;
-    if (utils.is_number(nWorkers)) {
+    if (Utils::is_number(nWorkers)) {
         numberOfWorkers = atoi(nWorkers.c_str());
     } else {
         node_logger.log("Number of Workers specified in the properties is not an integer value.", "error");
@@ -66,16 +64,15 @@ std::vector<int> PlacesToNodeMapper::getInstancePortsList(long placeId) {
 }
 
 std::vector<int> PlacesToNodeMapper::getFileTransferServicePort(long placeId) {
-    Utils utils;
     int numberOfWorkersPerHost;
     int numberOfWorkers = 0;
     int hostListModeNWorkers;
     std::vector<int> portList;
-    std::vector<std::string> hostList = utils.getHostListFromProperties();
-    std::string nWorkers = utils.getJasmineGraphProperty("org.jasminegraph.server.nworkers");
+    std::vector<std::string> hostList = Utils::getHostListFromProperties();
+    std::string nWorkers = Utils::getJasmineGraphProperty("org.jasminegraph.server.nworkers");
     int workerPort = Conts::JASMINEGRAPH_INSTANCE_PORT;
     int workerDataPort = Conts::JASMINEGRAPH_INSTANCE_DATA_PORT;
-    if (utils.is_number(nWorkers)) {
+    if (Utils::is_number(nWorkers)) {
         numberOfWorkers = atoi(nWorkers.c_str());
     } else {
         node_logger.log("Number of Workers is not specified", "error");

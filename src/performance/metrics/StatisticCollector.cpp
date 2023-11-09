@@ -159,7 +159,6 @@ double StatisticCollector::getTotalCpuUsage() {
     std::string mpstatCommand = "mpstat";
     char buffer[BUFFER_SIZE];
     std::string result = "";
-    Utils utils;
     std::vector<std::string>::iterator paramNameIterator;
     int count = 0;
     double totalCPUUsage = 0;
@@ -174,14 +173,14 @@ double StatisticCollector::getTotalCpuUsage() {
             }
         }
         if (!result.empty()) {
-            std::vector<std::string> splittedStats = utils.split(result, '\n');
+            std::vector<std::string> splittedStats = Utils::split(result, '\n');
             int length = splittedStats.size();
             std::string parameterNames = splittedStats[length - 2];
             std::string parameterValues = splittedStats[length - 1];
-            std::vector<std::string> splittedParamNames = utils.split(parameterNames, ' ');
+            std::vector<std::string> splittedParamNames = Utils::split(parameterNames, ' ');
             splittedParamNames.erase(std::remove(splittedParamNames.begin(), splittedParamNames.end(), ""),
                                      splittedParamNames.end());
-            std::vector<std::string> splittedParamValues = utils.split(parameterValues, ' ');
+            std::vector<std::string> splittedParamValues = Utils::split(parameterValues, ' ');
             splittedParamValues.erase(std::remove(splittedParamValues.begin(), splittedParamValues.end(), ""),
                                       splittedParamValues.end());
 

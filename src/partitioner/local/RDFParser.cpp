@@ -299,10 +299,10 @@ void GetConfig::readConfigFile(string &configFile, int graphId) {
 
 void GetConfig::writeEdgesToFile() {
     ofstream file;
-    this->utils.createDirectory(utils.getHomeDir() + "/.jasminegraph/");
-    this->utils.createDirectory(utils.getHomeDir() + "/.jasminegraph/tmp/");
-    this->utils.createDirectory(utils.getHomeDir() + "/.jasminegraph/tmp/" + to_string(this->graphID));
-    file.open(utils.getHomeDir() + "/.jasminegraph/tmp/" + std::to_string(this->graphID) + "/" +
+    Utils::createDirectory(Utils::getHomeDir() + "/.jasminegraph/");
+    Utils::createDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp/");
+    Utils::createDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp/" + to_string(this->graphID));
+    file.open(Utils::getHomeDir() + "/.jasminegraph/tmp/" + std::to_string(this->graphID) + "/" +
               std::to_string(this->graphID));
     for (int i = 0; i < edgelist.size(); i++) {
         file << edgelist[i].first << " " << edgelist[i].second << endl;

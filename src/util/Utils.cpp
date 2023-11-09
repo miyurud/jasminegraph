@@ -32,34 +32,6 @@ Logger util_logger;
 
 unordered_map<std::string, std::string> Utils::propertiesMap;
 
-map<std::string, std::string> Utils::getBatchUploadFileList(std::string file) {
-    std::vector<std::string> batchUploadFileContent = getFileContent(file);
-    std::vector<std::string>::iterator iterator1 = batchUploadFileContent.begin();
-    map<std::string, std::string> *result = new map<std::string, std::string>();
-    while (iterator1 != batchUploadFileContent.end()) {
-        std::string str = *iterator1;
-
-        if (str.length() > 0 && !(str.rfind("#", 0) == 0)) {
-            std::vector<std::string> vec = split(str, ':');
-
-            //            ifstream batchUploadConfFile(vec.at(1));
-            //            string line;
-            //
-            //            if (batchUploadConfFile.is_open()) {
-            //                while (getline(batchUploadConfFile, line)) {
-            //                    cout << line << '\n';
-            //                }
-            //            }
-
-            result->insert(std::pair<std::string, std::string>(vec.at(0), vec.at(1)));
-        }
-
-        iterator1++;
-    }
-
-    return *result;
-}
-
 std::vector<std::string> Utils::split(const std::string &s, char delimiter) {
     std::vector<std::string> tokens;
     std::string token;
@@ -89,7 +61,7 @@ std::vector<std::string> Utils::getFileContent(std::string file) {
 std::string Utils::getJasmineGraphProperty(std::string key) {
     if (Utils::propertiesMap.empty()) {
         std::vector<std::string>::iterator it;
-        vector<std::string> vec = getFileContent("conf/jasminegraph-server.properties");
+        vector<std::string> vec = Utils::getFileContent("conf/jasminegraph-server.properties");
         it = vec.begin();
 
         for (it = vec.begin(); it < vec.end(); it++) {
@@ -112,7 +84,7 @@ std::string Utils::getJasmineGraphProperty(std::string key) {
 }
 
 std::vector<Utils::worker> Utils::getWorkerList(SQLiteDBInterface sqlite) {
-    vector<worker> workerVector;
+    vector<Utils::worker> workerVector;
     std::vector<vector<pair<string, string>>> v =
         sqlite.runSelect("SELECT idworker,user,ip,server_port,server_data_port FROM worker;");
     for (int i = 0; i < v.size(); i++) {
@@ -138,7 +110,7 @@ std::vector<Utils::worker> Utils::getWorkerList(SQLiteDBInterface sqlite) {
 std::vector<std::string> Utils::getHostListFromProperties() {
     std::vector<std::string> result;
     std::vector<std::string>::iterator it;
-    vector<std::string> vec = getFileContent("conf/hosts.txt");
+    vector<std::string> vec = Utils::getFileContent("conf/hosts.txt");
     it = vec.begin();
 
     for (it = vec.begin(); it < vec.end(); it++) {
@@ -151,11 +123,11 @@ std::vector<std::string> Utils::getHostListFromProperties() {
     return result;
 }
 
-inline std::string trim_right_copy(const std::string &s, const std::string &delimiters = " \f\n\r\t\v") {
+static inline std::string trim_right_copy(const std::string &s, const std::string &delimiters = " \f\n\r\t\v") {
     return s.substr(0, s.find_last_not_of(delimiters) + 1);
 }
 
-inline std::string trim_left_copy(const std::string &s, const std::string &delimiters = " \f\n\r\t\v") {
+static inline std::string trim_left_copy(const std::string &s, const std::string &delimiters = " \f\n\r\t\v") {
     return s.substr(s.find_first_not_of(delimiters));
 }
 
@@ -180,21 +152,16 @@ bool Utils::parseBoolean(const std::string str) {
  * @param fileName
  * @return
  */
-bool Utils::fileExists(std::string fileName) {
-    std::ifstream infile(fileName);
-    return infile.good();
-}
+bool Utils::fileExists(std::string fileName) { return access(fileName.c_str(), F_OK) == 0; }
 
 /**
  * This method creates a new directory if it does not exist
  * @param dirName
  */
 void Utils::createDirectory(const std::string dirName) {
-    if (mkdir(dirName.c_str(), 0777) == -1) {
-        // std::cout << "Error : " << strerror(errno) << endl;
-    } else {
-        // util_logger.log("Directory " + dirName + " created successfully", "info");
-    }
+    // TODO: check if directory exists before creating
+    // TODO: check return value
+    mkdir(dirName.c_str(), 0777);
 }
 
 std::vector<std::string> Utils::getListOfFilesInDirectory(const std::string dirName) {
@@ -239,10 +206,14 @@ std::vector<std::string> Utils::getListOfFilesInDirectory(const std::string dirN
  */
 // TODO :: find a possible solution to handle the permission denied error when trying to delete a protected directory.
 // popen does not work either
-void Utils::deleteDirectory(const std::string dirName) {
+int Utils::deleteDirectory(const std::string dirName) {
     string command = "rm -rf " + dirName;
-    system(command.c_str());
-    util_logger.log(dirName + " deleted successfully", "info");
+    int status = system(command.c_str());
+    if (status == 0)
+        util_logger.info(dirName + " deleted successfully");
+    else
+        util_logger.warn("Deleting " + dirName + " failed with exit code " + std::to_string(status));
+    return status;
 }
 
 bool Utils::is_number(const std::string &compareString) {
@@ -256,6 +227,7 @@ bool Utils::is_number(const std::string &compareString) {
  * @return
  */
 std::string Utils::getFileName(std::string filePath) {
+    // FIXME: Can file path separator be '\' on Linux?
     std::string filename = filePath.substr(filePath.find_last_of("/\\") + 1);
     return filename;
 }
@@ -290,11 +262,12 @@ std::string Utils::getHomeDir() {
  * This method copies the file
  * @param filePath
  */
-void Utils::copyFile(const std::string sourceFilePath, const std::string destinationFilePath) {
+int Utils::copyFile(const std::string sourceFilePath, const std::string destinationFilePath) {
     util_logger.log("Starting file copy source: " + sourceFilePath + " destination: " + destinationFilePath, "info");
     std::string command = "cp " + sourceFilePath + " " + destinationFilePath;
-    FILE *copyInput = popen(command.c_str(), "r");
-    pclose(copyInput);
+    int status = system(command.c_str());
+    if (status != 0) util_logger.warn("Copy failed with exit code " + std::to_string(status));
+    return status;
 }
 
 /**
@@ -319,72 +292,38 @@ int Utils::getFileSize(std::string filePath) {
  * This method compresses files using gzip
  * @param filePath
  */
-void Utils::compressFile(const std::string filePath, const std::string mode) {
-    char buffer[128];
-    std::string result = "";
-    std::string command = mode + " -f " + filePath + " 2>&1";
-    char *commandChar = new char[command.length() + 1];
-    strcpy(commandChar, command.c_str());
-    FILE *input = popen(commandChar, "r");
-    if (input) {
-        while (!feof(input)) {
-            if (fgets(buffer, 128, input) != NULL) {
-                result.append(buffer);
-            }
+int Utils::compressFile(const std::string filePath, std::string mode) {
+    if (mode == "pigz") {
+        if (access("/usr/bin/pigz", X_OK) != 0) {
+            util_logger.info("pigz not found. Compressing using gzip");
+            mode = "gzip";
         }
-        pclose(input);
-        if (!result.empty()) {
-            if (result.find("pigz: not found") != std::string::npos) {
-                util_logger.log("pigz not found. Compressing using gzip", "info");
-                compressFile(filePath, "gzip");
-            } else {
-                util_logger.log("File compression failed with error: " + result, "error");
-            }
-        }
-    } else {
-        perror("popen");
-        // handle error
     }
+    std::string command = mode + " -f " + filePath + " 2>&1";
+    int status = system(command.c_str());
+    if (status != 0) {
+        util_logger.error("File compression failed with code " + std::to_string(status));
+    }
+    return status;
 }
 
 /**
  * this method extracts a gzip file
  * @param filePath
  */
-void Utils::unzipFile(std::string filePath, const std::string mode) {
-    char buffer[128];
-    std::string result = "";
+int Utils::unzipFile(std::string filePath, std::string mode) {
+    if (mode == "pigz") {
+        if (access("/usr/bin/pigz", X_OK) != 0) {
+            util_logger.info("pigz not found. Compressing using gzip");
+            mode = "gzip";
+        }
+    }
     std::string command = mode + " -f -d " + filePath + " 2>&1";
-    char *commandChar = new char[command.length() + 1];
-    strcpy(commandChar, command.c_str());
-    FILE *input = popen(commandChar, "r");
-    if (input) {
-        while (!feof(input)) {
-            if (fgets(buffer, 128, input) != NULL) {
-                result.append(buffer);
-            }
-        }
-        pclose(input);
-        if (!result.empty()) {
-            if (result.find("pigz: not found") != std::string::npos) {
-                util_logger.log("pigz not found. Decompressing using gzip", "info");
-                unzipFile(filePath, "gzip");
-            } else {
-                util_logger.log("File decompression failed with error: " + result, "error");
-            }
-        }
-    } else {
-        perror("popen");
-        // handle error
+    int status = system(command.c_str());
+    if (status != 0) {
+        util_logger.error("File decompression failed with code " + std::to_string(status));
     }
-}
-
-int Utils::parseARGS(char **args, char *line) {
-    int tmp = 0;
-    args[tmp] = strtok(line, ":");
-    while ((args[++tmp] = strtok(NULL, ":")) != NULL) {
-    }
-    return tmp - 1;
+    return status;
 }
 
 /**
@@ -419,58 +358,26 @@ string Utils::getHostID(string hostName, SQLiteDBInterface sqlite) {
  * This method compresses directories using tar
  * @param filePath
  */
-void Utils::compressDirectory(const std::string filePath) {
-    char buffer[128];
-    std::string result = "";
-    std::string command = "tar -czvf " + filePath + ".tar.gz " + filePath;
-    char *commandChar = new char[command.length() + 1];
-    strcpy(commandChar, command.c_str());
-    FILE *input = popen(commandChar, "r");
-    if (input) {
-        while (!feof(input)) {
-            if (fgets(buffer, 128, input) != NULL) {
-                result.append(buffer);
-            }
-        }
-        pclose(input);
-        if (!result.empty()) {
-            util_logger.log("Directory compression failed with error: " + result, "error");
-        } else {
-            // util_logger.log("File in " + filePath + " compressed with gzip", "info");
-        }
-    } else {
-        perror("popen");
-        // handle error
+int Utils::compressDirectory(const std::string filePath) {
+    std::string command = "tar -czf " + filePath + ".tar.gz " + filePath;
+    int status = system(command.c_str());
+    if (status != 0) {
+        util_logger.error("Directory compression failed with code " + std::to_string(status));
     }
+    return status;
 }
 
 /**
  * this method extracts a tar.gz directory
  * @param filePath
  */
-void Utils::unzipDirectory(std::string filePath) {
-    char buffer[128];
-    std::string result = "";
-    std::string command = "tar -xzvf " + filePath;
-    char *commandChar = new char[command.length() + 1];
-    strcpy(commandChar, command.c_str());
-    FILE *input = popen(commandChar, "r");
-    if (input) {
-        while (!feof(input)) {
-            if (fgets(buffer, 128, input) != NULL) {
-                result.append(buffer);
-            }
-        }
-        pclose(input);
-        if (!result.empty()) {
-            util_logger.log("Directory decompression failed with error : " + result, "error");
-        } else {
-            // util_logger.log("File in " + filePath + " extracted with gzip", "info");
-        }
-    } else {
-        perror("popen");
-        // handle error
+int Utils::unzipDirectory(std::string filePath) {
+    std::string command = "tar -xzf " + filePath;
+    int status = system(command.c_str());
+    if (status != 0) {
+        util_logger.error("Directory compression failed with code " + std::to_string(status));
     }
+    return status;
 }
 
 void Utils::assignPartitionsToWorkers(int numberOfWorkers, SQLiteDBInterface sqlite) {
@@ -551,9 +458,14 @@ void Utils::updateSLAInformation(PerformanceSQLiteDBInterface perfSqlite, std::s
     }
 }
 
-void Utils::copyToDirectory(std::string currentPath, std::string copyPath) {
+int Utils::copyToDirectory(std::string currentPath, std::string copyPath) {
     std::string command = "mkdir -p " + copyPath + "&& " + "cp " + currentPath + " " + copyPath;
-    system(command.c_str());
+    int status = system(command.c_str());
+    if (status != 0) {
+        util_logger.error("Copying " + currentPath + " to directory " + copyPath + " failed with code " +
+                          std::to_string(status));
+    }
+    return status;
 }
 
 void Utils::editFlagOne(std::string flagPath) {

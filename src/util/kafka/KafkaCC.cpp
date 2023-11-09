@@ -20,15 +20,13 @@ void KafkaConnector::Unsubscribe() { consumer.unsubscribe(); }
 GroupInformationList KafkaConnector::Get_consumer_groups() { consumer.get_consumer_groups(); }
 void *KafkaConnector::startStream(string topicName, std::vector<DataPublisher *> workerClients,
                                   std::map<std::string, std::atomic<bool>> *streamsState) {
-    Utils utils;
-
     // After getting the topic name , need to close the connection and ask the user to send the data to given topic
 
-    std::string kafkaHost = utils.getJasmineGraphProperty("org.jasminegraph.server.streaming.kafka.host");
+    std::string kafkaHost = Utils::getJasmineGraphProperty("org.jasminegraph.server.streaming.kafka.host");
     cppkafka::Configuration configs = {{"metadata.broker.list", kafkaHost}, {"group.id", "jasmine"}};
     cppkafka::Consumer consumer(configs);
     // KafkaConnector kstream(configs);
-    std::string partitionCount = utils.getJasmineGraphProperty("org.jasminegraph.server.npartitions");
+    std::string partitionCount = Utils::getJasmineGraphProperty("org.jasminegraph.server.npartitions");
     int numberOfPartitions = std::stoi(partitionCount);
 
     Partitioner graphPartitioner(numberOfPartitions, 0, spt::Algorithms::HASH);

@@ -44,9 +44,8 @@ void JasminGraphTrainingInitiator::initiateTrainingLocally(std::string graphID, 
     cout << partition_count << endl;
     std::thread *workerThreads = new std::thread[partition_count];
 
-    Utils utils;
-    string prefix = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.trainedmodelfolder");
-    string attr_prefix = utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+    string prefix = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.trainedmodelfolder");
+    string attr_prefix = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
     string trainarg_prefix = "Graphsage Unsupervised_train ";
     trainingArgs = trainarg_prefix + trainingArgs + " --train_prefix " + prefix + "/" + graphID +
                    " --train_attr_prefix " + attr_prefix + "/" + graphID;
@@ -80,7 +79,6 @@ void JasminGraphTrainingInitiator::initiateTrainingLocally(std::string graphID, 
 
 bool JasminGraphTrainingInitiator::initiateTrain(std::string host, int port, int dataPort, std::string trainingArgs,
                                                  int iteration, string partCount) {
-    Utils utils;
     bool result = true;
     std::cout << pthread_self() << " host : " << host << " port : " << port << " DPort : " << dataPort << std::endl;
     int sockfd;
@@ -98,7 +96,7 @@ bool JasminGraphTrainingInitiator::initiateTrain(std::string host, int port, int
     }
 
     if (host.find('@') != std::string::npos) {
-        host = utils.split(host, '@')[1];
+        host = Utils::split(host, '@')[1];
     }
 
     server = gethostbyname(host.c_str());
@@ -128,11 +126,11 @@ bool JasminGraphTrainingInitiator::initiateTrain(std::string host, int port, int
     read(sockfd, data, DATA_LENGTH);
     string response = (data);
 
-    response = utils.trim_copy(response, " \f\n\r\t\v");
+    response = Utils::trim_copy(response, " \f\n\r\t\v");
 
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
         trainer_log.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
-        string server_host = utils.getJasmineGraphProperty("org.jasminegraph.server.host");
+        string server_host = Utils::getJasmineGraphProperty("org.jasminegraph.server.host");
         int result_wr = write(sockfd, server_host.c_str(), server_host.size());
         if (result_wr < 0) {
             trainer_log.log("Error writing to socket", "error");
@@ -145,7 +143,7 @@ bool JasminGraphTrainingInitiator::initiateTrain(std::string host, int port, int
         read(sockfd, data, DATA_LENGTH);
         string response = (data);
 
-        response = utils.trim_copy(response, " \f\n\r\t\v");
+        response = Utils::trim_copy(response, " \f\n\r\t\v");
 
         if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
             trainer_log.log("Received : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
@@ -164,7 +162,7 @@ bool JasminGraphTrainingInitiator::initiateTrain(std::string host, int port, int
         bzero(data, DATA_LENGTH + 1);
         read(sockfd, data, DATA_LENGTH);
         response = (data);
-        response = utils.trim_copy(response, " \f\n\r\t\v");
+        response = Utils::trim_copy(response, " \f\n\r\t\v");
         std::cout << response << std::endl;
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
             trainer_log.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
@@ -178,7 +176,7 @@ bool JasminGraphTrainingInitiator::initiateTrain(std::string host, int port, int
             bzero(data, DATA_LENGTH + 1);
             read(sockfd, data, DATA_LENGTH);
             response = (data);
-            response = utils.trim_copy(response, " \f\n\r\t\v");
+            response = Utils::trim_copy(response, " \f\n\r\t\v");
             if (response.compare(JasmineGraphInstanceProtocol::SEND_PARTITION_ITERATION) == 0) {
                 trainer_log.log("Received : " + JasmineGraphInstanceProtocol::SEND_PARTITION_ITERATION, "info");
                 result_wr = write(sockfd, to_string(iteration).c_str(), to_string(iteration).size());
@@ -192,7 +190,7 @@ bool JasminGraphTrainingInitiator::initiateTrain(std::string host, int port, int
                 bzero(data, DATA_LENGTH + 1);
                 read(sockfd, data, DATA_LENGTH);
                 response = (data);
-                response = utils.trim_copy(response, " \f\n\r\t\v");
+                response = Utils::trim_copy(response, " \f\n\r\t\v");
                 if (response.compare(JasmineGraphInstanceProtocol::SEND_PARTITION_COUNT) == 0) {
                     trainer_log.log("Received : " + JasmineGraphInstanceProtocol::SEND_PARTITION_COUNT, "info");
                     result_wr = write(sockfd, partCount.c_str(), partCount.size());
