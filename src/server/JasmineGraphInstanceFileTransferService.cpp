@@ -27,7 +27,6 @@ void *filetransferservicesession(void *dummyPt) {
     bzero(data, 301);
     read(connFd, data, 300);
     string fileName = (data);
-    // fileName = Utils::trim_copy(fileName, " \f\n\r\t\v");
     string filePathWithName =
         Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
 
