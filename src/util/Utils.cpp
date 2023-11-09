@@ -462,7 +462,8 @@ int Utils::copyToDirectory(std::string currentPath, std::string copyPath) {
     std::string command = "mkdir -p " + copyPath + "&& " + "cp " + currentPath + " " + copyPath;
     int status = system(command.c_str());
     if (status != 0) {
-        util_logger.error("Copying " + currentPath + " to directory " + copyPath + " failed with code " + std::to_string(status));
+        util_logger.error("Copying " + currentPath + " to directory " + copyPath + " failed with code " +
+                          std::to_string(status));
     }
     return status;
 }
