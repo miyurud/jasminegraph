@@ -84,6 +84,7 @@ static void out_degree_command(int connFd, bool *loop_exit_p);
 static void page_rank_command(int connFd, bool *loop_exit_p);
 static void egonet_command(int connFd, bool *loop_exit_p);
 static void duplicate_centralstore_command(int connFd, bool *loop_exit_p);
+static void predict_command(std::string masterIP, int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p);
 
 // Thread function
 void listen_to_kafka_topic(KafkaConnector *kstream, Partitioner &graphPartitioner,
@@ -233,84 +234,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
         } else if (line.compare(DPCNTRL) == 0) {
             duplicate_centralstore_command(connFd, &loop_exit);
         } else if (line.compare(PREDICT) == 0) {
-            if (Utils::getJasmineGraphProperty("org.jasminegraph.federated.enabled") == "true") {
-                // check if the model is available
-                // then pass the information to the jasminegraph worker
-
-                // Need to define the protocol for the predict command in federated learning context
-                int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
-                if (result_wr < 0) {
-                    frontend_logger.error("Error writing to socket");
-                }
-                result_wr = write(connFd, "\r\n", 3);
-                if (result_wr < 0) {
-                    frontend_logger.error("Error writing to socket");
-                }
-
-                char predict_data[301];
-                bzero(predict_data, 301);
-                string graphID = "";
-                string modelID = "";
-                string path = "";
-
-                read(connFd, predict_data, 300);
-                string predictData(predict_data);
-
-                predictData = Utils::trim_copy(predictData, " \f\n\r\t\v");
-                frontend_logger.info("Data received: " + predictData);
-
-                std::vector<std::string> strArr = Utils::split(predictData, '|');
-
-                if (strArr.size() != 3) {
-                    frontend_logger.error("Message format not recognized");
-                    continue;
-                }
-
-                graphID = strArr[0];
-                modelID = strArr[1];
-                path = strArr[2];
-
-            } else {
-                int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
-                if (result_wr < 0) {
-                    frontend_logger.error("Error writing to socket");
-                }
-                result_wr = write(connFd, "\r\n", 2);
-                if (result_wr < 0) {
-                    frontend_logger.error("Error writing to socket");
-                }
-                char predict_data[301];
-                bzero(predict_data, 301);
-                string graphID = "";
-                string path = "";
-
-                read(connFd, predict_data, 300);
-                string predictData(predict_data);
-
-                predictData = Utils::trim_copy(predictData, " \f\n\r\t\v");
-                frontend_logger.info("Data received: " + predictData);
-
-                std::vector<std::string> strArr = Utils::split(predictData, '|');
-
-                if (strArr.size() != 2) {
-                    frontend_logger.error("Message format not recognized");
-                    continue;
-                }
-
-                graphID = strArr[0];
-                path = strArr[1];
-
-                if (JasmineGraphFrontEnd::isGraphActiveAndTrained(graphID, sqlite)) {
-                    if (Utils::fileExists(path)) {
-                        std::cout << "Path exists" << endl;
-                        JasminGraphLinkPredictor *jasminGraphLinkPredictor = new JasminGraphLinkPredictor();
-                        jasminGraphLinkPredictor->initiateLinkPrediction(graphID, path, masterIP);
-                    } else {
-                        frontend_logger.error("Graph edge file does not exist on the specified path");
-                        continue;
-                    }
-                }
-            }
+            predict_command(masterIP, connFd, sqlite, &loop_exit);
         } else if (line.compare(START_REMOTE_WORKER) == 0) {
             int result_wr = write(connFd, REMOTE_WORKER_ARGS.c_str(), REMOTE_WORKER_ARGS.size());
             if (result_wr < 0) {
@@ -2535,5 +2459,95 @@ static void duplicate_centralstore_command(int connFd, bool *loop_exit_p) {
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
+    }
+}
+
+static void predict_command(std::string masterIP, int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p) {
+    if (Utils::getJasmineGraphProperty("org.jasminegraph.federated.enabled") == "true") {
+        // check if the model is available
+        // then pass the information to the jasminegraph worker
+
+        // Need to define the protocol for the predict command in federated learning context
+        int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        result_wr = write(connFd, "\r\n", 3);
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+
+        char predict_data[301];
+        bzero(predict_data, 301);
+        string graphID = "";
+        string modelID = "";
+        string path = "";
+
+        read(connFd, predict_data, 300);
+        string predictData(predict_data);
+
+        predictData = Utils::trim_copy(predictData, " \f\n\r\t\v");
+        frontend_logger.info("Data received: " + predictData);
+
+        std::vector<std::string> strArr = Utils::split(predictData, '|');
+
+        if (strArr.size() != 3) {
+            frontend_logger.error("Message format not recognized");
+            // TODO: Inform client?
+            return;
+        }
+
+        graphID = strArr[0];
+        modelID = strArr[1];
+        path = strArr[2];
+
+    } else {
+        int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        result_wr = write(connFd, "\r\n", 2);
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        char predict_data[301];
+        bzero(predict_data, 301);
+        string graphID = "";
+        string path = "";
+
+        read(connFd, predict_data, 300);
+        string predictData(predict_data);
+
+        predictData = Utils::trim_copy(predictData, " \f\n\r\t\v");
+        frontend_logger.info("Data received: " + predictData);
+
+        std::vector<std::string> strArr = Utils::split(predictData, '|');
+
+        if (strArr.size() != 2) {
+            frontend_logger.error("Message format not recognized");
+            // TODO: Inform client?
+            return;
+        }
+
+        graphID = strArr[0];
+        path = strArr[1];
+
+        if (JasmineGraphFrontEnd::isGraphActiveAndTrained(graphID, sqlite)) {
+            if (Utils::fileExists(path)) {
+                std::cout << "Path exists" << endl;
+                JasminGraphLinkPredictor *jasminGraphLinkPredictor = new JasminGraphLinkPredictor();
+                jasminGraphLinkPredictor->initiateLinkPrediction(graphID, path, masterIP);
+            } else {
+                frontend_logger.error("Graph edge file does not exist on the specified path");
+            }
+        }
     }
 }
