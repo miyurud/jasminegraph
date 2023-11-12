@@ -171,7 +171,7 @@ class JasmineGraphServer {
 
     static void inDegreeDistribution(std::string graphID);
 
-    void outDegreeDistribution(std::string graphID);
+    static void outDegreeDistribution(std::string graphID);
 
     static void duplicateCentralStore(std::string graphID);
 
