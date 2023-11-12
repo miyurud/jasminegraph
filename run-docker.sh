@@ -62,17 +62,17 @@ fi
 
 export LD_LIBRARY_PATH=/usr/local/lib
 if [ -n "$DEBUG" ]; then
-  if [ $MODE -eq 1 ]; then
-      gdbserver 0.0.0.0:$DEBUG ./JasmineGraph "docker" $MODE $MASTERIP $WORKERS $WORKERIP $ENABLE_NMON
-  else
-      gdbserver 0.0.0.0:$DEBUG ./JasmineGraph "docker" $MODE $HOST_NAME $MASTERIP $SERVER_PORT $SERVER_DATA_PORT $ENABLE_NMON
-  fi;
+    if [ $MODE -eq 1 ]; then
+        gdbserver 0.0.0.0:$DEBUG ./JasmineGraph "docker" $MODE $MASTERIP $WORKERS $WORKERIP $ENABLE_NMON
+    else
+        gdbserver 0.0.0.0:$DEBUG ./JasmineGraph "docker" $MODE $HOST_NAME $MASTERIP $SERVER_PORT $SERVER_DATA_PORT $ENABLE_NMON
+    fi
 else
-  if [ $MODE -eq 1 ]; then
-      ./JasmineGraph "docker" $MODE $MASTERIP $WORKERS $WORKERIP $ENABLE_NMON
-  else
-      ./JasmineGraph "docker" $MODE $HOST_NAME $MASTERIP $SERVER_PORT $SERVER_DATA_PORT $ENABLE_NMON
-  fi;
+    if [ $MODE -eq 1 ]; then
+        ./JasmineGraph "docker" $MODE $MASTERIP $WORKERS $WORKERIP $ENABLE_NMON
+    else
+        ./JasmineGraph "docker" $MODE $HOST_NAME $MASTERIP $SERVER_PORT $SERVER_DATA_PORT $ENABLE_NMON
+    fi
 fi
 
 if [ "$TESTING" = "true" ]; then
