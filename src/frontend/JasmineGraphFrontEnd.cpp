@@ -86,7 +86,8 @@ static void egonet_command(int connFd, bool *loop_exit_p);
 static void duplicate_centralstore_command(int connFd, bool *loop_exit_p);
 static void predict_command(std::string masterIP, int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p);
 static void start_remote_worker_command(int connFd, bool *loop_exit_p);
-
+static void sla_command(int connFd, SQLiteDBInterface sqlite, PerformanceSQLiteDBInterface perfSqlite,
+                        bool *loop_exit_p);
 // Thread function
 void listen_to_kafka_topic(KafkaConnector *kstream, Partitioner &graphPartitioner,
                            vector<DataPublisher *> &workerClients) {
@@ -239,92 +240,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
         } else if (line.compare(START_REMOTE_WORKER) == 0) {
             start_remote_worker_command(connFd, &loop_exit);
         } else if (line.compare(SLA) == 0) {
-            int result_wr = write(connFd, COMMAND.c_str(), COMMAND.size());
-            if (result_wr < 0) {
-                frontend_logger.error("Error writing to socket");
-            }
-            result_wr = write(connFd, "\r\n", 2);
-            if (result_wr < 0) {
-                frontend_logger.error("Error writing to socket");
-            }
-
-            char category[FRONTEND_DATA_LENGTH + 1];
-            bzero(category, FRONTEND_DATA_LENGTH + 1);
-
-            read(connFd, category, FRONTEND_DATA_LENGTH);
-
-            string command_info(category);
-
-            command_info = Utils::trim_copy(command_info, " \f\n\r\t\v");
-            frontend_logger.info("Data received: " + command_info);
-
-            std::vector<vector<pair<string, string>>> categoryResults =
-                perfSqlite.runSelect("SELECT id FROM sla_category where command='" + command_info + "';");
-
-            string slaCategoryIds;
-
-            for (std::vector<vector<pair<string, string>>>::iterator i = categoryResults.begin();
-                 i != categoryResults.end(); ++i) {
-                for (std::vector<pair<string, string>>::iterator j = (i->begin()); j != i->end(); ++j) {
-                    slaCategoryIds = slaCategoryIds + "'" + j->second + "',";
-                }
-            }
-
-            string adjustedIdList = slaCategoryIds.substr(0, slaCategoryIds.size() - 1);
-
-            std::stringstream ss;
-            std::vector<vector<pair<string, string>>> v = perfSqlite.runSelect(
-                "SELECT graph_id, partition_count, sla_value FROM graph_sla where id_sla_category in (" +
-                adjustedIdList + ");");
-            for (std::vector<vector<pair<string, string>>>::iterator i = v.begin(); i != v.end(); ++i) {
-                std::stringstream slass;
-                slass << "|";
-                int counter = 0;
-                for (std::vector<pair<string, string>>::iterator j = (i->begin()); j != i->end(); ++j) {
-                    if (counter == 0) {
-                        std::string graphId = j->second;
-                        std::string graphQuery = "SELECT name FROM graph where idgraph='" + graphId + "';";
-                        std::vector<vector<pair<string, string>>> graphData = sqlite.runSelect(graphQuery);
-                        if (graphData.size() == 0) {
-                            slass.str(std::string());
-                            break;
-                        }
-                        std::string graphName = graphData[0][0].second;
-                        slass << graphName << "|";
-                    } else {
-                        slass << j->second << "|";
-                    }
-                    counter++;
-                }
-                std::string entryString = slass.str();
-                if (entryString.size() > 0) {
-                    ss << entryString << "\n";
-                }
-            }
-            string result = ss.str();
-            if (result.size() == 0) {
-                int result_wr = write(connFd, EMPTY.c_str(), EMPTY.length());
-                if (result_wr < 0) {
-                    frontend_logger.error("Error writing to socket");
-                    loop_exit = true;
-                    continue;
-                }
-                result_wr = write(connFd, "\r\n", 2);
-
-                if (result_wr < 0) {
-                    frontend_logger.error("Error writing to socket");
-                    loop_exit = true;
-                    continue;
-                }
-
-            } else {
-                int result_wr = write(connFd, result.c_str(), result.length());
-                if (result_wr < 0) {
-                    frontend_logger.error("Error writing to socket");
-                    loop_exit = true;
-                    continue;
-                }
-            }
+            sla_command(connFd, sqlite, perfSqlite, &loop_exit);
         } else {
             frontend_logger.error("Message format not recognized " + line);
             // TODO: Inform client?
@@ -2557,4 +2473,93 @@ static void start_remote_worker_command(int connFd, bool *loop_exit_p) {
 
     JasmineGraphServer *jasmineServer = new JasmineGraphServer();
     bool isSpawned = jasmineServer->spawnNewWorker(host, port, dataPort, profile, masterHost, enableNmon);
+}
+
+static void sla_command(int connFd, SQLiteDBInterface sqlite, PerformanceSQLiteDBInterface perfSqlite,
+                        bool *loop_exit_p) {
+    int result_wr = write(connFd, COMMAND.c_str(), COMMAND.size());
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    result_wr = write(connFd, "\r\n", 2);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+
+    char category[FRONTEND_DATA_LENGTH + 1];
+    bzero(category, FRONTEND_DATA_LENGTH + 1);
+    read(connFd, category, FRONTEND_DATA_LENGTH);
+    string command_info(category);
+
+    command_info = Utils::trim_copy(command_info, " \f\n\r\t\v");
+    frontend_logger.info("Data received: " + command_info);
+
+    std::vector<vector<pair<string, string>>> categoryResults =
+        perfSqlite.runSelect("SELECT id FROM sla_category where command='" + command_info + "';");
+
+    string slaCategoryIds;
+
+    for (std::vector<vector<pair<string, string>>>::iterator i = categoryResults.begin(); i != categoryResults.end();
+         ++i) {
+        for (std::vector<pair<string, string>>::iterator j = (i->begin()); j != i->end(); ++j) {
+            slaCategoryIds = slaCategoryIds + "'" + j->second + "',";
+        }
+    }
+
+    string adjustedIdList = slaCategoryIds.substr(0, slaCategoryIds.size() - 1);
+
+    std::stringstream ss;
+    std::vector<vector<pair<string, string>>> v =
+        perfSqlite.runSelect("SELECT graph_id, partition_count, sla_value FROM graph_sla where id_sla_category in (" +
+                             adjustedIdList + ");");
+    for (std::vector<vector<pair<string, string>>>::iterator i = v.begin(); i != v.end(); ++i) {
+        std::stringstream slass;
+        slass << "|";
+        int counter = 0;
+        for (std::vector<pair<string, string>>::iterator j = (i->begin()); j != i->end(); ++j) {
+            if (counter == 0) {
+                std::string graphId = j->second;
+                std::string graphQuery = "SELECT name FROM graph where idgraph='" + graphId + "';";
+                std::vector<vector<pair<string, string>>> graphData = sqlite.runSelect(graphQuery);
+                if (graphData.size() == 0) {
+                    slass.str(std::string());
+                    break;
+                }
+                std::string graphName = graphData[0][0].second;
+                slass << graphName << "|";
+            } else {
+                slass << j->second << "|";
+            }
+            counter++;
+        }
+        std::string entryString = slass.str();
+        if (entryString.size() > 0) {
+            ss << entryString << "\n";
+        }
+    }
+    string result = ss.str();
+    if (result.size() == 0) {
+        int result_wr = write(connFd, EMPTY.c_str(), EMPTY.length());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        result_wr = write(connFd, "\r\n", 2);
+
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+        }
+    } else {
+        int result_wr = write(connFd, result.c_str(), result.length());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+        }
+    }
 }
