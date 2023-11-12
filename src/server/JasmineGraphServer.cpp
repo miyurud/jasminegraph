@@ -3939,6 +3939,132 @@ bool JasmineGraphServer::sendTrainCommand(std::string host, int port, std::strin
     return 0;
 }
 
+void JasmineGraphServer::egoNet(std::string graphID) {
+    std::map<std::string, JasmineGraphServer::workerPartition> graphPartitionedHosts =
+        JasmineGraphServer::getWorkerPartitions(graphID);
+    int partition_count = 0;
+    string partition;
+    string host;
+    int port;
+    int dataPort;
+    std::string workerList;
+
+    std::map<std::string, JasmineGraphServer::workerPartition>::iterator workerit;
+    for (workerit = graphPartitionedHosts.begin(); workerit != graphPartitionedHosts.end(); workerit++) {
+        JasmineGraphServer::workerPartition workerPartition = workerit->second;
+        partition = workerPartition.partitionID;
+        host = workerPartition.hostname;
+        port = workerPartition.port;
+        dataPort = workerPartition.dataPort;
+
+        if (host.find('@') != std::string::npos) {
+            host = Utils::split(host, '@')[1];
+        }
+
+        workerList.append(host + ":" + std::to_string(port) + ":" + partition + ",");
+    }
+
+    workerList.pop_back();
+
+    int sockfd;
+    char data[301];
+    bool loop = false;
+    socklen_t len;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sockfd < 0) {
+        std::cout << "Cannot accept connection" << std::endl;
+    }
+    server = gethostbyname(host.c_str());
+    if (server == NULL) {
+        std::cout << "ERROR, no host named " << server << std::endl;
+    }
+
+    bzero((char *)&serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    serv_addr.sin_port = htons(port);
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+        std::cout << "ERROR connecting" << std::endl;
+        // TODO::exit
+    }
+
+    bzero(data, 301);
+    int result_wr =
+        write(sockfd, JasmineGraphInstanceProtocol::EGONET.c_str(), JasmineGraphInstanceProtocol::EGONET.size());
+    if (result_wr < 0) {
+        server_logger.error("Error writing to socket");
+    }
+
+    server_logger.info("Sent : " + JasmineGraphInstanceProtocol::EGONET);
+    bzero(data, 301);
+    read(sockfd, data, 300);
+    string response = (data);
+    response = Utils::trim_copy(response, " \f\n\r\t\v");
+
+    if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+        server_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
+    } else {
+        server_logger.error("Error reading from socket");
+    }
+
+    result_wr = write(sockfd, graphID.c_str(), graphID.size());
+
+    if (result_wr < 0) {
+        server_logger.error("Error writing to socket");
+    }
+    server_logger.info("Sent : Graph ID " + graphID);
+
+    bzero(data, 301);
+    read(sockfd, data, 300);
+    response = (data);
+    response = Utils::trim_copy(response, " \f\n\r\t\v");
+
+    if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+        server_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
+    } else {
+        server_logger.error("Error reading from socket");
+    }
+
+    int partitionID = stoi(partition);
+
+    result_wr = write(sockfd, std::to_string(partitionID).c_str(), std::to_string(partitionID).size());
+
+    if (result_wr < 0) {
+        server_logger.error("Error writing to socket");
+    }
+
+    server_logger.info("Sent : Partition ID " + std::to_string(partitionID));
+
+    bzero(data, 301);
+    read(sockfd, data, 300);
+    response = (data);
+    response = Utils::trim_copy(response, " \f\n\r\t\v");
+
+    if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+        server_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
+    } else {
+        server_logger.error("Error reading from socket");
+    }
+
+    result_wr = write(sockfd, workerList.c_str(), workerList.size());
+
+    if (result_wr < 0) {
+        server_logger.error("Error writing to socket");
+    }
+
+    server_logger.info("Sent : Host List ");
+
+    if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+        server_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
+    } else {
+        server_logger.error("Error reading from socket");
+    }
+}
+
 void JasmineGraphServer::pageRank(std::string graphID, double alpha, int iterations) {
     std::map<std::string, JasmineGraphServer::workerPartition> graphPartitionedHosts =
         JasmineGraphServer::getWorkerPartitions(graphID);
