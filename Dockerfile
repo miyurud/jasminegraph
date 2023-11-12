@@ -5,7 +5,9 @@ ENV JASMINEGRAPH_HOME="/home/ubuntu/software/jasminegraph"
 WORKDIR /home/ubuntu/software/jasminegraph
 
 ARG DEBUG="false"
-RUN if [ "$DEBUG" = "true" ]; then apt-get update && apt-get install --no-install-recommends -y gdb gdbserver ; fi
+RUN if [ "$DEBUG" = "true" ]; then apt-get update \
+&& apt-get install --no-install-recommends -y gdb gdbserver \
+&& apt-get clean; fi
 
 COPY ./GraphSAGE ./GraphSAGE
 
