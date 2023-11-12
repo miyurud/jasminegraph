@@ -441,7 +441,8 @@ bool JasmineGraphServer::spawnNewWorker(string host, string port, string dataPor
     workerPortsVector.push_back(atoi(port.c_str()));
     workerDataPortsVector.push_back(atoi(dataPort.c_str()));
 
-    startRemoteWorkers(workerPortsVector, workerDataPortsVector, host, profile, masterHost, enableNmon);
+    JasmineGraphServer::startRemoteWorkers(workerPortsVector, workerDataPortsVector, host, profile, masterHost,
+                                           enableNmon);
 
     return true;
 }

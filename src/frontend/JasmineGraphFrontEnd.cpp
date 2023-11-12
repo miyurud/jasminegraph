@@ -2272,8 +2272,7 @@ static void start_remote_worker_command(int connFd, bool *loop_exit_p) {
     masterHost = strArr[4];
     enableNmon = strArr[5];
 
-    JasmineGraphServer *jasmineServer = new JasmineGraphServer();
-    bool isSpawned = jasmineServer->spawnNewWorker(host, port, dataPort, profile, masterHost, enableNmon);
+    JasmineGraphServer::spawnNewWorker(host, port, dataPort, profile, masterHost, enableNmon);
 }
 
 static void sla_command(int connFd, SQLiteDBInterface sqlite, PerformanceSQLiteDBInterface perfSqlite,
