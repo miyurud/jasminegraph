@@ -403,8 +403,7 @@ void JasmineGraphFrontEnd::removeGraph(std::string graphID, SQLiteDBInterface sq
     sqlite.runUpdate("UPDATE graph SET graph_status_idgraph_status = " + to_string(Conts::GRAPH_STATUS::DELETING) +
                      " WHERE idgraph = " + graphID);
 
-    JasmineGraphServer *jasmineServer = new JasmineGraphServer();
-    jasmineServer->removeGraph(hostHasPartition, graphID, masterIP);
+    JasmineGraphServer::removeGraph(hostHasPartition, graphID, masterIP);
 
     sqlite.runUpdate("DELETE FROM worker_has_partition WHERE partition_graph_idgraph = " + graphID);
     sqlite.runUpdate("DELETE FROM partition WHERE graph_idgraph = " + graphID);
@@ -712,6 +711,7 @@ static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface 
         fullFileList = metisPartitioner->partitioneWithGPMetis("");
         JasmineGraphServer *jasmineServer = new JasmineGraphServer();
         jasmineServer->uploadGraphLocally(newGraphID, Conts::GRAPH_WITH_ATTRIBUTES, fullFileList, masterIP);
+        delete jasmineServer;
         Utils::deleteDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
         Utils::deleteDirectory("/tmp/" + std::to_string(newGraphID));
         JasmineGraphFrontEnd::getAndUpdateUploadTime(to_string(newGraphID), sqlite);

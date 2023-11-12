@@ -92,10 +92,10 @@ class JasmineGraphServer {
     bool isRunning();
 
     void uploadGraphLocally(int graphID, const std::string graphType,
-                            std::vector<std::map<int, std::string>> fullFileList, std::string masterIP);
+                                   std::vector<std::map<int, std::string>> fullFileList, std::string masterIP);
 
-    void removeGraph(std::vector<std::pair<std::string, std::string>> hostHasPartition, std::string graphID,
-                     std::string masterIP);
+    static void removeGraph(std::vector<std::pair<std::string, std::string>> hostHasPartition, std::string graphID,
+                            std::string masterIP);
 
     void assignPartitionsToWorkers(int numberOfWorkers);
 
