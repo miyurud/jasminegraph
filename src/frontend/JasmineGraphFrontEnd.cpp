@@ -1763,8 +1763,7 @@ static void train_command(int connFd, SQLiteDBInterface sqlite, bool *loop_exit_
             JasmineGraphServer::initiateCommunication(graphID, trainData, sqlite);
         }
     } else {
-        JasminGraphTrainingInitiator *jasminGraphTrainingInitiator = new JasminGraphTrainingInitiator();
-        jasminGraphTrainingInitiator->initiateTrainingLocally(graphID, trainData);
+        JasminGraphTrainingInitiator::initiateTrainingLocally(graphID, trainData);
     }
 
     result_wr = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
