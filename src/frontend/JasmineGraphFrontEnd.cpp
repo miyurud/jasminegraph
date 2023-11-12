@@ -85,6 +85,7 @@ static void page_rank_command(int connFd, bool *loop_exit_p);
 static void egonet_command(int connFd, bool *loop_exit_p);
 static void duplicate_centralstore_command(int connFd, bool *loop_exit_p);
 static void predict_command(std::string masterIP, int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p);
+static void start_remote_worker_command(int connFd, bool *loop_exit_p);
 
 // Thread function
 void listen_to_kafka_topic(KafkaConnector *kstream, Partitioner &graphPartitioner,
@@ -236,48 +237,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
         } else if (line.compare(PREDICT) == 0) {
             predict_command(masterIP, connFd, sqlite, &loop_exit);
         } else if (line.compare(START_REMOTE_WORKER) == 0) {
-            int result_wr = write(connFd, REMOTE_WORKER_ARGS.c_str(), REMOTE_WORKER_ARGS.size());
-            if (result_wr < 0) {
-                frontend_logger.error("Error writing to socket");
-            }
-            result_wr = write(connFd, "\r\n", 2);
-            if (result_wr < 0) {
-                frontend_logger.error("Error writing to socket");
-            }
-
-            char worker_data[301];
-            bzero(worker_data, 301);
-
-            read(connFd, worker_data, 300);
-
-            string remote_worker_data(worker_data);
-
-            remote_worker_data = Utils::trim_copy(remote_worker_data, " \f\n\r\t\v");
-            frontend_logger.info("Data received: " + remote_worker_data);
-            string host = "";
-            string port = "";
-            string dataPort = "";
-            string profile = "";
-            string masterHost = "";
-            string enableNmon = "";
-
-            std::vector<std::string> strArr = Utils::split(remote_worker_data, '|');
-
-            if (strArr.size() < 6) {
-                frontend_logger.error("Message format not recognized");
-                continue;
-            }
-
-            host = strArr[0];
-            port = strArr[1];
-            dataPort = strArr[2];
-            profile = strArr[3];
-            masterHost = strArr[4];
-            enableNmon = strArr[5];
-
-            JasmineGraphServer *jasmineServer = new JasmineGraphServer();
-            bool isSpawned = jasmineServer->spawnNewWorker(host, port, dataPort, profile, masterHost, enableNmon);
-
+            start_remote_worker_command(connFd, &loop_exit);
         } else if (line.compare(SLA) == 0) {
             int result_wr = write(connFd, COMMAND.c_str(), COMMAND.size());
             if (result_wr < 0) {
@@ -2550,4 +2510,51 @@ static void predict_command(std::string masterIP, int connFd, SQLiteDBInterface 
             }
         }
     }
+}
+
+static void start_remote_worker_command(int connFd, bool *loop_exit_p) {
+    int result_wr = write(connFd, REMOTE_WORKER_ARGS.c_str(), REMOTE_WORKER_ARGS.size());
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    result_wr = write(connFd, "\r\n", 2);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+
+    char worker_data[301];
+    bzero(worker_data, 301);
+    read(connFd, worker_data, 300);
+    string remote_worker_data(worker_data);
+
+    remote_worker_data = Utils::trim_copy(remote_worker_data, " \f\n\r\t\v");
+    frontend_logger.info("Data received: " + remote_worker_data);
+    string host = "";
+    string port = "";
+    string dataPort = "";
+    string profile = "";
+    string masterHost = "";
+    string enableNmon = "";
+
+    std::vector<std::string> strArr = Utils::split(remote_worker_data, '|');
+
+    if (strArr.size() < 6) {
+        frontend_logger.error("Message format not recognized");
+        // TODO: Inform client?
+        return;
+    }
+
+    host = strArr[0];
+    port = strArr[1];
+    dataPort = strArr[2];
+    profile = strArr[3];
+    masterHost = strArr[4];
+    enableNmon = strArr[5];
+
+    JasmineGraphServer *jasmineServer = new JasmineGraphServer();
+    bool isSpawned = jasmineServer->spawnNewWorker(host, port, dataPort, profile, masterHost, enableNmon);
 }
