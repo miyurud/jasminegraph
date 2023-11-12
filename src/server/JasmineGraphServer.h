@@ -173,7 +173,7 @@ class JasmineGraphServer {
 
     void outDegreeDistribution(std::string graphID);
 
-    void duplicateCentralStore(std::string graphID);
+    static void duplicateCentralStore(std::string graphID);
 
     static void pageRank(std::string graphID, double alpha, int iterations);
 
