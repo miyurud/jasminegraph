@@ -92,7 +92,7 @@ class JasmineGraphServer {
     bool isRunning();
 
     void uploadGraphLocally(int graphID, const std::string graphType,
-                                   std::vector<std::map<int, std::string>> fullFileList, std::string masterIP);
+                            std::vector<std::map<int, std::string>> fullFileList, std::string masterIP);
 
     static void removeGraph(std::vector<std::pair<std::string, std::string>> hostHasPartition, std::string graphID,
                             std::string masterIP);
@@ -183,9 +183,9 @@ class JasmineGraphServer {
 
     void initiateFiles(std::string graphID, std::string trainingArgs);
 
-    void initiateCommunication(std::string graphID, std::string trainingArgs, SQLiteDBInterface sqlite);
+    static void initiateCommunication(std::string graphID, std::string trainingArgs, SQLiteDBInterface sqlite);
 
-    void initiateOrgCommunication(std::string graphID, std::string trainingArgs, SQLiteDBInterface sqlite);
+    static void initiateOrgCommunication(std::string graphID, std::string trainingArgs, SQLiteDBInterface sqlite);
 
     void initiateMerge(std::string graphID, std::string trainingArgs, SQLiteDBInterface sqlite);
 

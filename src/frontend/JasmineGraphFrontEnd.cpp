@@ -1755,13 +1755,12 @@ static void train_command(int connFd, SQLiteDBInterface sqlite, bool *loop_exit_
     std::string federatedEnabled = Utils::getJasmineGraphProperty("org.jasminegraph.federated.enabled");
 
     if (federatedEnabled == "true") {
-        JasmineGraphServer *jasmineServer = new JasmineGraphServer();
         if (Utils::getJasmineGraphProperty("org.jasminegraph.fl.org.training") == "true") {
             frontend_logger.info("Initiate org communication");
-            jasmineServer->initiateOrgCommunication(graphID, trainData, sqlite);
+            JasmineGraphServer::initiateOrgCommunication(graphID, trainData, sqlite);
         } else {
             frontend_logger.info("Initiate communication");
-            jasmineServer->initiateCommunication(graphID, trainData, sqlite);
+            JasmineGraphServer::initiateCommunication(graphID, trainData, sqlite);
         }
     } else {
         JasminGraphTrainingInitiator *jasminGraphTrainingInitiator = new JasminGraphTrainingInitiator();
