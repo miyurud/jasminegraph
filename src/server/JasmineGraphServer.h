@@ -169,7 +169,7 @@ class JasmineGraphServer {
 
     std::map<std::string, workerPartitions> getGraphPartitionedHosts(std::string graphID);
 
-    void inDegreeDistribution(std::string graphID);
+    static void inDegreeDistribution(std::string graphID);
 
     void outDegreeDistribution(std::string graphID);
 

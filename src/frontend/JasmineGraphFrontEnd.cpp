@@ -1806,8 +1806,7 @@ static void in_degree_command(int connFd, bool *loop_exit_p) {
     graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
     frontend_logger.info("Graph ID received: " + graphID);
 
-    JasmineGraphServer *jasmineServer = new JasmineGraphServer();
-    jasmineServer->inDegreeDistribution(graphID);
+    JasmineGraphServer::inDegreeDistribution(graphID);
 
     result_wr = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
     if (result_wr < 0) {
