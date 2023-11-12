@@ -2092,8 +2092,7 @@ static void predict_command(std::string masterIP, int connFd, SQLiteDBInterface 
         if (JasmineGraphFrontEnd::isGraphActiveAndTrained(graphID, sqlite)) {
             if (Utils::fileExists(path)) {
                 std::cout << "Path exists" << endl;
-                JasminGraphLinkPredictor *jasminGraphLinkPredictor = new JasminGraphLinkPredictor();
-                jasminGraphLinkPredictor->initiateLinkPrediction(graphID, path, masterIP);
+                JasminGraphLinkPredictor::initiateLinkPrediction(graphID, path, masterIP);
             } else {
                 frontend_logger.error("Graph edge file does not exist on the specified path");
             }

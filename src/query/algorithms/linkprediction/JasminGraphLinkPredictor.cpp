@@ -77,8 +77,9 @@ void JasminGraphLinkPredictor::initiateLinkPrediction(std::string graphID, std::
     std::vector<vector<pair<string, string>>> v = refToSqlite.runSelect(sqlStatement);
     vertexCount = (v[0][0].second);
 
-    this->sendQueryToWorker(selectedHostName, selectedHostPort, selectedHostDataPort, selectedHostPartitionsNo, graphID,
-                            vertexCount, path, hostsList, masterIP);
+    JasminGraphLinkPredictor::sendQueryToWorker(selectedHostName, selectedHostPort, selectedHostDataPort,
+                                                selectedHostPartitionsNo, graphID, vertexCount, path, hostsList,
+                                                masterIP);
 }
 
 int JasminGraphLinkPredictor::sendQueryToWorker(std::string host, int port, int dataPort, int selectedHostPartitionsNo,
