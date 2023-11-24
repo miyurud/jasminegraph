@@ -39,6 +39,8 @@ std::vector<std::string> loadAverageVector;
 bool collectValid = false;
 std::thread JasmineGraphInstanceService::workerThread;
 
+static void handshake(int connFd, bool *loop_exit_p);
+
 char *converter(const std::string &s) {
     char *pc = new char[s.size() + 1];
     std::strcpy(pc, s.c_str());
@@ -68,8 +70,8 @@ void *instanceservicesession(void *dummyPt) {
     Utils::createDirectory(Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder"));
 
     char data[INSTANCE_DATA_LENGTH + 1];
-    bool loop = false;
-    while (!loop) {
+    bool loop_exit = false;
+    while (!loop_exit) {
         bzero(data, INSTANCE_DATA_LENGTH + 1);
         read(connFd, data, INSTANCE_DATA_LENGTH);
 
@@ -82,20 +84,7 @@ void *instanceservicesession(void *dummyPt) {
         line = Utils::trim_copy(line, " \f\n\r\t\v");
 
         if (line.compare(JasmineGraphInstanceProtocol::HANDSHAKE) == 0) {
-            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
-            write(connFd, JasmineGraphInstanceProtocol::HANDSHAKE_OK.c_str(),
-                  JasmineGraphInstanceProtocol::HANDSHAKE_OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            line = (data);
-            line = Utils::trim_copy(line, " \f\n\r\t\v");
-            string server_hostname = line;
-            instance_logger.log("Received hostname : " + line, "info");
-
-            instance_logger.log("Sending : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
-            write(connFd, JasmineGraphInstanceProtocol::HOST_OK.c_str(), JasmineGraphInstanceProtocol::HOST_OK.size());
-            std::cout << "ServerName : " << server_hostname << std::endl;
+            handshake(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::CLOSE) == 0) {
             write(connFd, JasmineGraphInstanceProtocol::CLOSE_ACK.c_str(),
                   JasmineGraphInstanceProtocol::CLOSE_ACK.size());
@@ -166,7 +155,7 @@ void *instanceservicesession(void *dummyPt) {
             }
 
             instance_logger.log("File received and saved to " + fullFilePath, "info");
-            loop = true;
+            loop_exit = true;
 
             Utils::unzipFile(fullFilePath);
             size_t lastindex = fileName.find_last_of(".");
@@ -263,7 +252,7 @@ void *instanceservicesession(void *dummyPt) {
             }
 
             instance_logger.log("File received and saved to " + fullFilePath, "info");
-            loop = true;
+            loop_exit = true;
 
             Utils::unzipFile(fullFilePath);
             size_t lastindex = fileName.find_last_of(".");
@@ -354,7 +343,7 @@ void *instanceservicesession(void *dummyPt) {
             }
 
             instance_logger.log("File received and saved to " + fullFilePath, "info");
-            loop = true;
+            loop_exit = true;
 
             Utils::unzipFile(fullFilePath);
             size_t lastindex = fileName.find_last_of(".");
@@ -442,7 +431,7 @@ void *instanceservicesession(void *dummyPt) {
             }
 
             instance_logger.log("File received and saved to " + fullFilePath, "info");
-            loop = true;
+            loop_exit = true;
 
             Utils::unzipFile(fullFilePath);
             size_t lastindex = fileName.find_last_of(".");
@@ -530,7 +519,7 @@ void *instanceservicesession(void *dummyPt) {
             }
 
             instance_logger.log("File received and saved to " + fullFilePath, "info");
-            loop = true;
+            loop_exit = true;
 
             Utils::unzipFile(fullFilePath);
             size_t lastindex = fileName.find_last_of(".");
@@ -735,7 +724,7 @@ void *instanceservicesession(void *dummyPt) {
             }
             partfile.close();
 
-            loop = true;
+            loop_exit = true;
         } else if (line.compare(JasmineGraphInstanceProtocol::IN_DEGREE_DISTRIBUTION) == 0) {
             instance_logger.log("Received : in degree distribution from server", "info");
 
@@ -777,7 +766,7 @@ void *instanceservicesession(void *dummyPt) {
                 calculateInDegreeDist(graphID, partitionID, serverPort, graphDBMapLocalStores, graphDBMapCentralStores,
                                       workerSockets, workerList);
             degreeDistribution.clear();
-            loop = true;
+            loop_exit = true;
         } else if (line.compare(JasmineGraphInstanceProtocol::WORKER_OUT_DEGREE_DISTRIBUTION) == 0) {
             instance_logger.log("Received : Out degree distribution to aggregator", "info");
 
@@ -852,7 +841,7 @@ void *instanceservicesession(void *dummyPt) {
                 graphID, partitionID, serverPort, graphDBMapLocalStores, graphDBMapCentralStores, workerSockets);
 
             degreeDistribution.clear();
-            loop = true;
+            loop_exit = true;
         } else if (line.compare(JasmineGraphInstanceProtocol::PAGE_RANK) == 0) {
             instance_logger.log("Received : page rank from server", "info");
 
@@ -973,7 +962,7 @@ void *instanceservicesession(void *dummyPt) {
             }
             partfile.close();
 
-            loop = true;
+            loop_exit = true;
             pageRankResults.clear();
             localGraphMap.clear();
             pageRankLocalstore.clear();
@@ -1333,7 +1322,7 @@ void *instanceservicesession(void *dummyPt) {
             }
 
             instance_logger.log("File received and saved to " + fullFilePath, "info");
-            loop = true;
+            loop_exit = true;
 
             Utils::unzipFile(fullFilePath);
             size_t lastindex = fileName.find_last_of(".");
@@ -1437,7 +1426,7 @@ void *instanceservicesession(void *dummyPt) {
             }
 
             instance_logger.log("File received and saved to " + fullFilePath, "info");
-            loop = true;
+            loop_exit = true;
 
             Utils::unzipFile(fullFilePath);
             size_t lastindex = fileName.find_last_of(".");
@@ -2075,7 +2064,7 @@ void *instanceservicesession(void *dummyPt) {
 
             cout << command << endl;
             system(command.c_str());
-            loop = true;
+            loop_exit = true;
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_MODEL_COLLECTION) == 0) {
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::INITIATE_MODEL_COLLECTION, "info");
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
@@ -2190,7 +2179,7 @@ void *instanceservicesession(void *dummyPt) {
                     break;
                 }
             }
-            loop = true;
+            loop_exit = true;
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_FRAGMENT_RESOLUTION) == 0) {
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::INITIATE_FRAGMENT_RESOLUTION, "info");
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
@@ -4363,4 +4352,33 @@ void JasmineGraphInstanceService::mergeFiles(string trainData) {
         instance_logger.error("Merge Command Execution Failed for Graph ID - Patition ID: " + graphID + " - " +
                               partitionID + "; Error : " + strerror(errno));
     }
+}
+
+static void handshake(int connFd, bool *loop_exit_p) {
+    instance_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::HANDSHAKE_OK.c_str(),
+                          JasmineGraphInstanceProtocol::HANDSHAKE_OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string line(data);
+    line = Utils::trim_copy(line, " \f\n\r\t\v");
+    string server_hostname = line;
+    instance_logger.log("Received hostname : " + line, "info");
+
+    instance_logger.log("Sending : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
+    result_wr =
+        write(connFd, JasmineGraphInstanceProtocol::HOST_OK.c_str(), JasmineGraphInstanceProtocol::HOST_OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    std::cout << "ServerName : " << server_hostname << std::endl;
 }
