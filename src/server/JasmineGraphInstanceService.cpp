@@ -40,6 +40,8 @@ bool collectValid = false;
 std::thread JasmineGraphInstanceService::workerThread;
 
 static void handshake(int connFd, bool *loop_exit_p);
+static void close_connection(int connFd, bool *loop_exit_p);
+__attribute__((noreturn)) static void shutdown_service(int connFd);
 
 char *converter(const std::string &s) {
     char *pc = new char[s.size() + 1];
@@ -86,14 +88,9 @@ void *instanceservicesession(void *dummyPt) {
         if (line.compare(JasmineGraphInstanceProtocol::HANDSHAKE) == 0) {
             handshake(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::CLOSE) == 0) {
-            write(connFd, JasmineGraphInstanceProtocol::CLOSE_ACK.c_str(),
-                  JasmineGraphInstanceProtocol::CLOSE_ACK.size());
-            close(connFd);
+            close_connection(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::SHUTDOWN) == 0) {
-            write(connFd, JasmineGraphInstanceProtocol::SHUTDOWN_ACK.c_str(),
-                  JasmineGraphInstanceProtocol::SHUTDOWN_ACK.size());
-            close(connFd);
-            exit(0);
+            shutdown_service(connFd);
         } else if (line.compare(JasmineGraphInstanceProtocol::READY) == 0) {
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
         } else if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD) == 0) {
@@ -4381,4 +4378,24 @@ static void handshake(int connFd, bool *loop_exit_p) {
         return;
     }
     std::cout << "ServerName : " << server_hostname << std::endl;
+}
+
+static void close_connection(int connFd, bool *loop_exit_p) {
+    *loop_exit_p = true;
+    int result_wr =
+        write(connFd, JasmineGraphInstanceProtocol::CLOSE_ACK.c_str(), JasmineGraphInstanceProtocol::CLOSE_ACK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+    }
+    close(connFd);
+}
+
+static void shutdown_service(int connFd) {
+    int result_wr =
+        write(connFd, JasmineGraphInstanceProtocol::CLOSE_ACK.c_str(), JasmineGraphInstanceProtocol::CLOSE_ACK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+    }
+    close(connFd);
+    exit(0);
 }
