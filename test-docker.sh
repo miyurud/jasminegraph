@@ -1,5 +1,8 @@
 #!/bin/bash
-set -ex
+set -e
+
+export TERM=xterm-256color
+
 PROJECT_ROOT="$(pwd)"
 TEST_ROOT="${PROJECT_ROOT}/tests/integration"
 TIMEOUT_SECONDS=180
