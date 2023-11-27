@@ -49,3 +49,4 @@ const string REMOTE_WORKER_ARGS = "remote-worker-args";
 const string SLA = "sla";
 const string COMMAND = "command";
 const string PRIORITY = "priority(>=1)";
+const string INVALID_FORMAT = "Invalid message format";

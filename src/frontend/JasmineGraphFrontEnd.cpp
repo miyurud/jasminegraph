@@ -48,6 +48,8 @@ limitations under the License.
 #include "core/CoreConstants.h"
 #include "core/scheduler/JobScheduler.h"
 
+#define MAX_PENDING_CONNECTIONS 10
+
 using json = nlohmann::json;
 using namespace std;
 using namespace std::chrono;
@@ -243,7 +245,11 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             sla_command(connFd, sqlite, perfSqlite, &loop_exit);
         } else {
             frontend_logger.error("Message format not recognized " + line);
-            // TODO: Inform client?
+            int result_wr = write(connFd, INVALID_FORMAT.c_str(), INVALID_FORMAT.size());
+            if (result_wr < 0) {
+                frontend_logger.error("Error writing to socket");
+                break;
+            }
         }
     }
     if (input_stream_handler.joinable()) {
@@ -298,9 +304,8 @@ int JasmineGraphFrontEnd::run() {
         return 0;
     }
 
-    listen(listenFd, 10);
+    listen(listenFd, MAX_PENDING_CONNECTIONS);
 
-    std::thread *myThreads = new std::thread[20];
     std::vector<std::thread> threadVector;
     len = sizeof(clntAdd);
 
@@ -675,7 +680,11 @@ static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface 
 
     if (strArr.size() != 2) {
         frontend_logger.error("Message format not recognized");
-        // TODO: Inform client?
+        result_wr = write(connFd, INVALID_FORMAT.c_str(), INVALID_FORMAT.size());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+        }
         return;
     }
 
@@ -684,7 +693,11 @@ static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface 
 
     if (JasmineGraphFrontEnd::graphExists(path, sqlite)) {
         frontend_logger.error("Graph exists");
-        // TODO: Inform client?
+        result_wr = write(connFd, INVALID_FORMAT.c_str(), INVALID_FORMAT.size());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+        }
         return;
     }
 
@@ -1300,7 +1313,11 @@ static void process_dataset_command(int connFd, bool *loop_exit_p) {
 
     if (gData.length() == 0) {
         frontend_logger.error("Message format not recognized");
-        // TODO: Inform client?
+        result_wr = write(connFd, INVALID_FORMAT.c_str(), INVALID_FORMAT.size());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+        }
         return;
     }
     string path = gData;
@@ -1651,13 +1668,21 @@ static void merge_command(int connFd, SQLiteDBInterface sqlite, bool *loop_exit_
 
     } else {
         frontend_logger.error("graph_id should be given as an argument");
-        // TODO: Inform client?
+        result_wr = write(connFd, INVALID_FORMAT.c_str(), INVALID_FORMAT.size());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+        }
         return;
     }
 
     if (trainargs.size() == 0) {
         frontend_logger.error("Message format not recognized");
-        // TODO: Inform client?
+        result_wr = write(connFd, INVALID_FORMAT.c_str(), INVALID_FORMAT.size());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+        }
         return;
     }
 
@@ -1725,13 +1750,21 @@ static void train_command(int connFd, SQLiteDBInterface sqlite, bool *loop_exit_
         graphID = trainargs[index + 1];
     } else {
         frontend_logger.error("graph_id should be given as an argument");
-        // TODO: Inform client?
+        result_wr = write(connFd, INVALID_FORMAT.c_str(), INVALID_FORMAT.size());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+        }
         return;
     }
 
     if (trainargs.size() == 0) {
         frontend_logger.error("Message format not recognized");
-        // TODO: Inform client?
+        result_wr = write(connFd, INVALID_FORMAT.c_str(), INVALID_FORMAT.size());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+        }
         return;
     }
 
@@ -1893,7 +1926,11 @@ static void page_rank_command(int connFd, bool *loop_exit_p) {
         alpha = std::stod(strArr[1]);
         if (alpha < 0 || alpha >= 1) {
             frontend_logger.error("Invalid value for alpha");
-            // TODO: Inform client?
+            result_wr = write(connFd, INVALID_FORMAT.c_str(), INVALID_FORMAT.size());
+            if (result_wr < 0) {
+                frontend_logger.error("Error writing to socket");
+                *loop_exit_p = true;
+            }
             return;
         }
     }
@@ -1903,7 +1940,11 @@ static void page_rank_command(int connFd, bool *loop_exit_p) {
         iterations = std::stod(strArr[2]);
         if (iterations <= 0 || iterations >= 100) {
             frontend_logger.error("Invalid value for iterations");
-            // TODO: Inform client?
+            result_wr = write(connFd, INVALID_FORMAT.c_str(), INVALID_FORMAT.size());
+            if (result_wr < 0) {
+                frontend_logger.error("Error writing to socket");
+                *loop_exit_p = true;
+            }
             return;
         }
     }
@@ -2045,7 +2086,11 @@ static void predict_command(std::string masterIP, int connFd, SQLiteDBInterface 
 
         if (strArr.size() != 3) {
             frontend_logger.error("Message format not recognized");
-            // TODO: Inform client?
+            result_wr = write(connFd, INVALID_FORMAT.c_str(), INVALID_FORMAT.size());
+            if (result_wr < 0) {
+                frontend_logger.error("Error writing to socket");
+                *loop_exit_p = true;
+            }
             return;
         }
 
@@ -2081,7 +2126,11 @@ static void predict_command(std::string masterIP, int connFd, SQLiteDBInterface 
 
         if (strArr.size() != 2) {
             frontend_logger.error("Message format not recognized");
-            // TODO: Inform client?
+            result_wr = write(connFd, INVALID_FORMAT.c_str(), INVALID_FORMAT.size());
+            if (result_wr < 0) {
+                frontend_logger.error("Error writing to socket");
+                *loop_exit_p = true;
+            }
             return;
         }
 
@@ -2131,7 +2180,11 @@ static void start_remote_worker_command(int connFd, bool *loop_exit_p) {
 
     if (strArr.size() < 6) {
         frontend_logger.error("Message format not recognized");
-        // TODO: Inform client?
+        result_wr = write(connFd, INVALID_FORMAT.c_str(), INVALID_FORMAT.size());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+        }
         return;
     }
 
