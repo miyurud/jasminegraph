@@ -1194,7 +1194,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             }
 
             JasmineGraphServer *jasmineServer = new JasmineGraphServer();
-            if (utils.getJasmineGraphProperty("org.jasminegraph.fl.org.training") == "true") {
+            if (Utils::getJasmineGraphProperty("org.jasminegraph.fl.org.training") == "true") {
                 frontend_logger.log("Initiate org communication", "info");
                 jasmineServer->initiateOrgCommunication(graphID, trainData, sqlite);
 

@@ -2073,8 +2073,11 @@ void *instanceservicesession(void *dummyPt) {
                 command += " ";
             }
 
-            cout << command << endl;
-            system(command.c_str());
+            instance_logger.error("Temporarily disabled the execution of prediction.");
+            //TODO(miyurud): Temporarily commenting the execution of the following line
+            //due to missing predict.py file. Removal of graphsage folder resulted in this situation.
+            //Need to find a different way of executing Predict
+            //system(command.c_str());
             loop = true;
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_MODEL_COLLECTION) == 0) {
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::INITIATE_MODEL_COLLECTION, "info");
