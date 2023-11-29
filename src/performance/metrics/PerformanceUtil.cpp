@@ -13,7 +13,6 @@ limitations under the License.
 
 #include "PerformanceUtil.h"
 
-Utils systemUtils;
 using namespace std::chrono;
 std::map<std::string, std::vector<ResourceUsageInfo>> resourceUsageMap;
 
@@ -27,7 +26,7 @@ void PerformanceUtil::init() {
 }
 
 int PerformanceUtil::collectPerformanceStatistics() {
-    vector<std::string> hostList = systemUtils.getHostListFromProperties();
+    vector<std::string> hostList = Utils::getHostListFromProperties();
     int hostListSize = hostList.size();
     int counter = 0;
     std::vector<std::future<long>> intermRes;
@@ -206,7 +205,6 @@ void PerformanceUtil::collectRemotePerformanceData(std::string host, int port, s
     socklen_t len;
     struct sockaddr_in serv_addr;
     struct hostent *server;
-    Utils utils;
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -235,11 +233,11 @@ void PerformanceUtil::collectRemotePerformanceData(std::string host, int port, s
     read(sockfd, data, 300);
     string response = (data);
 
-    response = utils.trim_copy(response, " \f\n\r\t\v");
+    response = Utils::trim_copy(response, " \f\n\r\t\v");
 
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
         scheduler_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
-        string server_host = utils.getJasmineGraphProperty("org.jasminegraph.server.host");
+        string server_host = Utils::getJasmineGraphProperty("org.jasminegraph.server.host");
         write(sockfd, server_host.c_str(), server_host.size());
         scheduler_logger.log("Sent : " + server_host, "info");
 
@@ -249,7 +247,7 @@ void PerformanceUtil::collectRemotePerformanceData(std::string host, int port, s
         bzero(data, 301);
         read(sockfd, data, 300);
         response = (data);
-        response = utils.trim_copy(response, " \f\n\r\t\v");
+        response = Utils::trim_copy(response, " \f\n\r\t\v");
         scheduler_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
@@ -260,7 +258,7 @@ void PerformanceUtil::collectRemotePerformanceData(std::string host, int port, s
             bzero(data, 301);
             read(sockfd, data, 300);
             response = (data);
-            response = utils.trim_copy(response, " \f\n\r\t\v");
+            response = Utils::trim_copy(response, " \f\n\r\t\v");
 
             if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
                 write(sockfd, isResourceAllocationRequired.c_str(), isResourceAllocationRequired.size());
@@ -269,7 +267,7 @@ void PerformanceUtil::collectRemotePerformanceData(std::string host, int port, s
                 bzero(data, 301);
                 read(sockfd, data, 300);
                 response = (data);
-                response = utils.trim_copy(response, " \f\n\r\t\v");
+                response = Utils::trim_copy(response, " \f\n\r\t\v");
 
                 scheduler_logger.log("Performance Response " + response, "info");
 
@@ -313,7 +311,6 @@ void PerformanceUtil::collectRemotePerformanceData(std::string host, int port, s
 void PerformanceUtil::collectLocalPerformanceData(std::string isVMStatManager, std::string isResourceAllocationRequired,
                                                   std::string hostId, std::string placeId) {
     StatisticCollector statisticCollector;
-    Utils utils;
     statisticCollector.init();
 
     int memoryUsage = statisticCollector.getMemoryUsageByProcess();
@@ -322,7 +319,7 @@ void PerformanceUtil::collectLocalPerformanceData(std::string isVMStatManager, s
     auto executedTime = std::chrono::system_clock::now();
     std::time_t reportTime = std::chrono::system_clock::to_time_t(executedTime);
     std::string reportTimeString(std::ctime(&reportTime));
-    reportTimeString = utils.trim_copy(reportTimeString, " \f\n\r\t\v");
+    reportTimeString = Utils::trim_copy(reportTimeString, " \f\n\r\t\v");
 
     if (isVMStatManager.find("true") != std::string::npos) {
         std::string vmLevelStatistics =
@@ -364,7 +361,6 @@ int PerformanceUtil::collectRemoteSLAResourceUtilization(std::string host, int p
     socklen_t len;
     struct sockaddr_in serv_addr;
     struct hostent *server;
-    Utils utils;
     std::string graphSlaId;
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -375,7 +371,7 @@ int PerformanceUtil::collectRemoteSLAResourceUtilization(std::string host, int p
     }
 
     if (host.find('@') != std::string::npos) {
-        host = utils.split(host, '@')[1];
+        host = Utils::split(host, '@')[1];
     }
 
     server = gethostbyname(host.c_str());
@@ -398,7 +394,7 @@ int PerformanceUtil::collectRemoteSLAResourceUtilization(std::string host, int p
     read(sockfd, data, 300);
     string response = (data);
 
-    response = utils.trim_copy(response, " \f\n\r\t\v");
+    response = Utils::trim_copy(response, " \f\n\r\t\v");
 
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
         scheduler_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
@@ -408,7 +404,7 @@ int PerformanceUtil::collectRemoteSLAResourceUtilization(std::string host, int p
         bzero(data, 301);
         read(sockfd, data, 300);
         response = (data);
-        response = utils.trim_copy(response, " \f\n\r\t\v");
+        response = Utils::trim_copy(response, " \f\n\r\t\v");
         scheduler_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
 
         if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
@@ -418,7 +414,7 @@ int PerformanceUtil::collectRemoteSLAResourceUtilization(std::string host, int p
             bzero(data, 301);
             read(sockfd, data, 300);
             response = (data);
-            response = utils.trim_copy(response, " \f\n\r\t\v");
+            response = Utils::trim_copy(response, " \f\n\r\t\v");
             scheduler_logger.log("Received : " + response, "info");
 
             if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
@@ -428,7 +424,7 @@ int PerformanceUtil::collectRemoteSLAResourceUtilization(std::string host, int p
                 bzero(data, 301);
                 read(sockfd, data, 300);
                 response = (data);
-                response = utils.trim_copy(response, " \f\n\r\t\v");
+                response = Utils::trim_copy(response, " \f\n\r\t\v");
 
                 if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
                     write(sockfd, isResourceAllocationRequired.c_str(), isResourceAllocationRequired.size());
@@ -438,7 +434,7 @@ int PerformanceUtil::collectRemoteSLAResourceUtilization(std::string host, int p
                     bzero(data, 301);
                     read(sockfd, data, 300);
                     response = (data);
-                    response = utils.trim_copy(response, " \f\n\r\t\v");
+                    response = Utils::trim_copy(response, " \f\n\r\t\v");
 
                     scheduler_logger.log("Performance Response " + response, "info");
 
@@ -472,7 +468,6 @@ int PerformanceUtil::collectRemoteSLAResourceUtilization(std::string host, int p
 void PerformanceUtil::collectLocalSLAResourceUtilization(std::string graphId, std::string placeId, std::string command,
                                                          std::string category, int elapsedTime, bool autoCalibrate) {
     StatisticCollector statisticCollector;
-    Utils utils;
     statisticCollector.init();
     string graphSlaId;
 
@@ -481,7 +476,7 @@ void PerformanceUtil::collectLocalSLAResourceUtilization(std::string graphId, st
     auto executedTime = std::chrono::system_clock::now();
     std::time_t reportTime = std::chrono::system_clock::to_time_t(executedTime);
     std::string reportTimeString(std::ctime(&reportTime));
-    reportTimeString = utils.trim_copy(reportTimeString, " \f\n\r\t\v");
+    reportTimeString = Utils::trim_copy(reportTimeString, " \f\n\r\t\v");
 
     ResourceUsageInfo resourceUsageInfo;
     resourceUsageInfo.elapsedTime = std::to_string(elapsedTime);
@@ -506,7 +501,6 @@ ResourceConsumption PerformanceUtil::retrieveLocalResourceConsumption(std::strin
     ResourceConsumption placeResourceConsumption;
 
     StatisticCollector statisticCollector;
-    Utils utils;
     statisticCollector.init();
 
     int memoryUsage = statisticCollector.getMemoryUsageByProcess();
@@ -528,7 +522,6 @@ ResourceConsumption PerformanceUtil::retrieveRemoteResourceConsumption(std::stri
     socklen_t len;
     struct sockaddr_in serv_addr;
     struct hostent *server;
-    Utils utils;
     std::string graphSlaId;
     std::string isVMStatManager = "false";
     std::string isResourceAllocationRequired = "false";
@@ -560,11 +553,11 @@ ResourceConsumption PerformanceUtil::retrieveRemoteResourceConsumption(std::stri
     read(sockfd, data, 300);
     string response = (data);
 
-    response = utils.trim_copy(response, " \f\n\r\t\v");
+    response = Utils::trim_copy(response, " \f\n\r\t\v");
 
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
         scheduler_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
-        string server_host = utils.getJasmineGraphProperty("org.jasminegraph.server.host");
+        string server_host = Utils::getJasmineGraphProperty("org.jasminegraph.server.host");
         write(sockfd, server_host.c_str(), server_host.size());
         scheduler_logger.log("Sent : " + server_host, "info");
 
@@ -574,7 +567,7 @@ ResourceConsumption PerformanceUtil::retrieveRemoteResourceConsumption(std::stri
         bzero(data, 301);
         read(sockfd, data, 300);
         response = (data);
-        response = utils.trim_copy(response, " \f\n\r\t\v");
+        response = Utils::trim_copy(response, " \f\n\r\t\v");
         scheduler_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
@@ -584,7 +577,7 @@ ResourceConsumption PerformanceUtil::retrieveRemoteResourceConsumption(std::stri
             bzero(data, 301);
             read(sockfd, data, 300);
             response = (data);
-            response = utils.trim_copy(response, " \f\n\r\t\v");
+            response = Utils::trim_copy(response, " \f\n\r\t\v");
 
             if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
                 write(sockfd, isResourceAllocationRequired.c_str(), isResourceAllocationRequired.size());
@@ -593,7 +586,7 @@ ResourceConsumption PerformanceUtil::retrieveRemoteResourceConsumption(std::stri
                 bzero(data, 301);
                 read(sockfd, data, 300);
                 response = (data);
-                response = utils.trim_copy(response, " \f\n\r\t\v");
+                response = Utils::trim_copy(response, " \f\n\r\t\v");
 
                 scheduler_logger.log("Performance Response " + response, "info");
 
@@ -1046,7 +1039,6 @@ void PerformanceUtil::initiateCollectingRemoteSLAResourceUtilization(std::string
     socklen_t len;
     struct sockaddr_in serv_addr;
     struct hostent *server;
-    Utils utils;
     std::string graphSlaId;
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -1057,7 +1049,7 @@ void PerformanceUtil::initiateCollectingRemoteSLAResourceUtilization(std::string
     }
 
     if (host.find('@') != std::string::npos) {
-        host = utils.split(host, '@')[1];
+        host = Utils::split(host, '@')[1];
     }
 
     server = gethostbyname(host.c_str());
@@ -1080,7 +1072,7 @@ void PerformanceUtil::initiateCollectingRemoteSLAResourceUtilization(std::string
     read(sockfd, data, 300);
     string response = (data);
 
-    response = utils.trim_copy(response, " \f\n\r\t\v");
+    response = Utils::trim_copy(response, " \f\n\r\t\v");
 
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
         scheduler_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
@@ -1090,7 +1082,7 @@ void PerformanceUtil::initiateCollectingRemoteSLAResourceUtilization(std::string
         bzero(data, 301);
         read(sockfd, data, 300);
         response = (data);
-        response = utils.trim_copy(response, " \f\n\r\t\v");
+        response = Utils::trim_copy(response, " \f\n\r\t\v");
         scheduler_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
 
         if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
@@ -1100,7 +1092,7 @@ void PerformanceUtil::initiateCollectingRemoteSLAResourceUtilization(std::string
             bzero(data, 301);
             read(sockfd, data, 300);
             response = (data);
-            response = utils.trim_copy(response, " \f\n\r\t\v");
+            response = Utils::trim_copy(response, " \f\n\r\t\v");
             scheduler_logger.log("Received : " + response, "info");
 
             if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
@@ -1119,7 +1111,6 @@ std::string PerformanceUtil::requestRemoteLoadAverages(std::string host, int por
     socklen_t len;
     struct sockaddr_in serv_addr;
     struct hostent *server;
-    Utils utils;
     std::string graphSlaId;
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -1130,7 +1121,7 @@ std::string PerformanceUtil::requestRemoteLoadAverages(std::string host, int por
     }
 
     if (host.find('@') != std::string::npos) {
-        host = utils.split(host, '@')[1];
+        host = Utils::split(host, '@')[1];
     }
 
     server = gethostbyname(host.c_str());
@@ -1153,7 +1144,7 @@ std::string PerformanceUtil::requestRemoteLoadAverages(std::string host, int por
     read(sockfd, data, 300);
     string response = (data);
 
-    response = utils.trim_copy(response, " \f\n\r\t\v");
+    response = Utils::trim_copy(response, " \f\n\r\t\v");
 
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
         scheduler_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
@@ -1163,7 +1154,7 @@ std::string PerformanceUtil::requestRemoteLoadAverages(std::string host, int por
         bzero(data, 301);
         read(sockfd, data, 300);
         response = (data);
-        response = utils.trim_copy(response, " \f\n\r\t\v");
+        response = Utils::trim_copy(response, " \f\n\r\t\v");
         scheduler_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
 
         if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
@@ -1173,7 +1164,7 @@ std::string PerformanceUtil::requestRemoteLoadAverages(std::string host, int por
             bzero(data, 301);
             read(sockfd, data, 300);
             response = (data);
-            response = utils.trim_copy(response, " \f\n\r\t\v");
+            response = Utils::trim_copy(response, " \f\n\r\t\v");
             string status = response.substr(response.size() - 5);
             std::string result = response.substr(0, response.size() - 5);
 
@@ -1183,7 +1174,7 @@ std::string PerformanceUtil::requestRemoteLoadAverages(std::string host, int por
                 bzero(data, 301);
                 read(sockfd, data, 300);
                 response = (data);
-                response = utils.trim_copy(response, " \f\n\r\t\v");
+                response = Utils::trim_copy(response, " \f\n\r\t\v");
                 status = response.substr(response.size() - 5);
                 std::string loadAverageString = response.substr(0, response.size() - 5);
                 result = result + loadAverageString;
@@ -1200,7 +1191,6 @@ double PerformanceUtil::getAggregatedLoadAverage(std::string graphId, std::strin
     PerformanceUtil performanceUtil;
     performanceUtil.init();
 
-    processStatusMutex.lock();
     set<ProcessInfo>::iterator processInfoIterator;
     std::chrono::milliseconds currentTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
     long currentTimestamp = currentTime.count();
@@ -1261,13 +1251,17 @@ double PerformanceUtil::getAggregatedLoadAverage(std::string graphId, std::strin
                     "' order by graph_place_sla_performance.place_id,graph_place_sla_performance.elapsed_time LIMIT 2;";
 
                 std::vector<vector<pair<string, string>>> loadAvgResults = perfDb.runSelect(slaLoadQuery);
-                if (loadAvgResults.empty()) {
+
+                if (loadAvgResults.size() >= 2) {
+                    previousLoad = std::atof(loadAvgResults[0][1].second.c_str());
+                    xAxisValue = std::atof(loadAvgResults[0][2].second.c_str());
+                    nextLoad = std::atof(loadAvgResults[1][1].second.c_str());
+                } else if (loadAvgResults.size() == 1) {
+                    // TODO(ASHOK12011234) : Handle the case where there is only one row in the result.
+                    continue;
+                } else {
                     continue;
                 }
-
-                previousLoad = std::atof(loadAvgResults[0][1].second.c_str());
-                xAxisValue = std::atof(loadAvgResults[0][2].second.c_str());
-                nextLoad = std::atof(loadAvgResults[1][1].second.c_str());
             }
 
             double slope = (nextLoad - previousLoad) / statCollectingGap;           // m= (y2-y1)/(x2-x1)
@@ -1276,6 +1270,5 @@ double PerformanceUtil::getAggregatedLoadAverage(std::string graphId, std::strin
             aggregatedLoadAverage += currentLoad;
         }
     }
-    processStatusMutex.unlock();
     return aggregatedLoadAverage;
 }

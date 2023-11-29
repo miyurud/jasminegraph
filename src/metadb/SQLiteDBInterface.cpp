@@ -22,8 +22,7 @@ using namespace std;
 Logger db_logger;
 
 int SQLiteDBInterface::init() {
-    Utils utils;
-    int rc = sqlite3_open(utils.getJasmineGraphProperty("org.jasminegraph.db.location").c_str(), &database);
+    int rc = sqlite3_open(Utils::getJasmineGraphProperty("org.jasminegraph.db.location").c_str(), &database);
     if (rc) {
         db_logger.log("Cannot open database: " + string(sqlite3_errmsg(database)), "error");
         return (-1);

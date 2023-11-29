@@ -27,8 +27,7 @@ std::mutex dbLock;
 
 MetisPartitioner::MetisPartitioner(SQLiteDBInterface *sqlite) {
     this->sqlite = *sqlite;
-    Utils utils;
-    std::string partitionCount = utils.getJasmineGraphProperty("org.jasminegraph.server.npartitions");
+    std::string partitionCount = Utils::getJasmineGraphProperty("org.jasminegraph.server.npartitions");
     nParts = atoi(partitionCount.c_str());
 }
 
@@ -36,13 +35,13 @@ void MetisPartitioner::loadDataSet(string inputFilePath, int graphID) {
     partitioner_logger.log("Processing dataset for partitioning", "info");
     this->graphID = graphID;
     // Output directory is created under the users home directory '~/.jasminegraph/tmp/'
-    this->outputFilePath = utils.getHomeDir() + "/.jasminegraph/tmp/" + std::to_string(this->graphID);
+    this->outputFilePath = Utils::getHomeDir() + "/.jasminegraph/tmp/" + std::to_string(this->graphID);
 
     // Have to call createDirectory twice since it does not support recursive directory creation. Could use
     // boost::filesystem for path creation
-    this->utils.createDirectory(utils.getHomeDir() + "/.jasminegraph/");
-    this->utils.createDirectory(utils.getHomeDir() + "/.jasminegraph/tmp");
-    this->utils.createDirectory(this->outputFilePath);
+    Utils::createDirectory(Utils::getHomeDir() + "/.jasminegraph/");
+    Utils::createDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp");
+    Utils::createDirectory(this->outputFilePath);
 
     std::ifstream dbFile;
     dbFile.open(inputFilePath, std::ios::binary | std::ios::in);
@@ -214,7 +213,7 @@ std::vector<std::map<int, std::string>> MetisPartitioner::partitioneWithGPMetis(
     char buffer[128];
     std::string result = "";
     FILE *headerModify;
-    std::string metisBinDir = utils.getJasmineGraphProperty("org.jasminegraph.partitioner.metis.bin");
+    std::string metisBinDir = Utils::getJasmineGraphProperty("org.jasminegraph.partitioner.metis.bin");
     string metisCommand =
         metisBinDir + "/gpmetis " + this->outputFilePath + "/grf " + to_string(this->nParts) + " 2>&1";
     partitioner_logger.log("metisCommand " + metisCommand, "info");
@@ -662,7 +661,7 @@ void MetisPartitioner::writeSerializedPartitionFiles(int part) {
     hashMapLocalStore->storePartEdgeMap(partEdgeMap, outputFilePart);
 
     // Compress part files
-    this->utils.compressFile(outputFilePart);
+    Utils::compressFile(outputFilePart);
     partFileMutex.lock();
     partitionFileList.insert(make_pair(part, outputFilePart + ".gz"));
     partFileMutex.unlock();
@@ -678,7 +677,7 @@ void MetisPartitioner::writeSerializedMasterFiles(int part) {
     JasmineGraphHashMapCentralStore *hashMapCentralStore = new JasmineGraphHashMapCentralStore();
     hashMapCentralStore->storePartEdgeMap(partMasterEdgeMap, outputFilePartMaster);
 
-    this->utils.compressFile(outputFilePartMaster);
+    Utils::compressFile(outputFilePartMaster);
     masterFileMutex.lock();
     centralStoreFileList.insert(make_pair(part, outputFilePartMaster + ".gz"));
     masterFileMutex.unlock();
@@ -694,7 +693,7 @@ void MetisPartitioner::writeSerializedDuplicateMasterFiles(int part) {
     JasmineGraphHashMapCentralStore *hashMapCentralStore = new JasmineGraphHashMapCentralStore();
     hashMapCentralStore->storePartEdgeMap(partMasterEdgeMap, outputFilePartMaster);
 
-    this->utils.compressFile(outputFilePartMaster);
+    Utils::compressFile(outputFilePartMaster);
     masterFileMutex.lock();
     centralStoreDuplicateFileList.insert(make_pair(part, outputFilePartMaster + ".gz"));
     masterFileMutex.unlock();
@@ -738,7 +737,7 @@ void MetisPartitioner::writePartitionFiles(int part) {
     }
 
     // Compress part files
-    this->utils.compressFile(outputFilePart);
+    Utils::compressFile(outputFilePart);
     partFileMutex.lock();
     partitionFileList.insert(make_pair(part, outputFilePart + ".gz"));
     partFileMutex.unlock();
@@ -782,7 +781,7 @@ void MetisPartitioner::writeMasterFiles(int part) {
         masterFile.close();
     }
 
-    this->utils.compressFile(outputFilePartMaster);
+    Utils::compressFile(outputFilePartMaster);
     masterFileMutex.lock();
     centralStoreFileList.insert(make_pair(part, outputFilePartMaster + ".gz"));
     masterFileMutex.unlock();
@@ -817,7 +816,7 @@ void MetisPartitioner::writeTextAttributeFilesForPartitions(int part) {
 
     partfile.close();
 
-    this->utils.compressFile(attributeFilePart);
+    Utils::compressFile(attributeFilePart);
     partAttrFileMutex.lock();
     partitionAttributeFileList.insert(make_pair(part, attributeFilePart + ".gz"));
     partAttrFileMutex.unlock();
@@ -852,7 +851,7 @@ void MetisPartitioner::writeTextAttributeFilesForMasterParts(int part) {
 
     partfile.close();
 
-    this->utils.compressFile(attributeFilePartMaster);
+    Utils::compressFile(attributeFilePartMaster);
     masterAttrFileMutex.lock();
     centralStoreAttributeFileList.insert(make_pair(part, attributeFilePartMaster + ".gz"));
     masterAttrFileMutex.unlock();
@@ -886,7 +885,7 @@ void MetisPartitioner::writeRDFAttributeFilesForPartitions(int part) {
     JasmineGraphHashMapLocalStore *hashMapLocalStore = new JasmineGraphHashMapLocalStore();
     hashMapLocalStore->storeAttributes(partitionedEdgeAttributes, attributeFilePart);
 
-    this->utils.compressFile(attributeFilePart);
+    Utils::compressFile(attributeFilePart);
     partAttrFileMutex.lock();
     partitionAttributeFileList.insert(make_pair(part, attributeFilePart + ".gz"));
     partAttrFileMutex.unlock();
@@ -919,7 +918,7 @@ void MetisPartitioner::writeRDFAttributeFilesForMasterParts(int part) {
     JasmineGraphHashMapLocalStore *hashMapLocalStore = new JasmineGraphHashMapLocalStore();
     hashMapLocalStore->storeAttributes(centralStoreEdgeAttributes, attributeFilePartMaster);
 
-    this->utils.compressFile(attributeFilePartMaster);
+    Utils::compressFile(attributeFilePartMaster);
     masterAttrFileMutex.lock();
     centralStoreAttributeFileList.insert(make_pair(part, attributeFilePartMaster + ".gz"));
     masterAttrFileMutex.unlock();
@@ -931,7 +930,7 @@ string MetisPartitioner::reformatDataSet(string inputFilePath, int graphID) {
     std::ifstream inFile;
     inFile.open(inputFilePath, std::ios::binary | std::ios::in);
 
-    string outputFile = utils.getHomeDir() + "/.jasminegraph/tmp/" + std::to_string(this->graphID) + "/" +
+    string outputFile = Utils::getHomeDir() + "/.jasminegraph/tmp/" + std::to_string(this->graphID) + "/" +
                         std::to_string(this->graphID);
     std::ofstream outFile;
     outFile.open(outputFile);
@@ -1093,10 +1092,10 @@ void MetisPartitioner::writeSerializedCompositeMasterFiles(std::string part) {
     JasmineGraphHashMapCentralStore *hashMapCentralStore = new JasmineGraphHashMapCentralStore();
     hashMapCentralStore->storePartEdgeMap(partMasterEdgeMap, outputFilePartMaster);
 
-    std::vector<std::string> graphIds = this->utils.split(part, '_');
+    std::vector<std::string> graphIds = Utils::split(part, '_');
     std::vector<std::string>::iterator graphIdIterator;
 
-    this->utils.compressFile(outputFilePartMaster);
+    Utils::compressFile(outputFilePartMaster);
     masterFileMutex.lock();
     for (graphIdIterator = graphIds.begin(); graphIdIterator != graphIds.end(); ++graphIdIterator) {
         std::string graphId = *graphIdIterator;

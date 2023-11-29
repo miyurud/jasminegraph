@@ -69,7 +69,6 @@ class GetConfig {
     static std::map<long, string[7]> getAttributesMap();
 
  private:
-    Utils utils;
     int graphID;
     xercesc::XercesDOMParser *m_ConfigFileParser;
     char *m_OptionA;

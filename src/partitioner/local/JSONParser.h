@@ -49,7 +49,6 @@ class JSONParser {
 
     string inputFilePath;
     string outputFilePath;
-    Utils utils;
 };
 
 #endif  // JASMINEGRAPH_JSONPARSER_H
