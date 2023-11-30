@@ -48,6 +48,7 @@ static void batch_upload_central_command(int connFd, bool *loop_exit_p);
 static void batch_upload_composite_central_command(int connFd, bool *loop_exit_p);
 static void upload_rdf_attributes_command(int connFd, bool *loop_exit_p);
 static void upload_rdf_attributes_central_command(int connFd, bool *loop_exit_p);
+static void delete_graph_command(int connFd, bool *loop_exit_p);
 
 char *converter(const std::string &s) {
     char *pc = new char[s.size() + 1];
@@ -111,27 +112,7 @@ void *instanceservicesession(void *dummyPt) {
         } else if (line.compare(JasmineGraphInstanceProtocol::UPLOAD_RDF_ATTRIBUTES_CENTRAL) == 0) {
             upload_rdf_attributes_central_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::DELETE_GRAPH) == 0) {
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string graphID = (data);
-            graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
-            instance_logger.log("Received Graph ID: " + graphID, "info");
-            write(connFd, JasmineGraphInstanceProtocol::SEND_PARTITION_ID.c_str(),
-                  JasmineGraphInstanceProtocol::SEND_PARTITION_ID.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_PARTITION_ID, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string partitionID = (data);
-            instance_logger.log("Received partition ID: " + partitionID, "info");
-            deleteGraphPartition(graphID, partitionID);
-            // pthread_mutex_lock(&file_lock);
-            // TODO :: Update catalog file
-            // pthread_mutex_unlock(&file_lock);
-            string result = "1";
-            write(connFd, result.c_str(), result.size());
-            instance_logger.log("Sent : " + result, "info");
+            delete_graph_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::DELETE_GRAPH_FRAGMENT) == 0) {
             // Conditional block for deleting all graph fragments when protocol is used
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
@@ -4596,4 +4577,46 @@ static void upload_rdf_attributes_central_command(int connFd, bool *loop_exit_p)
         }
         instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK, "info");
     }
+}
+
+static void delete_graph_command(int connFd, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    string line;
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string graphID = (data);
+    graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
+    instance_logger.log("Received Graph ID: " + graphID, "info");
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_PARTITION_ID.c_str(),
+                      JasmineGraphInstanceProtocol::SEND_PARTITION_ID.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_PARTITION_ID, "info");
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string partitionID = (data);
+    instance_logger.log("Received partition ID: " + partitionID, "info");
+    deleteGraphPartition(graphID, partitionID);
+    // pthread_mutex_lock(&file_lock);
+    // TODO :: Update catalog file
+    // pthread_mutex_unlock(&file_lock);
+    string result = "1";
+    result_wr = write(connFd, result.c_str(), result.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + result, "info");
 }
