@@ -50,6 +50,7 @@ static void upload_rdf_attributes_command(int connFd, bool *loop_exit_p);
 static void upload_rdf_attributes_central_command(int connFd, bool *loop_exit_p);
 static void delete_graph_command(int connFd, bool *loop_exit_p);
 static void delete_graph_fragment_command(int connFd, bool *loop_exit_p);
+static void duplicate_centralstore_command(int connFd, int serverPort, bool *loop_exit_p);
 
 char *converter(const std::string &s) {
     char *pc = new char[s.size() + 1];
@@ -117,41 +118,7 @@ void *instanceservicesession(void *dummyPt) {
         } else if (line.compare(JasmineGraphInstanceProtocol::DELETE_GRAPH_FRAGMENT) == 0) {
             delete_graph_fragment_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::DP_CENTRALSTORE) == 0) {
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string graphID = (data);
-            graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
-            instance_logger.log("Received Graph ID: " + graphID, "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string partitionID = (data);
-            partitionID = Utils::trim_copy(partitionID, " \f\n\r\t\v");
-            instance_logger.log("Received Partition ID: " + partitionID, "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string workerList = (data);
-            workerList = Utils::trim_copy(workerList, " \f\n\r\t\v");
-            instance_logger.log("Received Worker List " + workerList, "info");
-
-            std::vector<string> workerSockets;
-            stringstream wl(workerList);
-            string intermediate;
-            while (getline(wl, intermediate, ',')) {
-                workerSockets.push_back(intermediate);
-            }
-
-            JasmineGraphInstanceService::duplicateCentralStore(serverPort, stoi(graphID), stoi(partitionID),
-                                                               workerSockets, "localhost");
+            duplicate_centralstore_command(connFd, serverPort, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::WORKER_IN_DEGREE_DISTRIBUTION) == 0) {
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
@@ -4573,7 +4540,6 @@ static void delete_graph_command(int connFd, bool *loop_exit_p) {
     instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
 
     char data[INSTANCE_DATA_LENGTH + 1];
-    string line;
     bzero(data, INSTANCE_DATA_LENGTH + 1);
     read(connFd, data, INSTANCE_DATA_LENGTH);
     string graphID = (data);
@@ -4615,7 +4581,6 @@ static void delete_graph_fragment_command(int connFd, bool *loop_exit_p) {
     instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
 
     char data[INSTANCE_DATA_LENGTH + 1];
-    string line;
     bzero(data, INSTANCE_DATA_LENGTH + 1);
     // Read the message
     read(connFd, data, INSTANCE_DATA_LENGTH);
@@ -4636,4 +4601,59 @@ static void delete_graph_fragment_command(int connFd, bool *loop_exit_p) {
         return;
     }
     instance_logger.log("Sent : " + result, "info");
+}
+
+static void duplicate_centralstore_command(int connFd, int serverPort, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string graphID = (data);
+    graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
+    instance_logger.log("Received Graph ID: " + graphID, "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string partitionID = (data);
+    partitionID = Utils::trim_copy(partitionID, " \f\n\r\t\v");
+    instance_logger.log("Received Partition ID: " + partitionID, "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string workerList = (data);
+    workerList = Utils::trim_copy(workerList, " \f\n\r\t\v");
+    instance_logger.log("Received Worker List " + workerList, "info");
+
+    std::vector<string> workerSockets;
+    stringstream wl(workerList);
+    string intermediate;
+    while (getline(wl, intermediate, ',')) {
+        workerSockets.push_back(intermediate);
+    }
+
+    JasmineGraphInstanceService::duplicateCentralStore(serverPort, stoi(graphID), stoi(partitionID), workerSockets,
+                                                       "localhost");
 }
