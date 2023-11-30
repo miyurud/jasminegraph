@@ -49,6 +49,7 @@ static void batch_upload_composite_central_command(int connFd, bool *loop_exit_p
 static void upload_rdf_attributes_command(int connFd, bool *loop_exit_p);
 static void upload_rdf_attributes_central_command(int connFd, bool *loop_exit_p);
 static void delete_graph_command(int connFd, bool *loop_exit_p);
+static void delete_graph_fragment_command(int connFd, bool *loop_exit_p);
 
 char *converter(const std::string &s) {
     char *pc = new char[s.size() + 1];
@@ -114,24 +115,7 @@ void *instanceservicesession(void *dummyPt) {
         } else if (line.compare(JasmineGraphInstanceProtocol::DELETE_GRAPH) == 0) {
             delete_graph_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::DELETE_GRAPH_FRAGMENT) == 0) {
-            // Conditional block for deleting all graph fragments when protocol is used
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            // Read the message
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            // Get graph ID from message
-            string graphID = (data);
-            graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
-            instance_logger.log("Received Graph ID: " + graphID, "info");
-            // Method call for graph fragment deletion
-            removeGraphFragments(graphID);
-            // pthread_mutex_lock(&file_lock);
-            // TODO :: Update catalog file
-            // pthread_mutex_unlock(&file_lock);
-            string result = "1";
-            write(connFd, result.c_str(), result.size());
-            instance_logger.log("Sent : " + result, "info");
+            delete_graph_fragment_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::DP_CENTRALSTORE) == 0) {
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
@@ -4608,6 +4592,39 @@ static void delete_graph_command(int connFd, bool *loop_exit_p) {
     string partitionID = (data);
     instance_logger.log("Received partition ID: " + partitionID, "info");
     deleteGraphPartition(graphID, partitionID);
+    // pthread_mutex_lock(&file_lock);
+    // TODO :: Update catalog file
+    // pthread_mutex_unlock(&file_lock);
+    string result = "1";
+    result_wr = write(connFd, result.c_str(), result.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + result, "info");
+}
+
+static void delete_graph_fragment_command(int connFd, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    string line;
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    // Read the message
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    // Get graph ID from message
+    string graphID = (data);
+    graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
+    instance_logger.log("Received Graph ID: " + graphID, "info");
+    // Method call for graph fragment deletion
+    removeGraphFragments(graphID);
     // pthread_mutex_lock(&file_lock);
     // TODO :: Update catalog file
     // pthread_mutex_unlock(&file_lock);
