@@ -75,6 +75,11 @@ static void egonet_command(int connFd, int serverPort,
 static void worker_egonet_command(int connFd, int serverPort,
                                   std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores,
                                   bool *loop_exit_p);
+static void triangles_command(
+    int connFd, int serverPort, std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
+    std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores,
+    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> graphDBMapDuplicateCentralStores,
+    bool *loop_exit_p);
 
 char *converter(const std::string &s) {
     char *pc = new char[s.size() + 1];
@@ -162,52 +167,8 @@ void *instanceservicesession(void *dummyPt) {
         } else if (line.compare(JasmineGraphInstanceProtocol::WORKER_EGO_NET) == 0) {
             worker_egonet_command(connFd, serverPort, graphDBMapCentralStores, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::TRIANGLES) == 0) {
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string graphID = (data);
-            graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
-            instance_logger.log("Received Graph ID: " + graphID, "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string partitionId = (data);
-            partitionId = Utils::trim_copy(partitionId, " \f\n\r\t\v");
-            instance_logger.log("Received Partition ID: " + partitionId, "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string priority = (data);
-            priority = Utils::trim_copy(priority, " \f\n\r\t\v");
-            instance_logger.log("Received Priority : " + priority, "info");
-
-            int threadPriority = std::atoi(priority.c_str());
-
-            if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
-                threadPriorityMutex.lock();
-                workerHighPriorityTaskCount++;
-                highestPriority = threadPriority;
-                threadPriorityMutex.unlock();
-            }
-
-            long localCount = countLocalTriangles(graphID, partitionId, graphDBMapLocalStores, graphDBMapCentralStores,
-                                                  graphDBMapDuplicateCentralStores, threadPriority);
-
-            if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
-                threadPriorityMutex.lock();
-                workerHighPriorityTaskCount--;
-
-                if (workerHighPriorityTaskCount == 0) {
-                    highestPriority = Conts::DEFAULT_THREAD_PRIORITY;
-                }
-                threadPriorityMutex.unlock();
-            }
-
-            std::string result = to_string(localCount);
-            write(connFd, result.c_str(), result.size());
+            triangles_command(connFd, serverPort, graphDBMapLocalStores, graphDBMapCentralStores,
+                              graphDBMapDuplicateCentralStores, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::SEND_CENTRALSTORE_TO_AGGREGATOR) == 0) {
             write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_NAME.c_str(),
                   JasmineGraphInstanceProtocol::SEND_FILE_NAME.size());
@@ -4889,4 +4850,78 @@ static void worker_egonet_command(int connFd, int serverPort,
     partfile.close();
 
     instance_logger.log("Egonet calculation complete", "info");
+}
+
+static void triangles_command(
+    int connFd, int serverPort, std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
+    std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores,
+    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> graphDBMapDuplicateCentralStores,
+    bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string graphID = (data);
+    graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
+    instance_logger.log("Received Graph ID: " + graphID, "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string partitionId = (data);
+    partitionId = Utils::trim_copy(partitionId, " \f\n\r\t\v");
+    instance_logger.log("Received Partition ID: " + partitionId, "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string priority = (data);
+    priority = Utils::trim_copy(priority, " \f\n\r\t\v");
+    instance_logger.log("Received Priority : " + priority, "info");
+
+    int threadPriority = std::atoi(priority.c_str());
+
+    if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
+        threadPriorityMutex.lock();
+        workerHighPriorityTaskCount++;
+        highestPriority = threadPriority;
+        threadPriorityMutex.unlock();
+    }
+
+    long localCount = countLocalTriangles(graphID, partitionId, graphDBMapLocalStores, graphDBMapCentralStores,
+                                          graphDBMapDuplicateCentralStores, threadPriority);
+
+    if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
+        threadPriorityMutex.lock();
+        workerHighPriorityTaskCount--;
+
+        if (workerHighPriorityTaskCount == 0) {
+            highestPriority = Conts::DEFAULT_THREAD_PRIORITY;
+        }
+        threadPriorityMutex.unlock();
+    }
+
+    std::string result = to_string(localCount);
+    result_wr = write(connFd, result.c_str(), result.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+    }
 }
