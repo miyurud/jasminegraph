@@ -69,6 +69,9 @@ static void page_rank_command(int connFd, int serverPort,
 static void worker_page_rank_distribution_command(
     int connFd, int serverPort, std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores,
     bool *loop_exit_p);
+static void egonet_command(int connFd, int serverPort,
+                           std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores,
+                           bool *loop_exit_p);
 
 char *converter(const std::string &s) {
     char *pc = new char[s.size() + 1];
@@ -152,52 +155,7 @@ void *instanceservicesession(void *dummyPt) {
         } else if (line.compare(JasmineGraphInstanceProtocol::WORKER_PAGE_RANK_DISTRIBUTION) == 0) {
             worker_page_rank_distribution_command(connFd, serverPort, graphDBMapCentralStores, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::EGONET) == 0) {
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string graphID = (data);
-            graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
-            instance_logger.log("Received Graph ID: " + graphID, "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string partitionID = (data);
-            partitionID = Utils::trim_copy(partitionID, " \f\n\r\t\v");
-            instance_logger.log("Received Partition ID: " + partitionID, "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string workerList = data;
-            workerList = Utils::trim_copy(workerList, " \f\n\r\t\v");
-            instance_logger.log("Received Worker List " + workerList, "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-
-            JasmineGraphHashMapLocalStore graphDB;
-            JasmineGraphHashMapCentralStore centralDB;
-
-            std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStoresPgrnk;
-            if (JasmineGraphInstanceService::isGraphDBExists(graphID, partitionID)) {
-                JasmineGraphInstanceService::loadLocalStore(graphID, partitionID, graphDBMapLocalStoresPgrnk);
-            }
-
-            if (JasmineGraphInstanceService::isInstanceCentralStoreExists(graphID, partitionID)) {
-                JasmineGraphInstanceService::loadInstanceCentralStore(graphID, partitionID, graphDBMapCentralStores);
-            }
-
-            graphDB = graphDBMapLocalStoresPgrnk[graphID + "_" + partitionID];
-            centralDB = graphDBMapCentralStores[graphID + "_centralstore_" + partitionID];
-
-            calculateEgoNet(graphID, partitionID, serverPort, graphDB, centralDB, workerList);
-
+            egonet_command(connFd, serverPort, graphDBMapCentralStores, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::WORKER_EGO_NET) == 0) {
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
@@ -4847,4 +4805,61 @@ static void worker_page_rank_distribution_command(
     pageRankResults.clear();
     pageRankLocalstore.clear();
     localGraphMap.clear();
+}
+
+static void egonet_command(int connFd, int serverPort,
+                           std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores,
+                           bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string graphID = (data);
+    graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
+    instance_logger.log("Received Graph ID: " + graphID, "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string partitionID = (data);
+    partitionID = Utils::trim_copy(partitionID, " \f\n\r\t\v");
+    instance_logger.log("Received Partition ID: " + partitionID, "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string workerList = data;
+    workerList = Utils::trim_copy(workerList, " \f\n\r\t\v");
+    instance_logger.log("Received Worker List " + workerList, "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    JasmineGraphHashMapLocalStore graphDB;
+    JasmineGraphHashMapCentralStore centralDB;
+
+    std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStoresPgrnk;
+    if (JasmineGraphInstanceService::isGraphDBExists(graphID, partitionID)) {
+        JasmineGraphInstanceService::loadLocalStore(graphID, partitionID, graphDBMapLocalStoresPgrnk);
+    }
+
+    if (JasmineGraphInstanceService::isInstanceCentralStoreExists(graphID, partitionID)) {
+        JasmineGraphInstanceService::loadInstanceCentralStore(graphID, partitionID, graphDBMapCentralStores);
+    }
+
+    graphDB = graphDBMapLocalStoresPgrnk[graphID + "_" + partitionID];
+    centralDB = graphDBMapCentralStores[graphID + "_centralstore_" + partitionID];
+
+    calculateEgoNet(graphID, partitionID, serverPort, graphDB, centralDB, workerList);
 }
