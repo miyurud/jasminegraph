@@ -72,6 +72,9 @@ static void worker_page_rank_distribution_command(
 static void egonet_command(int connFd, int serverPort,
                            std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores,
                            bool *loop_exit_p);
+static void worker_egonet_command(int connFd, int serverPort,
+                                  std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores,
+                                  bool *loop_exit_p);
 
 char *converter(const std::string &s) {
     char *pc = new char[s.size() + 1];
@@ -157,82 +160,7 @@ void *instanceservicesession(void *dummyPt) {
         } else if (line.compare(JasmineGraphInstanceProtocol::EGONET) == 0) {
             egonet_command(connFd, serverPort, graphDBMapCentralStores, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::WORKER_EGO_NET) == 0) {
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string graphID = (data);
-            graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
-            instance_logger.log("Received Graph ID: " + graphID, "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string partitionID = (data);
-            partitionID = Utils::trim_copy(partitionID, " \f\n\r\t\v");
-            instance_logger.log("Received Partition ID: " + partitionID, "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string workerList = (data);
-            workerList = Utils::trim_copy(workerList, " \f\n\r\t\v");
-            instance_logger.log("Received Worker List " + workerList, "info");
-
-            std::vector<string> workerSockets;
-            stringstream wl(workerList);
-            string intermediate;
-            while (getline(wl, intermediate, ',')) {
-                workerSockets.push_back(intermediate);
-            }
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-
-            JasmineGraphHashMapLocalStore graphDB;
-            JasmineGraphHashMapCentralStore centralDB;
-
-            std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStoresPgrnk;
-            if (JasmineGraphInstanceService::isGraphDBExists(graphID, partitionID)) {
-                JasmineGraphInstanceService::loadLocalStore(graphID, partitionID, graphDBMapLocalStoresPgrnk);
-            }
-
-            if (JasmineGraphInstanceService::isInstanceCentralStoreExists(graphID, partitionID)) {
-                JasmineGraphInstanceService::loadInstanceCentralStore(graphID, partitionID, graphDBMapCentralStores);
-            }
-
-            graphDB = graphDBMapLocalStoresPgrnk[graphID + "_" + partitionID];
-            centralDB = graphDBMapCentralStores[graphID + "_centralstore_" + partitionID];
-
-            map<long, map<long, unordered_set<long>>> egonetMap =
-                calculateLocalEgoNet(graphID, partitionID, serverPort, graphDB, centralDB, workerSockets);
-
-            string instanceDataFolderLocation =
-                Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
-            string attributeFilePart = instanceDataFolderLocation + "/" + graphID + "_egonet_" + partitionID;
-            ofstream partfile;
-            partfile.open(attributeFilePart, std::fstream::trunc);
-            for (map<long, map<long, unordered_set<long>>>::iterator it = egonetMap.begin(); it != egonetMap.end();
-                 ++it) {
-                map<long, unordered_set<long>> egonetInternalMap = it->second;
-                for (map<long, unordered_set<long>>::iterator itm = egonetInternalMap.begin();
-                     itm != egonetInternalMap.end(); ++itm) {
-                    unordered_set<long> egonetInternalMapEdges = itm->second;
-                    for (unordered_set<long>::iterator ite = egonetInternalMapEdges.begin();
-                         ite != egonetInternalMapEdges.end(); ++ite) {
-                        partfile << to_string(it->first) << "\t" << to_string(itm->first) << "\t" << to_string(*ite)
-                                 << endl;
-                    }
-                }
-            }
-            partfile.close();
-
-            instance_logger.log("Egonet calculation complete", "info");
-
+            worker_egonet_command(connFd, serverPort, graphDBMapCentralStores, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::TRIANGLES) == 0) {
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
@@ -4862,4 +4790,103 @@ static void egonet_command(int connFd, int serverPort,
     centralDB = graphDBMapCentralStores[graphID + "_centralstore_" + partitionID];
 
     calculateEgoNet(graphID, partitionID, serverPort, graphDB, centralDB, workerList);
+}
+
+static void worker_egonet_command(int connFd, int serverPort,
+                                  std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores,
+                                  bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string graphID = (data);
+    graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
+    instance_logger.log("Received Graph ID: " + graphID, "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string partitionID = (data);
+    partitionID = Utils::trim_copy(partitionID, " \f\n\r\t\v");
+    instance_logger.log("Received Partition ID: " + partitionID, "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string workerList = (data);
+    workerList = Utils::trim_copy(workerList, " \f\n\r\t\v");
+    instance_logger.log("Received Worker List " + workerList, "info");
+
+    std::vector<string> workerSockets;
+    stringstream wl(workerList);
+    string intermediate;
+    while (getline(wl, intermediate, ',')) {
+        workerSockets.push_back(intermediate);
+    }
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    JasmineGraphHashMapLocalStore graphDB;
+    JasmineGraphHashMapCentralStore centralDB;
+
+    std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStoresPgrnk;
+    if (JasmineGraphInstanceService::isGraphDBExists(graphID, partitionID)) {
+        JasmineGraphInstanceService::loadLocalStore(graphID, partitionID, graphDBMapLocalStoresPgrnk);
+    }
+
+    if (JasmineGraphInstanceService::isInstanceCentralStoreExists(graphID, partitionID)) {
+        JasmineGraphInstanceService::loadInstanceCentralStore(graphID, partitionID, graphDBMapCentralStores);
+    }
+
+    graphDB = graphDBMapLocalStoresPgrnk[graphID + "_" + partitionID];
+    centralDB = graphDBMapCentralStores[graphID + "_centralstore_" + partitionID];
+
+    map<long, map<long, unordered_set<long>>> egonetMap =
+        calculateLocalEgoNet(graphID, partitionID, serverPort, graphDB, centralDB, workerSockets);
+
+    string instanceDataFolderLocation = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+    string attributeFilePart = instanceDataFolderLocation + "/" + graphID + "_egonet_" + partitionID;
+    ofstream partfile;
+    partfile.open(attributeFilePart, std::fstream::trunc);
+    for (map<long, map<long, unordered_set<long>>>::iterator it = egonetMap.begin(); it != egonetMap.end(); ++it) {
+        map<long, unordered_set<long>> egonetInternalMap = it->second;
+        for (map<long, unordered_set<long>>::iterator itm = egonetInternalMap.begin(); itm != egonetInternalMap.end();
+             ++itm) {
+            unordered_set<long> egonetInternalMapEdges = itm->second;
+            for (unordered_set<long>::iterator ite = egonetInternalMapEdges.begin();
+                 ite != egonetInternalMapEdges.end(); ++ite) {
+                partfile << to_string(it->first) << "\t" << to_string(itm->first) << "\t" << to_string(*ite) << endl;
+            }
+        }
+    }
+    partfile.close();
+
+    instance_logger.log("Egonet calculation complete", "info");
 }
