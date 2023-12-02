@@ -98,6 +98,7 @@ static void initiate_train_command(int connFd, bool *loop_exit_p);
 static void initiate_predict_command(int connFd, instanceservicesessionargs *sessionargs, bool *loop_exit_p);
 static void initiate_model_collection_command(int connFd, bool *loop_exit_p);
 static void initiate_fragment_resolution_command(int connFd, bool *loop_exit_p);
+static void check_file_accessible_command(int connFd, bool *loop_exit_p);
 
 char *converter(const std::string &s) {
     char *pc = new char[s.size() + 1];
@@ -224,67 +225,7 @@ void *instanceservicesession(void *dummyPt) {
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_FRAGMENT_RESOLUTION) == 0) {
             initiate_fragment_resolution_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::CHECK_FILE_ACCESSIBLE) == 0) {
-            write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_TYPE.c_str(),
-                  JasmineGraphInstanceProtocol::SEND_FILE_TYPE.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_TYPE, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string fileType = (data);
-            fileType = Utils::trim_copy(fileType, " \f\n\r\t\v");
-
-            if (fileType.compare(JasmineGraphInstanceProtocol::FILE_TYPE_CENTRALSTORE_AGGREGATE) == 0) {
-                write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-                instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-                bzero(data, INSTANCE_DATA_LENGTH + 1);
-                read(connFd, data, INSTANCE_DATA_LENGTH);
-                string graphId = (data);
-                graphId = Utils::trim_copy(graphId, " \f\n\r\t\v");
-                instance_logger.log("Received Graph ID: " + graphId, "info");
-
-                write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-                bzero(data, INSTANCE_DATA_LENGTH + 1);
-                read(connFd, data, INSTANCE_DATA_LENGTH);
-                string partitionId = (data);
-                partitionId = Utils::trim_copy(partitionId, " \f\n\r\t\v");
-                instance_logger.log("Received Partition ID: " + partitionId, "info");
-
-                string aggregateLocation =
-                    Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
-                string fileName = graphId + "_centralstore_" + partitionId;
-                string fullFilePath = aggregateLocation + "/" + fileName;
-                string result = "false";
-
-                bool fileExists = Utils::fileExists(fullFilePath);
-
-                if (fileExists) {
-                    result = "true";
-                }
-
-                write(connFd, result.c_str(), result.size());
-                instance_logger.log("Sent : " + result, "info");
-            } else if (fileType.compare(JasmineGraphInstanceProtocol::FILE_TYPE_CENTRALSTORE_COMPOSITE) == 0) {
-                write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-                instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-                bzero(data, INSTANCE_DATA_LENGTH + 1);
-                read(connFd, data, INSTANCE_DATA_LENGTH);
-                string fileName = (data);
-                fileName = Utils::trim_copy(fileName, " \f\n\r\t\v");
-                instance_logger.log("Received File name: " + fileName, "info");
-
-                string aggregateLocation =
-                    Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
-                string fullFilePath = aggregateLocation + "/" + fileName;
-                string result = "false";
-
-                bool fileExists = Utils::fileExists(fullFilePath);
-
-                if (fileExists) {
-                    result = "true";
-                }
-
-                write(connFd, result.c_str(), result.size());
-                instance_logger.log("Sent : " + result, "info");
-            }
+            check_file_accessible_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::GRAPH_STREAM_START) == 0) {
             write(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK.c_str(),
                   JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK.size());
@@ -5293,4 +5234,98 @@ static void initiate_fragment_resolution_command(int connFd, bool *loop_exit_p) 
         return;
     }
     instance_logger.log("Sent : " + graphIDList, "info");
+}
+
+static void check_file_accessible_command(int connFd, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_TYPE.c_str(),
+                          JasmineGraphInstanceProtocol::SEND_FILE_TYPE.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_TYPE, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string fileType = (data);
+    fileType = Utils::trim_copy(fileType, " \f\n\r\t\v");
+
+    if (fileType.compare(JasmineGraphInstanceProtocol::FILE_TYPE_CENTRALSTORE_AGGREGATE) == 0) {
+        result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+        if (result_wr < 0) {
+            instance_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+        bzero(data, INSTANCE_DATA_LENGTH + 1);
+        read(connFd, data, INSTANCE_DATA_LENGTH);
+        string graphId = (data);
+        graphId = Utils::trim_copy(graphId, " \f\n\r\t\v");
+        instance_logger.log("Received Graph ID: " + graphId, "info");
+
+        result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+        if (result_wr < 0) {
+            instance_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        bzero(data, INSTANCE_DATA_LENGTH + 1);
+        read(connFd, data, INSTANCE_DATA_LENGTH);
+        string partitionId = (data);
+        partitionId = Utils::trim_copy(partitionId, " \f\n\r\t\v");
+        instance_logger.log("Received Partition ID: " + partitionId, "info");
+
+        string aggregateLocation = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
+        string fileName = graphId + "_centralstore_" + partitionId;
+        string fullFilePath = aggregateLocation + "/" + fileName;
+        string result = "false";
+
+        bool fileExists = Utils::fileExists(fullFilePath);
+
+        if (fileExists) {
+            result = "true";
+        }
+
+        result_wr = write(connFd, result.c_str(), result.size());
+        if (result_wr < 0) {
+            instance_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        instance_logger.log("Sent : " + result, "info");
+    } else if (fileType.compare(JasmineGraphInstanceProtocol::FILE_TYPE_CENTRALSTORE_COMPOSITE) == 0) {
+        result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+        if (result_wr < 0) {
+            instance_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+        bzero(data, INSTANCE_DATA_LENGTH + 1);
+        read(connFd, data, INSTANCE_DATA_LENGTH);
+        string fileName = (data);
+        fileName = Utils::trim_copy(fileName, " \f\n\r\t\v");
+        instance_logger.log("Received File name: " + fileName, "info");
+
+        string aggregateLocation = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
+        string fullFilePath = aggregateLocation + "/" + fileName;
+        string result = "false";
+
+        bool fileExists = Utils::fileExists(fullFilePath);
+
+        if (fileExists) {
+            result = "true";
+        }
+
+        result_wr = write(connFd, result.c_str(), result.size());
+        if (result_wr < 0) {
+            instance_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        instance_logger.log("Sent : " + result, "info");
+    }
 }
