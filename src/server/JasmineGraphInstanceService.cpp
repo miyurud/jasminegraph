@@ -4850,13 +4850,6 @@ static void aggregate_centralstore_triangles_command(int connFd, bool *loop_exit
     instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
 
     char data[INSTANCE_DATA_LENGTH + 1];
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
-        *loop_exit_p = true;
-        return;
-    }
-    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
     bzero(data, INSTANCE_DATA_LENGTH + 1);
     read(connFd, data, INSTANCE_DATA_LENGTH);
     string graphId = (data);
