@@ -88,6 +88,7 @@ static void performance_statistics_command(int connFd, bool *loop_exit_p);
 static void initiate_files_command(int connFd, bool *loop_exit_p);
 static void initiate_fed_predict_command(int connFd, bool *loop_exit_p);
 static void initiate_server_command(int connFd, bool *loop_exit_p);
+static void initiate_org_server_command(int connFd, bool *loop_exit_p);
 
 char *converter(const std::string &s) {
     char *pc = new char[s.size() + 1];
@@ -194,27 +195,7 @@ void *instanceservicesession(void *dummyPt) {
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_SERVER) == 0) {
             initiate_server_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_ORG_SERVER) == 0) {
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string trainData(data);
-
-            std::vector<std::string> trainargs = Utils::split(trainData, ' ');
-
-            string graphID;
-            string partitionID = trainargs[trainargs.size() - 1];
-
-            for (int i = 0; i < trainargs.size(); i++) {
-                if (trainargs[i] == "--graph_id") {
-                    graphID = trainargs[i + 1];
-                    break;
-                }
-            }
-
-            std::thread workerThread = std::thread(&JasmineGraphInstanceService::initOrgServer, trainData);
-            workerThread.join();
-
+            initiate_org_server_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_AGG) == 0) {
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
@@ -5118,5 +5099,35 @@ static void initiate_server_command(int connFd, bool *loop_exit_p) {
     }
 
     std::thread workerThread = std::thread(&JasmineGraphInstanceService::initServer, trainData);
+    workerThread.join();
+}
+
+static void initiate_org_server_command(int connFd, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string trainData(data);
+
+    std::vector<std::string> trainargs = Utils::split(trainData, ' ');
+
+    string graphID;
+    string partitionID = trainargs[trainargs.size() - 1];
+
+    for (int i = 0; i < trainargs.size(); i++) {
+        if (trainargs[i] == "--graph_id") {
+            graphID = trainargs[i + 1];
+            break;
+        }
+    }
+
+    std::thread workerThread = std::thread(&JasmineGraphInstanceService::initOrgServer, trainData);
     workerThread.join();
 }
