@@ -233,6 +233,9 @@ void *instanceservicesession(void *dummyPt) {
             graph_stream_start_command(connFd, incrementalLocalStoreMap, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::SEND_PRIORITY) == 0) {
             send_priority_command(connFd, &loop_exit);
+        } else {
+            instance_logger.error("Invalid command");
+            loop_exit = true;
         }
     }
     instance_logger.log("Closing thread " + to_string(pthread_self()), "info");
