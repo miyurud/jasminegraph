@@ -3608,7 +3608,7 @@ static void worker_in_degree_distribution_command(
     }
     instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
 
-    bzero(data, INSTANCE_DATA_LENGTH);
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
     read(connFd, data, INSTANCE_DATA_LENGTH);
     string workerList = (data);
     workerList = Utils::trim_copy(workerList, " \f\n\r\t\v");
@@ -4953,7 +4953,7 @@ static void initiate_files_command(int connFd, bool *loop_exit_p) {
     instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
 
     char data[INSTANCE_DATA_LENGTH + 1];
-    bzero(data, INSTANCE_DATA_LENGTH);
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
     read(connFd, data, INSTANCE_DATA_LENGTH);
     string trainData(data);
 
@@ -4989,7 +4989,7 @@ static void initiate_fed_predict_command(int connFd, bool *loop_exit_p) {
     instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
 
     char data[INSTANCE_DATA_LENGTH + 1];
-    bzero(data, INSTANCE_DATA_LENGTH);
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
     read(connFd, data, INSTANCE_DATA_LENGTH);
     string trainData(data);
 
@@ -5025,7 +5025,7 @@ static void initiate_server_command(int connFd, bool *loop_exit_p) {
     instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
 
     char data[INSTANCE_DATA_LENGTH + 1];
-    bzero(data, INSTANCE_DATA_LENGTH);
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
     read(connFd, data, INSTANCE_DATA_LENGTH);
     string trainData(data);
 
@@ -5055,7 +5055,7 @@ static void initiate_org_server_command(int connFd, bool *loop_exit_p) {
     instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
 
     char data[INSTANCE_DATA_LENGTH + 1];
-    bzero(data, INSTANCE_DATA_LENGTH);
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
     read(connFd, data, INSTANCE_DATA_LENGTH);
     string trainData(data);
 
@@ -5085,7 +5085,7 @@ static void initiate_aggregator_command(int connFd, bool *loop_exit_p) {
     instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
 
     char data[INSTANCE_DATA_LENGTH + 1];
-    bzero(data, INSTANCE_DATA_LENGTH);
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
     read(connFd, data, INSTANCE_DATA_LENGTH);
     string trainData(data);
 
@@ -5115,7 +5115,7 @@ static void initiate_client_command(int connFd, bool *loop_exit_p) {
     instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
 
     char data[INSTANCE_DATA_LENGTH + 1];
-    bzero(data, INSTANCE_DATA_LENGTH);
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
     read(connFd, data, INSTANCE_DATA_LENGTH);
     string trainData(data);
 
