@@ -93,6 +93,7 @@ static void initiate_aggregator_command(int connFd, bool *loop_exit_p);
 static void initiate_client_command(int connFd, bool *loop_exit_p);
 static void initiate_merge_files_command(int connFd, bool *loop_exit_p);
 static inline void start_stat_collection_command(int connFd, bool *collectValid_p, bool *loop_exit_p);
+static void request_collected_stats_command(int connFd, bool *collectValid_p, bool *loop_exit_p);
 
 char *converter(const std::string &s) {
     char *pc = new char[s.size() + 1];
@@ -209,44 +210,7 @@ void *instanceservicesession(void *dummyPt) {
         } else if (line.compare(JasmineGraphInstanceProtocol::START_STAT_COLLECTION) == 0) {
             start_stat_collection_command(connFd, &collectValid, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::REQUEST_COLLECTED_STATS) == 0) {
-            collectValid = false;
-            std::string loadAverageString;
-
-            std::vector<std::string>::iterator loadVectorIterator;
-
-            for (loadVectorIterator = loadAverageVector.begin(); loadVectorIterator != loadAverageVector.end();
-                 ++loadVectorIterator) {
-                std::string tempLoadAverage = *loadVectorIterator;
-                loadAverageString = loadAverageString + "," + tempLoadAverage;
-            }
-            loadAverageVector.clear();
-
-            loadAverageString = loadAverageString.substr(1, loadAverageString.length() - 1);
-
-            std::vector<std::string> chunksVector;
-
-            for (unsigned i = 0; i < loadAverageString.length(); i += INSTANCE_DATA_LENGTH - 10) {
-                std::string chunk = loadAverageString.substr(i, INSTANCE_DATA_LENGTH - 10);
-                if (i + INSTANCE_DATA_LENGTH - 10 < loadAverageString.length()) {
-                    chunk += "/SEND";
-                } else {
-                    chunk += "/CMPT";
-                }
-                chunksVector.push_back(chunk);
-            }
-
-            for (int loopCount = 0; loopCount < chunksVector.size(); loopCount++) {
-                if (loopCount == 0) {
-                    std::string chunk = chunksVector.at(loopCount);
-                    write(connFd, chunk.c_str(), chunk.size());
-                } else {
-                    bzero(data, INSTANCE_DATA_LENGTH + 1);
-                    read(connFd, data, INSTANCE_DATA_LENGTH);
-                    string chunkStatus = (data);
-                    std::string chunk = chunksVector.at(loopCount);
-                    write(connFd, chunk.c_str(), chunk.size());
-                }
-            }
+            request_collected_stats_command(connFd, &collectValid, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_TRAIN) == 0) {
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
@@ -5172,4 +5136,51 @@ static inline void start_stat_collection_command(int connFd, bool *collectValid_
     }
     *collectValid_p = true;
     JasmineGraphInstanceService::startCollectingLoadAverage();
+}
+
+static void request_collected_stats_command(int connFd, bool *collectValid_p, bool *loop_exit_p) {
+    collectValid = false;
+    std::string loadAverageString;
+
+    std::vector<std::string>::iterator loadVectorIterator;
+
+    for (loadVectorIterator = loadAverageVector.begin(); loadVectorIterator != loadAverageVector.end();
+         ++loadVectorIterator) {
+        std::string tempLoadAverage = *loadVectorIterator;
+        loadAverageString = loadAverageString + "," + tempLoadAverage;
+    }
+    loadAverageVector.clear();
+
+    loadAverageString = loadAverageString.substr(1, loadAverageString.length() - 1);
+
+    std::vector<std::string> chunksVector;
+
+    for (unsigned i = 0; i < loadAverageString.length(); i += INSTANCE_DATA_LENGTH - 10) {
+        std::string chunk = loadAverageString.substr(i, INSTANCE_DATA_LENGTH - 10);
+        if (i + INSTANCE_DATA_LENGTH - 10 < loadAverageString.length()) {
+            chunk += "/SEND";
+        } else {
+            chunk += "/CMPT";
+        }
+        chunksVector.push_back(chunk);
+    }
+
+    for (int loopCount = 0; loopCount < chunksVector.size(); loopCount++) {
+        std::string chunk;
+        if (loopCount == 0) {
+            chunk = chunksVector.at(loopCount);
+        } else {
+            char data[INSTANCE_DATA_LENGTH + 1];
+            bzero(data, INSTANCE_DATA_LENGTH + 1);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string chunkStatus = (data);
+            chunk = chunksVector.at(loopCount);
+        }
+        int result_wr = write(connFd, chunk.c_str(), chunk.size());
+        if (result_wr < 0) {
+            instance_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+    }
 }
