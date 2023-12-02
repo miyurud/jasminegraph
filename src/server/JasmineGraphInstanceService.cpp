@@ -85,6 +85,7 @@ static void send_composite_centralstore_to_aggregator_command(int connFd, bool *
 static void aggregate_centralstore_triangles_command(int connFd, bool *loop_exit_p);
 static void aggregate_composite_centralstore_triangles_command(int connFd, bool *loop_exit_p);
 static void performance_statistics_command(int connFd, bool *loop_exit_p);
+static void initiate_files_command(int connFd, bool *loop_exit_p);
 
 char *converter(const std::string &s) {
     char *pc = new char[s.size() + 1];
@@ -185,34 +186,7 @@ void *instanceservicesession(void *dummyPt) {
         } else if (line.compare(JasmineGraphInstanceProtocol::PERFORMANCE_STATISTICS) == 0) {
             performance_statistics_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_FILES) == 0) {
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string trainData(data);
-
-            std::vector<std::string> trainargs = Utils::split(trainData, ' ');
-
-            string graphID;
-            string partitionID = trainargs[trainargs.size() - 1];
-
-            for (int i = 0; i < trainargs.size(); i++) {
-                if (trainargs[i] == "--graph_id") {
-                    graphID = trainargs[i + 1];
-                    break;
-                }
-            }
-
-            std::thread *workerThreads = new std::thread[2];
-            workerThreads[0] =
-                std::thread(&JasmineGraphInstanceService::createPartitionFiles, graphID, partitionID, "local");
-            workerThreads[1] =
-                std::thread(&JasmineGraphInstanceService::createPartitionFiles, graphID, partitionID, "centralstore");
-
-            for (int threadCount = 0; threadCount < 2; threadCount++) {
-                workerThreads[threadCount].join();
-            }
-
+            initiate_files_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_FED_PREDICT) == 0) {
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
@@ -5086,5 +5060,41 @@ static void performance_statistics_command(int connFd, bool *loop_exit_p) {
         instance_logger.error("Error writing to socket");
         *loop_exit_p = true;
         return;
+    }
+}
+
+static void initiate_files_command(int connFd, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string trainData(data);
+
+    std::vector<std::string> trainargs = Utils::split(trainData, ' ');
+
+    string graphID;
+    string partitionID = trainargs[trainargs.size() - 1];
+
+    for (int i = 0; i < trainargs.size(); i++) {
+        if (trainargs[i] == "--graph_id") {
+            graphID = trainargs[i + 1];
+            break;
+        }
+    }
+
+    std::thread *workerThreads = new std::thread[2];
+    workerThreads[0] = std::thread(&JasmineGraphInstanceService::createPartitionFiles, graphID, partitionID, "local");
+    workerThreads[1] =
+        std::thread(&JasmineGraphInstanceService::createPartitionFiles, graphID, partitionID, "centralstore");
+
+    for (int threadCount = 0; threadCount < 2; threadCount++) {
+        workerThreads[threadCount].join();
     }
 }
