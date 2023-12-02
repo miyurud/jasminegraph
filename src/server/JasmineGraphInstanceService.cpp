@@ -94,6 +94,7 @@ static void initiate_client_command(int connFd, bool *loop_exit_p);
 static void initiate_merge_files_command(int connFd, bool *loop_exit_p);
 static inline void start_stat_collection_command(int connFd, bool *collectValid_p, bool *loop_exit_p);
 static void request_collected_stats_command(int connFd, bool *collectValid_p, bool *loop_exit_p);
+static void initiate_train_command(int connFd, bool *loop_exit_p);
 
 char *converter(const std::string &s) {
     char *pc = new char[s.size() + 1];
@@ -212,56 +213,7 @@ void *instanceservicesession(void *dummyPt) {
         } else if (line.compare(JasmineGraphInstanceProtocol::REQUEST_COLLECTED_STATS) == 0) {
             request_collected_stats_command(connFd, &collectValid, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_TRAIN) == 0) {
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string trainData(data);
-
-            std::vector<std::string> trainargs = Utils::split(trainData, ' ');
-
-            string graphID;
-            string partitionID = trainargs[trainargs.size() - 1];
-
-            for (int i = 0; i < trainargs.size(); i++) {
-                if (trainargs[i] == "--graph_id") {
-                    graphID = trainargs[i + 1];
-                    break;
-                }
-            }
-
-            std::thread *workerThreads = new std::thread[2];
-            workerThreads[0] =
-                std::thread(&JasmineGraphInstanceService::createPartitionFiles, graphID, partitionID, "local");
-            workerThreads[1] =
-                std::thread(&JasmineGraphInstanceService::createPartitionFiles, graphID, partitionID, "centralstore");
-
-            workerThreads[0].join();
-            instance_logger.log("WorkerThread 0 joined", "info");
-
-            workerThreads[1].join();
-            instance_logger.log("WorkerThread 1 joined", "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::SEND_PARTITION_ITERATION.c_str(),
-                  JasmineGraphInstanceProtocol::SEND_PARTITION_ITERATION.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_PARTITION_ITERATION, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string partIteration(data);
-
-            write(connFd, JasmineGraphInstanceProtocol::SEND_PARTITION_COUNT.c_str(),
-                  JasmineGraphInstanceProtocol::SEND_PARTITION_ITERATION.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_PARTITION_COUNT, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string partCount(data);
-
-            instance_logger.log("Received partition iteration - " + partIteration, "info");
-            JasmineGraphInstanceService::collectExecutionData(partIteration, trainData, partCount);
-            instance_logger.log("After calling collector ", "info");
-
+            initiate_train_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_PREDICT) == 0) {
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
@@ -5183,4 +5135,72 @@ static void request_collected_stats_command(int connFd, bool *collectValid_p, bo
             return;
         }
     }
+}
+
+static void initiate_train_command(int connFd, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string trainData(data);
+
+    std::vector<std::string> trainargs = Utils::split(trainData, ' ');
+
+    string graphID;
+    string partitionID = trainargs[trainargs.size() - 1];
+
+    for (int i = 0; i < trainargs.size(); i++) {
+        if (trainargs[i] == "--graph_id") {
+            graphID = trainargs[i + 1];
+            break;
+        }
+    }
+
+    std::thread *workerThreads = new std::thread[2];
+    workerThreads[0] = std::thread(&JasmineGraphInstanceService::createPartitionFiles, graphID, partitionID, "local");
+    workerThreads[1] =
+        std::thread(&JasmineGraphInstanceService::createPartitionFiles, graphID, partitionID, "centralstore");
+
+    workerThreads[0].join();
+    instance_logger.log("WorkerThread 0 joined", "info");
+
+    workerThreads[1].join();
+    instance_logger.log("WorkerThread 1 joined", "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_PARTITION_ITERATION.c_str(),
+                      JasmineGraphInstanceProtocol::SEND_PARTITION_ITERATION.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_PARTITION_ITERATION, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string partIteration(data);
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_PARTITION_COUNT.c_str(),
+                      JasmineGraphInstanceProtocol::SEND_PARTITION_ITERATION.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_PARTITION_COUNT, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string partCount(data);
+
+    instance_logger.log("Received partition iteration - " + partIteration, "info");
+    JasmineGraphInstanceService::collectExecutionData(partIteration, trainData, partCount);
+    instance_logger.log("After calling collector ", "info");
 }
