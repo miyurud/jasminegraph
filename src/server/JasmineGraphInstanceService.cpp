@@ -84,6 +84,7 @@ static void send_centralstore_to_aggregator_command(int connFd, bool *loop_exit_
 static void send_composite_centralstore_to_aggregator_command(int connFd, bool *loop_exit_p);
 static void aggregate_centralstore_triangles_command(int connFd, bool *loop_exit_p);
 static void aggregate_composite_centralstore_triangles_command(int connFd, bool *loop_exit_p);
+static void performance_statistics_command(int connFd, bool *loop_exit_p);
 
 char *converter(const std::string &s) {
     char *pc = new char[s.size() + 1];
@@ -182,23 +183,7 @@ void *instanceservicesession(void *dummyPt) {
         } else if (line.compare(JasmineGraphInstanceProtocol::AGGREGATE_COMPOSITE_CENTRALSTORE_TRIANGLES) == 0) {
             aggregate_composite_centralstore_triangles_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::PERFORMANCE_STATISTICS) == 0) {
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string isVMStatManager = (data);
-            isVMStatManager = Utils::trim_copy(isVMStatManager, " \f\n\r\t\v");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string isResourceAllocationRequired = (data);
-            isResourceAllocationRequired = Utils::trim_copy(isResourceAllocationRequired, " \f\n\r\t\v");
-
-            std::string memoryUsage = JasmineGraphInstanceService::requestPerformanceStatistics(
-                isVMStatManager, isResourceAllocationRequired);
-            write(connFd, memoryUsage.c_str(), memoryUsage.size());
+            performance_statistics_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_FILES) == 0) {
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
@@ -5064,5 +5049,42 @@ static void aggregate_composite_centralstore_triangles_command(int connFd, bool 
                 *loop_exit_p = true;
             }
         }
+    }
+}
+
+static void performance_statistics_command(int connFd, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string isVMStatManager = (data);
+    isVMStatManager = Utils::trim_copy(isVMStatManager, " \f\n\r\t\v");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string isResourceAllocationRequired = (data);
+    isResourceAllocationRequired = Utils::trim_copy(isResourceAllocationRequired, " \f\n\r\t\v");
+
+    std::string memoryUsage =
+        JasmineGraphInstanceService::requestPerformanceStatistics(isVMStatManager, isResourceAllocationRequired);
+    result_wr = write(connFd, memoryUsage.c_str(), memoryUsage.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
     }
 }
