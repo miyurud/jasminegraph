@@ -99,6 +99,8 @@ static void initiate_predict_command(int connFd, instanceservicesessionargs *ses
 static void initiate_model_collection_command(int connFd, bool *loop_exit_p);
 static void initiate_fragment_resolution_command(int connFd, bool *loop_exit_p);
 static void check_file_accessible_command(int connFd, bool *loop_exit_p);
+static void graph_stream_start_command(
+    int connFd, std::map<std::string, JasmineGraphIncrementalLocalStore *> incrementalLocalStoreMap, bool *loop_exit_p);
 
 char *converter(const std::string &s) {
     char *pc = new char[s.size() + 1];
@@ -227,48 +229,7 @@ void *instanceservicesession(void *dummyPt) {
         } else if (line.compare(JasmineGraphInstanceProtocol::CHECK_FILE_ACCESSIBLE) == 0) {
             check_file_accessible_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::GRAPH_STREAM_START) == 0) {
-            write(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK.c_str(),
-                  JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK, "info");
-
-            int content_length;
-            instance_logger.log("Waiting for edge content length", "info");
-            auto return_status = read(connFd, &content_length, sizeof(4));
-            if (return_status > 0) {
-                content_length = ntohl(content_length);
-                instance_logger.log("Received content_length = " + std::to_string(content_length), "info");
-            } else {
-                instance_logger.log("Error while reading content length", "error");
-            }
-            std::string nodeString(content_length, 0);
-            send(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.c_str(),
-                 JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.size(), 0);
-            instance_logger.log("Acked for content length", "info");
-
-            instance_logger.log("Waiting for edge data", "info");
-            return_status = read(connFd, &nodeString[0], content_length);
-            if (return_status > 0) {
-                instance_logger.log("Received edge data = " + nodeString, "info");
-            } else {
-                instance_logger.log("Error while reading content length", "error");
-            }
-
-            auto graphIdPartitionId = JasmineGraphIncrementalLocalStore::getIDs(nodeString);
-            std::string graphId = graphIdPartitionId.first;
-            std::string partitionId = std::to_string(graphIdPartitionId.second);
-            std::string graphIdentifier = graphId + "_" + partitionId;
-            JasmineGraphIncrementalLocalStore *incrementalLocalStoreInstance;
-
-            if (incrementalLocalStoreMap.find(graphIdentifier) == incrementalLocalStoreMap.end()) {
-                incrementalLocalStoreInstance =
-                    JasmineGraphInstanceService::loadStreamingStore(graphId, partitionId, incrementalLocalStoreMap);
-            } else {
-                incrementalLocalStoreInstance = incrementalLocalStoreMap[graphIdentifier];
-            }
-            incrementalLocalStoreInstance->addEdgeFromString(nodeString);
-            send(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_END_OF_EDGE.c_str(),
-                 JasmineGraphInstanceProtocol::GRAPH_STREAM_END_OF_EDGE.size(), 0);
-            instance_logger.log("Sent CRLF string to mark the end", "info");
+            graph_stream_start_command(connFd, incrementalLocalStoreMap, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::SEND_PRIORITY) == 0) {
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
@@ -5328,4 +5289,70 @@ static void check_file_accessible_command(int connFd, bool *loop_exit_p) {
         }
         instance_logger.log("Sent : " + result, "info");
     }
+}
+
+static void graph_stream_start_command(
+    int connFd, std::map<std::string, JasmineGraphIncrementalLocalStore *> incrementalLocalStoreMap,
+    bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK.c_str(),
+                          JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK, "info");
+
+    int content_length;
+    instance_logger.log("Waiting for edge content length", "info");
+    auto return_status = read(connFd, &content_length, sizeof(4));
+    if (return_status > 0) {
+        content_length = ntohl(content_length);
+        instance_logger.log("Received content_length = " + std::to_string(content_length), "info");
+    } else {
+        instance_logger.log("Error while reading content length", "error");
+        *loop_exit_p = true;
+        return;
+    }
+    std::string nodeString(content_length, 0);
+    result_wr = send(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.c_str(),
+                     JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.size(), 0);
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Acked for content length", "info");
+
+    instance_logger.log("Waiting for edge data", "info");
+    return_status = read(connFd, &nodeString[0], content_length);
+    if (return_status > 0) {
+        instance_logger.log("Received edge data = " + nodeString, "info");
+    } else {
+        instance_logger.log("Error while reading content length", "error");
+        *loop_exit_p = true;
+        return;
+    }
+
+    auto graphIdPartitionId = JasmineGraphIncrementalLocalStore::getIDs(nodeString);
+    std::string graphId = graphIdPartitionId.first;
+    std::string partitionId = std::to_string(graphIdPartitionId.second);
+    std::string graphIdentifier = graphId + "_" + partitionId;
+    JasmineGraphIncrementalLocalStore *incrementalLocalStoreInstance;
+
+    if (incrementalLocalStoreMap.find(graphIdentifier) == incrementalLocalStoreMap.end()) {
+        incrementalLocalStoreInstance =
+            JasmineGraphInstanceService::loadStreamingStore(graphId, partitionId, incrementalLocalStoreMap);
+    } else {
+        incrementalLocalStoreInstance = incrementalLocalStoreMap[graphIdentifier];
+    }
+    incrementalLocalStoreInstance->addEdgeFromString(nodeString);
+    result_wr = send(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_END_OF_EDGE.c_str(),
+                     JasmineGraphInstanceProtocol::GRAPH_STREAM_END_OF_EDGE.size(), 0);
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent CRLF string to mark the end", "info");
 }
