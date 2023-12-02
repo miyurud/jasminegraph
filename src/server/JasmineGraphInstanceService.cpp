@@ -97,6 +97,7 @@ static void request_collected_stats_command(int connFd, bool *collectValid_p, bo
 static void initiate_train_command(int connFd, bool *loop_exit_p);
 static void initiate_predict_command(int connFd, instanceservicesessionargs *sessionargs, bool *loop_exit_p);
 static void initiate_model_collection_command(int connFd, bool *loop_exit_p);
+static void initiate_fragment_resolution_command(int connFd, bool *loop_exit_p);
 
 char *converter(const std::string &s) {
     char *pc = new char[s.size() + 1];
@@ -221,95 +222,7 @@ void *instanceservicesession(void *dummyPt) {
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_MODEL_COLLECTION) == 0) {
             initiate_model_collection_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_FRAGMENT_RESOLUTION) == 0) {
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string listOfPartitions = (data);
-            listOfPartitions = Utils::trim_copy(listOfPartitions, " \f\n\r\t\v");
-            instance_logger.log("Received ===>: " + listOfPartitions, "info");
-            std::stringstream ss;
-            ss << listOfPartitions;
-            while (true) {
-                write(connFd, JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_CHK.c_str(),
-                      JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_CHK.size());
-                instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_CHK, "info");
-
-                bzero(data, INSTANCE_DATA_LENGTH + 1);
-                read(connFd, data, INSTANCE_DATA_LENGTH);
-                string listOfPartitions = (data);
-
-                if (listOfPartitions.compare(JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_DONE) == 0) {
-                    break;
-                } else {
-                    instance_logger.log("Received ===>: " + listOfPartitions, "info");
-                    ss << listOfPartitions;
-                }
-            }
-            std::vector<std::string> partitions = Utils::split(ss.str(), ',');
-            std::vector<std::string> graphIDs;
-            for (std::vector<string>::iterator x = partitions.begin(); x != partitions.end(); ++x) {
-                string graphID = x->substr(0, x->find_first_of("_"));
-                graphIDs.push_back(graphID);
-            }
-
-            string dataFolder = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
-            std::vector<string> listOfFiles = Utils::getListOfFilesInDirectory(dataFolder);
-
-            std::vector<std::string> graphIDsFromFileSystem;
-            for (std::vector<string>::iterator x = listOfFiles.begin(); x != listOfFiles.end(); ++x) {
-                string graphID = x->substr(0, x->find_first_of("_"));
-                graphIDsFromFileSystem.push_back(graphID);
-            }
-
-            std::vector<string> notInGraphIDList;
-
-            for (std::vector<std::string>::iterator it = graphIDsFromFileSystem.begin();
-                 it != graphIDsFromFileSystem.end(); it++) {
-                bool found = false;
-                for (std::vector<std::string>::iterator itRemoteID = graphIDs.begin(); itRemoteID != graphIDs.end();
-                     itRemoteID++) {
-                    if (it->compare(itRemoteID->c_str()) == 0) {
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
-                    notInGraphIDList.push_back(it->c_str());
-                }
-            }
-
-            string notInItemsString = "";
-            std::vector<int> notInItemsList;
-            for (std::vector<string>::iterator it = notInGraphIDList.begin(); it != notInGraphIDList.end(); it++) {
-                if (isdigit(it->c_str()[0])) {
-                    bool found = false;
-                    for (std::vector<int>::iterator it2 = notInItemsList.begin(); it2 != notInItemsList.end(); it2++) {
-                        if (atoi(it->c_str()) == *it2) {
-                            found = true;
-                            break;
-                        }
-                    }
-                    if (!found) {
-                        notInItemsList.push_back(stoi(it->c_str()));
-                    }
-                }
-            }
-
-            bool firstFlag = true;
-            for (std::vector<int>::iterator it = notInItemsList.begin(); it != notInItemsList.end(); it++) {
-                int x = *it;
-                if (firstFlag) {
-                    notInItemsString = std::to_string(x);
-                    firstFlag = false;
-                } else {
-                    notInItemsString = notInItemsString + "," + std::to_string(x);
-                };
-            }
-
-            string graphIDList = notInItemsString;
-            write(connFd, graphIDList.c_str(), graphIDList.size());
-            instance_logger.log("Sent : " + graphIDList, "info");
+            initiate_fragment_resolution_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::CHECK_FILE_ACCESSIBLE) == 0) {
             write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_TYPE.c_str(),
                   JasmineGraphInstanceProtocol::SEND_FILE_TYPE.size());
@@ -5271,4 +5184,113 @@ static void initiate_model_collection_command(int connFd, bool *loop_exit_p) {
         }
     }
     *loop_exit_p = true;
+}
+
+static void initiate_fragment_resolution_command(int connFd, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string listOfPartitions = (data);
+    listOfPartitions = Utils::trim_copy(listOfPartitions, " \f\n\r\t\v");
+    instance_logger.log("Received ===>: " + listOfPartitions, "info");
+    std::stringstream ss;
+    ss << listOfPartitions;
+    while (true) {
+        result_wr = write(connFd, JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_CHK.c_str(),
+                          JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_CHK.size());
+        if (result_wr < 0) {
+            instance_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_CHK, "info");
+
+        bzero(data, INSTANCE_DATA_LENGTH + 1);
+        read(connFd, data, INSTANCE_DATA_LENGTH);
+        string listOfPartitions = (data);
+
+        if (listOfPartitions.compare(JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_DONE) == 0) {
+            break;
+        } else {
+            instance_logger.log("Received ===>: " + listOfPartitions, "info");
+            ss << listOfPartitions;
+        }
+    }
+    std::vector<std::string> partitions = Utils::split(ss.str(), ',');
+    std::vector<std::string> graphIDs;
+    for (std::vector<string>::iterator x = partitions.begin(); x != partitions.end(); ++x) {
+        string graphID = x->substr(0, x->find_first_of("_"));
+        graphIDs.push_back(graphID);
+    }
+
+    string dataFolder = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+    std::vector<string> listOfFiles = Utils::getListOfFilesInDirectory(dataFolder);
+
+    std::vector<std::string> graphIDsFromFileSystem;
+    for (std::vector<string>::iterator x = listOfFiles.begin(); x != listOfFiles.end(); ++x) {
+        string graphID = x->substr(0, x->find_first_of("_"));
+        graphIDsFromFileSystem.push_back(graphID);
+    }
+
+    std::vector<string> notInGraphIDList;
+
+    for (std::vector<std::string>::iterator it = graphIDsFromFileSystem.begin(); it != graphIDsFromFileSystem.end();
+         it++) {
+        bool found = false;
+        for (std::vector<std::string>::iterator itRemoteID = graphIDs.begin(); itRemoteID != graphIDs.end();
+             itRemoteID++) {
+            if (it->compare(itRemoteID->c_str()) == 0) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            notInGraphIDList.push_back(it->c_str());
+        }
+    }
+
+    string notInItemsString = "";
+    std::vector<int> notInItemsList;
+    for (std::vector<string>::iterator it = notInGraphIDList.begin(); it != notInGraphIDList.end(); it++) {
+        if (isdigit(it->c_str()[0])) {
+            bool found = false;
+            for (std::vector<int>::iterator it2 = notInItemsList.begin(); it2 != notInItemsList.end(); it2++) {
+                if (atoi(it->c_str()) == *it2) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                notInItemsList.push_back(stoi(it->c_str()));
+            }
+        }
+    }
+
+    bool firstFlag = true;
+    for (std::vector<int>::iterator it = notInItemsList.begin(); it != notInItemsList.end(); it++) {
+        int x = *it;
+        if (firstFlag) {
+            notInItemsString = std::to_string(x);
+            firstFlag = false;
+        } else {
+            notInItemsString = notInItemsString + "," + std::to_string(x);
+        };
+    }
+
+    string graphIDList = notInItemsString;
+    result_wr = write(connFd, graphIDList.c_str(), graphIDList.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + graphIDList, "info");
 }
