@@ -92,6 +92,7 @@ static void initiate_org_server_command(int connFd, bool *loop_exit_p);
 static void initiate_aggregator_command(int connFd, bool *loop_exit_p);
 static void initiate_client_command(int connFd, bool *loop_exit_p);
 static void initiate_merge_files_command(int connFd, bool *loop_exit_p);
+static inline void start_stat_collection_command(int connFd, bool *collectValid_p, bool *loop_exit_p);
 
 char *converter(const std::string &s) {
     char *pc = new char[s.size() + 1];
@@ -206,10 +207,7 @@ void *instanceservicesession(void *dummyPt) {
         } else if (line.compare(JasmineGraphInstanceProtocol::MERGE_FILES) == 0) {
             initiate_merge_files_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::START_STAT_COLLECTION) == 0) {
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "debug");
-            collectValid = true;
-            JasmineGraphInstanceService::startCollectingLoadAverage();
+            start_stat_collection_command(connFd, &collectValid, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::REQUEST_COLLECTED_STATS) == 0) {
             collectValid = false;
             std::string loadAverageString;
@@ -5163,4 +5161,15 @@ static void initiate_merge_files_command(int connFd, bool *loop_exit_p) {
     }
 
     JasmineGraphInstanceService::mergeFiles(trainData);
+}
+
+static inline void start_stat_collection_command(int connFd, bool *collectValid_p, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    *collectValid_p = true;
+    JasmineGraphInstanceService::startCollectingLoadAverage();
 }
