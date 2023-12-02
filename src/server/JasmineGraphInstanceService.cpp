@@ -82,6 +82,7 @@ static void triangles_command(
     bool *loop_exit_p);
 static void send_centralstore_to_aggregator_command(int connFd, bool *loop_exit_p);
 static void send_composite_centralstore_to_aggregator_command(int connFd, bool *loop_exit_p);
+static void aggregate_centralstore_triangles_command(int connFd, bool *loop_exit_p);
 
 char *converter(const std::string &s) {
     char *pc = new char[s.size() + 1];
@@ -176,82 +177,7 @@ void *instanceservicesession(void *dummyPt) {
         } else if (line.compare(JasmineGraphInstanceProtocol::SEND_COMPOSITE_CENTRALSTORE_TO_AGGREGATOR) == 0) {
             send_composite_centralstore_to_aggregator_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::AGGREGATE_CENTRALSTORE_TRIANGLES) == 0) {
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string graphId = (data);
-            graphId = Utils::trim_copy(graphId, " \f\n\r\t\v");
-            instance_logger.log("Received Graph ID: " + graphId, "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string partitionId = (data);
-            partitionId = Utils::trim_copy(partitionId, " \f\n\r\t\v");
-            instance_logger.log("Received Partition ID: " + partitionId, "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string partitionIdList = (data);
-            partitionIdList = Utils::trim_copy(partitionIdList, " \f\n\r\t\v");
-            instance_logger.log("Received Partition ID List : " + partitionIdList, "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string priority = (data);
-            priority = Utils::trim_copy(priority, " \f\n\r\t\v");
-            instance_logger.log("Received priority: " + priority, "info");
-
-            int threadPriority = std::atoi(priority.c_str());
-
-            if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
-                threadPriorityMutex.lock();
-                workerHighPriorityTaskCount++;
-                highestPriority = threadPriority;
-                threadPriorityMutex.unlock();
-            }
-
-            std::string aggregatedTriangles = JasmineGraphInstanceService::aggregateCentralStoreTriangles(
-                graphId, partitionId, partitionIdList, threadPriority);
-
-            if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
-                threadPriorityMutex.lock();
-                workerHighPriorityTaskCount--;
-
-                if (workerHighPriorityTaskCount == 0) {
-                    highestPriority = Conts::DEFAULT_THREAD_PRIORITY;
-                }
-                threadPriorityMutex.unlock();
-            }
-
-            std::vector<std::string> chunksVector;
-
-            for (unsigned i = 0; i < aggregatedTriangles.length(); i += INSTANCE_DATA_LENGTH - 10) {
-                std::string chunk = aggregatedTriangles.substr(i, INSTANCE_DATA_LENGTH - 10);
-                if (i + INSTANCE_DATA_LENGTH - 10 < aggregatedTriangles.length()) {
-                    chunk += "/SEND";
-                } else {
-                    chunk += "/CMPT";
-                }
-                chunksVector.push_back(chunk);
-            }
-
-            for (int loopCount = 0; loopCount < chunksVector.size(); loopCount++) {
-                if (loopCount == 0) {
-                    std::string chunk = chunksVector.at(loopCount);
-                    write(connFd, chunk.c_str(), chunk.size());
-                } else {
-                    bzero(data, INSTANCE_DATA_LENGTH + 1);
-                    read(connFd, data, INSTANCE_DATA_LENGTH);
-                    string chunkStatus = (data);
-                    std::string chunk = chunksVector.at(loopCount);
-                    write(connFd, chunk.c_str(), chunk.size());
-                }
-            }
-
+            aggregate_centralstore_triangles_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::AGGREGATE_COMPOSITE_CENTRALSTORE_TRIANGLES) == 0) {
             write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
@@ -4994,5 +4920,121 @@ static void send_composite_centralstore_to_aggregator_command(int connFd, bool *
             return;
         }
         instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK, "info");
+    }
+}
+
+static void aggregate_centralstore_triangles_command(int connFd, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string graphId = (data);
+    graphId = Utils::trim_copy(graphId, " \f\n\r\t\v");
+    instance_logger.log("Received Graph ID: " + graphId, "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string partitionId = (data);
+    partitionId = Utils::trim_copy(partitionId, " \f\n\r\t\v");
+    instance_logger.log("Received Partition ID: " + partitionId, "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string partitionIdList = (data);
+    partitionIdList = Utils::trim_copy(partitionIdList, " \f\n\r\t\v");
+    instance_logger.log("Received Partition ID List : " + partitionIdList, "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string priority = (data);
+    priority = Utils::trim_copy(priority, " \f\n\r\t\v");
+    instance_logger.log("Received priority: " + priority, "info");
+
+    int threadPriority = std::atoi(priority.c_str());
+
+    if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
+        threadPriorityMutex.lock();
+        workerHighPriorityTaskCount++;
+        highestPriority = threadPriority;
+        threadPriorityMutex.unlock();
+    }
+
+    std::string aggregatedTriangles = JasmineGraphInstanceService::aggregateCentralStoreTriangles(
+        graphId, partitionId, partitionIdList, threadPriority);
+
+    if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
+        threadPriorityMutex.lock();
+        workerHighPriorityTaskCount--;
+
+        if (workerHighPriorityTaskCount == 0) {
+            highestPriority = Conts::DEFAULT_THREAD_PRIORITY;
+        }
+        threadPriorityMutex.unlock();
+    }
+
+    std::vector<std::string> chunksVector;
+
+    for (unsigned i = 0; i < aggregatedTriangles.length(); i += INSTANCE_DATA_LENGTH - 10) {
+        std::string chunk = aggregatedTriangles.substr(i, INSTANCE_DATA_LENGTH - 10);
+        if (i + INSTANCE_DATA_LENGTH - 10 < aggregatedTriangles.length()) {
+            chunk += "/SEND";
+        } else {
+            chunk += "/CMPT";
+        }
+        chunksVector.push_back(chunk);
+    }
+
+    for (int loopCount = 0; loopCount < chunksVector.size(); loopCount++) {
+        if (loopCount == 0) {
+            std::string chunk = chunksVector.at(loopCount);
+            result_wr = write(connFd, chunk.c_str(), chunk.size());
+            if (result_wr < 0) {
+                instance_logger.error("Error writing to socket");
+                *loop_exit_p = true;
+                return;
+            }
+        } else {
+            bzero(data, INSTANCE_DATA_LENGTH + 1);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string chunkStatus = (data);
+            std::string chunk = chunksVector.at(loopCount);
+            result_wr = write(connFd, chunk.c_str(), chunk.size());
+            if (result_wr < 0) {
+                instance_logger.error("Error writing to socket");
+                *loop_exit_p = true;
+            }
+        }
     }
 }
