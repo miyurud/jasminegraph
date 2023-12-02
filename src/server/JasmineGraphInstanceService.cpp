@@ -101,6 +101,7 @@ static void initiate_fragment_resolution_command(int connFd, bool *loop_exit_p);
 static void check_file_accessible_command(int connFd, bool *loop_exit_p);
 static void graph_stream_start_command(
     int connFd, std::map<std::string, JasmineGraphIncrementalLocalStore *> incrementalLocalStoreMap, bool *loop_exit_p);
+static void send_priority_command(int connFd, bool *loop_exit_p);
 
 char *converter(const std::string &s) {
     char *pc = new char[s.size() + 1];
@@ -231,16 +232,7 @@ void *instanceservicesession(void *dummyPt) {
         } else if (line.compare(JasmineGraphInstanceProtocol::GRAPH_STREAM_START) == 0) {
             graph_stream_start_command(connFd, incrementalLocalStoreMap, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::SEND_PRIORITY) == 0) {
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string priority = (data);
-            priority = Utils::trim_copy(priority, " \f\n\r\t\v");
-            instance_logger.log("Received Priority: " + priority, "info");
-
-            int retrievedPriority = atoi(priority.c_str());
-            highestPriority = retrievedPriority;
+            send_priority_command(connFd, &loop_exit);
         }
     }
     instance_logger.log("Closing thread " + to_string(pthread_self()), "info");
@@ -5355,4 +5347,24 @@ static void graph_stream_start_command(
         return;
     }
     instance_logger.log("Sent CRLF string to mark the end", "info");
+}
+
+static void send_priority_command(int connFd, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string priority = (data);
+    priority = Utils::trim_copy(priority, " \f\n\r\t\v");
+    instance_logger.log("Received Priority: " + priority, "info");
+
+    int retrievedPriority = atoi(priority.c_str());
+    highestPriority = retrievedPriority;
 }
