@@ -114,9 +114,9 @@ print_log() {
         -e 's/ \[logger\]//g' \
         -e 's/ \[info\] / ['$'\033''[32minfo'$'\033''[0m] /g' \
         -e 's/ \[warn\] / ['$'\033''[1;33mwarn'$'\033''[0m] /g' \
-        -e 's/ \[error\] / ['$'\033''[1;31merror'$'\033''[0m] /g' "$1"
+        -e 's/ \[error\] / ['$'\033''[1;31merror'$'\033''[0m] /g' \
         -e 's/ \[INFO\] / ['$'\033''[32mINFO'$'\033''[0m] /g' \
-        -e 's/ \[WARNING\] / ['$'\033''[1;33mWARNING'$'\033''[0m] /g' \
+        -e 's/ \[WARNING\] / ['$'\033''[1;33mWARNING'$'\033''[0m] /g' "$1"
 }
 
 cd "$TEST_ROOT"

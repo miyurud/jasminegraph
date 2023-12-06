@@ -126,7 +126,8 @@ void *instanceservicesession(void *dummyPt) {
     int serverPort = sessionargs->port;
     int serverDataPort = sessionargs->dataPort;
 
-    instance_logger.log("New service session started on thread " + to_string(pthread_self()), "info");
+    instance_logger.log(
+        "New service session started on thread:" + to_string(pthread_self()) + " connFd:" + to_string(connFd), "info");
     collector.init();
 
     Utils::createDirectory(Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder"));
@@ -280,21 +281,12 @@ void JasmineGraphInstanceService::run(string profile, string masterHost, string 
     int connectionCounter = 0;
     pthread_mutex_init(&file_lock, NULL);
     pthread_t threadA[MAX_CONNECTION_COUNT];
-    struct instanceservicesessionargs serviceArguments;
+    struct instanceservicesessionargs threadArgs[MAX_CONNECTION_COUNT];
     std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores;
     std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores;
     std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> graphDBMapDuplicateCentralStores;
     std::map<std::string, JasmineGraphIncrementalLocalStore *> incrementalLocalStore;
 
-    serviceArguments.graphDBMapLocalStores = graphDBMapLocalStores;
-    serviceArguments.graphDBMapCentralStores = graphDBMapCentralStores;
-    serviceArguments.graphDBMapDuplicateCentralStores = graphDBMapDuplicateCentralStores;
-    serviceArguments.incrementalLocalStore = incrementalLocalStore;
-    serviceArguments.profile = profile;
-    serviceArguments.masterHost = masterHost;
-    serviceArguments.port = serverPort;
-    serviceArguments.dataPort = serverDataPort;
-    serviceArguments.host = host;
     // TODO :: What is the maximum number of connections allowed??
     instance_logger.log("Worker listening on port " + to_string(serverPort), "info");
     while (connectionCounter < MAX_CONNECTION_COUNT) {
@@ -304,8 +296,18 @@ void JasmineGraphInstanceService::run(string profile, string masterHost, string 
             instance_logger.log("Cannot accept connection to port " + to_string(serverPort), "error");
         } else {
             instance_logger.log("Connection successful to port " + to_string(serverPort), "info");
-            serviceArguments.connFd = connFd;
-            pthread_create(&threadA[connectionCounter], NULL, instanceservicesession, &serviceArguments);
+            struct instanceservicesessionargs *serviceArguments_p = &(threadArgs[connectionCounter]);
+            serviceArguments_p->graphDBMapLocalStores = graphDBMapLocalStores;
+            serviceArguments_p->graphDBMapCentralStores = graphDBMapCentralStores;
+            serviceArguments_p->graphDBMapDuplicateCentralStores = graphDBMapDuplicateCentralStores;
+            serviceArguments_p->incrementalLocalStore = incrementalLocalStore;
+            serviceArguments_p->profile = profile;
+            serviceArguments_p->masterHost = masterHost;
+            serviceArguments_p->port = serverPort;
+            serviceArguments_p->dataPort = serverDataPort;
+            serviceArguments_p->host = host;
+            serviceArguments_p->connFd = connFd;
+            pthread_create(&threadA[connectionCounter], NULL, instanceservicesession, serviceArguments_p);
             // pthread_detach(threadA[connectionCounter]);
             // pthread_join(threadA[connectionCounter], NULL);
             connectionCounter++;
