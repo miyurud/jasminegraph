@@ -467,7 +467,7 @@ JasmineGraphIncrementalLocalStore *JasmineGraphInstanceService::loadStreamingSto
     instance_logger.log("###INSTANCE### Loading streaming Store for" + graphIdentifier + " : Started", "info");
     std::string folderLocation = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
     JasmineGraphIncrementalLocalStore *jasmineGraphStreamingLocalStore =
-        new JasmineGraphIncrementalLocalStore(atoi(graphId.c_str()), atoi(partitionId.c_str()));
+        new JasmineGraphIncrementalLocalStore(stoi(graphId), stoi(partitionId));
     graphDBMapStreamingStores.insert(std::make_pair(graphIdentifier, jasmineGraphStreamingLocalStore));
     auto sg = graphDBMapStreamingStores.find(graphIdentifier);
     instance_logger.log("###INSTANCE### Loading Local Store : Completed", "info");
@@ -481,7 +481,7 @@ void JasmineGraphInstanceService::loadLocalStore(
     std::string graphIdentifier = graphId + "_" + partitionId;
     std::string folderLocation = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
     JasmineGraphHashMapLocalStore *jasmineGraphHashMapLocalStore =
-        new JasmineGraphHashMapLocalStore(atoi(graphId.c_str()), atoi(partitionId.c_str()), folderLocation);
+        new JasmineGraphHashMapLocalStore(stoi(graphId), stoi(partitionId), folderLocation);
     jasmineGraphHashMapLocalStore->loadGraph();
     graphDBMapLocalStores.insert(std::make_pair(graphIdentifier, *jasmineGraphHashMapLocalStore));
     instance_logger.log("###INSTANCE### Loading Local Store : Completed", "info");
@@ -492,7 +492,7 @@ void JasmineGraphInstanceService::loadInstanceCentralStore(
     instance_logger.log("###INSTANCE### Loading central Store : Started", "info");
     std::string graphIdentifier = graphId + +"_centralstore_" + partitionId;
     JasmineGraphHashMapCentralStore *jasmineGraphHashMapCentralStore =
-        new JasmineGraphHashMapCentralStore(atoi(graphId.c_str()), atoi(partitionId.c_str()));
+        new JasmineGraphHashMapCentralStore(stoi(graphId), stoi(partitionId));
     jasmineGraphHashMapCentralStore->loadGraph();
     graphDBMapCentralStores.insert(std::make_pair(graphIdentifier, *jasmineGraphHashMapCentralStore));
     instance_logger.log("###INSTANCE### Loading central Store : Completed", "info");
@@ -503,7 +503,7 @@ void JasmineGraphInstanceService::loadInstanceDuplicateCentralStore(
     std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores) {
     std::string graphIdentifier = graphId + +"_centralstore_dp_" + partitionId;
     JasmineGraphHashMapDuplicateCentralStore *jasmineGraphHashMapCentralStore =
-        new JasmineGraphHashMapDuplicateCentralStore(atoi(graphId.c_str()), atoi(partitionId.c_str()));
+        new JasmineGraphHashMapDuplicateCentralStore(stoi(graphId), stoi(partitionId));
     jasmineGraphHashMapCentralStore->loadGraph();
     graphDBMapDuplicateCentralStores.insert(std::make_pair(graphIdentifier, *jasmineGraphHashMapCentralStore));
 }
@@ -873,7 +873,7 @@ int JasmineGraphInstanceService::collectTrainedModelThreadFunction(instanceservi
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
             string fullFilePath =
                 Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
-            int fileSize = atoi(size.c_str());
+            int fileSize = stoi(size);
             while (Utils::fileExists(fullFilePath) && Utils::getFileSize(fullFilePath) < fileSize) {
                 bzero(data, INSTANCE_DATA_LENGTH + 1);
                 read(sockfd, data, INSTANCE_DATA_LENGTH);
@@ -2295,7 +2295,7 @@ static void batch_upload_command(int connFd, bool *loop_exit_p) {
     bzero(data, INSTANCE_DATA_LENGTH + 1);
     read(connFd, data, INSTANCE_DATA_LENGTH);
     string size = (data);
-    // int fileSize = atoi(size.c_str());
+    // int fileSize = stoi(size);
     instance_logger.log("Received file size in bytes: " + size, "info");
     result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_CONT.c_str(),
                       JasmineGraphInstanceProtocol::SEND_FILE_CONT.size());
@@ -2307,7 +2307,7 @@ static void batch_upload_command(int connFd, bool *loop_exit_p) {
     instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
     string fullFilePath =
         Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
-    int fileSize = atoi(size.c_str());
+    int fileSize = stoi(size);
     while (true) {
         if (Utils::fileExists(fullFilePath)) {
             while (Utils::getFileSize(fullFilePath) < fileSize) {
@@ -2444,7 +2444,7 @@ static void batch_upload_central_command(int connFd, bool *loop_exit_p) {
     string fullFilePath =
         Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
 
-    int fileSize = atoi(size.c_str());
+    int fileSize = stoi(size);
     while (true) {
         if (Utils::fileExists(fullFilePath)) {
             while (Utils::getFileSize(fullFilePath) < fileSize) {
@@ -2578,7 +2578,7 @@ static void batch_upload_composite_central_command(int connFd, bool *loop_exit_p
     string fullFilePath =
         Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
 
-    int fileSize = atoi(size.c_str());
+    int fileSize = stoi(size);
     while (true) {
         if (Utils::fileExists(fullFilePath)) {
             while (Utils::getFileSize(fullFilePath) < fileSize) {
@@ -2710,7 +2710,7 @@ static void upload_rdf_attributes_command(int connFd, bool *loop_exit_p) {
     instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
     string fullFilePath =
         Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
-    int fileSize = atoi(size.c_str());
+    int fileSize = stoi(size);
     while (true) {
         if (Utils::fileExists(fullFilePath)) {
             while (Utils::getFileSize(fullFilePath) < fileSize) {
@@ -2841,7 +2841,7 @@ static void upload_rdf_attributes_central_command(int connFd, bool *loop_exit_p)
     instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
     string fullFilePath =
         Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
-    int fileSize = atoi(size.c_str());
+    int fileSize = stoi(size);
     while (true) {
         if (Utils::fileExists(fullFilePath)) {
             while (Utils::getFileSize(fullFilePath) < fileSize) {
@@ -3427,7 +3427,7 @@ static void page_rank_command(int connFd, int serverPort,
     iterationsValue = Utils::trim_copy(iterationsValue, " \f\n\r\t\v");
     instance_logger.log("Received iteration count: " + iterationsValue, "info");
 
-    int iterations = std::stoi(iterationsValue);
+    int iterations = stoi(iterationsValue);
 
     result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
     if (result_wr < 0) {
@@ -3592,7 +3592,7 @@ static void worker_page_rank_distribution_command(
     iterationsValue = Utils::trim_copy(iterationsValue, " \f\n\r\t\v");
     instance_logger.log("Received iterations: " + iterationsValue, "info");
 
-    int iterations = std::stoi(iterationsValue);
+    int iterations = stoi(iterationsValue);
 
     result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
     if (result_wr < 0) {
@@ -3855,7 +3855,7 @@ static void triangles_command(
     priority = Utils::trim_copy(priority, " \f\n\r\t\v");
     instance_logger.log("Received Priority : " + priority, "info");
 
-    int threadPriority = std::atoi(priority.c_str());
+    int threadPriority = stoi(priority);
 
     if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
         threadPriorityMutex.lock();
@@ -3923,7 +3923,7 @@ static void send_centralstore_to_aggregator_command(int connFd, bool *loop_exit_
     string fullFilePath =
         Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
     string line;
-    int fileSize = atoi(size.c_str());
+    int fileSize = stoi(size);
     while (true) {
         if (Utils::fileExists(fullFilePath)) {
             while (Utils::getFileSize(fullFilePath) < fileSize) {
@@ -4061,7 +4061,7 @@ static void send_composite_centralstore_to_aggregator_command(int connFd, bool *
     string fullFilePath =
         Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
     string line;
-    int fileSize = atoi(size.c_str());
+    int fileSize = stoi(size);
     while (true) {
         if (Utils::fileExists(fullFilePath)) {
             while (Utils::getFileSize(fullFilePath) < fileSize) {
@@ -4213,7 +4213,7 @@ static void aggregate_centralstore_triangles_command(int connFd, bool *loop_exit
     priority = Utils::trim_copy(priority, " \f\n\r\t\v");
     instance_logger.log("Received priority: " + priority, "info");
 
-    int threadPriority = std::atoi(priority.c_str());
+    int threadPriority = stoi(priority);
 
     if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
         threadPriorityMutex.lock();
@@ -4331,7 +4331,7 @@ static void aggregate_composite_centralstore_triangles_command(int connFd, bool 
     priority = Utils::trim_copy(priority, " \f\n\r\t\v");
     instance_logger.log("Received priority: " + priority, "info");
 
-    int threadPriority = std::atoi(priority.c_str());
+    int threadPriority = stoi(priority);
 
     if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
         threadPriorityMutex.lock();
@@ -4885,7 +4885,7 @@ static void initiate_predict_command(int connFd, instanceservicesessionargs *ses
 
     string fullFilePath =
         Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
-    int fileSize = atoi(size.c_str());
+    int fileSize = stoi(size);
     string line;
     while (Utils::fileExists(fullFilePath) && Utils::getFileSize(fullFilePath) < fileSize) {
         bzero(data, INSTANCE_DATA_LENGTH + 1);
@@ -5367,6 +5367,6 @@ static void send_priority_command(int connFd, bool *loop_exit_p) {
     priority = Utils::trim_copy(priority, " \f\n\r\t\v");
     instance_logger.log("Received Priority: " + priority, "info");
 
-    int retrievedPriority = atoi(priority.c_str());
+    int retrievedPriority = stoi(priority);
     highestPriority = retrievedPriority;
 }
