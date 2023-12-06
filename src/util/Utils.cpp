@@ -531,7 +531,7 @@ int Utils::connect_wrapper(int sock, const sockaddr *addr, socklen_t slen) {
 }
 
 std::string Utils::read_str_wrapper(int connFd, char *buf, size_t len, bool allowEmpty) {
-    ssize_t result = recv(connFd, buf, INSTANCE_DATA_LENGTH, 0);
+    ssize_t result = recv(connFd, buf, len, 0);
     if (result < 0) {
         util_logger.error("Read failed: recv returned " + std::to_string((int)result));
         return "";

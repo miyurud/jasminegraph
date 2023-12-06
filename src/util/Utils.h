@@ -25,7 +25,6 @@ limitations under the License.
 
 #include "../metadb/SQLiteDBInterface.h"
 #include "../performancedb/PerformanceSQLiteDBInterface.h"
-#include "../server/JasmineGraphInstanceProtocol.h"
 #include "Conts.h"
 
 using std::map;
