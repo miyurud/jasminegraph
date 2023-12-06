@@ -25,6 +25,7 @@ limitations under the License.
 
 #include "../metadb/SQLiteDBInterface.h"
 #include "../performancedb/PerformanceSQLiteDBInterface.h"
+#include "../server/JasmineGraphInstanceProtocol.h"
 #include "Conts.h"
 
 using std::map;
@@ -103,6 +104,29 @@ class Utils {
     static std::string checkFlag(std::string flagPath);
 
     static int connect_wrapper(int sock, const sockaddr *addr, socklen_t slen);
+
+    /**
+     * Wrapper to recv(2) to read a string.
+     *
+     * @param connFd connection file descriptor
+     * @param buf writable buffer of size at least len+1
+     * @param len maximum length of the string to read (excluding null terminator)
+     * @param allowEmpty whether to allow reading empty string or not
+     * @return The string read or "" on error. Logs error if recv failed. Also logs error if allowEmpty is false and
+     * read length 0 string.
+     */
+    static std::string read_str_wrapper(int connFd, char *buf, size_t len, bool allowEmpty);
+
+    /**
+     * Wrapper to recv(2) to read a string and trim it.
+     *
+     * @param connFd connection file descriptor
+     * @param buf writable buffer of size at least len+1
+     * @param len maximum length of the string to read (excluding null terminator)
+     * @return The trimmed string read or "" on error. Also rerurns "" if read length 0 string. This may return an
+     * empty string if the string read is non-empty but contained only white-space characters.
+     */
+    static std::string read_str_trim_wrapper(int connFd, char *buf, size_t len);
     static std::string getCurrentTimestamp();
 };
 
