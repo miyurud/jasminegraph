@@ -802,58 +802,56 @@ int JasmineGraphInstanceService::collectTrainedModelThreadFunction(instanceservi
         std::cerr << "ERROR connecting" << std::endl;
         // TODO::exit
     }
-    write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
-    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
+    if (Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE)) {
+        instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
+    }
 
     string response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
         instance_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
 
         string server_host = sessionargs->host;
-        write(sockfd, server_host.c_str(), server_host.size());
+        Utils::send_str_wrapper(sockfd, server_host);
         instance_logger.log("Sent : " + server_host, "info");
 
-        write(sockfd, JasmineGraphInstanceProtocol::INITIATE_MODEL_COLLECTION.c_str(),
-              JasmineGraphInstanceProtocol::INITIATE_MODEL_COLLECTION.size());
-        instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::INITIATE_MODEL_COLLECTION, "info");
+        if (Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::INITIATE_MODEL_COLLECTION)) {
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::INITIATE_MODEL_COLLECTION, "info");
+        }
 
         response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
 
             string server_host = sessionargs->host;
-            write(sockfd, server_host.c_str(), server_host.size());
+            Utils::send_str_wrapper(sockfd, server_host);
             instance_logger.log("Sent : " + server_host, "info");
 
             int server_port = sessionargs->port;
-            write(sockfd, to_string(server_port).c_str(), to_string(server_port).size());
+            Utils::send_str_wrapper(sockfd, to_string(server_port));
             instance_logger.log("Sent : " + server_port, "info");
 
             int server_data_port = sessionargs->dataPort;
-            write(sockfd, to_string(server_data_port).c_str(), to_string(server_data_port).size());
+            Utils::send_str_wrapper(sockfd, to_string(server_data_port));
             instance_logger.log("Sent : " + server_data_port, "info");
 
-            write(sockfd, graphID.c_str(), (graphID).size());
+            Utils::send_str_wrapper(sockfd, graphID);
             instance_logger.log("Sent : Graph ID " + graphID, "info");
 
-            write(sockfd, partition.c_str(), (partition).size());
+            Utils::send_str_wrapper(sockfd, partition);
             instance_logger.log("Sent : Partition ID " + partition, "info");
 
-            write(sockfd, JasmineGraphInstanceProtocol::SEND_FILE_NAME.c_str(),
-                  JasmineGraphInstanceProtocol::SEND_FILE_NAME.size());
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::SEND_FILE_NAME);
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_NAME, "info");
 
             string fileName = Utils::read_str_wrapper(sockfd, data, INSTANCE_DATA_LENGTH, false);
             instance_logger.log("Received File name: " + fileName, "info");
-            write(sockfd, JasmineGraphInstanceProtocol::SEND_FILE_LEN.c_str(),
-                  JasmineGraphInstanceProtocol::SEND_FILE_LEN.size());
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::SEND_FILE_LEN);
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN, "info");
 
             string size = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
             instance_logger.log("Received file size in bytes: " + size, "info");
 
-            write(sockfd, JasmineGraphInstanceProtocol::SEND_FILE_CONT.c_str(),
-                  JasmineGraphInstanceProtocol::SEND_FILE_CONT.size());
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::SEND_FILE_CONT);
             instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
             string fullFilePath =
                 Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
@@ -862,16 +860,14 @@ int JasmineGraphInstanceService::collectTrainedModelThreadFunction(instanceservi
                 response = Utils::read_str_wrapper(sockfd, data, INSTANCE_DATA_LENGTH, false);
 
                 if (response.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
-                    write(sockfd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT.c_str(),
-                          JasmineGraphInstanceProtocol::FILE_RECV_WAIT.size());
+                    Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT);
                 }
             }
 
             response = Utils::read_str_wrapper(sockfd, data, INSTANCE_DATA_LENGTH, false);
             if (response.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
                 instance_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
-                write(sockfd, JasmineGraphInstanceProtocol::FILE_ACK.c_str(),
-                      JasmineGraphInstanceProtocol::FILE_ACK.size());
+                Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::FILE_ACK);
                 instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::FILE_ACK, "info");
             }
 
@@ -887,16 +883,14 @@ int JasmineGraphInstanceService::collectTrainedModelThreadFunction(instanceservi
                 string response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
                 if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
                     instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
-                    write(sockfd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.c_str(),
-                          JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.size());
+                    Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT);
                     instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT, "info");
                 }
             }
             response = Utils::read_str_wrapper(sockfd, data, INSTANCE_DATA_LENGTH, false);
             if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
                 instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
-                write(sockfd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.c_str(),
-                      JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.size());
+                Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK);
                 instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK, "info");
             }
         }
@@ -1149,22 +1143,17 @@ bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int 
                     // TODO::exit
                 }
 
-                int result_wr = write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(),
-                                      JasmineGraphInstanceProtocol::HANDSHAKE.size());
-                if (result_wr < 0) {
-                    instance_logger.log("Error writing to socket", "error");
+                if (Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE)) {
+                    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
                 }
-                instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
 
                 string response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
                 if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
                     instance_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
 
-                    result_wr = write(sockfd, masterIP.c_str(), masterIP.size());
-                    if (result_wr < 0) {
-                        instance_logger.log("Error writing to socket", "error");
+                    if (Utils::send_str_wrapper(sockfd, masterIP)) {
+                        instance_logger.log("Sent : " + masterIP, "info");
                     }
-                    instance_logger.log("Sent : " + masterIP, "info");
 
                     response = Utils::read_str_wrapper(sockfd, data, INSTANCE_DATA_LENGTH, false);
                     if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
@@ -1173,23 +1162,18 @@ bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int 
                         instance_logger.log("Received : " + response, "error");
                     }
 
-                    result_wr = write(sockfd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_CENTRAL.c_str(),
-                                      JasmineGraphInstanceProtocol::BATCH_UPLOAD_CENTRAL.size());
-                    if (result_wr < 0) {
-                        instance_logger.log("Error writing to socket", "error");
+                    if (Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_CENTRAL)) {
+                        instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CENTRAL, "info");
                     }
-                    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CENTRAL, "info");
 
                     response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
 
                     if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
                         instance_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
 
-                        result_wr = write(sockfd, std::to_string(graphID).c_str(), std::to_string(graphID).size());
-                        if (result_wr < 0) {
-                            instance_logger.log("Error writing to socket", "error");
+                        if (Utils::send_str_wrapper(sockfd, std::to_string(graphID))) {
+                            instance_logger.log("Sent : Graph ID " + std::to_string(graphID), "info");
                         }
-                        instance_logger.log("Sent : Graph ID " + std::to_string(graphID), "info");
 
                         std::string fileName = Utils::getFileName(centralStoreFile);
                         int fileSize = Utils::getFileSize(centralStoreFile);
@@ -1199,21 +1183,17 @@ bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int 
 
                         if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_NAME) == 0) {
                             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_NAME, "info");
-                            result_wr = write(sockfd, fileName.c_str(), fileName.size());
-                            if (result_wr < 0) {
-                                instance_logger.log("Error writing to socket", "error");
+                            if (Utils::send_str_wrapper(sockfd, fileName)) {
+                                instance_logger.log("Sent : File name " + fileName, "info");
                             }
-                            instance_logger.log("Sent : File name " + fileName, "info");
 
                             response = Utils::read_str_wrapper(sockfd, data, INSTANCE_DATA_LENGTH, false);
                             if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_LEN) == 0) {
                                 instance_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN,
                                                     "info");
-                                result_wr = write(sockfd, fileLength.c_str(), fileLength.size());
-                                if (result_wr < 0) {
-                                    instance_logger.log("Error writing to socket", "error");
+                                if (Utils::send_str_wrapper(sockfd, fileLength)) {
+                                    instance_logger.log("Sent : File length in bytes " + fileLength, "info");
                                 }
-                                instance_logger.log("Sent : File length in bytes " + fileLength, "info");
 
                                 response = Utils::read_str_wrapper(sockfd, data, INSTANCE_DATA_LENGTH, false);
                                 if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_CONT) == 0) {
@@ -1228,12 +1208,9 @@ bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int 
                         int count = 0;
 
                         while (true) {
-                            result_wr = write(sockfd, JasmineGraphInstanceProtocol::FILE_RECV_CHK.c_str(),
-                                              JasmineGraphInstanceProtocol::FILE_RECV_CHK.size());
-                            if (result_wr < 0) {
-                                instance_logger.log("Error writing to socket", "error");
+                            if (Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::FILE_RECV_CHK)) {
+                                instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
                             }
-                            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
 
                             instance_logger.log("Checking if file is received", "info");
                             response = Utils::read_str_wrapper(sockfd, data, INSTANCE_DATA_LENGTH, false);
@@ -1252,12 +1229,9 @@ bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int 
                         };
                         // Next we wait till the batch upload completes
                         while (true) {
-                            result_wr = write(sockfd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK.c_str(),
-                                              JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK.size());
-                            if (result_wr < 0) {
-                                instance_logger.log("Error writing to socket", "error");
+                            if (Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK)) {
+                                instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
                             }
-                            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
 
                             response = Utils::read_str_wrapper(sockfd, data, INSTANCE_DATA_LENGTH, false);
                             if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT) == 0) {
@@ -1313,11 +1287,7 @@ bool JasmineGraphInstanceService::sendFileThroughService(std::string host, int d
         std::cerr << "ERROR connecting to port " << dataPort << std::endl;
     }
 
-    int result_wr = write(sockfd, fileName.c_str(), fileName.size());
-
-    if (result_wr < 0) {
-        instance_logger.log("Error writing to socket", "error");
-    }
+    Utils::send_str_wrapper(sockfd, fileName);
 
     string response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE) == 0) {
@@ -1330,6 +1300,7 @@ bool JasmineGraphInstanceService::sendFileThroughService(std::string host, int d
             return false;
         }
 
+        instance_logger.log("Sending", "info");
         for (;;) {
             unsigned char buff[INSTANCE_FILE_BUFFER_LENGTH] = {0};
             int nread = fread(buff, 1, INSTANCE_FILE_BUFFER_LENGTH, fp);
@@ -1337,9 +1308,7 @@ bool JasmineGraphInstanceService::sendFileThroughService(std::string host, int d
 
             /* If read was success, send data. */
             if (nread > 0) {
-                instance_logger.log("Sending", "info");
-
-                write(sockfd, buff, nread);
+                Utils::send_wrapper(sockfd, (char *)buff, nread);
             }
 
             if (nread < INSTANCE_FILE_BUFFER_LENGTH) {
@@ -1693,21 +1662,16 @@ void calculateEgoNet(string graphID, string partitionID, int serverPort, Jasmine
             // TODO::exit
         }
 
-        int result_wr = write(sockfd, JasmineGraphInstanceProtocol::WORKER_EGO_NET.c_str(),
-                              JasmineGraphInstanceProtocol::WORKER_EGO_NET.size());
-        if (result_wr < 0) {
-            instance_logger.log("Error writing to socket", "error");
+        if (Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::WORKER_EGO_NET)) {
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::WORKER_EGO_NET, "info");
         }
-        instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::WORKER_EGO_NET, "info");
 
         string response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
-            result_wr = write(sockfd, graphID.c_str(), graphID.size());
-            if (result_wr < 0) {
-                instance_logger.log("Error writing to socket", "error");
+            if (Utils::send_str_wrapper(sockfd, graphID)) {
+                instance_logger.log("Sent : Graph ID " + graphID, "info");
             }
-            instance_logger.log("Sent : Graph ID " + graphID, "info");
 
             string response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
             if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
@@ -1717,23 +1681,18 @@ void calculateEgoNet(string graphID, string partitionID, int serverPort, Jasmine
                 string egonetString;
 
                 int partitionID = stoi(workerSocketPair[2]);
-                result_wr = write(sockfd, std::to_string(partitionID).c_str(), std::to_string(partitionID).size());
-
-                if (result_wr < 0) {
-                    instance_logger.log("Error writing to socket", "error");
+                if (Utils::send_str_wrapper(sockfd, std::to_string(partitionID))) {
+                    instance_logger.log("Sent : Partition ID " + std::to_string(partitionID), "info");
                 }
-                instance_logger.log("Sent : Partition ID " + std::to_string(partitionID), "info");
 
                 string response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
                 if (!response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
                     instance_logger.log("Error reading from socket", "error");
                 }
 
-                result_wr = write(sockfd, workerList.c_str(), workerList.size());
-                if (result_wr < 0) {
-                    instance_logger.log("Error writing to socket", "error");
+                if (Utils::send_str_wrapper(sockfd, workerList)) {
+                    instance_logger.log("Sent : Host List ", "info");
                 }
-                instance_logger.log("Sent : Host List ", "info");
 
                 response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
                 if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
@@ -2118,23 +2077,18 @@ void JasmineGraphInstanceService::mergeFiles(string trainData) {
 }
 
 static void handshake_command(int connFd, bool *loop_exit_p) {
-    int result_wr = write(connFd, JasmineGraphInstanceProtocol::HANDSHAKE_OK.c_str(),
-                          JasmineGraphInstanceProtocol::HANDSHAKE_OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::HANDSHAKE_OK)) {
         *loop_exit_p = true;
         return;
     }
     instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
+
     char data[INSTANCE_DATA_LENGTH + 1];
     string server_hostname = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.log("Received hostname : " + server_hostname, "info");
 
     instance_logger.log("Sending : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
-    result_wr =
-        write(connFd, JasmineGraphInstanceProtocol::HOST_OK.c_str(), JasmineGraphInstanceProtocol::HOST_OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::HOST_OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -2143,36 +2097,24 @@ static void handshake_command(int connFd, bool *loop_exit_p) {
 
 static inline void close_command(int connFd, bool *loop_exit_p) {
     *loop_exit_p = true;
-    int result_wr =
-        write(connFd, JasmineGraphInstanceProtocol::CLOSE_ACK.c_str(), JasmineGraphInstanceProtocol::CLOSE_ACK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
-    }
+    Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::CLOSE_ACK);
     close(connFd);
 }
 
 static inline void shutdown_command(int connFd) {
-    int result_wr =
-        write(connFd, JasmineGraphInstanceProtocol::CLOSE_ACK.c_str(), JasmineGraphInstanceProtocol::CLOSE_ACK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
-    }
+    Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::CLOSE_ACK);
     close(connFd);
     exit(0);
 }
 
 static inline void ready_command(int connFd, bool *loop_exit_p) {
-    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
     }
 }
 
 static void batch_upload_command(int connFd, bool *loop_exit_p) {
-    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -2183,10 +2125,7 @@ static void batch_upload_command(int connFd, bool *loop_exit_p) {
     string graphID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.log("Received Graph ID: " + graphID, "info");
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_NAME.c_str(),
-                      JasmineGraphInstanceProtocol::SEND_FILE_NAME.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_FILE_NAME)) {
         *loop_exit_p = true;
         return;
     }
@@ -2194,10 +2133,7 @@ static void batch_upload_command(int connFd, bool *loop_exit_p) {
 
     string fileName = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
     instance_logger.log("Received File name: " + fileName, "info");
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_LEN.c_str(),
-                      JasmineGraphInstanceProtocol::SEND_FILE_LEN.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_FILE_LEN)) {
         *loop_exit_p = true;
         return;
     }
@@ -2206,10 +2142,7 @@ static void batch_upload_command(int connFd, bool *loop_exit_p) {
     string size = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
     instance_logger.log("Received file size in bytes: " + size, "info");
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_CONT.c_str(),
-                      JasmineGraphInstanceProtocol::SEND_FILE_CONT.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_FILE_CONT)) {
         *loop_exit_p = true;
         return;
     }
@@ -2224,10 +2157,7 @@ static void batch_upload_command(int connFd, bool *loop_exit_p) {
             while (Utils::getFileSize(fullFilePath) < fileSize) {
                 line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
                 if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
-                    result_wr = write(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT.c_str(),
-                                      JasmineGraphInstanceProtocol::FILE_RECV_WAIT.size());
-                    if (result_wr < 0) {
-                        instance_logger.error("Error writing to socket");
+                    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT)) {
                         *loop_exit_p = true;
                         return;
                     }
@@ -2243,10 +2173,7 @@ static void batch_upload_command(int connFd, bool *loop_exit_p) {
     line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
     if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
         instance_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
-        result_wr = write(connFd, JasmineGraphInstanceProtocol::FILE_ACK.c_str(),
-                          JasmineGraphInstanceProtocol::FILE_ACK.size());
-        if (result_wr < 0) {
-            instance_logger.error("Error writing to socket");
+        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_ACK)) {
             *loop_exit_p = true;
             return;
         }
@@ -2270,10 +2197,7 @@ static void batch_upload_command(int connFd, bool *loop_exit_p) {
         string response = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
-            result_wr = write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.c_str(),
-                              JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.size());
-            if (result_wr < 0) {
-                instance_logger.error("Error writing to socket");
+            if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT)) {
                 *loop_exit_p = true;
                 return;
             }
@@ -2284,10 +2208,7 @@ static void batch_upload_command(int connFd, bool *loop_exit_p) {
     line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
     if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
         instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
-        result_wr = write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.c_str(),
-                          JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.size());
-        if (result_wr < 0) {
-            instance_logger.error("Error writing to socket");
+        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK)) {
             *loop_exit_p = true;
             return;
         }
@@ -2296,9 +2217,7 @@ static void batch_upload_command(int connFd, bool *loop_exit_p) {
 }
 
 static void batch_upload_central_command(int connFd, bool *loop_exit_p) {
-    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -2309,10 +2228,7 @@ static void batch_upload_central_command(int connFd, bool *loop_exit_p) {
     string graphID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.log("Received Graph ID: " + graphID, "info");
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_NAME.c_str(),
-                      JasmineGraphInstanceProtocol::SEND_FILE_NAME.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_FILE_NAME)) {
         *loop_exit_p = true;
         return;
     }
@@ -2320,10 +2236,7 @@ static void batch_upload_central_command(int connFd, bool *loop_exit_p) {
 
     string fileName = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
     instance_logger.log("Received File name: " + fileName, "info");
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_LEN.c_str(),
-                      JasmineGraphInstanceProtocol::SEND_FILE_LEN.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_FILE_LEN)) {
         *loop_exit_p = true;
         return;
     }
@@ -2331,10 +2244,7 @@ static void batch_upload_central_command(int connFd, bool *loop_exit_p) {
 
     string size = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
     instance_logger.log("Received file size in bytes: " + size, "info");
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_CONT.c_str(),
-                      JasmineGraphInstanceProtocol::SEND_FILE_CONT.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_FILE_CONT)) {
         *loop_exit_p = true;
         return;
     }
@@ -2349,10 +2259,7 @@ static void batch_upload_central_command(int connFd, bool *loop_exit_p) {
             while (Utils::getFileSize(fullFilePath) < fileSize) {
                 line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
                 if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
-                    result_wr = write(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT.c_str(),
-                                      JasmineGraphInstanceProtocol::FILE_RECV_WAIT.size());
-                    if (result_wr < 0) {
-                        instance_logger.error("Error writing to socket");
+                    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT)) {
                         *loop_exit_p = true;
                         return;
                     }
@@ -2368,10 +2275,7 @@ static void batch_upload_central_command(int connFd, bool *loop_exit_p) {
     line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
     if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
         instance_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
-        result_wr = write(connFd, JasmineGraphInstanceProtocol::FILE_ACK.c_str(),
-                          JasmineGraphInstanceProtocol::FILE_ACK.size());
-        if (result_wr < 0) {
-            instance_logger.error("Error writing to socket");
+        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_ACK)) {
             *loop_exit_p = true;
             return;
         }
@@ -2390,10 +2294,7 @@ static void batch_upload_central_command(int connFd, bool *loop_exit_p) {
         string response = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
-            result_wr = write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.c_str(),
-                              JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.size());
-            if (result_wr < 0) {
-                instance_logger.error("Error writing to socket");
+            if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT)) {
                 *loop_exit_p = true;
                 return;
             }
@@ -2404,10 +2305,7 @@ static void batch_upload_central_command(int connFd, bool *loop_exit_p) {
     line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
     if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
         instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
-        result_wr = write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.c_str(),
-                          JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.size());
-        if (result_wr < 0) {
-            instance_logger.error("Error writing to socket");
+        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK)) {
             *loop_exit_p = true;
             return;
         }
@@ -2416,9 +2314,7 @@ static void batch_upload_central_command(int connFd, bool *loop_exit_p) {
 }
 
 static void batch_upload_composite_central_command(int connFd, bool *loop_exit_p) {
-    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -2429,10 +2325,7 @@ static void batch_upload_composite_central_command(int connFd, bool *loop_exit_p
     string graphID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.log("Received Graph ID: " + graphID, "info");
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_NAME.c_str(),
-                      JasmineGraphInstanceProtocol::SEND_FILE_NAME.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_FILE_NAME)) {
         *loop_exit_p = true;
         return;
     }
@@ -2440,10 +2333,7 @@ static void batch_upload_composite_central_command(int connFd, bool *loop_exit_p
 
     string fileName = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
     instance_logger.log("Received File name: " + fileName, "info");
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_LEN.c_str(),
-                      JasmineGraphInstanceProtocol::SEND_FILE_LEN.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_FILE_LEN)) {
         *loop_exit_p = true;
         return;
     }
@@ -2452,10 +2342,7 @@ static void batch_upload_composite_central_command(int connFd, bool *loop_exit_p
     string size = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
     instance_logger.log("Received file size in bytes: " + size, "info");
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_CONT.c_str(),
-                      JasmineGraphInstanceProtocol::SEND_FILE_CONT.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_FILE_CONT)) {
         *loop_exit_p = true;
         return;
     }
@@ -2470,10 +2357,7 @@ static void batch_upload_composite_central_command(int connFd, bool *loop_exit_p
             while (Utils::getFileSize(fullFilePath) < fileSize) {
                 line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
                 if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
-                    result_wr = write(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT.c_str(),
-                                      JasmineGraphInstanceProtocol::FILE_RECV_WAIT.size());
-                    if (result_wr < 0) {
-                        instance_logger.error("Error writing to socket");
+                    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT)) {
                         *loop_exit_p = true;
                         return;
                     }
@@ -2489,10 +2373,7 @@ static void batch_upload_composite_central_command(int connFd, bool *loop_exit_p
     line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
     if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
         instance_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
-        result_wr = write(connFd, JasmineGraphInstanceProtocol::FILE_ACK.c_str(),
-                          JasmineGraphInstanceProtocol::FILE_ACK.size());
-        if (result_wr < 0) {
-            instance_logger.error("Error writing to socket");
+        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_ACK)) {
             *loop_exit_p = true;
             return;
         }
@@ -2511,10 +2392,7 @@ static void batch_upload_composite_central_command(int connFd, bool *loop_exit_p
         string response = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
-            result_wr = write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.c_str(),
-                              JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.size());
-            if (result_wr < 0) {
-                instance_logger.error("Error writing to socket");
+            if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT)) {
                 *loop_exit_p = true;
                 return;
             }
@@ -2525,10 +2403,7 @@ static void batch_upload_composite_central_command(int connFd, bool *loop_exit_p
     line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
     if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
         instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
-        result_wr = write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.c_str(),
-                          JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.size());
-        if (result_wr < 0) {
-            instance_logger.error("Error writing to socket");
+        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK)) {
             *loop_exit_p = true;
             return;
         }
@@ -2537,9 +2412,7 @@ static void batch_upload_composite_central_command(int connFd, bool *loop_exit_p
 }
 
 static void upload_rdf_attributes_command(int connFd, bool *loop_exit_p) {
-    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -2550,10 +2423,7 @@ static void upload_rdf_attributes_command(int connFd, bool *loop_exit_p) {
     string graphID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.log("Received Graph ID: " + graphID, "info");
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_NAME.c_str(),
-                      JasmineGraphInstanceProtocol::SEND_FILE_NAME.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_FILE_NAME)) {
         *loop_exit_p = true;
         return;
     }
@@ -2561,10 +2431,7 @@ static void upload_rdf_attributes_command(int connFd, bool *loop_exit_p) {
 
     string fileName = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
     instance_logger.log("Received File name: " + fileName, "info");
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_LEN.c_str(),
-                      JasmineGraphInstanceProtocol::SEND_FILE_LEN.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_FILE_LEN)) {
         *loop_exit_p = true;
         return;
     }
@@ -2572,10 +2439,7 @@ static void upload_rdf_attributes_command(int connFd, bool *loop_exit_p) {
 
     string size = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
     instance_logger.log("Received file size in bytes: " + size, "info");
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_CONT.c_str(),
-                      JasmineGraphInstanceProtocol::SEND_FILE_CONT.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_FILE_CONT)) {
         *loop_exit_p = true;
         return;
     }
@@ -2588,10 +2452,7 @@ static void upload_rdf_attributes_command(int connFd, bool *loop_exit_p) {
             while (Utils::getFileSize(fullFilePath) < fileSize) {
                 line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
                 if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
-                    result_wr = write(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT.c_str(),
-                                      JasmineGraphInstanceProtocol::FILE_RECV_WAIT.size());
-                    if (result_wr < 0) {
-                        instance_logger.error("Error writing to socket");
+                    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT)) {
                         *loop_exit_p = true;
                         return;
                     }
@@ -2607,10 +2468,7 @@ static void upload_rdf_attributes_command(int connFd, bool *loop_exit_p) {
     line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
     if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
         instance_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
-        result_wr = write(connFd, JasmineGraphInstanceProtocol::FILE_ACK.c_str(),
-                          JasmineGraphInstanceProtocol::FILE_ACK.size());
-        if (result_wr < 0) {
-            instance_logger.error("Error writing to socket");
+        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_ACK)) {
             *loop_exit_p = true;
             return;
         }
@@ -2629,10 +2487,7 @@ static void upload_rdf_attributes_command(int connFd, bool *loop_exit_p) {
         string response = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
-            result_wr = write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.c_str(),
-                              JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.size());
-            if (result_wr < 0) {
-                instance_logger.error("Error writing to socket");
+            if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT)) {
                 *loop_exit_p = true;
                 return;
             }
@@ -2643,10 +2498,7 @@ static void upload_rdf_attributes_command(int connFd, bool *loop_exit_p) {
     line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
     if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
         instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
-        result_wr = write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.c_str(),
-                          JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.size());
-        if (result_wr < 0) {
-            instance_logger.error("Error writing to socket");
+        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK)) {
             *loop_exit_p = true;
             return;
         }
@@ -2655,9 +2507,7 @@ static void upload_rdf_attributes_command(int connFd, bool *loop_exit_p) {
 }
 
 static void upload_rdf_attributes_central_command(int connFd, bool *loop_exit_p) {
-    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -2668,10 +2518,7 @@ static void upload_rdf_attributes_central_command(int connFd, bool *loop_exit_p)
     string graphID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.log("Received Graph ID: " + graphID, "info");
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_NAME.c_str(),
-                      JasmineGraphInstanceProtocol::SEND_FILE_NAME.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_FILE_NAME)) {
         *loop_exit_p = true;
         return;
     }
@@ -2679,10 +2526,7 @@ static void upload_rdf_attributes_central_command(int connFd, bool *loop_exit_p)
 
     string fileName = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
     instance_logger.log("Received File name: " + fileName, "info");
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_LEN.c_str(),
-                      JasmineGraphInstanceProtocol::SEND_FILE_LEN.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_FILE_LEN)) {
         *loop_exit_p = true;
         return;
     }
@@ -2690,10 +2534,7 @@ static void upload_rdf_attributes_central_command(int connFd, bool *loop_exit_p)
 
     string size = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
     instance_logger.log("Received file size in bytes: " + size, "info");
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_CONT.c_str(),
-                      JasmineGraphInstanceProtocol::SEND_FILE_CONT.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_FILE_CONT)) {
         *loop_exit_p = true;
         return;
     }
@@ -2707,10 +2548,7 @@ static void upload_rdf_attributes_central_command(int connFd, bool *loop_exit_p)
             while (Utils::getFileSize(fullFilePath) < fileSize) {
                 line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
                 if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
-                    result_wr = write(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT.c_str(),
-                                      JasmineGraphInstanceProtocol::FILE_RECV_WAIT.size());
-                    if (result_wr < 0) {
-                        instance_logger.error("Error writing to socket");
+                    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT)) {
                         *loop_exit_p = true;
                         return;
                     }
@@ -2726,10 +2564,7 @@ static void upload_rdf_attributes_central_command(int connFd, bool *loop_exit_p)
     line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
     if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
         instance_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
-        result_wr = write(connFd, JasmineGraphInstanceProtocol::FILE_ACK.c_str(),
-                          JasmineGraphInstanceProtocol::FILE_ACK.size());
-        if (result_wr < 0) {
-            instance_logger.error("Error writing to socket");
+        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_ACK)) {
             *loop_exit_p = true;
             return;
         }
@@ -2748,10 +2583,7 @@ static void upload_rdf_attributes_central_command(int connFd, bool *loop_exit_p)
         string response = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
-            result_wr = write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.c_str(),
-                              JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.size());
-            if (result_wr < 0) {
-                instance_logger.error("Error writing to socket");
+            if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT)) {
                 *loop_exit_p = true;
                 return;
             }
@@ -2762,10 +2594,7 @@ static void upload_rdf_attributes_central_command(int connFd, bool *loop_exit_p)
     line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
     if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
         instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
-        result_wr = write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.c_str(),
-                          JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.size());
-        if (result_wr < 0) {
-            instance_logger.error("Error writing to socket");
+        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK)) {
             *loop_exit_p = true;
             return;
         }
@@ -2774,9 +2603,7 @@ static void upload_rdf_attributes_central_command(int connFd, bool *loop_exit_p)
 }
 
 static void delete_graph_command(int connFd, bool *loop_exit_p) {
-    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -2786,10 +2613,7 @@ static void delete_graph_command(int connFd, bool *loop_exit_p) {
     string graphID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.log("Received Graph ID: " + graphID, "info");
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_PARTITION_ID.c_str(),
-                      JasmineGraphInstanceProtocol::SEND_PARTITION_ID.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_PARTITION_ID)) {
         *loop_exit_p = true;
         return;
     }
@@ -2802,9 +2626,7 @@ static void delete_graph_command(int connFd, bool *loop_exit_p) {
     // TODO :: Update catalog file
     // pthread_mutex_unlock(&file_lock);
     string result = "1";
-    result_wr = write(connFd, result.c_str(), result.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, result)) {
         *loop_exit_p = true;
         return;
     }
@@ -2812,9 +2634,7 @@ static void delete_graph_command(int connFd, bool *loop_exit_p) {
 }
 
 static void delete_graph_fragment_command(int connFd, bool *loop_exit_p) {
-    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -2830,9 +2650,7 @@ static void delete_graph_fragment_command(int connFd, bool *loop_exit_p) {
     // pthread_mutex_unlock(&file_lock);
     string result = "1";
 
-    result_wr = write(connFd, result.c_str(), result.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, result)) {
         *loop_exit_p = true;
         return;
     }
@@ -2840,9 +2658,7 @@ static void delete_graph_fragment_command(int connFd, bool *loop_exit_p) {
 }
 
 static void duplicate_centralstore_command(int connFd, int serverPort, bool *loop_exit_p) {
-    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -2852,9 +2668,7 @@ static void duplicate_centralstore_command(int connFd, int serverPort, bool *loo
     string graphID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.log("Received Graph ID: " + graphID, "info");
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -2863,9 +2677,7 @@ static void duplicate_centralstore_command(int connFd, int serverPort, bool *loo
     string partitionID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.log("Received Partition ID: " + partitionID, "info");
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -2888,9 +2700,7 @@ static void duplicate_centralstore_command(int connFd, int serverPort, bool *loo
 static void worker_in_degree_distribution_command(
     int connFd, std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
     std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores, bool *loop_exit_p) {
-    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -2900,9 +2710,7 @@ static void worker_in_degree_distribution_command(
     string graphID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.log("Received Graph ID: " + graphID, "info");
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -2911,9 +2719,7 @@ static void worker_in_degree_distribution_command(
     string partitionID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.log("Received Partition ID: " + partitionID, "info");
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -2992,9 +2798,7 @@ static void worker_in_degree_distribution_command(
 static void in_degree_distribution_command(
     int connFd, int serverPort, std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
     std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores, bool *loop_exit_p) {
-    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -3004,9 +2808,7 @@ static void in_degree_distribution_command(
     string graphID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.log("Received Graph ID: " + graphID, "info");
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -3015,9 +2817,7 @@ static void in_degree_distribution_command(
     string partitionID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.log("Received Partition ID: " + partitionID, "info");
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -3043,9 +2843,7 @@ static void in_degree_distribution_command(
 static void worker_out_degree_distribution_command(
     int connFd, std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
     std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores, bool *loop_exit_p) {
-    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -3055,9 +2853,7 @@ static void worker_out_degree_distribution_command(
     string graphID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.log("Received Graph ID: " + graphID, "info");
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -3083,9 +2879,7 @@ static void worker_out_degree_distribution_command(
 static void out_degree_distribution_command(
     int connFd, int serverPort, std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
     std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores, bool *loop_exit_p) {
-    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -3095,9 +2889,7 @@ static void out_degree_distribution_command(
     string graphID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.log("Received Graph ID: " + graphID, "info");
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -3106,9 +2898,7 @@ static void out_degree_distribution_command(
     string partitionID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.log("Received Partition ID: " + partitionID, "info");
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -3135,9 +2925,7 @@ static void out_degree_distribution_command(
 static void page_rank_command(int connFd, int serverPort,
                               std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores,
                               bool *loop_exit_p) {
-    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -3147,9 +2935,7 @@ static void page_rank_command(int connFd, int serverPort,
     string graphID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.log("Received Graph ID: " + graphID, "info");
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -3158,9 +2944,7 @@ static void page_rank_command(int connFd, int serverPort,
     string partitionID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.log("Received Partition ID: " + partitionID, "info");
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -3176,9 +2960,7 @@ static void page_rank_command(int connFd, int serverPort,
         workerSockets.push_back(intermediate);
     }
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -3187,9 +2969,7 @@ static void page_rank_command(int connFd, int serverPort,
     string graphVertexCount = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.log("Received Graph ID:" + graphID + " Vertex Count: " + graphVertexCount, "info");
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -3200,9 +2980,7 @@ static void page_rank_command(int connFd, int serverPort,
 
     double alpha = std::stod(alphaValue);
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -3213,9 +2991,7 @@ static void page_rank_command(int connFd, int serverPort,
 
     int iterations = stoi(iterationsValue);
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -3282,9 +3058,7 @@ static void page_rank_command(int connFd, int serverPort,
 static void worker_page_rank_distribution_command(
     int connFd, int serverPort, std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores,
     bool *loop_exit_p) {
-    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -3294,9 +3068,7 @@ static void worker_page_rank_distribution_command(
     string graphID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.log("Received Graph ID: " + graphID, "info");
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -3305,9 +3077,7 @@ static void worker_page_rank_distribution_command(
     string partitionID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.log("Received Partition ID: " + partitionID, "info");
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -3323,9 +3093,7 @@ static void worker_page_rank_distribution_command(
         workerSockets.push_back(intermediate);
     }
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -3334,9 +3102,7 @@ static void worker_page_rank_distribution_command(
     string graphVertexCount = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.log("Received Graph ID:" + graphID + " Vertex Count: " + graphVertexCount, "info");
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -3347,9 +3113,7 @@ static void worker_page_rank_distribution_command(
 
     double alpha = std::stod(alphaValue);
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -3360,9 +3124,7 @@ static void worker_page_rank_distribution_command(
 
     int iterations = stoi(iterationsValue);
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -3424,9 +3186,7 @@ static void worker_page_rank_distribution_command(
 static void egonet_command(int connFd, int serverPort,
                            std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores,
                            bool *loop_exit_p) {
-    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -3436,20 +3196,23 @@ static void egonet_command(int connFd, int serverPort,
     string graphID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.log("Received Graph ID: " + graphID, "info");
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+    if (Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+    }
 
     string partitionID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.log("Received Partition ID: " + partitionID, "info");
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+    if (Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+    }
 
     string workerList = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.log("Received Worker List " + workerList, "info");
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+    if (Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+    }
 
     JasmineGraphHashMapLocalStore graphDB;
     JasmineGraphHashMapCentralStore centralDB;
@@ -3472,9 +3235,7 @@ static void egonet_command(int connFd, int serverPort,
 static void worker_egonet_command(int connFd, int serverPort,
                                   std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores,
                                   bool *loop_exit_p) {
-    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -3484,9 +3245,7 @@ static void worker_egonet_command(int connFd, int serverPort,
     string graphID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.log("Received Graph ID: " + graphID, "info");
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -3495,9 +3254,7 @@ static void worker_egonet_command(int connFd, int serverPort,
     string partitionID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.log("Received Partition ID: " + partitionID, "info");
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -3513,9 +3270,7 @@ static void worker_egonet_command(int connFd, int serverPort,
         workerSockets.push_back(intermediate);
     }
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -3564,9 +3319,7 @@ static void triangles_command(
     std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores,
     std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> graphDBMapDuplicateCentralStores,
     bool *loop_exit_p) {
-    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -3576,9 +3329,7 @@ static void triangles_command(
     string graphID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.log("Received Graph ID: " + graphID, "info");
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -3586,9 +3337,7 @@ static void triangles_command(
     string partitionId = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.log("Received Partition ID: " + partitionId, "info");
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -3619,18 +3368,13 @@ static void triangles_command(
     }
 
     std::string result = to_string(localCount);
-    result_wr = write(connFd, result.c_str(), result.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, result)) {
         *loop_exit_p = true;
     }
 }
 
 static void send_centralstore_to_aggregator_command(int connFd, bool *loop_exit_p) {
-    int result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_NAME.c_str(),
-                          JasmineGraphInstanceProtocol::SEND_FILE_NAME.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_FILE_NAME)) {
         *loop_exit_p = true;
         return;
     }
@@ -3640,10 +3384,7 @@ static void send_centralstore_to_aggregator_command(int connFd, bool *loop_exit_
     string fileName = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
     instance_logger.log("Received File name: " + fileName, "info");
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_LEN.c_str(),
-                      JasmineGraphInstanceProtocol::SEND_FILE_LEN.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_FILE_LEN)) {
         *loop_exit_p = true;
         return;
     }
@@ -3651,10 +3392,7 @@ static void send_centralstore_to_aggregator_command(int connFd, bool *loop_exit_
 
     string size = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
     instance_logger.log("Received file size in bytes: " + size, "info");
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_CONT.c_str(),
-                      JasmineGraphInstanceProtocol::SEND_FILE_CONT.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_FILE_CONT)) {
         *loop_exit_p = true;
         return;
     }
@@ -3668,10 +3406,7 @@ static void send_centralstore_to_aggregator_command(int connFd, bool *loop_exit_
             while (Utils::getFileSize(fullFilePath) < fileSize) {
                 line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
                 if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
-                    result_wr = write(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT.c_str(),
-                                      JasmineGraphInstanceProtocol::FILE_RECV_WAIT.size());
-                    if (result_wr < 0) {
-                        instance_logger.error("Error writing to socket");
+                    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT)) {
                         *loop_exit_p = true;
                         return;
                     }
@@ -3687,10 +3422,7 @@ static void send_centralstore_to_aggregator_command(int connFd, bool *loop_exit_
     line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
     if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
         instance_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
-        result_wr = write(connFd, JasmineGraphInstanceProtocol::FILE_ACK.c_str(),
-                          JasmineGraphInstanceProtocol::FILE_ACK.size());
-        if (result_wr < 0) {
-            instance_logger.error("Error writing to socket");
+        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_ACK)) {
             *loop_exit_p = true;
             return;
         }
@@ -3727,10 +3459,7 @@ static void send_centralstore_to_aggregator_command(int connFd, bool *loop_exit_
         string response = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
-            result_wr = write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.c_str(),
-                              JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.size());
-            if (result_wr < 0) {
-                instance_logger.error("Error writing to socket");
+            if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT)) {
                 *loop_exit_p = true;
                 return;
             }
@@ -3741,10 +3470,7 @@ static void send_centralstore_to_aggregator_command(int connFd, bool *loop_exit_
     line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
     if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
         instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
-        result_wr = write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.c_str(),
-                          JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.size());
-        if (result_wr < 0) {
-            instance_logger.error("Error writing to socket");
+        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK)) {
             *loop_exit_p = true;
             return;
         }
@@ -3753,10 +3479,7 @@ static void send_centralstore_to_aggregator_command(int connFd, bool *loop_exit_
 }
 
 static void send_composite_centralstore_to_aggregator_command(int connFd, bool *loop_exit_p) {
-    int result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_NAME.c_str(),
-                          JasmineGraphInstanceProtocol::SEND_FILE_NAME.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_FILE_NAME)) {
         *loop_exit_p = true;
         return;
     }
@@ -3766,10 +3489,7 @@ static void send_composite_centralstore_to_aggregator_command(int connFd, bool *
     string fileName = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
     instance_logger.log("Received File name: " + fileName, "info");
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_LEN.c_str(),
-                      JasmineGraphInstanceProtocol::SEND_FILE_LEN.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_FILE_LEN)) {
         *loop_exit_p = true;
         return;
     }
@@ -3778,10 +3498,7 @@ static void send_composite_centralstore_to_aggregator_command(int connFd, bool *
     string size = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
     instance_logger.log("Received file size in bytes: " + size, "info");
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_CONT.c_str(),
-                      JasmineGraphInstanceProtocol::SEND_FILE_CONT.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_FILE_CONT)) {
         *loop_exit_p = true;
         return;
     }
@@ -3796,10 +3513,7 @@ static void send_composite_centralstore_to_aggregator_command(int connFd, bool *
             while (Utils::getFileSize(fullFilePath) < fileSize) {
                 line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
                 if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
-                    result_wr = write(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT.c_str(),
-                                      JasmineGraphInstanceProtocol::FILE_RECV_WAIT.size());
-                    if (result_wr < 0) {
-                        instance_logger.error("Error writing to socket");
+                    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT)) {
                         *loop_exit_p = true;
                         return;
                     }
@@ -3815,10 +3529,7 @@ static void send_composite_centralstore_to_aggregator_command(int connFd, bool *
     line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
     if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
         instance_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
-        result_wr = write(connFd, JasmineGraphInstanceProtocol::FILE_ACK.c_str(),
-                          JasmineGraphInstanceProtocol::FILE_ACK.size());
-        if (result_wr < 0) {
-            instance_logger.error("Error writing to socket");
+        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_ACK)) {
             *loop_exit_p = true;
             return;
         }
@@ -3855,10 +3566,7 @@ static void send_composite_centralstore_to_aggregator_command(int connFd, bool *
         string response = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
-            result_wr = write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.c_str(),
-                              JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.size());
-            if (result_wr < 0) {
-                instance_logger.error("Error writing to socket");
+            if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT)) {
                 *loop_exit_p = true;
                 return;
             }
@@ -3869,10 +3577,7 @@ static void send_composite_centralstore_to_aggregator_command(int connFd, bool *
     line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
     if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
         instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
-        result_wr = write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.c_str(),
-                          JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.size());
-        if (result_wr < 0) {
-            instance_logger.error("Error writing to socket");
+        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK)) {
             *loop_exit_p = true;
             return;
         }
@@ -3881,9 +3586,7 @@ static void send_composite_centralstore_to_aggregator_command(int connFd, bool *
 }
 
 static void aggregate_centralstore_triangles_command(int connFd, bool *loop_exit_p) {
-    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -3893,9 +3596,7 @@ static void aggregate_centralstore_triangles_command(int connFd, bool *loop_exit
     string graphId = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.log("Received Graph ID: " + graphId, "info");
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -3903,9 +3604,7 @@ static void aggregate_centralstore_triangles_command(int connFd, bool *loop_exit
     string partitionId = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.log("Received Partition ID: " + partitionId, "info");
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -3913,9 +3612,7 @@ static void aggregate_centralstore_triangles_command(int connFd, bool *loop_exit
     string partitionIdList = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.log("Received Partition ID List : " + partitionIdList, "info");
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -3960,18 +3657,14 @@ static void aggregate_centralstore_triangles_command(int connFd, bool *loop_exit
     for (int loopCount = 0; loopCount < chunksVector.size(); loopCount++) {
         if (loopCount == 0) {
             std::string chunk = chunksVector.at(loopCount);
-            result_wr = write(connFd, chunk.c_str(), chunk.size());
-            if (result_wr < 0) {
-                instance_logger.error("Error writing to socket");
+            if (!Utils::send_str_wrapper(connFd, chunk)) {
                 *loop_exit_p = true;
                 return;
             }
         } else {
             string chunkStatus = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
             std::string chunk = chunksVector.at(loopCount);
-            result_wr = write(connFd, chunk.c_str(), chunk.size());
-            if (result_wr < 0) {
-                instance_logger.error("Error writing to socket");
+            if (!Utils::send_str_wrapper(connFd, chunk)) {
                 *loop_exit_p = true;
             }
         }
@@ -3979,9 +3672,7 @@ static void aggregate_centralstore_triangles_command(int connFd, bool *loop_exit
 }
 
 static void aggregate_composite_centralstore_triangles_command(int connFd, bool *loop_exit_p) {
-    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -3991,9 +3682,7 @@ static void aggregate_composite_centralstore_triangles_command(int connFd, bool 
     string availableFiles = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.log("Received Available Files: " + availableFiles, "info");
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -4003,9 +3692,7 @@ static void aggregate_composite_centralstore_triangles_command(int connFd, bool 
     std::string compositeFileList = response.substr(0, response.size() - 5);
 
     while (status == "/SEND") {
-        result_wr = write(connFd, status.c_str(), status.size());
-        if (result_wr < 0) {
-            instance_logger.error("Error writing to socket");
+        if (!Utils::send_str_wrapper(connFd, status)) {
             *loop_exit_p = true;
             return;
         }
@@ -4019,9 +3706,7 @@ static void aggregate_composite_centralstore_triangles_command(int connFd, bool 
 
     instance_logger.log("Received Composite File List : " + compositeFileList, "info");
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -4066,18 +3751,14 @@ static void aggregate_composite_centralstore_triangles_command(int connFd, bool 
     for (int loopCount = 0; loopCount < chunksVector.size(); loopCount++) {
         if (loopCount == 0) {
             std::string chunk = chunksVector.at(loopCount);
-            result_wr = write(connFd, chunk.c_str(), chunk.size());
-            if (result_wr < 0) {
-                instance_logger.error("Error writing to socket");
+            if (!Utils::send_str_wrapper(connFd, chunk)) {
                 *loop_exit_p = true;
                 return;
             }
         } else {
             string chunkStatus = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
             std::string chunk = chunksVector.at(loopCount);
-            result_wr = write(connFd, chunk.c_str(), chunk.size());
-            if (result_wr < 0) {
-                instance_logger.error("Error writing to socket");
+            if (!Utils::send_str_wrapper(connFd, chunk)) {
                 *loop_exit_p = true;
             }
         }
@@ -4085,9 +3766,7 @@ static void aggregate_composite_centralstore_triangles_command(int connFd, bool 
 }
 
 static void performance_statistics_command(int connFd, bool *loop_exit_p) {
-    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -4096,9 +3775,7 @@ static void performance_statistics_command(int connFd, bool *loop_exit_p) {
     char data[INSTANCE_DATA_LENGTH + 1];
     string isVMStatManager = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -4108,18 +3785,14 @@ static void performance_statistics_command(int connFd, bool *loop_exit_p) {
 
     std::string memoryUsage =
         JasmineGraphInstanceService::requestPerformanceStatistics(isVMStatManager, isResourceAllocationRequired);
-    result_wr = write(connFd, memoryUsage.c_str(), memoryUsage.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, memoryUsage)) {
         *loop_exit_p = true;
         return;
     }
 }
 
 static void initiate_files_command(int connFd, bool *loop_exit_p) {
-    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -4150,9 +3823,7 @@ static void initiate_files_command(int connFd, bool *loop_exit_p) {
 }
 
 static void initiate_fed_predict_command(int connFd, bool *loop_exit_p) {
-    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -4183,9 +3854,7 @@ static void initiate_fed_predict_command(int connFd, bool *loop_exit_p) {
 }
 
 static void initiate_server_command(int connFd, bool *loop_exit_p) {
-    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -4211,9 +3880,7 @@ static void initiate_server_command(int connFd, bool *loop_exit_p) {
 }
 
 static void initiate_org_server_command(int connFd, bool *loop_exit_p) {
-    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -4238,9 +3905,7 @@ static void initiate_org_server_command(int connFd, bool *loop_exit_p) {
 }
 
 static void initiate_aggregator_command(int connFd, bool *loop_exit_p) {
-    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -4265,9 +3930,7 @@ static void initiate_aggregator_command(int connFd, bool *loop_exit_p) {
 }
 
 static void initiate_client_command(int connFd, bool *loop_exit_p) {
-    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -4292,9 +3955,7 @@ static void initiate_client_command(int connFd, bool *loop_exit_p) {
 }
 
 static void initiate_merge_files_command(int connFd, bool *loop_exit_p) {
-    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -4319,9 +3980,7 @@ static void initiate_merge_files_command(int connFd, bool *loop_exit_p) {
 }
 
 static inline void start_stat_collection_command(int connFd, bool *collectValid_p, bool *loop_exit_p) {
-    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -4365,9 +4024,7 @@ static void request_collected_stats_command(int connFd, bool *collectValid_p, bo
             string chunkStatus = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
             chunk = chunksVector.at(loopCount);
         }
-        int result_wr = write(connFd, chunk.c_str(), chunk.size());
-        if (result_wr < 0) {
-            instance_logger.error("Error writing to socket");
+        if (!Utils::send_str_wrapper(connFd, chunk)) {
             *loop_exit_p = true;
             return;
         }
@@ -4375,9 +4032,7 @@ static void request_collected_stats_command(int connFd, bool *collectValid_p, bo
 }
 
 static void initiate_train_command(int connFd, bool *loop_exit_p) {
-    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -4408,10 +4063,7 @@ static void initiate_train_command(int connFd, bool *loop_exit_p) {
     workerThreads[1].join();
     instance_logger.log("WorkerThread 1 joined", "info");
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_PARTITION_ITERATION.c_str(),
-                      JasmineGraphInstanceProtocol::SEND_PARTITION_ITERATION.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_PARTITION_ITERATION)) {
         *loop_exit_p = true;
         return;
     }
@@ -4419,10 +4071,7 @@ static void initiate_train_command(int connFd, bool *loop_exit_p) {
 
     string partIteration = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
 
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_PARTITION_COUNT.c_str(),
-                      JasmineGraphInstanceProtocol::SEND_PARTITION_ITERATION.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_PARTITION_ITERATION)) {
         *loop_exit_p = true;
         return;
     }
@@ -4435,9 +4084,7 @@ static void initiate_train_command(int connFd, bool *loop_exit_p) {
 }
 
 static void initiate_predict_command(int connFd, instanceservicesessionargs *sessionargs, bool *loop_exit_p) {
-    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -4454,10 +4101,7 @@ static void initiate_predict_command(int connFd, instanceservicesessionargs *ses
     instance_logger.log("Received Own Partitions No: " + ownPartitions, "info");
 
     /*Receive hosts' detail*/
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_HOSTS.c_str(),
-                      JasmineGraphInstanceProtocol::SEND_HOSTS.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_HOSTS)) {
         *loop_exit_p = true;
         return;
     }
@@ -4498,10 +4142,7 @@ static void initiate_predict_command(int connFd, instanceservicesessionargs *ses
         count++;
     }
     /*Receive file*/
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_NAME.c_str(),
-                      JasmineGraphInstanceProtocol::SEND_FILE_NAME.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_FILE_NAME)) {
         *loop_exit_p = true;
         return;
     }
@@ -4509,10 +4150,7 @@ static void initiate_predict_command(int connFd, instanceservicesessionargs *ses
 
     string fileName = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
     instance_logger.log("Received File name: " + fileName, "info");
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_LEN.c_str(),
-                      JasmineGraphInstanceProtocol::SEND_FILE_LEN.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_FILE_LEN)) {
         *loop_exit_p = true;
         return;
     }
@@ -4520,10 +4158,7 @@ static void initiate_predict_command(int connFd, instanceservicesessionargs *ses
 
     string size = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
     instance_logger.log("Received file size in bytes: " + size, "info");
-    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_CONT.c_str(),
-                      JasmineGraphInstanceProtocol::SEND_FILE_CONT.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_FILE_CONT)) {
         *loop_exit_p = true;
         return;
     }
@@ -4536,18 +4171,17 @@ static void initiate_predict_command(int connFd, instanceservicesessionargs *ses
     while (Utils::fileExists(fullFilePath) && Utils::getFileSize(fullFilePath) < fileSize) {
         line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
         if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
-            result_wr = write(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT.c_str(),
-                              JasmineGraphInstanceProtocol::FILE_RECV_WAIT.size());
+            if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT)) {
+                *loop_exit_p = true;
+                return;
+            }
         }
     }
 
     line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
     if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
         instance_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
-        result_wr = write(connFd, JasmineGraphInstanceProtocol::FILE_ACK.c_str(),
-                          JasmineGraphInstanceProtocol::FILE_ACK.size());
-        if (result_wr < 0) {
-            instance_logger.error("Error writing to socket");
+        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_ACK)) {
             *loop_exit_p = true;
             return;
         }
@@ -4580,9 +4214,7 @@ static void initiate_predict_command(int connFd, instanceservicesessionargs *ses
 }
 
 static void initiate_model_collection_command(int connFd, bool *loop_exit_p) {
-    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -4618,9 +4250,7 @@ static void initiate_model_collection_command(int connFd, bool *loop_exit_p) {
     // send file name
     string line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
     if (line.compare(JasmineGraphInstanceProtocol::SEND_FILE_NAME) == 0) {
-        result_wr = write(connFd, fileName.c_str(), fileName.size());
-        if (result_wr < 0) {
-            instance_logger.error("Error writing to socket");
+        if (!Utils::send_str_wrapper(connFd, fileName)) {
             *loop_exit_p = true;
             return;
         }
@@ -4630,9 +4260,7 @@ static void initiate_model_collection_command(int connFd, bool *loop_exit_p) {
         // send file length
         if (line.compare(JasmineGraphInstanceProtocol::SEND_FILE_LEN) == 0) {
             instance_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN, "info");
-            result_wr = write(connFd, fileLength.c_str(), fileLength.size());
-            if (result_wr < 0) {
-                instance_logger.error("Error writing to socket");
+            if (!Utils::send_str_wrapper(connFd, fileLength)) {
                 *loop_exit_p = true;
                 return;
             }
@@ -4650,10 +4278,7 @@ static void initiate_model_collection_command(int connFd, bool *loop_exit_p) {
     }
     int count = 0;
     while (true) {
-        result_wr = write(connFd, JasmineGraphInstanceProtocol::FILE_RECV_CHK.c_str(),
-                          JasmineGraphInstanceProtocol::FILE_RECV_CHK.size());
-        if (result_wr < 0) {
-            instance_logger.error("Error writing to socket");
+        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_RECV_CHK)) {
             *loop_exit_p = true;
             return;
         }
@@ -4674,10 +4299,7 @@ static void initiate_model_collection_command(int connFd, bool *loop_exit_p) {
         }
     }
     while (true) {
-        result_wr = write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK.c_str(),
-                          JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK.size());
-        if (result_wr < 0) {
-            instance_logger.error("Error writing to socket");
+        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK)) {
             *loop_exit_p = true;
             return;
         }
@@ -4698,9 +4320,7 @@ static void initiate_model_collection_command(int connFd, bool *loop_exit_p) {
 }
 
 static void initiate_fragment_resolution_command(int connFd, bool *loop_exit_p) {
-    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
@@ -4712,10 +4332,7 @@ static void initiate_fragment_resolution_command(int connFd, bool *loop_exit_p) 
     std::stringstream ss;
     ss << listOfPartitions;
     while (true) {
-        result_wr = write(connFd, JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_CHK.c_str(),
-                          JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_CHK.size());
-        if (result_wr < 0) {
-            instance_logger.error("Error writing to socket");
+        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_CHK)) {
             *loop_exit_p = true;
             return;
         }
@@ -4791,9 +4408,7 @@ static void initiate_fragment_resolution_command(int connFd, bool *loop_exit_p) 
     }
 
     string graphIDList = notInItemsString;
-    result_wr = write(connFd, graphIDList.c_str(), graphIDList.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, graphIDList)) {
         *loop_exit_p = true;
         return;
     }
@@ -4801,10 +4416,7 @@ static void initiate_fragment_resolution_command(int connFd, bool *loop_exit_p) 
 }
 
 static void check_file_accessible_command(int connFd, bool *loop_exit_p) {
-    int result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_TYPE.c_str(),
-                          JasmineGraphInstanceProtocol::SEND_FILE_TYPE.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_FILE_TYPE)) {
         *loop_exit_p = true;
         return;
     }
@@ -4813,9 +4425,7 @@ static void check_file_accessible_command(int connFd, bool *loop_exit_p) {
     char data[INSTANCE_DATA_LENGTH + 1];
     string fileType = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     if (fileType.compare(JasmineGraphInstanceProtocol::FILE_TYPE_CENTRALSTORE_AGGREGATE) == 0) {
-        result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-        if (result_wr < 0) {
-            instance_logger.error("Error writing to socket");
+        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
             *loop_exit_p = true;
             return;
         }
@@ -4824,9 +4434,7 @@ static void check_file_accessible_command(int connFd, bool *loop_exit_p) {
         string graphId = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
         instance_logger.log("Received Graph ID: " + graphId, "info");
 
-        result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-        if (result_wr < 0) {
-            instance_logger.error("Error writing to socket");
+        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
             *loop_exit_p = true;
             return;
         }
@@ -4844,17 +4452,13 @@ static void check_file_accessible_command(int connFd, bool *loop_exit_p) {
             result = "true";
         }
 
-        result_wr = write(connFd, result.c_str(), result.size());
-        if (result_wr < 0) {
-            instance_logger.error("Error writing to socket");
+        if (!Utils::send_str_wrapper(connFd, result)) {
             *loop_exit_p = true;
             return;
         }
         instance_logger.log("Sent : " + result, "info");
     } else if (fileType.compare(JasmineGraphInstanceProtocol::FILE_TYPE_CENTRALSTORE_COMPOSITE) == 0) {
-        result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-        if (result_wr < 0) {
-            instance_logger.error("Error writing to socket");
+        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
             *loop_exit_p = true;
             return;
         }
@@ -4872,9 +4476,7 @@ static void check_file_accessible_command(int connFd, bool *loop_exit_p) {
             result = "true";
         }
 
-        result_wr = write(connFd, result.c_str(), result.size());
-        if (result_wr < 0) {
-            instance_logger.error("Error writing to socket");
+        if (!Utils::send_str_wrapper(connFd, result)) {
             *loop_exit_p = true;
             return;
         }
@@ -4885,10 +4487,7 @@ static void check_file_accessible_command(int connFd, bool *loop_exit_p) {
 static void graph_stream_start_command(
     int connFd, std::map<std::string, JasmineGraphIncrementalLocalStore *> incrementalLocalStoreMap,
     bool *loop_exit_p) {
-    int result_wr = write(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK.c_str(),
-                          JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK)) {
         *loop_exit_p = true;
         return;
     }
@@ -4906,10 +4505,7 @@ static void graph_stream_start_command(
         return;
     }
 
-    result_wr = send(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.c_str(),
-                     JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.size(), 0);
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK)) {
         *loop_exit_p = true;
         return;
     }
@@ -4939,10 +4535,7 @@ static void graph_stream_start_command(
         incrementalLocalStoreInstance = incrementalLocalStoreMap[graphIdentifier];
     }
     incrementalLocalStoreInstance->addEdgeFromString(nodeString);
-    result_wr = send(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_END_OF_EDGE.c_str(),
-                     JasmineGraphInstanceProtocol::GRAPH_STREAM_END_OF_EDGE.size(), 0);
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_END_OF_EDGE)) {
         *loop_exit_p = true;
         return;
     }
@@ -4950,9 +4543,7 @@ static void graph_stream_start_command(
 }
 
 static void send_priority_command(int connFd, bool *loop_exit_p) {
-    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-    if (result_wr < 0) {
-        instance_logger.error("Error writing to socket");
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }

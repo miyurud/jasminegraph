@@ -550,6 +550,19 @@ std::string Utils::read_str_trim_wrapper(int connFd, char *buf, size_t len) {
     return str;
 }
 
+bool Utils::send_wrapper(int connFd, const char *buf, size_t size) {
+    ssize_t sz = send(connFd, buf, size, 0);
+    if (sz < size) {
+        util_logger.error("Send failed");
+        return false;
+    }
+    return true;
+}
+
+bool Utils::send_str_wrapper(int connFd, std::string str) {
+    return send_wrapper(connFd, str.c_str(), str.length());
+}
+
 std::string Utils::getCurrentTimestamp() {
     auto now = chrono::system_clock::now();
     time_t time = chrono::system_clock::to_time_t(now);
