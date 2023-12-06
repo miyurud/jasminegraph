@@ -109,6 +109,14 @@ if [ "$exit_code" = '124' ]; then
     echo
 fi
 
+print_log() {
+    sed -e 's/^integration-jasminegraph-1  | //g' \
+        -e 's/ \[logger\]//g' \
+        -e 's/ \[info\] / ['$'\033''[32minfo'$'\033''[0m] /g' \
+        -e 's/ \[warn\] / ['$'\033''[1;33mwarn'$'\033''[0m] /g' \
+        -e 's/ \[error\] / ['$'\033''[1;31merror'$'\033''[0m] /g' "$1"
+}
+
 cd "$TEST_ROOT"
 for d in "${WORKER_LOG_DIR}"/worker_*; do
     echo
@@ -120,30 +128,30 @@ cd "$LOG_DIR"
 if [ "$exit_code" != '0' ]; then
     echo
     echo -e '\e[33;1mMaster log:\e[0m'
-    cat "$RUN_LOG"
+    print_log "$RUN_LOG"
 
     for d in worker_*; do
         cd "${LOG_DIR}/${d}"
         echo
         echo -e '\e[33;1m'"${d}"' log:\e[0m'
-        cat worker.log
+        print_log worker.log
 
         for f in merge_*.log; do
             echo
             echo -e '\e[33;1m'"${d} ${f::-4}"' log:\e[0m'
-            cat "$f"
+            print_log "$f"
         done
 
         for f in fl_client_*.log; do
             echo
             echo -e '\e[33;1m'"${d} ${f::-4}"' log:\e[0m'
-            cat "$f"
+            print_log "$f"
         done
 
         for f in fl_server_*.log; do
             echo
             echo -e '\e[33;1m'"${d} ${f::-4}"' log:\e[0m'
-            cat "$f"
+            print_log "$f"
         done
     done
 fi
