@@ -315,7 +315,7 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        std::cerr << "Cannot accept connection" << std::endl;
+        std::cerr << "Cannot create socket" << std::endl;
         return 0;
     }
 
@@ -328,6 +328,7 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
     server = gethostbyname(host.c_str());
     if (server == NULL) {
         std::cerr << "ERROR, no host named " << server << std::endl;
+        return 0;
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -336,6 +337,7 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
     serv_addr.sin_port = htons(port);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
+        return 0;
     }
 
     bzero(data, 301);
@@ -800,7 +802,7 @@ string TriangleCountExecutor::isFileAccessibleToWorker(std::string graphId, std:
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        std::cerr << "Cannot accept connection" << std::endl;
+        std::cerr << "Cannot create socket" << std::endl;
         return 0;
     }
 
@@ -811,6 +813,7 @@ string TriangleCountExecutor::isFileAccessibleToWorker(std::string graphId, std:
     server = gethostbyname(aggregatorHostName.c_str());
     if (server == NULL) {
         std::cerr << "ERROR, no host named " << server << std::endl;
+        return 0;
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -820,6 +823,7 @@ string TriangleCountExecutor::isFileAccessibleToWorker(std::string graphId, std:
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
         // TODO::exit
+        return 0;
     }
 
     bzero(data, 301);
@@ -947,7 +951,7 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        std::cerr << "Cannot accept connection" << std::endl;
+        std::cerr << "Cannot create socket" << std::endl;
         return 0;
     }
 
@@ -958,6 +962,7 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
     server = gethostbyname(aggregatorHostName.c_str());
     if (server == NULL) {
         std::cerr << "ERROR, no host named " << server << std::endl;
+        return 0;
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -967,6 +972,7 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
         // TODO::exit
+        return 0;
     }
 
     bzero(data, 301);
@@ -1130,13 +1136,14 @@ string TriangleCountExecutor::countCompositeCentralStoreTriangles(std::string ag
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        std::cerr << "Cannot accept connection" << std::endl;
+        std::cerr << "Cannot create socket" << std::endl;
         return 0;
     }
 
     server = gethostbyname(aggregatorHostName.c_str());
     if (server == NULL) {
         std::cerr << "ERROR, no host named " << server << std::endl;
+        return 0;
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -1146,6 +1153,7 @@ string TriangleCountExecutor::countCompositeCentralStoreTriangles(std::string ag
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
         // TODO::exit
+        return 0;
     }
 
     bzero(data, 301);
@@ -1337,7 +1345,7 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        std::cerr << "Cannot accept connection" << std::endl;
+        std::cerr << "Cannot create socket" << std::endl;
         return 0;
     }
 
@@ -1348,6 +1356,7 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
     server = gethostbyname(aggregatorHostName.c_str());
     if (server == NULL) {
         std::cerr << "ERROR, no host named " << server << std::endl;
+        return 0;
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -1357,6 +1366,7 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
         // TODO::exit
+        return 0;
     }
 
     bzero(data, 301);
@@ -1518,7 +1528,7 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorH
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        std::cerr << "Cannot accept connection" << std::endl;
+        std::cerr << "Cannot create socket" << std::endl;
         return 0;
     }
 
@@ -1529,6 +1539,7 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorH
     server = gethostbyname(host.c_str());
     if (server == NULL) {
         std::cerr << "ERROR, no host named " << server << std::endl;
+        return 0;
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -1538,6 +1549,7 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorH
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
         // TODO::exit
+        return 0;
     }
 
     bzero(data, 301);

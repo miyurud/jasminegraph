@@ -97,7 +97,7 @@ int JasminGraphLinkPredictor::sendQueryToWorker(std::string host, int port, int 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        std::cerr << "Cannot accept connection" << std::endl;
+        std::cerr << "Cannot create socket" << std::endl;
         return 0;
     }
 
@@ -108,6 +108,7 @@ int JasminGraphLinkPredictor::sendQueryToWorker(std::string host, int port, int 
     server = gethostbyname(host.c_str());
     if (server == NULL) {
         std::cerr << "ERROR, no host named " << server << std::endl;
+        return 0;
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -117,6 +118,7 @@ int JasminGraphLinkPredictor::sendQueryToWorker(std::string host, int port, int 
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
         // TODO::exit
+        return 0;
     }
     bzero(data, 301);
     write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());

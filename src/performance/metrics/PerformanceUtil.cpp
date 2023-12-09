@@ -209,13 +209,14 @@ void PerformanceUtil::collectRemotePerformanceData(std::string host, int port, s
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        std::cerr << "Cannot accept connection" << std::endl;
+        std::cerr << "Cannot create socket" << std::endl;
         return;
     }
 
     server = gethostbyname(host.c_str());
     if (server == NULL) {
         std::cerr << "ERROR, no host named " << server << std::endl;
+        return;
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -224,6 +225,7 @@ void PerformanceUtil::collectRemotePerformanceData(std::string host, int port, s
     serv_addr.sin_port = htons(port);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
+        return;
     }
 
     bzero(data, 301);
@@ -366,7 +368,7 @@ int PerformanceUtil::collectRemoteSLAResourceUtilization(std::string host, int p
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        std::cerr << "Cannot accept connection" << std::endl;
+        std::cerr << "Cannot create socket" << std::endl;
         return 0;
     }
 
@@ -377,6 +379,7 @@ int PerformanceUtil::collectRemoteSLAResourceUtilization(std::string host, int p
     server = gethostbyname(host.c_str());
     if (server == NULL) {
         std::cerr << "ERROR, no host named " << server << std::endl;
+        return 0;
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -385,6 +388,7 @@ int PerformanceUtil::collectRemoteSLAResourceUtilization(std::string host, int p
     serv_addr.sin_port = htons(port);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
+        return 0;
     }
 
     bzero(data, 301);
@@ -529,13 +533,14 @@ ResourceConsumption PerformanceUtil::retrieveRemoteResourceConsumption(std::stri
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        std::cerr << "Cannot accept connection" << std::endl;
+        std::cerr << "Cannot create socket" << std::endl;
         return placeResourceConsumption;
     }
 
     server = gethostbyname(host.c_str());
     if (server == NULL) {
         std::cerr << "ERROR, no host named " << server << std::endl;
+        return placeResourceConsumption;
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -544,6 +549,7 @@ ResourceConsumption PerformanceUtil::retrieveRemoteResourceConsumption(std::stri
     serv_addr.sin_port = htons(port);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
+        return placeResourceConsumption;
     }
 
     bzero(data, 301);
@@ -1044,7 +1050,7 @@ void PerformanceUtil::initiateCollectingRemoteSLAResourceUtilization(std::string
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        std::cerr << "Cannot accept connection" << std::endl;
+        std::cerr << "Cannot create socket" << std::endl;
         return;
     }
 
@@ -1055,6 +1061,7 @@ void PerformanceUtil::initiateCollectingRemoteSLAResourceUtilization(std::string
     server = gethostbyname(host.c_str());
     if (server == NULL) {
         std::cerr << "ERROR, no host named " << server << std::endl;
+        return;
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -1063,6 +1070,7 @@ void PerformanceUtil::initiateCollectingRemoteSLAResourceUtilization(std::string
     serv_addr.sin_port = htons(port);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
+        return;
     }
 
     bzero(data, 301);
@@ -1116,7 +1124,7 @@ std::string PerformanceUtil::requestRemoteLoadAverages(std::string host, int por
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        std::cerr << "Cannot accept connection" << std::endl;
+        std::cerr << "Cannot create socket" << std::endl;
         return 0;
     }
 
@@ -1127,6 +1135,7 @@ std::string PerformanceUtil::requestRemoteLoadAverages(std::string host, int por
     server = gethostbyname(host.c_str());
     if (server == NULL) {
         std::cerr << "ERROR, no host named " << server << std::endl;
+        return 0;
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -1135,6 +1144,7 @@ std::string PerformanceUtil::requestRemoteLoadAverages(std::string host, int por
     serv_addr.sin_port = htons(port);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
+        return 0;
     }
 
     bzero(data, 301);
