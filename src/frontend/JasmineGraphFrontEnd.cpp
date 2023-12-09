@@ -30,7 +30,6 @@ limitations under the License.
 #include "../centralstore/incremental/RelationBlock.h"
 #include "../metadb/SQLiteDBInterface.h"
 #include "../ml/trainer/JasmineGraphTrainingSchedular.h"
-#include "../ml/trainer/python-c-api/Python_C_API.h"
 #include "../partitioner/local/JSONParser.h"
 #include "../partitioner/local/MetisPartitioner.h"
 #include "../partitioner/local/RDFParser.h"
