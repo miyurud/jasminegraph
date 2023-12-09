@@ -70,7 +70,7 @@ bool JasmineGraphInstance::acknowledgeMaster(string masterHost, string workerIP,
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        std::cerr << "Cannot accept connection" << std::endl;
+        std::cerr << "Cannot create socket" << std::endl;
         return false;
     }
 
@@ -83,6 +83,7 @@ bool JasmineGraphInstance::acknowledgeMaster(string masterHost, string workerIP,
     server = gethostbyname(masterHost.c_str());
     if (server == NULL) {
         std::cerr << "ERROR, no host named " << server << std::endl;
+        return false;
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -91,6 +92,7 @@ bool JasmineGraphInstance::acknowledgeMaster(string masterHost, string workerIP,
     serv_addr.sin_port = htons(Conts::JASMINEGRAPH_BACKEND_PORT);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
+        return false;
     }
 
     bzero(data, 301);
@@ -210,14 +212,14 @@ bool JasmineGraphInstance::sendFileThroughService(std::string host, int dataPort
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        std::cerr << "Cannot accept connection" << std::endl;
+        std::cerr << "Cannot create socket" << std::endl;
         return false;
     }
 
     server = gethostbyname(host.c_str());
     if (server == NULL) {
         std::cerr << "ERROR, no host named " << server << std::endl;
-        exit(0);
+        return false;
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));

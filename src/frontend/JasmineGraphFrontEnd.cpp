@@ -2020,11 +2020,13 @@ void JasmineGraphServer::pageRank(std::string graphID, double alpha, int iterati
         sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
         if (sockfd < 0) {
-            std::cout << "Cannot accept connection" << std::endl;
+            std::cout << "Cannot create socket" << std::endl;
+            continue;
         }
         server = gethostbyname(host.c_str());
         if (server == NULL) {
             std::cout << "ERROR, no host named " << server << std::endl;
+            continue;
         }
 
         bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -2034,6 +2036,7 @@ void JasmineGraphServer::pageRank(std::string graphID, double alpha, int iterati
         if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
             std::cout << "ERROR connecting" << std::endl;
             // TODO::exit
+            continue;
         }
 
         bzero(data, 301);
@@ -2206,11 +2209,13 @@ void JasmineGraphServer::egoNet(std::string graphID) {
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        std::cout << "Cannot accept connection" << std::endl;
+        std::cout << "Cannot create socket" << std::endl;
+        return;
     }
     server = gethostbyname(host.c_str());
     if (server == NULL) {
         std::cout << "ERROR, no host named " << server << std::endl;
+        return;
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -2220,6 +2225,7 @@ void JasmineGraphServer::egoNet(std::string graphID) {
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cout << "ERROR connecting" << std::endl;
         // TODO::exit
+        return;
     }
 
     bzero(data, 301);

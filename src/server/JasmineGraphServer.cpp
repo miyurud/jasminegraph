@@ -528,7 +528,8 @@ void JasmineGraphServer::resolveOperationalGraphs() {
         sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
         if (sockfd < 0) {
-            std::cerr << "Cannot accept connection" << std::endl;
+            std::cerr << "Cannot create socket" << std::endl;
+            continue;
         }
 
         if (host.find('@') != std::string::npos) {
@@ -538,6 +539,7 @@ void JasmineGraphServer::resolveOperationalGraphs() {
         server = gethostbyname(host.c_str());
         if (server == NULL) {
             std::cerr << "ERROR, no host named " << server << std::endl;
+            continue;
         }
 
         bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -547,6 +549,7 @@ void JasmineGraphServer::resolveOperationalGraphs() {
         if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
             std::cerr << "ERROR connecting" << std::endl;
             // TODO::exit
+            continue;
         }
 
         bzero(data, FED_DATA_LENGTH + 1);
@@ -704,7 +707,7 @@ void JasmineGraphServer::shutdown_workers() {
         sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
         if (sockfd < 0) {
-            std::cerr << "Cannot accept connection" << std::endl;
+            std::cerr << "Cannot create socket" << std::endl;
             return;
         }
 
@@ -718,6 +721,7 @@ void JasmineGraphServer::shutdown_workers() {
         server = gethostbyname(host.c_str());
         if (server == NULL) {
             std::cerr << "ERROR, no host named " << server << std::endl;
+            return;
         }
 
         bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -727,6 +731,7 @@ void JasmineGraphServer::shutdown_workers() {
         if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
             std::cerr << "ERROR connecting" << std::endl;
             // TODO::exit
+            return;
         }
 
         bzero(data, FED_DATA_LENGTH + 1);
@@ -868,7 +873,7 @@ bool JasmineGraphServer::batchUploadFile(std::string host, int port, int dataPor
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        std::cerr << "Cannot accept connection" << std::endl;
+        std::cerr << "Cannot create socket" << std::endl;
         return 0;
     }
 
@@ -879,6 +884,7 @@ bool JasmineGraphServer::batchUploadFile(std::string host, int port, int dataPor
     server = gethostbyname(host.c_str());
     if (server == NULL) {
         std::cerr << "ERROR, no host named " << server << std::endl;
+        return 0;
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -888,6 +894,7 @@ bool JasmineGraphServer::batchUploadFile(std::string host, int port, int dataPor
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
         // TODO::exit
+        return 0;
     }
 
     bzero(data, FED_DATA_LENGTH + 1);
@@ -1059,7 +1066,7 @@ bool JasmineGraphServer::batchUploadCentralStore(std::string host, int port, int
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        std::cerr << "Cannot accept connection" << std::endl;
+        std::cerr << "Cannot create socket" << std::endl;
         return 0;
     }
 
@@ -1070,6 +1077,7 @@ bool JasmineGraphServer::batchUploadCentralStore(std::string host, int port, int
     server = gethostbyname(host.c_str());
     if (server == NULL) {
         std::cerr << "ERROR, no host named " << server << std::endl;
+        return 0;
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -1078,6 +1086,7 @@ bool JasmineGraphServer::batchUploadCentralStore(std::string host, int port, int
     serv_addr.sin_port = htons(port);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
+        return 0;
     }
 
     bzero(data, FED_DATA_LENGTH + 1);
@@ -1290,7 +1299,7 @@ bool JasmineGraphServer::batchUploadAttributeFile(std::string host, int port, in
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        std::cerr << "Cannot accept connection" << std::endl;
+        std::cerr << "Cannot create socket" << std::endl;
         return 0;
     }
 
@@ -1301,6 +1310,7 @@ bool JasmineGraphServer::batchUploadAttributeFile(std::string host, int port, in
     server = gethostbyname(host.c_str());
     if (server == NULL) {
         std::cerr << "ERROR, no host named " << server << std::endl;
+        return 0;
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -1309,6 +1319,7 @@ bool JasmineGraphServer::batchUploadAttributeFile(std::string host, int port, in
     serv_addr.sin_port = htons(port);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
+        return 0;
     }
 
     bzero(data, FED_DATA_LENGTH + 1);
@@ -1483,7 +1494,7 @@ bool JasmineGraphServer::batchUploadCentralAttributeFile(std::string host, int p
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        std::cerr << "Cannot accept connection" << std::endl;
+        std::cerr << "Cannot create socket" << std::endl;
         return 0;
     }
 
@@ -1494,6 +1505,7 @@ bool JasmineGraphServer::batchUploadCentralAttributeFile(std::string host, int p
     server = gethostbyname(host.c_str());
     if (server == NULL) {
         std::cerr << "ERROR, no host named " << server << std::endl;
+        return 0;
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -1502,6 +1514,7 @@ bool JasmineGraphServer::batchUploadCentralAttributeFile(std::string host, int p
     serv_addr.sin_port = htons(port);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
+        return 0;
     }
 
     bzero(data, FED_DATA_LENGTH + 1);
@@ -1676,7 +1689,7 @@ bool JasmineGraphServer::batchUploadCompositeCentralstoreFile(std::string host, 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        std::cerr << "Cannot accept connection" << std::endl;
+        std::cerr << "Cannot create socket" << std::endl;
         return 0;
     }
 
@@ -1687,6 +1700,7 @@ bool JasmineGraphServer::batchUploadCompositeCentralstoreFile(std::string host, 
     server = gethostbyname(host.c_str());
     if (server == NULL) {
         std::cerr << "ERROR, no host named " << server << std::endl;
+        return 0;
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -1695,6 +1709,7 @@ bool JasmineGraphServer::batchUploadCompositeCentralstoreFile(std::string host, 
     serv_addr.sin_port = htons(port);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
+        return 0;
     }
 
     bzero(data, FED_DATA_LENGTH + 1);
@@ -1870,14 +1885,14 @@ bool JasmineGraphServer::sendFileThroughService(std::string host, int dataPort, 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        std::cerr << "Cannot accept connection" << std::endl;
+        std::cerr << "Cannot create socket" << std::endl;
         return false;
     }
 
     server = gethostbyname(host.c_str());
     if (server == NULL) {
         std::cerr << "ERROR, no host named " << server << std::endl;
-        exit(0);
+        return false;
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -1886,6 +1901,7 @@ bool JasmineGraphServer::sendFileThroughService(std::string host, int dataPort, 
     serv_addr.sin_port = htons(dataPort);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting to port " << dataPort << std::endl;
+        return false;
     }
 
     int result_wr = write(sockfd, fileName.c_str(), fileName.size());
@@ -2186,7 +2202,7 @@ int JasmineGraphServer::removeFragmentThroughService(string host, int port, stri
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        std::cerr << "Cannot accept connection" << std::endl;
+        std::cerr << "Cannot create socket" << std::endl;
         return 0;
     }
 
@@ -2197,6 +2213,7 @@ int JasmineGraphServer::removeFragmentThroughService(string host, int port, stri
     server = gethostbyname(host.c_str());
     if (server == NULL) {
         std::cerr << "ERROR, no host named " << server << std::endl;
+        return 0;
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -2206,6 +2223,7 @@ int JasmineGraphServer::removeFragmentThroughService(string host, int port, stri
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
         // TODO::exit
+        return 0;
     }
 
     bzero(data, FED_DATA_LENGTH + 1);
@@ -2293,7 +2311,7 @@ int JasmineGraphServer::removePartitionThroughService(string host, int port, str
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        std::cerr << "Cannot accept connection" << std::endl;
+        std::cerr << "Cannot create socket" << std::endl;
         return 0;
     }
 
@@ -2304,6 +2322,7 @@ int JasmineGraphServer::removePartitionThroughService(string host, int port, str
     server = gethostbyname(host.c_str());
     if (server == NULL) {
         std::cerr << "ERROR, no host named " << server << std::endl;
+        return 0;
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -2313,6 +2332,7 @@ int JasmineGraphServer::removePartitionThroughService(string host, int port, str
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
         // TODO::exit
+        return 0;
     }
 
     bzero(data, FED_DATA_LENGTH + 1);
@@ -2684,11 +2704,13 @@ void JasmineGraphServer::inDegreeDistribution(std::string graphID) {
         sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
         if (sockfd < 0) {
-            std::cout << "Cannot accept connection" << std::endl;
+            std::cout << "Cannot create socket" << std::endl;
+            continue;
         }
         server = gethostbyname(host.c_str());
         if (server == NULL) {
             std::cout << "ERROR, no host named " << server << std::endl;
+            continue;
         }
 
         bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -2698,6 +2720,7 @@ void JasmineGraphServer::inDegreeDistribution(std::string graphID) {
         if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
             std::cout << "ERROR connecting" << std::endl;
             // TODO::exit
+            continue;
         }
 
         bzero(data, FED_DATA_LENGTH + 1);
@@ -2802,11 +2825,13 @@ void JasmineGraphServer::outDegreeDistribution(std::string graphID) {
         sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
         if (sockfd < 0) {
-            std::cout << "Cannot accept connection" << std::endl;
+            std::cout << "Cannot create socket" << std::endl;
+            continue;
         }
         server = gethostbyname(host.c_str());
         if (server == NULL) {
             std::cout << "ERROR, no host named " << server << std::endl;
+            continue;
         }
 
         bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -2816,6 +2841,7 @@ void JasmineGraphServer::outDegreeDistribution(std::string graphID) {
         if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
             std::cout << "ERROR connecting" << std::endl;
             // TODO::exit
+            continue;
         }
 
         bzero(data, FED_DATA_LENGTH + 1);
@@ -2930,11 +2956,13 @@ void JasmineGraphServer::duplicateCentralStore(std::string graphID) {
         sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
         if (sockfd < 0) {
-            std::cout << "Cannot accept connection" << std::endl;
+            std::cout << "Cannot create socket" << std::endl;
+            continue;
         }
         server = gethostbyname(host.c_str());
         if (server == NULL) {
             std::cout << "ERROR, no host named " << server << std::endl;
+            continue;
         }
 
         bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -2944,6 +2972,7 @@ void JasmineGraphServer::duplicateCentralStore(std::string graphID) {
         if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
             std::cout << "ERROR connecting" << std::endl;
             // TODO::exit
+            continue;
         }
 
         bzero(data, FED_DATA_LENGTH + 1);
@@ -3241,7 +3270,7 @@ bool JasmineGraphServer::initiateTrain(std::string host, int port, int dataPort,
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        server_logger.log("Cannot accept connection", "error");
+        server_logger.log("Cannot create socket", "error");
         return 0;
     }
 
@@ -3252,6 +3281,7 @@ bool JasmineGraphServer::initiateTrain(std::string host, int port, int dataPort,
     server = gethostbyname(host.c_str());
     if (server == NULL) {
         server_logger.log("ERROR, can not find the host", "error");
+        return 0;
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -3261,6 +3291,7 @@ bool JasmineGraphServer::initiateTrain(std::string host, int port, int dataPort,
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         server_logger.log("ERROR connecting", "error");
         // TODO::exit
+        return 0;
     }
 
     bzero(data, FED_DATA_LENGTH);
@@ -3333,7 +3364,7 @@ bool JasmineGraphServer::initiatePredict(std::string host, int port, int dataPor
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        server_logger.log("Cannot accept connection", "error");
+        server_logger.log("Cannot create socket", "error");
         return 0;
     }
 
@@ -3344,6 +3375,7 @@ bool JasmineGraphServer::initiatePredict(std::string host, int port, int dataPor
     server = gethostbyname(host.c_str());
     if (server == NULL) {
         server_logger.log("ERROR, can not find the host", "error");
+        return 0;
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -3353,6 +3385,7 @@ bool JasmineGraphServer::initiatePredict(std::string host, int port, int dataPor
     if (connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         server_logger.log("ERROR connecting", "error");
         // TODO::exit
+        return 0;
     }
 
     bzero(data, FED_DATA_LENGTH);
@@ -3406,7 +3439,7 @@ bool JasmineGraphServer::initiateServer(std::string host, int port, int dataPort
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        server_logger.log("Cannot accept connection", "error");
+        server_logger.log("Cannot create socket", "error");
         return 0;
     }
 
@@ -3417,6 +3450,7 @@ bool JasmineGraphServer::initiateServer(std::string host, int port, int dataPort
     server = gethostbyname(host.c_str());
     if (server == NULL) {
         server_logger.log("ERROR, can not find the host", "error");
+        return 0;
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -3426,6 +3460,7 @@ bool JasmineGraphServer::initiateServer(std::string host, int port, int dataPort
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         server_logger.log("ERROR connecting", "error");
         // TODO::exit
+        return 0;
     }
 
     bzero(data, FED_DATA_LENGTH);
@@ -3488,7 +3523,7 @@ bool JasmineGraphServer::initiateClient(std::string host, int port, int dataPort
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        server_logger.log("Cannot accept connection", "error");
+        server_logger.log("Cannot create socket", "error");
         return 0;
     }
 
@@ -3499,6 +3534,7 @@ bool JasmineGraphServer::initiateClient(std::string host, int port, int dataPort
     server = gethostbyname(host.c_str());
     if (server == NULL) {
         server_logger.log("ERROR, can not find the host", "error");
+        return 0;
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -3508,6 +3544,7 @@ bool JasmineGraphServer::initiateClient(std::string host, int port, int dataPort
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         server_logger.log("ERROR connecting", "error");
         // TODO::exit
+        return 0;
     }
 
     bzero(data, FED_DATA_LENGTH);
@@ -3570,7 +3607,7 @@ bool JasmineGraphServer::initiateAggregator(std::string host, int port, int data
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        server_logger.log("Cannot accept connection", "error");
+        server_logger.log("Cannot create socket", "error");
         return 0;
     }
 
@@ -3581,6 +3618,7 @@ bool JasmineGraphServer::initiateAggregator(std::string host, int port, int data
     server = gethostbyname(host.c_str());
     if (server == NULL) {
         server_logger.log("ERROR, can not find the host", "error");
+        return 0;
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -3590,6 +3628,7 @@ bool JasmineGraphServer::initiateAggregator(std::string host, int port, int data
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         server_logger.log("ERROR connecting", "error");
         // TODO::exit
+        return 0;
     }
 
     bzero(data, FED_DATA_LENGTH);
@@ -3650,7 +3689,7 @@ bool JasmineGraphServer::initiateOrgServer(std::string host, int port, int dataP
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        server_logger.log("Cannot accept connection", "error");
+        server_logger.log("Cannot create socket", "error");
         return 0;
     }
 
@@ -3661,6 +3700,7 @@ bool JasmineGraphServer::initiateOrgServer(std::string host, int port, int dataP
     server = gethostbyname(host.c_str());
     if (server == NULL) {
         server_logger.log("ERROR, can not find the host", "error");
+        return 0;
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -3670,6 +3710,7 @@ bool JasmineGraphServer::initiateOrgServer(std::string host, int port, int dataP
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         server_logger.log("Error connecting", "error");
         // TODO::exit
+        return 0;
     }
 
     bzero(data, FED_DATA_LENGTH);
@@ -3727,7 +3768,7 @@ bool JasmineGraphServer::receiveGlobalWeights(std::string host, int port, std::s
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        server_logger.log("Cannot accept connection", "error");
+        server_logger.log("Cannot create socket", "error");
         return 0;
     }
     if (host.find('@') != std::string::npos) {
@@ -3736,6 +3777,7 @@ bool JasmineGraphServer::receiveGlobalWeights(std::string host, int port, std::s
     server = gethostbyname(host.c_str());
     if (server == NULL) {
         server_logger.log("ERROR, can not find the host", "error");
+        return 0;
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -3820,7 +3862,7 @@ bool JasmineGraphServer::mergeFiles(std::string host, int port, int dataPort, st
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        server_logger.log("Cannot accept connection", "error");
+        server_logger.log("Cannot create socket", "error");
         return 0;
     }
 
@@ -3831,6 +3873,7 @@ bool JasmineGraphServer::mergeFiles(std::string host, int port, int dataPort, st
     server = gethostbyname(host.c_str());
     if (server == NULL) {
         server_logger.log("ERROR, can not find the host", "error");
+        return 0;
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -3840,6 +3883,7 @@ bool JasmineGraphServer::mergeFiles(std::string host, int port, int dataPort, st
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         server_logger.log("ERROR connecting", "error");
         // TODO::exit
+        return 0;
     }
 
     bzero(data, FED_DATA_LENGTH);
@@ -3901,7 +3945,7 @@ bool JasmineGraphServer::sendTrainCommand(std::string host, int port, std::strin
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        server_logger.log("Cannot accept connection", "error");
+        server_logger.log("Cannot create socket", "error");
         return 0;
     }
 
@@ -3912,6 +3956,7 @@ bool JasmineGraphServer::sendTrainCommand(std::string host, int port, std::strin
     server = gethostbyname(host.c_str());
     if (server == NULL) {
         server_logger.log("ERROR, can not find the host", "error");
+        return 0;
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -3921,6 +3966,7 @@ bool JasmineGraphServer::sendTrainCommand(std::string host, int port, std::strin
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         server_logger.log("ERROR connecting", "error");
         // TODO::exit
+        return 0;
     }
 
     bzero(data, FED_DATA_LENGTH);
