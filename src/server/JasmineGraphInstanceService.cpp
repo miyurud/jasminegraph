@@ -786,7 +786,7 @@ int JasmineGraphInstanceService::collectTrainedModelThreadFunction(instanceservi
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        std::cerr << "Cannot accept connection" << std::endl;
+        std::cerr << "Cannot create socket" << std::endl;
         return 0;
     }
 
@@ -797,6 +797,7 @@ int JasmineGraphInstanceService::collectTrainedModelThreadFunction(instanceservi
     server = gethostbyname(host.c_str());
     if (server == NULL) {
         std::cerr << "ERROR, no host named " << server << std::endl;
+        return 0;
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -806,6 +807,7 @@ int JasmineGraphInstanceService::collectTrainedModelThreadFunction(instanceservi
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
         // TODO::exit
+        return 0;
     }
     bzero(data, INSTANCE_DATA_LENGTH + 1);
     write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
@@ -1053,8 +1055,11 @@ void JasmineGraphInstanceService::trainPartition(string trainData) {
         command += trainargs[i + 2];
         command += " ";
     }
-    instance_logger.log("Executing : " + command, "info");
-    system(command.c_str());
+    instance_logger.error("Temporarily disabled the execution of unsupervised train.");
+    // TODO(thevindu-w): Temporarily commenting the execution of the following line
+    // due to missing unsupervised_train.py file. Removal of graphsage folder resulted in this situation.
+    // Need to find a different way of executing Unsupervised train
+    // system(command.c_str());
 }
 
 map<long, long> JasmineGraphInstanceService::calculateLocalOutDegreeDistribution(
@@ -1153,7 +1158,7 @@ bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int 
                 sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
                 if (sockfd < 0) {
-                    instance_logger.log("Cannot accept connection", "error");
+                    instance_logger.log("Cannot create socket", "error");
                     return 0;
                 }
 
@@ -1164,6 +1169,7 @@ bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int 
                 server = gethostbyname(host.c_str());
                 if (server == NULL) {
                     instance_logger.log("ERROR, no host named ", "error");
+                    return 0;
                 }
 
                 bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -1173,6 +1179,7 @@ bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int 
                 if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
                     instance_logger.log("ERROR connecting", "error");
                     // TODO::exit
+                    return 0;
                 }
 
                 bzero(data, INSTANCE_DATA_LENGTH + 1);
@@ -1353,14 +1360,14 @@ bool JasmineGraphInstanceService::sendFileThroughService(std::string host, int d
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        std::cerr << "Cannot accept connection" << std::endl;
+        std::cerr << "Cannot create socket" << std::endl;
         return false;
     }
 
     server = gethostbyname(host.c_str());
     if (server == NULL) {
         std::cerr << "ERROR, no host named " << server << std::endl;
-        exit(0);
+        return false;
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -1369,6 +1376,7 @@ bool JasmineGraphInstanceService::sendFileThroughService(std::string host, int d
     serv_addr.sin_port = htons(dataPort);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting to port " << dataPort << std::endl;
+        return false;
     }
 
     int result_wr = write(sockfd, fileName.c_str(), fileName.size());
@@ -1738,12 +1746,14 @@ void calculateEgoNet(string graphID, string partitionID, int serverPort, Jasmine
         sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
         if (sockfd < 0) {
-            std::cout << "Cannot accept connection" << std::endl;
+            std::cout << "Cannot create socket" << std::endl;
+            return;
         }
 
         server = gethostbyname(host.c_str());
         if (server == NULL) {
             std::cout << "ERROR, no host named " << server << std::endl;
+            return;
         }
 
         bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -1753,6 +1763,7 @@ void calculateEgoNet(string graphID, string partitionID, int serverPort, Jasmine
         if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
             std::cout << "ERROR connecting" << std::endl;
             // TODO::exit
+            return;
         }
 
         bzero(data, 301);
@@ -4934,8 +4945,11 @@ static void initiate_predict_command(int connFd, instanceservicesessionargs *ses
         command += " ";
     }
 
-    cout << command << endl;
-    system(command.c_str());
+    instance_logger.error("Temporarily disabled the execution of prediction.");
+    // TODO(miyurud): Temporarily commenting the execution of the following line
+    // due to missing predict.py file. Removal of graphsage folder resulted in this situation.
+    // Need to find a different way of executing Predict
+    // system(command.c_str());
     *loop_exit_p = true;
 }
 
