@@ -1959,7 +1959,7 @@ void JasmineGraphServer::copyArtifactsToWorkers(std::string workerPath, std::str
     std::string pathCheckCommand = "test -e " + workerPath + "&& echo file exists || echo file not found";
     std::string artifactCopyCommand;
     const int ARTIFACTS_COUNT = 4;
-    std::string artifactsArray[ARTIFACTS_COUNT] = {"JasmineGraph", "run.sh", "conf", "GraphSAGE"};
+    std::string artifactsArray[ARTIFACTS_COUNT] = {"JasmineGraph", "run.sh", "conf"};
 
     std::string localWorkerArtifactCopyCommandArray[ARTIFACTS_COUNT];
     std::string remoteWorkerArtifactCopyCommandArray[ARTIFACTS_COUNT];

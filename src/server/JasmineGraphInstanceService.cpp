@@ -3223,8 +3223,11 @@ void JasmineGraphInstanceService::trainPartition(string trainData) {
         command += trainargs[i + 2];
         command += " ";
     }
-    instance_logger.log("Executing : " + command, "info");
-    system(command.c_str());
+    instance_logger.error("Temporarily disabled the execution of unsupervised train.");
+    // TODO(thevindu-w): Temporarily commenting the execution of the following line
+    // due to missing unsupervised_train.py file. Removal of graphsage folder resulted in this situation.
+    // Need to find a different way of executing Unsupervised train
+    // system(command.c_str());
 }
 
 map<long, long> JasmineGraphInstanceService::calculateLocalOutDegreeDistribution(
