@@ -325,17 +325,17 @@ void JasmineGraphInstanceService::run(string profile, string masterHost, string 
 int deleteGraphPartition(std::string graphID, std::string partitionID) {
     int status = 0;
     string partitionFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" +
-                               graphID + +"_" + partitionID;
+                               graphID + "_" + partitionID;
     status |= Utils::deleteDirectory(partitionFilePath);
     string centalStoreFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" +
-                                 graphID + +"_centralstore_" + partitionID;
+                                 graphID + "_centralstore_" + partitionID;
     status |= Utils::deleteDirectory(centalStoreFilePath);
     string centalStoreDuplicateFilePath =
         Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + graphID +
         +"_centralstore_dp_" + partitionID;
     status |= Utils::deleteDirectory(centalStoreDuplicateFilePath);
     string attributeFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" +
-                               graphID + +"_attributes_" + partitionID;
+                               graphID + "_attributes_" + partitionID;
     status |= Utils::deleteDirectory(attributeFilePath);
     string attributeCentalStoreFilePath =
         Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + graphID +
@@ -379,8 +379,8 @@ long countLocalTriangles(
 
     instance_logger.log("###INSTANCE### Local Triangle Count : Started", "info");
     std::string graphIdentifier = graphId + "_" + partitionId;
-    std::string centralGraphIdentifier = graphId + +"_centralstore_" + partitionId;
-    std::string duplicateCentralGraphIdentifier = graphId + +"_centralstore_dp_" + partitionId;
+    std::string centralGraphIdentifier = graphId + "_centralstore_" + partitionId;
+    std::string duplicateCentralGraphIdentifier = graphId + "_centralstore_dp_" + partitionId;
     JasmineGraphHashMapLocalStore graphDB;
     JasmineGraphHashMapCentralStore centralGraphDB;
     JasmineGraphHashMapDuplicateCentralStore duplicateCentralGraphDB;
@@ -439,7 +439,7 @@ bool JasmineGraphInstanceService::isGraphDBExists(std::string graphId, std::stri
 
 bool JasmineGraphInstanceService::isInstanceCentralStoreExists(std::string graphId, std::string partitionId) {
     std::string dataFolder = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
-    std::string filename = dataFolder + "/" + graphId + +"_centralstore_" + partitionId;
+    std::string filename = dataFolder + "/" + graphId + "_centralstore_" + partitionId;
     std::ifstream dbFile(filename, std::ios::binary);
     if (!dbFile) {
         return false;
@@ -449,7 +449,7 @@ bool JasmineGraphInstanceService::isInstanceCentralStoreExists(std::string graph
 
 bool JasmineGraphInstanceService::isInstanceDuplicateCentralStoreExists(std::string graphId, std::string partitionId) {
     std::string dataFolder = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
-    std::string filename = dataFolder + "/" + graphId + +"_centralstore_dp_" + partitionId;
+    std::string filename = dataFolder + "/" + graphId + "_centralstore_dp_" + partitionId;
     std::ifstream dbFile(filename, std::ios::binary);
     if (!dbFile) {
         return false;
@@ -487,7 +487,7 @@ void JasmineGraphInstanceService::loadInstanceCentralStore(
     std::string graphId, std::string partitionId,
     std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores) {
     instance_logger.log("###INSTANCE### Loading central Store : Started", "info");
-    std::string graphIdentifier = graphId + +"_centralstore_" + partitionId;
+    std::string graphIdentifier = graphId + "_centralstore_" + partitionId;
     JasmineGraphHashMapCentralStore *jasmineGraphHashMapCentralStore =
         new JasmineGraphHashMapCentralStore(stoi(graphId), stoi(partitionId));
     jasmineGraphHashMapCentralStore->loadGraph();
@@ -498,7 +498,7 @@ void JasmineGraphInstanceService::loadInstanceCentralStore(
 void JasmineGraphInstanceService::loadInstanceDuplicateCentralStore(
     std::string graphId, std::string partitionId,
     std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores) {
-    std::string graphIdentifier = graphId + +"_centralstore_dp_" + partitionId;
+    std::string graphIdentifier = graphId + "_centralstore_dp_" + partitionId;
     JasmineGraphHashMapDuplicateCentralStore *jasmineGraphHashMapCentralStore =
         new JasmineGraphHashMapDuplicateCentralStore(stoi(graphId), stoi(partitionId));
     jasmineGraphHashMapCentralStore->loadGraph();
@@ -518,7 +518,7 @@ std::string JasmineGraphInstanceService::copyCentralStoreToAggregator(std::strin
                                                                       std::string aggregatorPort, std::string host) {
     char buffer[128];
     std::string result = "SUCCESS";
-    std::string centralGraphIdentifier = graphId + +"_centralstore_" + partitionId;
+    std::string centralGraphIdentifier = graphId + "_centralstore_" + partitionId;
     std::string dataFolder = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
     std::string aggregatorFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
 
@@ -567,7 +567,7 @@ string JasmineGraphInstanceService::aggregateCentralStoreTriangles(std::string g
     std::string aggregatorFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
     std::vector<std::string> fileNames;
     map<long, unordered_set<long>> aggregatedCentralStore;
-    std::string centralGraphIdentifier = graphId + +"_centralstore_" + partitionId;
+    std::string centralGraphIdentifier = graphId + "_centralstore_" + partitionId;
     std::string dataFolder = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
     std::string workerCentralStoreFile = dataFolder + "/" + centralGraphIdentifier;
     instance_logger.log("###INSTANCE### Loading Central Store : Started " + workerCentralStoreFile, "info");
@@ -596,7 +596,7 @@ string JasmineGraphInstanceService::aggregateCentralStoreTriangles(std::string g
         std::string aggregatePartitionId = *partitionIdListIterator;
         struct stat s;
 
-        std::string centralGraphIdentifier = graphId + +"_centralstore_" + aggregatePartitionId;
+        std::string centralGraphIdentifier = graphId + "_centralstore_" + aggregatePartitionId;
 
         std::string centralStoreFile = aggregatorFilePath + "/" + centralGraphIdentifier;
 
@@ -1562,7 +1562,7 @@ map<long, map<long, unordered_set<long>>> calculateLocalEgoNet(string graphID, s
         }
 
         std::string aggregatorFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
-        std::string centralGraphIdentifier = graphID + +"_centralstore_" + workerSocketPair[2];
+        std::string centralGraphIdentifier = graphID + "_centralstore_" + workerSocketPair[2];
 
         std::string centralStoreFile = aggregatorFilePath + "/" + centralGraphIdentifier;
         instance_logger.log("###INSTANCE### centralstore " + centralStoreFile, "info");
@@ -1772,7 +1772,7 @@ map<long, double> calculateLocalPageRank(string graphID, double alpha, string pa
     map<long, long> inDegreeDistribution;
 
     std::string aggregatorFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
-    std::string iddFilePath = aggregatorFilePath + "/" + graphID + +"_idd_" + partitionID;
+    std::string iddFilePath = aggregatorFilePath + "/" + graphID + "_idd_" + partitionID;
     ifstream dataFile;
     dataFile.open(iddFilePath);
 
@@ -1888,7 +1888,7 @@ map<long, unordered_set<long>> getEdgesWorldToLocal(string graphID, string parti
         }
 
         std::string aggregatorFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
-        std::string centralGraphIdentifier = graphID + +"_centralstore_" + workerSocketPair[2];
+        std::string centralGraphIdentifier = graphID + "_centralstore_" + workerSocketPair[2];
 
         std::string centralStoreFile = aggregatorFilePath + "/" + centralGraphIdentifier;
         instance_logger.log("###INSTANCE### centralstore " + centralStoreFile, "info");
