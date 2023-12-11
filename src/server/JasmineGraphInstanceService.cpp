@@ -383,7 +383,7 @@ long countLocalTriangles(
     instance_logger.log("###INSTANCE### Local Triangle Count : Started", "info");
     std::string graphIdentifier = graphId + "_" + partitionId;
     std::string centralGraphIdentifier = graphId + +"_centralstore_" + partitionId;
-    std::string duplicateCentralGraphIdentifier = graphId + +"_centralstore_dp_" + partitionId;
+    std::string duplicateCentralGraphIdentifier = graphId + "_centralstore_dp_" + partitionId;
     JasmineGraphHashMapLocalStore graphDB;
     JasmineGraphHashMapCentralStore centralGraphDB;
     JasmineGraphHashMapDuplicateCentralStore duplicateCentralGraphDB;
