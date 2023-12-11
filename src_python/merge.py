@@ -12,78 +12,91 @@
  """
 
 import sys
-import pandas as pd
 import os
 import logging
+import pandas as pd
 
 logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s : [%(levelname)s]  %(message)s',
-        handlers=[
-                logging.FileHandler('merge.log'),
-                logging.StreamHandler(sys.stdout)
-        ]
+    level=logging.INFO,
+    format='%(asctime)s : [%(levelname)s]  %(message)s',
+    handlers=[
+        logging.FileHandler('merge.log'),
+        logging.StreamHandler(sys.stdout)
+    ]
 )
 
 logging.info("start executing merge.py")
 
 arg_names = [
-        'path_datafolder', 
-        'path_modelstore',
-        'path_data',
-        'graph_id',
-        'partition_id',
-    ]
+    'path_datafolder',
+    'path_modelstore',
+    'path_data',
+    'graph_id',
+    'partition_id',
+]
 
 folder_path = "data"
 if os.path.exists(folder_path):
-        logging.info("Folder path \"" + folder_path + "\" exists")
-        pass
+    logging.info("Folder path \"" + folder_path + "\" exists")
 else:
-        logging.info("Data folder created at " + folder_path)
-        os.makedirs(folder_path)
+    logging.info("Data folder created at " + folder_path)
+    os.makedirs(folder_path)
 
 args = dict(zip(arg_names, sys.argv[1:]))
 
-path_attributes_localstore = args['path_datafolder'] + "/" + args['graph_id'] + '_attributes_' + args['partition_id']
-logging.info("Reading localstore node attributes from " + path_attributes_localstore)
-node_attributes_localstore = pd.read_csv(path_attributes_localstore , sep='\s+', lineterminator='\n',header=None)
-node_attributes_localstore.set_index(0,inplace=True)
+path_attributes_localstore = args['path_datafolder'] + "/" + \
+    args['graph_id'] + '_attributes_' + args['partition_id']
+logging.info("Reading localstore node attributes from " +
+             path_attributes_localstore)
+node_attributes_localstore = pd.read_csv(
+    path_attributes_localstore, sep='\s+', lineterminator='\n', header=None)
+node_attributes_localstore.set_index(0, inplace=True)
 
-path_edges_localstore = args['path_modelstore'] + "/" + args['graph_id'] + '_' + args['partition_id']
+path_edges_localstore = args['path_modelstore'] + \
+    "/" + args['graph_id'] + '_' + args['partition_id']
 logging.info("Reading localstore edges from : " + path_edges_localstore)
-edges_localstore = pd.read_csv(path_edges_localstore, sep='\s+', lineterminator='\n', header=None)
-edges_localstore.columns = ["source","target"]
+edges_localstore = pd.read_csv(
+    path_edges_localstore, sep='\s+', lineterminator='\n', header=None)
+edges_localstore.columns = ["source", "target"]
 
 
-path_attributes_centralstore = args['path_datafolder'] + "/" + args['graph_id'] + '_centralstore_attributes_' + args['partition_id']
-logging.info("Reading centralstore node attributes from : " + path_edges_localstore)
-node_attributes_centralstore = pd.read_csv(path_attributes_centralstore , sep='\s+', lineterminator='\n',header=None)
-node_attributes_centralstore.set_index(0,inplace=True)
+path_attributes_centralstore = args['path_datafolder'] + "/" + \
+    args['graph_id'] + '_centralstore_attributes_' + args['partition_id']
+logging.info("Reading centralstore node attributes from : " +
+             path_edges_localstore)
+node_attributes_centralstore = pd.read_csv(
+    path_attributes_centralstore, sep='\s+', lineterminator='\n', header=None)
+node_attributes_centralstore.set_index(0, inplace=True)
 
-path_edges_centralstore = args['path_modelstore'] + "/" + args['graph_id'] + '_centralstore_' + args['partition_id']
+path_edges_centralstore = args['path_modelstore'] + "/" + \
+    args['graph_id'] + '_centralstore_' + args['partition_id']
 logging.info("Reading centralstore edges from : " + path_edges_localstore)
-edges_centralstore = pd.read_csv(path_edges_centralstore, sep='\s+', lineterminator='\n', header=None)
-edges_centralstore.columns = ["source","target"]
+edges_centralstore = pd.read_csv(
+    path_edges_centralstore, sep='\s+', lineterminator='\n', header=None)
+edges_centralstore.columns = ["source", "target"]
 
 # Reducing memory consumption
-edges_centralstore = edges_centralstore.astype({"source":"uint32","target":"uint32"})
-edges_localstore = edges_localstore.astype({"source":"uint32","target":"uint32"})
+edges_centralstore = edges_centralstore.astype(
+    {"source": "uint32", "target": "uint32"})
+edges_localstore = edges_localstore.astype(
+    {"source": "uint32", "target": "uint32"})
 node_attributes_localstore = node_attributes_localstore.astype("float32")
 node_attributes_centralstore = node_attributes_centralstore.astype("float32")
 
-nodes = pd.concat([node_attributes_localstore,node_attributes_centralstore])
+nodes = pd.concat([node_attributes_localstore, node_attributes_centralstore])
 nodes = nodes.loc[~nodes.index.duplicated(keep='first')]
-edges = pd.concat([edges_localstore,edges_centralstore],ignore_index=True)
+edges = pd.concat([edges_localstore, edges_centralstore], ignore_index=True)
 
 
-path_nodes = args['path_data'] + args['graph_id'] + '_nodes_' + args['partition_id'] + ".csv"
-path_edges = args['path_data'] + args['graph_id'] + '_edges_' + args['partition_id'] + ".csv"
+path_nodes = args['path_data'] + args['graph_id'] + \
+    '_nodes_' + args['partition_id'] + ".csv"
+path_edges = args['path_data'] + args['graph_id'] + \
+    '_edges_' + args['partition_id'] + ".csv"
 
 logging.info("Writing nodes to : " + path_nodes)
 nodes.to_csv(path_nodes)
 
 logging.info("Writing edges to : " + path_edges)
-edges.to_csv(path_edges,index=False)
+edges.to_csv(path_edges, index=False)
 
 logging.info("complete executing merge.py")
