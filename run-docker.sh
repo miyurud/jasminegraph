@@ -60,6 +60,10 @@ else
     fi
 fi
 
+if [ ! -d /tmp/jasminegraph ]; then
+    mkdir /tmp/jasminegraph
+fi
+
 export LD_LIBRARY_PATH=/usr/local/lib
 if [ -n "$DEBUG" ]; then
     if [ $MODE -eq 1 ]; then
