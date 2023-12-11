@@ -25,6 +25,9 @@ limitations under the License.
 #include "JasmineGraphInstance.h"
 
 using namespace std;
+
+#define PENDING_CONNECTION_QUEUE_SIZE 10
+
 Logger instance_logger;
 pthread_mutex_t file_lock;
 pthread_mutex_t map_lock;
@@ -251,7 +254,7 @@ void JasmineGraphInstanceService::run(string profile, string masterHost, string 
     // create socket
     listenFd = socket(AF_INET, SOCK_STREAM, 0);
     if (listenFd < 0) {
-        std::cerr << "Cannot open socket" << std::endl;
+        instance_logger.error("Cannot create socket");
         return;
     }
 
@@ -270,11 +273,11 @@ void JasmineGraphInstanceService::run(string profile, string masterHost, string 
 
     // bind socket
     if (bind(listenFd, (struct sockaddr *)&svrAdd, sizeof(svrAdd)) < 0) {
-        std::cerr << "Cannot bind on port " + serverPort << std::endl;
+        instance_logger.error("Cannot bind on port " + std::to_string(serverPort));
         return;
     }
 
-    listen(listenFd, 10);
+    listen(listenFd, PENDING_CONNECTION_QUEUE_SIZE);
 
     len = sizeof(clntAdd);
 
@@ -308,15 +311,12 @@ void JasmineGraphInstanceService::run(string profile, string masterHost, string 
             serviceArguments_p->host = host;
             serviceArguments_p->connFd = connFd;
             pthread_create(&threadA[connectionCounter], NULL, instanceservicesession, serviceArguments_p);
-            // pthread_detach(threadA[connectionCounter]);
-            // pthread_join(threadA[connectionCounter], NULL);
             connectionCounter++;
         }
     }
 
     for (int i = 0; i < connectionCounter; i++) {
         pthread_join(threadA[i], NULL);
-        std::cout << "service Threads joined" << std::endl;
     }
 
     pthread_mutex_destroy(&file_lock);
@@ -332,14 +332,14 @@ int deleteGraphPartition(std::string graphID, std::string partitionID) {
     status |= Utils::deleteDirectory(centalStoreFilePath);
     string centalStoreDuplicateFilePath =
         Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + graphID +
-        +"_centralstore_dp_" + partitionID;
+        "_centralstore_dp_" + partitionID;
     status |= Utils::deleteDirectory(centalStoreDuplicateFilePath);
     string attributeFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" +
                                graphID + "_attributes_" + partitionID;
     status |= Utils::deleteDirectory(attributeFilePath);
     string attributeCentalStoreFilePath =
         Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + graphID +
-        +"_centralstore_attributes_" + partitionID;
+        "_centralstore_attributes_" + partitionID;
     status |= Utils::deleteDirectory(attributeCentalStoreFilePath);
     if (status == 0)
         instance_logger.info("Graph partition and centralstore files are now deleted");
@@ -392,33 +392,24 @@ long countLocalTriangles(
     std::map<std::string, JasmineGraphHashMapDuplicateCentralStore>::iterator duplicateCentralStoreIterator =
         graphDBMapDuplicateCentralStores.find(graphIdentifier);
 
-    if (localMapIterator == graphDBMapLocalStores.end()) {
-        if (JasmineGraphInstanceService::isGraphDBExists(graphId, partitionId)) {
-            JasmineGraphInstanceService::loadLocalStore(graphId, partitionId, graphDBMapLocalStores);
-        }
-        graphDB = graphDBMapLocalStores[graphIdentifier];
-    } else {
-        graphDB = graphDBMapLocalStores[graphIdentifier];
+    if (localMapIterator == graphDBMapLocalStores.end() &&
+        JasmineGraphInstanceService::isGraphDBExists(graphId, partitionId)) {
+        JasmineGraphInstanceService::loadLocalStore(graphId, partitionId, graphDBMapLocalStores);
     }
+    graphDB = graphDBMapLocalStores[graphIdentifier];
 
-    if (centralStoreIterator == graphDBMapCentralStores.end()) {
-        if (JasmineGraphInstanceService::isInstanceCentralStoreExists(graphId, partitionId)) {
-            JasmineGraphInstanceService::loadInstanceCentralStore(graphId, partitionId, graphDBMapCentralStores);
-        }
-        centralGraphDB = graphDBMapCentralStores[centralGraphIdentifier];
-    } else {
-        centralGraphDB = graphDBMapCentralStores[centralGraphIdentifier];
+    if (centralStoreIterator == graphDBMapCentralStores.end() &&
+        JasmineGraphInstanceService::isInstanceCentralStoreExists(graphId, partitionId)) {
+        JasmineGraphInstanceService::loadInstanceCentralStore(graphId, partitionId, graphDBMapCentralStores);
     }
+    centralGraphDB = graphDBMapCentralStores[centralGraphIdentifier];
 
-    if (duplicateCentralStoreIterator == graphDBMapDuplicateCentralStores.end()) {
-        if (JasmineGraphInstanceService::isInstanceDuplicateCentralStoreExists(graphId, partitionId)) {
-            JasmineGraphInstanceService::loadInstanceDuplicateCentralStore(graphId, partitionId,
-                                                                           graphDBMapDuplicateCentralStores);
-        }
-        duplicateCentralGraphDB = graphDBMapDuplicateCentralStores[duplicateCentralGraphIdentifier];
-    } else {
-        duplicateCentralGraphDB = graphDBMapDuplicateCentralStores[duplicateCentralGraphIdentifier];
+    if (duplicateCentralStoreIterator == graphDBMapDuplicateCentralStores.end() &&
+        JasmineGraphInstanceService::isInstanceDuplicateCentralStoreExists(graphId, partitionId)) {
+        JasmineGraphInstanceService::loadInstanceDuplicateCentralStore(graphId, partitionId,
+                                                                       graphDBMapDuplicateCentralStores);
     }
+    duplicateCentralGraphDB = graphDBMapDuplicateCentralStores[duplicateCentralGraphIdentifier];
 
     result = Triangles::run(graphDB, centralGraphDB, duplicateCentralGraphDB, graphId, partitionId, threadPriority);
 
@@ -466,7 +457,6 @@ JasmineGraphIncrementalLocalStore *JasmineGraphInstanceService::loadStreamingSto
     JasmineGraphIncrementalLocalStore *jasmineGraphStreamingLocalStore =
         new JasmineGraphIncrementalLocalStore(stoi(graphId), stoi(partitionId));
     graphDBMapStreamingStores.insert(std::make_pair(graphIdentifier, jasmineGraphStreamingLocalStore));
-    auto sg = graphDBMapStreamingStores.find(graphIdentifier);
     instance_logger.log("###INSTANCE### Loading Local Store : Completed", "info");
     return jasmineGraphStreamingLocalStore;
 }
@@ -783,7 +773,7 @@ int JasmineGraphInstanceService::collectTrainedModelThreadFunction(instanceservi
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        std::cerr << "Cannot create socket" << std::endl;
+        instance_logger.error("Cannot create socket");
         return 0;
     }
 
@@ -793,7 +783,7 @@ int JasmineGraphInstanceService::collectTrainedModelThreadFunction(instanceservi
 
     server = gethostbyname(host.c_str());
     if (server == NULL) {
-        std::cerr << "ERROR, no host named " << server << std::endl;
+        instance_logger.error("ERROR, no host named " + host);
         return 0;
     }
 
@@ -802,7 +792,7 @@ int JasmineGraphInstanceService::collectTrainedModelThreadFunction(instanceservi
     bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
     serv_addr.sin_port = htons(port);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-        std::cerr << "ERROR connecting" << std::endl;
+        instance_logger.error("ERROR connecting to port " + std::to_string(port));
         // TODO::exit
         return 0;
     }
@@ -1128,7 +1118,7 @@ bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int 
                 sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
                 if (sockfd < 0) {
-                    instance_logger.log("Cannot create socket", "error");
+                    instance_logger.error("Cannot create socket");
                     return 0;
                 }
 
@@ -1138,7 +1128,7 @@ bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int 
 
                 server = gethostbyname(host.c_str());
                 if (server == NULL) {
-                    instance_logger.log("ERROR, no host named ", "error");
+                    instance_logger.error("ERROR, no host named " + host);
                     return 0;
                 }
 
@@ -1147,7 +1137,7 @@ bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int 
                 bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
                 serv_addr.sin_port = htons(port);
                 if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-                    instance_logger.log("ERROR connecting", "error");
+                    instance_logger.error("ERROR connecting to port " + std::to_string(port));
                     // TODO::exit
                     return 0;
                 }
@@ -1278,13 +1268,13 @@ bool JasmineGraphInstanceService::sendFileThroughService(std::string host, int d
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        std::cerr << "Cannot create socket" << std::endl;
+        instance_logger.error("Cannot create socket");
         return false;
     }
 
     server = gethostbyname(host.c_str());
     if (server == NULL) {
-        std::cerr << "ERROR, no host named " << server << std::endl;
+        instance_logger.error("ERROR, no host named " + host);
         return false;
     }
 
@@ -1293,7 +1283,7 @@ bool JasmineGraphInstanceService::sendFileThroughService(std::string host, int d
     bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
     serv_addr.sin_port = htons(dataPort);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-        std::cerr << "ERROR connecting to port " << dataPort << std::endl;
+        instance_logger.error("ERROR connecting to port " + std::to_string(dataPort));
         return false;
     }
 
@@ -1655,13 +1645,13 @@ void calculateEgoNet(string graphID, string partitionID, int serverPort, Jasmine
         sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
         if (sockfd < 0) {
-            std::cout << "Cannot create socket" << std::endl;
+            instance_logger.error("Cannot create socket");
             return;
         }
 
         server = gethostbyname(host.c_str());
         if (server == NULL) {
-            std::cout << "ERROR, no host named " << server << std::endl;
+            instance_logger.error("ERROR, no host named " + host);
             return;
         }
 
@@ -1670,7 +1660,7 @@ void calculateEgoNet(string graphID, string partitionID, int serverPort, Jasmine
         bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
         serv_addr.sin_port = htons(port);
         if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-            std::cout << "ERROR connecting" << std::endl;
+            instance_logger.error("ERROR connecting to port " + std::to_string(port));
             // TODO::exit
             return;
         }
