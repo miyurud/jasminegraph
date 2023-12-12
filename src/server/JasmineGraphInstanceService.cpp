@@ -341,10 +341,11 @@ int deleteGraphPartition(std::string graphID, std::string partitionID) {
         Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + graphID +
         "_centralstore_attributes_" + partitionID;
     status |= Utils::deleteDirectory(attributeCentalStoreFilePath);
-    if (status == 0)
+    if (status == 0) {
         instance_logger.info("Graph partition and centralstore files are now deleted");
-    else
+    } else {
         instance_logger.warn("Graph partition and centralstore files deleting failed");
+    }
     return status;
 }
 
