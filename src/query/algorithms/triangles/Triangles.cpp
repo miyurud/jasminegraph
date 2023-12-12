@@ -128,8 +128,9 @@ long Triangles::run(JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCe
                 std::set<long>::iterator nuListIterator;
                 for (nuListIterator = orderedNuList.begin(); nuListIterator != orderedNuList.end(); ++nuListIterator) {
                     long nu = *nuListIterator;
-                    if ((localSubGraphMap[temp].find(nu) != localSubGraphMap[temp].end()) ||
-                        (localSubGraphMap[nu].find(temp) != localSubGraphMap[nu].end())) {
+                    if ( ((localSubGraphMap[temp].find(nu) != localSubGraphMap[temp].end()) ||
+                          (localSubGraphMap[nu].find(temp) != localSubGraphMap[nu].end())) &&
+                            (temp != nu) && (u != nu) && (temp != u) ) {
                         fullCount++;
                         std::vector<long> tempVector;
                         tempVector.push_back(temp);
@@ -231,8 +232,9 @@ string Triangles::countCentralStoreTriangles(map<long, unordered_set<long>> cent
                 std::unordered_set<long>::iterator nuListIterator;
                 for (nuListIterator = nuList.begin(); nuListIterator != nuList.end(); ++nuListIterator) {
                     long nu = *nuListIterator;
-                    if ((centralStore[temp].find(nu) != centralStore[temp].end()) ||
-                        (centralStore[nu].find(temp) != centralStore[nu].end())) {
+                    if ( ((centralStore[temp].find(nu) != centralStore[temp].end()) ||
+                          (centralStore[nu].find(temp) != centralStore[nu].end())) &&
+                            (temp != nu) && (u != nu) && (temp != u) ) {
                         fullCount++;
                         std::vector<long> tempVector;
                         tempVector.push_back(temp);
