@@ -504,54 +504,6 @@ JasmineGraphHashMapCentralStore JasmineGraphInstanceService::loadCentralStore(st
     return *jasmineGraphHashMapCentralStore;
 }
 
-std::string JasmineGraphInstanceService::copyCentralStoreToAggregator(std::string graphId, std::string partitionId,
-                                                                      std::string aggregatorHost,
-                                                                      std::string aggregatorPort, std::string host) {
-    char buffer[128];
-    std::string result = "SUCCESS";
-    std::string centralGraphIdentifier = graphId + "_centralstore_" + partitionId;
-    std::string dataFolder = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
-    std::string aggregatorFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
-
-    if (JasmineGraphInstanceService::isInstanceCentralStoreExists(graphId, partitionId)) {
-        std::string centralStoreFile = dataFolder + "/" + centralGraphIdentifier;
-        std::string copyCommand;
-
-        DIR *dir = opendir(aggregatorFilePath.c_str());
-
-        if (dir) {
-            closedir(dir);
-        } else {
-            std::string createDirCommand = "mkdir -p " + aggregatorFilePath;
-            FILE *createDirInput = popen(createDirCommand.c_str(), "r");
-            pclose(createDirInput);
-        }
-
-        if (aggregatorHost == host) {
-            copyCommand = "cp " + centralStoreFile + " " + aggregatorFilePath;
-        } else {
-            copyCommand = "scp " + centralStoreFile + " " + aggregatorHost + ":" + aggregatorFilePath;
-        }
-
-        FILE *copyInput = popen(copyCommand.c_str(), "r");
-
-        if (copyInput) {
-            // read the input
-            while (!feof(copyInput)) {
-                if (fgets(buffer, 128, copyInput) != NULL) {
-                    result.append(buffer);
-                }
-            }
-            if (!result.empty()) {
-                std::cout << result << std::endl;
-            }
-            pclose(copyInput);
-        }
-    }
-
-    return result;
-}
-
 string JasmineGraphInstanceService::aggregateCentralStoreTriangles(std::string graphId, std::string partitionId,
                                                                    std::string partitionIdList, int threadPriority) {
     instance_logger.log("###INSTANCE### Started Aggregating Central Store Triangles", "info");
