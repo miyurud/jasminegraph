@@ -14,6 +14,7 @@ limitations under the License.
 #include "JasmineGraphInstanceService.h"
 
 #include <stdio.h>
+#include <unistd.h>
 
 #include <algorithm>
 #include <cctype>
@@ -537,28 +538,23 @@ string JasmineGraphInstanceService::aggregateCentralStoreTriangles(std::string g
     for (partitionIdListIterator = paritionIdList.begin(); partitionIdListIterator != paritionIdList.end();
          ++partitionIdListIterator) {
         std::string aggregatePartitionId = *partitionIdListIterator;
-        struct stat s;
 
         std::string centralGraphIdentifier = graphId + "_centralstore_" + aggregatePartitionId;
-
         std::string centralStoreFile = aggregatorFilePath + "/" + centralGraphIdentifier;
+        if (access(centralStoreFile.c_str(), R_OK) == 0) {
+            JasmineGraphHashMapCentralStore centralStore =
+                JasmineGraphInstanceService::loadCentralStore(centralStoreFile);
+            map<long, unordered_set<long>> centralGraphMap = centralStore.getUnderlyingHashMap();
+            map<long, unordered_set<long>>::iterator centralGraphMapIterator;
 
-        if (stat(centralStoreFile.c_str(), &s) == 0) {
-            if (s.st_mode & S_IFREG) {
-                JasmineGraphHashMapCentralStore centralStore =
-                    JasmineGraphInstanceService::loadCentralStore(centralStoreFile);
-                map<long, unordered_set<long>> centralGraphMap = centralStore.getUnderlyingHashMap();
-                map<long, unordered_set<long>>::iterator centralGraphMapIterator;
+            for (centralGraphMapIterator = centralGraphMap.begin(); centralGraphMapIterator != centralGraphMap.end();
+                 ++centralGraphMapIterator) {
+                long startVid = centralGraphMapIterator->first;
+                unordered_set<long> endVidSet = centralGraphMapIterator->second;
 
-                for (centralGraphMapIterator = centralGraphMap.begin();
-                     centralGraphMapIterator != centralGraphMap.end(); ++centralGraphMapIterator) {
-                    long startVid = centralGraphMapIterator->first;
-                    unordered_set<long> endVidSet = centralGraphMapIterator->second;
-
-                    unordered_set<long> aggregatedEndVidSet = aggregatedCentralStore[startVid];
-                    aggregatedEndVidSet.insert(endVidSet.begin(), endVidSet.end());
-                    aggregatedCentralStore[startVid] = aggregatedEndVidSet;
-                }
+                unordered_set<long> aggregatedEndVidSet = aggregatedCentralStore[startVid];
+                aggregatedEndVidSet.insert(endVidSet.begin(), endVidSet.end());
+                aggregatedCentralStore[startVid] = aggregatedEndVidSet;
             }
         }
     }
@@ -592,27 +588,23 @@ string JasmineGraphInstanceService::aggregateCompositeCentralStoreTriangles(std:
         std::string availableCompositeFileName = *availableCompositeFileIterator;
         size_t lastindex = availableCompositeFileName.find_last_of(".");
         string rawFileName = availableCompositeFileName.substr(0, lastindex);
-        struct stat st;
 
         std::string availableCompositeFile = dataFolder + "/" + rawFileName;
+        if (access(availableCompositeFile.c_str(), R_OK) == 0) {
+            JasmineGraphHashMapCentralStore centralStore =
+                JasmineGraphInstanceService::loadCentralStore(availableCompositeFile);
+            map<long, unordered_set<long>> compositeCentralGraphMap = centralStore.getUnderlyingHashMap();
+            map<long, unordered_set<long>>::iterator compositeCentralGraphMapIterator;
 
-        if (stat(availableCompositeFile.c_str(), &st) == 0) {
-            if (st.st_mode & S_IFREG) {
-                JasmineGraphHashMapCentralStore centralStore =
-                    JasmineGraphInstanceService::loadCentralStore(availableCompositeFile);
-                map<long, unordered_set<long>> compositeCentralGraphMap = centralStore.getUnderlyingHashMap();
-                map<long, unordered_set<long>>::iterator compositeCentralGraphMapIterator;
+            for (compositeCentralGraphMapIterator = compositeCentralGraphMap.begin();
+                 compositeCentralGraphMapIterator != compositeCentralGraphMap.end();
+                 ++compositeCentralGraphMapIterator) {
+                long startVid = compositeCentralGraphMapIterator->first;
+                unordered_set<long> endVidSet = compositeCentralGraphMapIterator->second;
 
-                for (compositeCentralGraphMapIterator = compositeCentralGraphMap.begin();
-                     compositeCentralGraphMapIterator != compositeCentralGraphMap.end();
-                     ++compositeCentralGraphMapIterator) {
-                    long startVid = compositeCentralGraphMapIterator->first;
-                    unordered_set<long> endVidSet = compositeCentralGraphMapIterator->second;
-
-                    unordered_set<long> aggregatedEndVidSet = aggregatedCompositeCentralStore[startVid];
-                    aggregatedEndVidSet.insert(endVidSet.begin(), endVidSet.end());
-                    aggregatedCompositeCentralStore[startVid] = aggregatedEndVidSet;
-                }
+                unordered_set<long> aggregatedEndVidSet = aggregatedCompositeCentralStore[startVid];
+                aggregatedEndVidSet.insert(endVidSet.begin(), endVidSet.end());
+                aggregatedCompositeCentralStore[startVid] = aggregatedEndVidSet;
             }
         }
     }
@@ -623,26 +615,22 @@ string JasmineGraphInstanceService::aggregateCompositeCentralStoreTriangles(std:
         std::string compositeCentralStoreFileName = *compositeCentralStoreFileIterator;
         size_t lastindex = compositeCentralStoreFileName.find_last_of(".");
         string rawFileName = compositeCentralStoreFileName.substr(0, lastindex);
-        struct stat s;
 
         std::string compositeCentralStoreFile = aggregatorFilePath + "/" + rawFileName;
+        if (access(compositeCentralStoreFile.c_str(), R_OK) == 0) {
+            JasmineGraphHashMapCentralStore centralStore =
+                JasmineGraphInstanceService::loadCentralStore(compositeCentralStoreFile);
+            map<long, unordered_set<long>> centralGraphMap = centralStore.getUnderlyingHashMap();
+            map<long, unordered_set<long>>::iterator centralGraphMapIterator;
 
-        if (stat(compositeCentralStoreFile.c_str(), &s) == 0) {
-            if (s.st_mode & S_IFREG) {
-                JasmineGraphHashMapCentralStore centralStore =
-                    JasmineGraphInstanceService::loadCentralStore(compositeCentralStoreFile);
-                map<long, unordered_set<long>> centralGraphMap = centralStore.getUnderlyingHashMap();
-                map<long, unordered_set<long>>::iterator centralGraphMapIterator;
+            for (centralGraphMapIterator = centralGraphMap.begin(); centralGraphMapIterator != centralGraphMap.end();
+                 ++centralGraphMapIterator) {
+                long startVid = centralGraphMapIterator->first;
+                unordered_set<long> endVidSet = centralGraphMapIterator->second;
 
-                for (centralGraphMapIterator = centralGraphMap.begin();
-                     centralGraphMapIterator != centralGraphMap.end(); ++centralGraphMapIterator) {
-                    long startVid = centralGraphMapIterator->first;
-                    unordered_set<long> endVidSet = centralGraphMapIterator->second;
-
-                    unordered_set<long> aggregatedEndVidSet = aggregatedCompositeCentralStore[startVid];
-                    aggregatedEndVidSet.insert(endVidSet.begin(), endVidSet.end());
-                    aggregatedCompositeCentralStore[startVid] = aggregatedEndVidSet;
-                }
+                unordered_set<long> aggregatedEndVidSet = aggregatedCompositeCentralStore[startVid];
+                aggregatedEndVidSet.insert(endVidSet.begin(), endVidSet.end());
+                aggregatedCompositeCentralStore[startVid] = aggregatedEndVidSet;
             }
         }
     }
@@ -1836,31 +1824,28 @@ map<long, unordered_set<long>> getEdgesWorldToLocal(string graphID, string parti
         std::string centralStoreFile = aggregatorFilePath + "/" + centralGraphIdentifier;
         instance_logger.log("###INSTANCE### centralstore " + centralStoreFile, "info");
 
-        struct stat s;
-        if (stat(centralStoreFile.c_str(), &s) == 0) {
-            if (s.st_mode & S_IFREG) {
-                JasmineGraphHashMapCentralStore centralStore =
-                    JasmineGraphInstanceService::loadCentralStore(centralStoreFile);
-                map<long, unordered_set<long>> centralGraphMap = centralStore.getUnderlyingHashMap();
+        if (access(centralStoreFile.c_str(), R_OK) == 0) {
+            JasmineGraphHashMapCentralStore centralStore =
+                JasmineGraphInstanceService::loadCentralStore(centralStoreFile);
+            map<long, unordered_set<long>> centralGraphMap = centralStore.getUnderlyingHashMap();
 
-                for (map<long, unordered_set<long>>::iterator centralGraphMapIterator = centralGraphMap.begin();
-                     centralGraphMapIterator != centralGraphMap.end(); ++centralGraphMapIterator) {
-                    long startVid = centralGraphMapIterator->first;
-                    unordered_set<long> endVidSet = centralGraphMapIterator->second;
+            for (map<long, unordered_set<long>>::iterator centralGraphMapIterator = centralGraphMap.begin();
+                 centralGraphMapIterator != centralGraphMap.end(); ++centralGraphMapIterator) {
+                long startVid = centralGraphMapIterator->first;
+                unordered_set<long> endVidSet = centralGraphMapIterator->second;
 
-                    for (auto itr = endVidSet.begin(); itr != endVidSet.end(); ++itr) {
-                        if (graphVertexMap.find(*itr) != graphVertexMap.end()) {
-                            map<long, unordered_set<long>>::iterator toIDiterator = worldToLocalVertexMap.find(*itr);
+                for (auto itr = endVidSet.begin(); itr != endVidSet.end(); ++itr) {
+                    if (graphVertexMap.find(*itr) != graphVertexMap.end()) {
+                        map<long, unordered_set<long>>::iterator toIDiterator = worldToLocalVertexMap.find(*itr);
 
-                            if (toIDiterator != worldToLocalVertexMap.end()) {
-                                unordered_set<long> fromIDs = toIDiterator->second;
-                                fromIDs.insert(startVid);
-                                toIDiterator->second = fromIDs;
-                            } else {
-                                unordered_set<long> fromIDs;
-                                fromIDs.insert(startVid);
-                                worldToLocalVertexMap.insert(std::make_pair(*itr, fromIDs));
-                            }
+                        if (toIDiterator != worldToLocalVertexMap.end()) {
+                            unordered_set<long> fromIDs = toIDiterator->second;
+                            fromIDs.insert(startVid);
+                            toIDiterator->second = fromIDs;
+                        } else {
+                            unordered_set<long> fromIDs;
+                            fromIDs.insert(startVid);
+                            worldToLocalVertexMap.insert(std::make_pair(*itr, fromIDs));
                         }
                     }
                 }
