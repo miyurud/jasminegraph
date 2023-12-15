@@ -695,7 +695,6 @@ void JasmineGraphInstanceService::collectTrainedModels(
 
     for (int threadCount = 0; threadCount < count; threadCount++) {
         workerThreads[threadCount].join();
-        std::cout << "Thread [C]: " << threadCount << " joined" << std::endl;
     }
 }
 
@@ -703,7 +702,6 @@ int JasmineGraphInstanceService::collectTrainedModelThreadFunction(instanceservi
                                                                    std::string host, int port, int dataPort,
                                                                    std::string graphID, std::string partition) {
     bool result = true;
-    std::cout << pthread_self() << " host : " << host << " port : " << port << " DPort : " << dataPort << std::endl;
     int sockfd;
     char data[INSTANCE_DATA_LENGTH + 1];
     bool loop = false;
@@ -840,7 +838,7 @@ int JasmineGraphInstanceService::collectTrainedModelThreadFunction(instanceservi
 
 void JasmineGraphInstanceService::createPartitionFiles(std::string graphID, std::string partitionID,
                                                        std::string fileType) {
-    instance_logger.log(fileType, "info");
+    instance_logger.info("createPartitionFiles called with fileType=" + fileType);
 
     Utils::createDirectory(Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.trainedmodelfolder"));
     JasmineGraphHashMapLocalStore *hashMapLocalStore = new JasmineGraphHashMapLocalStore();
@@ -1695,7 +1693,7 @@ map<long, double> calculateLocalPageRank(string graphID, double alpha, string pa
     adjacencyIndex[partitionVertexCount] = -1;
 
     long entireGraphSize = atol(graphVertexCount.c_str());
-    float mu = (damp / entireGraphSize);
+    float mu = damp / entireGraphSize;
     unordered_map<float, float> resultTreeMap;
     // calculating local pagerank
     map<long, double> rankMap;
