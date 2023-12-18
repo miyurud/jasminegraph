@@ -882,13 +882,11 @@ void JasmineGraphInstanceService::collectExecutionData(string iteration, string 
     pthread_mutex_lock(&map_lock);
     if (iterationData.find(stoi(iteration)) == iterationData.end()) {
         vector<string> trainData;
-        trainData.push_back(trainArgs);
-        iterationData[stoi(iteration)] = trainData;
     } else {
         vector<string> trainData = iterationData[stoi(iteration)];
-        trainData.push_back(trainArgs);
-        iterationData[stoi(iteration)] = trainData;
     }
+    trainData.push_back(trainArgs);
+    iterationData[stoi(iteration)] = trainData;
     partitionCounter++;
     pthread_mutex_unlock(&map_lock);
     if (partitionCounter == stoi(partCount)) {
@@ -900,10 +898,8 @@ void JasmineGraphInstanceService::collectExecutionData(string iteration, string 
             }
         }
         JasmineGraphInstanceService::executeTrainingIterations(maxPartCountInVector);
-        return;
-    } else {
-        return;
     }
+    return;
 }
 
 void JasmineGraphInstanceService::executeTrainingIterations(int maxThreads) {
