@@ -40,10 +40,10 @@ class Aggregator:
     def __init__(self, model, rounds, graph_id, num_orgs, ip, port):
 
         # Parameters
-        self.IP = ip
-        self.PORT = port
-        self.NUM_CLIENTS = num_orgs
-        self.ROUNDS = rounds
+        self.ip = ip
+        self.port = port
+        self.num_clients = num_orgs
+        self.rounds = rounds
 
         # Global model
         self.model_weights = model
@@ -64,8 +64,8 @@ class Aggregator:
             socket.AF_INET, socket.SOCK_STREAM)
         self.aggregator_socket.setsockopt(
             socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.aggregator_socket.bind((self.IP, self.PORT))
-        self.aggregator_socket.listen(self.NUM_CLIENTS)
+        self.aggregator_socket.bind((self.ip, self.port))
+        self.aggregator_socket.listen(self.num_clients)
 
         self.sockets_list.append(self.aggregator_socket)
 
@@ -76,7 +76,7 @@ class Aggregator:
         logging.info(str(self.partition_sizes))
         logging.info(str(self.weights))
 
-        if (len(self.weights) == self.NUM_CLIENTS) and (self.partition_sizes > 0):
+        if (len(self.weights) == self.num_clients) and (self.partition_sizes > 0):
 
             avg_weight = sum(self.weights) / sum(self.partition_sizes)
 
@@ -91,15 +91,14 @@ class Aggregator:
                 self.send_model(soc)
 
             logging.info(
-                "___________________________________________________ Training round %s done ______________________________________________________", self.training_cycles)
-
+                "____________________________ Training round %s done ____________________________",
+                self.training_cycles)
         else:
-
             logging.error("Invalid patition size")
 
     def send_model(self, client_socket):
 
-        if self.ROUNDS == self.training_cycles:
+        if self.rounds == self.training_cycles:
             self.stop_flag = True
 
         weights = np.array(self.model_weights)
@@ -122,7 +121,7 @@ class Aggregator:
 
             message_header = client_socket.recv(HEADER_LENGTH)
 
-            if not len(message_header):
+            if len(message_header) == 0:
                 logging.error('Client-%s closed connection at %s:%s',
                               self.client_ids[client_socket], *self.clients[client_socket])
                 return False
@@ -140,7 +139,7 @@ class Aggregator:
 
             return pickle.loads(full_msg)
 
-        except Exception as e:
+        except Exception:
             logging.error('Client-%s closed connection at %s:%s',
                           self.client_ids[client_socket], *self.clients[client_socket])
             return False
@@ -212,7 +211,7 @@ if __name__ == "__main__":
     args = dict(zip(arg_names, sys.argv[1:]))
 
     logging.info(
-        '####################################### New Training Session #######################################')
+        '################################# New Training Session #################################')
     logging.info('aggregator started , graph ID %s, number of clients %s, number of rounds %s',
                  args['graph_id'], args['num_orgs'], args['num_rounds'])
 
@@ -236,8 +235,9 @@ if __name__ == "__main__":
 
     logging.info('Model initialized')
 
-    aggregator = Aggregator(model_weights, rounds=int(args['num_rounds']), graph_id=args['graph_id'], num_orgs=int(
-        args['num_orgs']), ip=args['IP'], port=int(args['PORT']))
+    aggregator = Aggregator(model_weights, rounds=int(args['num_rounds']),
+                            graph_id=args['graph_id'],
+                            num_orgs=int(args['num_orgs']), ip=args['IP'], port=int(args['PORT']))
 
     del nodes
     del edges
@@ -252,5 +252,7 @@ if __name__ == "__main__":
 
     elapsed_time = end - start
     logging.info('Federated training done!')
-    logging.info('Training report : Elapsed time %s seconds, graph ID %s, number of clients %s, number of rounds %s',
-                 elapsed_time, args['graph_id'], args['num_orgs'], args['num_rounds'])
+    logging.info(
+        'Training report : Elapsed time %s seconds, graph ID %s, number of clients %s, number \
+            of rounds %s',
+        elapsed_time, args['graph_id'], args['num_orgs'], args['num_rounds'])

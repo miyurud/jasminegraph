@@ -33,24 +33,25 @@ logging.basicConfig(
 
 class Server:
     """
-    Federated server/aggregator that used to aggregate local models and carry out the federated learning process
-    (With partition sheduling)
+    Federated server/aggregator that used to aggregate local models and carry out the federated
+    learning process (With partition sheduling)
     """
 
-    def __init__(self, model_weights, ROUNDS, weights_path, graph_id, NUM_CLIENTS=2, IP=socket.gethostname(), PORT=5000, HEADER_LENGTH=10):
+    def __init__(self, model_weights, ROUNDS, weights_path, graph_id, NUM_CLIENTS=2,
+                 IP=socket.gethostname(), PORT=5000, HEADER_LENGTH=10):
 
         # Parameters
-        self.HEADER_LENGTH = HEADER_LENGTH
-        self.IP = IP
-        self.PORT = PORT
-        self.NUM_CLIENTS = NUM_CLIENTS
-        self.ROUNDS = ROUNDS
+        self.header_length = HEADER_LENGTH
+        self.ip = IP
+        self.port = PORT
+        self.num_clients = NUM_CLIENTS
+        self.rounds = ROUNDS
 
         self.weights_path = weights_path
         self.graph_id = graph_id
 
         # Global model
-        self.GLOBAL_WEIGHTS = model_weights
+        self.global_weigths = model_weights
 
         self.global_modlel_ready = False
 
@@ -70,8 +71,8 @@ class Server:
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.setsockopt(
             socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.server_socket.bind((self.IP, self.PORT))
-        self.server_socket.listen(self.NUM_CLIENTS)
+        self.server_socket.bind((self.ip, self.port))
+        self.server_socket.listen(self.num_clients)
 
         self.sockets_list.append(self.server_socket)
 
@@ -90,7 +91,7 @@ class Server:
 
         self.finished_client_count += 1
 
-        if self.finished_client_count == self.NUM_CLIENTS:
+        if self.finished_client_count == self.num_clients:
 
             avg_weight = sum(self.weights) / sum(self.partition_sizes)
 
@@ -99,7 +100,7 @@ class Server:
 
             self.finished_client_count = 0
 
-            self.GLOBAL_WEIGHTS = avg_weight
+            self.global_weigths = avg_weight
 
             self.training_cycles += 1
 
@@ -111,7 +112,8 @@ class Server:
                 self.send_model(soc)
 
             logging.info(
-                "___________________________________________________ Training round %s done ______________________________________________________", self.training_cycles)
+                "____________________________ Training round %s done ____________________________",
+                self.training_cycles)
 
     def send_model(self, client_socket):
         """
@@ -120,15 +122,15 @@ class Server:
         :return: None
         """
 
-        if self.ROUNDS == self.training_cycles:
+        if self.rounds == self.training_cycles:
             self.stop_flag = True
 
-        weights = np.array(self.GLOBAL_WEIGHTS)
+        weights = np.array(self.global_weigths)
 
         data = {"STOP_FLAG": self.stop_flag, "WEIGHTS": weights}
 
         data = pickle.dumps(data)
-        data = bytes(f"{len(data):<{self.HEADER_LENGTH}}", 'utf-8') + data
+        data = bytes(f"{len(data):<{self.header_length}}", 'utf-8') + data
 
         client_socket.sendall(data)
 
@@ -144,7 +146,7 @@ class Server:
 
         try:
 
-            message_header = client_socket.recv(self.HEADER_LENGTH)
+            message_header = client_socket.recv(self.header_length)
 
             if not len(message_header):
                 logging.error('Client-%s closed connection at %s:%s',
@@ -236,7 +238,7 @@ if __name__ == "__main__":
     args = dict(zip(arg_names, sys.argv[1:]))
 
     logging.warning(
-        '####################################### New Training Session #######################################')
+        '################################# New Training Session #################################')
     logging.info('Server started , graph ID %s, number of clients %s, number of rounds %s',
                  args['graph_id'], args['num_clients'], args['num_rounds'])
 
@@ -262,8 +264,9 @@ if __name__ == "__main__":
 
     logging.info('Model initialized')
 
-    server = Server(model_weights, ROUNDS=int(args['num_rounds']), weights_path=args['path_weights'],
-                    graph_id=args['graph_id'], NUM_CLIENTS=int(args['num_clients']), IP=args['IP'], PORT=int(args['PORT']))
+    server = Server(model_weights, ROUNDS=int(args['num_rounds']),
+                    weights_path=args['path_weights'], graph_id=args['graph_id'],
+                    NUM_CLIENTS=int(args['num_clients']), IP=args['IP'], PORT=int(args['PORT']))
 
     del nodes
     del edges
@@ -278,5 +281,6 @@ if __name__ == "__main__":
 
     elapsed_time = end - start
     logging.info('Federated training done!')
-    logging.info('Training report : Elapsed time %s seconds, graph ID %s, number of clients %s, number of rounds %s',
+    logging.info('Training report : Elapsed time %s seconds, graph ID %s, number of clients %s, \
+                 number of rounds %s',
                  elapsed_time, args['graph_id'], args['num_clients'], args['num_rounds'])

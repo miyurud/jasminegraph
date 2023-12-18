@@ -41,10 +41,10 @@ class Server:
     def __init__(self, org_id, model_weights, rounds, num_clients, ip, port):
 
         # Parameters
-        self.IP = ip
-        self.PORT = port
-        self.NUM_CLIENTS = num_clients
-        self.ROUNDS = rounds
+        self.ip = ip
+        self.port = port
+        self.num_clients = num_clients
+        self.rounds = rounds
 
         self.org_id = org_id
 
@@ -66,8 +66,8 @@ class Server:
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.setsockopt(
             socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.server_socket.bind((self.IP, self.PORT))
-        self.server_socket.listen(self.NUM_CLIENTS)
+        self.server_socket.bind((self.ip, self.port))
+        self.server_socket.listen(self.num_clients)
 
         self.sockets_list.append(self.server_socket)
 
@@ -82,7 +82,7 @@ class Server:
         self.partition_sizes.append(num_examples)
         self.weights.append(num_examples * new_weights)
 
-        if (len(self.weights) == self.NUM_CLIENTS) and (self.partition_sizes > 0):
+        if (len(self.weights) == self.num_clients) and (self.partition_sizes > 0):
 
             avg_weight = sum(self.weights) / sum(self.partition_sizes)
 
@@ -90,7 +90,7 @@ class Server:
 
             self.training_cycles += 1
 
-            if self.ROUNDS == self.training_cycles:
+            if self.rounds == self.training_cycles:
 
                 weights = np.array(self.model_weights)
                 data = {"ORG_ID": self.org_id, "WEIGHTS": weights,
@@ -134,7 +134,8 @@ class Server:
                 self.send_model(soc)
 
             logging.info(
-                "___________________________________________________ Training round %s done ______________________________________________________", self.training_cycles)
+                "____________________________ Training round %s done ____________________________",
+                self.training_cycles)
 
         else:
 
@@ -239,7 +240,7 @@ if __name__ == "__main__":
     args = dict(zip(arg_names, sys.argv[1:]))
 
     logging.info(
-        '####################################### New Training Session #######################################')
+        '################################# New Training Session #################################')
     logging.info('Server started , org ID %s, number of clients %s, number of rounds %s',
                  args['org_id'], args['num_clients'], args['num_rounds'])
 
@@ -269,7 +270,8 @@ if __name__ == "__main__":
             break
 
     server = Server(model_weights=model_weights, org_id=args['org_id'], rounds=int(
-        args['num_rounds']), num_clients=int(args['num_clients']), ip=args['IP'], port=int(args['port']))
+        args['num_rounds']),
+        num_clients=int(args['num_clients']), ip=args['IP'], port=int(args['port']))
 
     logging.info('Federated training started!')
     start = timer()
@@ -278,5 +280,6 @@ if __name__ == "__main__":
 
     elapsed_time = end - start
     logging.info('Federated training done!')
-    logging.info('Training report : Elapsed time %s seconds, graph ID %s, number of clients %s, number of rounds %s',
+    logging.info('Training report : Elapsed time %s seconds, graph ID %s, number of clients %s, \
+        number of rounds %s',
                  elapsed_time, args['org_id'], args['num_clients'], args['num_rounds'])

@@ -51,11 +51,12 @@ class Client:
     (Without partition sheduling)
     """
 
-    def __init__(self, MODEL, graph_params, weights_path, graph_id, partition_id, epochs=10, IP=socket.gethostname(), PORT=5000, HEADER_LENGTH=10):
+    def __init__(self, MODEL, graph_params, weights_path, graph_id, partition_id, epochs=10,
+                 IP=socket.gethostname(), PORT=5000, HEADER_LENGTH=10):
 
-        self.HEADER_LENGTH = HEADER_LENGTH
-        self.IP = IP
-        self.PORT = PORT
+        self.header_length = HEADER_LENGTH
+        self.ip = IP
+        self.port = PORT
 
         self.weights_path = weights_path
         self.graph_id = graph_id
@@ -76,7 +77,7 @@ class Client:
                 logging.info('Connected to the server')
                 connected = True
 
-        self.MODEL = MODEL
+        self.model = MODEL
         self.STOP_FLAG = False
         self.rounds = 0
 
@@ -89,13 +90,13 @@ class Client:
         weights_path = self.weights_path + 'weights_' + \
             self.graph_id + '_' + self.partition_id + ".npy"
 
-        weights = self.MODEL.get_weights()
+        weights = self.model.get_weights()
 
         data = {"CLIENT_ID": self.partition_id, "WEIGHTS": weights,
                 "NUM_EXAMPLES": self.graph_params[0]}
 
         data = pickle.dumps(data)
-        data = bytes(f"{len(data):<{self.HEADER_LENGTH}}", 'utf-8') + data
+        data = bytes(f"{len(data):<{self.header_length}}", 'utf-8') + data
         self.client_socket.sendall(data)
 
     def receive(self):
@@ -105,7 +106,7 @@ class Client:
         """
         try:
 
-            message_header = self.client_socket.recv(self.HEADER_LENGTH)
+            message_header = self.client_socket.recv(self.header_length)
             if not len(message_header):
                 return False
 
@@ -131,10 +132,10 @@ class Client:
 
     def fetch_model(self):
         data = self.receive()
-        self.MODEL.set_weights(data)
+        self.model.set_weights(data)
 
     def train(self):
-        self.MODEL.fit(epochs=self.epochs)
+        self.model.fit(epochs=self.epochs)
 
     def run(self):
         """
@@ -143,14 +144,14 @@ class Client:
 
         while not self.STOP_FLAG:
 
-            read_sockets, _, exception_sockets = select.select(
+            read_sockets, _, _ = select.select(
                 [self.client_socket], [], [self.client_socket])
 
-            for soc in read_sockets:
+            for _ in read_sockets:
                 self.fetch_model()
 
             if self.STOP_FLAG:
-                eval = self.MODEL.evaluate()
+                eval = self.model.evaluate()
 
                 try:
                     f1_train = (2 * eval[0][2] * eval[0][4]
@@ -162,11 +163,13 @@ class Client:
                     f1_test = "undefined"
 
                 logging.info(
-                    '_____________________________________________________ Final model evalution ____________________________________________________________')
+                    '___________________________ Final model evalution __________________________')
                 logging.info('Finel model (v%s) fetched', self.rounds)
-                logging.info('Training set : loss - %s, accuracy - %s, recall - %s, AUC - %s, F1 - %s, precision - %s',
+                logging.info('Training set : loss - %s, accuracy - %s, recall - %s, AUC - %s, \
+                    F1 - %s, precision - %s',
                              eval[0][0], eval[0][1], eval[0][2], eval[0][3], f1_train, eval[0][4])
-                logging.info('Testing set : loss - %s, accuracy - %s, recall - %s, AUC - %s, F1 - %s, precision - %s',
+                logging.info('Testing set : loss - %s, accuracy - %s, recall - %s, AUC - %s, \
+                    F1 - %s, precision - %s',
                              eval[1][0], eval[1][1], eval[1][2], eval[1][3], f1_test, eval[1][4])
 
             else:
@@ -176,14 +179,14 @@ class Client:
                     '_____________________________________________________ Training Round %s ____________________________________________________________', self.rounds)
                 logging.info('Global model v%s fetched', self.rounds - 1)
 
-                eval = self.MODEL.evaluate()
+                eval = self.model.evaluate()
 
                 try:
                     f1_train = (2 * eval[0][2] * eval[0][4]
                                 ) / (eval[0][2] + eval[0][4])
                     f1_test = (2 * eval[1][2] * eval[1][4]
                                ) / (eval[1][2] + eval[1][4])
-                except ZeroDivisionError as e:
+                except ZeroDivisionError:
                     f1_train = "undefined"
                     f1_test = "undefined"
 

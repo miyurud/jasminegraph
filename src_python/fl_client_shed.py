@@ -51,15 +51,16 @@ logging.basicConfig(
 
 class Client:
     """
-    Federated client that used to train a given list of graph partitions(By partition shedular) on a given GCN model
-    (With partition sheduling)
+    Federated client that used to train a given list of graph partitions(By partition scheduler)
+    on a given GCN model (With partition sheduling)
     """
 
-    def __init__(self, client_id, weights_path, graph_id, partition_ids, epochs=10, IP=socket.gethostname(), PORT=5000, HEADER_LENGTH=10):
+    def __init__(self, client_id, weights_path, graph_id, partition_ids, epochs=10,
+                 IP=socket.gethostname(), PORT=5000, HEADER_LENGTH=10):
 
-        self.HEADER_LENGTH = HEADER_LENGTH
-        self.IP = IP
-        self.PORT = PORT
+        self.header_length = HEADER_LENGTH
+        self.ip = IP
+        self.port = PORT
         self.client_id = client_id
 
         self.weights_path = weights_path
@@ -79,13 +80,13 @@ class Client:
                 logging.info('Connected to the server')
                 connected = True
 
-        self.GLOBAL_MODEL = None
-        self.MODEL = None
+        self.global_model = None
+        self.model = None
 
-        self.LOCAL_MODELS = []
+        self.local_models = []
         self.partition_sizes = []
 
-        self.STOP_FLAG = False
+        self.stop_flag = False
         self.rounds = 0
 
     def send_models(self):
@@ -95,13 +96,13 @@ class Client:
         """
 
         data = {"CLIENT_ID": self.client_id, "PARTITIONS": self.partition_ids,
-                "PARTITION_SIEZES": self.partition_sizes, "WEIGHTS": self.LOCAL_MODELS}
+                "PARTITION_SIEZES": self.partition_sizes, "WEIGHTS": self.local_models}
 
         data = pickle.dumps(data)
-        data = bytes(f"{len(data):<{self.HEADER_LENGTH}}", 'utf-8') + data
+        data = bytes(f"{len(data):<{self.header_length}}", 'utf-8') + data
         self.client_socket.sendall(data)
 
-        self.LOCAL_MODELS = []
+        self.local_models = []
         self.partition_sizes = []
 
     def fetch_model(self):
@@ -110,7 +111,7 @@ class Client:
         :return: success or failure
         """
 
-        message_header = self.client_socket.recv(self.HEADER_LENGTH)
+        message_header = self.client_socket.recv(self.header_length)
 
         if not len(message_header):
             return False
@@ -128,9 +129,9 @@ class Client:
 
         data = pickle.loads(full_msg)
 
-        self.STOP_FLAG = data["STOP_FLAG"]
+        self.stop_flag = data["STOP_FLAG"]
 
-        self.GLOBAL_MODEL = data["WEIGHTS"]
+        self.global_model = data["WEIGHTS"]
 
         return True
 
@@ -139,7 +140,7 @@ class Client:
         Training loop
         """
 
-        while not self.STOP_FLAG:
+        while not self.stop_flag:
 
             read_sockets, _, exception_sockets = select.select(
                 [self.client_socket], [], [self.client_socket])
@@ -158,16 +159,17 @@ class Client:
                 logging.error('Stop training')
                 break
 
-            if self.STOP_FLAG:
-                self.MODEL.set_weights(self.GLOBAL_MODEL)
+            if self.stop_flag:
+                self.model.set_weights(self.global_model)
 
                 logging.info(
-                    '_____________________________________________________ Final model evalution ____________________________________________________________')
+                    '___________________________ Final model evalution __________________________')
 
                 for partition in self.partition_ids:
                     logging.info(
-                        '********************************************************* Partition - %s ******************************************************', partition)
-                    eval = self.MODEL.evaluate()
+                        '**************************** Partition - %s ****************************',
+                        partition)
+                    eval = self.model.evaluate()
 
                     f1_train = (2 * eval[0][2] * eval[0][4]
                                 ) / (eval[0][2] + eval[0][4])
@@ -175,20 +177,22 @@ class Client:
                                ) / (eval[1][2] + eval[1][4])
 
                     logging.info('Final model (v%s) fetched', self.rounds)
-                    logging.info('Training set : accuracy - %s, recall - %s, AUC - %s, F1 - %s, precision - %s',
+                    logging.info('Training set : accuracy - %s, recall - %s, AUC - %s, \
+                        F1 - %s, precision - %s',
                                  eval[0][1], eval[0][2], eval[0][3], f1_train, eval[0][4])
-                    logging.info('Testing set : accuracy - %s, recall - %s, AUC - %s, F1 - %s, precision - %s',
+                    logging.info('Testing set : accuracy - %s, recall - %s, AUC - %s, \
+                        F1 - %s, precision - %s',
                                  eval[1][1], eval[1][2], eval[1][3], f1_test, eval[1][4])
 
             else:
-
                 logging.info(
-                    '_____________________________________________________ Training Round %s ____________________________________________________________', self.rounds)
+                    '_____________________________ Training Round %s ____________________________',
+                    self.rounds)
 
                 for partition in self.partition_ids:
-
                     logging.info(
-                        '********************************************************* Partition - %s ******************************************************', partition)
+                        '***************************** Partition - %s ***************************',
+                        partition)
 
                     path_nodes = args['path_nodes'] + \
                         args['graph_id'] + '_nodes_' + partition + ".csv"
@@ -202,40 +206,47 @@ class Client:
                         {"source": "uint32", "target": "uint32"})
 
                     logging.info('Model initialized')
-                    self.MODEL = Model(nodes, edges)
-                    num_train_ex, num_test_ex = self.MODEL.initialize()
+                    self.model = Model(nodes, edges)
+                    num_train_ex, num_test_ex = self.model.initialize()
                     self.partition_sizes.append(num_train_ex)
 
-                    self.MODEL.set_weights(self.GLOBAL_MODEL)
+                    self.model.set_weights(self.global_model)
 
                     logging.info(
-                        'Number of training examples - %s, Number of testing examples %s', num_train_ex, num_test_ex)
+                        'Number of training examples - %s, Number of testing examples %s',
+                        num_train_ex, num_test_ex)
 
-                    eval = self.MODEL.evaluate()
+                    eval = self.model.evaluate()
 
                     f1_train = (2 * eval[0][2] * eval[0][4]
                                 ) / (eval[0][2] + eval[0][4])
                     f1_test = (2 * eval[1][2] * eval[1][4]
                                ) / (eval[1][2] + eval[1][4])
-                    logging.info('Global model v%s - Training set evaluation : accuracy - %s, recall - %s, AUC - %s, F1 - %s, precision - %s',
-                                 self.rounds - 1, eval[0][1], eval[0][2], eval[0][3], f1_train, eval[0][4])
-                    logging.info('Global model v%s - Testing set evaluation : accuracy - %s, recall - %s, AUC - %s, F1 - %s, precision - %s',
-                                 self.rounds - 1, eval[1][1], eval[1][2], eval[1][3], f1_test, eval[1][4])
+                    logging.info('Global model v%s - Training set evaluation : accuracy - %s, \
+                        recall - %s, AUC - %s, F1 - %s, precision - %s',
+                                 self.rounds -
+                                 1, eval[0][1], eval[0][2], eval[0][3], f1_train,
+                                 eval[0][4])
+                    logging.info('Global model v%s - Testing set evaluation : accuracy - %s, \
+                        recall - %s, AUC - %s, F1 - %s, precision - %s',
+                                 self.rounds - 1,
+                                 eval[1][1], eval[1][2], eval[1][3],
+                                 f1_test, eval[1][4])
 
                     logging.info('Training started')
-                    self.MODEL.fit(epochs=self.epochs)
-                    self.LOCAL_MODELS.append(
-                        np.array(self.MODEL.get_weights()))
+                    self.model.fit(epochs=self.epochs)
+                    self.local_models.append(
+                        np.array(self.model.get_weights()))
                     logging.info('Training done')
 
-                    del self.MODEL
+                    del self.model
                     del nodes
                     del edges
 
                     gc.collect()
 
                 logging.info(
-                    '********************************************* All partitions trained **********************************************')
+                    '************************** All partitions trained **************************')
 
                 logging.info('Sent local models to the aggregator')
                 self.send_models()
@@ -253,12 +264,14 @@ if __name__ == "__main__":
         args['epoch'] = 10
 
     logging.warning(
-        '####################################### New Training Session #######################################')
+        '################################# New Training Session #################################')
     logging.info('Client started, graph ID %s, partition IDs %s , epochs %s',
                  args['graph_id'], args['partition_ids'], args['epochs'])
 
-    client = Client(args['client_id'], weights_path=args['path_weights'], graph_id=args['graph_id'],
-                    partition_ids=args['partition_ids'].split(","), epochs=int(args['epochs']), IP=args['IP'], PORT=int(args['PORT']))
+    client = Client(args['client_id'], weights_path=args['path_weights'],
+                    graph_id=args['graph_id'], partition_ids=args['partition_ids'].split(
+                        ","),
+                    epochs=int(args['epochs']), IP=args['IP'], PORT=int(args['PORT']))
 
     logging.info('Federated training started!')
 
@@ -268,5 +281,6 @@ if __name__ == "__main__":
 
     elapsed_time = end - start
     logging.info('Federated training done!')
-    logging.info('Training report : Elapsed time %s seconds, graph ID %s, partition IDs %s, epochs %s',
-                 elapsed_time, args['graph_id'], args['partition_ids'], args['epochs'])
+    logging.info(
+        'Training report : Elapsed time %s seconds, graph ID %s, partition IDs %s, epochs %s',
+        elapsed_time, args['graph_id'], args['partition_ids'], args['epochs'])
