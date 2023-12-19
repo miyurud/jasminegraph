@@ -1224,8 +1224,6 @@ bool JasmineGraphInstanceService::sendFileThroughService(std::string host, int d
 
     string response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE) == 0) {
-        std::cout << "Sending file " << filePath << " through port " << dataPort << std::endl;
-
         FILE *fp = fopen(filePath.c_str(), "r");
         if (fp == NULL) {
             instance_logger.log("Error opening file", "error");
