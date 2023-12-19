@@ -1771,7 +1771,7 @@ map<long, double> calculateLocalPageRank(string graphID, double alpha, string pa
     map<double, long> rankMapResults;
     map<long, double> finalPageRankResults;
     if (top_k_page_rank_value == -1) {
-        instance_logger.log("Page rank is not implemented", "info");
+        instance_logger.log("PageRank is not implemented", "info");
     } else {
         std::string resultTree = "";
         for (map<long, double>::iterator rankMapItr = rankMap.begin(); rankMapItr != rankMap.end(); ++rankMapItr) {
@@ -2953,7 +2953,7 @@ static void page_rank_command(int connFd, int serverPort,
     map<long, double> pageRankResults =
         calculateLocalPageRank(graphID, alpha, partitionID, serverPort, TOP_K_PAGE_RANK, graphVertexCount, graphDB,
                                centralDB, workerSockets, iterations);
-    instance_logger.log("Page rank size: " + to_string(pageRankResults.size()), "info");
+    instance_logger.log("PageRank size: " + to_string(pageRankResults.size()), "info");
 
     map<long, double> pageRankLocalstore;
     map<long, unordered_set<long>> localGraphMap = graphDB.getUnderlyingHashMap();
@@ -3085,7 +3085,7 @@ static void worker_page_rank_distribution_command(
         calculateLocalPageRank(graphID, alpha, partitionID, serverPort, TOP_K_PAGE_RANK, graphVertexCount, graphDB,
                                centralDB, workerSockets, iterations);
 
-    instance_logger.log("Page rank size: " + to_string(pageRankResults.size()), "info");
+    instance_logger.log("PageRank size: " + to_string(pageRankResults.size()), "info");
 
     map<long, double> pageRankLocalstore;
     map<long, unordered_set<long>> localGraphMap = graphDB.getUnderlyingHashMap();
@@ -3623,9 +3623,10 @@ static void aggregate_composite_centralstore_triangles_command(int connFd, bool 
         return;
     }
 
+    static const int suffix_len = 5;
     string response = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
-    string status = response.substr(response.size() - 5);
-    std::string compositeFileList = response.substr(0, response.size() - 5);
+    string status = response.substr(response.size() - suffix_len);
+    std::string compositeFileList = response.substr(0, response.size() - suffix_len);
 
     while (status == "/SEND") {
         if (!Utils::send_str_wrapper(connFd, status)) {
@@ -3634,8 +3635,8 @@ static void aggregate_composite_centralstore_triangles_command(int connFd, bool 
         }
 
         response = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
-        status = response.substr(response.size() - 5);
-        std::string fileList = response.substr(0, response.size() - 5);
+        status = response.substr(response.size() - suffix_len);
+        std::string fileList = response.substr(0, response.size() - suffix_len);
         compositeFileList = compositeFileList + fileList;
     }
     response = compositeFileList;
