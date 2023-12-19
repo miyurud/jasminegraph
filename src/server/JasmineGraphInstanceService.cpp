@@ -1243,8 +1243,12 @@ bool JasmineGraphInstanceService::sendFileThroughService(std::string host, int d
             }
 
             if (nread < INSTANCE_FILE_BUFFER_LENGTH) {
-                if (feof(fp)) printf("End of file\n");
-                if (ferror(fp)) printf("Error reading\n");
+                if (feof(fp)) {
+                    instance_logger.info("Reading completed");
+                }
+                if (ferror(fp)) {
+                    instance_logger.error("Error reading");
+                }
                 break;
             }
         }
