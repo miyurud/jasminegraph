@@ -29,6 +29,7 @@ using namespace std;
 
 #define PENDING_CONNECTION_QUEUE_SIZE 10
 #define DATA_BUFFER_SIZE (INSTANCE_DATA_LENGTH + 1)
+#define CHUNK_OFFSET (INSTANCE_DATA_LENGTH - 10)
 
 Logger instance_logger;
 pthread_mutex_t file_lock;
@@ -3579,9 +3580,9 @@ static void aggregate_centralstore_triangles_command(int connFd, bool *loop_exit
 
     std::vector<std::string> chunksVector;
 
-    for (unsigned i = 0; i < aggregatedTriangles.length(); i += INSTANCE_DATA_LENGTH - 10) {
-        std::string chunk = aggregatedTriangles.substr(i, INSTANCE_DATA_LENGTH - 10);
-        if (i + INSTANCE_DATA_LENGTH - 10 < aggregatedTriangles.length()) {
+    for (unsigned i = 0; i < aggregatedTriangles.length(); i += CHUNK_OFFSET) {
+        std::string chunk = aggregatedTriangles.substr(i, CHUNK_OFFSET);
+        if (i + CHUNK_OFFSET < aggregatedTriangles.length()) {
             chunk += "/SEND";
         } else {
             chunk += "/CMPT";
@@ -3673,9 +3674,9 @@ static void aggregate_composite_centralstore_triangles_command(int connFd, bool 
 
     std::vector<std::string> chunksVector;
 
-    for (unsigned i = 0; i < aggregatedTriangles.length(); i += INSTANCE_DATA_LENGTH - 10) {
-        std::string chunk = aggregatedTriangles.substr(i, INSTANCE_DATA_LENGTH - 10);
-        if (i + INSTANCE_DATA_LENGTH - 10 < aggregatedTriangles.length()) {
+    for (unsigned i = 0; i < aggregatedTriangles.length(); i += CHUNK_OFFSET) {
+        std::string chunk = aggregatedTriangles.substr(i, CHUNK_OFFSET);
+        if (i + CHUNK_OFFSET < aggregatedTriangles.length()) {
             chunk += "/SEND";
         } else {
             chunk += "/CMPT";
@@ -3940,9 +3941,9 @@ static void request_collected_stats_command(int connFd, bool *collectValid_p, bo
 
     std::vector<std::string> chunksVector;
 
-    for (unsigned i = 0; i < loadAverageString.length(); i += INSTANCE_DATA_LENGTH - 10) {
-        std::string chunk = loadAverageString.substr(i, INSTANCE_DATA_LENGTH - 10);
-        if (i + INSTANCE_DATA_LENGTH - 10 < loadAverageString.length()) {
+    for (unsigned i = 0; i < loadAverageString.length(); i += CHUNK_OFFSET) {
+        std::string chunk = loadAverageString.substr(i, CHUNK_OFFSET);
+        if (i + CHUNK_OFFSET < loadAverageString.length()) {
             chunk += "/SEND";
         } else {
             chunk += "/CMPT";
