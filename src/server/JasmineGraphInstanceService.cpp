@@ -1041,8 +1041,6 @@ bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int 
                 }
 
                 bool result = true;
-                std::cout << pthread_self() << " host : " << host << " port : " << port << " DPort : " << dataPort
-                          << std::endl;
                 int sockfd;
                 char data[INSTANCE_DATA_LENGTH + 1];
                 bool loop = false;
