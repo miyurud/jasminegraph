@@ -879,15 +879,14 @@ void JasmineGraphInstanceService::createPartitionFiles(std::string graphID, std:
     }
 }
 
-void JasmineGraphInstanceService::collectExecutionData(string iteration, string trainArgs, string partCount) {
+void JasmineGraphInstanceService::collectExecutionData(int iteration, string trainArgs, string partCount) {
     pthread_mutex_lock(&map_lock);
-    if (iterationData.find(stoi(iteration)) == iterationData.end()) {
-        vector<string> trainData;
-    } else {
-        vector<string> trainData = iterationData[stoi(iteration)];
+    vector<string> trainData;
+    if (iterationData.find(iteration) != iterationData.end()) {
+        vector<string> trainData = iterationData[iteration];
     }
     trainData.push_back(trainArgs);
-    iterationData[stoi(iteration)] = trainData;
+    iterationData[iteration] = trainData;
     partitionCounter++;
     pthread_mutex_unlock(&map_lock);
     if (partitionCounter == stoi(partCount)) {
@@ -4015,7 +4014,7 @@ static void initiate_train_command(int connFd, bool *loop_exit_p) {
 
     string partCount = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
     instance_logger.log("Received partition iteration - " + partIteration, "info");
-    JasmineGraphInstanceService::collectExecutionData(partIteration, trainData, partCount);
+    JasmineGraphInstanceService::collectExecutionData(stoi(partIteration), trainData, partCount);
     instance_logger.log("After calling collector ", "info");
 }
 

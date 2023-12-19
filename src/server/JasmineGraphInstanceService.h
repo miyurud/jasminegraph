@@ -160,7 +160,7 @@ class JasmineGraphInstanceService {
 
     static void createPartitionFiles(std::string graphID, std::string partitionID, std::string fileType);
 
-    static void collectExecutionData(std::string iteration, std::string trainArgs, std::string partCount);
+    static void collectExecutionData(int iteration, std::string trainArgs, std::string partCount);
 
     static void executeTrainingIterations(int maxThreads);
 
