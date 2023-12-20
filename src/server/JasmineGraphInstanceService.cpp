@@ -734,7 +734,6 @@ int JasmineGraphInstanceService::collectTrainedModelThreadFunction(instanceservi
     serv_addr.sin_port = htons(port);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         instance_logger.error("ERROR connecting to port " + std::to_string(port));
-        // TODO::exit
         return 0;
     }
     if (Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE)) {
@@ -840,8 +839,6 @@ int JasmineGraphInstanceService::collectTrainedModelThreadFunction(instanceservi
 
 void JasmineGraphInstanceService::createPartitionFiles(std::string graphID, std::string partitionID,
                                                        std::string fileType) {
-    instance_logger.info("createPartitionFiles called with fileType=" + fileType);
-
     Utils::createDirectory(Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.trainedmodelfolder"));
     JasmineGraphHashMapLocalStore *hashMapLocalStore = new JasmineGraphHashMapLocalStore();
     string inputFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" +
@@ -1072,7 +1069,6 @@ bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int 
                 serv_addr.sin_port = htons(port);
                 if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
                     instance_logger.error("ERROR connecting to port " + std::to_string(port));
-                    // TODO::exit
                     return 0;
                 }
 
@@ -1232,7 +1228,6 @@ bool JasmineGraphInstanceService::sendFileThroughService(std::string host, int d
             return false;
         }
 
-        instance_logger.log("Sending", "info");
         for (;;) {
             unsigned char buff[INSTANCE_FILE_BUFFER_LENGTH] = {0};
             int nread = fread(buff, 1, INSTANCE_FILE_BUFFER_LENGTH, fp);
@@ -1597,7 +1592,6 @@ void calculateEgoNet(string graphID, string partitionID, int serverPort, Jasmine
         serv_addr.sin_port = htons(port);
         if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
             instance_logger.error("ERROR connecting to port " + std::to_string(port));
-            // TODO::exit
             return;
         }
 
