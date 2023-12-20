@@ -56,7 +56,6 @@ void DataPublisher::publish(std::string message) {
     auto ack_return_status = recv(this->sock, &start_ack, sizeof(start_ack), 0);
     std::string ack(start_ack);
     std::cout << ack << std::endl;
-    std::cout << JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK << std::endl;
     if (JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK != ack) {
         data_publisher_logger.error("Error while receiving start command ack\n");
     }

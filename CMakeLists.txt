@@ -17,11 +17,16 @@ add_executable(JasmineGraph main.cpp src/server/JasmineGraphServer.cpp src/serve
         src/partitioner/local/RDFPartitioner.h src/backend/JasmineGraphBackend.cpp src/backend/JasmineGraphBackend.h
         src/backend/JasmineGraphBackendProtocol.cpp src/backend/JasmineGraphBackendProtocol.h src/util/logger/Logger.h src/util/logger/Logger.cpp
         src/server/JasmineGraphInstanceProtocol.cpp
-        src/centralstore/incremental/NodeManager.cpp
-        src/centralstore/incremental/NodeBlock.cpp
-        src/centralstore/incremental/PropertyLink.cpp
-        src/centralstore/incremental/RelationBlock.cpp
-        src/centralstore/incremental/DataPublisher.cpp
+        src/nativestore/NodeManager.cpp
+        src/nativestore/NodeBlock.cpp
+        src/nativestore/CentralNodeBlock.cpp
+        src/nativestore/PropertyLink.cpp
+        src/nativestore/CentralPropertyLink.cpp
+        src/nativestore/PropertyEdgeLink.cpp
+        src/nativestore/CentralPropertyEdgeLink.cpp
+        src/nativestore/RelationBlock.cpp
+        src/nativestore/CentralRelationBlock.cpp
+        src/nativestore/DataPublisher.cpp
         src/partitioner/stream/Partition.cpp
         src/localstore/incremental/JasmineGraphIncrementalLocalStore.cpp
         src/server/JasmineGraphInstanceProtocol.h src/server/JasmineGraphInstanceFileTransferService.cpp src/server/JasmineGraphInstanceFileTransferService.h

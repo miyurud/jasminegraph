@@ -26,8 +26,8 @@ limitations under the License.
 #include <set>
 #include <thread>
 
-#include "../centralstore/incremental/DataPublisher.h"
-#include "../centralstore/incremental/RelationBlock.h"
+#include "../nativestore/DataPublisher.h"
+#include "../nativestore/RelationBlock.h"
 #include "../metadb/SQLiteDBInterface.h"
 #include "../ml/trainer/JasmineGraphTrainingSchedular.h"
 #include "../partitioner/local/JSONParser.h"
@@ -92,8 +92,9 @@ static void sla_command(int connFd, SQLiteDBInterface sqlite, PerformanceSQLiteD
 void listen_to_kafka_topic(KafkaConnector *kstream, Partitioner &graphPartitioner,
                            vector<DataPublisher *> &workerClients) {
     while (true) {
-        cppkafka::Message msg = kstream->consumer.poll();
+        cppkafka::Message msg = kstream->consumer.poll(std::chrono::milliseconds(1000));
         if (!msg || msg.get_error()) {
+            frontend_logger.log("Couldn't retrieve message from Kafka.", "info");
             continue;
         }
         string data(msg.get_payload());
@@ -116,8 +117,8 @@ void listen_to_kafka_topic(KafkaConnector *kstream, Partitioner &graphPartitione
         obj["destination"] = destinationJson;
         long temp_s = partitionedEdge[0].second;
         long temp_d = partitionedEdge[1].second;
-        workerClients.at((int)partitionedEdge[0].second)->publish(sourceJson.dump());
-        workerClients.at((int)partitionedEdge[1].second)->publish(destinationJson.dump());
+        workerClients.at((int)partitionedEdge[0].second)->publish(obj.dump());
+        workerClients.at((int)partitionedEdge[1].second)->publish(obj.dump());
         //      storing Node block
         if (temp_s == temp_d) {
             // +miyurud: Temorarily commeting the following line to make the code build
@@ -1154,7 +1155,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
                                      KafkaConnector *&kstream, thread &input_stream_handler,
                                      vector<DataPublisher *> &workerClients, int numberOfPartitions,
                                      bool *loop_exit_p) {
-    string msg_1 = "DO you want to use default KAFKA consumer(y/n) ? ";
+    string msg_1 = "DO you want to use default KAFKA consumer(y/n) ?";
     int result_wr = write(connFd, msg_1.c_str(), msg_1.length());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
@@ -1245,13 +1246,13 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     bzero(topic_name, FRONTEND_DATA_LENGTH + 1);
     read(connFd, topic_name, FRONTEND_DATA_LENGTH);
 
-    string con_message = "Received the kafka topic";
-    int con_result_wr = write(connFd, con_message.c_str(), con_message.length());
-    if (con_result_wr < 0) {
-        frontend_logger.error("Error writing to socket");
-        *loop_exit_p = true;
-        return;
-    }
+//    string con_message = "Received the kafka topic";
+//    int con_result_wr = write(connFd, con_message.c_str(), con_message.length());
+//    if (con_result_wr < 0) {
+//        frontend_logger.error("Error writing to socket");
+//        *loop_exit_p = true;
+//        return;
+//    }
 
     //          create kafka consumer and graph partitioner
     kstream = new KafkaConnector(configs);

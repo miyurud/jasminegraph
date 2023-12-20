@@ -16,7 +16,7 @@ limitations under the License.
 #include <memory>
 #include <stdexcept>
 
-#include "../../centralstore/incremental/RelationBlock.h"
+#include "../../nativestore/RelationBlock.h"
 #include "../../util/logger/Logger.h"
 
 Logger incremental_localstore_logger;

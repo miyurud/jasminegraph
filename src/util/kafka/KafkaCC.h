@@ -3,7 +3,7 @@
 
 #include <cppkafka/cppkafka.h>
 
-#include "../../centralstore/incremental/DataPublisher.h"
+#include "../../nativestore/DataPublisher.h"
 
 class KafkaConnector {
  public:
