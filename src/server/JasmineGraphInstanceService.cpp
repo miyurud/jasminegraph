@@ -39,6 +39,70 @@ std::vector<std::string> loadAverageVector;
 bool collectValid = false;
 std::thread JasmineGraphInstanceService::workerThread;
 
+static void handshake_command(int connFd, bool *loop_exit_p);
+static inline void close_command(int connFd, bool *loop_exit_p);
+__attribute__((noreturn)) static inline void shutdown_command(int connFd);
+static void ready_command(int connFd, bool *loop_exit_p);
+static void batch_upload_command(int connFd, bool *loop_exit_p);
+static void batch_upload_central_command(int connFd, bool *loop_exit_p);
+static void batch_upload_composite_central_command(int connFd, bool *loop_exit_p);
+static void upload_rdf_attributes_command(int connFd, bool *loop_exit_p);
+static void upload_rdf_attributes_central_command(int connFd, bool *loop_exit_p);
+static void delete_graph_command(int connFd, bool *loop_exit_p);
+static void delete_graph_fragment_command(int connFd, bool *loop_exit_p);
+static void duplicate_centralstore_command(int connFd, int serverPort, bool *loop_exit_p);
+static void worker_in_degree_distribution_command(
+    int connFd, std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
+    std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores, bool *loop_exit_p);
+static void in_degree_distribution_command(
+    int connFd, int serverPort, std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
+    std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores, bool *loop_exit_p);
+static void worker_out_degree_distribution_command(
+    int connFd, std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
+    std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores, bool *loop_exit_p);
+static void out_degree_distribution_command(
+    int connFd, int serverPort, std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
+    std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores, bool *loop_exit_p);
+static void page_rank_command(int connFd, int serverPort,
+                              std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores,
+                              bool *loop_exit_p);
+static void worker_page_rank_distribution_command(
+    int connFd, int serverPort, std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores,
+    bool *loop_exit_p);
+static void egonet_command(int connFd, int serverPort,
+                           std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores,
+                           bool *loop_exit_p);
+static void worker_egonet_command(int connFd, int serverPort,
+                                  std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores,
+                                  bool *loop_exit_p);
+static void triangles_command(
+    int connFd, int serverPort, std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
+    std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores,
+    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> graphDBMapDuplicateCentralStores,
+    bool *loop_exit_p);
+static void send_centralstore_to_aggregator_command(int connFd, bool *loop_exit_p);
+static void send_composite_centralstore_to_aggregator_command(int connFd, bool *loop_exit_p);
+static void aggregate_centralstore_triangles_command(int connFd, bool *loop_exit_p);
+static void aggregate_composite_centralstore_triangles_command(int connFd, bool *loop_exit_p);
+static void performance_statistics_command(int connFd, bool *loop_exit_p);
+static void initiate_files_command(int connFd, bool *loop_exit_p);
+static void initiate_fed_predict_command(int connFd, bool *loop_exit_p);
+static void initiate_server_command(int connFd, bool *loop_exit_p);
+static void initiate_org_server_command(int connFd, bool *loop_exit_p);
+static void initiate_aggregator_command(int connFd, bool *loop_exit_p);
+static void initiate_client_command(int connFd, bool *loop_exit_p);
+static void initiate_merge_files_command(int connFd, bool *loop_exit_p);
+static inline void start_stat_collection_command(int connFd, bool *collectValid_p, bool *loop_exit_p);
+static void request_collected_stats_command(int connFd, bool *collectValid_p, bool *loop_exit_p);
+static void initiate_train_command(int connFd, bool *loop_exit_p);
+static void initiate_predict_command(int connFd, instanceservicesessionargs *sessionargs, bool *loop_exit_p);
+static void initiate_model_collection_command(int connFd, bool *loop_exit_p);
+static void initiate_fragment_resolution_command(int connFd, bool *loop_exit_p);
+static void check_file_accessible_command(int connFd, bool *loop_exit_p);
+static void graph_stream_start_command(
+    int connFd, std::map<std::string, JasmineGraphIncrementalLocalStore *> incrementalLocalStoreMap, bool *loop_exit_p);
+static void send_priority_command(int connFd, bool *loop_exit_p);
+
 char *converter(const std::string &s) {
     char *pc = new char[s.size() + 1];
     std::strcpy(pc, s.c_str());
@@ -68,8 +132,8 @@ void *instanceservicesession(void *dummyPt) {
     Utils::createDirectory(Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder"));
 
     char data[INSTANCE_DATA_LENGTH + 1];
-    bool loop = false;
-    while (!loop) {
+    bool loop_exit = false;
+    while (!loop_exit) {
         bzero(data, INSTANCE_DATA_LENGTH + 1);
         read(connFd, data, INSTANCE_DATA_LENGTH);
 
@@ -80,2334 +144,102 @@ void *instanceservicesession(void *dummyPt) {
         line = Utils::trim_copy(line, " \f\n\r\t\v");
 
         line = Utils::trim_copy(line, " \f\n\r\t\v");
+        instance_logger.info("Received : " + line);
 
         if (line.compare(JasmineGraphInstanceProtocol::HANDSHAKE) == 0) {
-            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
-            write(connFd, JasmineGraphInstanceProtocol::HANDSHAKE_OK.c_str(),
-                  JasmineGraphInstanceProtocol::HANDSHAKE_OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            line = (data);
-            line = Utils::trim_copy(line, " \f\n\r\t\v");
-            string server_hostname = line;
-            instance_logger.log("Received hostname : " + line, "info");
-
-            instance_logger.log("Sending : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
-            write(connFd, JasmineGraphInstanceProtocol::HOST_OK.c_str(), JasmineGraphInstanceProtocol::HOST_OK.size());
-            std::cout << "ServerName : " << server_hostname << std::endl;
+            handshake_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::CLOSE) == 0) {
-            write(connFd, JasmineGraphInstanceProtocol::CLOSE_ACK.c_str(),
-                  JasmineGraphInstanceProtocol::CLOSE_ACK.size());
-            close(connFd);
+            close_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::SHUTDOWN) == 0) {
-            write(connFd, JasmineGraphInstanceProtocol::SHUTDOWN_ACK.c_str(),
-                  JasmineGraphInstanceProtocol::SHUTDOWN_ACK.size());
-            close(connFd);
-            exit(0);
+            shutdown_command(connFd);
         } else if (line.compare(JasmineGraphInstanceProtocol::READY) == 0) {
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+            ready_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD) == 0) {
-            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD, "info");
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string graphID = (data);
-            graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
-            instance_logger.log("Received Graph ID: " + graphID, "info");
-            write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_NAME.c_str(),
-                  JasmineGraphInstanceProtocol::SEND_FILE_NAME.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_NAME, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string fileName = (data);
-            instance_logger.log("Received File name: " + fileName, "info");
-            write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_LEN.c_str(),
-                  JasmineGraphInstanceProtocol::SEND_FILE_LEN.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string size = (data);
-            // int fileSize = atoi(size.c_str());
-            instance_logger.log("Received file size in bytes: " + size, "info");
-            write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_CONT.c_str(),
-                  JasmineGraphInstanceProtocol::SEND_FILE_CONT.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
-            string fullFilePath =
-                Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
-            int fileSize = atoi(size.c_str());
-            while (true) {
-                if (Utils::fileExists(fullFilePath)) {
-                    while (Utils::getFileSize(fullFilePath) < fileSize) {
-                        bzero(data, INSTANCE_DATA_LENGTH + 1);
-                        read(connFd, data, INSTANCE_DATA_LENGTH);
-                        line = (data);
-                        if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
-                            write(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT.c_str(),
-                                  JasmineGraphInstanceProtocol::FILE_RECV_WAIT.size());
-                        }
-                    }
-                    break;
-                } else {
-                    sleep(1);
-                    continue;
-                }
-            }
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            line = (data);
-
-            if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
-                instance_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
-                write(connFd, JasmineGraphInstanceProtocol::FILE_ACK.c_str(),
-                      JasmineGraphInstanceProtocol::FILE_ACK.size());
-                instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::FILE_ACK, "info");
-            }
-
-            instance_logger.log("File received and saved to " + fullFilePath, "info");
-            loop = true;
-
-            Utils::unzipFile(fullFilePath);
-            size_t lastindex = fileName.find_last_of(".");
-            string rawname = fileName.substr(0, lastindex);
-            fullFilePath =
-                Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + rawname;
-
-            string partitionID = rawname.substr(rawname.find_last_of("_") + 1);
-            pthread_mutex_lock(&file_lock);
-            writeCatalogRecord(graphID + ":" + partitionID);
-            pthread_mutex_unlock(&file_lock);
-
-            while (!Utils::fileExists(fullFilePath)) {
-                bzero(data, INSTANCE_DATA_LENGTH + 1);
-                read(connFd, data, INSTANCE_DATA_LENGTH);
-                string response = (data);
-                response = Utils::trim_copy(response, " \f\n\r\t\v");
-                if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
-                    instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
-                    write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.c_str(),
-                          JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.size());
-                    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT, "info");
-                }
-            }
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            line = (data);
-            if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
-                instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
-                write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.c_str(),
-                      JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.size());
-                instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK, "info");
-            }
-
+            batch_upload_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CENTRAL) == 0) {
-            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CENTRAL, "info");
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string graphID = (data);
-            graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
-            instance_logger.log("Received Graph ID: " + graphID, "info");
-            write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_NAME.c_str(),
-                  JasmineGraphInstanceProtocol::SEND_FILE_NAME.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_NAME, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string fileName = (data);
-
-            instance_logger.log("Received File name: " + fileName, "info");
-            write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_LEN.c_str(),
-                  JasmineGraphInstanceProtocol::SEND_FILE_LEN.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string size = (data);
-            instance_logger.log("Received file size in bytes: " + size, "info");
-            write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_CONT.c_str(),
-                  JasmineGraphInstanceProtocol::SEND_FILE_CONT.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
-            string fullFilePath =
-                Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
-
-            int fileSize = atoi(size.c_str());
-            while (true) {
-                if (Utils::fileExists(fullFilePath)) {
-                    while (Utils::getFileSize(fullFilePath) < fileSize) {
-                        bzero(data, INSTANCE_DATA_LENGTH + 1);
-                        read(connFd, data, INSTANCE_DATA_LENGTH);
-                        line = (data);
-
-                        if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
-                            write(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT.c_str(),
-                                  JasmineGraphInstanceProtocol::FILE_RECV_WAIT.size());
-                        }
-                    }
-                    break;
-                } else {
-                    sleep(1);
-                    continue;
-                }
-            }
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            line = (data);
-
-            if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
-                instance_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
-                write(connFd, JasmineGraphInstanceProtocol::FILE_ACK.c_str(),
-                      JasmineGraphInstanceProtocol::FILE_ACK.size());
-                instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::FILE_ACK, "info");
-            }
-
-            instance_logger.log("File received and saved to " + fullFilePath, "info");
-            loop = true;
-
-            Utils::unzipFile(fullFilePath);
-            size_t lastindex = fileName.find_last_of(".");
-            string rawname = fileName.substr(0, lastindex);
-            fullFilePath =
-                Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + rawname;
-
-            while (!Utils::fileExists(fullFilePath)) {
-                bzero(data, INSTANCE_DATA_LENGTH + 1);
-                read(connFd, data, INSTANCE_DATA_LENGTH);
-                string response = (data);
-                response = Utils::trim_copy(response, " \f\n\r\t\v");
-                if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
-                    instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
-                    write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.c_str(),
-                          JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.size());
-                    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT, "info");
-                }
-            }
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            line = (data);
-            if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
-                instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
-                write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.c_str(),
-                      JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.size());
-                instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK, "info");
-            }
+            batch_upload_central_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_COMPOSITE_CENTRAL) == 0) {
-            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_COMPOSITE_CENTRAL, "info");
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string graphID = (data);
-            graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
-            instance_logger.log("Received Graph ID: " + graphID, "info");
-            write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_NAME.c_str(),
-                  JasmineGraphInstanceProtocol::SEND_FILE_NAME.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_NAME, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string fileName = (data);
-
-            instance_logger.log("Received File name: " + fileName, "info");
-            write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_LEN.c_str(),
-                  JasmineGraphInstanceProtocol::SEND_FILE_LEN.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string size = (data);
-            instance_logger.log("Received file size in bytes: " + size, "info");
-            write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_CONT.c_str(),
-                  JasmineGraphInstanceProtocol::SEND_FILE_CONT.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
-            string fullFilePath =
-                Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
-
-            int fileSize = atoi(size.c_str());
-            while (true) {
-                if (Utils::fileExists(fullFilePath)) {
-                    while (Utils::getFileSize(fullFilePath) < fileSize) {
-                        bzero(data, INSTANCE_DATA_LENGTH + 1);
-                        read(connFd, data, INSTANCE_DATA_LENGTH);
-                        line = (data);
-
-                        if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
-                            write(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT.c_str(),
-                                  JasmineGraphInstanceProtocol::FILE_RECV_WAIT.size());
-                        }
-                    }
-                    break;
-                } else {
-                    sleep(1);
-                    continue;
-                }
-            }
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            line = (data);
-
-            if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
-                instance_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
-                write(connFd, JasmineGraphInstanceProtocol::FILE_ACK.c_str(),
-                      JasmineGraphInstanceProtocol::FILE_ACK.size());
-                instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::FILE_ACK, "info");
-            }
-
-            instance_logger.log("File received and saved to " + fullFilePath, "info");
-            loop = true;
-
-            Utils::unzipFile(fullFilePath);
-            size_t lastindex = fileName.find_last_of(".");
-            string rawname = fileName.substr(0, lastindex);
-            fullFilePath =
-                Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + rawname;
-
-            while (!Utils::fileExists(fullFilePath)) {
-                bzero(data, INSTANCE_DATA_LENGTH + 1);
-                read(connFd, data, INSTANCE_DATA_LENGTH);
-                string response = (data);
-                response = Utils::trim_copy(response, " \f\n\r\t\v");
-                if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
-                    instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
-                    write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.c_str(),
-                          JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.size());
-                    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT, "info");
-                }
-            }
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            line = (data);
-            if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
-                instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
-                write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.c_str(),
-                      JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.size());
-                instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK, "info");
-            }
+            batch_upload_composite_central_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::UPLOAD_RDF_ATTRIBUTES) == 0) {
-            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::UPLOAD_RDF_ATTRIBUTES, "info");
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string graphID = (data);
-            graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
-            instance_logger.log("Received Graph ID: " + graphID, "info");
-            write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_NAME.c_str(),
-                  JasmineGraphInstanceProtocol::SEND_FILE_NAME.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_NAME, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string fileName = (data);
-            instance_logger.log("Received File name: " + fileName, "info");
-            write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_LEN.c_str(),
-                  JasmineGraphInstanceProtocol::SEND_FILE_LEN.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string size = (data);
-            instance_logger.log("Received file size in bytes: " + size, "info");
-            write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_CONT.c_str(),
-                  JasmineGraphInstanceProtocol::SEND_FILE_CONT.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
-            string fullFilePath =
-                Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
-            int fileSize = atoi(size.c_str());
-            while (true) {
-                if (Utils::fileExists(fullFilePath)) {
-                    while (Utils::getFileSize(fullFilePath) < fileSize) {
-                        bzero(data, INSTANCE_DATA_LENGTH + 1);
-                        read(connFd, data, INSTANCE_DATA_LENGTH);
-                        line = (data);
-                        if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
-                            write(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT.c_str(),
-                                  JasmineGraphInstanceProtocol::FILE_RECV_WAIT.size());
-                        }
-                    }
-                    break;
-                } else {
-                    sleep(1);
-                    continue;
-                }
-            }
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            line = (data);
-
-            if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
-                instance_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
-                write(connFd, JasmineGraphInstanceProtocol::FILE_ACK.c_str(),
-                      JasmineGraphInstanceProtocol::FILE_ACK.size());
-                instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::FILE_ACK, "info");
-            }
-
-            instance_logger.log("File received and saved to " + fullFilePath, "info");
-            loop = true;
-
-            Utils::unzipFile(fullFilePath);
-            size_t lastindex = fileName.find_last_of(".");
-            string rawname = fileName.substr(0, lastindex);
-            fullFilePath =
-                Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + rawname;
-
-            while (!Utils::fileExists(fullFilePath)) {
-                bzero(data, INSTANCE_DATA_LENGTH + 1);
-                read(connFd, data, INSTANCE_DATA_LENGTH);
-                string response = (data);
-                response = Utils::trim_copy(response, " \f\n\r\t\v");
-                if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
-                    instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
-                    write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.c_str(),
-                          JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.size());
-                    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT, "info");
-                }
-            }
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            line = (data);
-            if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
-                instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
-                write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.c_str(),
-                      JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.size());
-                instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK, "info");
-            }
+            upload_rdf_attributes_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::UPLOAD_RDF_ATTRIBUTES_CENTRAL) == 0) {
-            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::UPLOAD_RDF_ATTRIBUTES_CENTRAL, "info");
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string graphID = (data);
-            graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
-            instance_logger.log("Received Graph ID: " + graphID, "info");
-            write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_NAME.c_str(),
-                  JasmineGraphInstanceProtocol::SEND_FILE_NAME.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_NAME, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string fileName = (data);
-            instance_logger.log("Received File name: " + fileName, "info");
-            write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_LEN.c_str(),
-                  JasmineGraphInstanceProtocol::SEND_FILE_LEN.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string size = (data);
-            instance_logger.log("Received file size in bytes: " + size, "info");
-            write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_CONT.c_str(),
-                  JasmineGraphInstanceProtocol::SEND_FILE_CONT.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
-            string fullFilePath =
-                Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
-            int fileSize = atoi(size.c_str());
-            while (true) {
-                if (Utils::fileExists(fullFilePath)) {
-                    while (Utils::getFileSize(fullFilePath) < fileSize) {
-                        bzero(data, INSTANCE_DATA_LENGTH + 1);
-                        read(connFd, data, INSTANCE_DATA_LENGTH);
-                        line = (data);
-                        if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
-                            write(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT.c_str(),
-                                  JasmineGraphInstanceProtocol::FILE_RECV_WAIT.size());
-                        }
-                    }
-                    break;
-                } else {
-                    sleep(1);
-                    continue;
-                }
-            }
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            line = (data);
-
-            if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
-                instance_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
-                write(connFd, JasmineGraphInstanceProtocol::FILE_ACK.c_str(),
-                      JasmineGraphInstanceProtocol::FILE_ACK.size());
-                instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::FILE_ACK, "info");
-            }
-
-            instance_logger.log("File received and saved to " + fullFilePath, "info");
-            loop = true;
-
-            Utils::unzipFile(fullFilePath);
-            size_t lastindex = fileName.find_last_of(".");
-            string rawname = fileName.substr(0, lastindex);
-            fullFilePath =
-                Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + rawname;
-
-            while (!Utils::fileExists(fullFilePath)) {
-                bzero(data, INSTANCE_DATA_LENGTH + 1);
-                read(connFd, data, INSTANCE_DATA_LENGTH);
-                string response = (data);
-                response = Utils::trim_copy(response, " \f\n\r\t\v");
-                if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
-                    instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
-                    write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.c_str(),
-                          JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.size());
-                    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT, "info");
-                }
-            }
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            line = (data);
-            if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
-                instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
-                write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.c_str(),
-                      JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.size());
-                instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK, "info");
-            }
+            upload_rdf_attributes_central_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::DELETE_GRAPH) == 0) {
-            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::DELETE_GRAPH, "info");
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string graphID = (data);
-            graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
-            instance_logger.log("Received Graph ID: " + graphID, "info");
-            write(connFd, JasmineGraphInstanceProtocol::SEND_PARTITION_ID.c_str(),
-                  JasmineGraphInstanceProtocol::SEND_PARTITION_ID.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_PARTITION_ID, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string partitionID = (data);
-            instance_logger.log("Received partition ID: " + partitionID, "info");
-            deleteGraphPartition(graphID, partitionID);
-            // pthread_mutex_lock(&file_lock);
-            // TODO :: Update catalog file
-            // pthread_mutex_unlock(&file_lock);
-            string result = "1";
-            write(connFd, result.c_str(), result.size());
-            instance_logger.log("Sent : " + result, "info");
+            delete_graph_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::DELETE_GRAPH_FRAGMENT) == 0) {
-            // Conditional block for deleting all graph fragments when protocol is used
-            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::DELETE_GRAPH_FRAGMENT, "info");
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            // Read the message
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            // Get graph ID from message
-            string graphID = (data);
-            graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
-            instance_logger.log("Received Graph ID: " + graphID, "info");
-            // Method call for graph fragment deletion
-            removeGraphFragments(graphID);
-            // pthread_mutex_lock(&file_lock);
-            // TODO :: Update catalog file
-            // pthread_mutex_unlock(&file_lock);
-            string result = "1";
-            write(connFd, result.c_str(), result.size());
-            instance_logger.log("Sent : " + result, "info");
+            delete_graph_fragment_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::DP_CENTRALSTORE) == 0) {
-            instance_logger.log("Received : DP_CENTRALSTORE from server", "info");
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string graphID = (data);
-            graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
-            instance_logger.log("Received Graph ID: " + graphID, "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string partitionID = (data);
-            partitionID = Utils::trim_copy(partitionID, " \f\n\r\t\v");
-            instance_logger.log("Received Partition ID: " + partitionID, "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string workerList = (data);
-            workerList = Utils::trim_copy(workerList, " \f\n\r\t\v");
-            instance_logger.log("Received Worker List " + workerList, "info");
-
-            std::vector<string> workerSockets;
-            stringstream wl(workerList);
-            string intermediate;
-            while (getline(wl, intermediate, ',')) {
-                workerSockets.push_back(intermediate);
-            }
-
-            JasmineGraphInstanceService::duplicateCentralStore(serverPort, stoi(graphID), stoi(partitionID),
-                                                               workerSockets, "localhost");
+            duplicate_centralstore_command(connFd, serverPort, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::WORKER_IN_DEGREE_DISTRIBUTION) == 0) {
-            instance_logger.log("Received : In degree distribution to aggregator", "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string graphID = (data);
-            graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
-            instance_logger.log("Received Graph ID: " + graphID, "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string partitionID = (data);
-            partitionID = Utils::trim_copy(partitionID, " \f\n\r\t\v");
-            instance_logger.log("Received Partition ID: " + partitionID, "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string workerList = (data);
-            workerList = Utils::trim_copy(workerList, " \f\n\r\t\v");
-            instance_logger.log("Received WorkerList: " + workerList, "info");
-
-            std::vector<string> workerSockets;
-            stringstream wl(workerList);
-            string intermediate;
-            while (getline(wl, intermediate, ',')) {
-                workerSockets.push_back(intermediate);
-            }
-
-            auto t_start = std::chrono::high_resolution_clock::now();
-
-            map<long, long> degreeDistribution =
-                calculateLocalInDegreeDist(graphID, partitionID, graphDBMapLocalStores, graphDBMapCentralStores);
-
-            instance_logger.log("In Degree Dist size: " + to_string(degreeDistribution.size()), "info");
-
-            for (vector<string>::iterator workerIt = workerSockets.begin(); workerIt != workerSockets.end();
-                 ++workerIt) {
-                instance_logger.log("Worker pair " + *workerIt, "info");
-
-                std::vector<string> workerSocketPair;
-                stringstream wl(*workerIt);
-                string intermediate;
-                while (getline(wl, intermediate, ':')) {
-                    workerSocketPair.push_back(intermediate);
-                }
-                string workerPartitionID = workerSocketPair[2];
-
-                JasmineGraphHashMapCentralStore centralDB;
-
-                std::map<std::string, JasmineGraphHashMapCentralStore>::iterator itcen;
-
-                if (JasmineGraphInstanceService::isInstanceCentralStoreExists(graphID, workerPartitionID)) {
-                    JasmineGraphInstanceService::loadInstanceCentralStore(graphID, workerPartitionID,
-                                                                          graphDBMapCentralStores);
-                }
-                centralDB = graphDBMapCentralStores[graphID + "_centralstore_" + workerPartitionID];
-
-                map<long, long> degreeDistributionCentral = centralDB.getInDegreeDistributionHashMap();
-                std::map<long, long>::iterator itcentral;
-                std::map<long, long>::iterator its;
-
-                for (its = degreeDistributionCentral.begin(); its != degreeDistributionCentral.end(); ++its) {
-                    bool centralNodeFound = false;
-                    map<long, long>::iterator degreeDistributionLocalItr = degreeDistribution.find(its->first);
-                    if (degreeDistributionLocalItr != degreeDistribution.end()) {
-                        long degreeDistributionValue = degreeDistributionLocalItr->second;
-                        degreeDistribution[degreeDistributionLocalItr->first] = degreeDistributionValue + its->second;
-                    }
-                }
-
-                instance_logger.log("Worker partition idd combined " + workerPartitionID, "info");
-            }
-
-            auto t_end = std::chrono::high_resolution_clock::now();
-            double elapsed_time_ms = std::chrono::duration<double, std::milli>(t_end - t_start).count();
-
-            instance_logger.log("Elapsed time idd -----------------: " + to_string(elapsed_time_ms), "info");
-
-            string instanceDataFolderLocation =
-                Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
-            string attributeFilePart = instanceDataFolderLocation + "/" + graphID + "_idd_" + partitionID;
-            ofstream partfile;
-            partfile.open(attributeFilePart, std::fstream::trunc);
-            for (map<long, long>::iterator it = degreeDistribution.begin(); it != degreeDistribution.end(); ++it) {
-                partfile << to_string(it->first) << "\t" << to_string(it->second) << endl;
-            }
-            partfile.close();
-
-            loop = true;
+            worker_in_degree_distribution_command(connFd, graphDBMapLocalStores, graphDBMapCentralStores, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::IN_DEGREE_DISTRIBUTION) == 0) {
-            instance_logger.log("Received : in degree distribution from server", "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string graphID = (data);
-            graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
-            instance_logger.log("Received Graph ID: " + graphID, "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string partitionID = (data);
-            partitionID = Utils::trim_copy(partitionID, " \f\n\r\t\v");
-            instance_logger.log("Received Partition ID: " + partitionID, "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string workerList = (data);
-            workerList = Utils::trim_copy(workerList, " \f\n\r\t\v");
-            instance_logger.log("Received Worker List " + workerList, "info");
-
-            std::vector<string> workerSockets;
-            stringstream wl(workerList);
-            string intermediate;
-            while (getline(wl, intermediate, ',')) {
-                workerSockets.push_back(intermediate);
-            }
-
-            // Calculate the in degree distribution
-            map<long, long> degreeDistribution =
-                calculateInDegreeDist(graphID, partitionID, serverPort, graphDBMapLocalStores, graphDBMapCentralStores,
-                                      workerSockets, workerList);
-            degreeDistribution.clear();
-            loop = true;
+            in_degree_distribution_command(connFd, serverPort, graphDBMapLocalStores, graphDBMapCentralStores,
+                                           &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::WORKER_OUT_DEGREE_DISTRIBUTION) == 0) {
-            instance_logger.log("Received : Out degree distribution to aggregator", "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string graphID = (data);
-            graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
-            instance_logger.log("Received Graph ID: " + graphID, "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string partitionID = (data);
-            partitionID = Utils::trim_copy(partitionID, " \f\n\r\t\v");
-            instance_logger.log("Received Partition ID: " + partitionID, "info");
-
-            map<long, long> degreeDistribution =
-                calculateLocalOutDegreeDist(graphID, partitionID, graphDBMapLocalStores, graphDBMapCentralStores);
-            instance_logger.log("Degree Dist size: " + to_string(degreeDistribution.size()), "info");
-
-            string instanceDataFolderLocation =
-                Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
-            string attributeFilePart = instanceDataFolderLocation + "/" + graphID + "_odd_" + partitionID;
-            ofstream partfile;
-            partfile.open(attributeFilePart, std::fstream::trunc);
-            for (map<long, long>::iterator it = degreeDistribution.begin(); it != degreeDistribution.end(); ++it) {
-                partfile << to_string(it->first) << "\t" << to_string(it->second) << endl;
-            }
-            partfile.close();
+            worker_out_degree_distribution_command(connFd, graphDBMapLocalStores, graphDBMapCentralStores, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::OUT_DEGREE_DISTRIBUTION) == 0) {
-            instance_logger.log("Received : out degree distribution from server", "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string graphID = (data);
-            graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
-            instance_logger.log("Received Graph ID: " + graphID, "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string partitionID = (data);
-            partitionID = Utils::trim_copy(partitionID, " \f\n\r\t\v");
-            instance_logger.log("Received Partition ID: " + partitionID, "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string workerList = (data);
-            workerList = Utils::trim_copy(workerList, " \f\n\r\t\v");
-            instance_logger.log("Received Worker List " + workerList, "info");
-
-            std::vector<string> workerSockets;
-            stringstream wl(workerList);
-            string intermediate;
-            while (getline(wl, intermediate, ',')) {
-                workerSockets.push_back(intermediate);
-            }
-
-            // Calculate the out degree distribution in the current super worker.
-            map<long, long> degreeDistribution = calculateOutDegreeDist(
-                graphID, partitionID, serverPort, graphDBMapLocalStores, graphDBMapCentralStores, workerSockets);
-
-            degreeDistribution.clear();
-            loop = true;
+            out_degree_distribution_command(connFd, serverPort, graphDBMapLocalStores, graphDBMapCentralStores,
+                                            &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::PAGE_RANK) == 0) {
-            instance_logger.log("Received : page rank from server", "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string graphID = (data);
-            graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
-            instance_logger.log("Received Graph ID: " + graphID, "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string partitionID = (data);
-            partitionID = Utils::trim_copy(partitionID, " \f\n\r\t\v");
-            instance_logger.log("Received Partition ID: " + partitionID, "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string workerList = (data);
-            workerList = Utils::trim_copy(workerList, " \f\n\r\t\v");
-            instance_logger.log("Received Worker List " + workerList, "info");
-
-            std::vector<string> workerSockets;
-            stringstream wl(workerList);
-            string intermediate;
-            while (getline(wl, intermediate, ',')) {
-                workerSockets.push_back(intermediate);
-            }
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string graphVertexCount = (data);
-            graphVertexCount = Utils::trim_copy(graphVertexCount, " \f\n\r\t\v");
-            instance_logger.log("Received Graph ID:" + graphID + " Vertex Count: " + graphVertexCount, "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string alphaValue = (data);
-            alphaValue = Utils::trim_copy(alphaValue, " \f\n\r\t\v");
-            instance_logger.log("Received alpha: " + alphaValue, "info");
-
-            double alpha = std::stod(alphaValue);
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string iterationsValue = (data);
-            iterationsValue = Utils::trim_copy(iterationsValue, " \f\n\r\t\v");
-            instance_logger.log("Received iteration count: " + iterationsValue, "info");
-
-            int iterations = std::stoi(iterationsValue);
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-
-            JasmineGraphHashMapLocalStore graphDB;
-            JasmineGraphHashMapCentralStore centralDB;
-
-            std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStoresPgrnk;
-            if (JasmineGraphInstanceService::isGraphDBExists(graphID, partitionID)) {
-                JasmineGraphInstanceService::loadLocalStore(graphID, partitionID, graphDBMapLocalStoresPgrnk);
-            }
-
-            if (JasmineGraphInstanceService::isInstanceCentralStoreExists(graphID, partitionID)) {
-                JasmineGraphInstanceService::loadInstanceCentralStore(graphID, partitionID, graphDBMapCentralStores);
-            }
-
-            graphDB = graphDBMapLocalStoresPgrnk[graphID + "_" + partitionID];
-            centralDB = graphDBMapCentralStores[graphID + "_centralstore_" + partitionID];
-
-            instance_logger.log("Start : Calculate Local page rank", "info");
-
-            map<long, double> pageRankResults =
-                calculateLocalPageRank(graphID, alpha, partitionID, serverPort, TOP_K_PAGE_RANK, graphVertexCount,
-                                       graphDB, centralDB, workerSockets, iterations);
-            instance_logger.log("Page rank size: " + to_string(pageRankResults.size()), "info");
-
-            map<long, double> pageRankLocalstore;
-            map<long, unordered_set<long>> localGraphMap = graphDB.getUnderlyingHashMap();
-            map<long, unordered_set<long>>::iterator localGraphMapIterator;
-            std::vector<long> vertexVector;
-            for (localGraphMapIterator = localGraphMap.begin(); localGraphMapIterator != localGraphMap.end();
-                 ++localGraphMapIterator) {
-                long startVid = localGraphMapIterator->first;
-                unordered_set<long> endVidSet = localGraphMapIterator->second;
-
-                map<long, double>::iterator pageRankValue = pageRankResults.find(startVid);
-                if (pageRankValue == pageRankResults.end()) {
-                    pageRankLocalstore.insert(std::make_pair(startVid, 0.0));
-                } else {
-                    double value = pageRankValue->second;
-                    pageRankLocalstore.insert(std::make_pair(startVid, value));
-                }
-            }
-
-            string instanceDataFolderLocation =
-                Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
-            string attributeFilePart = instanceDataFolderLocation + "/" + graphID + "_pgrnk_" + partitionID;
-            ofstream partfile;
-            partfile.open(attributeFilePart, std::fstream::trunc);
-            for (map<long, double>::iterator it = pageRankLocalstore.begin(); it != pageRankLocalstore.end(); ++it) {
-                partfile << to_string(it->first) << "\t" << to_string(it->second) << endl;
-            }
-            partfile.close();
-
-            loop = true;
-            pageRankResults.clear();
-            localGraphMap.clear();
-            pageRankLocalstore.clear();
-            graphDBMapCentralStores.clear();
-            graphDBMapLocalStoresPgrnk.clear();
-            instance_logger.log("Finish : Calculate Local page rank.", "info");
+            page_rank_command(connFd, serverPort, graphDBMapCentralStores, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::WORKER_PAGE_RANK_DISTRIBUTION) == 0) {
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string graphID = (data);
-            graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
-            instance_logger.log("Received Graph ID: " + graphID, "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string partitionID = (data);
-            partitionID = Utils::trim_copy(partitionID, " \f\n\r\t\v");
-            instance_logger.log("Received Partition ID: " + partitionID, "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string workerList = (data);
-            workerList = Utils::trim_copy(workerList, " \f\n\r\t\v");
-            instance_logger.log("Received Worker List " + workerList, "info");
-
-            std::vector<string> workerSockets;
-            stringstream wl(workerList);
-            string intermediate;
-            while (getline(wl, intermediate, ',')) {
-                workerSockets.push_back(intermediate);
-            }
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string graphVertexCount = (data);
-            graphVertexCount = Utils::trim_copy(graphVertexCount, " \f\n\r\t\v");
-            instance_logger.log("Received Graph ID:" + graphID + " Vertex Count: " + graphVertexCount, "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string alphaValue = (data);
-            alphaValue = Utils::trim_copy(alphaValue, " \f\n\r\t\v");
-            instance_logger.log("Received alpha: " + alphaValue, "info");
-
-            double alpha = std::stod(alphaValue);
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string iterationsValue = (data);
-            iterationsValue = Utils::trim_copy(iterationsValue, " \f\n\r\t\v");
-            instance_logger.log("Received iterations: " + iterationsValue, "info");
-
-            int iterations = std::stoi(iterationsValue);
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-
-            JasmineGraphHashMapLocalStore graphDB;
-            JasmineGraphHashMapCentralStore centralDB;
-
-            std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStoresPgrnk;
-            if (JasmineGraphInstanceService::isGraphDBExists(graphID, partitionID)) {
-                JasmineGraphInstanceService::loadLocalStore(graphID, partitionID, graphDBMapLocalStoresPgrnk);
-            }
-
-            if (JasmineGraphInstanceService::isInstanceCentralStoreExists(graphID, partitionID)) {
-                JasmineGraphInstanceService::loadInstanceCentralStore(graphID, partitionID, graphDBMapCentralStores);
-            }
-
-            graphDB = graphDBMapLocalStoresPgrnk[graphID + "_" + partitionID];
-            centralDB = graphDBMapCentralStores[graphID + "_centralstore_" + partitionID];
-
-            map<long, double> pageRankResults =
-                calculateLocalPageRank(graphID, alpha, partitionID, serverPort, TOP_K_PAGE_RANK, graphVertexCount,
-                                       graphDB, centralDB, workerSockets, iterations);
-
-            instance_logger.log("Page rank size: " + to_string(pageRankResults.size()), "info");
-
-            map<long, double> pageRankLocalstore;
-            map<long, unordered_set<long>> localGraphMap = graphDB.getUnderlyingHashMap();
-            map<long, unordered_set<long>>::iterator localGraphMapIterator;
-            std::vector<long> vertexVector;
-            for (localGraphMapIterator = localGraphMap.begin(); localGraphMapIterator != localGraphMap.end();
-                 ++localGraphMapIterator) {
-                long startVid = localGraphMapIterator->first;
-                unordered_set<long> endVidSet = localGraphMapIterator->second;
-
-                map<long, double>::iterator pageRankValue = pageRankResults.find(startVid);
-                if (pageRankValue == pageRankResults.end()) {
-                    pageRankLocalstore.insert(std::make_pair(startVid, 1.0));
-
-                } else {
-                    double value = pageRankValue->second;
-                    pageRankLocalstore.insert(std::make_pair(startVid, value));
-                }
-            }
-
-            string instanceDataFolderLocation =
-                Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
-            string attributeFilePart = instanceDataFolderLocation + "/" + graphID + "_pgrnk_" + partitionID;
-            ofstream partfile;
-            partfile.open(attributeFilePart, std::fstream::trunc);
-            for (map<long, double>::iterator it = pageRankLocalstore.begin(); it != pageRankLocalstore.end(); ++it) {
-                partfile << to_string(it->first) << "\t" << to_string(it->second) << endl;
-            }
-            partfile.close();
-
-            pageRankResults.clear();
-            pageRankLocalstore.clear();
-            localGraphMap.clear();
-
+            worker_page_rank_distribution_command(connFd, serverPort, graphDBMapCentralStores, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::EGONET) == 0) {
-            instance_logger.log("Received : EGONET from instance", "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string graphID = (data);
-            graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
-            instance_logger.log("Received Graph ID: " + graphID, "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string partitionID = (data);
-            partitionID = Utils::trim_copy(partitionID, " \f\n\r\t\v");
-            instance_logger.log("Received Partition ID: " + partitionID, "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string workerList = data;
-            workerList = Utils::trim_copy(workerList, " \f\n\r\t\v");
-            instance_logger.log("Received Worker List " + workerList, "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-
-            JasmineGraphHashMapLocalStore graphDB;
-            JasmineGraphHashMapCentralStore centralDB;
-
-            std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStoresPgrnk;
-            if (JasmineGraphInstanceService::isGraphDBExists(graphID, partitionID)) {
-                JasmineGraphInstanceService::loadLocalStore(graphID, partitionID, graphDBMapLocalStoresPgrnk);
-            }
-
-            if (JasmineGraphInstanceService::isInstanceCentralStoreExists(graphID, partitionID)) {
-                JasmineGraphInstanceService::loadInstanceCentralStore(graphID, partitionID, graphDBMapCentralStores);
-            }
-
-            graphDB = graphDBMapLocalStoresPgrnk[graphID + "_" + partitionID];
-            centralDB = graphDBMapCentralStores[graphID + "_centralstore_" + partitionID];
-
-            calculateEgoNet(graphID, partitionID, serverPort, graphDB, centralDB, workerList);
-
+            egonet_command(connFd, serverPort, graphDBMapCentralStores, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::WORKER_EGO_NET) == 0) {
-            instance_logger.log("Received : SEND_EGO_NET_TO_AGGREGATOR from instance", "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string graphID = (data);
-            graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
-            instance_logger.log("Received Graph ID: " + graphID, "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string partitionID = (data);
-            partitionID = Utils::trim_copy(partitionID, " \f\n\r\t\v");
-            instance_logger.log("Received Partition ID: " + partitionID, "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string workerList = (data);
-            workerList = Utils::trim_copy(workerList, " \f\n\r\t\v");
-            instance_logger.log("Received Worker List " + workerList, "info");
-
-            std::vector<string> workerSockets;
-            stringstream wl(workerList);
-            string intermediate;
-            while (getline(wl, intermediate, ',')) {
-                workerSockets.push_back(intermediate);
-            }
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-
-            JasmineGraphHashMapLocalStore graphDB;
-            JasmineGraphHashMapCentralStore centralDB;
-
-            std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStoresPgrnk;
-            if (JasmineGraphInstanceService::isGraphDBExists(graphID, partitionID)) {
-                JasmineGraphInstanceService::loadLocalStore(graphID, partitionID, graphDBMapLocalStoresPgrnk);
-            }
-
-            if (JasmineGraphInstanceService::isInstanceCentralStoreExists(graphID, partitionID)) {
-                JasmineGraphInstanceService::loadInstanceCentralStore(graphID, partitionID, graphDBMapCentralStores);
-            }
-
-            graphDB = graphDBMapLocalStoresPgrnk[graphID + "_" + partitionID];
-            centralDB = graphDBMapCentralStores[graphID + "_centralstore_" + partitionID];
-
-            map<long, map<long, unordered_set<long>>> egonetMap =
-                calculateLocalEgoNet(graphID, partitionID, serverPort, graphDB, centralDB, workerSockets);
-
-            string instanceDataFolderLocation =
-                Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
-            string attributeFilePart = instanceDataFolderLocation + "/" + graphID + "_egonet_" + partitionID;
-            ofstream partfile;
-            partfile.open(attributeFilePart, std::fstream::trunc);
-            for (map<long, map<long, unordered_set<long>>>::iterator it = egonetMap.begin(); it != egonetMap.end();
-                 ++it) {
-                map<long, unordered_set<long>> egonetInternalMap = it->second;
-                for (map<long, unordered_set<long>>::iterator itm = egonetInternalMap.begin();
-                     itm != egonetInternalMap.end(); ++itm) {
-                    unordered_set<long> egonetInternalMapEdges = itm->second;
-                    for (unordered_set<long>::iterator ite = egonetInternalMapEdges.begin();
-                         ite != egonetInternalMapEdges.end(); ++ite) {
-                        partfile << to_string(it->first) << "\t" << to_string(itm->first) << "\t" << to_string(*ite)
-                                 << endl;
-                    }
-                }
-            }
-            partfile.close();
-
-            instance_logger.log("Egonet calculation complete", "info");
-
+            worker_egonet_command(connFd, serverPort, graphDBMapCentralStores, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::TRIANGLES) == 0) {
-            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::TRIANGLES, "info");
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string graphID = (data);
-            graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
-            instance_logger.log("Received Graph ID: " + graphID, "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string partitionId = (data);
-            partitionId = Utils::trim_copy(partitionId, " \f\n\r\t\v");
-            instance_logger.log("Received Partition ID: " + partitionId, "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string priority = (data);
-            priority = Utils::trim_copy(priority, " \f\n\r\t\v");
-            instance_logger.log("Received Priority : " + priority, "info");
-
-            int threadPriority = std::atoi(priority.c_str());
-
-            if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
-                threadPriorityMutex.lock();
-                workerHighPriorityTaskCount++;
-                highestPriority = threadPriority;
-                threadPriorityMutex.unlock();
-            }
-
-            long localCount = countLocalTriangles(graphID, partitionId, graphDBMapLocalStores, graphDBMapCentralStores,
-                                                  graphDBMapDuplicateCentralStores, threadPriority);
-
-            if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
-                threadPriorityMutex.lock();
-                workerHighPriorityTaskCount--;
-
-                if (workerHighPriorityTaskCount == 0) {
-                    highestPriority = Conts::DEFAULT_THREAD_PRIORITY;
-                }
-                threadPriorityMutex.unlock();
-            }
-
-            std::string result = to_string(localCount);
-            write(connFd, result.c_str(), result.size());
+            triangles_command(connFd, serverPort, graphDBMapLocalStores, graphDBMapCentralStores,
+                              graphDBMapDuplicateCentralStores, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::SEND_CENTRALSTORE_TO_AGGREGATOR) == 0) {
-            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_CENTRALSTORE_TO_AGGREGATOR, "info");
-            write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_NAME.c_str(),
-                  JasmineGraphInstanceProtocol::SEND_FILE_NAME.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_NAME, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string fileName = (data);
-
-            instance_logger.log("Received File name: " + fileName, "info");
-            write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_LEN.c_str(),
-                  JasmineGraphInstanceProtocol::SEND_FILE_LEN.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string size = (data);
-            instance_logger.log("Received file size in bytes: " + size, "info");
-            write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_CONT.c_str(),
-                  JasmineGraphInstanceProtocol::SEND_FILE_CONT.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
-            string fullFilePath =
-                Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
-
-            int fileSize = atoi(size.c_str());
-            while (true) {
-                if (Utils::fileExists(fullFilePath)) {
-                    while (Utils::getFileSize(fullFilePath) < fileSize) {
-                        bzero(data, INSTANCE_DATA_LENGTH + 1);
-                        read(connFd, data, INSTANCE_DATA_LENGTH);
-                        line = (data);
-
-                        if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
-                            write(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT.c_str(),
-                                  JasmineGraphInstanceProtocol::FILE_RECV_WAIT.size());
-                        }
-                    }
-                    break;
-                } else {
-                    sleep(1);
-                    continue;
-                }
-            }
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            line = (data);
-
-            if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
-                instance_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
-                write(connFd, JasmineGraphInstanceProtocol::FILE_ACK.c_str(),
-                      JasmineGraphInstanceProtocol::FILE_ACK.size());
-                instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::FILE_ACK, "info");
-            }
-
-            instance_logger.log("File received and saved to " + fullFilePath, "info");
-            loop = true;
-
-            Utils::unzipFile(fullFilePath);
-            size_t lastindex = fileName.find_last_of(".");
-            string rawname = fileName.substr(0, lastindex);
-            fullFilePath =
-                Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + rawname;
-            std::string aggregatorFilePath =
-                Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
-
-            DIR *dir = opendir(aggregatorFilePath.c_str());
-
-            if (dir) {
-                closedir(dir);
-            } else {
-                std::string createDirCommand = "mkdir -p " + aggregatorFilePath;
-                FILE *createDirInput = popen(createDirCommand.c_str(), "r");
-                pclose(createDirInput);
-            }
-
-            std::string copyCommand = "cp " + fullFilePath + " " + aggregatorFilePath;
-
-            FILE *copyInput = popen(copyCommand.c_str(), "r");
-            pclose(copyInput);
-
-            std::string movedFullFilePath = aggregatorFilePath + "/" + rawname;
-
-            while (!Utils::fileExists(movedFullFilePath)) {
-                bzero(data, INSTANCE_DATA_LENGTH + 1);
-                read(connFd, data, INSTANCE_DATA_LENGTH);
-                string response = (data);
-                response = Utils::trim_copy(response, " \f\n\r\t\v");
-                if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
-                    instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
-                    write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.c_str(),
-                          JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.size());
-                    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT, "info");
-                }
-            }
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            line = (data);
-            if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
-                instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
-                write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.c_str(),
-                      JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.size());
-                instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK, "info");
-            }
+            send_centralstore_to_aggregator_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::SEND_COMPOSITE_CENTRALSTORE_TO_AGGREGATOR) == 0) {
-            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_COMPOSITE_CENTRALSTORE_TO_AGGREGATOR,
-                                "info");
-            write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_NAME.c_str(),
-                  JasmineGraphInstanceProtocol::SEND_FILE_NAME.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_NAME, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string fileName = (data);
-
-            instance_logger.log("Received File name: " + fileName, "info");
-            write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_LEN.c_str(),
-                  JasmineGraphInstanceProtocol::SEND_FILE_LEN.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string size = (data);
-            instance_logger.log("Received file size in bytes: " + size, "info");
-            write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_CONT.c_str(),
-                  JasmineGraphInstanceProtocol::SEND_FILE_CONT.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
-            string fullFilePath =
-                Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
-
-            int fileSize = atoi(size.c_str());
-            while (true) {
-                if (Utils::fileExists(fullFilePath)) {
-                    while (Utils::getFileSize(fullFilePath) < fileSize) {
-                        bzero(data, INSTANCE_DATA_LENGTH + 1);
-                        read(connFd, data, INSTANCE_DATA_LENGTH);
-                        line = (data);
-
-                        if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
-                            write(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT.c_str(),
-                                  JasmineGraphInstanceProtocol::FILE_RECV_WAIT.size());
-                        }
-                    }
-                    break;
-                } else {
-                    sleep(1);
-                    continue;
-                }
-            }
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            line = (data);
-
-            if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
-                instance_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
-                write(connFd, JasmineGraphInstanceProtocol::FILE_ACK.c_str(),
-                      JasmineGraphInstanceProtocol::FILE_ACK.size());
-                instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::FILE_ACK, "info");
-            }
-
-            instance_logger.log("File received and saved to " + fullFilePath, "info");
-            loop = true;
-
-            Utils::unzipFile(fullFilePath);
-            size_t lastindex = fileName.find_last_of(".");
-            string rawname = fileName.substr(0, lastindex);
-            fullFilePath =
-                Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + rawname;
-            std::string aggregatorFilePath =
-                Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
-
-            DIR *dir = opendir(aggregatorFilePath.c_str());
-
-            if (dir) {
-                closedir(dir);
-            } else {
-                std::string createDirCommand = "mkdir -p " + aggregatorFilePath;
-                FILE *createDirInput = popen(createDirCommand.c_str(), "r");
-                pclose(createDirInput);
-            }
-
-            std::string copyCommand = "cp " + fullFilePath + " " + aggregatorFilePath;
-
-            FILE *copyInput = popen(copyCommand.c_str(), "r");
-            pclose(copyInput);
-
-            std::string movedFullFilePath = aggregatorFilePath + "/" + rawname;
-
-            while (!Utils::fileExists(movedFullFilePath)) {
-                bzero(data, INSTANCE_DATA_LENGTH + 1);
-                read(connFd, data, INSTANCE_DATA_LENGTH);
-                string response = (data);
-                response = Utils::trim_copy(response, " \f\n\r\t\v");
-                if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
-                    instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
-                    write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.c_str(),
-                          JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.size());
-                    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT, "info");
-                }
-            }
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            line = (data);
-            if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
-                instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
-                write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.c_str(),
-                      JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.size());
-                instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK, "info");
-            }
+            send_composite_centralstore_to_aggregator_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::AGGREGATE_CENTRALSTORE_TRIANGLES) == 0) {
-            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::AGGREGATE_CENTRALSTORE_TRIANGLES, "info");
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string graphId = (data);
-            graphId = Utils::trim_copy(graphId, " \f\n\r\t\v");
-            instance_logger.log("Received Graph ID: " + graphId, "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string partitionId = (data);
-            partitionId = Utils::trim_copy(partitionId, " \f\n\r\t\v");
-            instance_logger.log("Received Partition ID: " + partitionId, "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string partitionIdList = (data);
-            partitionIdList = Utils::trim_copy(partitionIdList, " \f\n\r\t\v");
-            instance_logger.log("Received Partition ID List : " + partitionIdList, "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string priority = (data);
-            priority = Utils::trim_copy(priority, " \f\n\r\t\v");
-            instance_logger.log("Received priority: " + priority, "info");
-
-            int threadPriority = std::atoi(priority.c_str());
-
-            if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
-                threadPriorityMutex.lock();
-                workerHighPriorityTaskCount++;
-                highestPriority = threadPriority;
-                threadPriorityMutex.unlock();
-            }
-
-            std::string aggregatedTriangles = JasmineGraphInstanceService::aggregateCentralStoreTriangles(
-                graphId, partitionId, partitionIdList, threadPriority);
-
-            if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
-                threadPriorityMutex.lock();
-                workerHighPriorityTaskCount--;
-
-                if (workerHighPriorityTaskCount == 0) {
-                    highestPriority = Conts::DEFAULT_THREAD_PRIORITY;
-                }
-                threadPriorityMutex.unlock();
-            }
-
-            std::vector<std::string> chunksVector;
-
-            for (unsigned i = 0; i < aggregatedTriangles.length(); i += INSTANCE_DATA_LENGTH - 10) {
-                std::string chunk = aggregatedTriangles.substr(i, INSTANCE_DATA_LENGTH - 10);
-                if (i + INSTANCE_DATA_LENGTH - 10 < aggregatedTriangles.length()) {
-                    chunk += "/SEND";
-                } else {
-                    chunk += "/CMPT";
-                }
-                chunksVector.push_back(chunk);
-            }
-
-            for (int loopCount = 0; loopCount < chunksVector.size(); loopCount++) {
-                if (loopCount == 0) {
-                    std::string chunk = chunksVector.at(loopCount);
-                    write(connFd, chunk.c_str(), chunk.size());
-                } else {
-                    bzero(data, INSTANCE_DATA_LENGTH + 1);
-                    read(connFd, data, INSTANCE_DATA_LENGTH);
-                    string chunkStatus = (data);
-                    std::string chunk = chunksVector.at(loopCount);
-                    write(connFd, chunk.c_str(), chunk.size());
-                }
-            }
-
+            aggregate_centralstore_triangles_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::AGGREGATE_COMPOSITE_CENTRALSTORE_TRIANGLES) == 0) {
-            instance_logger.log(
-                "Received : " + JasmineGraphInstanceProtocol::AGGREGATE_COMPOSITE_CENTRALSTORE_TRIANGLES, "info");
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string availableFiles = (data);
-            availableFiles = Utils::trim_copy(availableFiles, " \f\n\r\t\v");
-            instance_logger.log("Received Available Files: " + availableFiles, "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string response = (data);
-            response = Utils::trim_copy(response, " \f\n\r\t\v");
-
-            string status = response.substr(response.size() - 5);
-            std::string compositeFileList = response.substr(0, response.size() - 5);
-
-            while (status == "/SEND") {
-                write(connFd, status.c_str(), status.size());
-                bzero(data, INSTANCE_DATA_LENGTH + 1);
-                read(connFd, data, INSTANCE_DATA_LENGTH);
-                response = (data);
-                response = Utils::trim_copy(response, " \f\n\r\t\v");
-                status = response.substr(response.size() - 5);
-                std::string fileList = response.substr(0, response.size() - 5);
-                compositeFileList = compositeFileList + fileList;
-            }
-            response = compositeFileList;
-
-            instance_logger.log("Received Composite File List : " + compositeFileList, "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string priority = (data);
-            priority = Utils::trim_copy(priority, " \f\n\r\t\v");
-            instance_logger.log("Received priority: " + priority, "info");
-
-            int threadPriority = std::atoi(priority.c_str());
-
-            if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
-                threadPriorityMutex.lock();
-                workerHighPriorityTaskCount++;
-                highestPriority = threadPriority;
-                threadPriorityMutex.unlock();
-            }
-
-            std::string aggregatedTriangles = JasmineGraphInstanceService::aggregateCompositeCentralStoreTriangles(
-                response, availableFiles, threadPriority);
-
-            if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
-                threadPriorityMutex.lock();
-                workerHighPriorityTaskCount--;
-
-                if (workerHighPriorityTaskCount == 0) {
-                    highestPriority = Conts::DEFAULT_THREAD_PRIORITY;
-                }
-                threadPriorityMutex.unlock();
-            }
-
-            std::vector<std::string> chunksVector;
-
-            for (unsigned i = 0; i < aggregatedTriangles.length(); i += INSTANCE_DATA_LENGTH - 10) {
-                std::string chunk = aggregatedTriangles.substr(i, INSTANCE_DATA_LENGTH - 10);
-                if (i + INSTANCE_DATA_LENGTH - 10 < aggregatedTriangles.length()) {
-                    chunk += "/SEND";
-                } else {
-                    chunk += "/CMPT";
-                }
-                chunksVector.push_back(chunk);
-            }
-
-            for (int loopCount = 0; loopCount < chunksVector.size(); loopCount++) {
-                if (loopCount == 0) {
-                    std::string chunk = chunksVector.at(loopCount);
-                    write(connFd, chunk.c_str(), chunk.size());
-                } else {
-                    bzero(data, INSTANCE_DATA_LENGTH + 1);
-                    read(connFd, data, INSTANCE_DATA_LENGTH);
-                    string chunkStatus = (data);
-                    std::string chunk = chunksVector.at(loopCount);
-                    write(connFd, chunk.c_str(), chunk.size());
-                }
-            }
-
+            aggregate_composite_centralstore_triangles_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::PERFORMANCE_STATISTICS) == 0) {
-            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::PERFORMANCE_STATISTICS, "info");
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string isVMStatManager = (data);
-            isVMStatManager = Utils::trim_copy(isVMStatManager, " \f\n\r\t\v");
-
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string isResourceAllocationRequired = (data);
-            isResourceAllocationRequired = Utils::trim_copy(isResourceAllocationRequired, " \f\n\r\t\v");
-
-            std::string memoryUsage = JasmineGraphInstanceService::requestPerformanceStatistics(
-                isVMStatManager, isResourceAllocationRequired);
-            write(connFd, memoryUsage.c_str(), memoryUsage.size());
+            performance_statistics_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_FILES) == 0) {
-            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::INITIATE_FILES, "info");
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string trainData(data);
-
-            std::vector<std::string> trainargs = Utils::split(trainData, ' ');
-
-            string graphID;
-            string partitionID = trainargs[trainargs.size() - 1];
-
-            for (int i = 0; i < trainargs.size(); i++) {
-                if (trainargs[i] == "--graph_id") {
-                    graphID = trainargs[i + 1];
-                    break;
-                }
-            }
-
-            std::thread *workerThreads = new std::thread[2];
-            workerThreads[0] =
-                std::thread(&JasmineGraphInstanceService::createPartitionFiles, graphID, partitionID, "local");
-            workerThreads[1] =
-                std::thread(&JasmineGraphInstanceService::createPartitionFiles, graphID, partitionID, "centralstore");
-
-            for (int threadCount = 0; threadCount < 2; threadCount++) {
-                workerThreads[threadCount].join();
-            }
-
+            initiate_files_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_FED_PREDICT) == 0) {
-            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::INITIATE_FED_PREDICT, "info");
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string trainData(data);
-
-            std::vector<std::string> trainargs = Utils::split(trainData, ' ');
-
-            string graphID;
-            string partitionID = trainargs[trainargs.size() - 1];
-
-            for (int i = 0; i < trainargs.size(); i++) {
-                if (trainargs[i] == "--graph_id") {
-                    graphID = trainargs[i + 1];
-                    break;
-                }
-            }
-
-            std::thread *workerThreads = new std::thread[2];
-            workerThreads[0] =
-                std::thread(&JasmineGraphInstanceService::createPartitionFiles, graphID, partitionID, "local");
-            workerThreads[1] =
-                std::thread(&JasmineGraphInstanceService::createPartitionFiles, graphID, partitionID, "centralstore");
-
-            for (int threadCount = 0; threadCount < 2; threadCount++) {
-                workerThreads[threadCount].join();
-            }
+            initiate_fed_predict_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_SERVER) == 0) {
-            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::INITIATE_SERVER, "info");
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string trainData(data);
-
-            std::vector<std::string> trainargs = Utils::split(trainData, ' ');
-            instance_logger.info("Received options : " + trainData);
-            string graphID;
-            string partitionID = trainargs[trainargs.size() - 1];
-
-            for (int i = 0; i < trainargs.size(); i++) {
-                if (trainargs[i] == "--graph_id") {
-                    graphID = trainargs[i + 1];
-                    break;
-                }
-            }
-
-            std::thread workerThread = std::thread(&JasmineGraphInstanceService::initServer, trainData);
-            workerThread.join();
-
+            initiate_server_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_ORG_SERVER) == 0) {
-            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::INITIATE_ORG_SERVER, "info");
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string trainData(data);
-
-            std::vector<std::string> trainargs = Utils::split(trainData, ' ');
-
-            string graphID;
-            string partitionID = trainargs[trainargs.size() - 1];
-
-            for (int i = 0; i < trainargs.size(); i++) {
-                if (trainargs[i] == "--graph_id") {
-                    graphID = trainargs[i + 1];
-                    break;
-                }
-            }
-
-            std::thread workerThread = std::thread(&JasmineGraphInstanceService::initOrgServer, trainData);
-            workerThread.join();
-
+            initiate_org_server_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_AGG) == 0) {
-            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::INITIATE_AGG, "info");
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string trainData(data);
-
-            std::vector<std::string> trainargs = Utils::split(trainData, ' ');
-
-            string graphID;
-            string partitionID = trainargs[trainargs.size() - 1];
-
-            for (int i = 0; i < trainargs.size(); i++) {
-                if (trainargs[i] == "--graph_id") {
-                    graphID = trainargs[i + 1];
-                    break;
-                }
-            }
-
-            std::thread workerThread = std::thread(&JasmineGraphInstanceService::initAgg, trainData);
-            workerThread.join();
-
+            initiate_aggregator_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_CLIENT) == 0) {
-            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::INITIATE_CLIENT, "info");
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string trainData(data);
-
-            std::vector<std::string> trainargs = Utils::split(trainData, ' ');
-            instance_logger.info("Received options : " + trainData);
-            string graphID;
-            string partitionID = trainargs[trainargs.size() - 1];
-
-            for (int i = 0; i < trainargs.size(); i++) {
-                if (trainargs[i] == "--graph_id") {
-                    graphID = trainargs[i + 1];
-                    break;
-                }
-            }
-
-            std::thread workerThread = std::thread(&JasmineGraphInstanceService::initClient, trainData);
-            workerThread.join();
-
+            initiate_client_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::MERGE_FILES) == 0) {
-            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::MERGE_FILES, "info");
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string trainData(data);
-            instance_logger.log("Train Data : " + trainData, "info");
-
-            std::vector<std::string> trainargs = Utils::split(trainData, ' ');
-
-            string graphID;
-            string partitionID = trainargs[trainargs.size() - 1];
-
-            for (int i = 0; i < trainargs.size(); i++) {
-                if (trainargs[i] == "--graph_id") {
-                    graphID = trainargs[i + 1];
-                    break;
-                }
-            }
-
-            JasmineGraphInstanceService::mergeFiles(trainData);
-
+            initiate_merge_files_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::START_STAT_COLLECTION) == 0) {
-            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::START_STAT_COLLECTION, "debug");
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "debug");
-            collectValid = true;
-            JasmineGraphInstanceService::startCollectingLoadAverage();
+            start_stat_collection_command(connFd, &collectValid, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::REQUEST_COLLECTED_STATS) == 0) {
-            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::REQUEST_COLLECTED_STATS, "info");
-            collectValid = false;
-            std::string loadAverageString;
-
-            std::vector<std::string>::iterator loadVectorIterator;
-
-            for (loadVectorIterator = loadAverageVector.begin(); loadVectorIterator != loadAverageVector.end();
-                 ++loadVectorIterator) {
-                std::string tempLoadAverage = *loadVectorIterator;
-                loadAverageString = loadAverageString + "," + tempLoadAverage;
-            }
-            loadAverageVector.clear();
-
-            loadAverageString = loadAverageString.substr(1, loadAverageString.length() - 1);
-
-            std::vector<std::string> chunksVector;
-
-            for (unsigned i = 0; i < loadAverageString.length(); i += INSTANCE_DATA_LENGTH - 10) {
-                std::string chunk = loadAverageString.substr(i, INSTANCE_DATA_LENGTH - 10);
-                if (i + INSTANCE_DATA_LENGTH - 10 < loadAverageString.length()) {
-                    chunk += "/SEND";
-                } else {
-                    chunk += "/CMPT";
-                }
-                chunksVector.push_back(chunk);
-            }
-
-            for (int loopCount = 0; loopCount < chunksVector.size(); loopCount++) {
-                if (loopCount == 0) {
-                    std::string chunk = chunksVector.at(loopCount);
-                    write(connFd, chunk.c_str(), chunk.size());
-                } else {
-                    bzero(data, INSTANCE_DATA_LENGTH + 1);
-                    read(connFd, data, INSTANCE_DATA_LENGTH);
-                    string chunkStatus = (data);
-                    std::string chunk = chunksVector.at(loopCount);
-                    write(connFd, chunk.c_str(), chunk.size());
-                }
-            }
+            request_collected_stats_command(connFd, &collectValid, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_TRAIN) == 0) {
-            instance_logger.log("Received from: " + JasmineGraphInstanceProtocol::INITIATE_TRAIN, "info");
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string trainData(data);
-
-            std::vector<std::string> trainargs = Utils::split(trainData, ' ');
-
-            string graphID;
-            string partitionID = trainargs[trainargs.size() - 1];
-
-            for (int i = 0; i < trainargs.size(); i++) {
-                if (trainargs[i] == "--graph_id") {
-                    graphID = trainargs[i + 1];
-                    break;
-                }
-            }
-
-            std::thread *workerThreads = new std::thread[2];
-            workerThreads[0] =
-                std::thread(&JasmineGraphInstanceService::createPartitionFiles, graphID, partitionID, "local");
-            workerThreads[1] =
-                std::thread(&JasmineGraphInstanceService::createPartitionFiles, graphID, partitionID, "centralstore");
-
-            workerThreads[0].join();
-            instance_logger.log("WorkerThread 0 joined", "info");
-
-            workerThreads[1].join();
-            instance_logger.log("WorkerThread 1 joined", "info");
-
-            write(connFd, JasmineGraphInstanceProtocol::SEND_PARTITION_ITERATION.c_str(),
-                  JasmineGraphInstanceProtocol::SEND_PARTITION_ITERATION.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_PARTITION_ITERATION, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string partIteration(data);
-
-            write(connFd, JasmineGraphInstanceProtocol::SEND_PARTITION_COUNT.c_str(),
-                  JasmineGraphInstanceProtocol::SEND_PARTITION_ITERATION.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_PARTITION_COUNT, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string partCount(data);
-
-            instance_logger.log("Received partition iteration - " + partIteration, "info");
-            JasmineGraphInstanceService::collectExecutionData(partIteration, trainData, partCount);
-            instance_logger.log("After calling collector ", "info");
-
+            initiate_train_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_PREDICT) == 0) {
-            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::INITIATE_PREDICT, "info");
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string graphID = (data);
-            graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
-            instance_logger.log("Received Graph ID: " + graphID, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string vertexCount = (data);
-            vertexCount = Utils::trim_copy(vertexCount, " \f\n\r\t\v");
-            instance_logger.log("Received vertexCount: " + vertexCount, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string ownPartitions = (data);
-            ownPartitions = Utils::trim_copy(ownPartitions, " \f\n\r\t\v");
-            instance_logger.log("Received Own Partitions No: " + ownPartitions, "info");
-
-            /*Receive hosts' detail*/
-            write(connFd, JasmineGraphInstanceProtocol::SEND_HOSTS.c_str(),
-                  JasmineGraphInstanceProtocol::SEND_HOSTS.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_HOSTS, "info");
-
-            char dataBuffer[INSTANCE_LONG_DATA_LENGTH + 1];
-            bzero(dataBuffer, INSTANCE_LONG_DATA_LENGTH + 1);
-            read(connFd, dataBuffer, INSTANCE_LONG_DATA_LENGTH);
-            string hostList = (dataBuffer);
-            instance_logger.log("Received Hosts List: " + hostList, "info");
-
-            // Put all hosts to a map
-            std::map<std::string, JasmineGraphInstanceService::workerPartitions> graphPartitionedHosts;
-            std::vector<std::string> hosts = Utils::split(hostList, '|');
-            int count = 0;
-            int totalPartitions = 0;
-            for (std::vector<std::string>::iterator it = hosts.begin(); it != hosts.end(); ++it) {
-                if (count != 0) {
-                    std::vector<std::string> hostDetail = Utils::split(*it, ',');
-                    std::string hostName;
-                    int port;
-                    int dataport;
-                    std::vector<string> partitionIDs;
-                    for (std::vector<std::string>::iterator j = hostDetail.begin(); j != hostDetail.end(); ++j) {
-                        int index = std::distance(hostDetail.begin(), j);
-                        if (index == 0) {
-                            hostName = *j;
-                        } else if (index == 1) {
-                            port = stoi(*j);
-                        } else if (index == 2) {
-                            dataport = stoi(*j);
-                        } else {
-                            partitionIDs.push_back(*j);
-                            totalPartitions += 1;
-                        }
-                    }
-                    graphPartitionedHosts.insert(pair<string, JasmineGraphInstanceService::workerPartitions>(
-                        hostName, {port, dataport, partitionIDs}));
-                }
-                count++;
-            }
-            /*Receive file*/
-            write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_NAME.c_str(),
-                  JasmineGraphInstanceProtocol::SEND_FILE_NAME.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_NAME, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string fileName = (data);
-            instance_logger.log("Received File name: " + fileName, "info");
-            write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_LEN.c_str(),
-                  JasmineGraphInstanceProtocol::SEND_FILE_LEN.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string size = (data);
-            instance_logger.log("Received file size in bytes: " + size, "info");
-            write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_CONT.c_str(),
-                  JasmineGraphInstanceProtocol::SEND_FILE_CONT.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
-
-            string fullFilePath =
-                Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
-            int fileSize = atoi(size.c_str());
-            while (Utils::fileExists(fullFilePath) && Utils::getFileSize(fullFilePath) < fileSize) {
-                bzero(data, INSTANCE_DATA_LENGTH + 1);
-                read(connFd, data, INSTANCE_DATA_LENGTH);
-                line = (data);
-
-                if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
-                    write(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT.c_str(),
-                          JasmineGraphInstanceProtocol::FILE_RECV_WAIT.size());
-                }
-            }
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            line = (data);
-
-            if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
-                instance_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
-                write(connFd, JasmineGraphInstanceProtocol::FILE_ACK.c_str(),
-                      JasmineGraphInstanceProtocol::FILE_ACK.size());
-                instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::FILE_ACK, "info");
-            }
-            if (totalPartitions != 0) {
-                JasmineGraphInstanceService::collectTrainedModels(sessionargs, graphID, graphPartitionedHosts,
-                                                                  totalPartitions);
-            }
-            std::vector<std::string> predictargs;
-            predictargs.push_back(graphID);
-            predictargs.push_back(vertexCount);
-            predictargs.push_back(fullFilePath);
-            predictargs.push_back(
-                Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.trainedmodelfolder"));
-            predictargs.push_back(to_string(totalPartitions + stoi(ownPartitions)));
-            std::vector<char *> predict_agrs_vector;
-            std::transform(predictargs.begin(), predictargs.end(), std::back_inserter(predict_agrs_vector), converter);
-
-            std::string path = "cd " + Utils::getJasmineGraphProperty("org.jasminegraph.graphsage") + " && ";
-            std::string command = path + "python3.8 predict.py ";
-
-            int argc = predictargs.size();
-            for (int i = 0; i < argc; ++i) {
-                command += predictargs[i];
-                command += " ";
-            }
-
-            instance_logger.error("Temporarily disabled the execution of prediction.");
-            // TODO(miyurud): Temporarily commenting the execution of the following line
-            // due to missing predict.py file. Removal of graphsage folder resulted in this situation.
-            // Need to find a different way of executing Predict
-            // system(command.c_str());
-            loop = true;
+            initiate_predict_command(connFd, sessionargs, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_MODEL_COLLECTION) == 0) {
-            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::INITIATE_MODEL_COLLECTION, "info");
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string serverHostName = (data);
-            serverHostName = Utils::trim_copy(serverHostName, " \f\n\r\t\v");
-            instance_logger.log("Received HostName: " + serverHostName, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string serverHostPort = (data);
-            serverHostPort = Utils::trim_copy(serverHostPort, " \f\n\r\t\v");
-            instance_logger.log("Received Port: " + serverHostPort, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string serverHostDataPort = (data);
-            serverHostDataPort = Utils::trim_copy(serverHostDataPort, " \f\n\r\t\v");
-            instance_logger.log("Received Data Port: " + serverHostDataPort, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string graphID = (data);
-            graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
-            instance_logger.log("Received Graph ID: " + graphID, "info");
-
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string partitionID = (data);
-            partitionID = Utils::trim_copy(partitionID, " \f\n\r\t\v");
-            instance_logger.log("Received Partition ID: " + partitionID, "info");
-
-            std::string fileName = graphID + "_model_" + partitionID;
-            std::string filePath =
-                Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.trainedmodelfolder") + "/" + fileName;
-
-            // zip the folder
-            Utils::compressDirectory(filePath);
-            fileName = fileName + ".tar.gz";
-            filePath = filePath + ".tar.gz";
-
-            int fileSize = Utils::getFileSize(filePath);
-            std::string fileLength = to_string(fileSize);
-            // send file name
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            line = (data);
-            if (line.compare(JasmineGraphInstanceProtocol::SEND_FILE_NAME) == 0) {
-                write(connFd, fileName.c_str(), fileName.size());
-                instance_logger.log("Sent : File name " + fileName, "info");
-
-                bzero(data, INSTANCE_DATA_LENGTH + 1);
-                read(connFd, data, INSTANCE_DATA_LENGTH);
-                line = (data);
-                // send file length
-                if (line.compare(JasmineGraphInstanceProtocol::SEND_FILE_LEN) == 0) {
-                    instance_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN, "info");
-                    write(connFd, fileLength.c_str(), fileLength.size());
-                    instance_logger.log("Sent : File length in bytes " + fileLength, "info");
-
-                    bzero(data, INSTANCE_DATA_LENGTH + 1);
-                    read(connFd, data, INSTANCE_DATA_LENGTH);
-                    line = (data);
-                    // send content
-                    if (line.compare(JasmineGraphInstanceProtocol::SEND_FILE_CONT) == 0) {
-                        instance_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
-                        instance_logger.log("Going to send file through service", "info");
-                        JasmineGraphInstance::sendFileThroughService(serverHostName, stoi(serverHostDataPort), fileName,
-                                                                     filePath);
-                    }
-                }
-            }
-            int count = 0;
-            while (true) {
-                write(connFd, JasmineGraphInstanceProtocol::FILE_RECV_CHK.c_str(),
-                      JasmineGraphInstanceProtocol::FILE_RECV_CHK.size());
-                instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
-                instance_logger.log("Checking if file is received", "info");
-                bzero(data, INSTANCE_DATA_LENGTH + 1);
-                read(connFd, data, INSTANCE_DATA_LENGTH);
-                line = (data);
-
-                if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_WAIT) == 0) {
-                    instance_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_WAIT, "info");
-                    instance_logger.log("Checking file status : " + to_string(count), "info");
-                    count++;
-                    sleep(1);
-                    continue;
-                } else if (line.compare(JasmineGraphInstanceProtocol::FILE_ACK) == 0) {
-                    instance_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_ACK, "info");
-                    instance_logger.log("File transfer completed", "info");
-                    break;
-                }
-            }
-            while (true) {
-                write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK.c_str(),
-                      JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK.size());
-                instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
-                bzero(data, INSTANCE_DATA_LENGTH + 1);
-                read(connFd, data, INSTANCE_DATA_LENGTH);
-                line = (data);
-
-                if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT) == 0) {
-                    instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT, "info");
-                    sleep(1);
-                    continue;
-                } else if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK) == 0) {
-                    instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK, "info");
-                    instance_logger.log("Trained Model Batch upload completed", "info");
-                    break;
-                }
-            }
-            loop = true;
+            initiate_model_collection_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_FRAGMENT_RESOLUTION) == 0) {
-            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::INITIATE_FRAGMENT_RESOLUTION, "info");
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string listOfPartitions = (data);
-            listOfPartitions = Utils::trim_copy(listOfPartitions, " \f\n\r\t\v");
-            instance_logger.log("Received ===>: " + listOfPartitions, "info");
-            std::stringstream ss;
-            ss << listOfPartitions;
-            while (true) {
-                write(connFd, JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_CHK.c_str(),
-                      JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_CHK.size());
-                instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_CHK, "info");
-
-                bzero(data, INSTANCE_DATA_LENGTH + 1);
-                read(connFd, data, INSTANCE_DATA_LENGTH);
-                string listOfPartitions = (data);
-
-                if (listOfPartitions.compare(JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_DONE) == 0) {
-                    break;
-                } else {
-                    instance_logger.log("Received ===>: " + listOfPartitions, "info");
-                    ss << listOfPartitions;
-                }
-            }
-            std::vector<std::string> partitions = Utils::split(ss.str(), ',');
-            std::vector<std::string> graphIDs;
-            for (std::vector<string>::iterator x = partitions.begin(); x != partitions.end(); ++x) {
-                string graphID = x->substr(0, x->find_first_of("_"));
-                graphIDs.push_back(graphID);
-            }
-
-            string dataFolder = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
-            std::vector<string> listOfFiles = Utils::getListOfFilesInDirectory(dataFolder);
-
-            std::vector<std::string> graphIDsFromFileSystem;
-            for (std::vector<string>::iterator x = listOfFiles.begin(); x != listOfFiles.end(); ++x) {
-                string graphID = x->substr(0, x->find_first_of("_"));
-                graphIDsFromFileSystem.push_back(graphID);
-            }
-
-            std::vector<string> notInGraphIDList;
-
-            for (std::vector<std::string>::iterator it = graphIDsFromFileSystem.begin();
-                 it != graphIDsFromFileSystem.end(); it++) {
-                bool found = false;
-                for (std::vector<std::string>::iterator itRemoteID = graphIDs.begin(); itRemoteID != graphIDs.end();
-                     itRemoteID++) {
-                    if (it->compare(itRemoteID->c_str()) == 0) {
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
-                    notInGraphIDList.push_back(it->c_str());
-                }
-            }
-
-            string notInItemsString = "";
-            std::vector<int> notInItemsList;
-            for (std::vector<string>::iterator it = notInGraphIDList.begin(); it != notInGraphIDList.end(); it++) {
-                if (isdigit(it->c_str()[0])) {
-                    bool found = false;
-                    for (std::vector<int>::iterator it2 = notInItemsList.begin(); it2 != notInItemsList.end(); it2++) {
-                        if (atoi(it->c_str()) == *it2) {
-                            found = true;
-                            break;
-                        }
-                    }
-                    if (!found) {
-                        notInItemsList.push_back(stoi(it->c_str()));
-                    }
-                }
-            }
-
-            bool firstFlag = true;
-            for (std::vector<int>::iterator it = notInItemsList.begin(); it != notInItemsList.end(); it++) {
-                int x = *it;
-                if (firstFlag) {
-                    notInItemsString = std::to_string(x);
-                    firstFlag = false;
-                } else {
-                    notInItemsString = notInItemsString + "," + std::to_string(x);
-                };
-            }
-
-            string graphIDList = notInItemsString;
-            write(connFd, graphIDList.c_str(), graphIDList.size());
-            instance_logger.log("Sent : " + graphIDList, "info");
+            initiate_fragment_resolution_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::CHECK_FILE_ACCESSIBLE) == 0) {
-            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::CHECK_FILE_ACCESSIBLE, "info");
-            write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_TYPE.c_str(),
-                  JasmineGraphInstanceProtocol::SEND_FILE_TYPE.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_TYPE, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string fileType = (data);
-            fileType = Utils::trim_copy(fileType, " \f\n\r\t\v");
-
-            if (fileType.compare(JasmineGraphInstanceProtocol::FILE_TYPE_CENTRALSTORE_AGGREGATE) == 0) {
-                write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-                instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-                bzero(data, INSTANCE_DATA_LENGTH + 1);
-                read(connFd, data, INSTANCE_DATA_LENGTH);
-                string graphId = (data);
-                graphId = Utils::trim_copy(graphId, " \f\n\r\t\v");
-                instance_logger.log("Received Graph ID: " + graphId, "info");
-
-                write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-                bzero(data, INSTANCE_DATA_LENGTH + 1);
-                read(connFd, data, INSTANCE_DATA_LENGTH);
-                string partitionId = (data);
-                partitionId = Utils::trim_copy(partitionId, " \f\n\r\t\v");
-                instance_logger.log("Received Partition ID: " + partitionId, "info");
-
-                string aggregateLocation =
-                    Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
-                string fileName = graphId + "_centralstore_" + partitionId;
-                string fullFilePath = aggregateLocation + "/" + fileName;
-                string result = "false";
-
-                bool fileExists = Utils::fileExists(fullFilePath);
-
-                if (fileExists) {
-                    result = "true";
-                }
-
-                write(connFd, result.c_str(), result.size());
-                instance_logger.log("Sent : " + result, "info");
-            } else if (fileType.compare(JasmineGraphInstanceProtocol::FILE_TYPE_CENTRALSTORE_COMPOSITE) == 0) {
-                write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-                instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-                bzero(data, INSTANCE_DATA_LENGTH + 1);
-                read(connFd, data, INSTANCE_DATA_LENGTH);
-                string fileName = (data);
-                fileName = Utils::trim_copy(fileName, " \f\n\r\t\v");
-                instance_logger.log("Received File name: " + fileName, "info");
-
-                string aggregateLocation =
-                    Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
-                string fullFilePath = aggregateLocation + "/" + fileName;
-                string result = "false";
-
-                bool fileExists = Utils::fileExists(fullFilePath);
-
-                if (fileExists) {
-                    result = "true";
-                }
-
-                write(connFd, result.c_str(), result.size());
-                instance_logger.log("Sent : " + result, "info");
-            }
+            check_file_accessible_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::GRAPH_STREAM_START) == 0) {
-            write(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK.c_str(),
-                  JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK, "info");
-
-            int content_length;
-            instance_logger.log("Waiting for edge content length", "info");
-            auto return_status = read(connFd, &content_length, sizeof(4));
-            if (return_status > 0) {
-                content_length = ntohl(content_length);
-                instance_logger.log("Received content_length = " + std::to_string(content_length), "info");
-            } else {
-                instance_logger.log("Error while reading content length", "error");
-            }
-            std::string nodeString(content_length, 0);
-            send(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.c_str(),
-                 JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.size(), 0);
-            instance_logger.log("Acked for content length", "info");
-
-            instance_logger.log("Waiting for edge data", "info");
-            return_status = read(connFd, &nodeString[0], content_length);
-            if (return_status > 0) {
-                instance_logger.log("Received edge data = " + nodeString, "info");
-            } else {
-                instance_logger.log("Error while reading content length", "error");
-            }
-
-            auto graphIdPartitionId = JasmineGraphIncrementalLocalStore::getIDs(nodeString);
-            std::string graphId = graphIdPartitionId.first;
-            std::string partitionId = std::to_string(graphIdPartitionId.second);
-            std::string graphIdentifier = graphId + "_" + partitionId;
-            JasmineGraphIncrementalLocalStore *incrementalLocalStoreInstance;
-
-            if (incrementalLocalStoreMap.find(graphIdentifier) == incrementalLocalStoreMap.end()) {
-                incrementalLocalStoreInstance =
-                    JasmineGraphInstanceService::loadStreamingStore(graphId, partitionId, incrementalLocalStoreMap);
-            } else {
-                incrementalLocalStoreInstance = incrementalLocalStoreMap[graphIdentifier];
-            }
-            incrementalLocalStoreInstance->addEdgeFromString(nodeString);
-            send(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_END_OF_EDGE.c_str(),
-                 JasmineGraphInstanceProtocol::GRAPH_STREAM_END_OF_EDGE.size(), 0);
-            instance_logger.log("Sent CRLF string to mark the end", "info");
+            graph_stream_start_command(connFd, incrementalLocalStoreMap, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::SEND_PRIORITY) == 0) {
-            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_PRIORITY, "info");
-            write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
-            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
-            bzero(data, INSTANCE_DATA_LENGTH + 1);
-            read(connFd, data, INSTANCE_DATA_LENGTH);
-            string priority = (data);
-            priority = Utils::trim_copy(priority, " \f\n\r\t\v");
-            instance_logger.log("Received Priority: " + priority, "info");
-
-            int retrievedPriority = atoi(priority.c_str());
-            highestPriority = retrievedPriority;
+            send_priority_command(connFd, &loop_exit);
+        } else {
+            instance_logger.error("Invalid command");
+            loop_exit = true;
         }
     }
     instance_logger.log("Closing thread " + to_string(pthread_self()), "info");
     close(connFd);
-    pthread_exit(nullptr);
     return NULL;
 }
 
@@ -2551,7 +383,7 @@ long countLocalTriangles(
     instance_logger.log("###INSTANCE### Local Triangle Count : Started", "info");
     std::string graphIdentifier = graphId + "_" + partitionId;
     std::string centralGraphIdentifier = graphId + +"_centralstore_" + partitionId;
-    std::string duplicateCentralGraphIdentifier = graphId + +"_centralstore_dp_" + partitionId;
+    std::string duplicateCentralGraphIdentifier = graphId + "_centralstore_dp_" + partitionId;
     JasmineGraphHashMapLocalStore graphDB;
     JasmineGraphHashMapCentralStore centralGraphDB;
     JasmineGraphHashMapDuplicateCentralStore duplicateCentralGraphDB;
@@ -4377,4 +2209,3178 @@ void JasmineGraphInstanceService::mergeFiles(string trainData) {
         instance_logger.error("Merge Command Execution Failed for Graph ID - Patition ID: " + graphID + " - " +
                               partitionID + "; Error : " + strerror(errno));
     }
+}
+
+static void handshake_command(int connFd, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::HANDSHAKE_OK.c_str(),
+                          JasmineGraphInstanceProtocol::HANDSHAKE_OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string line(data);
+    line = Utils::trim_copy(line, " \f\n\r\t\v");
+    string server_hostname = line;
+    instance_logger.log("Received hostname : " + line, "info");
+
+    instance_logger.log("Sending : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
+    result_wr =
+        write(connFd, JasmineGraphInstanceProtocol::HOST_OK.c_str(), JasmineGraphInstanceProtocol::HOST_OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.info("ServerName : " + server_hostname);
+}
+
+static inline void close_command(int connFd, bool *loop_exit_p) {
+    *loop_exit_p = true;
+    int result_wr =
+        write(connFd, JasmineGraphInstanceProtocol::CLOSE_ACK.c_str(), JasmineGraphInstanceProtocol::CLOSE_ACK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+    }
+    close(connFd);
+}
+
+static inline void shutdown_command(int connFd) {
+    int result_wr =
+        write(connFd, JasmineGraphInstanceProtocol::CLOSE_ACK.c_str(), JasmineGraphInstanceProtocol::CLOSE_ACK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+    }
+    close(connFd);
+    exit(0);
+}
+
+static inline void ready_command(int connFd, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+    }
+}
+
+static void batch_upload_command(int connFd, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    string line;
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string graphID = (data);
+    graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
+    instance_logger.log("Received Graph ID: " + graphID, "info");
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_NAME.c_str(),
+                      JasmineGraphInstanceProtocol::SEND_FILE_NAME.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_NAME, "info");
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string fileName = (data);
+    instance_logger.log("Received File name: " + fileName, "info");
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_LEN.c_str(),
+                      JasmineGraphInstanceProtocol::SEND_FILE_LEN.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN, "info");
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string size = (data);
+    // int fileSize = atoi(size.c_str());
+    instance_logger.log("Received file size in bytes: " + size, "info");
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_CONT.c_str(),
+                      JasmineGraphInstanceProtocol::SEND_FILE_CONT.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
+    string fullFilePath =
+        Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
+    int fileSize = atoi(size.c_str());
+    while (true) {
+        if (Utils::fileExists(fullFilePath)) {
+            while (Utils::getFileSize(fullFilePath) < fileSize) {
+                bzero(data, INSTANCE_DATA_LENGTH + 1);
+                read(connFd, data, INSTANCE_DATA_LENGTH);
+                line = (data);
+                if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
+                    result_wr = write(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT.c_str(),
+                                      JasmineGraphInstanceProtocol::FILE_RECV_WAIT.size());
+                    if (result_wr < 0) {
+                        instance_logger.error("Error writing to socket");
+                        *loop_exit_p = true;
+                        return;
+                    }
+                }
+            }
+            break;
+        } else {
+            sleep(1);
+            continue;
+        }
+    }
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    line = (data);
+
+    if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
+        instance_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
+        result_wr = write(connFd, JasmineGraphInstanceProtocol::FILE_ACK.c_str(),
+                          JasmineGraphInstanceProtocol::FILE_ACK.size());
+        if (result_wr < 0) {
+            instance_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::FILE_ACK, "info");
+    }
+
+    instance_logger.log("File received and saved to " + fullFilePath, "info");
+    *loop_exit_p = true;
+
+    Utils::unzipFile(fullFilePath);
+    size_t lastindex = fileName.find_last_of(".");
+    string rawname = fileName.substr(0, lastindex);
+    fullFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + rawname;
+
+    string partitionID = rawname.substr(rawname.find_last_of("_") + 1);
+    pthread_mutex_lock(&file_lock);
+    writeCatalogRecord(graphID + ":" + partitionID);
+    pthread_mutex_unlock(&file_lock);
+
+    while (!Utils::fileExists(fullFilePath)) {
+        bzero(data, INSTANCE_DATA_LENGTH + 1);
+        read(connFd, data, INSTANCE_DATA_LENGTH);
+        string response = (data);
+        response = Utils::trim_copy(response, " \f\n\r\t\v");
+        if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
+            result_wr = write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.c_str(),
+                              JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.size());
+            if (result_wr < 0) {
+                instance_logger.error("Error writing to socket");
+                *loop_exit_p = true;
+                return;
+            }
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT, "info");
+        }
+    }
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    line = (data);
+    if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
+        instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
+        result_wr = write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.c_str(),
+                          JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.size());
+        if (result_wr < 0) {
+            instance_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK, "info");
+    }
+}
+
+static void batch_upload_central_command(int connFd, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    string line;
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string graphID = (data);
+    graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
+    instance_logger.log("Received Graph ID: " + graphID, "info");
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_NAME.c_str(),
+                      JasmineGraphInstanceProtocol::SEND_FILE_NAME.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_NAME, "info");
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string fileName = (data);
+
+    instance_logger.log("Received File name: " + fileName, "info");
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_LEN.c_str(),
+                      JasmineGraphInstanceProtocol::SEND_FILE_LEN.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN, "info");
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string size = (data);
+    instance_logger.log("Received file size in bytes: " + size, "info");
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_CONT.c_str(),
+                      JasmineGraphInstanceProtocol::SEND_FILE_CONT.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
+    string fullFilePath =
+        Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
+
+    int fileSize = atoi(size.c_str());
+    while (true) {
+        if (Utils::fileExists(fullFilePath)) {
+            while (Utils::getFileSize(fullFilePath) < fileSize) {
+                bzero(data, INSTANCE_DATA_LENGTH + 1);
+                read(connFd, data, INSTANCE_DATA_LENGTH);
+                line = (data);
+
+                if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
+                    result_wr = write(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT.c_str(),
+                                      JasmineGraphInstanceProtocol::FILE_RECV_WAIT.size());
+                    if (result_wr < 0) {
+                        instance_logger.error("Error writing to socket");
+                        *loop_exit_p = true;
+                        return;
+                    }
+                }
+            }
+            break;
+        } else {
+            sleep(1);
+            continue;
+        }
+    }
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    line = (data);
+
+    if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
+        instance_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
+        result_wr = write(connFd, JasmineGraphInstanceProtocol::FILE_ACK.c_str(),
+                          JasmineGraphInstanceProtocol::FILE_ACK.size());
+        if (result_wr < 0) {
+            instance_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::FILE_ACK, "info");
+    }
+
+    instance_logger.log("File received and saved to " + fullFilePath, "info");
+    *loop_exit_p = true;
+
+    Utils::unzipFile(fullFilePath);
+    size_t lastindex = fileName.find_last_of(".");
+    string rawname = fileName.substr(0, lastindex);
+    fullFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + rawname;
+
+    while (!Utils::fileExists(fullFilePath)) {
+        bzero(data, INSTANCE_DATA_LENGTH + 1);
+        read(connFd, data, INSTANCE_DATA_LENGTH);
+        string response = (data);
+        response = Utils::trim_copy(response, " \f\n\r\t\v");
+        if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
+            result_wr = write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.c_str(),
+                              JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.size());
+            if (result_wr < 0) {
+                instance_logger.error("Error writing to socket");
+                *loop_exit_p = true;
+                return;
+            }
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT, "info");
+        }
+    }
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    line = (data);
+    if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
+        instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
+        result_wr = write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.c_str(),
+                          JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.size());
+        if (result_wr < 0) {
+            instance_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK, "info");
+    }
+}
+
+static void batch_upload_composite_central_command(int connFd, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    string line;
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string graphID = (data);
+    graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
+    instance_logger.log("Received Graph ID: " + graphID, "info");
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_NAME.c_str(),
+                      JasmineGraphInstanceProtocol::SEND_FILE_NAME.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_NAME, "info");
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string fileName = (data);
+
+    instance_logger.log("Received File name: " + fileName, "info");
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_LEN.c_str(),
+                      JasmineGraphInstanceProtocol::SEND_FILE_LEN.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN, "info");
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string size = (data);
+    instance_logger.log("Received file size in bytes: " + size, "info");
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_CONT.c_str(),
+                      JasmineGraphInstanceProtocol::SEND_FILE_CONT.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
+    string fullFilePath =
+        Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
+
+    int fileSize = atoi(size.c_str());
+    while (true) {
+        if (Utils::fileExists(fullFilePath)) {
+            while (Utils::getFileSize(fullFilePath) < fileSize) {
+                bzero(data, INSTANCE_DATA_LENGTH + 1);
+                read(connFd, data, INSTANCE_DATA_LENGTH);
+                line = (data);
+
+                if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
+                    result_wr = write(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT.c_str(),
+                                      JasmineGraphInstanceProtocol::FILE_RECV_WAIT.size());
+                    if (result_wr < 0) {
+                        instance_logger.error("Error writing to socket");
+                        *loop_exit_p = true;
+                        return;
+                    }
+                }
+            }
+            break;
+        } else {
+            sleep(1);
+            continue;
+        }
+    }
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    line = (data);
+
+    if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
+        instance_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
+        result_wr = write(connFd, JasmineGraphInstanceProtocol::FILE_ACK.c_str(),
+                          JasmineGraphInstanceProtocol::FILE_ACK.size());
+        if (result_wr < 0) {
+            instance_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::FILE_ACK, "info");
+    }
+
+    instance_logger.log("File received and saved to " + fullFilePath, "info");
+    *loop_exit_p = true;
+
+    Utils::unzipFile(fullFilePath);
+    size_t lastindex = fileName.find_last_of(".");
+    string rawname = fileName.substr(0, lastindex);
+    fullFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + rawname;
+
+    while (!Utils::fileExists(fullFilePath)) {
+        bzero(data, INSTANCE_DATA_LENGTH + 1);
+        read(connFd, data, INSTANCE_DATA_LENGTH);
+        string response = (data);
+        response = Utils::trim_copy(response, " \f\n\r\t\v");
+        if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
+            result_wr = write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.c_str(),
+                              JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.size());
+            if (result_wr < 0) {
+                instance_logger.error("Error writing to socket");
+                *loop_exit_p = true;
+                return;
+            }
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT, "info");
+        }
+    }
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    line = (data);
+    if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
+        instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
+        result_wr = write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.c_str(),
+                          JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.size());
+        if (result_wr < 0) {
+            instance_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK, "info");
+    }
+}
+
+static void upload_rdf_attributes_command(int connFd, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    string line;
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string graphID = (data);
+    graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
+    instance_logger.log("Received Graph ID: " + graphID, "info");
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_NAME.c_str(),
+                      JasmineGraphInstanceProtocol::SEND_FILE_NAME.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_NAME, "info");
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string fileName = (data);
+    instance_logger.log("Received File name: " + fileName, "info");
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_LEN.c_str(),
+                      JasmineGraphInstanceProtocol::SEND_FILE_LEN.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN, "info");
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string size = (data);
+    instance_logger.log("Received file size in bytes: " + size, "info");
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_CONT.c_str(),
+                      JasmineGraphInstanceProtocol::SEND_FILE_CONT.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
+    string fullFilePath =
+        Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
+    int fileSize = atoi(size.c_str());
+    while (true) {
+        if (Utils::fileExists(fullFilePath)) {
+            while (Utils::getFileSize(fullFilePath) < fileSize) {
+                bzero(data, INSTANCE_DATA_LENGTH + 1);
+                read(connFd, data, INSTANCE_DATA_LENGTH);
+                line = (data);
+                if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
+                    result_wr = write(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT.c_str(),
+                                      JasmineGraphInstanceProtocol::FILE_RECV_WAIT.size());
+                    if (result_wr < 0) {
+                        instance_logger.error("Error writing to socket");
+                        *loop_exit_p = true;
+                        return;
+                    }
+                }
+            }
+            break;
+        } else {
+            sleep(1);
+            continue;
+        }
+    }
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    line = (data);
+
+    if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
+        instance_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
+        result_wr = write(connFd, JasmineGraphInstanceProtocol::FILE_ACK.c_str(),
+                          JasmineGraphInstanceProtocol::FILE_ACK.size());
+        if (result_wr < 0) {
+            instance_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::FILE_ACK, "info");
+    }
+
+    instance_logger.log("File received and saved to " + fullFilePath, "info");
+    *loop_exit_p = true;
+
+    Utils::unzipFile(fullFilePath);
+    size_t lastindex = fileName.find_last_of(".");
+    string rawname = fileName.substr(0, lastindex);
+    fullFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + rawname;
+
+    while (!Utils::fileExists(fullFilePath)) {
+        bzero(data, INSTANCE_DATA_LENGTH + 1);
+        read(connFd, data, INSTANCE_DATA_LENGTH);
+        string response = (data);
+        response = Utils::trim_copy(response, " \f\n\r\t\v");
+        if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
+            result_wr = write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.c_str(),
+                              JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.size());
+            if (result_wr < 0) {
+                instance_logger.error("Error writing to socket");
+                *loop_exit_p = true;
+                return;
+            }
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT, "info");
+        }
+    }
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    line = (data);
+    if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
+        instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
+        result_wr = write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.c_str(),
+                          JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.size());
+        if (result_wr < 0) {
+            instance_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK, "info");
+    }
+}
+
+static void upload_rdf_attributes_central_command(int connFd, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    string line;
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string graphID = (data);
+    graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
+    instance_logger.log("Received Graph ID: " + graphID, "info");
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_NAME.c_str(),
+                      JasmineGraphInstanceProtocol::SEND_FILE_NAME.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_NAME, "info");
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string fileName = (data);
+    instance_logger.log("Received File name: " + fileName, "info");
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_LEN.c_str(),
+                      JasmineGraphInstanceProtocol::SEND_FILE_LEN.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN, "info");
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string size = (data);
+    instance_logger.log("Received file size in bytes: " + size, "info");
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_CONT.c_str(),
+                      JasmineGraphInstanceProtocol::SEND_FILE_CONT.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
+    string fullFilePath =
+        Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
+    int fileSize = atoi(size.c_str());
+    while (true) {
+        if (Utils::fileExists(fullFilePath)) {
+            while (Utils::getFileSize(fullFilePath) < fileSize) {
+                bzero(data, INSTANCE_DATA_LENGTH + 1);
+                read(connFd, data, INSTANCE_DATA_LENGTH);
+                line = (data);
+                if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
+                    result_wr = write(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT.c_str(),
+                                      JasmineGraphInstanceProtocol::FILE_RECV_WAIT.size());
+                    if (result_wr < 0) {
+                        instance_logger.error("Error writing to socket");
+                        *loop_exit_p = true;
+                        return;
+                    }
+                }
+            }
+            break;
+        } else {
+            sleep(1);
+            continue;
+        }
+    }
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    line = (data);
+
+    if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
+        instance_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
+        result_wr = write(connFd, JasmineGraphInstanceProtocol::FILE_ACK.c_str(),
+                          JasmineGraphInstanceProtocol::FILE_ACK.size());
+        if (result_wr < 0) {
+            instance_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::FILE_ACK, "info");
+    }
+
+    instance_logger.log("File received and saved to " + fullFilePath, "info");
+    *loop_exit_p = true;
+
+    Utils::unzipFile(fullFilePath);
+    size_t lastindex = fileName.find_last_of(".");
+    string rawname = fileName.substr(0, lastindex);
+    fullFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + rawname;
+
+    while (!Utils::fileExists(fullFilePath)) {
+        bzero(data, INSTANCE_DATA_LENGTH + 1);
+        read(connFd, data, INSTANCE_DATA_LENGTH);
+        string response = (data);
+        response = Utils::trim_copy(response, " \f\n\r\t\v");
+        if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
+            result_wr = write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.c_str(),
+                              JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.size());
+            if (result_wr < 0) {
+                instance_logger.error("Error writing to socket");
+                *loop_exit_p = true;
+                return;
+            }
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT, "info");
+        }
+    }
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    line = (data);
+    if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
+        instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
+        result_wr = write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.c_str(),
+                          JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.size());
+        if (result_wr < 0) {
+            instance_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK, "info");
+    }
+}
+
+static void delete_graph_command(int connFd, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string graphID = (data);
+    graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
+    instance_logger.log("Received Graph ID: " + graphID, "info");
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_PARTITION_ID.c_str(),
+                      JasmineGraphInstanceProtocol::SEND_PARTITION_ID.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_PARTITION_ID, "info");
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string partitionID = (data);
+    instance_logger.log("Received partition ID: " + partitionID, "info");
+    deleteGraphPartition(graphID, partitionID);
+    // pthread_mutex_lock(&file_lock);
+    // TODO :: Update catalog file
+    // pthread_mutex_unlock(&file_lock);
+    string result = "1";
+    result_wr = write(connFd, result.c_str(), result.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + result, "info");
+}
+
+static void delete_graph_fragment_command(int connFd, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    // Read the message
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    // Get graph ID from message
+    string graphID = (data);
+    graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
+    instance_logger.log("Received Graph ID: " + graphID, "info");
+    // Method call for graph fragment deletion
+    removeGraphFragments(graphID);
+    // pthread_mutex_lock(&file_lock);
+    // TODO :: Update catalog file
+    // pthread_mutex_unlock(&file_lock);
+    string result = "1";
+    result_wr = write(connFd, result.c_str(), result.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + result, "info");
+}
+
+static void duplicate_centralstore_command(int connFd, int serverPort, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string graphID = (data);
+    graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
+    instance_logger.log("Received Graph ID: " + graphID, "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string partitionID = (data);
+    partitionID = Utils::trim_copy(partitionID, " \f\n\r\t\v");
+    instance_logger.log("Received Partition ID: " + partitionID, "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string workerList = (data);
+    workerList = Utils::trim_copy(workerList, " \f\n\r\t\v");
+    instance_logger.log("Received Worker List " + workerList, "info");
+
+    std::vector<string> workerSockets;
+    stringstream wl(workerList);
+    string intermediate;
+    while (getline(wl, intermediate, ',')) {
+        workerSockets.push_back(intermediate);
+    }
+
+    JasmineGraphInstanceService::duplicateCentralStore(serverPort, stoi(graphID), stoi(partitionID), workerSockets,
+                                                       "localhost");
+}
+
+static void worker_in_degree_distribution_command(
+    int connFd, std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
+    std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string graphID = (data);
+    graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
+    instance_logger.log("Received Graph ID: " + graphID, "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string partitionID = (data);
+    partitionID = Utils::trim_copy(partitionID, " \f\n\r\t\v");
+    instance_logger.log("Received Partition ID: " + partitionID, "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string workerList = (data);
+    workerList = Utils::trim_copy(workerList, " \f\n\r\t\v");
+    instance_logger.log("Received WorkerList: " + workerList, "info");
+
+    std::vector<string> workerSockets;
+    stringstream wl(workerList);
+    string intermediate;
+    while (getline(wl, intermediate, ',')) {
+        workerSockets.push_back(intermediate);
+    }
+
+    auto t_start = std::chrono::high_resolution_clock::now();
+
+    map<long, long> degreeDistribution =
+        calculateLocalInDegreeDist(graphID, partitionID, graphDBMapLocalStores, graphDBMapCentralStores);
+
+    instance_logger.log("In Degree Dist size: " + to_string(degreeDistribution.size()), "info");
+
+    for (vector<string>::iterator workerIt = workerSockets.begin(); workerIt != workerSockets.end(); ++workerIt) {
+        instance_logger.log("Worker pair " + *workerIt, "info");
+
+        std::vector<string> workerSocketPair;
+        stringstream wl(*workerIt);
+        string intermediate;
+        while (getline(wl, intermediate, ':')) {
+            workerSocketPair.push_back(intermediate);
+        }
+        string workerPartitionID = workerSocketPair[2];
+
+        JasmineGraphHashMapCentralStore centralDB;
+
+        std::map<std::string, JasmineGraphHashMapCentralStore>::iterator itcen;
+
+        if (JasmineGraphInstanceService::isInstanceCentralStoreExists(graphID, workerPartitionID)) {
+            JasmineGraphInstanceService::loadInstanceCentralStore(graphID, workerPartitionID, graphDBMapCentralStores);
+        }
+        centralDB = graphDBMapCentralStores[graphID + "_centralstore_" + workerPartitionID];
+
+        map<long, long> degreeDistributionCentral = centralDB.getInDegreeDistributionHashMap();
+        std::map<long, long>::iterator itcentral;
+        std::map<long, long>::iterator its;
+
+        for (its = degreeDistributionCentral.begin(); its != degreeDistributionCentral.end(); ++its) {
+            bool centralNodeFound = false;
+            map<long, long>::iterator degreeDistributionLocalItr = degreeDistribution.find(its->first);
+            if (degreeDistributionLocalItr != degreeDistribution.end()) {
+                long degreeDistributionValue = degreeDistributionLocalItr->second;
+                degreeDistribution[degreeDistributionLocalItr->first] = degreeDistributionValue + its->second;
+            }
+        }
+
+        instance_logger.log("Worker partition idd combined " + workerPartitionID, "info");
+    }
+
+    auto t_end = std::chrono::high_resolution_clock::now();
+    double elapsed_time_ms = std::chrono::duration<double, std::milli>(t_end - t_start).count();
+
+    instance_logger.log("Elapsed time idd -----------------: " + to_string(elapsed_time_ms), "info");
+
+    string instanceDataFolderLocation = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+    string attributeFilePart = instanceDataFolderLocation + "/" + graphID + "_idd_" + partitionID;
+    ofstream partfile;
+    partfile.open(attributeFilePart, std::fstream::trunc);
+    for (map<long, long>::iterator it = degreeDistribution.begin(); it != degreeDistribution.end(); ++it) {
+        partfile << to_string(it->first) << "\t" << to_string(it->second) << endl;
+    }
+    partfile.close();
+
+    *loop_exit_p = true;
+}
+
+static void in_degree_distribution_command(
+    int connFd, int serverPort, std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
+    std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string graphID = (data);
+    graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
+    instance_logger.log("Received Graph ID: " + graphID, "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string partitionID = (data);
+    partitionID = Utils::trim_copy(partitionID, " \f\n\r\t\v");
+    instance_logger.log("Received Partition ID: " + partitionID, "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string workerList = (data);
+    workerList = Utils::trim_copy(workerList, " \f\n\r\t\v");
+    instance_logger.log("Received Worker List " + workerList, "info");
+
+    std::vector<string> workerSockets;
+    stringstream wl(workerList);
+    string intermediate;
+    while (getline(wl, intermediate, ',')) {
+        workerSockets.push_back(intermediate);
+    }
+
+    // Calculate the in degree distribution
+    map<long, long> degreeDistribution = calculateInDegreeDist(graphID, partitionID, serverPort, graphDBMapLocalStores,
+                                                               graphDBMapCentralStores, workerSockets, workerList);
+    degreeDistribution.clear();
+    *loop_exit_p = true;
+}
+
+static void worker_out_degree_distribution_command(
+    int connFd, std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
+    std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string graphID = (data);
+    graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
+    instance_logger.log("Received Graph ID: " + graphID, "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string partitionID = (data);
+    partitionID = Utils::trim_copy(partitionID, " \f\n\r\t\v");
+    instance_logger.log("Received Partition ID: " + partitionID, "info");
+
+    map<long, long> degreeDistribution =
+        calculateLocalOutDegreeDist(graphID, partitionID, graphDBMapLocalStores, graphDBMapCentralStores);
+    instance_logger.log("Degree Dist size: " + to_string(degreeDistribution.size()), "info");
+
+    string instanceDataFolderLocation = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+    string attributeFilePart = instanceDataFolderLocation + "/" + graphID + "_odd_" + partitionID;
+    ofstream partfile;
+    partfile.open(attributeFilePart, std::fstream::trunc);
+    for (map<long, long>::iterator it = degreeDistribution.begin(); it != degreeDistribution.end(); ++it) {
+        partfile << to_string(it->first) << "\t" << to_string(it->second) << endl;
+    }
+    partfile.close();
+}
+
+static void out_degree_distribution_command(
+    int connFd, int serverPort, std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
+    std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string graphID = (data);
+    graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
+    instance_logger.log("Received Graph ID: " + graphID, "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string partitionID = (data);
+    partitionID = Utils::trim_copy(partitionID, " \f\n\r\t\v");
+    instance_logger.log("Received Partition ID: " + partitionID, "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string workerList = (data);
+    workerList = Utils::trim_copy(workerList, " \f\n\r\t\v");
+    instance_logger.log("Received Worker List " + workerList, "info");
+
+    std::vector<string> workerSockets;
+    stringstream wl(workerList);
+    string intermediate;
+    while (getline(wl, intermediate, ',')) {
+        workerSockets.push_back(intermediate);
+    }
+
+    // Calculate the out degree distribution in the current super worker.
+    map<long, long> degreeDistribution = calculateOutDegreeDist(graphID, partitionID, serverPort, graphDBMapLocalStores,
+                                                                graphDBMapCentralStores, workerSockets);
+
+    degreeDistribution.clear();
+    *loop_exit_p = true;
+}
+
+static void page_rank_command(int connFd, int serverPort,
+                              std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores,
+                              bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string graphID = (data);
+    graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
+    instance_logger.log("Received Graph ID: " + graphID, "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string partitionID = (data);
+    partitionID = Utils::trim_copy(partitionID, " \f\n\r\t\v");
+    instance_logger.log("Received Partition ID: " + partitionID, "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string workerList = (data);
+    workerList = Utils::trim_copy(workerList, " \f\n\r\t\v");
+    instance_logger.log("Received Worker List " + workerList, "info");
+
+    std::vector<string> workerSockets;
+    stringstream wl(workerList);
+    string intermediate;
+    while (getline(wl, intermediate, ',')) {
+        workerSockets.push_back(intermediate);
+    }
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string graphVertexCount = (data);
+    graphVertexCount = Utils::trim_copy(graphVertexCount, " \f\n\r\t\v");
+    instance_logger.log("Received Graph ID:" + graphID + " Vertex Count: " + graphVertexCount, "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string alphaValue = (data);
+    alphaValue = Utils::trim_copy(alphaValue, " \f\n\r\t\v");
+    instance_logger.log("Received alpha: " + alphaValue, "info");
+
+    double alpha = std::stod(alphaValue);
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string iterationsValue = (data);
+    iterationsValue = Utils::trim_copy(iterationsValue, " \f\n\r\t\v");
+    instance_logger.log("Received iteration count: " + iterationsValue, "info");
+
+    int iterations = std::stoi(iterationsValue);
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    JasmineGraphHashMapLocalStore graphDB;
+    JasmineGraphHashMapCentralStore centralDB;
+
+    std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStoresPgrnk;
+    if (JasmineGraphInstanceService::isGraphDBExists(graphID, partitionID)) {
+        JasmineGraphInstanceService::loadLocalStore(graphID, partitionID, graphDBMapLocalStoresPgrnk);
+    }
+
+    if (JasmineGraphInstanceService::isInstanceCentralStoreExists(graphID, partitionID)) {
+        JasmineGraphInstanceService::loadInstanceCentralStore(graphID, partitionID, graphDBMapCentralStores);
+    }
+
+    graphDB = graphDBMapLocalStoresPgrnk[graphID + "_" + partitionID];
+    centralDB = graphDBMapCentralStores[graphID + "_centralstore_" + partitionID];
+
+    instance_logger.log("Start : Calculate Local page rank", "info");
+
+    map<long, double> pageRankResults =
+        calculateLocalPageRank(graphID, alpha, partitionID, serverPort, TOP_K_PAGE_RANK, graphVertexCount, graphDB,
+                               centralDB, workerSockets, iterations);
+    instance_logger.log("Page rank size: " + to_string(pageRankResults.size()), "info");
+
+    map<long, double> pageRankLocalstore;
+    map<long, unordered_set<long>> localGraphMap = graphDB.getUnderlyingHashMap();
+    map<long, unordered_set<long>>::iterator localGraphMapIterator;
+    std::vector<long> vertexVector;
+    for (localGraphMapIterator = localGraphMap.begin(); localGraphMapIterator != localGraphMap.end();
+         ++localGraphMapIterator) {
+        long startVid = localGraphMapIterator->first;
+        unordered_set<long> endVidSet = localGraphMapIterator->second;
+
+        map<long, double>::iterator pageRankValue = pageRankResults.find(startVid);
+        if (pageRankValue == pageRankResults.end()) {
+            pageRankLocalstore.insert(std::make_pair(startVid, 0.0));
+        } else {
+            double value = pageRankValue->second;
+            pageRankLocalstore.insert(std::make_pair(startVid, value));
+        }
+    }
+
+    string instanceDataFolderLocation = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+    string attributeFilePart = instanceDataFolderLocation + "/" + graphID + "_pgrnk_" + partitionID;
+    ofstream partfile;
+    partfile.open(attributeFilePart, std::fstream::trunc);
+    for (map<long, double>::iterator it = pageRankLocalstore.begin(); it != pageRankLocalstore.end(); ++it) {
+        partfile << to_string(it->first) << "\t" << to_string(it->second) << endl;
+    }
+    partfile.close();
+
+    *loop_exit_p = true;
+    pageRankResults.clear();
+    localGraphMap.clear();
+    pageRankLocalstore.clear();
+    graphDBMapCentralStores.clear();
+    graphDBMapLocalStoresPgrnk.clear();
+    instance_logger.log("Finish : Calculate Local page rank.", "info");
+}
+
+static void worker_page_rank_distribution_command(
+    int connFd, int serverPort, std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores,
+    bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string graphID = (data);
+    graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
+    instance_logger.log("Received Graph ID: " + graphID, "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string partitionID = (data);
+    partitionID = Utils::trim_copy(partitionID, " \f\n\r\t\v");
+    instance_logger.log("Received Partition ID: " + partitionID, "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string workerList = (data);
+    workerList = Utils::trim_copy(workerList, " \f\n\r\t\v");
+    instance_logger.log("Received Worker List " + workerList, "info");
+
+    std::vector<string> workerSockets;
+    stringstream wl(workerList);
+    string intermediate;
+    while (getline(wl, intermediate, ',')) {
+        workerSockets.push_back(intermediate);
+    }
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string graphVertexCount = (data);
+    graphVertexCount = Utils::trim_copy(graphVertexCount, " \f\n\r\t\v");
+    instance_logger.log("Received Graph ID:" + graphID + " Vertex Count: " + graphVertexCount, "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string alphaValue = (data);
+    alphaValue = Utils::trim_copy(alphaValue, " \f\n\r\t\v");
+    instance_logger.log("Received alpha: " + alphaValue, "info");
+
+    double alpha = std::stod(alphaValue);
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string iterationsValue = (data);
+    iterationsValue = Utils::trim_copy(iterationsValue, " \f\n\r\t\v");
+    instance_logger.log("Received iterations: " + iterationsValue, "info");
+
+    int iterations = std::stoi(iterationsValue);
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    JasmineGraphHashMapLocalStore graphDB;
+    JasmineGraphHashMapCentralStore centralDB;
+
+    std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStoresPgrnk;
+    if (JasmineGraphInstanceService::isGraphDBExists(graphID, partitionID)) {
+        JasmineGraphInstanceService::loadLocalStore(graphID, partitionID, graphDBMapLocalStoresPgrnk);
+    }
+
+    if (JasmineGraphInstanceService::isInstanceCentralStoreExists(graphID, partitionID)) {
+        JasmineGraphInstanceService::loadInstanceCentralStore(graphID, partitionID, graphDBMapCentralStores);
+    }
+
+    graphDB = graphDBMapLocalStoresPgrnk[graphID + "_" + partitionID];
+    centralDB = graphDBMapCentralStores[graphID + "_centralstore_" + partitionID];
+
+    map<long, double> pageRankResults =
+        calculateLocalPageRank(graphID, alpha, partitionID, serverPort, TOP_K_PAGE_RANK, graphVertexCount, graphDB,
+                               centralDB, workerSockets, iterations);
+
+    instance_logger.log("Page rank size: " + to_string(pageRankResults.size()), "info");
+
+    map<long, double> pageRankLocalstore;
+    map<long, unordered_set<long>> localGraphMap = graphDB.getUnderlyingHashMap();
+    map<long, unordered_set<long>>::iterator localGraphMapIterator;
+    std::vector<long> vertexVector;
+    for (localGraphMapIterator = localGraphMap.begin(); localGraphMapIterator != localGraphMap.end();
+         ++localGraphMapIterator) {
+        long startVid = localGraphMapIterator->first;
+        unordered_set<long> endVidSet = localGraphMapIterator->second;
+
+        map<long, double>::iterator pageRankValue = pageRankResults.find(startVid);
+        if (pageRankValue == pageRankResults.end()) {
+            pageRankLocalstore.insert(std::make_pair(startVid, 1.0));
+        } else {
+            double value = pageRankValue->second;
+            pageRankLocalstore.insert(std::make_pair(startVid, value));
+        }
+    }
+
+    string instanceDataFolderLocation = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+    string attributeFilePart = instanceDataFolderLocation + "/" + graphID + "_pgrnk_" + partitionID;
+    ofstream partfile;
+    partfile.open(attributeFilePart, std::fstream::trunc);
+    for (map<long, double>::iterator it = pageRankLocalstore.begin(); it != pageRankLocalstore.end(); ++it) {
+        partfile << to_string(it->first) << "\t" << to_string(it->second) << endl;
+    }
+    partfile.close();
+
+    pageRankResults.clear();
+    pageRankLocalstore.clear();
+    localGraphMap.clear();
+}
+
+static void egonet_command(int connFd, int serverPort,
+                           std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores,
+                           bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string graphID = (data);
+    graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
+    instance_logger.log("Received Graph ID: " + graphID, "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string partitionID = (data);
+    partitionID = Utils::trim_copy(partitionID, " \f\n\r\t\v");
+    instance_logger.log("Received Partition ID: " + partitionID, "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string workerList = data;
+    workerList = Utils::trim_copy(workerList, " \f\n\r\t\v");
+    instance_logger.log("Received Worker List " + workerList, "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    JasmineGraphHashMapLocalStore graphDB;
+    JasmineGraphHashMapCentralStore centralDB;
+
+    std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStoresPgrnk;
+    if (JasmineGraphInstanceService::isGraphDBExists(graphID, partitionID)) {
+        JasmineGraphInstanceService::loadLocalStore(graphID, partitionID, graphDBMapLocalStoresPgrnk);
+    }
+
+    if (JasmineGraphInstanceService::isInstanceCentralStoreExists(graphID, partitionID)) {
+        JasmineGraphInstanceService::loadInstanceCentralStore(graphID, partitionID, graphDBMapCentralStores);
+    }
+
+    graphDB = graphDBMapLocalStoresPgrnk[graphID + "_" + partitionID];
+    centralDB = graphDBMapCentralStores[graphID + "_centralstore_" + partitionID];
+
+    calculateEgoNet(graphID, partitionID, serverPort, graphDB, centralDB, workerList);
+}
+
+static void worker_egonet_command(int connFd, int serverPort,
+                                  std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores,
+                                  bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string graphID = (data);
+    graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
+    instance_logger.log("Received Graph ID: " + graphID, "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string partitionID = (data);
+    partitionID = Utils::trim_copy(partitionID, " \f\n\r\t\v");
+    instance_logger.log("Received Partition ID: " + partitionID, "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string workerList = (data);
+    workerList = Utils::trim_copy(workerList, " \f\n\r\t\v");
+    instance_logger.log("Received Worker List " + workerList, "info");
+
+    std::vector<string> workerSockets;
+    stringstream wl(workerList);
+    string intermediate;
+    while (getline(wl, intermediate, ',')) {
+        workerSockets.push_back(intermediate);
+    }
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    JasmineGraphHashMapLocalStore graphDB;
+    JasmineGraphHashMapCentralStore centralDB;
+
+    std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStoresPgrnk;
+    if (JasmineGraphInstanceService::isGraphDBExists(graphID, partitionID)) {
+        JasmineGraphInstanceService::loadLocalStore(graphID, partitionID, graphDBMapLocalStoresPgrnk);
+    }
+
+    if (JasmineGraphInstanceService::isInstanceCentralStoreExists(graphID, partitionID)) {
+        JasmineGraphInstanceService::loadInstanceCentralStore(graphID, partitionID, graphDBMapCentralStores);
+    }
+
+    graphDB = graphDBMapLocalStoresPgrnk[graphID + "_" + partitionID];
+    centralDB = graphDBMapCentralStores[graphID + "_centralstore_" + partitionID];
+
+    map<long, map<long, unordered_set<long>>> egonetMap =
+        calculateLocalEgoNet(graphID, partitionID, serverPort, graphDB, centralDB, workerSockets);
+
+    string instanceDataFolderLocation = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+    string attributeFilePart = instanceDataFolderLocation + "/" + graphID + "_egonet_" + partitionID;
+    ofstream partfile;
+    partfile.open(attributeFilePart, std::fstream::trunc);
+    for (map<long, map<long, unordered_set<long>>>::iterator it = egonetMap.begin(); it != egonetMap.end(); ++it) {
+        map<long, unordered_set<long>> egonetInternalMap = it->second;
+        for (map<long, unordered_set<long>>::iterator itm = egonetInternalMap.begin(); itm != egonetInternalMap.end();
+             ++itm) {
+            unordered_set<long> egonetInternalMapEdges = itm->second;
+            for (unordered_set<long>::iterator ite = egonetInternalMapEdges.begin();
+                 ite != egonetInternalMapEdges.end(); ++ite) {
+                partfile << to_string(it->first) << "\t" << to_string(itm->first) << "\t" << to_string(*ite) << endl;
+            }
+        }
+    }
+    partfile.close();
+
+    instance_logger.log("Egonet calculation complete", "info");
+}
+
+static void triangles_command(
+    int connFd, int serverPort, std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
+    std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores,
+    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> graphDBMapDuplicateCentralStores,
+    bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string graphID = (data);
+    graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
+    instance_logger.log("Received Graph ID: " + graphID, "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string partitionId = (data);
+    partitionId = Utils::trim_copy(partitionId, " \f\n\r\t\v");
+    instance_logger.log("Received Partition ID: " + partitionId, "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string priority = (data);
+    priority = Utils::trim_copy(priority, " \f\n\r\t\v");
+    instance_logger.log("Received Priority : " + priority, "info");
+
+    int threadPriority = std::atoi(priority.c_str());
+
+    if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
+        threadPriorityMutex.lock();
+        workerHighPriorityTaskCount++;
+        highestPriority = threadPriority;
+        threadPriorityMutex.unlock();
+    }
+
+    long localCount = countLocalTriangles(graphID, partitionId, graphDBMapLocalStores, graphDBMapCentralStores,
+                                          graphDBMapDuplicateCentralStores, threadPriority);
+
+    if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
+        threadPriorityMutex.lock();
+        workerHighPriorityTaskCount--;
+
+        if (workerHighPriorityTaskCount == 0) {
+            highestPriority = Conts::DEFAULT_THREAD_PRIORITY;
+        }
+        threadPriorityMutex.unlock();
+    }
+
+    std::string result = to_string(localCount);
+    result_wr = write(connFd, result.c_str(), result.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+    }
+}
+
+static void send_centralstore_to_aggregator_command(int connFd, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_NAME.c_str(),
+                          JasmineGraphInstanceProtocol::SEND_FILE_NAME.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_NAME, "info");
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string fileName = (data);
+
+    instance_logger.log("Received File name: " + fileName, "info");
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_LEN.c_str(),
+                      JasmineGraphInstanceProtocol::SEND_FILE_LEN.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN, "info");
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string size = (data);
+    instance_logger.log("Received file size in bytes: " + size, "info");
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_CONT.c_str(),
+                      JasmineGraphInstanceProtocol::SEND_FILE_CONT.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
+    string fullFilePath =
+        Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
+    string line;
+    int fileSize = atoi(size.c_str());
+    while (true) {
+        if (Utils::fileExists(fullFilePath)) {
+            while (Utils::getFileSize(fullFilePath) < fileSize) {
+                bzero(data, INSTANCE_DATA_LENGTH + 1);
+                read(connFd, data, INSTANCE_DATA_LENGTH);
+                line = (data);
+
+                if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
+                    result_wr = write(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT.c_str(),
+                                      JasmineGraphInstanceProtocol::FILE_RECV_WAIT.size());
+                    if (result_wr < 0) {
+                        instance_logger.error("Error writing to socket");
+                        *loop_exit_p = true;
+                        return;
+                    }
+                }
+            }
+            break;
+        } else {
+            sleep(1);
+            continue;
+        }
+    }
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    line = (data);
+
+    if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
+        instance_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
+        result_wr = write(connFd, JasmineGraphInstanceProtocol::FILE_ACK.c_str(),
+                          JasmineGraphInstanceProtocol::FILE_ACK.size());
+        if (result_wr < 0) {
+            instance_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::FILE_ACK, "info");
+    }
+
+    instance_logger.log("File received and saved to " + fullFilePath, "info");
+    *loop_exit_p = true;
+
+    Utils::unzipFile(fullFilePath);
+    size_t lastindex = fileName.find_last_of(".");
+    string rawname = fileName.substr(0, lastindex);
+    fullFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + rawname;
+    std::string aggregatorFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
+
+    DIR *dir = opendir(aggregatorFilePath.c_str());
+
+    if (dir) {
+        closedir(dir);
+    } else {
+        std::string createDirCommand = "mkdir -p " + aggregatorFilePath;
+        FILE *createDirInput = popen(createDirCommand.c_str(), "r");
+        pclose(createDirInput);
+    }
+
+    std::string copyCommand = "cp " + fullFilePath + " " + aggregatorFilePath;
+
+    FILE *copyInput = popen(copyCommand.c_str(), "r");
+    pclose(copyInput);
+
+    std::string movedFullFilePath = aggregatorFilePath + "/" + rawname;
+
+    while (!Utils::fileExists(movedFullFilePath)) {
+        bzero(data, INSTANCE_DATA_LENGTH + 1);
+        read(connFd, data, INSTANCE_DATA_LENGTH);
+        string response = (data);
+        response = Utils::trim_copy(response, " \f\n\r\t\v");
+        if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
+            result_wr = write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.c_str(),
+                              JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.size());
+            if (result_wr < 0) {
+                instance_logger.error("Error writing to socket");
+                *loop_exit_p = true;
+                return;
+            }
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT, "info");
+        }
+    }
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    line = (data);
+    if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
+        instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
+        result_wr = write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.c_str(),
+                          JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.size());
+        if (result_wr < 0) {
+            instance_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK, "info");
+    }
+}
+
+static void send_composite_centralstore_to_aggregator_command(int connFd, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_NAME.c_str(),
+                          JasmineGraphInstanceProtocol::SEND_FILE_NAME.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_NAME, "info");
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string fileName = (data);
+
+    instance_logger.log("Received File name: " + fileName, "info");
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_LEN.c_str(),
+                      JasmineGraphInstanceProtocol::SEND_FILE_LEN.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN, "info");
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string size = (data);
+    instance_logger.log("Received file size in bytes: " + size, "info");
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_CONT.c_str(),
+                      JasmineGraphInstanceProtocol::SEND_FILE_CONT.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
+    string fullFilePath =
+        Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
+    string line;
+    int fileSize = atoi(size.c_str());
+    while (true) {
+        if (Utils::fileExists(fullFilePath)) {
+            while (Utils::getFileSize(fullFilePath) < fileSize) {
+                bzero(data, INSTANCE_DATA_LENGTH + 1);
+                read(connFd, data, INSTANCE_DATA_LENGTH);
+                line = (data);
+
+                if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
+                    result_wr = write(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT.c_str(),
+                                      JasmineGraphInstanceProtocol::FILE_RECV_WAIT.size());
+                    if (result_wr < 0) {
+                        instance_logger.error("Error writing to socket");
+                        *loop_exit_p = true;
+                        return;
+                    }
+                }
+            }
+            break;
+        } else {
+            sleep(1);
+            continue;
+        }
+    }
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    line = (data);
+
+    if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
+        instance_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
+        result_wr = write(connFd, JasmineGraphInstanceProtocol::FILE_ACK.c_str(),
+                          JasmineGraphInstanceProtocol::FILE_ACK.size());
+        if (result_wr < 0) {
+            instance_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::FILE_ACK, "info");
+    }
+
+    instance_logger.log("File received and saved to " + fullFilePath, "info");
+    *loop_exit_p = true;
+
+    Utils::unzipFile(fullFilePath);
+    size_t lastindex = fileName.find_last_of(".");
+    string rawname = fileName.substr(0, lastindex);
+    fullFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + rawname;
+    std::string aggregatorFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
+
+    DIR *dir = opendir(aggregatorFilePath.c_str());
+
+    if (dir) {
+        closedir(dir);
+    } else {
+        std::string createDirCommand = "mkdir -p " + aggregatorFilePath;
+        FILE *createDirInput = popen(createDirCommand.c_str(), "r");
+        pclose(createDirInput);
+    }
+
+    std::string copyCommand = "cp " + fullFilePath + " " + aggregatorFilePath;
+
+    FILE *copyInput = popen(copyCommand.c_str(), "r");
+    pclose(copyInput);
+
+    std::string movedFullFilePath = aggregatorFilePath + "/" + rawname;
+
+    while (!Utils::fileExists(movedFullFilePath)) {
+        bzero(data, INSTANCE_DATA_LENGTH + 1);
+        read(connFd, data, INSTANCE_DATA_LENGTH);
+        string response = (data);
+        response = Utils::trim_copy(response, " \f\n\r\t\v");
+        if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
+            result_wr = write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.c_str(),
+                              JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT.size());
+            if (result_wr < 0) {
+                instance_logger.error("Error writing to socket");
+                *loop_exit_p = true;
+                return;
+            }
+            instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT, "info");
+        }
+    }
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    line = (data);
+    if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
+        instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
+        result_wr = write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.c_str(),
+                          JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK.size());
+        if (result_wr < 0) {
+            instance_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK, "info");
+    }
+}
+
+static void aggregate_centralstore_triangles_command(int connFd, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string graphId = (data);
+    graphId = Utils::trim_copy(graphId, " \f\n\r\t\v");
+    instance_logger.log("Received Graph ID: " + graphId, "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string partitionId = (data);
+    partitionId = Utils::trim_copy(partitionId, " \f\n\r\t\v");
+    instance_logger.log("Received Partition ID: " + partitionId, "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string partitionIdList = (data);
+    partitionIdList = Utils::trim_copy(partitionIdList, " \f\n\r\t\v");
+    instance_logger.log("Received Partition ID List : " + partitionIdList, "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string priority = (data);
+    priority = Utils::trim_copy(priority, " \f\n\r\t\v");
+    instance_logger.log("Received priority: " + priority, "info");
+
+    int threadPriority = std::atoi(priority.c_str());
+
+    if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
+        threadPriorityMutex.lock();
+        workerHighPriorityTaskCount++;
+        highestPriority = threadPriority;
+        threadPriorityMutex.unlock();
+    }
+
+    std::string aggregatedTriangles = JasmineGraphInstanceService::aggregateCentralStoreTriangles(
+        graphId, partitionId, partitionIdList, threadPriority);
+
+    if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
+        threadPriorityMutex.lock();
+        workerHighPriorityTaskCount--;
+
+        if (workerHighPriorityTaskCount == 0) {
+            highestPriority = Conts::DEFAULT_THREAD_PRIORITY;
+        }
+        threadPriorityMutex.unlock();
+    }
+
+    std::vector<std::string> chunksVector;
+
+    for (unsigned i = 0; i < aggregatedTriangles.length(); i += INSTANCE_DATA_LENGTH - 10) {
+        std::string chunk = aggregatedTriangles.substr(i, INSTANCE_DATA_LENGTH - 10);
+        if (i + INSTANCE_DATA_LENGTH - 10 < aggregatedTriangles.length()) {
+            chunk += "/SEND";
+        } else {
+            chunk += "/CMPT";
+        }
+        chunksVector.push_back(chunk);
+    }
+
+    for (int loopCount = 0; loopCount < chunksVector.size(); loopCount++) {
+        if (loopCount == 0) {
+            std::string chunk = chunksVector.at(loopCount);
+            result_wr = write(connFd, chunk.c_str(), chunk.size());
+            if (result_wr < 0) {
+                instance_logger.error("Error writing to socket");
+                *loop_exit_p = true;
+                return;
+            }
+        } else {
+            bzero(data, INSTANCE_DATA_LENGTH + 1);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string chunkStatus = (data);
+            std::string chunk = chunksVector.at(loopCount);
+            result_wr = write(connFd, chunk.c_str(), chunk.size());
+            if (result_wr < 0) {
+                instance_logger.error("Error writing to socket");
+                *loop_exit_p = true;
+            }
+        }
+    }
+}
+
+static void aggregate_composite_centralstore_triangles_command(int connFd, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string availableFiles = (data);
+    availableFiles = Utils::trim_copy(availableFiles, " \f\n\r\t\v");
+    instance_logger.log("Received Available Files: " + availableFiles, "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string response = (data);
+    response = Utils::trim_copy(response, " \f\n\r\t\v");
+
+    string status = response.substr(response.size() - 5);
+    std::string compositeFileList = response.substr(0, response.size() - 5);
+
+    while (status == "/SEND") {
+        result_wr = write(connFd, status.c_str(), status.size());
+        if (result_wr < 0) {
+            instance_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        bzero(data, INSTANCE_DATA_LENGTH + 1);
+        read(connFd, data, INSTANCE_DATA_LENGTH);
+        response = (data);
+        response = Utils::trim_copy(response, " \f\n\r\t\v");
+        status = response.substr(response.size() - 5);
+        std::string fileList = response.substr(0, response.size() - 5);
+        compositeFileList = compositeFileList + fileList;
+    }
+    response = compositeFileList;
+
+    instance_logger.log("Received Composite File List : " + compositeFileList, "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string priority = (data);
+    priority = Utils::trim_copy(priority, " \f\n\r\t\v");
+    instance_logger.log("Received priority: " + priority, "info");
+
+    int threadPriority = std::atoi(priority.c_str());
+
+    if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
+        threadPriorityMutex.lock();
+        workerHighPriorityTaskCount++;
+        highestPriority = threadPriority;
+        threadPriorityMutex.unlock();
+    }
+
+    std::string aggregatedTriangles =
+        JasmineGraphInstanceService::aggregateCompositeCentralStoreTriangles(response, availableFiles, threadPriority);
+
+    if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
+        threadPriorityMutex.lock();
+        workerHighPriorityTaskCount--;
+
+        if (workerHighPriorityTaskCount == 0) {
+            highestPriority = Conts::DEFAULT_THREAD_PRIORITY;
+        }
+        threadPriorityMutex.unlock();
+    }
+
+    std::vector<std::string> chunksVector;
+
+    for (unsigned i = 0; i < aggregatedTriangles.length(); i += INSTANCE_DATA_LENGTH - 10) {
+        std::string chunk = aggregatedTriangles.substr(i, INSTANCE_DATA_LENGTH - 10);
+        if (i + INSTANCE_DATA_LENGTH - 10 < aggregatedTriangles.length()) {
+            chunk += "/SEND";
+        } else {
+            chunk += "/CMPT";
+        }
+        chunksVector.push_back(chunk);
+    }
+
+    for (int loopCount = 0; loopCount < chunksVector.size(); loopCount++) {
+        if (loopCount == 0) {
+            std::string chunk = chunksVector.at(loopCount);
+            result_wr = write(connFd, chunk.c_str(), chunk.size());
+            if (result_wr < 0) {
+                instance_logger.error("Error writing to socket");
+                *loop_exit_p = true;
+                return;
+            }
+        } else {
+            bzero(data, INSTANCE_DATA_LENGTH + 1);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string chunkStatus = (data);
+            std::string chunk = chunksVector.at(loopCount);
+            result_wr = write(connFd, chunk.c_str(), chunk.size());
+            if (result_wr < 0) {
+                instance_logger.error("Error writing to socket");
+                *loop_exit_p = true;
+            }
+        }
+    }
+}
+
+static void performance_statistics_command(int connFd, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string isVMStatManager = (data);
+    isVMStatManager = Utils::trim_copy(isVMStatManager, " \f\n\r\t\v");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string isResourceAllocationRequired = (data);
+    isResourceAllocationRequired = Utils::trim_copy(isResourceAllocationRequired, " \f\n\r\t\v");
+
+    std::string memoryUsage =
+        JasmineGraphInstanceService::requestPerformanceStatistics(isVMStatManager, isResourceAllocationRequired);
+    result_wr = write(connFd, memoryUsage.c_str(), memoryUsage.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+}
+
+static void initiate_files_command(int connFd, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string trainData(data);
+
+    std::vector<std::string> trainargs = Utils::split(trainData, ' ');
+
+    string graphID;
+    string partitionID = trainargs[trainargs.size() - 1];
+
+    for (int i = 0; i < trainargs.size(); i++) {
+        if (trainargs[i] == "--graph_id") {
+            graphID = trainargs[i + 1];
+            break;
+        }
+    }
+
+    std::thread *workerThreads = new std::thread[2];
+    workerThreads[0] = std::thread(&JasmineGraphInstanceService::createPartitionFiles, graphID, partitionID, "local");
+    workerThreads[1] =
+        std::thread(&JasmineGraphInstanceService::createPartitionFiles, graphID, partitionID, "centralstore");
+
+    for (int threadCount = 0; threadCount < 2; threadCount++) {
+        workerThreads[threadCount].join();
+    }
+}
+
+static void initiate_fed_predict_command(int connFd, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string trainData(data);
+
+    std::vector<std::string> trainargs = Utils::split(trainData, ' ');
+
+    string graphID;
+    string partitionID = trainargs[trainargs.size() - 1];
+
+    for (int i = 0; i < trainargs.size(); i++) {
+        if (trainargs[i] == "--graph_id") {
+            graphID = trainargs[i + 1];
+            break;
+        }
+    }
+
+    std::thread *workerThreads = new std::thread[2];
+    workerThreads[0] = std::thread(&JasmineGraphInstanceService::createPartitionFiles, graphID, partitionID, "local");
+    workerThreads[1] =
+        std::thread(&JasmineGraphInstanceService::createPartitionFiles, graphID, partitionID, "centralstore");
+
+    for (int threadCount = 0; threadCount < 2; threadCount++) {
+        workerThreads[threadCount].join();
+    }
+}
+
+static void initiate_server_command(int connFd, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string trainData(data);
+
+    std::vector<std::string> trainargs = Utils::split(trainData, ' ');
+    instance_logger.info("Received options : " + trainData);
+    string graphID;
+    string partitionID = trainargs[trainargs.size() - 1];
+
+    for (int i = 0; i < trainargs.size(); i++) {
+        if (trainargs[i] == "--graph_id") {
+            graphID = trainargs[i + 1];
+            break;
+        }
+    }
+
+    std::thread workerThread = std::thread(&JasmineGraphInstanceService::initServer, trainData);
+    workerThread.join();
+}
+
+static void initiate_org_server_command(int connFd, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string trainData(data);
+
+    std::vector<std::string> trainargs = Utils::split(trainData, ' ');
+
+    string graphID;
+    string partitionID = trainargs[trainargs.size() - 1];
+
+    for (int i = 0; i < trainargs.size(); i++) {
+        if (trainargs[i] == "--graph_id") {
+            graphID = trainargs[i + 1];
+            break;
+        }
+    }
+
+    std::thread workerThread = std::thread(&JasmineGraphInstanceService::initOrgServer, trainData);
+    workerThread.join();
+}
+
+static void initiate_aggregator_command(int connFd, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string trainData(data);
+
+    std::vector<std::string> trainargs = Utils::split(trainData, ' ');
+
+    string graphID;
+    string partitionID = trainargs[trainargs.size() - 1];
+
+    for (int i = 0; i < trainargs.size(); i++) {
+        if (trainargs[i] == "--graph_id") {
+            graphID = trainargs[i + 1];
+            break;
+        }
+    }
+
+    std::thread workerThread = std::thread(&JasmineGraphInstanceService::initAgg, trainData);
+    workerThread.join();
+}
+
+static void initiate_client_command(int connFd, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string trainData(data);
+
+    std::vector<std::string> trainargs = Utils::split(trainData, ' ');
+    instance_logger.info("Received options : " + trainData);
+    string graphID;
+    string partitionID = trainargs[trainargs.size() - 1];
+
+    for (int i = 0; i < trainargs.size(); i++) {
+        if (trainargs[i] == "--graph_id") {
+            graphID = trainargs[i + 1];
+            break;
+        }
+    }
+
+    std::thread workerThread = std::thread(&JasmineGraphInstanceService::initClient, trainData);
+    workerThread.join();
+}
+
+static void initiate_merge_files_command(int connFd, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string trainData(data);
+    instance_logger.log("Train Data : " + trainData, "info");
+
+    std::vector<std::string> trainargs = Utils::split(trainData, ' ');
+
+    string graphID;
+    string partitionID = trainargs[trainargs.size() - 1];
+
+    for (int i = 0; i < trainargs.size(); i++) {
+        if (trainargs[i] == "--graph_id") {
+            graphID = trainargs[i + 1];
+            break;
+        }
+    }
+
+    JasmineGraphInstanceService::mergeFiles(trainData);
+}
+
+static inline void start_stat_collection_command(int connFd, bool *collectValid_p, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    *collectValid_p = true;
+    JasmineGraphInstanceService::startCollectingLoadAverage();
+}
+
+static void request_collected_stats_command(int connFd, bool *collectValid_p, bool *loop_exit_p) {
+    collectValid = false;
+    std::string loadAverageString;
+
+    std::vector<std::string>::iterator loadVectorIterator;
+
+    for (loadVectorIterator = loadAverageVector.begin(); loadVectorIterator != loadAverageVector.end();
+         ++loadVectorIterator) {
+        std::string tempLoadAverage = *loadVectorIterator;
+        loadAverageString = loadAverageString + "," + tempLoadAverage;
+    }
+    loadAverageVector.clear();
+
+    loadAverageString = loadAverageString.substr(1, loadAverageString.length() - 1);
+
+    std::vector<std::string> chunksVector;
+
+    for (unsigned i = 0; i < loadAverageString.length(); i += INSTANCE_DATA_LENGTH - 10) {
+        std::string chunk = loadAverageString.substr(i, INSTANCE_DATA_LENGTH - 10);
+        if (i + INSTANCE_DATA_LENGTH - 10 < loadAverageString.length()) {
+            chunk += "/SEND";
+        } else {
+            chunk += "/CMPT";
+        }
+        chunksVector.push_back(chunk);
+    }
+
+    for (int loopCount = 0; loopCount < chunksVector.size(); loopCount++) {
+        std::string chunk;
+        if (loopCount == 0) {
+            chunk = chunksVector.at(loopCount);
+        } else {
+            char data[INSTANCE_DATA_LENGTH + 1];
+            bzero(data, INSTANCE_DATA_LENGTH + 1);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            string chunkStatus = (data);
+            chunk = chunksVector.at(loopCount);
+        }
+        int result_wr = write(connFd, chunk.c_str(), chunk.size());
+        if (result_wr < 0) {
+            instance_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+    }
+}
+
+static void initiate_train_command(int connFd, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string trainData(data);
+
+    std::vector<std::string> trainargs = Utils::split(trainData, ' ');
+
+    string graphID;
+    string partitionID = trainargs[trainargs.size() - 1];
+
+    for (int i = 0; i < trainargs.size(); i++) {
+        if (trainargs[i] == "--graph_id") {
+            graphID = trainargs[i + 1];
+            break;
+        }
+    }
+
+    std::thread *workerThreads = new std::thread[2];
+    workerThreads[0] = std::thread(&JasmineGraphInstanceService::createPartitionFiles, graphID, partitionID, "local");
+    workerThreads[1] =
+        std::thread(&JasmineGraphInstanceService::createPartitionFiles, graphID, partitionID, "centralstore");
+
+    workerThreads[0].join();
+    instance_logger.log("WorkerThread 0 joined", "info");
+
+    workerThreads[1].join();
+    instance_logger.log("WorkerThread 1 joined", "info");
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_PARTITION_ITERATION.c_str(),
+                      JasmineGraphInstanceProtocol::SEND_PARTITION_ITERATION.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_PARTITION_ITERATION, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string partIteration(data);
+
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_PARTITION_COUNT.c_str(),
+                      JasmineGraphInstanceProtocol::SEND_PARTITION_ITERATION.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_PARTITION_COUNT, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string partCount(data);
+
+    instance_logger.log("Received partition iteration - " + partIteration, "info");
+    JasmineGraphInstanceService::collectExecutionData(partIteration, trainData, partCount);
+    instance_logger.log("After calling collector ", "info");
+}
+
+static void initiate_predict_command(int connFd, instanceservicesessionargs *sessionargs, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string graphID = (data);
+    graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
+    instance_logger.log("Received Graph ID: " + graphID, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string vertexCount = (data);
+    vertexCount = Utils::trim_copy(vertexCount, " \f\n\r\t\v");
+    instance_logger.log("Received vertexCount: " + vertexCount, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string ownPartitions = (data);
+    ownPartitions = Utils::trim_copy(ownPartitions, " \f\n\r\t\v");
+    instance_logger.log("Received Own Partitions No: " + ownPartitions, "info");
+
+    /*Receive hosts' detail*/
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_HOSTS.c_str(),
+                      JasmineGraphInstanceProtocol::SEND_HOSTS.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_HOSTS, "info");
+
+    char dataBuffer[INSTANCE_LONG_DATA_LENGTH + 1];
+    bzero(dataBuffer, INSTANCE_LONG_DATA_LENGTH + 1);
+    read(connFd, dataBuffer, INSTANCE_LONG_DATA_LENGTH);
+    string hostList = (dataBuffer);
+    instance_logger.log("Received Hosts List: " + hostList, "info");
+
+    // Put all hosts to a map
+    std::map<std::string, JasmineGraphInstanceService::workerPartitions> graphPartitionedHosts;
+    std::vector<std::string> hosts = Utils::split(hostList, '|');
+    int count = 0;
+    int totalPartitions = 0;
+    for (std::vector<std::string>::iterator it = hosts.begin(); it != hosts.end(); ++it) {
+        if (count != 0) {
+            std::vector<std::string> hostDetail = Utils::split(*it, ',');
+            std::string hostName;
+            int port;
+            int dataport;
+            std::vector<string> partitionIDs;
+            for (std::vector<std::string>::iterator j = hostDetail.begin(); j != hostDetail.end(); ++j) {
+                int index = std::distance(hostDetail.begin(), j);
+                if (index == 0) {
+                    hostName = *j;
+                } else if (index == 1) {
+                    port = stoi(*j);
+                } else if (index == 2) {
+                    dataport = stoi(*j);
+                } else {
+                    partitionIDs.push_back(*j);
+                    totalPartitions += 1;
+                }
+            }
+            graphPartitionedHosts.insert(
+                pair<string, JasmineGraphInstanceService::workerPartitions>(hostName, {port, dataport, partitionIDs}));
+        }
+        count++;
+    }
+    /*Receive file*/
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_NAME.c_str(),
+                      JasmineGraphInstanceProtocol::SEND_FILE_NAME.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_NAME, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string fileName = (data);
+    instance_logger.log("Received File name: " + fileName, "info");
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_LEN.c_str(),
+                      JasmineGraphInstanceProtocol::SEND_FILE_LEN.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string size = (data);
+    instance_logger.log("Received file size in bytes: " + size, "info");
+    result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_CONT.c_str(),
+                      JasmineGraphInstanceProtocol::SEND_FILE_CONT.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
+
+    string fullFilePath =
+        Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
+    int fileSize = atoi(size.c_str());
+    string line;
+    while (Utils::fileExists(fullFilePath) && Utils::getFileSize(fullFilePath) < fileSize) {
+        bzero(data, INSTANCE_DATA_LENGTH + 1);
+        read(connFd, data, INSTANCE_DATA_LENGTH);
+        line = (data);
+
+        if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
+            result_wr = write(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT.c_str(),
+                              JasmineGraphInstanceProtocol::FILE_RECV_WAIT.size());
+        }
+    }
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    line = (data);
+
+    if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
+        instance_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
+        result_wr = write(connFd, JasmineGraphInstanceProtocol::FILE_ACK.c_str(),
+                          JasmineGraphInstanceProtocol::FILE_ACK.size());
+        if (result_wr < 0) {
+            instance_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::FILE_ACK, "info");
+    }
+    if (totalPartitions != 0) {
+        JasmineGraphInstanceService::collectTrainedModels(sessionargs, graphID, graphPartitionedHosts, totalPartitions);
+    }
+    std::vector<std::string> predictargs;
+    predictargs.push_back(graphID);
+    predictargs.push_back(vertexCount);
+    predictargs.push_back(fullFilePath);
+    predictargs.push_back(Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.trainedmodelfolder"));
+    predictargs.push_back(to_string(totalPartitions + stoi(ownPartitions)));
+    std::vector<char *> predict_agrs_vector;
+    std::transform(predictargs.begin(), predictargs.end(), std::back_inserter(predict_agrs_vector), converter);
+
+    std::string path = "cd " + Utils::getJasmineGraphProperty("org.jasminegraph.graphsage") + " && ";
+    std::string command = path + "python3.8 predict.py ";
+
+    int argc = predictargs.size();
+    for (int i = 0; i < argc; ++i) {
+        command += predictargs[i];
+        command += " ";
+    }
+
+    instance_logger.error("Temporarily disabled the execution of prediction.");
+    // TODO(miyurud): Temporarily commenting the execution of the following line
+    // due to missing predict.py file. Removal of graphsage folder resulted in this situation.
+    // Need to find a different way of executing Predict
+    // system(command.c_str());
+    *loop_exit_p = true;
+}
+
+static void initiate_model_collection_command(int connFd, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string serverHostName = (data);
+    serverHostName = Utils::trim_copy(serverHostName, " \f\n\r\t\v");
+    instance_logger.log("Received HostName: " + serverHostName, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string serverHostPort = (data);
+    serverHostPort = Utils::trim_copy(serverHostPort, " \f\n\r\t\v");
+    instance_logger.log("Received Port: " + serverHostPort, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string serverHostDataPort = (data);
+    serverHostDataPort = Utils::trim_copy(serverHostDataPort, " \f\n\r\t\v");
+    instance_logger.log("Received Data Port: " + serverHostDataPort, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string graphID = (data);
+    graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
+    instance_logger.log("Received Graph ID: " + graphID, "info");
+
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string partitionID = (data);
+    partitionID = Utils::trim_copy(partitionID, " \f\n\r\t\v");
+    instance_logger.log("Received Partition ID: " + partitionID, "info");
+
+    std::string fileName = graphID + "_model_" + partitionID;
+    std::string filePath =
+        Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.trainedmodelfolder") + "/" + fileName;
+
+    // zip the folder
+    Utils::compressDirectory(filePath);
+    fileName = fileName + ".tar.gz";
+    filePath = filePath + ".tar.gz";
+
+    int fileSize = Utils::getFileSize(filePath);
+    std::string fileLength = to_string(fileSize);
+    // send file name
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string line = (data);
+    if (line.compare(JasmineGraphInstanceProtocol::SEND_FILE_NAME) == 0) {
+        result_wr = write(connFd, fileName.c_str(), fileName.size());
+        if (result_wr < 0) {
+            instance_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        instance_logger.log("Sent : File name " + fileName, "info");
+
+        bzero(data, INSTANCE_DATA_LENGTH + 1);
+        read(connFd, data, INSTANCE_DATA_LENGTH);
+        line = (data);
+        // send file length
+        if (line.compare(JasmineGraphInstanceProtocol::SEND_FILE_LEN) == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN, "info");
+            result_wr = write(connFd, fileLength.c_str(), fileLength.size());
+            if (result_wr < 0) {
+                instance_logger.error("Error writing to socket");
+                *loop_exit_p = true;
+                return;
+            }
+            instance_logger.log("Sent : File length in bytes " + fileLength, "info");
+
+            bzero(data, INSTANCE_DATA_LENGTH + 1);
+            read(connFd, data, INSTANCE_DATA_LENGTH);
+            line = (data);
+            // send content
+            if (line.compare(JasmineGraphInstanceProtocol::SEND_FILE_CONT) == 0) {
+                instance_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
+                instance_logger.log("Going to send file through service", "info");
+                JasmineGraphInstance::sendFileThroughService(serverHostName, stoi(serverHostDataPort), fileName,
+                                                             filePath);
+            }
+        }
+    }
+    int count = 0;
+    while (true) {
+        result_wr = write(connFd, JasmineGraphInstanceProtocol::FILE_RECV_CHK.c_str(),
+                          JasmineGraphInstanceProtocol::FILE_RECV_CHK.size());
+        if (result_wr < 0) {
+            instance_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
+        instance_logger.log("Checking if file is received", "info");
+        bzero(data, INSTANCE_DATA_LENGTH + 1);
+        read(connFd, data, INSTANCE_DATA_LENGTH);
+        line = (data);
+
+        if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_WAIT) == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_WAIT, "info");
+            instance_logger.log("Checking file status : " + to_string(count), "info");
+            count++;
+            sleep(1);
+            continue;
+        } else if (line.compare(JasmineGraphInstanceProtocol::FILE_ACK) == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_ACK, "info");
+            instance_logger.log("File transfer completed", "info");
+            break;
+        }
+    }
+    while (true) {
+        result_wr = write(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK.c_str(),
+                          JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK.size());
+        if (result_wr < 0) {
+            instance_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
+        bzero(data, INSTANCE_DATA_LENGTH + 1);
+        read(connFd, data, INSTANCE_DATA_LENGTH);
+        line = (data);
+
+        if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT) == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT, "info");
+            sleep(1);
+            continue;
+        } else if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK) == 0) {
+            instance_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK, "info");
+            instance_logger.log("Trained Model Batch upload completed", "info");
+            break;
+        }
+    }
+    *loop_exit_p = true;
+}
+
+static void initiate_fragment_resolution_command(int connFd, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string listOfPartitions = (data);
+    listOfPartitions = Utils::trim_copy(listOfPartitions, " \f\n\r\t\v");
+    instance_logger.log("Received ===>: " + listOfPartitions, "info");
+    std::stringstream ss;
+    ss << listOfPartitions;
+    while (true) {
+        result_wr = write(connFd, JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_CHK.c_str(),
+                          JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_CHK.size());
+        if (result_wr < 0) {
+            instance_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_CHK, "info");
+
+        bzero(data, INSTANCE_DATA_LENGTH + 1);
+        read(connFd, data, INSTANCE_DATA_LENGTH);
+        string listOfPartitions = (data);
+
+        if (listOfPartitions.compare(JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_DONE) == 0) {
+            break;
+        } else {
+            instance_logger.log("Received ===>: " + listOfPartitions, "info");
+            ss << listOfPartitions;
+        }
+    }
+    std::vector<std::string> partitions = Utils::split(ss.str(), ',');
+    std::vector<std::string> graphIDs;
+    for (std::vector<string>::iterator x = partitions.begin(); x != partitions.end(); ++x) {
+        string graphID = x->substr(0, x->find_first_of("_"));
+        graphIDs.push_back(graphID);
+    }
+
+    string dataFolder = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+    std::vector<string> listOfFiles = Utils::getListOfFilesInDirectory(dataFolder);
+
+    std::vector<std::string> graphIDsFromFileSystem;
+    for (std::vector<string>::iterator x = listOfFiles.begin(); x != listOfFiles.end(); ++x) {
+        string graphID = x->substr(0, x->find_first_of("_"));
+        graphIDsFromFileSystem.push_back(graphID);
+    }
+
+    std::vector<string> notInGraphIDList;
+
+    for (std::vector<std::string>::iterator it = graphIDsFromFileSystem.begin(); it != graphIDsFromFileSystem.end();
+         it++) {
+        bool found = false;
+        for (std::vector<std::string>::iterator itRemoteID = graphIDs.begin(); itRemoteID != graphIDs.end();
+             itRemoteID++) {
+            if (it->compare(itRemoteID->c_str()) == 0) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            notInGraphIDList.push_back(it->c_str());
+        }
+    }
+
+    string notInItemsString = "";
+    std::vector<int> notInItemsList;
+    for (std::vector<string>::iterator it = notInGraphIDList.begin(); it != notInGraphIDList.end(); it++) {
+        if (isdigit(it->c_str()[0])) {
+            bool found = false;
+            for (std::vector<int>::iterator it2 = notInItemsList.begin(); it2 != notInItemsList.end(); it2++) {
+                if (atoi(it->c_str()) == *it2) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                notInItemsList.push_back(stoi(it->c_str()));
+            }
+        }
+    }
+
+    bool firstFlag = true;
+    for (std::vector<int>::iterator it = notInItemsList.begin(); it != notInItemsList.end(); it++) {
+        int x = *it;
+        if (firstFlag) {
+            notInItemsString = std::to_string(x);
+            firstFlag = false;
+        } else {
+            notInItemsString = notInItemsString + "," + std::to_string(x);
+        };
+    }
+
+    string graphIDList = notInItemsString;
+    result_wr = write(connFd, graphIDList.c_str(), graphIDList.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + graphIDList, "info");
+}
+
+static void check_file_accessible_command(int connFd, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::SEND_FILE_TYPE.c_str(),
+                          JasmineGraphInstanceProtocol::SEND_FILE_TYPE.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_TYPE, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string fileType = (data);
+    fileType = Utils::trim_copy(fileType, " \f\n\r\t\v");
+
+    if (fileType.compare(JasmineGraphInstanceProtocol::FILE_TYPE_CENTRALSTORE_AGGREGATE) == 0) {
+        result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+        if (result_wr < 0) {
+            instance_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+        bzero(data, INSTANCE_DATA_LENGTH + 1);
+        read(connFd, data, INSTANCE_DATA_LENGTH);
+        string graphId = (data);
+        graphId = Utils::trim_copy(graphId, " \f\n\r\t\v");
+        instance_logger.log("Received Graph ID: " + graphId, "info");
+
+        result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+        if (result_wr < 0) {
+            instance_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        bzero(data, INSTANCE_DATA_LENGTH + 1);
+        read(connFd, data, INSTANCE_DATA_LENGTH);
+        string partitionId = (data);
+        partitionId = Utils::trim_copy(partitionId, " \f\n\r\t\v");
+        instance_logger.log("Received Partition ID: " + partitionId, "info");
+
+        string aggregateLocation = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
+        string fileName = graphId + "_centralstore_" + partitionId;
+        string fullFilePath = aggregateLocation + "/" + fileName;
+        string result = "false";
+
+        bool fileExists = Utils::fileExists(fullFilePath);
+
+        if (fileExists) {
+            result = "true";
+        }
+
+        result_wr = write(connFd, result.c_str(), result.size());
+        if (result_wr < 0) {
+            instance_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        instance_logger.log("Sent : " + result, "info");
+    } else if (fileType.compare(JasmineGraphInstanceProtocol::FILE_TYPE_CENTRALSTORE_COMPOSITE) == 0) {
+        result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+        if (result_wr < 0) {
+            instance_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+        bzero(data, INSTANCE_DATA_LENGTH + 1);
+        read(connFd, data, INSTANCE_DATA_LENGTH);
+        string fileName = (data);
+        fileName = Utils::trim_copy(fileName, " \f\n\r\t\v");
+        instance_logger.log("Received File name: " + fileName, "info");
+
+        string aggregateLocation = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
+        string fullFilePath = aggregateLocation + "/" + fileName;
+        string result = "false";
+
+        bool fileExists = Utils::fileExists(fullFilePath);
+
+        if (fileExists) {
+            result = "true";
+        }
+
+        result_wr = write(connFd, result.c_str(), result.size());
+        if (result_wr < 0) {
+            instance_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        instance_logger.log("Sent : " + result, "info");
+    }
+}
+
+static void graph_stream_start_command(
+    int connFd, std::map<std::string, JasmineGraphIncrementalLocalStore *> incrementalLocalStoreMap,
+    bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK.c_str(),
+                          JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK, "info");
+
+    int content_length;
+    instance_logger.log("Waiting for edge content length", "info");
+    auto return_status = read(connFd, &content_length, sizeof(4));
+    if (return_status > 0) {
+        content_length = ntohl(content_length);
+        instance_logger.log("Received content_length = " + std::to_string(content_length), "info");
+    } else {
+        instance_logger.log("Error while reading content length", "error");
+        *loop_exit_p = true;
+        return;
+    }
+    std::string nodeString(content_length, 0);
+    result_wr = send(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.c_str(),
+                     JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.size(), 0);
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Acked for content length", "info");
+
+    instance_logger.log("Waiting for edge data", "info");
+    return_status = read(connFd, &nodeString[0], content_length);
+    if (return_status > 0) {
+        instance_logger.log("Received edge data = " + nodeString, "info");
+    } else {
+        instance_logger.log("Error while reading content length", "error");
+        *loop_exit_p = true;
+        return;
+    }
+
+    auto graphIdPartitionId = JasmineGraphIncrementalLocalStore::getIDs(nodeString);
+    std::string graphId = graphIdPartitionId.first;
+    std::string partitionId = std::to_string(graphIdPartitionId.second);
+    std::string graphIdentifier = graphId + "_" + partitionId;
+    JasmineGraphIncrementalLocalStore *incrementalLocalStoreInstance;
+
+    if (incrementalLocalStoreMap.find(graphIdentifier) == incrementalLocalStoreMap.end()) {
+        incrementalLocalStoreInstance =
+            JasmineGraphInstanceService::loadStreamingStore(graphId, partitionId, incrementalLocalStoreMap);
+    } else {
+        incrementalLocalStoreInstance = incrementalLocalStoreMap[graphIdentifier];
+    }
+    incrementalLocalStoreInstance->addEdgeFromString(nodeString);
+    result_wr = send(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_END_OF_EDGE.c_str(),
+                     JasmineGraphInstanceProtocol::GRAPH_STREAM_END_OF_EDGE.size(), 0);
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent CRLF string to mark the end", "info");
+}
+
+static void send_priority_command(int connFd, bool *loop_exit_p) {
+    int result_wr = write(connFd, JasmineGraphInstanceProtocol::OK.c_str(), JasmineGraphInstanceProtocol::OK.size());
+    if (result_wr < 0) {
+        instance_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
+    char data[INSTANCE_DATA_LENGTH + 1];
+    bzero(data, INSTANCE_DATA_LENGTH + 1);
+    read(connFd, data, INSTANCE_DATA_LENGTH);
+    string priority = (data);
+    priority = Utils::trim_copy(priority, " \f\n\r\t\v");
+    instance_logger.log("Received Priority: " + priority, "info");
+
+    int retrievedPriority = atoi(priority.c_str());
+    highestPriority = retrievedPriority;
 }
