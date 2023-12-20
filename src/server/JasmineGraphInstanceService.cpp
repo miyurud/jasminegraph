@@ -4071,7 +4071,7 @@ static void initiate_predict_command(int connFd, instanceservicesessionargs *ses
                         port = stoi(*j);
                         break;
 
-                    case 1:
+                    case 2:
                         dataport = stoi(*j);
                         break;
 
