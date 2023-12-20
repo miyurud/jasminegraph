@@ -68,7 +68,7 @@ def send_and_expect_response(sock, testName, send, expected, exitOnFail=False):
         failedTests.append(testName)
         if exitOnFail:
             print()
-            logging.fatal('Failed some tests,')
+            logging.fatal('Failed some test,')
             print(*failedTests, sep='\n', file=sys.stderr)
             sys.exit(1)
 
@@ -161,9 +161,9 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
 
     if passedAll:
         print()
-        logging.info('Passed all tests')
+        logging.info('Passed all test')
     else:
         print()
-        logging.critical('Failed some tests')
+        logging.critical('Failed some test')
         print(*failedTests, sep='\n', file=sys.stderr)
         sys.exit(1)
