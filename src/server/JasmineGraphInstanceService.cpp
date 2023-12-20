@@ -4062,15 +4062,23 @@ static void initiate_predict_command(int connFd, instanceservicesessionargs *ses
             std::vector<string> partitionIDs;
             for (std::vector<std::string>::iterator j = hostDetail.begin(); j != hostDetail.end(); ++j) {
                 int index = std::distance(hostDetail.begin(), j);
-                if (index == 0) {
-                    hostName = *j;
-                } else if (index == 1) {
-                    port = stoi(*j);
-                } else if (index == 2) {
-                    dataport = stoi(*j);
-                } else {
-                    partitionIDs.push_back(*j);
-                    totalPartitions += 1;
+                switch (index) {
+                    case 0:
+                        hostName = *j;
+                        break;
+
+                    case 1:
+                        port = stoi(*j);
+                        break;
+
+                    case 1:
+                        dataport = stoi(*j);
+                        break;
+
+                    default:
+                        partitionIDs.push_back(*j);
+                        totalPartitions += 1;
+                        break;
                 }
             }
             graphPartitionedHosts.insert(
