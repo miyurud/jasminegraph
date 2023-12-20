@@ -1155,7 +1155,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
                                      KafkaConnector *&kstream, thread &input_stream_handler,
                                      vector<DataPublisher *> &workerClients, int numberOfPartitions,
                                      bool *loop_exit_p) {
-    string msg_1 = "DO you want to use default KAFKA consumer(y/n) ?";
+    string msg_1 = "Do you want to use default KAFKA consumer(y/n) ?";
     int result_wr = write(connFd, msg_1.c_str(), msg_1.length());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
@@ -1246,13 +1246,13 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     bzero(topic_name, FRONTEND_DATA_LENGTH + 1);
     read(connFd, topic_name, FRONTEND_DATA_LENGTH);
 
-//    string con_message = "Received the kafka topic";
-//    int con_result_wr = write(connFd, con_message.c_str(), con_message.length());
-//    if (con_result_wr < 0) {
-//        frontend_logger.error("Error writing to socket");
-//        *loop_exit_p = true;
-//        return;
-//    }
+    string con_message = "Received the kafka topic";
+    int con_result_wr = write(connFd, con_message.c_str(), con_message.length());
+    if (con_result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
 
     //          create kafka consumer and graph partitioner
     kstream = new KafkaConnector(configs);
