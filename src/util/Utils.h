@@ -128,7 +128,7 @@ class Utils {
     static std::string read_str_trim_wrapper(int connFd, char *buf, size_t len);
 
     /**
-     * Wrapper to send(2) to send a data to socket.
+     * Wrapper to send(2) to send data to socket.
      *
      * @param connFd connection file descriptor
      * @param buf readable buffer of size at least `size`
@@ -138,7 +138,7 @@ class Utils {
     static bool send_wrapper(int connFd, const char *buf, size_t size);
 
     /**
-     * Wrapper to send(2) to send a data to socket.
+     * Wrapper to send(2) to send a std::string to socket.
      *
      * @param connFd connection file descriptor
      * @param str the string to send without any null terminator
