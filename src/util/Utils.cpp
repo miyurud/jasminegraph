@@ -530,6 +530,39 @@ int Utils::connect_wrapper(int sock, const sockaddr *addr, socklen_t slen) {
     return -1;
 }
 
+std::string Utils::read_str_wrapper(int connFd, char *buf, size_t len, bool allowEmpty) {
+    ssize_t result = recv(connFd, buf, len, 0);
+    if (result < 0) {
+        util_logger.error("Read failed: recv returned " + std::to_string((int)result));
+        return "";
+    } else if (!allowEmpty && result == 0) {
+        util_logger.error("Read failed: recv empty string");
+        return "";
+    }
+    buf[result] = 0;  // null terminator for string
+    string str = buf;
+    return str;
+}
+
+std::string Utils::read_str_trim_wrapper(int connFd, char *buf, size_t len) {
+    string str = read_str_wrapper(connFd, buf, len, false);
+    if (!str.empty()) str = trim_copy(str, " \f\n\r\t\v");
+    return str;
+}
+
+bool Utils::send_wrapper(int connFd, const char *buf, size_t size) {
+    ssize_t sz = send(connFd, buf, size, 0);
+    if (sz < size) {
+        util_logger.error("Send failed");
+        return false;
+    }
+    return true;
+}
+
+bool Utils::send_str_wrapper(int connFd, std::string str) {
+    return send_wrapper(connFd, str.c_str(), str.length());
+}
+
 std::string Utils::getCurrentTimestamp() {
     auto now = chrono::system_clock::now();
     time_t time = chrono::system_clock::to_time_t(now);

@@ -137,9 +137,6 @@ class JasmineGraphInstanceService {
         std::string graphId, std::string partitionId,
         std::map<std::string, JasmineGraphHashMapDuplicateCentralStore>& graphDBMapDuplicateCentralStores);
     static JasmineGraphHashMapCentralStore loadCentralStore(std::string centralStoreFileName);
-    static std::string copyCentralStoreToAggregator(std::string graphId, std::string partitionId,
-                                                    std::string aggregatorHost, std::string aggregatorPort,
-                                                    std::string host);
     static string aggregateCentralStoreTriangles(std::string graphId, std::string partitionId,
                                                  std::string partitionIdList, int threadPriority);
     static string aggregateCompositeCentralStoreTriangles(std::string compositeFileList, std::string availableFileList,
@@ -163,7 +160,7 @@ class JasmineGraphInstanceService {
 
     static void createPartitionFiles(std::string graphID, std::string partitionID, std::string fileType);
 
-    static void collectExecutionData(std::string iteration, std::string trainArgs, std::string partCount);
+    static void collectExecutionData(int iteration, std::string trainArgs, std::string partCount);
 
     static void executeTrainingIterations(int maxThreads);
 
