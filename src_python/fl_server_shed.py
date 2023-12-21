@@ -37,15 +37,15 @@ class Server:
     learning process (With partition sheduling)
     """
 
-    def __init__(self, model_weights, ROUNDS, weights_path, graph_id, NUM_CLIENTS=2,
-                 IP=socket.gethostname(), PORT=5000, HEADER_LENGTH=10):
+    def __init__(self, model_weights, rounds, weights_path, graph_id, num_clients=2,
+                 ip=socket.gethostname(), port=5000, header_length=10):
 
         # Parameters
-        self.header_length = HEADER_LENGTH
-        self.ip = IP
-        self.port = PORT
-        self.num_clients = NUM_CLIENTS
-        self.rounds = ROUNDS
+        self.header_length = header_length
+        self.ip = ip
+        self.port = port
+        self.num_clients = num_clients
+        self.rounds = rounds
 
         self.weights_path = weights_path
         self.graph_id = graph_id
@@ -148,7 +148,7 @@ class Server:
 
             message_header = client_socket.recv(self.header_length)
 
-            if not len(message_header):
+            if len(message_header) == 0:
                 logging.error('Client-%s closed connection at %s:%s',
                               self.client_ids[client_socket], *self.clients[client_socket])
                 return False
@@ -166,7 +166,7 @@ class Server:
 
             return pickle.loads(full_msg)
 
-        except Exception as e:
+        except Exception:
             logging.error('Client-%s closed connection at %s:%s',
                           self.client_ids[client_socket], *self.clients[client_socket])
             return False
@@ -264,9 +264,9 @@ if __name__ == "__main__":
 
     logging.info('Model initialized')
 
-    server = Server(model_weights, ROUNDS=int(args['num_rounds']),
+    server = Server(model_weights, rounds=int(args['num_rounds']),
                     weights_path=args['path_weights'], graph_id=args['graph_id'],
-                    NUM_CLIENTS=int(args['num_clients']), IP=args['IP'], PORT=int(args['PORT']))
+                    num_clients=int(args['num_clients']), ip=args['IP'], port=int(args['PORT']))
 
     del nodes
     del edges

@@ -55,17 +55,17 @@ class Model:
 
     def initialize(self, **hyper_params):
 
-        if not "batch_size" in hyper_params.keys():
+        if "batch_size" not in hyper_params:
             batch_size = 20
-        if not "layer_sizes" in hyper_params.keys():
+        if "layer_sizes" not in hyper_params:
             num_samples = [20, 10]
-        if not "num_samples" in hyper_params.keys():
+        if "num_samples" not in hyper_params:
             layer_sizes = [10, 10]
-        if not "bias" in hyper_params.keys():
+        if "bias" not in hyper_params:
             bias = True
-        if not "dropout" in hyper_params.keys():
+        if "dropout" not in hyper_params:
             dropout = 0.1
-        if not "lr" in hyper_params.keys():
+        if "lr" not in hyper_params:
             lr = 1e-2
 
         graph = sg.StellarGraph(nodes=self.nodes, edges=self.edges)
@@ -156,7 +156,7 @@ if __name__ == "__main__":
     #edges = edges.astype({"source":"uint32","target":"uint32"})
 
     logging.warning(
-        '####################################### New Training Session #######################################')
+        '################################## New Training Session ################################')
 
     model = Model(nodes, edges)
     model.initialize()
@@ -174,13 +174,17 @@ if __name__ == "__main__":
     # Save weights
     np.save(args['path_weights'], new_weights)
 
-    eval = model.evaluate()
+    eval_result = model.evaluate()
 
-    f1_train = (2 * eval[0][2] * eval[0][4]) / (eval[0][2] + eval[0][4])
-    f1_test = (2 * eval[1][2] * eval[1][4]) / (eval[1][2] + eval[1][4])
+    f1_train = (2 * eval_result[0][2] * eval_result[0]
+                [4]) / (eval_result[0][2] + eval_result[0][4])
+    f1_test = (2 * eval_result[1][2] * eval_result[1]
+               [4]) / (eval_result[1][2] + eval_result[1][4])
 
     logging.info('Training set : accuracy - %s, recall - %s, AUC - %s, F1 - %s, precision - %s',
-                 eval[0][1], eval[0][2], eval[0][3], f1_train, eval[0][4])
+                 eval_result[0][1], eval_result[0][2], eval_result[0][3], f1_train,
+                 eval_result[0][4])
     logging.info('Testing set : accuracy - %s, recall - %s, AUC - %s, F1 - %s, precision - %s',
-                 eval[1][1], eval[1][2], eval[1][3], f1_test, eval[1][4])
+                 eval_result[1][1], eval_result[1][2], eval_result[1][3], f1_test,
+                 eval_result[1][4])
     logging.info('Elapsed time : %s seconds', elapsed_time)

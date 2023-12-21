@@ -101,7 +101,7 @@ class Server:
                 with open(WEIGHTS_PATH, 'wb') as f:
                     f.write(data)
 
-                with open(FLAG_PATH, 'w') as f:
+                with open(FLAG_PATH, 'w', encoding='utf8') as f:
                     f.write("1")
 
                 logging.info('Sent global model to global aggregator')
@@ -110,7 +110,7 @@ class Server:
                     time.sleep(5)
 
                     flag = "1"
-                    with open(FLAG_PATH, 'r') as f:
+                    with open(FLAG_PATH, 'r', encoding='utf8') as f:
                         flag = f.read()
 
                     data = ""
@@ -157,10 +157,9 @@ class Server:
 
     def receive(self, client_socket):
         try:
-
             message_header = client_socket.recv(HEADER_LENGTH)
 
-            if not len(message_header):
+            if len(message_header) == 0:
                 logging.error('Client-%s closed connection at %s:%s',
                               self.client_ids[client_socket], *self.clients[client_socket])
                 return False
@@ -178,7 +177,7 @@ class Server:
 
             return pickle.loads(full_msg)
 
-        except Exception as e:
+        except Exception:
             logging.error('Client-%s closed connection at %s:%s',
                           self.client_ids[client_socket], *self.clients[client_socket])
             return False
@@ -186,7 +185,7 @@ class Server:
     def run(self):
 
         while not self.stop_flag:
-            read_sockets, write_sockets, exception_sockets = select.select(
+            read_sockets, _, exception_sockets = select.select(
                 self.sockets_list, [], self.sockets_list)
 
             for notified_socket in read_sockets:
@@ -223,7 +222,7 @@ class Server:
                 self.sockets_list.remove(notified_socket)
                 del self.clients[notified_socket]
 
-        with open(FLAG_PATH, 'w') as f:
+        with open(FLAG_PATH, 'w', encoding='utf8') as f:
             f.write("STOP")
 
 
@@ -255,7 +254,7 @@ if __name__ == "__main__":
         time.sleep(5)
 
         flag = "1"
-        with open(FLAG_PATH, 'r') as f:
+        with open(FLAG_PATH, 'r', encoding='utf8') as f:
             flag = f.read()
 
         data = ""

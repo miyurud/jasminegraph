@@ -15,13 +15,13 @@ import sys
 import logging
 import gc
 import time
-from models.supervised import Model
 from timeit import default_timer as timer
-import pandas as pd
-import numpy as np
 import select
 import pickle
 import socket
+import numpy as np
+import pandas as pd
+from models.supervised import Model
 
 arg_names = [
     'client_id',
@@ -56,11 +56,11 @@ class Client:
     """
 
     def __init__(self, client_id, weights_path, graph_id, partition_ids, epochs=10,
-                 IP=socket.gethostname(), PORT=5000, HEADER_LENGTH=10):
+                 ip=socket.gethostname(), port=5000, header_length=10):
 
-        self.header_length = HEADER_LENGTH
-        self.ip = IP
-        self.port = PORT
+        self.header_length = header_length
+        self.ip = ip
+        self.port = port
         self.client_id = client_id
 
         self.weights_path = weights_path
@@ -73,7 +73,7 @@ class Client:
         connected = False
         while not connected:
             try:
-                self.client_socket.connect((IP, PORT))
+                self.client_socket.connect((ip, port))
             except ConnectionRefusedError:
                 time.sleep(5)
             else:
@@ -113,7 +113,7 @@ class Client:
 
         message_header = self.client_socket.recv(self.header_length)
 
-        if not len(message_header):
+        if len(message_header) == 0:
             return False
 
         message_length = int(message_header.decode('utf-8').strip())
@@ -141,12 +141,11 @@ class Client:
         """
 
         while not self.stop_flag:
-
-            read_sockets, _, exception_sockets = select.select(
+            read_sockets, _, _ = select.select(
                 [self.client_socket], [], [self.client_socket])
 
             success = False
-            for soc in read_sockets:
+            for _ in read_sockets:
                 success = self.fetch_model()
 
                 if success:
@@ -169,20 +168,20 @@ class Client:
                     logging.info(
                         '**************************** Partition - %s ****************************',
                         partition)
-                    eval = self.model.evaluate()
+                    eval_result = self.model.evaluate()
 
-                    f1_train = (2 * eval[0][2] * eval[0][4]
-                                ) / (eval[0][2] + eval[0][4])
-                    f1_test = (2 * eval[1][2] * eval[1][4]
-                               ) / (eval[1][2] + eval[1][4])
+                    f1_train = (2 * eval_result[0][2] * eval_result[0][4]
+                                ) / (eval_result[0][2] + eval_result[0][4])
+                    f1_test = (2 * eval_result[1][2] * eval_result[1][4]
+                               ) / (eval_result[1][2] + eval_result[1][4])
 
                     logging.info('Final model (v%s) fetched', self.rounds)
                     logging.info('Training set : accuracy - %s, recall - %s, AUC - %s, \
-                        F1 - %s, precision - %s',
-                                 eval[0][1], eval[0][2], eval[0][3], f1_train, eval[0][4])
+                        F1 - %s, precision - %s', eval_result[0][1], eval_result[0][2],
+                                 eval_result[0][3], f1_train, eval_result[0][4])
                     logging.info('Testing set : accuracy - %s, recall - %s, AUC - %s, \
-                        F1 - %s, precision - %s',
-                                 eval[1][1], eval[1][2], eval[1][3], f1_test, eval[1][4])
+                        F1 - %s, precision - %s', eval_result[1][1], eval_result[1][2],
+                                 eval_result[1][3], f1_test, eval_result[1][4])
 
             else:
                 logging.info(
@@ -216,22 +215,22 @@ class Client:
                         'Number of training examples - %s, Number of testing examples %s',
                         num_train_ex, num_test_ex)
 
-                    eval = self.model.evaluate()
+                    eval_result = self.model.evaluate()
 
-                    f1_train = (2 * eval[0][2] * eval[0][4]
-                                ) / (eval[0][2] + eval[0][4])
-                    f1_test = (2 * eval[1][2] * eval[1][4]
-                               ) / (eval[1][2] + eval[1][4])
+                    f1_train = (2 * eval_result[0][2] * eval_result[0][4]
+                                ) / (eval_result[0][2] + eval_result[0][4])
+                    f1_test = (2 * eval_result[1][2] * eval_result[1][4]
+                               ) / (eval_result[1][2] + eval_result[1][4])
                     logging.info('Global model v%s - Training set evaluation : accuracy - %s, \
                         recall - %s, AUC - %s, F1 - %s, precision - %s',
                                  self.rounds -
-                                 1, eval[0][1], eval[0][2], eval[0][3], f1_train,
-                                 eval[0][4])
+                                 1, eval_result[0][1], eval_result[0][2], eval_result[0][3],
+                                 f1_train, eval_result[0][4])
                     logging.info('Global model v%s - Testing set evaluation : accuracy - %s, \
                         recall - %s, AUC - %s, F1 - %s, precision - %s',
                                  self.rounds - 1,
-                                 eval[1][1], eval[1][2], eval[1][3],
-                                 f1_test, eval[1][4])
+                                 eval_result[1][1], eval_result[1][2], eval_result[1][3],
+                                 f1_test, eval_result[1][4])
 
                     logging.info('Training started')
                     self.model.fit(epochs=self.epochs)
@@ -239,9 +238,7 @@ class Client:
                         np.array(self.model.get_weights()))
                     logging.info('Training done')
 
-                    del self.model
-                    del nodes
-                    del edges
+                    del self.model, nodes, edges
 
                     gc.collect()
 
@@ -271,7 +268,7 @@ if __name__ == "__main__":
     client = Client(args['client_id'], weights_path=args['path_weights'],
                     graph_id=args['graph_id'], partition_ids=args['partition_ids'].split(
                         ","),
-                    epochs=int(args['epochs']), IP=args['IP'], PORT=int(args['PORT']))
+                    epochs=int(args['epochs']), ip=args['IP'], port=int(args['PORT']))
 
     logging.info('Federated training started!')
 

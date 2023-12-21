@@ -51,12 +51,12 @@ class Client:
     (Without partition sheduling)
     """
 
-    def __init__(self, MODEL, graph_params, weights_path, graph_id, partition_id, epochs=10,
-                 IP=socket.gethostname(), PORT=5000, HEADER_LENGTH=10):
+    def __init__(self, model, graph_params, weights_path, graph_id, partition_id, epochs=10,
+                 ip=socket.gethostname(), port=5000, header_length=10):
 
-        self.header_length = HEADER_LENGTH
-        self.ip = IP
-        self.port = PORT
+        self.header_length = header_length
+        self.ip = ip
+        self.port = port
 
         self.weights_path = weights_path
         self.graph_id = graph_id
@@ -70,15 +70,15 @@ class Client:
         connected = False
         while not connected:
             try:
-                self.client_socket.connect((IP, PORT))
+                self.client_socket.connect((ip, port))
             except ConnectionRefusedError:
                 time.sleep(5)
             else:
                 logging.info('Connected to the server')
                 connected = True
 
-        self.model = MODEL
-        self.STOP_FLAG = False
+        self.model = model
+        self.stop_flag = False
         self.rounds = 0
 
     def send_model(self):
@@ -86,10 +86,6 @@ class Client:
         Send local model weights to the server
         :return: None
         """
-
-        weights_path = self.weights_path + 'weights_' + \
-            self.graph_id + '_' + self.partition_id + ".npy"
-
         weights = self.model.get_weights()
 
         data = {"CLIENT_ID": self.partition_id, "WEIGHTS": weights,
@@ -107,7 +103,7 @@ class Client:
         try:
 
             message_header = self.client_socket.recv(self.header_length)
-            if not len(message_header):
+            if len(message_header) == 0:
                 return False
 
             message_length = int(message_header.decode('utf-8').strip())
@@ -123,7 +119,7 @@ class Client:
 
             data = pickle.loads(full_msg)
 
-            self.STOP_FLAG = data["STOP_FLAG"]
+            self.stop_flag = data["STOP_FLAG"]
 
             return data["WEIGHTS"]
 
@@ -142,7 +138,7 @@ class Client:
         Training loop
         """
 
-        while not self.STOP_FLAG:
+        while not self.stop_flag:
 
             read_sockets, _, _ = select.select(
                 [self.client_socket], [], [self.client_socket])
@@ -150,7 +146,7 @@ class Client:
             for _ in read_sockets:
                 self.fetch_model()
 
-            if self.STOP_FLAG:
+            if self.stop_flag:
                 eval = self.model.evaluate()
 
                 try:
@@ -158,7 +154,7 @@ class Client:
                                 ) / (eval[0][2] + eval[0][4])
                     f1_test = (2 * eval[1][2] * eval[1][4]
                                ) / (eval[1][2] + eval[1][4])
-                except ZeroDivisionError as e:
+                except ZeroDivisionError:
                     f1_train = "undefined"
                     f1_test = "undefined"
 
@@ -176,7 +172,8 @@ class Client:
 
                 self.rounds += 1
                 logging.info(
-                    '_____________________________________________________ Training Round %s ____________________________________________________________', self.rounds)
+                    '____________________________ Training Round %s ____________________________',
+                    self.rounds)
                 logging.info('Global model v%s fetched', self.rounds - 1)
 
                 eval = self.model.evaluate()
@@ -190,10 +187,16 @@ class Client:
                     f1_train = "undefined"
                     f1_test = "undefined"
 
-                logging.info('Global model v%s - Training set evaluation : loss - %s, accuracy - %s, recall - %s, AUC - %s, F1 - %s, precision - %s',
-                             self.rounds - 1, eval[0][0], eval[0][1], eval[0][2], eval[0][3], f1_train, eval[0][4])
-                logging.info('Global model v%s - Testing set evaluation : loss - %s, accuracy - %s, recall - %s, AUC - %s, F1 - %s, precision - %s',
-                             self.rounds - 1,  eval[1][0], eval[1][1], eval[1][2], eval[1][3], f1_test, eval[1][4])
+                logging.info('Global model v%s - Training set evaluation : loss - %s, \
+                    accuracy - %s, recall - %s, AUC - %s, F1 - %s, precision - %s',
+                             self.rounds -
+                             1, eval[0][0], eval[0][1], eval[0][2], eval[0][3],
+                             f1_train, eval[0][4])
+                logging.info('Global model v%s - Testing set evaluation : loss - %s, accuracy - %s\
+                    , recall - %s, AUC - %s, F1 - %s, precision - %s',
+                             self.rounds -
+                             1,  eval[1][0], eval[1][1], eval[1][2], eval[1][3],
+                             f1_test, eval[1][4])
 
                 logging.info('Training started')
                 self.train()
@@ -217,7 +220,7 @@ if __name__ == "__main__":
         args['epoch'] = 10
 
     logging.warning(
-        '####################################### New Training Session #######################################')
+        '################################# New Training Session #################################')
     logging.info('Client started, graph ID %s, partition ID %s, epochs %s',
                  args['graph_id'], args['partition_id'], args['epochs'])
 
@@ -238,8 +241,9 @@ if __name__ == "__main__":
     logging.info('Number of training examples - %s, Number of testing examples %s',
                  num_train_ex, num_test_ex)
 
-    client = Client(model, graph_params, weights_path=args['path_weights'], graph_id=args['graph_id'],
-                    partition_id=args['partition_id'], epochs=int(args['epochs']), IP=args['IP'], PORT=int(args['PORT']))
+    client = Client(model, graph_params, weights_path=args['path_weights'],
+                    graph_id=args['graph_id'], partition_id=args['partition_id'],
+                    epochs=int(args['epochs']), ip=args['IP'], port=int(args['PORT']))
 
     logging.info('Federated training started!')
 
@@ -249,5 +253,5 @@ if __name__ == "__main__":
 
     elapsed_time = end - start
     logging.info('Federated training done!')
-    logging.info('Training report : Elapsed time %s seconds, graph ID %s, partition ID %s, epochs %s',
-                 elapsed_time, args['graph_id'], args['partition_id'], args['epochs'])
+    logging.info('Training report : Elapsed time %s seconds, graph ID %s, partition ID %s, \
+        epochs %s', elapsed_time, args['graph_id'], args['partition_id'], args['epochs'])

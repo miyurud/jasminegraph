@@ -28,7 +28,8 @@ def mem(num_of_nodes, num_of_edges, num_of_features, feature_data_type, edge_dat
 
     graph_size = (edge_mem + node_mem) / (1024*1024*1024)
 
-    # Empirically we found out that in-memory-graph-size has a linear relationship with the memory usage during training
+    # Empirically we found out that in-memory-graph-size has
+    # a linear relationship with the memory usage during training
     # We determined the constatnts using linear regression
     # Memory usage = 3.6 * in-memory-graph-size in Gb + 2
     return 3.6 * graph_size + 2
@@ -55,18 +56,18 @@ def mem_est(partition_data, num_of_features, feature_data_type, edge_data_type):
 if __name__ == "__main__":
 
     # num_of_features
-    num_of_features = 1433
+    NUM_OF_FEATURES = 1433
 
     # feature_data_type = int8
-    feature_data_type = 8
+    FEATURE_DATA_TYPE = 8
 
     # edge_data_type = int64
-    edge_data_type = 64
+    EDGE_DATA_TYPE = 64
 
     # partiton_data = list of tuples (num_of_nodes,num_of_edges)
     partition_data = [(1452, 2383), (1432, 2593)]
 
-    mems = mem_est(partition_data, num_of_features,
-                   feature_data_type, edge_data_type)
+    mems = mem_est(partition_data, NUM_OF_FEATURES,
+                   FEATURE_DATA_TYPE, EDGE_DATA_TYPE)
 
     print(mems)

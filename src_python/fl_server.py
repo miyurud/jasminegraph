@@ -38,21 +38,21 @@ class Server:
     learning process (Without partition sheduling)
     """
 
-    def __init__(self, MODEL, ROUNDS, weights_path, graph_id, MAX_CONN=2, IP=socket.gethostname(),
-                 PORT=5000, HEADER_LENGTH=10):
+    def __init__(self, model, rounds, weights_path, graph_id, max_conn=2, ip=socket.gethostname(),
+                 port=5000, header_length=10):
 
         # Parameters
-        self.header_length = HEADER_LENGTH
-        self.ip = IP
-        self.port = PORT
-        self.max_conn = MAX_CONN
-        self.rounds = ROUNDS
+        self.header_length = header_length
+        self.ip = ip
+        self.port = port
+        self.max_conn = max_conn
+        self.rounds = rounds
 
         self.weights_path = weights_path
         self.graph_id = graph_id
 
         # Global model
-        self.GLOBAL_WEIGHTS = MODEL
+        self.global_weights = model
 
         self.global_modlel_ready = False
 
@@ -94,7 +94,7 @@ class Server:
             self.weights = []
             self.partition_sizes = []
 
-            self.GLOBAL_WEIGHTS = avg_weight
+            self.global_weights = avg_weight
 
             self.training_cycles += 1
 
@@ -119,7 +119,7 @@ class Server:
         if self.rounds == self.training_cycles:
             self.stop_flag = True
 
-        weights = self.GLOBAL_WEIGHTS
+        weights = self.global_weights
 
         data = {"STOP_FLAG": self.stop_flag, "WEIGHTS": weights}
 
@@ -142,7 +142,7 @@ class Server:
 
             message_header = client_socket.recv(self.header_length)
 
-            if not len(message_header):
+            if len(message_header) == 0:
                 logging.error('Client-%s closed connection at %s:%s',
                               self.client_ids[client_socket], *self.clients[client_socket])
                 return False
@@ -218,12 +218,12 @@ if __name__ == "__main__":
     from models.supervised import Model
 
     # Create weights folder
-    folder_path = "weights"
-    if os.path.exists(folder_path):
-        logging.info("Folder path \"" + folder_path + "\" exists")
+    FOLDER_PATH = "weights"
+    if os.path.exists(FOLDER_PATH):
+        logging.info("Folder path \"%s\" exists", FOLDER_PATH)
     else:
         logging.info("Weights folder created")
-        os.makedirs(folder_path)
+        os.makedirs(FOLDER_PATH)
 
     arg_names = [
         'path_weights',
@@ -265,9 +265,9 @@ if __name__ == "__main__":
     logging.info('Model initialized')
 
     server = Server(
-        model_weights, ROUNDS=int(args['num_rounds']), weights_path=args['path_weights'],
-        graph_id=args['graph_id'], MAX_CONN=int(args['num_clients']), IP=args['IP'],
-        PORT=int(args['PORT']))
+        model_weights, rounds=int(args['num_rounds']), weights_path=args['path_weights'],
+        graph_id=args['graph_id'], max_conn=int(args['num_clients']), ip=args['IP'],
+        port=int(args['PORT']))
 
     del nodes
     del edges
