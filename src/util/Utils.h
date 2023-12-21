@@ -103,6 +103,49 @@ class Utils {
     static std::string checkFlag(std::string flagPath);
 
     static int connect_wrapper(int sock, const sockaddr *addr, socklen_t slen);
+
+    /**
+     * Wrapper to recv(2) to read a string.
+     *
+     * @param connFd connection file descriptor
+     * @param buf writable buffer of size at least len+1
+     * @param len maximum length of the string to read (excluding null terminator)
+     * @param allowEmpty whether to allow reading empty string or not
+     * @return The string read or "" on error. Logs error if recv failed. Also logs error if allowEmpty is false and
+     * read length 0 string.
+     */
+    static std::string read_str_wrapper(int connFd, char *buf, size_t len, bool allowEmpty);
+
+    /**
+     * Wrapper to recv(2) to read a string and trim it.
+     *
+     * @param connFd connection file descriptor
+     * @param buf writable buffer of size at least len+1
+     * @param len maximum length of the string to read (excluding null terminator)
+     * @return The trimmed string read or "" on error. Also rerurns "" if read length 0 string. This may return an
+     * empty string if the string read is non-empty but contained only white-space characters.
+     */
+    static std::string read_str_trim_wrapper(int connFd, char *buf, size_t len);
+
+    /**
+     * Wrapper to send(2) to send data to socket.
+     *
+     * @param connFd connection file descriptor
+     * @param buf readable buffer of size at least `size`
+     * @param size size of data to send
+     * @return true on success or false otherwise. Logs error if send() failed or sent less than the requested size.
+     */
+    static bool send_wrapper(int connFd, const char *buf, size_t size);
+
+    /**
+     * Wrapper to send(2) to send a std::string to socket.
+     *
+     * @param connFd connection file descriptor
+     * @param str the string to send without any null terminator
+     * @return true on success or false otherwise. Uses Utils::send_wrapper(int, const char *, size_t) internally.
+     */
+    static bool send_str_wrapper(int connFd, std::string str);
+
     static std::string getCurrentTimestamp();
 };
 
