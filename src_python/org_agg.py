@@ -36,8 +36,11 @@ logging.basicConfig(
 
 
 class Aggregator:
+    """
+    Aggregator
+    """
 
-    def __init__(self, model, rounds, graph_id, num_orgs, ip, port):
+    def __init__(self, model, rounds, num_orgs, ip, port):
 
         # Parameters
         self.ip = ip
@@ -70,6 +73,9 @@ class Aggregator:
         self.sockets_list.append(self.aggregator_socket)
 
     def update_model(self, new_weights, num_examples):
+        '''
+        Update model
+        '''
         self.partition_sizes.append(num_examples)
         self.weights.append(num_examples * new_weights)
 
@@ -97,7 +103,9 @@ class Aggregator:
             logging.error("Invalid patition size")
 
     def send_model(self, client_socket):
-
+        '''
+        Send model to client
+        '''
         if self.rounds == self.training_cycles:
             self.stop_flag = True
 
@@ -117,8 +125,10 @@ class Aggregator:
                      self.client_ids[client_socket], *self.clients[client_socket])
 
     def receive(self, client_socket):
+        '''
+        Receive from client
+        '''
         try:
-
             message_header = client_socket.recv(HEADER_LENGTH)
 
             if len(message_header) == 0:
@@ -145,16 +155,15 @@ class Aggregator:
             return False
 
     def run(self):
-
+        '''
+        Run aggregator
+        '''
         while not self.stop_flag:
-
             read_sockets, _, exception_sockets = select.select(
                 self.sockets_list, [], self.sockets_list)
 
             for notified_socket in read_sockets:
-
                 if notified_socket == self.aggregator_socket:
-
                     client_socket, client_address = self.aggregator_socket.accept()
                     self.sockets_list.append(client_socket)
                     self.clients[client_socket] = client_address
@@ -166,7 +175,6 @@ class Aggregator:
                     self.send_model(client_socket)
 
                 else:
-
                     message = self.receive(notified_socket)
 
                     if message is False:
@@ -236,12 +244,9 @@ if __name__ == "__main__":
     logging.info('Model initialized')
 
     aggregator = Aggregator(model_weights, rounds=int(args['num_rounds']),
-                            graph_id=args['graph_id'],
                             num_orgs=int(args['num_orgs']), ip=args['IP'], port=int(args['PORT']))
 
-    del nodes
-    del edges
-    del model
+    del nodes, edges, model
     gc.collect()
 
     logging.info('Federated training started!')

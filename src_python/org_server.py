@@ -37,6 +37,9 @@ logging.basicConfig(
 
 
 class Server:
+    '''
+    Server
+    '''
 
     def __init__(self, org_id, model_weights, rounds, num_clients, ip, port):
 
@@ -71,7 +74,7 @@ class Server:
 
         self.sockets_list.append(self.server_socket)
 
-    def __delete__(self, instance):
+    def __delete__(self, _):
         if os.path.exists(FLAG_PATH):
             os.remove(FLAG_PATH)
 
@@ -79,6 +82,9 @@ class Server:
             os.remove(WEIGHTS_PATH)
 
     def update_model(self, new_weights, num_examples):
+        '''
+        Update model
+        '''
         self.partition_sizes.append(num_examples)
         self.weights.append(num_examples * new_weights)
 
@@ -142,7 +148,9 @@ class Server:
             logging.error("Invalid patition size")
 
     def send_model(self, client_socket):
-
+        '''
+        Send model to client
+        '''
         weights = np.array(self.model_weights)
 
         data = {"STOP_FLAG": self.stop_flag, "WEIGHTS": weights}
@@ -156,6 +164,9 @@ class Server:
                      self.client_ids[client_socket], *self.clients[client_socket])
 
     def receive(self, client_socket):
+        '''
+        Receive from client
+        '''
         try:
             message_header = client_socket.recv(HEADER_LENGTH)
 
@@ -183,7 +194,9 @@ class Server:
             return False
 
     def run(self):
-
+        '''
+        Run org server
+        '''
         while not self.stop_flag:
             read_sockets, _, exception_sockets = select.select(
                 self.sockets_list, [], self.sockets_list)

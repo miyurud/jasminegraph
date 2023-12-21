@@ -40,6 +40,9 @@ python_random.seed(42)
 
 
 class Model:
+    '''
+    Model
+    '''
 
     def __init__(self, nodes, edges):
         self.model = None
@@ -54,7 +57,9 @@ class Model:
         self.test_flow = None
 
     def initialize(self, **hyper_params):
-
+        '''
+        Initialize
+        '''
         if "batch_size" not in hyper_params:
             batch_size = 20
         if "layer_sizes" not in hyper_params:
@@ -118,16 +123,28 @@ class Model:
         return edge_ids_train.shape[0], edge_ids_test.shape[0]
 
     def set_weights(self, weights):
+        '''
+        Set model weights
+        '''
         self.model.set_weights(weights)
 
     def get_weights(self):
+        '''
+        Set model weights
+        '''
         return self.model.get_weights()
 
     def fit(self, epochs=20):
+        '''
+        Fir model
+        '''
         history = self.model.fit(self.train_flow, epochs=epochs, verbose=1)
         return self.model.get_weights(), history
 
     def evaluate(self):
+        '''
+        Evaluate model
+        '''
         train_metrics = self.model.evaluate(self.train_flow)
         test_metrics = self.model.evaluate(self.test_flow)
 

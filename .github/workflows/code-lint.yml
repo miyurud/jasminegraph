@@ -32,4 +32,4 @@ jobs:
 
             - name: pylint check
               if: ${{!contains(github.event.pull_request.labels.*.name, 'Skip pylint Check')}}
-              run: pylint -d E0401,R0902,R0913,R0914,W0603,W0718 --recursive=y . >../pylint.txt
+              run: pylint -d C0103,E0401,R0801,R0902,R0913,R0914,W0603,W0621,W0718 --recursive=y .

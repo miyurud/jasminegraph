@@ -86,8 +86,8 @@ class Server:
 
         self.partition_sizes.extend(partition_size)
 
-        for i in range(len(partition_size)):
-            self.weights.append(partition_size[i] * new_weights[i])
+        for partition_sz, new_weight in zip(partition_size, new_weights):
+            self.weights.append(partition_sz * new_weight)
 
         self.finished_client_count += 1
 

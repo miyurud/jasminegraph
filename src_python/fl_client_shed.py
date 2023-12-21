@@ -139,7 +139,6 @@ class Client:
         """
         Training loop
         """
-
         while not self.stop_flag:
             read_sockets, _, _ = select.select(
                 [self.client_socket], [], [self.client_socket])
@@ -200,8 +199,7 @@ class Client:
 
                     path_edges = args['path_edges'] + \
                         args['graph_id'] + '_edges_' + partition + ".csv"
-                    edges = pd.read_csv(path_edges)
-                    edges = edges.astype(
+                    edges = pd.read_csv(path_edges).astype(
                         {"source": "uint32", "target": "uint32"})
 
                     logging.info('Model initialized')
