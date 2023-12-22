@@ -16,7 +16,7 @@ jobs:
               run: |
                 sudo apt-get update && sudo apt-get install -y --no-install-recommends cpplint shfmt
                 sudo wget https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64 -O /bin/hadolint && sudo chmod +x /bin/hadolint
-                pip install install pylint
+                pip install pylint
 
             - name: hadolint check
               if: ${{!contains(github.event.pull_request.labels.*.name, 'Skip hadolint Check')}}
