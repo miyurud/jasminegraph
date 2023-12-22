@@ -539,7 +539,7 @@ void JasmineGraphServer::resolveOperationalGraphs() {
 
         server = gethostbyname(host.c_str());
         if (server == NULL) {
-            std::cerr << "ERROR, no host named " << server << std::endl;
+            server_logger.error("ERROR, no host named " + host);
             continue;
         }
 
@@ -721,7 +721,7 @@ void JasmineGraphServer::shutdown_workers() {
 
         server = gethostbyname(host.c_str());
         if (server == NULL) {
-            std::cerr << "ERROR, no host named " << server << std::endl;
+            server_logger.error("ERROR, no host named " + host);
             return;
         }
 
@@ -884,7 +884,7 @@ bool JasmineGraphServer::batchUploadFile(std::string host, int port, int dataPor
 
     server = gethostbyname(host.c_str());
     if (server == NULL) {
-        std::cerr << "ERROR, no host named " << server << std::endl;
+        server_logger.error("ERROR, no host named " + host);
         return 0;
     }
 
@@ -1077,7 +1077,7 @@ bool JasmineGraphServer::batchUploadCentralStore(std::string host, int port, int
 
     server = gethostbyname(host.c_str());
     if (server == NULL) {
-        std::cerr << "ERROR, no host named " << server << std::endl;
+        server_logger.error("ERROR, no host named " + host);
         return 0;
     }
 
@@ -1310,7 +1310,7 @@ bool JasmineGraphServer::batchUploadAttributeFile(std::string host, int port, in
 
     server = gethostbyname(host.c_str());
     if (server == NULL) {
-        std::cerr << "ERROR, no host named " << server << std::endl;
+        server_logger.error("ERROR, no host named " + host);
         return 0;
     }
 
@@ -1505,7 +1505,7 @@ bool JasmineGraphServer::batchUploadCentralAttributeFile(std::string host, int p
 
     server = gethostbyname(host.c_str());
     if (server == NULL) {
-        std::cerr << "ERROR, no host named " << server << std::endl;
+        server_logger.error("ERROR, no host named " + host);
         return 0;
     }
 
@@ -1700,7 +1700,7 @@ bool JasmineGraphServer::batchUploadCompositeCentralstoreFile(std::string host, 
 
     server = gethostbyname(host.c_str());
     if (server == NULL) {
-        std::cerr << "ERROR, no host named " << server << std::endl;
+        server_logger.error("ERROR, no host named " + host);
         return 0;
     }
 
@@ -1892,7 +1892,7 @@ bool JasmineGraphServer::sendFileThroughService(std::string host, int dataPort, 
 
     server = gethostbyname(host.c_str());
     if (server == NULL) {
-        std::cerr << "ERROR, no host named " << server << std::endl;
+        server_logger.error("ERROR, no host named " + host);
         return false;
     }
 
@@ -2213,7 +2213,7 @@ int JasmineGraphServer::removeFragmentThroughService(string host, int port, stri
 
     server = gethostbyname(host.c_str());
     if (server == NULL) {
-        std::cerr << "ERROR, no host named " << server << std::endl;
+        server_logger.error("ERROR, no host named " + host);
         return 0;
     }
 
@@ -2322,7 +2322,7 @@ int JasmineGraphServer::removePartitionThroughService(string host, int port, str
 
     server = gethostbyname(host.c_str());
     if (server == NULL) {
-        std::cerr << "ERROR, no host named " << server << std::endl;
+        server_logger.error("ERROR, no host named " + host);
         return 0;
     }
 
@@ -2710,7 +2710,7 @@ void JasmineGraphServer::inDegreeDistribution(std::string graphID) {
         }
         server = gethostbyname(host.c_str());
         if (server == NULL) {
-            std::cout << "ERROR, no host named " << server << std::endl;
+            server_logger.error("ERROR, no host named " + host);
             continue;
         }
 
@@ -2831,7 +2831,7 @@ void JasmineGraphServer::outDegreeDistribution(std::string graphID) {
         }
         server = gethostbyname(host.c_str());
         if (server == NULL) {
-            std::cout << "ERROR, no host named " << server << std::endl;
+            server_logger.error("ERROR, no host named " + host);
             continue;
         }
 
@@ -2962,7 +2962,7 @@ void JasmineGraphServer::duplicateCentralStore(std::string graphID) {
         }
         server = gethostbyname(host.c_str());
         if (server == NULL) {
-            std::cout << "ERROR, no host named " << server << std::endl;
+            server_logger.error("ERROR, no host named " + host);
             continue;
         }
 
@@ -4023,7 +4023,7 @@ void JasmineGraphServer::egoNet(std::string graphID) {
     }
     server = gethostbyname(host.c_str());
     if (server == NULL) {
-        std::cout << "ERROR, no host named " << server << std::endl;
+        server_logger.error("ERROR, no host named " + host);
         return;
     }
 
@@ -4164,7 +4164,7 @@ void JasmineGraphServer::pageRank(std::string graphID, double alpha, int iterati
         }
         server = gethostbyname(host.c_str());
         if (server == NULL) {
-            std::cout << "ERROR, no host named " << server << std::endl;
+            server_logger.error("ERROR, no host named " + host);
             return;
         }
 
