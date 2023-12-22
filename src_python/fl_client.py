@@ -1,5 +1,4 @@
-'''
-Copyright 2020 JasmineGraph Team
+"""Copyright 2020 JasmineGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -9,7 +8,7 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-'''
+"""
 
 import socket
 import pickle
@@ -46,10 +45,9 @@ logging.basicConfig(
 
 
 class Client:
-    '''
-    Federated client that used to train a given graph partition on a given GCN model
+    """Federated client that used to train a given graph partition on a given GCN model
     (Without partition sheduling)
-    '''
+    """
 
     def __init__(self, model, graph_params, weights_path, graph_id, partition_id, epochs=10,
                  ip=socket.gethostname(), port=5000, header_length=10):
@@ -82,10 +80,9 @@ class Client:
         self.rounds = 0
 
     def send_model(self):
-        '''
-        Send local model weights to the server
+        """Send local model weights to the server
         :return: None
-        '''
+        """
         weights = self.model.get_weights()
 
         data = {'CLIENT_ID': self.partition_id, 'WEIGHTS': weights,
@@ -96,10 +93,9 @@ class Client:
         self.client_socket.sendall(data)
 
     def receive(self):
-        '''
-        Recieve global model weights from the server
+        """Recieve global model weights from the server
         :return: success or failure
-        '''
+        """
         try:
 
             message_header = self.client_socket.recv(self.header_length)
@@ -128,22 +124,19 @@ class Client:
             return None
 
     def fetch_model(self):
-        '''
-        Receive model and set weights
-        '''
+        """Receive model and set weights
+        """
         data = self.receive()
         self.model.set_weights(data)
 
     def train(self):
-        '''
-        Fit model
-        '''
+        """Fit model
+        """
         self.model.fit(epochs=self.epochs)
 
     def run(self):
-        '''
-        Training loop
-        '''
+        """Training loop
+        """
         while not self.stop_flag:
             read_sockets, _, _ = select.select(
                 [self.client_socket], [], [self.client_socket])

@@ -1,5 +1,4 @@
-'''
-Copyright 2020 JasmineGraph Team
+"""Copyright 2020 JasmineGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -9,7 +8,7 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-'''
+"""
 
 import sys
 import logging
@@ -32,10 +31,9 @@ logging.basicConfig(
 
 
 class Server:
-    '''
-    Federated server/aggregator that used to aggregate local models and carry out the federated
+    """Federated server/aggregator that used to aggregate local models and carry out the federated
     learning process (With partition sheduling)
-    '''
+    """
 
     def __init__(self, model_weights, rounds, weights_path, graph_id, num_clients=2,
                  ip=socket.gethostname(), port=5000, header_length=10):
@@ -77,12 +75,11 @@ class Server:
         self.sockets_list.append(self.server_socket)
 
     def update_model(self, new_weights, partition_size):
-        '''
-        Update global model
+        """Update global model
         :param new_weights: new weights as a numpy array
         :param partition_size: graph partition sizes as a list
         :return: None
-        '''
+        """
 
         self.partition_sizes.extend(partition_size)
 
@@ -116,11 +113,10 @@ class Server:
                 self.training_cycles)
 
     def send_model(self, client_socket):
-        '''
-        Send global model to a client
+        """Send global model to a client
         :param client_socket: client socket that global model should be sent
         :return: None
-        '''
+        """
 
         if self.rounds == self.training_cycles:
             self.stop_flag = True
@@ -138,11 +134,10 @@ class Server:
                      self.client_ids[client_socket], *self.clients[client_socket])
 
     def receive(self, client_socket):
-        '''
-        Recieve a local model weights from a client
+        """Recieve a local model weights from a client
         :param client_socket: client socket that a model weights  should be recieved
         :return: recieved local model weights as a numpy array
-        '''
+        """
 
         try:
 
@@ -172,10 +167,9 @@ class Server:
             return False
 
     def run(self):
-        '''
-        Running server; Listening to clients sockets and act accordingly
+        """Running server; Listening to clients sockets and act accordingly
         :return: None
-        '''
+        """
 
         while not self.stop_flag:
 

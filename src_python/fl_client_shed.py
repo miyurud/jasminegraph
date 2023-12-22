@@ -1,5 +1,4 @@
-'''
-Copyright 2020 JasmineGraph Team
+"""Copyright 2020 JasmineGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -9,7 +8,7 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-'''
+"""
 
 import sys
 import logging
@@ -50,10 +49,9 @@ logging.basicConfig(
 
 
 class Client:
-    '''
-    Federated client that used to train a given list of graph partitions(By partition scheduler)
+    """Federated client that used to train a given list of graph partitions(By partition scheduler)
     on a given GCN model (With partition sheduling)
-    '''
+    """
 
     def __init__(self, client_id, weights_path, graph_id, partition_ids, epochs=10,
                  ip=socket.gethostname(), port=5000, header_length=10):
@@ -90,10 +88,9 @@ class Client:
         self.rounds = 0
 
     def send_models(self):
-        '''
-        Send local model weights to the server
+        """Send local model weights to the server
         :return: None
-        '''
+        """
 
         data = {'CLIENT_ID': self.client_id, 'PARTITIONS': self.partition_ids,
                 'PARTITION_SIEZES': self.partition_sizes, 'WEIGHTS': self.local_models}
@@ -106,10 +103,9 @@ class Client:
         self.partition_sizes = []
 
     def fetch_model(self):
-        '''
-        Recieve global model weights from the server
+        """Recieve global model weights from the server
         :return: success or failure
-        '''
+        """
 
         message_header = self.client_socket.recv(self.header_length)
 
@@ -136,9 +132,8 @@ class Client:
         return True
 
     def run(self):
-        '''
-        Training loop
-        '''
+        """Training loop
+        """
         while not self.stop_flag:
             read_sockets, _, _ = select.select(
                 [self.client_socket], [], [self.client_socket])

@@ -1,5 +1,4 @@
-'''
-Copyright 2020 JasmineGraph Team
+"""Copyright 2020 JasmineGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -9,7 +8,7 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-'''
+"""
 
 import sys
 import logging
@@ -37,9 +36,8 @@ logging.basicConfig(
 
 
 class Server:
-    '''
-    Server
-    '''
+    """Server
+    """
 
     def __init__(self, org_id, model_weights, rounds, num_clients, ip, port):
 
@@ -82,9 +80,8 @@ class Server:
             os.remove(WEIGHTS_PATH)
 
     def update_model(self, new_weights, num_examples):
-        '''
-        Update model
-        '''
+        """Update model
+        """
         self.partition_sizes.append(num_examples)
         self.weights.append(num_examples * new_weights)
 
@@ -148,9 +145,8 @@ class Server:
             logging.error('Invalid patition size')
 
     def send_model(self, client_socket):
-        '''
-        Send model to client
-        '''
+        """Send model to client
+        """
         weights = np.array(self.model_weights)
 
         data = {'STOP_FLAG': self.stop_flag, 'WEIGHTS': weights}
@@ -164,9 +160,8 @@ class Server:
                      self.client_ids[client_socket], *self.clients[client_socket])
 
     def receive(self, client_socket):
-        '''
-        Receive from client
-        '''
+        """Receive from client
+        """
         try:
             message_header = client_socket.recv(HEADER_LENGTH)
 
@@ -194,9 +189,8 @@ class Server:
             return False
 
     def run(self):
-        '''
-        Run org server
-        '''
+        """Run org server
+        """
         while not self.stop_flag:
             read_sockets, _, exception_sockets = select.select(
                 self.sockets_list, [], self.sockets_list)

@@ -1,5 +1,4 @@
-'''
-Copyright 2020 JasmineGraph Team
+"""Copyright 2020 JasmineGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -9,7 +8,7 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-'''
+"""
 
 import logging
 import sys
@@ -40,9 +39,8 @@ python_random.seed(42)
 
 
 class Model:
-    '''
-    Model
-    '''
+    """Model
+    """
 
     def __init__(self, nodes, edges):
         self.model = None
@@ -57,9 +55,8 @@ class Model:
         self.test_flow = None
 
     def initialize(self, **hyper_params):
-        '''
-        Initialize
-        '''
+        """Initialize
+        """
         if 'batch_size' not in hyper_params:
             batch_size = 20
         if 'layer_sizes' not in hyper_params:
@@ -123,28 +120,24 @@ class Model:
         return edge_ids_train.shape[0], edge_ids_test.shape[0]
 
     def set_weights(self, weights):
-        '''
-        Set model weights
-        '''
+        """Set model weights
+        """
         self.model.set_weights(weights)
 
     def get_weights(self):
-        '''
-        Set model weights
-        '''
+        """Set model weights
+        """
         return self.model.get_weights()
 
     def fit(self, epochs=20):
-        '''
-        Fir model
-        '''
+        """Fit model
+        """
         history = self.model.fit(self.train_flow, epochs=epochs, verbose=1)
         return self.model.get_weights(), history
 
     def evaluate(self):
-        '''
-        Evaluate model
-        '''
+        """Evaluate model
+        """
         train_metrics = self.model.evaluate(self.train_flow)
         test_metrics = self.model.evaluate(self.test_flow)
 
