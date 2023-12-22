@@ -20,9 +20,27 @@ jobs:
         ref: ${{github.head_ref}}
         fetch-depth: 0
         repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
-    - name: Build
+
+    - name: Native Build
+      run: |
+        mkdir build && cd build
+        pip install gcovr
+        sudo bash ../install-prerequisites.sh
+        cmake -DCMAKE_BUILD_TYPE=DEBUG ..
+        make
+
+    - name: Run unit test
+      run: cd build && make coverage
+
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v3
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+    - name: Docker Build
       # Build JasmineGraph docker image
       run: docker build -t jasminegraph .
+
     - name: Run Integration Tests
       run: |
         chmod +x test-docker.sh
