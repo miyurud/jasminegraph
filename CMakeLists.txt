@@ -1,25 +1,9 @@
 cmake_minimum_required(VERSION 3.10)
-project(JasmineGraph LANGUAGES CXX)
+project(JasmineGraph)
 set(CMAKE_CXX_STANDARD 11)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
-
-if (CMAKE_BUILD_TYPE STREQUAL "DEBUG")
-    # Include google test
-    include(FetchContent)
-    FetchContent_Declare(
-            googletest
-            URL https://github.com/google/googletest/archive/refs/tags/release-1.12.0.zip
-            DOWNLOAD_EXTRACT_TIMESTAMP true
-    )
-    # For Windows: Prevent overriding the parent project's compiler/linker settings
-    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-    FetchContent_MakeAvailable(googletest)
-    include_directories(${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR})
-    add_subdirectory(tests/unit)
-    enable_testing()
-endif ()
 
 set(HEADERS src/backend/JasmineGraphBackend.h
         src/backend/JasmineGraphBackendProtocol.h
@@ -139,15 +123,15 @@ if (CMAKE_ENABLE_DEBUG)
 endif ()
 
 #TODO: Need to install the library separately
-target_link_libraries(JasmineGraphLib sqlite3)
-target_link_libraries(JasmineGraphLib pthread)
-target_link_libraries(JasmineGraphLib rdkafka)
-target_link_libraries(JasmineGraphLib Threads::Threads)
-target_link_libraries(JasmineGraphLib fmt)
-target_link_libraries(JasmineGraphLib /usr/lib/x86_64-linux-gnu/libxerces-c.so)
-target_link_libraries(JasmineGraphLib /usr/lib/x86_64-linux-gnu/libflatbuffers.a)
-target_link_libraries(JasmineGraphLib /usr/lib/x86_64-linux-gnu/libjsoncpp.so)
-target_link_libraries(JasmineGraphLib /usr/local/lib/libcppkafka.so)
+target_link_libraries(JasmineGraphLib PRIVATE sqlite3)
+target_link_libraries(JasmineGraphLib PRIVATE pthread)
+target_link_libraries(JasmineGraphLib PRIVATE rdkafka)
+target_link_libraries(JasmineGraphLib PRIVATE Threads::Threads)
+target_link_libraries(JasmineGraphLib PRIVATE fmt)
+target_link_libraries(JasmineGraphLib PRIVATE /usr/lib/x86_64-linux-gnu/libxerces-c.so)
+target_link_libraries(JasmineGraphLib PRIVATE /usr/lib/x86_64-linux-gnu/libflatbuffers.a)
+target_link_libraries(JasmineGraphLib PRIVATE /usr/lib/x86_64-linux-gnu/libjsoncpp.so)
+target_link_libraries(JasmineGraphLib PRIVATE /usr/local/lib/libcppkafka.so)
 target_link_libraries(JasmineGraph JasmineGraphLib)
 target_include_directories(JasmineGraph PRIVATE /usr/include/python3.8)
 
@@ -157,5 +141,33 @@ set(PYTHON_LIBRARIES "/usr/lib/x86_64-linux-gnu/libpython3.8.so")
 
 include_directories(${PYTHON_INCLUDE_DIRS})
 include_directories(${PYTHON_DIRECTORIES})
-target_link_libraries(JasmineGraphLib ${PYTHON_LIBRARIES})
-target_link_libraries(JasmineGraphLib m)
+target_link_libraries(JasmineGraphLib PRIVATE ${PYTHON_LIBRARIES})
+target_link_libraries(JasmineGraphLib PRIVATE m)
+
+if (CMAKE_BUILD_TYPE STREQUAL "DEBUG")
+    # Include google test
+    include(FetchContent)
+    FetchContent_Declare(
+            googletest
+            URL https://github.com/google/googletest/archive/refs/tags/release-1.12.0.zip
+            DOWNLOAD_EXTRACT_TIMESTAMP true
+    )
+    # For Windows: Prevent overriding the parent project's compiler/linker settings
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(googletest)
+    include_directories(${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR})
+    add_subdirectory(tests/unit)
+    enable_testing()
+
+    # Enable code coverage calculation
+    set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --coverage -g -O0")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --coverage")
+    include(CodeCoverage)
+    append_coverage_compiler_flags_to_target(JasmineGraphLib)
+    setup_target_for_coverage_gcovr_xml(
+            NAME coverage
+            EXECUTABLE JasmineGraphUnitTest
+            BASE_DIRECTORY "${PROJECT_SOURCE_DIR}/src"
+    )
+endif ()
