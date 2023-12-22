@@ -1,4 +1,4 @@
-"""
+'''
 Copyright 2020 JasmineGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -9,7 +9,7 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-"""
+'''
 
 import sys
 import logging
@@ -22,8 +22,8 @@ import time
 import numpy as np
 
 # CONSTANTS
-FLAG_PATH = "/var/tmp/jasminegraph-localstore/flag.txt"
-WEIGHTS_PATH = "/var/tmp/jasminegraph-localstore/weights.txt"
+FLAG_PATH = '/var/tmp/jasminegraph-localstore/flag.txt'
+WEIGHTS_PATH = '/var/tmp/jasminegraph-localstore/weights.txt'
 HEADER_LENGTH = 10
 
 logging.basicConfig(
@@ -99,34 +99,34 @@ class Server:
             if self.rounds == self.training_cycles:
 
                 weights = np.array(self.model_weights)
-                data = {"ORG_ID": self.org_id, "WEIGHTS": weights,
-                        "NUM_EXAMPLES": sum(self.partition_sizes)}
+                data = {'ORG_ID': self.org_id, 'WEIGHTS': weights,
+                        'NUM_EXAMPLES': sum(self.partition_sizes)}
                 data = pickle.dumps(data)
-                data = bytes(f"{len(data):<{HEADER_LENGTH}}", 'utf-8') + data
+                data = bytes(f'{len(data):<{HEADER_LENGTH}}', 'utf-8') + data
 
                 with open(WEIGHTS_PATH, 'wb') as f:
                     f.write(data)
 
                 with open(FLAG_PATH, 'w', encoding='utf8') as f:
-                    f.write("1")
+                    f.write('1')
 
                 logging.info('Sent global model to global aggregator')
 
                 while True:
                     time.sleep(5)
 
-                    flag = "1"
+                    flag = '1'
                     with open(FLAG_PATH, 'r', encoding='utf8') as f:
                         flag = f.read()
 
-                    data = ""
-                    if str(flag).strip() == "0":
+                    data = ''
+                    if str(flag).strip() == '0':
                         with open(WEIGHTS_PATH, 'rb') as f:
                             data = f.read()
 
                         data = pickle.loads(data[HEADER_LENGTH:])
-                        self.stop_flag = data["STOP_FLAG"]
-                        self.model_weights = data["WEIGHTS"]
+                        self.stop_flag = data['STOP_FLAG']
+                        self.model_weights = data['WEIGHTS']
                         self.training_cycles = 0
 
                         break
@@ -140,12 +140,12 @@ class Server:
                 self.send_model(soc)
 
             logging.info(
-                "____________________________ Training round %s done ____________________________",
+                '____________________________ Training round %s done ____________________________',
                 self.training_cycles)
 
         else:
 
-            logging.error("Invalid patition size")
+            logging.error('Invalid patition size')
 
     def send_model(self, client_socket):
         '''
@@ -153,10 +153,10 @@ class Server:
         '''
         weights = np.array(self.model_weights)
 
-        data = {"STOP_FLAG": self.stop_flag, "WEIGHTS": weights}
+        data = {'STOP_FLAG': self.stop_flag, 'WEIGHTS': weights}
 
         data = pickle.dumps(data)
-        data = bytes(f"{len(data):<{HEADER_LENGTH}}", 'utf-8') + data
+        data = bytes(f'{len(data):<{HEADER_LENGTH}}', 'utf-8') + data
 
         client_socket.sendall(data)
 
@@ -208,7 +208,7 @@ class Server:
                     client_socket, client_address = self.server_socket.accept()
                     self.sockets_list.append(client_socket)
                     self.clients[client_socket] = client_address
-                    self.client_ids[client_socket] = "new"
+                    self.client_ids[client_socket] = 'new'
 
                     logging.info(
                         'Accepted new connection at %s:%s', *client_address)
@@ -224,7 +224,7 @@ class Server:
                     else:
                         client_id = message['CLIENT_ID']
                         weights = message['WEIGHTS']
-                        num_examples = message["NUM_EXAMPLES"]
+                        num_examples = message['NUM_EXAMPLES']
                         self.client_ids[notified_socket] = client_id
 
                         logging.info('Recieved model from client-%s at %s:%s',
@@ -236,10 +236,10 @@ class Server:
                 del self.clients[notified_socket]
 
         with open(FLAG_PATH, 'w', encoding='utf8') as f:
-            f.write("STOP")
+            f.write('STOP')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
 
     arg_names = [
         'org_id',
@@ -262,22 +262,22 @@ if __name__ == "__main__":
     if 'PORT' not in args.keys():
         args['port'] = 5050
 
-    model_weights = ""
+    model_weights = ''
     while True:
         time.sleep(5)
 
-        flag = "1"
+        flag = '1'
         with open(FLAG_PATH, 'r', encoding='utf8') as f:
             flag = f.read()
 
-        data = ""
+        data = ''
         logging.info(type(flag))
-        if str(flag).strip() == "0":
+        if str(flag).strip() == '0':
             with open(WEIGHTS_PATH, 'rb') as f:
                 data = f.read()
 
             data = pickle.loads(data[HEADER_LENGTH:])
-            model_weights = data["WEIGHTS"]
+            model_weights = data['WEIGHTS']
 
             break
 

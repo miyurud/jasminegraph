@@ -1,4 +1,4 @@
-"""
+'''
 Copyright 2020 JasmineGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -9,7 +9,7 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-"""
+'''
 
 import sys
 import logging
@@ -23,7 +23,7 @@ import pandas as pd
 
 # CONSTANTS
 HEADER_LENGTH = 10
-WEIGHT_FILE_PATH = "/var/tmp/jasminegraph-localstore/"
+WEIGHT_FILE_PATH = '/var/tmp/jasminegraph-localstore/'
 
 logging.basicConfig(
     level=logging.INFO,
@@ -36,9 +36,9 @@ logging.basicConfig(
 
 
 class Aggregator:
-    """
+    '''
     Aggregator
-    """
+    '''
 
     def __init__(self, model, rounds, num_orgs, ip, port):
 
@@ -97,10 +97,10 @@ class Aggregator:
                 self.send_model(soc)
 
             logging.info(
-                "____________________________ Training round %s done ____________________________",
+                '____________________________ Training round %s done ____________________________',
                 self.training_cycles)
         else:
-            logging.error("Invalid patition size")
+            logging.error('Invalid patition size')
 
     def send_model(self, client_socket):
         '''
@@ -110,14 +110,14 @@ class Aggregator:
             self.stop_flag = True
 
         weights = np.array(self.model_weights)
-        weights_path = WEIGHT_FILE_PATH + "weights_round_" + \
-            str(self.training_cycles) + ".npy"
+        weights_path = WEIGHT_FILE_PATH + 'weights_round_' + \
+            str(self.training_cycles) + '.npy'
         np.save(weights_path, weights)
 
-        data = {"STOP_FLAG": self.stop_flag, "WEIGHTS": weights}
+        data = {'STOP_FLAG': self.stop_flag, 'WEIGHTS': weights}
 
         data = pickle.dumps(data)
-        data = bytes(f"{len(data):<{HEADER_LENGTH}}", 'utf-8') + data
+        data = bytes(f'{len(data):<{HEADER_LENGTH}}', 'utf-8') + data
 
         client_socket.sendall(data)
 
@@ -167,7 +167,7 @@ class Aggregator:
                     client_socket, client_address = self.aggregator_socket.accept()
                     self.sockets_list.append(client_socket)
                     self.clients[client_socket] = client_address
-                    self.client_ids[client_socket] = "new"
+                    self.client_ids[client_socket] = 'new'
 
                     logging.info(
                         'Accepted new connection at %s:%s', *client_address)
@@ -185,11 +185,11 @@ class Aggregator:
                     client_id = message['ORG_ID']
                     weights = message['WEIGHTS']
 
-                    weights_path = WEIGHT_FILE_PATH + "weights_round_" + \
-                        str(self.training_cycles) + ".npy"
+                    weights_path = WEIGHT_FILE_PATH + 'weights_round_' + \
+                        str(self.training_cycles) + '.npy'
                     np.save(weights_path, weights)
 
-                    num_examples = message["NUM_EXAMPLES"]
+                    num_examples = message['NUM_EXAMPLES']
                     self.client_ids[notified_socket] = client_id
 
                     logging.info('Recieved model from client-%s at %s:%s',
@@ -201,7 +201,7 @@ class Aggregator:
                 del self.clients[notified_socket]
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
 
     from models.supervised import Model
 
@@ -224,17 +224,17 @@ if __name__ == "__main__":
                  args['graph_id'], args['num_orgs'], args['num_rounds'])
 
     if 'IP' not in args.keys() or args['IP'] == 'localhost':
-        args['IP'] = "localhost"
+        args['IP'] = 'localhost'
 
     if 'PORT' not in args.keys():
         args['PORT'] = 5000
 
     path_nodes = args['path_nodes'] + args['graph_id'] + \
-        '_nodes_' + args['partition_id'] + ".csv"
+        '_nodes_' + args['partition_id'] + '.csv'
     nodes = pd.read_csv(path_nodes, index_col=0)
 
     path_edges = args['path_edges'] + args['graph_id'] + \
-        '_edges_' + args['partition_id'] + ".csv"
+        '_edges_' + args['partition_id'] + '.csv'
     edges = pd.read_csv(path_edges)
 
     model = Model(nodes, edges)

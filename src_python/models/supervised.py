@@ -1,4 +1,4 @@
-"""
+'''
 Copyright 2020 JasmineGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -9,7 +9,7 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-"""
+'''
 
 import logging
 import sys
@@ -60,17 +60,17 @@ class Model:
         '''
         Initialize
         '''
-        if "batch_size" not in hyper_params:
+        if 'batch_size' not in hyper_params:
             batch_size = 20
-        if "layer_sizes" not in hyper_params:
+        if 'layer_sizes' not in hyper_params:
             num_samples = [20, 10]
-        if "num_samples" not in hyper_params:
+        if 'num_samples' not in hyper_params:
             layer_sizes = [10, 10]
-        if "bias" not in hyper_params:
+        if 'bias' not in hyper_params:
             bias = True
-        if "dropout" not in hyper_params:
+        if 'dropout' not in hyper_params:
             dropout = 0.1
-        if "lr" not in hyper_params:
+        if 'lr' not in hyper_params:
             lr = 1e-2
 
         graph = sg.StellarGraph(nodes=self.nodes, edges=self.edges)
@@ -78,13 +78,13 @@ class Model:
         # Test split
         edge_splitter_test = EdgeSplitter(graph)
         self.graph_test, edge_ids_test, edge_labels_test = edge_splitter_test.train_test_split(
-            p=0.01, method="global", keep_connected=True, seed=42
+            p=0.01, method='global', keep_connected=True, seed=42
         )
 
         # Train split
         edge_splitter_train = EdgeSplitter(self.graph_test)
         self.graph_train, edge_ids_train, edge_labels_train = edge_splitter_train.train_test_split(
-            p=0.1, method="global", keep_connected=True, seed=42
+            p=0.1, method='global', keep_connected=True, seed=42
         )
 
         # Train iterators
@@ -107,7 +107,7 @@ class Model:
         x_inp, x_out = graphsage.in_out_tensors()
 
         prediction = link_classification(
-            output_dim=1, output_act="sigmoid", edge_embedding_method="ip"
+            output_dim=1, output_act='sigmoid', edge_embedding_method='ip'
         )(x_out)
 
         self.model = keras.Model(inputs=x_inp, outputs=prediction)
@@ -151,11 +151,11 @@ class Model:
         return train_metrics, test_metrics
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
 
-    #path_weights = "./weights/weights_cora.npy"
-    #path_nodes = "./data/4_nodes_0.csv"
-    #path_edges = "./data/4_edges_0.csv"
+    #path_weights = './weights/weights_cora.npy'
+    #path_nodes = './data/4_nodes_0.csv'
+    #path_edges = './data/4_edges_0.csv'
 
     arg_names = [
         'path_weights',
@@ -166,11 +166,11 @@ if __name__ == "__main__":
 
     args = dict(zip(arg_names, sys.argv[1:]))
 
-    nodes = pd.read_csv(args["path_nodes"], index_col=0)
-    #nodes = nodes.astype("float32")
+    nodes = pd.read_csv(args['path_nodes'], index_col=0)
+    #nodes = nodes.astype('float32')
 
-    edges = pd.read_csv(args["path_edges"])
-    #edges = edges.astype({"source":"uint32","target":"uint32"})
+    edges = pd.read_csv(args['path_edges'])
+    #edges = edges.astype({'source':'uint32','target':'uint32'})
 
     logging.warning(
         '################################## New Training Session ################################')
@@ -181,7 +181,7 @@ if __name__ == "__main__":
     logging.info('Training started!')
     start = timer()
 
-    new_weights, history = model.fit(int(args["epochs"]))
+    new_weights, history = model.fit(int(args['epochs']))
 
     end = timer()
     logging.info('Training done!')

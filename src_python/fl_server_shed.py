@@ -1,4 +1,4 @@
-"""
+'''
 Copyright 2020 JasmineGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -9,7 +9,7 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-"""
+'''
 
 import sys
 import logging
@@ -32,10 +32,10 @@ logging.basicConfig(
 
 
 class Server:
-    """
+    '''
     Federated server/aggregator that used to aggregate local models and carry out the federated
     learning process (With partition sheduling)
-    """
+    '''
 
     def __init__(self, model_weights, rounds, weights_path, graph_id, num_clients=2,
                  ip=socket.gethostname(), port=5000, header_length=10):
@@ -77,12 +77,12 @@ class Server:
         self.sockets_list.append(self.server_socket)
 
     def update_model(self, new_weights, partition_size):
-        """
+        '''
         Update global model
         :param new_weights: new weights as a numpy array
         :param partition_size: graph partition sizes as a list
         :return: None
-        """
+        '''
 
         self.partition_sizes.extend(partition_size)
 
@@ -105,32 +105,32 @@ class Server:
             self.training_cycles += 1
 
             weights_path = self.weights_path + 'weights_' + 'graphID:' + \
-                self.graph_id + "_V" + str(self.training_cycles) + ".npy"
+                self.graph_id + '_V' + str(self.training_cycles) + '.npy'
             np.save(weights_path, avg_weight)
 
             for soc in self.sockets_list[1:]:
                 self.send_model(soc)
 
             logging.info(
-                "____________________________ Training round %s done ____________________________",
+                '____________________________ Training round %s done ____________________________',
                 self.training_cycles)
 
     def send_model(self, client_socket):
-        """
+        '''
         Send global model to a client
         :param client_socket: client socket that global model should be sent
         :return: None
-        """
+        '''
 
         if self.rounds == self.training_cycles:
             self.stop_flag = True
 
         weights = np.array(self.global_weigths)
 
-        data = {"STOP_FLAG": self.stop_flag, "WEIGHTS": weights}
+        data = {'STOP_FLAG': self.stop_flag, 'WEIGHTS': weights}
 
         data = pickle.dumps(data)
-        data = bytes(f"{len(data):<{self.header_length}}", 'utf-8') + data
+        data = bytes(f'{len(data):<{self.header_length}}', 'utf-8') + data
 
         client_socket.sendall(data)
 
@@ -138,11 +138,11 @@ class Server:
                      self.client_ids[client_socket], *self.clients[client_socket])
 
     def receive(self, client_socket):
-        """
+        '''
         Recieve a local model weights from a client
         :param client_socket: client socket that a model weights  should be recieved
         :return: recieved local model weights as a numpy array
-        """
+        '''
 
         try:
 
@@ -172,10 +172,10 @@ class Server:
             return False
 
     def run(self):
-        """
+        '''
         Running server; Listening to clients sockets and act accordingly
         :return: None
-        """
+        '''
 
         while not self.stop_flag:
 
@@ -189,7 +189,7 @@ class Server:
                     client_socket, client_address = self.server_socket.accept()
                     self.sockets_list.append(client_socket)
                     self.clients[client_socket] = client_address
-                    self.client_ids[client_socket] = "new"
+                    self.client_ids[client_socket] = 'new'
 
                     logging.info(
                         'Accepted new connection at %s:%s', *client_address)
@@ -207,7 +207,7 @@ class Server:
 
                     client_id = message['CLIENT_ID']
                     weights = message['WEIGHTS']
-                    partition_size = message["PARTITION_SIEZES"]
+                    partition_size = message['PARTITION_SIEZES']
                     self.client_ids[notified_socket] = client_id
 
                     logging.info('Recieved model from client-%s at %s:%s',
@@ -219,7 +219,7 @@ class Server:
                 del self.clients[notified_socket]
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
 
     from models.supervised import Model
 
@@ -249,14 +249,14 @@ if __name__ == "__main__":
         args['PORT'] = 5000
 
     path_nodes = args['path_nodes'] + args['graph_id'] + \
-        '_nodes_' + args['partition_id'] + ".csv"
+        '_nodes_' + args['partition_id'] + '.csv'
     nodes = pd.read_csv(path_nodes, index_col=0)
-    nodes = nodes.astype("float32")
+    nodes = nodes.astype('float32')
 
     path_edges = args['path_edges'] + args['graph_id'] + \
-        '_edges_' + args['partition_id'] + ".csv"
+        '_edges_' + args['partition_id'] + '.csv'
     edges = pd.read_csv(path_edges)
-    edges = edges.astype({"source": "uint32", "target": "uint32"})
+    edges = edges.astype({'source': 'uint32', 'target': 'uint32'})
 
     model = Model(nodes, edges)
     model.initialize()

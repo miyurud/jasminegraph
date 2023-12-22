@@ -1,4 +1,4 @@
-"""
+'''
 Copyright 2020 JasmineGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -9,7 +9,7 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-"""
+'''
 
 import socket
 import pickle
@@ -46,10 +46,10 @@ logging.basicConfig(
 
 
 class Client:
-    """
+    '''
     Federated client that used to train a given graph partition on a given GCN model
     (Without partition sheduling)
-    """
+    '''
 
     def __init__(self, model, graph_params, weights_path, graph_id, partition_id, epochs=10,
                  ip=socket.gethostname(), port=5000, header_length=10):
@@ -82,24 +82,24 @@ class Client:
         self.rounds = 0
 
     def send_model(self):
-        """
+        '''
         Send local model weights to the server
         :return: None
-        """
+        '''
         weights = self.model.get_weights()
 
-        data = {"CLIENT_ID": self.partition_id, "WEIGHTS": weights,
-                "NUM_EXAMPLES": self.graph_params[0]}
+        data = {'CLIENT_ID': self.partition_id, 'WEIGHTS': weights,
+                'NUM_EXAMPLES': self.graph_params[0]}
 
         data = pickle.dumps(data)
-        data = bytes(f"{len(data):<{self.header_length}}", 'utf-8') + data
+        data = bytes(f'{len(data):<{self.header_length}}', 'utf-8') + data
         self.client_socket.sendall(data)
 
     def receive(self):
-        """
+        '''
         Recieve global model weights from the server
         :return: success or failure
-        """
+        '''
         try:
 
             message_header = self.client_socket.recv(self.header_length)
@@ -119,9 +119,9 @@ class Client:
 
             data = pickle.loads(full_msg)
 
-            self.stop_flag = data["STOP_FLAG"]
+            self.stop_flag = data['STOP_FLAG']
 
-            return data["WEIGHTS"]
+            return data['WEIGHTS']
 
         except Exception as e:
             logging.error(e)
@@ -141,9 +141,9 @@ class Client:
         self.model.fit(epochs=self.epochs)
 
     def run(self):
-        """
+        '''
         Training loop
-        """
+        '''
         while not self.stop_flag:
             read_sockets, _, _ = select.select(
                 [self.client_socket], [], [self.client_socket])
@@ -160,8 +160,8 @@ class Client:
                     f1_test = (2 * eval_result[1][2] * eval_result[1][4]
                                ) / (eval_result[1][2] + eval_result[1][4])
                 except ZeroDivisionError:
-                    f1_train = "undefined"
-                    f1_test = "undefined"
+                    f1_train = 'undefined'
+                    f1_test = 'undefined'
 
                 logging.info(
                     '___________________________ Final model evalution __________________________')
@@ -189,8 +189,8 @@ class Client:
                     f1_test = (2 * eval_result[1][2] * eval_result[1][4]
                                ) / (eval_result[1][2] + eval_result[1][4])
                 except ZeroDivisionError:
-                    f1_train = "undefined"
-                    f1_test = "undefined"
+                    f1_train = 'undefined'
+                    f1_test = 'undefined'
 
                 logging.info('Global model v%s - Training set evaluation : loss - %s, \
                     accuracy - %s, recall - %s, AUC - %s, F1 - %s, precision - %s',
@@ -211,7 +211,7 @@ class Client:
                 self.send_model()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
 
     from models.supervised import Model
 
@@ -230,11 +230,11 @@ if __name__ == "__main__":
                  args['graph_id'], args['partition_id'], args['epochs'])
 
     path_nodes = args['path_nodes'] + args['graph_id'] + \
-        '_nodes_' + args['partition_id'] + ".csv"
+        '_nodes_' + args['partition_id'] + '.csv'
     nodes = pd.read_csv(path_nodes, index_col=0)
 
     path_edges = args['path_edges'] + args['graph_id'] + \
-        '_edges_' + args['partition_id'] + ".csv"
+        '_edges_' + args['partition_id'] + '.csv'
     edges = pd.read_csv(path_edges)
 
     logging.info('Model initialized')
