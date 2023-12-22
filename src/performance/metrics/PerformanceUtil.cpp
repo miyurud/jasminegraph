@@ -215,7 +215,7 @@ void PerformanceUtil::collectRemotePerformanceData(std::string host, int port, s
 
     server = gethostbyname(host.c_str());
     if (server == NULL) {
-        std::cerr << "ERROR, no host named " << server << std::endl;
+        scheduler_logger.error("ERROR, no host named " + host);
         return;
     }
 
@@ -378,7 +378,7 @@ int PerformanceUtil::collectRemoteSLAResourceUtilization(std::string host, int p
 
     server = gethostbyname(host.c_str());
     if (server == NULL) {
-        std::cerr << "ERROR, no host named " << server << std::endl;
+        scheduler_logger.error("ERROR, no host named " + host);
         return 0;
     }
 
@@ -539,7 +539,7 @@ ResourceConsumption PerformanceUtil::retrieveRemoteResourceConsumption(std::stri
 
     server = gethostbyname(host.c_str());
     if (server == NULL) {
-        std::cerr << "ERROR, no host named " << server << std::endl;
+        scheduler_logger.error("ERROR, no host named " + host);
         return placeResourceConsumption;
     }
 
@@ -1060,7 +1060,7 @@ void PerformanceUtil::initiateCollectingRemoteSLAResourceUtilization(std::string
 
     server = gethostbyname(host.c_str());
     if (server == NULL) {
-        std::cerr << "ERROR, no host named " << server << std::endl;
+        scheduler_logger.error("ERROR, no host named " + host);
         return;
     }
 
@@ -1134,7 +1134,7 @@ std::string PerformanceUtil::requestRemoteLoadAverages(std::string host, int por
 
     server = gethostbyname(host.c_str());
     if (server == NULL) {
-        std::cerr << "ERROR, no host named " << server << std::endl;
+        scheduler_logger.error("ERROR, no host named " + host);
         return 0;
     }
 

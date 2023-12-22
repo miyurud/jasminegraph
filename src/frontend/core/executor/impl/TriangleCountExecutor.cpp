@@ -327,7 +327,7 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
 
     server = gethostbyname(host.c_str());
     if (server == NULL) {
-        std::cerr << "ERROR, no host named " << server << std::endl;
+        triangleCount_logger.error("ERROR, no host named " + host);
         return 0;
     }
 
@@ -812,7 +812,7 @@ string TriangleCountExecutor::isFileAccessibleToWorker(std::string graphId, std:
 
     server = gethostbyname(aggregatorHostName.c_str());
     if (server == NULL) {
-        std::cerr << "ERROR, no host named " << server << std::endl;
+        triangleCount_logger.error("ERROR, no host named " + aggregatorHostName);
         return 0;
     }
 
@@ -960,7 +960,7 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
 
     server = gethostbyname(aggregatorHostName.c_str());
     if (server == NULL) {
-        std::cerr << "ERROR, no host named " << server << std::endl;
+        triangleCount_logger.error("ERROR, no host named " + aggregatorHostName);
         return 0;
     }
 
@@ -1142,7 +1142,7 @@ string TriangleCountExecutor::countCompositeCentralStoreTriangles(std::string ag
 
     server = gethostbyname(aggregatorHostName.c_str());
     if (server == NULL) {
-        std::cerr << "ERROR, no host named " << server << std::endl;
+        triangleCount_logger.error("ERROR, no host named " + aggregatorHostName);
         return 0;
     }
 
@@ -1354,7 +1354,7 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
 
     server = gethostbyname(aggregatorHostName.c_str());
     if (server == NULL) {
-        std::cerr << "ERROR, no host named " << server << std::endl;
+        triangleCount_logger.error("ERROR, no host named " + aggregatorHostName);
         return 0;
     }
 
@@ -1538,7 +1538,7 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorH
 
     server = gethostbyname(host.c_str());
     if (server == NULL) {
-        std::cerr << "ERROR, no host named " << server << std::endl;
+        triangleCount_logger.error("ERROR, no host named " + host);
         return 0;
     }
 

@@ -26,7 +26,7 @@ DataPublisher::DataPublisher(int worker_port, std::string worker_address) {
 
     server = gethostbyname(worker_address.c_str());
     if (server == NULL) {
-        std::cerr << "ERROR, no host named " << server << std::endl;
+        data_publisher_logger.error("ERROR, no host named " + worker_address);
         exit(0);
     }
 

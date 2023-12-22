@@ -107,7 +107,7 @@ int JasminGraphLinkPredictor::sendQueryToWorker(std::string host, int port, int 
 
     server = gethostbyname(host.c_str());
     if (server == NULL) {
-        std::cerr << "ERROR, no host named " << server << std::endl;
+        predictor_logger.error("ERROR, no host named " + host);
         return 0;
     }
 
