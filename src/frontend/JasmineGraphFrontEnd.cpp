@@ -41,6 +41,7 @@ limitations under the License.
 #include "../server/JasmineGraphServer.h"
 #include "../util/Conts.h"
 #include "../util/kafka/KafkaCC.h"
+#include "../util/kafka/kafkaService.h"
 #include "../util/logger/Logger.h"
 #include "JasmineGraphFrontEndProtocol.h"
 #include "core/CoreConstants.h"
@@ -117,14 +118,16 @@ void listen_to_kafka_topic(KafkaConnector *kstream, Partitioner &graphPartitione
         obj["destination"] = destinationJson;
         long temp_s = partitionedEdge[0].second;
         long temp_d = partitionedEdge[1].second;
-        workerClients.at((int)partitionedEdge[0].second)->publish(obj.dump());
-        workerClients.at((int)partitionedEdge[1].second)->publish(obj.dump());
-        //      storing Node block
+
+        workerClients.at(temp_s)->publish(obj.dump());
+        workerClients.at(temp_d)->publish(obj.dump());
+
+        // Storing Node block
         if (temp_s == temp_d) {
-            // +miyurud: Temorarily commeting the following line to make the code build
-            // workerClients.at((int) partitionedEdge[0].second)->publish_relation(obj.dump());
+            workerClients.at(temp_s)->publish_relation(obj.dump());
         }
     }
+
     graphPartitioner.printStats();
 }
 
@@ -1245,7 +1248,6 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     char topic_name[FRONTEND_DATA_LENGTH + 1];
     bzero(topic_name, FRONTEND_DATA_LENGTH + 1);
     read(connFd, topic_name, FRONTEND_DATA_LENGTH);
-
     string con_message = "Received the kafka topic";
     int con_result_wr = write(connFd, con_message.c_str(), con_message.length());
     if (con_result_wr < 0) {
@@ -1253,17 +1255,23 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
         *loop_exit_p = true;
         return;
     }
-
-    //          create kafka consumer and graph partitioner
-    kstream = new KafkaConnector(configs);
-    Partitioner graphPartitioner(numberOfPartitions, 1, spt::Algorithms::HASH);
-
     string topic_name_s(topic_name);
     topic_name_s = Utils::trim_copy(topic_name_s, " \f\n\r\t\v");
-    stream_topic_name = topic_name_s;
+// create kafka consumer and graph partitioner
+    kstream = new KafkaConnector(configs);
+// Create the Partitioner object.
+    Partitioner graphPartitioner(numberOfPartitions, 1, spt::Algorithms::HASH);
+// Create the KafkaConnector object.
+    kstream = new KafkaConnector(configs);
+// Create the KafkaService object.
+    KafkaService* kafkaService = new KafkaService(kstream, graphPartitioner, workerClients, topic_name_s);
+// Subscribe to the Kafka topic.
     kstream->Subscribe(topic_name_s);
+// Print some log.
     frontend_logger.info("Start listening to " + topic_name_s);
-    input_stream_handler = thread(listen_to_kafka_topic, kstream, std::ref(graphPartitioner), std::ref(workerClients));
+// Use the KafkaService object to listen to the Kafka topic in a separate thread.
+    input_stream_handler = thread(&KafkaService::listen_to_kafka_topic, kafkaService);
+
 }
 
 static void stop_stream_kafka_command(int connFd, KafkaConnector *kstream, bool *loop_exit_p) {
