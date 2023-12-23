@@ -24,7 +24,7 @@ jobs:
     - name: Run unit test
       run: |
         docker run --name jasminegraph-prerequisite -v $(pwd):/home/ubuntu/software/jasminegraph -d -t -i miyurud/jasminegraph /bin/bash
-        docker exec -i jasminegraph-prerequisite bash -c "pip install gcovr && cd /home/ubuntu/software/jasminegraph && mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=DEBUG .. && make && make coverage"
+        docker exec jasminegraph-prerequisite bash -c "pip install gcovr && cd /home/ubuntu/software/jasminegraph && mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=DEBUG .. && make && make coverage"
 
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v3
