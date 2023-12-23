@@ -149,8 +149,8 @@ if (CMAKE_BUILD_TYPE STREQUAL "DEBUG")
     include(FetchContent)
     FetchContent_Declare(
             googletest
-            URL https://github.com/google/googletest/archive/refs/tags/release-1.12.0.zip
             DOWNLOAD_EXTRACT_TIMESTAMP true
+            URL https://github.com/google/googletest/archive/refs/tags/release-1.12.0.zip
     )
     # For Windows: Prevent overriding the parent project's compiler/linker settings
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
