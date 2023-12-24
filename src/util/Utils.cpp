@@ -61,7 +61,7 @@ std::vector<std::string> Utils::getFileContent(std::string file) {
 std::string Utils::getJasmineGraphProperty(std::string key) {
     if (Utils::propertiesMap.empty()) {
         std::vector<std::string>::iterator it;
-        vector<std::string> vec = Utils::getFileContent("conf/jasminegraph-server.properties");
+        vector<std::string> vec = Utils::getFileContent(ROOT_DIR"conf/jasminegraph-server.properties");
         it = vec.begin();
 
         for (it = vec.begin(); it < vec.end(); it++) {
