@@ -3,7 +3,7 @@
 localhost
 
 # TODO: Replace this
-@192.168.8.150
+192.168.8.150
 
 #anuradhak@10.8.100.245
 #192.168.1.8
