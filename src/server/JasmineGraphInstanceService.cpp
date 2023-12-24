@@ -1695,7 +1695,10 @@ map<long, double> calculateLocalPageRank(string graphID, double alpha, string pa
 
     std::string aggregatorFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
 
-    for (int partitionID = 0; partitionID <= 1; ++partitionID) {
+    std::string partitionCount = Utils::getJasmineGraphProperty("org.jasminegraph.server.npartitions");
+    int parCount = std::stoi(partitionCount);
+
+    for (int partitionID = 0; partitionID <= parCount; ++partitionID) {
         std::string iddFilePath = aggregatorFilePath + "/" + graphID + "_idd_" + std::to_string(partitionID);
         std::ifstream dataFile;
         dataFile.open(iddFilePath);
