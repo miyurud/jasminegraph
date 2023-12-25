@@ -55,7 +55,7 @@ class NodeBlock {
     };
 
     NodeBlock(std::string id, unsigned int address, unsigned int propRef, unsigned int edgeRef,
-              unsigned char edgeRefPID, char _label[], bool usage);
+              unsigned char edgeRefPID, const char *_label, bool usage);
     bool updateRelation(RelationBlock *, bool relocateHead = true);
     void save();
     std::string getLabel();
@@ -65,7 +65,7 @@ class NodeBlock {
     std::map<std::string, char *> getAllProperties();
     static NodeBlock *get(unsigned int);
     int getFlags();
-    void addProperty(std::string, char *);
+    void addProperty(std::string, const char *);
     RelationBlock *getRelationHead();
     std::list<NodeBlock> getEdges();
     bool setRelationHead(RelationBlock);

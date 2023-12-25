@@ -22,9 +22,9 @@ limitations under the License.
 Logger node_block_logger;
 
 NodeBlock::NodeBlock(std::string id, unsigned int address, unsigned int propRef, unsigned int edgeRef,
-                     unsigned char edgeRefPID, char _label[], bool usage)
+                     unsigned char edgeRefPID, const char* _label, bool usage)
     : id(id), addr(address), propRef(propRef), edgeRef(edgeRef), edgeRefPID(edgeRefPID), usage(usage) {
-    strcpy(label, _label);
+    strcpy(this->label, _label);
 };
 
 bool NodeBlock::isInUse() { return this->usage == '\1'; }
@@ -51,7 +51,7 @@ void NodeBlock::save() {
     }
 }
 
-void NodeBlock::addProperty(std::string name, char* value) {
+void NodeBlock::addProperty(std::string name, const char* value) {
     if (this->propRef == 0) {
         PropertyLink* newLink = PropertyLink::create(name, value);
         if (newLink) {
