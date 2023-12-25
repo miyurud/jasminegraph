@@ -1699,7 +1699,6 @@ map<long, double> calculateLocalPageRank(string graphID, double alpha, string pa
     int parCount = std::stoi(partitionCount);
 
     for (int partitionID = 0; partitionID < parCount; ++partitionID) {
-
         std::string iddFilePath = aggregatorFilePath + "/" + graphID + "_idd_" + std::to_string(partitionID);
         std::ifstream dataFile;
         dataFile.open(iddFilePath);
