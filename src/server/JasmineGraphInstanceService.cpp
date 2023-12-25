@@ -1698,7 +1698,8 @@ map<long, double> calculateLocalPageRank(string graphID, double alpha, string pa
     std::string partitionCount = Utils::getJasmineGraphProperty("org.jasminegraph.server.npartitions");
     int parCount = std::stoi(partitionCount);
 
-    for (int partitionID = 0; partitionID <= parCount; ++partitionID) {
+    for (int partitionID = 0; partitionID < parCount; ++partitionID) {
+
         std::string iddFilePath = aggregatorFilePath + "/" + graphID + "_idd_" + std::to_string(partitionID);
         std::ifstream dataFile;
         dataFile.open(iddFilePath);
@@ -1724,6 +1725,15 @@ map<long, double> calculateLocalPageRank(string graphID, double alpha, string pa
 
         dataFile.close();
     }
+
+    string instanceDataFolderLocation = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+    string attributeFilePart = instanceDataFolderLocation + "/" + graphID + "_idd_combine";
+    ofstream partfile;
+    partfile.open(attributeFilePart, std::fstream::trunc);
+    for (map<long, long>::iterator it = inDegreeDistribution.begin(); it != inDegreeDistribution.end(); ++it) {
+        partfile << to_string(it->first) << "\t" << to_string(it->second) << endl;
+    }
+    partfile.close();
 
     for (localGraphMapIterator = localGraphMap.begin(); localGraphMapIterator != localGraphMap.end();
          ++localGraphMapIterator) {
@@ -2973,7 +2983,7 @@ static void page_rank_command(int connFd, int serverPort,
         }
 
         for (auto a = endVidSet.begin(); a != endVidSet.end(); ++a) {
-            long endVid = *a; 
+            long endVid = *a;
             map<long, double>::iterator pageRankValue = pageRankResults.find(endVid);
             if (pageRankLocalstore.find(endVid) == pageRankLocalstore.end()) {
                 if (pageRankValue == pageRankResults.end()) {
@@ -2982,7 +2992,7 @@ static void page_rank_command(int connFd, int serverPort,
                     double value = pageRankValue->second;
                     pageRankLocalstore.insert(std::make_pair(endVid, value));
                 }
-            } 
+            }
         }
     }
 
