@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jasminegraph-master
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: jasminegraph
+      type: master
+  template:
+    metadata:
+      labels:
+        type: master
+        service: jasminegraph
+    spec:
+      volumes:
+        - name: jasminegraph-local-storage-master
+          persistentVolumeClaim:
+            claimName: jasminegraph-local-storage-claim-master
+      containers:
+        - name: jasminegraph-master
+          image: jasminegraph
+          imagePullPolicy: Never
+          args:
+            [
+              "--MODE",
+              "1",
+              "--MASTERIP",
+              "<master-ip>",
+              "--WORKERS",
+              "<worker-count>",
+              "--WORKERIP",
+              "<worker-ips>",
+              "--ENABLE_NMON",
+              "false",
+              "--PROFILE",
+              "k8s"
+            ]
+          ports:
+            - containerPort: 7777
+            - containerPort: 7778
+          volumeMounts:
+            - mountPath: /home/ubuntu/software/jasminegraph/metadb
+              name: jasminegraph-local-storage
+            - mountPath: /home/ubuntu/software/jasminegraph/performacedb
+              name: jasminegraph-local-storage
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: jasminegraph-master-service
+spec:
+  clusterIP: <master-ip>
+  ports:
+    - port: 7777
+      name: 'server-port'
+    - port: 7778
+      name: 'server-data-port'
+  selector:
+    type: master
+    service: jasminegraph
+  type: NodePort

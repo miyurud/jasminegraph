@@ -1,10 +1,6 @@
 
 #include "K8sInterface.h"
 
-#include <unistd.h>
-#include <sys/stat.h>
-
-#include "../util/Utils.h"
 #include "../util/logger/Logger.h"
 
 Logger k8s_logger;
