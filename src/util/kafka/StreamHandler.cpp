@@ -7,6 +7,7 @@
 using json = nlohmann::json;
 using namespace std;
 using namespace std::chrono;
+Logger stream_handler_logger;
 
 StreamHandler::StreamHandler(KafkaConnector *kstream, Partitioner &graphPartitioner, vector<DataPublisher *> &workerClients)
         : kstream(kstream), graphPartitioner(graphPartitioner), workerClients(workerClients), stream_topic_name("stream_topic_name") {
@@ -52,6 +53,11 @@ void StreamHandler::listen_to_kafka_topic() {
 
         string data(msg.get_payload());
         auto edgeJson = json::parse(data);
+        // Check if graphID exists in properties
+        if (edgeJson["properties"].find("graphId") == edgeJson["properties"].end()) {
+            stream_handler_logger.error("Edge Rejected. Streaming edge should Include the Graph ID.");
+            continue;
+        }
         auto sourceJson = edgeJson["source"];
         auto destinationJson = edgeJson["destination"];
         string sId = std::string(sourceJson["id"]);
