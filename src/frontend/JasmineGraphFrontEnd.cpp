@@ -322,11 +322,6 @@ int JasmineGraphFrontEnd::run() {
 
         frontend_logger.info("Master IP" + masterIP);
 
-        struct frontendservicesessionargs *frontendservicesessionargs1 =
-            (struct frontendservicesessionargs *)malloc(sizeof(struct frontendservicesessionargs) * 1);
-        frontendservicesessionargs1->sqlite = this->sqlite;
-        frontendservicesessionargs1->connFd = connFd;
-
         // TODO(miyurud):Temporarily commenting this line to enable building the project. Asked tmkasun to provide a
         //  permanent fix later when he is available.
         threadVector.push_back(
