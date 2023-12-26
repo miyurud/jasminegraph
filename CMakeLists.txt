@@ -116,8 +116,7 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
 )
 
 add_library(JasmineGraphLib ${HEADERS} ${SOURCES})
-add_executable(JasmineGraph main.h main.cpp
-        src/util/kafka/StreamHandler.h)
+add_executable(JasmineGraph main.h main.cpp)
 
 target_compile_definitions(JasmineGraphLib PUBLIC ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}/")
 
