@@ -82,7 +82,7 @@ bool JasmineGraphInstance::acknowledgeMaster(string masterHost, string workerIP,
 
     server = gethostbyname(masterHost.c_str());
     if (server == NULL) {
-        std::cerr << "ERROR, no host named " << server << std::endl;
+        graphInstance_logger.error("ERROR, no host named " + masterHost);
         return false;
     }
 
@@ -218,7 +218,7 @@ bool JasmineGraphInstance::sendFileThroughService(std::string host, int dataPort
 
     server = gethostbyname(host.c_str());
     if (server == NULL) {
-        std::cerr << "ERROR, no host named " << server << std::endl;
+        graphInstance_logger.error("ERROR, no host named " + host);
         return false;
     }
 
