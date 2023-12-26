@@ -41,7 +41,7 @@ limitations under the License.
 #include "../server/JasmineGraphServer.h"
 #include "../util/Conts.h"
 #include "../util/kafka/KafkaCC.h"
-#include "../util/kafka/kafkaService.h"
+#include "../util/kafka/StreamHandler.h"
 #include "../util/logger/Logger.h"
 #include "JasmineGraphFrontEndProtocol.h"
 #include "core/CoreConstants.h"
@@ -70,7 +70,7 @@ static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInt
 static void remove_graph_command(std::string masterIP, int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p);
 static void add_model_command(int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p);
 static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, cppkafka::Configuration &configs,
-                                     KafkaConnector *&kstream, thread &input_stream_handler,
+                                     KafkaConnector *&kstream, thread &input_stream_handler_thread,
                                      vector<DataPublisher *> &workerClients, int numberOfPartitions, bool *loop_exit_p);
 static void stop_stream_kafka_command(int connFd, KafkaConnector *kstream, bool *loop_exit_p);
 static void process_dataset_command(int connFd, bool *loop_exit_p);
@@ -89,47 +89,6 @@ static void predict_command(std::string masterIP, int connFd, SQLiteDBInterface 
 static void start_remote_worker_command(int connFd, bool *loop_exit_p);
 static void sla_command(int connFd, SQLiteDBInterface sqlite, PerformanceSQLiteDBInterface perfSqlite,
                         bool *loop_exit_p);
-// Thread function
-void listen_to_kafka_topic(KafkaConnector *kstream, Partitioner &graphPartitioner,
-                           vector<DataPublisher *> &workerClients) {
-    while (true) {
-        cppkafka::Message msg = kstream->consumer.poll(std::chrono::milliseconds(1000));
-        if (!msg || msg.get_error()) {
-            frontend_logger.log("Couldn't retrieve message from Kafka.", "info");
-            continue;
-        }
-        string data(msg.get_payload());
-        if (data == "-1") {  // Marks the end of stream
-            frontend_logger.info("Received the end of `" + stream_topic_name + "` input kafka stream");
-            break;
-        }
-        auto edgeJson = json::parse(data);
-        auto sourceJson = edgeJson["source"];
-        auto destinationJson = edgeJson["destination"];
-        std::string sId = std::string(sourceJson["id"]);
-        std::string dId = std::string(destinationJson["id"]);
-        partitionedEdge partitionedEdge = graphPartitioner.addEdge({sId, dId});
-        sourceJson["pid"] = partitionedEdge[0].second;
-        destinationJson["pid"] = partitionedEdge[1].second;
-        string source = sourceJson.dump();
-        string destination = destinationJson.dump();
-        json obj;
-        obj["source"] = sourceJson;
-        obj["destination"] = destinationJson;
-        long temp_s = partitionedEdge[0].second;
-        long temp_d = partitionedEdge[1].second;
-
-        workerClients.at(temp_s)->publish(obj.dump());
-        workerClients.at(temp_d)->publish(obj.dump());
-
-        // Storing Node block
-        if (temp_s == temp_d) {
-            workerClients.at(temp_s)->publish_relation(obj.dump());
-        }
-    }
-
-    graphPartitioner.printStats();
-}
 
 void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface sqlite,
                             PerformanceSQLiteDBInterface perfSqlite, JobScheduler jobScheduler) {
@@ -1155,7 +1114,7 @@ static void add_model_command(int connFd, SQLiteDBInterface sqlite, bool *loop_e
 }
 
 static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, cppkafka::Configuration &configs,
-                                     KafkaConnector *&kstream, thread &input_stream_handler,
+                                     KafkaConnector *&kstream, thread &input_stream_handler_thread,
                                      vector<DataPublisher *> &workerClients, int numberOfPartitions,
                                      bool *loop_exit_p) {
     string msg_1 = "Do you want to use default KAFKA consumer(y/n) ?";
@@ -1248,6 +1207,8 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     char topic_name[FRONTEND_DATA_LENGTH + 1];
     bzero(topic_name, FRONTEND_DATA_LENGTH + 1);
     read(connFd, topic_name, FRONTEND_DATA_LENGTH);
+    string topic_name_s(topic_name);
+    topic_name_s = Utils::trim_copy(topic_name_s, " \f\n\r\t\v");
     string con_message = "Received the kafka topic";
     int con_result_wr = write(connFd, con_message.c_str(), con_message.length());
     if (con_result_wr < 0) {
@@ -1255,22 +1216,19 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
         *loop_exit_p = true;
         return;
     }
-    string topic_name_s(topic_name);
-    topic_name_s = Utils::trim_copy(topic_name_s, " \f\n\r\t\v");
 // create kafka consumer and graph partitioner
     kstream = new KafkaConnector(configs);
 // Create the Partitioner object.
     Partitioner graphPartitioner(numberOfPartitions, 1, spt::Algorithms::HASH);
 // Create the KafkaConnector object.
     kstream = new KafkaConnector(configs);
-// Create the KafkaService object.
-    KafkaService* kafkaService = new KafkaService(kstream, graphPartitioner, workerClients, topic_name_s);
 // Subscribe to the Kafka topic.
     kstream->Subscribe(topic_name_s);
-// Print some log.
+// Create the StreamHandler object.
+    StreamHandler* stream_handler = new StreamHandler(kstream, graphPartitioner, workerClients);
+
     frontend_logger.info("Start listening to " + topic_name_s);
-// Use the KafkaService object to listen to the Kafka topic in a separate thread.
-    input_stream_handler = thread(&KafkaService::listen_to_kafka_topic, kafkaService);
+    input_stream_handler_thread = thread(&StreamHandler::listen_to_kafka_topic, stream_handler);
 
 }
 
