@@ -21,16 +21,10 @@ jobs:
         fetch-depth: 0
         repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
 
-    - name: Native Build
-      run: |
-        mkdir build && cd build
-        pip install gcovr
-        sudo bash ../install-prerequisites.sh
-        cmake -DCMAKE_BUILD_TYPE=DEBUG ..
-        make
-
     - name: Run unit test
-      run: cd build && make coverage
+      run: |
+        docker run --name jasminegraph-prerequisite -v $(pwd):/home/ubuntu/software/jasminegraph -d -t -i miyurud/jasminegraph /bin/bash
+        docker exec jasminegraph-prerequisite bash -c "pip install gcovr && cd /home/ubuntu/software/jasminegraph && mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=DEBUG .. && make -j4 && make -j2 coverage"
 
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v3
