@@ -49,13 +49,14 @@ set(HEADERS src/backend/JasmineGraphBackend.h
         src/util/dbutil/edgestore_generated.h
         src/util/dbutil/partedgemapstore_generated.h
         src/util/kafka/KafkaCC.h
+        src/util/kafka/StreamHandler.h
         src/util/logger/Logger.h
         src/util/scheduler/Cron.h
         src/util/scheduler/InterruptableSleep.h
         src/util/scheduler/Scheduler.h
         src/util/scheduler/SchedulerService.h
         src/util/scheduler/ctpl_stl.h
-        )
+)
 
 set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/backend/JasmineGraphBackendProtocol.cpp
@@ -98,6 +99,7 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/util/PlacesToNodeMapper.cpp
         src/util/Utils.cpp
         src/util/kafka/KafkaCC.cpp
+        src/util/kafka/StreamHandler.cpp
         src/util/logger/Logger.cpp
         src/util/scheduler/SchedulerService.cpp
         src/nativestore/NodeManager.cpp
@@ -111,11 +113,11 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/nativestore/CentralRelationBlock.cpp
         src/nativestore/DataPublisher.cpp
         src/partitioner/stream/Partition.cpp
-        )
+)
 
 add_library(JasmineGraphLib ${HEADERS} ${SOURCES})
 add_executable(JasmineGraph main.h main.cpp
-        src/util/kafka/kafkaService.h)
+        src/util/kafka/StreamHandler.h)
 
 target_compile_definitions(JasmineGraphLib PUBLIC ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}/")
 
