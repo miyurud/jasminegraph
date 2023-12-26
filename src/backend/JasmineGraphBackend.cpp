@@ -121,10 +121,8 @@ int JasmineGraphBackend::run() {
     svrAdd.sin_port = htons(portNo);
 
     int yes = 1;
-
     if (setsockopt(listenFd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes) == -1) {
         perror("setsockopt");
-        exit(1);
     }
 
     // bind socket
@@ -149,9 +147,8 @@ int JasmineGraphBackend::run() {
         if (connFd < 0) {
             backend_logger.log("Cannot accept connection", "error");
             return 0;
-        } else {
-            backend_logger.log("Connection successful", "info");
         }
+        backend_logger.log("Connection successful", "info");
 
         struct backendservicesessionargs backendservicesessionargs1;
         backendservicesessionargs1.sqlite = this->sqlite;

@@ -293,7 +293,6 @@ int JasmineGraphFrontEnd::run() {
 
     if (setsockopt(listenFd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes) == -1) {
         perror("setsockopt");
-        exit(1);
     }
 
     // bind socket
@@ -318,9 +317,8 @@ int JasmineGraphFrontEnd::run() {
         if (connFd < 0) {
             frontend_logger.error("Cannot accept connection");
             return 0;
-        } else {
-            frontend_logger.info("Connection successful");
         }
+        frontend_logger.info("Connection successful");
 
         frontend_logger.info("Master IP" + masterIP);
 

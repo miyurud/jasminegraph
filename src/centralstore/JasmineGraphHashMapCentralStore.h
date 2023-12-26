@@ -45,7 +45,7 @@ class JasmineGraphHashMapCentralStore : public JasmineGraphLocalStore {
     long vertexCount = 0;
     long edgeCount = 0;
 
-    std::string getFileSeparator();
+    static std::string getFileSeparator();
 
     void toLocalSubGraphMap(const PartEdgeMapStore *edgeMapStoreData);
 

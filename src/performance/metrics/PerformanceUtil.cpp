@@ -1028,10 +1028,9 @@ std::string PerformanceUtil::getSLACategoryId(std::string command, std::string c
     if (categoryResults.size() == 1) {
         std::string slaCategoryId = categoryResults[0][0].second;
         return slaCategoryId;
-    } else {
-        scheduler_logger.log("Invalid SLA " + category + " for " + command + " command", "error");
-        return 0;
     }
+    scheduler_logger.log("Invalid SLA " + category + " for " + command + " command", "error");
+    return 0;
 }
 
 void PerformanceUtil::initiateCollectingRemoteSLAResourceUtilization(std::string host, int port,

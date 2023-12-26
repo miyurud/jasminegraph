@@ -127,10 +127,9 @@ NodeBlock *NodeManager::addNode(std::string nodeId) {
         this->nextNodeIndex++;
         sourceBlk->save();
         return sourceBlk;
-    } else {
-        node_manager_logger.debug("NodeId found in index for node ID " + nodeId);
-        return this->get(nodeId);
     }
+    node_manager_logger.debug("NodeId found in index for node ID " + nodeId);
+    return this->get(nodeId);
 }
 
 RelationBlock *NodeManager::addEdge(std::pair<std::string, std::string> edge) {

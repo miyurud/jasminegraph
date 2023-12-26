@@ -268,10 +268,8 @@ void JasmineGraphInstanceService::run(string profile, string masterHost, string 
     svrAdd.sin_port = htons(serverPort);
 
     int yes = 1;
-
     if (setsockopt(listenFd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes) == -1) {
         perror("setsockopt");
-        exit(1);
     }
 
     // bind socket

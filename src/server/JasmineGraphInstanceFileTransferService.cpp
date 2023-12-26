@@ -68,10 +68,8 @@ void JasmineGraphInstanceFileTransferService::run(int dataPort) {
     svrAdd.sin_port = htons(dataPort);
 
     int yes = 1;
-
     if (setsockopt(listenFd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes) == -1) {
         perror("setsockopt");
-        exit(1);
     }
 
     // bind socket

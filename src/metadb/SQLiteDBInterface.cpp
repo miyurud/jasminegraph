@@ -25,11 +25,10 @@ int SQLiteDBInterface::init() {
     int rc = sqlite3_open(Utils::getJasmineGraphProperty("org.jasminegraph.db.location").c_str(), &database);
     if (rc) {
         db_logger.log("Cannot open database: " + string(sqlite3_errmsg(database)), "error");
-        return (-1);
-    } else {
-        db_logger.log("Database opened successfully", "info");
-        return 0;
+        return -1;
     }
+    db_logger.log("Database opened successfully", "info");
+    return 0;
 }
 
 int SQLiteDBInterface::finalize() { return sqlite3_close(database); }
@@ -76,21 +75,19 @@ int SQLiteDBInterface::runInsert(std::string query) {
         db_logger.log("SQL Error: " + string(zErrMsg) + " " + query, "error");
         sqlite3_free(zErrMsg);
         return -1;
-    } else {
-        db_logger.log("Insert operation done successfully", "info");
-        vector<vector<pair<string, string>>> dbResults;
-        string q2 = "SELECT last_insert_rowid();";
-
-        int rc2 = sqlite3_exec(database, q2.c_str(), callback, &dbResults, &zErrMsg);
-
-        if (rc2 != SQLITE_OK) {
-            db_logger.log("SQL Error: " + string(zErrMsg) + " " + query, "error");
-            sqlite3_free(zErrMsg);
-            return -1;
-        } else {
-            return std::stoi(dbResults[0][0].second);
-        }
     }
+    db_logger.log("Insert operation done successfully", "info");
+    vector<vector<pair<string, string>>> dbResults;
+    string q2 = "SELECT last_insert_rowid();";
+
+    int rc2 = sqlite3_exec(database, q2.c_str(), callback, &dbResults, &zErrMsg);
+
+    if (rc2 != SQLITE_OK) {
+        db_logger.log("SQL Error: " + string(zErrMsg) + " " + query, "error");
+        sqlite3_free(zErrMsg);
+        return -1;
+    }
+    return std::stoi(dbResults[0][0].second);
 }
 
 // This function inserts one or more rows of the DB and nothing is returned

@@ -120,7 +120,8 @@ RelationBlock* RelationBlock::get(unsigned int address) {
     int RECORD_SIZE = sizeof(unsigned int);
     if (address == 0) {
         return NULL;
-    } else if (address % RelationBlock::BLOCK_SIZE != 0) {
+    }
+    if (address % RelationBlock::BLOCK_SIZE != 0) {
         throw "Exception: Invalid relation block address !!\n received address = " + address;
     }
 
@@ -334,10 +335,9 @@ std::map<std::string, char*> RelationBlock::getAllProperties() {
 NodeBlock* RelationBlock::getSource() {
     if (this->sourceBlock) {
         return sourceBlock;
-    } else {
-        relation_block_logger.warn("Get source from node block address is not implemented yet!");
-        return NULL;
     }
+    relation_block_logger.warn("Get source from node block address is not implemented yet!");
+    return NULL;
 }
 
 /**
@@ -347,10 +347,9 @@ NodeBlock* RelationBlock::getSource() {
 NodeBlock* RelationBlock::getDestination() {
     if (this->destinationBlock) {
         return destinationBlock;
-    } else {
-        relation_block_logger.warn("Get destination from node block address is not implemented yet!");
-        return NULL;
     }
+    relation_block_logger.warn("Get destination from node block address is not implemented yet!");
+    return NULL;
 }
 
 const unsigned long RelationBlock::BLOCK_SIZE = RelationBlock::RECORD_SIZE * 11;

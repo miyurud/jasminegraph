@@ -114,9 +114,8 @@ long StatisticCollector::getTotalMemoryAllocated() {
             unsigned long mem;
             if (file >> mem) {
                 return mem;
-            } else {
-                return 0;
             }
+            return 0;
         }
         file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     }

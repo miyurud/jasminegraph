@@ -93,26 +93,22 @@ bool NodeBlock::updateRelation(RelationBlock* newRelation, bool relocateHead) {
             }
         }
         return this->setRelationHead(*newRelation);
-    } else {
-        RelationBlock* currentRelation = currentHead;
-        while (currentRelation != NULL) {
-            if (currentRelation->source.address == this->addr) {
-                if (currentRelation->source.nextRelationId == 0) {
-                    return currentRelation->setNextSource(edgeReferenceAddress);
-                } else {
-                    currentRelation = currentRelation->nextSource();
-                }
-            } else if (!this->isDirected && currentRelation->destination.address == this->addr) {
-                if (currentRelation->destination.nextRelationId == 0) {
-                    return currentRelation->setNextDestination(edgeReferenceAddress);
-                } else {
-                    currentRelation = currentRelation->nextDestination();
-                }
-            } else {
-                node_block_logger.warn("Invalid relation block" + std::to_string(currentRelation->addr));
+    }
+    RelationBlock* currentRelation = currentHead;
+    while (currentRelation != NULL) {
+        if (currentRelation->source.address == this->addr) {
+            if (currentRelation->source.nextRelationId == 0) {
+                return currentRelation->setNextSource(edgeReferenceAddress);
             }
+            currentRelation = currentRelation->nextSource();
+        } else if (!this->isDirected && currentRelation->destination.address == this->addr) {
+            if (currentRelation->destination.nextRelationId == 0) {
+                return currentRelation->setNextDestination(edgeReferenceAddress);
+            }
+            currentRelation = currentRelation->nextDestination();
+        } else {
+            node_block_logger.warn("Invalid relation block" + std::to_string(currentRelation->addr));
         }
-        return false;
     }
     return false;
 }

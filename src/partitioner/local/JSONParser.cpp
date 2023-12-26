@@ -66,28 +66,27 @@ void JSONParser::attributeFileCreate() {
             string message = reader.getFormattedErrorMessages();
             jsonparser_logger.log("Error : " + message, "error");
             exit(1);
-        } else {
-            string id = root["id"].asString();
-            auto idFound = vertexToIDMap.find(stol(id));
-            if (idFound != vertexToIDMap.end()) {
-                int mapped_id = vertexToIDMap.find(stol(id))->second;
-                const Json::Value fos = root["fos"];
-                for (int i = 0; i < fos.size(); i++) {
-                    string field = fos[i]["name"].asString();
-                    double weight = fos[i]["w"].asDouble();
-                    if (weight > 0.5) {
-                        auto search = fieldsMap.find(field);
-                        if (search != fieldsMap.end()) {
-                            tempVectorOfZeros.at(search->second) = 1;
-                        }
+        }
+        string id = root["id"].asString();
+        auto idFound = vertexToIDMap.find(stol(id));
+        if (idFound != vertexToIDMap.end()) {
+            int mapped_id = vertexToIDMap.find(stol(id))->second;
+            const Json::Value fos = root["fos"];
+            for (int i = 0; i < fos.size(); i++) {
+                string field = fos[i]["name"].asString();
+                double weight = fos[i]["w"].asDouble();
+                if (weight > 0.5) {
+                    auto search = fieldsMap.find(field);
+                    if (search != fieldsMap.end()) {
+                        tempVectorOfZeros.at(search->second) = 1;
                     }
                 }
-                attrFile << mapped_id << "\t";
-                for (auto it = tempVectorOfZeros.begin(); it != tempVectorOfZeros.end(); ++it) {
-                    attrFile << *it << "\t ";
-                }
-                attrFile << endl;
             }
+            attrFile << mapped_id << "\t";
+            for (auto it = tempVectorOfZeros.begin(); it != tempVectorOfZeros.end(); ++it) {
+                attrFile << *it << "\t ";
+            }
+            attrFile << endl;
         }
     }
     attrFile.close();
@@ -123,33 +122,32 @@ void JSONParser::createEdgeList() {
         if (!reader.parse(line, root)) {
             jsonparser_logger.log("File format mismatch", "error");
             exit(1);
+        }
+        string id = root["id"].asString();
+        const Json::Value references = root["references"];
+        if (references.empty()) {
+            continue;
+        }
+        long idValue = stol(id);
+        if (vertexToIDMap.insert(make_pair(idValue, idCounter)).second) {
+            mapped_id = idCounter;
+            idCounter++;
         } else {
-            string id = root["id"].asString();
-            const Json::Value references = root["references"];
-            if (references.empty()) {
-                continue;
-            }
-            long idValue = stol(id);
-            if (vertexToIDMap.insert(make_pair(idValue, idCounter)).second) {
-                mapped_id = idCounter;
+            mapped_id = vertexToIDMap.find(idValue)->second;
+        }
+
+        int mapped_ref_id;
+        for (int index = 0; index < references.size(); ++index) {
+            string ref_id = references[index].asString();
+            long ref_idValue = stol(ref_id);
+            if (vertexToIDMap.insert(make_pair(ref_idValue, idCounter)).second) {
+                mapped_ref_id = idCounter;
                 idCounter++;
             } else {
-                mapped_id = vertexToIDMap.find(idValue)->second;
+                mapped_ref_id = vertexToIDMap.find(ref_idValue)->second;
             }
 
-            int mapped_ref_id;
-            for (int index = 0; index < references.size(); ++index) {
-                string ref_id = references[index].asString();
-                long ref_idValue = stol(ref_id);
-                if (vertexToIDMap.insert(make_pair(ref_idValue, idCounter)).second) {
-                    mapped_ref_id = idCounter;
-                    idCounter++;
-                } else {
-                    mapped_ref_id = vertexToIDMap.find(ref_idValue)->second;
-                }
-
-                file << mapped_id << " " << mapped_ref_id << endl;
-            }
+            file << mapped_id << " " << mapped_ref_id << endl;
         }
     }
     file.close();
@@ -166,18 +164,17 @@ void JSONParser::countFileds() {
         if (!reader.parse(line, root)) {
             jsonparser_logger.log("File format mismatch", "error");
             exit(1);
-        } else {
-            const Json::Value fos = root["fos"];
+        }
+        const Json::Value fos = root["fos"];
 
-            for (int i = 0; i < fos.size(); i++) {
-                string field = fos[i]["name"].asString();
-                double weight = fos[i]["w"].asDouble();
-                if (weight > 0.5) {
-                    if (fieldCounts.find(field) == fieldCounts.end()) {
-                        fieldCounts.insert(make_pair(field, 1));
-                    } else {
-                        fieldCounts[field]++;
-                    }
+        for (int i = 0; i < fos.size(); i++) {
+            string field = fos[i]["name"].asString();
+            double weight = fos[i]["w"].asDouble();
+            if (weight > 0.5) {
+                if (fieldCounts.find(field) == fieldCounts.end()) {
+                    fieldCounts.insert(make_pair(field, 1));
+                } else {
+                    fieldCounts[field]++;
                 }
             }
         }
