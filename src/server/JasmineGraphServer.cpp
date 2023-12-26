@@ -30,6 +30,10 @@ limitations under the License.
 
 Logger server_logger;
 
+static void copyArtifactsToWorkers(std::string workerPath, std::string artifactLocation, std::string remoteWorker);
+static void createLogFilePath(std::string workerHost, std::string workerPath);
+static void deleteWorkerPath(std::string workerHost, std::string workerPath);
+
 static map<string, string> hostIDMap;
 static std::vector<JasmineGraphServer::workers> hostWorkerMap;
 static map<string, pair<int, int>> hostPortMap;
@@ -319,7 +323,12 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                                     masterHost + " " + std::to_string(workerPortsVector.at(i)) + " " +
                                     std::to_string(workerDataPortsVector.at(i)) + " " + enableNmon;
             }
-            popen(serverStartScript.c_str(), "r");
+            const char *commandStr = serverStartScript.c_str();
+            pid_t child = vfork();
+            if (child == 0) {
+                execl("/bin/sh", "sh", "-c", commandStr, (char *)NULL);
+                _exit(1);
+            }
         }
     } else if (profile == "docker") {
         char *env_testing = getenv("TESTING");
@@ -382,7 +391,12 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                 }
             }
             server_logger.log(serverStartScript, "info");
-            popen(serverStartScript.c_str(), "r");
+            const char *serverStartCmd = serverStartScript.c_str();
+            pid_t child = vfork();
+            if (child == 0) {
+                execl("/bin/sh", "sh", "-c", serverStartCmd, (char *)NULL);
+                _exit(1);
+            }
         }
     }
 }
@@ -1256,38 +1270,19 @@ void JasmineGraphServer::copyCentralStoreToAggregateLocation(std::string filePat
     char buffer[128];
     std::string result = "SUCCESS";
     std::string copyCommand;
-    std::string aggregatorFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
+    std::string aggregatorDirPath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
 
-    DIR *dir = opendir(aggregatorFilePath.c_str());
-
-    if (dir) {
-        closedir(dir);
-    } else {
-        std::string createDirCommand = "mkdir -p " + aggregatorFilePath;
-        FILE *createDirInput = popen(createDirCommand.c_str(), "r");
-        pclose(createDirInput);
+    if (access(aggregatorDirPath.c_str(), F_OK)) {
+        std::string createDirCommand = "mkdir -p " + aggregatorDirPath;
+        if (system(createDirCommand.c_str())) {
+            server_logger.error("Creating directory " + aggregatorDirPath + " failed");
+        }
     }
 
-    copyCommand = "cp " + filePath + " " + aggregatorFilePath;
-
-    FILE *copyInput = popen(copyCommand.c_str(), "r");
-
-    if (copyInput) {
-        // read the input
-        while (!feof(copyInput)) {
-            if (fgets(buffer, 128, copyInput) != NULL) {
-                result.append(buffer);
-            }
-        }
-        if (!result.empty()) {
-            std::cout << result << std::endl;
-        }
-        pclose(copyInput);
+    copyCommand = "cp " + filePath + " " + aggregatorDirPath;
+    if (system(copyCommand.c_str())) {
+        server_logger.error("Copying " + filePath + " into " + aggregatorDirPath + " failed");
     }
-
-    std::string fileName = Utils::getFileName(filePath);
-
-    std::string fullFileName = aggregatorFilePath + "/" + fileName;
 }
 
 bool JasmineGraphServer::batchUploadAttributeFile(std::string host, int port, int dataPort, int graphID,
@@ -1951,153 +1946,61 @@ bool JasmineGraphServer::sendFileThroughService(std::string host, int dataPort, 
     return false;
 }
 
-void JasmineGraphServer::copyArtifactsToWorkers(std::string workerPath, std::string artifactLocation,
-                                                std::string remoteWorker) {
+static void copyArtifactsToWorkers(std::string workerPath, std::string artifactLocation, std::string remoteWorker) {
     if (artifactLocation.empty() || artifactLocation.find_first_not_of(' ') == artifactLocation.npos) {
         server_logger.log("Received `" + artifactLocation + "` for `artifactLocation` value!", "error");
         throw std::invalid_argument("Received empty string for `artifactLocation` value!");
     }
-    std::string pathCheckCommand = "test -e " + workerPath + "&& echo file exists || echo file not found";
-    std::string artifactCopyCommand;
+
+    std::string pathCheckCommand = "test -e " + workerPath;
+    if (remoteWorker.find("localhost") == std::string::npos) {
+        pathCheckCommand = "ssh -p 22 " + remoteWorker + " " + pathCheckCommand;
+    }
+
+    if (system(pathCheckCommand.c_str())) {
+        deleteWorkerPath(remoteWorker, workerPath);
+    }
+    // Creating the log file path will automatically create its parent worker path
+    createLogFilePath(remoteWorker, workerPath);
+
+    // Copy artifacts
     const int ARTIFACTS_COUNT = 4;
     std::string artifactsArray[ARTIFACTS_COUNT] = {"JasmineGraph", "run.sh", "conf"};
 
-    std::string localWorkerArtifactCopyCommandArray[ARTIFACTS_COUNT];
-    std::string remoteWorkerArtifactCopyCommandArray[ARTIFACTS_COUNT];
-
     for (int i = 0; i < ARTIFACTS_COUNT; i++) {
-        localWorkerArtifactCopyCommandArray[i] =
-            "cp -r " + artifactLocation + "/" + artifactsArray[i] + " " + workerPath;
-        remoteWorkerArtifactCopyCommandArray[i] =
-            "scp -r " + artifactLocation + "/" + artifactsArray[i] + " " + remoteWorker + ":" + workerPath;
-    }
-
-    char buffer[128];
-    std::string result = "";
-
-    if (remoteWorker.find("localhost") == std::string::npos) {
-        std::string remotePathCheckCommand = "ssh -p 22 " + remoteWorker + " " + pathCheckCommand;
-        pathCheckCommand = remotePathCheckCommand;
-    }
-
-    FILE *input = popen(pathCheckCommand.c_str(), "r");
-
-    if (input) {
-        // read the input
-        while (!feof(input)) {
-            if (fgets(buffer, 128, input) != NULL) {
-                result.append(buffer);
-            }
-        }
-        if (!result.empty()) {
-            std::cout << result << std::endl;
-        }
-
-        deleteWorkerPath(remoteWorker, workerPath);
-        createWorkerPath(remoteWorker, workerPath);
-        createLogFilePath(remoteWorker, workerPath);
-        pclose(input);
-    }
-
-    for (int i = 0; i < ARTIFACTS_COUNT; i++) {
+        std::string artifactCopyCommand;
         if (remoteWorker.find("localhost") != std::string::npos) {
-            artifactCopyCommand = localWorkerArtifactCopyCommandArray[i];
+            artifactCopyCommand = "cp -r " + artifactLocation + "/" + artifactsArray[i] + " " + workerPath;
         } else {
-            artifactCopyCommand = remoteWorkerArtifactCopyCommandArray[i];
+            artifactCopyCommand =
+                "scp -r " + artifactLocation + "/" + artifactsArray[i] + " " + remoteWorker + ":" + workerPath;
         }
 
-        FILE *copyInput = popen(artifactCopyCommand.c_str(), "r");
-        result = "";
-        if (copyInput) {
-            // read the input
-            while (!feof(copyInput)) {
-                if (fgets(buffer, 128, copyInput) != NULL) {
-                    result.append(buffer);
-                }
-            }
-            if (!result.empty()) {
-                server_logger.log("Error executing command for copying worker artifacts : " + result, "error");
-            }
-            pclose(copyInput);
+        if (system(artifactCopyCommand.c_str())) {
+            server_logger.error("Error executing command: " + artifactCopyCommand);
         }
     }
 }
 
-void JasmineGraphServer::deleteWorkerPath(std::string workerHost, std::string workerPath) {
+static void deleteWorkerPath(std::string workerHost, std::string workerPath) {
     std::string pathDeletionCommand = "rm -rf " + workerPath;
-    char buffer[BUFFER_SIZE];
-    std::string result = "";
-
     if (workerHost.find("localhost") == std::string::npos) {
-        std::string tmpPathCreation = pathDeletionCommand;
-        pathDeletionCommand = "ssh -p 22 " + workerHost + " " + tmpPathCreation;
+        pathDeletionCommand = "ssh -p 22 " + workerHost + " " + pathDeletionCommand;
     }
 
-    FILE *input = popen(pathDeletionCommand.c_str(), "r");
-
-    if (input) {
-        // read the input
-        while (!feof(input)) {
-            if (fgets(buffer, BUFFER_SIZE, input) != NULL) {
-                result.append(buffer);
-            }
-        }
-        if (!result.empty()) {
-            server_logger.log("Error executing command for deleting worker path : " + result, "error");
-        }
-        pclose(input);
+    if (system(pathDeletionCommand.c_str())) {
+        server_logger.error("Error executing command: " + pathDeletionCommand);
     }
 }
 
-void JasmineGraphServer::createWorkerPath(std::string workerHost, std::string workerPath) {
-    std::string pathCreationCommand = "mkdir -p " + workerPath;
-    char buffer[BUFFER_SIZE];
-    std::string result = "";
-
-    if (workerHost.find("localhost") == std::string::npos) {
-        std::string tmpPathCreation = pathCreationCommand;
-        pathCreationCommand = "ssh -p 22 " + workerHost + " " + tmpPathCreation;
-    }
-
-    FILE *input = popen(pathCreationCommand.c_str(), "r");
-
-    if (input) {
-        // read the input
-        while (!feof(input)) {
-            if (fgets(buffer, BUFFER_SIZE, input) != NULL) {
-                result.append(buffer);
-            }
-        }
-        if (!result.empty()) {
-            server_logger.log("Error executing command for creating worker path : " + result, "error");
-        }
-        pclose(input);
-    }
-}
-
-void JasmineGraphServer::createLogFilePath(std::string workerHost, std::string workerPath) {
+static void createLogFilePath(std::string workerHost, std::string workerPath) {
     std::string pathCreationCommand = "mkdir -p " + workerPath + "/logs";
-    char buffer[BUFFER_SIZE];
-    std::string result = "";
-
     if (workerHost.find("localhost") == std::string::npos) {
-        std::string tmpPathCreation = pathCreationCommand;
-        pathCreationCommand = "ssh -p 22 " + workerHost + " " + tmpPathCreation;
+        pathCreationCommand = "ssh -p 22 " + workerHost + " " + pathCreationCommand;
     }
 
-    FILE *input = popen(pathCreationCommand.c_str(), "r");
-
-    if (input) {
-        // read the input
-        while (!feof(input)) {
-            if (fgets(buffer, BUFFER_SIZE, input) != NULL) {
-                result.append(buffer);
-            }
-        }
-        if (!result.empty()) {
-            server_logger.log("Error executing command for creating log file path : " + result, "error");
-        }
-        pclose(input);
+    if (system(pathCreationCommand.c_str())) {
+        server_logger.error("Error executing command: " + pathCreationCommand);
     }
 }
 
@@ -2564,25 +2467,10 @@ void JasmineGraphServer::backupPerformanceDB() {
         std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())
             .count();
 
-    std::string backupScript = "cp " + performanceDBPath + " " + performanceDBPath + "-" + to_string(currentTimestamp);
+    std::string backupCommand = "cp " + performanceDBPath + " " + performanceDBPath + "-" + to_string(currentTimestamp);
 
-    char buffer[BUFFER_SIZE];
-    std::string result = "";
-
-    FILE *input = popen(backupScript.c_str(), "r");
-
-    if (input) {
-        // read the input
-        while (!feof(input)) {
-            if (fgets(buffer, BUFFER_SIZE, input) != NULL) {
-                result.append(buffer);
-            }
-        }
-        if (!result.empty()) {
-            server_logger.log("Error in performance database backup process", "error");
-        }
-
-        pclose(input);
+    if (system(backupCommand.c_str())) {
+        server_logger.error("Error executing command: " + backupCommand);
     }
 }
 

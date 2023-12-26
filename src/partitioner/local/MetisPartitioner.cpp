@@ -212,7 +212,6 @@ std::vector<std::map<int, std::string>> MetisPartitioner::partitioneWithGPMetis(
 
     char buffer[128];
     std::string result = "";
-    FILE *headerModify;
     std::string metisBinDir = Utils::getJasmineGraphProperty("org.jasminegraph.partitioner.metis.bin");
     string metisCommand =
         metisBinDir + "/gpmetis " + this->outputFilePath + "/grf " + to_string(this->nParts) + " 2>&1";
@@ -233,18 +232,24 @@ std::vector<std::map<int, std::string>> MetisPartitioner::partitioneWithGPMetis(
             string newHeader = std::to_string(vertexCount) + ' ' + std::to_string(edgeCountForMetis);
             // string command = "sed -i \"1s/.*/" + newHeader +"/\" /tmp/grf";
             string command = "sed -i \"1s/.*/" + newHeader + "/\" " + this->outputFilePath + "/grf";
-            char *newHeaderChar = new char[command.length() + 1];
-            strcpy(newHeaderChar, command.c_str());
-            headerModify = popen(newHeaderChar, "r");
+            const char *commandStr = command.c_str();
+            pid_t child = vfork();
+            if (child == 0) {
+                execl("/bin/sh", "sh", "-c", commandStr, (char *)NULL);
+                _exit(1);
+            }
             partitioneWithGPMetis(to_string(nParts));
         } else if (!result.empty() && result.find("out of bounds") != std::string::npos) {
             vertexCount += 1;
             string newHeader = std::to_string(vertexCount) + ' ' + std::to_string(edgeCountForMetis);
             // string command = "sed -i \"1s/.*/" + newHeader +"/\" /tmp/grf";
             string command = "sed -i \"1s/.*/" + newHeader + "/\" " + this->outputFilePath + "/grf";
-            char *newHeaderChar = new char[command.length() + 1];
-            strcpy(newHeaderChar, command.c_str());
-            headerModify = popen(newHeaderChar, "r");
+            const char *commandStr = command.c_str();
+            pid_t child = vfork();
+            if (child == 0) {
+                execl("/bin/sh", "sh", "-c", commandStr, (char *)NULL);
+                _exit(1);
+            }
             partitioneWithGPMetis(to_string(nParts));
             // However, I only found
         } else if (!result.empty() && result.find("However, I only found") != std::string::npos) {
@@ -256,9 +261,12 @@ std::vector<std::map<int, std::string>> MetisPartitioner::partitioneWithGPMetis(
                 result.substr(first + firstDelimiter.length() + 1, last - (first + firstDelimiter.length()) - 2);
             string newHeader = std::to_string(vertexCount) + ' ' + newEdgeSize;
             string command = "sed -i \"1s/.*/" + newHeader + "/\" " + this->outputFilePath + "/grf";
-            char *newHeaderChar = new char[command.length() + 1];
-            strcpy(newHeaderChar, command.c_str());
-            headerModify = popen(newHeaderChar, "r");
+            const char *commandStr = command.c_str();
+            pid_t child = vfork();
+            if (child == 0) {
+                execl("/bin/sh", "sh", "-c", commandStr, (char *)NULL);
+                _exit(1);
+            }
             partitioneWithGPMetis(to_string(nParts));
         } else if (!result.empty() && result.find("Timing Information") != std::string::npos) {
             std::string line;

@@ -201,11 +201,9 @@ std::vector<std::string> Utils::getListOfFilesInDirectory(const std::string dirN
 }
 
 /**
- * This method deletes a directory with all its content
+ * This method deletes a directory with all its content if the user has permission
  * @param dirName
  */
-// TODO :: find a possible solution to handle the permission denied error when trying to delete a protected directory.
-// popen does not work either
 int Utils::deleteDirectory(const std::string dirName) {
     string command = "rm -rf " + dirName;
     int status = system(command.c_str());
@@ -227,7 +225,6 @@ bool Utils::is_number(const std::string &compareString) {
  * @return
  */
 std::string Utils::getFileName(std::string filePath) {
-    // FIXME: Can file path separator be '\' on Linux?
     std::string filename = filePath.substr(filePath.find_last_of("/\\") + 1);
     return filename;
 }
@@ -276,7 +273,6 @@ int Utils::copyFile(const std::string sourceFilePath, const std::string destinat
  * @return
  */
 int Utils::getFileSize(std::string filePath) {
-    // const clock_t begin_time = clock();
     ifstream file(filePath.c_str(), ifstream::in | ifstream::binary);
     if (!file.is_open()) {
         return -1;
@@ -284,7 +280,6 @@ int Utils::getFileSize(std::string filePath) {
     file.seekg(0, ios::end);
     int fileSize = file.tellg();
     file.close();
-    // std::cout << "TIME FOR READ : "<<float( clock () - begin_time ) /  CLOCKS_PER_SEC << std::endl;
     return fileSize;
 }
 

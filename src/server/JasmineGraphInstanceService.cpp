@@ -3364,24 +3364,21 @@ static void send_centralstore_to_aggregator_command(int connFd, bool *loop_exit_
     size_t lastindex = fileName.find_last_of(".");
     string rawname = fileName.substr(0, lastindex);
     fullFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + rawname;
-    std::string aggregatorFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
+    std::string aggregatorDirPath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
 
-    DIR *dir = opendir(aggregatorFilePath.c_str());
-
-    if (dir) {
-        closedir(dir);
-    } else {
-        std::string createDirCommand = "mkdir -p " + aggregatorFilePath;
-        FILE *createDirInput = popen(createDirCommand.c_str(), "r");
-        pclose(createDirInput);
+    if (access(aggregatorDirPath.c_str(), F_OK)) {
+        std::string createDirCommand = "mkdir -p " + aggregatorDirPath;
+        if (system(createDirCommand.c_str())) {
+            instance_logger.error("Creating directory " + aggregatorDirPath + " failed");
+        }
     }
 
-    std::string copyCommand = "cp " + fullFilePath + " " + aggregatorFilePath;
+    std::string copyCommand = "cp " + fullFilePath + " " + aggregatorDirPath;
+    if (system(copyCommand.c_str())) {
+        instance_logger.error("Copying " + fullFilePath + " into " + aggregatorDirPath + " failed");
+    }
 
-    FILE *copyInput = popen(copyCommand.c_str(), "r");
-    pclose(copyInput);
-
-    std::string movedFullFilePath = aggregatorFilePath + "/" + rawname;
+    std::string movedFullFilePath = aggregatorDirPath + "/" + rawname;
 
     while (!Utils::fileExists(movedFullFilePath)) {
         string response = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
@@ -3471,24 +3468,21 @@ static void send_composite_centralstore_to_aggregator_command(int connFd, bool *
     size_t lastindex = fileName.find_last_of(".");
     string rawname = fileName.substr(0, lastindex);
     fullFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + rawname;
-    std::string aggregatorFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
+    std::string aggregatorDirPath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
 
-    DIR *dir = opendir(aggregatorFilePath.c_str());
-
-    if (dir) {
-        closedir(dir);
-    } else {
-        std::string createDirCommand = "mkdir -p " + aggregatorFilePath;
-        FILE *createDirInput = popen(createDirCommand.c_str(), "r");
-        pclose(createDirInput);
+    if (access(aggregatorDirPath.c_str(), F_OK)) {
+        std::string createDirCommand = "mkdir -p " + aggregatorDirPath;
+        if (system(createDirCommand.c_str())) {
+            instance_logger.error("Creating directory " + aggregatorDirPath + " failed");
+        }
     }
 
-    std::string copyCommand = "cp " + fullFilePath + " " + aggregatorFilePath;
+    std::string copyCommand = "cp " + fullFilePath + " " + aggregatorDirPath;
+    if (system(copyCommand.c_str())) {
+        instance_logger.error("Copying " + fullFilePath + " into " + aggregatorDirPath + " failed");
+    }
 
-    FILE *copyInput = popen(copyCommand.c_str(), "r");
-    pclose(copyInput);
-
-    std::string movedFullFilePath = aggregatorFilePath + "/" + rawname;
+    std::string movedFullFilePath = aggregatorDirPath + "/" + rawname;
 
     while (!Utils::fileExists(movedFullFilePath)) {
         string response = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
