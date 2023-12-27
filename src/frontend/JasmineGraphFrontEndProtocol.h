@@ -51,6 +51,7 @@ extern const string TOP_K_SEND;
 extern const string FREE_DATA_DIR_SPACE;
 extern const string GRAPHID_SEND;
 extern const string TRIANGLES;
+extern const string STREAMING_TRIANGLES;
 extern const string K_CORE;
 extern const string K_VALUE;
 extern const string K_NN;

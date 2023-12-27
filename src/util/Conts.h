@@ -140,6 +140,7 @@ class Conts {
         static const std::string GRAPH_ID;
         static const std::string PRIORITY;
         static const std::string TRIANGLE_COUNT;
+        static const std::string STREAMING_TRIANGLE_COUNT;
         static const std::string CAN_CALIBRATE;
         static const std::string CATEGORY;
         static const std::string QUEUE_TIME;

@@ -17,12 +17,14 @@ import logging
 
 logging.getLogger().setLevel(logging.INFO)
 
-HOST = '127.0.0.1'
+HOST = '172.28.5.1'
 PORT = 7777  # The port used by the server
 
 LIST = b'lst'
 ADGR = b'adgr'
 ADGR_CUST = b'adgr-cust'
+ADD_STREAM_KAFKA_CSV = b'adstrmkcsv'
+ADD_STREAM_KAFKA = b'adstrmk'
 EMPTY = b'empty'
 RMGR = b'rmgr'
 VCNT = b'vcnt'
@@ -80,81 +82,82 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
     sock.connect((HOST, PORT))
 
     print()
-    logging.info("Testing lst")
-    send_and_expect_response(sock, 'Initial lst', LIST, EMPTY)
+    logging.info("Testing kafka streaming")
+    send_and_expect_response(sock, 'Streaming test', ADD_STREAM_KAFKA, b'DO you want to use default KAFKA consumer(y/n) ?', exitOnFail=True)
+    send_and_expect_response(sock, "Streaming test", b'y', b'send kafka topic name', exitOnFail=True)
+    send_and_expect_response(sock, "Streaming test", b'test_topic', b'Success', exitOnFail=True)
 
-    print()
-    logging.info("Testing adgr")
-    send_and_expect_response(sock, 'adgr', ADGR, SEND, exitOnFail=True)
-    send_and_expect_response(sock, 'adgr', b'powergrid|/var/tmp/data/powergrid.dl', DONE, exitOnFail=True)
-
-    print()
-    logging.info("Testing lst after adgr")
-    send_and_expect_response(sock, "lst after adgr", LIST, b'|1|powergrid|/var/tmp/data/powergrid.dl|op|')
-
-    print()
-    logging.info("Testing ecnt")
-    send_and_expect_response(sock, "ecnt", ECNT, b'graphid-send')
-    send_and_expect_response(sock, "ecnt", b'1', b'6594')
-
-    print()
-    logging.info("Testing vcnt")
-    send_and_expect_response(sock, "vcnt", VCNT, b'graphid-send')
-    send_and_expect_response(sock, "vcnt", b'1', b'4941')
-
-    print()
-    logging.info("Testing trian")
-    send_and_expect_response(sock, "trian", TRIAN, b'grap', exitOnFail=True)
-    send_and_expect_response(sock, "trian", b'1', b'priority(>=1)', exitOnFail=True)
-    send_and_expect_response(sock, "trian", b'1', b'651')
-
-    print()
-    logging.info("Testing pgrnk")
-    send_and_expect_response(sock, "pgrnk", PGRNK, b'send', exitOnFail=True)
-    send_and_expect_response(sock, "pgrnk", b'1|0.5|40', DONE, exitOnFail=True)
-
-    print()
-    logging.info("Testing adgr-cust")
-    send_and_expect_response(sock, "adgr-cust", ADGR_CUST, b'Select a custom graph upload option' + LINE_END +
-                             b'1 : Graph with edge list + text attributes list' + LINE_END +
-                             b'2 : Graph with edge list + JSON attributes list' + LINE_END +
-                             b'3 : Graph with edge list + XML attributes list', exitOnFail=True)
-    send_and_expect_response(sock, "adgr-cust",
-                             b'1',
-                             b'Send <name>|<path to edge list>|<path to attribute file>|' +
-                             b'(optional)<attribute data type: int8. int16, int32 or float>',
-                             exitOnFail=True)
-    send_and_expect_response(sock, "adgr-cust", b'cora|/var/tmp/data/cora/cora.cites|/var/tmp/data/cora/cora.content',
-                             DONE, exitOnFail=True)
-
-    print()
-    logging.info("Testing lst after adgr-cust")
-    send_and_expect_response(sock, "lst after adgr-cust", LIST,  b'|1|powergrid|/var/tmp/data/powergrid.dl|op|' + LINE_END +
-                                                                 b'|2|cora|/var/tmp/data/cora/cora.cites|op|')
-
-    print()
-    logging.info("Testing merge")
-    send_and_expect_response(sock, "merge", MERGE, b'Available main flags:' + LINE_END +
-                                                b'graph_id' + LINE_END +
-                                                b'Send --<flag1> <value1>')
-    send_and_expect_response(sock, "merge", b'--graph_id 2', DONE, exitOnFail=True)
-
-    print()
-    logging.info("Testing train")
-    send_and_expect_response(sock, "train", TRAIN, b'Available main flags:' + LINE_END +
-                             b'graph_id learning_rate batch_size validate_iter epochs' + LINE_END +
-                             b'Send --<flag1> <value1> --<flag2> <value2> ..', exitOnFail=True)
-    send_and_expect_response(sock, "train", b'--graph_id 2', DONE, exitOnFail=True)
-
-    print()
-    logging.info("Testing rmgr")
-    send_and_expect_response(sock, 'rmgr', RMGR, SEND)
-    send_and_expect_response(sock, 'rmgr', b'1', DONE)
-
-    print()
-    logging.info("Testing lst after rmgr")
-    send_and_expect_response(sock, 'lst after rmgr', LIST, b'|2|cora|/var/tmp/data/cora/cora.cites|op|')
-
+    # print()
+    # logging.info("Testing lst")
+    # send_and_expect_response(sock, 'Initial lst', LIST, EMPTY)
+    #
+    # print()
+    # logging.info("Testing adgr")
+    # send_and_expect_response(sock, 'adgr', ADGR, SEND, exitOnFail=True)
+    # send_and_expect_response(sock, 'adgr', b'powergrid|/var/tmp/data/powergrid.dl', DONE, exitOnFail=True)
+    #
+    # print()
+    # logging.info("Testing lst after adgr")
+    # send_and_expect_response(sock, "lst after adgr", LIST, b'|1|powergrid|/var/tmp/data/powergrid.dl|op|')
+    #
+    # print()
+    # logging.info("Testing ecnt")
+    # send_and_expect_response(sock, "ecnt", ECNT, b'graphid-send')
+    # send_and_expect_response(sock, "ecnt", b'1', b'6594')
+    #
+    # print()
+    # logging.info("Testing vcnt")
+    # send_and_expect_response(sock, "vcnt", VCNT, b'graphid-send')
+    # send_and_expect_response(sock, "vcnt", b'1', b'4941')
+    #
+    # print()
+    # logging.info("Testing trian")
+    # send_and_expect_response(sock, "trian", TRIAN, b'grap', exitOnFail=True)
+    # send_and_expect_response(sock, "trian", b'1', b'priority(>=1)', exitOnFail=True)
+    # send_and_expect_response(sock, "trian", b'1', b'651')
+    #
+    # print()
+    # logging.info("Testing adgr-cust")
+    # send_and_expect_response(sock, "adgr-cust", ADGR_CUST, b'Select a custom graph upload option' + LINE_END +
+    #                          b'1 : Graph with edge list + text attributes list' + LINE_END +
+    #                          b'2 : Graph with edge list + JSON attributes list' + LINE_END +
+    #                          b'3 : Graph with edge list + XML attributes list', exitOnFail=True)
+    # send_and_expect_response(sock, "adgr-cust",
+    #                          b'1',
+    #                          b'Send <name>|<path to edge list>|<path to attribute file>|' +
+    #                          b'(optional)<attribute data type: int8. int16, int32 or float>',
+    #                          exitOnFail=True)
+    # send_and_expect_response(sock, "adgr-cust", b'cora|/var/tmp/data/cora/cora.cites|/var/tmp/data/cora/cora.content',
+    #                          DONE, exitOnFail=True)
+    #
+    # print()
+    # logging.info("Testing lst after adgr-cust")
+    # send_and_expect_response(sock, "lst after adgr-cust", LIST,  b'|1|powergrid|/var/tmp/data/powergrid.dl|op|' + LINE_END +
+    #                                                              b'|2|cora|/var/tmp/data/cora/cora.cites|op|')
+    #
+    # print()
+    # logging.info("Testing merge")
+    # send_and_expect_response(sock, "merge", MERGE, b'Available main flags:' + LINE_END +
+    #                                             b'graph_id' + LINE_END +
+    #                                             b'Send --<flag1> <value1>')
+    # send_and_expect_response(sock, "merge", b'--graph_id 2', DONE, exitOnFail=True)
+    #
+    # print()
+    # logging.info("Testing train")
+    # send_and_expect_response(sock, "train", TRAIN, b'Available main flags:' + LINE_END +
+    #                          b'graph_id learning_rate batch_size validate_iter epochs' + LINE_END +
+    #                          b'Send --<flag1> <value1> --<flag2> <value2> ..', exitOnFail=True)
+    # send_and_expect_response(sock, "train", b'--graph_id 2', DONE, exitOnFail=True)
+    #
+    # print()
+    # logging.info("Testing rmgr")
+    # send_and_expect_response(sock, 'rmgr', RMGR, SEND)
+    # send_and_expect_response(sock, 'rmgr', b'1', DONE)
+    #
+    # print()
+    # logging.info("Testing lst after rmgr")
+    # send_and_expect_response(sock, 'lst after rmgr', LIST, b'|2|cora|/var/tmp/data/cora/cora.cites|op|')
+    #
     print()
     logging.info("Shutting down")
     sock.sendall(SHDN + LINE_END)

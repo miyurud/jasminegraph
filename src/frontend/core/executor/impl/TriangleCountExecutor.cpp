@@ -102,6 +102,7 @@ void TriangleCountExecutor::execute() {
 
     std::vector<vector<pair<string, string>>> results = sqlite.runSelect(sqlStatement);
 
+    //if partition count > 4
     if (results.size() > Conts::COMPOSITE_CENTRAL_STORE_WORKER_THRESHOLD) {
         isCompositeAggregation = true;
     }
@@ -1305,7 +1306,7 @@ std::vector<std::vector<string>> TriangleCountExecutor::getWorkerCombination(SQL
         "SELECT worker_idworker "
         "FROM worker_has_partition INNER JOIN worker ON worker_has_partition.worker_idworker=worker.idworker "
         "WHERE partition_graph_idgraph=" +
-        graphId + ";";
+        graphId + ";"; // 2 3 0 1
 
     std::vector<vector<pair<string, string>>> results = sqlite.runSelect(sqlStatement);
 

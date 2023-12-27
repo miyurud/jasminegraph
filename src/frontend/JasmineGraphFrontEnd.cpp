@@ -26,8 +26,7 @@ limitations under the License.
 #include <set>
 #include <thread>
 
-#include "../centralstore/incremental/DataPublisher.h"
-#include "../centralstore/incremental/RelationBlock.h"
+//#include "../nativestore/RelationBlock.h"
 #include "../metadb/SQLiteDBInterface.h"
 #include "../ml/trainer/JasmineGraphTrainingSchedular.h"
 #include "../partitioner/local/JSONParser.h"
@@ -75,6 +74,8 @@ static void stop_stream_kafka_command(int connFd, KafkaConnector *kstream, bool 
 static void process_dataset_command(int connFd, bool *loop_exit_p);
 static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterface sqlite,
                               PerformanceSQLiteDBInterface perfSqlite, JobScheduler jobScheduler, bool *loop_exit_p);
+static void streaming_triangles_command(std::string masterIP, int connFd, SQLiteDBInterface sqlite,
+                              PerformanceSQLiteDBInterface perfSqlite, JobScheduler jobScheduler, bool *loop_exit_p, vector<DataPublisher *> &workerClients);
 static void vertex_count_command(int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p);
 static void edge_count_command(int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p);
 static void merge_command(int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p);
@@ -91,12 +92,20 @@ static void sla_command(int connFd, SQLiteDBInterface sqlite, PerformanceSQLiteD
 // Thread function
 void listen_to_kafka_topic(KafkaConnector *kstream, Partitioner &graphPartitioner,
                            vector<DataPublisher *> &workerClients) {
+    int count = 0;
+//    std::time_t time_start = chrono::system_clock::to_time_t(chrono::system_clock::now());
+//    string uploadEndTime_start = ctime(&time);
+//    frontend_logger.log("Time Taken : " + uploadEndTime_start, "log");
     while (true) {
-        cppkafka::Message msg = kstream->consumer.poll();
+        cppkafka::Message msg = kstream->consumer.poll(std::chrono::milliseconds(5000));
         if (!msg || msg.get_error()) {
+            frontend_logger.log("Couldn't retrieve message from Kafka.", "info");
             continue;
         }
+        count++;
         string data(msg.get_payload());
+        frontend_logger.info("data received" + data);
+
         if (data == "-1") {  // Marks the end of stream
             frontend_logger.info("Received the end of `" + stream_topic_name + "` input kafka stream");
             break;
@@ -116,15 +125,32 @@ void listen_to_kafka_topic(KafkaConnector *kstream, Partitioner &graphPartitione
         obj["destination"] = destinationJson;
         long temp_s = partitionedEdge[0].second;
         long temp_d = partitionedEdge[1].second;
-        workerClients.at((int)partitionedEdge[0].second)->publish(sourceJson.dump());
-        workerClients.at((int)partitionedEdge[1].second)->publish(destinationJson.dump());
+
+        if (temp_s == temp_d) {
+            workerClients.at((int)partitionedEdge[0].second)->publish(obj.dump(), (int)partitionedEdge[0].second);
+        }
+        else{
+            workerClients.at((int)partitionedEdge[0].second)->publish(obj.dump(), (int)partitionedEdge[0].second);
+            workerClients.at((int)partitionedEdge[1].second)->publish(obj.dump(), (int)partitionedEdge[1].second);
+        }
+
+        frontend_logger.info("publish");
+        //graphPartitioner.printStats();
+
+        if(count == 100){
+//            std::time_t time_end = chrono::system_clock::to_time_t(chrono::system_clock::now());
+//            string uploadEndTime_end = ctime(&time);
+//            frontend_logger.log("Time Taken : " + uploadEndTime_end, "log");
+            graphPartitioner.printStats();
+        }
         //      storing Node block
         if (temp_s == temp_d) {
             // +miyurud: Temorarily commeting the following line to make the code build
             // workerClients.at((int) partitionedEdge[0].second)->publish_relation(obj.dump());
         }
     }
-    graphPartitioner.printStats();
+    //graphPartitioner.printStats();
+    frontend_logger.info("printStats");
 }
 
 void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface sqlite,
@@ -135,6 +161,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
     bzero(data, FRONTEND_DATA_LENGTH + 1);
     vector<Utils::worker> workerList = Utils::getWorkerList(sqlite);
     vector<DataPublisher *> workerClients;
+    vector<DataPublisher *> workerClients1;
 
     //  Initiate Thread
     thread input_stream_handler;
@@ -152,7 +179,9 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
         string workerID = currentWorker.workerID;
         int workerPort = atoi(string(currentWorker.port).c_str());
         DataPublisher *workerClient = new DataPublisher(workerPort, workerHost);
+        DataPublisher *workerClient1 = new DataPublisher(workerPort, workerHost);
         workerClients.push_back(workerClient);
+        workerClients1.push_back(workerClient1);
     }
     bool loop_exit = false;
     while (!loop_exit) {
@@ -217,6 +246,8 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
             process_dataset_command(connFd, &loop_exit);
         } else if (line.compare(TRIANGLES) == 0) {
             triangles_command(masterIP, connFd, sqlite, perfSqlite, jobScheduler, &loop_exit);
+        } else if (line.compare(STREAMING_TRIANGLES) == 0) {
+            streaming_triangles_command(masterIP, connFd, sqlite, perfSqlite, jobScheduler, &loop_exit, workerClients1);
         } else if (line.compare(VCOUNT) == 0) {
             vertex_count_command(connFd, sqlite, &loop_exit);
         } else if (line.compare(ECOUNT) == 0) {
@@ -520,6 +551,170 @@ long JasmineGraphFrontEnd::getSLAForGraphId(SQLiteDBInterface sqlite, Performanc
     }
 
     return graphSLAValue;
+}
+
+long JasmineGraphFrontEnd::getStreamingTriangleCount(string graphId, SQLiteDBInterface sqlite, string masterIP) {
+    frontend_logger.log("Dynamic triangle counting started for graphId : "+graphId, "info");
+
+    vector<Utils::worker> workerList = Utils::getWorkerList(sqlite);
+    int workerListSize = workerList.size();
+    int partitionCount = 2;
+    int currentPartition = 0;
+    std::vector<std::future<long>> intermRes;
+    long result = 0;
+
+    for (int i = 0; i < partitionCount; i++) {
+        Utils::worker currentWorker = workerList.at(i);
+        string host = currentWorker.hostname;
+
+        int workerPort = atoi(string(currentWorker.port).c_str());
+        int workerDataPort = atoi(string(currentWorker.dataPort).c_str());
+
+        intermRes.push_back(std::async(
+                std::launch::async, JasmineGraphFrontEnd::getStreamingTriangleCountFromWorkers, atoi(graphId.c_str()),
+                host, workerPort, workerDataPort, currentPartition, masterIP));
+        currentPartition++;
+    }
+
+    for (auto &&futureCall : intermRes) {
+        result += futureCall.get();
+    }
+
+    long aggregatedTriangleCount = 0;
+            //JasmineGraphFrontEnd::aggregateCentralStoreTriangles(sqlite, graphId, masterIP);
+    result += aggregatedTriangleCount;
+    frontend_logger.log(
+            "###TRIANGLE-COUNT-EXECUTOR### Getting Triangle Count : Completed: Triangles " + to_string(result), "info");
+
+    return result;
+}
+
+long JasmineGraphFrontEnd::getStreamingTriangleCountFromWorkers(int graphId, std::string host, int port, int dataPort, int partitionId,
+                                                   std::string masterIP){
+    int sockfd;
+    char data[301];
+    bool loop = false;
+    socklen_t len;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+    Utils utils;
+    long triangleCount;
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sockfd < 0) {
+        std::cerr << "Cannot accept connection" << std::endl;
+        return 0;
+    }
+
+    if (host.find('@') != std::string::npos) {
+        host = utils.split(host, '@')[1];
+    }
+
+    frontend_logger.log("###TRIANGLE-COUNT-EXECUTOR### Get Host By Name : " + host, "info");
+
+    server = gethostbyname(host.c_str());
+    if (server == NULL) {
+        std::cerr << "ERROR, no host named " << server << std::endl;
+    }
+
+    bzero((char *)&serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    serv_addr.sin_port = htons(port);
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+        std::cerr << "ERROR connecting" << std::endl;
+    }
+
+    bzero(data, 301);
+    int result_wr =
+            write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+
+    if (result_wr < 0) {
+        frontend_logger.log("Error writing to socket", "error");
+    }
+
+    frontend_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
+    bzero(data, 301);
+    read(sockfd, data, 300);
+    string response = (data);
+
+    response = utils.trim_copy(response, " \f\n\r\t\v");
+
+    if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
+        frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
+        result_wr = write(sockfd, masterIP.c_str(), masterIP.size());
+
+        if (result_wr < 0) {
+            frontend_logger.log("Error writing to socket", "error");
+        }
+
+        frontend_logger.log("Sent : " + masterIP, "info");
+        bzero(data, 301);
+        read(sockfd, data, 300);
+        response = (data);
+
+        if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
+            frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
+        } else {
+            frontend_logger.log("Received : " + response, "error");
+        }
+        result_wr = write(sockfd, JasmineGraphInstanceProtocol::INITIATE_STREAMING_TRIAN.c_str(),
+                          JasmineGraphInstanceProtocol::INITIATE_STREAMING_TRIAN.size());
+
+        if (result_wr < 0) {
+            frontend_logger.log("Error writing to socket", "error");
+        }
+
+        frontend_logger.log("Sent : " + JasmineGraphInstanceProtocol::INITIATE_STREAMING_TRIAN, "info");
+        bzero(data, 301);
+        read(sockfd, data, 300);
+        response = (data);
+        response = utils.trim_copy(response, " \f\n\r\t\v");
+
+        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+            frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+            result_wr = write(sockfd, std::to_string(graphId).c_str(), std::to_string(graphId).size());
+
+            if (result_wr < 0) {
+                frontend_logger.log("Error writing to socket", "error");
+            }
+
+            frontend_logger.log("Sent : Graph ID " + std::to_string(graphId), "info");
+
+            bzero(data, 301);
+            read(sockfd, data, 300);
+            response = (data);
+            response = utils.trim_copy(response, " \f\n\r\t\v");
+        }
+
+        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+            frontend_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+            result_wr = write(sockfd, std::to_string(partitionId).c_str(), std::to_string(partitionId).size());
+
+            if (result_wr < 0) {
+                frontend_logger.log("Error writing to socket", "error");
+            }
+
+            frontend_logger.log("Sent : Partition ID " + std::to_string(partitionId), "info");
+
+            bzero(data, 301);
+            read(sockfd, data, 300);
+            response = (data);
+            frontend_logger.log("Got response : |" + response + "|", "info");
+            response = utils.trim_copy(response, " \f\n\r\t\v");
+            triangleCount = atol(response.c_str());
+        }
+
+        frontend_logger.log("###COMPOSITE### Returning Total Triangles from executer ", "debug");
+
+        return triangleCount;
+
+    } else {
+        frontend_logger.log("There was an error in the upload process and the response is :: " + response,
+                            "error");
+    }
+    return 0;
 }
 
 int JasmineGraphFrontEnd::getRunningHighPriorityTaskCount() {
@@ -1154,7 +1349,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
                                      KafkaConnector *&kstream, thread &input_stream_handler,
                                      vector<DataPublisher *> &workerClients, int numberOfPartitions,
                                      bool *loop_exit_p) {
-    string msg_1 = "DO you want to use default KAFKA consumer(y/n) ? ";
+    string msg_1 = "DO you want to use default KAFKA consumer(y/n) ?";
     int result_wr = write(connFd, msg_1.c_str(), msg_1.length());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
@@ -1245,13 +1440,13 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     bzero(topic_name, FRONTEND_DATA_LENGTH + 1);
     read(connFd, topic_name, FRONTEND_DATA_LENGTH);
 
-    string con_message = "Received the kafka topic";
-    int con_result_wr = write(connFd, con_message.c_str(), con_message.length());
-    if (con_result_wr < 0) {
-        frontend_logger.error("Error writing to socket");
-        *loop_exit_p = true;
-        return;
-    }
+//    string con_message = "Received the kafka topic";
+//    int con_result_wr = write(connFd, con_message.c_str(), con_message.length());
+//    if (con_result_wr < 0) {
+//        frontend_logger.error("Error writing to socket");
+//        *loop_exit_p = true;
+//        return;
+//    }
 
     //          create kafka consumer and graph partitioner
     kstream = new KafkaConnector(configs);
@@ -1497,6 +1692,88 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
             *loop_exit_p = true;
         }
     }
+}
+
+static void streaming_triangles_command(std::string masterIP, int connFd, SQLiteDBInterface sqlite,
+                              PerformanceSQLiteDBInterface perfSqlite, JobScheduler jobScheduler, bool *loop_exit_p,
+                              vector<DataPublisher *> &workerClients) {
+    // add RDF graph
+    int uniqueId = JasmineGraphFrontEnd::getUid();
+    int result_wr = write(connFd, GRAPHID_SEND.c_str(), FRONTEND_COMMAND_LENGTH);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    result_wr = write(connFd, "\r\n", 2);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+
+    // We get the name and the path to graph as a pair separated by |.
+    char graph_id_data[301];
+    bzero(graph_id_data, 301);
+    string name = "";
+
+    read(connFd, graph_id_data, 300);
+
+    string graph_id(graph_id_data);
+    graph_id.erase(std::remove(graph_id.begin(), graph_id.end(), '\n'), graph_id.end());
+    graph_id.erase(std::remove(graph_id.begin(), graph_id.end(), '\r'), graph_id.end());
+
+    frontend_logger.info("Got graph Id " + graph_id);
+
+    JobRequest jobDetails;
+    jobDetails.setJobId(std::to_string(uniqueId));
+    jobDetails.setJobType(STREAMING_TRIANGLES);
+
+    jobDetails.setPriority(5);
+    jobDetails.setMasterIP(masterIP);
+    jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_ID, graph_id);
+    jobDetails.addParameter(Conts::PARAM_KEYS::CATEGORY, Conts::SLA_CATEGORY::LATENCY);
+    jobDetails.addParameter(Conts::PARAM_KEYS::CAN_CALIBRATE, "true");
+
+    jobScheduler.pushJob(jobDetails);
+    JobResponse jobResponse = jobScheduler.getResult(jobDetails);
+    std::string errorMessage = jobResponse.getParameter(Conts::PARAM_KEYS::ERROR_MESSAGE);
+
+    if (!errorMessage.empty()) {
+        *loop_exit_p = true;
+        result_wr = write(connFd, errorMessage.c_str(), errorMessage.length());
+
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            return;
+        }
+        result_wr = write(connFd, "\r\n", 2);
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+        }
+        return;
+    }
+
+    std::string triangleCount = jobResponse.getParameter(Conts::PARAM_KEYS::STREAMING_TRIANGLE_COUNT);
+
+    result_wr = write(connFd, triangleCount.c_str(), triangleCount.length());
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    result_wr = write(connFd, "\r\n", 2);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+    }
+
+    //long triangleCounts;
+
+    //triangleCounts = JasmineGraphFrontEnd::getStreamingTriangleCount(graph_id, sqlite, masterIP);
+
+    //frontend_logger.info("Got triangle counts " + std::to_string(triangleCounts));
+
 }
 
 static void vertex_count_command(int connFd, SQLiteDBInterface sqlite, bool *loop_exit_p) {

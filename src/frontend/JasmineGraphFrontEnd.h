@@ -40,6 +40,7 @@ limitations under the License.
 #include "../query/algorithms/triangles/Triangles.h"
 #include "../util/PlacesToNodeMapper.h"
 #include "core/scheduler/JobScheduler.h"
+#include "../nativestore/DataPublisher.h"
 
 class JasmineGraphHashMapCentralStore;
 
@@ -77,6 +78,10 @@ class JasmineGraphFrontEnd {
 
     static long getSLAForGraphId(SQLiteDBInterface sqlite, PerformanceSQLiteDBInterface perfSqlite, std::string graphId,
                                  std::string command, std::string category);
+
+    static long getStreamingTriangleCount(string basicString, SQLiteDBInterface sqlite, string masterIP);
+    static long getStreamingTriangleCountFromWorkers(int graphId, std::string host, int port, int dataPort, int partitionId,
+                                        std::string masterIP);
 
     static int getRunningHighPriorityTaskCount();
     static bool areRunningJobsForSameGraph();

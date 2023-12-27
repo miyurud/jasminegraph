@@ -17,17 +17,22 @@ add_executable(JasmineGraph main.cpp src/server/JasmineGraphServer.cpp src/serve
         src/partitioner/local/RDFPartitioner.h src/backend/JasmineGraphBackend.cpp src/backend/JasmineGraphBackend.h
         src/backend/JasmineGraphBackendProtocol.cpp src/backend/JasmineGraphBackendProtocol.h src/util/logger/Logger.h src/util/logger/Logger.cpp
         src/server/JasmineGraphInstanceProtocol.cpp
-        src/centralstore/incremental/NodeManager.cpp
-        src/centralstore/incremental/NodeBlock.cpp
-        src/centralstore/incremental/PropertyLink.cpp
-        src/centralstore/incremental/RelationBlock.cpp
-        src/centralstore/incremental/DataPublisher.cpp
+        src/nativestore/NodeManager.cpp
+        src/nativestore/NodeBlock.cpp
+        src/nativestore/CentralNodeBlock.cpp
+        src/nativestore/PropertyLink.cpp
+        src/nativestore/CentralPropertyLink.cpp
+        src/nativestore/PropertyEdgeLink.cpp
+        src/nativestore/CentralPropertyEdgeLink.cpp
+        src/nativestore/RelationBlock.cpp
+        src/nativestore/CentralRelationBlock.cpp
+        src/nativestore/DataPublisher.cpp
         src/partitioner/stream/Partition.cpp
         src/localstore/incremental/JasmineGraphIncrementalLocalStore.cpp
         src/server/JasmineGraphInstanceProtocol.h src/server/JasmineGraphInstanceFileTransferService.cpp src/server/JasmineGraphInstanceFileTransferService.h
         src/partitioner/local/RDFParser.cpp src/partitioner/local/RDFParser.h src/partitioner/stream/Partitioner.cpp src/partitioner/stream/JasmineGraphIncrementalStore.cpp
         src/server/JasmineGraphInstanceService.cpp src/server/JasmineGraphInstanceService.h src/util/PlacesToNodeMapper.cpp src/util/PlacesToNodeMapper.h
-        src/localstore/JasmineGraphLocalStoreFactory.cpp src/localstore/JasmineGraphLocalStoreFactory.h src/query/algorithms/triangles/Triangles.cpp src/query/algorithms/triangles/Triangles.h
+        src/localstore/JasmineGraphLocalStoreFactory.cpp src/localstore/JasmineGraphLocalStoreFactory.h src/query/algorithms/triangles/Triangles.cpp src/query/algorithms/triangles/Triangles.h src/query/algorithms/triangles/StreamingTriangles.cpp src/query/algorithms/triangles/StreamingTriangles.h
         src/centralstore/JasmineGraphHashMapCentralStore.cpp src/centralstore/JasmineGraphHashMapCentralStore.h src/util/scheduler/Scheduler.h src/util/scheduler/InterruptableSleep.h src/util/scheduler/Cron.h src/util/scheduler/ctpl_stl.h src/performance/metrics/PerformanceUtil.cpp src/performance/metrics/PerformanceUtil.h src/util/scheduler/SchedulerService.cpp src/util/scheduler/SchedulerService.h src/performancedb/PerformanceSQLiteDBInterface.cpp src/performancedb/PerformanceSQLiteDBInterface.h src/performance/metrics/StatisticCollector.cpp src/performance/metrics/StatisticCollector.h
         src/ml/trainer/JasmineGraphTrainingSchedular.cpp src/ml/trainer/JasmineGraphTrainingSchedular.h src/query/algorithms/linkprediction/JasminGraphLinkPredictor.h
         src/query/algorithms/linkprediction/JasminGraphLinkPredictor.cpp src/centralstore/JasmineGraphHashMapDuplicateCentralStore.cpp
@@ -35,7 +40,7 @@ add_executable(JasmineGraph main.cpp src/server/JasmineGraphServer.cpp src/serve
         src/frontend/core/scheduler/JobScheduler.cpp src/frontend/core/scheduler/JobScheduler.h src/frontend/core/domain/JobRequest.cpp
         src/frontend/core/domain/JobRequest.h src/frontend/core/domain/JobResponse.cpp src/frontend/core/domain/JobResponse.h
         src/frontend/core/executor/AbstractExecutor.cpp src/frontend/core/executor/AbstractExecutor.h
-        src/frontend/core/executor/impl/TriangleCountExecutor.cpp src/frontend/core/executor/impl/TriangleCountExecutor.h
+        src/frontend/core/executor/impl/TriangleCountExecutor.cpp src/frontend/core/executor/impl/TriangleCountExecutor.h src/frontend/core/executor/impl/StreamingTriangleCountExecutor.cpp src/frontend/core/executor/impl/StreamingTriangleCountExecutor.h
         src/frontend/core/factory/ExecutorFactory.cpp src/frontend/core/factory/ExecutorFactory.h src/frontend/core/CoreConstants.cpp
         src/frontend/core/CoreConstants.h)
 

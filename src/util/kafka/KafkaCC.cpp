@@ -60,8 +60,8 @@ void *KafkaConnector::startStream(string topicName, std::vector<DataPublisher *>
         partitionedEdge partitionedEdge = graphPartitioner.addEdge({sourceID, destinationID});
         edgeJson["source"]["pid"] = std::to_string(partitionedEdge[0].second);
         edgeJson["destination"]["pid"] = std::to_string(partitionedEdge[1].second);
-        workerClients.at((int)partitionedEdge[0].second)->publish(edgeJson.dump());
-        workerClients.at((int)partitionedEdge[1].second)->publish(edgeJson.dump());
+        workerClients.at((int)partitionedEdge[0].second)->publish(edgeJson.dump(), (int)partitionedEdge[0].second);
+        workerClients.at((int)partitionedEdge[1].second)->publish(edgeJson.dump(), (int)partitionedEdge[1].second);
     }
     graphPartitioner.printStats();
     return NULL;

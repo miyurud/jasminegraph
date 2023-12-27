@@ -335,8 +335,8 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
             }
             if (masterHost == host || host == "localhost") {
                 if (is_testing) {
-                    serverStartScript = "docker run -p " + std::to_string(workerPortsVector.at(i)) + ":" +
-                                        std::to_string(workerPortsVector.at(i)) + " -p " +
+                    serverStartScript = "docker run -v " + instanceDataFolder + ":" + instanceDataFolder + " -p " + std::to_string(workerPortsVector.at(i)) + ":" +
+                            		 std::to_string(workerPortsVector.at(i)) + " -p " +
                                         std::to_string(workerDataPortsVector.at(i)) + ":" +
                                         std::to_string(workerDataPortsVector.at(i)) + " -v " + worker_logdir +
                                         ":/tmp/jasminegraph" + " -e WORKER_ID=" + to_string(i) +
@@ -348,7 +348,7 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                     serverStartScript =
                         "docker run -v " + instanceDataFolder + ":" + instanceDataFolder + " -v " +
                         aggregateDataFolder + ":" + aggregateDataFolder + " -v " + nmonFileLocation + ":" +
-                        nmonFileLocation + instanceDataFolder + "/" + to_string(i) + "/logs" + ":" +
+                        nmonFileLocation + " -v " + instanceDataFolder + "/" + to_string(i) + "/logs" + ":" +
                         "/home/ubuntu/software/jasminegraph/logs" + " -p " + std::to_string(workerPortsVector.at(i)) +
                         ":" + std::to_string(workerPortsVector.at(i)) + " -p " +
                         std::to_string(workerDataPortsVector.at(i)) + ":" +
