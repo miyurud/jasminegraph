@@ -5,9 +5,21 @@
 
 #include <string>
 
+extern "C" {
+#include <kubernetes/include/apiClient.h>
+#include <kubernetes/api/CoreV1API.h>
+}
+#include <kubernetes/config/kube_config.h>
+#include <kubernetes/config/incluster_config.h>
+
 class K8sInterface {
 public:
-    static int deployFromDefinitionFile(const std::string& filePath);
+    apiClient_t *apiClient;
+    K8sInterface();
+    ~K8sInterface();
+
+    v1_pod_list_t *getPodList(char* labelSelectors);
+    v1_service_list_t *getServiceList(char* labelSelectors);
 };
 
 

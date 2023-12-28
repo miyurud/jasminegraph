@@ -143,6 +143,7 @@ include_directories(${PYTHON_INCLUDE_DIRS})
 include_directories(${PYTHON_DIRECTORIES})
 target_link_libraries(JasmineGraphLib PRIVATE ${PYTHON_LIBRARIES})
 target_link_libraries(JasmineGraphLib PRIVATE m)
+target_link_libraries(JasmineGraphLib PRIVATE /usr/local/lib/libkubernetes.so)
 
 if (CMAKE_BUILD_TYPE STREQUAL "DEBUG")
     # Include google test

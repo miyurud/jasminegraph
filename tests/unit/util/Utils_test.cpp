@@ -22,7 +22,6 @@ TEST(UtilsTest, TestGetFileContentAsString) {
 }
 
 TEST(UtilsTest, TestReplaceAll) {
-    std::string actual = sample;
     std::string expected = "apiVersion: v1\n"
                     "kind: Pod\n"
                     "metadata:\n"
@@ -31,7 +30,7 @@ TEST(UtilsTest, TestReplaceAll) {
                     "spec:\n"
                     "  containers:\n"
                     "    - name: jasminegraph";
-    Utils::replaceAll(actual, "<name>", "jasminegraph");
+    std::string actual = Utils::replaceAll(sample, "<name>", "jasminegraph");
     ASSERT_EQ(actual, expected);
 }
 

@@ -70,12 +70,13 @@ std::string Utils::getFileContentAsString(std::string file) {
     return fileContent;
 }
 
-void Utils::replaceAll(std::string content, const std::string& oldValue, const std::string& newValue) {
+std::string Utils::replaceAll(std::string content, const std::string& oldValue, const std::string& newValue) {
     size_t pos = 0;
     while ((pos = content.find(oldValue, pos)) != std::string::npos) {
         content.replace(pos, oldValue.length(), newValue);
         pos += newValue.length();
     }
+    return content;
 }
 
 void Utils::writeFileContent(const std::string& filePath, const std::string& content) {
@@ -105,11 +106,11 @@ std::string Utils::getJasmineGraphProperty(std::string key) {
             }
         }
     }
-    unordered_map<std::string, std::string>::iterator it = Utils::propertiesMap.find(key);
+    auto it = Utils::propertiesMap.find(key);
     if (it != Utils::propertiesMap.end()) {
         return it->second;
     }
-    return NULL;
+    return "";
 }
 
 std::vector<Utils::worker> Utils::getWorkerList(SQLiteDBInterface *sqlite) {

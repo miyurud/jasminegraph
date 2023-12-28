@@ -20,6 +20,9 @@ jobs:
         ref: ${{github.head_ref}}
         fetch-depth: 0
         repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+    - uses: jupyterhub/action-k3s-helm@v3
+      with:
+        docker-enabled: true
 
     - name: Build unit test
       run: docker build -f tests/unit/Dockerfile -t jasminegraph:unit .

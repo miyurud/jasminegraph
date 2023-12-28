@@ -1,0 +1,76 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: default
+  name: rbac-role
+rules:
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["*"]
+
+---
+
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rbac-role-binding
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: default
+roleRef:
+  kind: Role
+  name: rbac-role
+  apiGroup: ""
+
+---
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: host-volume
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/home/runner/work/jasminegraph/jasminegraph"
+
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: host-volume-claim
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: jasminegraph-prerequisite
+spec:
+  containers:
+    - name: jasminegraph-container
+      image: ishad1999/jasminegraph
+      command: ["/bin/bash"]
+      stdin: true
+      tty: true
+      volumeMounts:
+        - name: host-volume
+          mountPath: /home/ubuntu/software/jasminegraph
+  volumes:
+    - name: host-volume
+      persistentVolumeClaim:
+          claimName: host-volume-claim

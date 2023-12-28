@@ -1,4 +1,4 @@
-FROM miyurud/jasminegraph:20230909T110050
+FROM ishad1999/jasminegraph:20231228T143112
 ENV HOME="/home/ubuntu"
 ENV JASMINEGRAPH_HOME="${HOME}/software/jasminegraph"
 
