@@ -4277,24 +4277,21 @@ static void initiate_fragment_resolution_command(int connFd, bool *loop_exit_p) 
     instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
 
     char data[DATA_BUFFER_SIZE];
-    string listOfPartitions = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
-    instance_logger.info("Received ===>: " + listOfPartitions);
     std::stringstream ss;
-    ss << listOfPartitions;
     while (true) {
+        string response = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
+        if (response.compare(JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_DONE) == 0) {
+            break;
+        } else {
+            instance_logger.info("Received ===>: " + response);
+            ss << response;
+        }
+
         if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_CHK)) {
             *loop_exit_p = true;
             return;
         }
         instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_CHK);
-
-        string listOfPartitions = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
-        if (listOfPartitions.compare(JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_DONE) == 0) {
-            break;
-        } else {
-            instance_logger.info("Received ===>: " + listOfPartitions);
-            ss << listOfPartitions;
-        }
     }
     std::vector<std::string> partitions = Utils::split(ss.str(), ',');
     std::vector<std::string> graphIDs;
