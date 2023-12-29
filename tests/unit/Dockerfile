@@ -16,9 +16,9 @@ COPY ./src ./src
 COPY ./main.h ./main.h
 COPY ./main.cpp ./main.cpp
 COPY ./conf ./conf
-RUN mkdir ./tests
-COPY ./tests/unit ./tests/unit
 RUN mkdir build
+RUN mkdir tests
+COPY ./tests/unit ./tests/unit
 
 WORKDIR "${JASMINEGRAPH_HOME}/build"
 

@@ -65,7 +65,7 @@ class Utils {
 
     static void createDirectory(const std::string dirName);
 
-    static std::vector<std::string> getListOfFilesInDirectory(const std::string dirName);
+    static std::vector<std::string> getListOfFilesInDirectory(std::string dirName);
 
     static int deleteDirectory(const std::string dirName);
 
