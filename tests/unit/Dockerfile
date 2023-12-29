@@ -1,6 +1,6 @@
 FROM miyurud/jasminegraph:20230909T110050
 
-RUN python3 -m pip install gcovr
+RUN python3 -m pip install --no-cache-dir gcovr
 
 ENV TERM=xterm-256color
 ENV HOME="/home/ubuntu"
