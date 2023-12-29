@@ -24,6 +24,19 @@ limitations under the License.
 using namespace std;
 Logger trainScheduler_logger;
 
+static long getAvailableMemory(std::string hostname);
+static long estimateMemory(int edgeCount, std::string graph_id);
+
+static std::map<int, int> packPartitionsToMemory(std::vector<std::pair<int, int>> partitionMemoryList, int capacity);
+
+static std::map<std::string, std::map<int, std::map<int, int>>> scheduleGradientPassingTraining(std::string graphID);
+
+static std::vector<std::pair<int, double>> estimateMemoryDistOpt(std::vector<std::vector<int>> partitionMetadata,
+                                                                 long availableMemory);
+
+static std::map<int, std::map<int, int>> schedulePartitionsBestFit(
+    std::vector<std::pair<int, double>> partitionMemoryList, std::map<int, int> partitionWorkerMap, int capacity);
+
 map<string, std::map<int, int>> JasmineGraphTrainingSchedular::schedulePartitionTraining(std::string graphID) {
     map<string, std::map<int, int>> scheduleForEachHost;
     vector<pair<string, string>> hostData;
@@ -98,7 +111,7 @@ map<string, std::map<int, int>> JasmineGraphTrainingSchedular::schedulePartition
     return scheduleForEachHost;
 }
 
-long JasmineGraphTrainingSchedular::estimateMemory(int vertexCount, string graph_id) {
+static long estimateMemory(int vertexCount, string graph_id) {
     auto *refToSqlite = new SQLiteDBInterface();
     refToSqlite->init();
 
@@ -134,8 +147,8 @@ long JasmineGraphTrainingSchedular::estimateMemory(int vertexCount, string graph
     return totalMemoryApproximation;
 }
 
-long JasmineGraphTrainingSchedular::getAvailableMemory(string hostname) {
-    PerformanceSQLiteDBInterface *refToPerfDb = new PerformanceSQLiteDBInterface();
+static long getAvailableMemory(string hostname) {
+    auto *refToPerfDb = new PerformanceSQLiteDBInterface();
     refToPerfDb->init();
     trainScheduler_logger.log("Fetching available host " + hostname + " memory", "info");
     string perfSqlStatement =
@@ -151,8 +164,7 @@ long JasmineGraphTrainingSchedular::getAvailableMemory(string hostname) {
     return availableMemory;
 }
 
-std::map<int, int> JasmineGraphTrainingSchedular::packPartitionsToMemory(vector<pair<int, int>> partitionMemoryList,
-                                                                         int capacity) {
+static std::map<int, int> packPartitionsToMemory(vector<pair<int, int>> partitionMemoryList, int capacity) {
     std::map<int, int> partitionToIteration;
 
     int res = 0;
@@ -188,8 +200,7 @@ std::map<int, int> JasmineGraphTrainingSchedular::packPartitionsToMemory(vector<
  *  @param graphID ID of graph to be trained
  *  @return Map of host to maps containing schedule for that host given by schedulePartitionsBestFit method
  */
-map<string, std::map<int, map<int, int>>> JasmineGraphTrainingSchedular::scheduleGradientPassingTraining(
-    std::string graphID) {
+static map<string, std::map<int, map<int, int>>> scheduleGradientPassingTraining(std::string graphID) {
     map<string, map<int, map<int, int>>> scheduleForEachHost;
     vector<pair<string, string>> hostData;
     auto *refToSqlite = new SQLiteDBInterface();
@@ -313,8 +324,7 @@ map<string, std::map<int, map<int, int>>> JasmineGraphTrainingSchedular::schedul
  * @param availableMemory total memory of host (in KB)
  * @return Vector of pairs containing partition ids and estimated memory (in KB) for distributed opt training process
  */
-vector<pair<int, double>> JasmineGraphTrainingSchedular::estimateMemoryDistOpt(vector<vector<int>> partitionMetadata,
-                                                                               long availableMemory) {
+static vector<pair<int, double>> estimateMemoryDistOpt(vector<vector<int>> partitionMetadata, long availableMemory) {
     vector<pair<int, double>> partitionMemoryList;  // Vector of estimated sizes of partitions
 
     trainScheduler_logger.log("Estimating host partition size in memory", "info");
@@ -350,8 +360,8 @@ vector<pair<int, double>> JasmineGraphTrainingSchedular::estimateMemoryDistOpt(v
  * @param capacity total memory of host
  * @return Map from worker to maps from partition to order of loading into memory
  */
-map<int, map<int, int>> JasmineGraphTrainingSchedular::schedulePartitionsBestFit(
-    vector<pair<int, double>> partitionMemoryList, map<int, int> partitionWorkerMap, int capacity) {
+static map<int, map<int, int>> schedulePartitionsBestFit(vector<pair<int, double>> partitionMemoryList,
+                                                         map<int, int> partitionWorkerMap, int capacity) {
     std::map<int, map<int, int>> schedule;  // Host schedule per worker and what partitions to load in which order
     cout << "Host memory " << capacity << endl;
     // Initialize the state of host workers as free

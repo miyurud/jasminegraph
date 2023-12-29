@@ -29,7 +29,6 @@ limitations under the License.
 #include "../nativestore/DataPublisher.h"
 #include "../nativestore/RelationBlock.h"
 #include "../metadb/SQLiteDBInterface.h"
-#include "../ml/trainer/JasmineGraphTrainingSchedular.h"
 #include "../partitioner/local/JSONParser.h"
 #include "../partitioner/local/MetisPartitioner.h"
 #include "../partitioner/local/RDFParser.h"
