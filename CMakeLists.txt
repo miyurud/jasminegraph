@@ -49,7 +49,6 @@ set(HEADERS src/backend/JasmineGraphBackend.h
         src/util/dbutil/edgestore_generated.h
         src/util/dbutil/partedgemapstore_generated.h
         src/util/kafka/KafkaCC.h
-        src/util/kafka/kafkaService.h
         src/util/kafka/StreamHandler.h
         src/util/logger/Logger.h
         src/util/scheduler/Cron.h
@@ -107,7 +106,6 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/util/PlacesToNodeMapper.cpp
         src/util/Utils.cpp
         src/util/kafka/KafkaCC.cpp
-        src/util/kafka/kafkaService.cpp
         src/util/kafka/StreamHandler.cpp
         src/util/logger/Logger.cpp
         src/util/scheduler/SchedulerService.cpp
