@@ -1,8 +1,8 @@
 FROM miyurud/jasminegraph:20230909T110050
 ENV HOME="/home/ubuntu"
-ENV JASMINEGRAPH_HOME="/home/ubuntu/software/jasminegraph"
+ENV JASMINEGRAPH_HOME="${HOME}/software/jasminegraph"
 
-WORKDIR /home/ubuntu/software/jasminegraph
+WORKDIR "${JASMINEGRAPH_HOME}"
 
 ARG DEBUG="false"
 RUN if [ "$DEBUG" = "true" ]; then apt-get update \
