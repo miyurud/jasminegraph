@@ -49,6 +49,7 @@ set(HEADERS src/backend/JasmineGraphBackend.h
         src/util/dbutil/edgestore_generated.h
         src/util/dbutil/partedgemapstore_generated.h
         src/util/kafka/KafkaCC.h
+        src/util/kafka/kafkaService.h
         src/util/kafka/StreamHandler.h
         src/util/logger/Logger.h
         src/util/scheduler/Cron.h
@@ -106,6 +107,7 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/util/PlacesToNodeMapper.cpp
         src/util/Utils.cpp
         src/util/kafka/KafkaCC.cpp
+        src/util/kafka/kafkaService.cpp
         src/util/kafka/StreamHandler.cpp
         src/util/logger/Logger.cpp
         src/util/scheduler/SchedulerService.cpp
@@ -155,8 +157,8 @@ if (CMAKE_BUILD_TYPE STREQUAL "DEBUG")
     include(FetchContent)
     FetchContent_Declare(
             googletest
-            URL https://github.com/google/googletest/archive/refs/tags/release-1.12.0.zip
             DOWNLOAD_EXTRACT_TIMESTAMP true
+            URL https://github.com/google/googletest/archive/refs/tags/release-1.12.0.zip
     )
     # For Windows: Prevent overriding the parent project's compiler/linker settings
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
