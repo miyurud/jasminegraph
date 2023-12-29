@@ -56,6 +56,13 @@ set(HEADERS src/backend/JasmineGraphBackend.h
         src/util/scheduler/Scheduler.h
         src/util/scheduler/SchedulerService.h
         src/util/scheduler/ctpl_stl.h
+        src/nativestore/NodeManager.h
+        src/nativestore/NodeBlock.h
+        src/nativestore/PropertyLink.h
+        src/nativestore/PropertyEdgeLink.h
+        src/nativestore/RelationBlock.h
+        src/nativestore/DataPublisher.h
+        src/partitioner/stream/Partition.h
 )
 
 set(SOURCES src/backend/JasmineGraphBackend.cpp
@@ -104,13 +111,9 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/util/scheduler/SchedulerService.cpp
         src/nativestore/NodeManager.cpp
         src/nativestore/NodeBlock.cpp
-        src/nativestore/CentralNodeBlock.cpp
         src/nativestore/PropertyLink.cpp
-        src/nativestore/CentralPropertyLink.cpp
         src/nativestore/PropertyEdgeLink.cpp
-        src/nativestore/CentralPropertyEdgeLink.cpp
         src/nativestore/RelationBlock.cpp
-        src/nativestore/CentralRelationBlock.cpp
         src/nativestore/DataPublisher.cpp
         src/partitioner/stream/Partition.cpp
 )
