@@ -106,7 +106,7 @@ static void initiate_model_collection_command(int connFd, bool *loop_exit_p);
 static void initiate_fragment_resolution_command(int connFd, bool *loop_exit_p);
 static void check_file_accessible_command(int connFd, bool *loop_exit_p);
 static void graph_stream_start_command(
-    int connFd, std::map<std::string, JasmineGraphIncrementalLocalStore *> incrementalLocalStoreMap, bool *loop_exit_p);
+    int connFd, std::map<std::string, JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap, bool *loop_exit_p);
 static void send_priority_command(int connFd, bool *loop_exit_p);
 
 char *converter(const std::string &s) {
@@ -4427,7 +4427,7 @@ static void check_file_accessible_command(int connFd, bool *loop_exit_p) {
 }
 
 static void graph_stream_start_command(
-    int connFd, std::map<std::string, JasmineGraphIncrementalLocalStore *> incrementalLocalStoreMap,
+    int connFd, std::map<std::string, JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap,
     bool *loop_exit_p) {
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK)) {
         *loop_exit_p = true;
