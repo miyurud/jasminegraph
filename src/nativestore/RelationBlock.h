@@ -113,7 +113,7 @@ class RelationBlock {
     static std::fstream *centralrelationsDB;
     static const int RECORD_SIZE = sizeof(unsigned int);
 
-    static RelationBlock *addCentral(NodeBlock source, NodeBlock destination);
+    RelationBlock *addCentral(NodeBlock source, NodeBlock destination);
     static RelationBlock *getCentral(unsigned int address);
 
     void addCentralProperty(std::string name, char *value);

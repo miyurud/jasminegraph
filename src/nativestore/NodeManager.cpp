@@ -26,10 +26,7 @@ limitations under the License.
 #include "iostream"
 
 Logger node_manager_logger;
-//std::mutex lockEdgeAdd;
-//std::mutex lockCentralEdgeAdd;
 pthread_mutex_t lockEdgeAdd;
-pthread_mutex_t lockCentralEdgeAdd;
 
 NodeManager::NodeManager(GraphConfig gConfig) {
     node_manager_logger.info("NodeManager constructor called with graphID: " + std::to_string(gConfig.graphID) + " and partitionID: " + std::to_string(gConfig.partitionID));
@@ -149,8 +146,8 @@ RelationBlock *NodeManager::addRelation(NodeBlock source, NodeBlock destination)
         RelationBlock *relationBlock = new RelationBlock(source,destination);
         newRelation = relationBlock->add(source, destination);
         if (newRelation) {
-            source.updateRelation(newRelation);
-            destination.updateRelation(newRelation);
+            source.updateRelation(newRelation, false);
+            destination.updateRelation(newRelation,false);
         } else {
             node_manager_logger.error("Error while adding the new edge/relation for source = " +
                                       std::string(source.id) + " destination = " + std::string(destination.id));
@@ -169,10 +166,11 @@ RelationBlock *NodeManager::addCentralRelation(NodeBlock source, NodeBlock desti
     RelationBlock *newRelation = NULL;
     if (source.centralEdgeRef == 0 || destination.centralEdgeRef == 0 ||
         !source.searchCentralRelation(destination)) {  // certainly a new relation block needed
-        newRelation = RelationBlock::addCentral(source, destination);
+        RelationBlock *relationBlock = new RelationBlock(source,destination);
+        newRelation = relationBlock->addCentral(source, destination);
         if (newRelation) {
-            source.updateCentralRelation(newRelation);
-            destination.updateCentralRelation(newRelation);
+            source.updateCentralRelation(newRelation, false);
+            destination.updateCentralRelation(newRelation, false);
         } else {
             node_manager_logger.error("Error while adding the new edge/relation for source = " +
                                       std::string(source.id) + " destination = " + std::string(destination.id));
@@ -227,7 +225,7 @@ RelationBlock *NodeManager::addCentralEdge(std::pair<std::string, std::string> e
 //    std::unique_lock<std::mutex> guard1(lockCentralEdgeAdd);
 //
 //    guard1.lock();
-    pthread_mutex_lock(&lockCentralEdgeAdd);
+    pthread_mutex_lock(&lockEdgeAdd);
 
     NodeBlock *sourceNode = this->addNode(edge.first);
     NodeBlock *destNode = this->addNode(edge.second);
@@ -236,7 +234,7 @@ RelationBlock *NodeManager::addCentralEdge(std::pair<std::string, std::string> e
         newRelation->setDestination(destNode);
         newRelation->setSource(sourceNode);
     }
-    pthread_mutex_unlock(&lockCentralEdgeAdd);
+    pthread_mutex_unlock(&lockEdgeAdd);
 
 //    guard1.unlock();
     node_manager_logger.debug("DEBUG: Source DB block address " + std::to_string(sourceNode->addr) +
@@ -293,7 +291,7 @@ NodeBlock *NodeManager::get(std::string nodeId) {
     char usageBlock;
     char label[NodeBlock::LABEL_SIZE];
 
-    if (!NodeBlock::nodesDB->get(usageBlock)) {
+    if (!NodeBlock::nodesDB->read(reinterpret_cast<char *>(&usageBlock), sizeof(unsigned char))) {
         node_manager_logger.error("Error while reading usage data from block " + std::to_string(blockAddress));
     }
     if (!NodeBlock::nodesDB->read(reinterpret_cast<char*>(&vertexId), sizeof(unsigned int))) {

@@ -139,8 +139,6 @@ RelationBlock* RelationBlock::addCentral(NodeBlock source, NodeBlock destination
     sourceData.address = source.addr;
     destinationData.address = destination.addr;
 
-    unsigned int relationPropAddr = 0;
-
     long relationBlockAddress = RelationBlock::nextCentralRelationIndex * RelationBlock::BLOCK_SIZE;  // Block size is 4 * 11
     RelationBlock::centralrelationsDB->seekg(relationBlockAddress);
     if (!RelationBlock::centralrelationsDB->write(reinterpret_cast<char*>(&source.nodeId), RECORD_SIZE)) {
@@ -225,16 +223,16 @@ RelationBlock* RelationBlock::addCentral(NodeBlock source, NodeBlock destination
         return NULL;
     }
 
-    if (!RelationBlock::centralrelationsDB->write(reinterpret_cast<char*>(&relationPropAddr), RECORD_SIZE)) {
+    if (!RelationBlock::centralrelationsDB->write(reinterpret_cast<char*>(&(this->propertyAddress)), RECORD_SIZE)) {
         relation_block_logger.error("ERROR: Error while writing relation property address " +
-                                    std::to_string(relationPropAddr) + " into relation block address " +
+                                    std::to_string(this->propertyAddress) + " into relation block address " +
                                     std::to_string(relationBlockAddress));
         return NULL;
     }
 
     RelationBlock::nextCentralRelationIndex += 1;
     RelationBlock::centralrelationsDB->flush();
-    return new RelationBlock(relationBlockAddress, sourceData, destinationData, relationPropAddr);
+    return new RelationBlock(relationBlockAddress, sourceData, destinationData, this->propertyAddress);
 }
 
 RelationBlock* RelationBlock::get(unsigned int address) {
@@ -244,8 +242,7 @@ RelationBlock* RelationBlock::get(unsigned int address) {
     } else if (address % RelationBlock::BLOCK_SIZE != 0) {
         throw "Exception: Invalid relation block address !!\n received address = " + address;
     }
-
-    RelationBlock::relationsDB->seekg(address + RECORD_SIZE*2);
+    RelationBlock::relationsDB->seekg(address + RECORD_SIZE*2); //Address is relation ID
     NodeRelation source;
     NodeRelation destination;
     unsigned int propertyReference;
@@ -663,6 +660,5 @@ NodeBlock* RelationBlock::getDestination() {
 const unsigned long RelationBlock::BLOCK_SIZE = RelationBlock::RECORD_SIZE * 13;
 // One relation block holds 11 recods such as source addres, destination address, source next relation address etc.
 // and one record is typically 4 bytes (size of unsigned int)
-std::string RelationBlock::DB_PATH = "/home/sandaruwan/ubuntu/software/jasminegraph/streamStore/relations.db";
 std::fstream* RelationBlock::relationsDB = NULL;
 std::fstream* RelationBlock::centralrelationsDB = NULL;

@@ -109,6 +109,9 @@ bool NodeBlock::updateRelation(RelationBlock* newRelation, bool relocateHead) {
         return this->setRelationHead(*newRelation);
     } else {
         RelationBlock* currentRelation = currentHead;
+        if(currentHead == NULL){
+            return this->setRelationHead(*newRelation);
+        }
         while (currentRelation != NULL) {
             if (currentRelation->source.address == this->addr) {
                 if (currentRelation->source.nextRelationId == 0) {
@@ -128,7 +131,6 @@ bool NodeBlock::updateRelation(RelationBlock* newRelation, bool relocateHead) {
         }
         return false;
     }
-    return false;
 }
 
 
@@ -158,6 +160,10 @@ bool NodeBlock::updateCentralRelation(RelationBlock* newRelation, bool relocateH
         return this->setCentralRelationHead(*newRelation);
     } else {
         RelationBlock* currentRelation = currentHead;
+        if(currentHead == NULL){
+            node_block_logger.info("Setting the Head for edge reference.");
+            return this->setCentralRelationHead(*newRelation);
+        }
         while (currentRelation != NULL) {
             if (currentRelation->source.address == this->addr) {
                 if (currentRelation->source.nextRelationId == 0) {
@@ -177,7 +183,6 @@ bool NodeBlock::updateCentralRelation(RelationBlock* newRelation, bool relocateH
         }
         return false;
     }
-    return false;
 }
 
 
@@ -264,14 +269,14 @@ RelationBlock* NodeBlock::searchCentralRelation(NodeBlock withNode) {
                 found = currentRelation;
                 break;
             } else {
-                currentRelation = currentRelation->nextSource();
+                currentRelation = currentRelation->nextCentralSource();
             }
         } else if (!this->isDirected && (currentRelation->destination.address == this->addr)) {
             if (currentRelation->source.address == withNode.addr) {
                 found = currentRelation;
                 break;
             } else {
-                currentRelation = currentRelation->nextDestination();
+                currentRelation = currentRelation->nextCentralDestination();
             }
         } else {
             throw "Exception: Unrelated relation block for " + std::to_string(this->addr) +
