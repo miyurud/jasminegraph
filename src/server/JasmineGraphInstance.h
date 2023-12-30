@@ -57,8 +57,6 @@ class JasmineGraphInstance {
     JasmineGraphInstanceService *instanceService;
     JasmineGraphInstanceFileTransferService *ftpService;
     static bool sendFileThroughService(std::string host, int dataPort, std::string fileName, std::string filePath);
-
-    static void logLoadAverage(std::string name);
 };
 
 #endif  // JASMINEGRAPH_JASMINEGRAPHINSTANCE_H

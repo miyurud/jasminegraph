@@ -953,45 +953,6 @@ void JasmineGraphInstanceService::trainPartition(string trainData) {
     // system(command.c_str());
 }
 
-map<long, long> JasmineGraphInstanceService::calculateLocalOutDegreeDistribution(
-    string graphID, string partitionID, std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
-    std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores) {
-    JasmineGraphHashMapLocalStore graphDB;
-    JasmineGraphHashMapCentralStore centralDB;
-
-    std::map<std::string, JasmineGraphHashMapLocalStore>::iterator it;
-    std::map<std::string, JasmineGraphHashMapCentralStore>::iterator itcen;
-
-    if (JasmineGraphInstanceService::isGraphDBExists(graphID, partitionID)) {
-        JasmineGraphInstanceService::loadLocalStore(graphID, partitionID, graphDBMapLocalStores);
-    }
-
-    if (JasmineGraphInstanceService::isInstanceCentralStoreExists(graphID, partitionID)) {
-        JasmineGraphInstanceService::loadInstanceCentralStore(graphID, partitionID, graphDBMapCentralStores);
-    }
-    graphDB = graphDBMapLocalStores[graphID + "_" + partitionID];
-    centralDB = graphDBMapCentralStores[graphID + "_centralstore_" + partitionID];
-
-    map<long, long> degreeDistribution = graphDB.getInDegreeDistributionHashMap();
-    std::map<long, long>::iterator its;
-
-    map<long, long> degreeDistributionCentral = centralDB.getInDegreeDistributionHashMap();
-    std::map<long, long>::iterator itcentral;
-
-    for (its = degreeDistributionCentral.begin(); its != degreeDistributionCentral.end(); ++its) {
-        bool centralNodeFound = false;
-        for (itcentral = degreeDistribution.begin(); itcentral != degreeDistribution.end(); ++itcentral) {
-            if ((its->first) == (itcentral->first)) {
-                degreeDistribution[its->first] = (its->second) + (itcentral->second);
-                centralNodeFound = true;
-            }
-        }
-        if (!centralNodeFound) {
-            degreeDistribution.insert(std::make_pair(its->first, its->second));
-        }
-    }
-}
-
 bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int graphID, int partitionID,
                                                         std::vector<string> workerSockets, std::string masterIP) {
     std::string aggregatorFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");

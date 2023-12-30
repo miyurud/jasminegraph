@@ -63,8 +63,8 @@ vector<vector<pair<string, string>>> PerformanceSQLiteDBInterface::runSelect(std
         sqlite3_free(zErrMsg);
     } else {
         perfdb_logger.log("Operation done successfully", "info");
-        return dbResults;
     }
+    return dbResults;
 }
 
 // This function inserts a new row to the DB and returns the last inserted row id

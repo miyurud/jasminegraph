@@ -67,9 +67,15 @@ int JasmineGraphServer::run(std::string profile, std::string masterIp, int numbe
     std::vector<int> masterPortVector;
 
     this->sqlite = *new SQLiteDBInterface();
-    this->sqlite.init();
+    if (this->sqlite.init()) {
+        server_logger.error("Error initializing SQLiteDBInterface");
+        return 1;
+    }
     this->performanceSqlite = *new PerformanceSQLiteDBInterface();
-    this->performanceSqlite.init();
+    if (this->performanceSqlite.init()) {
+        server_logger.error("Error initializing PerformanceSQLiteDBInterface");
+        return 1;
+    }
     this->jobScheduler = *new JobScheduler(this->sqlite, this->performanceSqlite);
     this->jobScheduler.init();
     if (masterIp.empty()) {
@@ -77,6 +83,7 @@ int JasmineGraphServer::run(std::string profile, std::string masterIp, int numbe
     } else {
         this->masterHost = masterIp;
     }
+    server_logger.info("masterHost = " + this->masterHost);
     this->profile = profile;
     this->numberOfWorkers = numberofWorkers;
     this->workerHosts = workerIps;

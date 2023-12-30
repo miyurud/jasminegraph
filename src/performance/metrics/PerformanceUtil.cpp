@@ -463,10 +463,12 @@ int PerformanceUtil::collectRemoteSLAResourceUtilization(std::string host, int p
 
                         resourceUsageMap[placeId] = resourceUsageVector;
                     }
+                    return 1;
                 }
             }
         }
     }
+    return 0;
 }
 
 void PerformanceUtil::collectLocalSLAResourceUtilization(std::string graphId, std::string placeId, std::string command,
@@ -604,11 +606,10 @@ ResourceConsumption PerformanceUtil::retrieveRemoteResourceConsumption(std::stri
 
                 placeResourceConsumption.memoryUsage = atoi(memoryUsage.c_str());
                 placeResourceConsumption.host = host;
-
-                return placeResourceConsumption;
             }
         }
     }
+    return placeResourceConsumption;
 }
 
 std::vector<long> PerformanceUtil::getResourceAvailableTime(std::vector<std::string> graphIdList, std::string command,
