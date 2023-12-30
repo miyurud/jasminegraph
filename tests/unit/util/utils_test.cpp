@@ -20,5 +20,4 @@ TEST(UtilsTest, TestGetListOfFilesInDirectory) {
     ASSERT_EQ(flist.at(3), "Makefile");
     ASSERT_EQ(flist.at(4), "cmake_install.cmake");
     ASSERT_EQ(flist.at(5), "libJasmineGraphLib.a");
-
 }
