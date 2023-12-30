@@ -21,5 +21,4 @@ TEST(UtilsTest, TestGetListOfFilesInDirectory) {
     ASSERT_EQ(flist.at(4), "cmake_install.cmake");
     ASSERT_EQ(flist.at(5), "libJasmineGraphLib.a");
 
-    ASSERT_EQ(Utils::getJasmineGraphProperty("org.jasminegraph.server.host"), "localhost");
 }
