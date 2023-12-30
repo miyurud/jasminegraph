@@ -107,6 +107,10 @@ void JobScheduler::processJob(JobRequest request, SQLiteDBInterface sqlite, Perf
 void JobScheduler::executeJob(JobRequest request, SQLiteDBInterface sqlite, PerformanceSQLiteDBInterface perfDB) {
     ExecutorFactory *executorFactory = new ExecutorFactory(sqlite, perfDB);
     AbstractExecutor *abstractExecutor = executorFactory->getExecutor(request);
+    if (abstractExecutor == NULL) {
+        jobScheduler_Logger.error("abstractExecutor is null");
+        return;
+    }
     abstractExecutor->execute();
 }
 

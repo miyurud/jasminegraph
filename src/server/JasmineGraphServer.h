@@ -126,7 +126,7 @@ class JasmineGraphServer {
                                string enableNmon);
 
     JasmineGraphFrontEnd *frontend;
-    SQLiteDBInterface sqlite;
+    SQLiteDBInterface *sqlite;
     PerformanceSQLiteDBInterface performanceSqlite;
     JobScheduler jobScheduler;
     JasmineGraphBackend *backend;
@@ -153,9 +153,6 @@ class JasmineGraphServer {
         string partitionID;  // Deprecated (07-08-2023) : This should be a vector of partition IDs instead of a single
                              // partiton ID.
     };
-
-    static void updateMetaDB(std::vector<workers> hostWorkerMap, std::map<int, std::string> partitionFileList,
-                             int graphID, std::string uploadEndTime);
 
     // return hostWorkerMap
     static std::vector<JasmineGraphServer::workers> getHostWorkerMap();
