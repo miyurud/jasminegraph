@@ -73,9 +73,9 @@ PropertyLink::PropertyLink(unsigned int blockAddress, std::string name, const ch
  * **/
 unsigned int PropertyLink::insert(std::string name, const char* value) {
     if (this->next()) {  // for
-        PropertyLink *link, *last;
+        PropertyLink *last;
         // If any element has same property key/name, return its blockAddress
-        for (link = this; link != NULL; link = link->next()) {
+        for (PropertyLink *link = this; link != nullptr; link = link->next()) {
             if (link->name == name) {
                 // TODO[tmkasun]: update existing property value
                 property_link_logger.warn("Property key/name already exist key = " + name);

@@ -127,7 +127,7 @@ class JasmineGraphServer {
 
     JasmineGraphFrontEnd *frontend;
     SQLiteDBInterface *sqlite;
-    PerformanceSQLiteDBInterface performanceSqlite;
+    PerformanceSQLiteDBInterface *performanceSqlite;
     JobScheduler jobScheduler;
     JasmineGraphBackend *backend;
     std::string masterHost;

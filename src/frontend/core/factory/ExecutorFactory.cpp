@@ -24,5 +24,5 @@ AbstractExecutor* ExecutorFactory::getExecutor(JobRequest jobRequest) {
     if (TRIANGLES == jobRequest.getJobType()) {
         return new TriangleCountExecutor(this->sqliteDB, this->perfDB, jobRequest);
     }
-    return NULL;
+    return nullptr;
 }

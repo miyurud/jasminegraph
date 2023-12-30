@@ -95,7 +95,7 @@ bool NodeBlock::updateRelation(RelationBlock* newRelation, bool relocateHead) {
         return this->setRelationHead(*newRelation);
     }
     RelationBlock* currentRelation = currentHead;
-    while (currentRelation != NULL) {
+    while (currentRelation != nullptr) {
         if (currentRelation->source.address == this->addr) {
             if (currentRelation->source.nextRelationId == 0) {
                 return currentRelation->setNextSource(edgeReferenceAddress);
@@ -168,7 +168,7 @@ RelationBlock* NodeBlock::searchRelation(NodeBlock withNode) {
 std::list<NodeBlock> NodeBlock::getEdges() {
     std::list<NodeBlock> edges;
     RelationBlock* currentRelation = this->getRelationHead();
-    while (currentRelation != NULL) {
+    while (currentRelation != nullptr) {
         NodeBlock* node = NULL;
         if (currentRelation->source.address == this->addr) {
             node = NodeBlock::get(currentRelation->destination.address);

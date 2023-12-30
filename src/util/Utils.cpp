@@ -176,7 +176,7 @@ std::vector<std::string> Utils::getListOfFilesInDirectory(std::string dirName) {
         dirName.append("/");
     }
     const struct dirent *dir;
-    while ((dir = readdir(d)) != NULL) {
+    while ((dir = readdir(d)) != nullptr) {
         const char *filename = dir->d_name;
         string fnamestr = filename;
         struct stat sb;
@@ -227,7 +227,7 @@ std::string Utils::getJasmineGraphHome() {
     std::string jasminegraph_home;
 
     char const *temp = getenv(test.c_str());
-    if (temp != NULL) {
+    if (temp != nullptr) {
         jasminegraph_home = std::string(temp);
     }
     if (jasminegraph_home.empty()) {

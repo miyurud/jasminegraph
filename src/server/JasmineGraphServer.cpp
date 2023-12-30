@@ -30,11 +30,11 @@ limitations under the License.
 
 Logger server_logger;
 
-static void copyArtifactsToWorkers(std::string workerPath, std::string artifactLocation, std::string remoteWorker);
-static void createLogFilePath(std::string workerHost, std::string workerPath);
-static void deleteWorkerPath(std::string workerHost, std::string workerPath);
-static void updateMetaDB(std::vector<JasmineGraphServer::workers> hostWorkerMap,
-                         std::map<int, std::string> partitionFileList, int graphID, std::string uploadEndTime);
+static void copyArtifactsToWorkers(const std::string &workerPath, const std::string &artifactLocation,
+                                   const std::string &remoteWorker);
+static void createLogFilePath(const std::string &workerHost, const std::string &workerPath);
+static void deleteWorkerPath(const std::string &workerHost, const std::string &workerPath);
+static void updateMetaDB(int graphID, std::string uploadEndTime);
 
 static map<string, string> hostIDMap;
 static std::vector<JasmineGraphServer::workers> hostWorkerMap;
@@ -43,7 +43,7 @@ std::map<int, int> aggregateWeightMap;
 
 void *runfrontend(void *dummyPt) {
     JasmineGraphServer *refToServer = (JasmineGraphServer *)dummyPt;
-    refToServer->frontend = new JasmineGraphFrontEnd(*(refToServer->sqlite), refToServer->performanceSqlite,
+    refToServer->frontend = new JasmineGraphFrontEnd(*(refToServer->sqlite), *(refToServer->performanceSqlite),
                                                      refToServer->masterHost, refToServer->jobScheduler);
     refToServer->frontend->run();
     return NULL;
@@ -74,13 +74,14 @@ int JasmineGraphServer::run(std::string profile, std::string masterIp, int numbe
         delete this->sqlite;
         return 1;
     }
-    this->performanceSqlite = *new PerformanceSQLiteDBInterface();
-    if (this->performanceSqlite.init()) {
+    this->performanceSqlite = new PerformanceSQLiteDBInterface();
+    if (this->performanceSqlite->init()) {
         server_logger.error("Error initializing PerformanceSQLiteDBInterface");
+        delete this->performanceSqlite;
         delete this->sqlite;
         return 1;
     }
-    this->jobScheduler = *new JobScheduler(*(this->sqlite), this->performanceSqlite);
+    this->jobScheduler = *new JobScheduler(*(this->sqlite), *(this->performanceSqlite));
     this->jobScheduler.init();
     if (masterIp.empty()) {
         this->masterHost = Utils::getJasmineGraphProperty("org.jasminegraph.server.host");
@@ -337,13 +338,13 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
             const char *commandStr = serverStartScript.c_str();
             pid_t child = vfork();
             if (child == 0) {
-                execl("/bin/sh", "sh", "-c", commandStr, (char *)NULL);
+                execl("/bin/sh", "sh", "-c", commandStr, nullptr);
                 _exit(1);
             }
         }
     } else if (profile == "docker") {
         char *env_testing = getenv("TESTING");
-        bool is_testing = (env_testing != NULL && strcasecmp(env_testing, "true") == 0);
+        bool is_testing = (env_testing != nullptr && strcasecmp(env_testing, "true") == 0);
         for (int i = 0; i < workerPortsVector.size(); i++) {
             std::string worker_logdir = "/tmp/jasminegraph/worker_" + to_string(i);
             if (access(worker_logdir.c_str(), F_OK) != 0) {
@@ -405,7 +406,7 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
             const char *serverStartCmd = serverStartScript.c_str();
             pid_t child = vfork();
             if (child == 0) {
-                execl("/bin/sh", "sh", "-c", serverStartCmd, (char *)NULL);
+                execl("/bin/sh", "sh", "-c", serverStartCmd, nullptr);
                 _exit(1);
             }
         }
@@ -852,7 +853,7 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
     string uploadEndTime = ctime(&time);
 
     // The following function updates the 'worker_has_partition' table and 'graph' table only
-    updateMetaDB(hostWorkerMap, partitionFileList, graphID, uploadEndTime);
+    updateMetaDB(graphID, uploadEndTime);
     server_logger.info("Upload Graph Locally done");
 }
 
@@ -1956,7 +1957,8 @@ bool JasmineGraphServer::sendFileThroughService(std::string host, int dataPort, 
     return false;
 }
 
-static void copyArtifactsToWorkers(std::string workerPath, std::string artifactLocation, std::string remoteWorker) {
+static void copyArtifactsToWorkers(const std::string &workerPath, const std::string &artifactLocation,
+                                   const std::string &remoteWorker) {
     if (artifactLocation.empty() || artifactLocation.find_first_not_of(' ') == artifactLocation.npos) {
         server_logger.log("Received `" + artifactLocation + "` for `artifactLocation` value!", "error");
         throw std::invalid_argument("Received empty string for `artifactLocation` value!");
@@ -1992,7 +1994,7 @@ static void copyArtifactsToWorkers(std::string workerPath, std::string artifactL
     }
 }
 
-static void deleteWorkerPath(std::string workerHost, std::string workerPath) {
+static void deleteWorkerPath(const std::string &workerHost, const std::string &workerPath) {
     std::string pathDeletionCommand = "rm -rf " + workerPath;
     if (workerHost.find("localhost") == std::string::npos) {
         pathDeletionCommand = "ssh -p 22 " + workerHost + " " + pathDeletionCommand;
@@ -2003,7 +2005,7 @@ static void deleteWorkerPath(std::string workerHost, std::string workerPath) {
     }
 }
 
-static void createLogFilePath(std::string workerHost, std::string workerPath) {
+static void createLogFilePath(const std::string &workerHost, const std::string &workerPath) {
     std::string pathCreationCommand = "mkdir -p " + workerPath + "/logs";
     if (workerHost.find("localhost") == std::string::npos) {
         pathCreationCommand = "ssh -p 22 " + workerHost + " " + pathCreationCommand;
@@ -2069,8 +2071,7 @@ map<string, string> JasmineGraphServer::getLiveHostIDList() {
     return hostIDMap;
 }
 
-static void updateMetaDB(vector<JasmineGraphServer::workers> hostWorkerMap, std::map<int, string> partitionFileList,
-                         int graphID, string uploadEndTime) {
+static void updateMetaDB(int graphID, string uploadEndTime) {
     std::unique_ptr<SQLiteDBInterface> sqliteDBInterface(new SQLiteDBInterface());
     sqliteDBInterface->init();
     string sqlStatement = "UPDATE graph SET upload_end_time = '" + uploadEndTime +
@@ -2485,10 +2486,10 @@ void JasmineGraphServer::backupPerformanceDB() {
 }
 
 void JasmineGraphServer::clearPerformanceDB() {
-    performanceSqlite.runUpdate("delete from host_performance_data");
-    performanceSqlite.runUpdate("delete from place_performance_data");
-    performanceSqlite.runUpdate("delete from place");
-    performanceSqlite.runUpdate("delete from host");
+    this->performanceSqlite->runUpdate("delete from host_performance_data");
+    this->performanceSqlite->runUpdate("delete from place_performance_data");
+    this->performanceSqlite->runUpdate("delete from place");
+    this->performanceSqlite->runUpdate("delete from host");
 }
 
 void JasmineGraphServer::addInstanceDetailsToPerformanceDB(std::string host, std::vector<int> portVector,
@@ -2509,7 +2510,7 @@ void JasmineGraphServer::addInstanceDetailsToPerformanceDB(std::string host, std
     }
 
     std::string searchHost = "select idhost,ip from host where ip='" + ipAddress + "'";
-    vector<vector<pair<string, string>>> selectResult = this->performanceSqlite.runSelect(searchHost);
+    vector<vector<pair<string, string>>> selectResult = this->performanceSqlite->runSelect(searchHost);
 
     if (selectResult.size() > 0) {
         hostId = selectResult[0][0].second;
@@ -2517,7 +2518,7 @@ void JasmineGraphServer::addInstanceDetailsToPerformanceDB(std::string host, std
         std::string hostInsertQuery =
             "insert into host (name, ip, is_public, total_cpu_cores, total_memory) values ('" + host + "','" +
             ipAddress + "','false','','')";
-        int insertedHostId = this->performanceSqlite.runInsert(hostInsertQuery);
+        int insertedHostId = this->performanceSqlite->runInsert(hostInsertQuery);
         hostId = to_string(insertedHostId);
     }
 
@@ -2529,7 +2530,7 @@ void JasmineGraphServer::addInstanceDetailsToPerformanceDB(std::string host, std
         int port = (*it);
         std::string searchPlaceQuery = "select idplace from place where ip='" + ipAddress + "' and host_idhost='" +
                                        hostId + "' and server_port='" + to_string(port) + "';";
-        vector<vector<pair<string, string>>> placeSearchResult = this->performanceSqlite.runSelect(searchPlaceQuery);
+        vector<vector<pair<string, string>>> placeSearchResult = this->performanceSqlite->runSelect(searchPlaceQuery);
 
         if (placeSearchResult.size() > 0) {
             continue;
@@ -2538,7 +2539,7 @@ void JasmineGraphServer::addInstanceDetailsToPerformanceDB(std::string host, std
         if (count == 0) {
             std::string searchReporterQuery =
                 "select idplace from place where ip='" + ipAddress + "' and is_host_reporter='true'";
-            vector<vector<pair<string, string>>> searchResult = this->performanceSqlite.runSelect(searchReporterQuery);
+            vector<vector<pair<string, string>>> searchResult = this->performanceSqlite->runSelect(searchReporterQuery);
             if (searchResult.size() == 0) {
                 isHostReporter = "true";
             }
@@ -2556,7 +2557,7 @@ void JasmineGraphServer::addInstanceDetailsToPerformanceDB(std::string host, std
 
     insertPlaceQuery = insertPlaceQuery + hostString;
 
-    this->performanceSqlite.runInsert(insertPlaceQuery);
+    this->performanceSqlite->runInsert(insertPlaceQuery);
 }
 
 void JasmineGraphServer::inDegreeDistribution(std::string graphID) {

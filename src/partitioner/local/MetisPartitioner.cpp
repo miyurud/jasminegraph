@@ -235,7 +235,7 @@ std::vector<std::map<int, std::string>> MetisPartitioner::partitioneWithGPMetis(
             const char *commandStr = command.c_str();
             pid_t child = vfork();
             if (child == 0) {
-                execl("/bin/sh", "sh", "-c", commandStr, (char *)NULL);
+                execl("/bin/sh", "sh", "-c", commandStr, nullptr);
                 _exit(1);
             }
             partitioneWithGPMetis(to_string(nParts));
@@ -247,7 +247,7 @@ std::vector<std::map<int, std::string>> MetisPartitioner::partitioneWithGPMetis(
             const char *commandStr = command.c_str();
             pid_t child = vfork();
             if (child == 0) {
-                execl("/bin/sh", "sh", "-c", commandStr, (char *)NULL);
+                execl("/bin/sh", "sh", "-c", commandStr, nullptr);
                 _exit(1);
             }
             partitioneWithGPMetis(to_string(nParts));
@@ -264,7 +264,7 @@ std::vector<std::map<int, std::string>> MetisPartitioner::partitioneWithGPMetis(
             const char *commandStr = command.c_str();
             pid_t child = vfork();
             if (child == 0) {
-                execl("/bin/sh", "sh", "-c", commandStr, (char *)NULL);
+                execl("/bin/sh", "sh", "-c", commandStr, nullptr);
                 _exit(1);
             }
             partitioneWithGPMetis(to_string(nParts));

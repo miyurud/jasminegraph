@@ -22,8 +22,7 @@ using namespace std;
 Logger db_logger;
 
 int SQLiteDBInterface::init() {
-    int rc = sqlite3_open(Utils::getJasmineGraphProperty("org.jasminegraph.db.location").c_str(), &database);
-    if (rc) {
+    if (sqlite3_open(Utils::getJasmineGraphProperty("org.jasminegraph.db.location").c_str(), &database)) {
         db_logger.log("Cannot open database: " + string(sqlite3_errmsg(database)), "error");
         return -1;
     }
@@ -52,12 +51,9 @@ static int callback(void *ptr, int argc, char **argv, char **azColName) {
 
 vector<vector<pair<string, string>>> SQLiteDBInterface::runSelect(std::string query) {
     char *zErrMsg = 0;
-    int rc;
     vector<vector<pair<string, string>>> dbResults;
 
-    rc = sqlite3_exec(database, query.c_str(), callback, &dbResults, &zErrMsg);
-
-    if (rc != SQLITE_OK) {
+    if (sqlite3_exec(database, query.c_str(), callback, &dbResults, &zErrMsg) != SQLITE_OK) {
         db_logger.log("SQL Error: " + string(zErrMsg) + " " + query, "error");
         sqlite3_free(zErrMsg);
     } else {
