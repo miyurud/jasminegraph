@@ -31,7 +31,7 @@ struct NodeRelation {
 
 enum class RelationOffsets : int {
     SOURCE_ID = 0,
-    DESTINATION_ID =1,
+    DESTINATION_ID = 1,
     SOURCE = 2,
     DESTINATION = 3,
     SOURCE_NEXT = 4,
@@ -56,28 +56,26 @@ enum class RelationOffsets : int {
  * **/
 
 class RelationBlock {
-   private:
+ private:
     std::string id;
     bool updateRelationRecords(RelationOffsets, unsigned int);
     NodeBlock *sourceBlock;
     NodeBlock *destinationBlock;
 
-   public:
-    RelationBlock(NodeBlock source, NodeBlock destination){
+ public:
+    RelationBlock(NodeBlock source, NodeBlock destination) {
         this->sourceBlock = &source;
         this->destinationBlock = &destination;
     }
 
-
     RelationBlock(unsigned int addr, NodeRelation source, NodeRelation destination, unsigned int propertyAddress)
         : addr(addr), source(source), destination(destination), propertyAddress(propertyAddress){};
 
-
     char usage;
-    unsigned int addr =0;  // Block size * block ID for this block
+    unsigned int addr = 0;  // Block size * block ID for this block
     NodeRelation source;
     NodeRelation destination;
-    unsigned int propertyAddress =0;
+    unsigned int propertyAddress = 0;
     PropertyEdgeLink *propertyHead = NULL;
 
     void save(std::fstream *cursor);

@@ -12,22 +12,24 @@ limitations under the License.
 **/
 
 #include <cppkafka/cppkafka.h>
-#include "KafkaCC.h"
-#include "../logger/Logger.h"
+
 #include <string>
 #include <vector>
-#include "../../partitioner/stream/Partitioner.h"
+
 #include "../../nativestore/DataPublisher.h"
+#include "../../partitioner/stream/Partitioner.h"
+#include "../logger/Logger.h"
+#include "KafkaCC.h"
 
 class StreamHandler {
-public:
+ public:
     StreamHandler(KafkaConnector *kstream, Partitioner &graphPartitioner, std::vector<DataPublisher *> &workerClients);
     void listen_to_kafka_topic();
     cppkafka::Message pollMessage();
     bool isErrorInMessage(const cppkafka::Message &msg);
     bool isEndOfStream(const cppkafka::Message &msg);
 
-private:
+ private:
     KafkaConnector *kstream;
     Logger frontend_logger;
     std::string stream_topic_name;

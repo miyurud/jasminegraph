@@ -16,12 +16,11 @@ limitations under the License.
 #include <set>
 #include <string>
 
-
 #ifndef JASMINEGRAPH_PROPERTYEDGELINK_H
 #define JASMINEGRAPH_PROPERTYEDGELINK_H
 
 class PropertyEdgeLink {
-public:
+ public:
     static const unsigned long MAX_NAME_SIZE = 12;    // Size of a property name in bytes
     static const unsigned long MAX_VALUE_SIZE = 180;  // Size of a property value in bytes
     static unsigned int nextPropertyIndex;            // Next available property block index
@@ -37,8 +36,6 @@ public:
     static std::string DB_PATH;
     static std::fstream* edgePropertiesDB;
 
-
-
     PropertyEdgeLink(unsigned int);
     PropertyEdgeLink(unsigned int, std::string, char*, unsigned int);
     bool isEmpty();
@@ -49,5 +46,4 @@ public:
     PropertyEdgeLink* next();
 };
 
-
-#endif //JASMINEGRAPH_PROPERTYEDGELINK_H
+#endif  // JASMINEGRAPH_PROPERTYEDGELINK_H

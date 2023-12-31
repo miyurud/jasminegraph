@@ -14,8 +14,8 @@
 #include "./DataPublisher.h"
 
 #include "../server/JasmineGraphInstanceProtocol.h"
-#include "../util/logger/Logger.h"
 #include "../util/Utils.h"
+#include "../util/logger/Logger.h"
 
 Logger data_publisher_logger;
 
@@ -43,7 +43,6 @@ DataPublisher::DataPublisher(int worker_port, std::string worker_address) {
 }
 
 DataPublisher::~DataPublisher() { close(sock); }
-
 
 void DataPublisher::publish(std::string message) {
     char receiver_buffer[MAX_STREAMING_DATA_LENGTH] = {0};

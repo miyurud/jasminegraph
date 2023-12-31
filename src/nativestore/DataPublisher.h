@@ -14,10 +14,11 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
+
 #include <iostream>
-#include <string.h>
 
 #ifndef WORKER_DATA_PUBLISHER
 #define WORKER_DATA_PUBLISHER
@@ -25,17 +26,17 @@
 static const int ACK_MESSAGE_SIZE = 1024;
 
 class DataPublisher {
-    private:
-        int sock = 0, valread, worker_port;
-        struct sockaddr_in serv_addr;
-        std::string worker_address, message;
-        char buffer[1024] = {0};
+ private:
+    int sock = 0, valread, worker_port;
+    struct sockaddr_in serv_addr;
+    std::string worker_address, message;
+    char buffer[1024] = {0};
 
-    public:
-        DataPublisher(int, std::string);
-        void publish(std::string);
-        void publish_relation(std::string);
-        void publish_edge(std::string);
+ public:
+    DataPublisher(int, std::string);
+    void publish(std::string);
+    void publish_relation(std::string);
+    void publish_edge(std::string);
 
     ~DataPublisher();
 

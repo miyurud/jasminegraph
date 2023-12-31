@@ -12,43 +12,44 @@ limitations under the License.
  */
 
 #include "PropertyEdgeLink.h"
+
+#include <iostream>
 #include <sstream>
 #include <vector>
-#include <iostream>
 
 #include "../util/logger/Logger.h"
 Logger property_edge_link_logger;
-unsigned int PropertyEdgeLink::nextPropertyIndex = 1;  // Starting with 1 because of the 0 and '\0' differentiation issue
+unsigned int PropertyEdgeLink::nextPropertyIndex =
+    1;  // Starting with 1 because of the 0 and '\0' differentiation issue
 std::fstream* PropertyEdgeLink::edgePropertiesDB = NULL;
 pthread_mutex_t lockPropertyEdgeLink;
 pthread_mutex_t lockCreatePropertyEdgeLink;
 pthread_mutex_t lockInsertPropertyEdgeLink;
 pthread_mutex_t lockGetPropertyEdgeLink;
 
-
-
-
-
 PropertyEdgeLink::PropertyEdgeLink(unsigned int propertyBlockAddress) : blockAddress(propertyBlockAddress) {
     pthread_mutex_lock(&lockPropertyEdgeLink);
     if (propertyBlockAddress > 0) {
         this->edgePropertiesDB->seekg(propertyBlockAddress);
         char rawName[PropertyEdgeLink::MAX_NAME_SIZE] = {0};
-//        property_edge_link_logger.info("Traverse state  = " + std::to_string(PropertyEdgeLink::edgePropertiesDB->rdstate()));
+        //        property_edge_link_logger.info("Traverse state  = " +
+        //        std::to_string(PropertyEdgeLink::edgePropertiesDB->rdstate()));
 
         if (!this->edgePropertiesDB->read(reinterpret_cast<char*>(&rawName), PropertyEdgeLink::MAX_NAME_SIZE)) {
-            property_edge_link_logger.error("Error while reading property name from block " + std::to_string(blockAddress));
+            property_edge_link_logger.error("Error while reading property name from block " +
+                                            std::to_string(blockAddress));
         }
         property_edge_link_logger.debug(
-                "Current file descriptor cursor position = " + std::to_string(this->edgePropertiesDB->tellg()) +
-                " when reading = " + std::to_string(blockAddress));
+            "Current file descriptor cursor position = " + std::to_string(this->edgePropertiesDB->tellg()) +
+            " when reading = " + std::to_string(blockAddress));
         if (!this->edgePropertiesDB->read(reinterpret_cast<char*>(&this->value), PropertyEdgeLink::MAX_VALUE_SIZE)) {
-            property_edge_link_logger.error("Error while reading property value from block " + std::to_string(blockAddress));
+            property_edge_link_logger.error("Error while reading property value from block " +
+                                            std::to_string(blockAddress));
         }
 
         if (!this->edgePropertiesDB->read(reinterpret_cast<char*>(&(this->nextPropAddress)), sizeof(unsigned int))) {
             property_edge_link_logger.error("Error while reading property next address from block " +
-                                       std::to_string(blockAddress));
+                                            std::to_string(blockAddress));
         }
 
         this->name = std::string(rawName);
@@ -57,7 +58,7 @@ PropertyEdgeLink::PropertyEdgeLink(unsigned int propertyBlockAddress) : blockAdd
 };
 
 PropertyEdgeLink::PropertyEdgeLink(unsigned int blockAddress, std::string name, char* rvalue, unsigned int nextAddress)
-        : blockAddress(blockAddress), nextPropAddress(nextAddress), name(name) {
+    : blockAddress(blockAddress), nextPropAddress(nextAddress), name(name) {
     // Can't use just string copyer here because of binary data formats
     for (size_t i = 0; i < PropertyEdgeLink::MAX_VALUE_SIZE; i++) {
         this->value[i] = rvalue[i];
@@ -87,20 +88,19 @@ PropertyEdgeLink::PropertyEdgeLink(unsigned int blockAddress, std::string name, 
  *  else either updated link address or last appended link address will be returned
  * **/
 unsigned int PropertyEdgeLink::insert(std::string name, char* value) {
-
     char dataName[PropertyEdgeLink::MAX_NAME_SIZE] = {0};
     char dataValue[PropertyEdgeLink::MAX_VALUE_SIZE] = {0};
     std::strcpy(dataName, name.c_str());
-    std::memcpy(dataValue, value,
-                PropertyEdgeLink::MAX_VALUE_SIZE);  // strcpy or strncpy get terminated at null-character hence using memcpy
+    std::memcpy(
+        dataValue, value,
+        PropertyEdgeLink::MAX_VALUE_SIZE);  // strcpy or strncpy get terminated at null-character hence using memcpy
 
-//    property_edge_link_logger.debug("Received name = " + name);
-//    property_edge_link_logger.debug("Received value = " + std::string(value));
+    //    property_edge_link_logger.debug("Received name = " + name);
+    //    property_edge_link_logger.debug("Received value = " + std::string(value));
     unsigned int nextAddress = 0;
 
-//    property_edge_link_logger.info("current property name  = " + (this->name));
-//    property_edge_link_logger.info("new property name  = " + (name));
-
+    //    property_edge_link_logger.info("current property name  = " + (this->name));
+    //    property_edge_link_logger.info("new property name  = " + (name));
 
     if (this->name == name) {
         // TODO[tmkasun]: update existing property value
@@ -109,7 +109,8 @@ unsigned int PropertyEdgeLink::insert(std::string name, char* value) {
     } else if (this->next()) {  // Traverse to the edge/end of the link list
         return this->next()->insert(name, value);
     } else {  // No next link means end of the link, Now add the new link
-//        property_edge_link_logger.debug("Next prop index = " + std::to_string(PropertyEdgeLink::nextPropertyIndex));
+              //        property_edge_link_logger.debug("Next prop index = " +
+              //        std::to_string(PropertyEdgeLink::nextPropertyIndex));
 
         pthread_mutex_lock(&lockInsertPropertyEdgeLink);
         unsigned int newAddress = PropertyEdgeLink::nextPropertyIndex * PropertyEdgeLink::PROPERTY_BLOCK_SIZE;
@@ -118,7 +119,7 @@ unsigned int PropertyEdgeLink::insert(std::string name, char* value) {
         this->edgePropertiesDB->write(reinterpret_cast<char*>(dataValue), PropertyEdgeLink::MAX_VALUE_SIZE);
         if (!this->edgePropertiesDB->write(reinterpret_cast<char*>(&nextAddress), sizeof(nextAddress))) {
             property_edge_link_logger.error("Error while inserting a property " + name + " into block address " +
-                                       std::to_string(newAddress));
+                                            std::to_string(newAddress));
             return -1;
         }
 
@@ -126,19 +127,18 @@ unsigned int PropertyEdgeLink::insert(std::string name, char* value) {
 
         this->nextPropAddress = newAddress;
         this->edgePropertiesDB->seekp(this->blockAddress + PropertyEdgeLink::MAX_NAME_SIZE +
-                                  PropertyEdgeLink::MAX_VALUE_SIZE);  // seek to current property next address
+                                      PropertyEdgeLink::MAX_VALUE_SIZE);  // seek to current property next address
         if (!this->edgePropertiesDB->write(reinterpret_cast<char*>(&newAddress), sizeof(newAddress))) {
             property_edge_link_logger.error("Error while updating  property next address for " + name +
-                                       " into block address " + std::to_string(this->blockAddress));
+                                            " into block address " + std::to_string(this->blockAddress));
             return -1;
         }
-//        property_edge_link_logger.info("nextPropertyIndex = " + std::to_string(PropertyEdgeLink::nextPropertyIndex));
+        //        property_edge_link_logger.info("nextPropertyIndex = " +
+        //        std::to_string(PropertyEdgeLink::nextPropertyIndex));
         PropertyEdgeLink::nextPropertyIndex++;  // Increment the shared property index value
         pthread_mutex_unlock(&lockInsertPropertyEdgeLink);
         return this->blockAddress;
-
     }
-
 }
 
 /**
@@ -146,7 +146,6 @@ unsigned int PropertyEdgeLink::insert(std::string name, char* value) {
  *
  * */
 PropertyEdgeLink* PropertyEdgeLink::create(std::string name, char value[]) {
-
     pthread_mutex_lock(&lockCreatePropertyEdgeLink);
     unsigned int nextAddress = 0;
     char dataName[PropertyEdgeLink::MAX_NAME_SIZE] = {0};
@@ -157,12 +156,12 @@ PropertyEdgeLink* PropertyEdgeLink::create(std::string name, char value[]) {
     PropertyEdgeLink::edgePropertiesDB->write(reinterpret_cast<char*>(value), PropertyEdgeLink::MAX_VALUE_SIZE);
     if (!PropertyEdgeLink::edgePropertiesDB->write(reinterpret_cast<char*>(&nextAddress), sizeof(nextAddress))) {
         property_edge_link_logger.error("Error while inserting the property = " + name +
-                                   " into block a new address = " + std::to_string(newAddress));
+                                        " into block a new address = " + std::to_string(newAddress));
         return NULL;
     }
     PropertyEdgeLink::edgePropertiesDB->flush();
-//    property_edge_link_logger.info("nextPropertyIndex = " + std::to_string(PropertyEdgeLink::nextPropertyIndex));
-//    property_edge_link_logger.info("newAddress = " + std::to_string(newAddress));
+    //    property_edge_link_logger.info("nextPropertyIndex = " + std::to_string(PropertyEdgeLink::nextPropertyIndex));
+    //    property_edge_link_logger.info("newAddress = " + std::to_string(newAddress));
     PropertyEdgeLink::nextPropertyIndex++;  // Increment the shared property index value
     pthread_mutex_unlock(&lockCreatePropertyEdgeLink);
     return new PropertyEdgeLink(newAddress, name, value, nextAddress);
@@ -190,25 +189,29 @@ PropertyEdgeLink* PropertyEdgeLink::get(unsigned int propertyBlockAddress) {
         unsigned int nextAddress;
         PropertyEdgeLink::edgePropertiesDB->seekg(propertyBlockAddress);
 
-//        property_edge_link_logger.info("Searching propertyHead state  = " + std::to_string(PropertyEdgeLink::edgePropertiesDB->rdstate()));
-//        std::cout << "Stream state: " << PropertyEdgeLink::edgePropertiesDB->rdstate() << std::endl;
-//        std::string  PropertyEdgeLink::edgePropertiesDB->rdstate();
-        if (!PropertyEdgeLink::edgePropertiesDB->read(reinterpret_cast<char*>(&propertyName), PropertyEdgeLink::MAX_NAME_SIZE)) {
-//            property_edge_link_logger.error("Error  = " +
-//                                       std::to_string(PropertyEdgeLink::edgePropertiesDB->rdstate()));
+        //        property_edge_link_logger.info("Searching propertyHead state  = " +
+        //        std::to_string(PropertyEdgeLink::edgePropertiesDB->rdstate())); std::cout << "Stream state: " <<
+        //        PropertyEdgeLink::edgePropertiesDB->rdstate() << std::endl; std::string
+        //        PropertyEdgeLink::edgePropertiesDB->rdstate();
+        if (!PropertyEdgeLink::edgePropertiesDB->read(reinterpret_cast<char*>(&propertyName),
+                                                      PropertyEdgeLink::MAX_NAME_SIZE)) {
+            //            property_edge_link_logger.error("Error  = " +
+            //                                       std::to_string(PropertyEdgeLink::edgePropertiesDB->rdstate()));
             property_edge_link_logger.error("Error while reading edge property name from block = " +
-                                       std::to_string(propertyBlockAddress));
+                                            std::to_string(propertyBlockAddress));
         }
-        if (!PropertyEdgeLink::edgePropertiesDB->read(reinterpret_cast<char*>(&propertyValue), PropertyEdgeLink::MAX_VALUE_SIZE)) {
+        if (!PropertyEdgeLink::edgePropertiesDB->read(reinterpret_cast<char*>(&propertyValue),
+                                                      PropertyEdgeLink::MAX_VALUE_SIZE)) {
             property_edge_link_logger.error("Error while reading edge property value from block = " +
-                                       std::to_string(propertyBlockAddress));
+                                            std::to_string(propertyBlockAddress));
         }
 
         if (!PropertyEdgeLink::edgePropertiesDB->read(reinterpret_cast<char*>(&(nextAddress)), sizeof(unsigned int))) {
             property_edge_link_logger.error("Error while reading edge property next address from block = " +
-                                       std::to_string(propertyBlockAddress));
+                                            std::to_string(propertyBlockAddress));
         }
-        property_edge_link_logger.debug("Property head propertyBlockAddress  = " + std::to_string(propertyBlockAddress));
+        property_edge_link_logger.debug("Property head propertyBlockAddress  = " +
+                                        std::to_string(propertyBlockAddress));
         property_edge_link_logger.debug("Property head property name  = " + std::string(propertyName));
         property_edge_link_logger.debug("Property head nextAddress   = " + std::to_string(nextAddress));
 
@@ -217,4 +220,3 @@ PropertyEdgeLink* PropertyEdgeLink::get(unsigned int propertyBlockAddress) {
     pthread_mutex_unlock(&lockGetPropertyEdgeLink);
     return pl;
 }
-

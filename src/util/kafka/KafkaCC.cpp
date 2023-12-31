@@ -12,7 +12,9 @@ limitations under the License.
 **/
 
 #include "./KafkaCC.h"
+
 #include <nlohmann/json.hpp>
+
 #include "../logger/Logger.h"
 
 using json = nlohmann::json;

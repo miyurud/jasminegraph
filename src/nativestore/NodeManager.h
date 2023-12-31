@@ -28,7 +28,7 @@ struct GraphConfig {
 };
 
 class NodeManager {
-   private:
+ private:
     unsigned int nextNodeIndex = 0;
     std::fstream* nodeDBT;
     unsigned int graphID = 0;
@@ -42,7 +42,7 @@ class NodeManager {
     static std::string NODE_DB_PATH;  // Node database file path
                                       // TODO(tmkasun): This NODE_DB_PATH should be moved to NodeBlock header definition
 
-   public:
+ public:
     static unsigned int nextPropertyIndex;  // Next available property block index
     // unless open in wipe data
     // mode(trunc) need to set this value to property db seekp()/BLOCK_SIZE
@@ -60,9 +60,9 @@ class NodeManager {
     NodeBlock* get(std::string);
     std::list<NodeBlock> getGraph(int limit = 10);
 
-    RelationBlock *addCentralRelation(NodeBlock source, NodeBlock destination);
+    RelationBlock* addCentralRelation(NodeBlock source, NodeBlock destination);
 
-    RelationBlock *addCentralEdge(std::pair<std::string, std::string> edge);
+    RelationBlock* addCentralEdge(std::pair<std::string, std::string> edge);
 };
 
 #endif

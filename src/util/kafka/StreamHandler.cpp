@@ -11,10 +11,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 **/
 
-#include <string>
+#include "StreamHandler.h"
+
 #include <chrono>
 #include <nlohmann/json.hpp>
-#include "StreamHandler.h"
+#include <string>
+
 #include "../logger/Logger.h"
 
 using json = nlohmann::json;
@@ -22,14 +24,15 @@ using namespace std;
 using namespace std::chrono;
 Logger stream_handler_logger;
 
-StreamHandler::StreamHandler(KafkaConnector *kstream, Partitioner &graphPartitioner, vector<DataPublisher *> &workerClients)
-        : kstream(kstream), graphPartitioner(graphPartitioner), workerClients(workerClients), stream_topic_name("stream_topic_name") {
-}
+StreamHandler::StreamHandler(KafkaConnector *kstream, Partitioner &graphPartitioner,
+                             vector<DataPublisher *> &workerClients)
+    : kstream(kstream),
+      graphPartitioner(graphPartitioner),
+      workerClients(workerClients),
+      stream_topic_name("stream_topic_name") {}
 
 // Polls kafka for a message.
-cppkafka::Message StreamHandler::pollMessage() {
-    return kstream->consumer.poll(std::chrono::milliseconds(1000));
-}
+cppkafka::Message StreamHandler::pollMessage() { return kstream->consumer.poll(std::chrono::milliseconds(1000)); }
 
 // Checks if there's an error in Kafka's message.
 bool StreamHandler::isErrorInMessage(const cppkafka::Message &msg) {
@@ -92,8 +95,7 @@ void StreamHandler::listen_to_kafka_topic() {
             obj["EdgeType"] = "Local";
             obj["PID"] = temp_s;
             workerClients.at(temp_s)->publish(obj.dump());
-        }
-        else {
+        } else {
             obj["EdgeType"] = "Central";
             obj["PID"] = temp_s;
             workerClients.at(temp_s)->publish(obj.dump());
