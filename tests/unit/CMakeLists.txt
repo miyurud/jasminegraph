@@ -2,7 +2,8 @@ project(JasmineGraphUnitTest)
 
 set(SOURCES
         main.cpp
-        util/Utils_test.cpp)
+        util/Utils_test.cpp
+        k8s/K8sInterface_test.cpp)
 
 add_executable(${PROJECT_NAME} ${SOURCES})
 target_link_libraries(${PROJECT_NAME} gtest gtest_main JasmineGraphLib)

@@ -56,6 +56,7 @@ set(HEADERS src/backend/JasmineGraphBackend.h
         src/util/scheduler/Scheduler.h
         src/util/scheduler/SchedulerService.h
         src/util/scheduler/ctpl_stl.h
+        src/k8s/K8sInterface.h
         src/nativestore/NodeManager.h
         src/nativestore/NodeBlock.h
         src/nativestore/PropertyLink.h
@@ -109,14 +110,7 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/util/kafka/StreamHandler.cpp
         src/util/logger/Logger.cpp
         src/util/scheduler/SchedulerService.cpp
-        src/nativestore/NodeManager.cpp
-        src/nativestore/NodeBlock.cpp
-        src/nativestore/PropertyLink.cpp
-        src/nativestore/PropertyEdgeLink.cpp
-        src/nativestore/RelationBlock.cpp
-        src/nativestore/DataPublisher.cpp
-        src/partitioner/stream/Partition.cpp
-)
+        )
 
 add_library(JasmineGraphLib ${HEADERS} ${SOURCES})
 add_executable(JasmineGraph main.h main.cpp)
