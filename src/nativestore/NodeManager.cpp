@@ -98,7 +98,7 @@ NodeManager::NodeManager(GraphConfig gConfig) {
     if (dbSize(nodesDBPath) % NodeBlock::BLOCK_SIZE != 0) {
         node_manager_logger.warn("NodesDB size: " + std::to_string(dbSize(nodesDBPath)) + ", NodeBlock::BLOCK_SIZE: " + std::to_string(NodeBlock::BLOCK_SIZE));
         std::string errorMessage =
-            "Node DB size does not comply to node block size Path = " + NodeManager::NODE_DB_PATH;
+            "Node DB size does not comply to node block size Path = " + nodesDBPath;
         node_manager_logger.error(errorMessage);
         throw std::runtime_error(errorMessage);
     }
@@ -413,6 +413,4 @@ void NodeManager::setIndexKeySize(unsigned long newIndexKeySize) {
 
     this->INDEX_KEY_SIZE = newIndexKeySize;
 }
-unsigned int NodeManager::nextPropertyIndex = 0;
-std::string NodeManager::NODE_DB_PATH = "/home/ubuntu/software/jasminegraph/streamStore/g{}_p{}.db";
 const std::string NodeManager::FILE_MODE = "app";  // for appending to existing DB

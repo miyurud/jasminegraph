@@ -19,7 +19,6 @@ limitations under the License.
 #include "../util/logger/Logger.h"
 Logger property_edge_link_logger;
 unsigned int PropertyEdgeLink::nextPropertyIndex = 1;  // Starting with 1 because of the 0 and '\0' differentiation issue
-std::string PropertyEdgeLink::DB_PATH = "/home/ubuntu/software/jasminegraph/streamStore/properties.db";
 std::fstream* PropertyEdgeLink::edgePropertiesDB = NULL;
 pthread_mutex_t lockPropertyEdgeLink;
 pthread_mutex_t lockCreatePropertyEdgeLink;
@@ -41,7 +40,7 @@ PropertyEdgeLink::PropertyEdgeLink(unsigned int propertyBlockAddress) : blockAdd
             property_edge_link_logger.error("Error while reading property name from block " + std::to_string(blockAddress));
         }
         property_edge_link_logger.debug(
-                "Current file descriptor curser position = " + std::to_string(this->edgePropertiesDB->tellg()) +
+                "Current file descriptor cursor position = " + std::to_string(this->edgePropertiesDB->tellg()) +
                 " when reading = " + std::to_string(blockAddress));
         if (!this->edgePropertiesDB->read(reinterpret_cast<char*>(&this->value), PropertyEdgeLink::MAX_VALUE_SIZE)) {
             property_edge_link_logger.error("Error while reading property value from block " + std::to_string(blockAddress));
@@ -209,9 +208,9 @@ PropertyEdgeLink* PropertyEdgeLink::get(unsigned int propertyBlockAddress) {
             property_edge_link_logger.error("Error while reading edge property next address from block = " +
                                        std::to_string(propertyBlockAddress));
         }
-        property_edge_link_logger.info("Property head propertyBlockAddress  = " + std::to_string(propertyBlockAddress));
-        property_edge_link_logger.info("Property head property name  = " + std::string(propertyName));
-        property_edge_link_logger.info("Property head nextAddress   = " + std::to_string(nextAddress));
+        property_edge_link_logger.debug("Property head propertyBlockAddress  = " + std::to_string(propertyBlockAddress));
+        property_edge_link_logger.debug("Property head property name  = " + std::string(propertyName));
+        property_edge_link_logger.debug("Property head nextAddress   = " + std::to_string(nextAddress));
 
         pl = new PropertyEdgeLink(propertyBlockAddress, std::string(propertyName), propertyValue, nextAddress);
     }

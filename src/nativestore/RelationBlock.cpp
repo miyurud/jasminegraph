@@ -49,7 +49,7 @@ RelationBlock* RelationBlock::add(NodeBlock source, NodeBlock destination) {
         return NULL;
     }
     if (!RelationBlock::relationsDB->write(reinterpret_cast<char*>(&sourceData.address), RECORD_SIZE)) {
-        relation_block_logger.error("ERROR: Error while writing relation destAddr " +
+        relation_block_logger.error("ERROR: Error while writing relation sourceAddr " +
                                     std::to_string(sourceData.address) + " into relation block address " +
                                     std::to_string(relationBlockAddress));
         return NULL;
@@ -154,7 +154,7 @@ RelationBlock* RelationBlock::addCentral(NodeBlock source, NodeBlock destination
         return NULL;
     }
     if (!RelationBlock::centralrelationsDB->write(reinterpret_cast<char*>(&sourceData.address), RECORD_SIZE)) {
-        relation_block_logger.error("ERROR: Error while writing relation destAddr " +
+        relation_block_logger.error("ERROR: Error while writing relation sourceAddr " +
                                     std::to_string(sourceData.address) + " into relation block address " +
                                     std::to_string(relationBlockAddress));
         return NULL;
@@ -534,7 +534,7 @@ bool RelationBlock::setCentralPreviousDestination(unsigned int newAddress) {
 }
 
 /**
- * Update relation record block given the offset to the recored from the begining, i:e
+ * Update relation record block given the offset to the record from the beginning, i:e
  *  recordOffset 0 --> Source address
  *  recordOffset 1 --> Destination address
  *  recordOffset 2 --> Source's next relation block address
@@ -587,9 +587,6 @@ void RelationBlock::addProperty(std::string name, char* value) {
             this->propertyAddress = newLink->blockAddress;
             // If it was an empty prop link before inserting, Then update the property reference of this node
             // block
-//            relation_block_logger.info("New edge property name  = " + std::string(name));
-//            relation_block_logger.info("property addr  = " + std::to_string(this->propertyAddress));
-
             this->updateRelationRecords(RelationOffsets::RELATION_PROPS, this->propertyAddress);
         } else {
             throw "Error occurred while adding a new property link to " + std::to_string(this->addr) + " node block";

@@ -63,9 +63,6 @@ double Partition::getEdgesCount() {
     std::set<std::string> uniqueEdges;
     for (auto edge : this->edgeList) {
         std::string vertex1 = edge.first;
-        for (const auto& vertex2 : edge.second) {
-            std::cout << "Edge: (" << vertex1 << ", " << vertex2 << ")" << std::endl;
-        }
         for (auto vertext : edge.second) {
             uniqueEdges.insert(edge.first + vertext);
         }

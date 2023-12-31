@@ -22,18 +22,20 @@
 #ifndef WORKER_DATA_PUBLISHER
 #define WORKER_DATA_PUBLISHER
 
-class DataPublisher {
-   private:
-    int sock = 0, valread, worker_port;
-    struct sockaddr_in serv_addr;
-    std::string worker_address, message;
-    char buffer[1024] = {0};
+static const int ACK_MESSAGE_SIZE = 1024;
 
-   public:
-    DataPublisher(int, std::string);
-    void publish(std::string);
-    void publish_relation(std::string);
-    void publish_edge(std::string);
+class DataPublisher {
+    private:
+        int sock = 0, valread, worker_port;
+        struct sockaddr_in serv_addr;
+        std::string worker_address, message;
+        char buffer[1024] = {0};
+
+    public:
+        DataPublisher(int, std::string);
+        void publish(std::string);
+        void publish_relation(std::string);
+        void publish_edge(std::string);
 
     ~DataPublisher();
 

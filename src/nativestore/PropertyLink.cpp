@@ -21,7 +21,6 @@ limitations under the License.
 
 Logger property_link_logger;
 unsigned int PropertyLink::nextPropertyIndex = 1;  // Starting with 1 because of the 0 and '\0' differentiation issue
-//std::string PropertyLink::DB_PATH = "/home/ubuntu/software/jasminegraph/streamStore/properties.db";
 std::fstream* PropertyLink::propertiesDB = NULL;
 pthread_mutex_t lockPropertyLink;
 pthread_mutex_t lockCreatePropertyLink;
@@ -41,7 +40,6 @@ PropertyLink::PropertyLink(unsigned int propertyBlockAddress) : blockAddress(pro
 //        property_link_logger.info("Traverse state  = " + std::to_string(PropertyLink::propertiesDB->rdstate()));
 
         if (!this->propertiesDB->read(reinterpret_cast<char*>(&rawName), PropertyLink::MAX_NAME_SIZE)) {
-            property_link_logger.log("XXXXXXXX : PropertyLink", "info");
             property_link_logger.error("Error while reading node property name from block " + std::to_string(blockAddress));
         }
         property_link_logger.debug(
@@ -162,7 +160,6 @@ PropertyLink* PropertyLink::create(std::string name, char value[]) {
     PropertyLink::propertiesDB->write(dataName, PropertyLink::MAX_NAME_SIZE);
     PropertyLink::propertiesDB->write(reinterpret_cast<char*>(value), PropertyLink::MAX_VALUE_SIZE);
     if (!PropertyLink::propertiesDB->write(reinterpret_cast<char*>(&nextAddress), sizeof(nextAddress))) {
-        property_link_logger.log("XXXXXXXX : Error creating property link", "info");
         property_link_logger.error("Error while inserting the property = " + name +
                                    " into block a new address = " + std::to_string(newAddress));
         return NULL;

@@ -1229,7 +1229,6 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
 
     frontend_logger.info("Start listening to " + topic_name_s);
     input_stream_handler_thread = thread(&StreamHandler::listen_to_kafka_topic, stream_handler);
-
 }
 
 static void stop_stream_kafka_command(int connFd, KafkaConnector *kstream, bool *loop_exit_p) {

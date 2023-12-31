@@ -24,9 +24,9 @@ pthread_mutex_t lockSaveNode;
 pthread_mutex_t lockAddNodeProperty;
 
 
-NodeBlock::NodeBlock(std::string id, unsigned int nodeId, unsigned int address, unsigned int propRef, unsigned int edgeRef,unsigned int centralEdgeRef,
-                     unsigned char edgeRefPID, char _label[], bool usage)
-    : id(id),nodeId(nodeId), addr(address), propRef(propRef), edgeRef(edgeRef),centralEdgeRef(centralEdgeRef), edgeRefPID(edgeRefPID), usage(usage) {
+NodeBlock::NodeBlock(std::string id, unsigned int nodeId, unsigned int address, unsigned int propRef, unsigned int edgeRef,
+                     unsigned int centralEdgeRef, unsigned char edgeRefPID, char _label[], bool usage)
+    : id(id), nodeId(nodeId), addr(address), propRef(propRef), edgeRef(edgeRef), centralEdgeRef(centralEdgeRef), edgeRefPID(edgeRefPID), usage(usage) {
     strcpy(label, _label);
 };
 
@@ -44,12 +44,12 @@ void NodeBlock::save() {
 //        std::strcpy(this->label, this->id.c_str());
 //    }
     NodeBlock::nodesDB->seekp(this->addr);
-    NodeBlock::nodesDB->put(this->usage); // 1
-    NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(this->nodeId)), sizeof(this->nodeId)); // 4
-    NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(this->edgeRef)), sizeof(this->edgeRef)); // 4
-    NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(this->centralEdgeRef)), sizeof(this->centralEdgeRef)); // 4
-    NodeBlock::nodesDB->put(this->edgeRefPID); // 1
-    NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(this->propRef)), sizeof(this->propRef)); // 4
+    NodeBlock::nodesDB->put(this->usage);  // 1
+    NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(this->nodeId)), sizeof(this->nodeId));  // 4
+    NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(this->edgeRef)), sizeof(this->edgeRef));  // 4
+    NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(this->centralEdgeRef)), sizeof(this->centralEdgeRef));  // 4
+    NodeBlock::nodesDB->put(this->edgeRefPID);  // 1
+    NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(this->propRef)), sizeof(this->propRef));  // 4
     NodeBlock::nodesDB->write(this->label, sizeof(this->label)); // 6
     NodeBlock::nodesDB->flush();  // Sync the file with in-memory stream
 //    pthread_mutex_unlock(&lockSaveNode);
@@ -60,7 +60,6 @@ void NodeBlock::save() {
 }
 
 void NodeBlock::addProperty(std::string name, char* value) {
-    node_block_logger.log("Name :" + name, "info");
     if (this->propRef == 0) {
         PropertyLink* newLink = PropertyLink::create(name, value);
 //        pthread_mutex_lock(&lockAddNodeProperty);
@@ -69,16 +68,14 @@ void NodeBlock::addProperty(std::string name, char* value) {
             // If it was an empty prop link before inserting, Then update the property reference of this node
             // block
 //            node_block_logger.info("propRef = " + std::to_string(this->propRef));
-            NodeBlock::nodesDB->seekp(this->addr + sizeof(this->nodeId) + sizeof(this->edgeRef) + sizeof(this->centralEdgeRef) + sizeof(this->edgeRefPID));
+            NodeBlock::nodesDB->seekp(this->addr + sizeof(this->nodeId) + sizeof(this->edgeRef)
+                                        + sizeof(this->centralEdgeRef) + sizeof(this->edgeRefPID));
             NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(this->propRef)), sizeof(this->propRef));
             NodeBlock::nodesDB->flush();
         } else {
             throw "Error occurred while adding a new property link to " + std::to_string(this->addr) + " node block";
         }
-//        pthread_mutex_unlock(&lockAddNodeProperty);
-    }
-    else {
-        // Problelm is Here.
+    } else {
         this->propRef = this->getPropertyHead()->insert(name, value);
     }
 }
@@ -109,7 +106,7 @@ bool NodeBlock::updateRelation(RelationBlock* newRelation, bool relocateHead) {
         return this->setRelationHead(*newRelation);
     } else {
         RelationBlock* currentRelation = currentHead;
-        if(currentHead == NULL){
+        if (currentHead == NULL) {
             return this->setRelationHead(*newRelation);
         }
         while (currentRelation != NULL) {
@@ -160,10 +157,10 @@ bool NodeBlock::updateCentralRelation(RelationBlock* newRelation, bool relocateH
         return this->setCentralRelationHead(*newRelation);
     } else {
         RelationBlock* currentRelation = currentHead;
-        if(currentHead == NULL){
+        if (currentHead == NULL) {
             node_block_logger.info("Setting the Head for edge reference.");
             return this->setCentralRelationHead(*newRelation);
-        }
+        }  //Last Stopped
         while (currentRelation != NULL) {
             if (currentRelation->source.address == this->addr) {
                 if (currentRelation->source.nextRelationId == 0) {
@@ -178,7 +175,7 @@ bool NodeBlock::updateCentralRelation(RelationBlock* newRelation, bool relocateH
                     currentRelation = currentRelation->nextCentralDestination();
                 }
             } else {
-                node_block_logger.warn("Invalid relation block" + std::to_string(currentRelation->addr));
+                node_block_logger.warn("Invalid relation block : " + std::to_string(currentRelation->addr));
             }
         }
         return false;
