@@ -38,7 +38,7 @@ spec:
   accessModes:
     - ReadWriteOnce
   hostPath:
-    path: "/home/runner/work/jasminegraph/jasminegraph"
+    path: "/home/runner/jasminegraph/jasminegraph/coverage"
 
 ---
 
@@ -59,17 +59,14 @@ spec:
 apiVersion: v1
 kind: Pod
 metadata:
-  name: jasminegraph-prerequisite
+  name: jasminegraph-unit-test-pod
 spec:
   containers:
     - name: jasminegraph-container
-      image: ishad1999/jasminegraph
-      command: ["/bin/bash"]
-      stdin: true
-      tty: true
+      image: jasminegraph:unit
       volumeMounts:
         - name: host-volume
-          mountPath: /home/ubuntu/software/jasminegraph
+          mountPath: /home/ubuntu/software/jasminegraph/coverage
   volumes:
     - name: host-volume
       persistentVolumeClaim:

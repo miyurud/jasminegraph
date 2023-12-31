@@ -77,3 +77,5 @@ logs/
 #CLion
 .run/
 Makefile
+
+coverage.xml

@@ -20,6 +20,7 @@ RUN if [ "$DEBUG" = "true" ]; then echo "building in DEBUG mode" && sh build.sh 
 COPY ./run-docker.sh ./run-docker.sh
 COPY ./src_python ./src_python
 COPY ./conf ./conf
+COPY ./k8s ./k8s
 
 ENTRYPOINT ["/home/ubuntu/software/jasminegraph/run-docker.sh"]
 CMD ["bash"]

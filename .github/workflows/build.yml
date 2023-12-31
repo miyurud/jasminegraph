@@ -25,11 +25,14 @@ jobs:
         docker-enabled: true
 
     - name: Build unit test
-      run: docker build -f tests/unit/Dockerfile -t jasminegraph:unit .
+      run: docker build -f ./tests/unit/Dockerfile -t jasminegraph:unit .
+
     - name: Run unit test
       run: |
         mkdir build
-        docker run -t -v './build:/home/ubuntu/software/jasminegraph/build_mount' jasminegraph:unit
+        kubectl apply -f ./.github/workflows/resources/unit-test-conf.yaml
+        sleep 30
+        kubectl logs -f jasminegraph-unit-test-pod
 
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v3
