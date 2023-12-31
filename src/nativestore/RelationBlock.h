@@ -17,7 +17,7 @@ limitations under the License.
 #include <string>
 
 #include "NodeBlock.h"
-#include "PropertyLink.h"
+#include "PropertyEdgeLink.h"
 
 #ifndef RELATION_BLOCK
 #define RELATION_BLOCK
@@ -30,17 +30,19 @@ struct NodeRelation {
 };
 
 enum class RelationOffsets : int {
-    SOURCE = 0,
-    DESTINATION = 1,
-    SOURCE_NEXT = 2,
-    SOURCE_NEXT_PID = 3,
-    SOURCE_PREVIOUS = 4,
-    SOURCE_PREVIOUS_PID = 5,
-    DESTINATION_NEXT = 6,
-    DESTINATION_NEXT_PID = 7,
-    DESTINATION_PREVIOUS = 8,
-    DESTINATION_PREVIOUS_PID = 9,
-    RELATION_PROPS = 10,
+    SOURCE_ID = 0,
+    DESTINATION_ID = 1,
+    SOURCE = 2,
+    DESTINATION = 3,
+    SOURCE_NEXT = 4,
+    SOURCE_NEXT_PID = 5,
+    SOURCE_PREVIOUS = 6,
+    SOURCE_PREVIOUS_PID = 7,
+    DESTINATION_NEXT = 8,
+    DESTINATION_NEXT_PID = 9,
+    DESTINATION_PREVIOUS = 10,
+    DESTINATION_PREVIOUS_PID = 11,
+    RELATION_PROPS = 12,
 };
 
 /**
@@ -61,15 +63,20 @@ class RelationBlock {
     NodeBlock *destinationBlock;
 
  public:
+    RelationBlock(NodeBlock source, NodeBlock destination) {
+        this->sourceBlock = &source;
+        this->destinationBlock = &destination;
+    }
+
     RelationBlock(unsigned int addr, NodeRelation source, NodeRelation destination, unsigned int propertyAddress)
         : addr(addr), source(source), destination(destination), propertyAddress(propertyAddress){};
 
     char usage;
-    unsigned int addr;  // Block size * block ID for this block
+    unsigned int addr = 0;  // Block size * block ID for this block
     NodeRelation source;
     NodeRelation destination;
-    unsigned int propertyAddress;
-    PropertyLink *propertyHead = NULL;
+    unsigned int propertyAddress = 0;
+    PropertyEdgeLink *propertyHead = NULL;
 
     void save(std::fstream *cursor);
     bool isInUse();
@@ -90,17 +97,38 @@ class RelationBlock {
     RelationBlock *nextDestination();
     RelationBlock *previousDestination();
 
-    static RelationBlock *add(NodeBlock, NodeBlock);
+    RelationBlock *add(NodeBlock, NodeBlock);
     static RelationBlock *get(unsigned int);
     void addProperty(std::string, char *);
-    PropertyLink *getPropertyHead();
+    PropertyEdgeLink *getPropertyHead();
     std::map<std::string, char *> getAllProperties();
 
     static unsigned int nextRelationIndex;
+    static unsigned int nextCentralRelationIndex;
     static const unsigned long BLOCK_SIZE;  // Size of a relation record block in bytes
     static std::string DB_PATH;
     static std::fstream *relationsDB;
+    static std::fstream *centralrelationsDB;
     static const int RECORD_SIZE = sizeof(unsigned int);
+
+    RelationBlock *addCentral(NodeBlock source, NodeBlock destination);
+    static RelationBlock *getCentral(unsigned int address);
+
+    void addCentralProperty(std::string name, char *value);
+
+    bool updateCentralRelationRecords(RelationOffsets recordOffset, unsigned int data);
+
+    bool setCentralPreviousSource(unsigned int newAddress);
+
+    bool setCentralPreviousDestination(unsigned int newAddress);
+
+    bool setCentralNextSource(unsigned int newAddress);
+
+    bool setCentralNextDestination(unsigned int newAddress);
+
+    RelationBlock *nextCentralSource();
+
+    RelationBlock *nextCentralDestination();
 };
 
 #endif
