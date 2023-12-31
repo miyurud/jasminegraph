@@ -589,3 +589,48 @@ std::string Utils::getCurrentTimestamp() {
 
     return timestamp.str();
 }
+
+inline json parse_scalar(const YAML::Node &node) {
+    int i;
+    double d;
+    bool b;
+    std::string s;
+
+    // Check whether the node is quoted. parse it as a string
+    if (node.Tag() == "!") {
+        s = node.as<std::string>();
+        return s;
+    }
+
+    if (YAML::convert<int>::decode(node, i)) return i;
+    if (YAML::convert<double>::decode(node, d)) return d;
+    if (YAML::convert<bool>::decode(node, b)) return b;
+    if (YAML::convert<std::string>::decode(node, s)) return s;
+
+    return nullptr;
+}
+
+inline json yaml2json(const YAML::Node &root) {
+    json j{};
+
+    switch (root.Type()) {
+        case YAML::NodeType::Null: break;
+        case YAML::NodeType::Scalar: return parse_scalar(root);
+        case YAML::NodeType::Sequence:
+            for (auto &&node : root)
+                j.emplace_back(yaml2json(node));
+            break;
+        case YAML::NodeType::Map:
+            for (auto &&it : root)
+                j[it.first.as<std::string>()] = yaml2json(it.second);
+            break;
+        default: break;
+    }
+    return j;
+}
+
+std::string Utils::getJsonStringFromYamlFile(const std::string &yamlFile) {
+    YAML::Node yamlNode = YAML::LoadFile(yamlFile);
+    return to_string(yaml2json(yamlNode));
+
+}

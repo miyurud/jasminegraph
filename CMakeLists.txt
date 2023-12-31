@@ -141,9 +141,11 @@ set(PYTHON_LIBRARIES "/usr/lib/x86_64-linux-gnu/libpython3.8.so")
 
 include_directories(${PYTHON_INCLUDE_DIRS})
 include_directories(${PYTHON_DIRECTORIES})
+include_directories(/usr/local/include/yaml-cpp)
 target_link_libraries(JasmineGraphLib PRIVATE ${PYTHON_LIBRARIES})
 target_link_libraries(JasmineGraphLib PRIVATE m)
 target_link_libraries(JasmineGraphLib PRIVATE /usr/local/lib/libkubernetes.so)
+target_link_libraries(JasmineGraphLib PRIVATE yaml-cpp)
 
 if (CMAKE_BUILD_TYPE STREQUAL "DEBUG")
     # Include google test

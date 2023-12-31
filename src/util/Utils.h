@@ -14,6 +14,8 @@ limitations under the License.
 #define JASMINEGRAPH_UTILS_H
 
 #include <arpa/inet.h>
+#include <nlohmann/json.hpp>
+#include <yaml-cpp/yaml.h>
 
 #include <algorithm>
 #include <fstream>
@@ -29,6 +31,7 @@ limitations under the License.
 
 using std::map;
 using std::unordered_map;
+using json = nlohmann::json;
 
 class Utils {
  private:
@@ -153,6 +156,7 @@ class Utils {
     static bool send_str_wrapper(int connFd, std::string str);
 
     static std::string getCurrentTimestamp();
+    static std::string getJsonStringFromYamlFile(const std::string& yamlFile);
 };
 
 #endif  // JASMINEGRAPH_UTILS_H

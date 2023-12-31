@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "jasminegraph-worker<worker-id>-deployment"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      type: "worker"
+      workerId: "<worker-id>"
+      service: "jasminegraph"
+  template:
+    metadata:
+      labels:
+        type: "worker"
+        workerId: "<worker-id>"
+        service: "jasminegraph"
+    spec:
+      containers:
+        - name: "jasminegraph-worker"
+          image: "<image>"
+          imagePullPolicy: IfNotPresent
+          args:
+            [
+              "--MODE",
+              "2",
+              "--MASTERIP",
+              "<master-ip>",
+              "--ENABLE_NMON",
+              "false",
+              "--PROFILE",
+              "k8s"
+            ]
+          ports:
+            - containerPort: 7777
+            - containerPort: 7778
+          volumeMounts:
+            - mountPath: "/home/ubuntu/software/jasminegraph/metadb"
+              name: jasminegraph-local-storage
+            - mountPath: "/home/ubuntu/software/jasminegraph/performancedb"
+              name: jasminegraph-local-storage
+      volumes:
+        - name: jasminegraph-local-storage
+          persistentVolumeClaim:
+            claimName: jasminegraph-local-storage-claim

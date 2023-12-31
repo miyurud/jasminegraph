@@ -53,7 +53,6 @@ kind: Service
 metadata:
   name: jasminegraph-master-service
 spec:
-  clusterIP: <master-ip>
   ports:
     - port: 7777
       name: 'server-port'

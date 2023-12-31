@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: jasminegraph-worker<worker-id>-service
+spec:
+  ports:
+    - port: 7777
+      name: 'server-port'
+    - port: 7778
+      name: 'server-data-port'
+  selector:
+    type: worker
+    workerId: <worker-id>
+    service: jasminegraph
+  type: ClusterIP
