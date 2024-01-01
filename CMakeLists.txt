@@ -9,11 +9,6 @@ set(HEADERS src/backend/JasmineGraphBackend.h
         src/backend/JasmineGraphBackendProtocol.h
         src/centralstore/JasmineGraphHashMapCentralStore.h
         src/centralstore/JasmineGraphHashMapDuplicateCentralStore.h
-        src/centralstore/incremental/DataPublisher.h
-        src/centralstore/incremental/NodeBlock.h
-        src/centralstore/incremental/NodeManager.h
-        src/centralstore/incremental/PropertyLink.h
-        src/centralstore/incremental/RelationBlock.h
         src/exception/JasmineGraphException.h
         src/frontend/JasmineGraphFrontEnd.h
         src/frontend/JasmineGraphFrontEndProtocol.h
@@ -54,23 +49,26 @@ set(HEADERS src/backend/JasmineGraphBackend.h
         src/util/dbutil/edgestore_generated.h
         src/util/dbutil/partedgemapstore_generated.h
         src/util/kafka/KafkaCC.h
+        src/util/kafka/StreamHandler.h
         src/util/logger/Logger.h
         src/util/scheduler/Cron.h
         src/util/scheduler/InterruptableSleep.h
         src/util/scheduler/Scheduler.h
         src/util/scheduler/SchedulerService.h
         src/util/scheduler/ctpl_stl.h
-        )
+        src/nativestore/NodeManager.h
+        src/nativestore/NodeBlock.h
+        src/nativestore/PropertyLink.h
+        src/nativestore/PropertyEdgeLink.h
+        src/nativestore/RelationBlock.h
+        src/nativestore/DataPublisher.h
+        src/partitioner/stream/Partition.h
+)
 
 set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/backend/JasmineGraphBackendProtocol.cpp
         src/centralstore/JasmineGraphHashMapCentralStore.cpp
         src/centralstore/JasmineGraphHashMapDuplicateCentralStore.cpp
-        src/centralstore/incremental/DataPublisher.cpp
-        src/centralstore/incremental/NodeBlock.cpp
-        src/centralstore/incremental/NodeManager.cpp
-        src/centralstore/incremental/PropertyLink.cpp
-        src/centralstore/incremental/RelationBlock.cpp
         src/exception/JasmineGraphException.cpp
         src/frontend/JasmineGraphFrontEnd.cpp
         src/frontend/JasmineGraphFrontEndProtocol.cpp
@@ -108,9 +106,17 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/util/PlacesToNodeMapper.cpp
         src/util/Utils.cpp
         src/util/kafka/KafkaCC.cpp
+        src/util/kafka/StreamHandler.cpp
         src/util/logger/Logger.cpp
         src/util/scheduler/SchedulerService.cpp
-        )
+        src/nativestore/NodeManager.cpp
+        src/nativestore/NodeBlock.cpp
+        src/nativestore/PropertyLink.cpp
+        src/nativestore/PropertyEdgeLink.cpp
+        src/nativestore/RelationBlock.cpp
+        src/nativestore/DataPublisher.cpp
+        src/partitioner/stream/Partition.cpp
+)
 
 add_library(JasmineGraphLib ${HEADERS} ${SOURCES})
 add_executable(JasmineGraph main.h main.cpp)
