@@ -13,35 +13,49 @@ limitations under the License.
 
 #include "PropertyLink.h"
 
+#include <iostream>
 #include <sstream>
 #include <vector>
 
-#include "../../util/logger/Logger.h"
+#include "../util/logger/Logger.h"
 
 Logger property_link_logger;
+unsigned int PropertyLink::nextPropertyIndex = 1;  // Starting with 1 because of the 0 and '\0' differentiation issue
+std::fstream* PropertyLink::propertiesDB = NULL;
+pthread_mutex_t lockPropertyLink;
+pthread_mutex_t lockCreatePropertyLink;
+pthread_mutex_t lockInsertPropertyLink;
+pthread_mutex_t lockGetPropertyLink;
 
 PropertyLink::PropertyLink(unsigned int propertyBlockAddress) : blockAddress(propertyBlockAddress) {
+    // The problem is when we create the PropertyLink.
+    pthread_mutex_lock(&lockPropertyLink);
     if (propertyBlockAddress > 0) {
-        this->propertiesDB->seekg(propertyBlockAddress);
+        PropertyLink::propertiesDB->seekg(propertyBlockAddress * PropertyLink::PROPERTY_BLOCK_SIZE);
         char rawName[PropertyLink::MAX_NAME_SIZE] = {0};
+        //        property_link_logger.info("Traverse state  = " +
+        //        std::to_string(PropertyLink::propertiesDB->rdstate()));
 
         if (!this->propertiesDB->read(reinterpret_cast<char*>(&rawName), PropertyLink::MAX_NAME_SIZE)) {
-            property_link_logger.error("Error while reading property name from block " + std::to_string(blockAddress));
+            property_link_logger.error("Error while reading node property name from block " +
+                                       std::to_string(blockAddress));
         }
         property_link_logger.debug(
             "Current file descriptor curser position = " + std::to_string(this->propertiesDB->tellg()) +
             " when reading = " + std::to_string(blockAddress));
         if (!this->propertiesDB->read(reinterpret_cast<char*>(&this->value), PropertyLink::MAX_VALUE_SIZE)) {
-            property_link_logger.error("Error while reading property value from block " + std::to_string(blockAddress));
+            property_link_logger.error("Error while reading node property value from block " +
+                                       std::to_string(blockAddress));
         }
 
         if (!this->propertiesDB->read(reinterpret_cast<char*>(&(this->nextPropAddress)), sizeof(unsigned int))) {
-            property_link_logger.error("Error while reading property next address from block " +
+            property_link_logger.error("Error while reading node property next address from block " +
                                        std::to_string(blockAddress));
         }
 
         this->name = std::string(rawName);
     }
+    pthread_mutex_unlock(&lockPropertyLink);
 };
 
 PropertyLink::PropertyLink(unsigned int blockAddress, std::string name, const char* rvalue, unsigned int nextAddress)
@@ -72,7 +86,9 @@ PropertyLink::PropertyLink(unsigned int blockAddress, std::string name, const ch
  *  else either updated link address or last appended link address will be returned
  * **/
 unsigned int PropertyLink::insert(std::string name, const char* value) {
-    if (this->next()) {  // for
+    // TODO(thevindu-w): Temporarily commented to resolve conflict
+    /*
+    if (this->nextPropAddress) {  // for
         PropertyLink *last;
         // If any element has same property key/name, return its blockAddress
         for (PropertyLink *link = this; link != nullptr; link = link->next()) {
@@ -90,42 +106,61 @@ unsigned int PropertyLink::insert(std::string name, const char* value) {
         property_link_logger.warn("Property key/name already exist key = " + name);
         return this->blockAddress;
     }
-
     // Following code is only executed in the last element
+    */
     char dataName[PropertyLink::MAX_NAME_SIZE] = {0};
     char dataValue[PropertyLink::MAX_VALUE_SIZE] = {0};
     std::strcpy(dataName, name.c_str());
     std::memcpy(dataValue, value,
                 PropertyLink::MAX_VALUE_SIZE);  // strcpy or strncpy get terminated at null-character hence using memcpy
 
-    property_link_logger.debug("Received name = " + name);
-    property_link_logger.debug("Received value = " + std::string(value));
+    //    property_link_logger.debug("Received name = " + name);
+    //    property_link_logger.debug("Received value = " + std::string(value));
     unsigned int nextAddress = 0;
 
-    property_link_logger.debug("Next prop index = " + std::to_string(PropertyLink::nextPropertyIndex));
+    //    property_link_logger.info("current property name  = " + (this->name));
+    //    property_link_logger.info("new property name  = " + (name));
 
-    unsigned int newAddress = PropertyLink::nextPropertyIndex * PropertyLink::PROPERTY_BLOCK_SIZE;
-    this->propertiesDB->seekp(newAddress);
-    this->propertiesDB->write(dataName, PropertyLink::MAX_NAME_SIZE);
-    this->propertiesDB->write(reinterpret_cast<char*>(dataValue), PropertyLink::MAX_VALUE_SIZE);
-    if (!this->propertiesDB->write(reinterpret_cast<char*>(&nextAddress), sizeof(nextAddress))) {
-        property_link_logger.error("Error while inserting a property " + name + " into block address " +
-                                   std::to_string(newAddress));
-        return -1;
+    if (this->name == name) {
+        // TODO[tmkasun]: update existing property value
+        property_link_logger.warn("Property key/name already exist key = " + std::string(name));
+        return this->blockAddress;
+    } else if (this->nextPropAddress) {  // Traverse to the edge/end of the link list
+        property_link_logger.log("Next Called", "info");
+        return this->next()->insert(name, value);
+    } else {  // No next link means end of the link, Now add the new link
+        //        property_link_logger.debug("Next prop index = " + std::to_string(PropertyLink::nextPropertyIndex));
+
+        pthread_mutex_lock(&lockInsertPropertyLink);
+        unsigned int newAddress = PropertyLink::nextPropertyIndex * PropertyLink::PROPERTY_BLOCK_SIZE;
+        this->propertiesDB->seekp(newAddress);
+        this->propertiesDB->write(dataName, PropertyLink::MAX_NAME_SIZE);
+        this->propertiesDB->write(reinterpret_cast<char*>(dataValue), PropertyLink::MAX_VALUE_SIZE);
+        if (!this->propertiesDB->write(reinterpret_cast<char*>(nextAddress), sizeof(nextAddress))) {
+            property_link_logger.error("Error while inserting a property " + name + " into block address " +
+                                       std::to_string(newAddress));
+            return -1;
+        }
+
+        this->propertiesDB->flush();
+
+        this->nextPropAddress = newAddress;
+        this->propertiesDB->seekp(this->blockAddress + PropertyLink::MAX_NAME_SIZE +
+                                  PropertyLink::MAX_VALUE_SIZE);  // seek to current property next address
+        if (!this->propertiesDB->write(reinterpret_cast<char*>(&newAddress), sizeof(newAddress))) {
+            property_link_logger.error("Error while updating  property next address for " + name +
+                                       " into block address " + std::to_string(this->blockAddress));
+            return -1;
+        }
+        //        property_link_logger.info("nextPropertyIndex = " + std::to_string(PropertyLink::nextPropertyIndex));
+        PropertyLink::nextPropertyIndex++;  // Increment the shared property index value
+        pthread_mutex_unlock(&lockInsertPropertyLink);
+        return this->blockAddress;
     }
-    this->propertiesDB->flush();
 
-    this->nextPropAddress = newAddress;
-    this->propertiesDB->seekp(this->blockAddress + PropertyLink::MAX_NAME_SIZE +
-                              PropertyLink::MAX_VALUE_SIZE);  // seek to current property next address
-    if (!this->propertiesDB->write(reinterpret_cast<char*>(&newAddress), sizeof(newAddress))) {
-        property_link_logger.error("Error while updating  property next address for " + name + " into block address " +
-                                   std::to_string(this->blockAddress));
-        return -1;
-    }
-
-    PropertyLink::nextPropertyIndex++;  // Increment the shared property index value
-    return newAddress;
+    // TODO(thevindu-w): Temporarily commented to resolve conflict
+    // PropertyLink::nextPropertyIndex++;  // Increment the shared property index value
+    // return newAddress;
 }
 
 /**
@@ -133,6 +168,7 @@ unsigned int PropertyLink::insert(std::string name, const char* value) {
  *
  * */
 PropertyLink* PropertyLink::create(std::string name, const char* value) {
+    pthread_mutex_lock(&lockCreatePropertyLink);
     unsigned int nextAddress = 0;
     char dataName[PropertyLink::MAX_NAME_SIZE] = {0};
     strcpy(dataName, name.c_str());
@@ -146,7 +182,10 @@ PropertyLink* PropertyLink::create(std::string name, const char* value) {
         return NULL;
     }
     PropertyLink::propertiesDB->flush();
+    //    property_link_logger.info("nextPropertyIndex = " + std::to_string(PropertyLink::nextPropertyIndex));
+    //    property_link_logger.info("newAddress = " + std::to_string(newAddress));
     PropertyLink::nextPropertyIndex++;  // Increment the shared property index value
+    pthread_mutex_unlock(&lockCreatePropertyLink);
     return new PropertyLink(newAddress, name, value, nextAddress);
 }
 
@@ -164,29 +203,39 @@ bool PropertyLink::isEmpty() { return !(this->blockAddress); }
 
 PropertyLink* PropertyLink::get(unsigned int propertyBlockAddress) {
     PropertyLink* pl = NULL;
+
+    pthread_mutex_lock(&lockGetPropertyLink);
     if (propertyBlockAddress > 0) {
         char propertyName[PropertyLink::MAX_NAME_SIZE] = {0};
         char propertyValue[PropertyLink::MAX_VALUE_SIZE] = {0};
         unsigned int nextAddress;
-        PropertyLink::propertiesDB->seekg(propertyBlockAddress);
+        PropertyLink::propertiesDB->seekg(propertyBlockAddress * PropertyLink::PROPERTY_BLOCK_SIZE);
 
+        //        property_link_logger.info("Searching propertyHead state  = " +
+        //        std::to_string(PropertyLink::propertiesDB->rdstate())); std::cout << "Stream state: " <<
+        //        PropertyLink::propertiesDB->rdstate() << std::endl; std::string PropertyLink::propertiesDB->rdstate();
         if (!PropertyLink::propertiesDB->read(reinterpret_cast<char*>(&propertyName), PropertyLink::MAX_NAME_SIZE)) {
-            property_link_logger.error("Error while reading property name from block = " +
+            //            property_link_logger.error("Error  = " +
+            //                                       std::to_string(PropertyLink::propertiesDB->rdstate()));
+            property_link_logger.error("Error while reading node property name from block = " +
                                        std::to_string(propertyBlockAddress));
         }
         if (!PropertyLink::propertiesDB->read(reinterpret_cast<char*>(&propertyValue), PropertyLink::MAX_VALUE_SIZE)) {
-            property_link_logger.error("Error while reading property value from block = " +
+            property_link_logger.error("Error while reading node property value from block = " +
                                        std::to_string(propertyBlockAddress));
         }
 
         if (!PropertyLink::propertiesDB->read(reinterpret_cast<char*>(&(nextAddress)), sizeof(unsigned int))) {
-            property_link_logger.error("Error while reading property next address from block = " +
+            property_link_logger.error("Error while reading node property next address from block = " +
                                        std::to_string(propertyBlockAddress));
         }
+        //        property_link_logger.info("Property head propertyBlockAddress  = " +
+        //        std::to_string(propertyBlockAddress)); property_link_logger.info("Property head property name  = " +
+        //        std::string(propertyName)); property_link_logger.info("Property head nextAddress   = " +
+        //        std::to_string(nextAddress));
+
         pl = new PropertyLink(propertyBlockAddress, std::string(propertyName), propertyValue, nextAddress);
     }
+    pthread_mutex_unlock(&lockGetPropertyLink);
     return pl;
 }
-unsigned int PropertyLink::nextPropertyIndex = 1;  // Starting with 1 because of the 0 and '\0' differentiation issue
-std::string PropertyLink::DB_PATH = "streamStore/properties.db";
-std::fstream* PropertyLink::propertiesDB = NULL;

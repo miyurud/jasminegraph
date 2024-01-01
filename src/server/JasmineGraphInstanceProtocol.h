@@ -100,10 +100,16 @@ class JasmineGraphInstanceProtocol {
     static const string FILE_TYPE_CENTRALSTORE_COMPOSITE;
     static const string GRAPH_STREAM_START;
     static const string GRAPH_STREAM_START_ACK;
+    static const string GRAPH_CSV_STREAM_START;
+    static const string GRAPH_CSV_STREAM_START_ACK;
+    static const string GRAPH_CSV_STREAM_C_length_ACK;
+    static const string GRAPH_CSV_STREAM_END_OF_EDGE;
     static const string SEND_PRIORITY;
     static const string GRAPH_STREAM_C_length_ACK;
     static const string GRAPH_STREAM_END_OF_EDGE;
     static const string INITIATE_FED_PREDICT;
+    static const string INITIATE_STREAMING_SERVER;
+    static const string INITIATE_STREAMING_CLIENT;
 };
 
 const int INSTANCE_DATA_LENGTH = 300;

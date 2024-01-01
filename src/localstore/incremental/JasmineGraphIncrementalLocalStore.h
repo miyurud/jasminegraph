@@ -15,7 +15,7 @@ limitations under the License.
 #include <string>
 using json = nlohmann::json;
 
-#include "../../centralstore/incremental/NodeManager.h"
+#include "../../nativestore/NodeManager.h"
 #ifndef Incremental_LocalStore
 #define Incremental_LocalStore
 
