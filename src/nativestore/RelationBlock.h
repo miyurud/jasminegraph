@@ -58,7 +58,7 @@ enum class RelationOffsets : int {
 class RelationBlock {
  private:
     std::string id;
-    bool updateRelationRecords(RelationOffsets, unsigned int);
+    bool updateLocalRelationRecords(RelationOffsets, unsigned int);
     NodeBlock *sourceBlock;
     NodeBlock *destinationBlock;
 
@@ -69,7 +69,10 @@ class RelationBlock {
     }
 
     RelationBlock(unsigned int addr, NodeRelation source, NodeRelation destination, unsigned int propertyAddress)
-        : addr(addr), source(source), destination(destination), propertyAddress(propertyAddress){};
+        : addr(addr), source(source), destination(destination), propertyAddress(propertyAddress){
+        this->sourceBlock = NodeBlock::get(source.address);
+        this->destinationBlock = NodeBlock::get(destination.address);
+    };
 
     char usage;
     unsigned int addr = 0;  // Block size * block ID for this block
@@ -82,10 +85,10 @@ class RelationBlock {
     bool isInUse();
     int getFlags();
 
-    bool setNextSource(unsigned int);
-    bool setNextDestination(unsigned int);
-    bool setPreviousSource(unsigned int);
-    bool setPreviousDestination(unsigned int);
+    bool setLocalNextSource(unsigned int);
+    bool setLocalNextDestination(unsigned int);
+    bool setLocalPreviousSource(unsigned int);
+    bool setLocalPreviousDestination(unsigned int);
 
     NodeBlock *getSource();
     NodeBlock *getDestination();
@@ -99,11 +102,11 @@ class RelationBlock {
 
     RelationBlock *add(NodeBlock, NodeBlock);
     static RelationBlock *get(unsigned int);
-    void addProperty(std::string, char *);
+    void addLocalProperty(std::string, char *);
     PropertyEdgeLink *getPropertyHead();
     std::map<std::string, char *> getAllProperties();
 
-    static unsigned int nextRelationIndex;
+    static unsigned int nextLocalRelationIndex;
     static unsigned int nextCentralRelationIndex;
     static const unsigned long BLOCK_SIZE;  // Size of a relation record block in bytes
     static std::string DB_PATH;

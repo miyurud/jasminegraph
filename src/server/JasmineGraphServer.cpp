@@ -424,7 +424,7 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                                         " --ENABLE_NMON " + enableNmon + " >" + worker_logdir + "/worker.log 2>&1";
                 } else {
                     serverStartScript =
-                        "docker run -v " + instanceDataFolder + ":" + instanceDataFolder + " -v " +
+                        "docker run --name worker_" + to_string(i) +" -v " + instanceDataFolder + ":" + instanceDataFolder + " -v " +
                         aggregateDataFolder + ":" + aggregateDataFolder + " -v " + nmonFileLocation + ":" +
                         nmonFileLocation + " -v " + instanceDataFolder + "/" + to_string(i) + "/logs" + ":" +
                         "/home/ubuntu/software/jasminegraph/logs" + " -p " + std::to_string(workerPortsVector.at(i)) +

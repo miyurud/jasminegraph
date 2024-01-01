@@ -70,9 +70,9 @@ class NodeBlock {
     int getFlags();
     void addProperty(std::string, const char *);
     RelationBlock *getRelationHead();
-    std::list<NodeBlock> getLocalEdgeNodes();
-    std::list<NodeBlock> getCentralEdgeNodes();
-    std::list<NodeBlock> getAllEdgeNodes();
+    std::list<NodeBlock*> getLocalEdgeNodes();
+    std::list<NodeBlock*> getCentralEdgeNodes();
+    std::list<NodeBlock*> getAllEdgeNodes();
 
     bool setRelationHead(RelationBlock);
     RelationBlock *searchLocalRelation(NodeBlock);

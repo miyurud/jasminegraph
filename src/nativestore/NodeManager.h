@@ -14,6 +14,7 @@ limitations under the License.
 #include <fstream>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "NodeBlock.h"
 
@@ -36,7 +37,6 @@ class NodeManager {
     static const std::string FILE_MODE;
     unsigned long INDEX_KEY_SIZE = 6;  // Size of an index key entry in bytes
 
-    int dbSize(std::string path);
     void persistNodeIndex();
     std::unordered_map<std::string, unsigned int> readNodeIndex();
     void addNodeIndex(std::string nodeId, unsigned int nodeIndex);
@@ -50,22 +50,30 @@ class NodeManager {
     std::string indexDBPath;
 
     std::unordered_map<std::string, unsigned int> nodeIndex;
+    std::string dbPrefix;
 
     NodeManager(GraphConfig);
     ~NodeManager() { delete NodeBlock::nodesDB; };
     void setIndexKeySize(unsigned long);
     RelationBlock* addEdge(std::pair<std::string, std::string>);
     RelationBlock* addRelation(NodeBlock, NodeBlock);
+    static int dbSize(std::string path);
     void close();
     NodeBlock* addNode(std::string);  // will redurn DB block address
     NodeBlock* get(std::string);
     std::list<NodeBlock> getLimitedGraph(int limit = 10);
-    std::list<NodeBlock> getGraph();
-    std::list<NodeBlock> getCentralGraph();
+    std::list<NodeBlock*> getGraph();
+    std::list<NodeBlock*> getCentralGraph();
 
     RelationBlock* addCentralRelation(NodeBlock source, NodeBlock destination);
 
     RelationBlock* addCentralEdge(std::pair<std::string, std::string> edge);
+    std::map<long, std::unordered_set<long>> getAdjacencyList();
+    std::map<long, long> getDistributionMap ();
+
+    int getGraphID();
+
+    int getPartitionID();
 };
 
 #endif

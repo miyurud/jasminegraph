@@ -129,7 +129,7 @@ class JasmineGraphInstanceService {
                                std::map<std::string, JasmineGraphHashMapLocalStore>& graphDBMapLocalStores);
     static JasmineGraphIncrementalLocalStore* loadStreamingStore(
         std::string graphId, std::string partitionId,
-        std::map<std::string, JasmineGraphIncrementalLocalStore*>& graphDBMapStreamingStores);
+        std::map<std::string, JasmineGraphIncrementalLocalStore*>& graphDBMapStreamingStores, std::string openMode);
     static void loadInstanceCentralStore(
         std::string graphId, std::string partitionId,
         std::map<std::string, JasmineGraphHashMapCentralStore>& graphDBMapCentralStores);
@@ -185,6 +185,11 @@ class JasmineGraphInstanceService {
 
     static bool sendFileThroughService(std::string host, int dataPort, std::string fileName, std::string filePath,
                                        std::string masterIP);
+
+    static string aggregateStreamingCentralStoreTriangles(std::string graphId, std::string partitionId,
+                                                          std::string partitionIdString, std::string centralCountString, int threadPriority,
+                                                          std::map<std::string, JasmineGraphIncrementalLocalStore *> incrementalLocalStores,
+                                                          std::string mode);
     static int partitionCounter;
 
     static std::thread workerThread;
