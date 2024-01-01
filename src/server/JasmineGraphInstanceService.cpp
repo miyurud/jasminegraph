@@ -1386,6 +1386,8 @@ map<long, long> calculateInDegreeDist(string graphID, string partitionID, int se
             if (degreeDistributionLocalItr != degreeDistribution.end()) {
                 long degreeDistributionValue = degreeDistributionLocalItr->second;
                 degreeDistribution[degreeDistributionLocalItr->first] = degreeDistributionValue + its->second;
+            } else {
+                degreeDistribution.insert(std::make_pair(its->first, its->second));
             }
         }
 
@@ -1690,29 +1692,48 @@ map<long, double> calculateLocalPageRank(string graphID, double alpha, string pa
     // calculating local pagerank
     map<long, double> rankMap;
 
-    map<long, long> inDegreeDistribution;
+    std::map<long, long> inDegreeDistribution;
 
     std::string aggregatorFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
-    std::string iddFilePath = aggregatorFilePath + "/" + graphID + "_idd_" + partitionID;
-    ifstream dataFile;
-    dataFile.open(iddFilePath);
 
-    while (!dataFile.eof()) {
-        std::string str;
-        std::getline(dataFile, str);
-        std::stringstream buffer(str);
-        std::string temp;
-        std::vector<long> values;
+    std::string partitionCount = Utils::getJasmineGraphProperty("org.jasminegraph.server.npartitions");
+    int parCount = std::stoi(partitionCount);
 
-        while (getline(buffer, temp, '\t')) {
-            values.push_back(::strtod(temp.c_str(), nullptr));
+    for (int partitionID = 0; partitionID < parCount; ++partitionID) {
+        std::string iddFilePath = aggregatorFilePath + "/" + graphID + "_idd_" + std::to_string(partitionID);
+        std::ifstream dataFile;
+        dataFile.open(iddFilePath);
+
+        while (!dataFile.eof()) {
+            std::string line;
+            std::getline(dataFile, line);
+            std::stringstream buffer(line);
+            std::string temp;
+            std::vector<long> values;
+
+            while (getline(buffer, temp, '\t')) {
+                values.push_back(::strtod(temp.c_str(), nullptr));
+            }
+
+            if (values.size() == 2) {
+                long nodeID = values[0];
+                long iddValue = values[1];
+
+                inDegreeDistribution[nodeID] = std::max(inDegreeDistribution[nodeID], iddValue);
+            }
         }
-        if (values.size() == 2) {
-            long nodeID = values[0];
-            long iddValue = values[1];
-            inDegreeDistribution.insert(std::make_pair(nodeID, iddValue));
-        }
+
+        dataFile.close();
     }
+
+    string instanceDataFolderLocation = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+    string attributeFilePart = instanceDataFolderLocation + "/" + graphID + "_idd_combine";
+    ofstream partfile;
+    partfile.open(attributeFilePart, std::fstream::trunc);
+    for (map<long, long>::iterator it = inDegreeDistribution.begin(); it != inDegreeDistribution.end(); ++it) {
+        partfile << to_string(it->first) << "\t" << to_string(it->second) << endl;
+    }
+    partfile.close();
 
     for (localGraphMapIterator = localGraphMap.begin(); localGraphMapIterator != localGraphMap.end();
          ++localGraphMapIterator) {
@@ -1768,15 +1789,9 @@ map<long, double> calculateLocalPageRank(string graphID, double alpha, string pa
     if (top_k_page_rank_value == -1) {
         instance_logger.log("PageRank is not implemented", "info");
     } else {
-        std::string resultTree = "";
-        for (map<long, double>::iterator rankMapItr = rankMap.begin(); rankMapItr != rankMap.end(); ++rankMapItr) {
-            rankMapResults.insert(std::make_pair(rankMapItr->second, rankMapItr->first));
-        }
-
         int count = 0;
-        for (map<double, long>::iterator rankMapItr = rankMapResults.end(); rankMapItr != rankMapResults.begin();
-             --rankMapItr) {
-            finalPageRankResults.insert(std::make_pair(rankMapItr->second, rankMapItr->first));
+        for (map<long, double>::iterator rankMapItr = rankMap.begin(); rankMapItr != rankMap.end(); ++rankMapItr) {
+            finalPageRankResults.insert(std::make_pair(rankMapItr->first, rankMapItr->second));
             count++;
         }
     }
@@ -2965,6 +2980,19 @@ static void page_rank_command(int connFd, int serverPort,
         } else {
             double value = pageRankValue->second;
             pageRankLocalstore.insert(std::make_pair(startVid, value));
+        }
+
+        for (auto a = endVidSet.begin(); a != endVidSet.end(); ++a) {
+            long endVid = *a;
+            map<long, double>::iterator pageRankValue = pageRankResults.find(endVid);
+            if (pageRankLocalstore.find(endVid) == pageRankLocalstore.end()) {
+                if (pageRankValue == pageRankResults.end()) {
+                    pageRankLocalstore.insert(std::make_pair(endVid, 0.0));
+                } else {
+                    double value = pageRankValue->second;
+                    pageRankLocalstore.insert(std::make_pair(endVid, value));
+                }
+            }
         }
     }
 
