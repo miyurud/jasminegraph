@@ -55,12 +55,12 @@ else
         exit 1
     fi
 
-    if [ -z "$SERVER_PORT" ] && [ $PROFILE == "docker" ]; then
+    if [ -z "$SERVER_PORT" ]; then
         echo "SERVER PORT SHOULD BE SPECIFIED"
         exit 1
     fi
 
-    if [ -z "$SERVER_DATA_PORT" ] && [ $PROFILE == "docker" ]; then
+    if [ -z "$SERVER_DATA_PORT" ]; then
         echo "SERVER DATA PORT SHOULD BE SPECIFIED"
         exit 1
     fi

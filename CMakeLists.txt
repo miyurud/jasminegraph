@@ -64,6 +64,7 @@ set(HEADERS src/backend/JasmineGraphBackend.h
         src/nativestore/RelationBlock.h
         src/nativestore/DataPublisher.h
         src/partitioner/stream/Partition.h
+        src/k8s/K8sWorkerController.h
 )
 
 set(SOURCES src/backend/JasmineGraphBackend.cpp
@@ -118,7 +119,8 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/nativestore/RelationBlock.cpp
         src/nativestore/DataPublisher.cpp
         src/partitioner/stream/Partition.cpp
-        )
+        src/k8s/K8sWorkerController.cpp
+)
 
 add_library(JasmineGraphLib ${HEADERS} ${SOURCES})
 add_executable(JasmineGraph main.h main.cpp)

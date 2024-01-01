@@ -20,13 +20,13 @@ TEST_F(K8sInterfaceTest, TestConstructor) {
     ASSERT_NE(interface->apiClient, nullptr);
 }
 
-TEST_F(K8sInterfaceTest, TestGetPodList) {
-    v1_pod_list_t *pod_list = interface->getPodList("app=gtest-nginx");
-    ASSERT_TRUE(pod_list->items->count == 0);
+TEST_F(K8sInterfaceTest, TestGetDeploymentList) {
+    v1_deployment_list_t *deployment_list = interface->getDeploymentList(strdup("app=gtest-nginx"));
+    ASSERT_TRUE(deployment_list->items->count == 0);
 }
 
 TEST_F(K8sInterfaceTest, TestGetServiceList) {
-    v1_service_list_t *service_list = interface->getServiceList("app=gtest-nginx");
+    v1_service_list_t *service_list = interface->getServiceList(strdup("app=gtest-nginx"));
     ASSERT_TRUE(service_list->items->count == 0);
 }
 
@@ -41,6 +41,16 @@ TEST_F(K8sInterfaceTest, TestCreateJasmineGraphWorkerService) {
     ASSERT_STREQ(service->metadata->name, "jasminegraph-worker1-service");
     ASSERT_NE(service->spec->cluster_ip, nullptr);
     ASSERT_EQ(interface->apiClient->response_code, 201);
+}
+
+TEST_F(K8sInterfaceTest, TestGetDeploymentListAfterDeployment) {
+    v1_deployment_list_t *deployment_list = interface->getDeploymentList(strdup("deployment=jasminegraph-worker"));
+    ASSERT_TRUE(deployment_list->items->count == 1);
+}
+
+TEST_F(K8sInterfaceTest, TestGetServiceListAfterServiceCreation) {
+    v1_service_list_t *service_list = interface->getServiceList(strdup("service=jasminegraph-worker"));
+    ASSERT_TRUE(service_list->items->count == 1);
 }
 
 TEST_F(K8sInterfaceTest, TestDeleteJasmineGraphWorkerDeployment) {

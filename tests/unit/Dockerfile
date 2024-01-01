@@ -27,4 +27,4 @@ WORKDIR "${JASMINEGRAPH_HOME}/build"
 RUN cmake -DCMAKE_BUILD_TYPE=DEBUG ..
 RUN make -j4
 
-CMD ["bash", "-c", "LD_LIBRARY_PATH=/usr/local/lib make -j2 coverage && cp coverage.xml ../coverage/"]
+CMD ["bash", "-c", "make -j2 coverage && cp coverage.xml ../coverage/"]

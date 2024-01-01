@@ -2,6 +2,9 @@ apiVersion: v1
 kind: Service
 metadata:
   name: jasminegraph-worker<worker-id>-service
+  labels:
+    service: jasminegraph-worker
+    workerId: <worker-id>
 spec:
   ports:
     - port: 7777

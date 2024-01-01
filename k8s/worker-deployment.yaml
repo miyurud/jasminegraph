@@ -2,6 +2,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: "jasminegraph-worker<worker-id>-deployment"
+  labels:
+      deployment: "jasminegraph-worker"
+      workerId: "<worker-id>"
 spec:
   replicas: 1
   selector:
@@ -21,16 +24,20 @@ spec:
           image: "<image>"
           imagePullPolicy: IfNotPresent
           args:
-            [
-              "--MODE",
-              "2",
-              "--MASTERIP",
-              "<master-ip>",
-              "--ENABLE_NMON",
-              "false",
-              "--PROFILE",
-              "k8s"
-            ]
+              - "--MODE"
+              - "2"
+              - "--HOST_NAME"
+              - "jasminegraph-worker<worker-id>"
+              - "--MASTERIP"
+              - "<master-ip>"
+              - "--SERVER_PORT"
+              - "7777"
+              - "--SERVER_DATA_PORT"
+              - "7778"
+              - "--ENABLE_NMON"
+              - "false"
+              - "--PROFILE"
+              - "k8s"
           ports:
             - containerPort: 7777
             - containerPort: 7778

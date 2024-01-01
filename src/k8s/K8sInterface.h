@@ -34,6 +34,8 @@ public:
     v1_service_t *createJasmineGraphWorkerService(int workerId) const;
 
     v1_service_t *deleteJasmineGraphWorkerService(int workerId) const;
+
+    v1_deployment_list_t *getDeploymentList(char *labelSelectors);
 };
 
 

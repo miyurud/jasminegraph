@@ -5,7 +5,7 @@
 #include "../util/Utils.h"
 
 //#define DEBUG // enable debug logging
-//#define LOCAL_CONFIG // enable local config
+#define LOCAL_CONFIG // enable local config
 
 Logger k8s_logger;
 char *K8sInterface::namespace_ = strdup("default");
@@ -38,9 +38,9 @@ K8sInterface::~K8sInterface() {
     apiClient = nullptr;
 }
 
-v1_pod_list_t *K8sInterface::getPodList(char *labelSelectors) {
-    v1_pod_list_t *pod_list = NULL;
-    pod_list = CoreV1API_listNamespacedPod(apiClient,
+v1_deployment_list_t *K8sInterface::getDeploymentList(char *labelSelectors) {
+    v1_deployment_list_t *deployment_list = NULL;
+    deployment_list = AppsV1API_listNamespacedDeployment(apiClient,
                                            namespace_,    /*namespace */
                                            NULL,    /* pretty */
                                            NULL,    /* allowWatchBookmarks */
@@ -56,11 +56,11 @@ v1_pod_list_t *K8sInterface::getPodList(char *labelSelectors) {
     );
 
 #ifdef DEBUG
-    if(pod_list) {
+    if(deployment_list) {
         std::string pod_names;
         listEntry_t *listEntry = NULL;
         v1_pod_t *pod = NULL;
-        list_ForEach(listEntry, pod_list->items) {
+        list_ForEach(listEntry, deployment_list->items) {
             pod = static_cast<v1_pod_t *>(listEntry->data);
             pod_names += pod->metadata->name;
         }
@@ -75,7 +75,7 @@ v1_pod_list_t *K8sInterface::getPodList(char *labelSelectors) {
     }
 #endif
 
-    return pod_list;
+    return deployment_list;
 }
 
 v1_service_list_t *K8sInterface::getServiceList(char *labelSelectors) {
