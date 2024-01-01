@@ -4033,26 +4033,26 @@ static void initiate_predict_command(int connFd, instanceservicesessionargs *ses
         if (count != 0) {
             std::vector<std::string> hostDetail = Utils::split(*it, ',');
             std::string hostName;
-            int port;
-            int dataport;
+            int port = -1;
+            int dataport = -1;
             std::vector<string> partitionIDs;
-            for (std::vector<std::string>::iterator j = hostDetail.begin(); j != hostDetail.end(); ++j) {
-                int index = std::distance(hostDetail.begin(), j);
+            for (int index = 0; index < hostDetail.size(); index++) {
+                const std::string j = hostDetail.at(index);
                 switch (index) {
                     case 0:
-                        hostName = *j;
+                        hostName = j;
                         break;
 
                     case 1:
-                        port = stoi(*j);
+                        port = stoi(j);
                         break;
 
                     case 2:
-                        dataport = stoi(*j);
+                        dataport = stoi(j);
                         break;
 
                     default:
-                        partitionIDs.push_back(*j);
+                        partitionIDs.push_back(j);
                         totalPartitions += 1;
                         break;
                 }

@@ -16,6 +16,7 @@ limitations under the License.
 #include <iostream>
 #include <sstream>
 #include <vector>
+#include <memory>
 
 #include "../util/logger/Logger.h"
 Logger property_edge_link_logger;
@@ -106,8 +107,9 @@ unsigned int PropertyEdgeLink::insert(std::string name, char* value) {
         // TODO[tmkasun]: update existing property value
         property_edge_link_logger.warn("Property key/name already exist key = " + std::string(name));
         return this->blockAddress;
-    } else if (this->next()) {  // Traverse to the edge/end of the link list
-        return this->next()->insert(name, value);
+    } else if (this->nextPropAddress) {  // Traverse to the edge/end of the link list
+        std::unique_ptr<PropertyEdgeLink> pel(new PropertyEdgeLink(this->nextPropAddress));
+        return pel->insert(name, value);
     } else {  // No next link means end of the link, Now add the new link
               //        property_edge_link_logger.debug("Next prop index = " +
               //        std::to_string(PropertyEdgeLink::nextPropertyIndex));

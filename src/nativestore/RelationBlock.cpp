@@ -242,7 +242,7 @@ RelationBlock* RelationBlock::get(unsigned int address) {
         return NULL;
     }
     if (address % RelationBlock::BLOCK_SIZE != 0) {
-        throw "Exception: Invalid relation block address !!\n received address = " + address;
+        throw std::logic_error("Exception: Invalid relation block address !!\n received address = " + address);
     }
     RelationBlock::relationsDB->seekg(address + RECORD_SIZE * 2);  // Address is relation ID
     NodeRelation source;
@@ -348,7 +348,7 @@ RelationBlock* RelationBlock::getCentral(unsigned int address) {
     if (address == 0) {
         return NULL;
     } else if (address % RelationBlock::BLOCK_SIZE != 0) {
-        throw "Exception: Invalid relation block address !!\n received address = " + address;
+        throw std::logic_error("Exception: Invalid relation block address !!\n received address = " + address);
     }
 
     RelationBlock::centralrelationsDB->seekg(address + RECORD_SIZE * 2);

@@ -122,9 +122,9 @@ std::unordered_map<std::string, unsigned int> NodeManager::readNodeIndex() {
         }
 
         char nodeIDC[NodeManager::INDEX_KEY_SIZE];
+        bzero(nodeIDC, NodeManager::INDEX_KEY_SIZE);  // Fill with null chars before putting data
         unsigned int nodeIndexId;
         for (size_t i = 0; i < iSize / dataWidth; i++) {
-            nodeIDC[NodeManager::INDEX_KEY_SIZE] = {0};  // Fill with null chars before putting data
             if (!index_db.read(&nodeIDC[0], NodeManager::INDEX_KEY_SIZE)) {
                 node_manager_logger.error("Error while reading index key data from block i = " + std::to_string(i));
             }
@@ -331,7 +331,7 @@ NodeBlock *NodeManager::get(std::string nodeId) {
                               std::to_string(nodeBlockPointer->edgeRef));
 
     if (nodeBlockPointer->edgeRef % RelationBlock::BLOCK_SIZE != 0) {
-        throw "Exception: Invalid edge reference address = " + nodeBlockPointer->edgeRef;
+        throw std::logic_error("Exception: Invalid edge reference address = " + nodeBlockPointer->edgeRef);
     }
     return nodeBlockPointer;
 }
@@ -343,7 +343,7 @@ void NodeManager::persistNodeIndex() {
             node_manager_logger.error("Node label/ID is longer ( " +
                                       std::to_string(this->nodeIndex.begin()->first.length()) +
                                       " ) than the index key size " + std::to_string(NodeManager::INDEX_KEY_SIZE));
-            throw "Node label/ID is longer than the index key size!";
+            throw std::logic_error("Node label/ID is longer than the index key size!");
         }
         for (auto nodeMap : this->nodeIndex) {
             char nodeIDC[NodeManager::INDEX_KEY_SIZE] = {0};  // Initialize with null chars
