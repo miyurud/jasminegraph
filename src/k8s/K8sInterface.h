@@ -23,8 +23,6 @@ public:
 
     ~K8sInterface();
 
-    v1_pod_list_t *getPodList(char *labelSelectors);
-
     v1_service_list_t *getServiceList(char *labelSelectors);
 
     v1_deployment_t *createJasmineGraphWorkerDeployment(int workerId, const std::string &masterIp) const;

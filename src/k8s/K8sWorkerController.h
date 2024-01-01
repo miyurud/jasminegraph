@@ -15,6 +15,9 @@ private:
     K8sInterface *interface;
     SQLiteDBInterface metadb;
 
+    std::string masterIp;
+    int numberOfWorkers;
+
     void spawnWorker(int workerId);
 
     void deleteWorker(int workerId);
@@ -22,12 +25,16 @@ private:
     int attachExistingWorkers();
 
 public:
-    std::string masterIp;
-    int numberOfWorkers;
 
     K8sWorkerController(std::string masterIp, int numberOfWorkers, SQLiteDBInterface *metadb);
 
     ~K8sWorkerController();
+
+    std::string getMasterIp() const;
+
+    int getNumberOfWorkers() const;
+
+    void setNumberOfWorkers(int newNumberOfWorkers);
 };
 
 #endif //JASMINEGRAPH_K8SWORKERCONTROLLER_H

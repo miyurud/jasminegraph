@@ -61,6 +61,13 @@ void K8sWorkerController::deleteWorker(int workerId) {
         controller_logger.error("Worker " + std::to_string(workerId) + " deployment deletion failed");
     }
 
+    v1_service_t *service = this->interface->deleteJasmineGraphWorkerService(workerId);
+    if (service != nullptr && service->metadata != nullptr && service->metadata->name != nullptr) {
+        controller_logger.info("Worker " + std::to_string(workerId) + " service deleted successfully");
+    } else {
+        controller_logger.error("Worker " + std::to_string(workerId) + " service deletion failed");
+    }
+
     std::string deleteQuery = "DELETE FROM worker WHERE idworker = " + std::to_string(workerId);
     metadb.runUpdate(deleteQuery);
 }
@@ -111,4 +118,25 @@ int K8sWorkerController::attachExistingWorkers() {
     } else {
         return 0;
     }
+}
+
+std::string K8sWorkerController::getMasterIp() const {
+    return this->masterIp;
+}
+
+int K8sWorkerController::getNumberOfWorkers() const {
+    return numberOfWorkers;
+}
+
+void K8sWorkerController::setNumberOfWorkers(int newNumberOfWorkers) {
+    if (newNumberOfWorkers > this->numberOfWorkers) {
+        for (int i = this->numberOfWorkers; i < newNumberOfWorkers; i++) {
+            this->spawnWorker(i);
+        }
+    } else if (newNumberOfWorkers < this->numberOfWorkers) {
+        for (int i = newNumberOfWorkers; i < this->numberOfWorkers; i++) {
+            this->deleteWorker(i);
+        }
+    }
+    this->numberOfWorkers = newNumberOfWorkers;
 }

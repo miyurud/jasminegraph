@@ -5,7 +5,7 @@
 #include "../util/Utils.h"
 
 //#define DEBUG // enable debug logging
-#define LOCAL_CONFIG // enable local config
+//#define LOCAL_CONFIG // enable local config
 
 Logger k8s_logger;
 char *K8sInterface::namespace_ = strdup("default");
