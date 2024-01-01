@@ -38,7 +38,7 @@ spec:
   accessModes:
     - ReadWriteOnce
   hostPath:
-    path: "/home/runner/jasminegraph/jasminegraph/coverage"
+    path: "/home/runner/work/jasminegraph/jasminegraph/coverage"
 
 ---
 

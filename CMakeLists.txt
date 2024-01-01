@@ -110,6 +110,14 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/util/kafka/StreamHandler.cpp
         src/util/logger/Logger.cpp
         src/util/scheduler/SchedulerService.cpp
+        src/k8s/K8sInterface.cpp
+        src/nativestore/NodeManager.cpp
+        src/nativestore/NodeBlock.cpp
+        src/nativestore/PropertyLink.cpp
+        src/nativestore/PropertyEdgeLink.cpp
+        src/nativestore/RelationBlock.cpp
+        src/nativestore/DataPublisher.cpp
+        src/partitioner/stream/Partition.cpp
         )
 
 add_library(JasmineGraphLib ${HEADERS} ${SOURCES})
