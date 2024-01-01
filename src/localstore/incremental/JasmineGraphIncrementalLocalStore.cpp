@@ -16,7 +16,7 @@ limitations under the License.
 #include <memory>
 #include <stdexcept>
 
-#include "../../centralstore/incremental/RelationBlock.h"
+#include "../../nativestore/RelationBlock.h"
 #include "../../util/logger/Logger.h"
 
 Logger incremental_localstore_logger;
@@ -34,11 +34,11 @@ std::pair<std::string, unsigned int> JasmineGraphIncrementalLocalStore::getIDs(s
         auto edgeJson = json::parse(edgeString);
         if (edgeJson.contains("properties")) {
             auto edgeProperties = edgeJson["properties"];
-            return {edgeProperties["graphId"], 0};
+            return {edgeProperties["graphId"], edgeJson["PID"]};
         }
-    } catch (const std::exception&) {  // TODO tmkasun: Handle multiple types of exceptions
+    } catch (const std::exception& e) {  // TODO tmkasun: Handle multiple types of exceptions
         incremental_localstore_logger.log(
-            "Error while processing edge data = " + edgeString +
+            "Error while processing edge data = " + std::string(e.what()) +
                 "Could be due to JSON parsing error or error while persisting the data to disk",
             "error");
     }
@@ -54,7 +54,12 @@ void JasmineGraphIncrementalLocalStore::addEdgeFromString(std::string edgeString
         std::string sId = std::string(sourceJson["id"]);
         std::string dId = std::string(destinationJson["id"]);
 
-        RelationBlock* newRelation = this->nm->addEdge({sId, dId});
+        RelationBlock* newRelation;
+        if (edgeJson["EdgeType"] == "Central") {
+            newRelation = this->nm->addCentralEdge({sId, dId});
+        } else {
+            newRelation = this->nm->addEdge({sId, dId});
+        }
         if (!newRelation) {
             return;
         }
