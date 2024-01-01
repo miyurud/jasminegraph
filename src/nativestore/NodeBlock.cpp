@@ -131,6 +131,7 @@ bool NodeBlock::updateRelation(RelationBlock* newRelation, bool relocateHead) {
             node_block_logger.warn("Invalid relation block" + std::to_string(currentRelation->addr));
         }
     }
+    return false;
 }
 
 bool NodeBlock::updateCentralRelation(RelationBlock* newRelation, bool relocateHead) {
