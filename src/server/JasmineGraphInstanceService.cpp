@@ -1704,9 +1704,9 @@ map<long, double> calculateLocalPageRank(string graphID, double alpha, string pa
         dataFile.open(iddFilePath);
 
         while (!dataFile.eof()) {
-            std::string str;
-            std::getline(dataFile, str);
-            std::stringstream buffer(str);
+            std::string line;
+            std::getline(dataFile, line);
+            std::stringstream buffer(line);
             std::string temp;
             std::vector<long> values;
 
