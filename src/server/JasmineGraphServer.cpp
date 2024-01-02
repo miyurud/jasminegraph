@@ -43,7 +43,7 @@ std::map<int, int> aggregateWeightMap;
 
 void *runfrontend(void *dummyPt) {
     JasmineGraphServer *refToServer = (JasmineGraphServer *)dummyPt;
-    refToServer->frontend = new JasmineGraphFrontEnd(*(refToServer->sqlite), *(refToServer->performanceSqlite),
+    refToServer->frontend = new JasmineGraphFrontEnd(refToServer->sqlite, refToServer->performanceSqlite,
                                                      refToServer->masterHost, refToServer->jobScheduler);
     refToServer->frontend->run();
     return NULL;
@@ -51,7 +51,7 @@ void *runfrontend(void *dummyPt) {
 
 void *runbackend(void *dummyPt) {
     JasmineGraphServer *refToServer = (JasmineGraphServer *)dummyPt;
-    refToServer->backend = new JasmineGraphBackend(*(refToServer->sqlite), refToServer->numberOfWorkers);
+    refToServer->backend = new JasmineGraphBackend(refToServer->sqlite, refToServer->numberOfWorkers);
     refToServer->backend->run();
     return NULL;
 }
@@ -63,6 +63,8 @@ JasmineGraphServer::JasmineGraphServer() {
     this->performanceSqlite->init();
     this->jobScheduler = new JobScheduler(this->sqlite, this->performanceSqlite);
     this->jobScheduler->init();
+}
+
 JasmineGraphServer *JasmineGraphServer::getInstance() {
     static JasmineGraphServer *instance = nullptr;
     // TODO(thevindu-w): synchronize
@@ -71,8 +73,6 @@ JasmineGraphServer *JasmineGraphServer::getInstance() {
     }
     return instance;
 }
-
-JasmineGraphServer::JasmineGraphServer() {}
 
 JasmineGraphServer::~JasmineGraphServer() {
     server_logger.info("Freeing up server resources.");
@@ -211,7 +211,7 @@ void JasmineGraphServer::start_workers() {
             user = splitted[0];
         }
         int portCount = 0;
-        std::string hostID = Utils::getHostID(ip, *(this->sqlite));
+        std::string hostID = Utils::getHostID(ip, this->sqlite);
         std::vector<int> portVector = workerPortsMap[hostName];
         std::vector<int> dataPortVector = workerDataPortsMap[hostName];
 
@@ -255,7 +255,7 @@ void JasmineGraphServer::start_workers() {
         workerDataPortsMap[hostName] = dataPortVector;
     }
 
-    Utils::assignPartitionsToWorkers(numberOfWorkers, *(this->sqlite));
+    Utils::assignPartitionsToWorkers(numberOfWorkers, this->sqlite);
 
     int hostListSize = hostsList.size();
     std::vector<std::string>::iterator hostListIterator;
@@ -2039,8 +2039,8 @@ void JasmineGraphServer::addHostsToMetaDB(std::string host, std::vector<int> por
         int workerPort = portVector.at(i);
         int workerDataPort = dataPortVector.at(i);
 
-        if (!Utils::hostExists(name, ip_address, std::to_string(workerPort), *(this->sqlite))) {
-            string hostID = Utils::getHostID(name, *(this->sqlite));
+        if (!Utils::hostExists(name, ip_address, std::to_string(workerPort), this->sqlite)) {
+            string hostID = Utils::getHostID(name, this->sqlite);
             sqlStatement =
                 ("INSERT INTO worker (host_idhost,name,ip,user,is_public,server_port,server_data_port) VALUES (\"" +
                  hostID + "\", \"" + name + "\", \"" + ip_address + "\",\"" + user + "\", \"\",\"" +

@@ -758,7 +758,7 @@ static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterfac
             name + "\", \"" + path + "\", \"" + uploadStartTime + "\", \"\",\"" +
             to_string(Conts::GRAPH_STATUS::LOADING) + "\", \"\", \"\", \"\")";
         int newGraphID = sqlite->runInsert(sqlStatement);
-        JasmineGraphServer *jasmineServer = new JasmineGraphServer();
+        JasmineGraphServer *jasmineServer = JasmineGraphServer::getInstance();
         MetisPartitioner *partitioner = new MetisPartitioner(sqlite);
         vector<std::map<int, string>> fullFileList;
 
@@ -933,7 +933,7 @@ static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInt
             name + "\", \"" + edgeListPath + "\", \"" + uploadStartTime + "\", \"\",\"" +
             to_string(Conts::GRAPH_STATUS::LOADING) + "\", \"\", \"\", \"\")";
         int newGraphID = sqlite->runInsert(sqlStatement);
-        JasmineGraphServer *jasmineServer = new JasmineGraphServer();
+        JasmineGraphServer *jasmineServer = JasmineGraphServer::getInstance();
         MetisPartitioner *partitioner = new MetisPartitioner(sqlite);
         vector<std::map<int, string>> fullFileList;
         partitioner->loadContentData(attributeListPath, graphAttributeType, newGraphID, attrDataType);
