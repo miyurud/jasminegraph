@@ -299,11 +299,13 @@ std::list<NodeBlock> NodeBlock::getEdges() {
             node = NodeBlock::get(currentRelation->source.address);
             currentRelation = currentRelation->nextDestination();
         } else {
-            throw std::logic_error("Error: Unrecognized relation for " + std::to_string(this->addr) +
-                                   " in relation block " + std::to_string(currentRelation->addr));
+            node_block_logger.error("Error: Unrecognized relation for " + std::to_string(this->addr) +
+                                    " in relation block " + std::to_string(currentRelation->addr));
+            break;
         }
         if (!node) {
-            throw std::logic_error("Error creating node in the relation");
+            node_block_logger.error("Error creating node in the relation");
+            break;
         }
         edges.push_back(*node);
     }

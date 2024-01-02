@@ -170,12 +170,13 @@ void JSONParser::countFileds() {
         for (int i = 0; i < fos.size(); i++) {
             string field = fos[i]["name"].asString();
             double weight = fos[i]["w"].asDouble();
-            if (weight > 0.5) {
-                if (fieldCounts.find(field) == fieldCounts.end()) {
-                    fieldCounts.insert(make_pair(field, 1));
-                } else {
-                    fieldCounts[field]++;
-                }
+            if (weight <= 0.5) {
+                continue;
+            }
+            if (fieldCounts.find(field) == fieldCounts.end()) {
+                fieldCounts.insert(make_pair(field, 1));
+            } else {
+                fieldCounts[field]++;
             }
         }
     }

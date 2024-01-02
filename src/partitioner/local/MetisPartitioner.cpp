@@ -233,7 +233,7 @@ std::vector<std::map<int, std::string>> MetisPartitioner::partitioneWithGPMetis(
             // string command = "sed -i \"1s/.*/" + newHeader +"/\" /tmp/grf";
             string command = "sed -i \"1s/.*/" + newHeader + "/\" " + this->outputFilePath + "/grf";
             const char *commandStr = command.c_str();
-            pid_t child = vfork();
+            pid_t child = fork();
             if (child == 0) {
                 execl("/bin/sh", "sh", "-c", commandStr, nullptr);
                 _exit(1);
@@ -245,7 +245,7 @@ std::vector<std::map<int, std::string>> MetisPartitioner::partitioneWithGPMetis(
             // string command = "sed -i \"1s/.*/" + newHeader +"/\" /tmp/grf";
             string command = "sed -i \"1s/.*/" + newHeader + "/\" " + this->outputFilePath + "/grf";
             const char *commandStr = command.c_str();
-            pid_t child = vfork();
+            pid_t child = fork();
             if (child == 0) {
                 execl("/bin/sh", "sh", "-c", commandStr, nullptr);
                 _exit(1);
@@ -262,7 +262,7 @@ std::vector<std::map<int, std::string>> MetisPartitioner::partitioneWithGPMetis(
             string newHeader = std::to_string(vertexCount) + ' ' + newEdgeSize;
             string command = "sed -i \"1s/.*/" + newHeader + "/\" " + this->outputFilePath + "/grf";
             const char *commandStr = command.c_str();
-            pid_t child = vfork();
+            pid_t child = fork();
             if (child == 0) {
                 execl("/bin/sh", "sh", "-c", commandStr, nullptr);
                 _exit(1);

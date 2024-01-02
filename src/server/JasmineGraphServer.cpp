@@ -345,7 +345,7 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                                     std::to_string(workerDataPortsVector.at(i)) + " " + enableNmon;
             }
             const char *commandStr = serverStartScript.c_str();
-            pid_t child = vfork();
+            pid_t child = fork();
             if (child == 0) {
                 execl("/bin/sh", "sh", "-c", commandStr, nullptr);
                 _exit(1);
@@ -413,7 +413,7 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
             }
             server_logger.log(serverStartScript, "info");
             const char *serverStartCmd = serverStartScript.c_str();
-            pid_t child = vfork();
+            pid_t child = fork();
             if (child == 0) {
                 execl("/bin/sh", "sh", "-c", serverStartCmd, nullptr);
                 _exit(1);
@@ -1287,9 +1287,7 @@ bool JasmineGraphServer::batchUploadCentralStore(std::string host, int port, int
 }
 
 void JasmineGraphServer::copyCentralStoreToAggregateLocation(std::string filePath) {
-    char buffer[128];
     std::string result = "SUCCESS";
-    std::string copyCommand;
     std::string aggregatorDirPath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
 
     if (access(aggregatorDirPath.c_str(), F_OK)) {
@@ -1299,7 +1297,7 @@ void JasmineGraphServer::copyCentralStoreToAggregateLocation(std::string filePat
         }
     }
 
-    copyCommand = "cp " + filePath + " " + aggregatorDirPath;
+    std::string copyCommand = "cp " + filePath + " " + aggregatorDirPath;
     if (system(copyCommand.c_str())) {
         server_logger.error("Copying " + filePath + " into " + aggregatorDirPath + " failed");
     }
