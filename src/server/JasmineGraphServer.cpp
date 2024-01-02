@@ -3119,7 +3119,7 @@ void JasmineGraphServer::initiateOrgCommunication(std::string graphID, std::stri
     server_logger.log("Federated learning commands sent", "info");
 }
 
-void JasmineGraphServer::initiateMerge(std::string graphID, std::string trainingArgs, const SQLiteDBInterface *sqlite) {
+void JasmineGraphServer::initiateMerge(std::string graphID, std::string trainingArgs, SQLiteDBInterface *sqlite) {
     int count = 0;
     JasmineGraphTrainingSchedular *schedular = new JasmineGraphTrainingSchedular();
     map<string, map<int, int>> scheduleForAllHosts = schedular->schedulePartitionTraining(graphID);

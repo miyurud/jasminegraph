@@ -185,8 +185,7 @@ void TriangleCountExecutor::execute() {
         }
     }
 
-    PerformanceUtil performanceUtil;
-    performanceUtil.init();
+    PerformanceUtil::init();
 
     std::string query =
         "SELECT attempt from graph_sla INNER JOIN sla_category where graph_sla.id_sla_category=sla_category.id and "
@@ -1698,11 +1697,10 @@ int TriangleCountExecutor::collectPerformaceData(PerformanceSQLiteDBInterface pe
     int elapsedTime = 0;
     time_t start;
     time_t end;
-    PerformanceUtil performanceUtil;
-    performanceUtil.init();
+    PerformanceUtil::init();
 
-    std::vector<Place> placeList = performanceUtil.getHostReporterList();
-    std::string slaCategoryId = performanceUtil.getSLACategoryId(command, category);
+    std::vector<Place> placeList = PerformanceUtil::getHostReporterList();
+    std::string slaCategoryId = PerformanceUtil::getSLACategoryId(command, category);
 
     std::vector<Place>::iterator placeListIterator;
 
@@ -1725,20 +1723,21 @@ int TriangleCountExecutor::collectPerformaceData(PerformanceSQLiteDBInterface pe
         }
 
         if (!(isMaster.find("true") != std::string::npos || host == "localhost" || host.compare(masterIP) == 0)) {
-            performanceUtil.initiateCollectingRemoteSLAResourceUtilization(
-                host, atoi(serverPort.c_str()), isHostReporter, "false", placeId, elapsedTime, masterIP);
+            PerformanceUtil::initiateCollectingRemoteSLAResourceUtilization(
+                host, atoi(serverPort.c_str()), isHostReporter, "false",
+                placeId, elapsedTime, masterIP);
         }
     }
 
     start = time(0);
-    performanceUtil.collectSLAResourceConsumption(placeList, graphId, command, category, masterIP, elapsedTime,
+    PerformanceUtil::collectSLAResourceConsumption(placeList, graphId, command, category, masterIP, elapsedTime,
                                                   autoCalibrate);
 
     while (!workerResponded) {
         time_t elapsed = time(0) - start;
         if (elapsed >= Conts::LOAD_AVG_COLLECTING_GAP) {
             elapsedTime += Conts::LOAD_AVG_COLLECTING_GAP * 1000;
-            performanceUtil.collectSLAResourceConsumption(placeList, graphId, command, category, masterIP, elapsedTime,
+            PerformanceUtil::collectSLAResourceConsumption(placeList, graphId, command, category, masterIP, elapsedTime,
                                                           autoCalibrate);
             start = start + Conts::LOAD_AVG_COLLECTING_GAP;
         } else {
@@ -1746,8 +1745,8 @@ int TriangleCountExecutor::collectPerformaceData(PerformanceSQLiteDBInterface pe
         }
     }
 
-    performanceUtil.updateRemoteResourceConsumption(perDB, graphId, partitionCount, placeList, slaCategoryId, masterIP);
-    performanceUtil.updateResourceConsumption(perDB, graphId, partitionCount, placeList, slaCategoryId);
+    PerformanceUtil::updateRemoteResourceConsumption(perDB, graphId, partitionCount, placeList, slaCategoryId, masterIP);
+    PerformanceUtil::updateResourceConsumption(perDB, graphId, partitionCount, placeList, slaCategoryId);
 
     return 0;
 }
