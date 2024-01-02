@@ -75,7 +75,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
 static void stop_stream_kafka_command(int connFd, KafkaConnector *kstream, bool *loop_exit_p);
 static void process_dataset_command(int connFd, bool *loop_exit_p);
 static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
-                              PerformanceSQLiteDBInterface *perfSqlite, JobScheduler jobScheduler, bool *loop_exit_p);
+                              PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler, bool *loop_exit_p);
 static void vertex_count_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void edge_count_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void merge_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
@@ -91,7 +91,7 @@ static void sla_command(int connFd, SQLiteDBInterface *sqlite, PerformanceSQLite
                         bool *loop_exit_p);
 
 void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
-                            PerformanceSQLiteDBInterface *perfSqlite, JobScheduler jobScheduler) {
+                            PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler) {
     frontend_logger.info("Thread No: " + to_string(pthread_self()));
     frontend_logger.info("Master IP: " + masterIP);
     char data[FRONTEND_DATA_LENGTH + 1];
@@ -222,7 +222,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 }
 
 JasmineGraphFrontEnd::JasmineGraphFrontEnd(SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb,
-                                           std::string masterIP, JobScheduler jobScheduler) {
+                                           std::string masterIP, JobScheduler *jobScheduler) {
     this->sqlite = db;
     this->masterIP = masterIP;
     this->perfSqlite = perfDb;
@@ -1290,7 +1290,7 @@ static void process_dataset_command(int connFd, bool *loop_exit_p) {
 }
 
 static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
-                              PerformanceSQLiteDBInterface *perfSqlite, JobScheduler jobScheduler, bool *loop_exit_p) {
+                              PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler, bool *loop_exit_p) {
     // add RDF graph
     int uniqueId = JasmineGraphFrontEnd::getUid();
     int result_wr = write(connFd, GRAPHID_SEND.c_str(), FRONTEND_COMMAND_LENGTH);
@@ -1413,8 +1413,8 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
             jobDetails.addParameter(Conts::PARAM_KEYS::CAN_CALIBRATE, "false");
         }
 
-        jobScheduler.pushJob(jobDetails);
-        JobResponse jobResponse = jobScheduler.getResult(jobDetails);
+        jobScheduler->pushJob(jobDetails);
+        JobResponse jobResponse = jobScheduler->getResult(jobDetails);
         std::string errorMessage = jobResponse.getParameter(Conts::PARAM_KEYS::ERROR_MESSAGE);
 
         if (!errorMessage.empty()) {

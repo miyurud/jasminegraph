@@ -44,12 +44,12 @@ limitations under the License.
 class JasmineGraphHashMapCentralStore;
 
 void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
-                            PerformanceSQLiteDBInterface *perfSqlite, JobScheduler jobScheduler);
+                            PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler);
 
 class JasmineGraphFrontEnd {
  public:
     JasmineGraphFrontEnd(SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb, std::string masterIP,
-                         JobScheduler jobScheduler);
+                         JobScheduler *jobScheduler);
 
     int run();
 
@@ -90,7 +90,7 @@ class JasmineGraphFrontEnd {
     SQLiteDBInterface *sqlite;
     std::string masterIP;
     PerformanceSQLiteDBInterface *perfSqlite;
-    JobScheduler jobScheduler;
+    JobScheduler *jobScheduler;
 };
 
 struct frontendservicesessionargs {

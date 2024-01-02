@@ -61,6 +61,8 @@ JasmineGraphServer::JasmineGraphServer() {
     this->sqlite->init();
     this->performanceSqlite = new PerformanceSQLiteDBInterface();
     this->performanceSqlite->init();
+    this->jobScheduler = new JobScheduler(this->sqlite, this->performanceSqlite);
+    this->jobScheduler->init();
 JasmineGraphServer *JasmineGraphServer::getInstance() {
     static JasmineGraphServer *instance = nullptr;
     // TODO(thevindu-w): synchronize
@@ -76,15 +78,15 @@ JasmineGraphServer::~JasmineGraphServer() {
     server_logger.info("Freeing up server resources.");
     sqlite->finalize();
     performanceSqlite->finalize();
+    delete sqlite;
+    delete performanceSqlite;
+    delete jobScheduler;
 }
 
 int JasmineGraphServer::run(std::string profile, std::string masterIp, int numberofWorkers, std::string workerIps,
                             std::string enableNmon) {
     server_logger.log("Running the server...", "info");
     std::vector<int> masterPortVector;
-
-    this->jobScheduler = *new JobScheduler(this->sqlite, this->performanceSqlite);
-    this->jobScheduler.init();
     if (masterIp.empty()) {
         this->masterHost = Utils::getJasmineGraphProperty("org.jasminegraph.server.host");
     } else {

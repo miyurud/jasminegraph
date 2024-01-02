@@ -130,7 +130,7 @@ class JasmineGraphServer {
     JasmineGraphFrontEnd *frontend;
     SQLiteDBInterface *sqlite;
     PerformanceSQLiteDBInterface *performanceSqlite;
-    JobScheduler jobScheduler;
+    JobScheduler *jobScheduler;
     JasmineGraphBackend *backend;
     std::string masterHost;
     int numberOfWorkers = -1;
