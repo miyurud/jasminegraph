@@ -106,20 +106,17 @@ NodeManager::NodeManager(GraphConfig gConfig) {
     if (dbSize(nodesDBPath) % NodeBlock::BLOCK_SIZE != 0) {
         node_manager_logger.warn("NodesDB size: " + std::to_string(dbSize(nodesDBPath)) +
                                  ", NodeBlock::BLOCK_SIZE: " + std::to_string(NodeBlock::BLOCK_SIZE));
-        std::string errorMessage = "Node DB size does not comply to node block size Path = " + nodesDBPath;
-        node_manager_logger.error(errorMessage);
+        node_manager_logger.error("RelationsDB size does not comply to node block size Path = " + relationsDBPath);
     }
     if (dbSize(relationsDBPath) % RelationBlock::BLOCK_SIZE != 0) {
-        node_manager_logger.warn("RelationsDB size: " + std::to_string(dbSize(relationsDBPath)) + ", RelationBlock::BLOCK_SIZE: " + std::to_string(RelationBlock::BLOCK_SIZE));
-        std::string errorMessage =
-                "RelationsDB size does not comply to node block size Path = " + relationsDBPath;
-        node_manager_logger.error(errorMessage);
+        node_manager_logger.warn("RelationsDB size: " + std::to_string(dbSize(relationsDBPath)) +
+                                ", RelationBlock::BLOCK_SIZE: " + std::to_string(RelationBlock::BLOCK_SIZE));
+        node_manager_logger.error("RelationsDB size does not comply to node block size Path = " + relationsDBPath);
     }
     if (dbSize(centralRelationsDBPath) % RelationBlock::BLOCK_SIZE != 0) {
-        node_manager_logger.warn("CentralRelationsDB size: " + std::to_string(dbSize(centralRelationsDBPath)) + ", RelationBlock::BLOCK_SIZE: " + std::to_string(RelationBlock::BLOCK_SIZE));
-        std::string errorMessage =
-                "CentralRelationsDB size does not comply to node block size Path = " + centralRelationsDBPath;
-        node_manager_logger.error(errorMessage);
+        node_manager_logger.warn("CentralRelationsDB size: " + std::to_string(dbSize(centralRelationsDBPath)) +
+                                ", RelationBlock::BLOCK_SIZE: " + std::to_string(RelationBlock::BLOCK_SIZE));
+        node_manager_logger.error("CentralRelationsDB size does not comply to node block size Path = " + centralRelationsDBPath);
     }
     node_manager_logger.info("NodeManager constructor execution completed.");
 }
