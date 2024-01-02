@@ -68,7 +68,7 @@ JasmineGraphServer *JasmineGraphServer::getInstance() {
 JasmineGraphServer::JasmineGraphServer() {}
 
 JasmineGraphServer::~JasmineGraphServer() {
-    puts("Freeing up server resources.");
+    server_logger.info("Freeing up server resources.");
     sqlite->finalize();
 }
 
