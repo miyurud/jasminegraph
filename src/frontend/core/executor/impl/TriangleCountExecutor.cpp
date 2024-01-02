@@ -1745,7 +1745,8 @@ int TriangleCountExecutor::collectPerformaceData(PerformanceSQLiteDBInterface pe
         }
     }
 
-    PerformanceUtil::updateRemoteResourceConsumption(perDB, graphId, partitionCount, placeList, slaCategoryId, masterIP);
+    PerformanceUtil::updateRemoteResourceConsumption(perDB, graphId, partitionCount, placeList,
+                                                     slaCategoryId, masterIP);
     PerformanceUtil::updateResourceConsumption(perDB, graphId, partitionCount, placeList, slaCategoryId);
 
     return 0;
