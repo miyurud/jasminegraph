@@ -68,13 +68,13 @@ void JasminGraphLinkPredictor::initiateLinkPrediction(std::string graphID, std::
         }
     }
     std::string vertexCount;
-    SQLiteDBInterface refToSqlite = *new SQLiteDBInterface();
-    refToSqlite.init();
+    SQLiteDBInterface *refToSqlite = new SQLiteDBInterface();
+    refToSqlite->init();
     string sqlStatement =
         "SELECT vertexcount FROM graph WHERE "
         "idgraph = " +
         graphID;
-    std::vector<vector<pair<string, string>>> v = refToSqlite.runSelect(sqlStatement);
+    std::vector<vector<pair<string, string>>> v = refToSqlite->runSelect(sqlStatement);
     vertexCount = (v[0][0].second);
 
     JasminGraphLinkPredictor::sendQueryToWorker(selectedHostName, selectedHostPort, selectedHostDataPort,

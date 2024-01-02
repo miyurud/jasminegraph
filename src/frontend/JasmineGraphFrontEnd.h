@@ -43,39 +43,39 @@ limitations under the License.
 
 class JasmineGraphHashMapCentralStore;
 
-void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface sqlite,
+void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
                             PerformanceSQLiteDBInterface perfSqlite, JobScheduler jobScheduler);
 
 class JasmineGraphFrontEnd {
  public:
-    JasmineGraphFrontEnd(SQLiteDBInterface db, PerformanceSQLiteDBInterface perfDb, std::string masterIP,
+    JasmineGraphFrontEnd(SQLiteDBInterface *db, PerformanceSQLiteDBInterface perfDb, std::string masterIP,
                          JobScheduler jobScheduler);
 
     int run();
 
-    static bool graphExists(std::string basic_string, SQLiteDBInterface sqlite);
+    static bool graphExists(std::string basic_string, SQLiteDBInterface *sqlite);
 
-    static bool modelExists(std::string basic_string, SQLiteDBInterface sqlite);
+    static bool modelExists(std::string basic_string, SQLiteDBInterface *sqlite);
 
-    static bool graphExistsByID(std::string id, SQLiteDBInterface sqlite);
+    static bool graphExistsByID(std::string id, SQLiteDBInterface *sqlite);
 
-    static bool modelExistsByID(std::string id, SQLiteDBInterface sqlite);
+    static bool modelExistsByID(std::string id, SQLiteDBInterface *sqlite);
 
-    static void removeGraph(std::string graphID, SQLiteDBInterface sqlite, std::string masterIP);
+    static void removeGraph(std::string graphID, SQLiteDBInterface *sqlite, std::string masterIP);
 
-    static void getAndUpdateUploadTime(std::string graphID, SQLiteDBInterface sqlite);
+    static void getAndUpdateUploadTime(std::string graphID, SQLiteDBInterface *sqlite);
 
-    static bool isGraphActiveAndTrained(std::string graphID, SQLiteDBInterface sqlite);
+    static bool isGraphActiveAndTrained(std::string graphID, SQLiteDBInterface *sqlite);
 
     static JasmineGraphHashMapCentralStore loadCentralStore(std::string centralStoreFileName);
 
     static map<long, long> getOutDegreeDistributionHashMap(map<long, unordered_set<long>> graphMap);
 
-    static bool isGraphActive(string graphID, SQLiteDBInterface sqlite);
+    static bool isGraphActive(string graphID, SQLiteDBInterface *sqlite);
 
     static int getUid();
 
-    static long getSLAForGraphId(SQLiteDBInterface sqlite, PerformanceSQLiteDBInterface perfSqlite, std::string graphId,
+    static long getSLAForGraphId(SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface perfSqlite, std::string graphId,
                                  std::string command, std::string category);
 
     static int getRunningHighPriorityTaskCount();
@@ -87,14 +87,14 @@ class JasmineGraphFrontEnd {
     std::map<std::string, std::thread> streamingThreads;
 
  private:
-    SQLiteDBInterface sqlite;
+    SQLiteDBInterface *sqlite;
     std::string masterIP;
     PerformanceSQLiteDBInterface perfSqlite;
     JobScheduler jobScheduler;
 };
 
 struct frontendservicesessionargs {
-    SQLiteDBInterface sqlite;
+    SQLiteDBInterface *sqlite;
     int connFd;
 };
 

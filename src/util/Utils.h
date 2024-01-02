@@ -45,7 +45,7 @@ class Utils {
 
     static std::string getJasmineGraphProperty(std::string key);
 
-    static std::vector<worker> getWorkerList(SQLiteDBInterface sqlite);
+    static std::vector<worker> getWorkerList(SQLiteDBInterface *sqlite);
 
     static std::vector<std::string> getHostListFromProperties();
 
@@ -81,7 +81,7 @@ class Utils {
 
     static int unzipFile(std::string filePath, std::string mode = "pigz");
 
-    static bool hostExists(std::string name, std::string ip, std::string workerPort, SQLiteDBInterface sqlite);
+    static bool hostExists(std::string name, std::string ip, std::string workerPort, SQLiteDBInterface *sqlite);
 
     static int compressDirectory(const std::string filePath);
 
@@ -89,9 +89,9 @@ class Utils {
 
     static int copyToDirectory(std::string currentPath, std::string copyPath);
 
-    static std::string getHostID(std::string hostName, SQLiteDBInterface sqlite);
+    static std::string getHostID(std::string hostName, SQLiteDBInterface *sqlite);
 
-    static void assignPartitionsToWorkers(int numberOfWorkers, SQLiteDBInterface sqlite);
+    static void assignPartitionsToWorkers(int numberOfWorkers, SQLiteDBInterface *sqlite);
 
     static void updateSLAInformation(PerformanceSQLiteDBInterface perfSqlite, std::string graphId, int partitionCount,
                                      long newSlaValue, std::string command, std::string category);

@@ -27,7 +27,7 @@ std::mutex responseVectorMutex;
 
 TriangleCountExecutor::TriangleCountExecutor() {}
 
-TriangleCountExecutor::TriangleCountExecutor(SQLiteDBInterface db, PerformanceSQLiteDBInterface perfDb,
+TriangleCountExecutor::TriangleCountExecutor(SQLiteDBInterface *db, PerformanceSQLiteDBInterface perfDb,
                                              JobRequest jobRequest) {
     this->sqlite = db;
     this->perfDB = perfDb;
@@ -100,7 +100,7 @@ void TriangleCountExecutor::execute() {
         "WHERE partition_graph_idgraph=" +
         graphId + ";";
 
-    std::vector<vector<pair<string, string>>> results = sqlite.runSelect(sqlStatement);
+    std::vector<vector<pair<string, string>>> results = sqlite->runSelect(sqlStatement);
 
     if (results.size() > Conts::COMPOSITE_CENTRAL_STORE_WORKER_THRESHOLD) {
         isCompositeAggregation = true;
@@ -647,7 +647,7 @@ int TriangleCountExecutor::updateTriangleTreeAndGetTriangleCount(std::vector<std
     return aggregateCount;
 }
 
-long TriangleCountExecutor::aggregateCentralStoreTriangles(SQLiteDBInterface sqlite, std::string graphId,
+long TriangleCountExecutor::aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, std::string graphId,
                                                            std::string masterIP, int threadPriority) {
     std::vector<std::vector<string>> workerCombinations = getWorkerCombination(sqlite, graphId);
     std::map<string, int> workerWeightMap;
@@ -694,7 +694,7 @@ long TriangleCountExecutor::aggregateCentralStoreTriangles(SQLiteDBInterface sql
             "WHERE partition_graph_idgraph=" +
             graphId + " and idworker=" + minWeightWorker + ";";
 
-        std::vector<vector<pair<string, string>>> result = sqlite.runSelect(aggregatorSqlStatement);
+        std::vector<vector<pair<string, string>>> result = sqlite->runSelect(aggregatorSqlStatement);
 
         vector<pair<string, string>> aggregatorData = result.at(0);
 
@@ -723,7 +723,7 @@ long TriangleCountExecutor::aggregateCentralStoreTriangles(SQLiteDBInterface sql
                     "WHERE partition_graph_idgraph=" +
                     graphId + " and idworker=" + workerId + ";";
 
-                std::vector<vector<pair<string, string>>> result = sqlite.runSelect(sqlStatement);
+                std::vector<vector<pair<string, string>>> result = sqlite->runSelect(sqlStatement);
 
                 vector<pair<string, string>> workerData = result.at(0);
 
@@ -1297,7 +1297,7 @@ string TriangleCountExecutor::countCompositeCentralStoreTriangles(std::string ag
     return response;
 }
 
-std::vector<std::vector<string>> TriangleCountExecutor::getWorkerCombination(SQLiteDBInterface sqlite,
+std::vector<std::vector<string>> TriangleCountExecutor::getWorkerCombination(SQLiteDBInterface *sqlite,
                                                                              std::string graphId) {
     std::set<string> workerIdSet;
 
@@ -1307,7 +1307,7 @@ std::vector<std::vector<string>> TriangleCountExecutor::getWorkerCombination(SQL
         "WHERE partition_graph_idgraph=" +
         graphId + ";";
 
-    std::vector<vector<pair<string, string>>> results = sqlite.runSelect(sqlStatement);
+    std::vector<vector<pair<string, string>>> results = sqlite->runSelect(sqlStatement);
 
     for (std::vector<vector<pair<string, string>>>::iterator i = results.begin(); i != results.end(); ++i) {
         std::vector<pair<string, string>> rowData = *i;

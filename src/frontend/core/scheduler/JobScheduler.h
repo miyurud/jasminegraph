@@ -27,21 +27,21 @@ limitations under the License.
 
 class JobScheduler {
  public:
-    JobScheduler(SQLiteDBInterface sqlite, PerformanceSQLiteDBInterface perfDB);
+    JobScheduler(SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface perfDB);
 
     JobScheduler();
 
     void init();
 
-    static void processJob(JobRequest request, SQLiteDBInterface sqlite, PerformanceSQLiteDBInterface perfDB);
+    static void processJob(JobRequest request, SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface perfDB);
 
-    static void executeJob(JobRequest request, SQLiteDBInterface sqlite, PerformanceSQLiteDBInterface perfDB);
+    static void executeJob(JobRequest request, SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface perfDB);
 
     void pushJob(JobRequest jobDetails);
 
     JobResponse getResult(JobRequest jobRequest);
 
-    SQLiteDBInterface sqlite;
+    SQLiteDBInterface *sqlite;
     PerformanceSQLiteDBInterface perfSqlite;
     static std::vector<std::future<void>> intermRes;
 };

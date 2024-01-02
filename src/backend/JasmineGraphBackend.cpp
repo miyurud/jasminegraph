@@ -25,7 +25,7 @@ Logger backend_logger;
 void *backendservicesesion(void *dummyPt) {
     backendservicesessionargs *sessionargs = (backendservicesessionargs *)dummyPt;
     int connFd = sessionargs->connFd;
-    SQLiteDBInterface sqLiteDbInterface = sessionargs->sqlite;
+    SQLiteDBInterface *sqLiteDbInterface = sessionargs->sqlite;
     backend_logger.log("Thread No: " + to_string(pthread_self()), "info");
     char data[301];
     bzero(data, 301);
@@ -80,7 +80,7 @@ void *backendservicesesion(void *dummyPt) {
             std::string updateQuery =
                 "update worker set status='started' where ip='" + strArr[0] + "' and server_port='" + strArr[1] + "';";
 
-            sqLiteDbInterface.runUpdate(updateQuery);
+            sqLiteDbInterface->runUpdate(updateQuery);
             break;
 
         } else {
@@ -92,7 +92,7 @@ void *backendservicesesion(void *dummyPt) {
     return NULL;
 }
 
-JasmineGraphBackend::JasmineGraphBackend(SQLiteDBInterface db, int numberOfWorkers) {
+JasmineGraphBackend::JasmineGraphBackend(SQLiteDBInterface *db, int numberOfWorkers) {
     this->sqlite = db;
     this->workerCount = numberOfWorkers;
 }

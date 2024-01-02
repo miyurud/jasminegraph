@@ -29,7 +29,7 @@ class TriangleCountExecutor : public AbstractExecutor {
  public:
     TriangleCountExecutor();
 
-    TriangleCountExecutor(SQLiteDBInterface db, PerformanceSQLiteDBInterface perfDb, JobRequest jobRequest);
+    TriangleCountExecutor(SQLiteDBInterface *db, PerformanceSQLiteDBInterface perfDb, JobRequest jobRequest);
 
     void execute();
 
@@ -40,7 +40,7 @@ class TriangleCountExecutor : public AbstractExecutor {
     static long getTriangleCount(int graphId, std::string host, int port, int dataPort, int partitionId,
                                  std::string masterIP, int uniqueId, bool isCompositeAggregation, int threadPriority);
 
-    static long aggregateCentralStoreTriangles(SQLiteDBInterface sqlite, std::string graphId, std::string masterIP,
+    static long aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, std::string graphId, std::string masterIP,
                                                int threadPriority);
 
     static string isFileAccessibleToWorker(std::string graphId, std::string partitionId, std::string aggregatorHostName,
@@ -55,7 +55,7 @@ class TriangleCountExecutor : public AbstractExecutor {
                                                       std::string compositeCentralStoreFileList, std::string masterIP,
                                                       std::string availableFileList, int threadPriority);
 
-    static std::vector<std::vector<string>> getWorkerCombination(SQLiteDBInterface sqlite, std::string graphId);
+    static std::vector<std::vector<string>> getWorkerCombination(SQLiteDBInterface *sqlite, std::string graphId);
 
     static std::string copyCentralStoreToAggregator(std::string aggregatorHostName, std::string aggregatorPort,
                                                     std::string aggregatorDataPort, int graphId, int partitionId,
@@ -80,7 +80,7 @@ class TriangleCountExecutor : public AbstractExecutor {
                                      bool autoCalibrate);
 
  private:
-    SQLiteDBInterface sqlite;
+    SQLiteDBInterface *sqlite;
     PerformanceSQLiteDBInterface perfDB;
 };
 

@@ -54,7 +54,7 @@ struct Place {
 
 class PerformanceUtil {
  public:
-    // PerformanceUtil(SQLiteDBInterface sqlLiteDB, PerformanceSQLiteDBInterface perfDb);
+    // PerformanceUtil(SQLiteDBInterface *sqlLiteDB, PerformanceSQLiteDBInterface perfDb);
     void init();
     static int collectPerformanceStatistics();
     static int collectSLAResourceConsumption(std::vector<Place> placeList, std::string graphId, std::string command,
@@ -84,7 +84,7 @@ class PerformanceUtil {
                                            std::string category, int elapsedTime);
 
  private:
-    // static SQLiteDBInterface sqlLiteDB;
+    // static SQLiteDBInterface *sqlLiteDB;
     // static PerformanceSQLiteDBInterface perfDb;
     static void collectRemotePerformanceData(std::string host, int port, std::string isVMStatManager,
                                              std::string isResourceAllocationRequired, std::string hostId,

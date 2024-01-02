@@ -424,25 +424,25 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
 
 bool JasmineGraphServer::spawnNewWorker(string host, string port, string dataPort, string profile, string masterHost,
                                         string enableNmon) {
-    SQLiteDBInterface refToSqlite = *new SQLiteDBInterface();
-    refToSqlite.init();
+    SQLiteDBInterface *refToSqlite = new SQLiteDBInterface();
+    refToSqlite->init();
     string selectHostSQL = "SELECT idhost from host where name='" + host + "'";
     string selectWorkerSQL =
         "SELECT idworker from worker where server_port = '" + port + "' or server_data_port = '" + dataPort + "'";
-    std::vector<vector<pair<string, string>>> checkWorkerOutput = refToSqlite.runSelect(selectWorkerSQL);
+    std::vector<vector<pair<string, string>>> checkWorkerOutput = refToSqlite->runSelect(selectWorkerSQL);
 
     if (checkWorkerOutput.size() > 0) {
         return false;
     }
 
-    std::vector<vector<pair<string, string>>> selectHostOutput = refToSqlite.runSelect(selectHostSQL);
+    std::vector<vector<pair<string, string>>> selectHostOutput = refToSqlite->runSelect(selectHostSQL);
     string idHost = "";
 
     if (selectHostOutput.size() > 0) {
         idHost = selectHostOutput[0][0].second;
     } else {
         string maxHostIDSQL = "select max(idhost) from host";
-        std::vector<vector<pair<string, string>>> selectMaxHostOutput = refToSqlite.runSelect(maxHostIDSQL);
+        std::vector<vector<pair<string, string>>> selectMaxHostOutput = refToSqlite->runSelect(maxHostIDSQL);
         idHost = selectMaxHostOutput[0][0].second;
 
         int hostId = atoi(idHost.c_str());
@@ -450,13 +450,13 @@ bool JasmineGraphServer::spawnNewWorker(string host, string port, string dataPor
         std::string hostInsertString = "INSERT INTO host (idhost,name,ip,is_public) VALUES ('" +
                                        std::to_string(hostId) + "','" + host + "','" + host + "','false')";
 
-        refToSqlite.runInsert(hostInsertString);
+        refToSqlite->runInsert(hostInsertString);
 
         idHost = to_string(hostId);
     }
 
     string maxWorkerIDSQL = "select max(idworker) from worker";
-    std::vector<vector<pair<string, string>>> selectMaxWorkerIdOutput = refToSqlite.runSelect(maxWorkerIDSQL);
+    std::vector<vector<pair<string, string>>> selectMaxWorkerIdOutput = refToSqlite->runSelect(maxWorkerIDSQL);
     string maxIdWorker = selectMaxWorkerIdOutput[0][0].second;
     int maxWorkerId = atoi(maxIdWorker.c_str());
     maxWorkerId++;
@@ -465,7 +465,7 @@ bool JasmineGraphServer::spawnNewWorker(string host, string port, string dataPor
         to_string(maxWorkerId) + "','" + idHost + "','" + host + "','" + host + "','','false','" + port + "','" +
         dataPort + "')";
 
-    refToSqlite.runInsert(workerInsertSqlStatement);
+    refToSqlite->runInsert(workerInsertSqlStatement);
 
     std::vector<int> workerPortsVector;
     std::vector<int> workerDataPortsVector;
@@ -868,8 +868,8 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
 
 void JasmineGraphServer::assignPartitionToWorker(std::string fileName, int graphId, std::string workerHost,
                                                  int workerPort, int workerDataPort) {
-    SQLiteDBInterface refToSqlite = *new SQLiteDBInterface();
-    refToSqlite.init();
+    SQLiteDBInterface *refToSqlite = new SQLiteDBInterface();
+    refToSqlite->init();
     size_t lastindex = fileName.find_last_of(".");
     string rawname = fileName.substr(0, lastindex);
     string partitionID = rawname.substr(rawname.find_last_of("_") + 1);
@@ -882,7 +882,7 @@ void JasmineGraphServer::assignPartitionToWorker(std::string fileName, int graph
                                     std::to_string(workerPort) + "' and server_data_port='" +
                                     std::to_string(workerDataPort) + "'";
 
-    std::vector<vector<pair<string, string>>> results = refToSqlite.runSelect(workerSearchQuery);
+    std::vector<vector<pair<string, string>>> results = refToSqlite->runSelect(workerSearchQuery);
 
     std::string workerID = results[0][0].second;
 
@@ -891,7 +891,7 @@ void JasmineGraphServer::assignPartitionToWorker(std::string fileName, int graph
         "('" +
         partitionID + "','" + std::to_string(graphId) + "','" + workerID + "')";
 
-    refToSqlite.runInsert(partitionToWorkerQuery);
+    refToSqlite->runInsert(partitionToWorkerQuery);
 }
 
 bool JasmineGraphServer::batchUploadFile(std::string host, int port, int dataPort, int graphID, std::string filePath,
@@ -2391,10 +2391,10 @@ void JasmineGraphServer::updateOperationalGraphList() {
 
 std::map<std::string, JasmineGraphServer::workerPartition> JasmineGraphServer::getWorkerPartitions(string graphID) {
     vector<pair<string, string>> hostHasPartition;
-    SQLiteDBInterface refToSqlite = *new SQLiteDBInterface();
-    refToSqlite.init();
+    SQLiteDBInterface *refToSqlite = new SQLiteDBInterface();
+    refToSqlite->init();
     map<std::string, JasmineGraphServer::workerPartition> graphPartitionedHosts;
-    vector<vector<pair<string, string>>> hostPartitionResults = refToSqlite.runSelect(
+    vector<vector<pair<string, string>>> hostPartitionResults = refToSqlite->runSelect(
         "SELECT name, worker_idworker, server_port, server_data_port, partition_idpartition FROM worker_has_partition "
         "INNER JOIN worker ON worker_"
         "idworker = idworker WHERE partition_graph_idgraph = '" +
@@ -2421,9 +2421,9 @@ std::map<std::string, JasmineGraphServer::workerPartition> JasmineGraphServer::g
 
 std::map<string, JasmineGraphServer::workerPartitions> JasmineGraphServer::getGraphPartitionedHosts(string graphID) {
     vector<pair<string, string>> hostHasPartition;
-    SQLiteDBInterface refToSqlite = *new SQLiteDBInterface();
-    refToSqlite.init();
-    vector<vector<pair<string, string>>> hostPartitionResults = refToSqlite.runSelect(
+    SQLiteDBInterface *refToSqlite = new SQLiteDBInterface();
+    refToSqlite->init();
+    vector<vector<pair<string, string>>> hostPartitionResults = refToSqlite->runSelect(
         "SELECT name, partition_idpartition FROM worker_has_partition INNER JOIN worker ON worker_"
         "idworker = idworker WHERE partition_graph_idgraph = '" +
         graphID + "'");
@@ -2809,10 +2809,10 @@ void JasmineGraphServer::outDegreeDistribution(std::string graphID) {
 }
 
 long JasmineGraphServer::getGraphVertexCount(std::string graphID) {
-    SQLiteDBInterface refToSqlite = *new SQLiteDBInterface();
-    refToSqlite.init();
+    SQLiteDBInterface *refToSqlite = new SQLiteDBInterface();
+    refToSqlite->init();
     vector<vector<pair<string, string>>> output =
-        refToSqlite.runSelect("SELECT vertexcount FROM graph WHERE idgraph = '" + graphID + "'");
+        refToSqlite->runSelect("SELECT vertexcount FROM graph WHERE idgraph = '" + graphID + "'");
 
     long vertexCount = std::stoi(output[0][0].second);
     return vertexCount;
@@ -3004,7 +3004,7 @@ void JasmineGraphServer::initiateFiles(std::string graphID, std::string training
 }
 
 void JasmineGraphServer::initiateCommunication(std::string graphID, std::string trainingArgs,
-                                               SQLiteDBInterface sqlite) {
+                                               SQLiteDBInterface *sqlite) {
     int fl_clients = stoi(Utils::getJasmineGraphProperty("org.jasminegraph.fl_clients"));
     int threadLimit = fl_clients + 1;
     std::thread *workerThreads = new std::thread[threadLimit];
@@ -3042,7 +3042,7 @@ void JasmineGraphServer::initiateCommunication(std::string graphID, std::string 
 }
 
 void JasmineGraphServer::initiateOrgCommunication(std::string graphID, std::string trainingArgs,
-                                                  SQLiteDBInterface sqlite) {
+                                                  SQLiteDBInterface *sqlite) {
     int fl_clients = stoi(Utils::getJasmineGraphProperty("org.jasminegraph.fl_clients"));
     int orgs_count = stoi(Utils::getJasmineGraphProperty("org.jasminegraph.fl.num.orgs"));
     std::string flagPath = Utils::getJasmineGraphProperty("org.jasminegraph.fl.flag.file");
@@ -3119,7 +3119,7 @@ void JasmineGraphServer::initiateOrgCommunication(std::string graphID, std::stri
     server_logger.log("Federated learning commands sent", "info");
 }
 
-void JasmineGraphServer::initiateMerge(std::string graphID, std::string trainingArgs, SQLiteDBInterface sqlite) {
+void JasmineGraphServer::initiateMerge(std::string graphID, std::string trainingArgs, SQLiteDBInterface *sqlite) {
     int count = 0;
     JasmineGraphTrainingSchedular *schedular = new JasmineGraphTrainingSchedular();
     map<string, map<int, int>> scheduleForAllHosts = schedular->schedulePartitionTraining(graphID);

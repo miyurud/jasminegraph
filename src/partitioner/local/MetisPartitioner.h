@@ -64,7 +64,7 @@ class MetisPartitioner {
     int nParts = 0;
     string outputFilePath;
     bool zeroflag = false;
-    SQLiteDBInterface sqlite;
+    SQLiteDBInterface *sqlite;
     int graphID;
     string graphType;
     int smallestVertex = std::numeric_limits<int>::max();

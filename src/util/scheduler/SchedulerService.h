@@ -26,7 +26,7 @@ class SchedulerService {
     static void startScheduler();
     static void startPerformanceScheduler();
 
-    static SQLiteDBInterface sqlite;
+    static SQLiteDBInterface *sqlite;
     static PerformanceSQLiteDBInterface perfSqlite;
 };
 

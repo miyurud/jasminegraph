@@ -84,10 +84,10 @@ std::string Utils::getJasmineGraphProperty(std::string key) {
     return NULL;
 }
 
-std::vector<Utils::worker> Utils::getWorkerList(SQLiteDBInterface sqlite) {
+std::vector<Utils::worker> Utils::getWorkerList(SQLiteDBInterface *sqlite) {
     vector<Utils::worker> workerVector;
     std::vector<vector<pair<string, string>>> v =
-        sqlite.runSelect("SELECT idworker,user,ip,server_port,server_data_port FROM worker;");
+        sqlite->runSelect("SELECT idworker,user,ip,server_port,server_data_port FROM worker;");
     for (int i = 0; i < v.size(); i++) {
         string workerID = v[i][0].second;
         string user = v[i][1].second;
@@ -318,14 +318,14 @@ int Utils::unzipFile(std::string filePath, std::string mode) {
  * This method checks if a host exists in JasmineGraph MetaBD.
  * This method uses the name and ip of the host.
  */
-bool Utils::hostExists(string name, string ip, std::string workerPort, SQLiteDBInterface sqlite) {
+bool Utils::hostExists(string name, string ip, std::string workerPort, SQLiteDBInterface *sqlite) {
     bool result = true;
     string stmt = "SELECT COUNT( * ) FROM worker WHERE name LIKE '" + name + "' AND ip LIKE '" + ip +
                   "' AND server_port LIKE '" + workerPort + "';";
     if (ip == "") {
         stmt = "SELECT COUNT( * ) FROM worker WHERE name LIKE '" + name + "';";
     }
-    std::vector<vector<pair<string, string>>> v = sqlite.runSelect(stmt);
+    std::vector<vector<pair<string, string>>> v = sqlite->runSelect(stmt);
     int count = std::stoi(v[0][0].second);
     if (count == 0) {
         result = false;
@@ -333,10 +333,10 @@ bool Utils::hostExists(string name, string ip, std::string workerPort, SQLiteDBI
     return result;
 }
 
-string Utils::getHostID(string hostName, SQLiteDBInterface sqlite) {
+string Utils::getHostID(string hostName, SQLiteDBInterface *sqlite) {
     map<string, string> hostIDMap;
     std::vector<vector<pair<string, string>>> v =
-        sqlite.runSelect("SELECT idhost FROM host where name LIKE '" + hostName + "';");
+        sqlite->runSelect("SELECT idhost FROM host where name LIKE '" + hostName + "';");
     string id = v[0][0].second;
 
     return id;
@@ -368,10 +368,10 @@ int Utils::unzipDirectory(std::string filePath) {
     return status;
 }
 
-void Utils::assignPartitionsToWorkers(int numberOfWorkers, SQLiteDBInterface sqlite) {
-    sqlite.runUpdate("DELETE FROM worker_has_partition");
+void Utils::assignPartitionsToWorkers(int numberOfWorkers, SQLiteDBInterface *sqlite) {
+    sqlite->runUpdate("DELETE FROM worker_has_partition");
 
-    std::vector<vector<pair<string, string>>> v = sqlite.runSelect("SELECT idpartition, graph_idgraph FROM partition;");
+    std::vector<vector<pair<string, string>>> v = sqlite->runSelect("SELECT idpartition, graph_idgraph FROM partition;");
     int workerCounter = 0;
     string valueString;
     string sqlStatement =
@@ -395,7 +395,7 @@ void Utils::assignPartitionsToWorkers(int numberOfWorkers, SQLiteDBInterface sql
         }
         valueString = valueString.substr(0, valueString.length() - 1);
         sqlStatement = sqlStatement + valueString;
-        sqlite.runInsert(sqlStatement);
+        sqlite->runInsert(sqlStatement);
     }
 }
 

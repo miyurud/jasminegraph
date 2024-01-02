@@ -16,7 +16,7 @@ limitations under the License.
 using namespace std;
 using namespace __gnu_cxx;
 
-RDFPartitioner::RDFPartitioner(SQLiteDBInterface *sqlite) { this->sqlite = *sqlite; }
+RDFPartitioner::RDFPartitioner(SQLiteDBInterface *sqlite) { this->sqlite = sqlite; }
 
 void RDFPartitioner::convertWithoutDistribution(string graphName, int graphID, string inputFilePath,
                                                 string outputFilePath, int nParts, bool isDistributedCentralPartitions,

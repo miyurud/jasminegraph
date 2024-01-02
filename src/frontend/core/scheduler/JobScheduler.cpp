@@ -26,7 +26,7 @@ std::vector<std::future<void>> JobScheduler::intermRes;
 bool workerResponded;
 std::vector<std::string> highPriorityGraphList;
 
-JobScheduler::JobScheduler(SQLiteDBInterface sqlite, PerformanceSQLiteDBInterface perfDB) {
+JobScheduler::JobScheduler(SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface perfDB) {
     this->sqlite = sqlite;
     this->perfSqlite = perfDB;
 }
@@ -100,11 +100,11 @@ void JobScheduler::init() {
     pthread_create(&schedulerThread, NULL, startScheduler, this);
 }
 
-void JobScheduler::processJob(JobRequest request, SQLiteDBInterface sqlite, PerformanceSQLiteDBInterface perfDB) {
+void JobScheduler::processJob(JobRequest request, SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface perfDB) {
     intermRes.push_back(std::async(std::launch::async, JobScheduler::executeJob, request, sqlite, perfDB));
 }
 
-void JobScheduler::executeJob(JobRequest request, SQLiteDBInterface sqlite, PerformanceSQLiteDBInterface perfDB) {
+void JobScheduler::executeJob(JobRequest request, SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface perfDB) {
     ExecutorFactory *executorFactory = new ExecutorFactory(sqlite, perfDB);
     AbstractExecutor *abstractExecutor = executorFactory->getExecutor(request);
     if (abstractExecutor == nullptr) {

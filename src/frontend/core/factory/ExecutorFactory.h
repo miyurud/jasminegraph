@@ -24,11 +24,11 @@ limitations under the License.
 
 class ExecutorFactory {
  public:
-    ExecutorFactory(SQLiteDBInterface db, PerformanceSQLiteDBInterface perfDb);
+    ExecutorFactory(SQLiteDBInterface *db, PerformanceSQLiteDBInterface perfDb);
     AbstractExecutor* getExecutor(JobRequest jobRequest);
 
  private:
-    SQLiteDBInterface sqliteDB;
+    SQLiteDBInterface *sqliteDB;
     PerformanceSQLiteDBInterface perfDB;
 };
 
