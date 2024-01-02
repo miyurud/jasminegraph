@@ -75,8 +75,8 @@ class JasmineGraphFrontEnd {
 
     static int getUid();
 
-    static long getSLAForGraphId(SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface perfSqlite, std::string graphId,
-                                 std::string command, std::string category);
+    static long getSLAForGraphId(SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface perfSqlite,
+                                 std::string graphId, std::string command, std::string category);
 
     static int getRunningHighPriorityTaskCount();
     static bool areRunningJobsForSameGraph();

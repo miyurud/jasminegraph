@@ -371,7 +371,8 @@ int Utils::unzipDirectory(std::string filePath) {
 void Utils::assignPartitionsToWorkers(int numberOfWorkers, SQLiteDBInterface *sqlite) {
     sqlite->runUpdate("DELETE FROM worker_has_partition");
 
-    std::vector<vector<pair<string, string>>> v = sqlite->runSelect("SELECT idpartition, graph_idgraph FROM partition;");
+    std::vector<vector<pair<string, string>>> v =
+        sqlite->runSelect("SELECT idpartition, graph_idgraph FROM partition;");
     int workerCounter = 0;
     string valueString;
     string sqlStatement =
