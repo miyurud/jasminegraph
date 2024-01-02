@@ -181,7 +181,7 @@ class JasmineGraphServer {
 
     static void initiateOrgCommunication(std::string graphID, std::string trainingArgs, SQLiteDBInterface *sqlite);
 
-    void initiateMerge(std::string graphID, std::string trainingArgs, SQLiteDBInterface *sqlite);
+    void initiateMerge(std::string graphID, std::string trainingArgs, const SQLiteDBInterface *sqlite);
 
     bool initiatePredict(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
                          string partCount);

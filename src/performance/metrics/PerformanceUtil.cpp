@@ -17,10 +17,12 @@ using namespace std::chrono;
 std::map<std::string, std::vector<ResourceUsageInfo>> resourceUsageMap;
 
 Logger scheduler_logger;
-SQLiteDBInterface *sqlLiteDB = new SQLiteDBInterface();
-PerformanceSQLiteDBInterface *perfDb = new PerformanceSQLiteDBInterface();
+SQLiteDBInterface *sqlLiteDB;
+PerformanceSQLiteDBInterface *perfDb;
 
 void PerformanceUtil::init() {
+    sqlLiteDB = new SQLiteDBInterface();
+    perfDb = new PerformanceSQLiteDBInterface();
     sqlLiteDB->init();
     perfDb->init();
 }

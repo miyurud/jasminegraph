@@ -55,7 +55,7 @@ struct Place {
 class PerformanceUtil {
  public:
     // PerformanceUtil(SQLiteDBInterface *sqlLiteDB, PerformanceSQLiteDBInterface perfDb);
-    void init();
+    static void init();
     static int collectPerformanceStatistics();
     static int collectSLAResourceConsumption(std::vector<Place> placeList, std::string graphId, std::string command,
                                              std::string category, std::string masterIP, int elapsedTime,

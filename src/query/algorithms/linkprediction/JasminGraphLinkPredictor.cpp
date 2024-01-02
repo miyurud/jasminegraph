@@ -68,7 +68,7 @@ void JasminGraphLinkPredictor::initiateLinkPrediction(std::string graphID, std::
         }
     }
     std::string vertexCount;
-    SQLiteDBInterface *refToSqlite = new SQLiteDBInterface();
+    auto *refToSqlite = new SQLiteDBInterface();
     refToSqlite->init();
     string sqlStatement =
         "SELECT vertexcount FROM graph WHERE "

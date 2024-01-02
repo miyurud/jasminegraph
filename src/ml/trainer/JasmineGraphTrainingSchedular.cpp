@@ -27,7 +27,7 @@ Logger trainScheduler_logger;
 map<string, std::map<int, int>> JasmineGraphTrainingSchedular::schedulePartitionTraining(std::string graphID) {
     map<string, std::map<int, int>> scheduleForEachHost;
     vector<pair<string, string>> hostData;
-    SQLiteDBInterface *refToSqlite = new SQLiteDBInterface();
+    auto *refToSqlite = new SQLiteDBInterface();
     refToSqlite->init();
 
     string sqlStatement =
@@ -97,7 +97,7 @@ map<string, std::map<int, int>> JasmineGraphTrainingSchedular::schedulePartition
 }
 
 long JasmineGraphTrainingSchedular::estimateMemory(int vertexCount, string graph_id) {
-    SQLiteDBInterface *refToSqlite = new SQLiteDBInterface();
+    auto *refToSqlite = new SQLiteDBInterface();
     refToSqlite->init();
 
     string sqlStatement = "SELECT feature_count FROM graph WHERE idgraph = " + graph_id;
@@ -187,7 +187,7 @@ map<string, std::map<int, map<int, int>>> JasmineGraphTrainingSchedular::schedul
     std::string graphID) {
     map<string, map<int, map<int, int>>> scheduleForEachHost;
     vector<pair<string, string>> hostData;
-    SQLiteDBInterface *refToSqlite = new SQLiteDBInterface();
+    auto *refToSqlite = new SQLiteDBInterface();
     refToSqlite->init();
 
     // Get graph attribute metadata
