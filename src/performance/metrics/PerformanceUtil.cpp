@@ -896,7 +896,7 @@ void PerformanceUtil::logLoadAverage() {
     std::cout << "###PERF### CURRENT LOAD: " + std::to_string(currentLoadAverage) << std::endl;
 }
 
-void PerformanceUtil::updateResourceConsumption(PerformanceSQLiteDBInterface performanceDb, std::string graphId,
+void PerformanceUtil::updateResourceConsumption(PerformanceSQLiteDBInterface *performanceDb, std::string graphId,
                                                 int partitionCount, std::vector<Place> placeList,
                                                 std::string slaCategoryId) {
     std::vector<Place>::iterator placeListIterator;
@@ -911,7 +911,7 @@ void PerformanceUtil::updateResourceConsumption(PerformanceSQLiteDBInterface per
         std::string query = "SELECT id from graph_sla where graph_id='" + graphId + "' and partition_count='" +
                             std::to_string(partitionCount) + "' and id_sla_category='" + slaCategoryId + "';";
 
-        std::vector<vector<pair<string, string>>> results = performanceDb.runSelect(query);
+        std::vector<vector<pair<string, string>>> results = performanceDb->runSelect(query);
 
         if (results.size() == 1) {
             graphSlaId = results[0][0].second;
@@ -920,7 +920,7 @@ void PerformanceUtil::updateResourceConsumption(PerformanceSQLiteDBInterface per
                 "insert into graph_sla (id_sla_category, graph_id, partition_count, sla_value, attempt) VALUES ('" +
                 slaCategoryId + "','" + graphId + "'," + std::to_string(partitionCount) + ",0,0);";
 
-            int slaId = performanceDb.runInsert(insertQuery);
+            int slaId = performanceDb->runInsert(insertQuery);
             graphSlaId = std::to_string(slaId);
         }
 
@@ -945,12 +945,12 @@ void PerformanceUtil::updateResourceConsumption(PerformanceSQLiteDBInterface per
             valuesString = valuesString.substr(0, valuesString.length() - 1);
             slaPerfSql = slaPerfSql + valuesString;
 
-            performanceDb.runInsert(slaPerfSql);
+            performanceDb->runInsert(slaPerfSql);
         }
     }
 }
 
-void PerformanceUtil::updateRemoteResourceConsumption(PerformanceSQLiteDBInterface performanceDb, std::string graphId,
+void PerformanceUtil::updateRemoteResourceConsumption(PerformanceSQLiteDBInterface *performanceDb, std::string graphId,
                                                       int partitionCount, std::vector<Place> placeList,
                                                       std::string slaCategoryId, std::string masterIP) {
     std::vector<Place>::iterator placeListIterator;
@@ -984,7 +984,7 @@ void PerformanceUtil::updateRemoteResourceConsumption(PerformanceSQLiteDBInterfa
             std::string query = "SELECT id from graph_sla where graph_id='" + graphId + "' and partition_count='" +
                                 std::to_string(partitionCount) + "' and id_sla_category='" + slaCategoryId + "';";
 
-            std::vector<vector<pair<string, string>>> results = performanceDb.runSelect(query);
+            std::vector<vector<pair<string, string>>> results = performanceDb->runSelect(query);
 
             if (results.size() == 1) {
                 graphSlaId = results[0][0].second;
@@ -993,7 +993,7 @@ void PerformanceUtil::updateRemoteResourceConsumption(PerformanceSQLiteDBInterfa
                     "insert into graph_sla (id_sla_category, graph_id, partition_count, sla_value, attempt) VALUES ('" +
                     slaCategoryId + "','" + graphId + "'," + std::to_string(partitionCount) + ",0,0);";
 
-                int slaId = performanceDb.runInsert(insertQuery);
+                int slaId = performanceDb->runInsert(insertQuery);
                 graphSlaId = std::to_string(slaId);
             }
 
@@ -1016,7 +1016,7 @@ void PerformanceUtil::updateRemoteResourceConsumption(PerformanceSQLiteDBInterfa
                 valuesString = valuesString.substr(0, valuesString.length() - 1);
                 slaPerfSql = slaPerfSql + valuesString;
 
-                performanceDb.runInsert(slaPerfSql);
+                performanceDb->runInsert(slaPerfSql);
             }
         }
     }

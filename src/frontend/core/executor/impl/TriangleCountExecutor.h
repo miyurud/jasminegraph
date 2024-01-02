@@ -29,7 +29,7 @@ class TriangleCountExecutor : public AbstractExecutor {
  public:
     TriangleCountExecutor();
 
-    TriangleCountExecutor(SQLiteDBInterface *db, PerformanceSQLiteDBInterface perfDb, JobRequest jobRequest);
+    TriangleCountExecutor(SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb, JobRequest jobRequest);
 
     void execute();
 
@@ -75,13 +75,13 @@ class TriangleCountExecutor : public AbstractExecutor {
     static std::map<std::string, std::string> combinationWorkerMap;
     static std::map<long, std::map<long, std::vector<long>>> triangleTree;
 
-    static int collectPerformaceData(PerformanceSQLiteDBInterface perDB, std::string graphId, std::string command,
+    static int collectPerformaceData(PerformanceSQLiteDBInterface *perDB, std::string graphId, std::string command,
                                      std::string category, int partitionCount, std::string masterIP,
                                      bool autoCalibrate);
 
  private:
     SQLiteDBInterface *sqlite;
-    PerformanceSQLiteDBInterface perfDB;
+    PerformanceSQLiteDBInterface *perfDB;
 };
 
 #endif  // JASMINEGRAPH_TRIANGLECOUNTEXECUTOR_H

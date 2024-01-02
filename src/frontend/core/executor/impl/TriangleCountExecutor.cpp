@@ -27,7 +27,7 @@ std::mutex responseVectorMutex;
 
 TriangleCountExecutor::TriangleCountExecutor() {}
 
-TriangleCountExecutor::TriangleCountExecutor(SQLiteDBInterface *db, PerformanceSQLiteDBInterface perfDb,
+TriangleCountExecutor::TriangleCountExecutor(SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb,
                                              JobRequest jobRequest) {
     this->sqlite = db;
     this->perfDB = perfDb;
@@ -193,7 +193,7 @@ void TriangleCountExecutor::execute() {
         graphId + "' and graph_sla.partition_count='" + std::to_string(partitionCount) +
         "' and sla_category.category='" + Conts::SLA_CATEGORY::LATENCY + "';";
 
-    std::vector<vector<pair<string, string>>> queryResults = perfDB.runSelect(query);
+    std::vector<vector<pair<string, string>>> queryResults = perfDB->runSelect(query);
 
     if (queryResults.size() > 0) {
         std::string attemptString = queryResults[0][0].second;
@@ -1691,7 +1691,7 @@ int TriangleCountExecutor::getUid() {
     return ++uid;
 }
 
-int TriangleCountExecutor::collectPerformaceData(PerformanceSQLiteDBInterface perDB, std::string graphId,
+int TriangleCountExecutor::collectPerformaceData(PerformanceSQLiteDBInterface *perDB, std::string graphId,
                                                  std::string command, std::string category, int partitionCount,
                                                  std::string masterIP, bool autoCalibrate) {
     int elapsedTime = 0;

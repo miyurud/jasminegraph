@@ -75,7 +75,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
 static void stop_stream_kafka_command(int connFd, KafkaConnector *kstream, bool *loop_exit_p);
 static void process_dataset_command(int connFd, bool *loop_exit_p);
 static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
-                              PerformanceSQLiteDBInterface perfSqlite, JobScheduler jobScheduler, bool *loop_exit_p);
+                              PerformanceSQLiteDBInterface *perfSqlite, JobScheduler jobScheduler, bool *loop_exit_p);
 static void vertex_count_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void edge_count_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void merge_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
@@ -87,11 +87,11 @@ static void egonet_command(int connFd, bool *loop_exit_p);
 static void duplicate_centralstore_command(int connFd, bool *loop_exit_p);
 static void predict_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void start_remote_worker_command(int connFd, bool *loop_exit_p);
-static void sla_command(int connFd, SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface perfSqlite,
+static void sla_command(int connFd, SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfSqlite,
                         bool *loop_exit_p);
 
 void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
-                            PerformanceSQLiteDBInterface perfSqlite, JobScheduler jobScheduler) {
+                            PerformanceSQLiteDBInterface *perfSqlite, JobScheduler jobScheduler) {
     frontend_logger.info("Thread No: " + to_string(pthread_self()));
     frontend_logger.info("Master IP: " + masterIP);
     char data[FRONTEND_DATA_LENGTH + 1];
@@ -221,7 +221,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
     return NULL;
 }
 
-JasmineGraphFrontEnd::JasmineGraphFrontEnd(SQLiteDBInterface *db, PerformanceSQLiteDBInterface perfDb,
+JasmineGraphFrontEnd::JasmineGraphFrontEnd(SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb,
                                            std::string masterIP, JobScheduler jobScheduler) {
     this->sqlite = db;
     this->masterIP = masterIP;
@@ -446,7 +446,7 @@ int JasmineGraphFrontEnd::getUid() {
     return ++uid;
 }
 
-long JasmineGraphFrontEnd::getSLAForGraphId(SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface perfSqlite,
+long JasmineGraphFrontEnd::getSLAForGraphId(SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfSqlite,
                                             std::string graphId, std::string command, std::string category) {
     long graphSLAValue = 0;
 
@@ -468,7 +468,7 @@ long JasmineGraphFrontEnd::getSLAForGraphId(SQLiteDBInterface *sqlite, Performan
         "graph_sla.graph_id='" +
         graphId + "' and graph_sla.partition_count='" + std::to_string(partitionCount) + "';";
 
-    std::vector<vector<pair<string, string>>> slaResults = perfSqlite.runSelect(graphSlaQuery);
+    std::vector<vector<pair<string, string>>> slaResults = perfSqlite->runSelect(graphSlaQuery);
 
     if (slaResults.size() > 0) {
         string currentSlaString = slaResults[0][0].second;
@@ -1290,7 +1290,7 @@ static void process_dataset_command(int connFd, bool *loop_exit_p) {
 }
 
 static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
-                              PerformanceSQLiteDBInterface perfSqlite, JobScheduler jobScheduler, bool *loop_exit_p) {
+                              PerformanceSQLiteDBInterface *perfSqlite, JobScheduler jobScheduler, bool *loop_exit_p) {
     // add RDF graph
     int uniqueId = JasmineGraphFrontEnd::getUid();
     int result_wr = write(connFd, GRAPHID_SEND.c_str(), FRONTEND_COMMAND_LENGTH);
@@ -2146,7 +2146,7 @@ static void start_remote_worker_command(int connFd, bool *loop_exit_p) {
     JasmineGraphServer::spawnNewWorker(host, port, dataPort, profile, masterHost, enableNmon);
 }
 
-static void sla_command(int connFd, SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface perfSqlite,
+static void sla_command(int connFd, SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfSqlite,
                         bool *loop_exit_p) {
     int result_wr = write(connFd, COMMAND.c_str(), COMMAND.size());
     if (result_wr < 0) {
@@ -2170,7 +2170,7 @@ static void sla_command(int connFd, SQLiteDBInterface *sqlite, PerformanceSQLite
     frontend_logger.info("Data received: " + command_info);
 
     std::vector<vector<pair<string, string>>> categoryResults =
-        perfSqlite.runSelect("SELECT id FROM sla_category where command='" + command_info + "';");
+        perfSqlite->runSelect("SELECT id FROM sla_category where command='" + command_info + "';");
 
     string slaCategoryIds;
 
@@ -2185,7 +2185,7 @@ static void sla_command(int connFd, SQLiteDBInterface *sqlite, PerformanceSQLite
 
     std::stringstream ss;
     std::vector<vector<pair<string, string>>> v =
-        perfSqlite.runSelect("SELECT graph_id, partition_count, sla_value FROM graph_sla where id_sla_category in (" +
+        perfSqlite->runSelect("SELECT graph_id, partition_count, sla_value FROM graph_sla where id_sla_category in (" +
                              adjustedIdList + ");");
     for (std::vector<vector<pair<string, string>>>::iterator i = v.begin(); i != v.end(); ++i) {
         std::stringstream slass;

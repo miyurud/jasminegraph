@@ -44,11 +44,11 @@ limitations under the License.
 class JasmineGraphHashMapCentralStore;
 
 void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
-                            PerformanceSQLiteDBInterface perfSqlite, JobScheduler jobScheduler);
+                            PerformanceSQLiteDBInterface *perfSqlite, JobScheduler jobScheduler);
 
 class JasmineGraphFrontEnd {
  public:
-    JasmineGraphFrontEnd(SQLiteDBInterface *db, PerformanceSQLiteDBInterface perfDb, std::string masterIP,
+    JasmineGraphFrontEnd(SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb, std::string masterIP,
                          JobScheduler jobScheduler);
 
     int run();
@@ -75,7 +75,7 @@ class JasmineGraphFrontEnd {
 
     static int getUid();
 
-    static long getSLAForGraphId(SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface perfSqlite,
+    static long getSLAForGraphId(SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfSqlite,
                                  std::string graphId, std::string command, std::string category);
 
     static int getRunningHighPriorityTaskCount();
@@ -89,7 +89,7 @@ class JasmineGraphFrontEnd {
  private:
     SQLiteDBInterface *sqlite;
     std::string masterIP;
-    PerformanceSQLiteDBInterface perfSqlite;
+    PerformanceSQLiteDBInterface *perfSqlite;
     JobScheduler jobScheduler;
 };
 

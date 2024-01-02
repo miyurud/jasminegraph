@@ -93,7 +93,7 @@ class Utils {
 
     static void assignPartitionsToWorkers(int numberOfWorkers, SQLiteDBInterface *sqlite);
 
-    static void updateSLAInformation(PerformanceSQLiteDBInterface perfSqlite, std::string graphId, int partitionCount,
+    static void updateSLAInformation(PerformanceSQLiteDBInterface *perfSqlite, std::string graphId, int partitionCount,
                                      long newSlaValue, std::string command, std::string category);
 
     static void editFlagZero(std::string flagPath);

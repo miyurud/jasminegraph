@@ -135,17 +135,19 @@ long JasmineGraphTrainingSchedular::estimateMemory(int vertexCount, string graph
 }
 
 long JasmineGraphTrainingSchedular::getAvailableMemory(string hostname) {
-    PerformanceSQLiteDBInterface refToPerfDb = *new PerformanceSQLiteDBInterface();
-    refToPerfDb.init();
+    PerformanceSQLiteDBInterface *refToPerfDb = new PerformanceSQLiteDBInterface();
+    refToPerfDb->init();
     trainScheduler_logger.log("Fetching available host " + hostname + " memory", "info");
     string perfSqlStatement =
         "SELECT memory_usage FROM host_performance_data INNER JOIN (SELECT idhost FROM host WHERE ip = '" + hostname +
         "') USING (idhost) ORDER BY date_time DESC LIMIT 1";
-    vector<vector<pair<string, string>>> result = refToPerfDb.runSelect(perfSqlStatement);
+    vector<vector<pair<string, string>>> result = refToPerfDb->runSelect(perfSqlStatement);
     if (result.size() == 0) {
         return 0;
     }
     long availableMemory = stol(result[0][0].second);
+    refToPerfDb->finalize();
+    delete refToPerfDb;
     return availableMemory;
 }
 

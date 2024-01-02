@@ -56,6 +56,11 @@ void *runbackend(void *dummyPt) {
     return NULL;
 }
 
+JasmineGraphServer::JasmineGraphServer() {
+    this->sqlite = new SQLiteDBInterface();
+    this->sqlite->init();
+    this->performanceSqlite = new PerformanceSQLiteDBInterface();
+    this->performanceSqlite->init();
 JasmineGraphServer *JasmineGraphServer::getInstance() {
     static JasmineGraphServer *instance = nullptr;
     // TODO(thevindu-w): synchronize
@@ -70,6 +75,7 @@ JasmineGraphServer::JasmineGraphServer() {}
 JasmineGraphServer::~JasmineGraphServer() {
     server_logger.info("Freeing up server resources.");
     sqlite->finalize();
+    performanceSqlite->finalize();
 }
 
 int JasmineGraphServer::run(std::string profile, std::string masterIp, int numberofWorkers, std::string workerIps,
@@ -77,20 +83,7 @@ int JasmineGraphServer::run(std::string profile, std::string masterIp, int numbe
     server_logger.log("Running the server...", "info");
     std::vector<int> masterPortVector;
 
-    this->sqlite = new SQLiteDBInterface();
-    if (this->sqlite->init()) {
-        server_logger.error("Error initializing SQLiteDBInterface");
-        delete this->sqlite;
-        return 1;
-    }
-    this->performanceSqlite = new PerformanceSQLiteDBInterface();
-    if (this->performanceSqlite->init()) {
-        server_logger.error("Error initializing PerformanceSQLiteDBInterface");
-        delete this->performanceSqlite;
-        delete this->sqlite;
-        return 1;
-    }
-    this->jobScheduler = *new JobScheduler(*(this->sqlite), *(this->performanceSqlite));
+    this->jobScheduler = *new JobScheduler(this->sqlite, this->performanceSqlite);
     this->jobScheduler.init();
     if (masterIp.empty()) {
         this->masterHost = Utils::getJasmineGraphProperty("org.jasminegraph.server.host");
@@ -2501,10 +2494,10 @@ void JasmineGraphServer::backupPerformanceDB() {
 }
 
 void JasmineGraphServer::clearPerformanceDB() {
-    this->performanceSqlite->runUpdate("delete from host_performance_data");
-    this->performanceSqlite->runUpdate("delete from place_performance_data");
-    this->performanceSqlite->runUpdate("delete from place");
-    this->performanceSqlite->runUpdate("delete from host");
+    performanceSqlite->runUpdate("delete from host_performance_data");
+    performanceSqlite->runUpdate("delete from place_performance_data");
+    performanceSqlite->runUpdate("delete from place");
+    performanceSqlite->runUpdate("delete from host");
 }
 
 void JasmineGraphServer::addInstanceDetailsToPerformanceDB(std::string host, std::vector<int> portVector,

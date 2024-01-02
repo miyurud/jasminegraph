@@ -400,12 +400,12 @@ void Utils::assignPartitionsToWorkers(int numberOfWorkers, SQLiteDBInterface *sq
     }
 }
 
-void Utils::updateSLAInformation(PerformanceSQLiteDBInterface perfSqlite, std::string graphId, int partitionCount,
+void Utils::updateSLAInformation(PerformanceSQLiteDBInterface *perfSqlite, std::string graphId, int partitionCount,
                                  long newSlaValue, std::string command, std::string category) {
     std::string categoryQuery =
         "SELECT id from sla_category where command='" + command + "' and category='" + category + "'";
 
-    std::vector<vector<pair<string, string>>> categoryResults = perfSqlite.runSelect(categoryQuery);
+    std::vector<vector<pair<string, string>>> categoryResults = perfSqlite->runSelect(categoryQuery);
 
     if (categoryResults.size() == 1) {
         string slaCategoryId = categoryResults[0][0].second;
@@ -414,7 +414,7 @@ void Utils::updateSLAInformation(PerformanceSQLiteDBInterface perfSqlite, std::s
                             "' and partition_count='" + std::to_string(partitionCount) + "' and id_sla_category='" +
                             slaCategoryId + "';";
 
-        std::vector<vector<pair<string, string>>> results = perfSqlite.runSelect(query);
+        std::vector<vector<pair<string, string>>> results = perfSqlite->runSelect(query);
 
         if (results.size() == 1) {
             std::string slaId = results[0][0].second;
@@ -432,7 +432,7 @@ void Utils::updateSLAInformation(PerformanceSQLiteDBInterface perfSqlite, std::s
                 std::string updateQuery = "UPDATE graph_sla set sla_value='" + std::to_string(newSla) + "', attempt='" +
                                           std::to_string(attempts) + "' where id = '" + slaId + "'";
 
-                perfSqlite.runUpdate(updateQuery);
+                perfSqlite->runUpdate(updateQuery);
             }
         } else {
             std::string insertQuery =
@@ -440,7 +440,7 @@ void Utils::updateSLAInformation(PerformanceSQLiteDBInterface perfSqlite, std::s
                 slaCategoryId + "','" + graphId + "'," + std::to_string(partitionCount) + "," +
                 std::to_string(newSlaValue) + ",0);";
 
-            perfSqlite.runInsert(insertQuery);
+            perfSqlite->runInsert(insertQuery);
         }
     } else {
         util_logger.log("Invalid SLA " + category + " for " + command + " command", "error");

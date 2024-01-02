@@ -54,7 +54,7 @@ struct Place {
 
 class PerformanceUtil {
  public:
-    // PerformanceUtil(SQLiteDBInterface *sqlLiteDB, PerformanceSQLiteDBInterface perfDb);
+    // PerformanceUtil(SQLiteDBInterface *sqlLiteDB, PerformanceSQLiteDBInterface *perfDb);
     static void init();
     static int collectPerformanceStatistics();
     static int collectSLAResourceConsumption(std::vector<Place> placeList, std::string graphId, std::string command,
@@ -67,9 +67,9 @@ class PerformanceUtil {
 
     static void logLoadAverage();
     static std::vector<Place> getHostReporterList();
-    static void updateResourceConsumption(PerformanceSQLiteDBInterface performanceDb, std::string graphId,
+    static void updateResourceConsumption(PerformanceSQLiteDBInterface *performanceDb, std::string graphId,
                                           int partitionCount, std::vector<Place> placeList, std::string slaCategoryId);
-    static void updateRemoteResourceConsumption(PerformanceSQLiteDBInterface performanceDb, std::string graphId,
+    static void updateRemoteResourceConsumption(PerformanceSQLiteDBInterface *performanceDb, std::string graphId,
                                                 int partitionCount, std::vector<Place> placeList,
                                                 std::string slaCategoryId, std::string masterIP);
     static std::string getSLACategoryId(std::string command, std::string category);
@@ -85,7 +85,7 @@ class PerformanceUtil {
 
  private:
     // static SQLiteDBInterface *sqlLiteDB;
-    // static PerformanceSQLiteDBInterface perfDb;
+    // static PerformanceSQLiteDBInterface *perfDb;
     static void collectRemotePerformanceData(std::string host, int port, std::string isVMStatManager,
                                              std::string isResourceAllocationRequired, std::string hostId,
                                              std::string placeId);
