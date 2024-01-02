@@ -1,6 +1,6 @@
 FROM miyurud/jasminegraph-prerequisites:20240101T095619
 
-RUN python3 -m pip install --no-cache-dir gcovr
+RUN python3 -m pip install --no-cache-dir gcovr==6.0
 
 ENV TERM=xterm-256color
 ENV HOME="/home/ubuntu"
@@ -27,4 +27,4 @@ WORKDIR "${JASMINEGRAPH_HOME}/build"
 RUN cmake -DCMAKE_BUILD_TYPE=DEBUG ..
 RUN make -j4
 
-CMD ["bash", "-c", "make -j2 coverage && cp coverage.xml ../coverage/"]
+CMD ["bash", "-c", "LD_LIBRARY_PATH=/usr/local/lib make -j2 coverage && cp coverage.xml ../coverage/"]

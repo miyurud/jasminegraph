@@ -24,6 +24,10 @@ jobs:
       with:
         docker-enabled: true
 
+    - name: Docker Build
+      # Build JasmineGraph docker image
+      run: docker build -t jasminegraph .
+
     - name: Build unit test
       run: docker build -f ./tests/unit/Dockerfile -t jasminegraph:unit .
 
@@ -38,10 +42,6 @@ jobs:
       uses: codecov/codecov-action@v3
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-
-    - name: Docker Build
-      # Build JasmineGraph docker image
-      run: docker build -t jasminegraph .
 
     - name: Run Integration Tests
       run: |
