@@ -16,7 +16,7 @@ K8sWorkerController::K8sWorkerController(std::string masterIp, int numberOfWorke
     // Delete all the workers from the database
     metadb->runUpdate("DELETE FROM worker");
     int workersAttached = this->attachExistingWorkers();
-    for(int i = workersAttached; i < numberOfWorkers; i++) {
+    for (int i = workersAttached; i < numberOfWorkers; i++) {
         this->spawnWorker(i);
     }
 }
@@ -43,10 +43,10 @@ void K8sWorkerController::spawnWorker(int workerId) {
 
     std::string insertQuery = "INSERT INTO worker (host_idhost, server_port, server_data_port, name, ip, idworker) "
                               "VALUES (0, " + std::to_string(Conts::JASMINEGRAPH_FRONTEND_PORT) + ", "
-                              + std::to_string(Conts::JASMINEGRAPH_BACKEND_PORT) + ", " +
-                              "'" + std::string(service->metadata->name) + "', " +
-                              "'" + std::string(service->spec->cluster_ip) + "', " +
-                              std::to_string(workerId) + ")";
+        + std::to_string(Conts::JASMINEGRAPH_BACKEND_PORT) + ", " +
+        "'" + std::string(service->metadata->name) + "', " +
+        "'" + std::string(service->spec->cluster_ip) + "', " +
+        std::to_string(workerId) + ")";
     int status = metadb.runInsert(insertQuery);
     if (status == -1) {
         controller_logger.error("Worker " + std::to_string(workerId) + " database insertion failed");
@@ -74,7 +74,7 @@ void K8sWorkerController::deleteWorker(int workerId) {
 
 int K8sWorkerController::attachExistingWorkers() {
     v1_deployment_list_t *deployment_list =
-            this->interface->getDeploymentList(strdup("deployment=jasminegraph-worker"));
+        this->interface->getDeploymentList(strdup("deployment=jasminegraph-worker"));
 
     if (deployment_list && deployment_list->items->count > 0) {
         listEntry_t *listEntry = NULL;
@@ -90,8 +90,8 @@ int K8sWorkerController::attachExistingWorkers() {
                 if (strcmp(pair->key, "workerId") == 0) {
                     int workerId = std::stoi(static_cast<char *>(pair->value));
                     v1_service_list_t *service_list = this->interface->getServiceList(
-                            strdup(("service=jasminegraph-worker,workerId="
-                                    + std::to_string(workerId)).c_str()));
+                        strdup(("service=jasminegraph-worker,workerId="
+                            + std::to_string(workerId)).c_str()));
 
                     if (!service_list || service_list->items->count == 0) {
                         service = this->interface->createJasmineGraphWorkerService(workerId);
@@ -100,8 +100,8 @@ int K8sWorkerController::attachExistingWorkers() {
                     }
 
                     std::string insertQuery =
-                            "INSERT INTO worker (host_idhost, server_port, server_data_port, name, ip, idworker) "
-                            "VALUES ( 0, " + std::to_string(Conts::JASMINEGRAPH_FRONTEND_PORT) + ", "
+                        "INSERT INTO worker (host_idhost, server_port, server_data_port, name, ip, idworker) "
+                        "VALUES ( 0, " + std::to_string(Conts::JASMINEGRAPH_FRONTEND_PORT) + ", "
                             + std::to_string(Conts::JASMINEGRAPH_BACKEND_PORT) + ", " +
                             "'" + std::string(service->metadata->name) + "', " +
                             "'" + std::string(service->spec->cluster_ip) + "', " +

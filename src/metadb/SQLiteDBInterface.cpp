@@ -23,12 +23,10 @@ Logger db_logger;
 
 SQLiteDBInterface::SQLiteDBInterface() {
     this->databaseLocation = Utils::getJasmineGraphProperty("org.jasminegraph.db.location");
-    this->init();
 }
 
 SQLiteDBInterface::SQLiteDBInterface(string databaseLocation) {
     this->databaseLocation = databaseLocation;
-    this->init();
 }
 
 int SQLiteDBInterface::init() {

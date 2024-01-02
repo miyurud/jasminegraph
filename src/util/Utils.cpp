@@ -632,5 +632,4 @@ inline json yaml2json(const YAML::Node &root) {
 std::string Utils::getJsonStringFromYamlFile(const std::string &yamlFile) {
     YAML::Node yamlNode = YAML::LoadFile(yamlFile);
     return to_string(yaml2json(yamlNode));
-
 }

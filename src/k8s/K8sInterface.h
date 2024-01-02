@@ -2,7 +2,6 @@
 #ifndef JASMINEGRAPH_K8SINTERFACE_H
 #define JASMINEGRAPH_K8SINTERFACE_H
 
-
 #include <string>
 
 extern "C" {
@@ -15,7 +14,7 @@ extern "C" {
 #include <kubernetes/config/incluster_config.h>
 
 class K8sInterface {
-public:
+ public:
     static char *namespace_;
     apiClient_t *apiClient;
 
@@ -36,5 +35,4 @@ public:
     v1_deployment_list_t *getDeploymentList(char *labelSelectors);
 };
 
-
-#endif //JASMINEGRAPH_K8SINTERFACE_H
+#endif  // JASMINEGRAPH_K8SINTERFACE_H

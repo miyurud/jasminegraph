@@ -4,7 +4,7 @@
 #include "../../../src/k8s/K8sInterface.h"
 
 class K8sInterfaceTest : public ::testing::Test {
-protected:
+ protected:
     K8sInterface *interface{};
 
     void SetUp() override {
@@ -22,12 +22,12 @@ TEST_F(K8sInterfaceTest, TestConstructor) {
 
 TEST_F(K8sInterfaceTest, TestGetDeploymentList) {
     v1_deployment_list_t *deployment_list = interface->getDeploymentList(strdup("app=gtest-nginx"));
-    ASSERT_TRUE(deployment_list->items->count == 0);
+    ASSERT_EQ(deployment_list->items->count, 0);
 }
 
 TEST_F(K8sInterfaceTest, TestGetServiceList) {
     v1_service_list_t *service_list = interface->getServiceList(strdup("app=gtest-nginx"));
-    ASSERT_TRUE(service_list->items->count == 0);
+    ASSERT_EQ(service_list->items->count, 0);
 }
 
 TEST_F(K8sInterfaceTest, TestCreateJasmineGraphWorkerDeployment) {
@@ -45,12 +45,12 @@ TEST_F(K8sInterfaceTest, TestCreateJasmineGraphWorkerService) {
 
 TEST_F(K8sInterfaceTest, TestGetDeploymentListAfterDeployment) {
     v1_deployment_list_t *deployment_list = interface->getDeploymentList(strdup("deployment=jasminegraph-worker"));
-    ASSERT_TRUE(deployment_list->items->count == 1);
+    ASSERT_EQ(deployment_list->items->count, 1);
 }
 
 TEST_F(K8sInterfaceTest, TestGetServiceListAfterServiceCreation) {
     v1_service_list_t *service_list = interface->getServiceList(strdup("service=jasminegraph-worker"));
-    ASSERT_TRUE(service_list->items->count == 1);
+    ASSERT_EQ(service_list->items->count, 1);
 }
 
 TEST_F(K8sInterfaceTest, TestDeleteJasmineGraphWorkerDeployment) {

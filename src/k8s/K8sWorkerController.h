@@ -9,9 +9,8 @@ extern "C" {
 #include "./K8sInterface.h"
 #include "../metadb/SQLiteDBInterface.h"
 
-
 class K8sWorkerController {
-private:
+ private:
     K8sInterface *interface;
     SQLiteDBInterface metadb;
 
@@ -24,8 +23,7 @@ private:
 
     int attachExistingWorkers();
 
-public:
-
+ public:
     K8sWorkerController(std::string masterIp, int numberOfWorkers, SQLiteDBInterface *metadb);
 
     ~K8sWorkerController();
@@ -37,5 +35,4 @@ public:
     void setNumberOfWorkers(int newNumberOfWorkers);
 };
 
-#endif //JASMINEGRAPH_K8SWORKERCONTROLLER_H
-
+#endif  // JASMINEGRAPH_K8SWORKERCONTROLLER_H

@@ -4,8 +4,8 @@
 #include "../util/logger/Logger.h"
 #include "../util/Utils.h"
 
-//#define DEBUG // enable debug logging
-//#define LOCAL_CONFIG // enable local config
+// #define DEBUG // enable debug logging
+// #define LOCAL_CONFIG // enable local config
 
 Logger k8s_logger;
 char *K8sInterface::namespace_ = strdup("default");
@@ -41,22 +41,21 @@ K8sInterface::~K8sInterface() {
 v1_deployment_list_t *K8sInterface::getDeploymentList(char *labelSelectors) {
     v1_deployment_list_t *deployment_list = NULL;
     deployment_list = AppsV1API_listNamespacedDeployment(apiClient,
-                                           namespace_,    /*namespace */
-                                           NULL,    /* pretty */
-                                           NULL,    /* allowWatchBookmarks */
-                                           NULL,    /* continue */
-                                           NULL,    /* fieldSelector */
-                                           labelSelectors,    /* labelSelector */
-                                           NULL,    /* limit */
-                                           NULL,    /* resourceVersion */
-                                           NULL,    /* resourceVersionMatch */
-                                           NULL,    /* sendInitialEvents */
-                                           NULL,    /* timeoutSeconds */
-                                           NULL     /* watch */
-    );
+                                                         namespace_,    /*namespace */
+                                                         NULL,    /* pretty */
+                                                         NULL,    /* allowWatchBookmarks */
+                                                         NULL,    /* continue */
+                                                         NULL,    /* fieldSelector */
+                                                         labelSelectors,    /* labelSelector */
+                                                         NULL,    /* limit */
+                                                         NULL,    /* resourceVersion */
+                                                         NULL,    /* resourceVersionMatch */
+                                                         NULL,    /* sendInitialEvents */
+                                                         NULL,    /* timeoutSeconds */
+                                                         NULL);   /* watch */
 
 #ifdef DEBUG
-    if(deployment_list) {
+    if (deployment_list) {
         std::string pod_names;
         listEntry_t *listEntry = NULL;
         v1_pod_t *pod = NULL;
@@ -92,11 +91,10 @@ v1_service_list_t *K8sInterface::getServiceList(char *labelSelectors) {
                                                    NULL,    /* resourceVersionMatch */
                                                    NULL,    /* sendInitialEvents */
                                                    NULL,    /* timeoutSeconds */
-                                                   NULL     /* watch */
-    );
+                                                   NULL);  /* watch */
 
 #ifdef DEBUG
-    if(service_list) {
+    if (service_list) {
         std::string service_names;
         listEntry_t *listEntry = NULL;
         v1_service_t *service = NULL;
@@ -133,8 +131,7 @@ v1_deployment_t *K8sInterface::createJasmineGraphWorkerDeployment(int workerId, 
                                                                    NULL,
                                                                    NULL,
                                                                    NULL,
-                                                                   NULL
-    );
+                                                                   NULL);
     return result;
 }
 
@@ -148,8 +145,7 @@ v1_status_t *K8sInterface::deleteJasmineGraphWorkerDeployment(int workerId) cons
                                                                NULL,
                                                                NULL,
                                                                NULL,
-                                                               NULL
-    );
+                                                               NULL);
     return result;
 }
 
@@ -166,8 +162,7 @@ v1_service_t *K8sInterface::createJasmineGraphWorkerService(int workerId) const 
                                                              NULL,
                                                              NULL,
                                                              NULL,
-                                                             NULL
-    );
+                                                             NULL);
     return result;
 }
 
@@ -181,7 +176,6 @@ v1_service_t *K8sInterface::deleteJasmineGraphWorkerService(int workerId) const 
                                                              NULL,
                                                              NULL,
                                                              NULL,
-                                                             NULL
-    );
+                                                             NULL);
     return result;
 }

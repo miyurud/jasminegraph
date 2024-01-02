@@ -21,11 +21,11 @@ limitations under the License.
 #include <vector>
 
 class SQLiteDBInterface {
-private:
+ private:
     sqlite3 *database;
     std::string databaseLocation;
 
-public:
+ public:
     explicit SQLiteDBInterface(std::string databaseLocation);
 
     int init();
