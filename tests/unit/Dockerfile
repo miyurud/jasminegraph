@@ -17,6 +17,7 @@ COPY ./main.h ./main.h
 COPY ./main.cpp ./main.cpp
 COPY ./conf ./conf
 COPY ./k8s ./k8s
+COPY ./metadb ./metadb
 RUN mkdir build
 RUN mkdir tests
 RUN mkdir tests/unit

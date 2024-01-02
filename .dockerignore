@@ -1,5 +1,4 @@
 tests/integration
-metadb
 performancedb
 docs
 logs
