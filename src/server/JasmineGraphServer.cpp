@@ -475,7 +475,8 @@ bool JasmineGraphServer::spawnNewWorker(string host, string port, string dataPor
 
     JasmineGraphServer::startRemoteWorkers(workerPortsVector, workerDataPortsVector, host, profile, masterHost,
                                            enableNmon);
-
+    refToSqlite->finalize();
+    delete refToSqlite;
     return true;
 }
 
@@ -892,6 +893,8 @@ void JasmineGraphServer::assignPartitionToWorker(std::string fileName, int graph
         partitionID + "','" + std::to_string(graphId) + "','" + workerID + "')";
 
     refToSqlite->runInsert(partitionToWorkerQuery);
+    refToSqlite->finalize();
+    delete refToSqlite;
 }
 
 bool JasmineGraphServer::batchUploadFile(std::string host, int port, int dataPort, int graphID, std::string filePath,
@@ -2416,6 +2419,9 @@ std::map<std::string, JasmineGraphServer::workerPartition> JasmineGraphServer::g
             workerID, {name, serverPort, serverDataPort, partitionId})));
     }
 
+    refToSqlite->finalize();
+    delete refToSqlite;
+
     return graphPartitionedHosts;
 }
 
@@ -2462,6 +2468,8 @@ std::map<string, JasmineGraphServer::workerPartitions> JasmineGraphServer::getGr
             it->first, {hostPortMap[it->first].first, hostPortMap[it->first].second, hostPartitions[it->first]})));
     }
 
+    refToSqlite->finalize();
+    delete refToSqlite;
     return graphPartitionedHosts;
 }
 
@@ -2815,6 +2823,8 @@ long JasmineGraphServer::getGraphVertexCount(std::string graphID) {
         refToSqlite->runSelect("SELECT vertexcount FROM graph WHERE idgraph = '" + graphID + "'");
 
     long vertexCount = std::stoi(output[0][0].second);
+    refToSqlite->finalize();
+    delete refToSqlite;
     return vertexCount;
 }
 

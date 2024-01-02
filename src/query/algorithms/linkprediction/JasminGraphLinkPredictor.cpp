@@ -80,6 +80,8 @@ void JasminGraphLinkPredictor::initiateLinkPrediction(std::string graphID, std::
     JasminGraphLinkPredictor::sendQueryToWorker(selectedHostName, selectedHostPort, selectedHostDataPort,
                                                 selectedHostPartitionsNo, graphID, vertexCount, path, hostsList,
                                                 masterIP);
+    refToSqlite->finalize();
+    delete refToSqlite;
 }
 
 int JasminGraphLinkPredictor::sendQueryToWorker(std::string host, int port, int dataPort, int selectedHostPartitionsNo,

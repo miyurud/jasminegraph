@@ -93,6 +93,8 @@ map<string, std::map<int, int>> JasmineGraphTrainingSchedular::schedulePartition
             packPartitionsToMemory(memoryEstimationForEachPartition, availableMemory);
         scheduleForEachHost.insert(make_pair(j->second, scheduledPartitionSets));
     }
+    refToSqlite->finalize();
+    delete refToSqlite;
     return scheduleForEachHost;
 }
 
@@ -102,7 +104,8 @@ long JasmineGraphTrainingSchedular::estimateMemory(int vertexCount, string graph
 
     string sqlStatement = "SELECT feature_count FROM graph WHERE idgraph = " + graph_id;
     std::vector<vector<pair<string, string>>> result = refToSqlite->runSelect(sqlStatement);
-
+    refToSqlite->finalize();
+    delete refToSqlite;
     int feature_Count;
 
     for (std::vector<vector<pair<string, string>>>::iterator i = result.begin(); i != result.end(); ++i) {
@@ -296,6 +299,8 @@ map<string, std::map<int, map<int, int>>> JasmineGraphTrainingSchedular::schedul
             schedulePartitionsBestFit(partitionMemoryList, partitionWorkerMap, availableMemory);
         scheduleForEachHost.insert(make_pair(j->second, scheduledPartitionSets));
     }
+    refToSqlite->finalize();
+    delete refToSqlite;
     return scheduleForEachHost;
 }
 
