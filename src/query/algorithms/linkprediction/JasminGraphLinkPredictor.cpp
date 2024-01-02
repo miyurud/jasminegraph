@@ -19,7 +19,7 @@ limitations under the License.
 Logger predictor_logger;
 
 void JasminGraphLinkPredictor::initiateLinkPrediction(std::string graphID, std::string path, std::string masterIP) {
-    JasmineGraphServer *jasmineServer = new JasmineGraphServer();
+    JasmineGraphServer *jasmineServer = JasmineGraphServer::getInstance();
     std::map<std::string, JasmineGraphServer::workerPartitions> graphPartitionedHosts =
         jasmineServer->getGraphPartitionedHosts(graphID);
 

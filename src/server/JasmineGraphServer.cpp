@@ -56,6 +56,15 @@ void *runbackend(void *dummyPt) {
     return NULL;
 }
 
+JasmineGraphServer *JasmineGraphServer::getInstance() {
+    static JasmineGraphServer *instance = nullptr;
+    // TODO(thevindu-w): synchronize
+    if (instance == nullptr) {
+        instance = new JasmineGraphServer();
+    }
+    return instance;
+}
+
 JasmineGraphServer::JasmineGraphServer() {}
 
 JasmineGraphServer::~JasmineGraphServer() {

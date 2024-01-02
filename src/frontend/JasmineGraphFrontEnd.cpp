@@ -676,7 +676,7 @@ static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface 
 
         metisPartitioner->constructMetisFormat(Conts::GRAPH_TYPE_RDF);
         fullFileList = metisPartitioner->partitioneWithGPMetis("");
-        JasmineGraphServer *server = new JasmineGraphServer();
+        JasmineGraphServer *server = JasmineGraphServer::getInstance();
         server->uploadGraphLocally(newGraphID, Conts::GRAPH_WITH_ATTRIBUTES, fullFileList, masterIP);
         Utils::deleteDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
         Utils::deleteDirectory("/tmp/" + std::to_string(newGraphID));
@@ -772,7 +772,7 @@ static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterfac
             fullFileList = partitioner->partitioneWithGPMetis(partitionCount);
         }
         frontend_logger.info("Upload done");
-        JasmineGraphServer *server = new JasmineGraphServer();
+        JasmineGraphServer *server = JasmineGraphServer::getInstance();
         server->uploadGraphLocally(newGraphID, Conts::GRAPH_TYPE_NORMAL, fullFileList, masterIP);
         Utils::deleteDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
         string workerCountQuery = "select count(*) from worker";
@@ -947,7 +947,7 @@ static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInt
         }
         // Graph type should be changed to identify graphs with attributes
         // because this graph type has additional attribute files to be uploaded
-        JasmineGraphServer *server = new JasmineGraphServer();
+        JasmineGraphServer *server = JasmineGraphServer::getInstance();
         server->uploadGraphLocally(newGraphID, Conts::GRAPH_WITH_ATTRIBUTES, fullFileList, masterIP);
         Utils::deleteDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
         Utils::deleteDirectory("/tmp/" + std::to_string(newGraphID));
@@ -1639,7 +1639,7 @@ static void merge_command(int connFd, SQLiteDBInterface sqlite, bool *loop_exit_
         return;
     }
 
-    JasmineGraphServer *jasmineServer = new JasmineGraphServer();
+    JasmineGraphServer *jasmineServer = JasmineGraphServer::getInstance();
     jasmineServer->initiateFiles(graphID, trainData);
     jasmineServer->initiateMerge(graphID, trainData, sqlite);
     result_wr = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);

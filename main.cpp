@@ -58,7 +58,7 @@ int main(int argc, char *argv[]) {
         int numberOfWorkers = atoi(argv[4]);
         std::string workerIps = argv[5];
         enableNmon = argv[6];
-        server = new JasmineGraphServer();
+        server = JasmineGraphServer::getInstance();
         thread schedulerThread(SchedulerService::startScheduler);
         server->run(profile, masterIp, numberOfWorkers, workerIps, enableNmon);
 

@@ -45,6 +45,8 @@ class JasmineGraphServer {
     std::map<std::string, std::vector<int>> workerPortsMap;
     std::map<std::string, std::vector<int>> workerDataPortsMap;
 
+    JasmineGraphServer();
+
     static void startRemoteWorkers(std::vector<int> workerPortsVector, std::vector<int> workerDataPortsVector,
                                    std::string host, string profile, string masterHost, string enableNmon);
 
@@ -59,9 +61,9 @@ class JasmineGraphServer {
     void deleteNonOperationalGraphFragment(int graphID);
 
  public:
-    ~JasmineGraphServer();
+    static JasmineGraphServer *getInstance();
 
-    JasmineGraphServer();
+    ~JasmineGraphServer();
 
     void init();
 
