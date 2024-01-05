@@ -39,6 +39,7 @@ class NodeManager {
     int dbSize(std::string path);
     void persistNodeIndex();
     std::unordered_map<std::string, unsigned int> readNodeIndex();
+    void addNodeIndex(std::string nodeId, unsigned int nodeIndex);
     static std::string NODE_DB_PATH;  // Node database file path
                                       // TODO(tmkasun): This NODE_DB_PATH should be moved to NodeBlock header definition
 
@@ -46,7 +47,7 @@ class NodeManager {
     static unsigned int nextPropertyIndex;  // Next available property block index
     // unless open in wipe data
     // mode(trunc) need to set this value to property db seekp()/BLOCK_SIZE
-    std::string index_db_loc;
+    std::string indexDBPath;
 
     std::unordered_map<std::string, unsigned int> nodeIndex;
 
@@ -58,7 +59,9 @@ class NodeManager {
     void close();
     NodeBlock* addNode(std::string);  // will redurn DB block address
     NodeBlock* get(std::string);
-    std::list<NodeBlock> getGraph(int limit = 10);
+    std::list<NodeBlock> getLimitedGraph(int limit = 10);
+    std::list<NodeBlock> getGraph();
+    std::list<NodeBlock> getCentralGraph();
 
     RelationBlock* addCentralRelation(NodeBlock source, NodeBlock destination);
 
