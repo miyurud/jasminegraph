@@ -64,3 +64,16 @@ TEST_F(K8sInterfaceTest, TestDeleteJasmineGraphWorkerService) {
     ASSERT_STREQ(service->metadata->name, "jasminegraph-worker1-service");
     ASSERT_EQ(interface->apiClient->response_code, 200);
 }
+
+TEST_F(K8sInterfaceTest, TestCreateJasmineGraphMasterService) {
+    v1_service_t *service = interface->createJasmineGraphMasterService();
+    ASSERT_EQ(interface->apiClient->response_code, 201);
+    ASSERT_EQ(interface->getMasterIp(), service->spec->cluster_ip);
+}
+
+TEST_F(K8sInterfaceTest, TestDeleteJasmineGraphMasterService) {
+    v1_service_t *service = interface->deleteJasmineGraphMasterService();
+    ASSERT_STREQ(service->metadata->name, "jasminegraph-master-service");
+    ASSERT_EQ(interface->apiClient->response_code, 200);
+    ASSERT_EQ(interface->getMasterIp(), "");
+}

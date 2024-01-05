@@ -1,7 +1,65 @@
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: jasminegraph-local-storage
+  name: jasminegraph-metadb
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 200Mi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/home/ishad/Code/jasminegraph/metadb"
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jasminegraph-metadb-claim
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 200Mi
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: jasminegraph-performancedb
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 200Mi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/home/ishad/Code/jasminegraph/metadb"
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jasminegraph-performancedb-claim
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 200Mi
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: jasminegraph-data
   labels:
     type: local
 spec:
@@ -11,13 +69,13 @@ spec:
   accessModes:
     - ReadWriteMany
   hostPath:
-    path: "/tmp/jasminegraph"
+    path: "/home/ishad/Code/jasminegraph/tests/integration/env_init/data"
 
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: jasminegraph-local-storage-claim
+  name: jasminegraph-data-claim
 spec:
   storageClassName: manual
   accessModes:

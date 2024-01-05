@@ -33,6 +33,12 @@ class K8sInterface {
     v1_service_t *deleteJasmineGraphWorkerService(int workerId) const;
 
     v1_deployment_list_t *getDeploymentList(char *labelSelectors);
+
+    v1_service_t *createJasmineGraphMasterService();
+
+    v1_service_t *deleteJasmineGraphMasterService();
+
+    std::string getMasterIp();
 };
 
 #endif  // JASMINEGRAPH_K8SINTERFACE_H

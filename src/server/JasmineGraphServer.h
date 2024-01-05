@@ -30,6 +30,7 @@ limitations under the License.
 #include "../performancedb/PerformanceSQLiteDBInterface.h"
 #include "../util/Conts.h"
 #include "../util/Utils.h"
+#include "../k8s/K8sWorkerController.h"
 
 using std::map;
 
@@ -44,6 +45,7 @@ class JasmineGraphServer {
     int serverDataPort;
     std::map<std::string, std::vector<int>> workerPortsMap;
     std::map<std::string, std::vector<int>> workerDataPortsMap;
+    K8sWorkerController *k8sWorkerController;
 
     JasmineGraphServer();
 

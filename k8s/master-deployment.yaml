@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: jasminegraph-master
+  name: jasminegraph-master-deployment
 spec:
   replicas: 1
   selector:
@@ -15,9 +15,15 @@ spec:
         service: jasminegraph
     spec:
       volumes:
-        - name: jasminegraph-local-storage-master
+        - name: jasminegraph-metadb
           persistentVolumeClaim:
-            claimName: jasminegraph-local-storage-claim-master
+            claimName: jasminegraph-metadb-claim
+        - name: jasminegraph-performancedb
+          persistentVolumeClaim:
+              claimName: jasminegraph-performancedb-claim
+        - name: jasminegraph-data
+          persistentVolumeClaim:
+            claimName: jasminegraph-data-claim
       containers:
         - name: jasminegraph-master
           image: jasminegraph
@@ -26,12 +32,8 @@ spec:
             [
               "--MODE",
               "1",
-              "--MASTERIP",
-              "<master-ip>",
               "--WORKERS",
-              "<worker-count>",
-              "--WORKERIP",
-              "<worker-ips>",
+              "2",
               "--ENABLE_NMON",
               "false",
               "--PROFILE",
@@ -42,23 +44,8 @@ spec:
             - containerPort: 7778
           volumeMounts:
             - mountPath: /home/ubuntu/software/jasminegraph/metadb
-              name: jasminegraph-local-storage
+              name: jasminegraph-metadb
             - mountPath: /home/ubuntu/software/jasminegraph/performacedb
-              name: jasminegraph-local-storage
-
----
-
-apiVersion: v1
-kind: Service
-metadata:
-  name: jasminegraph-master-service
-spec:
-  ports:
-    - port: 7777
-      name: 'server-port'
-    - port: 7778
-      name: 'server-data-port'
-  selector:
-    type: master
-    service: jasminegraph
-  type: NodePort
+              name: jasminegraph-performancedb
+            - mountPath: /var/tmp/data
+              name: jasminegraph-data

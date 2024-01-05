@@ -179,3 +179,45 @@ v1_service_t *K8sInterface::deleteJasmineGraphWorkerService(int workerId) const 
                                                              NULL);
     return result;
 }
+
+v1_service_t *K8sInterface::createJasmineGraphMasterService() {
+    std::string definiton = Utils::getJsonStringFromYamlFile(ROOT_DIR"/k8s/master-service.yaml");
+
+    cJSON *serviceTemplate = cJSON_Parse(definiton.c_str());
+    v1_service_t *service = v1_service_parseFromJSON(serviceTemplate);
+
+    v1_service_t *result = CoreV1API_createNamespacedService(this->apiClient,
+                                                             namespace_,
+                                                             service,
+                                                             NULL,
+                                                             NULL,
+                                                             NULL,
+                                                             NULL);
+    return result;
+}
+
+v1_service_t *K8sInterface::deleteJasmineGraphMasterService() {
+    std::string serviceName = "jasminegraph-master-service";
+    v1_service_t *result = CoreV1API_deleteNamespacedService(this->apiClient,
+                                                             strdup(serviceName.c_str()),
+                                                             namespace_,
+                                                             NULL,
+                                                             NULL,
+                                                             NULL,
+                                                             NULL,
+                                                             NULL,
+                                                             NULL);
+    return result;
+}
+
+std::string K8sInterface::getMasterIp(){
+    v1_service_t *service = CoreV1API_readNamespacedService(apiClient,
+                                                            strdup("jasminegraph-master-service"),
+                                                            namespace_,
+                                                            NULL);
+    if (service->metadata->name == NULL) {
+        k8s_logger.warn("No master service.");
+        return "";
+    }
+    return service->spec->cluster_ip;
+}

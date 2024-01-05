@@ -41,12 +41,3 @@ spec:
           ports:
             - containerPort: 7777
             - containerPort: 7778
-          volumeMounts:
-            - mountPath: "/home/ubuntu/software/jasminegraph/metadb"
-              name: jasminegraph-local-storage
-            - mountPath: "/home/ubuntu/software/jasminegraph/performancedb"
-              name: jasminegraph-local-storage
-      volumes:
-        - name: jasminegraph-local-storage
-          persistentVolumeClaim:
-            claimName: jasminegraph-local-storage-claim

@@ -99,9 +99,27 @@ int JasmineGraphServer::run(std::string profile, std::string masterIp, int numbe
     this->enableNmon = enableNmon;
     init();
     masterPortVector.push_back(Conts::JASMINEGRAPH_FRONTEND_PORT);
-    addInstanceDetailsToPerformanceDB(masterHost, masterPortVector, "true");
     updateOperationalGraphList();
-    start_workers();
+
+    if (profile == Conts::PROFILE_K8S) {
+        k8sWorkerController = new K8sWorkerController(masterIp, numberofWorkers, sqlite);
+        std::string selectQuery = "select ip,server_port,server_data_port from worker";
+        std::vector<vector<pair<string, string>>> output = this->sqlite->runSelect(selectQuery);
+        for (std::vector<vector<pair<string, string>>>::iterator i = output.begin(); i != output.end(); ++i) {
+            std::vector<pair<string, string>>::iterator j = (i->begin());
+            std::string ip = j->second;
+            ++j;
+            std::string port = j->second;
+            ++j;
+            std::string dataPort = j->second;
+            hostWorkerMap.push_back({ip, atoi(port.c_str()), atoi(dataPort.c_str())});
+        }
+
+    } else {
+        start_workers();
+        addInstanceDetailsToPerformanceDB(masterHost, masterPortVector, "true");
+    }
+
     std::thread *myThreads = new std::thread[1];
     myThreads[0] = std::thread(StatisticCollector::logLoadAverage, "Load Average");
     sleep(2);
@@ -601,7 +619,7 @@ void JasmineGraphServer::resolveOperationalGraphs() {
 
         if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
             server_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
-            string server_host = Utils::getJasmineGraphProperty("org.jasminegraph.server.host");
+            string server_host = this->masterHost;
             result_wr = write(sockfd, server_host.c_str(), server_host.size());
 
             if (result_wr < 0) {

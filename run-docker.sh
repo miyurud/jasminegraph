@@ -35,6 +35,12 @@ if [ -z "$MODE" ]; then
 fi
 
 if [ $MODE -eq 1 ]; then
+    # If profile is k8s, then master and worker IPs are not required. Set them to dummy values
+    if [ "$PROFILE" = "k8s" ]; then
+        MASTERIP="x"
+        WORKERIP="x"
+    fi
+
     if [ -z "$MASTERIP" ]; then
         echo "MASTER IP SHOULD BE SPECIFIED"
         exit 1
