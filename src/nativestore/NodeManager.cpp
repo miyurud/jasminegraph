@@ -158,7 +158,7 @@ std::unordered_map<std::string, unsigned int> NodeManager::readNodeIndex() {
 RelationBlock *NodeManager::addRelation(NodeBlock source, NodeBlock destination) {
     RelationBlock *newRelation = NULL;
     if (source.edgeRef == 0 || destination.edgeRef == 0 ||
-        !source.searchRelation(destination)) {  // certainly a new relation block needed
+        !source.searchLocalRelation(destination)) {  // certainly a new relation block needed
         RelationBlock *relationBlock = new RelationBlock(source, destination);
         newRelation = relationBlock->add(source, destination);
         if (newRelation) {
