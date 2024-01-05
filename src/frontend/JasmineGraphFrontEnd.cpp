@@ -1736,13 +1736,13 @@ static void train_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit
         }
         return;
     }
-
+    auto* server = JasmineGraphServer::getInstance();
     if (Utils::getJasmineGraphProperty("org.jasminegraph.fl.org.training") == "true") {
         frontend_logger.info("Initiate org communication");
-        JasmineGraphServer::initiateOrgCommunication(graphID, trainData, sqlite);
+        JasmineGraphServer::initiateOrgCommunication(graphID, trainData, sqlite, server->masterHost);
     } else {
         frontend_logger.info("Initiate communication");
-        JasmineGraphServer::initiateCommunication(graphID, trainData, sqlite);
+        JasmineGraphServer::initiateCommunication(graphID, trainData, sqlite, server->masterHost);
     }
 
     result_wr = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);

@@ -3014,7 +3014,7 @@ void JasmineGraphServer::initiateFiles(std::string graphID, std::string training
             int iterationOfPart = scheduleOfHost[stoi(*k)];
             workerThreads[count] =
                 std::thread(initiateTrain, workerPartition.hostname, workerPartition.port, workerPartition.dataPort,
-                            trainingArgs + " " + *k, iterationOfPart, partitionCount);
+                            trainingArgs + " " + *k, iterationOfPart, partitionCount, this->masterHost);
             count++;
             sleep(3);
         }
@@ -3027,7 +3027,7 @@ void JasmineGraphServer::initiateFiles(std::string graphID, std::string training
 }
 
 void JasmineGraphServer::initiateCommunication(std::string graphID, std::string trainingArgs,
-                                               SQLiteDBInterface *sqlite) {
+                                               SQLiteDBInterface *sqlite, std::string masterIP) {
     int fl_clients = stoi(Utils::getJasmineGraphProperty("org.jasminegraph.fl_clients"));
     int threadLimit = fl_clients + 1;
     std::thread *workerThreads = new std::thread[threadLimit];
@@ -3046,12 +3046,12 @@ void JasmineGraphServer::initiateCommunication(std::string graphID, std::string 
 
         if (i == 0) {
             workerThreads[threadID] = std::thread(initiateServer, workerInstance.hostname, serverPort, serverDataPort,
-                                                  trainingArgs, fl_clients, to_string(i));
+                                                  trainingArgs, fl_clients, to_string(i), masterIP);
             threadID++;
         }
 
         workerThreads[threadID] = std::thread(initiateClient, workerInstance.hostname, serverPort, serverDataPort,
-                                              trainingArgs + " " + to_string(i), fl_clients, to_string(i));
+                                              trainingArgs + " " + to_string(i), fl_clients, to_string(i), masterIP);
         threadID++;
     }
 
@@ -3065,7 +3065,7 @@ void JasmineGraphServer::initiateCommunication(std::string graphID, std::string 
 }
 
 void JasmineGraphServer::initiateOrgCommunication(std::string graphID, std::string trainingArgs,
-                                                  SQLiteDBInterface *sqlite) {
+                                                  SQLiteDBInterface *sqlite, std::string masterIP) {
     int fl_clients = stoi(Utils::getJasmineGraphProperty("org.jasminegraph.fl_clients"));
     int orgs_count = stoi(Utils::getJasmineGraphProperty("org.jasminegraph.fl.num.orgs"));
     std::string flagPath = Utils::getJasmineGraphProperty("org.jasminegraph.fl.flag.file");
@@ -3082,7 +3082,7 @@ void JasmineGraphServer::initiateOrgCommunication(std::string graphID, std::stri
     if (Utils::getJasmineGraphProperty("org.jasminegraph.fl.aggregator") == "true") {
         std::thread *orgAggThread = new std::thread[1];
         orgAggThread[0] = std::thread(initiateAggregator, "localhost", stoi(workerVector[0].port),
-                                      stoi(workerVector[0].dataPort), trainingArgs, fl_clients, "1");
+                                      stoi(workerVector[0].dataPort), trainingArgs, fl_clients, "1", masterIP);
         orgAggThread[0].join();
     }
 
@@ -3123,12 +3123,13 @@ void JasmineGraphServer::initiateOrgCommunication(std::string graphID, std::stri
 
         if (i == 0) {
             workerThreads[threadID] = std::thread(initiateOrgServer, workerInstance.hostname, serverPort,
-                                                  serverDataPort, trainingArgs, fl_clients, to_string(i));
+                                                  serverDataPort, trainingArgs, fl_clients, to_string(i), masterIP);
             threadID++;
         }
 
         workerThreads[threadID] = std::thread(initiateClient, workerInstance.hostname, serverPort, serverDataPort,
-                                              trainingArgs + " " + to_string(i), fl_clients, to_string(i));
+                                              trainingArgs + " " + to_string(i), fl_clients,
+                                              to_string(i), masterIP);
         threadID++;
     }
 
@@ -3175,7 +3176,8 @@ void JasmineGraphServer::initiateMerge(std::string graphID, std::string training
         for (k = partitions.begin(); k != partitions.end(); k++) {
             int iterationOfPart = scheduleOfHost[stoi(*k)];
             workerThreads[count] = std::thread(mergeFiles, workerPartition.hostname, workerPartition.port,
-                                               workerPartition.dataPort, trainingArgs + " " + *k, fl_clients, *k);
+                                               workerPartition.dataPort, trainingArgs + " " + *k,
+                                               fl_clients, *k, this->masterHost);
             count++;
         }
     }
@@ -3188,7 +3190,7 @@ void JasmineGraphServer::initiateMerge(std::string graphID, std::string training
 }
 
 bool JasmineGraphServer::initiateTrain(std::string host, int port, int dataPort, std::string trainingArgs,
-                                       int iteration, string partCount) {
+                                       int iteration, string partCount, std::string masterIP) {
     bool result = true;
     int sockfd;
     char data[FED_DATA_LENGTH + 1];
@@ -3240,7 +3242,7 @@ bool JasmineGraphServer::initiateTrain(std::string host, int port, int dataPort,
 
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
         server_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
-        string server_host = Utils::getJasmineGraphProperty("org.jasminegraph.server.host");
+        string server_host = masterIP;
         result_wr = write(sockfd, server_host.c_str(), server_host.size());
         server_logger.log("Sent : " + server_host, "info");
         if (result_wr < 0) {
@@ -3282,7 +3284,7 @@ bool JasmineGraphServer::initiateTrain(std::string host, int port, int dataPort,
 }
 
 bool JasmineGraphServer::initiatePredict(std::string host, int port, int dataPort, std::string trainingArgs,
-                                         int iteration, string partCount) {
+                                         int iteration, string partCount, std::string masterIP) {
     bool result = true;
     int sockfd;
     char data[FED_DATA_LENGTH];
@@ -3329,7 +3331,7 @@ bool JasmineGraphServer::initiatePredict(std::string host, int port, int dataPor
 
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
         server_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
-        string server_host = Utils::getJasmineGraphProperty("org.jasminegraph.server.host");
+        string server_host = masterIP;
         write(sockfd, server_host.c_str(), server_host.size());
         server_logger.log("Sent : " + server_host, "info");
 
@@ -3357,7 +3359,7 @@ bool JasmineGraphServer::initiatePredict(std::string host, int port, int dataPor
 }
 
 bool JasmineGraphServer::initiateServer(std::string host, int port, int dataPort, std::string trainingArgs,
-                                        int iteration, string partCount) {
+                                        int iteration, string partCount, std::string masterIP) {
     bool result = true;
     int sockfd;
     char data[FED_DATA_LENGTH + 1];
@@ -3404,7 +3406,7 @@ bool JasmineGraphServer::initiateServer(std::string host, int port, int dataPort
 
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
         server_logger.log("Received fed : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
-        string server_host = Utils::getJasmineGraphProperty("org.jasminegraph.server.host");
+        string server_host = masterIP;
         write(sockfd, server_host.c_str(), server_host.size());
         server_logger.log("Sent fed : " + server_host, "info");
         bzero(data, FED_DATA_LENGTH + 1);
@@ -3441,7 +3443,7 @@ bool JasmineGraphServer::initiateServer(std::string host, int port, int dataPort
 
 // todo Remove partCount from parameters as the partition id is being parsed within the training args
 bool JasmineGraphServer::initiateClient(std::string host, int port, int dataPort, std::string trainingArgs,
-                                        int iteration, string partCount) {
+                                        int iteration, string partCount, std::string masterIP) {
     bool result = true;
     int sockfd;
     char data[FED_DATA_LENGTH + 1];
@@ -3488,7 +3490,7 @@ bool JasmineGraphServer::initiateClient(std::string host, int port, int dataPort
 
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
         server_logger.log("Received fed : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
-        string server_host = Utils::getJasmineGraphProperty("org.jasminegraph.server.host");
+        string server_host = masterIP;
         write(sockfd, server_host.c_str(), server_host.size());
         server_logger.log("Sent fed : " + server_host, "info");
         bzero(data, FED_DATA_LENGTH + 1);
@@ -3525,7 +3527,7 @@ bool JasmineGraphServer::initiateClient(std::string host, int port, int dataPort
 }
 
 bool JasmineGraphServer::initiateAggregator(std::string host, int port, int dataPort, std::string trainingArgs,
-                                            int iteration, string partCount) {
+                                            int iteration, string partCount, std::string masterIP) {
     bool result = true;
     int sockfd;
     char data[FED_DATA_LENGTH + 1];
@@ -3572,7 +3574,7 @@ bool JasmineGraphServer::initiateAggregator(std::string host, int port, int data
 
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
         server_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
-        string server_host = Utils::getJasmineGraphProperty("org.jasminegraph.server.host");
+        string server_host = masterIP;
         write(sockfd, server_host.c_str(), server_host.size());
         server_logger.log("Sent host : " + server_host, "info");
 
@@ -3607,7 +3609,7 @@ bool JasmineGraphServer::initiateAggregator(std::string host, int port, int data
 }
 
 bool JasmineGraphServer::initiateOrgServer(std::string host, int port, int dataPort, std::string trainingArgs,
-                                           int iteration, string partCount) {
+                                           int iteration, string partCount, std::string masterIP) {
     bool result = true;
     int sockfd;
     char data[FED_DATA_LENGTH];
@@ -3654,7 +3656,7 @@ bool JasmineGraphServer::initiateOrgServer(std::string host, int port, int dataP
 
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
         server_logger.log("Received fed : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
-        string server_host = Utils::getJasmineGraphProperty("org.jasminegraph.server.host");
+        string server_host = masterIP;
         write(sockfd, server_host.c_str(), server_host.size());
         server_logger.log("Sent fed : " + server_host, "info");
 
@@ -3780,7 +3782,7 @@ bool JasmineGraphServer::receiveGlobalWeights(std::string host, int port, std::s
 }
 
 bool JasmineGraphServer::mergeFiles(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
-                                    string partCount) {
+                                    string partCount, std::string masterIP) {
     bool result = true;
     int sockfd;
     char data[FED_DATA_LENGTH + 1];
@@ -3827,7 +3829,7 @@ bool JasmineGraphServer::mergeFiles(std::string host, int port, int dataPort, st
 
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
         server_logger.log("Received merge : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
-        string server_host = Utils::getJasmineGraphProperty("org.jasminegraph.server.host");
+        string server_host = masterIP;
         write(sockfd, server_host.c_str(), server_host.size());
         server_logger.log("Sent merge : " + server_host, "info");
 
