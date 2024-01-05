@@ -295,7 +295,7 @@ bool NodeBlock::searchRelation(NodeBlock withNode) {
     bool found = false;
     RelationBlock* found_local = this->searchLocalRelation(withNode);
     RelationBlock* found_central = this->searchCentralRelation(withNode);
-    if (found_local || found_central){
+    if (found_local || found_central) {
         found = true;
     }
     return found;
@@ -313,7 +313,8 @@ std::list<NodeBlock> NodeBlock::getLocalEdgeNodes() {
             node = NodeBlock::get(currentRelation->source.address);
             currentRelation = currentRelation->nextDestination();
         } else {
-            node_block_logger.error("Error: Unrecognized relation for " + std::to_string(this->addr) + " in relation block " +
+            node_block_logger.error("Error: Unrecognized relation for " +
+                std::to_string(this->addr) + " in relation block " +
                 std::to_string(currentRelation->addr));
         }
         if (!node) {
@@ -336,11 +337,12 @@ std::list<NodeBlock> NodeBlock::getCentralEdgeNodes() {
             node = NodeBlock::get(currentRelation->source.address);
             currentRelation = currentRelation->nextDestination();
         } else {
-            node_block_logger.error( "Error: Unrecognized central relation for " + std::to_string(this->addr) + " in relation block " +
+            node_block_logger.error("Error: Unrecognized central relation for " +
+            std::to_string(this->addr) + " in relation block " +
                                      std::to_string(currentRelation->addr));
         }
         if (!node) {
-            node_block_logger.error( "Error creating node in the central relation");
+            node_block_logger.error("Error creating node in the central relation");
         }
         edges.push_back(*node);
     }

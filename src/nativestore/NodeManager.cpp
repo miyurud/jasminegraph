@@ -116,7 +116,8 @@ NodeManager::NodeManager(GraphConfig gConfig) {
     if (dbSize(centralRelationsDBPath) % RelationBlock::BLOCK_SIZE != 0) {
         node_manager_logger.warn("CentralRelationsDB size: " + std::to_string(dbSize(centralRelationsDBPath)) +
                                 ", RelationBlock::BLOCK_SIZE: " + std::to_string(RelationBlock::BLOCK_SIZE));
-        node_manager_logger.error("CentralRelationsDB size does not comply to node block size Path = " + centralRelationsDBPath);
+        node_manager_logger.error("CentralRelationsDB size does not comply to node block size Path = " +
+                                                            centralRelationsDBPath);
     }
     node_manager_logger.info("NodeManager constructor execution completed.");
 }
@@ -427,7 +428,7 @@ std::list<NodeBlock> NodeManager::getCentralGraph() {
     for (auto it : this->nodeIndex) {
         auto nodeId = it.first;
         NodeBlock *node = this->get(nodeId);
-        if (node->getCentralRelationHead()){
+        if (node->getCentralRelationHead()) {
             vertices.push_back(*node);
         }
         node_manager_logger.debug("Read node index for central node " + nodeId + " with node index " +
