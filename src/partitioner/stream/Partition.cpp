@@ -16,6 +16,7 @@
 #include <iostream>
 #include <sstream>
 #include <vector>
+#include <string>
 
 #include "../../util/logger/Logger.h"
 
@@ -61,6 +62,7 @@ double Partition::getEdgesCount() {
     double total = 0;
     std::set<std::string> uniqueEdges;
     for (auto edge : this->edgeList) {
+        std::string vertex1 = edge.first;
         for (auto vertext : edge.second) {
             uniqueEdges.insert(edge.first + vertext);
         }

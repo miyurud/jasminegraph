@@ -23,6 +23,8 @@
 #ifndef WORKER_DATA_PUBLISHER
 #define WORKER_DATA_PUBLISHER
 
+static const int ACK_MESSAGE_SIZE = 1024;
+
 class DataPublisher {
  private:
     int sock = 0, valread, worker_port;
@@ -33,7 +35,12 @@ class DataPublisher {
  public:
     DataPublisher(int, std::string);
     void publish(std::string);
+    void publish_relation(std::string);
+    void publish_edge(std::string);
+
     ~DataPublisher();
+
+    void publish_central_relation(std::string message);
 };
 
 #endif  // !Worker_data_publisher

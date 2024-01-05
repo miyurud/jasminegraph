@@ -146,10 +146,7 @@ map<long, long> JasmineGraphHashMapLocalStore::getInDegreeDistributionHashMap() 
                 long previousValue = distMapItr->second;
                 distMapItr->second = previousValue + 1;
             } else {
-                std::map<long, unordered_set<long>>::iterator graphItr = localSubGraphMap.find(*itr);
-                if (graphItr != localSubGraphMap.end()) {
-                    distributionHashMap.insert(std::make_pair(*itr, 1));
-                }
+                distributionHashMap.insert(std::make_pair(*itr, 1));
             }
         }
     }
