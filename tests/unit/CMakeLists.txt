@@ -1,6 +1,9 @@
 project(JasmineGraphUnitTest)
 
-set(SOURCES main.cpp util/utils_test.cpp)
+set(SOURCES
+        main.cpp
+        util/Utils_test.cpp)
+
 add_executable(${PROJECT_NAME} ${SOURCES})
 target_link_libraries(${PROJECT_NAME} gtest gtest_main JasmineGraphLib)
 

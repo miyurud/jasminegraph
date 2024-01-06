@@ -51,6 +51,12 @@ class Utils {
 
     static std::vector<std::string> getFileContent(std::string);
 
+    static std::string getFileContentAsString(std::string);
+
+    static void replaceAll(std::string content, const std::string& oldValue, const std::string& newValue);
+
+    static void writeFileContent(const std::string& filePath, const std::string& content);
+
     static std::vector<std::string> split(const std::string &, char delimiter);
 
     static std::string trim_copy(const std::string &, const std::string &);

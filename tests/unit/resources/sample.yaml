@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    service: <name>
+spec:
+  containers:
+    - name: <name>

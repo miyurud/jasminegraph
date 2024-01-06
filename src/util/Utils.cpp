@@ -59,6 +59,34 @@ std::vector<std::string> Utils::getFileContent(std::string file) {
     return *vec;
 };
 
+std::string Utils::getFileContentAsString(std::string file) {
+    if (!fileExists(file)) {
+        util_logger.error("File not found : " + file);
+        return "";
+    }
+    std::ifstream in(file);
+    std::string fileContent((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    in.close();
+    return fileContent;
+}
+
+void Utils::replaceAll(std::string content, const std::string& oldValue, const std::string& newValue) {
+    size_t pos = 0;
+    while ((pos = content.find(oldValue, pos)) != std::string::npos) {
+        content.replace(pos, oldValue.length(), newValue);
+        pos += newValue.length();
+    }
+}
+
+void Utils::writeFileContent(const std::string& filePath, const std::string& content) {
+    std::ofstream out(filePath);
+    if (!out.is_open()) {
+        util_logger.error("Cannot write to file path: " + filePath);
+    }
+    out << content;
+    out.close();
+}
+
 std::string Utils::getJasmineGraphProperty(std::string key) {
     if (Utils::propertiesMap.empty()) {
         std::vector<std::string>::iterator it;
