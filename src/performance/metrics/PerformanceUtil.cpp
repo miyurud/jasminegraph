@@ -463,10 +463,12 @@ int PerformanceUtil::collectRemoteSLAResourceUtilization(std::string host, int p
 
                         resourceUsageMap[placeId] = resourceUsageVector;
                     }
+                    return 1;
                 }
             }
         }
     }
+    return 0;
 }
 
 void PerformanceUtil::collectLocalSLAResourceUtilization(std::string graphId, std::string placeId, std::string command,
@@ -604,11 +606,10 @@ ResourceConsumption PerformanceUtil::retrieveRemoteResourceConsumption(std::stri
 
                 placeResourceConsumption.memoryUsage = atoi(memoryUsage.c_str());
                 placeResourceConsumption.host = host;
-
-                return placeResourceConsumption;
             }
         }
     }
+    return placeResourceConsumption;
 }
 
 std::vector<long> PerformanceUtil::getResourceAvailableTime(std::vector<std::string> graphIdList, std::string command,
@@ -1028,10 +1029,9 @@ std::string PerformanceUtil::getSLACategoryId(std::string command, std::string c
     if (categoryResults.size() == 1) {
         std::string slaCategoryId = categoryResults[0][0].second;
         return slaCategoryId;
-    } else {
-        scheduler_logger.log("Invalid SLA " + category + " for " + command + " command", "error");
-        return 0;
     }
+    scheduler_logger.log("Invalid SLA " + category + " for " + command + " command", "error");
+    return 0;
 }
 
 void PerformanceUtil::initiateCollectingRemoteSLAResourceUtilization(std::string host, int port,

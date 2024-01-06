@@ -26,11 +26,10 @@ int PerformanceSQLiteDBInterface::init() {
         sqlite3_open(Utils::getJasmineGraphProperty("org.jasminegraph.performance.db.location").c_str(), &database);
     if (rc) {
         perfdb_logger.log("Cannot open database: " + string(sqlite3_errmsg(database)), "error");
-        return (-1);
-    } else {
-        perfdb_logger.log("Database opened successfully", "info");
-        return 0;
+        return -1;
     }
+    perfdb_logger.log("Database opened successfully", "info");
+    return 0;
 }
 
 int PerformanceSQLiteDBInterface::finalize() { return sqlite3_close(database); }
@@ -64,8 +63,8 @@ vector<vector<pair<string, string>>> PerformanceSQLiteDBInterface::runSelect(std
         sqlite3_free(zErrMsg);
     } else {
         perfdb_logger.log("Operation done successfully", "info");
-        return dbResults;
     }
+    return dbResults;
 }
 
 // This function inserts a new row to the DB and returns the last inserted row id
@@ -76,21 +75,19 @@ int PerformanceSQLiteDBInterface::runInsert(std::string query) {
         perfdb_logger.log("SQL Error: " + string(zErrMsg), "error");
         sqlite3_free(zErrMsg);
         return -1;
-    } else {
-        perfdb_logger.log("Insert operation done successfully", "info");
-        vector<vector<pair<string, string>>> dbResults;
-        string q2 = "SELECT last_insert_rowid();";
-
-        int rc2 = sqlite3_exec(database, q2.c_str(), callback, &dbResults, &zErrMsg);
-
-        if (rc2 != SQLITE_OK) {
-            fprintf(stderr, "SQL error: %s\n", zErrMsg);
-            sqlite3_free(zErrMsg);
-            return -1;
-        } else {
-            return std::stoi(dbResults[0][0].second);
-        }
     }
+    perfdb_logger.log("Insert operation done successfully", "info");
+    vector<vector<pair<string, string>>> dbResults;
+    string q2 = "SELECT last_insert_rowid();";
+
+    int rc2 = sqlite3_exec(database, q2.c_str(), callback, &dbResults, &zErrMsg);
+
+    if (rc2 != SQLITE_OK) {
+        fprintf(stderr, "SQL error: %s\n", zErrMsg);
+        sqlite3_free(zErrMsg);
+        return -1;
+    }
+    return std::stoi(dbResults[0][0].second);
 }
 
 // This function inserts one or more rows of the DB and nothing is returned

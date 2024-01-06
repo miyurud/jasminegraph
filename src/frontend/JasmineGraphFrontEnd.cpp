@@ -256,7 +256,6 @@ int JasmineGraphFrontEnd::run() {
 
     if (setsockopt(listenFd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes) == -1) {
         perror("setsockopt");
-        exit(1);
     }
 
     // bind socket
@@ -281,16 +280,10 @@ int JasmineGraphFrontEnd::run() {
         if (connFd < 0) {
             frontend_logger.error("Cannot accept connection");
             return 0;
-        } else {
-            frontend_logger.info("Connection successful");
         }
+        frontend_logger.info("Connection successful");
 
         frontend_logger.info("Master IP" + masterIP);
-
-        struct frontendservicesessionargs *frontendservicesessionargs1 =
-            (struct frontendservicesessionargs *)malloc(sizeof(struct frontendservicesessionargs) * 1);
-        frontendservicesessionargs1->sqlite = this->sqlite;
-        frontendservicesessionargs1->connFd = connFd;
 
         // TODO(miyurud):Temporarily commenting this line to enable building the project. Asked tmkasun to provide a
         //  permanent fix later when he is available.
@@ -683,9 +676,8 @@ static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface 
 
         metisPartitioner->constructMetisFormat(Conts::GRAPH_TYPE_RDF);
         fullFileList = metisPartitioner->partitioneWithGPMetis("");
-        JasmineGraphServer *jasmineServer = new JasmineGraphServer();
-        jasmineServer->uploadGraphLocally(newGraphID, Conts::GRAPH_WITH_ATTRIBUTES, fullFileList, masterIP);
-        delete jasmineServer;
+        JasmineGraphServer *server = JasmineGraphServer::getInstance();
+        server->uploadGraphLocally(newGraphID, Conts::GRAPH_WITH_ATTRIBUTES, fullFileList, masterIP);
         Utils::deleteDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
         Utils::deleteDirectory("/tmp/" + std::to_string(newGraphID));
         JasmineGraphFrontEnd::getAndUpdateUploadTime(to_string(newGraphID), sqlite);
@@ -766,7 +758,6 @@ static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterfac
             name + "\", \"" + path + "\", \"" + uploadStartTime + "\", \"\",\"" +
             to_string(Conts::GRAPH_STATUS::LOADING) + "\", \"\", \"\", \"\")";
         int newGraphID = sqlite.runInsert(sqlStatement);
-        JasmineGraphServer *jasmineServer = new JasmineGraphServer();
         MetisPartitioner *partitioner = new MetisPartitioner(&sqlite);
         vector<std::map<int, string>> fullFileList;
 
@@ -781,8 +772,8 @@ static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterfac
             fullFileList = partitioner->partitioneWithGPMetis(partitionCount);
         }
         frontend_logger.info("Upload done");
-        jasmineServer->uploadGraphLocally(newGraphID, Conts::GRAPH_TYPE_NORMAL, fullFileList, masterIP);
-        delete jasmineServer;
+        JasmineGraphServer *server = JasmineGraphServer::getInstance();
+        server->uploadGraphLocally(newGraphID, Conts::GRAPH_TYPE_NORMAL, fullFileList, masterIP);
         Utils::deleteDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
         string workerCountQuery = "select count(*) from worker";
         std::vector<vector<pair<string, string>>> results = sqlite.runSelect(workerCountQuery);
@@ -941,7 +932,6 @@ static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInt
             name + "\", \"" + edgeListPath + "\", \"" + uploadStartTime + "\", \"\",\"" +
             to_string(Conts::GRAPH_STATUS::LOADING) + "\", \"\", \"\", \"\")";
         int newGraphID = sqlite.runInsert(sqlStatement);
-        JasmineGraphServer *jasmineServer = new JasmineGraphServer();
         MetisPartitioner *partitioner = new MetisPartitioner(&sqlite);
         vector<std::map<int, string>> fullFileList;
         partitioner->loadContentData(attributeListPath, graphAttributeType, newGraphID, attrDataType);
@@ -957,8 +947,8 @@ static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInt
         }
         // Graph type should be changed to identify graphs with attributes
         // because this graph type has additional attribute files to be uploaded
-        jasmineServer->uploadGraphLocally(newGraphID, Conts::GRAPH_WITH_ATTRIBUTES, fullFileList, masterIP);
-        delete jasmineServer;
+        JasmineGraphServer *server = JasmineGraphServer::getInstance();
+        server->uploadGraphLocally(newGraphID, Conts::GRAPH_WITH_ATTRIBUTES, fullFileList, masterIP);
         Utils::deleteDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
         Utils::deleteDirectory("/tmp/" + std::to_string(newGraphID));
         JasmineGraphFrontEnd::getAndUpdateUploadTime(to_string(newGraphID), sqlite);
@@ -1649,10 +1639,9 @@ static void merge_command(int connFd, SQLiteDBInterface sqlite, bool *loop_exit_
         return;
     }
 
-    JasmineGraphServer *jasmineServer = new JasmineGraphServer();
+    JasmineGraphServer *jasmineServer = JasmineGraphServer::getInstance();
     jasmineServer->initiateFiles(graphID, trainData);
     jasmineServer->initiateMerge(graphID, trainData, sqlite);
-    delete jasmineServer;
     result_wr = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");

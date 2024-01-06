@@ -269,10 +269,8 @@ void JasmineGraphInstanceService::run(string profile, string masterHost, string 
     svrAdd.sin_port = htons(serverPort);
 
     int yes = 1;
-
     if (setsockopt(listenFd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes) == -1) {
         perror("setsockopt");
-        exit(1);
     }
 
     // bind socket
@@ -954,45 +952,6 @@ void JasmineGraphInstanceService::trainPartition(string trainData) {
     // due to missing unsupervised_train.py file. Removal of graphsage folder resulted in this situation.
     // Need to find a different way of executing Unsupervised train
     // system(command.c_str());
-}
-
-map<long, long> JasmineGraphInstanceService::calculateLocalOutDegreeDistribution(
-    string graphID, string partitionID, std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
-    std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores) {
-    JasmineGraphHashMapLocalStore graphDB;
-    JasmineGraphHashMapCentralStore centralDB;
-
-    std::map<std::string, JasmineGraphHashMapLocalStore>::iterator it;
-    std::map<std::string, JasmineGraphHashMapCentralStore>::iterator itcen;
-
-    if (JasmineGraphInstanceService::isGraphDBExists(graphID, partitionID)) {
-        JasmineGraphInstanceService::loadLocalStore(graphID, partitionID, graphDBMapLocalStores);
-    }
-
-    if (JasmineGraphInstanceService::isInstanceCentralStoreExists(graphID, partitionID)) {
-        JasmineGraphInstanceService::loadInstanceCentralStore(graphID, partitionID, graphDBMapCentralStores);
-    }
-    graphDB = graphDBMapLocalStores[graphID + "_" + partitionID];
-    centralDB = graphDBMapCentralStores[graphID + "_centralstore_" + partitionID];
-
-    map<long, long> degreeDistribution = graphDB.getInDegreeDistributionHashMap();
-    std::map<long, long>::iterator its;
-
-    map<long, long> degreeDistributionCentral = centralDB.getInDegreeDistributionHashMap();
-    std::map<long, long>::iterator itcentral;
-
-    for (its = degreeDistributionCentral.begin(); its != degreeDistributionCentral.end(); ++its) {
-        bool centralNodeFound = false;
-        for (itcentral = degreeDistribution.begin(); itcentral != degreeDistribution.end(); ++itcentral) {
-            if ((its->first) == (itcentral->first)) {
-                degreeDistribution[its->first] = (its->second) + (itcentral->second);
-                centralNodeFound = true;
-            }
-        }
-        if (!centralNodeFound) {
-            degreeDistribution.insert(std::make_pair(its->first, its->second));
-        }
-    }
 }
 
 bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int graphID, int partitionID,
@@ -3395,24 +3354,21 @@ static void send_centralstore_to_aggregator_command(int connFd, bool *loop_exit_
     size_t lastindex = fileName.find_last_of(".");
     string rawname = fileName.substr(0, lastindex);
     fullFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + rawname;
-    std::string aggregatorFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
+    std::string aggregatorDirPath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
 
-    DIR *dir = opendir(aggregatorFilePath.c_str());
-
-    if (dir) {
-        closedir(dir);
-    } else {
-        std::string createDirCommand = "mkdir -p " + aggregatorFilePath;
-        FILE *createDirInput = popen(createDirCommand.c_str(), "r");
-        pclose(createDirInput);
+    if (access(aggregatorDirPath.c_str(), F_OK)) {
+        std::string createDirCommand = "mkdir -p " + aggregatorDirPath;
+        if (system(createDirCommand.c_str())) {
+            instance_logger.error("Creating directory " + aggregatorDirPath + " failed");
+        }
     }
 
-    std::string copyCommand = "cp " + fullFilePath + " " + aggregatorFilePath;
+    std::string copyCommand = "cp " + fullFilePath + " " + aggregatorDirPath;
+    if (system(copyCommand.c_str())) {
+        instance_logger.error("Copying " + fullFilePath + " into " + aggregatorDirPath + " failed");
+    }
 
-    FILE *copyInput = popen(copyCommand.c_str(), "r");
-    pclose(copyInput);
-
-    std::string movedFullFilePath = aggregatorFilePath + "/" + rawname;
+    std::string movedFullFilePath = aggregatorDirPath + "/" + rawname;
 
     while (!Utils::fileExists(movedFullFilePath)) {
         string response = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
@@ -3502,24 +3458,21 @@ static void send_composite_centralstore_to_aggregator_command(int connFd, bool *
     size_t lastindex = fileName.find_last_of(".");
     string rawname = fileName.substr(0, lastindex);
     fullFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + rawname;
-    std::string aggregatorFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
+    std::string aggregatorDirPath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
 
-    DIR *dir = opendir(aggregatorFilePath.c_str());
-
-    if (dir) {
-        closedir(dir);
-    } else {
-        std::string createDirCommand = "mkdir -p " + aggregatorFilePath;
-        FILE *createDirInput = popen(createDirCommand.c_str(), "r");
-        pclose(createDirInput);
+    if (access(aggregatorDirPath.c_str(), F_OK)) {
+        std::string createDirCommand = "mkdir -p " + aggregatorDirPath;
+        if (system(createDirCommand.c_str())) {
+            instance_logger.error("Creating directory " + aggregatorDirPath + " failed");
+        }
     }
 
-    std::string copyCommand = "cp " + fullFilePath + " " + aggregatorFilePath;
+    std::string copyCommand = "cp " + fullFilePath + " " + aggregatorDirPath;
+    if (system(copyCommand.c_str())) {
+        instance_logger.error("Copying " + fullFilePath + " into " + aggregatorDirPath + " failed");
+    }
 
-    FILE *copyInput = popen(copyCommand.c_str(), "r");
-    pclose(copyInput);
-
-    std::string movedFullFilePath = aggregatorFilePath + "/" + rawname;
+    std::string movedFullFilePath = aggregatorDirPath + "/" + rawname;
 
     while (!Utils::fileExists(movedFullFilePath)) {
         string response = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
@@ -4080,26 +4033,26 @@ static void initiate_predict_command(int connFd, instanceservicesessionargs *ses
         if (count != 0) {
             std::vector<std::string> hostDetail = Utils::split(*it, ',');
             std::string hostName;
-            int port;
-            int dataport;
+            int port = -1;
+            int dataport = -1;
             std::vector<string> partitionIDs;
-            for (std::vector<std::string>::iterator j = hostDetail.begin(); j != hostDetail.end(); ++j) {
-                int index = std::distance(hostDetail.begin(), j);
+            for (int index = 0; index < hostDetail.size(); index++) {
+                const std::string j = hostDetail.at(index);
                 switch (index) {
                     case 0:
-                        hostName = *j;
+                        hostName = j;
                         break;
 
                     case 1:
-                        port = stoi(*j);
+                        port = stoi(j);
                         break;
 
                     case 2:
-                        dataport = stoi(*j);
+                        dataport = stoi(j);
                         break;
 
                     default:
-                        partitionIDs.push_back(*j);
+                        partitionIDs.push_back(j);
                         totalPartitions += 1;
                         break;
                 }

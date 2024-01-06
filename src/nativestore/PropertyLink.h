@@ -37,12 +37,12 @@ class PropertyLink {
     static std::fstream* propertiesDB;
 
     PropertyLink(unsigned int);
-    PropertyLink(unsigned int, std::string, char*, unsigned int);
+    PropertyLink(unsigned int, std::string, const char*, unsigned int);
     bool isEmpty();
     static PropertyLink* get(unsigned int);
-    static PropertyLink* create(std::string, char[]);
+    static PropertyLink* create(std::string, const char*);
 
-    unsigned int insert(std::string, char[]);
+    unsigned int insert(std::string, const char*);
     PropertyLink* next();
 };
 

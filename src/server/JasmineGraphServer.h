@@ -45,6 +45,8 @@ class JasmineGraphServer {
     std::map<std::string, std::vector<int>> workerPortsMap;
     std::map<std::string, std::vector<int>> workerDataPortsMap;
 
+    JasmineGraphServer();
+
     static void startRemoteWorkers(std::vector<int> workerPortsVector, std::vector<int> workerDataPortsVector,
                                    std::string host, string profile, string masterHost, string enableNmon);
 
@@ -54,19 +56,14 @@ class JasmineGraphServer {
 
     std::map<std::string, std::string> getLiveHostIDList();
 
-    static void copyArtifactsToWorkers(std::string workerPath, std::string artifactLocation, std::string remoteWorker);
-    static void createWorkerPath(std::string workerHost, std::string workerPath);
-    static void createLogFilePath(std::string workerHost, std::string workerPath);
-    static void deleteWorkerPath(std::string workerHost, std::string workerPath);
-
     static bool hasEnding(std::string const &fullString, std::string const &ending);
     std::vector<std::string> getWorkerVector(std::string workerList);
     void deleteNonOperationalGraphFragment(int graphID);
 
  public:
-    ~JasmineGraphServer();
+    static JasmineGraphServer *getInstance();
 
-    JasmineGraphServer();
+    ~JasmineGraphServer();
 
     void init();
 
@@ -131,8 +128,8 @@ class JasmineGraphServer {
                                string enableNmon);
 
     JasmineGraphFrontEnd *frontend;
-    SQLiteDBInterface sqlite;
-    PerformanceSQLiteDBInterface performanceSqlite;
+    SQLiteDBInterface *sqlite;
+    PerformanceSQLiteDBInterface *performanceSqlite;
     JobScheduler jobScheduler;
     JasmineGraphBackend *backend;
     std::string masterHost;
@@ -158,9 +155,6 @@ class JasmineGraphServer {
         string partitionID;  // Deprecated (07-08-2023) : This should be a vector of partition IDs instead of a single
                              // partiton ID.
     };
-
-    static void updateMetaDB(std::vector<workers> hostWorkerMap, std::map<int, std::string> partitionFileList,
-                             int graphID, std::string uploadEndTime);
 
     // return hostWorkerMap
     static std::vector<JasmineGraphServer::workers> getHostWorkerMap();

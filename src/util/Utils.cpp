@@ -13,6 +13,7 @@ limitations under the License.
 
 #include "Utils.h"
 
+#include <dirent.h>
 #include <pwd.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -61,7 +62,7 @@ std::vector<std::string> Utils::getFileContent(std::string file) {
 std::string Utils::getJasmineGraphProperty(std::string key) {
     if (Utils::propertiesMap.empty()) {
         std::vector<std::string>::iterator it;
-        vector<std::string> vec = Utils::getFileContent(ROOT_DIR"conf/jasminegraph-server.properties");
+        vector<std::string> vec = Utils::getFileContent(ROOT_DIR "conf/jasminegraph-server.properties");
         it = vec.begin();
 
         for (it = vec.begin(); it < vec.end(); it++) {
@@ -164,48 +165,38 @@ void Utils::createDirectory(const std::string dirName) {
     mkdir(dirName.c_str(), 0777);
 }
 
-std::vector<std::string> Utils::getListOfFilesInDirectory(const std::string dirName) {
-    char buffer[128];
+std::vector<std::string> Utils::getListOfFilesInDirectory(std::string dirName) {
     std::vector<string> results;
-    std::string result = "";
-    std::string command = "ls -l " + dirName;
-    char *commandChar = new char[command.length() + 1];
-    strcpy(commandChar, command.c_str());
-    FILE *input = popen(commandChar, "r");
-    if (input) {
-        while (!feof(input)) {
-            if (fgets(buffer, 128, input) != NULL) {
-                result.append(buffer);
-            }
-        }
-        pclose(input);
-        if (!result.empty()) {
-            std::vector<std::string> vec = split(result, '\n');
-            for (std::vector<std::string>::iterator it = vec.begin(); it != vec.end(); ++it) {
-                std::string line = it->c_str();
-                if (line.back() == '\r') {
-                    line.pop_back();
-                }
-                if (line.rfind("-", 0) == 0) {
-                    std::string file = line.substr(line.find_last_of(' ') + 1);
-                    results.push_back(file);
-                }
-            }
-        }
-    } else {
-        perror("popen");
-        // handle error
+    DIR *d = opendir(dirName.c_str());
+    if (!d) {
+        util_logger.error("Error opening directory " + dirName);
+        return results;
     }
-
+    if (dirName.back() != '/') {
+        dirName.append("/");
+    }
+    const struct dirent *dir;
+    while ((dir = readdir(d)) != nullptr) {
+        const char *filename = dir->d_name;
+        string fnamestr = filename;
+        struct stat sb;
+        string path = dirName + fnamestr;
+        if (stat(path.c_str(), &sb) != 0) {
+            util_logger.warn("stat() failed for " + path + " => skipping");
+            continue;
+        }
+        if (S_ISREG(sb.st_mode)) {
+            results.push_back(fnamestr);
+        }
+    }
+    (void)closedir(d);
     return results;
 }
 
 /**
- * This method deletes a directory with all its content
+ * This method deletes a directory with all its content if the user has permission
  * @param dirName
  */
-// TODO :: find a possible solution to handle the permission denied error when trying to delete a protected directory.
-// popen does not work either
 int Utils::deleteDirectory(const std::string dirName) {
     string command = "rm -rf " + dirName;
     int status = system(command.c_str());
@@ -227,7 +218,6 @@ bool Utils::is_number(const std::string &compareString) {
  * @return
  */
 std::string Utils::getFileName(std::string filePath) {
-    // FIXME: Can file path separator be '\' on Linux?
     std::string filename = filePath.substr(filePath.find_last_of("/\\") + 1);
     return filename;
 }
@@ -237,7 +227,7 @@ std::string Utils::getJasmineGraphHome() {
     std::string jasminegraph_home;
 
     char const *temp = getenv(test.c_str());
-    if (temp != NULL) {
+    if (temp != nullptr) {
         jasminegraph_home = std::string(temp);
     }
     if (jasminegraph_home.empty()) {
@@ -276,7 +266,6 @@ int Utils::copyFile(const std::string sourceFilePath, const std::string destinat
  * @return
  */
 int Utils::getFileSize(std::string filePath) {
-    // const clock_t begin_time = clock();
     ifstream file(filePath.c_str(), ifstream::in | ifstream::binary);
     if (!file.is_open()) {
         return -1;
@@ -284,7 +273,6 @@ int Utils::getFileSize(std::string filePath) {
     file.seekg(0, ios::end);
     int fileSize = file.tellg();
     file.close();
-    // std::cout << "TIME FOR READ : "<<float( clock () - begin_time ) /  CLOCKS_PER_SEC << std::endl;
     return fileSize;
 }
 
@@ -559,9 +547,7 @@ bool Utils::send_wrapper(int connFd, const char *buf, size_t size) {
     return true;
 }
 
-bool Utils::send_str_wrapper(int connFd, std::string str) {
-    return send_wrapper(connFd, str.c_str(), str.length());
-}
+bool Utils::send_str_wrapper(int connFd, std::string str) { return send_wrapper(connFd, str.c_str(), str.length()); }
 
 std::string Utils::getCurrentTimestamp() {
     auto now = chrono::system_clock::now();

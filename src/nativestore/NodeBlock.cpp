@@ -1,5 +1,5 @@
 /**
-Copyright 2020 JasmineGraph Team
+Copyright 2020-2024 JasmineGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -24,7 +24,7 @@ pthread_mutex_t lockSaveNode;
 pthread_mutex_t lockAddNodeProperty;
 
 NodeBlock::NodeBlock(std::string id, unsigned int nodeId, unsigned int address, unsigned int propRef,
-                     unsigned int edgeRef, unsigned int centralEdgeRef, unsigned char edgeRefPID, char _label[],
+                     unsigned int edgeRef, unsigned int centralEdgeRef, unsigned char edgeRefPID, const char* _label,
                      bool usage)
     : id(id),
       nodeId(nodeId),
@@ -34,7 +34,7 @@ NodeBlock::NodeBlock(std::string id, unsigned int nodeId, unsigned int address, 
       centralEdgeRef(centralEdgeRef),
       edgeRefPID(edgeRefPID),
       usage(usage) {
-    strcpy(label, _label);
+    strcpy(this->label, _label);
 };
 
 bool NodeBlock::isInUse() { return this->usage == '\1'; }
@@ -66,7 +66,7 @@ void NodeBlock::save() {
     //    }
 }
 
-void NodeBlock::addProperty(std::string name, char* value) {
+void NodeBlock::addProperty(std::string name, const char* value) {
     if (this->propRef == 0) {
         PropertyLink* newLink = PropertyLink::create(name, value);
         //        pthread_mutex_lock(&lockAddNodeProperty);
@@ -112,30 +112,27 @@ bool NodeBlock::updateRelation(RelationBlock* newRelation, bool relocateHead) {
             }
         }
         return this->setRelationHead(*newRelation);
-    } else {
-        RelationBlock* currentRelation = currentHead;
-        if (currentHead == NULL) {
-            return this->setRelationHead(*newRelation);
-        }
-        while (currentRelation != NULL) {
-            if (currentRelation->source.address == this->addr) {
-                if (currentRelation->source.nextRelationId == 0) {
-                    return currentRelation->setNextSource(edgeReferenceAddress);
-                } else {
-                    currentRelation = currentRelation->nextSource();
-                }
-            } else if (!this->isDirected && currentRelation->destination.address == this->addr) {
-                if (currentRelation->destination.nextRelationId == 0) {
-                    return currentRelation->setNextDestination(edgeReferenceAddress);
-                } else {
-                    currentRelation = currentRelation->nextDestination();
-                }
-            } else {
-                node_block_logger.warn("Invalid relation block" + std::to_string(currentRelation->addr));
-            }
-        }
-        return false;
     }
+    RelationBlock* currentRelation = currentHead;
+    if (currentHead == NULL) {
+        return this->setRelationHead(*newRelation);
+    }
+    while (currentRelation != nullptr) {
+        if (currentRelation->source.address == this->addr) {
+            if (currentRelation->source.nextRelationId == 0) {
+                return currentRelation->setNextSource(edgeReferenceAddress);
+            }
+            currentRelation = currentRelation->nextSource();
+        } else if (!this->isDirected && currentRelation->destination.address == this->addr) {
+            if (currentRelation->destination.nextRelationId == 0) {
+                return currentRelation->setNextDestination(edgeReferenceAddress);
+            }
+            currentRelation = currentRelation->nextDestination();
+        } else {
+            node_block_logger.warn("Invalid relation block" + std::to_string(currentRelation->addr));
+        }
+    }
+    return false;
 }
 
 bool NodeBlock::updateCentralRelation(RelationBlock* newRelation, bool relocateHead) {
@@ -304,7 +301,7 @@ bool NodeBlock::searchRelation(NodeBlock withNode) {
 std::list<NodeBlock> NodeBlock::getLocalEdgeNodes() {
     std::list<NodeBlock> edges;
     RelationBlock* currentRelation = this->getRelationHead();
-    while (currentRelation != NULL) {
+    while (currentRelation != nullptr) {
         NodeBlock* node = NULL;
         if (currentRelation->source.address == this->addr) {
             node = NodeBlock::get(currentRelation->destination.address);
@@ -313,12 +310,13 @@ std::list<NodeBlock> NodeBlock::getLocalEdgeNodes() {
             node = NodeBlock::get(currentRelation->source.address);
             currentRelation = currentRelation->nextDestination();
         } else {
-            node_block_logger.error("Error: Unrecognized relation for " +
-                std::to_string(this->addr) + " in relation block " +
-                std::to_string(currentRelation->addr));
+            node_block_logger.error("Error: Unrecognized relation for " + std::to_string(this->addr) +
+                                    " in relation block " + std::to_string(currentRelation->addr));
+            break;
         }
         if (!node) {
             node_block_logger.error("Error creating node in the relation");
+            break;
         }
         edges.push_back(*node);
     }

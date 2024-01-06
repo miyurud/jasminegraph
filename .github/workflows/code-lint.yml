@@ -20,7 +20,7 @@ jobs:
 
             - name: hadolint check
               if: ${{!contains(github.event.pull_request.labels.*.name, 'Skip hadolint Check')}}
-              run: find . -type f -name '*Dockerfile*' -print0 | xargs -0 hadolint --ignore DL3008 -t warning
+              run: find . -type f -name '*Dockerfile*' -print0 | xargs -0 hadolint --ignore DL3008 --ignore DL3013 -t warning
 
             - name: shfmt check
               if: ${{!contains(github.event.pull_request.labels.*.name, 'Skip shfmt Check')}}

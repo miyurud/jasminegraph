@@ -1,5 +1,5 @@
 /**
-Copyright 2020 JasmineGraph Team
+Copyright 2020-2024 JasmineGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -135,9 +135,9 @@ std::unordered_map<std::string, unsigned int> NodeManager::readNodeIndex() {
         }
 
         char nodeIDC[NodeManager::INDEX_KEY_SIZE];
+        bzero(nodeIDC, NodeManager::INDEX_KEY_SIZE);  // Fill with null chars before putting data
         unsigned int nodeIndexId;
         for (size_t i = 0; i < iSize / dataWidth; i++) {
-            nodeIDC[NodeManager::INDEX_KEY_SIZE] = {0};  // Fill with null chars before putting data
             if (!index_db.read(&nodeIDC[0], NodeManager::INDEX_KEY_SIZE)) {
                 node_manager_logger.error("Error while reading index key data from block i = " + std::to_string(i));
             }
@@ -213,10 +213,9 @@ NodeBlock *NodeManager::addNode(std::string nodeId) {
         this->nextNodeIndex++;
         sourceBlk->save();
         return sourceBlk;
-    } else {
-        node_manager_logger.debug("NodeId found in index for node ID " + nodeId);
-        return this->get(nodeId);
     }
+    node_manager_logger.debug("NodeId found in index for node ID " + nodeId);
+    return this->get(nodeId);
 }
 
 RelationBlock *NodeManager::addEdge(std::pair<std::string, std::string> edge) {

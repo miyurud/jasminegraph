@@ -58,12 +58,9 @@ PropertyLink::PropertyLink(unsigned int propertyBlockAddress) : blockAddress(pro
     pthread_mutex_unlock(&lockPropertyLink);
 };
 
-PropertyLink::PropertyLink(unsigned int blockAddress, std::string name, char* rvalue, unsigned int nextAddress)
+PropertyLink::PropertyLink(unsigned int blockAddress, std::string name, const char* rvalue, unsigned int nextAddress)
     : blockAddress(blockAddress), nextPropAddress(nextAddress), name(name) {
-    // Can't use just string copyer here because of binary data formats
-    for (size_t i = 0; i < PropertyLink::MAX_VALUE_SIZE; i++) {
-        this->value[i] = rvalue[i];
-    }
+    memcpy(this->value, rvalue, PropertyLink::MAX_VALUE_SIZE);
 };
 
 /**
@@ -88,7 +85,29 @@ PropertyLink::PropertyLink(unsigned int blockAddress, std::string name, char* rv
  * if propertyAddress was 0 before inserting you will get head address of the link in return value
  *  else either updated link address or last appended link address will be returned
  * **/
-unsigned int PropertyLink::insert(std::string name, char* value) {
+unsigned int PropertyLink::insert(std::string name, const char* value) {
+    // TODO(thevindu-w): Temporarily commented to resolve conflict
+    /*
+    if (this->nextPropAddress) {  // for
+        PropertyLink *last;
+        // If any element has same property key/name, return its blockAddress
+        for (PropertyLink *link = this; link != nullptr; link = link->next()) {
+            if (link->name == name) {
+                // TODO[tmkasun]: update existing property value
+                property_link_logger.warn("Property key/name already exist key = " + name);
+                return link->blockAddress;
+            }
+            last = link;
+        }
+        return last->insert(name, value);
+    }
+    if (this->name == name) {
+        // TODO[tmkasun]: update existing property value
+        property_link_logger.warn("Property key/name already exist key = " + name);
+        return this->blockAddress;
+    }
+    // Following code is only executed in the last element
+    */
     char dataName[PropertyLink::MAX_NAME_SIZE] = {0};
     char dataValue[PropertyLink::MAX_VALUE_SIZE] = {0};
     std::strcpy(dataName, name.c_str());
@@ -138,13 +157,17 @@ unsigned int PropertyLink::insert(std::string name, char* value) {
         pthread_mutex_unlock(&lockInsertPropertyLink);
         return this->blockAddress;
     }
+
+    // TODO(thevindu-w): Temporarily commented to resolve conflict
+    // PropertyLink::nextPropertyIndex++;  // Increment the shared property index value
+    // return newAddress;
 }
 
 /**
  * Create a brand new property link to an empty node block
  *
  * */
-PropertyLink* PropertyLink::create(std::string name, char value[]) {
+PropertyLink* PropertyLink::create(std::string name, const char* value) {
     pthread_mutex_lock(&lockCreatePropertyLink);
     unsigned int nextAddress = 0;
     char dataName[PropertyLink::MAX_NAME_SIZE] = {0};
@@ -152,7 +175,7 @@ PropertyLink* PropertyLink::create(std::string name, char value[]) {
     unsigned int newAddress = PropertyLink::nextPropertyIndex * PropertyLink::PROPERTY_BLOCK_SIZE;
     PropertyLink::propertiesDB->seekp(newAddress);
     PropertyLink::propertiesDB->write(dataName, PropertyLink::MAX_NAME_SIZE);
-    PropertyLink::propertiesDB->write(reinterpret_cast<char*>(value), PropertyLink::MAX_VALUE_SIZE);
+    PropertyLink::propertiesDB->write(reinterpret_cast<const char*>(value), PropertyLink::MAX_VALUE_SIZE);
     if (!PropertyLink::propertiesDB->write(reinterpret_cast<char*>(&nextAddress), sizeof(nextAddress))) {
         property_link_logger.error("Error while inserting the property = " + name +
                                    " into block a new address = " + std::to_string(newAddress));

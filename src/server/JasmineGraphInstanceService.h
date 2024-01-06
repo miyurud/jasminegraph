@@ -180,10 +180,6 @@ class JasmineGraphInstanceService {
 
     static std::map<int, std::vector<std::string>> iterationData;
 
-    static map<long, long> calculateLocalOutDegreeDistribution(
-        string graphID, string partitionID, std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
-        std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores);
-
     static bool duplicateCentralStore(int thisWorkerPort, int graphID, int partitionID,
                                       std::vector<string> workerSockets, std::string masterIP);
 
