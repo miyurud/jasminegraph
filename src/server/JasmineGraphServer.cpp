@@ -76,11 +76,11 @@ JasmineGraphServer *JasmineGraphServer::getInstance() {
 
 JasmineGraphServer::~JasmineGraphServer() {
     server_logger.info("Freeing up server resources.");
-    sqlite->finalize();
-    performanceSqlite->finalize();
-    delete sqlite;
-    delete performanceSqlite;
-    delete jobScheduler;
+    this->sqlite->finalize();
+    this->performanceSqlite->finalize();
+    delete this->sqlite;
+    delete this->performanceSqlite;
+    delete this->jobScheduler;
 }
 
 int JasmineGraphServer::run(std::string profile, std::string masterIp, int numberofWorkers, std::string workerIps,
@@ -2496,10 +2496,10 @@ void JasmineGraphServer::backupPerformanceDB() {
 }
 
 void JasmineGraphServer::clearPerformanceDB() {
-    performanceSqlite->runUpdate("delete from host_performance_data");
-    performanceSqlite->runUpdate("delete from place_performance_data");
-    performanceSqlite->runUpdate("delete from place");
-    performanceSqlite->runUpdate("delete from host");
+    this->performanceSqlite->runUpdate("delete from host_performance_data");
+    this->performanceSqlite->runUpdate("delete from place_performance_data");
+    this->performanceSqlite->runUpdate("delete from place");
+    this->performanceSqlite->runUpdate("delete from host");
 }
 
 void JasmineGraphServer::addInstanceDetailsToPerformanceDB(std::string host, std::vector<int> portVector,

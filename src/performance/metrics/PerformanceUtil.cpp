@@ -21,10 +21,15 @@ SQLiteDBInterface *sqlLiteDB;
 PerformanceSQLiteDBInterface *perfDb;
 
 void PerformanceUtil::init() {
-    sqlLiteDB = new SQLiteDBInterface();
-    perfDb = new PerformanceSQLiteDBInterface();
-    sqlLiteDB->init();
-    perfDb->init();
+    if (sqlLiteDB == nullptr) {
+        sqlLiteDB = new SQLiteDBInterface();
+        sqlLiteDB->init();
+    }
+
+    if (perfDb == nullptr) {
+        perfDb = new PerformanceSQLiteDBInterface();
+        perfDb->init();
+    }
 }
 
 int PerformanceUtil::collectPerformanceStatistics() {

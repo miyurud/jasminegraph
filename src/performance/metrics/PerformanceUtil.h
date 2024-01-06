@@ -84,8 +84,6 @@ class PerformanceUtil {
                                            std::string category, int elapsedTime);
 
  private:
-    // static SQLiteDBInterface *sqlLiteDB;
-    // static PerformanceSQLiteDBInterface *perfDb;
     static void collectRemotePerformanceData(std::string host, int port, std::string isVMStatManager,
                                              std::string isResourceAllocationRequired, std::string hostId,
                                              std::string placeId);
