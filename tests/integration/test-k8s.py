@@ -9,7 +9,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-
+from time import sleep
 import test
 from kubernetes import client, config
 
@@ -17,6 +17,11 @@ if __name__ == '__main__':
     config.load_kube_config()
 
     v1 = client.CoreV1Api()
-    host = v1.read_namespaced_service(name='jasminegraph-master-service', namespace='default').spec.cluster_ip
+    while True:
+        try:
+            host = v1.read_namespaced_service(name='jasminegraph-master-service', namespace='default').spec.cluster_ip
+            break
+        except:
+            sleep(0.2)
     port = 7777
     test.test(host, port)

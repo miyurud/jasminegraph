@@ -59,6 +59,43 @@ cp -r env_init env
 cd "$PROJECT_ROOT"
 build_and_run_on_k8s
 
+# sleep until server starts listening
+cur_timestamp="$(date +%s)"
+end_timestamp="$((cur_timestamp + TIMEOUT_SECONDS))"
+while true; do
+    if [ "$(date +%s)" -gt "$end_timestamp" ]; then
+        set +ex
+        echo "JasmineGraph is not listening"
+        echo "Build log:"
+        cat "$BUILD_LOG"
+        echo "Build log:"
+        cat "$RUN_LOG"
+        rm -rf "${TEST_ROOT}/env"
+        clear_resources
+        exit 1
+    fi
+    masterIP="$(kubectl get services |& grep jasminegraph-master-service | tr '\t' ' ' | tr -s ' ' | cut -d ' ' -f 3)"
+    if [ ! -z "$masterIP" ]; then
+        break
+    fi
+    sleep .5
+done
+
+while ! nc -zvn "$masterIP" 7777 &>/dev/null; do
+    if [ "$(date +%s)" -gt "$end_timestamp" ]; then
+        set +ex
+        echo "JasmineGraph is not listening"
+        echo "Build log:"
+        cat "$BUILD_LOG"
+        echo "Build log:"
+        cat "$RUN_LOG"
+        rm -rf "${TEST_ROOT}/env"
+        clear_resources
+        exit 1
+    fi
+    sleep .5
+done
+
 timeout "$TIMEOUT_SECONDS" python3 -u "${TEST_ROOT}/test-k8s.py" |& tee "$TEST_LOG"
 exit_code="${PIPESTATUS[0]}"
 set +ex
@@ -118,5 +155,6 @@ if [ "$exit_code" != '0' ]; then
     done
 fi
 
+#clear_resources
 rm -rf "${TEST_ROOT}/env" "${WORKER_LOG_DIR}"
 exit "$exit_code"
