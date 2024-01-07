@@ -11,7 +11,7 @@ spec:
   accessModes:
     - ReadWriteOnce
   hostPath:
-    path: "/home/ishad/Code/jasminegraph/metadb"
+    path: "${metadb_path}"
 
 ---
 apiVersion: v1
@@ -40,7 +40,7 @@ spec:
   accessModes:
     - ReadWriteOnce
   hostPath:
-    path: "/home/ishad/Code/jasminegraph/metadb"
+    path: "${performancedb_path}"
 
 ---
 apiVersion: v1
@@ -69,13 +69,42 @@ spec:
   accessModes:
     - ReadWriteMany
   hostPath:
-    path: "/home/ishad/Code/jasminegraph/tests/integration/env_init/data"
+    path: "${data_path}"
 
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: jasminegraph-data-claim
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: jasminegraph-logs
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteMany
+  hostPath:
+    path: "${log_path}"
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jasminegraph-logs-claim
 spec:
   storageClassName: manual
   accessModes:

@@ -24,6 +24,9 @@ spec:
         - name: jasminegraph-data
           persistentVolumeClaim:
             claimName: jasminegraph-data-claim
+        - name: jasminegraph-logs
+          persistentVolumeClaim:
+            claimName: jasminegraph-logs-claim
       containers:
         - name: jasminegraph-master
           image: jasminegraph
@@ -49,3 +52,5 @@ spec:
               name: jasminegraph-performancedb
             - mountPath: /var/tmp/data
               name: jasminegraph-data
+            - mountPath: /tmp/jasminegraph
+              name: jasminegraph-logs
