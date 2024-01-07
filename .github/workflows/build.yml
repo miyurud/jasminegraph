@@ -34,6 +34,7 @@ jobs:
     - name: Run unit test
       run: |
         mkdir coverage
+        kubectl apply -f ./.github/workflows/resources/test-rbac.yaml
         kubectl apply -f ./.github/workflows/resources/unit-test-conf.yaml
         sleep 30
         kubectl logs -f jasminegraph-unit-test-pod

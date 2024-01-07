@@ -26,6 +26,9 @@ jobs:
         - name: Install python K8S client
           run: pip install kubernetes
 
+        - name: Grant default user permissions
+          run: kubectl apply -f ./.github/workflows/resources/test-rbac.yaml
+
         - name: K8S integration tests
           run: |
               chmod +x test-k8s.sh
