@@ -31,7 +31,6 @@ class JasmineGraphInstance {
     static const int BUFFER_SIZE = 128;
 
  public:
-    SQLiteDBInterface sqlite;
     int start_running(string profile, string hostName, string masterHost, int serverPort, int serverDataPort,
                       string enableNmon);
 

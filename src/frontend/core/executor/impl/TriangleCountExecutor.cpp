@@ -27,7 +27,7 @@ std::mutex responseVectorMutex;
 
 TriangleCountExecutor::TriangleCountExecutor() {}
 
-TriangleCountExecutor::TriangleCountExecutor(SQLiteDBInterface db, PerformanceSQLiteDBInterface perfDb,
+TriangleCountExecutor::TriangleCountExecutor(SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb,
                                              JobRequest jobRequest) {
     this->sqlite = db;
     this->perfDB = perfDb;
@@ -100,7 +100,7 @@ void TriangleCountExecutor::execute() {
         "WHERE partition_graph_idgraph=" +
         graphId + ";";
 
-    std::vector<vector<pair<string, string>>> results = sqlite.runSelect(sqlStatement);
+    std::vector<vector<pair<string, string>>> results = sqlite->runSelect(sqlStatement);
 
     if (results.size() > Conts::COMPOSITE_CENTRAL_STORE_WORKER_THRESHOLD) {
         isCompositeAggregation = true;
@@ -185,8 +185,7 @@ void TriangleCountExecutor::execute() {
         }
     }
 
-    PerformanceUtil performanceUtil;
-    performanceUtil.init();
+    PerformanceUtil::init();
 
     std::string query =
         "SELECT attempt from graph_sla INNER JOIN sla_category where graph_sla.id_sla_category=sla_category.id and "
@@ -194,7 +193,7 @@ void TriangleCountExecutor::execute() {
         graphId + "' and graph_sla.partition_count='" + std::to_string(partitionCount) +
         "' and sla_category.category='" + Conts::SLA_CATEGORY::LATENCY + "';";
 
-    std::vector<vector<pair<string, string>>> queryResults = perfDB.runSelect(query);
+    std::vector<vector<pair<string, string>>> queryResults = perfDB->runSelect(query);
 
     if (queryResults.size() > 0) {
         std::string attemptString = queryResults[0][0].second;
@@ -647,7 +646,7 @@ int TriangleCountExecutor::updateTriangleTreeAndGetTriangleCount(std::vector<std
     return aggregateCount;
 }
 
-long TriangleCountExecutor::aggregateCentralStoreTriangles(SQLiteDBInterface sqlite, std::string graphId,
+long TriangleCountExecutor::aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, std::string graphId,
                                                            std::string masterIP, int threadPriority) {
     std::vector<std::vector<string>> workerCombinations = getWorkerCombination(sqlite, graphId);
     std::map<string, int> workerWeightMap;
@@ -694,7 +693,7 @@ long TriangleCountExecutor::aggregateCentralStoreTriangles(SQLiteDBInterface sql
             "WHERE partition_graph_idgraph=" +
             graphId + " and idworker=" + minWeightWorker + ";";
 
-        std::vector<vector<pair<string, string>>> result = sqlite.runSelect(aggregatorSqlStatement);
+        std::vector<vector<pair<string, string>>> result = sqlite->runSelect(aggregatorSqlStatement);
 
         vector<pair<string, string>> aggregatorData = result.at(0);
 
@@ -723,7 +722,7 @@ long TriangleCountExecutor::aggregateCentralStoreTriangles(SQLiteDBInterface sql
                     "WHERE partition_graph_idgraph=" +
                     graphId + " and idworker=" + workerId + ";";
 
-                std::vector<vector<pair<string, string>>> result = sqlite.runSelect(sqlStatement);
+                std::vector<vector<pair<string, string>>> result = sqlite->runSelect(sqlStatement);
 
                 vector<pair<string, string>> workerData = result.at(0);
 
@@ -1297,7 +1296,7 @@ string TriangleCountExecutor::countCompositeCentralStoreTriangles(std::string ag
     return response;
 }
 
-std::vector<std::vector<string>> TriangleCountExecutor::getWorkerCombination(SQLiteDBInterface sqlite,
+std::vector<std::vector<string>> TriangleCountExecutor::getWorkerCombination(SQLiteDBInterface *sqlite,
                                                                              std::string graphId) {
     std::set<string> workerIdSet;
 
@@ -1307,7 +1306,7 @@ std::vector<std::vector<string>> TriangleCountExecutor::getWorkerCombination(SQL
         "WHERE partition_graph_idgraph=" +
         graphId + ";";
 
-    std::vector<vector<pair<string, string>>> results = sqlite.runSelect(sqlStatement);
+    std::vector<vector<pair<string, string>>> results = sqlite->runSelect(sqlStatement);
 
     for (std::vector<vector<pair<string, string>>>::iterator i = results.begin(); i != results.end(); ++i) {
         std::vector<pair<string, string>> rowData = *i;
@@ -1692,17 +1691,16 @@ int TriangleCountExecutor::getUid() {
     return ++uid;
 }
 
-int TriangleCountExecutor::collectPerformaceData(PerformanceSQLiteDBInterface perDB, std::string graphId,
+int TriangleCountExecutor::collectPerformaceData(PerformanceSQLiteDBInterface *perDB, std::string graphId,
                                                  std::string command, std::string category, int partitionCount,
                                                  std::string masterIP, bool autoCalibrate) {
     int elapsedTime = 0;
     time_t start;
     time_t end;
-    PerformanceUtil performanceUtil;
-    performanceUtil.init();
+    PerformanceUtil::init();
 
-    std::vector<Place> placeList = performanceUtil.getHostReporterList();
-    std::string slaCategoryId = performanceUtil.getSLACategoryId(command, category);
+    std::vector<Place> placeList = PerformanceUtil::getHostReporterList();
+    std::string slaCategoryId = PerformanceUtil::getSLACategoryId(command, category);
 
     std::vector<Place>::iterator placeListIterator;
 
@@ -1725,20 +1723,21 @@ int TriangleCountExecutor::collectPerformaceData(PerformanceSQLiteDBInterface pe
         }
 
         if (!(isMaster.find("true") != std::string::npos || host == "localhost" || host.compare(masterIP) == 0)) {
-            performanceUtil.initiateCollectingRemoteSLAResourceUtilization(
-                host, atoi(serverPort.c_str()), isHostReporter, "false", placeId, elapsedTime, masterIP);
+            PerformanceUtil::initiateCollectingRemoteSLAResourceUtilization(
+                host, atoi(serverPort.c_str()), isHostReporter, "false",
+                placeId, elapsedTime, masterIP);
         }
     }
 
     start = time(0);
-    performanceUtil.collectSLAResourceConsumption(placeList, graphId, command, category, masterIP, elapsedTime,
+    PerformanceUtil::collectSLAResourceConsumption(placeList, graphId, command, category, masterIP, elapsedTime,
                                                   autoCalibrate);
 
     while (!workerResponded) {
         time_t elapsed = time(0) - start;
         if (elapsed >= Conts::LOAD_AVG_COLLECTING_GAP) {
             elapsedTime += Conts::LOAD_AVG_COLLECTING_GAP * 1000;
-            performanceUtil.collectSLAResourceConsumption(placeList, graphId, command, category, masterIP, elapsedTime,
+            PerformanceUtil::collectSLAResourceConsumption(placeList, graphId, command, category, masterIP, elapsedTime,
                                                           autoCalibrate);
             start = start + Conts::LOAD_AVG_COLLECTING_GAP;
         } else {
@@ -1746,8 +1745,9 @@ int TriangleCountExecutor::collectPerformaceData(PerformanceSQLiteDBInterface pe
         }
     }
 
-    performanceUtil.updateRemoteResourceConsumption(perDB, graphId, partitionCount, placeList, slaCategoryId, masterIP);
-    performanceUtil.updateResourceConsumption(perDB, graphId, partitionCount, placeList, slaCategoryId);
+    PerformanceUtil::updateRemoteResourceConsumption(perDB, graphId, partitionCount, placeList,
+                                                     slaCategoryId, masterIP);
+    PerformanceUtil::updateResourceConsumption(perDB, graphId, partitionCount, placeList, slaCategoryId);
 
     return 0;
 }

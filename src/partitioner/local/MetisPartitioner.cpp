@@ -26,7 +26,7 @@ std::mutex masterAttrFileMutex;
 std::mutex dbLock;
 
 MetisPartitioner::MetisPartitioner(SQLiteDBInterface *sqlite) {
-    this->sqlite = *sqlite;
+    this->sqlite = sqlite;
     std::string partitionCount = Utils::getJasmineGraphProperty("org.jasminegraph.server.npartitions");
     nParts = atoi(partitionCount.c_str());
 }
@@ -291,7 +291,7 @@ std::vector<std::map<int, std::string>> MetisPartitioner::partitioneWithGPMetis(
                                   "' ,centralpartitioncount = '" + std::to_string(this->nParts) + "' ,edgecount = '" +
                                   std::to_string(this->edgeCount) + "' WHERE idgraph = '" +
                                   std::to_string(this->graphID) + "'";
-            this->sqlite.runUpdate(sqlStatement);
+            this->sqlite->runUpdate(sqlStatement);
             this->fullFileList.push_back(this->partitionFileList);
             this->fullFileList.push_back(this->centralStoreFileList);
             this->fullFileList.push_back(this->centralStoreDuplicateFileList);
@@ -400,7 +400,7 @@ void MetisPartitioner::createPartitionFiles(std::map<int, int> partMap) {
                               "' WHERE graph_idgraph = '" + std::to_string(this->graphID) + "' AND idpartition = '" +
                               std::to_string(part) + "'";
         dbLock.lock();
-        this->sqlite.runUpdate(sqlStatement);
+        this->sqlite->runUpdate(sqlStatement);
         dbLock.unlock();
     }
 
@@ -652,7 +652,7 @@ void MetisPartitioner::populatePartMaps(std::map<int, int> partMap, int part) {
         std::to_string(partVertexCounts[part]) + "\",\"" + std::to_string(centralPartVertices.size()) + "\",\"" +
         std::to_string(partitionEdgeCount) + "\")";
     dbLock.lock();
-    this->sqlite.runUpdate(sqlStatement);
+    this->sqlite->runUpdate(sqlStatement);
     dbLock.unlock();
     centralPartVertices.clear();
     commonMasterEdgeSet.clear();
@@ -1080,7 +1080,7 @@ void MetisPartitioner::loadContentData(string inputAttributeFilePath, string gra
             cout << sqlStatement << endl;
             cout << "Feature type: " << attrType << endl;
             dbLock.lock();
-            this->sqlite.runUpdate(sqlStatement);
+            this->sqlite->runUpdate(sqlStatement);
             dbLock.unlock();
             if (count == 1) {
                 break;

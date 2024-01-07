@@ -26,7 +26,7 @@ std::vector<std::future<void>> JobScheduler::intermRes;
 bool workerResponded;
 std::vector<std::string> highPriorityGraphList;
 
-JobScheduler::JobScheduler(SQLiteDBInterface sqlite, PerformanceSQLiteDBInterface perfDB) {
+JobScheduler::JobScheduler(SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfDB) {
     this->sqlite = sqlite;
     this->perfSqlite = perfDB;
 }
@@ -35,8 +35,7 @@ JobScheduler::JobScheduler() {}
 
 void *startScheduler(void *dummyPt) {
     JobScheduler *refToScheduler = (JobScheduler *)dummyPt;
-    PerformanceUtil performanceUtil;
-    performanceUtil.init();
+    PerformanceUtil::init();
     while (true) {
         if (jobQueue.size() > 0) {
             jobScheduler_Logger.log("##JOB SCHEDULER## Jobs Available for Scheduling", "info");
@@ -65,7 +64,7 @@ void *startScheduler(void *dummyPt) {
                 std::string jobType = pendingHPJobList[0].getJobType();
                 std::string category = pendingHPJobList[0].getParameter(Conts::PARAM_KEYS::CATEGORY);
 
-                std::vector<long> scheduleTimeVector = performanceUtil.getResourceAvailableTime(
+                std::vector<long> scheduleTimeVector = PerformanceUtil::getResourceAvailableTime(
                     highPriorityGraphList, jobType, category, masterIP, pendingHPJobList);
 
                 for (int index = 0; index != pendingHPJobList.size(); ++index) {
@@ -100,11 +99,11 @@ void JobScheduler::init() {
     pthread_create(&schedulerThread, NULL, startScheduler, this);
 }
 
-void JobScheduler::processJob(JobRequest request, SQLiteDBInterface sqlite, PerformanceSQLiteDBInterface perfDB) {
+void JobScheduler::processJob(JobRequest request, SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfDB) {
     intermRes.push_back(std::async(std::launch::async, JobScheduler::executeJob, request, sqlite, perfDB));
 }
 
-void JobScheduler::executeJob(JobRequest request, SQLiteDBInterface sqlite, PerformanceSQLiteDBInterface perfDB) {
+void JobScheduler::executeJob(JobRequest request, SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfDB) {
     ExecutorFactory *executorFactory = new ExecutorFactory(sqlite, perfDB);
     AbstractExecutor *abstractExecutor = executorFactory->getExecutor(request);
     if (abstractExecutor == nullptr) {

@@ -25,9 +25,6 @@ class SchedulerService {
  public:
     static void startScheduler();
     static void startPerformanceScheduler();
-
-    static SQLiteDBInterface sqlite;
-    static PerformanceSQLiteDBInterface perfSqlite;
 };
 
 #endif  // JASMINEGRAPH_SCHEDULERSERVICE_H

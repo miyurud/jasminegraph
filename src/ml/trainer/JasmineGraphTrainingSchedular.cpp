@@ -27,14 +27,14 @@ Logger trainScheduler_logger;
 map<string, std::map<int, int>> JasmineGraphTrainingSchedular::schedulePartitionTraining(std::string graphID) {
     map<string, std::map<int, int>> scheduleForEachHost;
     vector<pair<string, string>> hostData;
-    SQLiteDBInterface refToSqlite = *new SQLiteDBInterface();
-    refToSqlite.init();
+    auto *refToSqlite = new SQLiteDBInterface();
+    refToSqlite->init();
 
     string sqlStatement =
         "SELECT host_idhost, name FROM worker_has_partition INNER JOIN worker ON worker_idworker = "
         "idworker WHERE partition_graph_idgraph = " +
         graphID + " group by host_idhost";
-    std::vector<vector<pair<string, string>>> result = refToSqlite.runSelect(sqlStatement);
+    std::vector<vector<pair<string, string>>> result = refToSqlite->runSelect(sqlStatement);
     for (vector<vector<pair<string, string>>>::iterator i = result.begin(); i != result.end(); ++i) {
         int count = 0;
         string hostID;
@@ -63,7 +63,7 @@ map<string, std::map<int, int>> JasmineGraphTrainingSchedular::schedulePartition
             "worker_has_partition INNER JOIN worker ON worker_idworker = idworker) AS a ON partition.idpartition = "
             "a.partition_idpartition WHERE partition.graph_idgraph =  " +
             graphID + " AND a.host_idhost = " + j->first;
-        std::vector<vector<pair<string, string>>> results = refToSqlite.runSelect(sqlStatement);
+        std::vector<vector<pair<string, string>>> results = refToSqlite->runSelect(sqlStatement);
         std::map<int, int> vertexCountToPartitionId;
         for (std::vector<vector<pair<string, string>>>::iterator i = results.begin(); i != results.end(); ++i) {
             std::vector<pair<string, string>> rowData = *i;
@@ -93,16 +93,19 @@ map<string, std::map<int, int>> JasmineGraphTrainingSchedular::schedulePartition
             packPartitionsToMemory(memoryEstimationForEachPartition, availableMemory);
         scheduleForEachHost.insert(make_pair(j->second, scheduledPartitionSets));
     }
+    refToSqlite->finalize();
+    delete refToSqlite;
     return scheduleForEachHost;
 }
 
 long JasmineGraphTrainingSchedular::estimateMemory(int vertexCount, string graph_id) {
-    SQLiteDBInterface refToSqlite = *new SQLiteDBInterface();
-    refToSqlite.init();
+    auto *refToSqlite = new SQLiteDBInterface();
+    refToSqlite->init();
 
     string sqlStatement = "SELECT feature_count FROM graph WHERE idgraph = " + graph_id;
-    std::vector<vector<pair<string, string>>> result = refToSqlite.runSelect(sqlStatement);
-
+    std::vector<vector<pair<string, string>>> result = refToSqlite->runSelect(sqlStatement);
+    refToSqlite->finalize();
+    delete refToSqlite;
     int feature_Count;
 
     for (std::vector<vector<pair<string, string>>>::iterator i = result.begin(); i != result.end(); ++i) {
@@ -132,17 +135,19 @@ long JasmineGraphTrainingSchedular::estimateMemory(int vertexCount, string graph
 }
 
 long JasmineGraphTrainingSchedular::getAvailableMemory(string hostname) {
-    PerformanceSQLiteDBInterface refToPerfDb = *new PerformanceSQLiteDBInterface();
-    refToPerfDb.init();
+    PerformanceSQLiteDBInterface *refToPerfDb = new PerformanceSQLiteDBInterface();
+    refToPerfDb->init();
     trainScheduler_logger.log("Fetching available host " + hostname + " memory", "info");
     string perfSqlStatement =
         "SELECT memory_usage FROM host_performance_data INNER JOIN (SELECT idhost FROM host WHERE ip = '" + hostname +
         "') USING (idhost) ORDER BY date_time DESC LIMIT 1";
-    vector<vector<pair<string, string>>> result = refToPerfDb.runSelect(perfSqlStatement);
+    vector<vector<pair<string, string>>> result = refToPerfDb->runSelect(perfSqlStatement);
     if (result.size() == 0) {
         return 0;
     }
     long availableMemory = stol(result[0][0].second);
+    refToPerfDb->finalize();
+    delete refToPerfDb;
     return availableMemory;
 }
 
@@ -187,12 +192,12 @@ map<string, std::map<int, map<int, int>>> JasmineGraphTrainingSchedular::schedul
     std::string graphID) {
     map<string, map<int, map<int, int>>> scheduleForEachHost;
     vector<pair<string, string>> hostData;
-    SQLiteDBInterface refToSqlite = *new SQLiteDBInterface();
-    refToSqlite.init();
+    auto *refToSqlite = new SQLiteDBInterface();
+    refToSqlite->init();
 
     // Get graph attribute metadata
     string sql = "SELECT feature_count, feature_type FROM graph WHERE idgraph = " + graphID;
-    std::vector<vector<pair<string, string>>> graphResult = refToSqlite.runSelect(sql);
+    std::vector<vector<pair<string, string>>> graphResult = refToSqlite->runSelect(sql);
 
     int featurecount = stoi(graphResult[0][0].second);  // Graph feature count
 
@@ -213,7 +218,7 @@ map<string, std::map<int, map<int, int>>> JasmineGraphTrainingSchedular::schedul
         "SELECT host_idhost, name FROM worker_has_partition INNER JOIN worker ON worker_idworker = "
         "idworker WHERE partition_graph_idgraph = " +
         graphID + " group by host_idhost";
-    std::vector<vector<pair<string, string>>> result = refToSqlite.runSelect(sqlStatement);
+    std::vector<vector<pair<string, string>>> result = refToSqlite->runSelect(sqlStatement);
     // Store host details in vector
     for (vector<vector<pair<string, string>>>::iterator i = result.begin(); i != result.end(); ++i) {
         int count = 0;
@@ -252,7 +257,7 @@ map<string, std::map<int, map<int, int>>> JasmineGraphTrainingSchedular::schedul
             "worker_has_partition INNER JOIN worker ON worker_idworker = idworker) AS a ON partition.idpartition = "
             "a.partition_idpartition WHERE partition.graph_idgraph =  " +
             graphID + " AND a.host_idhost = " + j->first;
-        std::vector<vector<pair<string, string>>> results = refToSqlite.runSelect(sqlStatement);
+        std::vector<vector<pair<string, string>>> results = refToSqlite->runSelect(sqlStatement);
 
         vector<vector<int>> partitionMetadata;  // Vector for node count, edge count, feature count for memory
                                                 // estimation of each partition
@@ -296,6 +301,8 @@ map<string, std::map<int, map<int, int>>> JasmineGraphTrainingSchedular::schedul
             schedulePartitionsBestFit(partitionMemoryList, partitionWorkerMap, availableMemory);
         scheduleForEachHost.insert(make_pair(j->second, scheduledPartitionSets));
     }
+    refToSqlite->finalize();
+    delete refToSqlite;
     return scheduleForEachHost;
 }
 

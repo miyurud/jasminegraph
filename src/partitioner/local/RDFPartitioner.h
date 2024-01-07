@@ -69,7 +69,7 @@ class RDFPartitioner {
     int nPlaces;
     bool isDistributedCentralPartitions;
 
-    SQLiteDBInterface sqlite;
+    SQLiteDBInterface *sqlite;
 
     string inputFilePath;
 

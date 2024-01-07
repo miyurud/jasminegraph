@@ -36,17 +36,17 @@ void *backendservicesesion(void *dummyPt);
 
 class JasmineGraphBackend {
  public:
-    JasmineGraphBackend(SQLiteDBInterface db, int numberOfWorkers);
+    JasmineGraphBackend(SQLiteDBInterface *db, int numberOfWorkers);
 
     int run();
 
  private:
-    SQLiteDBInterface sqlite;
+    SQLiteDBInterface *sqlite;
     int workerCount;
 };
 
 struct backendservicesessionargs {
-    SQLiteDBInterface sqlite;
+    SQLiteDBInterface *sqlite;
     int connFd;
 };
 

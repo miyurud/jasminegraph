@@ -95,7 +95,7 @@ void SQLiteDBInterface::runInsertNoIDReturn(std::string query) {
         db_logger.log("SQL Error: " + string(zErrMsg) + " " + query, "error");
         sqlite3_free(zErrMsg);
     } else {
-        db_logger.log("Insert operation done successfully", "info");
+        db_logger.log("Insert operation done successfully: " + query, "info");
     }
 }
 
@@ -109,7 +109,7 @@ void SQLiteDBInterface::runUpdate(std::string query) {
         db_logger.log("SQL Error: " + string(zErrMsg) + " " + query, "error");
         sqlite3_free(zErrMsg);
     } else {
-        db_logger.log("Update operation done successfully", "info");
+        db_logger.log("Update operation done successfully: " + query, "info");
     }
 }
 

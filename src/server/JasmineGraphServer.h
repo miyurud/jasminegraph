@@ -130,7 +130,7 @@ class JasmineGraphServer {
     JasmineGraphFrontEnd *frontend;
     SQLiteDBInterface *sqlite;
     PerformanceSQLiteDBInterface *performanceSqlite;
-    JobScheduler jobScheduler;
+    JobScheduler *jobScheduler;
     JasmineGraphBackend *backend;
     std::string masterHost;
     int numberOfWorkers = -1;
@@ -177,11 +177,11 @@ class JasmineGraphServer {
 
     void initiateFiles(std::string graphID, std::string trainingArgs);
 
-    static void initiateCommunication(std::string graphID, std::string trainingArgs, SQLiteDBInterface sqlite);
+    static void initiateCommunication(std::string graphID, std::string trainingArgs, SQLiteDBInterface *sqlite);
 
-    static void initiateOrgCommunication(std::string graphID, std::string trainingArgs, SQLiteDBInterface sqlite);
+    static void initiateOrgCommunication(std::string graphID, std::string trainingArgs, SQLiteDBInterface *sqlite);
 
-    void initiateMerge(std::string graphID, std::string trainingArgs, SQLiteDBInterface sqlite);
+    void initiateMerge(std::string graphID, std::string trainingArgs, SQLiteDBInterface *sqlite);
 
     bool initiatePredict(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
                          string partCount);
