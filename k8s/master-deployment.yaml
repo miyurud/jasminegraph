@@ -48,7 +48,7 @@ spec:
           volumeMounts:
             - mountPath: /home/ubuntu/software/jasminegraph/metadb
               name: jasminegraph-metadb
-            - mountPath: /home/ubuntu/software/jasminegraph/performacedb
+            - mountPath: /home/ubuntu/software/jasminegraph/performancedb
               name: jasminegraph-performancedb
             - mountPath: /var/tmp/data
               name: jasminegraph-data

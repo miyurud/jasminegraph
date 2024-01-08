@@ -78,4 +78,6 @@ logs/
 .run/
 Makefile
 
+__pycache__
+
 coverage.xml

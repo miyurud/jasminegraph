@@ -37,6 +37,10 @@ build_and_run_on_k8s() {
         exit "$build_status"
     fi
 
+    set +e
+    clear_resources>/dev/null 2>&1
+    set -e
+
     metadb_path="${TEST_ROOT}/env/databases/metadb"\
     performancedb_path="${TEST_ROOT}/env/databases/performancedb"\
     data_path="${TEST_ROOT}/env/data"\
@@ -155,6 +159,9 @@ if [ "$exit_code" != '0' ]; then
     done
 fi
 
-#clear_resources
+set +e
+clear_resources>/dev/null 2>&1
+set -e
+
 rm -rf "${TEST_ROOT}/env" "${WORKER_LOG_DIR}"
 exit "$exit_code"

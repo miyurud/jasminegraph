@@ -60,9 +60,10 @@ vector<vector<pair<string, string>>> PerformanceSQLiteDBInterface::runSelect(std
 
     if (rc != SQLITE_OK) {
         perfdb_logger.log("SQL Error: " + string(zErrMsg), "error");
+        perfdb_logger.error("SQL Error: " + string(zErrMsg));
         sqlite3_free(zErrMsg);
     } else {
-        perfdb_logger.log("Operation done successfully", "info");
+        perfdb_logger.info("Operation done successfully");
     }
     return dbResults;
 }
