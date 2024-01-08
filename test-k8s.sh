@@ -113,7 +113,7 @@ if [ "$exit_code" = '124' ]; then
     kubectl get pods
     echo
 
-    kubectl logs deployment/jasminegraph-master-deployment |& tee -a "$RUN_LOG"
+    kubectl logs --previous deployment/jasminegraph-master-deployment |& tee -a "$RUN_LOG"
 
     echo
     echo -e '\e[31;1mERROR: Test Timeout\e[0m'
