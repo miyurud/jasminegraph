@@ -129,21 +129,14 @@ void TriangleCountExecutor::execute() {
 
     for (std::vector<vector<pair<string, string>>>::iterator i = results.begin(); i != results.end(); ++i) {
         std::vector<pair<string, string>> rowData = *i;
-        string host = "";
 
         string workerID = rowData.at(0).second;
         string name = rowData.at(1).second;
-        string ip = rowData.at(2).second;
+        string host = rowData.at(2).second;
         string user = rowData.at(3).second;
         string serverPort = rowData.at(4).second;
         string serverDataPort = rowData.at(5).second;
         string partitionId = rowData.at(6).second;
-
-        if ((ip.find("localhost") != std::string::npos) || ip == masterIP) {
-            host = ip;
-        } else {
-            host = user + "@" + ip;
-        }
 
         if (partitionMap.find(workerID) == partitionMap.end()) {
             std::vector<string> partitionVec;
@@ -548,7 +541,7 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
             }
         }
 
-        triangleCount_logger.log("###COMPOSITE### Returning Total Triangles from executer ", "debug");
+        triangleCount_logger.info("###COMPOSITE### Returning Total Triangles from executer ");
 
         return triangleCount;
 
