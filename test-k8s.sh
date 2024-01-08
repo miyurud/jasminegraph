@@ -100,64 +100,27 @@ while ! nc -zvn "$masterIP" 7777 &>/dev/null; do
     sleep .5
 done
 
+echo
+kubectl get pods
+kubectl get services
+echo
+
 timeout "$TIMEOUT_SECONDS" python3 -u "${TEST_ROOT}/test-k8s.py" |& tee "$TEST_LOG"
 exit_code="${PIPESTATUS[0]}"
 set +ex
 if [ "$exit_code" = '124' ]; then
+    echo
+    kubectl get pods
+    echo
+
+    kubectl logs deployment/jasminegraph-master-deployment |& tee -a "$RUN_LOG"
+
     echo
     echo -e '\e[31;1mERROR: Test Timeout\e[0m'
     echo
     clear_resources
 fi
 
-print_log() {
-    sed -e 's/^integration-jasminegraph-1  | //g' \
-        -e 's/ \[logger\]//g' \
-        -e 's/ \[info\] / ['$'\033''[32minfo'$'\033''[0m] /g' \
-        -e 's/ \[warn\] / ['$'\033''[1;33mwarn'$'\033''[0m] /g' \
-        -e 's/ \[error\] / ['$'\033''[1;31merror'$'\033''[0m] /g' \
-        -e 's/ \[INFO\] / ['$'\033''[32mINFO'$'\033''[0m] /g' \
-        -e 's/ \[WARNING\] / ['$'\033''[1;33mWARNING'$'\033''[0m] /g' "$1"
-}
-
-cd "$TEST_ROOT"
-for d in "${WORKER_LOG_DIR}"/worker_*; do
-    echo
-    worker_name="$(basename ${d})"
-    cp -r "$d" "${LOG_DIR}/${worker_name}"
-done
-
-cd "$LOG_DIR"
-if [ "$exit_code" != '0' ]; then
-    echo
-    echo -e '\e[33;1mMaster log:\e[0m'
-    print_log "$RUN_LOG"
-
-    for d in worker_*; do
-        cd "${LOG_DIR}/${d}"
-        echo
-        echo -e '\e[33;1m'"${d}"' log:\e[0m'
-        print_log worker.log
-
-        for f in merge_*.log; do
-            echo
-            echo -e '\e[33;1m'"${d} ${f::-4}"' log:\e[0m'
-            print_log "$f"
-        done
-
-        for f in fl_client_*.log; do
-            echo
-            echo -e '\e[33;1m'"${d} ${f::-4}"' log:\e[0m'
-            print_log "$f"
-        done
-
-        for f in fl_server_*.log; do
-            echo
-            echo -e '\e[33;1m'"${d} ${f::-4}"' log:\e[0m'
-            print_log "$f"
-        done
-    done
-fi
 
 set +e
 clear_resources>/dev/null 2>&1
