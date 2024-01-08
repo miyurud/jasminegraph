@@ -31,10 +31,24 @@ SQLiteDBInterface::SQLiteDBInterface(string databaseLocation) {
 
 int SQLiteDBInterface::init() {
     if (sqlite3_open(this->databaseLocation.c_str(), &database)) {
-        db_logger.log("Cannot open database: " + string(sqlite3_errmsg(database)), "error");
+        db_logger.error("Cannot open database: " + string(sqlite3_errmsg(database)));
         return -1;
     }
-    db_logger.log("Database opened successfully", "info");
+    db_logger.info("Database opened successfully :" + this->databaseLocation);
+    FILE *f = popen("pwd; echo; echo; ls -l ./metadb", "r");
+    if (f == NULL) {
+        db_logger.error("Cannot open database: " + string(sqlite3_errmsg(database)));
+        return -1;
+    }
+
+    char buffer[129];
+    buffer[128] = '\0';
+    while (!feof(f)) {
+        if (fgets(buffer, 128, f) != NULL) {
+            std::cout << buffer;
+        }
+    }
+    pclose(f);
     return 0;
 }
 
