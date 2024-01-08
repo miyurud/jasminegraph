@@ -60,6 +60,14 @@ clear_resources() {
 cd "$TEST_ROOT"
 rm -rf env
 cp -r env_init env
+chmod 777 -R env
+
+echo "metadb folder"
+ls -la env/databases/metadb
+echo "performancedb folder"
+ls -la env/databases/performancedb
+echo
+
 cd "$PROJECT_ROOT"
 build_and_run_on_k8s
 
