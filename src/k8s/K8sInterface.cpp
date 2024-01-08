@@ -210,7 +210,7 @@ v1_service_t *K8sInterface::deleteJasmineGraphMasterService() {
     return result;
 }
 
-std::string K8sInterface::getMasterIp(){
+std::string K8sInterface::getMasterIp() {
     v1_service_t *service = CoreV1API_readNamespacedService(apiClient,
                                                             strdup("jasminegraph-master-service"),
                                                             namespace_,

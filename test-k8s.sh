@@ -38,21 +38,21 @@ build_and_run_on_k8s() {
     fi
 
     set +e
-    clear_resources>/dev/null 2>&1
+    clear_resources >/dev/null 2>&1
     set -e
 
-    metadb_path="${TEST_ROOT}/env/databases/metadb"\
-    performancedb_path="${TEST_ROOT}/env/databases/performancedb"\
-    data_path="${TEST_ROOT}/env/data"\
-    log_path="${LOG_DIR}"\
-    envsubst < "${PROJECT_ROOT}/k8s/volumes.yaml" | kubectl apply -f -
+    metadb_path="${TEST_ROOT}/env/databases/metadb" \
+        performancedb_path="${TEST_ROOT}/env/databases/performancedb" \
+        data_path="${TEST_ROOT}/env/data" \
+        log_path="${LOG_DIR}" \
+        envsubst <"${PROJECT_ROOT}/k8s/volumes.yaml" | kubectl apply -f -
 
     kubectl apply -f "${PROJECT_ROOT}/k8s/master-deployment.yaml"
 }
 
 clear_resources() {
     kubectl delete deployments jasminegraph-master-deployment jasminegraph-worker1-deployment \
-    jasminegraph-worker0-deployment
+        jasminegraph-worker0-deployment
     kubectl delete services jasminegraph-master-service jasminegraph-worker0-service jasminegraph-worker1-service
     kubectl delete -f "${PROJECT_ROOT}/k8s/volumes.yaml"
 }
@@ -129,9 +129,8 @@ if [ "$exit_code" = '124' ]; then
     clear_resources
 fi
 
-
 set +e
-clear_resources>/dev/null 2>&1
+clear_resources >/dev/null 2>&1
 set -e
 
 rm -rf "${TEST_ROOT}/env" "${WORKER_LOG_DIR}"

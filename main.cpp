@@ -64,7 +64,7 @@ int main(int argc, char *argv[]) {
         if (profile == Conts::PROFILE_K8S) {
             K8sInterface* interface = new K8sInterface();
             masterIp = interface->getMasterIp();
-            if(masterIp.empty()) {
+            if (masterIp.empty()) {
                 masterIp = interface->createJasmineGraphMasterService()->spec->cluster_ip;
             }
         }

@@ -95,7 +95,7 @@ failed_tests = []
 
 
 def test(host, port):
-
+    """Test the JasmineGraph server by sending a series of commands and checking the responses."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((host, port))
 
@@ -141,8 +141,8 @@ def test(host, port):
 
         print()
         logging.info('Testing adgr-cust')
-        send_and_expect_response(sock, 'adgr-cust', ADGR_CUST, b'Select a custom graph upload option' +
-                                 LINE_END +
+        send_and_expect_response(sock, 'adgr-cust', ADGR_CUST,
+                                 b'Select a custom graph upload option' + LINE_END +
                                  b'1 : Graph with edge list + text attributes list' + LINE_END +
                                  b'2 : Graph with edge list + JSON attributes list' + LINE_END +
                                  b'3 : Graph with edge list + XML attributes list',
@@ -153,7 +153,8 @@ def test(host, port):
                                  b'(optional)<attribute data type: int8. int16, int32 or float>',
                                  exit_on_failure=True)
         send_and_expect_response(sock, 'adgr-cust',
-                                 b'cora|/var/tmp/data/cora/cora.cites|/var/tmp/data/cora/cora.content',
+                                 b'cora|/var/tmp/data/cora/cora.cites|' +
+                                 b'/var/tmp/data/cora/cora.content',
                                  DONE, exit_on_failure=True)
 
         print()
@@ -173,8 +174,8 @@ def test(host, port):
         print()
         logging.info('Testing train')
         send_and_expect_response(sock, 'train', TRAIN, b'Available main flags:' + LINE_END +
-                                 b'graph_id learning_rate batch_size validate_iter epochs' + LINE_END +
-                                 b'Send --<flag1> <value1> --<flag2> <value2> ..',
+                                 b'graph_id learning_rate batch_size validate_iter epochs' +
+                                 LINE_END + b'Send --<flag1> <value1> --<flag2> <value2> ..',
                                  exit_on_failure=True)
         send_and_expect_response(
             sock, 'train', b'--graph_id 2', DONE, exit_on_failure=True)
