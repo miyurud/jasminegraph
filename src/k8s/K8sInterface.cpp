@@ -25,7 +25,7 @@ K8sInterface::K8sInterface() {
     int rc = load_incluster_config(&basePath, &sslConfig, &apiKeys);
 #endif
     if (rc != 0) {
-        k8s_logger.error("Cannot load kubernetes configuration.");
+        k8s_logger.error("Cannot load Kubernetes configuration.");
     }
     apiClient = apiClient_create_with_base_path(basePath, sslConfig, apiKeys);
     if (!apiClient) {
