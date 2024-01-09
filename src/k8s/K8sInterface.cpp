@@ -29,7 +29,7 @@ K8sInterface::K8sInterface() {
     }
     apiClient = apiClient_create_with_base_path(basePath, sslConfig, apiKeys);
     if (!apiClient) {
-        k8s_logger.error("Cannot create a kubernetes client.");
+        k8s_logger.error("Cannot create a Kubernetes client.");
     }
 }
 
