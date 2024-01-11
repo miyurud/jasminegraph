@@ -1,24 +1,30 @@
-
-#include "gtest/gtest.h"
+/**
+Copyright 2024 JasmineGraph Team
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+ */
 
 #include "../../../src/k8s/K8sInterface.h"
 
+#include "gtest/gtest.h"
+
 class K8sInterfaceTest : public ::testing::Test {
  protected:
-    K8sInterface *interface{};
+    K8sInterface *interface {};
 
-    void SetUp() override {
-        interface = new K8sInterface();
-    }
+    void SetUp() override { interface = new K8sInterface(); }
 
-    void TearDown() override {
-        delete interface;
-    }
+    void TearDown() override { delete interface; }
 };
 
-TEST_F(K8sInterfaceTest, TestConstructor) {
-    ASSERT_NE(interface->apiClient, nullptr);
-}
+TEST_F(K8sInterfaceTest, TestConstructor) { ASSERT_NE(interface->apiClient, nullptr); }
 
 TEST_F(K8sInterfaceTest, TestGetDeploymentList) {
     v1_deployment_list_t *deployment_list = interface->getDeploymentList(strdup("app=gtest-nginx"));

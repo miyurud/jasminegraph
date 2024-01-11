@@ -1,9 +1,23 @@
+/**
+Copyright 2024 JasmineGraph Team
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+ */
+
 #include "K8sWorkerController.h"
 
-#include <utility>
 #include <stdexcept>
-#include "../util/logger/Logger.h"
+#include <utility>
+
 #include "../util/Conts.h"
+#include "../util/logger/Logger.h"
 
 Logger controller_logger;
 
@@ -21,9 +35,7 @@ K8sWorkerController::K8sWorkerController(std::string masterIp, int numberOfWorke
     }
 }
 
-K8sWorkerController::~K8sWorkerController() {
-    delete this->interface;
-}
+K8sWorkerController::~K8sWorkerController() { delete this->interface; }
 
 void K8sWorkerController::spawnWorker(int workerId) {
     v1_deployment_t *deployment = this->interface->createJasmineGraphWorkerDeployment(workerId, this->masterIp);
@@ -41,12 +53,12 @@ void K8sWorkerController::spawnWorker(int workerId) {
         throw std::runtime_error("Worker " + std::to_string(workerId) + " service creation failed");
     }
 
-    std::string insertQuery = "INSERT INTO worker (host_idhost, server_port, server_data_port, name, ip, idworker) "
-                              "VALUES (0, " + std::to_string(Conts::JASMINEGRAPH_FRONTEND_PORT) + ", "
-        + std::to_string(Conts::JASMINEGRAPH_BACKEND_PORT) + ", " +
-        "'" + std::string(service->metadata->name) + "', " +
-        "'" + std::string(service->spec->cluster_ip) + "', " +
-        std::to_string(workerId) + ")";
+    std::string insertQuery =
+        "INSERT INTO worker (host_idhost, server_port, server_data_port, name, ip, idworker) "
+        "VALUES (0, " +
+        std::to_string(Conts::JASMINEGRAPH_FRONTEND_PORT) + ", " + std::to_string(Conts::JASMINEGRAPH_BACKEND_PORT) +
+        ", " + "'" + std::string(service->metadata->name) + "', " + "'" + std::string(service->spec->cluster_ip) +
+        "', " + std::to_string(workerId) + ")";
     int status = metadb.runInsert(insertQuery);
     if (status == -1) {
         controller_logger.error("Worker " + std::to_string(workerId) + " database insertion failed");
@@ -90,8 +102,7 @@ int K8sWorkerController::attachExistingWorkers() {
                 if (strcmp(pair->key, "workerId") == 0) {
                     int workerId = std::stoi(static_cast<char *>(pair->value));
                     v1_service_list_t *service_list = this->interface->getServiceList(
-                        strdup(("service=jasminegraph-worker,workerId="
-                            + std::to_string(workerId)).c_str()));
+                        strdup(("service=jasminegraph-worker,workerId=" + std::to_string(workerId)).c_str()));
 
                     if (!service_list || service_list->items->count == 0) {
                         service = this->interface->createJasmineGraphWorkerService(workerId);
@@ -101,11 +112,11 @@ int K8sWorkerController::attachExistingWorkers() {
 
                     std::string insertQuery =
                         "INSERT INTO worker (host_idhost, server_port, server_data_port, name, ip, idworker) "
-                        "VALUES ( 0, " + std::to_string(Conts::JASMINEGRAPH_FRONTEND_PORT) + ", "
-                            + std::to_string(Conts::JASMINEGRAPH_BACKEND_PORT) + ", " +
-                            "'" + std::string(service->metadata->name) + "', " +
-                            "'" + std::string(service->spec->cluster_ip) + "', " +
-                            std::to_string(workerId) + ")";
+                        "VALUES ( 0, " +
+                        std::to_string(Conts::JASMINEGRAPH_FRONTEND_PORT) + ", " +
+                        std::to_string(Conts::JASMINEGRAPH_BACKEND_PORT) + ", " + "'" +
+                        std::string(service->metadata->name) + "', " + "'" + std::string(service->spec->cluster_ip) +
+                        "', " + std::to_string(workerId) + ")";
                     int status = metadb.runInsert(insertQuery);
                     if (status == -1) {
                         controller_logger.error("Worker " + std::to_string(workerId) + " database insertion failed");
@@ -120,13 +131,9 @@ int K8sWorkerController::attachExistingWorkers() {
     }
 }
 
-std::string K8sWorkerController::getMasterIp() const {
-    return this->masterIp;
-}
+std::string K8sWorkerController::getMasterIp() const { return this->masterIp; }
 
-int K8sWorkerController::getNumberOfWorkers() const {
-    return numberOfWorkers;
-}
+int K8sWorkerController::getNumberOfWorkers() const { return numberOfWorkers; }
 
 void K8sWorkerController::setNumberOfWorkers(int newNumberOfWorkers) {
     if (newNumberOfWorkers > this->numberOfWorkers) {

@@ -1,8 +1,20 @@
+/**
+Copyright 2024 JasmineGraph Team
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+ */
 
 #include "K8sInterface.h"
 
-#include "../util/logger/Logger.h"
 #include "../util/Utils.h"
+#include "../util/logger/Logger.h"
 
 // #define DEBUG // enable debug logging
 // #define LOCAL_CONFIG // enable local config
@@ -40,19 +52,18 @@ K8sInterface::~K8sInterface() {
 
 v1_deployment_list_t *K8sInterface::getDeploymentList(char *labelSelectors) {
     v1_deployment_list_t *deployment_list = NULL;
-    deployment_list = AppsV1API_listNamespacedDeployment(apiClient,
-                                                         namespace_,    /*namespace */
-                                                         NULL,    /* pretty */
-                                                         NULL,    /* allowWatchBookmarks */
-                                                         NULL,    /* continue */
-                                                         NULL,    /* fieldSelector */
-                                                         labelSelectors,    /* labelSelector */
-                                                         NULL,    /* limit */
-                                                         NULL,    /* resourceVersion */
-                                                         NULL,    /* resourceVersionMatch */
-                                                         NULL,    /* sendInitialEvents */
-                                                         NULL,    /* timeoutSeconds */
-                                                         NULL);   /* watch */
+    deployment_list = AppsV1API_listNamespacedDeployment(apiClient, namespace_, /*namespace */
+                                                         NULL,                  /* pretty */
+                                                         NULL,                  /* allowWatchBookmarks */
+                                                         NULL,                  /* continue */
+                                                         NULL,                  /* fieldSelector */
+                                                         labelSelectors,        /* labelSelector */
+                                                         NULL,                  /* limit */
+                                                         NULL,                  /* resourceVersion */
+                                                         NULL,                  /* resourceVersionMatch */
+                                                         NULL,                  /* sendInitialEvents */
+                                                         NULL,                  /* timeoutSeconds */
+                                                         NULL);                 /* watch */
 
 #ifdef DEBUG
     if (deployment_list) {
@@ -79,19 +90,18 @@ v1_deployment_list_t *K8sInterface::getDeploymentList(char *labelSelectors) {
 
 v1_service_list_t *K8sInterface::getServiceList(char *labelSelectors) {
     v1_service_list_t *service_list = NULL;
-    service_list = CoreV1API_listNamespacedService(apiClient,
-                                                   namespace_,    /*namespace */
-                                                   NULL,    /* pretty */
-                                                   NULL,    /* allowWatchBookmarks */
-                                                   NULL,    /* continue */
-                                                   NULL,    /* fieldSelector */
-                                                   labelSelectors,    /* labelSelector */
-                                                   NULL,    /* limit */
-                                                   NULL,    /* resourceVersion */
-                                                   NULL,    /* resourceVersionMatch */
-                                                   NULL,    /* sendInitialEvents */
-                                                   NULL,    /* timeoutSeconds */
-                                                   NULL);  /* watch */
+    service_list = CoreV1API_listNamespacedService(apiClient, namespace_, /*namespace */
+                                                   NULL,                  /* pretty */
+                                                   NULL,                  /* allowWatchBookmarks */
+                                                   NULL,                  /* continue */
+                                                   NULL,                  /* fieldSelector */
+                                                   labelSelectors,        /* labelSelector */
+                                                   NULL,                  /* limit */
+                                                   NULL,                  /* resourceVersion */
+                                                   NULL,                  /* resourceVersionMatch */
+                                                   NULL,                  /* sendInitialEvents */
+                                                   NULL,                  /* timeoutSeconds */
+                                                   NULL);                 /* watch */
 
 #ifdef DEBUG
     if (service_list) {
@@ -116,105 +126,66 @@ v1_service_list_t *K8sInterface::getServiceList(char *labelSelectors) {
 }
 
 v1_deployment_t *K8sInterface::createJasmineGraphWorkerDeployment(int workerId, const std::string &masterIp) const {
-    std::string definiton = Utils::getJsonStringFromYamlFile(ROOT_DIR"/k8s/worker-deployment.yaml");
+    std::string definiton = Utils::getJsonStringFromYamlFile(ROOT_DIR "/k8s/worker-deployment.yaml");
     definiton = Utils::replaceAll(definiton, "<worker-id>", std::to_string(workerId));
     definiton = Utils::replaceAll(definiton, "<master-ip>", masterIp);
-    definiton = Utils::replaceAll(definiton, "<image>",
-                                  Utils::getJasmineGraphProperty("org.jasminegraph.k8s.image"));
+    definiton = Utils::replaceAll(definiton, "<image>", Utils::getJasmineGraphProperty("org.jasminegraph.k8s.image"));
 
     cJSON *deploymentTemplate = cJSON_Parse(definiton.c_str());
     v1_deployment_t *deployment = v1_deployment_parseFromJSON(deploymentTemplate);
 
-    v1_deployment_t *result = AppsV1API_createNamespacedDeployment(this->apiClient,
-                                                                   namespace_,
-                                                                   deployment,
-                                                                   NULL,
-                                                                   NULL,
-                                                                   NULL,
-                                                                   NULL);
+    v1_deployment_t *result =
+        AppsV1API_createNamespacedDeployment(this->apiClient, namespace_, deployment, NULL, NULL, NULL, NULL);
     return result;
 }
 
 v1_status_t *K8sInterface::deleteJasmineGraphWorkerDeployment(int workerId) const {
     std::string deploymentName = "jasminegraph-worker" + std::to_string(workerId) + "-deployment";
-    v1_status_t *result = AppsV1API_deleteNamespacedDeployment(this->apiClient,
-                                                               strdup(deploymentName.c_str()),
-                                                               namespace_,
-                                                               NULL,
-                                                               NULL,
-                                                               NULL,
-                                                               NULL,
-                                                               NULL,
-                                                               NULL);
+    v1_status_t *result = AppsV1API_deleteNamespacedDeployment(this->apiClient, strdup(deploymentName.c_str()),
+                                                               namespace_, NULL, NULL, NULL, NULL, NULL, NULL);
     return result;
 }
 
 v1_service_t *K8sInterface::createJasmineGraphWorkerService(int workerId) const {
-    std::string definiton = Utils::getJsonStringFromYamlFile(ROOT_DIR"/k8s/worker-service.yaml");
+    std::string definiton = Utils::getJsonStringFromYamlFile(ROOT_DIR "/k8s/worker-service.yaml");
     definiton = Utils::replaceAll(definiton, "<worker-id>", std::to_string(workerId));
 
     cJSON *serviceTemplate = cJSON_Parse(definiton.c_str());
     v1_service_t *service = v1_service_parseFromJSON(serviceTemplate);
 
-    v1_service_t *result = CoreV1API_createNamespacedService(this->apiClient,
-                                                             namespace_,
-                                                             service,
-                                                             NULL,
-                                                             NULL,
-                                                             NULL,
-                                                             NULL);
+    v1_service_t *result =
+        CoreV1API_createNamespacedService(this->apiClient, namespace_, service, NULL, NULL, NULL, NULL);
     return result;
 }
 
 v1_service_t *K8sInterface::deleteJasmineGraphWorkerService(int workerId) const {
     std::string serviceName = "jasminegraph-worker" + std::to_string(workerId) + "-service";
-    v1_service_t *result = CoreV1API_deleteNamespacedService(this->apiClient,
-                                                             strdup(serviceName.c_str()),
-                                                             namespace_,
-                                                             NULL,
-                                                             NULL,
-                                                             NULL,
-                                                             NULL,
-                                                             NULL,
-                                                             NULL);
+    v1_service_t *result = CoreV1API_deleteNamespacedService(this->apiClient, strdup(serviceName.c_str()), namespace_,
+                                                             NULL, NULL, NULL, NULL, NULL, NULL);
     return result;
 }
 
 v1_service_t *K8sInterface::createJasmineGraphMasterService() {
-    std::string definiton = Utils::getJsonStringFromYamlFile(ROOT_DIR"/k8s/master-service.yaml");
+    std::string definiton = Utils::getJsonStringFromYamlFile(ROOT_DIR "/k8s/master-service.yaml");
 
     cJSON *serviceTemplate = cJSON_Parse(definiton.c_str());
     v1_service_t *service = v1_service_parseFromJSON(serviceTemplate);
 
-    v1_service_t *result = CoreV1API_createNamespacedService(this->apiClient,
-                                                             namespace_,
-                                                             service,
-                                                             NULL,
-                                                             NULL,
-                                                             NULL,
-                                                             NULL);
+    v1_service_t *result =
+        CoreV1API_createNamespacedService(this->apiClient, namespace_, service, NULL, NULL, NULL, NULL);
     return result;
 }
 
 v1_service_t *K8sInterface::deleteJasmineGraphMasterService() {
     std::string serviceName = "jasminegraph-master-service";
-    v1_service_t *result = CoreV1API_deleteNamespacedService(this->apiClient,
-                                                             strdup(serviceName.c_str()),
-                                                             namespace_,
-                                                             NULL,
-                                                             NULL,
-                                                             NULL,
-                                                             NULL,
-                                                             NULL,
-                                                             NULL);
+    v1_service_t *result = CoreV1API_deleteNamespacedService(this->apiClient, strdup(serviceName.c_str()), namespace_,
+                                                             NULL, NULL, NULL, NULL, NULL, NULL);
     return result;
 }
 
 std::string K8sInterface::getMasterIp() {
-    v1_service_t *service = CoreV1API_readNamespacedService(apiClient,
-                                                            strdup("jasminegraph-master-service"),
-                                                            namespace_,
-                                                            NULL);
+    v1_service_t *service =
+        CoreV1API_readNamespacedService(apiClient, strdup("jasminegraph-master-service"), namespace_, NULL);
     if (service->metadata->name == NULL) {
         k8s_logger.warn("No master service.");
         return "";

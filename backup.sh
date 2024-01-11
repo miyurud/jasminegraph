@@ -1,4 +1,5 @@
 #!/bin/bash
+
 file_name_pre="../JasmineGraph"
 current_time=$(date "+%Y-%m-%d-%H-%M-%S")
 file_name_post=".tar.gz"

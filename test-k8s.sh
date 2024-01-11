@@ -1,4 +1,5 @@
 #!/bin/bash
+
 set -e
 
 export TERM=xterm-256color
@@ -99,7 +100,7 @@ while ! nc -zvn "$masterIP" 7777 &>/dev/null; do
         echo "JasmineGraph is not listening"
         echo "Build log:"
         cat "$BUILD_LOG"
-        echo "Build log:"
+        echo "Run log:"
         cat "$RUN_LOG"
         rm -rf "${TEST_ROOT}/env"
         clear_resources

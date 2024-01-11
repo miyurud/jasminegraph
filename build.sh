@@ -1,4 +1,5 @@
-#!/usr/bin/env bash
+#!/bin/bash
+
 if [ "$1" = "--debug" ]; then
     cmake -DCMAKE_ENABLE_DEBUG=1 clean .
 else

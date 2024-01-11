@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 JASMINEGRAPH_DIR="$(dirname \"$0\")"
 PROFILE=$1

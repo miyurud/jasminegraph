@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 MODE=${MODE}
 MASTERIP=${MASTERIP}

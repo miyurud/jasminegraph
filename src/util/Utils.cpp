@@ -83,6 +83,7 @@ void Utils::writeFileContent(const std::string& filePath, const std::string& con
     std::ofstream out(filePath);
     if (!out.is_open()) {
         util_logger.error("Cannot write to file path: " + filePath);
+        return;
     }
     out << content;
     out.close();

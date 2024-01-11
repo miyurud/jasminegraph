@@ -1,4 +1,5 @@
 #!/bin/bash
+
 set -e
 
 export TERM=xterm-256color
