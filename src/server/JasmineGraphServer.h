@@ -98,9 +98,6 @@ class JasmineGraphServer {
 
     void assignPartitionsToWorkers(int numberOfWorkers);
 
-    static bool batchUploadFile(std::string host, int port, int dataPort, int graphID, std::string filePath,
-                                std::string masterIP);
-
     static bool batchUploadCentralStore(std::string host, int port, int dataPort, int graphID, std::string filePath,
                                         std::string masterIP);
 
