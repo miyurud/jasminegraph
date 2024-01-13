@@ -100,9 +100,6 @@ class JasmineGraphServer {
 
     static void copyCentralStoreToAggregateLocation(std::string filePath);
 
-    static int removePartitionThroughService(std::string host, int port, std::string graphID, std::string partitionID,
-                                             std::string masterIP);
-
     static bool sendFileThroughService(std::string host, int dataPort, std::string fileName, std::string filePath,
                                        std::string masterIP);
 

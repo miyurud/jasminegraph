@@ -2556,12 +2556,12 @@ static void delete_graph_command(int connFd, bool *loop_exit_p) {
     // pthread_mutex_lock(&file_lock);
     // TODO :: Update catalog file
     // pthread_mutex_unlock(&file_lock);
-    string result = "1";
-    if (!Utils::send_str_wrapper(connFd, result)) {
+
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
     }
-    instance_logger.info("Sent : " + result);
+    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
 }
 
 static void delete_graph_fragment_command(int connFd, bool *loop_exit_p) {
@@ -2579,7 +2579,7 @@ static void delete_graph_fragment_command(int connFd, bool *loop_exit_p) {
     // pthread_mutex_lock(&file_lock);
     // TODO :: Update catalog file
     // pthread_mutex_unlock(&file_lock);
-    
+
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
