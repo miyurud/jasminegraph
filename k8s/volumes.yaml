@@ -7,7 +7,7 @@ metadata:
 spec:
   storageClassName: manual
   capacity:
-    storage: 200Mi
+    storage: 100Mi
   accessModes:
     - ReadWriteOnce
   claimRef:
@@ -27,7 +27,7 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 200Mi
+      storage: 100Mi
 
 ---
 apiVersion: v1

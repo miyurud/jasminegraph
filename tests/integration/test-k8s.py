@@ -17,12 +17,7 @@ if __name__ == '__main__':
     config.load_kube_config()
 
     v1 = client.CoreV1Api()
-    while True:
-        try:
-            host = v1.read_namespaced_service(name='jasminegraph-master-service',
+    host = v1.read_namespaced_service(name='jasminegraph-master-service',
                                               namespace='default').spec.cluster_ip
-            break
-        except Exception:
-            sleep(0.2)
     port = 7777
     test.test(host, port)
