@@ -39,6 +39,15 @@ static void assignPartitionToWorker(std::string fileName, int graphId, std::stri
 static void updateMetaDB(int graphID, std::string uploadEndTime);
 static bool batchUploadFile(std::string host, int port, int dataPort, int graphID, std::string filePath,
                             std::string masterIP);
+static bool batchUploadCentralStore(std::string host, int port, int dataPort, int graphID, std::string filePath,
+                                    std::string masterIP);
+static bool batchUploadAttributeFile(std::string host, int port, int dataPort, int graphID, std::string filePath,
+                                     std::string masterIP);
+static bool batchUploadCentralAttributeFile(std::string host, int port, int dataPort, int graphID, std::string filePath,
+                                            std::string masterIP);
+static bool batchUploadCompositeCentralstoreFile(std::string host, int port, int dataPort, int graphID,
+                                                 std::string filePath, std::string masterIP);
+static bool removeFragmentThroughService(string host, int port, string graphID, string masterIP);
 
 static map<string, string> hostIDMap;
 static std::vector<JasmineGraphServer::workers> hostWorkerMap;
@@ -1078,8 +1087,8 @@ static bool batchUploadFile(std::string host, int port, int dataPort, int graphI
     return true;
 }
 
-bool JasmineGraphServer::batchUploadCentralStore(std::string host, int port, int dataPort, int graphID,
-                                                 std::string filePath, std::string masterIP) {
+static bool batchUploadCentralStore(std::string host, int port, int dataPort, int graphID, std::string filePath,
+                                    std::string masterIP) {
     int sockfd;
     char data[FED_DATA_LENGTH + 1];
     struct sockaddr_in serv_addr;
@@ -1262,8 +1271,8 @@ void JasmineGraphServer::copyCentralStoreToAggregateLocation(std::string filePat
     }
 }
 
-bool JasmineGraphServer::batchUploadAttributeFile(std::string host, int port, int dataPort, int graphID,
-                                                  std::string filePath, std::string masterIP) {
+static bool batchUploadAttributeFile(std::string host, int port, int dataPort, int graphID, std::string filePath,
+                                     std::string masterIP) {
     int sockfd;
     char data[FED_DATA_LENGTH + 1];
     struct sockaddr_in serv_addr;
@@ -1429,8 +1438,8 @@ bool JasmineGraphServer::batchUploadAttributeFile(std::string host, int port, in
     return true;
 }
 
-bool JasmineGraphServer::batchUploadCentralAttributeFile(std::string host, int port, int dataPort, int graphID,
-                                                         std::string filePath, std::string masterIP) {
+static bool batchUploadCentralAttributeFile(std::string host, int port, int dataPort, int graphID, std::string filePath,
+                                            std::string masterIP) {
     int sockfd;
     char data[FED_DATA_LENGTH + 1];
     struct sockaddr_in serv_addr;
@@ -1596,8 +1605,8 @@ bool JasmineGraphServer::batchUploadCentralAttributeFile(std::string host, int p
     return true;
 }
 
-bool JasmineGraphServer::batchUploadCompositeCentralstoreFile(std::string host, int port, int dataPort, int graphID,
-                                                              std::string filePath, std::string masterIP) {
+static bool batchUploadCompositeCentralstoreFile(std::string host, int port, int dataPort, int graphID,
+                                                 std::string filePath, std::string masterIP) {
     int sockfd;
     char data[FED_DATA_LENGTH + 1];
     struct sockaddr_in serv_addr;
@@ -1984,7 +1993,7 @@ void JasmineGraphServer::removeGraph(vector<pair<string, string>> hostHasPartiti
  *  @param graphID ID of graph fragments to be deleted
  *  @param masterIP IP of master node
  */
-int JasmineGraphServer::removeFragmentThroughService(string host, int port, string graphID, string masterIP) {
+static bool removeFragmentThroughService(string host, int port, string graphID, string masterIP) {
     std::cout << pthread_self() << " host : " << host << " port : " << port << std::endl;
     int sockfd;
     char data[FED_DATA_LENGTH + 1];
@@ -1997,7 +2006,7 @@ int JasmineGraphServer::removeFragmentThroughService(string host, int port, stri
 
     if (sockfd < 0) {
         std::cerr << "Cannot create socket" << std::endl;
-        return 0;
+        return false;
     }
 
     if (host.find('@') != std::string::npos) {
@@ -2007,7 +2016,7 @@ int JasmineGraphServer::removeFragmentThroughService(string host, int port, stri
     server = gethostbyname(host.c_str());
     if (server == NULL) {
         server_logger.error("ERROR, no host named " + host);
-        return 0;
+        return false;
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -2016,80 +2025,65 @@ int JasmineGraphServer::removeFragmentThroughService(string host, int port, stri
     serv_addr.sin_port = htons(port);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
-        // TODO::exit
-        return 0;
+        return false;
     }
 
-    bzero(data, FED_DATA_LENGTH + 1);
-    int result_wr =
-        write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
-
-    if (result_wr < 0) {
-        server_logger.log("Error writing to socket", "error");
+    if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE)) {
+        return false;
     }
+    server_logger.info("Sent: " + JasmineGraphInstanceProtocol::HANDSHAKE);
 
-    server_logger.log("Sent: " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
-    bzero(data, FED_DATA_LENGTH + 1);
-    read(sockfd, data, FED_DATA_LENGTH);
-    string response = (data);
+    string response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
+    if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) != 0) {
+        server_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::HANDSHAKE_OK +
+                            " ; Received: " + response);
+        close(sockfd);
+        return false;
+    }
+    server_logger.info("Received: " + response);
 
-    response = Utils::trim_copy(response, " \f\n\r\t\v");
+    if (!Utils::send_str_wrapper(sockfd, masterIP)) {
+        return false;
+    }
+    server_logger.info("Sent: " + masterIP);
 
-    if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
-        server_logger.log("Received: " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
-        result_wr = write(sockfd, masterIP.c_str(), masterIP.size());
+    response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
+    if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) != 0) {
+        server_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::HOST_OK +
+                            " ; Received: " + response);
+        close(sockfd);
+        return false;
+    }
+    server_logger.info("Received: " + response);
 
-        if (result_wr < 0) {
-            server_logger.log("Error writing to socket", "error");
-        }
+    if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::DELETE_GRAPH_FRAGMENT)) {
+        return false;
+    }
+    server_logger.info("Sent: " + JasmineGraphInstanceProtocol::DELETE_GRAPH_FRAGMENT);
 
-        server_logger.log("Sent: " + masterIP, "info");
-        bzero(data, FED_DATA_LENGTH + 1);
-        read(sockfd, data, FED_DATA_LENGTH);
-        response = (data);
+    response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
+    if (response.compare(JasmineGraphInstanceProtocol::OK) != 0) {
+        server_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::OK +
+                            " ; Received: " + response);
+        close(sockfd);
+        return false;
+    }
+    server_logger.info("Received: " + response);
 
-        if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
-            server_logger.log("Received: " + JasmineGraphInstanceProtocol::HOST_OK, "info");
-        } else {
-            server_logger.log("Received: " + response, "error");
-        }
+    if (!Utils::send_str_wrapper(sockfd, graphID)) {
+        return false;
+    }
+    server_logger.info("Sent: " + graphID);
 
-        result_wr = write(sockfd, JasmineGraphInstanceProtocol::DELETE_GRAPH_FRAGMENT.c_str(),
-                          JasmineGraphInstanceProtocol::DELETE_GRAPH_FRAGMENT.size());
-
-        if (result_wr < 0) {
-            server_logger.log("Error writing to socket", "error");
-        }
-
-        server_logger.log("Sent: " + JasmineGraphInstanceProtocol::DELETE_GRAPH_FRAGMENT, "info");
-        bzero(data, FED_DATA_LENGTH + 1);
-        read(sockfd, data, FED_DATA_LENGTH);
-        response = (data);
-        response = Utils::trim_copy(response, " \f\n\r\t\v");
-        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-            server_logger.log("Received: " + JasmineGraphInstanceProtocol::OK, "info");
-            result_wr = write(sockfd, graphID.c_str(), graphID.size());
-
-            if (result_wr < 0) {
-                server_logger.log("Error writing to socket", "error");
-            }
-
-            server_logger.log("Sent: Graph ID " + graphID, "info");
-
-            bzero(data, FED_DATA_LENGTH + 1);
-            read(sockfd, data, FED_DATA_LENGTH);
-            response = (data);
-            response = Utils::trim_copy(response, " \f\n\r\t\v");
-            server_logger.log("Received last response : " + response, "info");
-            return 1;
-
-        } else {
-            close(sockfd);
-            return 0;
-        }
+    response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
+    if (response.compare(JasmineGraphInstanceProtocol::OK) != 0) {
+        server_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::OK +
+                            " ; Received: " + response);
+        close(sockfd);
+        return false;
     }
     close(sockfd);
-    return 0;
+    return true;
 }
 
 int JasmineGraphServer::removePartitionThroughService(string host, int port, string graphID, string partitionID,

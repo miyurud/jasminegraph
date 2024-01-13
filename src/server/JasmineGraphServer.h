@@ -98,24 +98,10 @@ class JasmineGraphServer {
 
     void assignPartitionsToWorkers(int numberOfWorkers);
 
-    static bool batchUploadCentralStore(std::string host, int port, int dataPort, int graphID, std::string filePath,
-                                        std::string masterIP);
-
     static void copyCentralStoreToAggregateLocation(std::string filePath);
-
-    static bool batchUploadAttributeFile(std::string host, int port, int dataPort, int graphID, std::string filePath,
-                                         std::string masterIP);
-
-    static bool batchUploadCentralAttributeFile(std::string host, int port, int dataPort, int graphID,
-                                                std::string filePath, std::string masterIP);
-
-    static bool batchUploadCompositeCentralstoreFile(std::string host, int port, int dataPort, int graphID,
-                                                     std::string filePath, std::string masterIP);
 
     static int removePartitionThroughService(std::string host, int port, std::string graphID, std::string partitionID,
                                              std::string masterIP);
-
-    static int removeFragmentThroughService(std::string host, int port, std::string graphID, std::string masterIP);
 
     static bool sendFileThroughService(std::string host, int dataPort, std::string fileName, std::string filePath,
                                        std::string masterIP);
