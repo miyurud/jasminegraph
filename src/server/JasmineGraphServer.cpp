@@ -1440,7 +1440,7 @@ bool JasmineGraphServer::batchUploadCentralAttributeFile(std::string host, int p
 
     if (sockfd < 0) {
         std::cerr << "Cannot create socket" << std::endl;
-        return 0;
+        return false;
     }
 
     if (host.find('@') != std::string::npos) {
@@ -1450,7 +1450,7 @@ bool JasmineGraphServer::batchUploadCentralAttributeFile(std::string host, int p
     server = gethostbyname(host.c_str());
     if (server == NULL) {
         server_logger.error("ERROR, no host named " + host);
-        return 0;
+        return false;
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -1607,7 +1607,7 @@ bool JasmineGraphServer::batchUploadCompositeCentralstoreFile(std::string host, 
 
     if (sockfd < 0) {
         std::cerr << "Cannot create socket" << std::endl;
-        return 0;
+        return false;
     }
 
     if (host.find('@') != std::string::npos) {
@@ -1617,7 +1617,7 @@ bool JasmineGraphServer::batchUploadCompositeCentralstoreFile(std::string host, 
     server = gethostbyname(host.c_str());
     if (server == NULL) {
         server_logger.error("ERROR, no host named " + host);
-        return 0;
+        return false;
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -1793,50 +1793,46 @@ bool JasmineGraphServer::sendFileThroughService(std::string host, int dataPort, 
         return false;
     }
 
-    int result_wr = write(sockfd, fileName.c_str(), fileName.size());
-
-    if (result_wr < 0) {
-        server_logger.log("Error writing to socket", "error");
+    if (!Utils::send_str_wrapper(sockfd, fileName)) {
+        return false;
     }
+    server_logger.info("Sent: " + fileName);
 
-    bzero(data, FED_DATA_LENGTH + 1);
-    read(sockfd, data, FED_DATA_LENGTH);
-    string response = (data);
-    response = Utils::trim_copy(response, " \f\n\r\t\v");
-
-    if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE) == 0) {
-        std::cout << "Sending file " << filePath << " through port " << dataPort << std::endl;
-
-        FILE *fp = fopen(filePath.c_str(), "r");
-        if (fp == NULL) {
-            // printf("Error opening file\n");
-            close(sockfd);
-            return false;
-        }
-
-        for (;;) {
-            unsigned char buff[1024] = {0};
-            int nread = fread(buff, 1, 1024, fp);
-            // printf("Bytes read %d \n", nread);
-
-            /* If read was success, send data. */
-            if (nread > 0) {
-                // printf("Sending \n");
-                write(sockfd, buff, nread);
-            }
-
-            if (nread < 1024) {
-                if (feof(fp)) printf("End of file\n");
-                if (ferror(fp)) printf("Error reading\n");
-                break;
-            }
-        }
-
-        fclose(fp);
+    string response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
+    if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE) != 0) {
+        server_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::SEND_FILE +
+                            " ; Received: " + response);
         close(sockfd);
-        return true;
+        return false;
     }
-    return false;
+    server_logger.info("Received: " + response);
+
+    server_logger.info("Sending file " + filePath + " through port " + std::to_string(dataPort));
+    FILE *fp = fopen(filePath.c_str(), "r");
+    if (fp == NULL) {
+        close(sockfd);
+        return false;
+    }
+
+    while (true) {
+        unsigned char buff[1024] = {0};
+        int nread = fread(buff, 1, 1024, fp);
+
+        /* If read was success, send data. */
+        if (nread > 0) {
+            write(sockfd, buff, nread);
+        }
+
+        if (nread < 1024) {
+            if (feof(fp)) printf("End of file\n");
+            if (ferror(fp)) printf("Error reading\n");
+            break;
+        }
+    }
+
+    fclose(fp);
+    close(sockfd);
+    return true;
 }
 
 static void copyArtifactsToWorkers(const std::string &workerPath, const std::string &artifactLocation,
