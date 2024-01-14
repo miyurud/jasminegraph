@@ -23,6 +23,7 @@ pthread_mutex_t thread_lock = PTHREAD_MUTEX_INITIALIZER;
 void *filetransferservicesession(void *dummyPt) {
     filetransferservicesessionargs *sessionargs = (filetransferservicesessionargs *)dummyPt;
     int connFd = sessionargs->connFd;
+    delete sessionargs;
     char data[301];
     bzero(data, 301);
     read(connFd, data, 300);
@@ -82,29 +83,18 @@ void JasmineGraphInstanceFileTransferService::run(int dataPort) {
 
     len = sizeof(clntAdd);
 
-    int connectionCounter = 0;
-    pthread_t threadA[100];
-
-    // TODO :: What is the maximum number of connections allowed?? Considered as 100 for now
-    while (connectionCounter < 100) {
+    while (true) {
         file_service_logger.log("Worker FileTransfer Service listening on port " + to_string(dataPort), "info");
         connFd = accept(listenFd, (struct sockaddr *)&clntAdd, &len);
 
         if (connFd < 0) {
             file_service_logger.log("Cannot accept connection to port " + to_string(dataPort), "error");
-        } else {
-            file_service_logger.log("Connection successful to port " + to_string(dataPort), "info");
-            struct filetransferservicesessionargs filetransferservicesessionargs1;
-            filetransferservicesessionargs1.connFd = connFd;
-
-            pthread_create(&threadA[connectionCounter], NULL, filetransferservicesession,
-                           &filetransferservicesessionargs1);
-            connectionCounter++;
+            continue;
         }
-    }
-
-    for (int i = 0; i < connectionCounter; i++) {
-        pthread_join(threadA[i], NULL);
-        std::cout << "FT Threads joined" << std::endl;
+        file_service_logger.log("Connection successful to port " + to_string(dataPort), "info");
+        filetransferservicesessionargs *sessionargs = new filetransferservicesessionargs;
+        sessionargs->connFd = connFd;
+        pthread_t pt;
+        pthread_create(&pt, NULL, filetransferservicesession, sessionargs);
     }
 }

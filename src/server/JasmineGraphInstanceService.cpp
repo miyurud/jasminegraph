@@ -291,29 +291,28 @@ void JasmineGraphInstanceService::run(string profile, string masterHost, string 
     std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> graphDBMapDuplicateCentralStores;
     std::map<std::string, JasmineGraphIncrementalLocalStore *> incrementalLocalStore;
 
-    // TODO :: What is the maximum number of connections allowed??
     instance_logger.info("Worker listening on port " + to_string(serverPort));
     while (true) {
         int connFd = accept(listenFd, (struct sockaddr *)&clntAdd, &len);
 
         if (connFd < 0) {
             instance_logger.error("Cannot accept connection to port " + to_string(serverPort));
-        } else {
-            instance_logger.info("Connection successful to port " + to_string(serverPort));
-            instanceservicesessionargs *serviceArguments_p = new instanceservicesessionargs;
-            serviceArguments_p->graphDBMapLocalStores = graphDBMapLocalStores;
-            serviceArguments_p->graphDBMapCentralStores = graphDBMapCentralStores;
-            serviceArguments_p->graphDBMapDuplicateCentralStores = graphDBMapDuplicateCentralStores;
-            serviceArguments_p->incrementalLocalStore = incrementalLocalStore;
-            serviceArguments_p->profile = profile;
-            serviceArguments_p->masterHost = masterHost;
-            serviceArguments_p->port = serverPort;
-            serviceArguments_p->dataPort = serverDataPort;
-            serviceArguments_p->host = host;
-            serviceArguments_p->connFd = connFd;
-            pthread_t pt;
-            pthread_create(&pt, NULL, instanceservicesession, serviceArguments_p);
+            continue;
         }
+        instance_logger.info("Connection successful to port " + to_string(serverPort));
+        instanceservicesessionargs *serviceArguments_p = new instanceservicesessionargs;
+        serviceArguments_p->graphDBMapLocalStores = graphDBMapLocalStores;
+        serviceArguments_p->graphDBMapCentralStores = graphDBMapCentralStores;
+        serviceArguments_p->graphDBMapDuplicateCentralStores = graphDBMapDuplicateCentralStores;
+        serviceArguments_p->incrementalLocalStore = incrementalLocalStore;
+        serviceArguments_p->profile = profile;
+        serviceArguments_p->masterHost = masterHost;
+        serviceArguments_p->port = serverPort;
+        serviceArguments_p->dataPort = serverDataPort;
+        serviceArguments_p->host = host;
+        serviceArguments_p->connFd = connFd;
+        pthread_t pt;
+        pthread_create(&pt, NULL, instanceservicesession, serviceArguments_p);
     }
 
     pthread_mutex_destroy(&file_lock);

@@ -26,6 +26,7 @@ void *backendservicesesion(void *dummyPt) {
     backendservicesessionargs *sessionargs = (backendservicesessionargs *)dummyPt;
     int connFd = sessionargs->connFd;
     SQLiteDBInterface *sqLiteDbInterface = sessionargs->sqlite;
+    delete sessionargs;
     backend_logger.log("Thread No: " + to_string(pthread_self()), "info");
     char data[301];
     bzero(data, 301);
@@ -132,13 +133,10 @@ int JasmineGraphBackend::run() {
     }
 
     listen(listenFd, 10);
-    pthread_t threadA[workerCount];
 
     len = sizeof(clntAdd);
 
-    int noThread = 0;
-
-    while (noThread < workerCount) {
+    while (true) {
         backend_logger.log("Backend Listening", "info");
 
         // this is where client connects. svr will hang in this mode until client conn
@@ -146,21 +144,15 @@ int JasmineGraphBackend::run() {
 
         if (connFd < 0) {
             backend_logger.log("Cannot accept connection", "error");
-            return 0;
+            continue;
         }
         backend_logger.log("Connection successful", "info");
-
-        struct backendservicesessionargs backendservicesessionargs1;
-        backendservicesessionargs1.sqlite = this->sqlite;
-        backendservicesessionargs1.connFd = connFd;
-
-        pthread_create(&threadA[noThread], NULL, backendservicesesion, &backendservicesessionargs1);
-
-        noThread++;
+        backendservicesessionargs *sessionargs = new backendservicesessionargs;
+        sessionargs->sqlite = this->sqlite;
+        sessionargs->connFd = connFd;
+        pthread_t pt;
+        pthread_create(&pt, NULL, backendservicesesion, sessionargs);
     }
 
-    for (int i = 0; i < noThread; i++) {
-        pthread_join(threadA[i], NULL);
-    }
     return 1;
 }
