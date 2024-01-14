@@ -10,13 +10,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 import test
-from kubernetes import client, config
+import sys
 
 if __name__ == '__main__':
-    config.load_kube_config()
 
-    v1 = client.CoreV1Api()
-    host = v1.read_namespaced_service(name='jasminegraph-master-service',
-                                              namespace='default').spec.cluster_ip
+    host = sys.argv[1]
     port = 7777
     test.test(host, port)
