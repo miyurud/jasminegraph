@@ -835,12 +835,10 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
             workerThreads[count] = std::thread(batchUploadFile, worker.hostname, worker.port, worker.dataPort, graphID,
                                                partitionFileName, masterHost);
             count++;
-            sleep(1);
             copyCentralStoreToAggregateLocation(centralStoreFileList[file_count]);
             workerThreads[count] = std::thread(batchUploadCentralStore, worker.hostname, worker.port, worker.dataPort,
                                                graphID, centralStoreFileList[file_count], masterHost);
             count++;
-            sleep(1);
 
             if (compositeCentralStoreFileList.find(file_count) != compositeCentralStoreFileList.end()) {
                 copyCentralStoreToAggregateLocation(compositeCentralStoreFileList[file_count]);
@@ -848,23 +846,19 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
                     std::thread(batchUploadCompositeCentralstoreFile, worker.hostname, worker.port, worker.dataPort,
                                 graphID, compositeCentralStoreFileList[file_count], masterHost);
                 count++;
-                sleep(1);
             }
 
             workerThreads[count] = std::thread(batchUploadCentralStore, worker.hostname, worker.port, worker.dataPort,
                                                graphID, centralStoreDuplFileList[file_count], masterHost);
             count++;
-            sleep(1);
             if (graphType == Conts::GRAPH_WITH_ATTRIBUTES) {
                 workerThreads[count] = std::thread(batchUploadAttributeFile, worker.hostname, worker.port,
                                                    worker.dataPort, graphID, attributeFileList[file_count], masterHost);
                 count++;
-                sleep(1);
                 workerThreads[count] =
                     std::thread(batchUploadCentralAttributeFile, worker.hostname, worker.port, worker.dataPort, graphID,
                                 centralStoreAttributeFileList[file_count], masterHost);
                 count++;
-                sleep(1);
             }
             assignPartitionToWorker(partitionFileName, graphID, worker.hostname, worker.port, worker.dataPort);
             file_count++;
@@ -2009,7 +2003,6 @@ void JasmineGraphServer::removeGraph(vector<pair<string, string>> hostHasPartiti
         deleteThreads[count] = std::thread(removePartitionThroughService, j->first, hostPortMap[j->first].first,
                                            graphID, j->second, masterIP);
         count++;
-        sleep(1);
     }
 
     for (int threadCount = 0; threadCount < count; threadCount++) {
@@ -2853,7 +2846,6 @@ void JasmineGraphServer::initiateFiles(std::string graphID, std::string training
                 std::thread(initiateTrain, workerPartition.hostname, workerPartition.port, workerPartition.dataPort,
                             trainingArgs + " " + *k, iterationOfPart, partitionCount, this->masterHost);
             count++;
-            sleep(3);
         }
     }
 
