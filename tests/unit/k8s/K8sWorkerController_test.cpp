@@ -68,7 +68,7 @@ TEST_F(K8sWorkerControllerTest, TestScalingUpAndDown) {
 
     controller->setNumberOfWorkers(0);
     ASSERT_EQ(controller->getNumberOfWorkers(), 0);
-    result = metadb->runSelect("SELECT * FROM worker");
+    result = metadb->runSelect("SELECT idworker FROM worker");
     ASSERT_EQ(result.size(), 0);
 
     deployment_list = interface->getDeploymentList(strdup("deployment=jasminegraph-worker"));
