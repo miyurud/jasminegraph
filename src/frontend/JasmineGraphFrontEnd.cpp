@@ -280,7 +280,7 @@ int JasmineGraphFrontEnd::run() {
             frontend_logger.error("Cannot accept connection");
             return 0;
         }
-        frontend_logger.info("Connection successful");
+        frontend_logger.info("Connection successful from " + std::string(inet_ntoa(clntAdd.sin_addr)));
 
         frontend_logger.info("Master IP" + masterIP);
 

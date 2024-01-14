@@ -2501,11 +2501,11 @@ void JasmineGraphServer::inDegreeDistribution(std::string graphID) {
         struct hostent *server;
 
         sockfd = socket(AF_INET, SOCK_STREAM, 0);
-
         if (sockfd < 0) {
             std::cout << "Cannot create socket" << std::endl;
             continue;
         }
+
         server = gethostbyname(host.c_str());
         if (server == NULL) {
             server_logger.error("ERROR, no host named " + host);
@@ -2518,7 +2518,6 @@ void JasmineGraphServer::inDegreeDistribution(std::string graphID) {
         serv_addr.sin_port = htons(port);
         if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
             std::cout << "ERROR connecting" << std::endl;
-            // TODO::exit
             continue;
         }
 
@@ -3178,7 +3177,7 @@ bool JasmineGraphServer::initiatePredict(std::string host, int port, int dataPor
     serv_addr.sin_family = AF_INET;
     bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
     serv_addr.sin_port = htons(port);
-    if (connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         server_logger.log("ERROR connecting", "error");
         // TODO::exit
         return 0;

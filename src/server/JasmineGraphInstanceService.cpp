@@ -117,21 +117,23 @@ char *converter(const std::string &s) {
 }
 
 void *instanceservicesession(void *dummyPt) {
-    instanceservicesessionargs *sessionargs = (instanceservicesessionargs *)dummyPt;
-    int connFd = sessionargs->connFd;
-    std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores = sessionargs->graphDBMapLocalStores;
+    instanceservicesessionargs *sessionargs_p = (instanceservicesessionargs *)dummyPt;
+    instanceservicesessionargs sessionargs = *sessionargs_p;
+    delete sessionargs_p;
+    int connFd = sessionargs.connFd;
+    std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores = sessionargs.graphDBMapLocalStores;
     std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores =
-        sessionargs->graphDBMapCentralStores;
+        sessionargs.graphDBMapCentralStores;
     std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> graphDBMapDuplicateCentralStores =
-        sessionargs->graphDBMapDuplicateCentralStores;
+        sessionargs.graphDBMapDuplicateCentralStores;
     std::map<std::string, JasmineGraphIncrementalLocalStore *> incrementalLocalStoreMap =
-        sessionargs->incrementalLocalStore;
+        sessionargs.incrementalLocalStore;
 
-    string serverName = sessionargs->host;
-    string masterHost = sessionargs->masterHost;
-    string profile = sessionargs->profile;
-    int serverPort = sessionargs->port;
-    int serverDataPort = sessionargs->dataPort;
+    string serverName = sessionargs.host;
+    string masterHost = sessionargs.masterHost;
+    string profile = sessionargs.profile;
+    int serverPort = sessionargs.port;
+    int serverDataPort = sessionargs.dataPort;
 
     instance_logger.info("New service session started on thread:" + to_string(pthread_self()) +
                          " connFd:" + to_string(connFd));
@@ -225,7 +227,7 @@ void *instanceservicesession(void *dummyPt) {
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_TRAIN) == 0) {
             initiate_train_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_PREDICT) == 0) {
-            initiate_predict_command(connFd, sessionargs, &loop_exit);
+            initiate_predict_command(connFd, &sessionargs, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_MODEL_COLLECTION) == 0) {
             initiate_model_collection_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_FRAGMENT_RESOLUTION) == 0) {
@@ -283,10 +285,7 @@ void JasmineGraphInstanceService::run(string profile, string masterHost, string 
 
     len = sizeof(clntAdd);
 
-    int connectionCounter = 0;
     pthread_mutex_init(&file_lock, NULL);
-    pthread_t threadA[MAX_CONNECTION_COUNT];
-    struct instanceservicesessionargs threadArgs[MAX_CONNECTION_COUNT];
     std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores;
     std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores;
     std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> graphDBMapDuplicateCentralStores;
@@ -294,14 +293,14 @@ void JasmineGraphInstanceService::run(string profile, string masterHost, string 
 
     // TODO :: What is the maximum number of connections allowed??
     instance_logger.info("Worker listening on port " + to_string(serverPort));
-    while (connectionCounter < MAX_CONNECTION_COUNT) {
+    while (true) {
         int connFd = accept(listenFd, (struct sockaddr *)&clntAdd, &len);
 
         if (connFd < 0) {
             instance_logger.error("Cannot accept connection to port " + to_string(serverPort));
         } else {
             instance_logger.info("Connection successful to port " + to_string(serverPort));
-            struct instanceservicesessionargs *serviceArguments_p = &(threadArgs[connectionCounter]);
+            instanceservicesessionargs *serviceArguments_p = new instanceservicesessionargs;
             serviceArguments_p->graphDBMapLocalStores = graphDBMapLocalStores;
             serviceArguments_p->graphDBMapCentralStores = graphDBMapCentralStores;
             serviceArguments_p->graphDBMapDuplicateCentralStores = graphDBMapDuplicateCentralStores;
@@ -312,13 +311,9 @@ void JasmineGraphInstanceService::run(string profile, string masterHost, string 
             serviceArguments_p->dataPort = serverDataPort;
             serviceArguments_p->host = host;
             serviceArguments_p->connFd = connFd;
-            pthread_create(&threadA[connectionCounter], NULL, instanceservicesession, serviceArguments_p);
-            connectionCounter++;
+            pthread_t pt;
+            pthread_create(&pt, NULL, instanceservicesession, serviceArguments_p);
         }
-    }
-
-    for (int i = 0; i < connectionCounter; i++) {
-        pthread_join(threadA[i], NULL);
     }
 
     pthread_mutex_destroy(&file_lock);
@@ -2083,33 +2078,39 @@ static void batch_upload_command(int connFd, bool *loop_exit_p) {
         Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
 
     int fileSize = stoi(size);
-    while (true) {
-        if (Utils::fileExists(fullFilePath)) {
-            while (Utils::getFileSize(fullFilePath) < fileSize) {
-                line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
-                if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
-                    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT)) {
-                        *loop_exit_p = true;
-                        return;
-                    }
-                }
-            }
-            break;
-        } else {
-            sleep(1);
-            continue;
-        }
+    while (!Utils::fileExists(fullFilePath)) {
+        instance_logger.info("File does not exist");
+        sleep(1);
     }
-
-    line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
-    if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
-        instance_logger.info("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK);
-        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_ACK)) {
+    while (Utils::getFileSize(fullFilePath) < fileSize) {
+        line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
+        if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) != 0) {
+            instance_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::FILE_RECV_CHK +
+                                  " ; Received: " + line);
+            close(connFd);
+            return;
+        }
+        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT)) {
             *loop_exit_p = true;
             return;
         }
-        instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::FILE_ACK);
+        instance_logger.info("Waiting for file to be received");
     }
+
+    line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
+    if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) != 0) {
+        instance_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::FILE_RECV_CHK +
+                              " ; Received: " + line);
+        close(connFd);
+        return;
+    }
+    instance_logger.info("Received : " + line);
+
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_ACK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::FILE_ACK);
 
     instance_logger.info("File received and saved to " + fullFilePath);
     *loop_exit_p = true;
@@ -2125,26 +2126,34 @@ static void batch_upload_command(int connFd, bool *loop_exit_p) {
     pthread_mutex_unlock(&file_lock);
 
     while (!Utils::fileExists(fullFilePath)) {
-        string response = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
-        if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
-            instance_logger.info("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK);
-            if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT)) {
-                *loop_exit_p = true;
-                return;
-            }
-            instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT);
+        line = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+        if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) != 0) {
+            instance_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK +
+                                  " ; Received: " + line);
+            close(connFd);
+            return;
         }
-    }
-
-    line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
-    if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
-        instance_logger.info("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK);
-        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK)) {
+        instance_logger.info("Received : " + line);
+        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT)) {
             *loop_exit_p = true;
             return;
         }
-        instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK);
+        instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK);
     }
+
+    line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
+    if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) != 0) {
+        instance_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK +
+                              " ; Received: " + line);
+        close(connFd);
+        return;
+    }
+    instance_logger.info("Received : " + line);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK);
 }
 
 static void batch_upload_central_command(int connFd, bool *loop_exit_p) {
@@ -2185,33 +2194,38 @@ static void batch_upload_central_command(int connFd, bool *loop_exit_p) {
         Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
 
     int fileSize = stoi(size);
-    while (true) {
-        if (Utils::fileExists(fullFilePath)) {
-            while (Utils::getFileSize(fullFilePath) < fileSize) {
-                line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
-                if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
-                    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT)) {
-                        *loop_exit_p = true;
-                        return;
-                    }
-                }
-            }
-            break;
-        } else {
-            sleep(1);
-            continue;
+    while (!Utils::fileExists(fullFilePath)) {
+        instance_logger.info("File does not exist");
+        sleep(1);
+    }
+    while (Utils::getFileSize(fullFilePath) < fileSize) {
+        line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
+        if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) != 0) {
+            instance_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::FILE_RECV_CHK +
+                                  " ; Received: " + line);
+            close(connFd);
+            return;
+        }
+        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT)) {
+            *loop_exit_p = true;
+            return;
         }
     }
 
     line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
-    if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
-        instance_logger.info("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK);
-        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_ACK)) {
-            *loop_exit_p = true;
-            return;
-        }
-        instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::FILE_ACK);
+    if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) != 0) {
+        instance_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::FILE_RECV_CHK +
+                              " ; Received: " + line);
+        close(connFd);
+        return;
     }
+    instance_logger.info("Received : " + line);
+
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_ACK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::FILE_ACK);
 
     instance_logger.info("File received and saved to " + fullFilePath);
     *loop_exit_p = true;
@@ -2222,26 +2236,34 @@ static void batch_upload_central_command(int connFd, bool *loop_exit_p) {
     fullFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + rawname;
 
     while (!Utils::fileExists(fullFilePath)) {
-        string response = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
-        if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
-            instance_logger.info("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK);
-            if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT)) {
-                *loop_exit_p = true;
-                return;
-            }
-            instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT);
+        line = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+        if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) != 0) {
+            instance_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK +
+                                  " ; Received: " + line);
+            close(connFd);
+            return;
         }
-    }
-
-    line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
-    if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) == 0) {
-        instance_logger.info("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK);
-        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK)) {
+        instance_logger.info("Received : " + line);
+        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT)) {
             *loop_exit_p = true;
             return;
         }
-        instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK);
+        instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK);
     }
+
+    line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
+    if (line.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK) != 0) {
+        instance_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK +
+                              " ; Received: " + line);
+        close(connFd);
+        return;
+    }
+    instance_logger.info("Received : " + line);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK);
 }
 
 static void batch_upload_composite_central_command(int connFd, bool *loop_exit_p) {
