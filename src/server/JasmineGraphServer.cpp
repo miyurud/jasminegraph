@@ -2761,81 +2761,59 @@ void JasmineGraphServer::duplicateCentralStore(std::string graphID) {
         serv_addr.sin_port = htons(port);
         if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
             std::cout << "ERROR connecting" << std::endl;
-            // TODO::exit
             continue;
         }
 
-        bzero(data, FED_DATA_LENGTH + 1);
-        int result_wr = write(sockfd, JasmineGraphInstanceProtocol::DP_CENTRALSTORE.c_str(),
-                              JasmineGraphInstanceProtocol::DP_CENTRALSTORE.size());
-        if (result_wr < 0) {
-            server_logger.log("Error writing to socket", "error");
+        if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::DP_CENTRALSTORE)) {
+            close(sockfd);
+            continue;
         }
+        server_logger.info("Sent: " + JasmineGraphInstanceProtocol::DP_CENTRALSTORE);
 
-        server_logger.log("Sent: " + JasmineGraphInstanceProtocol::DP_CENTRALSTORE, "info");
-        bzero(data, FED_DATA_LENGTH + 1);
-        read(sockfd, data, FED_DATA_LENGTH);
-        string response = (data);
-        response = Utils::trim_copy(response, " \f\n\r\t\v");
-
-        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-            server_logger.log("Received: " + JasmineGraphInstanceProtocol::OK, "info");
-        } else {
-            server_logger.log("Error reading from socket", "error");
+        string response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
+        if (response.compare(JasmineGraphInstanceProtocol::OK) != 0) {
+            server_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::OK +
+                                " ; Received: " + response);
+            close(sockfd);
+            continue;
         }
+        server_logger.info("Received: " + response);
 
-        result_wr = write(sockfd, graphID.c_str(), graphID.size());
-
-        if (result_wr < 0) {
-            server_logger.log("Error writing to socket", "error");
+        if (!Utils::send_str_wrapper(sockfd, graphID)) {
+            close(sockfd);
+            continue;
         }
-        server_logger.log("Sent: Graph ID " + graphID, "info");
+        server_logger.info("Sent: " + graphID);
 
-        bzero(data, FED_DATA_LENGTH + 1);
-        read(sockfd, data, FED_DATA_LENGTH);
-        response = (data);
-        response = Utils::trim_copy(response, " \f\n\r\t\v");
-
-        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-            server_logger.log("Received: " + JasmineGraphInstanceProtocol::OK, "info");
-        } else {
-            server_logger.log("Error reading from socket", "error");
+        response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
+        if (response.compare(JasmineGraphInstanceProtocol::OK) != 0) {
+            server_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::OK +
+                                " ; Received: " + response);
+            close(sockfd);
+            continue;
         }
+        server_logger.info("Received: " + response);
 
-        int partitionID = stoi(partition);
-
-        result_wr = write(sockfd, std::to_string(partitionID).c_str(), std::to_string(partitionID).size());
-
-        if (result_wr < 0) {
-            server_logger.log("Error writing to socket", "error");
+        if (!Utils::send_str_wrapper(sockfd, partition)) {
+            close(sockfd);
+            continue;
         }
+        server_logger.info("Sent: " + partition);
 
-        server_logger.log("Sent: Partition ID " + std::to_string(partitionID), "info");
-
-        bzero(data, FED_DATA_LENGTH + 1);
-        read(sockfd, data, FED_DATA_LENGTH);
-        response = (data);
-        response = Utils::trim_copy(response, " \f\n\r\t\v");
-
-        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-            server_logger.log("Received: " + JasmineGraphInstanceProtocol::OK, "info");
-        } else {
-            server_logger.log("Error reading from socket", "error");
+        response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
+        if (response.compare(JasmineGraphInstanceProtocol::OK) != 0) {
+            server_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::OK +
+                                " ; Received: " + response);
+            close(sockfd);
+            continue;
         }
+        server_logger.info("Received: " + response);
 
-        result_wr = write(sockfd, workerList.c_str(), workerList.size());
-
-        if (result_wr < 0) {
-            server_logger.log("Error writing to socket", "error");
+        if (!Utils::send_str_wrapper(sockfd, workerList)) {
+            close(sockfd);
+            continue;
         }
-
-        server_logger.log("Sent: Host List ", "info");
-
-        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-            server_logger.log("Received: " + JasmineGraphInstanceProtocol::OK, "info");
-        } else {
-            server_logger.log("Error reading from socket", "error");
-        }
+        server_logger.info("Sent: " + workerList);
     }
 }
 
