@@ -3577,7 +3577,7 @@ bool JasmineGraphServer::receiveGlobalWeights(std::string host, int port, std::s
 
     if (sockfd < 0) {
         server_logger.log("Cannot create socket", "error");
-        return 0;
+        return false;
     }
     if (host.find('@') != std::string::npos) {
         host = Utils::split(host, '@')[1];
@@ -3585,7 +3585,7 @@ bool JasmineGraphServer::receiveGlobalWeights(std::string host, int port, std::s
     server = gethostbyname(host.c_str());
     if (server == NULL) {
         server_logger.log("ERROR, can not find the host", "error");
-        return 0;
+        return false;
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -3616,6 +3616,9 @@ bool JasmineGraphServer::receiveGlobalWeights(std::string host, int port, std::s
         char content[stoi(length)];
         int full_size = stoi(length) + HEADER_LENGTH;
 
+        // FIXME: content has a capacity of (full_size - HEADER_LENGTH)
+        // but in this loop, index i will increase upto full_size
+        // which leads to a buffer overflow
         for (int i = 0; i < full_size; i++) {
             content[i] = data[i];
         }
@@ -3654,7 +3657,7 @@ bool JasmineGraphServer::receiveGlobalWeights(std::string host, int port, std::s
         }
     }
     close(sockfd);
-    return 0;
+    return true;
 }
 
 bool JasmineGraphServer::mergeFiles(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
@@ -3671,7 +3674,7 @@ bool JasmineGraphServer::mergeFiles(std::string host, int port, int dataPort, st
 
     if (sockfd < 0) {
         server_logger.log("Cannot create socket", "error");
-        return 0;
+        return false;
     }
 
     if (host.find('@') != std::string::npos) {
@@ -3681,7 +3684,7 @@ bool JasmineGraphServer::mergeFiles(std::string host, int port, int dataPort, st
     server = gethostbyname(host.c_str());
     if (server == NULL) {
         server_logger.log("ERROR, can not find the host", "error");
-        return 0;
+        return false;
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -3690,55 +3693,62 @@ bool JasmineGraphServer::mergeFiles(std::string host, int port, int dataPort, st
     serv_addr.sin_port = htons(port);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         server_logger.log("ERROR connecting", "error");
-        // TODO::exit
-        return 0;
+        return false;
     }
 
-    bzero(data, FED_DATA_LENGTH);
-    write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
-    server_logger.log("Sent: " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
-    bzero(data, FED_DATA_LENGTH);
-    read(sockfd, data, FED_DATA_LENGTH);
-    string response = (data);
-
-    response = Utils::trim_copy(response, " \f\n\r\t\v");
-
-    if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
-        server_logger.log("Received merge : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
-        string server_host = masterIP;
-        write(sockfd, server_host.c_str(), server_host.size());
-        server_logger.log("Sent merge : " + server_host, "info");
-
-        bzero(data, FED_DATA_LENGTH + 1);
-        read(sockfd, data, FED_DATA_LENGTH);
-        response = (data);
-        response = Utils::trim_copy(response, " \f\n\r\t\v");
-
-        if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
-            server_logger.log("Received: " + JasmineGraphInstanceProtocol::HOST_OK, "info");
-        }
-
-        write(sockfd, JasmineGraphInstanceProtocol::MERGE_FILES.c_str(),
-              JasmineGraphInstanceProtocol::MERGE_FILES.size());
-        server_logger.log("Sent merge : " + JasmineGraphInstanceProtocol::MERGE_FILES, "info");
-        bzero(data, FED_DATA_LENGTH);
-        read(sockfd, data, FED_DATA_LENGTH);
-        response = (data);
-        response = Utils::trim_copy(response, " \f\n\r\t\v");
-        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-            server_logger.log("Received merge : " + JasmineGraphInstanceProtocol::OK, "info");
-            write(sockfd, (trainingArgs).c_str(), (trainingArgs).size());
-            server_logger.log("Sent merge : training args " + trainingArgs, "info");
-            bzero(data, FED_DATA_LENGTH);
-            return 0;
-        }
-    } else {
-        server_logger.log("There was an error in the invoking training process and the response is :: " + response,
-                          "error");
+    if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE)) {
+        close(sockfd);
+        return false;
     }
+    server_logger.info("Sent: " + JasmineGraphInstanceProtocol::HANDSHAKE);
+
+    string response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
+    if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) != 0) {
+        server_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::HANDSHAKE_OK +
+                            " ; Received: " + response);
+        close(sockfd);
+        return false;
+    }
+    server_logger.info("Received: " + response);
+
+    if (!Utils::send_str_wrapper(sockfd, masterIP)) {
+        close(sockfd);
+        return false;
+    }
+    server_logger.info("Sent: " + masterIP);
+
+    response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
+    if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) != 0) {
+        server_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::HOST_OK +
+                            " ; Received: " + response);
+        close(sockfd);
+        return false;
+    }
+    server_logger.info("Received: " + response);
+
+    if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::MERGE_FILES)) {
+        close(sockfd);
+        return false;
+    }
+    server_logger.info("Sent: " + JasmineGraphInstanceProtocol::MERGE_FILES);
+
+    response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
+    if (response.compare(JasmineGraphInstanceProtocol::OK) != 0) {
+        server_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::OK +
+                            " ; Received: " + response);
+        close(sockfd);
+        return false;
+    }
+    server_logger.info("Received: " + response);
+
+    if (!Utils::send_str_wrapper(sockfd, trainingArgs)) {
+        close(sockfd);
+        return false;
+    }
+    server_logger.info("Sent: " + trainingArgs);
 
     close(sockfd);
-    return 0;
+    return true;
 }
 
 bool JasmineGraphServer::sendTrainCommand(std::string host, int port, std::string trainingArgs) {
