@@ -16,7 +16,6 @@ limitations under the License.
 #include "../util/Utils.h"
 #include "../util/logger/Logger.h"
 
-// #define DEBUG // enable debug logging
 // #define LOCAL_CONFIG // enable local config
 
 Logger k8s_logger;
@@ -65,25 +64,6 @@ v1_deployment_list_t *K8sInterface::getDeploymentList(char *labelSelectors) {
                                                          NULL,                  /* timeoutSeconds */
                                                          NULL);                 /* watch */
 
-#ifdef DEBUG
-    if (deployment_list) {
-        std::string pod_names;
-        listEntry_t *listEntry = NULL;
-        v1_pod_t *pod = NULL;
-        list_ForEach(listEntry, deployment_list->items) {
-            pod = static_cast<v1_pod_t *>(listEntry->data);
-            pod_names += pod->metadata->name;
-        }
-        if (pod_names.empty()) {
-            k8s_logger.info("No pods found.");
-        } else {
-            k8s_logger.info("Available pod list: " + pod_names);
-        }
-    } else {
-        k8s_logger.info("Api client response code :" + std::to_string(apiClient->response_code));
-        k8s_logger.error("Error in getting pod list.");
-    }
-#endif
 
     return deployment_list;
 }
@@ -102,25 +82,6 @@ v1_service_list_t *K8sInterface::getServiceList(char *labelSelectors) {
                                                    NULL,                  /* sendInitialEvents */
                                                    NULL,                  /* timeoutSeconds */
                                                    NULL);                 /* watch */
-
-#ifdef DEBUG
-    if (service_list) {
-        std::string service_names;
-        listEntry_t *listEntry = NULL;
-        v1_service_t *service = NULL;
-        list_ForEach(listEntry, service_list->items) {
-            service = static_cast<v1_service_t *>(listEntry->data);
-            service_names += service->metadata->name;
-        }
-        if (service_names.empty()) {
-            k8s_logger.info("No services found.");
-        } else {
-            k8s_logger.info("Available service list: " + service_names);
-        }
-    } else {
-        k8s_logger.error("Error in getting service list.");
-    }
-#endif
 
     return service_list;
 }

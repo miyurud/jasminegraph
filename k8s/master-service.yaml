@@ -7,10 +7,10 @@ metadata:
 spec:
   ports:
     - port: 7777
-      name: 'server-port'
+      name: 'frontend-port'
       nodePort: 30001
     - port: 7778
-      name: 'server-data-port'
+      name: 'backend-port'
       nodePort: 30002
   selector:
     type: master

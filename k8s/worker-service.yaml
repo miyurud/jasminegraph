@@ -7,9 +7,9 @@ metadata:
     workerId: <worker-id>
 spec:
   ports:
-    - port: 7777
+    - port: 7780
       name: 'server-port'
-    - port: 7778
+    - port: 7781
       name: 'server-data-port'
   selector:
     type: worker

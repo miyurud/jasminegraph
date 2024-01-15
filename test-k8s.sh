@@ -61,13 +61,6 @@ clear_resources() {
 cd "$TEST_ROOT"
 rm -rf env
 cp -r env_init env
-chmod 777 -R env
-
-echo "metadb folder"
-ls -la env/databases/metadb
-echo "performancedb folder"
-ls -la env/databases/performancedb
-echo
 
 cd "$PROJECT_ROOT"
 build_and_run_on_k8s
@@ -114,7 +107,7 @@ kubectl get pods
 kubectl get services
 echo
 
-timeout "$TIMEOUT_SECONDS" python3 -u "${TEST_ROOT}/test-k8s.py" |& tee "$TEST_LOG"
+timeout "$TIMEOUT_SECONDS" python3 -u "${TEST_ROOT}/test-k8s.py" "$masterIP" |& tee "$TEST_LOG"
 exit_code="${PIPESTATUS[0]}"
 set +ex
 if [ "$exit_code" = '124' ]; then

@@ -46,7 +46,7 @@ class K8sWorkerControllerTest : public ::testing::Test {
 TEST_F(K8sWorkerControllerTest, TestConstructor) {
     ASSERT_EQ(controller->getMasterIp(), "10.43.0.1");
     ASSERT_EQ(controller->getNumberOfWorkers(), 2);
-    auto result = metadb->runSelect("SELECT * FROM worker");
+    auto result = metadb->runSelect("SELECT idworker FROM worker");
     ASSERT_EQ(result.size(), 2);
 
     v1_deployment_list_t *deployment_list = interface->getDeploymentList(strdup("deployment=jasminegraph-worker"));
@@ -58,7 +58,7 @@ TEST_F(K8sWorkerControllerTest, TestConstructor) {
 TEST_F(K8sWorkerControllerTest, TestScalingUpAndDown) {
     controller->setNumberOfWorkers(4);
     ASSERT_EQ(controller->getNumberOfWorkers(), 4);
-    auto result = metadb->runSelect("SELECT * FROM worker");
+    auto result = metadb->runSelect("SELECT idworker FROM worker");
     ASSERT_EQ(result.size(), 4);
 
     v1_deployment_list_t *deployment_list = interface->getDeploymentList(strdup("deployment=jasminegraph-worker"));
@@ -68,7 +68,7 @@ TEST_F(K8sWorkerControllerTest, TestScalingUpAndDown) {
 
     controller->setNumberOfWorkers(0);
     ASSERT_EQ(controller->getNumberOfWorkers(), 0);
-    result = metadb->runSelect("SELECT * FROM worker");
+    result = metadb->runSelect("SELECT idworker FROM worker");
     ASSERT_EQ(result.size(), 0);
 
     deployment_list = interface->getDeploymentList(strdup("deployment=jasminegraph-worker"));

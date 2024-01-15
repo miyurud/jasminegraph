@@ -23,9 +23,6 @@ jobs:
         - name: Docker Build
           run: docker build -t jasminegraph .
 
-        - name: Install python K8S client
-          run: pip install kubernetes
-
         - name: Grant default user permissions
           run: kubectl apply -f ./.github/workflows/resources/test-rbac.yaml
 
