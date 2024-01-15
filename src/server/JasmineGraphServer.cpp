@@ -3764,7 +3764,7 @@ bool JasmineGraphServer::sendTrainCommand(std::string host, int port, std::strin
 
     if (sockfd < 0) {
         server_logger.log("Cannot create socket", "error");
-        return 0;
+        return false;
     }
 
     if (host.find('@') != std::string::npos) {
@@ -3774,7 +3774,7 @@ bool JasmineGraphServer::sendTrainCommand(std::string host, int port, std::strin
     server = gethostbyname(host.c_str());
     if (server == NULL) {
         server_logger.log("ERROR, can not find the host", "error");
-        return 0;
+        return false;
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -3783,19 +3783,32 @@ bool JasmineGraphServer::sendTrainCommand(std::string host, int port, std::strin
     serv_addr.sin_port = htons(port);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         server_logger.log("ERROR connecting", "error");
-        // TODO::exit
-        return 0;
+        return false;
     }
 
-    bzero(data, FED_DATA_LENGTH);
-    write(sockfd, JasmineGraphInstanceProtocol::INITIATE_TRAIN.c_str(),
-          JasmineGraphInstanceProtocol::INITIATE_TRAIN.size());
-    bzero(data, FED_DATA_LENGTH);
-    read(sockfd, data, FED_DATA_LENGTH);
-    std::string command = trainingArgs;
-    write(sockfd, command.c_str(), command.size());
+    if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::INITIATE_TRAIN)) {
+        close(sockfd);
+        return false;
+    }
+    server_logger.info("Sent: " + JasmineGraphInstanceProtocol::INITIATE_TRAIN);
+
+    string response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
+    if (response.compare(JasmineGraphInstanceProtocol::OK) != 0) {
+        server_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::OK +
+                            " ; Received: " + response);
+        close(sockfd);
+        return false;
+    }
+    server_logger.info("Received: " + response);
+
+    if (!Utils::send_str_wrapper(sockfd, trainingArgs)) {
+        close(sockfd);
+        return false;
+    }
+    server_logger.info("Sent: " + trainingArgs);
+
     close(sockfd);
-    return 0;
+    return true;
 }
 
 void JasmineGraphServer::egoNet(std::string graphID) {
