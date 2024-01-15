@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 MODE=${MODE}
 MASTERIP=${MASTERIP}
@@ -9,6 +9,12 @@ SERVER_PORT=${SERVER_PORT}
 SERVER_DATA_PORT=${SERVER_DATA_PORT}
 ENABLE_NMON=${ENABLE_NMON}
 DEBUG=${DEBUG}
+PROFILE=${PROFILE}
+
+# Set default value for PROFILE if not provided
+if [ -z "$PROFILE" ]; then
+    PROFILE="docker"
+fi
 
 while [ $# -gt 0 ]; do
 
@@ -29,6 +35,12 @@ if [ -z "$MODE" ]; then
 fi
 
 if [ $MODE -eq 1 ]; then
+    # If profile is k8s, then master and worker IPs are not required. Set them to dummy values
+    if [ "$PROFILE" = "k8s" ]; then
+        MASTERIP="x"
+        WORKERIP="x"
+    fi
+
     if [ -z "$MASTERIP" ]; then
         echo "MASTER IP SHOULD BE SPECIFIED"
         exit 1
@@ -67,15 +79,15 @@ fi
 export LD_LIBRARY_PATH=/usr/local/lib
 if [ -n "$DEBUG" ]; then
     if [ $MODE -eq 1 ]; then
-        gdbserver 0.0.0.0:$DEBUG ./JasmineGraph "docker" $MODE $MASTERIP $WORKERS $WORKERIP $ENABLE_NMON
+        gdbserver 0.0.0.0:$DEBUG ./JasmineGraph $PROFILE $MODE $MASTERIP $WORKERS $WORKERIP $ENABLE_NMON
     else
-        gdbserver 0.0.0.0:$DEBUG ./JasmineGraph "docker" $MODE $HOST_NAME $MASTERIP $SERVER_PORT $SERVER_DATA_PORT $ENABLE_NMON
+        gdbserver 0.0.0.0:$DEBUG ./JasmineGraph $PROFILE $MODE $HOST_NAME $MASTERIP $SERVER_PORT $SERVER_DATA_PORT $ENABLE_NMON
     fi
 else
     if [ $MODE -eq 1 ]; then
-        ./JasmineGraph "docker" $MODE $MASTERIP $WORKERS $WORKERIP $ENABLE_NMON
+        ./JasmineGraph $PROFILE $MODE $MASTERIP $WORKERS $WORKERIP $ENABLE_NMON
     else
-        ./JasmineGraph "docker" $MODE $HOST_NAME $MASTERIP $SERVER_PORT $SERVER_DATA_PORT $ENABLE_NMON
+        ./JasmineGraph $PROFILE $MODE $HOST_NAME $MASTERIP $SERVER_PORT $SERVER_DATA_PORT $ENABLE_NMON
     fi
 fi
 

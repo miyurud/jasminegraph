@@ -56,6 +56,7 @@ set(HEADERS src/backend/JasmineGraphBackend.h
         src/util/scheduler/Scheduler.h
         src/util/scheduler/SchedulerService.h
         src/util/scheduler/ctpl_stl.h
+        src/k8s/K8sInterface.h
         src/nativestore/NodeManager.h
         src/nativestore/NodeBlock.h
         src/nativestore/PropertyLink.h
@@ -63,6 +64,7 @@ set(HEADERS src/backend/JasmineGraphBackend.h
         src/nativestore/RelationBlock.h
         src/nativestore/DataPublisher.h
         src/partitioner/stream/Partition.h
+        src/k8s/K8sWorkerController.h
 )
 
 set(SOURCES src/backend/JasmineGraphBackend.cpp
@@ -109,6 +111,7 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/util/kafka/StreamHandler.cpp
         src/util/logger/Logger.cpp
         src/util/scheduler/SchedulerService.cpp
+        src/k8s/K8sInterface.cpp
         src/nativestore/NodeManager.cpp
         src/nativestore/NodeBlock.cpp
         src/nativestore/PropertyLink.cpp
@@ -116,6 +119,7 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/nativestore/RelationBlock.cpp
         src/nativestore/DataPublisher.cpp
         src/partitioner/stream/Partition.cpp
+        src/k8s/K8sWorkerController.cpp
 )
 
 add_library(JasmineGraphLib ${HEADERS} ${SOURCES})
@@ -147,8 +151,11 @@ set(PYTHON_LIBRARIES "/usr/lib/x86_64-linux-gnu/libpython3.8.so")
 
 include_directories(${PYTHON_INCLUDE_DIRS})
 include_directories(${PYTHON_DIRECTORIES})
+include_directories(/usr/local/include/yaml-cpp)
 target_link_libraries(JasmineGraphLib PRIVATE ${PYTHON_LIBRARIES})
 target_link_libraries(JasmineGraphLib PRIVATE m)
+target_link_libraries(JasmineGraphLib PRIVATE /usr/local/lib/libkubernetes.so)
+target_link_libraries(JasmineGraphLib PRIVATE yaml-cpp)
 
 if (CMAKE_BUILD_TYPE STREQUAL "DEBUG")
     # Include google test

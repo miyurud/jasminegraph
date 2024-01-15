@@ -59,6 +59,36 @@ std::vector<std::string> Utils::getFileContent(std::string file) {
     return *vec;
 };
 
+std::string Utils::getFileContentAsString(std::string file) {
+    if (!fileExists(file)) {
+        util_logger.error("File not found : " + file);
+        return "";
+    }
+    std::ifstream in(file);
+    std::string fileContent((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    in.close();
+    return fileContent;
+}
+
+std::string Utils::replaceAll(std::string content, const std::string& oldValue, const std::string& newValue) {
+    size_t pos = 0;
+    while ((pos = content.find(oldValue, pos)) != std::string::npos) {
+        content.replace(pos, oldValue.length(), newValue);
+        pos += newValue.length();
+    }
+    return content;
+}
+
+void Utils::writeFileContent(const std::string& filePath, const std::string& content) {
+    std::ofstream out(filePath);
+    if (!out.is_open()) {
+        util_logger.error("Cannot write to file path: " + filePath);
+        return;
+    }
+    out << content;
+    out.close();
+}
+
 std::string Utils::getJasmineGraphProperty(std::string key) {
     if (Utils::propertiesMap.empty()) {
         std::vector<std::string>::iterator it;
@@ -77,11 +107,11 @@ std::string Utils::getJasmineGraphProperty(std::string key) {
             }
         }
     }
-    unordered_map<std::string, std::string>::iterator it = Utils::propertiesMap.find(key);
+    auto it = Utils::propertiesMap.find(key);
     if (it != Utils::propertiesMap.end()) {
         return it->second;
     }
-    return NULL;
+    return "";
 }
 
 std::vector<Utils::worker> Utils::getWorkerList(SQLiteDBInterface *sqlite) {
@@ -559,4 +589,48 @@ std::string Utils::getCurrentTimestamp() {
     timestamp << put_time(&tm_time, "%y%m%d_%H%M%S");  // Format can be customized
 
     return timestamp.str();
+}
+
+inline json parse_scalar(const YAML::Node &node) {
+    int i;
+    double d;
+    bool b;
+    std::string s;
+
+    // Check whether the node is quoted. parse it as a string
+    if (node.Tag() == "!") {
+        s = node.as<std::string>();
+        return s;
+    }
+
+    if (YAML::convert<int>::decode(node, i)) return i;
+    if (YAML::convert<double>::decode(node, d)) return d;
+    if (YAML::convert<bool>::decode(node, b)) return b;
+    if (YAML::convert<std::string>::decode(node, s)) return s;
+
+    return nullptr;
+}
+
+inline json yaml2json(const YAML::Node &root) {
+    json j{};
+
+    switch (root.Type()) {
+        case YAML::NodeType::Null: break;
+        case YAML::NodeType::Scalar: return parse_scalar(root);
+        case YAML::NodeType::Sequence:
+            for (auto &&node : root)
+                j.emplace_back(yaml2json(node));
+            break;
+        case YAML::NodeType::Map:
+            for (auto &&it : root)
+                j[it.first.as<std::string>()] = yaml2json(it.second);
+            break;
+        default: break;
+    }
+    return j;
+}
+
+std::string Utils::getJsonStringFromYamlFile(const std::string &yamlFile) {
+    YAML::Node yamlNode = YAML::LoadFile(yamlFile);
+    return to_string(yaml2json(yamlNode));
 }

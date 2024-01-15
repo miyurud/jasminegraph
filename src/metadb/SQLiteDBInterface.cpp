@@ -21,18 +21,25 @@ limitations under the License.
 using namespace std;
 Logger db_logger;
 
+SQLiteDBInterface::SQLiteDBInterface() {
+    this->databaseLocation = Utils::getJasmineGraphProperty("org.jasminegraph.db.location");
+}
+
+SQLiteDBInterface::SQLiteDBInterface(string databaseLocation) {
+    this->databaseLocation = databaseLocation;
+}
+
 int SQLiteDBInterface::init() {
-    if (sqlite3_open(Utils::getJasmineGraphProperty("org.jasminegraph.db.location").c_str(), &database)) {
-        db_logger.log("Cannot open database: " + string(sqlite3_errmsg(database)), "error");
+    if (sqlite3_open(this->databaseLocation.c_str(), &database)) {
+        db_logger.error("Cannot open database: " + string(sqlite3_errmsg(database)));
         return -1;
     }
-    db_logger.log("Database opened successfully", "info");
+    db_logger.info("Database opened successfully :" + this->databaseLocation);
     return 0;
 }
 
 int SQLiteDBInterface::finalize() { return sqlite3_close(database); }
 
-SQLiteDBInterface::SQLiteDBInterface() {}
 
 typedef vector<vector<pair<string, string>>> table_type;
 

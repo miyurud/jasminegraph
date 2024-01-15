@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jasminegraph-master-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: jasminegraph
+      type: master
+  template:
+    metadata:
+      labels:
+        type: master
+        service: jasminegraph
+    spec:
+      volumes:
+        - name: jasminegraph-metadb
+          persistentVolumeClaim:
+            claimName: jasminegraph-metadb-claim
+        - name: jasminegraph-performancedb
+          persistentVolumeClaim:
+              claimName: jasminegraph-performancedb-claim
+        - name: jasminegraph-data
+          persistentVolumeClaim:
+            claimName: jasminegraph-data-claim
+        - name: jasminegraph-logs
+          persistentVolumeClaim:
+            claimName: jasminegraph-logs-claim
+      containers:
+        - name: jasminegraph-master
+          image: jasminegraph
+          imagePullPolicy: Never
+          args:
+            [
+              "--MODE",
+              "1",
+              "--WORKERS",
+              "2",
+              "--ENABLE_NMON",
+              "false",
+              "--PROFILE",
+              "k8s"
+            ]
+          ports:
+            - containerPort: 7777
+            - containerPort: 7778
+          volumeMounts:
+            - mountPath: /home/ubuntu/software/jasminegraph/metadb
+              name: jasminegraph-metadb
+            - mountPath: /home/ubuntu/software/jasminegraph/performancedb
+              name: jasminegraph-performancedb
+            - mountPath: /var/tmp/data
+              name: jasminegraph-data
+            - mountPath: /tmp/jasminegraph
+              name: jasminegraph-logs

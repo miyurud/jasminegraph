@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: host-volume
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/home/runner/work/jasminegraph/jasminegraph/coverage"
+
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: host-volume-claim
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: jasminegraph-unit-test-pod
+spec:
+  containers:
+    - name: jasminegraph-container
+      image: jasminegraph:unit
+      volumeMounts:
+        - name: host-volume
+          mountPath: /home/ubuntu/software/jasminegraph/coverage
+  volumes:
+    - name: host-volume
+      persistentVolumeClaim:
+          claimName: host-volume-claim

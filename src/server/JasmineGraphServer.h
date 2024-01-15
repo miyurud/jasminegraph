@@ -30,6 +30,7 @@ limitations under the License.
 #include "../performancedb/PerformanceSQLiteDBInterface.h"
 #include "../util/Conts.h"
 #include "../util/Utils.h"
+#include "../k8s/K8sWorkerController.h"
 
 using std::map;
 
@@ -44,6 +45,7 @@ class JasmineGraphServer {
     int serverDataPort;
     std::map<std::string, std::vector<int>> workerPortsMap;
     std::map<std::string, std::vector<int>> workerDataPortsMap;
+    K8sWorkerController *k8sWorkerController;
 
     JasmineGraphServer();
 
@@ -177,32 +179,34 @@ class JasmineGraphServer {
 
     void initiateFiles(std::string graphID, std::string trainingArgs);
 
-    static void initiateCommunication(std::string graphID, std::string trainingArgs, SQLiteDBInterface *sqlite);
+    static void initiateCommunication(std::string graphID, std::string trainingArgs,
+                                      SQLiteDBInterface *sqlite, std::string masterIP);
 
-    static void initiateOrgCommunication(std::string graphID, std::string trainingArgs, SQLiteDBInterface *sqlite);
+    static void initiateOrgCommunication(std::string graphID, std::string trainingArgs,
+                                         SQLiteDBInterface *sqlite, std::string masterIP);
 
     void initiateMerge(std::string graphID, std::string trainingArgs, SQLiteDBInterface *sqlite);
 
     bool initiatePredict(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
-                         string partCount);
+                         string partCount, std::string masterIP);
 
     static bool initiateTrain(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
-                              string partCount);
+                              string partCount, std::string masterIP);
 
     static bool initiateServer(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
-                               string partCount);
+                               string partCount, std::string masterIP);
 
     static bool initiateOrgServer(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
-                                  string partCount);
+                                  string partCount, std::string masterIP);
 
     static bool initiateAggregator(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
-                                   string partCount);
+                                   string partCount, std::string masterIP);
 
     static bool initiateClient(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
-                               string partCount);
+                               string partCount, std::string masterIP);
 
     static bool mergeFiles(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
-                           string partCount);
+                           string partCount, std::string masterIP);
 
     static bool receiveGlobalWeights(std::string host, int port, std::string trainingArgs, int iteration,
                                      std::string partCount);

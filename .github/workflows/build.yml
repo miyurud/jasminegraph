@@ -20,22 +20,33 @@ jobs:
         ref: ${{github.head_ref}}
         fetch-depth: 0
         repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+    - uses: jupyterhub/action-k3s-helm@v3
+      with:
+        docker-enabled: true
+
+    - name: Docker Build
+      # Build JasmineGraph docker image
+      run: docker build -t jasminegraph .
 
     - name: Build unit test
-      run: docker build -f tests/unit/Dockerfile -t jasminegraph:unit .
+      run: docker build -f ./tests/unit/Dockerfile -t jasminegraph:unit .
+
     - name: Run unit test
       run: |
-        mkdir build
-        docker run -t -v './build:/home/ubuntu/software/jasminegraph/build_mount' jasminegraph:unit
+        mkdir coverage
+        kubectl apply -f ./.github/workflows/resources/test-rbac.yaml
+        kubectl apply -f ./.github/workflows/resources/unit-test-conf.yaml
+        sleep 30
+        kubectl logs -f jasminegraph-unit-test-pod
 
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v3
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      with:
+        files: ./coverage/coverage.xml
+        fail_ci_if_error: true
 
-    - name: Docker Build
-      # Build JasmineGraph docker image
-      run: docker build -t jasminegraph .
 
     - name: Run Integration Tests
       run: |

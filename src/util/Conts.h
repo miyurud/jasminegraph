@@ -70,6 +70,10 @@ class Conts {
     static std::string GRAPH_WITH_JSON_ATTRIBUTES;
     static std::string GRAPH_WITH_XML_ATTRIBUTES;
 
+    static std::string PROFILE_NATIVE;
+    static std::string PROFILE_DOCKER;
+    static std::string PROFILE_K8S;
+
     static std::string
         GRAPH_WITH_ATTRIBUTES;  // To identify that there are additional attribute files to be uploaded through workers
 

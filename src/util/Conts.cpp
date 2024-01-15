@@ -16,6 +16,10 @@ limitations under the License.
 std::string Conts::JASMINEGRAPH_EXECUTABLE = "run.sh";
 std::string Conts::JASMINEGRAPH_HOME = "JASMINEGRAPH_HOME";
 
+std::string Conts::PROFILE_NATIVE = "native";
+std::string Conts::PROFILE_DOCKER = "docker";
+std::string Conts::PROFILE_K8S = "k8s";
+
 std::string Conts::GRAPH_TYPE_RDF = "RDF_GRAPH";
 std::string Conts::GRAPH_TYPE_NORMAL = "NORMAL_GRAPH";
 std::string Conts::GRAPH_TYPE_NORMAL_REFORMATTED = "REFORMATTED_GRAPH";

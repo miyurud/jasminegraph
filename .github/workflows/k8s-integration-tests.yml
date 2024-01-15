@@ -1,0 +1,32 @@
+name: K8S integration tests
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+
+        steps:
+        - uses: actions/checkout@v3
+          with:
+            ref: ${{github.head_ref}}
+            fetch-depth: 0
+            repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+        - uses: jupyterhub/action-k3s-helm@v3
+          with:
+            docker-enabled: true
+
+        - name: Docker Build
+          run: docker build -t jasminegraph .
+
+        - name: Grant default user permissions
+          run: kubectl apply -f ./.github/workflows/resources/test-rbac.yaml
+
+        - name: K8S integration tests
+          run: |
+              chmod +x test-k8s.sh
+              ./test-k8s.sh
