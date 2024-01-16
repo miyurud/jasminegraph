@@ -913,8 +913,6 @@ static bool batchUploadFile(std::string host, int port, int dataPort, int graphI
     bool result = true;
     int sockfd;
     char data[FED_DATA_LENGTH + 1];
-    bool loop = false;
-    socklen_t len;
     struct sockaddr_in serv_addr;
     struct hostent *server;
 
@@ -1147,11 +1145,11 @@ static bool batchUploadCentralStore(std::string host, int port, int dataPort, in
     }
     server_logger.info("Received: " + response);
 
-    if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::BATCH_UPLOAD)) {
+    if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_CENTRAL)) {
         close(sockfd);
         return false;
     }
-    server_logger.info("Sent: " + JasmineGraphInstanceProtocol::BATCH_UPLOAD);
+    server_logger.info("Sent: " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CENTRAL);
 
     response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::OK) != 0) {
