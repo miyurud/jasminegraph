@@ -1606,7 +1606,7 @@ void calculateEgoNet(string graphID, string partitionID, int serverPort, Jasmine
                 }
 
                 if (Utils::send_str_wrapper(sockfd, workerList)) {
-                    instance_logger.info("Sent : Host List ");
+                    instance_logger.info("Sent : Host List");
                 }
 
                 response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
