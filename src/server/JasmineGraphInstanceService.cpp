@@ -726,7 +726,6 @@ int JasmineGraphInstanceService::collectTrainedModelThreadFunction(instanceservi
     bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
     serv_addr.sin_port = htons(port);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-        instance_logger.error("ERROR connecting to port " + std::to_string(port));
         return 0;
     }
     if (Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE)) {
@@ -1026,7 +1025,6 @@ bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int 
         bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
         serv_addr.sin_port = htons(port);
         if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-            instance_logger.error("ERROR connecting to port " + std::to_string(port));
             return 0;
         }
 
@@ -1191,7 +1189,6 @@ bool JasmineGraphInstanceService::sendFileThroughService(std::string host, int d
     bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
     serv_addr.sin_port = htons(dataPort);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-        instance_logger.error("ERROR connecting to port " + std::to_string(dataPort));
         return false;
     }
 
@@ -1573,7 +1570,6 @@ void calculateEgoNet(string graphID, string partitionID, int serverPort, Jasmine
         bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
         serv_addr.sin_port = htons(port);
         if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-            instance_logger.error("ERROR connecting to port " + std::to_string(port));
             return;
         }
 
