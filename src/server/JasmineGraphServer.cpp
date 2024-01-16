@@ -53,6 +53,18 @@ static bool removeFragmentThroughService(string host, int port, string graphID, 
 static bool removePartitionThroughService(string host, int port, string graphID, string partitionID, string masterIP);
 static bool initiateCommon(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
                            std::string partCount, std::string masterIP, std::string initType);
+static bool initiateTrain(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
+                          std::string partCount, std::string masterIP);
+static bool initiatePredict(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
+                            std::string partCount, std::string masterIP);
+static bool initiateServer(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
+                           std::string partCount, std::string masterIP);
+static bool initiateClient(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
+                           std::string partCount, std::string masterIP);
+static bool initiateAggregator(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
+                               std::string partCount, std::string masterIP);
+static bool initiateOrgServer(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
+                              std::string partCount, std::string masterIP);
 
 static map<string, string> hostIDMap;
 static std::vector<JasmineGraphServer::workers> hostWorkerMap;
@@ -2431,39 +2443,39 @@ static bool initiateCommon(std::string host, int port, int dataPort, std::string
     return true;
 }
 
-bool JasmineGraphServer::initiateTrain(std::string host, int port, int dataPort, std::string trainingArgs,
-                                       int iteration, string partCount, std::string masterIP) {
+static bool initiateTrain(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
+                          std::string partCount, std::string masterIP) {
     return initiateCommon(host, port, dataPort, trainingArgs, iteration, partCount, masterIP,
                           JasmineGraphInstanceProtocol::INITIATE_FED_PREDICT);
 }
 
-bool JasmineGraphServer::initiatePredict(std::string host, int port, int dataPort, std::string trainingArgs,
-                                         int iteration, string partCount, std::string masterIP) {
+static bool initiatePredict(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
+                            std::string partCount, std::string masterIP) {
     return initiateCommon(host, port, dataPort, trainingArgs, iteration, partCount, masterIP,
                           JasmineGraphInstanceProtocol::INITIATE_FILES);
 }
 
-bool JasmineGraphServer::initiateServer(std::string host, int port, int dataPort, std::string trainingArgs,
-                                        int iteration, string partCount, std::string masterIP) {
+static bool initiateServer(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
+                           std::string partCount, std::string masterIP) {
     return initiateCommon(host, port, dataPort, trainingArgs, iteration, partCount, masterIP,
                           JasmineGraphInstanceProtocol::INITIATE_SERVER);
 }
 
 // todo Remove partCount from parameters as the partition id is being parsed within the training args
-bool JasmineGraphServer::initiateClient(std::string host, int port, int dataPort, std::string trainingArgs,
-                                        int iteration, string partCount, std::string masterIP) {
+static bool initiateClient(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
+                           std::string partCount, std::string masterIP) {
     return initiateCommon(host, port, dataPort, trainingArgs, iteration, partCount, masterIP,
                           JasmineGraphInstanceProtocol::INITIATE_CLIENT);
 }
 
-bool JasmineGraphServer::initiateAggregator(std::string host, int port, int dataPort, std::string trainingArgs,
-                                            int iteration, string partCount, std::string masterIP) {
+static bool initiateAggregator(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
+                               std::string partCount, std::string masterIP) {
     return initiateCommon(host, port, dataPort, trainingArgs, iteration, partCount, masterIP,
                           JasmineGraphInstanceProtocol::INITIATE_AGG);
 }
 
-bool JasmineGraphServer::initiateOrgServer(std::string host, int port, int dataPort, std::string trainingArgs,
-                                           int iteration, string partCount, std::string masterIP) {
+static bool initiateOrgServer(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
+                              std::string partCount, std::string masterIP) {
     return initiateCommon(host, port, dataPort, trainingArgs, iteration, partCount, masterIP,
                           JasmineGraphInstanceProtocol::INITIATE_ORG_SERVER);
 }
