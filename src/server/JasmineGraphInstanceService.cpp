@@ -111,6 +111,10 @@ static void graph_stream_start_command(
 static void send_priority_command(int connFd, bool *loop_exit_p);
 static std::string initiate_command_common(int connFd, bool *loop_exit_p);
 static void batch_upload_common(int connFd, bool *loop_exit_p, bool batch_upload);
+static void degree_distribution_common(int connFd, int serverPort,
+                                       std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
+                                       std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores,
+                                       bool *loop_exit_p, bool in);
 
 char *converter(const std::string &s) {
     char *pc = new char[s.size() + 1];
@@ -2365,9 +2369,10 @@ static void worker_in_degree_distribution_command(
     *loop_exit_p = true;
 }
 
-static void in_degree_distribution_command(
-    int connFd, int serverPort, std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
-    std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores, bool *loop_exit_p) {
+static void degree_distribution_common(int connFd, int serverPort,
+                                       std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
+                                       std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores,
+                                       bool *loop_exit_p, bool in) {
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
@@ -2403,11 +2408,23 @@ static void in_degree_distribution_command(
         workerSockets.push_back(intermediate);
     }
 
-    // Calculate the in degree distribution
-    map<long, long> degreeDistribution = calculateInDegreeDist(graphID, partitionID, serverPort, graphDBMapLocalStores,
-                                                               graphDBMapCentralStores, workerSockets, workerList);
+    // Calculate the degree distribution
+    map<long, long> degreeDistribution;
+    if (in) {
+        degreeDistribution = calculateInDegreeDist(graphID, partitionID, serverPort, graphDBMapLocalStores,
+                                                   graphDBMapCentralStores, workerSockets, workerList);
+    } else {
+        degreeDistribution = calculateOutDegreeDist(graphID, partitionID, serverPort, graphDBMapLocalStores,
+                                                    graphDBMapCentralStores, workerSockets);
+    }
     degreeDistribution.clear();
     *loop_exit_p = true;
+}
+
+static void in_degree_distribution_command(
+    int connFd, int serverPort, std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
+    std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores, bool *loop_exit_p) {
+    degree_distribution_common(connFd, serverPort, graphDBMapLocalStores, graphDBMapCentralStores, loop_exit_p, true);
 }
 
 static void worker_out_degree_distribution_command(
@@ -2449,47 +2466,7 @@ static void worker_out_degree_distribution_command(
 static void out_degree_distribution_command(
     int connFd, int serverPort, std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores,
     std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores, bool *loop_exit_p) {
-    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
-        *loop_exit_p = true;
-        return;
-    }
-    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
-
-    char data[DATA_BUFFER_SIZE];
-    string graphID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
-    instance_logger.info("Received Graph ID: " + graphID);
-
-    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
-        *loop_exit_p = true;
-        return;
-    }
-    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
-
-    string partitionID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
-    instance_logger.info("Received Partition ID: " + partitionID);
-
-    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
-        *loop_exit_p = true;
-        return;
-    }
-    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
-
-    string workerList = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
-    instance_logger.info("Received Worker List " + workerList);
-
-    std::vector<string> workerSockets;
-    stringstream wl(workerList);
-    string intermediate;
-    while (getline(wl, intermediate, ',')) {
-        workerSockets.push_back(intermediate);
-    }
-
-    // Calculate the out degree distribution in the current super worker.
-    map<long, long> degreeDistribution = calculateOutDegreeDist(graphID, partitionID, serverPort, graphDBMapLocalStores,
-                                                                graphDBMapCentralStores, workerSockets);
-
-    degreeDistribution.clear();
-    *loop_exit_p = true;
+    degree_distribution_common(connFd, serverPort, graphDBMapLocalStores, graphDBMapCentralStores, loop_exit_p, false);
 }
 
 static void page_rank_command(int connFd, int serverPort,
