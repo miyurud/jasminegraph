@@ -109,6 +109,7 @@ static void graph_stream_start_command(
     int connFd, std::map<std::string, JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap,
     bool *loop_exit_p);
 static void send_priority_command(int connFd, bool *loop_exit_p);
+static std::string initiate_command_common(int connFd, bool *loop_exit_p);
 
 char *converter(const std::string &s) {
     char *pc = new char[s.size() + 1];
@@ -3777,160 +3778,48 @@ static void initiate_files_command(int connFd, bool *loop_exit_p) {
     }
 }
 
-static void initiate_fed_predict_command(int connFd, bool *loop_exit_p) {
+static void initiate_fed_predict_command(int connFd, bool *loop_exit_p) { initiate_files_command(connFd, loop_exit_p); }
+
+static std::string initiate_command_common(int connFd, bool *loop_exit_p) {
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
-        return;
+        return "";
     }
-    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
+    instance_logger.info("Sent: " + JasmineGraphInstanceProtocol::OK);
 
     char data[DATA_BUFFER_SIZE];
     string trainData = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
-    std::vector<std::string> trainargs = Utils::split(trainData, ' ');
-
-    string graphID;
-    string partitionID = trainargs[trainargs.size() - 1];
-
-    for (int i = 0; i < trainargs.size(); i++) {
-        if (trainargs[i] == "--graph_id") {
-            graphID = trainargs[i + 1];
-            break;
-        }
-    }
-
-    std::thread *workerThreads = new std::thread[2];
-    workerThreads[0] = std::thread(&JasmineGraphInstanceService::createPartitionFiles, graphID, partitionID, "local");
-    workerThreads[1] =
-        std::thread(&JasmineGraphInstanceService::createPartitionFiles, graphID, partitionID, "centralstore");
-
-    for (int threadCount = 0; threadCount < 2; threadCount++) {
-        workerThreads[threadCount].join();
-    }
+    instance_logger.info("Received options: " + trainData);
+    return trainData;
 }
 
 static void initiate_server_command(int connFd, bool *loop_exit_p) {
-    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
-        *loop_exit_p = true;
-        return;
-    }
-    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
-
-    char data[DATA_BUFFER_SIZE];
-    string trainData = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
-
-    std::vector<std::string> trainargs = Utils::split(trainData, ' ');
-    instance_logger.info("Received options : " + trainData);
-    string graphID;
-    string partitionID = trainargs[trainargs.size() - 1];
-
-    for (int i = 0; i < trainargs.size(); i++) {
-        if (trainargs[i] == "--graph_id") {
-            graphID = trainargs[i + 1];
-            break;
-        }
-    }
-
-    std::thread workerThread = std::thread(&JasmineGraphInstanceService::initServer, trainData);
-    workerThread.join();
+    string trainData = initiate_command_common(connFd, loop_exit_p);
+    if (*loop_exit_p) return;
+    JasmineGraphInstanceService::initServer(trainData);
 }
 
 static void initiate_org_server_command(int connFd, bool *loop_exit_p) {
-    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
-        *loop_exit_p = true;
-        return;
-    }
-    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
-
-    char data[DATA_BUFFER_SIZE];
-    string trainData = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
-    std::vector<std::string> trainargs = Utils::split(trainData, ' ');
-
-    string graphID;
-    string partitionID = trainargs[trainargs.size() - 1];
-
-    for (int i = 0; i < trainargs.size(); i++) {
-        if (trainargs[i] == "--graph_id") {
-            graphID = trainargs[i + 1];
-            break;
-        }
-    }
-
-    std::thread workerThread = std::thread(&JasmineGraphInstanceService::initOrgServer, trainData);
-    workerThread.join();
+    string trainData = initiate_command_common(connFd, loop_exit_p);
+    if (*loop_exit_p) return;
+    JasmineGraphInstanceService::initOrgServer(trainData);
 }
 
 static void initiate_aggregator_command(int connFd, bool *loop_exit_p) {
-    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
-        *loop_exit_p = true;
-        return;
-    }
-    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
-
-    char data[DATA_BUFFER_SIZE];
-    string trainData = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
-    std::vector<std::string> trainargs = Utils::split(trainData, ' ');
-
-    string graphID;
-    string partitionID = trainargs[trainargs.size() - 1];
-
-    for (int i = 0; i < trainargs.size(); i++) {
-        if (trainargs[i] == "--graph_id") {
-            graphID = trainargs[i + 1];
-            break;
-        }
-    }
-
-    std::thread workerThread = std::thread(&JasmineGraphInstanceService::initAgg, trainData);
-    workerThread.join();
+    string trainData = initiate_command_common(connFd, loop_exit_p);
+    if (*loop_exit_p) return;
+    JasmineGraphInstanceService::initAgg(trainData);
 }
 
 static void initiate_client_command(int connFd, bool *loop_exit_p) {
-    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
-        *loop_exit_p = true;
-        return;
-    }
-    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
-
-    char data[DATA_BUFFER_SIZE];
-    string trainData = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
-    std::vector<std::string> trainargs = Utils::split(trainData, ' ');
-    instance_logger.info("Received options : " + trainData);
-    string graphID;
-    string partitionID = trainargs[trainargs.size() - 1];
-
-    for (int i = 0; i < trainargs.size(); i++) {
-        if (trainargs[i] == "--graph_id") {
-            graphID = trainargs[i + 1];
-            break;
-        }
-    }
-
-    std::thread workerThread = std::thread(&JasmineGraphInstanceService::initClient, trainData);
-    workerThread.join();
+    string trainData = initiate_command_common(connFd, loop_exit_p);
+    if (*loop_exit_p) return;
+    JasmineGraphInstanceService::initClient(trainData);
 }
 
 static void initiate_merge_files_command(int connFd, bool *loop_exit_p) {
-    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
-        *loop_exit_p = true;
-        return;
-    }
-    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
-
-    char data[DATA_BUFFER_SIZE];
-    string trainData = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
-    instance_logger.info("Train Data : " + trainData);
-    std::vector<std::string> trainargs = Utils::split(trainData, ' ');
-
-    string graphID;
-    string partitionID = trainargs[trainargs.size() - 1];
-
-    for (int i = 0; i < trainargs.size(); i++) {
-        if (trainargs[i] == "--graph_id") {
-            graphID = trainargs[i + 1];
-            break;
-        }
-    }
-
+    string trainData = initiate_command_common(connFd, loop_exit_p);
+    if (*loop_exit_p) return;
     JasmineGraphInstanceService::mergeFiles(trainData);
 }
 
