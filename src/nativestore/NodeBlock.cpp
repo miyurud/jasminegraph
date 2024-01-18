@@ -41,15 +41,19 @@ bool NodeBlock::isInUse() { return this->usage == '\1'; }
 
 std::string NodeBlock::getLabel() { return std::string(this->label); }
 
+void NodeBlock::setLabel(const char *_label) {
+    strcpy(this->label, _label);
+}
+
 void NodeBlock::save() {
     //    pthread_mutex_lock(&lockSaveNode);
     char _label[PropertyLink::MAX_VALUE_SIZE] = {0};
     std::strcpy(_label, id.c_str());
 
     bool isSmallLabel = id.length() <= sizeof(label) * 2;
-    //    if (isSmallLabel) {
-    //        std::strcpy(this->label, this->id.c_str());
-    //    }
+        if (isSmallLabel) {
+            std::strcpy(this->label, this->id.c_str());
+        }
     NodeBlock::nodesDB->seekp(this->addr);
     NodeBlock::nodesDB->put(this->usage);                                                                       // 1
     NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(this->nodeId)), sizeof(this->nodeId));                  // 4
@@ -61,9 +65,9 @@ void NodeBlock::save() {
     NodeBlock::nodesDB->flush();  // Sync the file with in-memory stream
     //    pthread_mutex_unlock(&lockSaveNode);
 
-    //    if (!isSmallLabel) {
-    //        this->addProperty("label", _label);
-    //    }
+        if (!isSmallLabel) {
+            this->addProperty("label", _label);
+        }
 }
 
 void NodeBlock::addProperty(std::string name, const char* value) {

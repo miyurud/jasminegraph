@@ -66,16 +66,18 @@ void StreamingTriangleCountExecutor::execute() {
     }
 
     streaming_triangleCount_logger.info("###STREAMING-TRIANGLE-COUNT-EXECUTOR### Completed local counting");
-    long aggregatedTriangleCount = StreamingTriangleCountExecutor::aggregateCentralStoreTriangles(
-            sqlite, streamingDB, graphId, masterIP, mode);
-    if (mode == "0") {
-        saveCentralValues( streamingDB, graphId, std::to_string(aggregatedTriangleCount));
-        result += aggregatedTriangleCount;
-    }
-    else {
-        long old_result = stol(retrieveCentralValues(streamingDB, graphId));
-        saveCentralValues( streamingDB, graphId, std::to_string(aggregatedTriangleCount + old_result));
-        result += (aggregatedTriangleCount + old_result);
+    if (partitionCount > 2){
+        long aggregatedTriangleCount = StreamingTriangleCountExecutor::aggregateCentralStoreTriangles(
+                sqlite, streamingDB, graphId, masterIP, mode);
+        if (mode == "0") {
+            saveCentralValues( streamingDB, graphId, std::to_string(aggregatedTriangleCount));
+            result += aggregatedTriangleCount;
+        }
+        else {
+            long old_result = stol(retrieveCentralValues(streamingDB, graphId));
+            saveCentralValues( streamingDB, graphId, std::to_string(aggregatedTriangleCount + old_result));
+            result += (aggregatedTriangleCount + old_result);
+        }
     }
 
     streaming_triangleCount_logger.log(

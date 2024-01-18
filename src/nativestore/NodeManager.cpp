@@ -211,6 +211,7 @@ NodeBlock *NodeManager::addNode(std::string nodeId) {
         this->addNodeIndex(nodeId, this->nextNodeIndex);
         assignedNodeIndex = this->nextNodeIndex;
         this->nextNodeIndex++;
+        sourceBlk->setLabel(nodeId.c_str());
         sourceBlk->save();
         return sourceBlk;
     }

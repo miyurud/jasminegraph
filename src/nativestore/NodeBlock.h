@@ -85,6 +85,8 @@ class NodeBlock {
 
     RelationBlock *searchCentralRelation(NodeBlock withNode);
     bool searchRelation(NodeBlock withNode);
+
+    void setLabel(const char *_label);
 };
 
 #endif
