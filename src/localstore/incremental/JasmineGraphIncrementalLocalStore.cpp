@@ -73,7 +73,8 @@ void JasmineGraphIncrementalLocalStore::addEdgeFromString(std::string edgeString
                 if (edgeJson["EdgeType"] == "Central") {
                     newRelation->addLocalProperty(std::string(it.key()), &value[0]);
                 } else {
-                    newRelation->addCentralProperty(std::string(it.key()), &value[0]);                }
+                    newRelation->addCentralProperty(std::string(it.key()), &value[0]);
+                }
 
             }
         }

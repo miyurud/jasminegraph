@@ -506,11 +506,11 @@ void NodeManager::setIndexKeySize(unsigned long newIndexKeySize) {
     this->INDEX_KEY_SIZE = newIndexKeySize;
 }
 
-int NodeManager::getGraphID(){
+int NodeManager::getGraphID() {
     return this->graphID;
 }
 
-int NodeManager::getPartitionID(){
+int NodeManager::getPartitionID() {
     return this->partitionID;
 }
 
