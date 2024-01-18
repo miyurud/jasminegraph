@@ -59,6 +59,7 @@ class RelationBlock {
  private:
     std::string id;
     bool updateLocalRelationRecords(RelationOffsets, unsigned int);
+    bool updateCentralRelationRecords(RelationOffsets recordOffset, unsigned int data);
     NodeBlock *sourceBlock;
     NodeBlock *destinationBlock;
 
@@ -80,32 +81,6 @@ class RelationBlock {
     NodeRelation destination;
     unsigned int propertyAddress = 0;
     PropertyEdgeLink *propertyHead = NULL;
-
-    void save(std::fstream *cursor);
-    bool isInUse();
-    int getFlags();
-
-    bool setLocalNextSource(unsigned int);
-    bool setLocalNextDestination(unsigned int);
-    bool setLocalPreviousSource(unsigned int);
-    bool setLocalPreviousDestination(unsigned int);
-
-    NodeBlock *getSource();
-    NodeBlock *getDestination();
-    void setSource(NodeBlock *src) { sourceBlock = src; };
-    void setDestination(NodeBlock *dst) { destinationBlock = dst; };
-
-    RelationBlock *nextSource();
-    RelationBlock *previousSource();
-    RelationBlock *nextDestination();
-    RelationBlock *previousDestination();
-
-    RelationBlock *add(NodeBlock, NodeBlock);
-    static RelationBlock *get(unsigned int);
-    void addLocalProperty(std::string, char *);
-    PropertyEdgeLink *getPropertyHead();
-    std::map<std::string, char *> getAllProperties();
-
     static unsigned int nextLocalRelationIndex;
     static unsigned int nextCentralRelationIndex;
     static const unsigned long BLOCK_SIZE;  // Size of a relation record block in bytes
@@ -114,24 +89,50 @@ class RelationBlock {
     static std::fstream *centralrelationsDB;
     static const int RECORD_SIZE = sizeof(unsigned int);
 
-    RelationBlock *addCentral(NodeBlock source, NodeBlock destination);
-    static RelationBlock *getCentral(unsigned int address);
+    void save(std::fstream *cursor);
+    bool isInUse();
+    int getFlags();
 
-    void addCentralProperty(std::string name, char *value);
+    bool setLocalNextSource(unsigned int);
+    bool setCentralNextSource(unsigned int);
 
-    bool updateCentralRelationRecords(RelationOffsets recordOffset, unsigned int data);
+    bool setLocalNextDestination(unsigned int);
+    bool setCentralNextDestination(unsigned int);
 
-    bool setCentralPreviousSource(unsigned int newAddress);
+    bool setLocalPreviousSource(unsigned int);
+    bool setCentralPreviousSource(unsigned int);
 
-    bool setCentralPreviousDestination(unsigned int newAddress);
+    bool setLocalPreviousDestination(unsigned int);
+    bool setCentralPreviousDestination(unsigned int);
 
-    bool setCentralNextSource(unsigned int newAddress);
+    NodeBlock *getSource();
+    NodeBlock *getDestination();
+    void setSource(NodeBlock *src) { sourceBlock = src; };
+    void setDestination(NodeBlock *dst) { destinationBlock = dst; };
 
-    bool setCentralNextDestination(unsigned int newAddress);
-
+    RelationBlock *nextLocalSource();
     RelationBlock *nextCentralSource();
 
+    RelationBlock *previousLocalSource();
+    RelationBlock *previousCentralSource();
+
+    RelationBlock *nextLocalDestination();
     RelationBlock *nextCentralDestination();
+
+    RelationBlock *previousLocalDestination();
+    RelationBlock *previousCentralDestination();
+
+    RelationBlock *addLocalRelation(NodeBlock, NodeBlock);
+    RelationBlock *addCentralRelation(NodeBlock source, NodeBlock destination);
+
+    static RelationBlock *getLocalRelation(unsigned int);
+    static RelationBlock *getCentralRelation(unsigned int address);
+
+    void addLocalProperty(std::string, char *);
+    void addCentralProperty(std::string name, char *value);
+
+    PropertyEdgeLink *getPropertyHead();
+    std::map<std::string, char *> getAllProperties();
 };
 
 #endif

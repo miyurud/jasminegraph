@@ -155,15 +155,15 @@ std::unordered_map<std::string, unsigned int> NodeManager::readNodeIndex() {
     return _nodeIndex;
 }
 
-RelationBlock *NodeManager::addRelation(NodeBlock source, NodeBlock destination) {
+RelationBlock *NodeManager::addLocalRelation(NodeBlock source, NodeBlock destination) {
     RelationBlock *newRelation = NULL;
     if (source.edgeRef == 0 || destination.edgeRef == 0 ||
         !source.searchLocalRelation(destination)) {  // certainly a new relation block needed
         RelationBlock *relationBlock = new RelationBlock(source, destination);
-        newRelation = relationBlock->add(source, destination);
+        newRelation = relationBlock->addLocalRelation(source, destination);
         if (newRelation) {
-            source.updateRelation(newRelation, true);
-            destination.updateRelation(newRelation, true);
+            source.updateLocalRelation(newRelation, true);
+            destination.updateLocalRelation(newRelation, true);
         } else {
             node_manager_logger.error("Error while adding the new edge/relation for source = " +
                                       std::string(source.id) + " destination = " + std::string(destination.id));
@@ -183,7 +183,7 @@ RelationBlock *NodeManager::addCentralRelation(NodeBlock source, NodeBlock desti
     if (source.centralEdgeRef == 0 || destination.centralEdgeRef == 0 ||
         !source.searchCentralRelation(destination)) {  // certainly a new relation block needed
         RelationBlock *relationBlock = new RelationBlock(source, destination);
-        newRelation = relationBlock->addCentral(source, destination);
+        newRelation = relationBlock->addCentralRelation(source, destination);
         if (newRelation) {
             source.updateCentralRelation(newRelation, true);
             destination.updateCentralRelation(newRelation, true);
@@ -219,12 +219,12 @@ NodeBlock *NodeManager::addNode(std::string nodeId) {
     return this->get(nodeId);
 }
 
-RelationBlock *NodeManager::addEdge(std::pair<std::string, std::string> edge) {
+RelationBlock *NodeManager::addLocalEdge(std::pair<std::string, std::string> edge) {
     pthread_mutex_lock(&lockEdgeAdd);
 
     NodeBlock *sourceNode = this->addNode(edge.first);
     NodeBlock *destNode = this->addNode(edge.second);
-    RelationBlock *newRelation = this->addRelation(*sourceNode, *destNode);
+    RelationBlock *newRelation = this->addLocalRelation(*sourceNode, *destNode);
     if (newRelation) {
         newRelation->setDestination(destNode);
         newRelation->setSource(sourceNode);
@@ -512,6 +512,10 @@ int NodeManager::getGraphID(){
 
 int NodeManager::getPartitionID(){
     return this->partitionID;
+}
+
+std::string NodeManager::getDbPrefix() {
+    return dbPrefix;
 }
 
 const std::string NodeManager::FILE_MODE = "app";  // for appending to existing DB

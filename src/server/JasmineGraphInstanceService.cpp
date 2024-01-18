@@ -3417,7 +3417,7 @@ static void streaming_triangles_command(
         *loop_exit_p = true;
         return;
     }
-    instance_logger.log("Sent : newLocalRelationCount" + std::to_string(newLocalRelationCount), "info");
+    instance_logger.log("Sent New local relation count: " + std::to_string(newLocalRelationCount), "info");
 
     string response = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
@@ -3426,7 +3426,7 @@ static void streaming_triangles_command(
             *loop_exit_p = true;
             return;
         }
-        instance_logger.log("Sent : newCentralRelationCount" + std::to_string(newCentralRelationCount), "info");
+        instance_logger.log("Sent New central relation count: " + std::to_string(newCentralRelationCount), "info");
     }
 
     response = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
@@ -3437,7 +3437,7 @@ static void streaming_triangles_command(
             *loop_exit_p = true;
             return;
         }
-        instance_logger.log("Sent : result" + std::to_string(result), "info");
+        instance_logger.log("Sent result: " + std::to_string(result), "info");
     }
 
     instance_logger.log("Streaming triangle count sent successfully", "info");
@@ -3769,7 +3769,7 @@ static void aggregate_streaming_centralstore_triangles_command(int connFd, std::
     }
 
     string centralCountList = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
-    instance_logger.log("Received centralCountList : " + centralCountList, "info");
+    instance_logger.log("Received central count list : " + centralCountList, "info");
 
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;

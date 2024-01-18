@@ -47,7 +47,7 @@ NativeStoreTriangleResult StreamingTriangles::countLocalStreamingTriangles(
     std::string partitionID = std::to_string(nodeManager->getPartitionID());
 
 
-    std::string dbPrefix = nodeManager->dbPrefix;
+    std::string dbPrefix = nodeManager->getDbPrefix();
     long local_relation_count = nodeManager->dbSize(dbPrefix + "_relations.db") / RelationBlock::BLOCK_SIZE;
     long central_relation_count = nodeManager->dbSize(dbPrefix + "_central_relations.db") / RelationBlock::BLOCK_SIZE;
 
@@ -56,7 +56,7 @@ NativeStoreTriangleResult StreamingTriangles::countLocalStreamingTriangles(
     nativeStoreTriangleResult.centralRelationCount = central_relation_count;
     nativeStoreTriangleResult.result = triangleCount;
 
-    streaming_triangle_logger.log("###STREAMING TRIANGLE### Static Streaming Local Triangle Counting: Completed: StreamingTriangles" + std::to_string(triangleCount),
+    streaming_triangle_logger.log("###STREAMING TRIANGLE### Static Streaming Local Triangle Counting: Completed: " + std::to_string(triangleCount),
                                   "info");
     return nativeStoreTriangleResult ;
 }
@@ -98,7 +98,7 @@ NativeStoreTriangleResult StreamingTriangles::countDynamicLocalTriangles(
     streaming_triangle_logger.debug("got previous count " + std::to_string(old_local_relation_count) + " " +
                                   std::to_string(old_central_relation_count));
 
-    std::string dbPrefix = nodeManager->dbPrefix;
+    std::string dbPrefix = nodeManager->getDbPrefix();
     int relationBlockSize = RelationBlock::BLOCK_SIZE;
 
     long new_local_relation_count = nodeManager->dbSize(dbPrefix + "_relations.db") / relationBlockSize;
@@ -107,12 +107,12 @@ NativeStoreTriangleResult StreamingTriangles::countDynamicLocalTriangles(
                                   std::to_string(new_central_relation_count));
 
     for (int i = old_local_relation_count; i < new_local_relation_count; ++i) {
-        RelationBlock* relationBlock = RelationBlock::get(i*relationBlockSize);
+        RelationBlock* relationBlock = RelationBlock::getLocalRelation(i*relationBlockSize);
         edges.emplace(std::stol(relationBlock->getSource()->id), std::stol(relationBlock->getDestination()->id));
     }
 
     for (int i = old_central_relation_count; i < new_central_relation_count ; ++i) {
-        RelationBlock* relationBlock = RelationBlock::getCentral(i*relationBlockSize);
+        RelationBlock* relationBlock = RelationBlock::getCentralRelation(i*relationBlockSize);
         edges.emplace(std::stol(relationBlock->getSource()->id), std::stol(relationBlock->getDestination()->id));
     }
 
@@ -161,7 +161,7 @@ std::string StreamingTriangles::countDynamicCentralTriangles(
         streaming_triangle_logger.debug("got previous central count " +
                                       std::to_string(previous_central_relation_count));
 
-        std::string dbPrefix = nodeManager->dbPrefix;
+        std::string dbPrefix = nodeManager->getDbPrefix();
         int relationBlockSize = RelationBlock::BLOCK_SIZE;
         streaming_triangle_logger.debug("fetched dbprefix : " +
                                               dbPrefix);
@@ -171,7 +171,7 @@ std::string StreamingTriangles::countDynamicCentralTriangles(
                                       std::to_string(new_central_relation_count));
 
         for (int i = previous_central_relation_count; i < new_central_relation_count ; ++i) {
-            RelationBlock* relationBlock = RelationBlock::getCentral(i*relationBlockSize);
+            RelationBlock* relationBlock = RelationBlock::getCentralRelation(i*relationBlockSize);
             edges.emplace(std::stol(relationBlock->getSource()->id), std::stol(relationBlock->getDestination()->id));
         }
     }

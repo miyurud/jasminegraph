@@ -22,7 +22,7 @@ limitations under the License.
 Logger relation_block_logger;
 pthread_mutex_t lockAddProperty;
 
-RelationBlock* RelationBlock::add(NodeBlock source, NodeBlock destination) {
+RelationBlock* RelationBlock::addLocalRelation(NodeBlock source, NodeBlock destination) {
     int RECORD_SIZE = sizeof(unsigned int);
 
     NodeRelation sourceData;
@@ -129,7 +129,7 @@ RelationBlock* RelationBlock::add(NodeBlock source, NodeBlock destination) {
     return new RelationBlock(relationBlockAddress, sourceData, destinationData, this->propertyAddress);
 }
 
-RelationBlock* RelationBlock::addCentral(NodeBlock source, NodeBlock destination) {
+RelationBlock* RelationBlock::addCentralRelation(NodeBlock source, NodeBlock destination) {
     relation_block_logger.info("Writing central relation with source " + std::to_string(source.nodeId) +
                                " and destination " + std::to_string(destination.nodeId));
     int RECORD_SIZE = sizeof(unsigned int);
@@ -238,7 +238,7 @@ RelationBlock* RelationBlock::addCentral(NodeBlock source, NodeBlock destination
     return new RelationBlock(relationBlockAddress, sourceData, destinationData, this->propertyAddress);
 }
 
-RelationBlock* RelationBlock::get(unsigned int address) {
+RelationBlock* RelationBlock::getLocalRelation(unsigned int address) {
     int RECORD_SIZE = sizeof(unsigned int);
     if (address == 0) {
         return NULL;
@@ -346,7 +346,7 @@ RelationBlock* RelationBlock::get(unsigned int address) {
     return new RelationBlock(address, source, destination, propertyReference);
 }
 
-RelationBlock* RelationBlock::getCentral(unsigned int address) {
+RelationBlock* RelationBlock::getCentralRelation(unsigned int address) {
     int RECORD_SIZE = sizeof(unsigned int);
     if (address == 0) {
         return NULL;
@@ -455,19 +455,23 @@ RelationBlock* RelationBlock::getCentral(unsigned int address) {
     return new RelationBlock(address, source, destination, propertyReference);
 }
 
-RelationBlock* RelationBlock::nextSource() { return RelationBlock::get(this->source.nextRelationId); }
+RelationBlock* RelationBlock::nextLocalSource() { return RelationBlock::getLocalRelation(this->source.nextRelationId); }
 
-RelationBlock* RelationBlock::nextCentralSource() { return RelationBlock::getCentral(this->source.nextRelationId); }
+RelationBlock* RelationBlock::nextCentralSource() { return RelationBlock::getCentralRelation(this->source.nextRelationId); }
 
-RelationBlock* RelationBlock::previousSource() { return RelationBlock::get(this->source.preRelationId); }
+RelationBlock* RelationBlock::previousLocalSource() { return RelationBlock::getLocalRelation(this->source.preRelationId); }
 
-RelationBlock* RelationBlock::nextDestination() { return RelationBlock::get(this->destination.nextRelationId); }
+RelationBlock* RelationBlock::previousCentralSource() { return RelationBlock::getCentralRelation(this->source.preRelationId); }
+
+RelationBlock* RelationBlock::nextLocalDestination() { return RelationBlock::getLocalRelation(this->destination.nextRelationId); }
 
 RelationBlock* RelationBlock::nextCentralDestination() {
-    return RelationBlock::getCentral(this->destination.nextRelationId);
+    return RelationBlock::getCentralRelation(this->destination.nextRelationId);
 }
 
-RelationBlock* RelationBlock::previousDestination() { return RelationBlock::get(this->destination.preRelationId); }
+RelationBlock* RelationBlock::previousLocalDestination() { return RelationBlock::getLocalRelation(this->destination.preRelationId); }
+
+RelationBlock* RelationBlock::previousCentralDestination() { return RelationBlock::getCentralRelation(this->destination.preRelationId); }
 
 bool RelationBlock::setLocalNextSource(unsigned int newAddress) {
     if (this->updateLocalRelationRecords(RelationOffsets::SOURCE_NEXT, newAddress)) {
