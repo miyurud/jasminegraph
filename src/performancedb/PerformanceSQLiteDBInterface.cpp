@@ -21,7 +21,50 @@ limitations under the License.
 using namespace std;
 Logger perfdb_logger;
 
+
+
+string readDDLFile(const string& fileName) {
+    if (!Utils::fileExists(fileName)) {
+        perfdb_logger.error("DDL file not found: " + fileName);
+        return "";
+    }
+    ifstream ddlFile(fileName);
+
+    stringstream buffer;
+    buffer << ddlFile.rdbuf();
+    ddlFile.close();
+
+    return buffer.str();
+}
+
+int createDatabase(const char* dbLocation) {
+    sqlite3* tempDatabase;
+    int rc = sqlite3_open(dbLocation, &tempDatabase);
+    if (rc) {
+        perfdb_logger.error("Cannot create database: " + string(sqlite3_errmsg(tempDatabase)));
+        return -1;
+    }
+
+    rc = sqlite3_exec(tempDatabase, readDDLFile(ROOT_DIR "src/performancedb/ddl.sql").c_str(), 0, 0, 0);
+    if (rc) {
+        perfdb_logger.error("DDL execution failed: " + string(sqlite3_errmsg(tempDatabase)));
+        sqlite3_close(tempDatabase);
+        return -1;
+    }
+
+    sqlite3_close(tempDatabase);
+    perfdb_logger.info("Database created successfully");
+
+    return 0;
+}
+
 int PerformanceSQLiteDBInterface::init() {
+    if (!Utils::fileExists(this->databaseLocation.c_str())) {
+        if (createDatabase(this->databaseLocation.c_str()) != 0) {
+            return -1;
+        }
+    }
+
     int rc =
         sqlite3_open(Utils::getJasmineGraphProperty("org.jasminegraph.performance.db.location").c_str(), &database);
     if (rc) {
@@ -34,7 +77,13 @@ int PerformanceSQLiteDBInterface::init() {
 
 int PerformanceSQLiteDBInterface::finalize() { return sqlite3_close(database); }
 
-PerformanceSQLiteDBInterface::PerformanceSQLiteDBInterface() {}
+PerformanceSQLiteDBInterface::PerformanceSQLiteDBInterface() {
+    this->databaseLocation = Utils::getJasmineGraphProperty("org.jasminegraph.performance.db.location");
+}
+
+PerformanceSQLiteDBInterface::PerformanceSQLiteDBInterface(string databaseLocation) {
+    this->databaseLocation = databaseLocation;
+}
 
 typedef vector<vector<pair<string, string>>> table_type;
 
