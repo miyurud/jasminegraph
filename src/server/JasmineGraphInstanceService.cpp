@@ -3405,8 +3405,9 @@ static void streaming_triangles_command(int connFd, int serverPort,
     if (mode == "0") {
         localCount = StreamingTriangles::countLocalStreamingTriangles(incrementalLocalStoreInstance);
     } else {
-        localCount = StreamingTriangles::countDynamicLocalTriangles(incrementalLocalStoreInstance,
-                                                                    std::stol(oldLocalRelationCount), std::stol(oldCentralRelationCount));
+        localCount = StreamingTriangles::countDynamicLocalTriangles(
+                incrementalLocalStoreInstance, std::stol(oldLocalRelationCount),
+                std::stol(oldCentralRelationCount));
     }
 
     long newLocalRelationCount, newCentralRelationCount, result;
@@ -3735,8 +3736,8 @@ static void aggregate_centralstore_triangles_command(int connFd, bool *loop_exit
     }
 }
 
-static void aggregate_streaming_centralstore_triangles_command(int connFd, std::map<std::string,
-                                                               JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap,
+static void aggregate_streaming_centralstore_triangles_command(
+        int connFd, std::map<std::string, JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap,
                                                                bool *loop_exit_p) {
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
