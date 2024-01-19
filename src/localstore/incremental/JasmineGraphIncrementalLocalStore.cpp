@@ -69,7 +69,11 @@ void JasmineGraphIncrementalLocalStore::addEdgeFromString(std::string edgeString
             auto edgeProperties = edgeJson["properties"];
             for (auto it = edgeProperties.begin(); it != edgeProperties.end(); it++) {
                 strcpy(value, it.value().get<std::string>().c_str());
-                newRelation->addProperty(std::string(it.key()), &value[0]);
+                if (edgeJson["EdgeType"] == "Central") {
+                    newRelation->addCentralProperty(std::string(it.key()), &value[0]);
+                } else {
+                    newRelation->addProperty(std::string(it.key()), &value[0]);
+                }
             }
         }
 

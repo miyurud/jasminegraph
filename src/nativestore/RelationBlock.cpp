@@ -588,9 +588,9 @@ bool RelationBlock::updateCentralRelationRecords(RelationOffsets recordOffset, u
 }
 
 bool RelationBlock::isInUse() { return this->usage == '\1'; }
-unsigned int RelationBlock::nextRelationIndex = 1;  // Starting with 1 because of the 0 and '\0' differentiation issue
-unsigned int RelationBlock::nextCentralRelationIndex =
-    1;  // Starting with 1 because of the 0 and '\0' differentiation issue
+thread_local unsigned int RelationBlock::nextRelationIndex = 1;  // Starting with 1 because of the 0 and '\0' differentiation issue
+thread_local unsigned int RelationBlock::nextCentralRelationIndex = 1;  // Starting with 1 because of the 0 and '\0' differentiation issue
+
 
 void RelationBlock::addProperty(std::string name, char* value) {
     if (this->propertyAddress == 0) {
@@ -664,8 +664,8 @@ NodeBlock* RelationBlock::getDestination() {
     return NULL;
 }
 
-const unsigned long RelationBlock::BLOCK_SIZE = RelationBlock::RECORD_SIZE * 13;
+thread_local const unsigned long RelationBlock::BLOCK_SIZE = RelationBlock::RECORD_SIZE * 13;
 // One relation block holds 11 recods such as source addres, destination address, source next relation address etc.
 // and one record is typically 4 bytes (size of unsigned int)
-std::fstream* RelationBlock::relationsDB = NULL;
-std::fstream* RelationBlock::centralrelationsDB = NULL;
+thread_local std::fstream* RelationBlock::relationsDB = NULL;
+thread_local std::fstream* RelationBlock::centralrelationsDB = NULL;

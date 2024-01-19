@@ -43,7 +43,7 @@ class NodeBlock {
     char label[LABEL_SIZE] = {
         0};  // Initialize with null chars label === ID if length(id) < 6 else ID will be stored as a Node's property
 
-    static std::fstream *nodesDB;
+    static thread_local std::fstream *nodesDB;
 
     /**
      * This constructor is used when creating a node for very first time.

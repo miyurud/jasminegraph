@@ -435,4 +435,4 @@ NodeBlock* NodeBlock::get(unsigned int blockAddress) {
 }
 
 PropertyLink* NodeBlock::getPropertyHead() { return PropertyLink::get(this->propRef); }
-std::fstream* NodeBlock::nodesDB = NULL;
+thread_local std::fstream* NodeBlock::nodesDB = NULL;

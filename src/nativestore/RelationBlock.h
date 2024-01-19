@@ -103,12 +103,12 @@ class RelationBlock {
     PropertyEdgeLink *getPropertyHead();
     std::map<std::string, char *> getAllProperties();
 
-    static unsigned int nextRelationIndex;
-    static unsigned int nextCentralRelationIndex;
-    static const unsigned long BLOCK_SIZE;  // Size of a relation record block in bytes
-    static std::string DB_PATH;
-    static std::fstream *relationsDB;
-    static std::fstream *centralrelationsDB;
+    static thread_local unsigned int nextRelationIndex;
+    static thread_local unsigned int nextCentralRelationIndex;
+    static thread_local const unsigned long BLOCK_SIZE;  // Size of a relation record block in bytes
+    static thread_local std::string DB_PATH;
+    static thread_local std::fstream *relationsDB;
+    static thread_local std::fstream *centralrelationsDB;
     static const int RECORD_SIZE = sizeof(unsigned int);
 
     RelationBlock *addCentral(NodeBlock source, NodeBlock destination);

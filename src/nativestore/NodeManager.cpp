@@ -25,13 +25,27 @@ limitations under the License.
 #include "PropertyLink.h"
 #include "RelationBlock.h"
 #include "iostream"
+#include <sys/stat.h>
 
 Logger node_manager_logger;
 pthread_mutex_t lockEdgeAdd;
 
+bool fileExists(const std::string& path) {
+    std::ifstream file(path);
+    return file.is_open();
+}
+
+std::fstream* openFile(const std::string &path, std::ios_base::openmode mode) {
+    if (!fileExists(path)) {
+        // Create the file if it doesn't exist
+        std::ofstream dummyFile(path, std::ios::out | std::ios::binary);
+        dummyFile.close();
+    }
+    // Now open the file in the desired mode
+    return new std::fstream(path, mode | std::ios::binary);
+}
+
 NodeManager::NodeManager(GraphConfig gConfig) {
-    node_manager_logger.info("NodeManager constructor called with graphID: " + std::to_string(gConfig.graphID) +
-                             " and partitionID: " + std::to_string(gConfig.partitionID));
     this->graphID = gConfig.graphID;
     this->partitionID = gConfig.partitionID;
     Utils utils;
@@ -60,10 +74,11 @@ NodeManager::NodeManager(GraphConfig gConfig) {
         node_manager_logger.info("Setting index key size to: " + std::to_string(gConfig.maxLabelSize));
     }
 
-    std::ios_base::openmode openMode = std::ios::trunc;  // default is Trunc mode which overrides the entire file
+    std::ios_base::openmode openMode = std::ios::in | std::ios::out;  // Default mode
     if (gConfig.openMode == NodeManager::FILE_MODE) {
-        openMode = std::ios::app;  // if app, open in append mode
         this->nodeIndex = readNodeIndex();
+    } else {
+        openMode |= std::ios::trunc;
     }
 
     if (gConfig.openMode == NodeManager::FILE_MODE) {
@@ -72,16 +87,12 @@ NodeManager::NodeManager(GraphConfig gConfig) {
         node_manager_logger.info("Using TRUNC mode for file operations.");
     }
 
-    NodeBlock::nodesDB = new std::fstream(nodesDBPath, std::ios::in | std::ios::out | openMode | std::ios::binary);
-    PropertyLink::propertiesDB =
-        new std::fstream(propertiesDBPath, std::ios::in | std::ios::out | openMode | std::ios::binary);
-    PropertyEdgeLink::edgePropertiesDB =
-        new std::fstream(edgePropertiesDBPath, std::ios::in | std::ios::out | openMode | std::ios::binary);
+    NodeBlock::nodesDB = openFile(nodesDBPath, openMode);
+    PropertyLink::propertiesDB = openFile(propertiesDBPath, openMode);
+    PropertyEdgeLink::edgePropertiesDB = openFile(edgePropertiesDBPath, openMode);
+    RelationBlock::relationsDB = openFile(relationsDBPath, openMode);
+    RelationBlock::centralrelationsDB = openFile(centralRelationsDBPath, openMode);
 
-    RelationBlock::relationsDB =
-        new std::fstream(relationsDBPath, std::ios::in | std::ios::out | openMode | std::ios::binary);
-    RelationBlock::centralrelationsDB = new std::fstream(centralRelationsDBPath,
-                                                         std::ios::in | std::ios::out | openMode | std::ios::binary);
     //    RelationBlock::centralpropertiesDB =
     //            new std::fstream(dbPrefix + "_central_relations.db", std::ios::in | std::ios::out | openMode |
     //            std::ios::binary);
@@ -119,13 +130,43 @@ NodeManager::NodeManager(GraphConfig gConfig) {
         node_manager_logger.error("CentralRelationsDB size does not comply to node block size Path = " +
                                                             centralRelationsDBPath);
     }
-    node_manager_logger.info("NodeManager constructor execution completed.");
+
+    struct stat stat_buf;
+
+    if (stat(propertiesDBPath.c_str(), &stat_buf) == 0) {
+        PropertyLink::nextPropertyIndex = (stat_buf.st_size / PropertyLink::PROPERTY_BLOCK_SIZE) == 0 ? 1 :
+                (stat_buf.st_size / PropertyLink::PROPERTY_BLOCK_SIZE);
+
+    } else {
+        node_manager_logger.error("Error getting file size for: " + propertiesDBPath);
+    }
+
+    if (stat(edgePropertiesDBPath.c_str(), &stat_buf) == 0) {
+        PropertyEdgeLink::nextPropertyIndex = (stat_buf.st_size / PropertyEdgeLink::PROPERTY_BLOCK_SIZE) == 0 ? 1 :
+                                            (stat_buf.st_size / PropertyEdgeLink::PROPERTY_BLOCK_SIZE);
+    } else {
+        node_manager_logger.error("Error getting file size for: " + edgePropertiesDBPath);
+    }
+
+    if (stat(relationsDBPath.c_str(), &stat_buf) == 0) {
+        RelationBlock::nextRelationIndex = (stat_buf.st_size / RelationBlock::BLOCK_SIZE) == 0 ? 1 :
+                                        (stat_buf.st_size / RelationBlock::BLOCK_SIZE);
+    } else {
+        node_manager_logger.error("Error getting file size for: " + relationsDBPath);
+    }
+
+    if (stat(centralRelationsDBPath.c_str(), &stat_buf) == 0) {
+        RelationBlock::nextCentralRelationIndex = (stat_buf.st_size / RelationBlock::BLOCK_SIZE)== 0 ? 1 :
+                                                (stat_buf.st_size / RelationBlock::BLOCK_SIZE);
+    } else {
+        node_manager_logger.error("Error getting file size for: " + centralRelationsDBPath);
+    }
+    node_manager_logger.info("Node Manager Execution Completed!");
 }
 
 std::unordered_map<std::string, unsigned int> NodeManager::readNodeIndex() {
     std::ifstream index_db(indexDBPath, std::ios::app | std::ios::binary);
     std::unordered_map<std::string, unsigned int> _nodeIndex;  // temporary node index data holder
-
     if (index_db.is_open()) {
         int iSize = dbSize(indexDBPath);
         unsigned long dataWidth = NodeManager::INDEX_KEY_SIZE + sizeof(unsigned int);
@@ -133,7 +174,7 @@ std::unordered_map<std::string, unsigned int> NodeManager::readNodeIndex() {
             node_manager_logger.error("Index DB size does not comply to index block size Path = " + indexDBPath);
             node_manager_logger.error("Node index DB in " + indexDBPath + " is corrupted!");
         }
-
+        NodeManager::nextNodeIndex = iSize/dataWidth;
         char nodeIDC[NodeManager::INDEX_KEY_SIZE];
         bzero(nodeIDC, NodeManager::INDEX_KEY_SIZE);  // Fill with null chars before putting data
         unsigned int nodeIndexId;
@@ -264,9 +305,11 @@ void NodeManager::addNodeIndex(std::string nodeId, unsigned int nodeIndex) {
         char nodeIDC[NodeManager::INDEX_KEY_SIZE] = {0};  // Initialize with null chars
         std::strcpy(nodeIDC, nodeId.c_str());
         index_db.write(nodeIDC, sizeof(nodeIDC));
-        index_db.write(reinterpret_cast<char *>(&(nodeIndex)), sizeof(unsigned int));
-        node_manager_logger.debug("Writing node index --> Node key = " + std::string(nodeIDC) + " value " +
-                                  std::to_string(nodeIndex));
+        index_db.write(reinterpret_cast<char *>(&nodeIndex), sizeof(unsigned int));
+        index_db.flush();
+        node_manager_logger.debug("Writing node index --> Node key = " + std::string(nodeIDC) + ", value = " + std::to_string(nodeIndex));
+    } else {
+        node_manager_logger.error("Failed to open index database file.");
     }
     index_db.close();
 }
