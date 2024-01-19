@@ -459,7 +459,6 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                         std::to_string(workerDataPortsVector.at(i)) + " --ENABLE_NMON " + enableNmon;
                 }
             }
-            server_logger.info(serverStartScript);
             const char *serverStartCmd = serverStartScript.c_str();
             pid_t child = fork();
             if (child == 0) {
@@ -678,8 +677,9 @@ void JasmineGraphServer::resolveOperationalGraphs() {
 
         response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
         if (response.compare("") != 0) {
-            std::vector<string> listOfOitems = Utils::split(response, ',');
-            for (std::vector<string>::iterator it = listOfOitems.begin(); it != listOfOitems.end(); it++) {
+            std::vector<string> listOfOperationalItems = Utils::split(response, ',');
+            for (std::vector<string>::iterator it = listOfOperationalItems.begin(); it != listOfOperationalItems.end();
+                 it++) {
                 graphIDsFromWorkersSet.insert(atoi(it->c_str()));
             }
         }
