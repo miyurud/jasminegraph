@@ -28,31 +28,31 @@ limitations under the License.
 #include "../AbstractExecutor.h"
 
 class StreamingTriangleCountExecutor : public AbstractExecutor{
-public:
-    StreamingTriangleCountExecutor();
+ public:
+        StreamingTriangleCountExecutor();
 
-    StreamingTriangleCountExecutor(SQLiteDBInterface *db, JobRequest jobRequest);
+        StreamingTriangleCountExecutor(SQLiteDBInterface *db, JobRequest jobRequest);
 
-    void execute();
+        void execute();
 
-    static long getTriangleCount(int graphId, std::string host, int port, int dataPort, int partitionId,
-                                 std::string masterIP, std::string runMode, StreamingSQLiteDBInterface streamingDB);
+        static long getTriangleCount(int graphId, std::string host, int port, int dataPort, int partitionId,
+                                     std::string masterIP, std::string runMode, StreamingSQLiteDBInterface streamingDB);
 
-    static long aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, StreamingSQLiteDBInterface streamingdb,
-                                               std::string graphId, std::string masterIP, std::string mode);
+        static long aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, StreamingSQLiteDBInterface streamingdb,
+                                                   std::string graphId, std::string masterIP, std::string mode);
 
-    static string countCentralStoreTriangles(std::string aggregatorHostName, std::string aggregatorPort,
-                                            std::string host, std::string partitionId, std::string partitionIdList,
-                                             std::string centralCountList,
-                                            std::string graphId, std::string masterIP, int threadPriority, std::string mode);
+        static string countCentralStoreTriangles(std::string aggregatorHostName, std::string aggregatorPort,
+                                                std::string host, std::string partitionId, std::string partitionIdList,
+                                                 std::string centralCountList, std::string graphId,
+                                                 std::string masterIP, int threadPriority, std::string mode);
 
-    static std::vector<std::vector<string>> getCombinations(std::vector<string> inputVector);
+        static std::vector<std::vector<string>> getCombinations(std::vector<string> inputVector);
 
-    static std::vector<std::vector<string>> getWorkerCombination(SQLiteDBInterface *sqlite, std::string graphId);
+        static std::vector<std::vector<string>> getWorkerCombination(SQLiteDBInterface *sqlite, std::string graphId);
 
-private:
-    SQLiteDBInterface *sqlite;
-    StreamingSQLiteDBInterface streamingDB;
+ private:
+        SQLiteDBInterface *sqlite;
+        StreamingSQLiteDBInterface streamingDB;
 };
 
-#endif //JASMINEGRAPH_STREAMINGTRIANGLECOUNTEXECUTOR_H
+#endif  // JASMINEGRAPH_STREAMINGTRIANGLECOUNTEXECUTOR_H

@@ -87,15 +87,15 @@ static void triangles_command(
     std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores,
     std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> graphDBMapDuplicateCentralStores,
     bool *loop_exit_p);
-static void streaming_triangles_command(int connFd, int serverPort,
-                                        std::map<std::string, JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap,
+static void streaming_triangles_command(int connFd, int serverPort, std::map<std::string,
+                                        JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap,
                                         bool *loop_exit_p);
 static void send_centralstore_to_aggregator_command(int connFd, bool *loop_exit_p);
 static void send_composite_centralstore_to_aggregator_command(int connFd, bool *loop_exit_p);
 static void aggregate_centralstore_triangles_command(int connFd, bool *loop_exit_p);
-static void aggregate_streaming_centralstore_triangles_command(int connFd,
-                                                               std::map<std::string, JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap,
-                                                               bool *loop_exit_p);
+static void aggregate_streaming_centralstore_triangles_command(
+        int connFd, std::map<std::string, JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap,
+        bool *loop_exit_p);
 static void aggregate_composite_centralstore_triangles_command(int connFd, bool *loop_exit_p);
 static void performance_statistics_command(int connFd, bool *loop_exit_p);
 static void initiate_files_command(int connFd, bool *loop_exit_p);
@@ -646,7 +646,8 @@ string JasmineGraphInstanceService::aggregateCompositeCentralStoreTriangles(std:
     map<long, long> distributionHashMap =
         JasmineGraphInstanceService::getOutDegreeDistributionHashMap(aggregatedCompositeCentralStore);
 
-    TriangleResult triangleResult =  Triangles::countTriangles(aggregatedCompositeCentralStore, distributionHashMap, true);
+    TriangleResult triangleResult =  Triangles::countTriangles(aggregatedCompositeCentralStore,
+                                                               distributionHashMap, true);
     std::string triangles = triangleResult.triangles;
 
     return triangles;
@@ -3344,8 +3345,8 @@ static void triangles_command(
     }
 }
 
-static void streaming_triangles_command(
-        int connFd, int serverPort, std::map<std::string, JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap,
+static void streaming_triangles_command(int connFd, int serverPort,
+        std::map<std::string, JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap,
         bool *loop_exit_p) {
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
@@ -3401,9 +3402,9 @@ static void streaming_triangles_command(
     }
 
     NativeStoreTriangleResult localCount;
-    if (mode == "0"){
+    if (mode == "0") {
         localCount = StreamingTriangles::countLocalStreamingTriangles(incrementalLocalStoreInstance);
-    } else{
+    } else {
         localCount = StreamingTriangles::countDynamicLocalTriangles(incrementalLocalStoreInstance,
                                                                     std::stol(oldLocalRelationCount), std::stol(oldCentralRelationCount));
     }
@@ -3432,7 +3433,6 @@ static void streaming_triangles_command(
     response = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
         instance_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
-        //need to send back above
         if (!Utils::send_str_wrapper(connFd, std::to_string(result))) {
             *loop_exit_p = true;
             return;
@@ -3735,7 +3735,8 @@ static void aggregate_centralstore_triangles_command(int connFd, bool *loop_exit
     }
 }
 
-static void aggregate_streaming_centralstore_triangles_command(int connFd, std::map<std::string, JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap,
+static void aggregate_streaming_centralstore_triangles_command(int connFd, std::map<std::string,
+                                                               JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap,
                                                                bool *loop_exit_p) {
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
@@ -4734,9 +4735,9 @@ static void send_priority_command(int connFd, bool *loop_exit_p) {
 }
 
 string JasmineGraphInstanceService::aggregateStreamingCentralStoreTriangles(
-        std::string graphId, std::string partitionId, std::string partitionIdString, std::string centralCountString,
-        int threadPriority, std::map<std::string, JasmineGraphIncrementalLocalStore *> incrementalLocalStores, std::string mode) {
-
+        std::string graphId, std::string partitionId, std::string partitionIdString,
+        std::string centralCountString, int threadPriority,
+        std::map<std::string, JasmineGraphIncrementalLocalStore *> incrementalLocalStores, std::string mode) {
     instance_logger.log("###INSTANCE### Started Aggregating Central Store Triangles", "info");
     std::vector<JasmineGraphIncrementalLocalStore*> incrementalLocalStoreInstances;
     std::vector<std::string> centralCountList = Utils::split(centralCountString, ',');
@@ -4753,7 +4754,8 @@ string JasmineGraphInstanceService::aggregateStreamingCentralStoreTriangles(
 
         if (incrementalLocalStores.find(graphIdentifier) == incrementalLocalStores.end()) {
             incrementalLocalStoreInstance =
-                    JasmineGraphInstanceService::loadStreamingStore(graphId, aggregatePartitionId, incrementalLocalStores, "app");
+                    JasmineGraphInstanceService::loadStreamingStore(graphId, aggregatePartitionId,
+                                                                    incrementalLocalStores, "app");
         } else {
             incrementalLocalStoreInstance = incrementalLocalStores[graphIdentifier];
         }
@@ -4761,9 +4763,9 @@ string JasmineGraphInstanceService::aggregateStreamingCentralStoreTriangles(
     }
 
     std::string triangles;
-    if (mode == "0"){
+    if (mode == "0") {
         triangles = StreamingTriangles::countCentralStoreStreamingTriangles(incrementalLocalStoreInstances);
-    } else{
+    } else {
         triangles = StreamingTriangles::countDynamicCentralTriangles(
                 incrementalLocalStoreInstances, centralCountList);
     }

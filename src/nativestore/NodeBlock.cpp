@@ -137,7 +137,6 @@ bool NodeBlock::updateLocalRelation(RelationBlock* newRelation, bool relocateHea
         }
     }
     return false;
-
 }
 
 bool NodeBlock::updateCentralRelation(RelationBlock* newRelation, bool relocateHead) {

@@ -33,7 +33,8 @@ RelationBlock* RelationBlock::addLocalRelation(NodeBlock source, NodeBlock desti
 
     //    unsigned int relationPropAddr = this;
 
-    long relationBlockAddress = RelationBlock::nextLocalRelationIndex * RelationBlock::BLOCK_SIZE;  // Block size is 4 * 13
+    long relationBlockAddress = RelationBlock::nextLocalRelationIndex *
+            RelationBlock::BLOCK_SIZE;  // Block size is 4 * 13
 
     RelationBlock::relationsDB->seekg(relationBlockAddress);
     if (!RelationBlock::relationsDB->write(reinterpret_cast<char*>(&source.nodeId), RECORD_SIZE)) {
@@ -329,17 +330,17 @@ RelationBlock* RelationBlock::getLocalRelation(unsigned int address) {
     if (!RelationBlock::relationsDB->read(reinterpret_cast<char*>(&destination.prePid),
                                           RECORD_SIZE)) {  // < ------ relation data offset ID = 9
         relation_block_logger.error(
-            "ERROR: Error while reading local relation destination previous relation partition id data offset ID = 9 from "
-            "relation block address " +
-            std::to_string(address));
+            "ERROR: Error while reading local relation destination previous "
+            "relation partition id data offset ID = 9 from "
+            "relation block address " + std::to_string(address));
         return NULL;
     }
 
     if (!RelationBlock::relationsDB->read(reinterpret_cast<char*>(&propertyReference),
                                           RECORD_SIZE)) {  // < ------ relation data offset ID = 10
         relation_block_logger.error(
-            "ERROR: Error while reading local relation property address data offset ID = 10 from relation block address " +
-            std::to_string(address));
+            "ERROR: Error while reading local relation property address data "
+            "offset ID = 10 from relation block address " + std::to_string(address));
         return NULL;
     }
 
@@ -429,49 +430,63 @@ RelationBlock* RelationBlock::getCentralRelation(unsigned int address) {
     if (!RelationBlock::centralrelationsDB->read(reinterpret_cast<char*>(&destination.preRelationId),
                                                  RECORD_SIZE)) {  // < ------ relation data offset ID = 8
         relation_block_logger.error(
-            "ERROR: Error while reading central relation destination previous relation address data offset ID = 8 from "
-            "relation block address " +
-            std::to_string(address));
+            "ERROR: Error while reading central relation destination previous relation address "
+            "data offset ID = 8 from "
+            "relation block address " + std::to_string(address));
         return NULL;
     }
 
     if (!RelationBlock::centralrelationsDB->read(reinterpret_cast<char*>(&destination.prePid),
                                                  RECORD_SIZE)) {  // < ------ relation data offset ID = 9
         relation_block_logger.error(
-            "ERROR: Error while reading central relation destination previous relation partition id data offset ID = 9 from "
-            "relation block address " +
-            std::to_string(address));
+            "ERROR: Error while reading central relation destination previous relation partition "
+            "id data offset ID = 9 from "
+            "relation block address " + std::to_string(address));
         return NULL;
     }
 
     if (!RelationBlock::centralrelationsDB->read(reinterpret_cast<char*>(&propertyReference),
                                                  RECORD_SIZE)) {  // < ------ relation data offset ID = 10
         relation_block_logger.error(
-            "ERROR: Error while reading central relation property address data offset ID = 10 from relation block address " +
-            std::to_string(address));
+            "ERROR: Error while reading central relation property address data offset ID = 10 from "
+            "relation block address " + std::to_string(address));
         return NULL;
     }
 
     return new RelationBlock(address, source, destination, propertyReference);
 }
 
-RelationBlock* RelationBlock::nextLocalSource() { return RelationBlock::getLocalRelation(this->source.nextRelationId); }
+RelationBlock* RelationBlock::nextLocalSource() {
+    return RelationBlock::getLocalRelation(this->source.nextRelationId);
+}
 
-RelationBlock* RelationBlock::nextCentralSource() { return RelationBlock::getCentralRelation(this->source.nextRelationId); }
+RelationBlock* RelationBlock::nextCentralSource() {
+    return RelationBlock::getCentralRelation(this->source.nextRelationId);
+}
 
-RelationBlock* RelationBlock::previousLocalSource() { return RelationBlock::getLocalRelation(this->source.preRelationId); }
+RelationBlock* RelationBlock::previousLocalSource() {
+    return RelationBlock::getLocalRelation(this->source.preRelationId);
+}
 
-RelationBlock* RelationBlock::previousCentralSource() { return RelationBlock::getCentralRelation(this->source.preRelationId); }
+RelationBlock* RelationBlock::previousCentralSource() {
+    return RelationBlock::getCentralRelation(this->source.preRelationId);
+}
 
-RelationBlock* RelationBlock::nextLocalDestination() { return RelationBlock::getLocalRelation(this->destination.nextRelationId); }
+RelationBlock* RelationBlock::nextLocalDestination() {
+    return RelationBlock::getLocalRelation(this->destination.nextRelationId);
+}
 
 RelationBlock* RelationBlock::nextCentralDestination() {
     return RelationBlock::getCentralRelation(this->destination.nextRelationId);
 }
 
-RelationBlock* RelationBlock::previousLocalDestination() { return RelationBlock::getLocalRelation(this->destination.preRelationId); }
+RelationBlock* RelationBlock::previousLocalDestination() {
+    return RelationBlock::getLocalRelation(this->destination.preRelationId);
+}
 
-RelationBlock* RelationBlock::previousCentralDestination() { return RelationBlock::getCentralRelation(this->destination.preRelationId); }
+RelationBlock* RelationBlock::previousCentralDestination() {
+    return RelationBlock::getCentralRelation(this->destination.preRelationId);
+}
 
 bool RelationBlock::setLocalNextSource(unsigned int newAddress) {
     if (this->updateLocalRelationRecords(RelationOffsets::SOURCE_NEXT, newAddress)) {
@@ -594,7 +609,8 @@ bool RelationBlock::updateCentralRelationRecords(RelationOffsets recordOffset, u
 }
 
 bool RelationBlock::isInUse() { return this->usage == '\1'; }
-unsigned int RelationBlock::nextLocalRelationIndex = 1;  // Starting with 1 because of the 0 and '\0' differentiation issue
+unsigned int RelationBlock::nextLocalRelationIndex =
+        1;  // Starting with 1 because of the 0 and '\0' differentiation issue
 unsigned int RelationBlock::nextCentralRelationIndex =
     1;  // Starting with 1 because of the 0 and '\0' differentiation issue
 

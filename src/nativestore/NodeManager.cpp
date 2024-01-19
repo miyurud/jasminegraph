@@ -423,7 +423,7 @@ std::list<NodeBlock*> NodeManager::getGraph() {
 /**
  * Return all central nodes
  * */
-std::list<NodeBlock*> NodeManager::getCentralGraph () {
+std::list<NodeBlock*> NodeManager::getCentralGraph() {
     std::list<NodeBlock*> vertices;
     for (auto it : this->nodeIndex) {
         auto nodeId = it.first;
@@ -456,7 +456,7 @@ std::map<long, std::unordered_set<long>> NodeManager::getAdjacencyList() {
 }
 
 // Get degree map
-std::map<long, long> NodeManager::getDistributionMap () {
+std::map<long, long> NodeManager::getDistributionMap() {
     std::map<long, std::unordered_set<long>> adjacencyList = getAdjacencyList();
     std::map<long, long> distributionMap;
     for (auto it : adjacencyList) {

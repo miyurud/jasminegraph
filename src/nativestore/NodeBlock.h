@@ -25,7 +25,7 @@ class RelationBlock;  // Forward declaration
 #define NODE_BLOCK
 
 class NodeBlock {
-private:
+ private:
     bool isDirected = false;
 
  public:

@@ -75,7 +75,6 @@ void JasmineGraphIncrementalLocalStore::addEdgeFromString(std::string edgeString
                 } else {
                     newRelation->addCentralProperty(std::string(it.key()), &value[0]);
                 }
-
             }
         }
 

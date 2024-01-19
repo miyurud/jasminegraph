@@ -92,7 +92,6 @@ long Triangles::run(JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCe
 
 TriangleResult Triangles::countTriangles(map<long, unordered_set<long>> centralStore,
                                              map<long, long> distributionMap, bool returnTriangles) {
-
     std::map<long, std::set<long>> degreeMap;
     std::string triangle = "";
 
@@ -121,7 +120,7 @@ TriangleResult Triangles::countTriangles(map<long, unordered_set<long>> centralS
         long key = iterator->first;
         std::set<long> vertices = iterator->second;
 
-        if (key==1){
+        if (key == 1) {
             continue;
         }
         std::set<long>::iterator verticesIterator;

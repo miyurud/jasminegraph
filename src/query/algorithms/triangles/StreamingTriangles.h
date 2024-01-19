@@ -34,13 +34,14 @@ struct NativeStoreTriangleResult {
 };
 
 class StreamingTriangles {
-public:
-
+ public:
     static TriangleResult countTriangles(NodeManager* nodeManager, bool returnTriangles);
 
-    static NativeStoreTriangleResult countLocalStreamingTriangles(JasmineGraphIncrementalLocalStore *incrementalLocalStoreInstance);
+    static NativeStoreTriangleResult countLocalStreamingTriangles(
+            JasmineGraphIncrementalLocalStore *incrementalLocalStoreInstance);
 
-    static std::string countCentralStoreStreamingTriangles(std::vector<JasmineGraphIncrementalLocalStore*> incrementalLocalStoreInstances);
+    static std::string countCentralStoreStreamingTriangles(
+            std::vector<JasmineGraphIncrementalLocalStore*> incrementalLocalStoreInstances);
 
     static NativeStoreTriangleResult countDynamicLocalTriangles(
             JasmineGraphIncrementalLocalStore *incrementalLocalStoreInstance,
@@ -53,4 +54,4 @@ public:
     static std::string getPartitionID(std::vector<JasmineGraphIncrementalLocalStore *> vector1);
 };
 
-#endif //JASMINEGRAPH_STRAMINGTRIANGLES_H
+#endif  // JASMINEGRAPH_STRAMINGTRIANGLES_H

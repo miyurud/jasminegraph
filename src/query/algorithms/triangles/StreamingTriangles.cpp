@@ -26,7 +26,7 @@ long totalCount(std::map<long, std::unordered_set<long>>& g1,
            std::map<long, std::unordered_set<long>>& g2,
            std::map<long, long>& edges);
 
-TriangleResult StreamingTriangles::countTriangles(NodeManager* nodeManager, bool returnTriangles){
+TriangleResult StreamingTriangles::countTriangles(NodeManager* nodeManager, bool returnTriangles) {
     std::map<long, std::unordered_set<long>> adjacenyList = nodeManager->getAdjacencyList();
     std::map<long, long> distributionMap = nodeManager->getDistributionMap();
 
@@ -35,7 +35,6 @@ TriangleResult StreamingTriangles::countTriangles(NodeManager* nodeManager, bool
     return result;
 }
 
-//Count triangles in local store from scratch
 NativeStoreTriangleResult StreamingTriangles::countLocalStreamingTriangles(
         JasmineGraphIncrementalLocalStore *incrementalLocalStoreInstance) {
     streaming_triangle_logger.log("###STREAMING TRIANGLE### Static Streaming Local Triangle Counting: Started", "info");
@@ -56,13 +55,15 @@ NativeStoreTriangleResult StreamingTriangles::countLocalStreamingTriangles(
     nativeStoreTriangleResult.centralRelationCount = central_relation_count;
     nativeStoreTriangleResult.result = triangleCount;
 
-    streaming_triangle_logger.log("###STREAMING TRIANGLE### Static Streaming Local Triangle Counting: Completed: " + std::to_string(triangleCount),
-                                  "info");
-    return nativeStoreTriangleResult ;
+    streaming_triangle_logger.log("###STREAMING TRIANGLE### Static Streaming Local Triangle Counting: Completed: " +
+                                        std::to_string(triangleCount), "info");
+    return nativeStoreTriangleResult;
 }
 
-std::string StreamingTriangles::countCentralStoreStreamingTriangles(std::vector<JasmineGraphIncrementalLocalStore*> incrementalLocalStoreInstances) {
-    streaming_triangle_logger.log("###STREAMING TRIANGLE### Static Streaming Central Triangle Counting: Started", "info");
+std::string StreamingTriangles::countCentralStoreStreamingTriangles(
+        std::vector<JasmineGraphIncrementalLocalStore*> incrementalLocalStoreInstances) {
+    streaming_triangle_logger.log("###STREAMING TRIANGLE### Static Streaming Central Triangle "
+                                  "Counting: Started", "info");
     std::map<long, std::unordered_set<long>> adjacencyList;
     std::map<long, long> degreeMap;
 
@@ -83,15 +84,16 @@ std::string StreamingTriangles::countCentralStoreStreamingTriangles(std::vector<
     }
 
     TriangleResult result = Triangles::countTriangles(adjacencyList, degreeMap, true);
-    streaming_triangle_logger.log("###STREAMING TRIANGLE### Static Streaming Central Triangle Counting: Completed", "info");
+    streaming_triangle_logger.log("###STREAMING TRIANGLE### Static Streaming Central Triangle Counting: "
+                                  "Completed", "info");
     return result.triangles;
 }
 
-//Count triangles in local store incrementally
 NativeStoreTriangleResult StreamingTriangles::countDynamicLocalTriangles(
         JasmineGraphIncrementalLocalStore *incrementalLocalStoreInstance,
         long old_local_relation_count, long old_central_relation_count) {
-    streaming_triangle_logger.log("###STREAMING TRIANGLE### Dynamic Streaming Local Triangle Counting: Started", "info");
+    streaming_triangle_logger.log("###STREAMING TRIANGLE### Dynamic Streaming Local Triangle "
+                                  "Counting: Started", "info");
     NodeManager* nodeManager = incrementalLocalStoreInstance->nm;
     std::map<long, long> edges;
 
@@ -134,15 +136,16 @@ NativeStoreTriangleResult StreamingTriangles::countDynamicLocalTriangles(
     nativeStoreTriangleResult.localRelationCount = new_local_relation_count;
     nativeStoreTriangleResult.centralRelationCount = new_central_relation_count;
     nativeStoreTriangleResult.result = trianglesValue;
-    streaming_triangle_logger.log("###STREAMING TRIANGLE### Dynamic Streaming Local Triangle Counting: Completed", "info");
+    streaming_triangle_logger.log("###STREAMING TRIANGLE### Dynamic Streaming Local Triangle "
+                                  "Counting: Completed", "info");
     return  nativeStoreTriangleResult;
 }
 
-//Count triangles in composte central store incrementally
 std::string StreamingTriangles::countDynamicCentralTriangles(
         std::vector<JasmineGraphIncrementalLocalStore*> incrementalLocalStoreInstances,
         std::vector<std::string> oldCentralRelationCount) {
-    streaming_triangle_logger.log("###STREAMING TRIANGLE### Dynamic Streaming Central Triangle Counting: Started", "info");
+    streaming_triangle_logger.log("###STREAMING TRIANGLE### Dynamic Streaming Central Triangle "
+                                  "Counting: Started", "info");
     std::map<long, std::unordered_set<long>> adjacencyList;
     std::map<long, long> edges;
     int position = 0;
@@ -202,15 +205,14 @@ std::string StreamingTriangles::countDynamicCentralTriangles(
             }
         }
     }
-    streaming_triangle_logger.log("###STREAMING TRIANGLE### Dynamic Streaming Central Triangle Counting: Finished", "info");
+    streaming_triangle_logger.log("###STREAMING TRIANGLE### Dynamic Streaming Central Triangle "
+                                  "Counting: Finished", "info");
     return triangle;
-
 }
 
 long count(std::map<long, std::unordered_set<long>>& g1,
            std::map<long, std::unordered_set<long>>& g2,
            std::map<long, long>& edges) {
-
     long total_count = 0;
 
     for (const auto& edge : edges) {
