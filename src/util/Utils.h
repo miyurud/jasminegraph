@@ -155,6 +155,9 @@ class Utils {
      */
     static bool send_str_wrapper(int connFd, std::string str);
 
+    static bool sendExpectResponse(int sockfd, char *data, size_t data_length, std::string sendMsg,
+                                   std::string expectMsg);
+
     static bool performHandshake(int sockfd, char *data, size_t data_length, std::string masterIP);
 
     static std::string getCurrentTimestamp();

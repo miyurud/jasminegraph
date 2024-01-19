@@ -583,36 +583,30 @@ bool Utils::send_wrapper(int connFd, const char *buf, size_t size) {
 
 bool Utils::send_str_wrapper(int connFd, std::string str) { return send_wrapper(connFd, str.c_str(), str.length()); }
 
+bool Utils::sendExpectResponse(int sockfd, char *data, size_t data_length, std::string sendMsg, std::string expectMsg) {
+    if (!Utils::send_str_wrapper(sockfd, sendMsg)) {
+        return false;
+    }
+    util_logger.info("Sent: " + sendMsg);
+
+    std::string response = Utils::read_str_trim_wrapper(sockfd, data, data_length);
+    if (response.compare(expectMsg) != 0) {
+        util_logger.error("Incorrect response. Expected: " + expectMsg + " ; Received: " + response);
+        return false;
+    }
+    util_logger.info("Received: " + response);
+    return true;
+}
+
 bool Utils::performHandshake(int sockfd, char *data, size_t data_length, std::string masterIP) {
-    if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE)) {
-        close(sockfd);
+    if (!Utils::sendExpectResponse(sockfd, data, data_length, JasmineGraphInstanceProtocol::HANDSHAKE,
+                                   JasmineGraphInstanceProtocol::HANDSHAKE_OK)) {
         return false;
     }
-    util_logger.info("Sent: " + JasmineGraphInstanceProtocol::HANDSHAKE);
 
-    string response = Utils::read_str_trim_wrapper(sockfd, data, data_length);
-    if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) != 0) {
-        util_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::HANDSHAKE_OK +
-                          " ; Received: " + response);
-        close(sockfd);
+    if (!Utils::sendExpectResponse(sockfd, data, data_length, masterIP, JasmineGraphInstanceProtocol::HOST_OK)) {
         return false;
     }
-    util_logger.info("Received: " + response);
-
-    if (!Utils::send_str_wrapper(sockfd, masterIP)) {
-        close(sockfd);
-        return false;
-    }
-    util_logger.info("Sent: " + masterIP);
-
-    response = Utils::read_str_trim_wrapper(sockfd, data, data_length);
-    if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) != 0) {
-        util_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::HOST_OK +
-                          " ; Received: " + response);
-        close(sockfd);
-        return false;
-    }
-    util_logger.info("Received: " + response);
     return true;
 }
 
