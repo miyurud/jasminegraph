@@ -1097,17 +1097,17 @@ bool JasmineGraphServer::sendFileThroughService(std::string host, int dataPort, 
     }
 
     while (true) {
-        unsigned char buff[1024] = {0};
-        int nread = fread(buff, 1, 1024, fp);
+        unsigned char buff[1024];
+        int nread = fread(buff, 1, sizeof(buff), fp);
 
         /* If read was success, send data. */
         if (nread > 0) {
             write(sockfd, buff, nread);
         }
 
-        if (nread < 1024) {
-            if (feof(fp)) printf("End of file\n");
-            if (ferror(fp)) printf("Error reading\n");
+        if (nread < sizeof(buff)) {
+            if (feof(fp)) server_logger.log("End of file");
+            if (ferror(fp)) server_logger.error("Error reading file: " + filePath);
             break;
         }
     }
@@ -1121,7 +1121,7 @@ static void copyArtifactsToWorkers(const std::string &workerPath, const std::str
                                    const std::string &remoteWorker) {
     if (artifactLocation.empty() || artifactLocation.find_first_not_of(' ') == artifactLocation.npos) {
         server_logger.error("Received `" + artifactLocation + "` for `artifactLocation` value!");
-        throw std::invalid_argument("Received empty string for `artifactLocation` value!");
+        return;
     }
 
     std::string pathCheckCommand = "test -e " + workerPath;

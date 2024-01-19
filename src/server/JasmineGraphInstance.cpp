@@ -248,19 +248,16 @@ bool JasmineGraphInstance::sendFileThroughService(std::string host, int dataPort
             return false;
         }
         for (;;) {
-            unsigned char buff[1024] = {0};
-            int nread = fread(buff, 1, 1024, fp);
-            // printf("Bytes read %d \n", nread);
+            unsigned char buff[1024];
+            int nread = fread(buff, 1, sizeof(buff), fp);
 
             /* If read was success, send data. */
             if (nread > 0) {
-                // printf("Sending \n");
                 write(sockfd, buff, nread);
             }
 
-            if (nread < 1024) {
+            if (nread < sizeof(buff)) {
                 if (feof(fp))
-                    // printf("End of file\n");
                     if (ferror(fp)) {
                         printf("Error reading\n");
                         return false;
