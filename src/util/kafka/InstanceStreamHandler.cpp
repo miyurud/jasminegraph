@@ -4,8 +4,8 @@
 #include "../logger/Logger.h"
 
 Logger InstanceStreamHandlerLogger;
-
-InstanceStreamHandler::InstanceStreamHandler(std::map<std::string, JasmineGraphIncrementalLocalStore*>& incrementalLocalStoreMap)
+InstanceStreamHandler::InstanceStreamHandler(std::map<std::string,
+                                             JasmineGraphIncrementalLocalStore*>& incrementalLocalStoreMap)
         : incrementalLocalStoreMap(incrementalLocalStoreMap) { }
 
 InstanceStreamHandler::~InstanceStreamHandler() { }
@@ -28,17 +28,15 @@ void InstanceStreamHandler::handleRequest(const std::string& nodeString) {
     }
     std::string graphIdentifier = extractGraphIdentifier(nodeString);
 
-    std::unique_lock<std::mutex> lock(queue_mutexes[graphIdentifier]); // Use specific mutex for the queue
+    std::unique_lock<std::mutex> lock(queue_mutexes[graphIdentifier]);  // Use specific mutex for the queue
     if (threads.find(graphIdentifier) == threads.end()) {
-        threads[graphIdentifier] = std::thread(&InstanceStreamHandler::threadFunction, this,nodeString);
+        threads[graphIdentifier] = std::thread(&InstanceStreamHandler::threadFunction, this, nodeString);
         queues[graphIdentifier] = std::queue<std::string>();
-
     }
 
     queues[graphIdentifier].push(nodeString);
     cond_vars[graphIdentifier].notify_one();
     InstanceStreamHandlerLogger.info("Pushed into the Queue");
-
 }
 
 void InstanceStreamHandler::threadFunction(const std::string& nodeString) {
@@ -68,7 +66,6 @@ void InstanceStreamHandler::threadFunction(const std::string& nodeString) {
         }
         localStore->addEdgeFromString(nodeString);
     }
-
 }
 
 std::string InstanceStreamHandler::extractGraphIdentifier(const std::string& nodeString) {
@@ -83,10 +80,11 @@ JasmineGraphIncrementalLocalStore *
 InstanceStreamHandler::loadStreamingStore(std::string graphId, std::string partitionId,
                                           map<std::string, JasmineGraphIncrementalLocalStore *> &graphDBMapStreamingStores) {
     std::string graphIdentifier = graphId + "_" + partitionId;
-    InstanceStreamHandlerLogger.log("###INSTANCE### Loading streaming Store for" + graphIdentifier + " : Started", "info");
+    InstanceStreamHandlerLogger.log("###INSTANCE### Loading streaming Store for" + graphIdentifier
+                                    + " : Started", "info");
     std::string folderLocation = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
-    auto *jasmineGraphStreamingLocalStore =
-            new JasmineGraphIncrementalLocalStore(stoi(graphId), stoi(partitionId));
+    auto *jasmineGraphStreamingLocalStore = new JasmineGraphIncrementalLocalStore(
+                                     stoi(graphId), stoi(partitionId));
     graphDBMapStreamingStores.insert(std::make_pair(graphIdentifier, jasmineGraphStreamingLocalStore));
     InstanceStreamHandlerLogger.log("###INSTANCE### Loading Local Store : Completed", "info");
     return jasmineGraphStreamingLocalStore;

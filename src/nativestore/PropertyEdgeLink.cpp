@@ -20,7 +20,7 @@ limitations under the License.
 
 #include "../util/logger/Logger.h"
 Logger property_edge_link_logger;
-thread_local unsigned int PropertyEdgeLink::nextPropertyIndex = 1;  // Starting with 1 because of the 0 and '\0' differentiation issue
+thread_local unsigned int PropertyEdgeLink::nextPropertyIndex = 1;
 thread_local std::fstream* PropertyEdgeLink::edgePropertiesDB = NULL;
 pthread_mutex_t lockPropertyEdgeLink;
 pthread_mutex_t lockCreatePropertyEdgeLink;

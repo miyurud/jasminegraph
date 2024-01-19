@@ -588,8 +588,8 @@ bool RelationBlock::updateCentralRelationRecords(RelationOffsets recordOffset, u
 }
 
 bool RelationBlock::isInUse() { return this->usage == '\1'; }
-thread_local unsigned int RelationBlock::nextRelationIndex = 1;  // Starting with 1 because of the 0 and '\0' differentiation issue
-thread_local unsigned int RelationBlock::nextCentralRelationIndex = 1;  // Starting with 1 because of the 0 and '\0' differentiation issue
+thread_local unsigned int RelationBlock::nextRelationIndex = 1;
+thread_local unsigned int RelationBlock::nextCentralRelationIndex = 1;
 
 
 void RelationBlock::addProperty(std::string name, char* value) {

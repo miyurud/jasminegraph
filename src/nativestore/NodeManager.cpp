@@ -307,7 +307,8 @@ void NodeManager::addNodeIndex(std::string nodeId, unsigned int nodeIndex) {
         index_db.write(nodeIDC, sizeof(nodeIDC));
         index_db.write(reinterpret_cast<char *>(&nodeIndex), sizeof(unsigned int));
         index_db.flush();
-        node_manager_logger.debug("Writing node index --> Node key = " + std::string(nodeIDC) + ", value = " + std::to_string(nodeIndex));
+        node_manager_logger.debug("Writing node index --> Node key = " +
+                                  std::string(nodeIDC) + ", value = " + std::to_string(nodeIndex));
     } else {
         node_manager_logger.error("Failed to open index database file.");
     }

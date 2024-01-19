@@ -20,7 +20,7 @@ limitations under the License.
 #include "../util/logger/Logger.h"
 
 Logger property_link_logger;
-thread_local unsigned int PropertyLink::nextPropertyIndex = 1;  // Starting with 1 because of the 0 and '\0' differentiation issue
+thread_local unsigned int PropertyLink::nextPropertyIndex = 1;
 thread_local std::fstream* PropertyLink::propertiesDB = NULL;
 pthread_mutex_t lockPropertyLink;
 pthread_mutex_t lockCreatePropertyLink;
