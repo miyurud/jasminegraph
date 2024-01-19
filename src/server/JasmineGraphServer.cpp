@@ -958,7 +958,7 @@ static bool batchUploadCommon(std::string host, int port, int dataPort, int grap
         return false;
     }
 
-    server_logger.info("Going to send file through service");
+    server_logger.info("Going to send central store file through file transfer service from master to worker");
     JasmineGraphServer::sendFileThroughService(host, dataPort, fileName, filePath, masterIP);
 
     string response;

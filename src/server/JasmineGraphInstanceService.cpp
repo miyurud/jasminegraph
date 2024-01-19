@@ -1209,7 +1209,7 @@ bool JasmineGraphInstanceService::sendFileThroughService(std::string host, int d
     }
     FILE *fp = fopen(filePath.c_str(), "r");
     if (fp == NULL) {
-        instance_logger.error("Error opening file");
+        instance_logger.error("Error opening file: " + filePath);
         close(sockfd);
         return false;
     }
@@ -1226,10 +1226,10 @@ bool JasmineGraphInstanceService::sendFileThroughService(std::string host, int d
 
         if (nread < INSTANCE_FILE_BUFFER_LENGTH) {
             if (feof(fp)) {
-                instance_logger.info("Reading completed");
+                instance_logger.info("Reading completed for file: " + filePath);
             }
             if (ferror(fp)) {
-                instance_logger.error("Error reading");
+                instance_logger.error("Error reading file: " + filePath);
             }
             break;
         }
@@ -1306,7 +1306,7 @@ map<long, long> calculateLocalOutDegreeDist(
     auto t_end = std::chrono::high_resolution_clock::now();
     double elapsed_time_ms = std::chrono::duration<double, std::milli>(t_end - t_start).count();
 
-    instance_logger.info("Elapsed time out degree distribution -----------------: " + to_string(elapsed_time_ms));
+    instance_logger.info("Elapsed time out degree distribution (in ms) ----------: " + to_string(elapsed_time_ms));
     return degreeDistributionLocal;
 }
 
@@ -1382,7 +1382,7 @@ map<long, long> calculateInDegreeDist(string graphID, string partitionID, int se
     auto t_end = std::chrono::high_resolution_clock::now();
     double elapsed_time_ms = std::chrono::duration<double, std::milli>(t_end - t_start).count();
 
-    instance_logger.info("Elapsed time in degree distribution -----------------: " + to_string(elapsed_time_ms));
+    instance_logger.info("Elapsed time in degree distribution (in ms) ----------: " + to_string(elapsed_time_ms));
 
     instance_logger.info("In Degree Dist size: " + to_string(degreeDistribution.size()));
 
@@ -1786,7 +1786,7 @@ map<long, double> calculateLocalPageRank(string graphID, double alpha, string pa
     inDegreeDistribution.clear();
     rankMap.clear();
     rankMapResults.clear();
-    instance_logger.info("Elapsed time pgrnk -----------------: " + to_string(elapsed_time_ms));
+    instance_logger.info("Elapsed time for calculating PageRank (in ms) -----: " + to_string(elapsed_time_ms));
     return finalPageRankResults;
 }
 
@@ -2080,7 +2080,7 @@ static void batch_upload_common(int connFd, bool *loop_exit_p, bool batch_upload
 
     int fileSize = stoi(size);
     while (!Utils::fileExists(fullFilePath)) {
-        instance_logger.info("File does not exist");
+        instance_logger.info("Instance data file " + fullFilePath + " does not exist");
         sleep(1);
     }
     while (Utils::getFileSize(fullFilePath) < fileSize) {
@@ -2095,7 +2095,7 @@ static void batch_upload_common(int connFd, bool *loop_exit_p, bool batch_upload
             *loop_exit_p = true;
             return;
         }
-        instance_logger.info("Waiting for file to be received");
+        instance_logger.info("Waiting for file to be received to " + fullFilePath);
     }
 
     line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
@@ -2355,7 +2355,7 @@ static void worker_in_degree_distribution_command(
     auto t_end = std::chrono::high_resolution_clock::now();
     double elapsed_time_ms = std::chrono::duration<double, std::milli>(t_end - t_start).count();
 
-    instance_logger.info("Elapsed time idd -----------------: " + to_string(elapsed_time_ms));
+    instance_logger.info("Elapsed time idd in (ms) --------: " + to_string(elapsed_time_ms));
 
     string instanceDataFolderLocation = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
     string attributeFilePart = instanceDataFolderLocation + "/" + graphID + "_idd_" + partitionID;
@@ -2559,7 +2559,7 @@ static void page_rank_command(int connFd, int serverPort,
     graphDB = graphDBMapLocalStoresPgrnk[graphID + "_" + partitionID];
     centralDB = graphDBMapCentralStores[graphID + "_centralstore_" + partitionID];
 
-    instance_logger.info("Start : Calculate Local page rank");
+    instance_logger.info("Start : Calculate Local PageRank");
 
     map<long, double> pageRankResults =
         calculateLocalPageRank(graphID, alpha, partitionID, serverPort, TOP_K_PAGE_RANK, graphVertexCount, graphDB,
@@ -2612,7 +2612,7 @@ static void page_rank_command(int connFd, int serverPort,
     pageRankLocalstore.clear();
     graphDBMapCentralStores.clear();
     graphDBMapLocalStoresPgrnk.clear();
-    instance_logger.info("Finish : Calculate Local page rank.");
+    instance_logger.info("Finish : Calculate Local PageRank.");
 }
 
 static void worker_page_rank_distribution_command(
@@ -2871,7 +2871,7 @@ static void worker_egonet_command(int connFd, int serverPort,
     }
     partfile.close();
 
-    instance_logger.info("Egonet calculation complete");
+    instance_logger.info("Egonet calculation completed");
 }
 
 static void triangles_command(
