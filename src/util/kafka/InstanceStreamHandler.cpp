@@ -77,8 +77,8 @@ std::string InstanceStreamHandler::extractGraphIdentifier(const std::string& nod
 }
 
 JasmineGraphIncrementalLocalStore *
-InstanceStreamHandler::loadStreamingStore(std::string graphId, std::string partitionId,
-                                          map<std::string, JasmineGraphIncrementalLocalStore *> &graphDBMapStreamingStores) {
+InstanceStreamHandler::loadStreamingStore(std::string graphId, std::string partitionId, map<std::string,
+                                          JasmineGraphIncrementalLocalStore *> &graphDBMapStreamingStores) {
     std::string graphIdentifier = graphId + "_" + partitionId;
     InstanceStreamHandlerLogger.log("###INSTANCE### Loading streaming Store for" + graphIdentifier
                                     + " : Started", "info");
