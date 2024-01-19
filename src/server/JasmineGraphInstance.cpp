@@ -175,8 +175,11 @@ void JasmineGraphInstance::startNmonAnalyzer(string enableNmon, int serverPort) 
         std::string numberOfSnapshots = Utils::getJasmineGraphProperty("org.jasminegraph.server.nmon.snapshots");
         std::string snapshotGap = Utils::getJasmineGraphProperty("org.jasminegraph.server.nmon.snapshot.gap");
         std::string nmonFileName = nmonFileLocation + "nmon.log." + std::to_string(serverPort);
+        /*std::string nmonStartupCommand =
+            "nmon_x86_64_ubuntu18 -c " + numberOfSnapshots + " -s " + snapshotGap + " -T -F " + nmonFileName;*/
         std::string nmonStartupCommand =
-            "nmon_x86_64_ubuntu18 -c " + numberOfSnapshots + " -s " + snapshotGap + " -T -F " + nmonFileName;
+            "nmon -c " + numberOfSnapshots + " -s " + snapshotGap + " -T -F " + nmonFileName;
+
 
         char buffer[BUFFER_SIZE];
         std::string result = "";
