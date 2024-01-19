@@ -635,35 +635,10 @@ void JasmineGraphServer::resolveOperationalGraphs() {
             continue;
         }
 
-        if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE)) {
+        if (!Utils::performHandshake(sockfd, data, FED_DATA_LENGTH, this->masterHost)) {
             close(sockfd);
-            continue;
+            return;
         }
-        server_logger.info("Sent: " + JasmineGraphInstanceProtocol::HANDSHAKE);
-
-        string response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
-        if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) != 0) {
-            server_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::HANDSHAKE_OK +
-                                " ; Received: " + response);
-            close(sockfd);
-            continue;
-        }
-
-        string server_host = Utils::getJasmineGraphProperty("org.jasminegraph.server.host");
-        if (!Utils::send_str_wrapper(sockfd, server_host)) {
-            close(sockfd);
-            continue;
-        }
-        server_logger.info("Sent: " + server_host);
-
-        response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
-        if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) != 0) {
-            server_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::HOST_OK +
-                                " ; Received: " + response);
-            close(sockfd);
-            continue;
-        }
-        server_logger.info("Received: " + response);
 
         if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::INITIATE_FRAGMENT_RESOLUTION)) {
             close(sockfd);
@@ -671,7 +646,7 @@ void JasmineGraphServer::resolveOperationalGraphs() {
         }
         server_logger.info("Sent: " + JasmineGraphInstanceProtocol::INITIATE_FRAGMENT_RESOLUTION);
 
-        response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+        string response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::OK) != 0) {
             server_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::OK +
                                 " ; Received: " + response);
@@ -958,35 +933,10 @@ static bool batchUploadCommon(std::string host, int port, int dataPort, int grap
         return false;
     }
 
-    if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE)) {
+    if (!Utils::performHandshake(sockfd, data, FED_DATA_LENGTH, masterIP)) {
         close(sockfd);
         return false;
     }
-    server_logger.info("Sent: " + JasmineGraphInstanceProtocol::HANDSHAKE);
-
-    string response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
-    if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) != 0) {
-        server_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::HANDSHAKE_OK +
-                            " ; Received: " + response);
-        close(sockfd);
-        return false;
-    }
-    server_logger.info("Received: " + response);
-
-    if (!Utils::send_str_wrapper(sockfd, masterIP)) {
-        close(sockfd);
-        return false;
-    }
-    server_logger.info("Sent: " + masterIP);
-
-    response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
-    if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) != 0) {
-        server_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::HOST_OK +
-                            " ; Received: " + response);
-        close(sockfd);
-        return false;
-    }
-    server_logger.info("Received: " + response);
 
     if (!Utils::send_str_wrapper(sockfd, uploadType)) {
         close(sockfd);
@@ -994,7 +944,7 @@ static bool batchUploadCommon(std::string host, int port, int dataPort, int grap
     }
     server_logger.info("Sent: " + uploadType);
 
-    response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
+    string response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::OK) != 0) {
         server_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::OK +
                             " ; Received: " + response);
@@ -1401,35 +1351,10 @@ static bool removeFragmentThroughService(string host, int port, string graphID, 
         return false;
     }
 
-    if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE)) {
+    if (!Utils::performHandshake(sockfd, data, FED_DATA_LENGTH, masterIP)) {
         close(sockfd);
         return false;
     }
-    server_logger.info("Sent: " + JasmineGraphInstanceProtocol::HANDSHAKE);
-
-    string response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
-    if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) != 0) {
-        server_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::HANDSHAKE_OK +
-                            " ; Received: " + response);
-        close(sockfd);
-        return false;
-    }
-    server_logger.info("Received: " + response);
-
-    if (!Utils::send_str_wrapper(sockfd, masterIP)) {
-        close(sockfd);
-        return false;
-    }
-    server_logger.info("Sent: " + masterIP);
-
-    response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
-    if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) != 0) {
-        server_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::HOST_OK +
-                            " ; Received: " + response);
-        close(sockfd);
-        return false;
-    }
-    server_logger.info("Received: " + response);
 
     if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::DELETE_GRAPH_FRAGMENT)) {
         close(sockfd);
@@ -1437,7 +1362,7 @@ static bool removeFragmentThroughService(string host, int port, string graphID, 
     }
     server_logger.info("Sent: " + JasmineGraphInstanceProtocol::DELETE_GRAPH_FRAGMENT);
 
-    response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
+    string response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::OK) != 0) {
         server_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::OK +
                             " ; Received: " + response);
@@ -1497,35 +1422,10 @@ static bool removePartitionThroughService(string host, int port, string graphID,
         return false;
     }
 
-    if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE)) {
+    if (!Utils::performHandshake(sockfd, data, FED_DATA_LENGTH, masterIP)) {
         close(sockfd);
         return false;
     }
-    server_logger.info("Sent: " + JasmineGraphInstanceProtocol::HANDSHAKE);
-
-    string response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
-    if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) != 0) {
-        server_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::HANDSHAKE_OK +
-                            " ; Received: " + response);
-        close(sockfd);
-        return false;
-    }
-    server_logger.info("Received: " + response);
-
-    if (!Utils::send_str_wrapper(sockfd, masterIP)) {
-        close(sockfd);
-        return false;
-    }
-    server_logger.info("Sent: " + masterIP);
-
-    response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
-    if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) != 0) {
-        server_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::HOST_OK +
-                            " ; Received: " + response);
-        close(sockfd);
-        return false;
-    }
-    server_logger.info("Received: " + response);
 
     if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::DELETE_GRAPH)) {
         close(sockfd);
@@ -1533,7 +1433,7 @@ static bool removePartitionThroughService(string host, int port, string graphID,
     }
     server_logger.info("Sent: " + JasmineGraphInstanceProtocol::DELETE_GRAPH);
 
-    response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
+    string response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::OK) != 0) {
         server_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::OK +
                             " ; Received: " + response);
@@ -2284,35 +2184,10 @@ static bool initiateCommon(std::string host, int port, int dataPort, std::string
         return false;
     }
 
-    if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE)) {
+    if (!Utils::performHandshake(sockfd, data, FED_DATA_LENGTH, masterIP)) {
         close(sockfd);
         return false;
     }
-    server_logger.info("Sent: " + JasmineGraphInstanceProtocol::HANDSHAKE);
-
-    string response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
-    if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) != 0) {
-        server_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::HANDSHAKE_OK +
-                            " ; Received: " + response);
-        close(sockfd);
-        return false;
-    }
-    server_logger.info("Received: " + response);
-
-    if (!Utils::send_str_wrapper(sockfd, masterIP)) {
-        close(sockfd);
-        return false;
-    }
-    server_logger.info("Sent: " + masterIP);
-
-    response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
-    if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) != 0) {
-        server_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::HOST_OK +
-                            " ; Received: " + response);
-        close(sockfd);
-        return false;
-    }
-    server_logger.info("Received: " + response);
 
     if (!Utils::send_str_wrapper(sockfd, initType)) {
         close(sockfd);
@@ -2320,7 +2195,7 @@ static bool initiateCommon(std::string host, int port, int dataPort, std::string
     }
     server_logger.info("Sent: " + initType);
 
-    response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
+    string response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::OK) != 0) {
         server_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::OK +
                             " ; Received: " + response);
@@ -2512,35 +2387,10 @@ bool JasmineGraphServer::mergeFiles(std::string host, int port, int dataPort, st
         return false;
     }
 
-    if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE)) {
+    if (!Utils::performHandshake(sockfd, data, FED_DATA_LENGTH, masterIP)) {
         close(sockfd);
         return false;
     }
-    server_logger.info("Sent: " + JasmineGraphInstanceProtocol::HANDSHAKE);
-
-    string response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
-    if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) != 0) {
-        server_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::HANDSHAKE_OK +
-                            " ; Received: " + response);
-        close(sockfd);
-        return false;
-    }
-    server_logger.info("Received: " + response);
-
-    if (!Utils::send_str_wrapper(sockfd, masterIP)) {
-        close(sockfd);
-        return false;
-    }
-    server_logger.info("Sent: " + masterIP);
-
-    response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
-    if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) != 0) {
-        server_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::HOST_OK +
-                            " ; Received: " + response);
-        close(sockfd);
-        return false;
-    }
-    server_logger.info("Received: " + response);
 
     if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::MERGE_FILES)) {
         close(sockfd);
@@ -2548,7 +2398,7 @@ bool JasmineGraphServer::mergeFiles(std::string host, int port, int dataPort, st
     }
     server_logger.info("Sent: " + JasmineGraphInstanceProtocol::MERGE_FILES);
 
-    response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
+    string response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::OK) != 0) {
         server_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::OK +
                             " ; Received: " + response);

@@ -25,6 +25,7 @@ limitations under the License.
 #include <sstream>
 #include <vector>
 
+#include "../server/JasmineGraphInstanceProtocol.h"
 #include "Conts.h"
 #include "logger/Logger.h"
 
@@ -582,6 +583,39 @@ bool Utils::send_wrapper(int connFd, const char *buf, size_t size) {
 
 bool Utils::send_str_wrapper(int connFd, std::string str) { return send_wrapper(connFd, str.c_str(), str.length()); }
 
+bool Utils::performHandshake(int sockfd, char *data, size_t data_length, std::string masterIP) {
+    if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE)) {
+        close(sockfd);
+        return false;
+    }
+    util_logger.info("Sent: " + JasmineGraphInstanceProtocol::HANDSHAKE);
+
+    string response = Utils::read_str_trim_wrapper(sockfd, data, data_length);
+    if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) != 0) {
+        util_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::HANDSHAKE_OK +
+                          " ; Received: " + response);
+        close(sockfd);
+        return false;
+    }
+    util_logger.info("Received: " + response);
+
+    if (!Utils::send_str_wrapper(sockfd, masterIP)) {
+        close(sockfd);
+        return false;
+    }
+    util_logger.info("Sent: " + masterIP);
+
+    response = Utils::read_str_trim_wrapper(sockfd, data, data_length);
+    if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) != 0) {
+        util_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::HOST_OK +
+                          " ; Received: " + response);
+        close(sockfd);
+        return false;
+    }
+    util_logger.info("Received: " + response);
+    return true;
+}
+
 std::string Utils::getCurrentTimestamp() {
     auto now = chrono::system_clock::now();
     time_t time = chrono::system_clock::to_time_t(now);
@@ -593,7 +627,7 @@ std::string Utils::getCurrentTimestamp() {
     return timestamp.str();
 }
 
-inline json parse_scalar(const YAML::Node &node) {
+static inline json parse_scalar(const YAML::Node &node) {
     int i;
     double d;
     bool b;
@@ -613,7 +647,7 @@ inline json parse_scalar(const YAML::Node &node) {
     return nullptr;
 }
 
-inline json yaml2json(const YAML::Node &root) {
+static inline json yaml2json(const YAML::Node &root) {
     json j{};
 
     switch (root.Type()) {
