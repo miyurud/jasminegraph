@@ -388,8 +388,8 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                                     std::to_string(workerPortsVector.at(i)) + " " +
                                     std::to_string(workerDataPortsVector.at(i)) + " " + enableNmon;
             } else {
-                serverStartScript = "ssh -p 22 " + host + " " + executableFile + " native 2 " + host + " " +
-                                    masterHost + " " + std::to_string(workerPortsVector.at(i)) + " " +
+                serverStartScript = "ssh " + host + " " + executableFile + " native 2 " + host + " " + masterHost +
+                                    " " + std::to_string(workerPortsVector.at(i)) + " " +
                                     std::to_string(workerDataPortsVector.at(i)) + " " + enableNmon;
             }
             const char *commandStr = serverStartScript.c_str();
@@ -1106,7 +1106,7 @@ bool JasmineGraphServer::sendFileThroughService(std::string host, int dataPort, 
         }
 
         if (nread < sizeof(buff)) {
-            if (feof(fp)) server_logger.log("End of file");
+            if (feof(fp)) server_logger.info("End of file");
             if (ferror(fp)) server_logger.error("Error reading file: " + filePath);
             break;
         }
@@ -1126,7 +1126,7 @@ static void copyArtifactsToWorkers(const std::string &workerPath, const std::str
 
     std::string pathCheckCommand = "test -e " + workerPath;
     if (remoteWorker.find("localhost") == std::string::npos) {
-        pathCheckCommand = "ssh -p 22 " + remoteWorker + " " + pathCheckCommand;
+        pathCheckCommand = "ssh " + remoteWorker + " " + pathCheckCommand;
     }
 
     if (system(pathCheckCommand.c_str())) {
@@ -1157,7 +1157,7 @@ static void copyArtifactsToWorkers(const std::string &workerPath, const std::str
 static void deleteWorkerPath(const std::string &workerHost, const std::string &workerPath) {
     std::string pathDeletionCommand = "rm -rf " + workerPath;
     if (workerHost.find("localhost") == std::string::npos) {
-        pathDeletionCommand = "ssh -p 22 " + workerHost + " " + pathDeletionCommand;
+        pathDeletionCommand = "ssh " + workerHost + " " + pathDeletionCommand;
     }
 
     if (system(pathDeletionCommand.c_str())) {
@@ -1168,7 +1168,7 @@ static void deleteWorkerPath(const std::string &workerHost, const std::string &w
 static void createLogFilePath(const std::string &workerHost, const std::string &workerPath) {
     std::string pathCreationCommand = "mkdir -p " + workerPath + "/logs";
     if (workerHost.find("localhost") == std::string::npos) {
-        pathCreationCommand = "ssh -p 22 " + workerHost + " " + pathCreationCommand;
+        pathCreationCommand = "ssh " + workerHost + " " + pathCreationCommand;
     }
 
     if (system(pathCreationCommand.c_str())) {
@@ -1818,7 +1818,6 @@ void JasmineGraphServer::initiateFiles(std::string graphID, std::string training
 
     string prefix = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.trainedmodelfolder");
     string attr_prefix = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
-    trainingArgs = trainingArgs;
     std::map<std::string, JasmineGraphServer::workerPartition>::iterator j;
     for (j = graphPartitionedHosts.begin(); j != graphPartitionedHosts.end(); j++) {
         JasmineGraphServer::workerPartition workerPartition = j->second;
@@ -1851,7 +1850,6 @@ void JasmineGraphServer::initiateCommunication(std::string graphID, std::string 
     Utils::worker workerInstance;
     vector<Utils::worker> workerVector = Utils::getWorkerList(sqlite);
 
-    trainingArgs = trainingArgs;
     int threadID = 0;
 
     for (int i = 0; i < workerVector.size(); i++) {
@@ -1924,7 +1922,6 @@ void JasmineGraphServer::initiateOrgCommunication(std::string graphID, std::stri
     std::thread *communicationThread = new std::thread[1];
     communicationThread[0] = std::thread(receiveGlobalWeights, "localhost", 5000, "0", 1, "1");
     server_logger.info("Communication Thread Initiated");
-    trainingArgs = trainingArgs;
     int threadID = 0;
 
     for (int i = 0; i < workerVector.size(); i++) {
@@ -1973,7 +1970,6 @@ void JasmineGraphServer::initiateMerge(std::string graphID, std::string training
 
     std::thread *workerThreads = new std::thread[partition_count + 1];
 
-    trainingArgs = trainingArgs;
     int fl_clients = stoi(Utils::getJasmineGraphProperty("org.jasminegraph.fl_clients"));
     std::map<std::string, JasmineGraphServer::workerPartition>::iterator j;
     for (j = graphPartitionedHosts.begin(); j != graphPartitionedHosts.end(); j++) {
