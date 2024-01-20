@@ -23,9 +23,6 @@ limitations under the License.
 using namespace std;
 Logger db_logger;
 
-string readDDLFile(const string& fileName);
-int createDatabase(const char* dbLocation);
-
 SQLiteDBInterface::SQLiteDBInterface() {
     this->databaseLocation = Utils::getJasmineGraphProperty("org.jasminegraph.db.location");
 }
@@ -34,44 +31,9 @@ SQLiteDBInterface::SQLiteDBInterface(string databaseLocation) {
     this->databaseLocation = databaseLocation;
 }
 
-string readDDLFile(const string& fileName) {
-    if (!Utils::fileExists(fileName)) {
-        db_logger.error("DDL file not found: " + fileName);
-        return "";
-    }
-    ifstream ddlFile(fileName);
-
-    stringstream buffer;
-    buffer << ddlFile.rdbuf();
-    ddlFile.close();
-
-    return buffer.str();
-}
-
-int createDatabase(const char* dbLocation) {
-    sqlite3* tempDatabase;
-    int rc = sqlite3_open(dbLocation, &tempDatabase);
-    if (rc) {
-        db_logger.error("Cannot create database: " + string(sqlite3_errmsg(tempDatabase)));
-        return -1;
-    }
-
-    rc = sqlite3_exec(tempDatabase, readDDLFile(ROOT_DIR "src/metadb/ddl.sql").c_str(), 0, 0, 0);
-    if (rc) {
-        db_logger.error("DDL execution failed: " + string(sqlite3_errmsg(tempDatabase)));
-        sqlite3_close(tempDatabase);
-        return -1;
-    }
-
-    sqlite3_close(tempDatabase);
-    db_logger.info("Database created successfully");
-
-    return 0;
-}
-
 int SQLiteDBInterface::init() {
     if (!Utils::fileExists(this->databaseLocation.c_str())) {
-        if (createDatabase(this->databaseLocation.c_str()) != 0) {
+        if (Utils::createDatabaseFromDDL(this->databaseLocation.c_str(), ROOT_DIR "src/metadb/ddl.sql") != 0) {
             return -1;
         }
     }

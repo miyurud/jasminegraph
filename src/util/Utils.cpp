@@ -637,3 +637,32 @@ std::string Utils::getJsonStringFromYamlFile(const std::string &yamlFile) {
     YAML::Node yamlNode = YAML::LoadFile(yamlFile);
     return to_string(yaml2json(yamlNode));
 }
+int Utils::createDatabaseFromDDL(const char *dbLocation, const char *ddlFileLocation) {
+    if (!Utils::fileExists(ddlFileLocation)) {
+        util_logger.error("DDL file not found: " + string(ddlFileLocation));
+        return -1;
+    }
+    ifstream ddlFile(ddlFileLocation);
+
+    stringstream buffer;
+    buffer << ddlFile.rdbuf();
+    ddlFile.close();
+
+    sqlite3* tempDatabase;
+    int rc = sqlite3_open(dbLocation, &tempDatabase);
+    if (rc) {
+        util_logger.error("Cannot create database: " + string(sqlite3_errmsg(tempDatabase)));
+        return -1;
+    }
+
+    rc = sqlite3_exec(tempDatabase, buffer.str().c_str(), 0, 0, 0);
+    if (rc) {
+        util_logger.error("DDL execution failed: " + string(sqlite3_errmsg(tempDatabase)));
+        sqlite3_close(tempDatabase);
+        return -1;
+    }
+
+    sqlite3_close(tempDatabase);
+    util_logger.info("Database created successfully");
+    return 0;
+}
