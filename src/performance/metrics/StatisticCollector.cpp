@@ -96,26 +96,21 @@ long StatisticCollector::getMemoryUsageByProcess() {
 
 int StatisticCollector::getThreadCount() {
     FILE* file = fopen("/proc/self/stat", "r");
-    int result = -1;
+    long result;
     char line[128];
 
-    std::string response_thread_count;
-
     for (int i = 0; i < 20; i++) {
-        fscanf(file, "%127s%*c", line);
+        if (fscanf(file, "%127s%*c", line) < 0) return -1;
     }
     fclose(file);
-    result = atoi(line);
-    std::cout << "Thread Count: " + std::to_string(result) << std::endl;
-
-    send_job(response_thread_count, "threadCount", "thread_count", std::to_string(result));
-
+    result = strtol(line, NULL, 10);
+    if (result <= 0 || result > 0xfffffffffffffffL) return -1;
     return result;
 }
 
 static long getSwapSpace(int field) {
     FILE* file = fopen("/proc/swaps", "r");
-    int result = -1;
+    long result = -1;
     char line[128];
 
     fgets(line, 128, file);
