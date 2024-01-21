@@ -670,12 +670,12 @@ map<long, long> JasmineGraphInstanceService::getOutDegreeDistributionHashMap(map
 
 string JasmineGraphInstanceService::requestPerformanceStatistics(std::string isVMStatManager,
                                                                  std::string isResourceAllocationRequested) {
-    int memoryUsage = collector.getMemoryUsageByProcess();
+    long memoryUsage = collector.getMemoryUsageByProcess();
     int threadCount = collector.getThreadCount();
-    int usedSwapSpace = collector.getUsedSwapSpace();
-    int totalSwapSpace = collector.getTotalSwapSpace();
-    int readBytes = collector.getRXBytes();
-    int sentBytes = collector.getTXBytes();
+    long usedSwapSpace = collector.getUsedSwapSpace();
+    long totalSwapSpace = collector.getTotalSwapSpace();
+    long readBytes = collector.getRXBytes();
+    long sentBytes = collector.getTXBytes();
     double cpuUsage = collector.getCpuUsage();
     double loadAverage = collector.getLoadAverage();
     std::string vmLevelStatistics = collector.collectVMStatistics(isVMStatManager, isResourceAllocationRequested);

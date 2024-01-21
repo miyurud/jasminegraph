@@ -41,12 +41,12 @@ class StatisticCollector {
 
  public:
     int init();
-    static int getMemoryUsageByProcess();
+    static long getMemoryUsageByProcess();
     static int getThreadCount();
-    static int getUsedSwapSpace();
-    static int getTotalSwapSpace();
-    static int getRXBytes();
-    static int getTXBytes();
+    static long getUsedSwapSpace();
+    static long getTotalSwapSpace();
+    static long getRXBytes();
+    static long getTXBytes();
     static double getCpuUsage();
     static std::string collectVMStatistics(std::string isVMStatManager, std::string isTotalAllocationRequired);
     static long getTotalMemoryAllocated();
