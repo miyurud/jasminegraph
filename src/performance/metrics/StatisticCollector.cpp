@@ -188,6 +188,30 @@ long StatisticCollector::getTXBytes() {
     return result;
 }
 
+int StatisticCollector::getSocketCount() {
+    DIR* d = opendir("/proc/self/fd");
+    if (!d) {
+        puts("Error opening directory /proc/self/fd");
+        return -1;
+    }
+    const struct dirent* dir;
+    char path[64];
+    char link_buf[1024];
+    int count = 0;
+    while ((dir = readdir(d)) != NULL) {
+        const char* filename = dir->d_name;
+        if (filename[0] < '0' || '9' < filename[0]) continue;
+        sprintf(path, "/proc/self/fd/%s", filename);
+        size_t len = readlink(path, link_buf, sizeof(link_buf) - 1);
+        link_buf[len] = 0;
+        if (len > 0 && strncmp("socket:", link_buf, 7) == 0) {
+            count++;
+        }
+    }
+    (void)closedir(d);
+    return count;
+}
+
 static long parseLine(char* line) {
     int i = strlen(line);
     const char* p = line;

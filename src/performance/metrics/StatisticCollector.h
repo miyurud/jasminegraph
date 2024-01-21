@@ -47,6 +47,7 @@ class StatisticCollector {
     static long getTotalSwapSpace();
     static long getRXBytes();
     static long getTXBytes();
+    static int getSocketCount();
     static double getCpuUsage();
     static std::string collectVMStatistics(std::string isVMStatManager, std::string isTotalAllocationRequired);
     static long getTotalMemoryAllocated();
