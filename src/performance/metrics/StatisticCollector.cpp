@@ -19,6 +19,9 @@ static clock_t lastCPU, lastSysCPU, lastUserCPU;
 static int numProcessors;
 std::string pushGatewayJobAddr = "http://192.168.8.150:9091/metrics/job/";
 
+static int parseLine(char* line);
+static int getSwapSpace(const char* type);
+
 int StatisticCollector::init() {
     FILE* file;
     struct tms timeSample;
@@ -98,8 +101,8 @@ int StatisticCollector::getThreadCount() {
 
     std::string response_thread_count;
 
-    for(int i = 1; i <= 20; i++) {
-        fscanf(file, "%s%*c", line);
+    for (int i = 0; i < 20; i++) {
+        fscanf(file, "%127s%*c", line);
     }
     fclose(file);
     result = atoi(line);
@@ -110,53 +113,55 @@ int StatisticCollector::getThreadCount() {
     return result;
 }
 
-int StatisticCollector::getUsedSwapSpace() {
+static int getSwapSpace(int field) {
     FILE* file = fopen("/proc/swaps", "r");
     int result = -1;
     char line[128];
-    char used[128];
 
-    std::string response_used_swap;
+    fgets(line, 128, file);
 
-    while(fgets(line, 128, file) != NULL) {
-        if(strncmp(line, "/swapfile", 9) == 0) {
-            for(int i = 1; i <= 4; i++) {
-                fscanf(file, "%s%*c", used);
+    while (fgets(line, 128, file) != NULL) {
+        char* value;
+        char* save = NULL;
+        for (int i = 0; i < field; i++) {
+            if (i == 0) {
+                value = strtok_r(line, " ", &save);
+            } else {
+                value = strtok_r(NULL, "\t", &save);
             }
         }
+        int used = atoi(value);
+        if (used < 0) {
+            continue;
+        }
+        if (result >= 0) {
+            result += used;
+        } else {
+            result = used;
+        }
     }
-
     fclose(file);
-    result = atoi(used);
+
+    return result;
+}
+
+int StatisticCollector::getUsedSwapSpace() {
+    int result = getSwapSpace(4);
     std::cout << "Used swap space: " + std::to_string(result) << std::endl;
 
+    // FIXME: Uninitialized string
+    std::string response_used_swap;
     send_job(response_used_swap, "usedSwap", "used_swap_space", std::to_string(result));
-    
     return result;
 }
 
 int StatisticCollector::getTotalSwapSpace() {
-    FILE* file = fopen("/proc/swaps", "r");
-    int result = -1;
-    char line[128];
-    char total[128];
-
-    std::string response_total_swap;
-
-    while(fgets(line, 128, file) != NULL) {
-        if(strncmp(line, "/swapfile", 9) == 0) {
-            for(int i = 1; i <= 3; i++) {
-                fscanf(file, "%s%*c", total);
-            }
-        }
-    }
-
-    fclose(file);
-    result = atoi(total);
+    int result = getSwapSpace(3);
     std::cout << "Total swap space: " + std::to_string(result) << std::endl;
 
+    // FIXME: Uninitialized string
+    std::string response_total_swap;
     send_job(response_total_swap, "totalSwap", "total_swap_space", std::to_string(result));
-
     return result;
 }
 
@@ -196,7 +201,7 @@ int StatisticCollector::getTXBytes() {
     return result;
 }
 
-int StatisticCollector::parseLine(char* line) {
+static int parseLine(char* line) {
     int i = strlen(line);
     const char* p = line;
     while (*p < '0' || *p > '9') p++;
