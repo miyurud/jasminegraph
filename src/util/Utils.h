@@ -161,7 +161,10 @@ class Utils {
     static bool performHandshake(int sockfd, char *data, size_t data_length, std::string masterIP);
 
     static std::string getCurrentTimestamp();
+
     static std::string getJsonStringFromYamlFile(const std::string &yamlFile);
+
+    static int createDatabaseFromDDL(const char *dbLocation, const char *ddlFileLocation);
 };
 
 #endif  // JASMINEGRAPH_UTILS_H

@@ -23,6 +23,7 @@ limitations under the License.
 class PerformanceSQLiteDBInterface {
  private:
     sqlite3 *database;
+    std::string databaseLocation;
 
  public:
     int init();
@@ -40,6 +41,8 @@ class PerformanceSQLiteDBInterface {
     int RunSqlNoCallback(const char *zSql);
 
     PerformanceSQLiteDBInterface();
+
+    PerformanceSQLiteDBInterface(std::string databaseLocation);
 };
 
 #endif  // JASMINEGRAPH_PERFORMANCESQLITEDBINTERFACE_H
