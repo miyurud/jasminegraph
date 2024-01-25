@@ -3352,11 +3352,11 @@ static void streaming_triangles_command(int connFd, int serverPort,
         *loop_exit_p = true;
         return;
     }
-    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
 
     char data[DATA_BUFFER_SIZE];
     string graphID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
-    instance_logger.log("Received Graph ID: " + graphID, "info");
+    instance_logger.info("Received Graph ID: " + graphID);
 
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
@@ -3364,7 +3364,7 @@ static void streaming_triangles_command(int connFd, int serverPort,
     }
 
     string partitionId = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
-    instance_logger.log("Received Partition ID: " + partitionId, "info");
+    instance_logger.info("Received Partition ID: " + partitionId);
 
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
@@ -3372,7 +3372,7 @@ static void streaming_triangles_command(int connFd, int serverPort,
     }
 
     string oldLocalRelationCount = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
-    instance_logger.log("Received oldLocalRelationCount: " + oldLocalRelationCount, "info");
+    instance_logger.info("Received oldLocalRelationCount: " + oldLocalRelationCount);
 
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
@@ -3380,7 +3380,7 @@ static void streaming_triangles_command(int connFd, int serverPort,
     }
 
     string oldCentralRelationCount = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
-    instance_logger.log("Received oldCentralRelationCount: " + oldCentralRelationCount, "info");
+    instance_logger.info("Received oldCentralRelationCount: " + oldCentralRelationCount);
 
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
@@ -3388,7 +3388,7 @@ static void streaming_triangles_command(int connFd, int serverPort,
     }
 
     string mode = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
-    instance_logger.log("Received mode: " + mode, "info");
+    instance_logger.info("Received mode: " + mode);
 
     std::string graphIdentifier = graphID + "_" + partitionId;
     JasmineGraphIncrementalLocalStore *incrementalLocalStoreInstance;
@@ -3419,29 +3419,29 @@ static void streaming_triangles_command(int connFd, int serverPort,
         *loop_exit_p = true;
         return;
     }
-    instance_logger.log("Sent New local relation count: " + std::to_string(newLocalRelationCount), "info");
+    instance_logger.info("Sent New local relation count: " + std::to_string(newLocalRelationCount));
 
     string response = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-        instance_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+        instance_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
         if (!Utils::send_str_wrapper(connFd, std::to_string(newCentralRelationCount))) {
             *loop_exit_p = true;
             return;
         }
-        instance_logger.log("Sent New central relation count: " + std::to_string(newCentralRelationCount), "info");
+        instance_logger.info("Sent New central relation count: " + std::to_string(newCentralRelationCount));
     }
 
     response = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-        instance_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+        instance_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
         if (!Utils::send_str_wrapper(connFd, std::to_string(result))) {
             *loop_exit_p = true;
             return;
         }
-        instance_logger.log("Sent result: " + std::to_string(result), "info");
+        instance_logger.info("Sent result: " + std::to_string(result));
     }
 
-    instance_logger.log("Streaming triangle count sent successfully", "info");
+    instance_logger.info("Streaming triangle count sent successfully");
 }
 
 static void send_centralstore_to_aggregator_command(int connFd, bool *loop_exit_p) {
@@ -3743,11 +3743,11 @@ static void aggregate_streaming_centralstore_triangles_command(
         *loop_exit_p = true;
         return;
     }
-    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
 
     char data[DATA_BUFFER_SIZE];
     string graphId = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
-    instance_logger.log("Received Graph ID: " + graphId, "info");
+    instance_logger.info("Received Graph ID: " + graphId);
 
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
@@ -3755,7 +3755,7 @@ static void aggregate_streaming_centralstore_triangles_command(
     }
 
     string partitionId = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
-    instance_logger.log("Received Partition ID: " + partitionId, "info");
+    instance_logger.info("Received Partition ID: " + partitionId);
 
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
@@ -3763,7 +3763,7 @@ static void aggregate_streaming_centralstore_triangles_command(
     }
 
     string partitionIdList = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
-    instance_logger.log("Received Partition ID List : " + partitionIdList, "info");
+    instance_logger.info("Received Partition ID List : " + partitionIdList);
 
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
@@ -3771,7 +3771,7 @@ static void aggregate_streaming_centralstore_triangles_command(
     }
 
     string centralCountList = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
-    instance_logger.log("Received central count list : " + centralCountList, "info");
+    instance_logger.info("Received central count list : " + centralCountList);
 
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
@@ -3779,7 +3779,7 @@ static void aggregate_streaming_centralstore_triangles_command(
     }
 
     string priority = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
-    instance_logger.log("Received priority: " + priority, "info");
+    instance_logger.info("Received priority: " + priority);
 
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
@@ -3787,7 +3787,7 @@ static void aggregate_streaming_centralstore_triangles_command(
     }
 
     string mode = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
-    instance_logger.log("Received mode: " + mode, "info");
+    instance_logger.info("Received mode: " + mode);
 
     int threadPriority = stoi(priority);
 
@@ -4739,7 +4739,7 @@ string JasmineGraphInstanceService::aggregateStreamingCentralStoreTriangles(
         std::string graphId, std::string partitionId, std::string partitionIdString,
         std::string centralCountString, int threadPriority,
         std::map<std::string, JasmineGraphIncrementalLocalStore *> incrementalLocalStores, std::string mode) {
-    instance_logger.log("###INSTANCE### Started Aggregating Central Store Triangles", "info");
+    instance_logger.info("###INSTANCE### Started Aggregating Central Store Triangles");
     std::vector<JasmineGraphIncrementalLocalStore*> incrementalLocalStoreInstances;
     std::vector<std::string> centralCountList = Utils::split(centralCountString, ',');
     std::vector<std::string> partitionIdList = Utils::split(partitionIdString, ',');
@@ -4771,7 +4771,7 @@ string JasmineGraphInstanceService::aggregateStreamingCentralStoreTriangles(
                 incrementalLocalStoreInstances, centralCountList);
     }
 
-    instance_logger.log("###INSTANCE### Central Store Aggregation : Completed", "info");
+    instance_logger.info("###INSTANCE### Central Store Aggregation : Completed");
 
     return triangles;
 }

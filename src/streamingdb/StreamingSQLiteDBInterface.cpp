@@ -73,10 +73,10 @@ vector<vector<pair<string, string>>> StreamingSQLiteDBInterface::runSelect(std::
     rc = sqlite3_exec(database, query.c_str(), callback, &dbResults, &zErrMsg);
 
     if (rc != SQLITE_OK) {
-        streamdb_logger.log("SQL Error: " + string(zErrMsg), "error");
+        streamdb_logger.error("SQL Error: " + string(zErrMsg));
         sqlite3_free(zErrMsg);
     } else {
-        streamdb_logger.log("Operation done successfully", "info");
+        streamdb_logger.info("Operation done successfully");
         return dbResults;
     }
 }
@@ -86,11 +86,11 @@ int StreamingSQLiteDBInterface::runInsert(std::string query) {
     char *zErrMsg = 0;
     int rc = sqlite3_exec(database, query.c_str(), NULL, NULL, &zErrMsg);
     if (rc != SQLITE_OK) {
-        streamdb_logger.log("SQL Error: " + string(zErrMsg), "error");
+        streamdb_logger.error("SQL Error: " + string(zErrMsg));
         sqlite3_free(zErrMsg);
         return -1;
     } else {
-        streamdb_logger.log("Insert operation done successfully", "info");
+        streamdb_logger.info("Insert operation done successfully");
         vector<vector<pair<string, string>>> dbResults;
         string q2 = "SELECT last_insert_rowid();";
 
@@ -112,10 +112,10 @@ void StreamingSQLiteDBInterface::runInsertNoIDReturn(std::string query) {
     char *zErrMsg = 0;
     int rc = sqlite3_exec(database, query.c_str(), NULL, NULL, &zErrMsg);
     if (rc != SQLITE_OK) {
-        streamdb_logger.log("SQL Error: " + string(zErrMsg), "error");
+        streamdb_logger.error("SQL Error: " + string(zErrMsg));
         sqlite3_free(zErrMsg);
     } else {
-        streamdb_logger.log("Insert operation done successfully", "info");
+        streamdb_logger.info("Insert operation done successfully");
     }
 }
 
@@ -126,10 +126,10 @@ void StreamingSQLiteDBInterface::runUpdate(std::string query) {
     int rc = sqlite3_exec(database, query.c_str(), NULL, NULL, &zErrMsg);
 
     if (rc != SQLITE_OK) {
-        streamdb_logger.log("SQL Error: " + string(zErrMsg), "error");
+        streamdb_logger.error("SQL Error: " + string(zErrMsg));
         sqlite3_free(zErrMsg);
     } else {
-        streamdb_logger.log("Update operation done successfully", "info");
+        streamdb_logger.info("Update operation done successfully");
     }
 }
 

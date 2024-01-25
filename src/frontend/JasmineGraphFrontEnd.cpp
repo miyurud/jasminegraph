@@ -1473,7 +1473,7 @@ static void streaming_triangles_command(std::string masterIP, int connFd, JobSch
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, CARRIAGE_RETURN_NEW_LINE.c_str(), CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -1481,14 +1481,13 @@ static void streaming_triangles_command(std::string masterIP, int connFd, JobSch
     }
 
     // We get the name and the path to graph as a pair separated by |.
-    char graph_id_data[301];
-    bzero(graph_id_data, 301);
+    char graph_id_data[FRONTEND_DATA_LENGTH + 1];
+    bzero(graph_id_data, FRONTEND_DATA_LENGTH + 1);
 
-    read(connFd, graph_id_data, 300);
+    read(connFd, graph_id_data, FRONTEND_DATA_LENGTH);
 
     string graph_id(graph_id_data);
-    graph_id.erase(std::remove(graph_id.begin(), graph_id.end(), '\n'), graph_id.end());
-    graph_id.erase(std::remove(graph_id.begin(), graph_id.end(), '\r'), graph_id.end());
+    graph_id = Utils::trim_copy(graph_id, " \f\n\r\t\v");
 
     frontend_logger.info("Got graph Id " + graph_id);
 
@@ -1498,22 +1497,20 @@ static void streaming_triangles_command(std::string masterIP, int connFd, JobSch
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, CARRIAGE_RETURN_NEW_LINE.c_str(), CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
         return;
     }
 
-    char mode_data[301];
-    bzero(mode_data, 301);
+    char mode_data[FRONTEND_DATA_LENGTH + 1];
+    bzero(mode_data, FRONTEND_DATA_LENGTH + 1);
 
-    read(connFd, mode_data, 300);
+    read(connFd, mode_data, FRONTEND_DATA_LENGTH);
 
-    string mode(graph_id_data);
-    mode.erase(std::remove(mode.begin(), mode.end(), '\n'), mode.end());
-    mode.erase(std::remove(mode.begin(), mode.end(), '\r'), mode.end());
-
+    string mode(mode_data);
+    mode = Utils::trim_copy(mode, " \f\n\r\t\v");
     frontend_logger.info("Got mode " + mode);
 
     JobRequest jobDetails;
@@ -1537,7 +1534,7 @@ static void streaming_triangles_command(std::string masterIP, int connFd, JobSch
             frontend_logger.error("Error writing to socket");
             return;
         }
-        result_wr = write(connFd, "\r\n", 2);
+        result_wr = write(connFd, CARRIAGE_RETURN_NEW_LINE.c_str(), CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
         }
@@ -1552,7 +1549,7 @@ static void streaming_triangles_command(std::string masterIP, int connFd, JobSch
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, CARRIAGE_RETURN_NEW_LINE.c_str(), CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;

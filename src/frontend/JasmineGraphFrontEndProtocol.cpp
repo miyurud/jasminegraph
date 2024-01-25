@@ -53,3 +53,5 @@ const string SLA = "sla";
 const string COMMAND = "command";
 const string PRIORITY = "priority(>=1)";
 const string INVALID_FORMAT = "Invalid message format";
+const string CARRIAGE_RETURN_NEW_LINE = "\r\n";
+
