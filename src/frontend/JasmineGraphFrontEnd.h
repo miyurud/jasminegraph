@@ -94,8 +94,11 @@ class JasmineGraphFrontEnd {
 };
 
 struct frontendservicesessionargs {
-    SQLiteDBInterface *sqlite;
+    std::string masterIP;
     int connFd;
+    SQLiteDBInterface *sqlite;
+    PerformanceSQLiteDBInterface *perfSqlite;
+    JobScheduler *jobScheduler;
 };
 
 #endif  // JASMINGRAPH_JASMINGRAPHFRONTEND_H
