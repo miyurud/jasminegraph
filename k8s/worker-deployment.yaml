@@ -38,6 +38,9 @@ spec:
               - "false"
               - "--PROFILE"
               - "k8s"
+          env:
+            - name: "WORKER_ID"
+              value: "<worker-id>"
           ports:
             - containerPort: 7777
             - containerPort: 7778
