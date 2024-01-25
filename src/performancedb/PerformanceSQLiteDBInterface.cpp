@@ -22,8 +22,14 @@ using namespace std;
 Logger perfdb_logger;
 
 int PerformanceSQLiteDBInterface::init() {
+    if (!Utils::fileExists(this->databaseLocation.c_str())) {
+        if (Utils::createDatabaseFromDDL(this->databaseLocation.c_str(), ROOT_DIR "src/performancedb/ddl.sql") != 0) {
+            return -1;
+        }
+    }
+
     int rc =
-        sqlite3_open(Utils::getJasmineGraphProperty("org.jasminegraph.performance.db.location").c_str(), &database);
+        sqlite3_open(this->databaseLocation.c_str(), &database);
     if (rc) {
         perfdb_logger.log("Cannot open database: " + string(sqlite3_errmsg(database)), "error");
         return -1;
@@ -34,7 +40,13 @@ int PerformanceSQLiteDBInterface::init() {
 
 int PerformanceSQLiteDBInterface::finalize() { return sqlite3_close(database); }
 
-PerformanceSQLiteDBInterface::PerformanceSQLiteDBInterface() {}
+PerformanceSQLiteDBInterface::PerformanceSQLiteDBInterface() {
+    this->databaseLocation = Utils::getJasmineGraphProperty("org.jasminegraph.performance.db.location");
+}
+
+PerformanceSQLiteDBInterface::PerformanceSQLiteDBInterface(string databaseLocation) {
+    this->databaseLocation = databaseLocation;
+}
 
 typedef vector<vector<pair<string, string>>> table_type;
 

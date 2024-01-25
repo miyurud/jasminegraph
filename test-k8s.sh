@@ -59,7 +59,7 @@ clear_resources() {
 }
 
 cd "$TEST_ROOT"
-rm -rf env
+sudo rm -rf env
 cp -r env_init env
 
 cd "$PROJECT_ROOT"
@@ -76,7 +76,7 @@ while true; do
         cat "$BUILD_LOG"
         echo "Build log:"
         cat "$RUN_LOG"
-        rm -rf "${TEST_ROOT}/env"
+        sudo rm -rf "${TEST_ROOT}/env"
         clear_resources
         exit 1
     fi
@@ -95,7 +95,7 @@ while ! nc -zvn "$masterIP" 7777 &>/dev/null; do
         cat "$BUILD_LOG"
         echo "Run log:"
         cat "$RUN_LOG"
-        rm -rf "${TEST_ROOT}/env"
+        sudo rm -rf "${TEST_ROOT}/env"
         clear_resources
         exit 1
     fi
@@ -127,5 +127,5 @@ set +e
 clear_resources >/dev/null 2>&1
 set -e
 
-rm -rf "${TEST_ROOT}/env" "${WORKER_LOG_DIR}"
+sudo rm -rf "${TEST_ROOT}/env" "${WORKER_LOG_DIR}"
 exit "$exit_code"
