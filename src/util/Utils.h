@@ -157,6 +157,8 @@ class Utils {
 
     static std::string getCurrentTimestamp();
     static std::string getJsonStringFromYamlFile(const std::string& yamlFile);
+
+    static int createDatabaseFromDDL(const char* dbLocation, const char* ddlFileLocation);
 };
 
 #endif  // JASMINEGRAPH_UTILS_H

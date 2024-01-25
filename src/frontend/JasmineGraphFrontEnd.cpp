@@ -26,10 +26,9 @@ limitations under the License.
 #include <set>
 #include <thread>
 
+#include "../metadb/SQLiteDBInterface.h"
 #include "../nativestore/DataPublisher.h"
 #include "../nativestore/RelationBlock.h"
-#include "../metadb/SQLiteDBInterface.h"
-#include "../ml/trainer/JasmineGraphTrainingSchedular.h"
 #include "../partitioner/local/JSONParser.h"
 #include "../partitioner/local/MetisPartitioner.h"
 #include "../partitioner/local/RDFParser.h"
@@ -90,8 +89,14 @@ static void start_remote_worker_command(int connFd, bool *loop_exit_p);
 static void sla_command(int connFd, SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfSqlite,
                         bool *loop_exit_p);
 
-void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
-                            PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler) {
+void *frontendservicesesion(void *dummyPt) {
+    frontendservicesessionargs *sessionargs = (frontendservicesessionargs *)dummyPt;
+    std::string masterIP = sessionargs->masterIP;
+    int connFd = sessionargs->connFd;
+    SQLiteDBInterface *sqlite = sessionargs->sqlite;
+    PerformanceSQLiteDBInterface *perfSqlite = sessionargs->perfSqlite;
+    JobScheduler *jobScheduler = sessionargs->jobScheduler;
+    delete sessionargs;
     frontend_logger.info("Thread No: " + to_string(pthread_self()));
     frontend_logger.info("Master IP: " + masterIP);
     char data[FRONTEND_DATA_LENGTH + 1];
@@ -279,18 +284,18 @@ int JasmineGraphFrontEnd::run() {
 
         if (connFd < 0) {
             frontend_logger.error("Cannot accept connection");
-            return 0;
+            continue;
         }
-        frontend_logger.info("Connection successful");
+        frontend_logger.info("Connection successful from " + std::string(inet_ntoa(clntAdd.sin_addr)));
 
-        frontend_logger.info("Master IP" + masterIP);
-
-        // TODO(miyurud):Temporarily commenting this line to enable building the project. Asked tmkasun to provide a
-        //  permanent fix later when he is available.
-        threadVector.push_back(
-            std::thread(frontendservicesesion, masterIP, connFd, this->sqlite, this->perfSqlite, this->jobScheduler));
-
-        currentFESession++;
+        frontendservicesessionargs *sessionargs = new frontendservicesessionargs;
+        sessionargs->masterIP = masterIP;
+        sessionargs->connFd = connFd;
+        sessionargs->sqlite = this->sqlite;
+        sessionargs->perfSqlite = this->perfSqlite;
+        sessionargs->jobScheduler = this->jobScheduler;
+        pthread_t pt;
+        pthread_create(&pt, NULL, frontendservicesesion, sessionargs);
     }
 }
 
@@ -360,7 +365,7 @@ void JasmineGraphFrontEnd::removeGraph(std::string graphID, SQLiteDBInterface *s
         cout << "HOST ID : " << j->first << " Partition ID : " << j->second << endl;
     }
     sqlite->runUpdate("UPDATE graph SET graph_status_idgraph_status = " + to_string(Conts::GRAPH_STATUS::DELETING) +
-                     " WHERE idgraph = " + graphID);
+                      " WHERE idgraph = " + graphID);
 
     JasmineGraphServer::removeGraph(hostHasPartition, graphID, masterIP);
 
@@ -1206,16 +1211,16 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
         *loop_exit_p = true;
         return;
     }
-// create kafka consumer and graph partitioner
+    // create kafka consumer and graph partitioner
     kstream = new KafkaConnector(configs);
-// Create the Partitioner object.
+    // Create the Partitioner object.
     Partitioner graphPartitioner(numberOfPartitions, 1, spt::Algorithms::HASH);
-// Create the KafkaConnector object.
+    // Create the KafkaConnector object.
     kstream = new KafkaConnector(configs);
-// Subscribe to the Kafka topic.
+    // Subscribe to the Kafka topic.
     kstream->Subscribe(topic_name_s);
-// Create the StreamHandler object.
-    StreamHandler* stream_handler = new StreamHandler(kstream, graphPartitioner, workerClients);
+    // Create the StreamHandler object.
+    StreamHandler *stream_handler = new StreamHandler(kstream, graphPartitioner, workerClients);
 
     frontend_logger.info("Start listening to " + topic_name_s);
     input_stream_handler_thread = thread(&StreamHandler::listen_to_kafka_topic, stream_handler);
@@ -1736,7 +1741,7 @@ static void train_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit
         }
         return;
     }
-    auto* server = JasmineGraphServer::getInstance();
+    auto *server = JasmineGraphServer::getInstance();
     if (Utils::getJasmineGraphProperty("org.jasminegraph.fl.org.training") == "true") {
         frontend_logger.info("Initiate org communication");
         JasmineGraphServer::initiateOrgCommunication(graphID, trainData, sqlite, server->masterHost);
@@ -2184,7 +2189,7 @@ static void sla_command(int connFd, SQLiteDBInterface *sqlite, PerformanceSQLite
     std::stringstream ss;
     std::vector<vector<pair<string, string>>> v =
         perfSqlite->runSelect("SELECT graph_id, partition_count, sla_value FROM graph_sla where id_sla_category in (" +
-                             adjustedIdList + ");");
+                              adjustedIdList + ");");
     for (std::vector<vector<pair<string, string>>>::iterator i = v.begin(); i != v.end(); ++i) {
         std::stringstream slass;
         slass << "|";

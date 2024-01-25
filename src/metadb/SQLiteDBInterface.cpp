@@ -14,6 +14,8 @@ limitations under the License.
 #include "SQLiteDBInterface.h"
 
 #include <string>
+#include <fstream>
+#include <sstream>
 
 #include "../util/Utils.h"
 #include "../util/logger/Logger.h"
@@ -30,6 +32,12 @@ SQLiteDBInterface::SQLiteDBInterface(string databaseLocation) {
 }
 
 int SQLiteDBInterface::init() {
+    if (!Utils::fileExists(this->databaseLocation.c_str())) {
+        if (Utils::createDatabaseFromDDL(this->databaseLocation.c_str(), ROOT_DIR "src/metadb/ddl.sql") != 0) {
+            return -1;
+        }
+    }
+
     if (sqlite3_open(this->databaseLocation.c_str(), &database)) {
         db_logger.error("Cannot open database: " + string(sqlite3_errmsg(database)));
         return -1;

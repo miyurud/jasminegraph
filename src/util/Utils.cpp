@@ -70,7 +70,7 @@ std::string Utils::getFileContentAsString(std::string file) {
     return fileContent;
 }
 
-std::string Utils::replaceAll(std::string content, const std::string& oldValue, const std::string& newValue) {
+std::string Utils::replaceAll(std::string content, const std::string &oldValue, const std::string &newValue) {
     size_t pos = 0;
     while ((pos = content.find(oldValue, pos)) != std::string::npos) {
         content.replace(pos, oldValue.length(), newValue);
@@ -79,7 +79,7 @@ std::string Utils::replaceAll(std::string content, const std::string& oldValue, 
     return content;
 }
 
-void Utils::writeFileContent(const std::string& filePath, const std::string& content) {
+void Utils::writeFileContent(const std::string &filePath, const std::string &content) {
     std::ofstream out(filePath);
     if (!out.is_open()) {
         util_logger.error("Cannot write to file path: " + filePath);
@@ -546,6 +546,8 @@ int Utils::connect_wrapper(int sock, const sockaddr *addr, socklen_t slen) {
             return 0;
         }
     } while (retry++ < 4);
+    util_logger.error("Error connecting to " + string(inet_ntoa(((const struct sockaddr_in *)addr)->sin_addr)) + ":" +
+                      to_string(ntohs(((const struct sockaddr_in *)addr)->sin_port)));
     return -1;
 }
 
@@ -615,17 +617,18 @@ inline json yaml2json(const YAML::Node &root) {
     json j{};
 
     switch (root.Type()) {
-        case YAML::NodeType::Null: break;
-        case YAML::NodeType::Scalar: return parse_scalar(root);
+        case YAML::NodeType::Null:
+            break;
+        case YAML::NodeType::Scalar:
+            return parse_scalar(root);
         case YAML::NodeType::Sequence:
-            for (auto &&node : root)
-                j.emplace_back(yaml2json(node));
+            for (auto &&node : root) j.emplace_back(yaml2json(node));
             break;
         case YAML::NodeType::Map:
-            for (auto &&it : root)
-                j[it.first.as<std::string>()] = yaml2json(it.second);
+            for (auto &&it : root) j[it.first.as<std::string>()] = yaml2json(it.second);
             break;
-        default: break;
+        default:
+            break;
     }
     return j;
 }
@@ -633,4 +636,33 @@ inline json yaml2json(const YAML::Node &root) {
 std::string Utils::getJsonStringFromYamlFile(const std::string &yamlFile) {
     YAML::Node yamlNode = YAML::LoadFile(yamlFile);
     return to_string(yaml2json(yamlNode));
+}
+int Utils::createDatabaseFromDDL(const char *dbLocation, const char *ddlFileLocation) {
+    if (!Utils::fileExists(ddlFileLocation)) {
+        util_logger.error("DDL file not found: " + string(ddlFileLocation));
+        return -1;
+    }
+    ifstream ddlFile(ddlFileLocation);
+
+    stringstream buffer;
+    buffer << ddlFile.rdbuf();
+    ddlFile.close();
+
+    sqlite3* tempDatabase;
+    int rc = sqlite3_open(dbLocation, &tempDatabase);
+    if (rc) {
+        util_logger.error("Cannot create database: " + string(sqlite3_errmsg(tempDatabase)));
+        return -1;
+    }
+
+    rc = sqlite3_exec(tempDatabase, buffer.str().c_str(), 0, 0, 0);
+    if (rc) {
+        util_logger.error("DDL execution failed: " + string(sqlite3_errmsg(tempDatabase)));
+        sqlite3_close(tempDatabase);
+        return -1;
+    }
+
+    sqlite3_close(tempDatabase);
+    util_logger.info("Database created successfully");
+    return 0;
 }

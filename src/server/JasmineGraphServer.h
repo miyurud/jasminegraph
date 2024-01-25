@@ -25,12 +25,12 @@ limitations under the License.
 #include "../backend/JasmineGraphBackend.h"
 #include "../frontend/JasmineGraphFrontEnd.h"
 #include "../frontend/core/scheduler/JobScheduler.h"
+#include "../k8s/K8sWorkerController.h"
 #include "../metadb/SQLiteDBInterface.h"
 #include "../performance/metrics/StatisticCollector.h"
 #include "../performancedb/PerformanceSQLiteDBInterface.h"
 #include "../util/Conts.h"
 #include "../util/Utils.h"
-#include "../k8s/K8sWorkerController.h"
 
 using std::map;
 
@@ -98,33 +98,10 @@ class JasmineGraphServer {
 
     void assignPartitionsToWorkers(int numberOfWorkers);
 
-    static bool batchUploadFile(std::string host, int port, int dataPort, int graphID, std::string filePath,
-                                std::string masterIP);
-
-    static bool batchUploadCentralStore(std::string host, int port, int dataPort, int graphID, std::string filePath,
-                                        std::string masterIP);
-
     static void copyCentralStoreToAggregateLocation(std::string filePath);
-
-    static bool batchUploadAttributeFile(std::string host, int port, int dataPort, int graphID, std::string filePath,
-                                         std::string masterIP);
-
-    static bool batchUploadCentralAttributeFile(std::string host, int port, int dataPort, int graphID,
-                                                std::string filePath, std::string masterIP);
-
-    static bool batchUploadCompositeCentralstoreFile(std::string host, int port, int dataPort, int graphID,
-                                                     std::string filePath, std::string masterIP);
-
-    static int removePartitionThroughService(std::string host, int port, std::string graphID, std::string partitionID,
-                                             std::string masterIP);
-
-    static int removeFragmentThroughService(std::string host, int port, std::string graphID, std::string masterIP);
 
     static bool sendFileThroughService(std::string host, int dataPort, std::string fileName, std::string filePath,
                                        std::string masterIP);
-
-    void assignPartitionToWorker(std::string fileName, int graphId, std::string workerHost, int workerPort,
-                                 int workerDataPort);
 
     static bool spawnNewWorker(string host, string port, string dataPort, string profile, string masterHost,
                                string enableNmon);
@@ -179,31 +156,13 @@ class JasmineGraphServer {
 
     void initiateFiles(std::string graphID, std::string trainingArgs);
 
-    static void initiateCommunication(std::string graphID, std::string trainingArgs,
-                                      SQLiteDBInterface *sqlite, std::string masterIP);
+    static void initiateCommunication(std::string graphID, std::string trainingArgs, SQLiteDBInterface *sqlite,
+                                      std::string masterIP);
 
-    static void initiateOrgCommunication(std::string graphID, std::string trainingArgs,
-                                         SQLiteDBInterface *sqlite, std::string masterIP);
+    static void initiateOrgCommunication(std::string graphID, std::string trainingArgs, SQLiteDBInterface *sqlite,
+                                         std::string masterIP);
 
     void initiateMerge(std::string graphID, std::string trainingArgs, SQLiteDBInterface *sqlite);
-
-    bool initiatePredict(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
-                         string partCount, std::string masterIP);
-
-    static bool initiateTrain(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
-                              string partCount, std::string masterIP);
-
-    static bool initiateServer(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
-                               string partCount, std::string masterIP);
-
-    static bool initiateOrgServer(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
-                                  string partCount, std::string masterIP);
-
-    static bool initiateAggregator(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
-                                   string partCount, std::string masterIP);
-
-    static bool initiateClient(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
-                               string partCount, std::string masterIP);
 
     static bool mergeFiles(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
                            string partCount, std::string masterIP);
