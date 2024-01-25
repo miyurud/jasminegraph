@@ -108,7 +108,7 @@ bool JasmineGraphInstance::acknowledgeMaster(string masterHost, string workerIP,
     read(sockfd, data, 300);
     string response = (data);
 
-    response = Utils::trim_copy(response, " \f\n\r\t\v");
+    response = Utils::trim_copy(response);
 
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
         graphInstance_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
@@ -123,7 +123,7 @@ bool JasmineGraphInstance::acknowledgeMaster(string masterHost, string workerIP,
         bzero(data, 301);
         read(sockfd, data, 300);
         response = (data);
-        response = Utils::trim_copy(response, " \f\n\r\t\v");
+        response = Utils::trim_copy(response);
 
         if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
             graphInstance_logger.log("Received : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
@@ -139,7 +139,7 @@ bool JasmineGraphInstance::acknowledgeMaster(string masterHost, string workerIP,
             bzero(data, 301);
             read(sockfd, data, 300);
             response = (data);
-            response = Utils::trim_copy(response, " \f\n\r\t\v");
+            response = Utils::trim_copy(response);
 
             if (response.compare(JasmineGraphInstanceProtocol::WORKER_INFO_SEND) == 0) {
                 std::string workerInfo = workerIP + "|" + workerPort;
@@ -237,7 +237,7 @@ bool JasmineGraphInstance::sendFileThroughService(std::string host, int dataPort
     bzero(data, 301);
     read(sockfd, data, 300);
     string response = (data);
-    response = Utils::trim_copy(response, " \f\n\r\t\v");
+    response = Utils::trim_copy(response);
     if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE) == 0) {
         std::cout << "Sending file " << filePath << " through port " << dataPort << std::endl;
 

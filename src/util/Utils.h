@@ -62,7 +62,7 @@ class Utils {
 
     static std::vector<std::string> split(const std::string &, char delimiter);
 
-    static std::string trim_copy(const std::string &, const std::string &);
+    static std::string trim_copy(const std::string &, const std::string &delimiters = " \f\n\r\t\v");
 
     static bool parseBoolean(const std::string str);
 

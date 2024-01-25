@@ -154,7 +154,7 @@ void *instanceservicesession(void *dummyPt) {
         if (line.empty()) {
             continue;
         }
-        line = Utils::trim_copy(line, " \f\n\r\t\v");
+        line = Utils::trim_copy(line);
         instance_logger.info("Received : " + line);
 
         if (line.compare(JasmineGraphInstanceProtocol::HANDSHAKE) == 0) {
@@ -666,7 +666,7 @@ string JasmineGraphInstanceService::requestPerformanceStatistics(std::string isV
     auto executedTime = std::chrono::system_clock::now();
     std::time_t reportTime = std::chrono::system_clock::to_time_t(executedTime);
     std::string reportTimeString(std::ctime(&reportTime));
-    reportTimeString = Utils::trim_copy(reportTimeString, " \f\n\r\t\v");
+    reportTimeString = Utils::trim_copy(reportTimeString);
     std::string usageString =
         reportTimeString + "," + to_string(memoryUsage) + "," + to_string(cpuUsage) + "," + to_string(loadAverage);
     if (!vmLevelStatistics.empty()) {

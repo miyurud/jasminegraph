@@ -155,15 +155,15 @@ std::vector<std::string> Utils::getHostListFromProperties() {
     return result;
 }
 
-static inline std::string trim_right_copy(const std::string &s, const std::string &delimiters = " \f\n\r\t\v") {
+static inline std::string trim_right_copy(const std::string &s, const std::string &delimiters) {
     return s.substr(0, s.find_last_not_of(delimiters) + 1);
 }
 
-static inline std::string trim_left_copy(const std::string &s, const std::string &delimiters = " \f\n\r\t\v") {
+static inline std::string trim_left_copy(const std::string &s, const std::string &delimiters) {
     return s.substr(s.find_first_not_of(delimiters));
 }
 
-std::string Utils::trim_copy(const std::string &s, const std::string &delimiters = " \f\n\r\t\v") {
+std::string Utils::trim_copy(const std::string &s, const std::string &delimiters) {
     return trim_left_copy(trim_right_copy(s, delimiters), delimiters);
 }
 
@@ -568,7 +568,7 @@ std::string Utils::read_str_wrapper(int connFd, char *buf, size_t len, bool allo
 
 std::string Utils::read_str_trim_wrapper(int connFd, char *buf, size_t len) {
     string str = read_str_wrapper(connFd, buf, len, false);
-    if (!str.empty()) str = trim_copy(str, " \f\n\r\t\v");
+    if (!str.empty()) str = trim_copy(str);
     return str;
 }
 
@@ -676,7 +676,7 @@ int Utils::createDatabaseFromDDL(const char *dbLocation, const char *ddlFileLoca
     buffer << ddlFile.rdbuf();
     ddlFile.close();
 
-    sqlite3* tempDatabase;
+    sqlite3 *tempDatabase;
     int rc = sqlite3_open(dbLocation, &tempDatabase);
     if (rc) {
         util_logger.error("Cannot create database: " + string(sqlite3_errmsg(tempDatabase)));

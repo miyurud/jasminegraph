@@ -1900,7 +1900,7 @@ void JasmineGraphServer::initiateOrgCommunication(std::string graphID, std::stri
             std::string line;
             std::thread *trainThreads = new std::thread[orgs_count];
             while (std::getline(file, line)) {
-                line = Utils::trim_copy(line, " \f\n\r\t\v");
+                line = Utils::trim_copy(line);
                 std::vector<std::string> strArr = Utils::split(line.c_str(), '|');
                 std::string host = strArr[0].c_str();
                 int port = stoi(strArr[1].c_str());
