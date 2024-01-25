@@ -108,7 +108,7 @@ class RelationBlock {
     static thread_local const unsigned long BLOCK_SIZE;  // Size of a relation record block in bytes
     static thread_local std::string DB_PATH;
     static thread_local std::fstream *relationsDB;
-    static thread_local std::fstream *centralrelationsDB;
+    static thread_local std::fstream *centralRelationsDB;
     static const int RECORD_SIZE = sizeof(unsigned int);
 
     RelationBlock *addCentral(NodeBlock source, NodeBlock destination);

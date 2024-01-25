@@ -96,8 +96,9 @@ void StreamHandler::listen_to_kafka_topic() {
         obj["properties"] = edgeJson["properties"];
         long part_s = partitionedEdge[0].second;
         long part_d = partitionedEdge[1].second;
-        long temp_s = part_s % atoi((Utils::getJasmineGraphProperty("org.jasminegraph.server.nworkers")).c_str());
-        long temp_d = part_d % atoi((Utils::getJasmineGraphProperty("org.jasminegraph.server.nworkers")).c_str());
+        int n_workers = atoi((Utils::getJasmineGraphProperty("org.jasminegraph.server.nworkers")).c_str());
+        long temp_s = part_s % n_workers;
+        long temp_d = part_d % n_workers;
 
         // Storing Node block
         if (part_s == part_d) {

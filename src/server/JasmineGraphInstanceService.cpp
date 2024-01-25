@@ -107,7 +107,7 @@ static void initiate_model_collection_command(int connFd, bool *loop_exit_p);
 static void initiate_fragment_resolution_command(int connFd, bool *loop_exit_p);
 static void check_file_accessible_command(int connFd, bool *loop_exit_p);
 static void graph_stream_start_command(
-    int connFd, InstanceStreamHandler& streamHandler, bool *loop_exit_p);
+        int connFd, InstanceStreamHandler& instanceStreamHandler, bool *loop_exit_p);
 static void send_priority_command(int connFd, bool *loop_exit_p);
 
 char *converter(const std::string &s) {
@@ -4436,7 +4436,7 @@ static void check_file_accessible_command(int connFd, bool *loop_exit_p) {
     }
 }
 
-static void graph_stream_start_command(int connFd, InstanceStreamHandler& InstanceStreamHandler, bool *loop_exit_p) {
+static void graph_stream_start_command(int connFd, InstanceStreamHandler& instanceStreamHandler, bool *loop_exit_p) {
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK)) {
         *loop_exit_p = true;
         return;
@@ -4471,7 +4471,7 @@ static void graph_stream_start_command(int connFd, InstanceStreamHandler& Instan
         *loop_exit_p = true;
         return;
     }
-    InstanceStreamHandler.handleRequest(nodeString);
+    instanceStreamHandler.handleRequest(nodeString);
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_END_OF_EDGE)) {
         *loop_exit_p = true;
         return;

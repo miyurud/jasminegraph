@@ -666,3 +666,18 @@ int Utils::createDatabaseFromDDL(const char *dbLocation, const char *ddlFileLoca
     util_logger.info("Database created successfully");
     return 0;
 }
+
+bool Utils::fileExistsWithReadPermission(const string &path) {
+    std::ifstream file(path);
+    return file.is_open();
+}
+
+std::fstream *Utils::openFile(const string &path, std::ios_base::openmode mode) {
+    if (!fileExistsWithReadPermission(path)) {
+        // Create the file if it doesn't exist
+        std::ofstream dummyFile(path, std::ios::out | std::ios::binary);
+        dummyFile.close();
+    }
+    // Now open the file in the desired mode
+    return new std::fstream(path, mode | std::ios::binary);
+}

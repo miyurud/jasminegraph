@@ -30,21 +30,6 @@ limitations under the License.
 Logger node_manager_logger;
 pthread_mutex_t lockEdgeAdd;
 
-bool fileExists(const std::string& path) {
-    std::ifstream file(path);
-    return file.is_open();
-}
-
-std::fstream* openFile(const std::string &path, std::ios_base::openmode mode) {
-    if (!fileExists(path)) {
-        // Create the file if it doesn't exist
-        std::ofstream dummyFile(path, std::ios::out | std::ios::binary);
-        dummyFile.close();
-    }
-    // Now open the file in the desired mode
-    return new std::fstream(path, mode | std::ios::binary);
-}
-
 NodeManager::NodeManager(GraphConfig gConfig) {
     this->graphID = gConfig.graphID;
     this->partitionID = gConfig.partitionID;
@@ -87,11 +72,11 @@ NodeManager::NodeManager(GraphConfig gConfig) {
         node_manager_logger.info("Using TRUNC mode for file operations.");
     }
 
-    NodeBlock::nodesDB = openFile(nodesDBPath, openMode);
-    PropertyLink::propertiesDB = openFile(propertiesDBPath, openMode);
-    PropertyEdgeLink::edgePropertiesDB = openFile(edgePropertiesDBPath, openMode);
-    RelationBlock::relationsDB = openFile(relationsDBPath, openMode);
-    RelationBlock::centralrelationsDB = openFile(centralRelationsDBPath, openMode);
+    NodeBlock::nodesDB = Utils::openFile(nodesDBPath, openMode);
+    PropertyLink::propertiesDB = Utils::openFile(propertiesDBPath, openMode);
+    PropertyEdgeLink::edgePropertiesDB = Utils::openFile(edgePropertiesDBPath, openMode);
+    RelationBlock::relationsDB = utils.openFile(relationsDBPath, openMode);
+    RelationBlock::centralRelationsDB = Utils::openFile(centralRelationsDBPath, openMode);
 
     //    RelationBlock::centralpropertiesDB =
     //            new std::fstream(dbPrefix + "_central_relations.db", std::ios::in | std::ios::out | openMode |
@@ -203,8 +188,8 @@ RelationBlock *NodeManager::addRelation(NodeBlock source, NodeBlock destination)
         RelationBlock *relationBlock = new RelationBlock(source, destination);
         newRelation = relationBlock->add(source, destination);
         if (newRelation) {
-            source.updateRelation(newRelation, false);
-            destination.updateRelation(newRelation, false);
+            source.updateRelation(newRelation, true);
+            destination.updateRelation(newRelation, true);
         } else {
             node_manager_logger.error("Error while adding the new edge/relation for source = " +
                                       std::string(source.id) + " destination = " + std::string(destination.id));
@@ -226,8 +211,8 @@ RelationBlock *NodeManager::addCentralRelation(NodeBlock source, NodeBlock desti
         RelationBlock *relationBlock = new RelationBlock(source, destination);
         newRelation = relationBlock->addCentral(source, destination);
         if (newRelation) {
-            source.updateCentralRelation(newRelation, false);
-            destination.updateCentralRelation(newRelation, false);
+            source.updateCentralRelation(newRelation, true);
+            destination.updateCentralRelation(newRelation, true);
         } else {
             node_manager_logger.error("Error while adding the new edge/relation for source = " +
                                       std::string(source.id) + " destination = " + std::string(destination.id));
@@ -500,9 +485,9 @@ void NodeManager::close() {
         RelationBlock::relationsDB->flush();
         RelationBlock::relationsDB->close();
     }
-    if (RelationBlock::centralrelationsDB) {
-        RelationBlock::centralrelationsDB->flush();
-        RelationBlock::centralrelationsDB->close();
+    if (RelationBlock::centralRelationsDB) {
+        RelationBlock::centralRelationsDB->flush();
+        RelationBlock::centralRelationsDB->close();
     }
 }
 
