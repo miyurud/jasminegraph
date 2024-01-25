@@ -23,6 +23,7 @@ limitations under the License.
 class StreamingSQLiteDBInterface {
  private:
     sqlite3 *database;
+    std::string databaseLocation;
 
  public:
     int init();
@@ -40,6 +41,7 @@ class StreamingSQLiteDBInterface {
     int RunSqlNoCallback(const char *zSql);
 
     StreamingSQLiteDBInterface();
+    StreamingSQLiteDBInterface(std::string databaseLocation);
 };
 
 #endif  // JASMINEGRAPH_STREAMINGSQLITEDBINTERFACE_H

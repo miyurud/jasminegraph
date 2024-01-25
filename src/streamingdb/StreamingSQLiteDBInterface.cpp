@@ -22,20 +22,33 @@ using namespace std;
 Logger streamdb_logger;
 
 int StreamingSQLiteDBInterface::init() {
-    int rc =
-        sqlite3_open(Utils::getJasmineGraphProperty("org.jasminegraph.streaming.db.location").c_str(), &database);
+    if (!Utils::fileExists(this->databaseLocation.c_str())) {
+        if (Utils::createDatabaseFromDDL(this->databaseLocation.c_str(),
+                                         ROOT_DIR "src/streamingdb/ddl.sql") != 0) {
+            streamdb_logger.error("Cannot create database: " + databaseLocation);
+            return -1;
+        }
+    }
+
+    int rc = sqlite3_open(this->databaseLocation.c_str(), &database);
     if (rc) {
-        streamdb_logger.log("Cannot open database: " + string(sqlite3_errmsg(database)), "error");
+        streamdb_logger.error("Cannot open database: " + string(sqlite3_errmsg(database)));
         return (-1);
     } else {
-        streamdb_logger.log("Database opened successfully", "info");
+        streamdb_logger.info("Database opened successfully : " + databaseLocation);
         return 0;
     }
 }
 
 int StreamingSQLiteDBInterface::finalize() { return sqlite3_close(database); }
 
-StreamingSQLiteDBInterface::StreamingSQLiteDBInterface() {}
+StreamingSQLiteDBInterface::StreamingSQLiteDBInterface() {
+    this->databaseLocation = Utils::getJasmineGraphProperty("org.jasminegraph.streaming.db.location");
+}
+
+StreamingSQLiteDBInterface::StreamingSQLiteDBInterface(string databaseLocation) {
+    this->databaseLocation = databaseLocation;
+}
 
 typedef vector<vector<pair<string, string>>> table_type;
 
