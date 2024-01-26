@@ -1,0 +1,324 @@
+/**
+Copyright 2021 JasmineGraph Team
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+ */
+
+#include "PagerankExecutor.h"
+
+#define DATA_BUFFER_SIZE (FRONTEND_DATA_LENGTH + 1)
+using namespace std::chrono;
+
+Logger pgrnk_logger;
+
+PagerankExecutor::PagerankExecutor() {}
+
+PagerankExecutor::PagerankExecutor(SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb,
+                                             JobRequest jobRequest) {
+    this->sqlite = db;
+    this->perfDB = perfDb;
+    this->request = jobRequest;
+}
+
+void PagerankExecutor::execute() {
+    int uniqueId = getUid();
+    std::string masterIP = request.getMasterIP();
+    std::string graphId = request.getParameter(Conts::PARAM_KEYS::GRAPH_ID);
+    std::string canCalibrateString = request.getParameter(Conts::PARAM_KEYS::CAN_CALIBRATE);
+    std::string queueTime = request.getParameter(Conts::PARAM_KEYS::QUEUE_TIME);
+    std::string graphSLAString = request.getParameter(Conts::PARAM_KEYS::GRAPH_SLA);
+    std::string alphaString = request.getParameter(Conts::PARAM_KEYS::ALPHA);
+    std::string iterationString = request.getParameter(Conts::PARAM_KEYS::ITERATION);
+
+    double alpha = stod(alphaString);
+    int iterations = stoi(iterationString);
+
+    bool canCalibrate = Utils::parseBoolean(canCalibrateString);
+    int threadPriority = request.getPriority();
+
+    std::string autoCalibrateString = request.getParameter(Conts::PARAM_KEYS::AUTO_CALIBRATION);
+    bool autoCalibrate = Utils::parseBoolean(autoCalibrateString);
+
+    if (threadPriority == Conts::HIGH_PRIORITY_DEFAULT_VALUE) {
+        highPriorityGraphList.push_back(graphId);
+    }
+
+    // Below code is used to update the process details
+    processStatusMutex.lock();
+    std::chrono::milliseconds startTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
+
+    struct ProcessInfo processInformation;
+    processInformation.id = uniqueId;
+    processInformation.graphId = graphId;
+    processInformation.processName = PAGE_RANK;
+    processInformation.priority = threadPriority;
+    processInformation.startTimestamp = startTime.count();
+
+    if (!queueTime.empty()) {
+        long sleepTime = atol(queueTime.c_str());
+        processInformation.sleepTime = sleepTime;
+        processData.insert(processInformation);
+        processStatusMutex.unlock();
+        std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
+    } else {
+        processData.insert(processInformation);
+        processStatusMutex.unlock();
+    }
+
+    pgrnk_logger.log(
+            "###PAGERANK-EXECUTOR### Started with graph ID : " + graphId + " Master IP : " + masterIP, "info");
+
+    int partitionCount = 0;
+    std::vector<std::future<void>> intermRes;
+    std::vector<std::future<int>> statResponse;
+
+    auto begin = chrono::high_resolution_clock::now();
+
+    std::map<std::string, JasmineGraphServer::workerPartition> graphPartitionedHosts =
+            JasmineGraphServer::getWorkerPartitions(graphId);
+    string partition;
+    string host;
+    int port;
+    int dataPort;
+    std::string workerList;
+
+    std::map<std::string, JasmineGraphServer::workerPartition>::iterator workerIter;
+    for (workerIter = graphPartitionedHosts.begin(); workerIter != graphPartitionedHosts.end(); workerIter++) {
+        JasmineGraphServer::workerPartition workerPartition = workerIter->second;
+        partition = workerPartition.partitionID;
+        host = workerPartition.hostname;
+        port = workerPartition.port;
+        dataPort = workerPartition.dataPort;
+
+        if (host.find('@') != std::string::npos) {
+            host = Utils::split(host, '@')[1];
+        }
+
+        workerList.append(host + ":" + std::to_string(port) + ":" + partition + ",");
+    }
+
+    workerList.pop_back();
+    pgrnk_logger.info("Worker list " + workerList);
+
+    for (workerIter = graphPartitionedHosts.begin(); workerIter != graphPartitionedHosts.end(); workerIter++) {
+        JasmineGraphServer::workerPartition workerPartition = workerIter->second;
+        partition = workerPartition.partitionID;
+        host = workerPartition.hostname;
+        port = workerPartition.port;
+        dataPort = workerPartition.dataPort;
+
+        intermRes.push_back(std::async(
+                std::launch::async, PagerankExecutor::doPageRank, graphId, alpha,
+                iterations, partition, host, port, dataPort, workerList));
+    }
+
+    PerformanceUtil::init();
+
+    std::string query =
+            "SELECT attempt from graph_sla INNER JOIN sla_category where graph_sla.id_sla_category=sla_category.id and "
+            "graph_sla.graph_id='" +
+            graphId + "' and graph_sla.partition_count='" + std::to_string(partitionCount) +
+            "' and sla_category.category='" + Conts::SLA_CATEGORY::LATENCY + "';";
+
+    std::vector<vector<pair<string, string>>> queryResults = perfDB->runSelect(query);
+
+    if (queryResults.size() > 0) {
+        std::string attemptString = queryResults[0][0].second;
+        int calibratedAttempts = atoi(attemptString.c_str());
+
+        if (calibratedAttempts >= Conts::MAX_SLA_CALIBRATE_ATTEMPTS) {
+            canCalibrate = false;
+        }
+    } else {
+        pgrnk_logger.log("###PAGERANK-EXECUTOR### Inserting initial record for SLA ", "info");
+        Utils::updateSLAInformation(perfDB, graphId, partitionCount, 0, PAGE_RANK, Conts::SLA_CATEGORY::LATENCY);
+        statResponse.push_back(std::async(std::launch::async, collectPerformaceData, perfDB,
+                                          graphId.c_str(), PAGE_RANK, Conts::SLA_CATEGORY::LATENCY, partitionCount,
+                                          masterIP, autoCalibrate));
+        isStatCollect = true;
+    }
+
+    for (auto &&futureCall : intermRes) {
+        futureCall.get();
+    }
+
+    pgrnk_logger.info(
+                "###PAGERANK-EXECUTOR### Getting Pagrank : Completed");
+
+    workerResponded = true;
+    JobResponse jobResponse;
+    jobResponse.setJobId(request.getJobId());
+    responseVector.push_back(jobResponse);
+
+    responseVectorMutex.lock();
+    responseMap[request.getJobId()] = jobResponse;
+    responseVectorMutex.unlock();
+
+    auto end = chrono::high_resolution_clock::now();
+    auto dur = end - begin;
+    auto msDuration = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
+
+    std::string durationString = std::to_string(msDuration);
+
+    if (canCalibrate || autoCalibrate) {
+        Utils::updateSLAInformation(perfDB, graphId, partitionCount, msDuration, PAGE_RANK,
+                                    Conts::SLA_CATEGORY::LATENCY);
+        isStatCollect = false;
+    }
+
+    processStatusMutex.lock();
+    std::set<ProcessInfo>::iterator processCompleteIterator;
+    for (processCompleteIterator = processData.begin(); processCompleteIterator != processData.end();
+         ++processCompleteIterator) {
+        ProcessInfo processInformation = *processCompleteIterator;
+
+        if (processInformation.id == uniqueId) {
+            processData.erase(processInformation);
+            break;
+        }
+    }
+    processStatusMutex.unlock();
+}
+
+int PagerankExecutor::getUid() {
+    static std::atomic<std::uint32_t> uid{0};
+    return ++uid;
+}
+
+void PagerankExecutor::doPageRank(std::string graphID, double alpha, int iterations, string partition,
+                                 string host, int port, int dataPort, std::string workerList) {
+        if (host.find('@') != std::string::npos) {
+            host = Utils::split(host, '@')[1];
+        }
+
+        int sockfd;
+        char data[DATA_BUFFER_SIZE];
+        struct sockaddr_in serv_addr;
+        struct hostent *server;
+
+        sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+        if (sockfd < 0) {
+            std::cout << "Cannot create socket" << std::endl;
+            return;
+        }
+        server = gethostbyname(host.c_str());
+        if (server == NULL) {
+            pgrnk_logger.error("ERROR, no host named " + host);
+            return;
+        }
+
+        bzero((char *)&serv_addr, sizeof(serv_addr));
+        serv_addr.sin_family = AF_INET;
+        bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+        serv_addr.sin_port = htons(port);
+        if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+            std::cout << "ERROR connecting" << std::endl;
+            return;
+        }
+
+        if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::PAGE_RANK)) {
+            pgrnk_logger.error("Error writing to socket");
+            return;
+        }
+        pgrnk_logger.info("Sent : " + JasmineGraphInstanceProtocol::PAGE_RANK);
+
+        string response = Utils::read_str_trim_wrapper(sockfd, data, FRONTEND_DATA_LENGTH);
+        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+            pgrnk_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
+        } else {
+            pgrnk_logger.error("Error reading from socket");
+            return;
+        }
+
+        if (!Utils::send_str_wrapper(sockfd, graphID)) {
+            pgrnk_logger.error("Error writing to socket");
+            return;
+        }
+        pgrnk_logger.info("Sent : Graph ID " + graphID);
+
+        response = Utils::read_str_trim_wrapper(sockfd, data, FRONTEND_DATA_LENGTH);
+        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+            pgrnk_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
+        } else {
+            pgrnk_logger.error("Error reading from socket");
+            return;
+        }
+
+        if (!Utils::send_str_wrapper(sockfd, partition)) {
+            pgrnk_logger.error("Error writing to socket");
+            return;
+        }
+        pgrnk_logger.info("Sent : Partition ID " + partition);
+
+        response = Utils::read_str_trim_wrapper(sockfd, data, FRONTEND_DATA_LENGTH);
+        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+            pgrnk_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
+        } else {
+            pgrnk_logger.error("Error reading from socket");
+            return;
+        }
+
+        if (!Utils::send_str_wrapper(sockfd, workerList)) {
+            pgrnk_logger.error("Error writing to socket");
+        }
+        pgrnk_logger.info("Sent : Host List ");
+
+        response = Utils::read_str_trim_wrapper(sockfd, data, FRONTEND_DATA_LENGTH);
+        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+            pgrnk_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
+        } else {
+            pgrnk_logger.error("Error reading from socket");
+            return;
+        }
+
+        long graphVertexCount = JasmineGraphServer::getGraphVertexCount(graphID);
+        if (!Utils::send_str_wrapper(sockfd, std::to_string(graphVertexCount))) {
+            pgrnk_logger.error("Error writing to socket");
+        }
+        pgrnk_logger.info("graph vertex count: " + std::to_string(graphVertexCount));
+
+        response = Utils::read_str_trim_wrapper(sockfd, data, FRONTEND_DATA_LENGTH);
+        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+            pgrnk_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
+        } else {
+            pgrnk_logger.error("Error reading from socket");
+            return;
+        }
+
+        if (!Utils::send_str_wrapper(sockfd, std::to_string(alpha))) {
+            pgrnk_logger.error("Error writing to socket");
+            return;
+        }
+        pgrnk_logger.info("page rank alpha value sent : " + std::to_string(alpha));
+
+        response = Utils::read_str_trim_wrapper(sockfd, data, FRONTEND_DATA_LENGTH);
+        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+            pgrnk_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
+        } else {
+            pgrnk_logger.error("Error reading from socket");
+            return;
+        }
+
+        if (!Utils::send_str_wrapper(sockfd, std::to_string(iterations))) {
+            pgrnk_logger.error("Error writing to socket");
+            return;
+        }
+
+        response = Utils::read_str_trim_wrapper(sockfd, data, FRONTEND_DATA_LENGTH);
+        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+            pgrnk_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
+        } else {
+            pgrnk_logger.error("Error reading from socket");
+            return;
+        }
+
+    return;
+}

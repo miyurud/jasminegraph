@@ -2648,6 +2648,13 @@ static void page_rank_command(int connFd, int serverPort,
     pageRankLocalstore.clear();
     graphDBMapCentralStores.clear();
     graphDBMapLocalStoresPgrnk.clear();
+
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+
     instance_logger.info("Finish : Calculate Local PageRank.");
 }
 

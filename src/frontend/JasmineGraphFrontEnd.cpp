@@ -47,6 +47,7 @@ limitations under the License.
 #include "core/scheduler/JobScheduler.h"
 
 #define MAX_PENDING_CONNECTIONS 10
+#define DATA_BUFFER_SIZE (FRONTEND_DATA_LENGTH + 1)
 
 using json = nlohmann::json;
 using namespace std;
@@ -83,7 +84,8 @@ static void merge_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit
 static void train_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void in_degree_command(int connFd, bool *loop_exit_p);
 static void out_degree_command(int connFd, bool *loop_exit_p);
-static void page_rank_command(int connFd, bool *loop_exit_p);
+static void page_rank_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
+                              PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler, bool *loop_exit_p);
 static void egonet_command(int connFd, bool *loop_exit_p);
 static void duplicate_centralstore_command(int connFd, bool *loop_exit_p);
 static void predict_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
@@ -202,7 +204,7 @@ void *frontendservicesesion(void *dummyPt) {
         } else if (line.compare(OUT_DEGREE) == 0) {
             out_degree_command(connFd, &loop_exit);
         } else if (line.compare(PAGE_RANK) == 0) {
-            page_rank_command(connFd, &loop_exit);
+            page_rank_command(masterIP, connFd, sqlite, perfSqlite, jobScheduler, &loop_exit);
         } else if (line.compare(EGONET) == 0) {
             egonet_command(connFd, &loop_exit);
         } else if (line.compare(DPCNTRL) == 0) {
@@ -1940,7 +1942,8 @@ static void out_degree_command(int connFd, bool *loop_exit_p) {
     }
 }
 
-static void page_rank_command(int connFd, bool *loop_exit_p) {
+static void page_rank_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
+                              PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler, bool *loop_exit_p) {
     frontend_logger.info("Calculating Page Rank");
 
     int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
@@ -1999,7 +2002,116 @@ static void page_rank_command(int connFd, bool *loop_exit_p) {
     frontend_logger.info("Alpha value: " + to_string(alpha));
     frontend_logger.info("Iterations value: " + to_string(iterations));
 
-    JasmineGraphServer::pageRank(graphID, alpha, iterations);
+    result_wr = write(connFd, PRIORITY.c_str(), PRIORITY.length());
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    result_wr = write(connFd, "\r\n", 2);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+
+    // We get the name and the path to graph as a pair separated by |.
+    char priority_data[DATA_BUFFER_SIZE];
+    bzero(priority_data, DATA_BUFFER_SIZE);
+    read(connFd, priority_data, FRONTEND_DATA_LENGTH);
+    string priority(priority_data);
+    priority = Utils::trim_copy(priority, " \f\n\r\t\v");
+
+    if (!(std::find_if(priority.begin(), priority.end(), [](unsigned char c) { return !std::isdigit(c); }) ==
+          priority.end())) {
+        *loop_exit_p = true;
+        string error_message = "Priority should be numeric and > 1 or empty";
+        result_wr = write(connFd, error_message.c_str(), error_message.length());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            return;
+        }
+
+        result_wr = write(connFd, "\r\n", 2);
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+        }
+        return;
+    }
+
+    int threadPriority = std::atoi(priority.c_str());
+
+    auto begin = chrono::high_resolution_clock::now();
+    JobRequest jobDetails;
+    int uniqueId = JasmineGraphFrontEnd::getUid();
+    jobDetails.setJobId(std::to_string(uniqueId));
+    jobDetails.setJobType(PAGE_RANK);
+
+    long graphSLA;
+    // All high priority threads will be set the same high priority level
+    if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
+        threadPriority = Conts::HIGH_PRIORITY_DEFAULT_VALUE;
+        graphSLA = JasmineGraphFrontEnd::getSLAForGraphId(sqlite, perfSqlite, graphID, TRIANGLES,
+                                                          Conts::SLA_CATEGORY::LATENCY);
+        jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_SLA, std::to_string(graphSLA));
+    }
+
+    if (graphSLA == 0) {
+        if (JasmineGraphFrontEnd::areRunningJobsForSameGraph()) {
+            if (canCalibrate) {
+                // initial calibration
+                jobDetails.addParameter(Conts::PARAM_KEYS::AUTO_CALIBRATION, "false");
+            } else {
+                // auto calibration
+                jobDetails.addParameter(Conts::PARAM_KEYS::AUTO_CALIBRATION, "true");
+            }
+        } else {
+            // TODO(ASHOK12011234): Need to investigate for multiple graphs
+            frontend_logger.error("Can't calibrate the graph now");
+        }
+    }
+
+    jobDetails.setPriority(threadPriority);
+    jobDetails.setMasterIP(masterIP);
+    jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_ID, graphID);
+    jobDetails.addParameter(Conts::PARAM_KEYS::CATEGORY, Conts::SLA_CATEGORY::LATENCY);
+    jobDetails.addParameter(Conts::PARAM_KEYS::ALPHA, std::to_string(alpha));
+    jobDetails.addParameter(Conts::PARAM_KEYS::ITERATION, std::to_string(iterations));
+
+    if (canCalibrate) {
+        jobDetails.addParameter(Conts::PARAM_KEYS::CAN_CALIBRATE, "true");
+    } else {
+        jobDetails.addParameter(Conts::PARAM_KEYS::CAN_CALIBRATE, "false");
+    }
+
+    jobScheduler->pushJob(jobDetails);
+    JobResponse jobResponse = jobScheduler->getResult(jobDetails);
+    std::string errorMessage = jobResponse.getParameter(Conts::PARAM_KEYS::ERROR_MESSAGE);
+
+    if (!errorMessage.empty()) {
+        *loop_exit_p = true;
+        result_wr = write(connFd, errorMessage.c_str(), errorMessage.length());
+
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            return;
+        }
+        result_wr = write(connFd, "\r\n", 2);
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+        }
+        return;
+    }
+
+    if (threadPriority == Conts::HIGH_PRIORITY_DEFAULT_VALUE) {
+        highPriorityTaskCount--;
+    }
+
+    auto end = chrono::high_resolution_clock::now();
+    auto dur = end - begin;
+    auto msDuration = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
+    frontend_logger.info("PageRank Time Taken : " + to_string(msDuration) +
+                         " milliseconds");
 
     result_wr = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
     if (result_wr < 0) {

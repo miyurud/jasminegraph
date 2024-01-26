@@ -83,3 +83,6 @@ create table sla_category
 
 insert into sla_category (id, command, category)
 values (1, 'trian', 'latency');
+
+insert into sla_category (id, command, category)
+values (2, 'pgrnk', 'latency');

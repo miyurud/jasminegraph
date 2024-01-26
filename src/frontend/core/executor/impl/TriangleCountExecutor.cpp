@@ -198,7 +198,7 @@ void TriangleCountExecutor::execute() {
     } else {
         triangleCount_logger.log("###TRIANGLE-COUNT-EXECUTOR### Inserting initial record for SLA ", "info");
         Utils::updateSLAInformation(perfDB, graphId, partitionCount, 0, TRIANGLES, Conts::SLA_CATEGORY::LATENCY);
-        statResponse.push_back(std::async(std::launch::async, TriangleCountExecutor::collectPerformaceData, perfDB,
+        statResponse.push_back(std::async(std::launch::async, collectPerformaceData, perfDB,
                                           graphId.c_str(), TRIANGLES, Conts::SLA_CATEGORY::LATENCY, partitionCount,
                                           masterIP, autoCalibrate));
         isStatCollect = true;
@@ -1646,64 +1646,4 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorH
 int TriangleCountExecutor::getUid() {
     static std::atomic<std::uint32_t> uid{0};
     return ++uid;
-}
-
-int TriangleCountExecutor::collectPerformaceData(PerformanceSQLiteDBInterface *perDB, std::string graphId,
-                                                 std::string command, std::string category, int partitionCount,
-                                                 std::string masterIP, bool autoCalibrate) {
-    int elapsedTime = 0;
-    time_t start;
-    time_t end;
-    PerformanceUtil::init();
-
-    std::vector<Place> placeList = PerformanceUtil::getHostReporterList();
-    std::string slaCategoryId = PerformanceUtil::getSLACategoryId(command, category);
-
-    std::vector<Place>::iterator placeListIterator;
-
-    for (placeListIterator = placeList.begin(); placeListIterator != placeList.end(); ++placeListIterator) {
-        Place place = *placeListIterator;
-        std::string host;
-
-        std::string ip = place.ip;
-        std::string user = place.user;
-        std::string serverPort = place.serverPort;
-        std::string isMaster = place.isMaster;
-        std::string isHostReporter = place.isHostReporter;
-        std::string hostId = place.hostId;
-        std::string placeId = place.placeId;
-
-        if (ip.find("localhost") != std::string::npos || ip.compare(masterIP) == 0) {
-            host = ip;
-        } else {
-            host = user + "@" + ip;
-        }
-
-        if (!(isMaster.find("true") != std::string::npos || host == "localhost" || host.compare(masterIP) == 0)) {
-            PerformanceUtil::initiateCollectingRemoteSLAResourceUtilization(
-                host, atoi(serverPort.c_str()), isHostReporter, "false", placeId, elapsedTime, masterIP);
-        }
-    }
-
-    start = time(0);
-    PerformanceUtil::collectSLAResourceConsumption(placeList, graphId, command, category, masterIP, elapsedTime,
-                                                   autoCalibrate);
-
-    while (!workerResponded) {
-        time_t elapsed = time(0) - start;
-        if (elapsed >= Conts::LOAD_AVG_COLLECTING_GAP) {
-            elapsedTime += Conts::LOAD_AVG_COLLECTING_GAP * 1000;
-            PerformanceUtil::collectSLAResourceConsumption(placeList, graphId, command, category, masterIP, elapsedTime,
-                                                           autoCalibrate);
-            start = start + Conts::LOAD_AVG_COLLECTING_GAP;
-        } else {
-            sleep(Conts::LOAD_AVG_COLLECTING_GAP - elapsed);
-        }
-    }
-
-    PerformanceUtil::updateRemoteResourceConsumption(perDB, graphId, partitionCount, placeList, slaCategoryId,
-                                                     masterIP);
-    PerformanceUtil::updateResourceConsumption(perDB, graphId, partitionCount, placeList, slaCategoryId);
-
-    return 0;
 }
