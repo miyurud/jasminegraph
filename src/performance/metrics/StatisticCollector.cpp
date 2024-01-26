@@ -13,11 +13,9 @@ limitations under the License.
 
 #include "StatisticCollector.h"
 
-#include <curl/curl.h>
-
 static clock_t lastCPU, lastSysCPU, lastUserCPU;
 static int numProcessors;
-std::string pushGatewayJobAddr = Utils::getJasmineGraphProperty("org.jasminegraph.collector.pushgateway");
+std::string pushGatewayJobAddr = Utils::getJasmineGraphProperty("");
 
 static long parseLine(char* line);
 static long getSwapSpace(const char* type);
@@ -38,44 +36,6 @@ int StatisticCollector::init() {
     }
     fclose(file);
     return 0;
-}
-
-static size_t write_callback(void* contents, size_t size, size_t nmemb, std::string* output) {
-    size_t totalSize = size * nmemb;
-    output->append(static_cast<char*>(contents), totalSize);
-    return totalSize;
-}
-
-static void send_job(std::string response_string, std::string job_group_name, std::string metric_name,
-                     std::string metric_value) {
-    CURL* curl;
-    CURLcode res;
-
-    curl = curl_easy_init();
-    if (curl) {
-        std::string hostPGAddr = pushGatewayJobAddr + job_group_name;
-        curl_easy_setopt(curl, CURLOPT_URL, hostPGAddr.c_str());
-
-        // Set the callback function to handle the response data
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
-        std::string job_data = metric_name + " " + metric_value + "\n";
-        const char* data = job_data.c_str();
-
-        curl_slist* headers = NULL;
-        headers = curl_slist_append(headers, "Content-Type: application/x-prometheus-remote-write-v1");
-        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-
-        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
-        curl_easy_setopt(curl, CURLOPT_POST, 1);
-
-        res = curl_easy_perform(curl);
-        if (res != CURLE_OK) {
-            std::cerr << "cURL failed: " << curl_easy_strerror(res) << std::endl;
-        }
-
-        curl_easy_cleanup(curl);
-    }
 }
 
 long StatisticCollector::getMemoryUsageByProcess() {
@@ -143,20 +103,16 @@ static long getSwapSpace(int field) {
 long StatisticCollector::getUsedSwapSpace() {
     long result = getSwapSpace(4);
     std::cout << "Used swap space: " + std::to_string(result) << std::endl;
-
-    // FIXME: Uninitialized string
-    std::string response_used_swap;
-    send_job(response_used_swap, "usedSwap", "used_swap_space", std::to_string(result));
+    std::string response_used_swap = Utils::send_job("usedSwap", "used_swap_space",
+                                                     std::to_string(result));
     return result;
 }
 
 long StatisticCollector::getTotalSwapSpace() {
     long result = getSwapSpace(3);
     std::cout << "Total swap space: " + std::to_string(result) << std::endl;
-
-    // FIXME: Uninitialized string
-    std::string response_total_swap;
-    send_job(response_total_swap, "totalSwap", "total_swap_space", std::to_string(result));
+    std::string response_total_swap = Utils:: send_job("totalSwap", "total_swap_space",
+                                                       std::to_string(result));
     return result;
 }
 
@@ -166,11 +122,8 @@ long StatisticCollector::getRXBytes() {
     fscanf(file, "%li", &result);
     fclose(file);
     std::cout << "Total read bytes: " + std::to_string(result) << std::endl;
-
-    // FIXME: Uninitialized string
-    std::string response_rx;
-    send_job(response_rx, "totalRead", "total_read_bytes", std::to_string(result));
-
+    std::string response_rx = Utils::send_job("totalRead", "total_read_bytes",
+                                              std::to_string(result));
     return result;
 }
 
@@ -181,9 +134,8 @@ long StatisticCollector::getTXBytes() {
     fclose(file);
     std::cout << "Total sent bytes: " + std::to_string(result) << std::endl;
 
-    // FIXME: Uninitialized string
-    std::string response_tx;
-    send_job(response_tx, "totalSent", "total_sent_bytes", std::to_string(result));
+    std::string response_tx = Utils::send_job("totalSent", "total_sent_bytes",
+                                              std::to_string(result));
 
     return result;
 }
@@ -300,9 +252,6 @@ long StatisticCollector::getTotalMemoryUsage() {
     unsigned long sReclaimable;
     unsigned long memUsage;
 
-    CURL* curl;
-    CURLcode res;
-
     while (file >> token) {
         if (token == "MemTotal:") {
             file >> memTotal;
@@ -319,33 +268,8 @@ long StatisticCollector::getTotalMemoryUsage() {
     }
     memUsage = memTotal - (memFree + buffers + cached + sReclaimable);
 
-    std::string response_total_memory;
-
-    curl = curl_easy_init();
-    if (curl) {
-        curl_easy_setopt(curl, CURLOPT_URL, (pushGatewayJobAddr + "totalMemory").c_str());
-
-        // Set the callback function to handle the response data
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_total_memory);
-        std::string job_data = "total_memory " + to_string(memTotal) + "\n";
-        const char* data = job_data.c_str();
-
-        curl_slist* headers = NULL;
-        headers = curl_slist_append(headers, "Content-Type: application/x-prometheus-remote-write-v1");
-        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-
-        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
-        curl_easy_setopt(curl, CURLOPT_POST, 1);
-
-        res = curl_easy_perform(curl);
-        if (res != CURLE_OK) {
-            std::cerr << "cURL failed: " << curl_easy_strerror(res) << std::endl;
-        }
-
-        curl_easy_cleanup(curl);
-    }
-
+    std::string response_total_memory = Utils::send_job("totalMemory", "total_memory",
+                                                        std::to_string(memTotal));
     return memUsage;
 }
 

@@ -15,8 +15,8 @@ limitations under the License.
 
 #include <dirent.h>
 #include <pwd.h>
-#include <string.h>
 #include <sys/stat.h>
+#include <curl/curl.h>
 #include <unistd.h>
 
 #include <chrono>
@@ -693,6 +693,48 @@ int Utils::createDatabaseFromDDL(const char *dbLocation, const char *ddlFileLoca
     sqlite3_close(tempDatabase);
     util_logger.info("Database created successfully");
     return 0;
+}
+
+static size_t write_callback(void* contents, size_t size, size_t nmemb, std::string* output) {
+    size_t totalSize = size * nmemb;
+    output->append(static_cast<char*>(contents), totalSize);
+    return totalSize;
+}
+
+std::string Utils::send_job(std::string job_group_name, std::string metric_name,
+                     std::string metric_value) {
+    CURL* curl;
+    CURLcode res;
+    std::string pushGatewayJobAddr = getJasmineGraphProperty("org.jasminegraph.collector.pushgateway");
+
+    std::string response_string;
+    curl = curl_easy_init();
+    if (curl) {
+        std::string hostPGAddr = pushGatewayJobAddr + job_group_name;
+        curl_easy_setopt(curl, CURLOPT_URL, hostPGAddr.c_str());
+
+        // Set the callback function to handle the response data
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
+        std::string job_data = metric_name + " " + metric_value + "\n";
+        const char* data = job_data.c_str();
+
+        curl_slist* headers = NULL;
+        headers = curl_slist_append(headers, "Content-Type: application/x-prometheus-remote-write-v1");
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
+        curl_easy_setopt(curl, CURLOPT_POST, 1);
+
+        res = curl_easy_perform(curl);
+        if (res != CURLE_OK) {
+            std::cerr << "curl failed: " << curl_easy_strerror(res) << "| url: "
+                << hostPGAddr << "| data: " << job_data << std::endl;
+        }
+
+        curl_easy_cleanup(curl);
+    }
+    return response_string;
 }
 
 bool Utils::fileExistsWithReadPermission(const string &path) {
