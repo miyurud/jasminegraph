@@ -1,6 +1,10 @@
 #This is the hosts file for Jasminegraph. All the host names on which Jasminegraph workers should get started needs
 #to be listed here
 localhost
+
+# TODO: Replace this
+@192.168.8.150
+
 #anuradhak@10.8.100.245
 #192.168.1.8
 #192.168.1.7

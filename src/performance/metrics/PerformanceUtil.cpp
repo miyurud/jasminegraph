@@ -13,8 +13,12 @@ limitations under the License.
 
 #include "PerformanceUtil.h"
 
+#include <curl/curl.h>
+
 using namespace std::chrono;
 std::map<std::string, std::vector<ResourceUsageInfo>> resourceUsageMap;
+
+static size_t write_callback(void* contents, size_t size, size_t nmemb, std::string* output);
 
 Logger scheduler_logger;
 SQLiteDBInterface *sqlLiteDB;
@@ -203,6 +207,12 @@ std::vector<ResourceConsumption> PerformanceUtil::retrieveCurrentResourceUtiliza
     return placeResourceConsumptionList;
 }
 
+static size_t write_callback(void* contents, size_t size, size_t nmemb, std::string* output) {
+    size_t totalSize = size * nmemb;
+    output->append(static_cast<char*>(contents), totalSize);
+    return totalSize;
+}
+
 void PerformanceUtil::collectRemotePerformanceData(std::string host, int port, std::string isVMStatManager,
                                                    std::string isResourceAllocationRequired, std::string hostId,
                                                    std::string placeId) {
@@ -211,7 +221,7 @@ void PerformanceUtil::collectRemotePerformanceData(std::string host, int port, s
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
-    struct hostent *server;
+    struct hostent* server;
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -226,11 +236,11 @@ void PerformanceUtil::collectRemotePerformanceData(std::string host, int port, s
         return;
     }
 
-    bzero((char *)&serv_addr, sizeof(serv_addr));
+    bzero((char*)&serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    bcopy((char*)server->h_addr, (char*)&serv_addr.sin_addr.s_addr, server->h_length);
     serv_addr.sin_port = htons(port);
-    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
         return;
     }
@@ -296,6 +306,62 @@ void PerformanceUtil::collectRemotePerformanceData(std::string host, int port, s
 
                     perfDb->runInsert(vmPerformanceSql);
 
+                    CURL* curl;
+                    CURLcode res;
+                    std::string response_host_perf_data;
+
+                    curl = curl_easy_init();
+                    if (curl) {
+                        // curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+                        curl_easy_setopt(curl, CURLOPT_URL, "http://192.168.8.150:9091/metrics/job/hostPerfData");
+
+                        // Set the callback function to handle the response data
+                        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+                        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_host_perf_data);
+                        std::string job_data = "memory_consumption " + memoryConsumption + "\n";
+                        const char* data = job_data.c_str();
+
+                        curl_slist* headers = NULL;
+                        headers = curl_slist_append(headers, "Content-Type: application/x-prometheus-remote-write-v1");
+                        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+                        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
+                        curl_easy_setopt(curl, CURLOPT_POST, 1);
+
+                        res = curl_easy_perform(curl);
+                        if (res != CURLE_OK) {
+                            std::cerr << "cURL failed: " << curl_easy_strerror(res) << std::endl;
+                        }
+
+                        curl_easy_cleanup(curl);
+                    }
+
+                    curl = curl_easy_init();
+                    if (curl) {
+                        // curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+                        curl_easy_setopt(curl, CURLOPT_URL, "http://192.168.8.150:9091/metrics/job/hostPerfData");
+
+                        // Set the callback function to handle the response data
+                        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+                        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_host_perf_data);
+                        std::string job_data = "cpu_usage " + cpuUsage + "\n";
+                        const char* data = job_data.c_str();
+
+                        curl_slist* headers = NULL;
+                        headers = curl_slist_append(headers, "Content-Type: application/x-prometheus-remote-write-v1");
+                        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+                        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
+                        curl_easy_setopt(curl, CURLOPT_POST, 1);
+
+                        res = curl_easy_perform(curl);
+                        if (res != CURLE_OK) {
+                            std::cerr << "cURL failed: " << curl_easy_strerror(res) << std::endl;
+                        }
+
+                        curl_easy_cleanup(curl);
+                    }
+
                     if (isResourceAllocationRequired == "true") {
                         std::string totalMemory = strArr[6];
                         std::string totalCores = strArr[7];
@@ -311,7 +377,63 @@ void PerformanceUtil::collectRemotePerformanceData(std::string host, int port, s
                     "insert into place_performance_data (idplace, memory_usage, cpu_usage, date_time) values ('" +
                     placeId + "','" + memoryUsage + "','" + cpuUsage + "','" + processTime + "')";
 
-                perfDb->runInsert(placePerfSql);
+                perfDb.runInsert(placePerfSql);
+
+                CURL* curl;
+                CURLcode res;
+                std::string response_place_perf_data;
+
+                curl = curl_easy_init();
+                if (curl) {
+                    // curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+                    curl_easy_setopt(curl, CURLOPT_URL, "http://192.168.8.150:9091/metrics/job/placePerfData");
+
+                    // Set the callback function to handle the response data
+                    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+                    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_place_perf_data);
+                    std::string job_data = "memory_usage " + memoryUsage + "\n";
+                    const char* data = job_data.c_str();
+
+                    curl_slist* headers = NULL;
+                    headers = curl_slist_append(headers, "Content-Type: application/x-prometheus-remote-write-v1");
+                    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+                    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
+                    curl_easy_setopt(curl, CURLOPT_POST, 1);
+
+                    res = curl_easy_perform(curl);
+                    if (res != CURLE_OK) {
+                        std::cerr << "cURL failed: " << curl_easy_strerror(res) << std::endl;
+                    }
+
+                    curl_easy_cleanup(curl);
+                }
+
+                curl = curl_easy_init();
+                if (curl) {
+                    // curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+                    curl_easy_setopt(curl, CURLOPT_URL, "http://192.168.8.150:9091/metrics/job/placePerfData");
+
+                    // Set the callback function to handle the response data
+                    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+                    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_place_perf_data);
+                    std::string job_data = "cpu_usage " + cpuUsage + "\n";
+                    const char* data = job_data.c_str();
+
+                    curl_slist* headers = NULL;
+                    headers = curl_slist_append(headers, "Content-Type: application/x-prometheus-remote-write-v1");
+                    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+                    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
+                    curl_easy_setopt(curl, CURLOPT_POST, 1);
+
+                    res = curl_easy_perform(curl);
+                    if (res != CURLE_OK) {
+                        std::cerr << "cURL failed: " << curl_easy_strerror(res) << std::endl;
+                    }
+
+                    curl_easy_cleanup(curl);
+                }
             }
         }
     }
@@ -344,6 +466,62 @@ void PerformanceUtil::collectLocalPerformanceData(std::string isVMStatManager, s
 
         perfDb->runInsert(vmPerformanceSql);
 
+        CURL* curl;
+        CURLcode res;
+        std::string response_local_perf_data;
+
+        curl = curl_easy_init();
+        if (curl) {
+            // curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+            curl_easy_setopt(curl, CURLOPT_URL, "http://192.168.8.150:9091/metrics/job/localPerfData");
+
+            // Set the callback function to handle the response data
+            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_local_perf_data);
+            std::string job_data = "total_memory_usage " + totalMemoryUsed + "\n";
+            const char* data = job_data.c_str();
+
+            curl_slist* headers = NULL;
+            headers = curl_slist_append(headers, "Content-Type: application/x-prometheus-remote-write-v1");
+            curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+            curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
+            curl_easy_setopt(curl, CURLOPT_POST, 1);
+
+            res = curl_easy_perform(curl);
+            if (res != CURLE_OK) {
+                std::cerr << "cURL failed: " << curl_easy_strerror(res) << std::endl;
+            }
+
+            curl_easy_cleanup(curl);
+        }
+
+        curl = curl_easy_init();
+        if (curl) {
+            // curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+            curl_easy_setopt(curl, CURLOPT_URL, "http://192.168.8.150:9091/metrics/job/localPerfData");
+
+            // Set the callback function to handle the response data
+            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_local_perf_data);
+            std::string job_data = "total_CPU_usage " + totalCPUUsage + "\n";
+            const char* data = job_data.c_str();
+
+            curl_slist* headers = NULL;
+            headers = curl_slist_append(headers, "Content-Type: application/x-prometheus-remote-write-v1");
+            curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+            curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
+            curl_easy_setopt(curl, CURLOPT_POST, 1);
+
+            res = curl_easy_perform(curl);
+            if (res != CURLE_OK) {
+                std::cerr << "cURL failed: " << curl_easy_strerror(res) << std::endl;
+            }
+
+            curl_easy_cleanup(curl);
+        }
+
         if (isResourceAllocationRequired == "true") {
             std::string totalMemory = strArr[2];
             std::string totalCores = strArr[3];
@@ -358,7 +536,63 @@ void PerformanceUtil::collectLocalPerformanceData(std::string isVMStatManager, s
                           placeId + "','" + to_string(memoryUsage) + "','" + to_string(cpuUsage) + "','" +
                           reportTimeString + "')";
 
-    perfDb->runInsert(placePerfSql);
+    perfDb.runInsert(placePerfSql);
+
+    CURL* curl;
+    CURLcode res;
+    std::string response_place_perf_data;
+
+    curl = curl_easy_init();
+    if (curl) {
+        // curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+        curl_easy_setopt(curl, CURLOPT_URL, "http://192.168.8.150:9091/metrics/job/placePerfData");
+
+        // Set the callback function to handle the response data
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_place_perf_data);
+        std::string job_data = "memory_usage " + to_string(memoryUsage) + "\n";
+        const char* data = job_data.c_str();
+
+        curl_slist* headers = NULL;
+        headers = curl_slist_append(headers, "Content-Type: application/x-prometheus-remote-write-v1");
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
+        curl_easy_setopt(curl, CURLOPT_POST, 1);
+
+        res = curl_easy_perform(curl);
+        if (res != CURLE_OK) {
+            std::cerr << "cURL failed: " << curl_easy_strerror(res) << std::endl;
+        }
+
+        curl_easy_cleanup(curl);
+    }
+
+    curl = curl_easy_init();
+    if (curl) {
+        // curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+        curl_easy_setopt(curl, CURLOPT_URL, "http://192.168.8.150:9091/metrics/job/placePerfData");
+
+        // Set the callback function to handle the response data
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_place_perf_data);
+        std::string job_data = "cpu_usage " + to_string(cpuUsage) + "\n";
+        const char* data = job_data.c_str();
+
+        curl_slist* headers = NULL;
+        headers = curl_slist_append(headers, "Content-Type: application/x-prometheus-remote-write-v1");
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
+        curl_easy_setopt(curl, CURLOPT_POST, 1);
+
+        res = curl_easy_perform(curl);
+        if (res != CURLE_OK) {
+            std::cerr << "cURL failed: " << curl_easy_strerror(res) << std::endl;
+        }
+
+        curl_easy_cleanup(curl);
+    }
 }
 
 int PerformanceUtil::collectRemoteSLAResourceUtilization(std::string host, int port, std::string isVMStatManager,
@@ -369,7 +603,7 @@ int PerformanceUtil::collectRemoteSLAResourceUtilization(std::string host, int p
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
-    struct hostent *server;
+    struct hostent* server;
     std::string graphSlaId;
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -389,11 +623,11 @@ int PerformanceUtil::collectRemoteSLAResourceUtilization(std::string host, int p
         return 0;
     }
 
-    bzero((char *)&serv_addr, sizeof(serv_addr));
+    bzero((char*)&serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    bcopy((char*)server->h_addr, (char*)&serv_addr.sin_addr.s_addr, server->h_length);
     serv_addr.sin_port = htons(port);
-    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
         return 0;
     }
@@ -534,7 +768,7 @@ ResourceConsumption PerformanceUtil::retrieveRemoteResourceConsumption(std::stri
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
-    struct hostent *server;
+    struct hostent* server;
     std::string graphSlaId;
     std::string isVMStatManager = "false";
     std::string isResourceAllocationRequired = "false";
@@ -552,11 +786,11 @@ ResourceConsumption PerformanceUtil::retrieveRemoteResourceConsumption(std::stri
         return placeResourceConsumption;
     }
 
-    bzero((char *)&serv_addr, sizeof(serv_addr));
+    bzero((char*)&serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    bcopy((char*)server->h_addr, (char*)&serv_addr.sin_addr.s_addr, server->h_length);
     serv_addr.sin_port = htons(port);
-    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
         return placeResourceConsumption;
     }
@@ -621,7 +855,7 @@ ResourceConsumption PerformanceUtil::retrieveRemoteResourceConsumption(std::stri
 
 std::vector<long> PerformanceUtil::getResourceAvailableTime(std::vector<std::string> graphIdList, std::string command,
                                                             std::string category, std::string masterIP,
-                                                            std::vector<JobRequest> &pendingHPJobList) {
+                                                            std::vector<JobRequest>& pendingHPJobList) {
     PerformanceUtil performanceUtil;
     performanceUtil.init();
     std::set<std::string> hostSet;
@@ -853,8 +1087,8 @@ std::vector<long> PerformanceUtil::getResourceAvailableTime(std::vector<std::str
     return jobScheduleVector;
 }
 
-void PerformanceUtil::adjustAggregateLoadMap(std::map<std::string, std::vector<double>> &aggregateLoadAvgMap,
-                                             std::map<std::string, std::vector<double>> &newJobLoadAvgMap,
+void PerformanceUtil::adjustAggregateLoadMap(std::map<std::string, std::vector<double>>& aggregateLoadAvgMap,
+                                             std::map<std::string, std::vector<double>>& newJobLoadAvgMap,
                                              long newJobAcceptanceTime) {
     std::map<std::string, std::vector<double>>::iterator newJobIterator;
 
@@ -899,6 +1133,36 @@ void PerformanceUtil::logLoadAverage() {
     double currentLoadAverage = statisticCollector.getLoadAverage();
 
     std::cout << "###PERF### CURRENT LOAD: " + std::to_string(currentLoadAverage) << std::endl;
+
+    CURL* curl;
+    CURLcode res;
+    std::string response_load_avg;
+
+    curl = curl_easy_init();
+    if (curl) {
+        // curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+        curl_easy_setopt(curl, CURLOPT_URL, "http://192.168.8.150:9091/metrics/job/loadAverage");
+
+        // Set the callback function to handle the response data
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_load_avg);
+        std::string job_data = "load_average " + std::to_string(currentLoadAverage) + "\n";
+        const char* data = job_data.c_str();
+
+        curl_slist* headers = NULL;
+        headers = curl_slist_append(headers, "Content-Type: application/x-prometheus-remote-write-v1");
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
+        curl_easy_setopt(curl, CURLOPT_POST, 1);
+
+        res = curl_easy_perform(curl);
+        if (res != CURLE_OK) {
+            std::cerr << "cURL failed: " << curl_easy_strerror(res) << std::endl;
+        }
+
+        curl_easy_cleanup(curl);
+    }
 }
 
 void PerformanceUtil::updateResourceConsumption(PerformanceSQLiteDBInterface *performanceDb, std::string graphId,
@@ -945,6 +1209,36 @@ void PerformanceUtil::updateResourceConsumption(PerformanceSQLiteDBInterface *pe
 
                 valuesString += "('" + graphSlaId + "','" + placeId + "', '','" + usageInfo.loadAverage + "','" +
                                 usageInfo.elapsedTime + "'),";
+
+                CURL* curl;
+                CURLcode res;
+                std::string response_load_avg_sla;
+
+                curl = curl_easy_init();
+                if (curl) {
+                    // curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+                    curl_easy_setopt(curl, CURLOPT_URL, "http://192.168.8.150:9091/metrics/job/loadAverageSLA");
+
+                    // Set the callback function to handle the response data
+                    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+                    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_load_avg_sla);
+                    std::string job_data = "load_average " + usageInfo.loadAverage + "\n";
+                    const char* data = job_data.c_str();
+
+                    curl_slist* headers = NULL;
+                    headers = curl_slist_append(headers, "Content-Type: application/x-prometheus-remote-write-v1");
+                    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+                    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
+                    curl_easy_setopt(curl, CURLOPT_POST, 1);
+
+                    res = curl_easy_perform(curl);
+                    if (res != CURLE_OK) {
+                        std::cerr << "cURL failed: " << curl_easy_strerror(res) << std::endl;
+                    }
+
+                    curl_easy_cleanup(curl);
+                }
             }
 
             valuesString = valuesString.substr(0, valuesString.length() - 1);
@@ -1016,6 +1310,36 @@ void PerformanceUtil::updateRemoteResourceConsumption(PerformanceSQLiteDBInterfa
                     valuesString += "('" + graphSlaId + "','" + placeId + "', '','" + loadAverage + "','" +
                                     std::to_string(elapsedTime * 1000) + "'),";
                     elapsedTime += 5;
+
+                    CURL* curl;
+                    CURLcode res;
+                    std::string response_load_avg_sla_rem;
+
+                    curl = curl_easy_init();
+                    if (curl) {
+                        // curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+                        curl_easy_setopt(curl, CURLOPT_URL, "http://192.168.8.150:9091/metrics/job/loadAverageSLARem");
+
+                        // Set the callback function to handle the response data
+                        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+                        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_load_avg_sla_rem);
+                        std::string job_data = "load_average_rem " + loadAverage + "\n";
+                        const char* data = job_data.c_str();
+
+                        curl_slist* headers = NULL;
+                        headers = curl_slist_append(headers, "Content-Type: application/x-prometheus-remote-write-v1");
+                        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+                        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
+                        curl_easy_setopt(curl, CURLOPT_POST, 1);
+
+                        res = curl_easy_perform(curl);
+                        if (res != CURLE_OK) {
+                            std::cerr << "cURL failed: " << curl_easy_strerror(res) << std::endl;
+                        }
+
+                        curl_easy_cleanup(curl);
+                    }
                 }
 
                 valuesString = valuesString.substr(0, valuesString.length() - 1);
@@ -1051,7 +1375,7 @@ void PerformanceUtil::initiateCollectingRemoteSLAResourceUtilization(std::string
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
-    struct hostent *server;
+    struct hostent* server;
     std::string graphSlaId;
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -1071,11 +1395,11 @@ void PerformanceUtil::initiateCollectingRemoteSLAResourceUtilization(std::string
         return;
     }
 
-    bzero((char *)&serv_addr, sizeof(serv_addr));
+    bzero((char*)&serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    bcopy((char*)server->h_addr, (char*)&serv_addr.sin_addr.s_addr, server->h_length);
     serv_addr.sin_port = htons(port);
-    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
         return;
     }
@@ -1125,7 +1449,7 @@ std::string PerformanceUtil::requestRemoteLoadAverages(std::string host, int por
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
-    struct hostent *server;
+    struct hostent* server;
     std::string graphSlaId;
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -1145,11 +1469,11 @@ std::string PerformanceUtil::requestRemoteLoadAverages(std::string host, int por
         return 0;
     }
 
-    bzero((char *)&serv_addr, sizeof(serv_addr));
+    bzero((char*)&serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    bcopy((char*)server->h_addr, (char*)&serv_addr.sin_addr.s_addr, server->h_length);
     serv_addr.sin_port = htons(port);
-    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
         return 0;
     }
