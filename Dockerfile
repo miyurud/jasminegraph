@@ -2,6 +2,8 @@ FROM miyurud/jasminegraph-prerequisites:20240101T095619
 
 RUN apt-get update
 RUN apt-get install libcurl4-openssl-dev -y
+RUN apt-get install -y sysstat
+RUN apt-get install -y nmon
 
 ENV HOME="/home/ubuntu"
 ENV JASMINEGRAPH_HOME="${HOME}/software/jasminegraph"

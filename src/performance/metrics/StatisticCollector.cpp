@@ -13,6 +13,8 @@ limitations under the License.
 
 #include "StatisticCollector.h"
 
+#include <curl/curl.h>
+
 static clock_t lastCPU, lastSysCPU, lastUserCPU;
 static int numProcessors;
 
@@ -32,6 +34,12 @@ int StatisticCollector::init() {
     }
     fclose(file);
     return 0;
+}
+
+static size_t write_callback(void* contents, size_t size, size_t nmemb, std::string* output) {
+    size_t totalSize = size * nmemb;
+    output->append(static_cast<char*>(contents), totalSize);
+    return totalSize;
 }
 
 int StatisticCollector::getMemoryUsageByProcess() {
@@ -136,6 +144,10 @@ long StatisticCollector::getTotalMemoryUsage() {
     unsigned long cached;
     unsigned long sReclaimable;
     unsigned long memUsage;
+
+    CURL* curl;
+    CURLcode res;
+
     while (file >> token) {
         if (token == "MemTotal:") {
             file >> memTotal;
@@ -151,6 +163,34 @@ long StatisticCollector::getTotalMemoryUsage() {
         file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     }
     memUsage = memTotal - (memFree + buffers + cached + sReclaimable);
+
+    std::string response_total_memory;
+
+    curl = curl_easy_init();
+    if (curl) {
+        curl_easy_setopt(curl, CURLOPT_URL, "http://192.168.8.150:9091/metrics/job/totalMemory");
+
+        // Set the callback function to handle the response data
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_total_memory);
+        std::string job_data = "total_memory " + to_string(memTotal) + "\n";
+        const char* data = job_data.c_str();
+
+        curl_slist* headers = NULL;
+        headers = curl_slist_append(headers, "Content-Type: application/x-prometheus-remote-write-v1");
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
+        curl_easy_setopt(curl, CURLOPT_POST, 1);
+
+        res = curl_easy_perform(curl);
+        if (res != CURLE_OK) {
+            std::cerr << "cURL failed: " << curl_easy_strerror(res) << std::endl;
+        }
+
+        curl_easy_cleanup(curl);
+    }
+
     return memUsage;
 }
 
