@@ -75,6 +75,8 @@ static void stop_stream_kafka_command(int connFd, KafkaConnector *kstream, bool 
 static void process_dataset_command(int connFd, bool *loop_exit_p);
 static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
                               PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler, bool *loop_exit_p);
+static void streaming_triangles_command(std::string masterIP, int connFd, JobScheduler* jobScheduler,
+                                        bool *loop_exit_p, int numberOfPartitions);
 static void vertex_count_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void edge_count_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void merge_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
@@ -185,6 +187,8 @@ void *frontendservicesesion(void *dummyPt) {
             process_dataset_command(connFd, &loop_exit);
         } else if (line.compare(TRIANGLES) == 0) {
             triangles_command(masterIP, connFd, sqlite, perfSqlite, jobScheduler, &loop_exit);
+        } else if (line.compare(STREAMING_TRIANGLES) == 0) {
+            streaming_triangles_command(masterIP, connFd, jobScheduler, &loop_exit, numberOfPartitions);
         } else if (line.compare(VCOUNT) == 0) {
             vertex_count_command(connFd, sqlite, &loop_exit);
         } else if (line.compare(ECOUNT) == 0) {
@@ -1457,6 +1461,98 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
             frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
         }
+    }
+}
+
+static void streaming_triangles_command(std::string masterIP, int connFd, JobScheduler* jobScheduler,
+                                        bool *loop_exit_p, int numberOfPartitions) {
+    int uniqueId = JasmineGraphFrontEnd::getUid();
+    int result_wr = write(connFd, GRAPHID_SEND.c_str(), FRONTEND_COMMAND_LENGTH);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+
+    // We get the name and the path to graph as a pair separated by |.
+    char graph_id_data[FRONTEND_DATA_LENGTH + 1];
+    bzero(graph_id_data, FRONTEND_DATA_LENGTH + 1);
+
+    read(connFd, graph_id_data, FRONTEND_DATA_LENGTH);
+
+    string graph_id(graph_id_data);
+    graph_id = Utils::trim_copy(graph_id, " \f\n\r\t\v");
+
+    frontend_logger.info("Got graph Id " + graph_id);
+
+    result_wr = write(connFd, SEND_MODE.c_str(), FRONTEND_COMMAND_LENGTH);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+
+    char mode_data[FRONTEND_DATA_LENGTH + 1];
+    bzero(mode_data, FRONTEND_DATA_LENGTH + 1);
+
+    read(connFd, mode_data, FRONTEND_DATA_LENGTH);
+
+    string mode(mode_data);
+    mode = Utils::trim_copy(mode, " \f\n\r\t\v");
+    frontend_logger.info("Got mode " + mode);
+
+    JobRequest jobDetails;
+    jobDetails.setJobId(std::to_string(uniqueId));
+    jobDetails.setJobType(STREAMING_TRIANGLES);
+
+    jobDetails.setMasterIP(masterIP);
+    jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_ID, graph_id);
+    jobDetails.addParameter(Conts::PARAM_KEYS::MODE, mode);
+    jobDetails.addParameter(Conts::PARAM_KEYS::PARTITION, std::to_string(numberOfPartitions));
+
+    jobScheduler->pushJob(jobDetails);
+    JobResponse jobResponse = jobScheduler->getResult(jobDetails);
+    std::string errorMessage = jobResponse.getParameter(Conts::PARAM_KEYS::ERROR_MESSAGE);
+
+    if (!errorMessage.empty()) {
+        *loop_exit_p = true;
+        result_wr = write(connFd, errorMessage.c_str(), errorMessage.length());
+
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            return;
+        }
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+        }
+        return;
+    }
+
+    std::string triangleCount = jobResponse.getParameter(Conts::PARAM_KEYS::STREAMING_TRIANGLE_COUNT);
+
+    result_wr = write(connFd, triangleCount.c_str(), triangleCount.length());
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
     }
 }
 

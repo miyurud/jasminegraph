@@ -20,6 +20,8 @@ std::string Conts::PROFILE_NATIVE = "native";
 std::string Conts::PROFILE_DOCKER = "docker";
 std::string Conts::PROFILE_K8S = "k8s";
 
+std::string Conts::CARRIAGE_RETURN_NEW_LINE = "\r\n";
+
 std::string Conts::GRAPH_TYPE_RDF = "RDF_GRAPH";
 std::string Conts::GRAPH_TYPE_NORMAL = "NORMAL_GRAPH";
 std::string Conts::GRAPH_TYPE_NORMAL_REFORMATTED = "REFORMATTED_GRAPH";
@@ -80,8 +82,11 @@ const std::string Conts::SLA_CATEGORY::LATENCY = "latency";
 const std::string Conts::PARAM_KEYS::ERROR_MESSAGE = "errorResponse";
 const std::string Conts::PARAM_KEYS::MASTER_IP = "masterIP";
 const std::string Conts::PARAM_KEYS::GRAPH_ID = "graphID";
+const std::string Conts::PARAM_KEYS::MODE = "mode";
+const std::string Conts::PARAM_KEYS::PARTITION = "partition";
 const std::string Conts::PARAM_KEYS::PRIORITY = "priority";
 const std::string Conts::PARAM_KEYS::TRIANGLE_COUNT = "triangleCount";
+const std::string Conts::PARAM_KEYS::STREAMING_TRIANGLE_COUNT = "streamingTriangleCount";
 const std::string Conts::PARAM_KEYS::CAN_CALIBRATE = "canCalibrate";
 const std::string Conts::PARAM_KEYS::CATEGORY = "category";
 const std::string Conts::PARAM_KEYS::QUEUE_TIME = "queueTime";

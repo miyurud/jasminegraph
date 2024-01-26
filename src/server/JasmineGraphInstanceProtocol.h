@@ -74,6 +74,7 @@ class JasmineGraphInstanceProtocol {
     static const string SEND_CENTRALSTORE_TO_AGGREGATOR;
     static const string SEND_COMPOSITE_CENTRALSTORE_TO_AGGREGATOR;
     static const string AGGREGATE_CENTRALSTORE_TRIANGLES;
+    static const string AGGREGATE_STREAMING_CENTRALSTORE_TRIANGLES;
     static const string AGGREGATE_COMPOSITE_CENTRALSTORE_TRIANGLES;
     static const string PERFORMANCE_STATISTICS;
     static const string START_STAT_COLLECTION;
@@ -110,6 +111,7 @@ class JasmineGraphInstanceProtocol {
     static const string INITIATE_FED_PREDICT;
     static const string INITIATE_STREAMING_SERVER;
     static const string INITIATE_STREAMING_CLIENT;
+    static const string INITIATE_STREAMING_TRIAN;
 };
 
 const int INSTANCE_DATA_LENGTH = 300;

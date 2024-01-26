@@ -74,6 +74,8 @@ class Conts {
     static std::string PROFILE_DOCKER;
     static std::string PROFILE_K8S;
 
+    static std::string CARRIAGE_RETURN_NEW_LINE;
+
     static std::string
         GRAPH_WITH_ATTRIBUTES;  // To identify that there are additional attribute files to be uploaded through workers
 
@@ -142,8 +144,11 @@ class Conts {
         static const std::string ERROR_MESSAGE;
         static const std::string MASTER_IP;
         static const std::string GRAPH_ID;
+        static const std::string MODE;
+        static const std::string PARTITION;
         static const std::string PRIORITY;
         static const std::string TRIANGLE_COUNT;
+        static const std::string STREAMING_TRIANGLE_COUNT;
         static const std::string CAN_CALIBRATE;
         static const std::string CATEGORY;
         static const std::string QUEUE_TIME;
