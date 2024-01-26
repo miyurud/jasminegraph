@@ -604,8 +604,8 @@ string StreamingTriangleCountExecutor::countCentralStoreTriangles(
     return response;
 }
 
-std::vector<std::vector<string>> StreamingTriangleCountExecutor::getWorkerCombination(SQLiteDBInterface *sqlite,
-                                                                                      std::string graphId, int partitionCount) {
+std::vector<std::vector<string>> StreamingTriangleCountExecutor::getWorkerCombination(
+        SQLiteDBInterface *sqlite, std::string graphId, int partitionCount) {
     std::set<string> workerIdSet;
 
     for (int i = 0; i < partitionCount; i++) {
