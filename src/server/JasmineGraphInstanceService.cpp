@@ -3422,24 +3422,34 @@ static void streaming_triangles_command(int connFd, int serverPort,
     instance_logger.info("Sent New local relation count: " + std::to_string(newLocalRelationCount));
 
     string response = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
-    if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-        instance_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
-        if (!Utils::send_str_wrapper(connFd, std::to_string(newCentralRelationCount))) {
-            *loop_exit_p = true;
-            return;
-        }
-        instance_logger.info("Sent New central relation count: " + std::to_string(newCentralRelationCount));
+    if (response.compare(JasmineGraphInstanceProtocol::OK) != 0) {
+        instance_logger.error("Received : " + response + " instead of : " +
+                                             JasmineGraphInstanceProtocol::HOST_OK);
+        *loop_exit_p = true;
+        return;
     }
+    instance_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
+
+    if (!Utils::send_str_wrapper(connFd, std::to_string(newCentralRelationCount))) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.info("Sent New central relation count: " + std::to_string(newCentralRelationCount));
 
     response = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
-    if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-        instance_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
-        if (!Utils::send_str_wrapper(connFd, std::to_string(result))) {
-            *loop_exit_p = true;
-            return;
-        }
-        instance_logger.info("Sent result: " + std::to_string(result));
+    if (response.compare(JasmineGraphInstanceProtocol::OK) != 0) {
+        instance_logger.error("Received : " + response + " instead of : " +
+                              JasmineGraphInstanceProtocol::HOST_OK);
+        *loop_exit_p = true;
+        return;
     }
+    instance_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
+
+    if (!Utils::send_str_wrapper(connFd, std::to_string(result))) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.info("Sent result: " + std::to_string(result));
 
     instance_logger.info("Streaming triangle count sent successfully");
 }
