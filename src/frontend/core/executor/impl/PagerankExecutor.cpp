@@ -150,7 +150,7 @@ void PagerankExecutor::execute() {
     }
 
     pgrnk_logger.info(
-                "###PAGERANK-EXECUTOR### Getting Pagrank : Completed");
+                "###PAGERANK-EXECUTOR### Getting Pagerank : Completed");
 
     workerResponded = true;
     JobResponse jobResponse;
