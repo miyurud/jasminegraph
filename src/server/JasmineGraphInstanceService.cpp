@@ -671,6 +671,11 @@ map<long, long> JasmineGraphInstanceService::getOutDegreeDistributionHashMap(map
 string JasmineGraphInstanceService::requestPerformanceStatistics(std::string isVMStatManager,
                                                                  std::string isResourceAllocationRequested) {
     int memoryUsage = collector.getMemoryUsageByProcess();
+    int threadCount = collector.getThreadCount();
+    int usedSwapSpace = collector.getUsedSwapSpace();
+    int totalSwapSpace = collector.getTotalSwapSpace();
+    int readBytes = collector.getRXBytes();
+    int sentBytes = collector.getTXBytes();
     double cpuUsage = collector.getCpuUsage();
     double loadAverage = collector.getLoadAverage();
     std::string vmLevelStatistics = collector.collectVMStatistics(isVMStatManager, isResourceAllocationRequested);
@@ -679,7 +684,7 @@ string JasmineGraphInstanceService::requestPerformanceStatistics(std::string isV
     std::string reportTimeString(std::ctime(&reportTime));
     reportTimeString = Utils::trim_copy(reportTimeString);
     std::string usageString =
-        reportTimeString + "," + to_string(memoryUsage) + "," + to_string(cpuUsage) + "," + to_string(loadAverage);
+        reportTimeString + "," + to_string(memoryUsage) + "," + to_string(threadCount) + "," + to_string(cpuUsage) + "," + to_string(loadAverage) + "," + to_string(usedSwapSpace) + "," + to_string(totalSwapSpace) +  + "," + to_string(readBytes) + "," + to_string(sentBytes);
     if (!vmLevelStatistics.empty()) {
         usageString = usageString + "," + vmLevelStatistics;
     }

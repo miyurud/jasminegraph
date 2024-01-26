@@ -17,6 +17,7 @@ limitations under the License.
 
 static clock_t lastCPU, lastSysCPU, lastUserCPU;
 static int numProcessors;
+std::string pushGatewayJobAddr = "http://192.168.8.150:9091/metrics/job/";
 
 int StatisticCollector::init() {
     FILE* file;
@@ -42,6 +43,38 @@ static size_t write_callback(void* contents, size_t size, size_t nmemb, std::str
     return totalSize;
 }
 
+static void send_job(std::string response_string, std::string job_group_name, std::string metric_name,
+                     std::string metric_value) {
+    CURL* curl;
+    CURLcode res;
+
+    curl = curl_easy_init();
+    if (curl) {
+        std::string hostPGAddr = pushGatewayJobAddr + job_group_name;
+        curl_easy_setopt(curl, CURLOPT_URL, hostPGAddr.c_str());
+
+        // Set the callback function to handle the response data
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
+        std::string job_data = metric_name + " " + metric_value + "\n";
+        const char* data = job_data.c_str();
+
+        curl_slist* headers = NULL;
+        headers = curl_slist_append(headers, "Content-Type: application/x-prometheus-remote-write-v1");
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
+        curl_easy_setopt(curl, CURLOPT_POST, 1);
+
+        res = curl_easy_perform(curl);
+        if (res != CURLE_OK) {
+            std::cerr << "cURL failed: " << curl_easy_strerror(res) << std::endl;
+        }
+
+        curl_easy_cleanup(curl);
+    }
+}
+
 int StatisticCollector::getMemoryUsageByProcess() {
     FILE* file = fopen("/proc/self/status", "r");
     int result = -1;
@@ -55,6 +88,111 @@ int StatisticCollector::getMemoryUsageByProcess() {
     }
     fclose(file);
     std::cout << "Memory Usage: " + std::to_string(result) << std::endl;
+    return result;
+}
+
+int StatisticCollector::getThreadCount() {
+    FILE* file = fopen("/proc/self/stat", "r");
+    int result = -1;
+    char line[128];
+
+    std::string response_thread_count;
+
+    for(int i = 1; i <= 20; i++) {
+        fscanf(file, "%s%*c", line);
+    }
+    fclose(file);
+    result = atoi(line);
+    std::cout << "Thread Count: " + std::to_string(result) << std::endl;
+
+    send_job(response_thread_count, "threadCount", "thread_count", std::to_string(result));
+
+    return result;
+}
+
+int StatisticCollector::getUsedSwapSpace() {
+    FILE* file = fopen("/proc/swaps", "r");
+    int result = -1;
+    char line[128];
+    char used[128];
+
+    std::string response_used_swap;
+
+    while(fgets(line, 128, file) != NULL) {
+        if(strncmp(line, "/swapfile", 9) == 0) {
+            for(int i = 1; i <= 4; i++) {
+                fscanf(file, "%s%*c", used);
+            }
+        }
+    }
+
+    fclose(file);
+    result = atoi(used);
+    std::cout << "Used swap space: " + std::to_string(result) << std::endl;
+
+    send_job(response_used_swap, "usedSwap", "used_swap_space", std::to_string(result));
+    
+    return result;
+}
+
+int StatisticCollector::getTotalSwapSpace() {
+    FILE* file = fopen("/proc/swaps", "r");
+    int result = -1;
+    char line[128];
+    char total[128];
+
+    std::string response_total_swap;
+
+    while(fgets(line, 128, file) != NULL) {
+        if(strncmp(line, "/swapfile", 9) == 0) {
+            for(int i = 1; i <= 3; i++) {
+                fscanf(file, "%s%*c", total);
+            }
+        }
+    }
+
+    fclose(file);
+    result = atoi(total);
+    std::cout << "Total swap space: " + std::to_string(result) << std::endl;
+
+    send_job(response_total_swap, "totalSwap", "total_swap_space", std::to_string(result));
+
+    return result;
+}
+
+int StatisticCollector::getRXBytes() {
+    FILE* file = fopen("/sys/class/net/eth0/statistics/rx_bytes", "r");
+    int result = -1;
+    char rxBytes[128];
+
+    std::string response_rx;
+
+    fscanf(file, "%s", rxBytes);
+
+    fclose(file);
+    result = atoi(rxBytes);
+    std::cout << "Total read bytes: " + std::to_string(result) << std::endl;
+
+    send_job(response_rx, "totalRead", "total_read_bytes", std::to_string(result));
+
+    return result;
+}
+
+int StatisticCollector::getTXBytes() {
+    FILE* file = fopen("/sys/class/net/eth0/statistics/tx_bytes", "r");
+    int result = -1;
+    char txBytes[128];
+
+    std::string response_tx;
+
+    fscanf(file, "%s", txBytes);
+
+    fclose(file);
+    result = atoi(txBytes);
+    std::cout << "Total sent bytes: " + std::to_string(result) << std::endl;
+
+    send_job(response_tx, "totalSent", "total_sent_bytes", std::to_string(result));
+
     return result;
 }
 
