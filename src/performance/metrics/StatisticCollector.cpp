@@ -17,7 +17,7 @@ limitations under the License.
 
 static clock_t lastCPU, lastSysCPU, lastUserCPU;
 static int numProcessors;
-std::string pushGatewayJobAddr = "http://192.168.8.150:9091/metrics/job/";
+std::string pushGatewayJobAddr = Utils::getJasmineGraphProperty("org.jasminegraph.collector.pushgateway");
 
 static long parseLine(char* line);
 static long getSwapSpace(const char* type);
@@ -323,7 +323,7 @@ long StatisticCollector::getTotalMemoryUsage() {
 
     curl = curl_easy_init();
     if (curl) {
-        curl_easy_setopt(curl, CURLOPT_URL, "http://192.168.8.150:9091/metrics/job/totalMemory");
+        curl_easy_setopt(curl, CURLOPT_URL, (pushGatewayJobAddr + "totalMemory").c_str());
 
         // Set the callback function to handle the response data
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);

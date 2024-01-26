@@ -17,7 +17,7 @@ limitations under the License.
 
 using namespace std::chrono;
 std::map<std::string, std::vector<ResourceUsageInfo>> resourceUsageMap;
-std::string pushGatewayAddr = "http://192.168.8.150:9091/metrics/job/";
+std::string pushGatewayAddr = Utils::getJasmineGraphProperty("org.jasminegraph.collector.pushgateway");
 
 static size_t write_callback(void* contents, size_t size, size_t nmemb, std::string* output);
 
@@ -349,7 +349,7 @@ void PerformanceUtil::collectRemotePerformanceData(std::string host, int port, s
                     curl = curl_easy_init();
                     if (curl) {
                         // curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-                        curl_easy_setopt(curl, CURLOPT_URL, "http://192.168.8.150:9091/metrics/job/hostPerfData");
+                        curl_easy_setopt(curl, CURLOPT_URL, (pushGatewayAddr + "hostPerfData").c_str());
 
                         // Set the callback function to handle the response data
                         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
@@ -375,7 +375,7 @@ void PerformanceUtil::collectRemotePerformanceData(std::string host, int port, s
                     curl = curl_easy_init();
                     if (curl) {
                         // curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-                        curl_easy_setopt(curl, CURLOPT_URL, "http://192.168.8.150:9091/metrics/job/hostPerfData");
+                        curl_easy_setopt(curl, CURLOPT_URL, (pushGatewayAddr + "hostPerfData").c_str());
 
                         // Set the callback function to handle the response data
                         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
@@ -422,7 +422,7 @@ void PerformanceUtil::collectRemotePerformanceData(std::string host, int port, s
                 curl = curl_easy_init();
                 if (curl) {
                     // curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-                    curl_easy_setopt(curl, CURLOPT_URL, "http://192.168.8.150:9091/metrics/job/placePerfData");
+                    curl_easy_setopt(curl, CURLOPT_URL, (pushGatewayAddr + "placePerfData").c_str());
 
                     // Set the callback function to handle the response data
                     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
@@ -448,7 +448,7 @@ void PerformanceUtil::collectRemotePerformanceData(std::string host, int port, s
                 curl = curl_easy_init();
                 if (curl) {
                     // curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-                    curl_easy_setopt(curl, CURLOPT_URL, "http://192.168.8.150:9091/metrics/job/placePerfData");
+                    curl_easy_setopt(curl, CURLOPT_URL, (pushGatewayAddr + "placePerfData").c_str());
 
                     // Set the callback function to handle the response data
                     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
@@ -1074,7 +1074,7 @@ void PerformanceUtil::logLoadAverage() {
     curl = curl_easy_init();
     if (curl) {
         // curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-        curl_easy_setopt(curl, CURLOPT_URL, "http://192.168.8.150:9091/metrics/job/loadAverage");
+        curl_easy_setopt(curl, CURLOPT_URL, (pushGatewayAddr + "loadAverage").c_str());
 
         // Set the callback function to handle the response data
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
@@ -1150,7 +1150,7 @@ void PerformanceUtil::updateResourceConsumption(PerformanceSQLiteDBInterface *pe
                 curl = curl_easy_init();
                 if (curl) {
                     // curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-                    curl_easy_setopt(curl, CURLOPT_URL, "http://192.168.8.150:9091/metrics/job/loadAverageSLA");
+                    curl_easy_setopt(curl, CURLOPT_URL, (pushGatewayAddr + "loadAverageSLA").c_str());
 
                     // Set the callback function to handle the response data
                     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
@@ -1251,7 +1251,7 @@ void PerformanceUtil::updateRemoteResourceConsumption(PerformanceSQLiteDBInterfa
                     curl = curl_easy_init();
                     if (curl) {
                         // curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-                        curl_easy_setopt(curl, CURLOPT_URL, "http://192.168.8.150:9091/metrics/job/loadAverageSLARem");
+                        curl_easy_setopt(curl, CURLOPT_URL, (pushGatewayAddr + "loadAverageSLARem").c_str());
 
                         // Set the callback function to handle the response data
                         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
