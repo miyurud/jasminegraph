@@ -68,7 +68,7 @@ void StreamingTriangleCountExecutor::execute() {
     streaming_triangleCount_logger.info("###STREAMING-TRIANGLE-COUNT-EXECUTOR### Completed local counting");
     if (partitionCount > 2) {
         long aggregatedTriangleCount = StreamingTriangleCountExecutor::aggregateCentralStoreTriangles(
-                sqlite, streamingDB, graphId, masterIP, mode);
+                sqlite, streamingDB, graphId, masterIP, mode, partitionCount);
         if (mode == "0") {
             saveCentralValues(streamingDB, graphId, std::to_string(aggregatedTriangleCount));
             result += aggregatedTriangleCount;
@@ -292,8 +292,8 @@ long StreamingTriangleCountExecutor::getTriangleCount(int graphId, std::string h
 
 long StreamingTriangleCountExecutor::aggregateCentralStoreTriangles(
         SQLiteDBInterface *sqlite, StreamingSQLiteDBInterface streamingdb, std::string graphId, std::string masterIP,
-                                                                    std::string runMode) {
-    std::vector<std::vector<string>> workerCombinations = getWorkerCombination(sqlite, graphId);
+                                                                    std::string runMode, int partitionCount) {
+    std::vector<std::vector<string>> workerCombinations = getWorkerCombination(sqlite, graphId, partitionCount);
     std::map<string, int> workerWeightMap;
     std::vector<std::vector<string>>::iterator workerCombinationsIterator;
     std::vector<std::future<string>> triangleCountResponse;
@@ -604,46 +604,9 @@ string StreamingTriangleCountExecutor::countCentralStoreTriangles(
     return response;
 }
 
-std::vector<std::vector<string>> StreamingTriangleCountExecutor::getCombinations(std::vector<string> inputVector) {
-    std::vector<std::vector<string>> combinationsList;
-    std::vector<std::vector<int>> combinations;
-
-    // Below algorithm will get all the combinations of 3 workers for given set of workers
-    std::string bitmask(3, 1);
-    bitmask.resize(inputVector.size(), 0);
-
-    do {
-        std::vector<int> combination;
-        for (int i = 0; i < inputVector.size(); ++i) {
-            if (bitmask[i]) {
-                combination.push_back(i);
-            }
-        }
-        combinations.push_back(combination);
-    } while (std::prev_permutation(bitmask.begin(), bitmask.end()));
-
-    for (std::vector<std::vector<int>>::iterator combinationsIterator = combinations.begin();
-         combinationsIterator != combinations.end(); ++combinationsIterator) {
-        std::vector<int> combination = *combinationsIterator;
-        std::vector<string> tempWorkerIdCombination;
-
-        for (std::vector<int>::iterator combinationIterator = combination.begin();
-             combinationIterator != combination.end(); ++combinationIterator) {
-            int index = *combinationIterator;
-
-            tempWorkerIdCombination.push_back(inputVector.at(index));
-        }
-
-        combinationsList.push_back(tempWorkerIdCombination);
-    }
-
-    return combinationsList;
-}
-
 std::vector<std::vector<string>> StreamingTriangleCountExecutor::getWorkerCombination(SQLiteDBInterface *sqlite,
-                                                                                      std::string graphId) {
+                                                                                      std::string graphId, int partitionCount) {
     std::set<string> workerIdSet;
-    int partitionCount = 4;
 
     for (int i = 0; i < partitionCount; i++) {
         workerIdSet.insert(std::to_string(i));

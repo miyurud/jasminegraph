@@ -1473,7 +1473,7 @@ static void streaming_triangles_command(std::string masterIP, int connFd, JobSch
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, CARRIAGE_RETURN_NEW_LINE.c_str(), CARRIAGE_RETURN_NEW_LINE.size());
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -1497,7 +1497,7 @@ static void streaming_triangles_command(std::string masterIP, int connFd, JobSch
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, CARRIAGE_RETURN_NEW_LINE.c_str(), CARRIAGE_RETURN_NEW_LINE.size());
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -1534,7 +1534,7 @@ static void streaming_triangles_command(std::string masterIP, int connFd, JobSch
             frontend_logger.error("Error writing to socket");
             return;
         }
-        result_wr = write(connFd, CARRIAGE_RETURN_NEW_LINE.c_str(), CARRIAGE_RETURN_NEW_LINE.size());
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
         }
@@ -1549,7 +1549,7 @@ static void streaming_triangles_command(std::string masterIP, int connFd, JobSch
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, CARRIAGE_RETURN_NEW_LINE.c_str(), CARRIAGE_RETURN_NEW_LINE.size());
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;

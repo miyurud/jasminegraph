@@ -39,16 +39,16 @@ class StreamingTriangleCountExecutor : public AbstractExecutor{
                                      std::string masterIP, std::string runMode, StreamingSQLiteDBInterface streamingDB);
 
         static long aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, StreamingSQLiteDBInterface streamingdb,
-                                                   std::string graphId, std::string masterIP, std::string mode);
+                                                   std::string graphId, std::string masterIP,
+                                                   std::string mode, int partitionCount);
 
         static string countCentralStoreTriangles(std::string aggregatorHostName, std::string aggregatorPort,
                                                 std::string host, std::string partitionId, std::string partitionIdList,
                                                  std::string centralCountList, std::string graphId,
                                                  std::string masterIP, int threadPriority, std::string mode);
 
-        static std::vector<std::vector<string>> getCombinations(std::vector<string> inputVector);
-
-        static std::vector<std::vector<string>> getWorkerCombination(SQLiteDBInterface *sqlite, std::string graphId);
+        static std::vector<std::vector<string>> getWorkerCombination(SQLiteDBInterface *sqlite,
+                                                                     std::string graphId, int partitionCount);
 
  private:
         SQLiteDBInterface *sqlite;

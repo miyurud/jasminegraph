@@ -20,6 +20,8 @@ std::string Conts::PROFILE_NATIVE = "native";
 std::string Conts::PROFILE_DOCKER = "docker";
 std::string Conts::PROFILE_K8S = "k8s";
 
+std::string Conts::CARRIAGE_RETURN_NEW_LINE = "\r\n";
+
 std::string Conts::GRAPH_TYPE_RDF = "RDF_GRAPH";
 std::string Conts::GRAPH_TYPE_NORMAL = "NORMAL_GRAPH";
 std::string Conts::GRAPH_TYPE_NORMAL_REFORMATTED = "REFORMATTED_GRAPH";

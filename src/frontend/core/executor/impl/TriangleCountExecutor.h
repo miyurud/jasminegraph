@@ -35,8 +35,6 @@ class TriangleCountExecutor : public AbstractExecutor {
 
     int getUid();
 
-    static std::vector<std::vector<string>> getCombinations(std::vector<string> inputVector);
-
     static long getTriangleCount(int graphId, std::string host, int port, int dataPort, int partitionId,
                                  std::string masterIP, int uniqueId, bool isCompositeAggregation, int threadPriority);
 
