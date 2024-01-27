@@ -1845,12 +1845,12 @@ map<long, unordered_set<long>> getEdgesWorldToLocal(string graphID, string parti
 
             for (auto itr = endVidSet.begin(); itr != endVidSet.end(); ++itr) {
                 if (graphVertexMap.find(*itr) != graphVertexMap.end()) {
-                    map<long, unordered_set<long>>::iterator toIDiterator = worldToLocalVertexMap.find(*itr);
+                    map<long, unordered_set<long>>::iterator toIDIterator = worldToLocalVertexMap.find(*itr);
 
-                    if (toIDiterator != worldToLocalVertexMap.end()) {
-                        unordered_set<long> fromIDs = toIDiterator->second;
+                    if (toIDIterator != worldToLocalVertexMap.end()) {
+                        unordered_set<long> fromIDs = toIDIterator->second;
                         fromIDs.insert(startVid);
-                        toIDiterator->second = fromIDs;
+                        toIDIterator->second = fromIDs;
                     } else {
                         unordered_set<long> fromIDs;
                         fromIDs.insert(startVid);
