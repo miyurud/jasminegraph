@@ -427,7 +427,7 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                         "docker run -v " + instanceDataFolder + ":" + instanceDataFolder + " -v " +
                         aggregateDataFolder + ":" + aggregateDataFolder + " -v " + nmonFileLocation + ":" +
                         nmonFileLocation + " -v " + instanceDataFolder + "/" + to_string(i) + "/logs" + ":" +
-                        "/home/ubuntu/software/jasminegraph/logs" + " -p " + std::to_string(workerPortsVector.at(i)) +
+                        "/var/tmp/jasminegraph/logs" + " -p " + std::to_string(workerPortsVector.at(i)) +
                         ":" + std::to_string(workerPortsVector.at(i)) + " -p " +
                         std::to_string(workerDataPortsVector.at(i)) + ":" +
                         std::to_string(workerDataPortsVector.at(i)) + " -e WORKER_ID=" + to_string(i) +
@@ -450,7 +450,7 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                         "docker -H ssh://" + host + " run -v " + instanceDataFolder + ":" + instanceDataFolder +
                         " -v " + aggregateDataFolder + ":" + aggregateDataFolder + " -v " + nmonFileLocation + ":" +
                         nmonFileLocation + " -v " + instanceDataFolder + "/" + to_string(i) + "/logs" + ":" +
-                        "/home/ubuntu/software/jasminegraph/logs" + " -p " + std::to_string(workerPortsVector.at(i)) +
+                        "/var/tmp/jasminegraph/logs" + " -p " + std::to_string(workerPortsVector.at(i)) +
                         ":" + std::to_string(workerPortsVector.at(i)) + " -p " +
                         std::to_string(workerDataPortsVector.at(i)) + ":" +
                         std::to_string(workerDataPortsVector.at(i)) + " -e WORKER_ID=" + to_string(i) +

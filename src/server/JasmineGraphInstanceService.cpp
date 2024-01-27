@@ -952,9 +952,8 @@ void JasmineGraphInstanceService::trainPartition(string trainData) {
     std::transform(trainargs.begin(), trainargs.end(), std::back_inserter(vc), converter);
 
     std::string path = "cd " + Utils::getJasmineGraphProperty("org.jasminegraph.graphsage") + " && ";
-    std::string command =
-        path + "python3 -m unsupervised_train >  /home/ubuntu/software/jasminegraph/logs/unsupervised_train" +
-        partitionID + "-" + Utils::getCurrentTimestamp() + ".txt";
+    std::string command = path + "python3 -m unsupervised_train >  /var/tmp/jasminegraph/logs/unsupervised_train" +
+                          partitionID + "-" + Utils::getCurrentTimestamp() + ".txt";
 
     int argc = trainargs.size();
     for (int i = 0; i < argc - 2; ++i) {
@@ -1946,7 +1945,7 @@ void JasmineGraphInstanceService::initOrgServer(string trainData) {
     std::string command = path + "python3 org_server.py " + graphID + " " +
                           Utils::getJasmineGraphProperty("org.jasminegraph.fl_clients") + " " +
                           Utils::getJasmineGraphProperty("org.jasminegraph.fl.epochs") +
-                          " localhost 5050 > /home/ubuntu/software/jasminegraph/logs/org_server_logs-" +
+                          " localhost 5050 > /var/tmp/jasminegraph/logs/org_server_logs-" +
                           Utils::getCurrentTimestamp() + ".txt";
     instance_logger.info("Executing : " + command);
     int exit_status = system(command.c_str());
@@ -1976,7 +1975,7 @@ void JasmineGraphInstanceService::initAgg(string trainData) {
                           Utils::getJasmineGraphProperty("org.jasminegraph.fl.dataDir") + " " + "4" + " 0 " +
                           Utils::getJasmineGraphProperty("org.jasminegraph.fl.num.orgs") + " " +
                           Utils::getJasmineGraphProperty("org.jasminegraph.fl.epochs") + " localhost 5000 > " +
-                          "/home/ubuntu/software/jasminegraph/logs/agg_logs-" + Utils::getCurrentTimestamp() + ".txt";
+                          "/var/tmp/jasminegraph/logs/agg_logs-" + Utils::getCurrentTimestamp() + ".txt";
     instance_logger.info("Executing : " + command);
     int exit_status = system(command.c_str());
     if (exit_status == -1) {
