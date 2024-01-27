@@ -23,8 +23,7 @@ Logger streamdb_logger;
 
 int StreamingSQLiteDBInterface::init() {
     if (!Utils::fileExists(this->databaseLocation.c_str())) {
-        if (Utils::createDatabaseFromDDL(this->databaseLocation.c_str(),
-                                         ROOT_DIR "src/streamingdb/ddl.sql") != 0) {
+        if (Utils::createDatabaseFromDDL(this->databaseLocation.c_str(), ROOT_DIR "src/streamingdb/ddl.sql") != 0) {
             streamdb_logger.error("Cannot create database: " + databaseLocation);
             return -1;
         }
@@ -77,8 +76,8 @@ vector<vector<pair<string, string>>> StreamingSQLiteDBInterface::runSelect(std::
         sqlite3_free(zErrMsg);
     } else {
         streamdb_logger.info("Operation done successfully");
-        return dbResults;
     }
+    return dbResults;
 }
 
 // This function inserts a new row to the DB and returns the last inserted row id
