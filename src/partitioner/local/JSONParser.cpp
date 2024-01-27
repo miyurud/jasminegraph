@@ -73,7 +73,7 @@ static void attributeFileCreate(std::map<long, int> &vertexToIDMap, std::map<std
         if (!reader.parse(line, root)) {
             string message = reader.getFormattedErrorMessages();
             jsonparser_logger.log("Error : " + message, "error");
-            exit(1);
+            break;
         }
         string id = root["id"].asString();
         auto idFound = vertexToIDMap.find(stol(id));
@@ -97,6 +97,7 @@ static void attributeFileCreate(std::map<long, int> &vertexToIDMap, std::map<std
             attrFile << endl;
         }
     }
+    infile.close();
     attrFile.close();
 }
 
@@ -129,7 +130,9 @@ static std::map<long, int> createEdgeList(std::string inputFilePath, string outp
     while (std::getline(infile, line)) {
         if (!reader.parse(line, root)) {
             jsonparser_logger.log("File format mismatch", "error");
-            exit(1);
+            file.close();
+            infile.close();
+            return vertexToIDMap;
         }
         string id = root["id"].asString();
         const Json::Value references = root["references"];
@@ -159,6 +162,7 @@ static std::map<long, int> createEdgeList(std::string inputFilePath, string outp
         }
     }
     file.close();
+    infile.close();
     return vertexToIDMap;
 }
 
@@ -173,7 +177,7 @@ static std::map<std::string, int> countFileds(std::string inputFilePath) {
     while (std::getline(infile, line)) {
         if (!reader.parse(line, root)) {
             jsonparser_logger.log("File format mismatch", "error");
-            exit(1);
+            return fieldCounts;
         }
         const Json::Value fos = root["fos"];
 
@@ -190,6 +194,7 @@ static std::map<std::string, int> countFileds(std::string inputFilePath) {
             }
         }
     }
+    infile.close();
 
     jsonparser_logger.log("Done counting fields", "info");
     std::map<std::string, int> fieldsMap;
