@@ -129,7 +129,7 @@ int JasminGraphLinkPredictor::sendQueryToWorker(std::string host, int port, int 
     read(sockfd, data, 300);
     string response = (data);
 
-    response = Utils::trim_copy(response, " \f\n\r\t\v");
+    response = Utils::trim_copy(response);
 
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
         predictor_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
@@ -143,7 +143,7 @@ int JasminGraphLinkPredictor::sendQueryToWorker(std::string host, int port, int 
         bzero(data, 301);
         read(sockfd, data, 300);
         response = (data);
-        response = Utils::trim_copy(response, " \f\n\r\t\v");
+        response = Utils::trim_copy(response);
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
             predictor_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
@@ -164,7 +164,7 @@ int JasminGraphLinkPredictor::sendQueryToWorker(std::string host, int port, int 
             bzero(data, 301);
             read(sockfd, data, 300);
             response = (data);
-            response = Utils::trim_copy(response, " \f\n\r\t\v");
+            response = Utils::trim_copy(response);
             if (response.compare(JasmineGraphInstanceProtocol::SEND_HOSTS) == 0) {
                 predictor_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_HOSTS, "info");
                 /*Create a string with host details*/

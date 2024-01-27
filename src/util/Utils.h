@@ -14,13 +14,13 @@ limitations under the License.
 #define JASMINEGRAPH_UTILS_H
 
 #include <arpa/inet.h>
-#include <nlohmann/json.hpp>
 #include <yaml-cpp/yaml.h>
 
 #include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <nlohmann/json.hpp>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -56,13 +56,13 @@ class Utils {
 
     static std::string getFileContentAsString(std::string);
 
-    static std::string replaceAll(std::string content, const std::string& oldValue, const std::string& newValue);
+    static std::string replaceAll(std::string content, const std::string &oldValue, const std::string &newValue);
 
-    static void writeFileContent(const std::string& filePath, const std::string& content);
+    static void writeFileContent(const std::string &filePath, const std::string &content);
 
     static std::vector<std::string> split(const std::string &, char delimiter);
 
-    static std::string trim_copy(const std::string &, const std::string &);
+    static std::string trim_copy(const std::string &, const std::string &delimiters = " \f\n\r\t\v");
 
     static bool parseBoolean(const std::string str);
 
@@ -155,10 +155,16 @@ class Utils {
      */
     static bool send_str_wrapper(int connFd, std::string str);
 
-    static std::string getCurrentTimestamp();
-    static std::string getJsonStringFromYamlFile(const std::string& yamlFile);
+    static bool sendExpectResponse(int sockfd, char *data, size_t data_length, std::string sendMsg,
+                                   std::string expectMsg);
 
-    static int createDatabaseFromDDL(const char* dbLocation, const char* ddlFileLocation);
+    static bool performHandshake(int sockfd, char *data, size_t data_length, std::string masterIP);
+
+    static std::string getCurrentTimestamp();
+
+    static std::string getJsonStringFromYamlFile(const std::string &yamlFile);
+
+    static int createDatabaseFromDDL(const char *dbLocation, const char *ddlFileLocation);
 };
 
 #endif  // JASMINEGRAPH_UTILS_H

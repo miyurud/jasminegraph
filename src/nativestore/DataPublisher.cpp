@@ -13,6 +13,8 @@
 
 #include "./DataPublisher.h"
 
+#include <pthread.h>
+
 #include "../server/JasmineGraphInstanceProtocol.h"
 #include "../util/Utils.h"
 #include "../util/logger/Logger.h"
@@ -27,7 +29,7 @@ DataPublisher::DataPublisher(int worker_port, std::string worker_address) {
     server = gethostbyname(worker_address.c_str());
     if (server == NULL) {
         data_publisher_logger.log("ERROR, no host named " + worker_address, "error");
-        exit(0);
+        pthread_exit(NULL);
     }
 
     bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);

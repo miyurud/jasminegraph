@@ -30,25 +30,7 @@ using namespace std;
 
 class JSONParser {
  public:
-    JSONParser();
-
-    void jsonParse(string inputFilePath);
-
-    void readFile();
-
-    void attributeFileCreate();
-
-    void createEdgeList();
-
-    void countFileds();
-
- private:
-    std::map<std::string, int> fieldsMap;
-    std::map<long, int> vertexToIDMap;
-    std::map<std::string, int> fieldCounts;
-
-    string inputFilePath;
-    string outputFilePath;
+    static void jsonParse(string &inputFilePath);
 };
 
 #endif  // JASMINEGRAPH_JSONPARSER_H
