@@ -75,8 +75,8 @@ static void stop_stream_kafka_command(int connFd, KafkaConnector *kstream, bool 
 static void process_dataset_command(int connFd, bool *loop_exit_p);
 static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
                               PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler, bool *loop_exit_p);
-static void streaming_triangles_command(std::string masterIP, int connFd, JobScheduler* jobScheduler,
-                                        bool *loop_exit_p, int numberOfPartitions);
+static void streaming_triangles_command(std::string masterIP, int connFd, JobScheduler *jobScheduler, bool *loop_exit_p,
+                                        int numberOfPartitions);
 static void vertex_count_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void edge_count_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void merge_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
@@ -1285,15 +1285,13 @@ static void process_dataset_command(int connFd, bool *loop_exit_p) {
     }
     string path = gData;
 
-    if (Utils::fileExists(path)) {
-        frontend_logger.info("Path exists");
-
-        JSONParser *jsonParser = new JSONParser();
-        jsonParser->jsonParse(path);
-        frontend_logger.info("Reformatted files created on /home/.jasminegraph/tmp/JSONParser/output");
-    } else {
+    if (!Utils::fileExists(path)) {
         frontend_logger.error("Graph data file does not exist on the specified path");
     }
+    frontend_logger.info("Path exists");
+
+    JSONParser::jsonParse(path);
+    frontend_logger.info("Reformatted files created on /home/.jasminegraph/tmp/JSONParser/output");
 }
 
 static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
@@ -1464,8 +1462,8 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
     }
 }
 
-static void streaming_triangles_command(std::string masterIP, int connFd, JobScheduler* jobScheduler,
-                                        bool *loop_exit_p, int numberOfPartitions) {
+static void streaming_triangles_command(std::string masterIP, int connFd, JobScheduler *jobScheduler, bool *loop_exit_p,
+                                        int numberOfPartitions) {
     int uniqueId = JasmineGraphFrontEnd::getUid();
     int result_wr = write(connFd, GRAPHID_SEND.c_str(), FRONTEND_COMMAND_LENGTH);
     if (result_wr < 0) {
