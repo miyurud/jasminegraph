@@ -31,6 +31,11 @@ TEST_F(K8sInterfaceTest, TestConstructor) {
     ASSERT_NE(interface->apiClient, nullptr);
 }
 
+TEST_F(K8sInterfaceTest, TestGetNodes) {
+    v1_node_list_t *nodes = interface->getNodes();
+    ASSERT_NE(nodes->items->count, 0);
+}
+
 TEST_F(K8sInterfaceTest, TestGetDeploymentList) {
     v1_deployment_list_t *deployment_list = interface->getDeploymentList(strdup("app=gtest-nginx"));
     ASSERT_EQ(deployment_list->items->count, 0);
@@ -89,9 +94,4 @@ TEST_F(K8sInterfaceTest, TestDeleteJasmineGraphMasterService) {
     ASSERT_STREQ(service->metadata->name, "jasminegraph-master-service");
     ASSERT_EQ(interface->apiClient->response_code, HTTP_OK);
     ASSERT_EQ(interface->getMasterIp(), "");
-}
-
-TEST_F(K8sInterfaceTest, TestGetNodes) {
-    v1_node_list_t *nodes = interface->getNodes();
-    ASSERT_NE(nodes->items->count, 0);
 }

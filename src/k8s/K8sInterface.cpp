@@ -158,7 +158,7 @@ std::string K8sInterface::getMasterIp() {
 }
 v1_node_list_t *K8sInterface::getNodes() {
     v1_node_list_t *node_list = NULL;
-    node_list = CoreV1API_listNode(apiClient, /*namespace */
+    node_list = CoreV1API_listNode(apiClient,
                                    NULL,                  /* pretty */
                                    NULL,                  /* allowWatchBookmarks */
                                    NULL,                  /* continue */
