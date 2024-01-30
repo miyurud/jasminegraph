@@ -19,6 +19,7 @@ spec:
         workerId: "<worker-id>"
         service: "jasminegraph"
     spec:
+      nodeName: "<node-name>"
       containers:
         - name: "jasminegraph-worker"
           image: "<image>"

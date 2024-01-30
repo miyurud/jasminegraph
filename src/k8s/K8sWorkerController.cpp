@@ -15,6 +15,7 @@ limitations under the License.
 
 #include <stdexcept>
 #include <utility>
+#include <stdlib.h>
 
 #include "../util/Conts.h"
 #include "../util/logger/Logger.h"
@@ -27,6 +28,25 @@ K8sWorkerController::K8sWorkerController(std::string masterIp, int numberOfWorke
     this->interface = new K8sInterface();
     this->metadb = *metadb;
 
+    // Delete all hosts
+    metadb->runUpdate("DELETE FROM host");
+
+    v1_node_list_t *nodeList = interface->getNodes();
+    listEntry_t *listEntry = NULL;
+    v1_node_t *node = NULL;
+
+    std::string query;
+    list_ForEach(listEntry, nodeList->items) {
+        node = static_cast<v1_node_t *>(listEntry->data);
+        query = "INSERT INTO host (name, ip) VALUES ('" + std::string(node->metadata->name) + "', '')";
+        metadb->runInsert(query);
+    }
+
+    query = "SELECT idhost, name FROM host";
+    for (auto entry: metadb->runSelect(query)) {
+        nodes[entry.at(1).second] = atoi(entry.at(0).second.c_str());
+    }
+
     // Delete all the workers from the database
     metadb->runUpdate("DELETE FROM worker");
     int workersAttached = this->attachExistingWorkers();
@@ -38,7 +58,15 @@ K8sWorkerController::K8sWorkerController(std::string masterIp, int numberOfWorke
 K8sWorkerController::~K8sWorkerController() { delete this->interface; }
 
 void K8sWorkerController::spawnWorker(int workerId) {
-    v1_deployment_t *deployment = this->interface->createJasmineGraphWorkerDeployment(workerId, this->masterIp);
+    // TODO (M-I-M-Ishad): Develop criteria to assign the worker to node based on performance metrics
+    // getting a node randomly
+    auto it = nodes.begin();
+    std::advance(it, rand() % nodes.size());
+    std::string hostName = it->first;
+    int hostId = it->second;
+
+    v1_deployment_t *deployment =
+        this->interface->createJasmineGraphWorkerDeployment(workerId, this->masterIp, hostName);
     if (deployment != nullptr && deployment->metadata != nullptr && deployment->metadata->name != nullptr) {
         controller_logger.info("Worker " + std::to_string(workerId) + " deployment created successfully");
 
@@ -55,7 +83,7 @@ void K8sWorkerController::spawnWorker(int workerId) {
 
     std::string insertQuery =
         "INSERT INTO worker (host_idhost, server_port, server_data_port, name, ip, idworker) "
-        "VALUES (0, " +
+        "VALUES (" + std::to_string(hostId) + ", " +
         std::to_string(Conts::JASMINEGRAPH_INSTANCE_PORT) + ", " +
         std::to_string(Conts::JASMINEGRAPH_INSTANCE_DATA_PORT) + ", " +
         "'" + std::string(service->metadata->name) + "', " + "'" + std::string(service->spec->cluster_ip) +
@@ -95,6 +123,8 @@ int K8sWorkerController::attachExistingWorkers() {
         list_ForEach(listEntry, deployment_list->items) {
             deployment = static_cast<v1_deployment_t *>(listEntry->data);
             list_t *labels = deployment->metadata->labels;
+            std::string nodeName = deployment->spec->_template->spec->node_name;
+            int hostId = nodes[nodeName];
             listEntry_t *label = NULL;
 
             list_ForEach(label, labels) {
@@ -113,7 +143,7 @@ int K8sWorkerController::attachExistingWorkers() {
 
                     std::string insertQuery =
                         "INSERT INTO worker (host_idhost, server_port, server_data_port, name, ip, idworker) "
-                        "VALUES ( 0, " +
+                        "VALUES ( " + std::to_string(hostId) + ", " +
                         std::to_string(Conts::JASMINEGRAPH_FRONTEND_PORT) + ", " +
                         std::to_string(Conts::JASMINEGRAPH_BACKEND_PORT) + ", " + "'" +
                         std::string(service->metadata->name) + "', " + "'" + std::string(service->spec->cluster_ip) +
