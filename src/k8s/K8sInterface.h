@@ -36,7 +36,9 @@ class K8sInterface {
 
     v1_service_list_t *getServiceList(char *labelSelectors);
 
-    v1_deployment_t *createJasmineGraphWorkerDeployment(int workerId, const std::string &masterIp, const std::string &nodeName) const;
+    v1_deployment_t *createJasmineGraphWorkerDeployment(int workerId,
+                                                        const std::string &masterIp,
+                                                        const std::string &nodeName) const;
 
     v1_status_t *deleteJasmineGraphWorkerDeployment(int workerId) const;
 

@@ -86,7 +86,9 @@ v1_service_list_t *K8sInterface::getServiceList(char *labelSelectors) {
     return service_list;
 }
 
-v1_deployment_t *K8sInterface::createJasmineGraphWorkerDeployment(int workerId, const std::string &masterIp, const std::string &nodeName) const {
+v1_deployment_t *K8sInterface::createJasmineGraphWorkerDeployment(int workerId,
+                                                                  const std::string &masterIp,
+                                                                  const std::string &nodeName) const {
     std::string definiton = Utils::getJsonStringFromYamlFile(ROOT_DIR "/k8s/worker-deployment.yaml");
     definiton = Utils::replaceAll(definiton, "<worker-id>", std::to_string(workerId));
     definiton = Utils::replaceAll(definiton, "<master-ip>", masterIp);
@@ -157,16 +159,16 @@ std::string K8sInterface::getMasterIp() {
 v1_node_list_t *K8sInterface::getNodes() {
     v1_node_list_t *node_list = NULL;
     node_list = CoreV1API_listNode(apiClient, /*namespace */
-                                                   NULL,                  /* pretty */
-                                                   NULL,                  /* allowWatchBookmarks */
-                                                   NULL,                  /* continue */
-                                                   NULL,                  /* fieldSelector */
-                                                   NULL,        /* labelSelector */
-                                                   NULL,                  /* limit */
-                                                   NULL,                  /* resourceVersion */
-                                                   NULL,                  /* resourceVersionMatch */
-                                                   NULL,                  /* sendInitialEvents */
-                                                   NULL,                  /* timeoutSeconds */
-                                                   NULL);                 /* watch */
+                                   NULL,                  /* pretty */
+                                   NULL,                  /* allowWatchBookmarks */
+                                   NULL,                  /* continue */
+                                   NULL,                  /* fieldSelector */
+                                   NULL,        /* labelSelector */
+                                   NULL,                  /* limit */
+                                   NULL,                  /* resourceVersion */
+                                   NULL,                  /* resourceVersionMatch */
+                                   NULL,                  /* sendInitialEvents */
+                                   NULL,                  /* timeoutSeconds */
+                                   NULL);                 /* watch */
     return node_list;
 }
