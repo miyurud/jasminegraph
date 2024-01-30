@@ -87,7 +87,7 @@ while true; do
     sleep .5
 done
 
-while ! nc -zvn "$masterIP" 7777 &>/dev/null; do
+while ! nc -zvn -w 1 "$masterIP" 7777 &>/dev/null; do
     if [ "$(date +%s)" -gt "$end_timestamp" ]; then
         set +ex
         echo "JasmineGraph is not listening"
