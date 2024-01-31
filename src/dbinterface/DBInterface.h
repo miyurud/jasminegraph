@@ -41,4 +41,4 @@ class DBInterface {
     int RunSqlNoCallback(const char *zSql);
 };
 
-#endif //JASMINEGRAPH_SRC_UTIL_DBINTERFACE_H_
+#endif  // JASMINEGRAPH_SRC_UTIL_DBINTERFACE_H_
