@@ -14,8 +14,6 @@ limitations under the License.
 #ifndef JASMINEGRAPH_K8SWORKERCONTROLLER_H
 #define JASMINEGRAPH_K8SWORKERCONTROLLER_H
 
-#include <vector>
-
 extern "C" {
 #include <kubernetes/api/AppsV1API.h>
 }

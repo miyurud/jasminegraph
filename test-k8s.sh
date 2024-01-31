@@ -82,8 +82,10 @@ while true; do
     fi
     masterIP="$(kubectl get services |& grep jasminegraph-master-service | tr '\t' ' ' | tr -s ' ' | cut -d ' ' -f 3)"
     if [ ! -z "$masterIP" ]; then
+        echo "MasterIP : $masterIP"
         break
     fi
+    echo "Waiting for masterIP"
     sleep .5
 done
 
@@ -99,12 +101,13 @@ while ! nc -zvn -w 1 "$masterIP" 7777 &>/dev/null; do
         clear_resources
         exit 1
     fi
+    echo "Waiting for jasminegraph master to be started"
     sleep .5
 done
 
 echo
-kubectl get pods
-kubectl get services
+kubectl get pods -o wide
+kubectl get services -o wide
 echo
 
 timeout "$TIMEOUT_SECONDS" python3 -u "${TEST_ROOT}/test-k8s.py" "$masterIP" |& tee "$TEST_LOG"
@@ -112,10 +115,16 @@ exit_code="${PIPESTATUS[0]}"
 set +ex
 if [ "$exit_code" = '124' ]; then
     echo
-    kubectl get pods
-    echo
+    kubectl get pods -o wide
 
+    echo -e '\n\e[33;1mMASTER LOG:\e[0m' |& tee -a "$RUN_LOG"
     kubectl logs --previous deployment/jasminegraph-master-deployment |& tee -a "$RUN_LOG"
+
+    echo -e '\n\e[33;1mWORKER-0 LOG:\e[0m' |& tee -a "$RUN_LOG"
+    kubectl logs deployment/jasminegraph-worker0-deployment |& tee -a "$RUN_LOG"
+
+    echo -e '\n\e[33;1mWORKER-1 LOG:\e[0m' |& tee -a "$RUN_LOG"
+    kubectl logs deployment/jasminegraph-worker1-deployment |& tee -a "$RUN_LOG"
 
     echo
     echo -e '\e[31;1mERROR: Test Timeout\e[0m'
