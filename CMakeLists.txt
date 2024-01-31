@@ -70,6 +70,7 @@ set(HEADERS src/backend/JasmineGraphBackend.h
         src/k8s/K8sWorkerController.h
         src/streamingdb/StreamingSQLiteDBInterface.h
         src/frontend/core/executor/impl/PageRankExecutor.h
+        src/dbinterface/DBInterface.h
 )
 
 set(SOURCES src/backend/JasmineGraphBackend.cpp
@@ -130,6 +131,7 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/k8s/K8sWorkerController.cpp
         src/streamingdb/StreamingSQLiteDBInterface.cpp
         src/frontend/core/executor/impl/PageRankExecutor.cpp
+        src/dbinterface/DBInterface.cpp
 )
 
 add_library(JasmineGraphLib ${HEADERS} ${SOURCES})
