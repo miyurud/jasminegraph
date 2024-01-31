@@ -144,8 +144,8 @@ int K8sWorkerController::attachExistingWorkers() {
                     std::string insertQuery =
                         "INSERT INTO worker (host_idhost, server_port, server_data_port, name, ip, idworker) "
                         "VALUES ( " + std::to_string(hostId) + ", " +
-                            std::to_string(Conts::JASMINEGRAPH_FRONTEND_PORT) + ", " +
-                            std::to_string(Conts::JASMINEGRAPH_BACKEND_PORT) + ", " + "'" +
+                            std::to_string(Conts::JASMINEGRAPH_INSTANCE_PORT) + ", " +
+                            std::to_string(Conts::JASMINEGRAPH_INSTANCE_DATA_PORT) + ", " + "'" +
                             std::string(service->metadata->name) + "', " + "'" + std::string(service->spec->cluster_ip)
                             +
                                 "', " + std::to_string(workerId) + ")";
