@@ -184,7 +184,8 @@ void TriangleCountExecutor::execute() {
         "SELECT attempt from graph_sla INNER JOIN sla_category where graph_sla.id_sla_category=sla_category.id and "
         "graph_sla.graph_id='" +
         graphId + "' and graph_sla.partition_count='" + std::to_string(partitionCount) +
-        "' and sla_category.category='" + Conts::SLA_CATEGORY::LATENCY + "';";
+        "' and sla_category.category='" + Conts::SLA_CATEGORY::LATENCY +
+    "' and sla_category.command='" + TRIANGLES + "';";
 
     std::vector<vector<pair<string, string>>> queryResults = perfDB->runSelect(query);
 

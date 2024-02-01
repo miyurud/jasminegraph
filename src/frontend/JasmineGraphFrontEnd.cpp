@@ -2051,7 +2051,7 @@ static void page_rank_command(std::string masterIP, int connFd, SQLiteDBInterfac
     // All high priority threads will be set the same high priority level
     if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
         threadPriority = Conts::HIGH_PRIORITY_DEFAULT_VALUE;
-        graphSLA = JasmineGraphFrontEnd::getSLAForGraphId(sqlite, perfSqlite, graphID, TRIANGLES,
+        graphSLA = JasmineGraphFrontEnd::getSLAForGraphId(sqlite, perfSqlite, graphID, PAGE_RANK,
                                                           Conts::SLA_CATEGORY::LATENCY);
         jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_SLA, std::to_string(graphSLA));
     }
