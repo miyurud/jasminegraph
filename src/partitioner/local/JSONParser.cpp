@@ -188,7 +188,7 @@ static std::map<std::string, int> countFileds(std::string inputFilePath) {
                 continue;
             }
             if (fieldCounts.find(field) == fieldCounts.end()) {
-                fieldCounts.insert(make_pair(field, 1));
+                fieldCounts[field] = 1;
             } else {
                 fieldCounts[field]++;
             }
@@ -202,7 +202,7 @@ static std::map<std::string, int> countFileds(std::string inputFilePath) {
         std::string field = it->first;
         if (it->second > 821) {
             if (fieldsMap.find(field) == fieldsMap.end()) {
-                fieldsMap.insert(make_pair(field, field_counter));
+                fieldsMap[field] = field_counter;
                 field_counter++;
             }
         }

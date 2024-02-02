@@ -472,7 +472,7 @@ JasmineGraphIncrementalLocalStore *JasmineGraphInstanceService::loadStreamingSto
     std::string folderLocation = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
     JasmineGraphIncrementalLocalStore *jasmineGraphStreamingLocalStore =
         new JasmineGraphIncrementalLocalStore(stoi(graphId), stoi(partitionId), openMode);
-    graphDBMapStreamingStores.insert(std::make_pair(graphIdentifier, jasmineGraphStreamingLocalStore));
+    graphDBMapStreamingStores[graphIdentifier] = jasmineGraphStreamingLocalStore;
     instance_logger.info("###INSTANCE### Loading Local Store : Completed");
     return jasmineGraphStreamingLocalStore;
 }
@@ -485,7 +485,7 @@ void JasmineGraphInstanceService::loadLocalStore(
     JasmineGraphHashMapLocalStore *jasmineGraphHashMapLocalStore =
         new JasmineGraphHashMapLocalStore(stoi(graphId), stoi(partitionId), folderLocation);
     jasmineGraphHashMapLocalStore->loadGraph();
-    graphDBMapLocalStores.insert(std::make_pair(graphIdentifier, *jasmineGraphHashMapLocalStore));
+    graphDBMapLocalStores[graphIdentifier] = *jasmineGraphHashMapLocalStore;
     instance_logger.info("###INSTANCE### Loading Local Store : Completed");
 }
 void JasmineGraphInstanceService::loadInstanceCentralStore(
@@ -496,7 +496,7 @@ void JasmineGraphInstanceService::loadInstanceCentralStore(
     JasmineGraphHashMapCentralStore *jasmineGraphHashMapCentralStore =
         new JasmineGraphHashMapCentralStore(stoi(graphId), stoi(partitionId));
     jasmineGraphHashMapCentralStore->loadGraph();
-    graphDBMapCentralStores.insert(std::make_pair(graphIdentifier, *jasmineGraphHashMapCentralStore));
+    graphDBMapCentralStores[graphIdentifier] = *jasmineGraphHashMapCentralStore;
     instance_logger.info("###INSTANCE### Loading central Store : Completed");
 }
 
@@ -507,7 +507,7 @@ void JasmineGraphInstanceService::loadInstanceDuplicateCentralStore(
     JasmineGraphHashMapDuplicateCentralStore *jasmineGraphHashMapCentralStore =
         new JasmineGraphHashMapDuplicateCentralStore(stoi(graphId), stoi(partitionId));
     jasmineGraphHashMapCentralStore->loadGraph();
-    graphDBMapDuplicateCentralStores.insert(std::make_pair(graphIdentifier, *jasmineGraphHashMapCentralStore));
+    graphDBMapDuplicateCentralStores[graphIdentifier] = *jasmineGraphHashMapCentralStore;
 }
 
 JasmineGraphHashMapCentralStore JasmineGraphInstanceService::loadCentralStore(std::string centralStoreFileName) {
@@ -663,7 +663,7 @@ map<long, long> JasmineGraphInstanceService::getOutDegreeDistributionHashMap(map
 
     for (map<long, unordered_set<long>>::iterator it = graphMap.begin(); it != graphMap.end(); ++it) {
         long distribution = (it->second).size();
-        distributionHashMap.insert(std::make_pair(it->first, distribution));
+        distributionHashMap[it->first] = distribution;
     }
     return distributionHashMap;
 }
@@ -1381,7 +1381,7 @@ map<long, long> calculateInDegreeDist(string graphID, string partitionID, int se
                 long degreeDistributionValue = degreeDistributionLocalItr->second;
                 degreeDistribution[degreeDistributionLocalItr->first] = degreeDistributionValue + its->second;
             } else {
-                degreeDistribution.insert(std::make_pair(its->first, its->second));
+                degreeDistribution[its->first] = its->second;
             }
         }
 
@@ -1424,7 +1424,7 @@ map<long, map<long, unordered_set<long>>> calculateLocalEgoNet(string graphID, s
         unordered_set<long> neighbours = it->second;
 
         map<long, unordered_set<long>> individualEgoNet;
-        individualEgoNet.insert(std::make_pair(it->first, neighbours));
+        individualEgoNet[it->first] = neighbours;
 
         for (unordered_set<long>::iterator neighbour = neighbours.begin(); neighbour != neighbours.end(); ++neighbour) {
             unordered_set<long> neighboursOfNeighboursInSameEgoNet;
@@ -1441,10 +1441,10 @@ map<long, map<long, unordered_set<long>>> calculateLocalEgoNet(string graphID, s
                     }
                 }
             }
-            individualEgoNet.insert(std::make_pair(*neighbour, neighboursOfNeighboursInSameEgoNet));
+            individualEgoNet[*neighbour] = neighboursOfNeighboursInSameEgoNet;
         }
 
-        egonetMap.insert(std::make_pair(it->first, individualEgoNet));
+        egonetMap[it->first] = individualEgoNet;
     }
 
     for (map<long, unordered_set<long>>::iterator it = centralGraphMap.begin(); it != centralGraphMap.end(); ++it) {
@@ -1457,7 +1457,7 @@ map<long, map<long, unordered_set<long>>> calculateLocalEgoNet(string graphID, s
             vertexMapFromCentralStore.insert(
                 std::make_pair(it->first,
                                distribution));  // Here we do not have the relation information among neighbours
-            egonetMap.insert(std::make_pair(it->first, vertexMapFromCentralStore));
+            egonetMap[it->first] = vertexMapFromCentralStore;
 
         } else {
             map<long, unordered_set<long>> egonetSubGraph = egonetMapItr->second;
@@ -1674,7 +1674,7 @@ map<long, double> calculateLocalPageRank(string graphID, double alpha, string pa
         for (auto itr = endVidSet.begin(); itr != endVidSet.end(); ++itr) {
             if (localGraphMap.find(*itr) == localGraphMap.end()) {
                 unordered_set<long> valueSet;
-                localGraphMap.insert(std::make_pair(*itr, valueSet));
+                localGraphMap[*itr] = valueSet;
             }
         }
     }
@@ -1754,7 +1754,7 @@ map<long, double> calculateLocalPageRank(string graphID, double alpha, string pa
         if (inDegreeDistributionItr != inDegreeDistribution.end()) {
             long inDegree = inDegreeDistributionItr->second;
             double authorityScore = (alpha * 1 + mu) * inDegree;
-            rankMap.insert(std::make_pair(inDegreeDistributionItr->first, authorityScore));
+            rankMap[inDegreeDistributionItr->first] = authorityScore;
         }
     }
 
@@ -1770,7 +1770,7 @@ map<long, double> calculateLocalPageRank(string graphID, double alpha, string pa
             if (rankMapItr != rankMap.end()) {
                 existingParentRank = rankMapItr->second;
             } else {
-                rankMap.insert(std::make_pair(startVid, existingParentRank));
+                rankMap[startVid] = existingParentRank;
             }
 
             long degree = endVidSet.size();
@@ -1788,7 +1788,7 @@ map<long, double> calculateLocalPageRank(string graphID, double alpha, string pa
                     rankMapItr->second = finalRank;
                 } else {
                     finalRank = existingChildRank + distributedRank;
-                    rankMap.insert(std::make_pair(itr, finalRank));
+                    rankMap[itr] = finalRank;
                 }
             }
         }
@@ -1803,7 +1803,7 @@ map<long, double> calculateLocalPageRank(string graphID, double alpha, string pa
     } else {
         int count = 0;
         for (map<long, double>::iterator rankMapItr = rankMap.begin(); rankMapItr != rankMap.end(); ++rankMapItr) {
-            finalPageRankResults.insert(std::make_pair(rankMapItr->first, rankMapItr->second));
+            finalPageRankResults[rankMapItr->first] = rankMapItr->second;
             count++;
         }
     }
@@ -1864,7 +1864,7 @@ map<long, unordered_set<long>> getEdgesWorldToLocal(string graphID, string parti
                     } else {
                         unordered_set<long> fromIDs;
                         fromIDs.insert(startVid);
-                        worldToLocalVertexMap.insert(std::make_pair(*itr, fromIDs));
+                        worldToLocalVertexMap[*itr] = fromIDs;
                     }
                 }
             }
@@ -2609,10 +2609,10 @@ static void page_rank_command(int connFd, int serverPort,
 
         map<long, double>::iterator pageRankValue = pageRankResults.find(startVid);
         if (pageRankValue == pageRankResults.end()) {
-            pageRankLocalstore.insert(std::make_pair(startVid, 0.0));
+            pageRankLocalstore[startVid] = 0.0;
         } else {
             double value = pageRankValue->second;
-            pageRankLocalstore.insert(std::make_pair(startVid, value));
+            pageRankLocalstore[startVid] = value;
         }
 
         for (auto a = endVidSet.begin(); a != endVidSet.end(); ++a) {
@@ -2620,10 +2620,10 @@ static void page_rank_command(int connFd, int serverPort,
             map<long, double>::iterator pageRankValue = pageRankResults.find(endVid);
             if (pageRankLocalstore.find(endVid) == pageRankLocalstore.end()) {
                 if (pageRankValue == pageRankResults.end()) {
-                    pageRankLocalstore.insert(std::make_pair(endVid, 0.0));
+                    pageRankLocalstore[endVid] = 0.0;
                 } else {
                     double value = pageRankValue->second;
-                    pageRankLocalstore.insert(std::make_pair(endVid, value));
+                    pageRankLocalstore[endVid] = value;
                 }
             }
         }
@@ -2761,10 +2761,10 @@ static void worker_page_rank_distribution_command(
 
         map<long, double>::iterator pageRankValue = pageRankResults.find(startVid);
         if (pageRankValue == pageRankResults.end()) {
-            pageRankLocalstore.insert(std::make_pair(startVid, 1.0));
+            pageRankLocalstore[startVid] = 1.0;
         } else {
             double value = pageRankValue->second;
-            pageRankLocalstore.insert(std::make_pair(startVid, value));
+            pageRankLocalstore[startVid] = value;
         }
     }
 

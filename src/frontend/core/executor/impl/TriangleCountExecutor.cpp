@@ -141,7 +141,7 @@ void TriangleCountExecutor::execute() {
         if (partitionMap.find(workerID) == partitionMap.end()) {
             std::vector<string> partitionVec;
             partitionVec.push_back(partitionId);
-            partitionMap.insert(std::pair<string, std::vector<string>>(workerID, partitionVec));
+            partitionMap[workerID] = partitionVec;
         } else {
             std::vector<string> partitionVec = partitionMap.find(workerID)->second;
             partitionVec.push_back(partitionId);

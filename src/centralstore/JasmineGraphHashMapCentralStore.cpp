@@ -137,7 +137,7 @@ map<long, long> JasmineGraphHashMapCentralStore::getOutDegreeDistributionHashMap
         auto key = it->first;
         auto nodes = it->second;
         unordered_set<long> neighboursOfNeighbour = nodes;
-        distributionHashMap.insert(std::make_pair(it->first, distribution));
+        distributionHashMap[it->first] = distribution;
     }
     return distributionHashMap;
 }
@@ -155,7 +155,7 @@ map<long, long> JasmineGraphHashMapCentralStore::getInDegreeDistributionHashMap(
                 long previousValue = distMapItr->second;
                 distMapItr->second = previousValue + 1;
             } else {
-                distributionHashMap.insert(std::make_pair(*itr, 1));
+                distributionHashMap[*itr] = 1;
             }
         }
     }
@@ -212,7 +212,7 @@ void JasmineGraphHashMapCentralStore::toLocalSubGraphMap(const PartEdgeMapStore 
         auto value = entry->value();
         const flatbuffers::Vector<int> &vector = *value;
         unordered_set<long> valueSet(vector.begin(), vector.end());
-        centralSubgraphMap.insert(std::make_pair(key, valueSet));
+        centralSubgraphMap[key] = valueSet;
     }
 }
 

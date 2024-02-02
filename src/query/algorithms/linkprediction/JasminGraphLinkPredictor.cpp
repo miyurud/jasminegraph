@@ -44,7 +44,7 @@ void JasminGraphLinkPredictor::initiateLinkPrediction(std::string graphID, std::
             selectedHostPartitions = (graphPartitionedHosts[it->first]).partitionID;
             selectedHostPartitionsNo = selectedHostPartitions.size();
         } else {
-            remainHostMap.insert(std::pair<std::string, JasmineGraphServer::workerPartitions>(it->first, it->second));
+            remainHostMap[it->first] = it->second;
         }
         count++;
     }

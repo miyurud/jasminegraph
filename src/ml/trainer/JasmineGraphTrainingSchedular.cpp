@@ -104,7 +104,7 @@ map<string, std::map<int, int>> JasmineGraphTrainingSchedular::schedulePartition
         }
         std::map<int, int> scheduledPartitionSets =
             packPartitionsToMemory(memoryEstimationForEachPartition, availableMemory);
-        scheduleForEachHost.insert(make_pair(j->second, scheduledPartitionSets));
+        scheduleForEachHost[j->second] = scheduledPartitionSets;
     }
     refToSqlite->finalize();
     delete refToSqlite;
@@ -310,7 +310,7 @@ static map<string, std::map<int, map<int, int>>> scheduleGradientPassingTraining
         // Get schedule for host
         map<int, map<int, int>> scheduledPartitionSets =
             schedulePartitionsBestFit(partitionMemoryList, partitionWorkerMap, availableMemory);
-        scheduleForEachHost.insert(make_pair(j->second, scheduledPartitionSets));
+        scheduleForEachHost[j->second] = scheduledPartitionSets;
     }
     refToSqlite->finalize();
     delete refToSqlite;

@@ -272,7 +272,7 @@ void JasmineGraphServer::start_workers() {
             hostWorkerMap.push_back({*it, workerPort, workerDataPort});
             // FIXME: When there are more than 1 worker in the same host, one workers ports will replace the entries of
             // other workers port entries in hostPortMap
-            hostPortMap.insert((pair<string, pair<int, int>>(*it, make_pair(workerPort, workerDataPort))));
+            hostPortMap[*it] = make_pair(workerPort, workerDataPort);
             portCount++;
             // ToDO: Here for the moment we use host name as the IP address as the third parameter.
             // ToDO: We also keep user as empty string
@@ -289,7 +289,7 @@ void JasmineGraphServer::start_workers() {
             portVector.push_back(workerPort);
             dataPortVector.push_back(workerDataPort);
             hostWorkerMap.push_back({*it, workerPort, workerDataPort});
-            hostPortMap.insert(((pair<string, pair<int, int>>(*it, make_pair(workerPort, workerDataPort)))));
+            hostPortMap[*it] = make_pair(workerPort, workerDataPort);
             hostListModeNWorkers--;
             string is_public = "false";
             valuesString += "(" + std::to_string(workerIDCounter) + ", " + hostID + ", \"" + hostName + "\", \"" + ip +
@@ -427,10 +427,9 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                         "docker run -v " + instanceDataFolder + ":" + instanceDataFolder + " -v " +
                         aggregateDataFolder + ":" + aggregateDataFolder + " -v " + nmonFileLocation + ":" +
                         nmonFileLocation + " -v " + instanceDataFolder + "/" + to_string(i) + "/logs" + ":" +
-                        "/var/tmp/jasminegraph/logs" + " -p " + std::to_string(workerPortsVector.at(i)) +
-                        ":" + std::to_string(workerPortsVector.at(i)) + " -p " +
-                        std::to_string(workerDataPortsVector.at(i)) + ":" +
-                        std::to_string(workerDataPortsVector.at(i)) + " -e WORKER_ID=" + to_string(i) +
+                        "/var/tmp/jasminegraph/logs" + " -p " + std::to_string(workerPortsVector.at(i)) + ":" +
+                        std::to_string(workerPortsVector.at(i)) + " -p " + std::to_string(workerDataPortsVector.at(i)) +
+                        ":" + std::to_string(workerDataPortsVector.at(i)) + " -e WORKER_ID=" + to_string(i) +
                         " jasminegraph:latest --MODE 2 --HOST_NAME " + host + " --MASTERIP " + masterHost +
                         " --SERVER_PORT " + std::to_string(workerPortsVector.at(i)) + " --SERVER_DATA_PORT " +
                         std::to_string(workerDataPortsVector.at(i)) + " --ENABLE_NMON " + enableNmon;
@@ -450,10 +449,9 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                         "docker -H ssh://" + host + " run -v " + instanceDataFolder + ":" + instanceDataFolder +
                         " -v " + aggregateDataFolder + ":" + aggregateDataFolder + " -v " + nmonFileLocation + ":" +
                         nmonFileLocation + " -v " + instanceDataFolder + "/" + to_string(i) + "/logs" + ":" +
-                        "/var/tmp/jasminegraph/logs" + " -p " + std::to_string(workerPortsVector.at(i)) +
-                        ":" + std::to_string(workerPortsVector.at(i)) + " -p " +
-                        std::to_string(workerDataPortsVector.at(i)) + ":" +
-                        std::to_string(workerDataPortsVector.at(i)) + " -e WORKER_ID=" + to_string(i) +
+                        "/var/tmp/jasminegraph/logs" + " -p " + std::to_string(workerPortsVector.at(i)) + ":" +
+                        std::to_string(workerPortsVector.at(i)) + " -p " + std::to_string(workerDataPortsVector.at(i)) +
+                        ":" + std::to_string(workerDataPortsVector.at(i)) + " -e WORKER_ID=" + to_string(i) +
                         " jasminegraph:latest --MODE 2 --HOST_NAME " + host + " --MASTERIP " + masterHost +
                         " --SERVER_PORT " + std::to_string(workerPortsVector.at(i)) + " --SERVER_DATA_PORT " +
                         std::to_string(workerDataPortsVector.at(i)) + " --ENABLE_NMON " + enableNmon;
@@ -1234,7 +1232,7 @@ map<string, string> JasmineGraphServer::getLiveHostIDList() {
             host = user + "@" + ip + ":" + serverPort;
         }
 
-        hostIDMap.insert(make_pair(host, id));
+        hostIDMap[host] = id;
     }
 
     return hostIDMap;
@@ -1456,8 +1454,7 @@ std::map<std::string, JasmineGraphServer::workerPartition> JasmineGraphServer::g
 
         server_logger.info("name : " + name + " workerID : " + workerID + " sport : " + std::to_string(serverPort) +
                            " sdport : " + std::to_string(serverDataPort) + " partitionId : " + partitionId);
-        graphPartitionedHosts.insert((pair<string, JasmineGraphServer::workerPartition>(
-            workerID, {name, serverPort, serverDataPort, partitionId})));
+        graphPartitionedHosts[workerID] = {name, serverPort, serverDataPort, partitionId};
     }
 
     return graphPartitionedHosts;
@@ -1497,14 +1494,14 @@ std::map<string, JasmineGraphServer::workerPartitions> JasmineGraphServer::getGr
         } else {
             vector<string> vec;
             vec.push_back(j->second);
-            hostPartitions.insert((pair<string, vector<string>>(hostname, vec)));
+            hostPartitions[hostname] = vec;
         }
     }
 
     map<string, JasmineGraphServer::workerPartitions> graphPartitionedHosts;
     for (map<string, vector<string>>::iterator it = (hostPartitions.begin()); it != hostPartitions.end(); ++it) {
-        graphPartitionedHosts.insert((pair<string, JasmineGraphServer::workerPartitions>(
-            it->first, {hostPortMap[it->first].first, hostPortMap[it->first].second, hostPartitions[it->first]})));
+        graphPartitionedHosts[it->first] = {hostPortMap[it->first].first, hostPortMap[it->first].second,
+                                            hostPartitions[it->first]};
     }
 
     return graphPartitionedHosts;

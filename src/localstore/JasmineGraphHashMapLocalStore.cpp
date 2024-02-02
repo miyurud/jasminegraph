@@ -86,7 +86,7 @@ void JasmineGraphHashMapLocalStore::toLocalSubGraphMap(const PartEdgeMapStore *e
         const flatbuffers::Vector<int> &vector = *value;
 
         unordered_set<long> valueSet(vector.begin(), vector.end());
-        localSubGraphMap.insert(std::make_pair(key, valueSet));
+        localSubGraphMap[key] = valueSet;
     }
 }
 
@@ -129,7 +129,7 @@ map<long, long> JasmineGraphHashMapLocalStore::getOutDegreeDistributionHashMap()
 
     for (map<long, unordered_set<long>>::iterator it = localSubGraphMap.begin(); it != localSubGraphMap.end(); ++it) {
         long distribution = (it->second).size();
-        distributionHashMap.insert(std::make_pair(it->first, distribution));
+        distributionHashMap[it->first] = distribution;
     }
     return distributionHashMap;
 }
@@ -146,7 +146,7 @@ map<long, long> JasmineGraphHashMapLocalStore::getInDegreeDistributionHashMap() 
                 long previousValue = distMapItr->second;
                 distMapItr->second = previousValue + 1;
             } else {
-                distributionHashMap.insert(std::make_pair(*itr, 1));
+                distributionHashMap[*itr] = 1;
             }
         }
     }
@@ -245,7 +245,7 @@ void JasmineGraphHashMapLocalStore::toLocalAttributeMap(const AttributeStore *at
         for (int j = 0; j < attributesSize; j = j + 1) {
             attributeVector.push_back(attributes->Get(j)->c_str());
         }
-        localAttributeMap.insert(std::make_pair(key, attributeVector));
+        localAttributeMap[key] = attributeVector;
     }
 }
 
@@ -267,7 +267,7 @@ void JasmineGraphHashMapLocalStore::toLocalEdgeMap(const PartEdgeMapStore *edgeM
         auto value = entry->value();
         const flatbuffers::Vector<int> &vector = *value;
         std::vector<int> valueSet(vector.begin(), vector.end());
-        edgeMap.insert(std::make_pair(key, valueSet));
+        edgeMap[key] = valueSet;
     }
 }
 
