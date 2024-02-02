@@ -38,7 +38,7 @@ NodeManager::NodeManager(GraphConfig gConfig) {
     std::string instanceDataFolderLocation =
         utils.getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
     std::string graphPrefix = instanceDataFolderLocation + "/g" + std::to_string(graphID);
-    std::string dbPrefix = graphPrefix + "_p" + std::to_string(partitionID);
+    dbPrefix = graphPrefix + "_p" + std::to_string(partitionID);
     std::string nodesDBPath = dbPrefix + "_nodes.db";
     indexDBPath = dbPrefix + "_nodes.index.db";
     std::string propertiesDBPath = dbPrefix + "_properties.db";
@@ -134,7 +134,7 @@ NodeManager::NodeManager(GraphConfig gConfig) {
     }
 
     if (stat(relationsDBPath.c_str(), &stat_buf) == 0) {
-        RelationBlock::nextRelationIndex = (stat_buf.st_size / RelationBlock::BLOCK_SIZE) == 0 ? 1 :
+        RelationBlock::nextLocalRelationIndex = (stat_buf.st_size / RelationBlock::BLOCK_SIZE) == 0 ? 1 :
                                         (stat_buf.st_size / RelationBlock::BLOCK_SIZE);
     } else {
         node_manager_logger.error("Error getting file size for: " + relationsDBPath);
@@ -181,15 +181,15 @@ std::unordered_map<std::string, unsigned int> NodeManager::readNodeIndex() {
     return _nodeIndex;
 }
 
-RelationBlock *NodeManager::addRelation(NodeBlock source, NodeBlock destination) {
+RelationBlock *NodeManager::addLocalRelation(NodeBlock source, NodeBlock destination) {
     RelationBlock *newRelation = NULL;
     if (source.edgeRef == 0 || destination.edgeRef == 0 ||
         !source.searchLocalRelation(destination)) {  // certainly a new relation block needed
         RelationBlock *relationBlock = new RelationBlock(source, destination);
-        newRelation = relationBlock->add(source, destination);
+        newRelation = relationBlock->addLocalRelation(source, destination);
         if (newRelation) {
-            source.updateRelation(newRelation, true);
-            destination.updateRelation(newRelation, true);
+            source.updateLocalRelation(newRelation, true);
+            destination.updateLocalRelation(newRelation, true);
         } else {
             node_manager_logger.error("Error while adding the new edge/relation for source = " +
                                       std::string(source.id) + " destination = " + std::string(destination.id));
@@ -209,7 +209,7 @@ RelationBlock *NodeManager::addCentralRelation(NodeBlock source, NodeBlock desti
     if (source.centralEdgeRef == 0 || destination.centralEdgeRef == 0 ||
         !source.searchCentralRelation(destination)) {  // certainly a new relation block needed
         RelationBlock *relationBlock = new RelationBlock(source, destination);
-        newRelation = relationBlock->addCentral(source, destination);
+        newRelation = relationBlock->addCentralRelation(source, destination);
         if (newRelation) {
             source.updateCentralRelation(newRelation, true);
             destination.updateCentralRelation(newRelation, true);
@@ -237,6 +237,7 @@ NodeBlock *NodeManager::addNode(std::string nodeId) {
         this->addNodeIndex(nodeId, this->nextNodeIndex);
         assignedNodeIndex = this->nextNodeIndex;
         this->nextNodeIndex++;
+        sourceBlk->setLabel(nodeId.c_str());
         sourceBlk->save();
         return sourceBlk;
     }
@@ -244,12 +245,12 @@ NodeBlock *NodeManager::addNode(std::string nodeId) {
     return this->get(nodeId);
 }
 
-RelationBlock *NodeManager::addEdge(std::pair<std::string, std::string> edge) {
+RelationBlock *NodeManager::addLocalEdge(std::pair<std::string, std::string> edge) {
     pthread_mutex_lock(&lockEdgeAdd);
 
     NodeBlock *sourceNode = this->addNode(edge.first);
     NodeBlock *destNode = this->addNode(edge.second);
-    RelationBlock *newRelation = this->addRelation(*sourceNode, *destNode);
+    RelationBlock *newRelation = this->addLocalRelation(*sourceNode, *destNode);
     if (newRelation) {
         newRelation->setDestination(destNode);
         newRelation->setSource(sourceNode);
@@ -436,12 +437,12 @@ std::list<NodeBlock> NodeManager::getLimitedGraph(int limit) {
 /**
  * Return all nodes
  * */
-std::list<NodeBlock> NodeManager::getGraph() {
-    std::list<NodeBlock> vertices;
+std::list<NodeBlock*> NodeManager::getGraph() {
+    std::list<NodeBlock*> vertices;
     for (auto it : this->nodeIndex) {
         auto nodeId = it.first;
         NodeBlock *node = this->get(nodeId);
-        vertices.push_back(*node);
+        vertices.push_back(node);
         node_manager_logger.debug("Read node index for node  " + nodeId + " with node index " +
                                   std::to_string(it.second));
     }
@@ -451,13 +452,13 @@ std::list<NodeBlock> NodeManager::getGraph() {
 /**
  * Return all central nodes
  * */
-std::list<NodeBlock> NodeManager::getCentralGraph() {
-    std::list<NodeBlock> vertices;
+std::list<NodeBlock*> NodeManager::getCentralGraph() {
+    std::list<NodeBlock*> vertices;
     for (auto it : this->nodeIndex) {
         auto nodeId = it.first;
         NodeBlock *node = this->get(nodeId);
         if (node->getCentralRelationHead()) {
-            vertices.push_back(*node);
+            vertices.push_back(node);
         }
         node_manager_logger.debug("Read node index for central node " + nodeId + " with node index " +
                                   std::to_string(it.second));
@@ -465,6 +466,34 @@ std::list<NodeBlock> NodeManager::getCentralGraph() {
     return vertices;
 }
 
+// Get adjacency list for the graph
+std::map<long, std::unordered_set<long>> NodeManager::getAdjacencyList() {
+    map<long, std::unordered_set<long>> adjacencyList;
+    for (auto it : this->nodeIndex) {
+        auto nodeId = it.first;
+        NodeBlock *node = this->get(nodeId);
+        std::unordered_set<long> neighbors;
+        std::list<NodeBlock*> neighborNodes = node->getAllEdgeNodes();
+
+        for (auto neighborNode : neighborNodes) {
+            neighbors.insert(neighborNode->nodeId);
+        }
+        adjacencyList.emplace((long)node->nodeId, neighbors);
+    }
+
+    return adjacencyList;
+}
+
+// Get degree map
+std::map<long, long> NodeManager::getDistributionMap() {
+    std::map<long, std::unordered_set<long>> adjacencyList = getAdjacencyList();
+    std::map<long, long> distributionMap;
+    for (auto it : adjacencyList) {
+        distributionMap.emplace(it.first, it.second.size());
+    }
+
+    return distributionMap;
+}
 /**
  *
  * When closing the node manager,
@@ -505,4 +534,17 @@ void NodeManager::setIndexKeySize(unsigned long newIndexKeySize) {
 
     this->INDEX_KEY_SIZE = newIndexKeySize;
 }
+
+int NodeManager::getGraphID() {
+    return this->graphID;
+}
+
+int NodeManager::getPartitionID() {
+    return this->partitionID;
+}
+
+std::string NodeManager::getDbPrefix() {
+    return dbPrefix;
+}
+
 const std::string NodeManager::FILE_MODE = "app";  // for appending to existing DB

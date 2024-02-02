@@ -17,6 +17,7 @@ set(HEADERS src/backend/JasmineGraphBackend.h
         src/frontend/core/domain/JobResponse.h
         src/frontend/core/executor/AbstractExecutor.h
         src/frontend/core/executor/impl/TriangleCountExecutor.h
+        src/frontend/core/executor/impl/StreamingTriangleCountExecutor.h
         src/frontend/core/factory/ExecutorFactory.h
         src/frontend/core/scheduler/JobScheduler.h
         src/localstore/JasmineGraphHashMapLocalStore.h
@@ -37,6 +38,7 @@ set(HEADERS src/backend/JasmineGraphBackend.h
         src/performancedb/PerformanceSQLiteDBInterface.h
         src/query/algorithms/linkprediction/JasminGraphLinkPredictor.h
         src/query/algorithms/triangles/Triangles.h
+        src/query/algorithms/triangles/StreamingTriangles.h
         src/server/JasmineGraphInstance.h
         src/server/JasmineGraphInstanceFileTransferService.h
         src/server/JasmineGraphInstanceProtocol.h
@@ -66,6 +68,7 @@ set(HEADERS src/backend/JasmineGraphBackend.h
         src/nativestore/DataPublisher.h
         src/partitioner/stream/Partition.h
         src/k8s/K8sWorkerController.h
+        src/streamingdb/StreamingSQLiteDBInterface.h
 )
 
 set(SOURCES src/backend/JasmineGraphBackend.cpp
@@ -80,6 +83,7 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/frontend/core/domain/JobResponse.cpp
         src/frontend/core/executor/AbstractExecutor.cpp
         src/frontend/core/executor/impl/TriangleCountExecutor.cpp
+        src/frontend/core/executor/impl/StreamingTriangleCountExecutor.cpp
         src/frontend/core/factory/ExecutorFactory.cpp
         src/frontend/core/scheduler/JobScheduler.cpp
         src/localstore/JasmineGraphHashMapLocalStore.cpp
@@ -100,6 +104,7 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/performancedb/PerformanceSQLiteDBInterface.cpp
         src/query/algorithms/linkprediction/JasminGraphLinkPredictor.cpp
         src/query/algorithms/triangles/Triangles.cpp
+        src/query/algorithms/triangles/StreamingTriangles.cpp
         src/server/JasmineGraphInstance.cpp
         src/server/JasmineGraphInstanceFileTransferService.cpp
         src/server/JasmineGraphInstanceProtocol.cpp
@@ -122,6 +127,7 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/nativestore/DataPublisher.cpp
         src/partitioner/stream/Partition.cpp
         src/k8s/K8sWorkerController.cpp
+        src/streamingdb/StreamingSQLiteDBInterface.cpp
 )
 
 add_library(JasmineGraphLib ${HEADERS} ${SOURCES})
@@ -145,11 +151,11 @@ target_link_libraries(JasmineGraphLib PRIVATE /usr/lib/x86_64-linux-gnu/libflatb
 target_link_libraries(JasmineGraphLib PRIVATE /usr/lib/x86_64-linux-gnu/libjsoncpp.so)
 target_link_libraries(JasmineGraphLib PRIVATE /usr/local/lib/libcppkafka.so)
 target_link_libraries(JasmineGraph JasmineGraphLib)
-target_include_directories(JasmineGraph PRIVATE /usr/include/python3.8)
+target_include_directories(JasmineGraph PRIVATE /usr/include/python3)
 
-set(PYTHON_EXECUTABLE "/usr/bin/python3.8")
-set(PYTHON_INCLUDE_DIR "/usr/include/python3.8m")
-set(PYTHON_LIBRARIES "/usr/lib/x86_64-linux-gnu/libpython3.8.so")
+set(PYTHON_EXECUTABLE "/usr/bin/python3")
+set(PYTHON_INCLUDE_DIR "/usr/include/python3")
+set(PYTHON_LIBRARIES "/usr/lib/x86_64-linux-gnu/libpython3.so")
 
 include_directories(${PYTHON_INCLUDE_DIRS})
 include_directories(${PYTHON_DIRECTORIES})

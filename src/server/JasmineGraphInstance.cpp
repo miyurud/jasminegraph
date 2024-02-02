@@ -108,7 +108,7 @@ bool JasmineGraphInstance::acknowledgeMaster(string masterHost, string workerIP,
     read(sockfd, data, 300);
     string response = (data);
 
-    response = Utils::trim_copy(response, " \f\n\r\t\v");
+    response = Utils::trim_copy(response);
 
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
         graphInstance_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
@@ -123,7 +123,7 @@ bool JasmineGraphInstance::acknowledgeMaster(string masterHost, string workerIP,
         bzero(data, 301);
         read(sockfd, data, 300);
         response = (data);
-        response = Utils::trim_copy(response, " \f\n\r\t\v");
+        response = Utils::trim_copy(response);
 
         if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
             graphInstance_logger.log("Received : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
@@ -139,7 +139,7 @@ bool JasmineGraphInstance::acknowledgeMaster(string masterHost, string workerIP,
             bzero(data, 301);
             read(sockfd, data, 300);
             response = (data);
-            response = Utils::trim_copy(response, " \f\n\r\t\v");
+            response = Utils::trim_copy(response);
 
             if (response.compare(JasmineGraphInstanceProtocol::WORKER_INFO_SEND) == 0) {
                 std::string workerInfo = workerIP + "|" + workerPort;
@@ -237,7 +237,7 @@ bool JasmineGraphInstance::sendFileThroughService(std::string host, int dataPort
     bzero(data, 301);
     read(sockfd, data, 300);
     string response = (data);
-    response = Utils::trim_copy(response, " \f\n\r\t\v");
+    response = Utils::trim_copy(response);
     if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE) == 0) {
         std::cout << "Sending file " << filePath << " through port " << dataPort << std::endl;
 
@@ -248,19 +248,16 @@ bool JasmineGraphInstance::sendFileThroughService(std::string host, int dataPort
             return false;
         }
         for (;;) {
-            unsigned char buff[1024] = {0};
-            int nread = fread(buff, 1, 1024, fp);
-            // printf("Bytes read %d \n", nread);
+            unsigned char buff[1024];
+            int nread = fread(buff, 1, sizeof(buff), fp);
 
             /* If read was success, send data. */
             if (nread > 0) {
-                // printf("Sending \n");
                 write(sockfd, buff, nread);
             }
 
-            if (nread < 1024) {
+            if (nread < sizeof(buff)) {
                 if (feof(fp))
-                    // printf("End of file\n");
                     if (ferror(fp)) {
                         printf("Error reading\n");
                         return false;

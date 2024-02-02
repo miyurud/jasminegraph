@@ -25,6 +25,7 @@ limitations under the License.
 #include <sstream>
 #include <vector>
 
+#include "../server/JasmineGraphInstanceProtocol.h"
 #include "Conts.h"
 #include "logger/Logger.h"
 
@@ -154,15 +155,15 @@ std::vector<std::string> Utils::getHostListFromProperties() {
     return result;
 }
 
-static inline std::string trim_right_copy(const std::string &s, const std::string &delimiters = " \f\n\r\t\v") {
+static inline std::string trim_right_copy(const std::string &s, const std::string &delimiters) {
     return s.substr(0, s.find_last_not_of(delimiters) + 1);
 }
 
-static inline std::string trim_left_copy(const std::string &s, const std::string &delimiters = " \f\n\r\t\v") {
+static inline std::string trim_left_copy(const std::string &s, const std::string &delimiters) {
     return s.substr(s.find_first_not_of(delimiters));
 }
 
-std::string Utils::trim_copy(const std::string &s, const std::string &delimiters = " \f\n\r\t\v") {
+std::string Utils::trim_copy(const std::string &s, const std::string &delimiters) {
     return trim_left_copy(trim_right_copy(s, delimiters), delimiters);
 }
 
@@ -567,7 +568,7 @@ std::string Utils::read_str_wrapper(int connFd, char *buf, size_t len, bool allo
 
 std::string Utils::read_str_trim_wrapper(int connFd, char *buf, size_t len) {
     string str = read_str_wrapper(connFd, buf, len, false);
-    if (!str.empty()) str = trim_copy(str, " \f\n\r\t\v");
+    if (!str.empty()) str = trim_copy(str);
     return str;
 }
 
@@ -582,6 +583,33 @@ bool Utils::send_wrapper(int connFd, const char *buf, size_t size) {
 
 bool Utils::send_str_wrapper(int connFd, std::string str) { return send_wrapper(connFd, str.c_str(), str.length()); }
 
+bool Utils::sendExpectResponse(int sockfd, char *data, size_t data_length, std::string sendMsg, std::string expectMsg) {
+    if (!Utils::send_str_wrapper(sockfd, sendMsg)) {
+        return false;
+    }
+    util_logger.info("Sent: " + sendMsg);
+
+    std::string response = Utils::read_str_trim_wrapper(sockfd, data, data_length);
+    if (response.compare(expectMsg) != 0) {
+        util_logger.error("Incorrect response. Expected: " + expectMsg + " ; Received: " + response);
+        return false;
+    }
+    util_logger.info("Received: " + response);
+    return true;
+}
+
+bool Utils::performHandshake(int sockfd, char *data, size_t data_length, std::string masterIP) {
+    if (!Utils::sendExpectResponse(sockfd, data, data_length, JasmineGraphInstanceProtocol::HANDSHAKE,
+                                   JasmineGraphInstanceProtocol::HANDSHAKE_OK)) {
+        return false;
+    }
+
+    if (!Utils::sendExpectResponse(sockfd, data, data_length, masterIP, JasmineGraphInstanceProtocol::HOST_OK)) {
+        return false;
+    }
+    return true;
+}
+
 std::string Utils::getCurrentTimestamp() {
     auto now = chrono::system_clock::now();
     time_t time = chrono::system_clock::to_time_t(now);
@@ -593,7 +621,7 @@ std::string Utils::getCurrentTimestamp() {
     return timestamp.str();
 }
 
-inline json parse_scalar(const YAML::Node &node) {
+static inline json parse_scalar(const YAML::Node &node) {
     int i;
     double d;
     bool b;
@@ -613,7 +641,7 @@ inline json parse_scalar(const YAML::Node &node) {
     return nullptr;
 }
 
-inline json yaml2json(const YAML::Node &root) {
+static inline json yaml2json(const YAML::Node &root) {
     json j{};
 
     switch (root.Type()) {
@@ -648,7 +676,7 @@ int Utils::createDatabaseFromDDL(const char *dbLocation, const char *ddlFileLoca
     buffer << ddlFile.rdbuf();
     ddlFile.close();
 
-    sqlite3* tempDatabase;
+    sqlite3 *tempDatabase;
     int rc = sqlite3_open(dbLocation, &tempDatabase);
     if (rc) {
         util_logger.error("Cannot create database: " + string(sqlite3_errmsg(tempDatabase)));

@@ -21,11 +21,12 @@ limitations under the License.
 
 Logger incremental_localstore_logger;
 
-JasmineGraphIncrementalLocalStore::JasmineGraphIncrementalLocalStore(unsigned int graphID, unsigned int partitionID) {
+JasmineGraphIncrementalLocalStore::JasmineGraphIncrementalLocalStore(unsigned int graphID, unsigned int partitionID,
+                                                                     std::string openMode) {
     gc.graphID = graphID;
     gc.partitionID = partitionID;
     gc.maxLabelSize = 43;   // TODO tmkasun: read from .properties file
-    gc.openMode = "trunk";  // TODO tmkasun: read from .properties file
+    gc.openMode = openMode;  // TODO tmkasun: read from .properties file
     this->nm = new NodeManager(gc);
 };
 
@@ -58,7 +59,7 @@ void JasmineGraphIncrementalLocalStore::addEdgeFromString(std::string edgeString
         if (edgeJson["EdgeType"] == "Central") {
             newRelation = this->nm->addCentralEdge({sId, dId});
         } else {
-            newRelation = this->nm->addEdge({sId, dId});
+            newRelation = this->nm->addLocalEdge({sId, dId});
         }
         if (!newRelation) {
             return;
@@ -72,7 +73,7 @@ void JasmineGraphIncrementalLocalStore::addEdgeFromString(std::string edgeString
                 if (edgeJson["EdgeType"] == "Central") {
                     newRelation->addCentralProperty(std::string(it.key()), &value[0]);
                 } else {
-                    newRelation->addProperty(std::string(it.key()), &value[0]);
+                    newRelation->addLocalProperty(std::string(it.key()), &value[0]);
                 }
             }
         }

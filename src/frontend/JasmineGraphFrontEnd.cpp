@@ -75,6 +75,8 @@ static void stop_stream_kafka_command(int connFd, KafkaConnector *kstream, bool 
 static void process_dataset_command(int connFd, bool *loop_exit_p);
 static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
                               PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler, bool *loop_exit_p);
+static void streaming_triangles_command(std::string masterIP, int connFd, JobScheduler *jobScheduler, bool *loop_exit_p,
+                                        int numberOfPartitions);
 static void vertex_count_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void edge_count_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void merge_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
@@ -148,7 +150,7 @@ void *frontendservicesesion(void *dummyPt) {
             break;
         }
 
-        line = Utils::trim_copy(line, " \f\n\r\t\v");
+        line = Utils::trim_copy(line);
 
         if (currentFESession > 1) {
             canCalibrate = false;
@@ -185,6 +187,8 @@ void *frontendservicesesion(void *dummyPt) {
             process_dataset_command(connFd, &loop_exit);
         } else if (line.compare(TRIANGLES) == 0) {
             triangles_command(masterIP, connFd, sqlite, perfSqlite, jobScheduler, &loop_exit);
+        } else if (line.compare(STREAMING_TRIANGLES) == 0) {
+            streaming_triangles_command(masterIP, connFd, jobScheduler, &loop_exit, numberOfPartitions);
         } else if (line.compare(VCOUNT) == 0) {
             vertex_count_command(connFd, sqlite, &loop_exit);
         } else if (line.compare(ECOUNT) == 0) {
@@ -632,7 +636,7 @@ static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface 
     string uploadStartTime = ctime(&time);
     string gData(graph_data);
 
-    gData = Utils::trim_copy(gData, " \f\n\r\t\v");
+    gData = Utils::trim_copy(gData);
     frontend_logger.info("Data received: " + gData);
 
     std::vector<std::string> strArr = Utils::split(gData, '|');
@@ -730,7 +734,7 @@ static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterfac
     string uploadStartTime = ctime(&time);
     string gData(graph_data);
 
-    gData = Utils::trim_copy(gData, " \f\n\r\t\v");
+    gData = Utils::trim_copy(gData);
     frontend_logger.info("Data received: " + gData);
 
     std::vector<std::string> strArr = Utils::split(gData, '|');
@@ -851,7 +855,7 @@ static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInt
     bzero(type, FRONTEND_GRAPH_TYPE_LENGTH + 1);
     read(connFd, type, FRONTEND_GRAPH_TYPE_LENGTH);
     string graphType(type);
-    graphType = Utils::trim_copy(graphType, " \f\n\r\t\v");
+    graphType = Utils::trim_copy(graphType);
 
     std::unordered_set<std::string> s = {"1", "2", "3"};
     if (s.find(graphType) == s.end()) {
@@ -898,7 +902,7 @@ static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInt
     string uploadStartTime = ctime(&time);
     string gData(graph_data);
 
-    gData = Utils::trim_copy(gData, " \f\n\r\t\v");
+    gData = Utils::trim_copy(gData);
     frontend_logger.info("Data received: " + gData);
 
     std::vector<std::string> strArr = Utils::split(gData, '|');
@@ -998,7 +1002,7 @@ static void remove_graph_command(std::string masterIP, int connFd, SQLiteDBInter
 
     string graphID(graph_id);
 
-    graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
+    graphID = Utils::trim_copy(graphID);
     frontend_logger.info("Graph ID received: " + graphID);
 
     if (JasmineGraphFrontEnd::graphExistsByID(graphID, sqlite)) {
@@ -1058,7 +1062,7 @@ static void add_model_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_
     string uploadStartTime = ctime(&time);
     string gData(graph_data);
 
-    gData = Utils::trim_copy(gData, " \f\n\r\t\v");
+    gData = Utils::trim_copy(gData);
     frontend_logger.info("Data received: " + gData);
 
     std::vector<std::string> strArr = Utils::split(gData, '|');
@@ -1131,7 +1135,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     bzero(user_res, FRONTEND_DATA_LENGTH + 1);
     read(connFd, user_res, FRONTEND_DATA_LENGTH);
     string user_res_s(user_res);
-    user_res_s = Utils::trim_copy(user_res_s, " \f\n\r\t\v");
+    user_res_s = Utils::trim_copy(user_res_s);
     for (char &c : user_res_s) {
         c = tolower(c);
     }
@@ -1161,7 +1165,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
         bzero(file_path, FRONTEND_DATA_LENGTH + 1);
         read(connFd, file_path, FRONTEND_DATA_LENGTH);
         string file_path_s(file_path);
-        file_path_s = Utils::trim_copy(file_path_s, " \f\n\r\t\v");
+        file_path_s = Utils::trim_copy(file_path_s);
         // reading kafka_server IP from the given file.
         std::vector<std::string>::iterator it;
         vector<std::string> vec = Utils::getFileContent(file_path_s);
@@ -1203,7 +1207,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     bzero(topic_name, FRONTEND_DATA_LENGTH + 1);
     read(connFd, topic_name, FRONTEND_DATA_LENGTH);
     string topic_name_s(topic_name);
-    topic_name_s = Utils::trim_copy(topic_name_s, " \f\n\r\t\v");
+    topic_name_s = Utils::trim_copy(topic_name_s);
     string con_message = "Received the kafka topic";
     int con_result_wr = write(connFd, con_message.c_str(), con_message.length());
     if (con_result_wr < 0) {
@@ -1267,7 +1271,7 @@ static void process_dataset_command(int connFd, bool *loop_exit_p) {
 
     string gData(graph_data);
 
-    gData = Utils::trim_copy(gData, " \f\n\r\t\v");
+    gData = Utils::trim_copy(gData);
     frontend_logger.info("Data received: " + gData);
 
     if (gData.length() == 0) {
@@ -1281,15 +1285,13 @@ static void process_dataset_command(int connFd, bool *loop_exit_p) {
     }
     string path = gData;
 
-    if (Utils::fileExists(path)) {
-        frontend_logger.info("Path exists");
-
-        JSONParser *jsonParser = new JSONParser();
-        jsonParser->jsonParse(path);
-        frontend_logger.info("Reformatted files created on /home/.jasminegraph/tmp/JSONParser/output");
-    } else {
+    if (!Utils::fileExists(path)) {
         frontend_logger.error("Graph data file does not exist on the specified path");
     }
+    frontend_logger.info("Path exists");
+
+    JSONParser::jsonParse(path);
+    frontend_logger.info("Reformatted files created on /home/.jasminegraph/tmp/JSONParser/output");
 }
 
 static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
@@ -1356,7 +1358,7 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
 
         string priority(priority_data);
 
-        priority = Utils::trim_copy(priority, " \f\n\r\t\v");
+        priority = Utils::trim_copy(priority);
 
         if (!(std::find_if(priority.begin(), priority.end(), [](unsigned char c) { return !std::isdigit(c); }) ==
               priority.end())) {
@@ -1457,6 +1459,98 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
             frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
         }
+    }
+}
+
+static void streaming_triangles_command(std::string masterIP, int connFd, JobScheduler *jobScheduler, bool *loop_exit_p,
+                                        int numberOfPartitions) {
+    int uniqueId = JasmineGraphFrontEnd::getUid();
+    int result_wr = write(connFd, GRAPHID_SEND.c_str(), FRONTEND_COMMAND_LENGTH);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+
+    // We get the name and the path to graph as a pair separated by |.
+    char graph_id_data[FRONTEND_DATA_LENGTH + 1];
+    bzero(graph_id_data, FRONTEND_DATA_LENGTH + 1);
+
+    read(connFd, graph_id_data, FRONTEND_DATA_LENGTH);
+
+    string graph_id(graph_id_data);
+    graph_id = Utils::trim_copy(graph_id, " \f\n\r\t\v");
+
+    frontend_logger.info("Got graph Id " + graph_id);
+
+    result_wr = write(connFd, SEND_MODE.c_str(), FRONTEND_COMMAND_LENGTH);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+
+    char mode_data[FRONTEND_DATA_LENGTH + 1];
+    bzero(mode_data, FRONTEND_DATA_LENGTH + 1);
+
+    read(connFd, mode_data, FRONTEND_DATA_LENGTH);
+
+    string mode(mode_data);
+    mode = Utils::trim_copy(mode, " \f\n\r\t\v");
+    frontend_logger.info("Got mode " + mode);
+
+    JobRequest jobDetails;
+    jobDetails.setJobId(std::to_string(uniqueId));
+    jobDetails.setJobType(STREAMING_TRIANGLES);
+
+    jobDetails.setMasterIP(masterIP);
+    jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_ID, graph_id);
+    jobDetails.addParameter(Conts::PARAM_KEYS::MODE, mode);
+    jobDetails.addParameter(Conts::PARAM_KEYS::PARTITION, std::to_string(numberOfPartitions));
+
+    jobScheduler->pushJob(jobDetails);
+    JobResponse jobResponse = jobScheduler->getResult(jobDetails);
+    std::string errorMessage = jobResponse.getParameter(Conts::PARAM_KEYS::ERROR_MESSAGE);
+
+    if (!errorMessage.empty()) {
+        *loop_exit_p = true;
+        result_wr = write(connFd, errorMessage.c_str(), errorMessage.length());
+
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            return;
+        }
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+        }
+        return;
+    }
+
+    std::string triangleCount = jobResponse.getParameter(Conts::PARAM_KEYS::STREAMING_TRIANGLE_COUNT);
+
+    result_wr = write(connFd, triangleCount.c_str(), triangleCount.length());
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
     }
 }
 
@@ -1613,7 +1707,7 @@ static void merge_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit
     read(connFd, train_data, 300);
 
     string trainData(train_data);
-    trainData = Utils::trim_copy(trainData, " \f\n\r\t\v");
+    trainData = Utils::trim_copy(trainData);
     frontend_logger.info("Data received: " + trainData);
 
     std::vector<std::string> trainargs = Utils::split(trainData, ' ');
@@ -1695,7 +1789,7 @@ static void train_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit
     read(connFd, train_data, 300);
 
     string trainData(train_data);
-    trainData = Utils::trim_copy(trainData, " \f\n\r\t\v");
+    trainData = Utils::trim_copy(trainData);
     frontend_logger.info("Data received: " + trainData);
 
     std::vector<std::string> trainargs = Utils::split(trainData, ' ');
@@ -1787,7 +1881,7 @@ static void in_degree_command(int connFd, bool *loop_exit_p) {
 
     string graphID(graph_id);
 
-    graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
+    graphID = Utils::trim_copy(graphID);
     frontend_logger.info("Graph ID received: " + graphID);
 
     JasmineGraphServer::inDegreeDistribution(graphID);
@@ -1828,7 +1922,7 @@ static void out_degree_command(int connFd, bool *loop_exit_p) {
 
     string graphID(graph_id);
 
-    graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
+    graphID = Utils::trim_copy(graphID);
     frontend_logger.info("Graph ID received: " + graphID);
 
     JasmineGraphServer::outDegreeDistribution(graphID);
@@ -1900,7 +1994,7 @@ static void page_rank_command(int connFd, bool *loop_exit_p) {
         }
     }
 
-    graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
+    graphID = Utils::trim_copy(graphID);
     frontend_logger.info("Graph ID received: " + graphID);
     frontend_logger.info("Alpha value: " + to_string(alpha));
     frontend_logger.info("Iterations value: " + to_string(iterations));
@@ -1943,7 +2037,7 @@ static void egonet_command(int connFd, bool *loop_exit_p) {
 
     string graphID(graph_id);
 
-    graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
+    graphID = Utils::trim_copy(graphID);
     frontend_logger.info("Graph ID received: " + graphID);
 
     JasmineGraphServer::egoNet(graphID);
@@ -1984,7 +2078,7 @@ static void duplicate_centralstore_command(int connFd, bool *loop_exit_p) {
 
     string graphID(graph_id);
 
-    graphID = Utils::trim_copy(graphID, " \f\n\r\t\v");
+    graphID = Utils::trim_copy(graphID);
     frontend_logger.info("Graph ID received: " + graphID);
 
     JasmineGraphServer::duplicateCentralStore(graphID);
@@ -2030,7 +2124,7 @@ static void predict_command(std::string masterIP, int connFd, SQLiteDBInterface 
         read(connFd, predict_data, 300);
         string predictData(predict_data);
 
-        predictData = Utils::trim_copy(predictData, " \f\n\r\t\v");
+        predictData = Utils::trim_copy(predictData);
         frontend_logger.info("Data received: " + predictData);
 
         std::vector<std::string> strArr = Utils::split(predictData, '|');
@@ -2070,7 +2164,7 @@ static void predict_command(std::string masterIP, int connFd, SQLiteDBInterface 
         read(connFd, predict_data, 300);
         string predictData(predict_data);
 
-        predictData = Utils::trim_copy(predictData, " \f\n\r\t\v");
+        predictData = Utils::trim_copy(predictData);
         frontend_logger.info("Data received: " + predictData);
 
         std::vector<std::string> strArr = Utils::split(predictData, '|');
@@ -2118,7 +2212,7 @@ static void start_remote_worker_command(int connFd, bool *loop_exit_p) {
     read(connFd, worker_data, 300);
     string remote_worker_data(worker_data);
 
-    remote_worker_data = Utils::trim_copy(remote_worker_data, " \f\n\r\t\v");
+    remote_worker_data = Utils::trim_copy(remote_worker_data);
     frontend_logger.info("Data received: " + remote_worker_data);
     string host = "";
     string port = "";
@@ -2169,7 +2263,7 @@ static void sla_command(int connFd, SQLiteDBInterface *sqlite, PerformanceSQLite
     read(connFd, category, FRONTEND_DATA_LENGTH);
     string command_info(category);
 
-    command_info = Utils::trim_copy(command_info, " \f\n\r\t\v");
+    command_info = Utils::trim_copy(command_info);
     frontend_logger.info("Data received: " + command_info);
 
     std::vector<vector<pair<string, string>>> categoryResults =

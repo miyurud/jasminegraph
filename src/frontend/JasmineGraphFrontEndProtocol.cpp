@@ -30,7 +30,9 @@ const string STREAM_TOPIC_NAME = "topicnm";
 const string PROCESS_DATASET = "process_dataset";
 const string REFORMAT = "reformat";
 const string TRIANGLES = "trian";
+const string STREAMING_TRIANGLES = "strian";
 const string GRAPHID_SEND = "graphid-send";
+const string SEND_MODE = "mode-send";
 const string VCOUNT = "vcnt";
 const string ECOUNT = "ecnt";
 const string PAGE_RANK = "pgrnk";
@@ -51,3 +53,4 @@ const string SLA = "sla";
 const string COMMAND = "command";
 const string PRIORITY = "priority(>=1)";
 const string INVALID_FORMAT = "Invalid message format";
+

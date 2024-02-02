@@ -20,9 +20,9 @@ limitations under the License.
 #include <boost/property_tree/ptree.hpp>
 #include <chrono>
 #include <ctime>
+#include <future>
 #include <sstream>
 #include <string>
-#include <thread>
 
 #include "../../util/logger/Logger.h"
 
@@ -34,27 +34,35 @@ namespace pt = boost::property_tree;
 
 using namespace std;
 
-JSONParser::JSONParser() {}
+static void attributeFileCreate(std::map<long, int> &vertexToIDMap, std::map<std::string, int> &fieldsMap,
+                                std::string inputFilePath, string outputFilePath);
+static void readFile(std::map<long, int> &vertexToIDMap, std::map<std::string, int> &fieldsMap,
+                     std::string inputFilePath, string outputFilePath);
+static std::map<long, int> createEdgeList(std::string inputFilePath, string outputFilePath);
+static std::map<std::string, int> countFileds(std::string inputFilePath);
 
-void JSONParser::jsonParse(string filePath) {
-    this->inputFilePath = filePath;
-    this->outputFilePath = Utils::getHomeDir() + "/.jasminegraph/tmp/JSONParser/output";
+void JSONParser::jsonParse(string &filePath) {
+    std::string inputFilePath = filePath;
+    std::string outputFilePath = Utils::getHomeDir() + "/.jasminegraph/tmp/JSONParser/output";
     const clock_t begin = clock();
-    readFile();
+    std::map<long, int> vertexToIDMap;
+    std::map<std::string, int> fieldsMap;
+    readFile(vertexToIDMap, fieldsMap, inputFilePath, outputFilePath);
     float time = float(clock() - begin) / CLOCKS_PER_SEC;
     jsonparser_logger.log("FieldMap size : " + to_string(fieldsMap.size()), "info");
     jsonparser_logger.log("Time for 1st read : " + to_string(time), "info");
     const clock_t begin2 = clock();
-    attributeFileCreate();
+    attributeFileCreate(vertexToIDMap, fieldsMap, inputFilePath, outputFilePath);
     float time2 = float(clock() - begin2) / CLOCKS_PER_SEC;
     jsonparser_logger.log("Time for 2nd read : " + to_string(time2), "info");
 }
 
-void JSONParser::attributeFileCreate() {
+static void attributeFileCreate(std::map<long, int> &vertexToIDMap, std::map<std::string, int> &fieldsMap,
+                                std::string inputFilePath, string outputFilePath) {
     ofstream attrFile;
     attrFile.open(outputFilePath + "/attributeList.txt");
 
-    std::ifstream infile(this->inputFilePath);
+    std::ifstream infile(inputFilePath);
     std::string line;
     Json::Reader reader;
     Json::Value root;
@@ -65,7 +73,7 @@ void JSONParser::attributeFileCreate() {
         if (!reader.parse(line, root)) {
             string message = reader.getFormattedErrorMessages();
             jsonparser_logger.log("Error : " + message, "error");
-            exit(1);
+            break;
         }
         string id = root["id"].asString();
         auto idFound = vertexToIDMap.find(stol(id));
@@ -89,39 +97,42 @@ void JSONParser::attributeFileCreate() {
             attrFile << endl;
         }
     }
+    infile.close();
     attrFile.close();
 }
 
-void JSONParser::readFile() {
+static void readFile(std::map<long, int> &vertexToIDMap, std::map<std::string, int> &fieldsMap,
+                     std::string inputFilePath, string outputFilePath) {
     Utils::createDirectory(Utils::getHomeDir() + "/.jasminegraph/");
     Utils::createDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp");
     Utils::createDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp/JSONParser");
     Utils::createDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp/JSONParser/output");
 
-    std::thread *workerThreads = new std::thread[2];
-    workerThreads[0] = std::thread(&JSONParser::createEdgeList, this);
-    workerThreads[1] = std::thread(&JSONParser::countFileds, this);
+    auto edgeListFuture = std::async(createEdgeList, inputFilePath, outputFilePath);
+    auto filedsFuture = std::async(countFileds, inputFilePath);
 
-    for (int threadCount = 0; threadCount < 2; threadCount++) {
-        workerThreads[threadCount].join();
-    }
+    vertexToIDMap = edgeListFuture.get();
+    fieldsMap = filedsFuture.get();
 }
 
-void JSONParser::createEdgeList() {
+static std::map<long, int> createEdgeList(std::string inputFilePath, string outputFilePath) {
     ofstream file;
-    file.open(this->outputFilePath + "/edgelist.txt");
+    file.open(outputFilePath + "/edgelist.txt");
 
-    std::ifstream infile(this->inputFilePath);
+    std::ifstream infile(inputFilePath);
     std::string line;
     Json::Reader reader;
     Json::Value root;
     int idCounter = 0;
     int mapped_id = 0;
+    std::map<long, int> vertexToIDMap;
 
     while (std::getline(infile, line)) {
         if (!reader.parse(line, root)) {
             jsonparser_logger.log("File format mismatch", "error");
-            exit(1);
+            file.close();
+            infile.close();
+            return vertexToIDMap;
         }
         string id = root["id"].asString();
         const Json::Value references = root["references"];
@@ -151,19 +162,22 @@ void JSONParser::createEdgeList() {
         }
     }
     file.close();
+    infile.close();
+    return vertexToIDMap;
 }
 
-void JSONParser::countFileds() {
-    std::ifstream infile(this->inputFilePath);
+static std::map<std::string, int> countFileds(std::string inputFilePath) {
+    std::ifstream infile(inputFilePath);
     std::string line;
     Json::Reader reader;
     Json::Value root;
+    std::map<std::string, int> fieldCounts;
     int field_counter = 0;
 
     while (std::getline(infile, line)) {
         if (!reader.parse(line, root)) {
             jsonparser_logger.log("File format mismatch", "error");
-            exit(1);
+            return fieldCounts;
         }
         const Json::Value fos = root["fos"];
 
@@ -180,9 +194,10 @@ void JSONParser::countFileds() {
             }
         }
     }
+    infile.close();
 
     jsonparser_logger.log("Done counting fields", "info");
-
+    std::map<std::string, int> fieldsMap;
     for (auto it = fieldCounts.begin(); it != fieldCounts.end(); ++it) {
         std::string field = it->first;
         if (it->second > 821) {
@@ -192,4 +207,5 @@ void JSONParser::countFileds() {
             }
         }
     }
+    return fieldsMap;
 }

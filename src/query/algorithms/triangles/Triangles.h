@@ -26,6 +26,12 @@ limitations under the License.
 #include "../../../localstore/JasmineGraphHashMapLocalStore.h"
 #include "../../../util/Conts.h"
 
+// Helper structure to hold the result
+struct TriangleResult {
+    std::string triangles;
+    long count;
+};
+
 class JasmineGraphHashMapCentralStore;
 class JasmineGraphHashMapDuplicateCentralStore;
 
@@ -38,8 +44,8 @@ class Triangles {
                     JasmineGraphHashMapDuplicateCentralStore duplicateCentralStore, std::string graphId,
                     std::string partitionId, int threadPriority);
 
-    static string countCentralStoreTriangles(map<long, unordered_set<long>> centralStore,
-                                             map<long, long> distributionMap, int threadPriority);
+    static TriangleResult countTriangles(map<long, unordered_set<long>> centralStore,
+                                             map<long, long> distributionMap, bool returnTriangles);
 };
 
 #endif  // JASMINEGRAPH_TRIANGLES_H
