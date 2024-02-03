@@ -733,54 +733,63 @@ void JasmineGraphServer::deleteNonOperationalGraphFragment(int graphID) {
 void JasmineGraphServer::shutdown_workers() {
     server_logger.info("Shutting down workers");
     std::vector<workers, std::allocator<workers>>::iterator mapIterator;
+
+    auto *server = JasmineGraphServer::getInstance();
+
+    if (server->profile == Conts::PROFILE_K8S) {
+        server->k8sWorkerController->setNumberOfWorkers(0);
+        return;
+    }
+
     for (mapIterator = hostWorkerMap.begin(); mapIterator < hostWorkerMap.end(); mapIterator++) {
         workers worker = *mapIterator;
-        bool result = true;
         server_logger.info("Host:" + worker.hostname + " Port:" + to_string(worker.port) +
                            " DPort:" + to_string(worker.dataPort));
-        int sockfd;
-        char data[FED_DATA_LENGTH + 1];
-        bool loop = false;
-        socklen_t len;
-        struct sockaddr_in serv_addr;
-        struct hostent *server;
-
-        sockfd = socket(AF_INET, SOCK_STREAM, 0);
-
-        if (sockfd < 0) {
-            server_logger.error("Cannot create socket");
-            return;
-        }
 
         std::string host = worker.hostname;
-        int port = worker.port;
 
         if (worker.hostname.find('@') != std::string::npos) {
             host = Utils::split(host, '@')[1];
         }
-
-        server = gethostbyname(host.c_str());
-        if (server == NULL) {
-            server_logger.error("ERROR, no host named " + host);
-            return;
-        }
-
-        bzero((char *)&serv_addr, sizeof(serv_addr));
-        serv_addr.sin_family = AF_INET;
-        bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
-        serv_addr.sin_port = htons(port);
-        if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) != 0) {
-            return;
-        }
-
-        if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::SHUTDOWN)) {
-            return;
-        }
-        server_logger.info("Sent: " + JasmineGraphInstanceProtocol::SHUTDOWN);
-
-        string response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
-        server_logger.info("Response: " + response);
+        shutdown_worker(host, worker.port);
     }
+}
+
+int JasmineGraphServer::shutdown_worker(std::string workerIP, int port) {
+    int sockfd;
+    char data[FED_DATA_LENGTH + 1];
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sockfd < 0) {
+        server_logger.error("Cannot create socket");
+        return -1;
+    }
+
+    server = gethostbyname(workerIP.c_str());
+    if (server == NULL) {
+        server_logger.error("ERROR, no host named " + workerIP);
+        return -1;
+    }
+
+    bzero((char *)&serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    serv_addr.sin_port = htons(port);
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) != 0) {
+        return -1;
+    }
+
+    if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::SHUTDOWN)) {
+        return -1;
+    }
+    server_logger.info("Sent: " + JasmineGraphInstanceProtocol::SHUTDOWN);
+
+    string response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
+    server_logger.info("Response: " + response);
+    return 0;
 }
 
 void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,

@@ -85,6 +85,8 @@ class JasmineGraphServer {
 
     static void shutdown_workers();
 
+    static int shutdown_worker(std::string host, int port);
+
     int run(std::string profile, std::string masterIp, int numberofWorkers, std::string workerIps,
             std::string enableNmon);
 

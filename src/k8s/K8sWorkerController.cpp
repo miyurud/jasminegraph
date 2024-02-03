@@ -19,6 +19,7 @@ limitations under the License.
 
 #include "../util/Conts.h"
 #include "../util/logger/Logger.h"
+#include "../server/JasmineGraphServer.h"
 
 Logger controller_logger;
 
@@ -95,6 +96,20 @@ void K8sWorkerController::spawnWorker(int workerId) {
 }
 
 void K8sWorkerController::deleteWorker(int workerId) {
+    std::string selectQuery = "SELECT ip, server_port FROM worker WHERE idworker = " + std::to_string(workerId);
+    auto result = metadb.runSelect(selectQuery);
+    if (result.size() == 0) {
+        controller_logger.error("Worker " + std::to_string(workerId) + " not found in the database");
+        return;
+    }
+    std::string ip = result.at(0).at(0).second;
+    int port = atoi(result.at(0).at(1).second.c_str());
+
+    int response = JasmineGraphServer::shutdown_worker(ip, port);
+    if (response == -1) {
+        controller_logger.error("Worker " + std::to_string(workerId) + " graceful shutdown failed");
+    }
+
     v1_status_t *status = this->interface->deleteJasmineGraphWorkerDeployment(workerId);
     if (status != nullptr && status->code == 0) {
         controller_logger.info("Worker " + std::to_string(workerId) + " deployment deleted successfully");
