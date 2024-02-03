@@ -361,29 +361,20 @@ void MetisPartitioner::createPartitionFiles(std::map<int, int> partMap) {
     std::thread *threads = new std::thread[threadCount];
     count = 0;
     for (int part = 0; part < nParts; part++) {
-        // threads[count] = std::thread(&MetisPartitioner::writePartitionFiles, this, part);
-        threads[count] = std::thread(&MetisPartitioner::writeSerializedPartitionFiles, this, part);
-        count++;
-        // threads[count] = std::thread(&MetisPartitioner::writeMasterFiles, this, part);
-        threads[count] = std::thread(&MetisPartitioner::writeSerializedMasterFiles, this, part);
-        count++;
-        threads[count] = std::thread(&MetisPartitioner::writeSerializedDuplicateMasterFiles, this, part);
-        count++;
+        threads[count++] = std::thread(&MetisPartitioner::writeSerializedPartitionFiles, this, part);
+        threads[count++] = std::thread(&MetisPartitioner::writeSerializedMasterFiles, this, part);
+        threads[count++] = std::thread(&MetisPartitioner::writeSerializedDuplicateMasterFiles, this, part);
         if (graphAttributeType == Conts::GRAPH_WITH_TEXT_ATTRIBUTES) {
-            threads[count] = std::thread(&MetisPartitioner::writeTextAttributeFilesForPartitions, this, part);
-            count++;
-            threads[count] = std::thread(&MetisPartitioner::writeTextAttributeFilesForMasterParts, this, part);
-            count++;
+            threads[count++] = std::thread(&MetisPartitioner::writeTextAttributeFilesForPartitions, this, part);
+            threads[count++] = std::thread(&MetisPartitioner::writeTextAttributeFilesForMasterParts, this, part);
         }
         if (graphType == Conts::GRAPH_TYPE_RDF) {
-            threads[count] = std::thread(&MetisPartitioner::writeRDFAttributeFilesForPartitions, this, part);
-            count++;
-            threads[count] = std::thread(&MetisPartitioner::writeRDFAttributeFilesForMasterParts, this, part);
-            count++;
+            threads[count++] = std::thread(&MetisPartitioner::writeRDFAttributeFilesForPartitions, this, part);
+            threads[count++] = std::thread(&MetisPartitioner::writeRDFAttributeFilesForMasterParts, this, part);
         }
     }
 
-    for (int tc = 0; tc < threadCount; tc++) {
+    for (int tc = 0; tc < count; tc++) {
         threads[tc].join();
     }
     partitioner_logger.log("Writing to files completed", "info");
@@ -706,93 +697,6 @@ void MetisPartitioner::writeSerializedDuplicateMasterFiles(int part) {
     centralStoreDuplicateFileList[part] = outputFilePartMaster + ".gz";
     masterFileMutex.unlock();
     partitioner_logger.log("Serializing done for duplicate central part " + to_string(part), "info");
-}
-
-void MetisPartitioner::writePartitionFiles(int part) {
-    string outputFilePart = outputFilePath + "/" + std::to_string(this->graphID) + "_" + std::to_string(part);
-
-    std::map<int, std::vector<int>> partEdgeMap = partitionedLocalGraphStorageMap[part];
-
-    if (!partEdgeMap.empty()) {
-        std::ofstream localFile(outputFilePart);
-
-        if (localFile.is_open()) {
-            for (auto it = partEdgeMap.begin(); it != partEdgeMap.end(); ++it) {
-                int vertex = it->first;
-                std::vector<int> destinationSet = it->second;
-
-                if (!destinationSet.empty()) {
-                    for (std::vector<int>::iterator itr = destinationSet.begin(); itr != destinationSet.end(); ++itr) {
-                        string edge;
-
-                        if (graphType == Conts::GRAPH_TYPE_RDF) {
-                            auto entry = edgeMap.find(make_pair(vertex, (*itr)));
-                            long article_id = entry->second;
-
-                            edge = std::to_string(vertex) + " " + std::to_string((*itr)) + " " +
-                                   std::to_string(article_id);
-                        } else {
-                            edge = std::to_string(vertex) + " " + std::to_string((*itr));
-                        }
-                        localFile << edge;
-                        localFile << "\n";
-                    }
-                }
-            }
-        }
-        localFile.flush();
-        localFile.close();
-    }
-
-    // Compress part files
-    Utils::compressFile(outputFilePart);
-    partFileMutex.lock();
-    partitionFileMap[part] = outputFilePart + ".gz";
-    partFileMutex.unlock();
-}
-
-void MetisPartitioner::writeMasterFiles(int part) {
-    string outputFilePartMaster =
-        outputFilePath + "/" + std::to_string(this->graphID) + "_centralstore_" + std::to_string(part);
-
-    std::map<int, std::vector<int>> partMasterEdgeMap = masterGraphStorageMap[part];
-
-    if (!partMasterEdgeMap.empty()) {
-        std::ofstream masterFile(outputFilePartMaster);
-
-        if (masterFile.is_open()) {
-            for (auto it = partMasterEdgeMap.begin(); it != partMasterEdgeMap.end(); ++it) {
-                int vertex = it->first;
-                std::vector<int> destinationSet = it->second;
-
-                if (!destinationSet.empty()) {
-                    for (std::vector<int>::iterator itr = destinationSet.begin(); itr != destinationSet.end(); ++itr) {
-                        string edge;
-
-                        if (graphType == Conts::GRAPH_TYPE_RDF) {
-                            auto entry = edgeMap.find(make_pair(vertex, (*itr)));
-                            long article_id = entry->second;
-
-                            edge = std::to_string(vertex) + " " + std::to_string((*itr)) + " " +
-                                   std::to_string(article_id);
-
-                        } else {
-                            edge = std::to_string(vertex) + " " + std::to_string((*itr));
-                        }
-                        masterFile << edge;
-                        masterFile << "\n";
-                    }
-                }
-            }
-        }
-        masterFile.flush();
-        masterFile.close();
-    }
-
-    Utils::compressFile(outputFilePartMaster);
-    masterFileMutex.lock();
-    centralStoreFileList[part] = outputFilePartMaster + ".gz";
-    masterFileMutex.unlock();
 }
 
 void MetisPartitioner::writeTextAttributeFilesForPartitions(int part) {

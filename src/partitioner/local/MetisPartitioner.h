@@ -100,10 +100,6 @@ class MetisPartitioner {
 
     void populatePartMaps(std::map<int, int> partMap, int part);
 
-    void writePartitionFiles(int part);
-
-    void writeMasterFiles(int part);
-
     void writeSerializedMasterFiles(int part);
 
     void writeSerializedCompositeMasterFiles(std::string part);

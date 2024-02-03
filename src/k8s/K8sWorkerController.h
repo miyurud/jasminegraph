@@ -22,7 +22,7 @@ extern "C" {
 #include "./K8sInterface.h"
 
 class K8sWorkerController {
- private:
+ private:    
     K8sInterface *interface;
     SQLiteDBInterface metadb;
 
@@ -31,6 +31,8 @@ class K8sWorkerController {
 
     std::map<std::string, int> nodes;
 
+    K8sWorkerController(std::string masterIp, int numberOfWorkers, SQLiteDBInterface *metadb);
+
     void spawnWorker(int workerId);
 
     void deleteWorker(int workerId);
@@ -38,9 +40,10 @@ class K8sWorkerController {
     int attachExistingWorkers();
 
  public:
-    K8sWorkerController(std::string masterIp, int numberOfWorkers, SQLiteDBInterface *metadb);
-
     ~K8sWorkerController();
+
+    static K8sWorkerController *getInstance(std::string masterIp, int numberOfWorkers, SQLiteDBInterface *metadb);
+    static K8sWorkerController *getInstance();
 
     std::string getMasterIp() const;
 

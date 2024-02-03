@@ -63,6 +63,7 @@ std::mutex aggregateWeightMutex;
 std::mutex triangleTreeMutex;
 std::string stream_topic_name;
 
+static std::string getPartitionCount(std::string path);
 static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
@@ -563,6 +564,11 @@ bool JasmineGraphFrontEnd::modelExistsByID(string id, SQLiteDBInterface *sqlite)
     return result;
 }
 
+static std::string getPartitionCount(std::string path) {
+    // TODO: Implement
+    return "";
+}
+
 static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
     std::stringstream ss;
     std::vector<vector<pair<string, string>>> v =
@@ -750,9 +756,7 @@ static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterfac
     name = strArr[0];
     path = strArr[1];
 
-    if (strArr.size() == 3) {
-        partitionCount = strArr[2];
-    }
+    partitionCount = getPartitionCount(path);
 
     if (JasmineGraphFrontEnd::graphExists(path, sqlite)) {
         frontend_logger.error("Graph exists");

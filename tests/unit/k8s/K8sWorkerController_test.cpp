@@ -27,7 +27,7 @@ class K8sWorkerControllerTest : public ::testing::Test {
     void SetUp() override {
         metadb = new SQLiteDBInterface(TEST_RESOURCE_DIR "temp/jasminegraph_meta.db");
         metadb->init();
-        controller = new K8sWorkerController("10.43.0.1", 2, metadb);
+        controller = K8sWorkerController::getInstance("10.43.0.1", 2, metadb);
         interface = new K8sInterface();
     }
 

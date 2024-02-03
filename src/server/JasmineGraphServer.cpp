@@ -68,7 +68,7 @@ static bool initiateOrgServer(std::string host, int port, int dataPort, std::str
 static void degreeDistributionCommon(std::string graphID, std::string command);
 
 static map<string, string> hostIDMap;
-static std::vector<JasmineGraphServer::workers> hostWorkerMap;
+static std::vector<JasmineGraphServer::worker> hostWorkerList;
 static map<string, pair<int, int>> hostPortMap;
 std::map<int, int> aggregateWeightMap;
 
@@ -135,7 +135,7 @@ int JasmineGraphServer::run(std::string profile, std::string masterIp, int numbe
     updateOperationalGraphList();
 
     if (profile == Conts::PROFILE_K8S) {
-        k8sWorkerController = new K8sWorkerController(masterIp, numberofWorkers, sqlite);
+        this->k8sWorkerController = K8sWorkerController::getInstance(masterIp, numberofWorkers, sqlite);
         std::string selectQuery = "select ip,server_port,server_data_port from worker";
         std::vector<vector<pair<string, string>>> output = this->sqlite->runSelect(selectQuery);
         for (std::vector<vector<pair<string, string>>>::iterator i = output.begin(); i != output.end(); ++i) {
@@ -145,10 +145,10 @@ int JasmineGraphServer::run(std::string profile, std::string masterIp, int numbe
             std::string port = j->second;
             ++j;
             std::string dataPort = j->second;
-            hostWorkerMap.push_back({ip, atoi(port.c_str()), atoi(dataPort.c_str())});
+            hostWorkerList.push_back({ip, atoi(port.c_str()), atoi(dataPort.c_str())});
         }
-
     } else {
+        this->k8sWorkerController = NULL;
         start_workers();
         addInstanceDetailsToPerformanceDB(masterHost, masterPortVector, "true");
     }
@@ -194,7 +194,6 @@ void JasmineGraphServer::start_workers() {
     this->sqlite->runUpdate("DELETE FROM host");
 
     std::vector<std::string>::iterator it;
-    it = hostsList.begin();
     std::string hostString = "";
     std::string sqlString = "INSERT INTO host (idhost,name,ip,is_public) VALUES ";
     int counter = 0;
@@ -247,8 +246,6 @@ void JasmineGraphServer::start_workers() {
     this->sqlite->runUpdate("DELETE FROM worker");
 
     int workerIDCounter = 0;
-    it = hostsList.begin();
-
     for (it = hostsList.begin(); it < hostsList.end(); it++) {
         string sqlStatement =
             "INSERT INTO worker (idworker,host_idhost,name,ip,user,is_public,server_port,server_data_port) VALUES ";
@@ -269,7 +266,7 @@ void JasmineGraphServer::start_workers() {
         while (portCount < numberOfWorkersPerHost) {
             portVector.push_back(workerPort);
             dataPortVector.push_back(workerDataPort);
-            hostWorkerMap.push_back({*it, workerPort, workerDataPort});
+            hostWorkerList.push_back({*it, workerPort, workerDataPort});
             // FIXME: When there are more than 1 worker in the same host, one workers ports will replace the entries of
             // other workers port entries in hostPortMap
             hostPortMap[*it] = make_pair(workerPort, workerDataPort);
@@ -288,7 +285,7 @@ void JasmineGraphServer::start_workers() {
         if (hostListModeNWorkers > 0) {
             portVector.push_back(workerPort);
             dataPortVector.push_back(workerDataPort);
-            hostWorkerMap.push_back({*it, workerPort, workerDataPort});
+            hostWorkerList.push_back({*it, workerPort, workerDataPort});
             hostPortMap[*it] = make_pair(workerPort, workerDataPort);
             hostListModeNWorkers--;
             string is_public = "false";
@@ -730,17 +727,14 @@ void JasmineGraphServer::deleteNonOperationalGraphFragment(int graphID) {
 
 void JasmineGraphServer::shutdown_workers() {
     server_logger.info("Shutting down workers");
-    std::vector<workers, std::allocator<workers>>::iterator mapIterator;
-
     auto *server = JasmineGraphServer::getInstance();
 
     if (server->profile == Conts::PROFILE_K8S) {
         server->k8sWorkerController->setNumberOfWorkers(0);
         return;
     }
-
-    for (mapIterator = hostWorkerMap.begin(); mapIterator < hostWorkerMap.end(); mapIterator++) {
-        workers worker = *mapIterator;
+    for (auto listIterator = hostWorkerList.begin(); listIterator < hostWorkerList.end(); listIterator++) {
+        worker worker = *listIterator;
         server_logger.info("Host:" + worker.hostname + " Port:" + to_string(worker.port) +
                            " DPort:" + to_string(worker.dataPort));
 
@@ -790,64 +784,66 @@ int JasmineGraphServer::shutdown_worker(std::string workerIP, int port) {
     return 0;
 }
 
+static std::vector<JasmineGraphServer::worker> getWorkers(size_t npart) {
+    // TODO: get the workers with lowest load from hostWorkerList
+    std::vector<JasmineGraphServer::worker> workerList(hostWorkerList.begin(), hostWorkerList.begin() + npart);
+    return workerList;
+}
+
 void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
                                             vector<std::map<int, string>> fullFileList, std::string masterIP) {
     server_logger.info("Uploading the graph locally..");
-    std::map<int, string> partitionFileList = fullFileList[0];
-    std::map<int, string> centralStoreFileList = fullFileList[1];
-    std::map<int, string> centralStoreDuplFileList = fullFileList[2];
-    std::map<int, string> compositeCentralStoreFileList = fullFileList[5];
-    std::map<int, string> attributeFileList;
-    std::map<int, string> centralStoreAttributeFileList;
+    std::map<int, string> partitionFileMap = fullFileList[0];
+    server_logger.info(">>>>>>>>>>>>>>>>>  size of partitionFileMap = " + std::to_string(partitionFileMap.size()));
+    std::map<int, string> centralStoreFileMap = fullFileList[1];
+    std::map<int, string> centralStoreDuplFileMap = fullFileList[2];
+    std::map<int, string> compositeCentralStoreFileMap = fullFileList[5];
+    std::map<int, string> attributeFileMap;
+    std::map<int, string> centralStoreAttributeFileMap;
     if (masterHost.empty()) {
         masterHost = Utils::getJasmineGraphProperty("org.jasminegraph.server.host");
     }
-    int total_threads = partitionFileList.size() + centralStoreFileList.size() + centralStoreDuplFileList.size() +
-                        compositeCentralStoreFileList.size();
+    int total_threads = partitionFileMap.size() + centralStoreFileMap.size() + centralStoreDuplFileMap.size() +
+                        compositeCentralStoreFileMap.size();
     if (graphType == Conts::GRAPH_WITH_ATTRIBUTES) {
-        attributeFileList = fullFileList[3];
-        total_threads += attributeFileList.size();
-        centralStoreAttributeFileList = fullFileList[4];
-        total_threads += centralStoreAttributeFileList.size();
+        attributeFileMap = fullFileList[3];
+        total_threads += attributeFileMap.size();
+        centralStoreAttributeFileMap = fullFileList[4];
+        total_threads += centralStoreAttributeFileMap.size();
     }
     int count = 0;
     int file_count = 0;
     std::thread *workerThreads = new std::thread[total_threads];
     while (count < total_threads) {
-        std::vector<workers, std::allocator<workers>>::iterator mapIterator;
-        for (mapIterator = hostWorkerMap.begin(); mapIterator < hostWorkerMap.end(); mapIterator++) {
-            workers worker = *mapIterator;
+        auto workerList = getWorkers(partitionFileMap.size());
+        for (auto listIterator = workerList.begin(); listIterator < workerList.end(); listIterator++) {
+            worker worker = *listIterator;
             if (count == total_threads) {
                 break;
             }
-            std::string partitionFileName = partitionFileList[file_count];
-            workerThreads[count] = std::thread(batchUploadFile, worker.hostname, worker.port, worker.dataPort, graphID,
-                                               partitionFileName, masterHost);
-            count++;
-            copyCentralStoreToAggregateLocation(centralStoreFileList[file_count]);
-            workerThreads[count] = std::thread(batchUploadCentralStore, worker.hostname, worker.port, worker.dataPort,
-                                               graphID, centralStoreFileList[file_count], masterHost);
-            count++;
+            std::string partitionFileName = partitionFileMap[file_count];
+            workerThreads[count++] = std::thread(batchUploadFile, worker.hostname, worker.port, worker.dataPort,
+                                                 graphID, partitionFileName, masterHost);
+            copyCentralStoreToAggregateLocation(centralStoreFileMap[file_count]);
+            workerThreads[count++] = std::thread(batchUploadCentralStore, worker.hostname, worker.port, worker.dataPort,
+                                                 graphID, centralStoreFileMap[file_count], masterHost);
 
-            if (compositeCentralStoreFileList.find(file_count) != compositeCentralStoreFileList.end()) {
-                copyCentralStoreToAggregateLocation(compositeCentralStoreFileList[file_count]);
-                workerThreads[count] =
+            if (compositeCentralStoreFileMap.find(file_count) != compositeCentralStoreFileMap.end()) {
+                copyCentralStoreToAggregateLocation(compositeCentralStoreFileMap[file_count]);
+                workerThreads[count++] =
                     std::thread(batchUploadCompositeCentralstoreFile, worker.hostname, worker.port, worker.dataPort,
-                                graphID, compositeCentralStoreFileList[file_count], masterHost);
-                count++;
+                                graphID, compositeCentralStoreFileMap[file_count], masterHost);
             }
 
-            workerThreads[count] = std::thread(batchUploadCentralStore, worker.hostname, worker.port, worker.dataPort,
-                                               graphID, centralStoreDuplFileList[file_count], masterHost);
-            count++;
+            workerThreads[count++] = std::thread(batchUploadCentralStore, worker.hostname, worker.port, worker.dataPort,
+                                                 graphID, centralStoreDuplFileMap[file_count], masterHost);
             if (graphType == Conts::GRAPH_WITH_ATTRIBUTES) {
-                workerThreads[count] = std::thread(batchUploadAttributeFile, worker.hostname, worker.port,
-                                                   worker.dataPort, graphID, attributeFileList[file_count], masterHost);
-                count++;
-                workerThreads[count] =
+                workerThreads[count++] =
+                    std::thread(batchUploadAttributeFile, worker.hostname, worker.port, worker.dataPort, graphID,
+                                attributeFileMap[file_count], masterHost);
+                workerThreads[count++] =
                     std::thread(batchUploadCentralAttributeFile, worker.hostname, worker.port, worker.dataPort, graphID,
-                                centralStoreAttributeFileList[file_count], masterHost);
-                count++;
+                                centralStoreAttributeFileMap[file_count], masterHost);
             }
             assignPartitionToWorker(partitionFileName, graphID, worker.hostname, worker.port, worker.dataPort);
             file_count++;
@@ -1387,7 +1383,7 @@ static bool removePartitionThroughService(string host, int port, string graphID,
     return true;
 }
 
-std::vector<JasmineGraphServer::workers> JasmineGraphServer::getHostWorkerMap() { return hostWorkerMap; }
+std::vector<JasmineGraphServer::worker> JasmineGraphServer::getHostWorkerList() { return hostWorkerList; }
 
 void JasmineGraphServer::updateOperationalGraphList() {
     string hosts = "";

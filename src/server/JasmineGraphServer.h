@@ -116,7 +116,7 @@ class JasmineGraphServer {
     std::string masterHost;
     int numberOfWorkers = -1;
 
-    struct workers {
+    struct worker {
         std::string hostname;
         int port;
         int dataPort;
@@ -137,8 +137,8 @@ class JasmineGraphServer {
                              // partiton ID.
     };
 
-    // return hostWorkerMap
-    static std::vector<JasmineGraphServer::workers> getHostWorkerMap();
+    // return hostWorkerList
+    static std::vector<JasmineGraphServer::worker> getHostWorkerList();
 
     static std::map<std::string, workerPartition> getWorkerPartitions(string graphID);
 
