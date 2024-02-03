@@ -59,9 +59,9 @@ class TriangleCountExecutor : public AbstractExecutor {
                                                     std::string aggregatorDataPort, int graphId, int partitionId,
                                                     std::string masterIP);
 
-    static string countCentralStoreTriangles(std::string aggregatorHostName, std::string aggregatorPort,
-                                             std::string host, std::string partitionId, std::string partitionIdList,
-                                             std::string graphId, std::string masterIP, int threadPriority);
+    static string countCentralStoreTriangles(std::string aggregatorPort, std::string host, std::string partitionId,
+                                             std::string partitionIdList, std::string graphId, std::string masterIP,
+                                             int threadPriority);
 
     static bool proceedOrNot(std::set<string> partitionSet, int partitionId);
 

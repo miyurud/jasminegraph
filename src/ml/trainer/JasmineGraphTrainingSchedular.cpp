@@ -69,7 +69,7 @@ map<string, std::map<int, int>> JasmineGraphTrainingSchedular::schedulePartition
     int vertexcount;
     int centralVertexCount;
     trainScheduler_logger.log("Scheduling training order for each worker", "info");
-    for (std::vector<pair<string, string>>::iterator j = (hostData.begin()); j != hostData.end(); ++j) {
+    for (std::vector<pair<string, string>>::iterator j = hostData.begin(); j != hostData.end(); ++j) {
         sqlStatement =
             "SELECT idpartition, vertexcount, central_vertexcount, graph_idgraph FROM partition INNER JOIN "
             "(SELECT host_idhost, partition_idpartition, partition_graph_idgraph, worker_idworker FROM "

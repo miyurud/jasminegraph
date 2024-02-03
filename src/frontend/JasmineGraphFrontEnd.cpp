@@ -1175,7 +1175,6 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
         // reading kafka_server IP from the given file.
         std::vector<std::string>::iterator it;
         vector<std::string> vec = Utils::getFileContent(file_path_s);
-        it = vec.begin();
         for (it = vec.begin(); it < vec.end(); it++) {
             std::string item = *it;
             if (item.length() > 0 && !(item.rfind("#", 0) == 0)) {

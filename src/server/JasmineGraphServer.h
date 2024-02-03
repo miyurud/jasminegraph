@@ -140,17 +140,13 @@ class JasmineGraphServer {
     // return hostWorkerList
     static std::vector<JasmineGraphServer::worker> getHostWorkerList();
 
-    static std::map<std::string, workerPartition> getWorkerPartitions(string graphID);
-
-    std::map<std::string, workerPartitions> getGraphPartitionedHosts(std::string graphID);
+    static std::map<std::string, workerPartitions> getGraphPartitionedHosts(std::string graphID);
 
     static void inDegreeDistribution(std::string graphID);
 
     static void outDegreeDistribution(std::string graphID);
 
     static void duplicateCentralStore(std::string graphID);
-
-    static void pageRank(std::string graphID, double alpha, int iterations);
 
     static long getGraphVertexCount(std::string graphID);
 
