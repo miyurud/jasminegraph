@@ -21,11 +21,11 @@ limitations under the License.
 #include "../../../../performance/metrics/PerformanceUtil.h"
 #include "../../../../server/JasmineGraphServer.h"
 
-class PagerankExecutor : public AbstractExecutor{
+class PageRankExecutor : public AbstractExecutor{
  public:
-    PagerankExecutor();
+    PageRankExecutor();
 
-    PagerankExecutor(SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb, JobRequest jobRequest);
+    PageRankExecutor(SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb, JobRequest jobRequest);
     static void doPageRank(std::string graphID, double alpha, int iterations, string partition,
                           string host, int port, int dataPort, std::string workerList);
     void execute();

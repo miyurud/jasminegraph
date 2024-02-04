@@ -11,23 +11,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
-#include "PagerankExecutor.h"
+#include "PageRankExecutor.h"
 
 #define DATA_BUFFER_SIZE (FRONTEND_DATA_LENGTH + 1)
 using namespace std::chrono;
 
 Logger pageRank_logger;
 
-PagerankExecutor::PagerankExecutor() {}
+PageRankExecutor::PageRankExecutor() {}
 
-PagerankExecutor::PagerankExecutor(SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb,
-                                             JobRequest jobRequest) {
+PageRankExecutor::PageRankExecutor(SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb,
+                                   JobRequest jobRequest) {
     this->sqlite = db;
     this->perfDB = perfDb;
     this->request = jobRequest;
 }
 
-void PagerankExecutor::execute() {
+void PageRankExecutor::execute() {
     int uniqueId = getUid();
     std::string masterIP = request.getMasterIP();
     std::string graphId = request.getParameter(Conts::PARAM_KEYS::GRAPH_ID);
@@ -115,7 +115,7 @@ void PagerankExecutor::execute() {
         dataPort = workerPartition.dataPort;
 
         intermRes.push_back(std::async(
-                std::launch::async, PagerankExecutor::doPageRank, graphId, alpha,
+                std::launch::async, PageRankExecutor::doPageRank, graphId, alpha,
                 iterations, partition, host, port, dataPort, workerList));
     }
 
@@ -151,7 +151,7 @@ void PagerankExecutor::execute() {
     }
 
     pageRank_logger.info(
-                "###PAGERANK-EXECUTOR### Getting Pagerank : Completed");
+                "###PAGERANK-EXECUTOR### Getting PageRank : Completed");
 
     workerResponded = true;
     JobResponse jobResponse;
@@ -188,13 +188,13 @@ void PagerankExecutor::execute() {
     processStatusMutex.unlock();
 }
 
-int PagerankExecutor::getUid() {
+int PageRankExecutor::getUid() {
     static std::atomic<std::uint32_t> uid{0};
     return ++uid;
 }
 
-void PagerankExecutor::doPageRank(std::string graphID, double alpha, int iterations, string partition,
-                                 string host, int port, int dataPort, std::string workerList) {
+void PageRankExecutor::doPageRank(std::string graphID, double alpha, int iterations, string partition,
+                                  string host, int port, int dataPort, std::string workerList) {
         if (host.find('@') != std::string::npos) {
             host = Utils::split(host, '@')[1];
         }
@@ -207,7 +207,7 @@ void PagerankExecutor::doPageRank(std::string graphID, double alpha, int iterati
         sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
         if (sockfd < 0) {
-            std::cout << "Cannot create socket" << std::endl;
+            pageRank_logger.error("Cannot create socket");
             return;
         }
         server = gethostbyname(host.c_str());
@@ -221,7 +221,7 @@ void PagerankExecutor::doPageRank(std::string graphID, double alpha, int iterati
         bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
         serv_addr.sin_port = htons(port);
         if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-            std::cout << "ERROR connecting" << std::endl;
+            pageRank_logger.error("Error connecting to socket");
             return;
         }
 
@@ -298,7 +298,7 @@ void PagerankExecutor::doPageRank(std::string graphID, double alpha, int iterati
             pageRank_logger.error("Error writing to socket");
             return;
         }
-        pageRank_logger.info("page rank alpha value sent : " + std::to_string(alpha));
+        pageRank_logger.info("PageRank alpha value sent : " + std::to_string(alpha));
 
         response = Utils::read_str_trim_wrapper(sockfd, data, FRONTEND_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
