@@ -135,8 +135,10 @@ def test(host, port):
         print()
         logging.info('Testing pgrnk')
         send_and_expect_response(sock, 'pgrnk', PGRNK,
-                                 b'send', exit_on_failure=True)
-        send_and_expect_response(sock, 'pgrnk', b'1|0.5|40',
+                                 b'grap', exit_on_failure=True)
+        send_and_expect_response(
+            sock, 'pgrnk', b'1|0.5|40', b'priority(>=1)', exit_on_failure=True)
+        send_and_expect_response(sock, 'pgrnk', b'1',
                                  DONE, exit_on_failure=True)
 
         print()

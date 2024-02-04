@@ -147,8 +147,11 @@ class Conts {
         static const std::string MODE;
         static const std::string PARTITION;
         static const std::string PRIORITY;
+        static const std::string ALPHA;
+        static const std::string ITERATION;
         static const std::string TRIANGLE_COUNT;
         static const std::string STREAMING_TRIANGLE_COUNT;
+        static const std::string PAGE_RANK;
         static const std::string CAN_CALIBRATE;
         static const std::string CATEGORY;
         static const std::string QUEUE_TIME;
