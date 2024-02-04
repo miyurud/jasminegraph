@@ -696,8 +696,7 @@ int Utils::createDatabaseFromDDL(const char *dbLocation, const char *ddlFileLoca
 }
 
 bool Utils::fileExistsWithReadPermission(const string &path) {
-    std::ifstream file(path);
-    return file.is_open();
+    return access(path.c_str(), R_OK) == 0;
 }
 
 std::fstream *Utils::openFile(const string &path, std::ios_base::openmode mode) {

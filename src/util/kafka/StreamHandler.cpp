@@ -26,12 +26,13 @@ using namespace std;
 using namespace std::chrono;
 Logger stream_handler_logger;
 
-StreamHandler::StreamHandler(KafkaConnector *kstream, Partitioner &graphPartitioner,
+StreamHandler::StreamHandler(KafkaConnector *kstream, int numberOfPartitions,
                              vector<DataPublisher *> &workerClients)
-    : kstream(kstream),
-      graphPartitioner(graphPartitioner),
-      workerClients(workerClients),
-      stream_topic_name("stream_topic_name") {}
+        : kstream(kstream),
+          workerClients(workerClients),
+          graphPartitioner(numberOfPartitions, 0, spt::Algorithms::FENNEL),
+          stream_topic_name("stream_topic_name") { }
+
 
 // Polls kafka for a message.
 cppkafka::Message StreamHandler::pollMessage() { return kstream->consumer.poll(std::chrono::milliseconds(1000)); }
