@@ -1217,14 +1217,14 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     }
     // create kafka consumer and graph partitioner
     kstream = new KafkaConnector(configs);
-    // Create the Partitioner object.
-    Partitioner graphPartitioner(numberOfPartitions, 1, spt::Algorithms::HASH);
-    // Create the KafkaConnector object.
+// Create the Partitioner object.
+    Partitioner graphPartitioner(numberOfPartitions, 0, spt::Algorithms::FENNEL);
+// Create the KafkaConnector object.
     kstream = new KafkaConnector(configs);
     // Subscribe to the Kafka topic.
     kstream->Subscribe(topic_name_s);
-    // Create the StreamHandler object.
-    StreamHandler *stream_handler = new StreamHandler(kstream, graphPartitioner, workerClients);
+// Create the StreamHandler object.
+    StreamHandler* stream_handler = new StreamHandler(kstream, numberOfPartitions, workerClients);
 
     frontend_logger.info("Start listening to " + topic_name_s);
     input_stream_handler_thread = thread(&StreamHandler::listen_to_kafka_topic, stream_handler);

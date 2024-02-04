@@ -68,6 +68,10 @@ class Utils {
 
     static bool fileExists(std::string fileName);
 
+    static bool fileExistsWithReadPermission(const std::string& path);
+
+    static std::fstream* openFile(const std::string &path, std::ios_base::openmode mode);
+
     static int compressFile(const std::string filePath, std::string mode = "pigz");
 
     static bool is_number(const std::string &compareString);

@@ -81,12 +81,12 @@ class RelationBlock {
     NodeRelation destination;
     unsigned int propertyAddress = 0;
     PropertyEdgeLink *propertyHead = NULL;
-    static unsigned int nextLocalRelationIndex;
-    static unsigned int nextCentralRelationIndex;
-    static const unsigned long BLOCK_SIZE;  // Size of a relation record block in bytes
-    static std::string DB_PATH;
-    static std::fstream *relationsDB;
-    static std::fstream *centralrelationsDB;
+    static thread_local unsigned int nextLocalRelationIndex;
+    static thread_local unsigned int nextCentralRelationIndex;
+    static thread_local const unsigned long BLOCK_SIZE;  // Size of a relation record block in bytes
+    static thread_local std::string DB_PATH;
+    static thread_local std::fstream *relationsDB;
+    static thread_local std::fstream *centralRelationsDB;
     static const int RECORD_SIZE = sizeof(unsigned int);
 
     void save(std::fstream *cursor);
@@ -110,11 +110,12 @@ class RelationBlock {
     void setSource(NodeBlock *src) { sourceBlock = src; };
     void setDestination(NodeBlock *dst) { destinationBlock = dst; };
 
-    RelationBlock *nextLocalSource();
-    RelationBlock *nextCentralSource();
 
     RelationBlock *previousLocalSource();
     RelationBlock *previousCentralSource();
+
+    RelationBlock *nextLocalSource();
+    RelationBlock *nextCentralSource();
 
     RelationBlock *nextLocalDestination();
     RelationBlock *nextCentralDestination();

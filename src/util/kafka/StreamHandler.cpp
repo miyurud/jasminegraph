@@ -16,20 +16,23 @@ limitations under the License.
 #include <chrono>
 #include <nlohmann/json.hpp>
 #include <string>
+#include <stdlib.h>
 
 #include "../logger/Logger.h"
+#include "../Utils.h"
 
 using json = nlohmann::json;
 using namespace std;
 using namespace std::chrono;
 Logger stream_handler_logger;
 
-StreamHandler::StreamHandler(KafkaConnector *kstream, Partitioner &graphPartitioner,
+StreamHandler::StreamHandler(KafkaConnector *kstream, int numberOfPartitions,
                              vector<DataPublisher *> &workerClients)
-    : kstream(kstream),
-      graphPartitioner(graphPartitioner),
-      workerClients(workerClients),
-      stream_topic_name("stream_topic_name") {}
+        : kstream(kstream),
+          workerClients(workerClients),
+          graphPartitioner(numberOfPartitions, 0, spt::Algorithms::FENNEL),
+          stream_topic_name("stream_topic_name") { }
+
 
 // Polls kafka for a message.
 cppkafka::Message StreamHandler::pollMessage() { return kstream->consumer.poll(std::chrono::milliseconds(1000)); }
@@ -59,6 +62,11 @@ void StreamHandler::listen_to_kafka_topic() {
 
         if (this->isEndOfStream(msg)) {
             frontend_logger.info("Received the end of `" + stream_topic_name + "` input kafka stream");
+            for (auto &workerClient : workerClients) {
+                if (workerClient != nullptr) {
+                    workerClient->publish("-1");
+                }
+            }
             break;
         }
 
@@ -87,19 +95,22 @@ void StreamHandler::listen_to_kafka_topic() {
         obj["source"] = sourceJson;
         obj["destination"] = destinationJson;
         obj["properties"] = edgeJson["properties"];
-        long temp_s = partitionedEdge[0].second;
-        long temp_d = partitionedEdge[1].second;
+        long part_s = partitionedEdge[0].second;
+        long part_d = partitionedEdge[1].second;
+        int n_workers = atoi((Utils::getJasmineGraphProperty("org.jasminegraph.server.nworkers")).c_str());
+        long temp_s = part_s % n_workers;
+        long temp_d = part_d % n_workers;
 
         // Storing Node block
-        if (temp_s == temp_d) {
+        if (part_s == part_d) {
             obj["EdgeType"] = "Local";
-            obj["PID"] = temp_s;
+            obj["PID"] = part_s;
             workerClients.at(temp_s)->publish(obj.dump());
         } else {
             obj["EdgeType"] = "Central";
-            obj["PID"] = temp_s;
+            obj["PID"] = part_s;
             workerClients.at(temp_s)->publish(obj.dump());
-            obj["PID"] = temp_d;
+            obj["PID"] = part_d;
             workerClients.at(temp_d)->publish(obj.dump());
         }
     }

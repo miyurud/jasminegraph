@@ -23,7 +23,7 @@ class PropertyLink {
  public:
     static const unsigned long MAX_NAME_SIZE = 12;    // Size of a property name in bytes
     static const unsigned long MAX_VALUE_SIZE = 180;  // Size of a property value in bytes
-    static unsigned int nextPropertyIndex;            // Next available property block index
+    static thread_local unsigned int nextPropertyIndex;            // Next available property block index
     // unless open in wipe data
     // mode(trunc) need to set this value to property db seekp()/BLOCK_SIZE
     static const unsigned long PROPERTY_BLOCK_SIZE = MAX_NAME_SIZE + MAX_VALUE_SIZE + sizeof(unsigned int);
@@ -33,8 +33,10 @@ class PropertyLink {
     unsigned int blockAddress;  // contains the address of the first element in the list
     unsigned int nextPropAddress;
 
-    static std::string DB_PATH;
-    static std::fstream* propertiesDB;
+    static thread_local std::string DB_PATH;
+    static thread_local std::fstream* propertiesDB;
+
+
 
     PropertyLink(unsigned int);
     PropertyLink(unsigned int, std::string, const char*, unsigned int);

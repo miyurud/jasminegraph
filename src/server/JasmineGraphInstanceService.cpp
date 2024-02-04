@@ -25,6 +25,7 @@ limitations under the License.
 #include "../server/JasmineGraphServer.h"
 #include "../util/logger/Logger.h"
 #include "JasmineGraphInstance.h"
+#include "../util/kafka/InstanceStreamHandler.h"
 
 using namespace std;
 
@@ -115,8 +116,7 @@ static void initiate_model_collection_command(int connFd, bool *loop_exit_p);
 static void initiate_fragment_resolution_command(int connFd, bool *loop_exit_p);
 static void check_file_accessible_command(int connFd, bool *loop_exit_p);
 static void graph_stream_start_command(
-    int connFd, std::map<std::string, JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap,
-    bool *loop_exit_p);
+        int connFd, InstanceStreamHandler& instanceStreamHandler, bool *loop_exit_p);
 static void send_priority_command(int connFd, bool *loop_exit_p);
 static std::string initiate_command_common(int connFd, bool *loop_exit_p);
 static void batch_upload_common(int connFd, bool *loop_exit_p, bool batch_upload);
@@ -143,6 +143,8 @@ void *instanceservicesession(void *dummyPt) {
         sessionargs.graphDBMapDuplicateCentralStores;
     std::map<std::string, JasmineGraphIncrementalLocalStore *> incrementalLocalStoreMap =
         sessionargs.incrementalLocalStore;
+    InstanceStreamHandler streamHandler(incrementalLocalStoreMap);
+
 
     string serverName = sessionargs.host;
     string masterHost = sessionargs.masterHost;
@@ -254,7 +256,7 @@ void *instanceservicesession(void *dummyPt) {
         } else if (line.compare(JasmineGraphInstanceProtocol::CHECK_FILE_ACCESSIBLE) == 0) {
             check_file_accessible_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::GRAPH_STREAM_START) == 0) {
-            graph_stream_start_command(connFd, incrementalLocalStoreMap, &loop_exit);
+            graph_stream_start_command(connFd, streamHandler, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::SEND_PRIORITY) == 0) {
             send_priority_command(connFd, &loop_exit);
         } else {
@@ -476,7 +478,6 @@ JasmineGraphIncrementalLocalStore *JasmineGraphInstanceService::loadStreamingSto
     instance_logger.info("###INSTANCE### Loading Local Store : Completed");
     return jasmineGraphStreamingLocalStore;
 }
-
 void JasmineGraphInstanceService::loadLocalStore(
     std::string graphId, std::string partitionId,
     std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores) {
@@ -4175,9 +4176,7 @@ static void check_file_accessible_command(int connFd, bool *loop_exit_p) {
     }
 }
 
-static void graph_stream_start_command(
-    int connFd, std::map<std::string, JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap,
-    bool *loop_exit_p) {
+static void graph_stream_start_command(int connFd, InstanceStreamHandler& instanceStreamHandler, bool *loop_exit_p) {
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK)) {
         *loop_exit_p = true;
         return;
@@ -4212,20 +4211,7 @@ static void graph_stream_start_command(
         *loop_exit_p = true;
         return;
     }
-
-    auto graphIdPartitionId = JasmineGraphIncrementalLocalStore::getIDs(nodeString);
-    std::string graphId = graphIdPartitionId.first;
-    std::string partitionId = std::to_string(graphIdPartitionId.second);
-    std::string graphIdentifier = graphId + "_" + partitionId;
-    JasmineGraphIncrementalLocalStore *incrementalLocalStoreInstance;
-
-    if (incrementalLocalStoreMap.find(graphIdentifier) == incrementalLocalStoreMap.end()) {
-        incrementalLocalStoreInstance =
-            JasmineGraphInstanceService::loadStreamingStore(graphId, partitionId, incrementalLocalStoreMap, "trunk");
-    } else {
-        incrementalLocalStoreInstance = incrementalLocalStoreMap[graphIdentifier];
-    }
-    incrementalLocalStoreInstance->addEdgeFromString(nodeString);
+    instanceStreamHandler.handleRequest(nodeString);
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_END_OF_EDGE)) {
         *loop_exit_p = true;
         return;
