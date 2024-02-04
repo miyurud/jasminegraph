@@ -19,6 +19,18 @@ Run the image by providing the appropriate volume mount paths and parameters:
     docker run -v "/var/run/docker.sock:/var/run/docker.sock:rw" -v "/root/.ssh:/home/user/.ssh" -v "/tmp:/tmp" -v "/var/tmp/jasminegraph-localstore:/var/tmp/jasminegraph-localstore" -v "/var/tmp/jasminegraph-aggregate:/var/tmp/jasminegraph-aggregate" -v "/home/user/Documents/jasminegraph/metadb:/home/ubuntu/software/jasminegraph/metadb" -v "/home/user/Documents/MSc/jasminegraph/performancedb:/home/ubuntu/software/jasminegraph/performancedb" -p 7777:7777 -p 7778:7778 jasminegraph --MODE 1 --MASTERIP <docker0 interface ip> --WORKERS 4 --WORKERIP <docker0 interface ip> --ENABLE_NMON false
 
 
+Run JasmineGraph in Kubernetes environment by providing appropriate parameters:
+
+    ./start-k8s.sh --META_DB_PATH "$(pwd)/metadb" \
+        --PERFORMANCE_DB_PATH "$(pwd)/performancedb" \
+        --DATA_PATH "$(pwd)/data" \
+        --LOG_PATH "$(pwd)/logs" \
+        --NO_OF_WORKERS 2 \
+        --ENABLE_NMON false
+
+>Note: `NO_OF_WORKERS` and `ENABLE_NMON` are optional arguments, and it defaults to `2` and `false` respectively.
+
+
 ## 3. Contact Information
 
 Please contact [Miyuru Dayarathna](miyurud at yahoo dot co dot uk) for further information. Please let us know about bug reports or any further improvements you wish to have in JasmineGraph.

@@ -42,13 +42,12 @@ build_and_run_on_k8s() {
     clear_resources >/dev/null 2>&1
     set -e
 
-    metadb_path="${TEST_ROOT}/env/databases/metadb" \
-        performancedb_path="${TEST_ROOT}/env/databases/performancedb" \
-        data_path="${TEST_ROOT}/env/data" \
-        log_path="${LOG_DIR}" \
-        envsubst <"${PROJECT_ROOT}/k8s/volumes.yaml" | kubectl apply -f -
-
-    kubectl apply -f "${PROJECT_ROOT}/k8s/master-deployment.yaml"
+    ./start-k8s.sh --META_DB_PATH "${TEST_ROOT}/env/databases/metadb" \
+        --PERFORMANCE_DB_PATH performancedb_path "${TEST_ROOT}/env/databases/performancedb" \
+        --DATA_PATH "${TEST_ROOT}/env/data" \
+        --LOG_PATH "${LOG_DIR}" \
+        --NO_OF_WORKERS 2 \
+        --ENABLE_NMON false
 }
 
 clear_resources() {
@@ -65,30 +64,10 @@ cp -r env_init env
 cd "$PROJECT_ROOT"
 build_and_run_on_k8s
 
-# sleep until server starts listening
+# Wait till JasmineGraph server start listening
 cur_timestamp="$(date +%s)"
 end_timestamp="$((cur_timestamp + TIMEOUT_SECONDS))"
-while true; do
-    if [ "$(date +%s)" -gt "$end_timestamp" ]; then
-        set +ex
-        echo "JasmineGraph is not listening"
-        echo "Build log:"
-        cat "$BUILD_LOG"
-        echo "Build log:"
-        cat "$RUN_LOG"
-        sudo rm -rf "${TEST_ROOT}/env"
-        clear_resources
-        exit 1
-    fi
-    masterIP="$(kubectl get services |& grep jasminegraph-master-service | tr '\t' ' ' | tr -s ' ' | cut -d ' ' -f 3)"
-    if [ ! -z "$masterIP" ]; then
-        echo "MasterIP : $masterIP"
-        break
-    fi
-    echo "Waiting for masterIP"
-    sleep .5
-done
-
+masterIP="$(kubectl get services |& grep jasminegraph-master-service | tr '\t' ' ' | tr -s ' ' | cut -d ' ' -f 3)"
 while ! nc -zvn -w 1 "$masterIP" 7777 &>/dev/null; do
     if [ "$(date +%s)" -gt "$end_timestamp" ]; then
         set +ex
@@ -107,6 +86,7 @@ done
 
 echo
 kubectl get pods -o wide
+echo
 kubectl get services -o wide
 echo
 
