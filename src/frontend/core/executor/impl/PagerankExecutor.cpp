@@ -16,7 +16,7 @@ limitations under the License.
 #define DATA_BUFFER_SIZE (FRONTEND_DATA_LENGTH + 1)
 using namespace std::chrono;
 
-Logger pgrnk_logger;
+Logger pageRank_logger;
 
 PagerankExecutor::PagerankExecutor() {}
 
@@ -72,7 +72,7 @@ void PagerankExecutor::execute() {
         processStatusMutex.unlock();
     }
 
-    pgrnk_logger.log(
+    pageRank_logger.log(
             "###PAGERANK-EXECUTOR### Started with graph ID : " + graphId + " Master IP : " + masterIP, "info");
 
     int partitionCount = 0;
@@ -105,7 +105,7 @@ void PagerankExecutor::execute() {
     }
 
     workerList.pop_back();
-    pgrnk_logger.info("Worker list " + workerList);
+    pageRank_logger.info("Worker list " + workerList);
 
     for (workerIter = graphPartitionedHosts.begin(); workerIter != graphPartitionedHosts.end(); workerIter++) {
         JasmineGraphServer::workerPartition workerPartition = workerIter->second;
@@ -138,7 +138,7 @@ void PagerankExecutor::execute() {
             canCalibrate = false;
         }
     } else {
-        pgrnk_logger.log("###PAGERANK-EXECUTOR### Inserting initial record for SLA ", "info");
+        pageRank_logger.log("###PAGERANK-EXECUTOR### Inserting initial record for SLA ", "info");
         Utils::updateSLAInformation(perfDB, graphId, partitionCount, 0, PAGE_RANK, Conts::SLA_CATEGORY::LATENCY);
         statResponse.push_back(std::async(std::launch::async, collectPerformaceData, perfDB,
                                           graphId.c_str(), PAGE_RANK, Conts::SLA_CATEGORY::LATENCY, partitionCount,
@@ -150,7 +150,7 @@ void PagerankExecutor::execute() {
         futureCall.get();
     }
 
-    pgrnk_logger.info(
+    pageRank_logger.info(
                 "###PAGERANK-EXECUTOR### Getting Pagerank : Completed");
 
     workerResponded = true;
@@ -212,7 +212,7 @@ void PagerankExecutor::doPageRank(std::string graphID, double alpha, int iterati
         }
         server = gethostbyname(host.c_str());
         if (server == NULL) {
-            pgrnk_logger.error("ERROR, no host named " + host);
+            pageRank_logger.error("ERROR, no host named " + host);
             return;
         }
 
@@ -226,98 +226,98 @@ void PagerankExecutor::doPageRank(std::string graphID, double alpha, int iterati
         }
 
         if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::PAGE_RANK)) {
-            pgrnk_logger.error("Error writing to socket");
+            pageRank_logger.error("Error writing to socket");
             return;
         }
-        pgrnk_logger.info("Sent : " + JasmineGraphInstanceProtocol::PAGE_RANK);
+        pageRank_logger.info("Sent : " + JasmineGraphInstanceProtocol::PAGE_RANK);
 
         string response = Utils::read_str_trim_wrapper(sockfd, data, FRONTEND_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-            pgrnk_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
+            pageRank_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
         } else {
-            pgrnk_logger.error("Error reading from socket");
+            pageRank_logger.error("Error reading from socket");
             return;
         }
 
         if (!Utils::send_str_wrapper(sockfd, graphID)) {
-            pgrnk_logger.error("Error writing to socket");
+            pageRank_logger.error("Error writing to socket");
             return;
         }
-        pgrnk_logger.info("Sent : Graph ID " + graphID);
+        pageRank_logger.info("Sent : Graph ID " + graphID);
 
         response = Utils::read_str_trim_wrapper(sockfd, data, FRONTEND_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-            pgrnk_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
+            pageRank_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
         } else {
-            pgrnk_logger.error("Error reading from socket");
+            pageRank_logger.error("Error reading from socket");
             return;
         }
 
         if (!Utils::send_str_wrapper(sockfd, partition)) {
-            pgrnk_logger.error("Error writing to socket");
+            pageRank_logger.error("Error writing to socket");
             return;
         }
-        pgrnk_logger.info("Sent : Partition ID " + partition);
+        pageRank_logger.info("Sent : Partition ID " + partition);
 
         response = Utils::read_str_trim_wrapper(sockfd, data, FRONTEND_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-            pgrnk_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
+            pageRank_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
         } else {
-            pgrnk_logger.error("Error reading from socket");
+            pageRank_logger.error("Error reading from socket");
             return;
         }
 
         if (!Utils::send_str_wrapper(sockfd, workerList)) {
-            pgrnk_logger.error("Error writing to socket");
+            pageRank_logger.error("Error writing to socket");
         }
-        pgrnk_logger.info("Sent : Host List ");
+        pageRank_logger.info("Sent : Host List ");
 
         response = Utils::read_str_trim_wrapper(sockfd, data, FRONTEND_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-            pgrnk_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
+            pageRank_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
         } else {
-            pgrnk_logger.error("Error reading from socket");
+            pageRank_logger.error("Error reading from socket");
             return;
         }
 
         long graphVertexCount = JasmineGraphServer::getGraphVertexCount(graphID);
         if (!Utils::send_str_wrapper(sockfd, std::to_string(graphVertexCount))) {
-            pgrnk_logger.error("Error writing to socket");
+            pageRank_logger.error("Error writing to socket");
         }
-        pgrnk_logger.info("graph vertex count: " + std::to_string(graphVertexCount));
+        pageRank_logger.info("graph vertex count: " + std::to_string(graphVertexCount));
 
         response = Utils::read_str_trim_wrapper(sockfd, data, FRONTEND_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-            pgrnk_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
+            pageRank_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
         } else {
-            pgrnk_logger.error("Error reading from socket");
+            pageRank_logger.error("Error reading from socket");
             return;
         }
 
         if (!Utils::send_str_wrapper(sockfd, std::to_string(alpha))) {
-            pgrnk_logger.error("Error writing to socket");
+            pageRank_logger.error("Error writing to socket");
             return;
         }
-        pgrnk_logger.info("page rank alpha value sent : " + std::to_string(alpha));
+        pageRank_logger.info("page rank alpha value sent : " + std::to_string(alpha));
 
         response = Utils::read_str_trim_wrapper(sockfd, data, FRONTEND_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-            pgrnk_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
+            pageRank_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
         } else {
-            pgrnk_logger.error("Error reading from socket");
+            pageRank_logger.error("Error reading from socket");
             return;
         }
 
         if (!Utils::send_str_wrapper(sockfd, std::to_string(iterations))) {
-            pgrnk_logger.error("Error writing to socket");
+            pageRank_logger.error("Error writing to socket");
             return;
         }
 
         response = Utils::read_str_trim_wrapper(sockfd, data, FRONTEND_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-            pgrnk_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
+            pageRank_logger.info("Received : " + JasmineGraphInstanceProtocol::OK);
         } else {
-            pgrnk_logger.error("Error reading from socket");
+            pageRank_logger.error("Error reading from socket");
             return;
         }
 

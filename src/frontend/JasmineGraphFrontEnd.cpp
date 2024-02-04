@@ -2020,7 +2020,7 @@ static void page_rank_command(std::string masterIP, int connFd, SQLiteDBInterfac
     bzero(priority_data, DATA_BUFFER_SIZE);
     read(connFd, priority_data, FRONTEND_DATA_LENGTH);
     string priority(priority_data);
-    priority = Utils::trim_copy(priority, " \f\n\r\t\v");
+    priority = Utils::trim_copy(priority);
 
     if (!(std::find_if(priority.begin(), priority.end(), [](unsigned char c) { return !std::isdigit(c); }) ==
           priority.end())) {
