@@ -15,12 +15,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: ${{github.head_ref}}
           fetch-depth: 0
           repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
-      - uses: jupyterhub/action-k3s-helm@v3
+      - uses: jupyterhub/action-k3s-helm@v4
         with:
           docker-enabled: true
 
@@ -41,7 +41,7 @@ jobs:
           kubectl logs -f jasminegraph-unit-test-pod
 
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
@@ -52,7 +52,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         ref: ${{github.head_ref}}
         fetch-depth: 0
@@ -71,12 +71,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: ${{github.head_ref}}
           fetch-depth: 0
           repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
-      - uses: jupyterhub/action-k3s-helm@v3
+      - uses: jupyterhub/action-k3s-helm@v4
         with:
           docker-enabled: true
 

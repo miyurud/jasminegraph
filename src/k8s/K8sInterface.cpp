@@ -156,6 +156,7 @@ std::string K8sInterface::getMasterIp() {
     }
     return service->spec->cluster_ip;
 }
+
 v1_node_list_t *K8sInterface::getNodes() {
     v1_node_list_t *node_list = NULL;
     node_list = CoreV1API_listNode(apiClient,
