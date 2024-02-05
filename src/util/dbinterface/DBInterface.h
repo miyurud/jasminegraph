@@ -38,7 +38,7 @@ class DBInterface {
 
     void runInsertNoIDReturn(std::string);
 
-    int RunSqlNoCallback(const char *zSql);
+    int runSqlNoCallback(const char *zSql);
 };
 
 #endif  // JASMINEGRAPH_SRC_UTIL_DBINTERFACE_H_

@@ -19,7 +19,7 @@ limitations under the License.
 #include <map>
 #include <string>
 #include <vector>
-#include "../dbinterface/DBInterface.h"
+#include "../util/dbinterface/DBInterface.h"
 
 class PerformanceSQLiteDBInterface : public DBInterface {
  public:
