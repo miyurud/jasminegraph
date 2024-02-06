@@ -665,6 +665,7 @@ std::string Utils::getJsonStringFromYamlFile(const std::string &yamlFile) {
     YAML::Node yamlNode = YAML::LoadFile(yamlFile);
     return to_string(yaml2json(yamlNode));
 }
+
 int Utils::createDatabaseFromDDL(const char *dbLocation, const char *ddlFileLocation) {
     if (!Utils::fileExists(ddlFileLocation)) {
         util_logger.error("DDL file not found: " + string(ddlFileLocation));
