@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-server-conf
+  labels:
+      app: prometheus
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval:     15s
+      external_labels:
+        monitor: 'codelab-monitor'
+    scrape_configs:
+      - job_name: 'prometheus'
+        scrape_interval: 5s
+        static_configs:
+          - targets: ['localhost:9090']
+    
+      - job_name: 'pushgateway'
+        scrape_interval: 2s
+        static_configs:
+          - targets: ['${pushgateway-address}:9091']
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  labels:
+    app: prometheus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      name: prometheus
+      labels:
+        app: prometheus
+    spec:
+      containers:
+        - name: prometheus
+          image: prom/prometheus
+          ports:
+            - containerPort: 9090
+          imagePullPolicy: IfNotPresent
+      restartPolicy: Always
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  labels:
+    app: prometheus
+spec:
+  ports:
+    - port: 9090
+      targetPort: 9090
+  selector:
+    app: prometheus
