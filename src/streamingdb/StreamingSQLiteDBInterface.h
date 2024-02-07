@@ -19,28 +19,14 @@ limitations under the License.
 #include <map>
 #include <string>
 #include <vector>
+#include "../util/dbinterface/DBInterface.h"
 
-class StreamingSQLiteDBInterface {
- private:
-    sqlite3 *database;
-    std::string databaseLocation;
-
+class StreamingSQLiteDBInterface : public DBInterface {
  public:
-    int init();
-
-    int finalize();
-
-    std::vector<std::vector<std::pair<std::string, std::string>>> runSelect(std::string);
-
-    int runInsert(std::string);
-
-    void runUpdate(std::string);
-
-    void runInsertNoIDReturn(std::string);
-
-    int RunSqlNoCallback(const char *zSql);
+    int init() override;
 
     StreamingSQLiteDBInterface();
+
     StreamingSQLiteDBInterface(std::string databaseLocation);
 };
 
