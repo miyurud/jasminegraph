@@ -80,7 +80,7 @@ while ! nc -zvn -w 1 "$masterIP" 7777 &>/dev/null; do
         clear_resources
         exit 1
     fi
-    echo "Waiting for jasminegraph master to be started"
+    echo "Waiting for JasmineGraph master to be started"
     sleep .5
 done
 
