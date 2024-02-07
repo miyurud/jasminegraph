@@ -51,6 +51,30 @@ if [ -z "$ENABLE_NMON" ]; then
 fi
 
 kubectl apply -f ./k8s/rbac.yaml
+kubectl apply -f ./k8s/pushgateway.yaml
+
+# wait until pushgateway starts listening
+cur_timestamp="$(date +%s)"
+end_timestamp="$((cur_timestamp + TIMEOUT_SECONDS))"
+spin="/-\|"
+i=0
+while true; do
+    if [ "$(date +%s)" -gt "$end_timestamp" ]; then
+        echo "Timeout"
+        exit 1
+    fi
+    pushgatewayIP="$(kubectl get services |& grep pushgateway | tr '\t' ' ' | tr -s ' ' | cut -d ' ' -f 3)"
+    if [ ! -z "$pushgatewayIP" ]; then
+        break
+    fi
+    printf "Waiting pushgateway to start [%c] \r" "${spin:i++%${#spin}:1}"
+    sleep .2
+done
+
+pushgateway_address="${pushgatewayIP}:9091" envsubst <"./k8s/prometheus.yaml" | kubectl apply -f -
+sed -i "s#org.jasminegraph.collector.pushgateway=.*#org.jasminegraph.collector.pushgateway=http://${pushgatewayIP}:9091/metrics/job/#" ./conf/jasminegraph-server.properties
+
+docker build -t jasminegraph .
 
 metadb_path="${META_DB_PATH}" \
     performancedb_path="${PERFORMANCE_DB_PATH}" \

@@ -19,7 +19,7 @@ data:
       - job_name: 'pushgateway'
         scrape_interval: 2s
         static_configs:
-          - targets: ['${pushgateway-address}:9091']
+          - targets: ['${pushgateway_address}']
 
 ---
 apiVersion: apps/v1
@@ -45,6 +45,13 @@ spec:
           ports:
             - containerPort: 9090
           imagePullPolicy: IfNotPresent
+          volumeMounts:
+              - name: prometheus-config
+                mountPath: /etc/prometheus
+      volumes:
+        - name: prometheus-config
+          configMap:
+            name: prometheus-server-conf
       restartPolicy: Always
 
 ---
