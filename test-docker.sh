@@ -97,7 +97,7 @@ while ! nc -zvn 127.0.0.1 7777 &>/dev/null; do
         echo "JasmineGraph is not listening"
         echo "Build log:"
         cat "$BUILD_LOG"
-        echo "Build log:"
+        echo -e '\n\e[33;1mMASTER LOG:\e[0m'
         cat "$RUN_LOG"
         force_remove "${TEST_ROOT}/env"
         stop_and_remove_containers

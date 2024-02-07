@@ -82,7 +82,6 @@ void PageRankExecutor::execute() {
 
     std::map<std::string, JasmineGraphServer::workerPartitions> graphPartitionedHosts =
         JasmineGraphServer::getGraphPartitionedHosts(graphId);
-    std::vector<std::string> partitions;
     string host;
     int port;
     int dataPort;
@@ -91,13 +90,12 @@ void PageRankExecutor::execute() {
     std::map<std::string, JasmineGraphServer::workerPartitions>::iterator workerIter;
     for (workerIter = graphPartitionedHosts.begin(); workerIter != graphPartitionedHosts.end(); workerIter++) {
         JasmineGraphServer::workerPartitions workerPartition = workerIter->second;
-        partitions = workerPartition.partitionID;
         host = workerIter->first;
         port = workerPartition.port;
         dataPort = workerPartition.dataPort;
 
-        for (std::vector<std::string>::iterator partitionit = partitions.begin(); partitionit != partitions.end();
-             partitionit++) {
+        for (std::vector<std::string>::iterator partitionit = workerPartition.partitionID.begin();
+             partitionit != workerPartition.partitionID.end(); partitionit++) {
             std::string partition = *partitionit;
             workerList.append(host + ":" + std::to_string(port) + ":" + partition + ",");
         }
@@ -108,13 +106,12 @@ void PageRankExecutor::execute() {
 
     for (workerIter = graphPartitionedHosts.begin(); workerIter != graphPartitionedHosts.end(); workerIter++) {
         JasmineGraphServer::workerPartitions workerPartition = workerIter->second;
-        partitions = workerPartition.partitionID;
         host = workerIter->first;
         port = workerPartition.port;
         dataPort = workerPartition.dataPort;
 
-        for (std::vector<std::string>::iterator partitionit = partitions.begin(); partitionit != partitions.end();
-             partitionit++) {
+        for (std::vector<std::string>::iterator partitionit = workerPartition.partitionID.begin();
+             partitionit != workerPartition.partitionID.end(); partitionit++) {
             std::string partition = *partitionit;
             intermRes.push_back(std::async(std::launch::async, PageRankExecutor::doPageRank, graphId, alpha, iterations,
                                            partition, host, port, dataPort, workerList));

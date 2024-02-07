@@ -45,7 +45,6 @@ class JasmineGraphServer {
     int serverDataPort;
     std::map<std::string, std::vector<int>> workerPortsMap;
     std::map<std::string, std::vector<int>> workerDataPortsMap;
-    K8sWorkerController *k8sWorkerController;
 
     JasmineGraphServer();
 
@@ -55,8 +54,6 @@ class JasmineGraphServer {
     void addHostsToMetaDB(std::string host, std::vector<int> portVector, std::vector<int> dataPortVector);
 
     void updateOperationalGraphList();
-
-    std::map<std::string, std::string> getLiveHostIDList();
 
     static bool hasEnding(std::string const &fullString, std::string const &ending);
     std::vector<std::string> getWorkerVector(std::string workerList);
@@ -136,9 +133,6 @@ class JasmineGraphServer {
         string partitionID;  // Deprecated (07-08-2023) : This should be a vector of partition IDs instead of a single
                              // partiton ID.
     };
-
-    // return hostWorkerList
-    static std::vector<JasmineGraphServer::worker> getHostWorkerList();
 
     static std::map<std::string, workerPartitions> getGraphPartitionedHosts(std::string graphID);
 
