@@ -25,15 +25,15 @@ limitations under the License.
 #include "../backend/JasmineGraphBackend.h"
 #include "../frontend/JasmineGraphFrontEnd.h"
 #include "../frontend/core/scheduler/JobScheduler.h"
-#include "../k8s/K8sWorkerController.h"
 #include "../metadb/SQLiteDBInterface.h"
 #include "../performance/metrics/StatisticCollector.h"
 #include "../performancedb/PerformanceSQLiteDBInterface.h"
 #include "../util/Conts.h"
 #include "../util/Utils.h"
 
-using std::map;
+class K8sWorkerController;
 
+using std::map;
 class JasmineGraphServer {
  private:
     map<std::string, long> hostPlaceMap;

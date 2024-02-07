@@ -18,6 +18,7 @@ limitations under the License.
 #include <future>
 #include <iostream>
 
+#include "src/k8s/K8sWorkerController.h"
 #include "src/server/JasmineGraphInstance.h"
 #include "src/util/logger/Logger.h"
 #include "src/util/scheduler/SchedulerService.h"
@@ -62,7 +63,7 @@ int main(int argc, char *argv[]) {
         thread schedulerThread(SchedulerService::startScheduler);
 
         if (profile == Conts::PROFILE_K8S) {
-            K8sInterface* interface = new K8sInterface();
+            K8sInterface *interface = new K8sInterface();
             masterIp = interface->getMasterIp();
             if (masterIp.empty()) {
                 masterIp = interface->createJasmineGraphMasterService()->spec->cluster_ip;

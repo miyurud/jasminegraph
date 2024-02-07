@@ -21,6 +21,7 @@ limitations under the License.
 #include <map>
 #include <string>
 
+#include "../k8s/K8sWorkerController.h"
 #include "../ml/trainer/JasmineGraphTrainingSchedular.h"
 #include "../partitioner/local/MetisPartitioner.h"
 #include "../util/Utils.h"
