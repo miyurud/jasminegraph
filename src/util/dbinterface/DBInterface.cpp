@@ -38,7 +38,7 @@ vector<vector<pair<string, string>>> DBInterface::runSelect(string query) {
     vector<vector<pair<string, string>>> dbResults;
 
     if (sqlite3_exec(database, query.c_str(), callback, &dbResults, &errorMessage) != SQLITE_OK) {
-        interface_logger.log("SQL Error: " + string(errorMessage) + " " + query, "error");
+        interface_logger.error("SQL Error: " + string(errorMessage) + " " + query);
         sqlite3_free(errorMessage);
     }
     return dbResults;
