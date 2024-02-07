@@ -26,6 +26,13 @@ WORKER_LOG_DIR="/tmp/jasminegraph"
 rm -rf "${WORKER_LOG_DIR}"
 mkdir -p "${WORKER_LOG_DIR}"
 
+force_remove() {
+    local files=("$@")
+    for f in "${files[@]}"; do
+        rm -rf "$f" &>/dev/null || sudo rm -rf "$f"
+    done
+}
+
 build_and_run_on_k8s() {
     cd "$PROJECT_ROOT"
     docker build -t jasminegraph . |& tee "$BUILD_LOG"
@@ -58,7 +65,7 @@ clear_resources() {
 }
 
 cd "$TEST_ROOT"
-sudo rm -rf env
+force_remove env
 cp -r env_init env
 
 cd "$PROJECT_ROOT"
@@ -76,7 +83,7 @@ while ! nc -zvn -w 1 "$masterIP" 7777 &>/dev/null; do
         cat "$BUILD_LOG"
         echo "Run log:"
         cat "$RUN_LOG"
-        sudo rm -rf "${TEST_ROOT}/env"
+        force_remove "${TEST_ROOT}/env"
         clear_resources
         exit 1
     fi
@@ -116,5 +123,5 @@ set +e
 clear_resources >/dev/null 2>&1
 set -e
 
-sudo rm -rf "${TEST_ROOT}/env" "${WORKER_LOG_DIR}"
+force_remove "${TEST_ROOT}/env" "${WORKER_LOG_DIR}"
 exit "$exit_code"
