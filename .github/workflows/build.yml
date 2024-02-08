@@ -6,10 +6,6 @@ on:
   pull_request:
     branches: [master]
 
-env:
-  # Customize the build type here (Release, Debug, RelWithDebInfo, etc.)
-  BUILD_TYPE: Release
-
 jobs:
   unit-tests:
     runs-on: ubuntu-latest
@@ -26,9 +22,6 @@ jobs:
 
       - name: Grant permissions for default user
         run: kubectl apply -f ./k8s/rbac.yaml
-
-      - name: Docker Build
-        run: docker build -t jasminegraph .
 
       - name: Build unit test
         run: docker build -f ./tests/unit/Dockerfile -t jasminegraph:unit .
@@ -59,7 +52,6 @@ jobs:
         repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
 
     - name: Docker Build
-      # Build JasmineGraph docker image
       run: docker build -t jasminegraph .
 
     - name: Run Integration Tests

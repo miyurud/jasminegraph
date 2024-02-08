@@ -774,7 +774,7 @@ int JasmineGraphServer::shutdown_worker(std::string workerIP, int port) {
 }
 
 static std::vector<JasmineGraphServer::worker> getWorkers(size_t npart, std::string profile) {
-    // TODO: get the workers with lowest load from hostWorkerList
+    // TODO: get the workers with lowest load from workerList
     std::vector<JasmineGraphServer::worker> *workerListAll;
     if (profile == Conts::PROFILE_K8S) {
         workerListAll = &(K8sWorkerController::workerList);
