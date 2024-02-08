@@ -42,13 +42,12 @@ build_and_run_on_k8s() {
     clear_resources >/dev/null 2>&1
     set -e
 
-    metadb_path="${TEST_ROOT}/env/databases/metadb" \
-        performancedb_path="${TEST_ROOT}/env/databases/performancedb" \
-        data_path="${TEST_ROOT}/env/data" \
-        log_path="${LOG_DIR}" \
-        envsubst <"${PROJECT_ROOT}/k8s/volumes.yaml" | kubectl apply -f -
-
-    kubectl apply -f "${PROJECT_ROOT}/k8s/master-deployment.yaml"
+    ./start-k8s.sh --META_DB_PATH "${TEST_ROOT}/env/databases/metadb" \
+        --PERFORMANCE_DB_PATH performancedb_path "${TEST_ROOT}/env/databases/performancedb" \
+        --DATA_PATH "${TEST_ROOT}/env/data" \
+        --LOG_PATH "${LOG_DIR}" \
+        --NO_OF_WORKERS 2 \
+        --ENABLE_NMON false
 }
 
 clear_resources() {
@@ -65,29 +64,11 @@ cp -r env_init env
 cd "$PROJECT_ROOT"
 build_and_run_on_k8s
 
-# sleep until server starts listening
+# Wait till JasmineGraph server start listening
 cur_timestamp="$(date +%s)"
 end_timestamp="$((cur_timestamp + TIMEOUT_SECONDS))"
-while true; do
-    if [ "$(date +%s)" -gt "$end_timestamp" ]; then
-        set +ex
-        echo "JasmineGraph is not listening"
-        echo "Build log:"
-        cat "$BUILD_LOG"
-        echo "Build log:"
-        cat "$RUN_LOG"
-        sudo rm -rf "${TEST_ROOT}/env"
-        clear_resources
-        exit 1
-    fi
-    masterIP="$(kubectl get services |& grep jasminegraph-master-service | tr '\t' ' ' | tr -s ' ' | cut -d ' ' -f 3)"
-    if [ ! -z "$masterIP" ]; then
-        break
-    fi
-    sleep .5
-done
-
-while ! nc -zvn "$masterIP" 7777 &>/dev/null; do
+masterIP="$(kubectl get services |& grep jasminegraph-master-service | tr '\t' ' ' | tr -s ' ' | cut -d ' ' -f 3)"
+while ! nc -zvn -w 1 "$masterIP" 7777 &>/dev/null; do
     if [ "$(date +%s)" -gt "$end_timestamp" ]; then
         set +ex
         echo "JasmineGraph is not listening"
@@ -99,12 +80,14 @@ while ! nc -zvn "$masterIP" 7777 &>/dev/null; do
         clear_resources
         exit 1
     fi
+    echo "Waiting for JasmineGraph master to be started"
     sleep .5
 done
 
 echo
-kubectl get pods
-kubectl get services
+kubectl get pods -o wide
+echo
+kubectl get services -o wide
 echo
 
 timeout "$TIMEOUT_SECONDS" python3 -u "${TEST_ROOT}/test-k8s.py" "$masterIP" |& tee "$TEST_LOG"
@@ -112,10 +95,16 @@ exit_code="${PIPESTATUS[0]}"
 set +ex
 if [ "$exit_code" = '124' ]; then
     echo
-    kubectl get pods
-    echo
+    kubectl get pods -o wide
 
+    echo -e '\n\e[33;1mMASTER LOG:\e[0m' |& tee -a "$RUN_LOG"
     kubectl logs --previous deployment/jasminegraph-master-deployment |& tee -a "$RUN_LOG"
+
+    echo -e '\n\e[33;1mWORKER-0 LOG:\e[0m' |& tee -a "$RUN_LOG"
+    kubectl logs deployment/jasminegraph-worker0-deployment |& tee -a "$RUN_LOG"
+
+    echo -e '\n\e[33;1mWORKER-1 LOG:\e[0m' |& tee -a "$RUN_LOG"
+    kubectl logs deployment/jasminegraph-worker1-deployment |& tee -a "$RUN_LOG"
 
     echo
     echo -e '\e[31;1mERROR: Test Timeout\e[0m'

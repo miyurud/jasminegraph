@@ -31,6 +31,11 @@ TEST_F(K8sInterfaceTest, TestConstructor) {
     ASSERT_NE(interface->apiClient, nullptr);
 }
 
+TEST_F(K8sInterfaceTest, TestGetNodes) {
+    v1_node_list_t *nodes = interface->getNodes();
+    ASSERT_NE(nodes->items->count, 0);
+}
+
 TEST_F(K8sInterfaceTest, TestGetDeploymentList) {
     v1_deployment_list_t *deployment_list = interface->getDeploymentList(strdup("app=gtest-nginx"));
     ASSERT_EQ(deployment_list->items->count, 0);
@@ -42,7 +47,9 @@ TEST_F(K8sInterfaceTest, TestGetServiceList) {
 }
 
 TEST_F(K8sInterfaceTest, TestCreateJasmineGraphWorkerDeployment) {
-    v1_deployment_t *deployment = interface->createJasmineGraphWorkerDeployment(1, "10.43.0.1");
+    v1_node_list_t *nodeList = interface->getNodes();
+    auto nodeName = static_cast<v1_node_t *>(nodeList->items->firstEntry->data)->metadata->name;
+    v1_deployment_t *deployment = interface->createJasmineGraphWorkerDeployment(1, "10.43.0.1", nodeName);
     ASSERT_STREQ(deployment->metadata->name, "jasminegraph-worker1-deployment");
     ASSERT_EQ(interface->apiClient->response_code, HTTP_CREATED);
 }

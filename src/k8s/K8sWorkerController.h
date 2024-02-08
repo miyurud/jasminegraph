@@ -29,6 +29,8 @@ class K8sWorkerController {
     std::string masterIp;
     int numberOfWorkers;
 
+    std::map<std::string, int> nodes;
+
     void spawnWorker(int workerId);
 
     void deleteWorker(int workerId);

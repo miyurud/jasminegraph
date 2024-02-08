@@ -30,15 +30,15 @@ spec:
       containers:
         - name: jasminegraph-master
           image: jasminegraph
-          imagePullPolicy: Never
+          imagePullPolicy: IfNotPresent
           args:
             [
               "--MODE",
               "1",
               "--WORKERS",
-              "2",
+              "${no_of_workers}",
               "--ENABLE_NMON",
-              "false",
+              "${enable_nmon}",
               "--PROFILE",
               "k8s"
             ]

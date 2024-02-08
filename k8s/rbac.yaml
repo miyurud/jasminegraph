@@ -1,5 +1,5 @@
 apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
+kind: ClusterRole
 metadata:
   namespace: default
   name: rbac-role
@@ -10,8 +10,8 @@ rules:
 
 ---
 
-kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
 metadata:
   name: rbac-role-binding
 subjects:
@@ -19,7 +19,7 @@ subjects:
     name: default
     namespace: default
 roleRef:
-  kind: Role
+  kind: ClusterRole
   name: rbac-role
   apiGroup: ""
   

@@ -11,44 +11,82 @@ env:
   BUILD_TYPE: Release
 
 jobs:
-  build:
+  unit-tests:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{github.head_ref}}
+          fetch-depth: 0
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+      - uses: jupyterhub/action-k3s-helm@v4
+        with:
+          docker-enabled: true
+
+      - name: Grant permissions for default user
+        run: kubectl apply -f ./k8s/rbac.yaml
+
+      - name: Docker Build
+        run: docker build -t jasminegraph .
+
+      - name: Build unit test
+        run: docker build -f ./tests/unit/Dockerfile -t jasminegraph:unit .
+
+      - name: Run unit test
+        run: |
+          mkdir coverage
+          kubectl apply -f ./.github/workflows/resources/unit-test-conf.yaml
+          sleep 30
+          kubectl logs -f jasminegraph-unit-test-pod
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v4
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          files: ./coverage/coverage.xml
+          fail_ci_if_error: true
+
+  docker-integration-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
       with:
         ref: ${{github.head_ref}}
         fetch-depth: 0
         repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
-    - uses: jupyterhub/action-k3s-helm@v3
-      with:
-        docker-enabled: true
 
     - name: Docker Build
       # Build JasmineGraph docker image
       run: docker build -t jasminegraph .
 
-    - name: Build unit test
-      run: docker build -f ./tests/unit/Dockerfile -t jasminegraph:unit .
-
-    - name: Run unit test
-      run: |
-        mkdir coverage
-        kubectl apply -f ./.github/workflows/resources/test-rbac.yaml
-        kubectl apply -f ./.github/workflows/resources/unit-test-conf.yaml
-        sleep 30
-        kubectl logs -f jasminegraph-unit-test-pod
-
-    - name: Upload coverage reports to Codecov
-      uses: codecov/codecov-action@v3
-      env:
-        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-      with:
-        files: ./coverage/coverage.xml
-        fail_ci_if_error: true
-
-
     - name: Run Integration Tests
       run: |
         chmod +x test-docker.sh
         ./test-docker.sh
+
+  k8s-integration-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{github.head_ref}}
+          fetch-depth: 0
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+      - uses: jupyterhub/action-k3s-helm@v4
+        with:
+          docker-enabled: true
+
+      - name: Grant permissions for default user
+        run: kubectl apply -f ./k8s/rbac.yaml
+
+      - name: Docker Build
+        run: docker build -t jasminegraph .
+
+      - name: K8S integration tests
+        run: |
+          chmod +x test-k8s.sh
+          ./test-k8s.sh
