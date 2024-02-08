@@ -19,26 +19,11 @@ limitations under the License.
 #include <map>
 #include <string>
 #include <vector>
+#include "../util/dbinterface/DBInterface.h"
 
-class PerformanceSQLiteDBInterface {
- private:
-    sqlite3 *database;
-    std::string databaseLocation;
-
+class PerformanceSQLiteDBInterface : public DBInterface {
  public:
-    int init();
-
-    int finalize();
-
-    std::vector<std::vector<std::pair<std::string, std::string>>> runSelect(std::string);
-
-    int runInsert(std::string);
-
-    void runUpdate(std::string);
-
-    void runInsertNoIDReturn(std::string);
-
-    int RunSqlNoCallback(const char *zSql);
+    int init() override;
 
     PerformanceSQLiteDBInterface();
 
