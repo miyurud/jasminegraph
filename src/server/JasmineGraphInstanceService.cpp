@@ -684,7 +684,9 @@ string JasmineGraphInstanceService::requestPerformanceStatistics(std::string isV
     std::string reportTimeString(std::ctime(&reportTime));
     reportTimeString = Utils::trim_copy(reportTimeString);
     std::string usageString =
-        reportTimeString + "," + to_string(memoryUsage) + "," + to_string(threadCount) + "," + to_string(cpuUsage) + "," + to_string(loadAverage) + "," + to_string(usedSwapSpace) + "," + to_string(totalSwapSpace) +  + "," + to_string(readBytes) + "," + to_string(sentBytes);
+        reportTimeString + "," + to_string(memoryUsage) + "," + to_string(threadCount) + ","
+        + to_string(cpuUsage) + "," + to_string(loadAverage) + "," + to_string(usedSwapSpace) + ","
+        + to_string(totalSwapSpace) +  + "," + to_string(readBytes) + "," + to_string(sentBytes);
     if (!vmLevelStatistics.empty()) {
         usageString = usageString + "," + vmLevelStatistics;
     }

@@ -380,7 +380,6 @@ void PerformanceUtil::collectLocalPerformanceData(std::string isVMStatManager, s
                                                      to_string(memoryUsage));
     Utils::send_job("placePerfDataLocalO_" + hostId, "cpu_usage",
                                                      to_string(cpuUsage));
-
 }
 
 int PerformanceUtil::collectRemoteSLAResourceUtilization(std::string host, int port, std::string isVMStatManager,
@@ -969,7 +968,7 @@ void PerformanceUtil::updateResourceConsumption(PerformanceSQLiteDBInterface *pe
                 valuesString += "('" + graphSlaId + "','" + placeId + "', '','" + usageInfo.loadAverage + "','" +
                     usageInfo.elapsedTime + "'),";
 
-                //FIXME(Aruna): haven't done this per host basis
+                // FIXME(Aruna): haven't done this per host basis
                 Utils::send_job("loadAverageSLA", "load_average", usageInfo.loadAverage);
             }
             valuesString = valuesString.substr(0, valuesString.length() - 1);
