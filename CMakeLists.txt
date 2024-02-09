@@ -169,6 +169,7 @@ target_link_libraries(JasmineGraphLib PRIVATE ${PYTHON_LIBRARIES})
 target_link_libraries(JasmineGraphLib PRIVATE m)
 target_link_libraries(JasmineGraphLib PRIVATE /usr/local/lib/libkubernetes.so)
 target_link_libraries(JasmineGraphLib PRIVATE yaml-cpp)
+target_link_libraries(JasmineGraphLib PRIVATE curl)
 
 if (CMAKE_BUILD_TYPE STREQUAL "DEBUG")
     # Include google test
