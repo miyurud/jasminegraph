@@ -19,25 +19,29 @@ limitations under the License.
 #include "gtest/gtest.h"
 
 class K8sWorkerControllerTest : public ::testing::Test {
- protected:
-    K8sWorkerController *controller{};
-    SQLiteDBInterface *metadb = NULL;
-    K8sInterface *interface {};
+ public:
+    static K8sWorkerController *controller;
+    static SQLiteDBInterface *metadb;
+    static K8sInterface *interface;
 
-    void SetUp() override {
+    static void SetUpTestSuite() {
         metadb = new SQLiteDBInterface(TEST_RESOURCE_DIR "temp/jasminegraph_meta.db");
         metadb->init();
         controller = K8sWorkerController::getInstance("10.43.0.1", 2, metadb);
         interface = new K8sInterface();
     }
 
-    void TearDown() override {
+    static void TearDownTestSuite() {
         delete controller;
         delete metadb;
         delete interface;
         remove(TEST_RESOURCE_DIR "temp/jasminegraph_meta.db");
     }
 };
+
+K8sWorkerController *K8sWorkerControllerTest::controller = nullptr;
+SQLiteDBInterface *K8sWorkerControllerTest::metadb = nullptr;
+K8sInterface *K8sWorkerControllerTest::interface = nullptr;
 
 TEST_F(K8sWorkerControllerTest, TestConstructor) {
     ASSERT_EQ(controller->getMasterIp(), "10.43.0.1");
