@@ -3,6 +3,7 @@ kind: Service
 metadata:
   name: jasminegraph-master-service
   labels:
+    application: jasminegraph
     service: jasminegraph-master
 spec:
   ports:

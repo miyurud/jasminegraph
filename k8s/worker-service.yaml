@@ -3,6 +3,7 @@ kind: Service
 metadata:
   name: jasminegraph-worker<worker-id>-service
   labels:
+    application: jasminegraph
     service: jasminegraph-worker
     workerId: <worker-id>
 spec:

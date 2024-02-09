@@ -3,6 +3,7 @@ kind: Deployment
 metadata:
   name: pushgateway
   labels:
+    application: jasminegraph
     app: pushgateway
 spec:
   replicas: 1
@@ -29,6 +30,7 @@ kind: Service
 metadata:
   name: pushgateway
   labels:
+    application: jasminegraph
     app: pushgateway
 spec:
     ports:

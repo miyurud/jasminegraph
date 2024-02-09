@@ -31,6 +31,11 @@ Run JasmineGraph in Kubernetes environment by providing appropriate parameters:
 >Note: `NO_OF_WORKERS` and `ENABLE_NMON` are optional arguments, and it defaults to `2` and `false` respectively.
 
 
+Remove all resources created by JasmineGraph in Kubernetes environment:
+
+    ./stop-k8s.sh clean
+
+
 ## 3. Contact Information
 
 Please contact [Miyuru Dayarathna](miyurud at yahoo dot co dot uk) for further information. Please let us know about bug reports or any further improvements you wish to have in JasmineGraph.

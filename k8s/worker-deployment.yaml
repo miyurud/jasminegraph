@@ -3,6 +3,7 @@ kind: Deployment
 metadata:
   name: "jasminegraph-worker<worker-id>-deployment"
   labels:
+      application: "jasminegraph"
       deployment: "jasminegraph-worker"
       workerId: "<worker-id>"
 spec:

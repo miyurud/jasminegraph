@@ -3,6 +3,7 @@ kind: PersistentVolume
 metadata:
   name: jasminegraph-metadb
   labels:
+    application: jasminegraph
     type: local
 spec:
   storageClassName: manual
@@ -21,6 +22,8 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: jasminegraph-metadb-claim
+  labels:
+    application: jasminegraph
 spec:
   storageClassName: manual
   accessModes:
@@ -35,6 +38,7 @@ kind: PersistentVolume
 metadata:
   name: jasminegraph-performancedb
   labels:
+    application: jasminegraph
     type: local
 spec:
   storageClassName: manual
@@ -53,6 +57,8 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: jasminegraph-performancedb-claim
+  labels:
+    application: jasminegraph
 spec:
   storageClassName: manual
   accessModes:
@@ -67,6 +73,7 @@ kind: PersistentVolume
 metadata:
   name: jasminegraph-data
   labels:
+    application: jasminegraph
     type: local
 spec:
   storageClassName: manual
@@ -82,6 +89,8 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: jasminegraph-data-claim
+  labels:
+      application: jasminegraph
 spec:
   storageClassName: manual
   accessModes:
@@ -96,6 +105,7 @@ kind: PersistentVolume
 metadata:
   name: jasminegraph-logs
   labels:
+    application: jasminegraph
     type: local
 spec:
   storageClassName: manual
@@ -111,6 +121,8 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: jasminegraph-logs-claim
+  labels:
+      application: jasminegraph
 spec:
   storageClassName: manual
   accessModes:

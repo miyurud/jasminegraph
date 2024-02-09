@@ -2,6 +2,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: jasminegraph-master-deployment
+  labels:
+    application: jasminegraph
 spec:
   replicas: 1
   selector:

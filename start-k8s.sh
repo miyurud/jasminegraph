@@ -4,6 +4,14 @@ set -e
 
 TIMEOUT_SECONDS=60
 
+if [ $1 == "clean" ]; then
+    kubectl delete deployments -l application=jasminegraph
+    kubectl delete services -l application=jasminegraph
+    kubectl delete pvc -l application=jasminegraph
+    kubectl delete pv -l application=jasminegraph
+    exit 0
+fi
+
 META_DB_PATH=${META_DB_PATH}
 PERFORMANCE_DB_PATH=${PERFORMANCE_DB_PATH}
 DATA_PATH=${DATA_PATH}

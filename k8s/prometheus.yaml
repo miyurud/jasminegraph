@@ -3,6 +3,7 @@ kind: ConfigMap
 metadata:
   name: prometheus-server-conf
   labels:
+      application: jasminegraph
       app: prometheus
 data:
   prometheus.yml: |
@@ -27,6 +28,7 @@ kind: Deployment
 metadata:
   name: prometheus
   labels:
+    application: jasminegraph
     app: prometheus
 spec:
   replicas: 1
@@ -60,6 +62,7 @@ kind: Service
 metadata:
   name: prometheus
   labels:
+    application: jasminegraph
     app: prometheus
 spec:
   ports:
