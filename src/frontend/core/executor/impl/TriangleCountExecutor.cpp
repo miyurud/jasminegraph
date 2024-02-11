@@ -143,8 +143,7 @@ void TriangleCountExecutor::execute() {
             partitionVec.push_back(partitionId);
             partitionMap[workerID] = partitionVec;
         } else {
-            std::vector<string> partitionVec = partitionMap.find(workerID)->second;
-            partitionVec.push_back(partitionId);
+            partitionMap[workerID].push_back(partitionId);
         }
 
         triangleCount_logger.log("###TRIANGLE-COUNT-EXECUTOR### Getting Triangle Count : Host " + host +
@@ -184,8 +183,8 @@ void TriangleCountExecutor::execute() {
         "SELECT attempt from graph_sla INNER JOIN sla_category where graph_sla.id_sla_category=sla_category.id and "
         "graph_sla.graph_id='" +
         graphId + "' and graph_sla.partition_count='" + std::to_string(partitionCount) +
-        "' and sla_category.category='" + Conts::SLA_CATEGORY::LATENCY +
-    "' and sla_category.command='" + TRIANGLES + "';";
+        "' and sla_category.category='" + Conts::SLA_CATEGORY::LATENCY + "' and sla_category.command='" + TRIANGLES +
+        "';";
 
     std::vector<vector<pair<string, string>>> queryResults = perfDB->runSelect(query);
 
@@ -199,9 +198,8 @@ void TriangleCountExecutor::execute() {
     } else {
         triangleCount_logger.log("###TRIANGLE-COUNT-EXECUTOR### Inserting initial record for SLA ", "info");
         Utils::updateSLAInformation(perfDB, graphId, partitionCount, 0, TRIANGLES, Conts::SLA_CATEGORY::LATENCY);
-        statResponse.push_back(std::async(std::launch::async, collectPerformaceData, perfDB,
-                                          graphId.c_str(), TRIANGLES, Conts::SLA_CATEGORY::LATENCY, partitionCount,
-                                          masterIP, autoCalibrate));
+        statResponse.push_back(std::async(std::launch::async, collectPerformaceData, perfDB, graphId.c_str(), TRIANGLES,
+                                          Conts::SLA_CATEGORY::LATENCY, partitionCount, masterIP, autoCalibrate));
         isStatCollect = true;
     }
 

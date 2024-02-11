@@ -781,8 +781,14 @@ static std::vector<JasmineGraphServer::worker> getWorkers(size_t npart, std::str
     } else {
         workerListAll = &(hostWorkerList);
     }
-    if (npart > (*workerListAll).size()) npart = (*workerListAll).size();
-    std::vector<JasmineGraphServer::worker> workerList((*workerListAll).begin(), (*workerListAll).begin() + npart);
+    size_t len = workerListAll->size();
+    std::cout << "workerListAll len = " << len << std::endl;
+    std::vector<JasmineGraphServer::worker> workerList;
+    for (int i=0; i<npart; i++) {
+        JasmineGraphServer::worker worker = (*workerListAll)[i%len];
+        workerList.push_back((*workerListAll)[i%len]);
+        std::cout << "worker = " << worker.hostname << ":" << worker.port << std::endl;
+    }
     return workerList;
 }
 
