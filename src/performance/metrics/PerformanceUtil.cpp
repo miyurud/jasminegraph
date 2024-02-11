@@ -919,7 +919,6 @@ void PerformanceUtil::updateResourceConsumption(PerformanceSQLiteDBInterface *pe
                 valuesString += "('" + graphSlaId + "','" + placeId + "', '','" + usageInfo.loadAverage + "','" +
                     usageInfo.elapsedTime + "'),";
 
-                // FIXME(Aruna): haven't done this per host basis
                 Utils::send_job("loadAverageSLA", "load_average", usageInfo.loadAverage);
             }
             valuesString = valuesString.substr(0, valuesString.length() - 1);

@@ -80,7 +80,25 @@ while true; do
 done
 
 pushgateway_address="${pushgatewayIP}:9091" envsubst <"./k8s/prometheus.yaml" | kubectl apply -f -
-sed -i "s#org.jasminegraph.collector.pushgateway=.*#org.jasminegraph.collector.pushgateway=http://${pushgatewayIP}:9091/metrics/job/#" ./conf/jasminegraph-server.properties
+
+cur_timestamp="$(date +%s)"
+end_timestamp="$((cur_timestamp + TIMEOUT_SECONDS))"
+while true; do
+    if [ "$(date +%s)" -gt "$end_timestamp" ]; then
+        echo "Timeout"
+        exit 1
+    fi
+    prometheusIP="$(kubectl get services |& grep prometheus | tr '\t' ' ' | tr -s ' ' | cut -d ' ' -f 3)"
+    if [ ! -z "$prometheusIP" ]; then
+        break
+    fi
+    printf "Waiting prometheus to start [%c] \r" "${spin:i++%${#spin}:1}"
+    sleep .2
+done
+
+
+sed -i "s#org.jasminegraph.collector.pushgateway=.*#org.jasminegraph.collector.pushgateway=http://${pushgatewayIP}:9091/#" ./conf/jasminegraph-server.properties
+sed -i "s#org.jasminegraph.collector.prometheus=.*#org.jasminegraph.collector.prometheus=http://${pushgatewayIP}:9090/#" ./conf/jasminegraph-server.properties
 
 docker build -t jasminegraph .
 
@@ -97,8 +115,6 @@ no_of_workers="${NO_OF_WORKERS}" \
 # wait until master starts listening
 cur_timestamp="$(date +%s)"
 end_timestamp="$((cur_timestamp + TIMEOUT_SECONDS))"
-spin="/-\|"
-i=0
 while true; do
     if [ "$(date +%s)" -gt "$end_timestamp" ]; then
         echo "Timeout"

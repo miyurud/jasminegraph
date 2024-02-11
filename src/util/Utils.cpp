@@ -701,7 +701,9 @@ std::string Utils::send_job(std::string job_group_name, std::string metric_name,
                             std::string metric_value) {
     CURL *curl;
     CURLcode res;
-    std::string pushGatewayJobAddr = getJasmineGraphProperty("org.jasminegraph.collector.pushgateway");
+    std::string pushGatewayJobAddr = getJasmineGraphProperty("org.jasminegraph.collector.pushgateway") +
+        "metrics/job/";
+//    pushGatewayJobAddr = "http://10.10.18.115:8080/";
 
     std::string response_string;
     curl = curl_easy_init();
@@ -731,9 +733,14 @@ std::string Utils::send_job(std::string job_group_name, std::string metric_name,
         curl_easy_setopt(curl, CURLOPT_POST, 1);
 
         res = curl_easy_perform(curl);
+        long code = -1;
+        curl_easy_getinfo( curl, CURLINFO_RESPONSE_CODE, &code );
         if (res != CURLE_OK) {
             util_logger.error("curl failed: " + std::string(curl_easy_strerror(res)) + "| url: "
                                   + hostPGAddr + "| data: " + job_data);
+        } else {
+            util_logger.info("curl success | url: " + hostPGAddr + "| data: " + job_data +
+            "| status: " + to_string(code));
         }
 
         curl_easy_cleanup(curl);
@@ -741,12 +748,13 @@ std::string Utils::send_job(std::string job_group_name, std::string metric_name,
     return response_string;
 }
 
-static std::map<std::string, std::string> getMetricMap(std::string metricName) {
+std::map<std::string, std::string> Utils::getMetricMap(std::string metricName) {
     std::map<std::string, std::string> map;
     CURL *curl;
     CURLcode res;
     std::string response_cpu_usages;
-    std::string pushGatewayAddr = getPushGatewayAddress() + "api/v1/query?query=" + metricName;
+    std::string pushGatewayJobAddr = getJasmineGraphProperty("org.jasminegraph.collector.pushgateway");
+    std::string pushGatewayAddr = pushGatewayJobAddr + "api/v1/query?query=" + metricName;
 
     curl = curl_easy_init();
     if (curl) {

@@ -172,6 +172,8 @@ class Utils {
 
     static std::string send_job(std::string job_group_name, std::string metric_name,
                                 std::string metric_value);
+
+    static map<string, string> getMetricMap(string metricName);
 };
 
 #endif  // JASMINEGRAPH_UTILS_H
