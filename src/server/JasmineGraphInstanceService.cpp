@@ -676,7 +676,8 @@ string JasmineGraphInstanceService::requestPerformanceStatistics(std::string isV
     long sentBytes = StatisticCollector::getTXBytes();
     double cpuUsage = StatisticCollector::getCpuUsage();
     double loadAverage = StatisticCollector::getLoadAverage();
-    std::string vmLevelStatistics = StatisticCollector::collectVMStatistics(isVMStatManager, isResourceAllocationRequested);
+    std::string vmLevelStatistics = StatisticCollector::collectVMStatistics(isVMStatManager,
+                                                                            isResourceAllocationRequested);
     auto executedTime = std::chrono::system_clock::now();
     std::time_t reportTime = std::chrono::system_clock::to_time_t(executedTime);
     std::string reportTimeString(std::ctime(&reportTime));

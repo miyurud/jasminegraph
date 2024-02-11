@@ -16,11 +16,11 @@ limitations under the License.
 static clock_t lastCPU, lastSysCPU, lastUserCPU;
 static int numProcessors;
 
-static long parseLine(char* line);
-static long getSwapSpace(const char* type);
+static long parseLine(char *line);
+static long getSwapSpace(const char *type);
 
 int StatisticCollector::init() {
-    FILE* file;
+    FILE *file;
     struct tms timeSample;
     char line[128];
 
@@ -38,7 +38,7 @@ int StatisticCollector::init() {
 }
 
 long StatisticCollector::getMemoryUsageByProcess() {
-    FILE* file = fopen("/proc/self/status", "r");
+    FILE *file = fopen("/proc/self/status", "r");
     long result = -1;
     char line[128];
 
@@ -54,12 +54,15 @@ long StatisticCollector::getMemoryUsageByProcess() {
 }
 
 int StatisticCollector::getThreadCount() {
-    FILE* file = fopen("/proc/self/stat", "r");
+    FILE *file = fopen("/proc/self/stat", "r");
     long result;
     char line[128];
 
     for (int i = 0; i < 20; i++) {
-        if (fscanf(file, "%127s%*c", line) < 0) return -1;
+        if (fscanf(file, "%127s%*c", line) < 0) {
+            fclose(file);
+            return -1;
+        }
     }
     fclose(file);
     result = strtol(line, NULL, 10);
@@ -68,15 +71,15 @@ int StatisticCollector::getThreadCount() {
 }
 
 static long getSwapSpace(int field) {
-    FILE* file = fopen("/proc/swaps", "r");
+    FILE *file = fopen("/proc/swaps", "r");
     long result = -1;
     char line[128];
 
     fgets(line, 128, file);
 
     while (fgets(line, 128, file) != NULL) {
-        char* value;
-        char* save = NULL;
+        char *value;
+        char *save = NULL;
         for (int i = 0; i < field; i++) {
             if (i == 0) {
                 value = strtok_r(line, " ", &save);
@@ -112,7 +115,7 @@ long StatisticCollector::getTotalSwapSpace() {
 }
 
 long StatisticCollector::getRXBytes() {
-    FILE* file = fopen("/sys/class/net/eth0/statistics/rx_bytes", "r");
+    FILE *file = fopen("/sys/class/net/eth0/statistics/rx_bytes", "r");
     long result = -1;
     fscanf(file, "%li", &result);
     fclose(file);
@@ -121,7 +124,7 @@ long StatisticCollector::getRXBytes() {
 }
 
 long StatisticCollector::getTXBytes() {
-    FILE* file = fopen("/sys/class/net/eth0/statistics/tx_bytes", "r");
+    FILE *file = fopen("/sys/class/net/eth0/statistics/tx_bytes", "r");
     long result = -1;
     fscanf(file, "%li", &result);
     fclose(file);
@@ -131,17 +134,17 @@ long StatisticCollector::getTXBytes() {
 }
 
 int StatisticCollector::getSocketCount() {
-    DIR* d = opendir("/proc/self/fd");
+    DIR *d = opendir("/proc/self/fd");
     if (!d) {
         puts("Error opening directory /proc/self/fd");
         return -1;
     }
-    const struct dirent* dir;
+    const struct dirent *dir;
     char path[64];
     char link_buf[1024];
     int count = 0;
     while ((dir = readdir(d)) != NULL) {
-        const char* filename = dir->d_name;
+        const char *filename = dir->d_name;
         if (filename[0] < '0' || '9' < filename[0]) continue;
         sprintf(path, "/proc/self/fd/%s", filename);
         size_t len = readlink(path, link_buf, sizeof(link_buf) - 1);
@@ -150,15 +153,15 @@ int StatisticCollector::getSocketCount() {
             count++;
         }
     }
-    (void)closedir(d);
+    (void) closedir(d);
 
     std::cout << "Total sockets: " + std::to_string(count) << std::endl;
     return count;
 }
 
-static long parseLine(char* line) {
+static long parseLine(char *line) {
     int i = strlen(line);
-    const char* p = line;
+    const char *p = line;
     while (*p < '0' || *p > '9') p++;
     line[i - 3] = '\0';
     long val = strtol(p, NULL, 10);
@@ -271,7 +274,7 @@ double StatisticCollector::getTotalCpuUsage() {
     int count = 0;
     double totalCPUUsage = 0;
 
-    FILE* input = popen(mpstatCommand.c_str(), "r");
+    FILE *input = popen(mpstatCommand.c_str(), "r");
 
     if (input) {
         // read the input

@@ -221,7 +221,7 @@ std::vector<std::string> Utils::getListOfFilesInDirectory(std::string dirName) {
             results.push_back(fnamestr);
         }
     }
-    (void)closedir(d);
+    (void) closedir(d);
     return results;
 }
 
@@ -353,7 +353,7 @@ int Utils::unzipFile(std::string filePath, std::string mode) {
 bool Utils::hostExists(string name, string ip, std::string workerPort, SQLiteDBInterface *sqlite) {
     bool result = true;
     string stmt = "SELECT COUNT( * ) FROM worker WHERE name LIKE '" + name + "' AND ip LIKE '" + ip +
-                  "' AND server_port LIKE '" + workerPort + "';";
+        "' AND server_port LIKE '" + workerPort + "';";
     if (ip == "") {
         stmt = "SELECT COUNT( * ) FROM worker WHERE name LIKE '" + name + "';";
     }
@@ -443,8 +443,8 @@ void Utils::updateSLAInformation(PerformanceSQLiteDBInterface *perfSqlite, std::
         string slaCategoryId = categoryResults[0][0].second;
 
         std::string query = "SELECT id, sla_value, attempt from graph_sla where graph_id='" + graphId +
-                            "' and partition_count='" + std::to_string(partitionCount) + "' and id_sla_category='" +
-                            slaCategoryId + "';";
+            "' and partition_count='" + std::to_string(partitionCount) + "' and id_sla_category='" +
+            slaCategoryId + "';";
 
         std::vector<vector<pair<string, string>>> results = perfSqlite->runSelect(query);
 
@@ -462,15 +462,15 @@ void Utils::updateSLAInformation(PerformanceSQLiteDBInterface *perfSqlite, std::
                 attempts++;
 
                 std::string updateQuery = "UPDATE graph_sla set sla_value='" + std::to_string(newSla) + "', attempt='" +
-                                          std::to_string(attempts) + "' where id = '" + slaId + "'";
+                    std::to_string(attempts) + "' where id = '" + slaId + "'";
 
                 perfSqlite->runUpdate(updateQuery);
             }
         } else {
             std::string insertQuery =
                 "insert into graph_sla (id_sla_category, graph_id, partition_count, sla_value, attempt) VALUES ('" +
-                slaCategoryId + "','" + graphId + "'," + std::to_string(partitionCount) + "," +
-                std::to_string(newSlaValue) + ",0);";
+                    slaCategoryId + "','" + graphId + "'," + std::to_string(partitionCount) + "," +
+                    std::to_string(newSlaValue) + ",0);";
 
             perfSqlite->runInsert(insertQuery);
         }
@@ -484,7 +484,7 @@ int Utils::copyToDirectory(std::string currentPath, std::string copyPath) {
     int status = system(command.c_str());
     if (status != 0) {
         util_logger.error("Copying " + currentPath + " to directory " + copyPath + " failed with code " +
-                          std::to_string(status));
+            std::to_string(status));
     }
     return status;
 }
@@ -527,36 +527,36 @@ int Utils::connect_wrapper(int sock, const sockaddr *addr, socklen_t slen) {
 
     struct timeval tv = {1, 0};
 
-    if (setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (char *)&tv, sizeof(tv)) == -1) {
+    if (setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (char *) &tv, sizeof(tv)) == -1) {
         util_logger.error("Failed to set send timeout option for socket");
     }
 
-    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char *)&tv, sizeof(tv)) == -1) {
+    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char *) &tv, sizeof(tv)) == -1) {
         util_logger.error("Failed to set receive timeout option for socket");
     }
 
     do {
         if (retry) sleep(retry * 2);
         util_logger.info("Trying to connect to [" + to_string(retry) +
-                         "]: " + string(inet_ntoa(((const struct sockaddr_in *)addr)->sin_addr)) + ":" +
-                         to_string(ntohs(((const struct sockaddr_in *)addr)->sin_port)));
+            "]: " + string(inet_ntoa(((const struct sockaddr_in *) addr)->sin_addr)) + ":" +
+            to_string(ntohs(((const struct sockaddr_in *) addr)->sin_port)));
         if (connect(sock, addr, slen) == 0) {
             tv = {0, 0};
-            if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char *)&tv, sizeof(tv)) == -1) {
+            if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char *) &tv, sizeof(tv)) == -1) {
                 util_logger.error("Failed to set receive timeout option for socket after successful connection");
             }
             return 0;
         }
     } while (retry++ < 4);
-    util_logger.error("Error connecting to " + string(inet_ntoa(((const struct sockaddr_in *)addr)->sin_addr)) + ":" +
-                      to_string(ntohs(((const struct sockaddr_in *)addr)->sin_port)));
+    util_logger.error("Error connecting to " + string(inet_ntoa(((const struct sockaddr_in *) addr)->sin_addr)) + ":" +
+        to_string(ntohs(((const struct sockaddr_in *) addr)->sin_port)));
     return -1;
 }
 
 std::string Utils::read_str_wrapper(int connFd, char *buf, size_t len, bool allowEmpty) {
     ssize_t result = recv(connFd, buf, len, 0);
     if (result < 0) {
-        util_logger.error("Read failed: recv returned " + std::to_string((int)result));
+        util_logger.error("Read failed: recv returned " + std::to_string((int) result));
         return "";
     } else if (!allowEmpty && result == 0) {
         util_logger.error("Read failed: recv empty string");
@@ -646,18 +646,13 @@ static inline json yaml2json(const YAML::Node &root) {
     json j{};
 
     switch (root.Type()) {
-        case YAML::NodeType::Null:
+        case YAML::NodeType::Null:break;
+        case YAML::NodeType::Scalar:return parse_scalar(root);
+        case YAML::NodeType::Sequence:for (auto &&node : root) j.emplace_back(yaml2json(node));
             break;
-        case YAML::NodeType::Scalar:
-            return parse_scalar(root);
-        case YAML::NodeType::Sequence:
-            for (auto &&node : root) j.emplace_back(yaml2json(node));
+        case YAML::NodeType::Map:for (auto &&it : root) j[it.first.as<std::string>()] = yaml2json(it.second);
             break;
-        case YAML::NodeType::Map:
-            for (auto &&it : root) j[it.first.as<std::string>()] = yaml2json(it.second);
-            break;
-        default:
-            break;
+        default:break;
     }
     return j;
 }
@@ -697,15 +692,14 @@ int Utils::createDatabaseFromDDL(const char *dbLocation, const char *ddlFileLoca
     return 0;
 }
 
-static size_t write_callback(void* contents, size_t size, size_t nmemb, std::string* output) {
+static size_t write_callback(void *contents, size_t size, size_t nmemb, std::string *output) {
     size_t totalSize = size * nmemb;
-    output->append(static_cast<char*>(contents), totalSize);
+    output->append(static_cast<char *>(contents), totalSize);
     return totalSize;
 }
-
 std::string Utils::send_job(std::string job_group_name, std::string metric_name,
-                     std::string metric_value) {
-    CURL* curl;
+                            std::string metric_value) {
+    CURL *curl;
     CURLcode res;
     std::string pushGatewayJobAddr = getJasmineGraphProperty("org.jasminegraph.collector.pushgateway");
 
@@ -713,11 +707,11 @@ std::string Utils::send_job(std::string job_group_name, std::string metric_name,
     curl = curl_easy_init();
     if (curl) {
         std::string hostPGAddr;
-        const char* envWorkerID = getenv("WORKER_ID");
+        const char *envWorkerID = getenv("WORKER_ID");
         std::string workerID;
-        if(envWorkerID){
+        if (envWorkerID) {
             workerID = std::string(getenv("WORKER_ID"));
-        } else{
+        } else {
             workerID = "-1";
         }
         hostPGAddr = pushGatewayJobAddr + job_group_name + "_" + workerID;
@@ -727,9 +721,9 @@ std::string Utils::send_job(std::string job_group_name, std::string metric_name,
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
         std::string job_data = metric_name + " " + metric_value + "\n";
-        const char* data = job_data.c_str();
+        const char *data = job_data.c_str();
 
-        curl_slist* headers = NULL;
+        curl_slist *headers = NULL;
         headers = curl_slist_append(headers, "Content-Type: application/x-prometheus-remote-write-v1");
         curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
@@ -738,8 +732,8 @@ std::string Utils::send_job(std::string job_group_name, std::string metric_name,
 
         res = curl_easy_perform(curl);
         if (res != CURLE_OK) {
-            std::cerr << "curl failed: " << curl_easy_strerror(res) << "| url: "
-                << hostPGAddr << "| data: " << job_data << std::endl;
+            util_logger.error("curl failed: " + std::string(curl_easy_strerror(res)) + "| url: "
+                                  + hostPGAddr + "| data: " + job_data);
         }
 
         curl_easy_cleanup(curl);
@@ -747,9 +741,9 @@ std::string Utils::send_job(std::string job_group_name, std::string metric_name,
     return response_string;
 }
 
-static std::map<std::string, std::string> getMetricMap(std::string metricName){
+static std::map<std::string, std::string> getMetricMap(std::string metricName) {
     std::map<std::string, std::string> map;
-    CURL* curl;
+    CURL *curl;
     CURLcode res;
     std::string response_cpu_usages;
     std::string pushGatewayAddr = getPushGatewayAddress() + "api/v1/query?query=" + metricName;
@@ -768,14 +762,14 @@ static std::map<std::string, std::string> getMetricMap(std::string metricName){
         res = curl_easy_perform(curl);
         if (res != CURLE_OK) {
             std::cerr << "cURL failed: " << curl_easy_strerror(res) << std::endl;
-        } else{
+        } else {
             std::cout << response_cpu_usages << std::endl;
             Json::Value root;
             Json::Reader reader;
             reader.parse(response_cpu_usages, root);
             const Json::Value results = root["data"]["result"];
             Json::Value currentExportedJobName;
-            for(int i=1; i<results.size(); i++){
+            for (int i = 1; i < results.size(); i++) {
                 currentExportedJobName = results[i]["metric"]["exported_job"];
                 map[(currentExportedJobName.asString().c_str())] = (results[i]["value"][1]).asString();
             }
