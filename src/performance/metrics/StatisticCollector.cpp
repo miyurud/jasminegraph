@@ -15,7 +15,6 @@ limitations under the License.
 
 static clock_t lastCPU, lastSysCPU, lastUserCPU;
 static int numProcessors;
-std::string pushGatewayJobAddr = Utils::getJasmineGraphProperty("");
 
 static long parseLine(char* line);
 static long getSwapSpace(const char* type);
@@ -103,16 +102,12 @@ static long getSwapSpace(int field) {
 long StatisticCollector::getUsedSwapSpace() {
     long result = getSwapSpace(4);
     std::cout << "Used swap space: " + std::to_string(result) << std::endl;
-    std::string response_used_swap = Utils::send_job("usedSwap", "used_swap_space",
-                                                     std::to_string(result));
     return result;
 }
 
 long StatisticCollector::getTotalSwapSpace() {
     long result = getSwapSpace(3);
     std::cout << "Total swap space: " + std::to_string(result) << std::endl;
-    std::string response_total_swap = Utils:: send_job("totalSwap", "total_swap_space",
-                                                       std::to_string(result));
     return result;
 }
 
@@ -122,8 +117,6 @@ long StatisticCollector::getRXBytes() {
     fscanf(file, "%li", &result);
     fclose(file);
     std::cout << "Total read bytes: " + std::to_string(result) << std::endl;
-    std::string response_rx = Utils::send_job("totalRead", "total_read_bytes",
-                                              std::to_string(result));
     return result;
 }
 
@@ -133,9 +126,6 @@ long StatisticCollector::getTXBytes() {
     fscanf(file, "%li", &result);
     fclose(file);
     std::cout << "Total sent bytes: " + std::to_string(result) << std::endl;
-
-    std::string response_tx = Utils::send_job("totalSent", "total_sent_bytes",
-                                              std::to_string(result));
 
     return result;
 }
@@ -161,6 +151,8 @@ int StatisticCollector::getSocketCount() {
         }
     }
     (void)closedir(d);
+
+    std::cout << "Total sockets: " + std::to_string(count) << std::endl;
     return count;
 }
 
@@ -268,8 +260,6 @@ long StatisticCollector::getTotalMemoryUsage() {
     }
     memUsage = memTotal - (memFree + buffers + cached + sReclaimable);
 
-    std::string response_total_memory = Utils::send_job("totalMemory", "total_memory",
-                                                        std::to_string(memTotal));
     return memUsage;
 }
 

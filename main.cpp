@@ -54,13 +54,15 @@ int main(int argc, char *argv[]) {
     main_logger.log("Using JASMINE_GRAPH_HOME", "info");
     std::cout << JASMINEGRAPH_HOME << std::endl;
 
+    StatisticCollector::init();
+    thread schedulerThread(SchedulerService::startScheduler);
+
     if (mode == Conts::JASMINEGRAPH_RUNTIME_PROFILE_MASTER) {
         std::string masterIp = argv[3];
         int numberOfWorkers = atoi(argv[4]);
         std::string workerIps = argv[5];
         enableNmon = argv[6];
         server = JasmineGraphServer::getInstance();
-        thread schedulerThread(SchedulerService::startScheduler);
 
         if (profile == Conts::PROFILE_K8S) {
             K8sInterface *interface = new K8sInterface();

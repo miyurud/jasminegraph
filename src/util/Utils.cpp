@@ -24,6 +24,7 @@ limitations under the License.
 #include <iomanip>
 #include <sstream>
 #include <vector>
+#include <jsoncpp/json/json.h>
 
 #include "../server/JasmineGraphInstanceProtocol.h"
 #include "Conts.h"
@@ -711,7 +712,15 @@ std::string Utils::send_job(std::string job_group_name, std::string metric_name,
     std::string response_string;
     curl = curl_easy_init();
     if (curl) {
-        std::string hostPGAddr = pushGatewayJobAddr + job_group_name;
+        std::string hostPGAddr;
+        const char* envWorkerID = getenv("WORKER_ID");
+        std::string workerID;
+        if(envWorkerID){
+            workerID = std::string(getenv("WORKER_ID"));
+        } else{
+            workerID = "-1";
+        }
+        hostPGAddr = pushGatewayJobAddr + job_group_name + "_" + workerID;
         curl_easy_setopt(curl, CURLOPT_URL, hostPGAddr.c_str());
 
         // Set the callback function to handle the response data
@@ -736,6 +745,45 @@ std::string Utils::send_job(std::string job_group_name, std::string metric_name,
         curl_easy_cleanup(curl);
     }
     return response_string;
+}
+
+static std::map<std::string, std::string> getMetricMap(std::string metricName){
+    std::map<std::string, std::string> map;
+    CURL* curl;
+    CURLcode res;
+    std::string response_cpu_usages;
+    std::string pushGatewayAddr = getPushGatewayAddress() + "api/v1/query?query=" + metricName;
+
+    curl = curl_easy_init();
+    if (curl) {
+        curl_easy_setopt(curl, CURLOPT_URL, pushGatewayAddr.c_str());
+
+        // Set the callback function to handle the response data
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_cpu_usages);
+        curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_0);
+        curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
+        curl_easy_setopt(curl, CURLOPT_FORBID_REUSE, 1L);
+
+        res = curl_easy_perform(curl);
+        if (res != CURLE_OK) {
+            std::cerr << "cURL failed: " << curl_easy_strerror(res) << std::endl;
+        } else{
+            std::cout << response_cpu_usages << std::endl;
+            Json::Value root;
+            Json::Reader reader;
+            reader.parse(response_cpu_usages, root);
+            const Json::Value results = root["data"]["result"];
+            Json::Value currentExportedJobName;
+            for(int i=1; i<results.size(); i++){
+                currentExportedJobName = results[i]["metric"]["exported_job"];
+                map[(currentExportedJobName.asString().c_str())] = (results[i]["value"][1]).asString();
+            }
+            curl_easy_cleanup(curl);
+        }
+    }
+
+    return map;
 }
 
 bool Utils::fileExistsWithReadPermission(const string &path) {

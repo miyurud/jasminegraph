@@ -36,7 +36,6 @@ using namespace std;
 Logger instance_logger;
 pthread_mutex_t file_lock;
 pthread_mutex_t map_lock;
-StatisticCollector collector;
 int JasmineGraphInstanceService::partitionCounter = 0;
 std::map<int, std::vector<std::string>> JasmineGraphInstanceService::iterationData;
 const string JasmineGraphInstanceService::END_OF_MESSAGE = "eom";
@@ -152,7 +151,6 @@ void *instanceservicesession(void *dummyPt) {
 
     instance_logger.info("New service session started on thread:" + to_string(pthread_self()) +
                          " connFd:" + to_string(connFd));
-    collector.init();
 
     Utils::createDirectory(Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder"));
 
@@ -670,15 +668,15 @@ map<long, long> JasmineGraphInstanceService::getOutDegreeDistributionHashMap(map
 
 string JasmineGraphInstanceService::requestPerformanceStatistics(std::string isVMStatManager,
                                                                  std::string isResourceAllocationRequested) {
-    long memoryUsage = collector.getMemoryUsageByProcess();
-    int threadCount = collector.getThreadCount();
-    long usedSwapSpace = collector.getUsedSwapSpace();
-    long totalSwapSpace = collector.getTotalSwapSpace();
-    long readBytes = collector.getRXBytes();
-    long sentBytes = collector.getTXBytes();
-    double cpuUsage = collector.getCpuUsage();
-    double loadAverage = collector.getLoadAverage();
-    std::string vmLevelStatistics = collector.collectVMStatistics(isVMStatManager, isResourceAllocationRequested);
+    long memoryUsage = StatisticCollector::getMemoryUsageByProcess();
+    int threadCount = StatisticCollector::getThreadCount();
+    long usedSwapSpace = StatisticCollector::getUsedSwapSpace();
+    long totalSwapSpace = StatisticCollector::getTotalSwapSpace();
+    long readBytes = StatisticCollector::getRXBytes();
+    long sentBytes = StatisticCollector::getTXBytes();
+    double cpuUsage = StatisticCollector::getCpuUsage();
+    double loadAverage = StatisticCollector::getLoadAverage();
+    std::string vmLevelStatistics = StatisticCollector::collectVMStatistics(isVMStatManager, isResourceAllocationRequested);
     auto executedTime = std::chrono::system_clock::now();
     std::time_t reportTime = std::chrono::system_clock::to_time_t(executedTime);
     std::string reportTimeString(std::ctime(&reportTime));
@@ -1885,14 +1883,13 @@ void JasmineGraphInstanceService::startCollectingLoadAverage() {
     int elapsedTime = 0;
     time_t start;
     time_t end;
-    StatisticCollector statisticCollector;
 
     start = time(0);
 
     while (collectValid) {
         if (time(0) - start == Conts::LOAD_AVG_COLLECTING_GAP) {
             elapsedTime += Conts::LOAD_AVG_COLLECTING_GAP * 1000;
-            double loadAgerage = statisticCollector.getLoadAverage();
+            double loadAgerage = StatisticCollector::getLoadAverage();
             loadAverageVector.push_back(std::to_string(loadAgerage));
             start = start + Conts::LOAD_AVG_COLLECTING_GAP;
         }

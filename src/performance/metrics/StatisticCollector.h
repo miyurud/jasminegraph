@@ -40,7 +40,7 @@ class StatisticCollector {
     static const int BUFFER_SIZE = 128;
 
  public:
-    int init();
+    static int init();
     static long getMemoryUsageByProcess();
     static int getThreadCount();
     static long getUsedSwapSpace();
