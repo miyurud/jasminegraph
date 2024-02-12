@@ -13,7 +13,6 @@ limitations under the License.
 
 #include "StatisticCollector.h"
 
-static clock_t lastCPU, lastSysCPU, lastUserCPU;
 static int numProcessors;
 
 static long parseLine(char *line);
@@ -23,10 +22,6 @@ int StatisticCollector::init() {
     FILE *file;
     struct tms timeSample;
     char line[128];
-
-    lastCPU = times(&timeSample);
-    lastSysCPU = timeSample.tms_stime;
-    lastUserCPU = timeSample.tms_utime;
 
     file = fopen("/proc/cpuinfo", "r");
     numProcessors = 0;
@@ -153,7 +148,7 @@ int StatisticCollector::getSocketCount() {
             count++;
         }
     }
-    (void) closedir(d);
+    (void)closedir(d);
 
     std::cout << "Total sockets: " + std::to_string(count) << std::endl;
     return count;
@@ -170,25 +165,41 @@ static long parseLine(char *line) {
 }
 
 double StatisticCollector::getCpuUsage() {
-    struct tms timeSample;
-    clock_t now;
-    double percent;
+    static long long lastTotal = 0, lastIdle = 0;
 
-    now = times(&timeSample);
-    if (now <= lastCPU || timeSample.tms_stime < lastSysCPU || timeSample.tms_utime < lastUserCPU) {
-        // Overflow detection. Just skip this value.
-        percent = -1.0;
-    } else {
-        percent = (timeSample.tms_stime - lastSysCPU) + (timeSample.tms_utime - lastUserCPU);
-        percent /= (now - lastCPU);
-        percent /= numProcessors;
-        percent *= 100;
+    FILE *fp = fopen("/proc/stat", "r");
+    if (!fp) return -1;
+    char line[1024];
+    fscanf(fp, "%[^\r\n]%*c", line);
+    fclose(fp);
+    std::cout << line << std::endl;
+    char *p = line;
+    while (*p < '0' || *p > '9') p++;
+    long long total = 0;
+    long long idle = 0;
+    char *end_ptr = p;
+    for (int field = 1; field <= 10; field++) {
+        while (*p < '0' || *p > '9') {
+            if (!(*p)) break;
+            p++;
+        }
+        if (!(*p)) break;
+        long long value = strtoll(p, &end_ptr, 10);
+        p = end_ptr;
+        if (value < 0) {
+            std::cerr << "Value is " << value << " for line " << line << std::endl;
+        }
+        if (field == 4) {
+            idle += value;
+        }
+        total += value;
     }
-    lastCPU = now;
-    lastSysCPU = timeSample.tms_stime;
-    lastUserCPU = timeSample.tms_utime;
+    long long diffTotal = lastTotal - total;
+    long long diffIdle = lastIdle - idle;
+    lastTotal = total;
+    lastIdle = idle;
 
-    return percent;
+    return (diffTotal - diffIdle) / (double)diffTotal;
 }
 
 std::string StatisticCollector::collectVMStatistics(std::string isVMStatManager,
