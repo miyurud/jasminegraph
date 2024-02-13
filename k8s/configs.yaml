@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jasminegraph-config
+  labels:
+    application: jasminegraph
+data:
+  pushgateway_address: "${pushgateway_address}"
+  prometheus_address: "${prometheus_address}"
+
+  

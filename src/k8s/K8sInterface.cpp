@@ -173,3 +173,20 @@ v1_node_list_t *K8sInterface::getNodes() {
                                    NULL);                 /* watch */
     return node_list;
 }
+
+std::string K8sInterface::getJasmineGraphConfig(std::string key) {
+    v1_config_map_t *config_map =
+        CoreV1API_readNamespacedConfigMap(apiClient, strdup("jasminegraph-config"), namespace_, NULL);
+    if (config_map->metadata->name == NULL) {
+        k8s_logger.error("No jasminegraph-config config map.");
+        return "";
+    }
+
+    listEntry_t *data = NULL;
+    list_ForEach(data, config_map->data) {
+        auto *pair = static_cast<keyValuePair_t *>(data->data);
+        if (strcmp(pair->key, key.c_str()) == 0) {
+            return std::string(static_cast<char *>(pair->value));
+        }
+    }
+}

@@ -23,6 +23,7 @@ COPY ./build.sh ./build.sh
 COPY ./CMakeLists.txt ./CMakeLists.txt
 COPY ./main.h ./main.h
 COPY ./main.cpp ./main.cpp
+COPY ./globals.h ./globals.h
 COPY ./src ./src
 
 RUN if [ "$DEBUG" = "true" ]; then echo "building in DEBUG mode" && sh build.sh --debug; else sh build.sh; fi

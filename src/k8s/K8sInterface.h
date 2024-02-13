@@ -55,6 +55,8 @@ class K8sInterface {
     std::string getMasterIp();
 
     v1_node_list_t *getNodes();
+
+    std::string getJasmineGraphConfig(std::string key);
 };
 
 #endif  // JASMINEGRAPH_K8SINTERFACE_H

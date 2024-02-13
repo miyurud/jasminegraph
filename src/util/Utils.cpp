@@ -26,7 +26,9 @@ limitations under the License.
 #include <vector>
 #include <jsoncpp/json/json.h>
 
+#include "../../globals.h"
 #include "../server/JasmineGraphInstanceProtocol.h"
+#include "../k8s/K8sInterface.h"
 #include "Conts.h"
 #include "logger/Logger.h"
 
@@ -701,9 +703,15 @@ std::string Utils::send_job(std::string job_group_name, std::string metric_name,
                             std::string metric_value) {
     CURL *curl;
     CURLcode res;
-    std::string pushGatewayJobAddr = getJasmineGraphProperty("org.jasminegraph.collector.pushgateway") +
-        "metrics/job/";
-//    pushGatewayJobAddr = "http://10.10.18.115:8080/";
+    std::string pushGatewayJobAddr;
+    if (jasminegraph_profile ==Conts::PROFILE_K8S) {
+        std::unique_ptr<K8sInterface> interface(new K8sInterface());
+        pushGatewayJobAddr = interface->getJasmineGraphConfig("pushgateway_address");
+    } else {
+        pushGatewayJobAddr = getJasmineGraphProperty("org.jasminegraph.collector.pushgateway");
+    }
+
+    pushGatewayJobAddr += "metrics/job/";
 
     std::string response_string;
     curl = curl_easy_init();
@@ -753,12 +761,19 @@ std::map<std::string, std::string> Utils::getMetricMap(std::string metricName) {
     CURL *curl;
     CURLcode res;
     std::string response_cpu_usages;
-    std::string pushGatewayJobAddr = getJasmineGraphProperty("org.jasminegraph.collector.pushgateway");
-    std::string pushGatewayAddr = pushGatewayJobAddr + "api/v1/query?query=" + metricName;
+
+    std::string prometheusAddr;
+    if (jasminegraph_profile ==Conts::PROFILE_K8S) {
+        std::unique_ptr<K8sInterface> interface(new K8sInterface());
+        prometheusAddr = interface->getJasmineGraphConfig("prometheus_address");
+    } else {
+        prometheusAddr = getJasmineGraphProperty("org.jasminegraph.collector.pushgateway");
+    }
+    std::string prometheusQueryAddr = prometheusAddr + "api/v1/query?query=" + metricName;
 
     curl = curl_easy_init();
     if (curl) {
-        curl_easy_setopt(curl, CURLOPT_URL, pushGatewayAddr.c_str());
+        curl_easy_setopt(curl, CURLOPT_URL, prometheusQueryAddr.c_str());
 
         // Set the callback function to handle the response data
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);

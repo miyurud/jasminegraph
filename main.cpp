@@ -18,6 +18,7 @@ limitations under the License.
 #include <future>
 #include <iostream>
 
+#include "globals.h"
 #include "src/k8s/K8sWorkerController.h"
 #include "src/server/JasmineGraphInstance.h"
 #include "src/util/logger/Logger.h"
@@ -48,7 +49,8 @@ int main(int argc, char *argv[]) {
 
     int mode = atoi(argv[2]);
     std::string JASMINEGRAPH_HOME = Utils::getJasmineGraphHome();
-    std::string profile = argv[1];  // This can be either "docker" or "native"
+    std::string profile = argv[1];
+    jasminegraph_profile = profile;
     std::string enableNmon = "false";
 
     main_logger.log("Using JASMINE_GRAPH_HOME", "info");
