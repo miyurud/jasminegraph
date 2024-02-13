@@ -16,6 +16,6 @@ limitations under the License.
 #ifndef JASMINEGRAPH__GLOBALS_H_
 #define JASMINEGRAPH__GLOBALS_H_
 
-std::string jasminegraph_profile;
+extern char *jasminegraph_profile;
 
 #endif //JASMINEGRAPH__GLOBALS_H_

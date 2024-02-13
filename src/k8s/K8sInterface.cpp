@@ -189,4 +189,5 @@ std::string K8sInterface::getJasmineGraphConfig(std::string key) {
             return std::string(static_cast<char *>(pair->value));
         }
     }
+    return "";
 }

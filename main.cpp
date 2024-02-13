@@ -29,6 +29,7 @@ JasmineGraphServer *server;
 JasmineGraphInstance *instance;
 SchedulerService schedulerService;
 Logger main_logger;
+char *jasminegraph_profile = NULL;
 
 void fnExit3(void) {
     delete (server);
@@ -50,7 +51,7 @@ int main(int argc, char *argv[]) {
     int mode = atoi(argv[2]);
     std::string JASMINEGRAPH_HOME = Utils::getJasmineGraphHome();
     std::string profile = argv[1];
-    jasminegraph_profile = profile;
+    jasminegraph_profile = argv[1];
     std::string enableNmon = "false";
 
     main_logger.log("Using JASMINE_GRAPH_HOME", "info");
