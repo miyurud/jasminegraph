@@ -717,6 +717,7 @@ std::string Utils::send_job(std::string job_group_name, std::string metric_name,
     curl = curl_easy_init();
     if (curl) {
         std::string hostPGAddr;
+        /*
         const char *envWorkerID = getenv("WORKER_ID");
         std::string workerID;
         if (envWorkerID) {
@@ -724,7 +725,19 @@ std::string Utils::send_job(std::string job_group_name, std::string metric_name,
         } else {
             workerID = "-1";
         }
-        hostPGAddr = pushGatewayJobAddr + job_group_name + "_" + workerID;
+        */
+
+        const char *hostAddress = getenv("HOST_NAME");
+        const char *port = getenv("PORT");
+
+        std::string uniqueWorkerID;
+        if(hostAddress) {
+            uniqueWorkerID = std::string(getenv("HOST_NAME")) + ":" + std::string(getenv("PORT"));
+        } else{
+            uniqueWorkerID = "Master";
+        }
+        //hostPGAddr = pushGatewayJobAddr + job_group_name + "_" + workerID;
+        hostPGAddr = pushGatewayJobAddr + uniqueWorkerID;
         curl_easy_setopt(curl, CURLOPT_URL, hostPGAddr.c_str());
 
         // Set the callback function to handle the response data
@@ -767,7 +780,7 @@ std::map<std::string, std::string> Utils::getMetricMap(std::string metricName) {
         std::unique_ptr<K8sInterface> interface(new K8sInterface());
         prometheusAddr = interface->getJasmineGraphConfig("prometheus_address");
     } else {
-        prometheusAddr = getJasmineGraphProperty("org.jasminegraph.collector.pushgateway");
+        prometheusAddr = getJasmineGraphProperty("org.jasminegraph.collector.prometheus");
     }
     std::string prometheusQueryAddr = prometheusAddr + "api/v1/query?query=" + metricName;
 
@@ -792,7 +805,7 @@ std::map<std::string, std::string> Utils::getMetricMap(std::string metricName) {
             reader.parse(response_cpu_usages, root);
             const Json::Value results = root["data"]["result"];
             Json::Value currentExportedJobName;
-            for (int i = 1; i < results.size(); i++) {
+            for (int i = 0; i < results.size(); i++) {
                 currentExportedJobName = results[i]["metric"]["exported_job"];
                 map[(currentExportedJobName.asString().c_str())] = (results[i]["value"][1]).asString();
             }

@@ -93,8 +93,10 @@ int main(int argc, char *argv[]) {
 
         string hostName;
         hostName = argv[3];
+        setenv("HOST_NAME", argv[3], 1);
         std::string masterHost = argv[4];
         int serverPort = atoi(argv[5]);
+        setenv("PORT", argv[5], 1);
         int serverDataPort = atoi(argv[6]);
         enableNmon = argv[7];
 
