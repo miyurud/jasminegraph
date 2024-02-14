@@ -96,11 +96,9 @@ while true; do
     sleep .2
 done
 
-
-sed -i "s#org.jasminegraph.collector.pushgateway=.*#org.jasminegraph.collector.pushgateway=http://${pushgatewayIP}:9091/#" ./conf/jasminegraph-server.properties
-sed -i "s#org.jasminegraph.collector.prometheus=.*#org.jasminegraph.collector.prometheus=http://${pushgatewayIP}:9090/#" ./conf/jasminegraph-server.properties
-
-docker build -t jasminegraph .
+pushgateway_address="${pushgatewayIP}:9091/" \
+    prometheus_address="${prometheusIP}:9090/" \
+    envsubst <"./k8s/configs.yaml" | kubectl apply -f -
 
 metadb_path="${META_DB_PATH}" \
     performancedb_path="${PERFORMANCE_DB_PATH}" \

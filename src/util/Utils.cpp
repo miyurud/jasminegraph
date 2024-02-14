@@ -704,7 +704,7 @@ std::string Utils::send_job(std::string job_group_name, std::string metric_name,
     CURL *curl;
     CURLcode res;
     std::string pushGatewayJobAddr;
-    if (string(jasminegraph_profile) ==Conts::PROFILE_K8S) {
+    if (string(jasminegraph_profile) == Conts::PROFILE_K8S) {
         std::unique_ptr<K8sInterface> interface(new K8sInterface());
         pushGatewayJobAddr = interface->getJasmineGraphConfig("pushgateway_address");
     } else {
@@ -731,9 +731,9 @@ std::string Utils::send_job(std::string job_group_name, std::string metric_name,
         const char *port = getenv("PORT");
 
         std::string uniqueWorkerID;
-        if(hostAddress) {
+        if (hostAddress) {
             uniqueWorkerID = std::string(getenv("HOST_NAME")) + ":" + std::string(getenv("PORT"));
-        } else{
+        } else {
             uniqueWorkerID = "Master";
         }
         //hostPGAddr = pushGatewayJobAddr + job_group_name + "_" + workerID;
@@ -755,13 +755,13 @@ std::string Utils::send_job(std::string job_group_name, std::string metric_name,
 
         res = curl_easy_perform(curl);
         long code = -1;
-        curl_easy_getinfo( curl, CURLINFO_RESPONSE_CODE, &code );
+        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &code);
         if (res != CURLE_OK) {
             util_logger.error("curl failed: " + std::string(curl_easy_strerror(res)) + "| url: "
                                   + hostPGAddr + "| data: " + job_data);
         } else {
             util_logger.info("curl success | url: " + hostPGAddr + "| data: " + job_data +
-            "| status: " + to_string(code));
+                "| status: " + to_string(code));
         }
 
         curl_easy_cleanup(curl);
@@ -776,7 +776,7 @@ std::map<std::string, std::string> Utils::getMetricMap(std::string metricName) {
     std::string response_cpu_usages;
 
     std::string prometheusAddr;
-    if (string(jasminegraph_profile) ==Conts::PROFILE_K8S) {
+    if (string(jasminegraph_profile) == Conts::PROFILE_K8S) {
         std::unique_ptr<K8sInterface> interface(new K8sInterface());
         prometheusAddr = interface->getJasmineGraphConfig("prometheus_address");
     } else {
