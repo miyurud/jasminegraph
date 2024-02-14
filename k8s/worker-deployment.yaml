@@ -29,7 +29,7 @@ spec:
               - "--MODE"
               - "2"
               - "--HOST_NAME"
-              - "jasminegraph-worker<worker-id>"
+              - "<host-name>"
               - "--MASTERIP"
               - "<master-ip>"
               - "--SERVER_PORT"

@@ -33,7 +33,7 @@ Run JasmineGraph in Kubernetes environment by providing appropriate parameters:
 
 Remove all resources created by JasmineGraph in Kubernetes environment:
 
-    ./stop-k8s.sh clean
+    ./start-k8s.sh clean
 
 
 ## 3. Contact Information

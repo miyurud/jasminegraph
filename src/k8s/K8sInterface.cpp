@@ -87,6 +87,7 @@ v1_service_list_t *K8sInterface::getServiceList(char *labelSelectors) {
 }
 
 v1_deployment_t *K8sInterface::createJasmineGraphWorkerDeployment(int workerId,
+                                                                  const std::string &ip,
                                                                   const std::string &masterIp,
                                                                   const std::string &nodeName) const {
     std::string definiton = Utils::getJsonStringFromYamlFile(ROOT_DIR "/k8s/worker-deployment.yaml");
@@ -94,6 +95,7 @@ v1_deployment_t *K8sInterface::createJasmineGraphWorkerDeployment(int workerId,
     definiton = Utils::replaceAll(definiton, "<master-ip>", masterIp);
     definiton = Utils::replaceAll(definiton, "<image>", Utils::getJasmineGraphProperty("org.jasminegraph.k8s.image"));
     definiton = Utils::replaceAll(definiton, "<node-name>", nodeName);
+    definiton = Utils::replaceAll(definiton, "<host-name>", ip);
 
     cJSON *deploymentTemplate = cJSON_Parse(definiton.c_str());
     v1_deployment_t *deployment = v1_deployment_parseFromJSON(deploymentTemplate);

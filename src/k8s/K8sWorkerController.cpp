@@ -89,15 +89,6 @@ void K8sWorkerController::spawnWorker(int workerId) {
     std::string hostName = it->first;
     int hostId = it->second;
 
-    v1_deployment_t *deployment =
-        this->interface->createJasmineGraphWorkerDeployment(workerId, this->masterIp, hostName);
-    if (deployment != nullptr && deployment->metadata != nullptr && deployment->metadata->name != nullptr) {
-        controller_logger.info("Worker " + std::to_string(workerId) + " deployment created successfully");
-
-    } else {
-        throw std::runtime_error("Worker " + std::to_string(workerId) + " deployment creation failed");
-    }
-
     v1_service_t *service = this->interface->createJasmineGraphWorkerService(workerId);
     if (service != nullptr && service->metadata != nullptr && service->metadata->name != nullptr) {
         controller_logger.info("Worker " + std::to_string(workerId) + " service created successfully");
@@ -106,6 +97,16 @@ void K8sWorkerController::spawnWorker(int workerId) {
     }
 
     std::string ip(service->spec->cluster_ip);
+
+    v1_deployment_t *deployment =
+        this->interface->createJasmineGraphWorkerDeployment(workerId, ip, this->masterIp, hostName);
+    if (deployment != nullptr && deployment->metadata != nullptr && deployment->metadata->name != nullptr) {
+        controller_logger.info("Worker " + std::to_string(workerId) + " deployment created successfully");
+
+    } else {
+        throw std::runtime_error("Worker " + std::to_string(workerId) + " deployment creation failed");
+    }
+
     JasmineGraphServer::worker worker = {
         .hostname = ip, .port = Conts::JASMINEGRAPH_INSTANCE_PORT, .dataPort = Conts::JASMINEGRAPH_INSTANCE_DATA_PORT};
     K8sWorkerController::workerList.push_back(worker);

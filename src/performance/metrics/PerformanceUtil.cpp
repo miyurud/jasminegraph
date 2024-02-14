@@ -69,15 +69,6 @@ int PerformanceUtil::collectPerformanceStatistics() {
     long totalMemoryUsage = StatisticCollector::getTotalMemoryUsage();
     // Host
     Utils::send_job("", "total_memory", std::to_string(totalMemoryUsage));
-
-    std::map<std::string, std::string> cpuUsageMap = Utils::getMetricMap("cpu_usage");
-
-    std::cout << "#----------------" << std::endl;
-    std::cout << "192.168.43.135:7780" << ":----" + cpuUsageMap["192.168.43.135:7780"] << std::endl;
-    std::cout << "192.168.43.135:7782" << ":----" + cpuUsageMap["192.168.43.135:7782"] << std::endl;
-    std::cout << "192.168.43.135:7784" << ":----" + cpuUsageMap["192.168.43.135:7784"] << std::endl;
-    std::cout << "192.168.43.135:7786" << ":----" + cpuUsageMap["192.168.43.135:7786"] << std::endl;
-    std::cout << "#----------------" << std::endl;
     return 0;
 }
 
