@@ -732,11 +732,11 @@ std::string Utils::send_job(std::string job_group_name, std::string metric_name,
 
         std::string uniqueWorkerID;
         if (hostAddress) {
-            uniqueWorkerID = std::string(getenv("HOST_NAME")) + ":" + std::string(getenv("PORT"));
+            uniqueWorkerID = std::string(hostAddress) + ":" + std::string(port);
         } else {
             uniqueWorkerID = "Master";
         }
-        //hostPGAddr = pushGatewayJobAddr + job_group_name + "_" + workerID;
+        // hostPGAddr = pushGatewayJobAddr + job_group_name + "_" + workerID;
         hostPGAddr = pushGatewayJobAddr + uniqueWorkerID;
         curl_easy_setopt(curl, CURLOPT_URL, hostPGAddr.c_str());
 

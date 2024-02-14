@@ -833,7 +833,7 @@ static std::vector<JasmineGraphServer::worker> getWorkers(size_t npart, std::str
             }
         }
         string workerHostPort = worker_min.hostname + ":" + to_string(worker_min.port);
-        cpu_loads[workerHostPort] += 0.25; // 0.25 = 1/nproc
+        cpu_loads[workerHostPort] += 0.25;  // 0.25 = 1/nproc
         workerList.push_back(worker_min);
         std::cout << "worker = " << worker_min.hostname << ":" << worker_min.port << std::endl;
     }

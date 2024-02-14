@@ -36,43 +36,42 @@ void PerformanceUtil::init() {
 
 int PerformanceUtil::collectPerformanceStatistics() {
     long memoryUsage = StatisticCollector::getMemoryUsageByProcess();
-    //Worker
     Utils::send_job("", "memory_usage", std::to_string(memoryUsage));
 
     double cpuUsage = StatisticCollector::getCpuUsage();
-    //Worker
+    // Worker
     Utils::send_job("", "cpu_usage", std::to_string(cpuUsage));
 
     int threadCount = StatisticCollector::getThreadCount();
-    //Host
+    // Host
     Utils::send_job("", "thread_count", std::to_string(threadCount));
 
     long totalSwapSpace = StatisticCollector::getTotalSwapSpace();
-    //Host
+    // Host
     Utils::send_job("", "total_swap_space", std::to_string(totalSwapSpace));
 
     long usedSwapSpace = StatisticCollector::getUsedSwapSpace();
-    //Host
+    // Host
     Utils::send_job("", "used_swap_space", std::to_string(usedSwapSpace));
 
     long rxBytes = StatisticCollector::getRXBytes();
-    //Worker
+    // Worker
     Utils::send_job("", "rx_bytes", std::to_string(rxBytes));
 
     long txBytes = StatisticCollector::getTXBytes();
-    //Worker
+    // Worker
     Utils::send_job("", "tx_bytes", std::to_string(txBytes));
 
     int socketCount = StatisticCollector::getSocketCount();
-    //Host
+    // Host
     Utils::send_job("", "socket_count", std::to_string(socketCount));
 
     long totalMemoryUsage = StatisticCollector::getTotalMemoryUsage();
-    //Host
+    // Host
     Utils::send_job("", "total_memory", std::to_string(totalMemoryUsage));
 
     std::map<std::string, std::string> cpuUsageMap = Utils::getMetricMap("cpu_usage");
-    
+
     std::cout << "#----------------" << std::endl;
     std::cout << "192.168.43.135:7780" << ":----" + cpuUsageMap["192.168.43.135:7780"] << std::endl;
     std::cout << "192.168.43.135:7782" << ":----" + cpuUsageMap["192.168.43.135:7782"] << std::endl;

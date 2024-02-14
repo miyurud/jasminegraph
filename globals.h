@@ -18,4 +18,4 @@ limitations under the License.
 
 extern char *jasminegraph_profile;
 
-#endif //JASMINEGRAPH__GLOBALS_H_
+#endif  // JASMINEGRAPH__GLOBALS_H_
