@@ -24,6 +24,7 @@ COPY ./src_python ./src_python
 COPY ./src ./src
 COPY ./main.h ./main.h
 COPY ./main.cpp ./main.cpp
+COPY ./globals.h ./globals.h
 COPY ./conf ./conf
 COPY ./k8s ./k8s
 
