@@ -16,6 +16,7 @@ limitations under the License.
 #include <algorithm>
 #include <chrono>
 #include <ctime>
+#include <sstream>
 #include <vector>
 
 #include "../../../localstore/JasmineGraphHashMapLocalStore.h"
@@ -86,14 +87,14 @@ long Triangles::run(JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCe
 
     triangle_logger.log(" Merge time Taken: " + std::to_string(mergeMsDuration) + " milliseconds", "info");
 
-    TriangleResult triangleResult = countTriangles(localSubGraphMap, degreeDistribution, false);
+    const TriangleResult& triangleResult = countTriangles(localSubGraphMap, degreeDistribution, false);
     return triangleResult.count;
 }
 
-TriangleResult Triangles::countTriangles(map<long, unordered_set<long>> centralStore,
-                                             map<long, long> distributionMap, bool returnTriangles) {
+TriangleResult Triangles::countTriangles(map<long, unordered_set<long>> centralStore, map<long, long> distributionMap,
+                                         bool returnTriangles) {
     std::map<long, std::set<long>> degreeMap;
-    std::string triangle = "";
+    std::basic_ostringstream<char> triangleStream;
 
     long startVId;
     long degree;
@@ -135,9 +136,9 @@ TriangleResult Triangles::countTriangles(map<long, unordered_set<long>> centralS
                 std::set<long>::iterator nuListIterator;
                 for (nuListIterator = orderedNuList.begin(); nuListIterator != orderedNuList.end(); ++nuListIterator) {
                     long nu = *nuListIterator;
-                    if ( ((centralStore[temp].find(nu) != centralStore[temp].end()) ||
-                          (centralStore[nu].find(temp) != centralStore[nu].end())) &&
-                            (temp != nu) && (u != nu) && (temp != u) ) {
+                    if (((centralStore[temp].find(nu) != centralStore[temp].end()) ||
+                         (centralStore[nu].find(temp) != centralStore[nu].end())) &&
+                        (temp != nu) && (u != nu) && (temp != u)) {
                         std::vector<long> tempVector;
                         tempVector.push_back(temp);
                         tempVector.push_back(u);
@@ -148,30 +149,28 @@ TriangleResult Triangles::countTriangles(map<long, unordered_set<long>> centralS
                         varTwo = tempVector[1];
                         varThree = tempVector[2];
 
-                        std::map<long, std::vector<long>> itemRes = triangleTree[varOne];
+                        std::map<long, std::vector<long>> &itemRes = triangleTree[varOne];
 
                         std::map<long, std::vector<long>>::iterator itemResIterator = itemRes.find(varTwo);
 
                         if (itemResIterator != itemRes.end()) {
-                            std::vector<long> list = itemRes[varTwo];
+                            std::vector<long>& list = itemRes[varTwo];
 
                             std::vector<long>::iterator listIterator;
                             if (std::find(list.begin(), list.end(), varThree) == list.end()) {
                                 list.push_back(varThree);
-                                itemRes[varTwo] = list;
-                                triangleTree[varOne] = itemRes;
+                                // itemRes[varTwo] = list;
+                                // triangleTree[varOne] = itemRes;
                                 triangleCount++;
                                 if (returnTriangles) {
-                                    triangle = triangle + std::to_string(varOne) + "," + std::to_string(varTwo) + "," +
-                                               std::to_string(varThree) + ":";
+                                    triangleStream << varOne << "," << varTwo << "," << varThree << ":";
                                 }
                             }
                         } else {
                             triangleTree[varOne][varTwo].push_back(varThree);
                             triangleCount++;
                             if (returnTriangles) {
-                                triangle = triangle + std::to_string(varOne) + "," + std::to_string(varTwo) + "," +
-                                           std::to_string(varThree) + ":";
+                                triangleStream << varOne << "," << varTwo << "," << varThree << ":";
                             }
                         }
                     }
@@ -184,10 +183,12 @@ TriangleResult Triangles::countTriangles(map<long, unordered_set<long>> centralS
     TriangleResult result;
 
     if (returnTriangles) {
+        string triangle = triangleStream.str();
         if (triangle.empty()) {
             result.triangles = "NILL";
         } else {
-            result.triangles = triangle.substr(0, triangle.size() - 1);
+            triangle.erase(triangle.size() - 1);
+            result.triangles = std::move(triangle);
         }
     } else {
         result.count = triangleCount;
