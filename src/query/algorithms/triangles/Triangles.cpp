@@ -123,7 +123,8 @@ TriangleResult Triangles::countTriangles(map<long, unordered_set<long>> centralS
                     if (temp == nu) continue;
                     if (u == nu) continue;
                     std::unordered_set<long> &centralStoreNu = centralStore[nu];
-                    if ((unorderedUSet.find(nu) != unorderedUSet.end()) || (centralStoreNu.find(temp) != centralStoreNu.end())) {
+                    if ((unorderedUSet.find(nu) != unorderedUSet.end()) ||
+                        (centralStoreNu.find(temp) != centralStoreNu.end())) {
                         register long varOne = temp;
                         register long varTwo = u;
                         register long varThree = nu;
