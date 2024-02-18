@@ -107,7 +107,6 @@ TriangleResult Triangles::countTriangles(map<long, unordered_set<long>> centralS
     std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> triangleTree;
 
     for (auto iterator = degreeMap.begin(); iterator != degreeMap.end(); ++iterator) {
-        long key = iterator->first;
         std::set<long> &vertices = iterator->second;
 
         for (auto verticesIterator = vertices.begin(); verticesIterator != vertices.end(); ++verticesIterator) {
@@ -125,9 +124,9 @@ TriangleResult Triangles::countTriangles(map<long, unordered_set<long>> centralS
                     std::unordered_set<long> &centralStoreNu = centralStore[nu];
                     if ((unorderedUSet.find(nu) != unorderedUSet.end()) ||
                         (centralStoreNu.find(temp) != centralStoreNu.end())) {
-                        register long varOne = temp;
-                        register long varTwo = u;
-                        register long varThree = nu;
+                        long varOne = temp;
+                        long varTwo = u;
+                        long varThree = nu;
                         if (varOne > varTwo) {  // swap
                             varOne ^= varTwo;
                             varTwo ^= varOne;
