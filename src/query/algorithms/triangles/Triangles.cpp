@@ -39,12 +39,9 @@ long Triangles::run(JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCe
     map<long, long> degreeDistribution = graphDB.getOutDegreeDistributionHashMap();
     map<long, long> centralDBDegreeDistribution = centralStore.getOutDegreeDistributionHashMap();
     map<long, long> centralDuplicateDBDegreeDistribution = duplicateCentralStore.getOutDegreeDistributionHashMap();
-    std::map<long, long> degreeReverseLookupMap;
     std::map<long, std::set<long>> degreeMap;
-    std::set<long> degreeSet;
 
     std::map<long, long>::iterator it;
-    std::map<long, long>::iterator degreeDistributionIterator;
     std::map<long, long>::iterator centralDBDegreeDistributionIterator;
     std::map<long, long>::iterator centralDuplicateDBDegreeDistributionIterator;
 
@@ -87,7 +84,7 @@ long Triangles::run(JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCe
 
     triangle_logger.log(" Merge time Taken: " + std::to_string(mergeMsDuration) + " milliseconds", "info");
 
-    const TriangleResult& triangleResult = countTriangles(localSubGraphMap, degreeDistribution, false);
+    const TriangleResult &triangleResult = countTriangles(localSubGraphMap, degreeDistribution, false);
     return triangleResult.count;
 }
 
@@ -99,75 +96,67 @@ TriangleResult Triangles::countTriangles(map<long, unordered_set<long>> centralS
     long startVId;
     long degree;
 
-    std::map<long, long>::iterator it;
-
-    for (it = distributionMap.begin(); it != distributionMap.end(); ++it) {
-        startVId = it->first;
+    for (auto it = distributionMap.begin(); it != distributionMap.end(); ++it) {
         degree = it->second;
+        if (degree == 1) continue;
+        startVId = it->first;
         degreeMap[degree].insert(startVId);
     }
 
     long triangleCount = 0;
-    long varOne = 0;
-    long varTwo = 0;
-    long varThree = 0;
+    std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> triangleTree;
 
-    std::map<long, std::map<long, std::vector<long>>> triangleTree;
-    std::vector<long> degreeListVisited;
-
-    std::map<long, std::set<long>>::iterator iterator;
-
-    for (iterator = degreeMap.begin(); iterator != degreeMap.end(); ++iterator) {
+    for (auto iterator = degreeMap.begin(); iterator != degreeMap.end(); ++iterator) {
         long key = iterator->first;
-        std::set<long> vertices = iterator->second;
+        std::set<long> &vertices = iterator->second;
 
-        if (key == 1) {
-            continue;
-        }
-        std::set<long>::iterator verticesIterator;
-
-        for (verticesIterator = vertices.begin(); verticesIterator != vertices.end(); ++verticesIterator) {
+        for (auto verticesIterator = vertices.begin(); verticesIterator != vertices.end(); ++verticesIterator) {
             long temp = *verticesIterator;
-            std::set<long> orderedUList(centralStore[temp].begin(), centralStore[temp].end());
-            std::set<long>::iterator uListIterator;
-            for (uListIterator = orderedUList.begin(); uListIterator != orderedUList.end(); ++uListIterator) {
-                long u = *uListIterator;
-                std::set<long> orderedNuList(centralStore[u].begin(), centralStore[u].end());
-                std::set<long>::iterator nuListIterator;
-                for (nuListIterator = orderedNuList.begin(); nuListIterator != orderedNuList.end(); ++nuListIterator) {
-                    long nu = *nuListIterator;
-                    if (((centralStore[temp].find(nu) != centralStore[temp].end()) ||
-                         (centralStore[nu].find(temp) != centralStore[nu].end())) &&
-                        (temp != nu) && (u != nu) && (temp != u)) {
-                        std::vector<long> tempVector;
-                        tempVector.push_back(temp);
-                        tempVector.push_back(u);
-                        tempVector.push_back(nu);
-                        std::sort(tempVector.begin(), tempVector.end());
+            std::unordered_set<long> &unorderedUSet = centralStore[temp];
+            for (auto uSetIterator = unorderedUSet.begin(); uSetIterator != unorderedUSet.end(); ++uSetIterator) {
+                long u = *uSetIterator;
+                if (temp == u) continue;
+                std::unordered_set<long> &unorderedNuSet = centralStore[u];
+                for (auto nuSetIterator = unorderedNuSet.begin(); nuSetIterator != unorderedNuSet.end();
+                     ++nuSetIterator) {
+                    long nu = *nuSetIterator;
+                    if (temp == nu) continue;
+                    if (u == nu) continue;
+                    std::unordered_set<long> &centralStoreNu = centralStore[nu];
+                    if ((unorderedUSet.find(nu) != unorderedUSet.end()) || (centralStoreNu.find(temp) != centralStoreNu.end())) {
+                        register long varOne = temp;
+                        register long varTwo = u;
+                        register long varThree = nu;
+                        if (varOne > varTwo) {  // swap
+                            varOne ^= varTwo;
+                            varTwo ^= varOne;
+                            varOne ^= varTwo;
+                        }
+                        if (varOne > varThree) {  // swap
+                            varOne ^= varThree;
+                            varThree ^= varOne;
+                            varOne ^= varThree;
+                        }
+                        if (varTwo > varThree) {  // swap
+                            varTwo ^= varThree;
+                            varThree ^= varTwo;
+                            varTwo ^= varThree;
+                        }
 
-                        varOne = tempVector[0];
-                        varTwo = tempVector[1];
-                        varThree = tempVector[2];
-
-                        std::map<long, std::vector<long>> &itemRes = triangleTree[varOne];
-
-                        std::map<long, std::vector<long>>::iterator itemResIterator = itemRes.find(varTwo);
-
+                        auto &itemRes = triangleTree[varOne];
+                        auto itemResIterator = itemRes.find(varTwo);
                         if (itemResIterator != itemRes.end()) {
-                            std::vector<long>& list = itemRes[varTwo];
-
-                            std::vector<long>::iterator listIterator;
-                            if (std::find(list.begin(), list.end(), varThree) == list.end()) {
-                                list.push_back(varThree);
-                                // itemRes[varTwo] = list;
-                                // triangleTree[varOne] = itemRes;
+                            auto &set2 = itemRes[varTwo];
+                            auto set2Iter = set2.find(varThree);
+                            if (set2Iter == set2.end()) {
+                                set2.insert(varThree);
                                 triangleCount++;
                                 if (returnTriangles) {
                                     triangleStream << varOne << "," << varTwo << "," << varThree << ":";
                                 }
                             }
                         } else {
-                            triangleTree[varOne][varTwo].push_back(varThree);
+                            triangleTree[varOne][varTwo].insert(varThree);
                             triangleCount++;
                             if (returnTriangles) {
                                 triangleStream << varOne << "," << varTwo << "," << varThree << ":";
@@ -177,7 +166,6 @@ TriangleResult Triangles::countTriangles(map<long, unordered_set<long>> centralS
                 }
             }
         }
-        degreeListVisited.push_back(key);
     }
 
     TriangleResult result;
