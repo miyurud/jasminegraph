@@ -88,7 +88,7 @@ long Triangles::run(JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCe
     return triangleResult.count;
 }
 
-TriangleResult Triangles::countTriangles(map<long, unordered_set<long>> centralStore, map<long, long> distributionMap,
+TriangleResult Triangles::countTriangles(map<long, unordered_set<long>> &centralStore, map<long, long> &distributionMap,
                                          bool returnTriangles) {
     std::map<long, std::set<long>> degreeMap;
     std::basic_ostringstream<char> triangleStream;
