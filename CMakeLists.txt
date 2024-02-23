@@ -160,17 +160,9 @@ target_link_libraries(JasmineGraphLib PRIVATE /usr/lib/x86_64-linux-gnu/libflatb
 target_link_libraries(JasmineGraphLib PRIVATE /usr/lib/x86_64-linux-gnu/libjsoncpp.so)
 target_link_libraries(JasmineGraphLib PRIVATE /usr/local/lib/libcppkafka.so)
 target_link_libraries(JasmineGraph JasmineGraphLib)
-target_include_directories(JasmineGraph PRIVATE /usr/include/python3)
 target_link_libraries(JasmineGraph curl)
 
-set(PYTHON_EXECUTABLE "/usr/bin/python3")
-set(PYTHON_INCLUDE_DIR "/usr/include/python3")
-set(PYTHON_LIBRARIES "/usr/lib/x86_64-linux-gnu/libpython3.so")
-
-include_directories(${PYTHON_INCLUDE_DIRS})
-include_directories(${PYTHON_DIRECTORIES})
 include_directories(/usr/local/include/yaml-cpp)
-target_link_libraries(JasmineGraphLib PRIVATE ${PYTHON_LIBRARIES})
 target_link_libraries(JasmineGraphLib PRIVATE m)
 target_link_libraries(JasmineGraphLib PRIVATE /usr/local/lib/libkubernetes.so)
 target_link_libraries(JasmineGraphLib PRIVATE yaml-cpp)

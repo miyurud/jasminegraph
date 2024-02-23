@@ -6,8 +6,6 @@ RUN apt-get install -y sysstat
 RUN apt-get install -y nmon
 
 RUN ln -sf /usr/bin/python3.8 /usr/bin/python3
-RUN ln -sf /usr/include/python3.8 /usr/include/python3
-RUN ln -sf /usr/lib/x86_64-linux-gnu/libpython3.8.so /usr/lib/x86_64-linux-gnu/libpython3.so
 
 RUN python3 -m pip install --no-cache-dir gcovr==6.0
 
