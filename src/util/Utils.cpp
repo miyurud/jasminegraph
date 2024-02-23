@@ -13,10 +13,11 @@ limitations under the License.
 
 #include "Utils.h"
 
+#include <curl/curl.h>
 #include <dirent.h>
+#include <jsoncpp/json/json.h>
 #include <pwd.h>
 #include <sys/stat.h>
-#include <curl/curl.h>
 #include <unistd.h>
 
 #include <chrono>
@@ -24,16 +25,19 @@ limitations under the License.
 #include <iomanip>
 #include <sstream>
 #include <vector>
-#include <jsoncpp/json/json.h>
 
 #include "../../globals.h"
-#include "../server/JasmineGraphInstanceProtocol.h"
 #include "../k8s/K8sInterface.h"
+#include "../server/JasmineGraphInstanceProtocol.h"
 #include "Conts.h"
 #include "logger/Logger.h"
 
 using namespace std;
 Logger util_logger;
+
+#ifdef UNIT_TEST
+char *jasminegraph_profile = NULL;
+#endif
 
 unordered_map<std::string, std::string> Utils::propertiesMap;
 
@@ -223,7 +227,7 @@ std::vector<std::string> Utils::getListOfFilesInDirectory(std::string dirName) {
             results.push_back(fnamestr);
         }
     }
-    (void) closedir(d);
+    (void)closedir(d);
     return results;
 }
 
@@ -355,7 +359,7 @@ int Utils::unzipFile(std::string filePath, std::string mode) {
 bool Utils::hostExists(string name, string ip, std::string workerPort, SQLiteDBInterface *sqlite) {
     bool result = true;
     string stmt = "SELECT COUNT( * ) FROM worker WHERE name LIKE '" + name + "' AND ip LIKE '" + ip +
-        "' AND server_port LIKE '" + workerPort + "';";
+                  "' AND server_port LIKE '" + workerPort + "';";
     if (ip == "") {
         stmt = "SELECT COUNT( * ) FROM worker WHERE name LIKE '" + name + "';";
     }
@@ -445,8 +449,8 @@ void Utils::updateSLAInformation(PerformanceSQLiteDBInterface *perfSqlite, std::
         string slaCategoryId = categoryResults[0][0].second;
 
         std::string query = "SELECT id, sla_value, attempt from graph_sla where graph_id='" + graphId +
-            "' and partition_count='" + std::to_string(partitionCount) + "' and id_sla_category='" +
-            slaCategoryId + "';";
+                            "' and partition_count='" + std::to_string(partitionCount) + "' and id_sla_category='" +
+                            slaCategoryId + "';";
 
         std::vector<vector<pair<string, string>>> results = perfSqlite->runSelect(query);
 
@@ -464,15 +468,15 @@ void Utils::updateSLAInformation(PerformanceSQLiteDBInterface *perfSqlite, std::
                 attempts++;
 
                 std::string updateQuery = "UPDATE graph_sla set sla_value='" + std::to_string(newSla) + "', attempt='" +
-                    std::to_string(attempts) + "' where id = '" + slaId + "'";
+                                          std::to_string(attempts) + "' where id = '" + slaId + "'";
 
                 perfSqlite->runUpdate(updateQuery);
             }
         } else {
             std::string insertQuery =
                 "insert into graph_sla (id_sla_category, graph_id, partition_count, sla_value, attempt) VALUES ('" +
-                    slaCategoryId + "','" + graphId + "'," + std::to_string(partitionCount) + "," +
-                    std::to_string(newSlaValue) + ",0);";
+                slaCategoryId + "','" + graphId + "'," + std::to_string(partitionCount) + "," +
+                std::to_string(newSlaValue) + ",0);";
 
             perfSqlite->runInsert(insertQuery);
         }
@@ -486,7 +490,7 @@ int Utils::copyToDirectory(std::string currentPath, std::string copyPath) {
     int status = system(command.c_str());
     if (status != 0) {
         util_logger.error("Copying " + currentPath + " to directory " + copyPath + " failed with code " +
-            std::to_string(status));
+                          std::to_string(status));
     }
     return status;
 }
@@ -529,36 +533,36 @@ int Utils::connect_wrapper(int sock, const sockaddr *addr, socklen_t slen) {
 
     struct timeval tv = {1, 0};
 
-    if (setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (char *) &tv, sizeof(tv)) == -1) {
+    if (setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (char *)&tv, sizeof(tv)) == -1) {
         util_logger.error("Failed to set send timeout option for socket");
     }
 
-    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char *) &tv, sizeof(tv)) == -1) {
+    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char *)&tv, sizeof(tv)) == -1) {
         util_logger.error("Failed to set receive timeout option for socket");
     }
 
     do {
         if (retry) sleep(retry * 2);
         util_logger.info("Trying to connect to [" + to_string(retry) +
-            "]: " + string(inet_ntoa(((const struct sockaddr_in *) addr)->sin_addr)) + ":" +
-            to_string(ntohs(((const struct sockaddr_in *) addr)->sin_port)));
+                         "]: " + string(inet_ntoa(((const struct sockaddr_in *)addr)->sin_addr)) + ":" +
+                         to_string(ntohs(((const struct sockaddr_in *)addr)->sin_port)));
         if (connect(sock, addr, slen) == 0) {
             tv = {0, 0};
-            if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char *) &tv, sizeof(tv)) == -1) {
+            if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char *)&tv, sizeof(tv)) == -1) {
                 util_logger.error("Failed to set receive timeout option for socket after successful connection");
             }
             return 0;
         }
     } while (retry++ < 4);
-    util_logger.error("Error connecting to " + string(inet_ntoa(((const struct sockaddr_in *) addr)->sin_addr)) + ":" +
-        to_string(ntohs(((const struct sockaddr_in *) addr)->sin_port)));
+    util_logger.error("Error connecting to " + string(inet_ntoa(((const struct sockaddr_in *)addr)->sin_addr)) + ":" +
+                      to_string(ntohs(((const struct sockaddr_in *)addr)->sin_port)));
     return -1;
 }
 
 std::string Utils::read_str_wrapper(int connFd, char *buf, size_t len, bool allowEmpty) {
     ssize_t result = recv(connFd, buf, len, 0);
     if (result < 0) {
-        util_logger.error("Read failed: recv returned " + std::to_string((int) result));
+        util_logger.error("Read failed: recv returned " + std::to_string((int)result));
         return "";
     } else if (!allowEmpty && result == 0) {
         util_logger.error("Read failed: recv empty string");
@@ -648,13 +652,18 @@ static inline json yaml2json(const YAML::Node &root) {
     json j{};
 
     switch (root.Type()) {
-        case YAML::NodeType::Null:break;
-        case YAML::NodeType::Scalar:return parse_scalar(root);
-        case YAML::NodeType::Sequence:for (auto &&node : root) j.emplace_back(yaml2json(node));
+        case YAML::NodeType::Null:
             break;
-        case YAML::NodeType::Map:for (auto &&it : root) j[it.first.as<std::string>()] = yaml2json(it.second);
+        case YAML::NodeType::Scalar:
+            return parse_scalar(root);
+        case YAML::NodeType::Sequence:
+            for (auto &&node : root) j.emplace_back(yaml2json(node));
             break;
-        default:break;
+        case YAML::NodeType::Map:
+            for (auto &&it : root) j[it.first.as<std::string>()] = yaml2json(it.second);
+            break;
+        default:
+            break;
     }
     return j;
 }
@@ -699,8 +708,7 @@ static size_t write_callback(void *contents, size_t size, size_t nmemb, std::str
     output->append(static_cast<char *>(contents), totalSize);
     return totalSize;
 }
-std::string Utils::send_job(std::string job_group_name, std::string metric_name,
-                            std::string metric_value) {
+std::string Utils::send_job(std::string job_group_name, std::string metric_name, std::string metric_value) {
     CURL *curl;
     CURLcode res;
     std::string pushGatewayJobAddr;
@@ -757,11 +765,11 @@ std::string Utils::send_job(std::string job_group_name, std::string metric_name,
         long code = -1;
         curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &code);
         if (res != CURLE_OK) {
-            util_logger.error("curl failed: " + std::string(curl_easy_strerror(res)) + "| url: "
-                                  + hostPGAddr + "| data: " + job_data);
+            util_logger.error("curl failed: " + std::string(curl_easy_strerror(res)) + "| url: " + hostPGAddr +
+                              "| data: " + job_data);
         } else {
             util_logger.info("curl success | url: " + hostPGAddr + "| data: " + job_data +
-                "| status: " + to_string(code));
+                             "| status: " + to_string(code));
         }
 
         curl_easy_cleanup(curl);
@@ -816,9 +824,7 @@ std::map<std::string, std::string> Utils::getMetricMap(std::string metricName) {
     return map;
 }
 
-bool Utils::fileExistsWithReadPermission(const string &path) {
-    return access(path.c_str(), R_OK) == 0;
-}
+bool Utils::fileExistsWithReadPermission(const string &path) { return access(path.c_str(), R_OK) == 0; }
 
 std::fstream *Utils::openFile(const string &path, std::ios_base::openmode mode) {
     if (!fileExistsWithReadPermission(path)) {

@@ -29,7 +29,10 @@ JasmineGraphServer *server;
 JasmineGraphInstance *instance;
 SchedulerService schedulerService;
 Logger main_logger;
+
+#ifndef UNIT_TEST
 char *jasminegraph_profile = NULL;
+#endif
 
 void fnExit3(void) {
     delete (server);

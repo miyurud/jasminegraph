@@ -16,15 +16,16 @@ jobs:
         with:
           ref: ${{github.head_ref}}
           repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+
+      - name: Build unit test
+        run: docker build -f ./tests/unit/Dockerfile -t jasminegraph:unit .
+
       - uses: jupyterhub/action-k3s-helm@v4
         with:
           docker-enabled: true
 
       - name: Grant permissions for default user
         run: kubectl apply -f ./k8s/rbac.yaml
-
-      - name: Build unit test
-        run: docker build -f ./tests/unit/Dockerfile -t jasminegraph:unit .
 
       - name: Run unit test
         run: |
@@ -68,6 +69,7 @@ jobs:
         with:
           ref: ${{github.head_ref}}
           repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+
       - uses: jupyterhub/action-k3s-helm@v4
         with:
           docker-enabled: true

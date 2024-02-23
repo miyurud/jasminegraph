@@ -135,6 +135,10 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/util/dbinterface/DBInterface.cpp
 )
 
+if (CMAKE_BUILD_TYPE STREQUAL "DEBUG")
+add_compile_options(-DUNIT_TEST)
+endif ()
+
 add_library(JasmineGraphLib ${HEADERS} ${SOURCES})
 add_executable(JasmineGraph main.h main.cpp)
 
