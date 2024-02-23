@@ -1,0 +1,28 @@
+name: Release
+
+on:
+  create:
+    tags:
+      - 'v*'
+
+jobs:
+    release:
+      runs-on: ubuntu-latest
+
+      steps:
+        - uses: actions/checkout@v4
+          with:
+            ref: ${{github.ref}}
+            repository: ${{ github.repository }}
+
+        - name: Docker Build
+          run: |
+            docker build -t "jasminegraph:temp" .
+            CONTAINER_ID=$(docker create "jasminegraph:temp")
+            docker export "${CONTAINER_ID}" | docker import - "${{ secrets.DOCKER_USER }}/jasminegraph:${{  github.ref_name }}"
+
+        - name: Docker Login
+          run: docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PASS }}
+
+        - name: Docker Push
+          run: docker push "${{ secrets.DOCKER_USER }}/jasminegraph:${{  github.ref_name }}"
