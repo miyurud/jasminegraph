@@ -68,9 +68,9 @@ class Utils {
 
     static bool fileExists(std::string fileName);
 
-    static bool fileExistsWithReadPermission(const std::string& path);
+    static bool fileExistsWithReadPermission(const std::string &path);
 
-    static std::fstream* openFile(const std::string &path, std::ios_base::openmode mode);
+    static std::fstream *openFile(const std::string &path, std::ios_base::openmode mode);
 
     static int compressFile(const std::string filePath, std::string mode = "pigz");
 
@@ -168,12 +168,16 @@ class Utils {
 
     static std::string getJsonStringFromYamlFile(const std::string &yamlFile);
 
-    static int createDatabaseFromDDL(const char* dbLocation, const char* ddlFileLocation);
+    static int createDatabaseFromDDL(const char *dbLocation, const char *ddlFileLocation);
 
-    static std::string send_job(std::string job_group_name, std::string metric_name,
-                                std::string metric_value);
+    static std::string send_job(std::string job_group_name, std::string metric_name, std::string metric_value);
 
     static map<string, string> getMetricMap(string metricName);
+
+    static bool uploadFileToWorker(std::string host, int port, int dataPort, int graphID, std::string filePath,
+                                   std::string masterIP, std::string uploadType);
+
+    static bool sendFileThroughService(std::string host, int dataPort, std::string fileName, std::string filePath);
 };
 
 #endif  // JASMINEGRAPH_UTILS_H

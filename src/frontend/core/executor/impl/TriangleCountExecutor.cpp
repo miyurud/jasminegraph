@@ -986,9 +986,8 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
                 if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_CONT) == 0) {
                     triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
                     triangleCount_logger.log("Going to send file through service", "info");
-                    JasmineGraphServer::sendFileThroughService(aggregatorHostName,
-                                                               std::atoi(aggregatorDataPort.c_str()), fileName,
-                                                               aggregateStoreFile, masterIP);
+                    Utils::sendFileThroughService(aggregatorHostName, std::atoi(aggregatorDataPort.c_str()), fileName,
+                                                  aggregateStoreFile);
                 }
             }
         }
@@ -1375,9 +1374,8 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
                 if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_CONT) == 0) {
                     triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
                     triangleCount_logger.log("Going to send file through service", "info");
-                    JasmineGraphServer::sendFileThroughService(aggregatorHostName,
-                                                               std::atoi(aggregatorDataPort.c_str()), fileName,
-                                                               centralStoreFile, masterIP);
+                    Utils::sendFileThroughService(aggregatorHostName, std::atoi(aggregatorDataPort.c_str()), fileName,
+                                                  centralStoreFile);
                 }
             }
         }

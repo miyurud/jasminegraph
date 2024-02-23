@@ -99,9 +99,6 @@ class JasmineGraphServer {
 
     static void copyCentralStoreToAggregateLocation(std::string filePath);
 
-    static bool sendFileThroughService(std::string host, int dataPort, std::string fileName, std::string filePath,
-                                       std::string masterIP);
-
     static bool spawnNewWorker(string host, string port, string dataPort, string profile, string masterHost,
                                string enableNmon);
 

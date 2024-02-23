@@ -55,7 +55,6 @@ class JasmineGraphInstance {
 
     JasmineGraphInstanceService *instanceService;
     JasmineGraphInstanceFileTransferService *ftpService;
-    static bool sendFileThroughService(std::string host, int dataPort, std::string fileName, std::string filePath);
 };
 
 #endif  // JASMINEGRAPH_JASMINEGRAPHINSTANCE_H
