@@ -775,7 +775,7 @@ int JasmineGraphServer::shutdown_worker(std::string workerIP, int port) {
 
 static map<string, float> scaleK8s(size_t npart) {
     std::vector<JasmineGraphServer::worker> &workerList = K8sWorkerController::workerList;
-    map<string, string> cpu_map = Utils::getMetricMap("cpu_usage");
+    const map<string, string> &cpu_map = Utils::getMetricMap("cpu_usage");
     // Convert strings to float
     map<string, float> cpu_loads;
     for (auto it = cpu_map.begin(); it != cpu_map.end(); it++) {
@@ -803,6 +803,12 @@ static map<string, float> scaleK8s(size_t npart) {
 }
 
 static std::vector<JasmineGraphServer::worker> getWorkers(size_t npart, std::string profile) {
+    if (Utils::getJasmineGraphProperty("org.jasminegraph.autoscale.enabled") != "true") {
+        if (profile == Conts::PROFILE_K8S) {
+            return K8sWorkerController::workerList;
+        }
+        return hostWorkerList;
+    }
     // TODO: get the workers with lowest load from workerList
     std::vector<JasmineGraphServer::worker> *workerListAll;
     map<string, float> cpu_loads;
@@ -864,10 +870,10 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
     int file_count = 0;
     std::thread *workerThreads = new std::thread[total_threads];
     while (count < total_threads) {
-        auto workerList = getWorkers(partitionFileMap.size(), this->profile);
+        const auto &workerList = getWorkers(partitionFileMap.size(), this->profile);
         for (auto listIterator = workerList.begin(); listIterator < workerList.end(); listIterator++) {
             worker worker = *listIterator;
-            if (count == total_threads) {
+            if (count >= total_threads) {
                 break;
             }
             std::string partitionFileName = partitionFileMap[file_count];
