@@ -44,8 +44,6 @@ class JasmineGraphInstance {
 
     void shutdown();
 
-    bool isRunning();
-
     string hostName;
     string profile;
     string masterHostName;

@@ -87,8 +87,6 @@ class JasmineGraphServer {
     int run(std::string profile, std::string masterIp, int numberofWorkers, std::string workerIps,
             std::string enableNmon);
 
-    bool isRunning();
-
     void uploadGraphLocally(int graphID, const std::string graphType,
                             std::vector<std::map<int, std::string>> fullFileList, std::string masterIP);
 

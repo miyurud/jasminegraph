@@ -201,5 +201,3 @@ void JasmineGraphInstance::startNmonAnalyzer(string enableNmon, int serverPort) 
         }
     }
 }
-
-bool JasmineGraphInstance::isRunning() { return true; }

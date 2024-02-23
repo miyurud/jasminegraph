@@ -24,6 +24,10 @@ int StatisticCollector::init() {
     char line[128];
 
     file = fopen("/proc/cpuinfo", "r");
+    if (!file) {
+        std::cout << "Cannot open /proc/cpuinfo" << std::endl;
+        exit(-1);
+    }
     numProcessors = 0;
     while (fgets(line, 128, file) != NULL) {
         if (strncmp(line, "processor", 9) == 0) numProcessors++;

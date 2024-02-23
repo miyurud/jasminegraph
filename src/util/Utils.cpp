@@ -101,14 +101,11 @@ void Utils::writeFileContent(const std::string &filePath, const std::string &con
 
 std::string Utils::getJasmineGraphProperty(std::string key) {
     if (Utils::propertiesMap.empty()) {
-        std::vector<std::string>::iterator it;
-        vector<std::string> vec = Utils::getFileContent(ROOT_DIR "conf/jasminegraph-server.properties");
-        it = vec.begin();
-
-        for (it = vec.begin(); it < vec.end(); it++) {
+        const vector<std::string> &vec = Utils::getFileContent(ROOT_DIR "conf/jasminegraph-server.properties");
+        for (auto it = vec.begin(); it < vec.end(); it++) {
             std::string item = *it;
             if (item.length() > 0 && !(item.rfind("#", 0) == 0)) {
-                std::vector<std::string> vec2 = split(item, '=');
+                const std::vector<std::string> &vec2 = split(item, '=');
                 if (vec2.size() == 2) {
                     Utils::propertiesMap[vec2.at(0)] = vec2.at(1);
                 } else {

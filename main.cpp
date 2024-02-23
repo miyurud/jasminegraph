@@ -79,18 +79,15 @@ int main(int argc, char *argv[]) {
         }
         server->run(profile, masterIp, numberOfWorkers, workerIps, enableNmon);
 
-        while (server->isRunning()) {
-            usleep(microseconds);
-        }
-
         schedulerThread.join();
         delete server;
     } else if (mode == Conts::JASMINEGRAPH_RUNTIME_PROFILE_WORKER) {
         main_logger.log(to_string(argc), "info");
 
-        if (argc < 5) {
-            main_logger.log("Need Four arguments. Use 2 <hostName> <serverPort> <serverDataPort> to start as worker",
-                            "info");
+        if (argc < 8) {
+            main_logger.info(
+                "Need 7 arguments. Use <mode> 2 <hostName> <masterIP> <serverPort> <serverDataPort> <enable-nmon> to "
+                "start as worker");
             return -1;
         }
 
@@ -106,10 +103,6 @@ int main(int argc, char *argv[]) {
         std::cout << "In worker mode" << std::endl;
         instance = new JasmineGraphInstance();
         instance->start_running(profile, hostName, masterHost, serverPort, serverDataPort, enableNmon);
-
-        while (instance->isRunning()) {
-            usleep(microseconds);
-        }
 
         delete instance;
     }

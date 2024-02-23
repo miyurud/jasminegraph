@@ -150,8 +150,6 @@ int JasmineGraphServer::run(std::string profile, std::string masterIp, int numbe
     return 0;
 }
 
-bool JasmineGraphServer::isRunning() { return true; }
-
 void JasmineGraphServer::init() {
     pthread_t frontendthread;
     pthread_t backendthread;
@@ -951,13 +949,13 @@ static void assignPartitionToWorker(std::string fileName, int graphId, std::stri
 static bool batchUploadFile(std::string host, int port, int dataPort, int graphID, std::string filePath,
                             std::string masterIP) {
     return Utils::uploadFileToWorker(host, port, dataPort, graphID, filePath, masterIP,
-                             JasmineGraphInstanceProtocol::BATCH_UPLOAD);
+                                     JasmineGraphInstanceProtocol::BATCH_UPLOAD);
 }
 
 static bool batchUploadCentralStore(std::string host, int port, int dataPort, int graphID, std::string filePath,
                                     std::string masterIP) {
     return Utils::uploadFileToWorker(host, port, dataPort, graphID, filePath, masterIP,
-                             JasmineGraphInstanceProtocol::BATCH_UPLOAD_CENTRAL);
+                                     JasmineGraphInstanceProtocol::BATCH_UPLOAD_CENTRAL);
 }
 
 void JasmineGraphServer::copyCentralStoreToAggregateLocation(std::string filePath) {
@@ -980,19 +978,19 @@ void JasmineGraphServer::copyCentralStoreToAggregateLocation(std::string filePat
 static bool batchUploadAttributeFile(std::string host, int port, int dataPort, int graphID, std::string filePath,
                                      std::string masterIP) {
     return Utils::uploadFileToWorker(host, port, dataPort, graphID, filePath, masterIP,
-                             JasmineGraphInstanceProtocol::UPLOAD_RDF_ATTRIBUTES);
+                                     JasmineGraphInstanceProtocol::UPLOAD_RDF_ATTRIBUTES);
 }
 
 static bool batchUploadCentralAttributeFile(std::string host, int port, int dataPort, int graphID, std::string filePath,
                                             std::string masterIP) {
     return Utils::uploadFileToWorker(host, port, dataPort, graphID, filePath, masterIP,
-                             JasmineGraphInstanceProtocol::UPLOAD_RDF_ATTRIBUTES_CENTRAL);
+                                     JasmineGraphInstanceProtocol::UPLOAD_RDF_ATTRIBUTES_CENTRAL);
 }
 
 static bool batchUploadCompositeCentralstoreFile(std::string host, int port, int dataPort, int graphID,
                                                  std::string filePath, std::string masterIP) {
     return Utils::uploadFileToWorker(host, port, dataPort, graphID, filePath, masterIP,
-                             JasmineGraphInstanceProtocol::BATCH_UPLOAD_COMPOSITE_CENTRAL);
+                                     JasmineGraphInstanceProtocol::BATCH_UPLOAD_COMPOSITE_CENTRAL);
 }
 
 static void copyArtifactsToWorkers(const std::string &workerPath, const std::string &artifactLocation,
