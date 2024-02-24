@@ -149,6 +149,8 @@ if (CMAKE_ENABLE_DEBUG)
     target_compile_options(JasmineGraph PRIVATE -g)
 endif ()
 
+SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-s,--gc-sections")
+
 #TODO: Need to install the library separately
 target_link_libraries(JasmineGraphLib PRIVATE sqlite3)
 target_link_libraries(JasmineGraphLib PRIVATE pthread)

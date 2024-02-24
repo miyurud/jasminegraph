@@ -4005,6 +4005,8 @@ static void check_file_accessible_command(int connFd, bool *loop_exit_p) {
         return;
     }
     instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_TYPE);
+    string fullFilePath;
+    string result = "false";
 
     char data[DATA_BUFFER_SIZE];
     string fileType = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
@@ -4028,19 +4030,7 @@ static void check_file_accessible_command(int connFd, bool *loop_exit_p) {
 
         string aggregateLocation = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
         string fileName = graphId + "_centralstore_" + partitionId;
-        string fullFilePath = aggregateLocation + "/" + fileName;
-        string result = "false";
-
-        bool fileExists = Utils::fileExists(fullFilePath);
-        if (fileExists) {
-            result = "true";
-        }
-
-        if (!Utils::send_str_wrapper(connFd, result)) {
-            *loop_exit_p = true;
-            return;
-        }
-        instance_logger.info("Sent : " + result);
+        fullFilePath = aggregateLocation + "/" + fileName;
     } else if (fileType.compare(JasmineGraphInstanceProtocol::FILE_TYPE_CENTRALSTORE_COMPOSITE) == 0) {
         if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
             *loop_exit_p = true;
@@ -4052,20 +4042,26 @@ static void check_file_accessible_command(int connFd, bool *loop_exit_p) {
         instance_logger.info("Received File name: " + fileName);
 
         string aggregateLocation = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
-        string fullFilePath = aggregateLocation + "/" + fileName;
-        string result = "false";
-
-        bool fileExists = Utils::fileExists(fullFilePath);
-        if (fileExists) {
-            result = "true";
-        }
-
-        if (!Utils::send_str_wrapper(connFd, result)) {
+        fullFilePath = aggregateLocation + "/" + fileName;
+    } else if (fileType.compare(JasmineGraphInstanceProtocol::FILE_TYPE_DATA) == 0) {
+        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
             *loop_exit_p = true;
             return;
         }
-        instance_logger.info("Sent : " + result);
+        instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
+        string fileName = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+        string dataDir = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+        fullFilePath = dataDir + "/" + fileName;
     }
+    instance_logger.info("Checking existance of: " + fullFilePath);
+    if (Utils::fileExists(fullFilePath)) {
+        result = "true";
+    }
+    if (!Utils::send_str_wrapper(connFd, result)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.info("Sent : " + result);
 }
 
 static void graph_stream_start_command(int connFd, InstanceStreamHandler &instanceStreamHandler, bool *loop_exit_p) {

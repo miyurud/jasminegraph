@@ -580,7 +580,7 @@ std::string Utils::read_str_wrapper(int connFd, char *buf, size_t len, bool allo
 }
 
 std::string Utils::read_str_trim_wrapper(int connFd, char *buf, size_t len) {
-    string str = read_str_wrapper(connFd, buf, len, false);
+    string str = read_str_wrapper(connFd, buf, len);
     if (!str.empty()) str = trim_copy(str);
     return str;
 }

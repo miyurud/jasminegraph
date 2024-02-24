@@ -127,7 +127,7 @@ class Utils {
      * @return The string read or "" on error. Logs error if recv failed. Also logs error if allowEmpty is false and
      * read length 0 string.
      */
-    static std::string read_str_wrapper(int connFd, char *buf, size_t len, bool allowEmpty);
+    static std::string read_str_wrapper(int connFd, char *buf, size_t len, bool allowEmpty = false);
 
     /**
      * Wrapper to recv(2) to read a string and trim it.

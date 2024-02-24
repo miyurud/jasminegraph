@@ -99,6 +99,7 @@ class JasmineGraphInstanceProtocol {
     static const string SEND_FILE_TYPE;
     static const string FILE_TYPE_CENTRALSTORE_AGGREGATE;
     static const string FILE_TYPE_CENTRALSTORE_COMPOSITE;
+    static const string FILE_TYPE_DATA;
     static const string GRAPH_STREAM_START;
     static const string GRAPH_STREAM_START_ACK;
     static const string GRAPH_CSV_STREAM_START;
