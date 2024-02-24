@@ -604,30 +604,25 @@ int TriangleCountExecutor::updateTriangleTreeAndGetTriangleCount(std::vector<std
 
 long TriangleCountExecutor::aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, std::string graphId,
                                                            std::string masterIP, int threadPriority) {
-    std::vector<std::vector<string>> workerCombinations = getWorkerCombination(sqlite, graphId);
+    const std::vector<std::vector<string>> &workerCombinations = getWorkerCombination(sqlite, graphId);
     std::map<string, int> workerWeightMap;
-    std::vector<std::vector<string>>::iterator workerCombinationsIterator;
     std::vector<std::future<string>> triangleCountResponse;
     std::string result = "";
     long aggregatedTriangleCount = 0;
 
-    for (workerCombinationsIterator = workerCombinations.begin();
+    for (auto workerCombinationsIterator = workerCombinations.begin();
          workerCombinationsIterator != workerCombinations.end(); ++workerCombinationsIterator) {
-        std::vector<string> workerCombination = *workerCombinationsIterator;
-        std::map<string, int>::iterator workerWeightMapIterator;
+        const std::vector<string> &workerCombination = *workerCombinationsIterator;
         std::vector<std::future<string>> remoteGraphCopyResponse;
         int minimumWeight = 0;
         std::string minWeightWorker;
         std::string partitionIdList = "";
 
-        std::vector<string>::iterator workerCombinationIterator;
-        std::vector<string>::iterator aggregatorCopyCombinationIterator;
-
-        for (workerCombinationIterator = workerCombination.begin();
+        for (auto workerCombinationIterator = workerCombination.begin();
              workerCombinationIterator != workerCombination.end(); ++workerCombinationIterator) {
             std::string workerId = *workerCombinationIterator;
 
-            workerWeightMapIterator = workerWeightMap.find(workerId);
+            auto workerWeightMapIterator = workerWeightMap.find(workerId);
 
             if (workerWeightMapIterator != workerWeightMap.end()) {
                 int weight = workerWeightMap.at(workerId);
@@ -657,7 +652,7 @@ long TriangleCountExecutor::aggregateCentralStoreTriangles(SQLiteDBInterface *sq
         std::string aggregatorDataPort = aggregatorData.at(2).second;
         std::string aggregatorPartitionId = aggregatorData.at(3).second;
 
-        for (aggregatorCopyCombinationIterator = workerCombination.begin();
+        for (auto aggregatorCopyCombinationIterator = workerCombination.begin();
              aggregatorCopyCombinationIterator != workerCombination.end(); ++aggregatorCopyCombinationIterator) {
             std::string workerId = *aggregatorCopyCombinationIterator;
 
@@ -1265,9 +1260,9 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
     socklen_t len;
     struct sockaddr_in serv_addr;
     struct hostent *server;
-    std::string aggregatorFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
+    std::string aggregatorDirPath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
     std::string fileName = std::to_string(graphId) + "_centralstore_" + std::to_string(partitionId) + ".gz";
-    std::string centralStoreFile = aggregatorFilePath + "/" + fileName;
+    std::string centralStoreFile = aggregatorDirPath + "/" + fileName;
 
     int fileSize = Utils::getFileSize(centralStoreFile);
     std::string fileLength = to_string(fileSize);
@@ -1276,13 +1271,13 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
 
     if (sockfd < 0) {
         std::cerr << "Cannot create socket" << std::endl;
-        return 0;
+        return "";
     }
 
     server = gethostbyname(aggregatorHostName.c_str());
     if (server == NULL) {
         triangleCount_logger.error("ERROR, no host named " + aggregatorHostName);
-        return 0;
+        return "";
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -1291,8 +1286,7 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
     serv_addr.sin_port = htons(atoi(aggregatorPort.c_str()));
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
-        // TODO::exit
-        return 0;
+        return "";
     }
 
     bzero(data, 301);

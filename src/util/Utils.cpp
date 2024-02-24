@@ -293,7 +293,7 @@ int Utils::copyFile(const std::string sourceFilePath, const std::string destinat
     util_logger.log("Starting file copy source: " + sourceFilePath + " destination: " + destinationFilePath, "info");
     std::string command = "cp " + sourceFilePath + " " + destinationFilePath;
     int status = system(command.c_str());
-    if (status != 0) util_logger.warn("Copy failed with exit code " + std::to_string(status));
+    if (status != 0) util_logger.error("Copy failed with exit code " + std::to_string(status));
     return status;
 }
 
@@ -484,11 +484,18 @@ void Utils::updateSLAInformation(PerformanceSQLiteDBInterface *perfSqlite, std::
     }
 }
 
-int Utils::copyToDirectory(std::string currentPath, std::string copyPath) {
-    std::string command = "mkdir -p " + copyPath + "&& " + "cp " + currentPath + " " + copyPath;
-    int status = system(command.c_str());
+int Utils::copyToDirectory(std::string currentPath, std::string destinationDir) {
+    if (access(destinationDir.c_str(), F_OK)) {
+        std::string createDirCommand = "mkdir -p " + destinationDir;
+        if (system(createDirCommand.c_str())) {
+            util_logger.error("Creating directory " + destinationDir + " failed");
+            return -1;
+        }
+    }
+    std::string copyCommand = "cp " + currentPath + " " + destinationDir;
+    int status = system(copyCommand.c_str());
     if (status != 0) {
-        util_logger.error("Copying " + currentPath + " to directory " + copyPath + " failed with code " +
+        util_logger.error("Copying " + currentPath + " to directory " + destinationDir + " failed with code " +
                           std::to_string(status));
     }
     return status;
