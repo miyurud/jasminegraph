@@ -17,6 +17,7 @@ jobs:
 
         - name: Docker Build
           run: |
+            sed -i "s#org.jasminegraph.k8s.image=.*#org.jasminegraph.k8s.image=${{ secrets.DOCKER_USER }}/jasminegraph:${{  github.ref_name }}#" ./conf/jasminegraph-server.properties
             docker build -t "jasminegraph:temp" .
             CONTAINER_ID=$(docker create "jasminegraph:temp")
             docker export "${CONTAINER_ID}" | docker import - "${{ secrets.DOCKER_USER }}/jasminegraph:${{  github.ref_name }}"
