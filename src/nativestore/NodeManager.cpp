@@ -480,7 +480,44 @@ std::map<long, std::unordered_set<long>> NodeManager::getAdjacencyList() {
         }
         adjacencyList.emplace((long)node->nodeId, neighbors);
     }
+    return adjacencyList;
+}
 
+std::map<long, std::unordered_set<long>> NodeManager::getCentralAdjacencyList() {
+    std::map<long, std::unordered_set<long>> adjacencyList;
+
+    int relationBlockSize = RelationBlock::BLOCK_SIZE;
+
+    long new_central_relation_count = dbSize(dbPrefix + "_central_relations.db") / relationBlockSize - 1;
+
+    for (int i = 1; i <= new_central_relation_count ; i++) {
+        RelationBlock* relationBlock = RelationBlock::getCentralRelation(i * relationBlockSize);
+        long src = std::stol(relationBlock->getSource()->id);
+        long dest = std::stol(relationBlock->getDestination()->id);
+
+        // Insert into adjacency list
+        adjacencyList[src].insert(dest);
+        adjacencyList[dest].insert(src);
+    }
+    return adjacencyList;
+}
+
+std::map<long, std::unordered_set<long>> NodeManager::getLocalAdjacencyList() {
+    std::map<long, std::unordered_set<long>> adjacencyList;
+
+    int relationBlockSize = RelationBlock::BLOCK_SIZE;
+
+    long new_relation_count = dbSize(dbPrefix + "_relations.db") / relationBlockSize - 1;
+
+    for (int i = 1; i <= new_relation_count ; i++) {
+        RelationBlock* relationBlock = RelationBlock::getLocalRelation(i * relationBlockSize);
+        long src = std::stol(relationBlock->getSource()->id);
+        long dest = std::stol(relationBlock->getDestination()->id);
+
+        // Insert into adjacency list
+        adjacencyList[src].insert(dest);
+        adjacencyList[dest].insert(src);
+    }
     return adjacencyList;
 }
 
@@ -494,6 +531,7 @@ std::map<long, long> NodeManager::getDistributionMap() {
 
     return distributionMap;
 }
+
 /**
  *
  * When closing the node manager,

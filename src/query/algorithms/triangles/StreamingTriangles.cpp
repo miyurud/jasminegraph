@@ -14,6 +14,7 @@ limitations under the License.
 #include "StreamingTriangles.h"
 #include <algorithm>
 #include <vector>
+#include <future>
 
 #include "../../../util/logger/Logger.h"
 
@@ -21,10 +22,10 @@ Logger streaming_triangle_logger;
 
 long count(std::map<long, std::unordered_set<long>>& g1,
            std::map<long, std::unordered_set<long>>& g2,
-           std::map<long, long>& edges);
+           std::vector<std::pair<long, long>>& edges);
 long totalCount(std::map<long, std::unordered_set<long>>& g1,
            std::map<long, std::unordered_set<long>>& g2,
-           std::map<long, long>& edges);
+                std::vector<std::pair<long, long>>& edges);
 
 TriangleResult StreamingTriangles::countTriangles(NodeManager* nodeManager, bool returnTriangles) {
     std::map<long, std::unordered_set<long>> adjacenyList = nodeManager->getAdjacencyList();
@@ -47,8 +48,9 @@ NativeStoreTriangleResult StreamingTriangles::countLocalStreamingTriangles(
 
 
     std::string dbPrefix = nodeManager->getDbPrefix();
-    long local_relation_count = nodeManager->dbSize(dbPrefix + "_relations.db") / RelationBlock::BLOCK_SIZE;
-    long central_relation_count = nodeManager->dbSize(dbPrefix + "_central_relations.db") / RelationBlock::BLOCK_SIZE;
+    long local_relation_count = nodeManager->dbSize(dbPrefix + "_relations.db") / RelationBlock::BLOCK_SIZE - 1;
+    long central_relation_count = nodeManager->dbSize(dbPrefix +
+                                                            "_central_relations.db") / RelationBlock::BLOCK_SIZE - 1;
 
     NativeStoreTriangleResult nativeStoreTriangleResult;
     nativeStoreTriangleResult.localRelationCount = local_relation_count;
@@ -60,27 +62,78 @@ NativeStoreTriangleResult StreamingTriangles::countLocalStreamingTriangles(
     return nativeStoreTriangleResult;
 }
 
-std::string StreamingTriangles::countCentralStoreStreamingTriangles(
-        std::vector<JasmineGraphIncrementalLocalStore*> incrementalLocalStoreInstances) {
+std::map<long, std::unordered_set<long>> StreamingTriangles::getCentralAdjacencyList(unsigned int graphID,
+                                                                                     unsigned int partitionID) {
+    std::map<long, std::unordered_set<long>> adjacencyList;
+
+    GraphConfig gc;
+    gc.graphID = graphID;
+    gc.partitionID = partitionID;
+    gc.maxLabelSize = 43;
+    gc.openMode = "app";
+    NodeManager* nm = new NodeManager(gc);
+
+    return nm->getCentralAdjacencyList();
+}
+
+std::vector<std::pair<long, long>> StreamingTriangles::getEdges(unsigned int graphID, unsigned int partitionID,
+                                                                long previous_central_relation_count) {
+    std::vector<std::pair<long, long>> edges;
+    GraphConfig gc;
+    gc.graphID = graphID;
+    gc.partitionID = partitionID;
+    gc.maxLabelSize = 43;
+    gc.openMode = "app";
+    NodeManager* nodeManager = new NodeManager(gc);
+
+    std::string dbPrefix = nodeManager->getDbPrefix();
+    int relationBlockSize = RelationBlock::BLOCK_SIZE;
+    streaming_triangle_logger.debug("fetched dbprefix : " +
+                                    dbPrefix);
+
+    long new_central_relation_count = nodeManager->dbSize(dbPrefix + "_central_relations.db") / relationBlockSize - 1;
+    streaming_triangle_logger.debug("got current central relation count " +
+                                    std::to_string(new_central_relation_count));
+
+    for (int i = previous_central_relation_count + 1; i <= new_central_relation_count ; i++) {
+        RelationBlock* relationBlock = RelationBlock::getCentralRelation(i*relationBlockSize);
+        edges.push_back(std::make_pair(std::stol(relationBlock->getSource()->id),
+                                       std::stol(relationBlock->getDestination()->id)));
+        edges.push_back(std::make_pair(std::stol(relationBlock->getDestination()->id),
+                                           std::stol(relationBlock->getSource()->id)));
+    }
+
+    return edges;
+}
+
+std::string StreamingTriangles::countCentralStoreStreamingTriangles(std::string graphId,
+        std::vector<std::string> partitionIdList) {
     streaming_triangle_logger.info("###STREAMING TRIANGLE### Static Streaming Central Triangle "
                                   "Counting: Started");
     std::map<long, std::unordered_set<long>> adjacencyList;
     std::map<long, long> degreeMap;
+    std::vector<std::future<std::map<long, std::unordered_set<long>>>> adjacencyListResponse;
 
-    for (JasmineGraphIncrementalLocalStore* jasmineGraphIncrementalLocalStore : incrementalLocalStoreInstances) {
-        NodeManager* nm = jasmineGraphIncrementalLocalStore->nm;
+    std::vector<std::string>::iterator partitionIdListIterator;
 
+    for (partitionIdListIterator = partitionIdList.begin(); partitionIdListIterator != partitionIdList.end();
+         ++partitionIdListIterator) {
+        std::string aggregatePartitionId = *partitionIdListIterator;
+
+        adjacencyListResponse.push_back(std::async(std::launch::async, StreamingTriangles::getCentralAdjacencyList,
+                                                   std::stoi(graphId), std::stoi(aggregatePartitionId)));
+    }
+
+    for (auto &&futureCall : adjacencyListResponse) {
         // Merge adjacency lists
-        std::map<long, std::unordered_set<long>> currentAdjacencyList = nm->getAdjacencyList();
+        std::map<long, std::unordered_set<long>> currentAdjacencyList = futureCall.get();
         for (const auto& entry : currentAdjacencyList) {
             adjacencyList[entry.first].insert(entry.second.begin(), entry.second.end());
         }
+    }
 
-        // Merge degree maps
-        std::map<long, long> currentDegreeMap = nm->getDistributionMap();
-        for (const auto& entry : currentDegreeMap) {
-            degreeMap[entry.first] += entry.second;
-        }
+    for (auto it : adjacencyList) {
+        degreeMap.emplace(it.first, it.second.size());
     }
 
     TriangleResult result = Triangles::countTriangles(adjacencyList, degreeMap, true);
@@ -95,7 +148,7 @@ NativeStoreTriangleResult StreamingTriangles::countDynamicLocalTriangles(
     streaming_triangle_logger.info("###STREAMING TRIANGLE### Dynamic Streaming Local Triangle "
                                   "Counting: Started");
     NodeManager* nodeManager = incrementalLocalStoreInstance->nm;
-    std::map<long, long> edges;
+    std::vector<std::pair<long, long>> edges;
 
     streaming_triangle_logger.debug("got previous count " + std::to_string(old_local_relation_count) + " " +
                                   std::to_string(old_central_relation_count));
@@ -103,19 +156,27 @@ NativeStoreTriangleResult StreamingTriangles::countDynamicLocalTriangles(
     std::string dbPrefix = nodeManager->getDbPrefix();
     int relationBlockSize = RelationBlock::BLOCK_SIZE;
 
-    long new_local_relation_count = nodeManager->dbSize(dbPrefix + "_relations.db") / relationBlockSize;
-    long new_central_relation_count = nodeManager->dbSize(dbPrefix + "_central_relations.db") / relationBlockSize;
+    long new_local_relation_count = nodeManager->dbSize(dbPrefix + "_relations.db") / relationBlockSize - 1;
+    long new_central_relation_count = nodeManager->dbSize(dbPrefix + "_central_relations.db") / relationBlockSize - 1;
     streaming_triangle_logger.debug("got relation count " + std::to_string(new_local_relation_count) + " " +
                                   std::to_string(new_central_relation_count));
 
-    for (int i = old_local_relation_count; i < new_local_relation_count; ++i) {
-        RelationBlock* relationBlock = RelationBlock::getLocalRelation(i*relationBlockSize);
-        edges.emplace(std::stol(relationBlock->getSource()->id), std::stol(relationBlock->getDestination()->id));
+    RelationBlock* relationBlock;
+    for (int i = old_local_relation_count + 1; i <= new_local_relation_count; i++) {
+        relationBlock = RelationBlock::getLocalRelation(i*relationBlockSize);
+        edges.push_back(std::make_pair(std::stol(relationBlock->getSource()->id),
+                                       std::stol(relationBlock->getDestination()->id)));
+
+        edges.push_back(std::make_pair(std::stol(relationBlock->getDestination()->id),
+                                           std::stol(relationBlock->getSource()->id)));
     }
 
-    for (int i = old_central_relation_count; i < new_central_relation_count ; ++i) {
-        RelationBlock* relationBlock = RelationBlock::getCentralRelation(i*relationBlockSize);
-        edges.emplace(std::stol(relationBlock->getSource()->id), std::stol(relationBlock->getDestination()->id));
+    for (int i = old_central_relation_count + 1; i <= new_central_relation_count ; i++) {
+        relationBlock = RelationBlock::getCentralRelation(i*relationBlockSize);
+        edges.push_back(std::make_pair(std::stol(relationBlock->getSource()->id),
+                                       std::stol(relationBlock->getDestination()->id)));
+        edges.push_back(std::make_pair(std::stol(relationBlock->getDestination()->id),
+                                           std::stol(relationBlock->getSource()->id)));
     }
 
     std::map<long, std::unordered_set<long>> adjacenyList = nodeManager->getAdjacencyList();
@@ -137,47 +198,55 @@ NativeStoreTriangleResult StreamingTriangles::countDynamicLocalTriangles(
     nativeStoreTriangleResult.centralRelationCount = new_central_relation_count;
     nativeStoreTriangleResult.result = trianglesValue;
     streaming_triangle_logger.info("###STREAMING TRIANGLE### Dynamic Streaming Local Triangle "
-                                  "Counting: Completed");
+                                  "Counting: Completed : " + std::to_string(trianglesValue));
     return  nativeStoreTriangleResult;
 }
 
 std::string StreamingTriangles::countDynamicCentralTriangles(
-        std::vector<JasmineGraphIncrementalLocalStore*> incrementalLocalStoreInstances,
+        std::string graphId, std::vector<std::string> partitionIdList,
         std::vector<std::string> oldCentralRelationCount) {
     streaming_triangle_logger.info("###STREAMING TRIANGLE### Dynamic Streaming Central Triangle "
                                   "Counting: Started");
     std::map<long, std::unordered_set<long>> adjacencyList;
-    std::map<long, long> edges;
+    std::vector<std::pair<long, long>> edges;
     int position = 0;
-    NodeManager* nodeManager;
-    for (JasmineGraphIncrementalLocalStore* jasmineGraphIncrementalLocalStore : incrementalLocalStoreInstances) {
-        nodeManager = jasmineGraphIncrementalLocalStore->nm;
 
-        // Merge adjacency lists
-        std::map<long, std::unordered_set<long>> currentAdjacencyList = nodeManager->getAdjacencyList();
-        for (const auto& entry : currentAdjacencyList) {
-            adjacencyList[entry.first].insert(entry.second.begin(), entry.second.end());
-        }
+    std::vector<std::future<std::map<long, std::unordered_set<long>>>> adjacencyListResponse;
+    std::vector<std::future<std::vector<std::pair<long, long>>>> edgeMapResponse;
+    std::vector<std::string>::iterator partitionIdListIterator;
+
+    for (partitionIdListIterator = partitionIdList.begin(); partitionIdListIterator != partitionIdList.end();
+         ++partitionIdListIterator) {
+        std::string aggregatePartitionId = *partitionIdListIterator;
+
+        adjacencyListResponse.push_back(std::async(std::launch::async, StreamingTriangles::getCentralAdjacencyList,
+                                                   std::stoi(graphId), std::stoi(aggregatePartitionId)));
 
         long previous_central_relation_count = std::stol(oldCentralRelationCount[position]);
         position++;
         streaming_triangle_logger.debug("got previous central count " +
                                       std::to_string(previous_central_relation_count));
 
-        std::string dbPrefix = nodeManager->getDbPrefix();
-        int relationBlockSize = RelationBlock::BLOCK_SIZE;
-        streaming_triangle_logger.debug("fetched dbprefix : " +
-                                              dbPrefix);
+        edgeMapResponse.push_back(std::async(std::launch::async, StreamingTriangles::getEdges, std::stoi(graphId),
+                                                   std::stoi(aggregatePartitionId), previous_central_relation_count));
+    }
 
-        long new_central_relation_count = nodeManager->dbSize(dbPrefix + "_central_relations.db") / relationBlockSize;
-        streaming_triangle_logger.debug("got current central relation count " +
-                                      std::to_string(new_central_relation_count));
-
-        for (int i = previous_central_relation_count; i < new_central_relation_count ; ++i) {
-            RelationBlock* relationBlock = RelationBlock::getCentralRelation(i*relationBlockSize);
-            edges.emplace(std::stol(relationBlock->getSource()->id), std::stol(relationBlock->getDestination()->id));
+    for (auto &&futureCall : adjacencyListResponse) {
+        // Merge adjacency lists
+        std::map<long, std::unordered_set<long>> currentAdjacencyList = futureCall.get();
+        for (const auto& entry : currentAdjacencyList) {
+            adjacencyList[entry.first].insert(entry.second.begin(), entry.second.end());
         }
     }
+
+    for (auto &&futureCall : edgeMapResponse) {
+        // Merge degree maps
+        std::vector<std::pair<long, long>> edgeMap = futureCall.get();
+        for (const auto& entry : edgeMap) {
+            edges.push_back(entry);
+        }
+    }
+
     std::string triangle = "";
     long varOne = 0;
     long varTwo = 0;
@@ -207,12 +276,12 @@ std::string StreamingTriangles::countDynamicCentralTriangles(
     }
     streaming_triangle_logger.info("###STREAMING TRIANGLE### Dynamic Streaming Central Triangle "
                                   "Counting: Finished");
-    return triangle;
+    return triangle.substr(0, triangle.size() - 1);
 }
 
 long count(std::map<long, std::unordered_set<long>>& g1,
            std::map<long, std::unordered_set<long>>& g2,
-           std::map<long, long>& edges) {
+           std::vector<std::pair<long, long>>& edges) {
     long total_count = 0;
 
     for (const auto& edge : edges) {
@@ -234,10 +303,10 @@ long count(std::map<long, std::unordered_set<long>>& g1,
 
 long totalCount(std::map<long, std::unordered_set<long>>& g1,
                 std::map<long, std::unordered_set<long>>& g2,
-                std::map<long, long>& edges) {
+                std::vector<std::pair<long, long>>& edges) {
     long s1 = count(g1, g1, edges);
     long s2 = count(g1, g2, edges);
     long s3 = count(g2, g2, edges);
 
-    return 1 / 2 * ((s1 - s2) + (s3 / 3));
+    return 0.5 * ((s1 - s2) + (s3 / 3));
 }
