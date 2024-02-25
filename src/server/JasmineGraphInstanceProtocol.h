@@ -82,6 +82,7 @@ class JasmineGraphInstanceProtocol {
     static const string INITIATE_TRAIN;
     static const string INITIATE_PREDICT;
     static const string SEND_HOSTS;
+    static const string PUSH_FILE;
     static const string INITIATE_MODEL_COLLECTION;
     static const string INITIATE_FRAGMENT_RESOLUTION;
     static const string FRAGMENT_RESOLUTION_CHK;

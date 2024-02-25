@@ -83,6 +83,7 @@ const string JasmineGraphInstanceProtocol::FILE_TYPE_DATA = "file-type-data";
 const string JasmineGraphInstanceProtocol::GRAPH_STREAM_START = "stream-start";
 const string JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK = "stream-start-ack";
 const string JasmineGraphInstanceProtocol::SEND_PRIORITY = "send-priority";
+const string JasmineGraphInstanceProtocol::PUSH_FILE = "push-file";
 const string JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK = "stream-c-length-ack";
 const string JasmineGraphInstanceProtocol::GRAPH_STREAM_END_OF_EDGE = "\r\n";  // CRLF equivelent in HTTP
 const string JasmineGraphInstanceProtocol::GRAPH_CSV_STREAM_START = "csv-stream-start";

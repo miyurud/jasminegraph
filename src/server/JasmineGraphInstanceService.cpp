@@ -122,6 +122,7 @@ static void degree_distribution_common(int connFd, int serverPort,
                                        std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
                                        std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
                                        bool *loop_exit_p, bool in);
+static void push_file_command(int connFd, bool *loop_exit_p);
 
 char *converter(const std::string &s) {
     char *pc = new char[s.size() + 1];
@@ -255,6 +256,8 @@ void *instanceservicesession(void *dummyPt) {
             graph_stream_start_command(connFd, streamHandler, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::SEND_PRIORITY) == 0) {
             send_priority_command(connFd, &loop_exit);
+        } else if (line.compare(JasmineGraphInstanceProtocol::PUSH_FILE) == 0) {
+            push_file_command(connFd, &loop_exit);
         } else {
             instance_logger.error("Invalid command");
             loop_exit = true;
@@ -273,6 +276,8 @@ void JasmineGraphInstanceService::run(string profile, string masterHost, string 
     socklen_t len;
     struct sockaddr_in svrAdd;
     struct sockaddr_in clntAdd;
+
+    Utils::createDirectory(Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder"));
 
     // create socket
     listenFd = socket(AF_INET, SOCK_STREAM, 0);
@@ -4119,6 +4124,42 @@ static void send_priority_command(int connFd, bool *loop_exit_p) {
     instance_logger.info("Received Priority: " + priority);
     int retrievedPriority = stoi(priority);
     highestPriority = retrievedPriority;
+}
+
+static void push_file_command(int connFd, bool *loop_exit_p) {
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
+
+    char data[DATA_BUFFER_SIZE];
+    string hostDataPort = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    instance_logger.info("Received host:dataPort: " + hostDataPort);
+    std::vector<std::string> hostPortList = Utils::split(hostDataPort, ':');
+    std::string &host = hostPortList[0];
+    int port = std::stoi(hostPortList[1]);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
+
+    string fileName = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    instance_logger.info("Received fileName: " + fileName);
+    string path = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
+    if (!Utils::sendFileThroughService(host, port, fileName, path)) {
+        instance_logger.error("Sending failed");
+        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::ERROR)) {
+            *loop_exit_p = true;
+        }
+        return;
+    }
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.info("Sent: " + JasmineGraphInstanceProtocol::OK);
 }
 
 string JasmineGraphInstanceService::aggregateStreamingCentralStoreTriangles(

@@ -35,8 +35,7 @@ static void copyArtifactsToWorkers(const std::string &workerPath, const std::str
                                    const std::string &remoteWorker);
 static void createLogFilePath(const std::string &workerHost, const std::string &workerPath);
 static void deleteWorkerPath(const std::string &workerHost, const std::string &workerPath);
-static void assignPartitionToWorker(std::string fileName, int graphId, std::string workerHost, int workerPort,
-                                    int workerDataPort);
+static void assignPartitionToWorker(std::string fileName, int graphId, std::string workerHost, int workerPort);
 static void updateMetaDB(int graphID, std::string uploadEndTime);
 static bool batchUploadFile(std::string host, int port, int dataPort, int graphID, std::string filePath,
                             std::string masterIP);
@@ -896,7 +895,7 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
                     std::thread(batchUploadCentralAttributeFile, worker.hostname, worker.port, worker.dataPort, graphID,
                                 centralStoreAttributeFileMap[file_count], masterHost);
             }
-            assignPartitionToWorker(partitionFileName, graphID, worker.hostname, worker.port, worker.dataPort);
+            assignPartitionToWorker(partitionFileName, graphID, worker.hostname, worker.port);
             file_count++;
         }
     }
@@ -916,8 +915,7 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
     delete[] workerThreads;
 }
 
-static void assignPartitionToWorker(std::string fileName, int graphId, std::string workerHost, int workerPort,
-                                    int workerDataPort) {
+static void assignPartitionToWorker(std::string fileName, int graphId, std::string workerHost, int workerPort) {
     auto *refToSqlite = new SQLiteDBInterface();
     refToSqlite->init();
     size_t lastindex = fileName.find_last_of(".");
@@ -929,8 +927,7 @@ static void assignPartitionToWorker(std::string fileName, int graphId, std::stri
     }
 
     std::string workerSearchQuery = "select idworker from worker where ip='" + workerHost + "' and server_port='" +
-                                    std::to_string(workerPort) + "' and server_data_port='" +
-                                    std::to_string(workerDataPort) + "'";
+                                    std::to_string(workerPort) + "'";
 
     std::vector<vector<pair<string, string>>> results = refToSqlite->runSelect(workerSearchQuery);
 

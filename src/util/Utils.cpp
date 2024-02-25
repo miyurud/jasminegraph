@@ -964,8 +964,13 @@ bool Utils::sendFileThroughService(std::string host, int dataPort, std::string f
     struct sockaddr_in serv_addr;
     struct hostent *server;
 
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    util_logger.info("Sending file " + filePath + " through port " + std::to_string(dataPort));
+    FILE *fp = fopen(filePath.c_str(), "r");
+    if (fp == NULL) {
+        return false;
+    }
 
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {
         util_logger.error("Cannot create socket");
         return false;
@@ -991,13 +996,7 @@ bool Utils::sendFileThroughService(std::string host, int dataPort, std::string f
         return false;
     }
 
-    util_logger.info("Sending file " + filePath + " through port " + std::to_string(dataPort));
-    FILE *fp = fopen(filePath.c_str(), "r");
-    if (fp == NULL) {
-        close(sockfd);
-        return false;
-    }
-
+    bool status = true;
     while (true) {
         unsigned char buff[1024];
         int nread = fread(buff, 1, sizeof(buff), fp);
@@ -1005,16 +1004,17 @@ bool Utils::sendFileThroughService(std::string host, int dataPort, std::string f
         /* If read was success, send data. */
         if (nread > 0) {
             write(sockfd, buff, nread);
-        }
-
-        if (nread < sizeof(buff)) {
+        } else {
             if (feof(fp)) util_logger.info("End of file");
-            if (ferror(fp)) util_logger.error("Error reading file: " + filePath);
+            if (ferror(fp)) {
+                status = false;
+                util_logger.error("Error reading file: " + filePath);
+            }
             break;
         }
     }
 
     fclose(fp);
     close(sockfd);
-    return true;
+    return status;
 }
