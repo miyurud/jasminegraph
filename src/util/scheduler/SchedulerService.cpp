@@ -20,10 +20,10 @@ using namespace Bosma;
 Logger schedulerservice_logger;
 
 void SchedulerService::startScheduler() {
-    sleep(3);
     std::string schedulerEnabled = Utils::getJasmineGraphProperty("org.jasminegraph.scheduler.enabled");
 
     if (schedulerEnabled == "true") {
+        sleep(3);
         schedulerservice_logger.log("#######SCHEDULER ENABLED#####", "info");
 
         startPerformanceScheduler();

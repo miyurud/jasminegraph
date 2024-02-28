@@ -94,6 +94,19 @@ static void start_remote_worker_command(int connFd, bool *loop_exit_p);
 static void sla_command(int connFd, SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfSqlite,
                         bool *loop_exit_p);
 
+static vector<DataPublisher *> getWorkerClients(SQLiteDBInterface *sqlite) {
+    const vector<Utils::worker> &workerList = Utils::getWorkerList(sqlite);
+    vector<DataPublisher *> workerClients;
+    for (int i = 0; i < workerList.size(); i++) {
+        Utils::worker currentWorker = workerList.at(i);
+        string workerHost = currentWorker.hostname;
+        string workerID = currentWorker.workerID;
+        int workerPort = atoi(string(currentWorker.port).c_str());
+        DataPublisher *workerClient = new DataPublisher(workerPort, workerHost);
+        workerClients.push_back(workerClient);
+    }
+}
+
 void *frontendservicesesion(void *dummyPt) {
     frontendservicesessionargs *sessionargs = (frontendservicesessionargs *)dummyPt;
     std::string masterIP = sessionargs->masterIP;
@@ -105,9 +118,6 @@ void *frontendservicesesion(void *dummyPt) {
     frontend_logger.info("Thread No: " + to_string(pthread_self()));
     frontend_logger.info("Master IP: " + masterIP);
     char data[FRONTEND_DATA_LENGTH + 1];
-    bzero(data, FRONTEND_DATA_LENGTH + 1);
-    vector<Utils::worker> workerList = Utils::getWorkerList(sqlite);
-    vector<DataPublisher *> workerClients;
 
     //  Initiate Thread
     thread input_stream_handler;
@@ -118,15 +128,10 @@ void *frontendservicesesion(void *dummyPt) {
     cppkafka::Configuration configs;
     KafkaConnector *kstream;
     Partitioner graphPartitioner(numberOfPartitions, 1, spt::Algorithms::HASH);
+    
+    vector<DataPublisher *> workerClients;
+    bool workerClientsInitialized = false;
 
-    for (int i = 0; i < workerList.size(); i++) {
-        Utils::worker currentWorker = workerList.at(i);
-        string workerHost = currentWorker.hostname;
-        string workerID = currentWorker.workerID;
-        int workerPort = atoi(string(currentWorker.port).c_str());
-        DataPublisher *workerClient = new DataPublisher(workerPort, workerHost);
-        workerClients.push_back(workerClient);
-    }
     bool loop_exit = false;
     while (!loop_exit) {
         if (currentFESession == Conts::MAX_FE_SESSIONS + 1) {
@@ -180,6 +185,10 @@ void *frontendservicesesion(void *dummyPt) {
         } else if (line.compare(ADGR_CUST) == 0) {
             add_graph_cust_command(masterIP, connFd, sqlite, &loop_exit);
         } else if (line.compare(ADD_STREAM_KAFKA) == 0) {
+            if (!workerClientsInitialized) {
+                workerClients = getWorkerClients(sqlite);
+                workerClientsInitialized = true;
+            }
             add_stream_kafka_command(connFd, kafka_server_IP, configs, kstream, input_stream_handler, workerClients,
                                      numberOfPartitions, &loop_exit);
         } else if (line.compare(STOP_STREAM_KAFKA) == 0) {
@@ -1222,14 +1231,14 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     }
     // create kafka consumer and graph partitioner
     kstream = new KafkaConnector(configs);
-// Create the Partitioner object.
+    // Create the Partitioner object.
     Partitioner graphPartitioner(numberOfPartitions, 0, spt::Algorithms::FENNEL);
-// Create the KafkaConnector object.
+    // Create the KafkaConnector object.
     kstream = new KafkaConnector(configs);
     // Subscribe to the Kafka topic.
     kstream->Subscribe(topic_name_s);
-// Create the StreamHandler object.
-    StreamHandler* stream_handler = new StreamHandler(kstream, numberOfPartitions, workerClients);
+    // Create the StreamHandler object.
+    StreamHandler *stream_handler = new StreamHandler(kstream, numberOfPartitions, workerClients);
 
     frontend_logger.info("Start listening to " + topic_name_s);
     input_stream_handler_thread = thread(&StreamHandler::listen_to_kafka_topic, stream_handler);
@@ -2113,8 +2122,7 @@ static void page_rank_command(std::string masterIP, int connFd, SQLiteDBInterfac
     auto end = chrono::high_resolution_clock::now();
     auto dur = end - begin;
     auto msDuration = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
-    frontend_logger.info("PageRank Time Taken : " + to_string(msDuration) +
-                         " milliseconds");
+    frontend_logger.info("PageRank Time Taken : " + to_string(msDuration) + " milliseconds");
 
     result_wr = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
     if (result_wr < 0) {

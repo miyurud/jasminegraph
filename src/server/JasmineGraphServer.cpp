@@ -992,6 +992,7 @@ static bool batchUploadCompositeCentralstoreFile(std::string host, int port, int
 
 static void copyArtifactsToWorkers(const std::string &workerPath, const std::string &artifactLocation,
                                    const std::string &remoteWorker) {
+    // Not used in docker or k8s modes
     if (artifactLocation.empty() || artifactLocation.find_first_not_of(' ') == artifactLocation.npos) {
         server_logger.error("Received `" + artifactLocation + "` for `artifactLocation` value!");
         return;
@@ -1028,6 +1029,7 @@ static void copyArtifactsToWorkers(const std::string &workerPath, const std::str
 }
 
 static void deleteWorkerPath(const std::string &workerHost, const std::string &workerPath) {
+    // Not used in docker or k8s modes
     std::string pathDeletionCommand = "rm -rf " + workerPath;
     if (workerHost.find("localhost") == std::string::npos) {
         pathDeletionCommand = "ssh " + workerHost + " " + pathDeletionCommand;
@@ -1039,6 +1041,7 @@ static void deleteWorkerPath(const std::string &workerHost, const std::string &w
 }
 
 static void createLogFilePath(const std::string &workerHost, const std::string &workerPath) {
+    // Not used in docker or k8s modes
     std::string pathCreationCommand = "mkdir -p " + workerPath + "/logs";
     if (workerHost.find("localhost") == std::string::npos) {
         pathCreationCommand = "ssh " + workerHost + " " + pathCreationCommand;

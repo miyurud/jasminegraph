@@ -331,11 +331,9 @@ double StatisticCollector::getTotalCpuUsage() {
 }
 
 double StatisticCollector::getLoadAverage() {
-    double averages[3];
-
-    getloadavg(averages, 3);
-
-    return averages[0];
+    double loadAvg;
+    getloadavg(&loadAvg, 1);
+    return loadAvg;
 }
 
 void StatisticCollector::logLoadAverage(std::string name) {
