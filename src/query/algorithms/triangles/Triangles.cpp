@@ -93,14 +93,14 @@ TriangleResult Triangles::countTriangles(map<long, unordered_set<long>> &central
     std::map<long, std::set<long>> degreeMap;
     std::basic_ostringstream<char> triangleStream;
 
-    long startVId;
+    long startVertexId;
     long degree;
 
     for (auto it = distributionMap.begin(); it != distributionMap.end(); ++it) {
         degree = it->second;
         if (degree == 1) continue;
-        startVId = it->first;
-        degreeMap[degree].insert(startVId);
+        startVertexId = it->first;
+        degreeMap[degree].insert(startVertexId);
     }
 
     long triangleCount = 0;
