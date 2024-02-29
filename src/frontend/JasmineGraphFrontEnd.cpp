@@ -105,6 +105,7 @@ static vector<DataPublisher *> getWorkerClients(SQLiteDBInterface *sqlite) {
         DataPublisher *workerClient = new DataPublisher(workerPort, workerHost);
         workerClients.push_back(workerClient);
     }
+    return workerClients;
 }
 
 void *frontendservicesesion(void *dummyPt) {
