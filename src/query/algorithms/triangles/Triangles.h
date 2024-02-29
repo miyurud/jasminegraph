@@ -44,8 +44,8 @@ class Triangles {
                     JasmineGraphHashMapDuplicateCentralStore duplicateCentralStore, std::string graphId,
                     std::string partitionId, int threadPriority);
 
-    static TriangleResult countTriangles(map<long, unordered_set<long>> centralStore,
-                                             map<long, long> distributionMap, bool returnTriangles);
+    static TriangleResult countTriangles(map<long, unordered_set<long>> &centralStore,
+                                             map<long, long> &distributionMap, bool returnTriangles);
 };
 
 #endif  // JASMINEGRAPH_TRIANGLES_H

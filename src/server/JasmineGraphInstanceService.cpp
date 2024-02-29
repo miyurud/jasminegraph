@@ -23,9 +23,9 @@ limitations under the License.
 
 #include "../query/algorithms/triangles/StreamingTriangles.h"
 #include "../server/JasmineGraphServer.h"
+#include "../util/kafka/InstanceStreamHandler.h"
 #include "../util/logger/Logger.h"
 #include "JasmineGraphInstance.h"
-#include "../util/kafka/InstanceStreamHandler.h"
 
 using namespace std;
 
@@ -115,8 +115,7 @@ static void initiate_predict_command(int connFd, instanceservicesessionargs *ses
 static void initiate_model_collection_command(int connFd, bool *loop_exit_p);
 static void initiate_fragment_resolution_command(int connFd, bool *loop_exit_p);
 static void check_file_accessible_command(int connFd, bool *loop_exit_p);
-static void graph_stream_start_command(
-        int connFd, InstanceStreamHandler& instanceStreamHandler, bool *loop_exit_p);
+static void graph_stream_start_command(int connFd, InstanceStreamHandler &instanceStreamHandler, bool *loop_exit_p);
 static void send_priority_command(int connFd, bool *loop_exit_p);
 static std::string initiate_command_common(int connFd, bool *loop_exit_p);
 static void batch_upload_common(int connFd, bool *loop_exit_p, bool batch_upload);
@@ -144,7 +143,6 @@ void *instanceservicesession(void *dummyPt) {
     std::map<std::string, JasmineGraphIncrementalLocalStore *> incrementalLocalStoreMap =
         sessionargs.incrementalLocalStore;
     InstanceStreamHandler streamHandler(incrementalLocalStoreMap);
-
 
     string serverName = sessionargs.host;
     string masterHost = sessionargs.masterHost;
@@ -579,10 +577,8 @@ string JasmineGraphInstanceService::aggregateCentralStoreTriangles(std::string g
     map<long, long> distributionHashMap =
         JasmineGraphInstanceService::getOutDegreeDistributionHashMap(aggregatedCentralStore);
 
-    TriangleResult triangleResult = Triangles::countTriangles(aggregatedCentralStore, distributionHashMap, true);
-    std::string triangles = triangleResult.triangles;
-
-    return triangles;
+    const TriangleResult &triangleResult = Triangles::countTriangles(aggregatedCentralStore, distributionHashMap, true);
+    return triangleResult.triangles;
 }
 
 string JasmineGraphInstanceService::aggregateCompositeCentralStoreTriangles(std::string compositeFileList,
@@ -4183,7 +4179,7 @@ static void check_file_accessible_command(int connFd, bool *loop_exit_p) {
     }
 }
 
-static void graph_stream_start_command(int connFd, InstanceStreamHandler& instanceStreamHandler, bool *loop_exit_p) {
+static void graph_stream_start_command(int connFd, InstanceStreamHandler &instanceStreamHandler, bool *loop_exit_p) {
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK)) {
         *loop_exit_p = true;
         return;
