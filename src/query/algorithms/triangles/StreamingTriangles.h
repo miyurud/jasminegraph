@@ -51,7 +51,7 @@ class StreamingTriangles {
                                         std::vector<std::string> oldCentralRelationCount);
 
     static std::vector<std::pair<long, long>> getEdges(unsigned int graphID, unsigned int partitionID,
-                                                       long previous_central_relation_count);
+                                                       long previousCentralRelationCount);
 
     static map<long, unordered_set<long>> getCentralAdjacencyList(unsigned int graphID, unsigned int partitionID);
 };
