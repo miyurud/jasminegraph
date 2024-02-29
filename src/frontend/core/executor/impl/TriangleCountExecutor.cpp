@@ -198,8 +198,9 @@ void TriangleCountExecutor::execute() {
     } else {
         triangleCount_logger.log("###TRIANGLE-COUNT-EXECUTOR### Inserting initial record for SLA ", "info");
         Utils::updateSLAInformation(perfDB, graphId, partitionCount, 0, TRIANGLES, Conts::SLA_CATEGORY::LATENCY);
-        statResponse.push_back(std::async(std::launch::async, collectPerformaceData, perfDB, graphId.c_str(), TRIANGLES,
-                                          Conts::SLA_CATEGORY::LATENCY, partitionCount, masterIP, autoCalibrate));
+        statResponse.push_back(std::async(std::launch::async, AbstractExecutor::collectPerformaceData, perfDB,
+                                          graphId.c_str(), TRIANGLES, Conts::SLA_CATEGORY::LATENCY, partitionCount,
+                                          masterIP, autoCalibrate));
         isStatCollect = true;
     }
 

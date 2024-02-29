@@ -99,7 +99,6 @@ static void aggregate_streaming_centralstore_triangles_command(
     int connFd, std::map<std::string, JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap,
     bool *loop_exit_p);
 static void aggregate_composite_centralstore_triangles_command(int connFd, bool *loop_exit_p);
-static void performance_statistics_command(int connFd, bool *loop_exit_p);
 static void initiate_files_command(int connFd, bool *loop_exit_p);
 static void initiate_fed_predict_command(int connFd, bool *loop_exit_p);
 static void initiate_server_command(int connFd, bool *loop_exit_p);
@@ -222,8 +221,6 @@ void *instanceservicesession(void *dummyPt) {
             aggregate_streaming_centralstore_triangles_command(connFd, incrementalLocalStoreMap, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::AGGREGATE_COMPOSITE_CENTRALSTORE_TRIANGLES) == 0) {
             aggregate_composite_centralstore_triangles_command(connFd, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::PERFORMANCE_STATISTICS) == 0) {
-            performance_statistics_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_FILES) == 0) {
             initiate_files_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_FED_PREDICT) == 0) {
@@ -669,32 +666,6 @@ map<long, long> JasmineGraphInstanceService::getOutDegreeDistributionHashMap(map
         distributionHashMap[it->first] = distribution;
     }
     return distributionHashMap;
-}
-
-string JasmineGraphInstanceService::requestPerformanceStatistics(std::string isVMStatManager,
-                                                                 std::string isResourceAllocationRequested) {
-    long memoryUsage = StatisticCollector::getMemoryUsageByProcess();
-    int threadCount = StatisticCollector::getThreadCount();
-    long usedSwapSpace = StatisticCollector::getUsedSwapSpace();
-    long totalSwapSpace = StatisticCollector::getTotalSwapSpace();
-    long readBytes = StatisticCollector::getRXBytes();
-    long sentBytes = StatisticCollector::getTXBytes();
-    double cpuUsage = StatisticCollector::getCpuUsage();
-    double loadAverage = StatisticCollector::getLoadAverage();
-    std::string vmLevelStatistics =
-        StatisticCollector::collectVMStatistics(isVMStatManager, isResourceAllocationRequested);
-    auto executedTime = std::chrono::system_clock::now();
-    std::time_t reportTime = std::chrono::system_clock::to_time_t(executedTime);
-    std::string reportTimeString(std::ctime(&reportTime));
-    reportTimeString = Utils::trim_copy(reportTimeString);
-    std::string usageString = reportTimeString + "," + to_string(memoryUsage) + "," + to_string(threadCount) + "," +
-                              to_string(cpuUsage) + "," + to_string(loadAverage) + "," + to_string(usedSwapSpace) +
-                              "," + to_string(totalSwapSpace) + +"," + to_string(readBytes) + "," +
-                              to_string(sentBytes);
-    if (!vmLevelStatistics.empty()) {
-        usageString = usageString + "," + vmLevelStatistics;
-    }
-    return usageString;
 }
 
 void JasmineGraphInstanceService::collectTrainedModels(
@@ -1160,7 +1131,6 @@ bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int 
                 break;
             } else {
                 instance_logger.error("Incorrect response. Received: " + response);
-                close(sockfd);
                 goto END_OUTER_LOOP;
             }
         };
@@ -1181,7 +1151,6 @@ bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int 
                 break;
             } else {
                 instance_logger.error("Incorrect response. Received: " + response);
-                close(sockfd);
                 goto END_OUTER_LOOP;
             }
         }
@@ -1816,16 +1785,17 @@ map<long, unordered_set<long>> getEdgesWorldToLocal(string graphID, string parti
 void JasmineGraphInstanceService::startCollectingLoadAverage() {
     int elapsedTime = 0;
     time_t start;
-    time_t end;
 
     start = time(0);
-
     while (collectValid) {
-        if (time(0) - start == Conts::LOAD_AVG_COLLECTING_GAP) {
+        time_t elapsed = time(0) - start;
+        if (elapsed >= Conts::LOAD_AVG_COLLECTING_GAP) {
             elapsedTime += Conts::LOAD_AVG_COLLECTING_GAP * 1000;
             double loadAgerage = StatisticCollector::getLoadAverage();
             loadAverageVector.push_back(std::to_string(loadAgerage));
             start = start + Conts::LOAD_AVG_COLLECTING_GAP;
+        } else {
+            sleep(Conts::LOAD_AVG_COLLECTING_GAP - elapsed);
         }
     }
 }
@@ -3458,32 +3428,6 @@ static void aggregate_composite_centralstore_triangles_command(int connFd, bool 
     }
 }
 
-static void performance_statistics_command(int connFd, bool *loop_exit_p) {
-    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
-        *loop_exit_p = true;
-        return;
-    }
-    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
-
-    char data[DATA_BUFFER_SIZE];
-    string isVMStatManager = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
-
-    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
-        *loop_exit_p = true;
-        return;
-    }
-    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
-
-    string isResourceAllocationRequired = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
-
-    std::string memoryUsage =
-        JasmineGraphInstanceService::requestPerformanceStatistics(isVMStatManager, isResourceAllocationRequired);
-    if (!Utils::send_str_wrapper(connFd, memoryUsage)) {
-        *loop_exit_p = true;
-        return;
-    }
-}
-
 static void initiate_files_command(int connFd, bool *loop_exit_p) {
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
@@ -3573,9 +3517,7 @@ static void request_collected_stats_command(int connFd, bool *collectValid_p, bo
     collectValid = false;
     std::string loadAverageString;
 
-    std::vector<std::string>::iterator loadVectorIterator;
-
-    for (loadVectorIterator = loadAverageVector.begin(); loadVectorIterator != loadAverageVector.end();
+    for (auto loadVectorIterator = loadAverageVector.begin(); loadVectorIterator != loadAverageVector.end();
          ++loadVectorIterator) {
         std::string tempLoadAverage = *loadVectorIterator;
         loadAverageString = loadAverageString + "," + tempLoadAverage;
@@ -3585,7 +3527,6 @@ static void request_collected_stats_command(int connFd, bool *collectValid_p, bo
     loadAverageString = loadAverageString.substr(1, loadAverageString.length() - 1);
 
     std::vector<std::string> chunksVector;
-
     for (unsigned i = 0; i < loadAverageString.length(); i += CHUNK_OFFSET) {
         std::string chunk = loadAverageString.substr(i, CHUNK_OFFSET);
         if (i + CHUNK_OFFSET < loadAverageString.length()) {
@@ -3598,13 +3539,11 @@ static void request_collected_stats_command(int connFd, bool *collectValid_p, bo
 
     for (int loopCount = 0; loopCount < chunksVector.size(); loopCount++) {
         std::string chunk;
-        if (loopCount == 0) {
-            chunk = chunksVector.at(loopCount);
-        } else {
+        if (loopCount > 0) {
             char data[DATA_BUFFER_SIZE];
             string chunkStatus = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
-            chunk = chunksVector.at(loopCount);
         }
+        chunk = chunksVector.at(loopCount);
         if (!Utils::send_str_wrapper(connFd, chunk)) {
             *loop_exit_p = true;
             return;
@@ -3757,7 +3696,7 @@ static void initiate_predict_command(int connFd, instanceservicesessionargs *ses
         Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
     int fileSize = stoi(size);
     string line;
-    while (Utils::fileExists(fullFilePath) && Utils::getFileSize(fullFilePath) < fileSize) {
+    while (!Utils::fileExists(fullFilePath) || Utils::getFileSize(fullFilePath) < fileSize) {
         line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
         if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) == 0) {
             if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT)) {

@@ -62,7 +62,6 @@ const string JasmineGraphInstanceProtocol::SEND_COMPOSITE_CENTRALSTORE_TO_AGGREG
 const string JasmineGraphInstanceProtocol::AGGREGATE_CENTRALSTORE_TRIANGLES = "aggregate";
 const string JasmineGraphInstanceProtocol::AGGREGATE_STREAMING_CENTRALSTORE_TRIANGLES = "aggregate-streaming-central";
 const string JasmineGraphInstanceProtocol::AGGREGATE_COMPOSITE_CENTRALSTORE_TRIANGLES = "aggregate-composite";
-const string JasmineGraphInstanceProtocol::PERFORMANCE_STATISTICS = "perf-stat";
 const string JasmineGraphInstanceProtocol::START_STAT_COLLECTION = "begin-stat";
 const string JasmineGraphInstanceProtocol::REQUEST_COLLECTED_STATS = "request-stat";
 const string JasmineGraphInstanceProtocol::INITIATE_TRAIN = "initiate-train";

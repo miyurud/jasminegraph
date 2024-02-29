@@ -133,337 +133,6 @@ int PerformanceUtil::collectSLAResourceConsumption(std::vector<Place> placeList,
     return 0;
 }
 
-std::vector<ResourceConsumption> PerformanceUtil::retrieveCurrentResourceUtilization(std::string masterIP) {
-    std::string placeLoadQuery =
-        "select ip, user, server_port, is_master, is_host_reporter,host_idhost,idplace from place";
-    std::vector<vector<pair<string, string>>> placeList = perfDb->runSelect(placeLoadQuery);
-    std::vector<vector<pair<string, string>>>::iterator placeListIterator;
-    std::vector<ResourceConsumption> placeResourceConsumptionList;
-    ResourceConsumption resourceConsumption;
-
-    for (placeListIterator = placeList.begin(); placeListIterator != placeList.end(); ++placeListIterator) {
-        vector<pair<string, string>> place = *placeListIterator;
-        std::string host;
-        std::string requestResourceAllocation = "false";
-
-        std::string ip = place.at(0).second;
-        std::string user = place.at(1).second;
-        std::string serverPort = place.at(2).second;
-        std::string isMaster = place.at(3).second;
-        std::string isHostReporter = place.at(4).second;
-        std::string hostId = place.at(5).second;
-        std::string placeId = place.at(6).second;
-
-        if (ip.find("localhost") != std::string::npos || ip.compare(masterIP) == 0) {
-            host = "localhost";
-        } else {
-            host = user + "@" + ip;
-        }
-
-        if (isHostReporter.find("true") != std::string::npos) {
-            std::string hostSearch = "select total_cpu_cores,total_memory from host where idhost='" + hostId + "'";
-            std::vector<vector<pair<string, string>>> hostAllocationList = perfDb->runSelect(hostSearch);
-
-            vector<pair<string, string>> firstHostAllocation = hostAllocationList.at(0);
-
-            std::string totalCPUCores = firstHostAllocation.at(0).second;
-            std::string totalMemory = firstHostAllocation.at(1).second;
-
-            if (totalCPUCores.empty() || totalMemory.empty()) {
-                requestResourceAllocation = "true";
-            }
-        }
-
-        if ((isMaster.find("true") != std::string::npos || host == "localhost" || host.compare(masterIP) == 0) &&
-            isHostReporter.find("true") != std::string::npos) {
-            resourceConsumption = retrieveLocalResourceConsumption(host, placeId);
-            placeResourceConsumptionList.push_back(resourceConsumption);
-        } else if (isHostReporter.find("true") != std::string::npos) {
-            resourceConsumption = retrieveRemoteResourceConsumption(host, atoi(serverPort.c_str()), hostId, placeId);
-            placeResourceConsumptionList.push_back(resourceConsumption);
-        }
-    }
-
-    return placeResourceConsumptionList;
-}
-
-void PerformanceUtil::collectRemotePerformanceData(std::string host, int port, std::string isVMStatManager,
-                                                   std::string isResourceAllocationRequired, std::string hostId,
-                                                   std::string placeId) {
-    int sockfd;
-    char data[301];
-    bool loop = false;
-    socklen_t len;
-    struct sockaddr_in serv_addr;
-    struct hostent *server;
-
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-
-    if (sockfd < 0) {
-        std::cerr << "Cannot create socket" << std::endl;
-        return;
-    }
-
-    server = gethostbyname(host.c_str());
-    if (server == NULL) {
-        scheduler_logger.error("ERROR, no host named " + host);
-        return;
-    }
-
-    bzero((char *) &serv_addr, sizeof(serv_addr));
-    serv_addr.sin_family = AF_INET;
-    bcopy((char *) server->h_addr, (char *) &serv_addr.sin_addr.s_addr, server->h_length);
-    serv_addr.sin_port = htons(port);
-    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
-        std::cerr << "ERROR connecting" << std::endl;
-        return;
-    }
-
-    bzero(data, 301);
-    write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
-    scheduler_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
-    bzero(data, 301);
-    read(sockfd, data, 300);
-    string response = (data);
-
-    response = Utils::trim_copy(response);
-
-    if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
-        scheduler_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
-        string server_host = Utils::getJasmineGraphProperty("org.jasminegraph.server.host");
-        write(sockfd, server_host.c_str(), server_host.size());
-        scheduler_logger.log("Sent : " + server_host, "info");
-
-        write(sockfd, JasmineGraphInstanceProtocol::PERFORMANCE_STATISTICS.c_str(),
-              JasmineGraphInstanceProtocol::PERFORMANCE_STATISTICS.size());
-        scheduler_logger.log("Sent : " + JasmineGraphInstanceProtocol::PERFORMANCE_STATISTICS, "info");
-        bzero(data, 301);
-        read(sockfd, data, 300);
-        response = (data);
-        response = Utils::trim_copy(response);
-        scheduler_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
-
-        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-            // scheduler_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
-            write(sockfd, isVMStatManager.c_str(), isVMStatManager.size());
-            scheduler_logger.log("Sent : VM Manager Status " + isVMStatManager, "info");
-
-            bzero(data, 301);
-            read(sockfd, data, 300);
-            response = (data);
-            response = Utils::trim_copy(response);
-
-            if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-                write(sockfd, isResourceAllocationRequired.c_str(), isResourceAllocationRequired.size());
-                scheduler_logger.log("Sent : Resource Allocation Requested " + isResourceAllocationRequired, "info");
-
-                bzero(data, 301);
-                read(sockfd, data, 300);
-                response = (data);
-                response = Utils::trim_copy(response);
-
-                scheduler_logger.log("Performance Response " + response, "info");
-
-                std::vector<std::string> strArr = Utils::split(response, ',');
-
-                std::string processTime = strArr[0];
-                std::string memoryUsage = strArr[1];
-                std::string cpuUsage = strArr[2];
-                std::string loadAverage = strArr[3];
-
-                if (isVMStatManager == "true" && strArr.size() > 4) {
-                    std::string memoryConsumption = strArr[4];
-                    std::string cpuUsage = strArr[5];
-                    string vmPerformanceSql =
-                        "insert into host_performance_data (date_time, memory_usage, cpu_usage, idhost) values ('" +
-                            processTime + "','" + memoryConsumption + "','" + cpuUsage + "','" + hostId + "')";
-
-                    perfDb->runInsert(vmPerformanceSql);
-                    Utils::send_job("hostPerfData", "memory_consumption", memoryConsumption);
-                    Utils::send_job("hostPerfData", "cpu_usage", cpuUsage);
-
-                    if (isResourceAllocationRequired == "true") {
-                        std::string totalMemory = strArr[6];
-                        std::string totalCores = strArr[7];
-
-                        string allocationUpdateSql = "update host set total_cpu_cores='" + totalCores +
-                            "',total_memory='" + totalMemory + "' where idhost='" + hostId +
-                            "'";
-                        perfDb->runUpdate(allocationUpdateSql);
-
-                        Utils::send_job("placePerfData", "memory_usage", memoryUsage);
-                        Utils::send_job("placePerfData", "cpu_usage", cpuUsage);
-                    }
-                }
-
-                string placePerfSql =
-                    "insert into place_performance_data (idplace, memory_usage, cpu_usage, date_time) values ('" +
-                        placeId + "','" + memoryUsage + "','" + cpuUsage + "','" + processTime + "')";
-
-                perfDb->runInsert(placePerfSql);
-            }
-        }
-    }
-}
-
-void PerformanceUtil::collectLocalPerformanceData(std::string isVMStatManager, std::string isResourceAllocationRequired,
-                                                  std::string hostId, std::string placeId) {
-    int memoryUsage = StatisticCollector::getMemoryUsageByProcess();
-    double cpuUsage = StatisticCollector::getCpuUsage();
-
-    auto executedTime = std::chrono::system_clock::now();
-    std::time_t reportTime = std::chrono::system_clock::to_time_t(executedTime);
-    std::string reportTimeString(std::ctime(&reportTime));
-    reportTimeString = Utils::trim_copy(reportTimeString);
-
-    if (isVMStatManager.find("true") != std::string::npos) {
-        std::string vmLevelStatistics =
-            StatisticCollector::collectVMStatistics(isVMStatManager, isResourceAllocationRequired);
-        std::vector<std::string> strArr = Utils::split(vmLevelStatistics, ',');
-
-        string totalMemoryUsed = strArr[0];
-        string totalCPUUsage = strArr[1];
-
-        string vmPerformanceSql =
-            "insert into host_performance_data (date_time, memory_usage, cpu_usage, idhost) values ('" +
-                reportTimeString + "','" + totalMemoryUsed + "','" + totalCPUUsage + "','" + hostId + "')";
-
-        perfDb->runInsert(vmPerformanceSql);
-
-        if (isResourceAllocationRequired == "true") {
-            std::string totalMemory = strArr[2];
-            std::string totalCores = strArr[3];
-            string allocationUpdateSql = "update host set total_cpu_cores='" + totalCores + "',total_memory='" +
-                totalMemory + "' where idhost='" + hostId + "'";
-
-            perfDb->runUpdate(allocationUpdateSql);
-        }
-    }
-
-    string placePerfSql = "insert into place_performance_data (idplace, memory_usage, cpu_usage, date_time) values ('" +
-        placeId + "','" + to_string(memoryUsage) + "','" + to_string(cpuUsage) + "','" +
-        reportTimeString + "')";
-
-    perfDb->runInsert(placePerfSql);
-}
-
-int PerformanceUtil::collectRemoteSLAResourceUtilization(std::string host, int port, std::string isVMStatManager,
-                                                         std::string isResourceAllocationRequired, std::string placeId,
-                                                         int elapsedTime, std::string masterIP) {
-    int sockfd;
-    char data[301];
-    bool loop = false;
-    socklen_t len;
-    struct sockaddr_in serv_addr;
-    struct hostent *server;
-    std::string graphSlaId;
-
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-
-    if (sockfd < 0) {
-        std::cerr << "Cannot create socket" << std::endl;
-        return 0;
-    }
-
-    if (host.find('@') != std::string::npos) {
-        host = Utils::split(host, '@')[1];
-    }
-
-    server = gethostbyname(host.c_str());
-    if (server == NULL) {
-        scheduler_logger.error("ERROR, no host named " + host);
-        return 0;
-    }
-
-    bzero((char *) &serv_addr, sizeof(serv_addr));
-    serv_addr.sin_family = AF_INET;
-    bcopy((char *) server->h_addr, (char *) &serv_addr.sin_addr.s_addr, server->h_length);
-    serv_addr.sin_port = htons(port);
-    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
-        std::cerr << "ERROR connecting" << std::endl;
-        return 0;
-    }
-
-    bzero(data, 301);
-    write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
-    scheduler_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
-    bzero(data, 301);
-    read(sockfd, data, 300);
-    string response = (data);
-
-    response = Utils::trim_copy(response);
-
-    if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
-        scheduler_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
-        write(sockfd, masterIP.c_str(), masterIP.size());
-        scheduler_logger.log("Sent : " + masterIP, "info");
-
-        bzero(data, 301);
-        read(sockfd, data, 300);
-        response = (data);
-        response = Utils::trim_copy(response);
-        scheduler_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
-
-        if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
-            write(sockfd, JasmineGraphInstanceProtocol::PERFORMANCE_STATISTICS.c_str(),
-                  JasmineGraphInstanceProtocol::PERFORMANCE_STATISTICS.size());
-            scheduler_logger.log("Sent : " + JasmineGraphInstanceProtocol::PERFORMANCE_STATISTICS, "info");
-            bzero(data, 301);
-            read(sockfd, data, 300);
-            response = (data);
-            response = Utils::trim_copy(response);
-            scheduler_logger.log("Received : " + response, "info");
-
-            if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-                write(sockfd, isVMStatManager.c_str(), isVMStatManager.size());
-                scheduler_logger.log("Sent : VM Manager Status " + isVMStatManager, "info");
-
-                bzero(data, 301);
-                read(sockfd, data, 300);
-                response = (data);
-                response = Utils::trim_copy(response);
-
-                if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-                    write(sockfd, isResourceAllocationRequired.c_str(), isResourceAllocationRequired.size());
-                    scheduler_logger.log("Sent : Resource Allocation Requested " + isResourceAllocationRequired,
-                                         "info");
-
-                    bzero(data, 301);
-                    read(sockfd, data, 300);
-                    response = (data);
-                    response = Utils::trim_copy(response);
-
-                    scheduler_logger.log("Performance Response " + response, "info");
-
-                    std::vector<std::string> strArr = Utils::split(response, ',');
-
-                    std::string processTime = strArr[0];
-                    std::string memoryUsage = strArr[1];
-                    std::string cpuUsage = strArr[2];
-                    std::string loadAverage = strArr[3];
-
-                    ResourceUsageInfo resourceUsageInfo;
-                    resourceUsageInfo.elapsedTime = std::to_string(elapsedTime);
-                    resourceUsageInfo.loadAverage = loadAverage;
-                    resourceUsageInfo.memoryUsage = memoryUsage;
-
-                    if (!resourceUsageMap[placeId].empty()) {
-                        resourceUsageMap[placeId].push_back(resourceUsageInfo);
-                    } else {
-                        std::vector<ResourceUsageInfo> resourceUsageVector;
-
-                        resourceUsageVector.push_back(resourceUsageInfo);
-
-                        resourceUsageMap[placeId] = resourceUsageVector;
-                    }
-                    return 1;
-                }
-            }
-        }
-    }
-    return 0;
-}
-
 void PerformanceUtil::collectLocalSLAResourceUtilization(std::string graphId, std::string placeId, std::string command,
                                                          std::string category, int elapsedTime, bool autoCalibrate) {
     string graphSlaId;
@@ -492,112 +161,6 @@ void PerformanceUtil::collectLocalSLAResourceUtilization(std::string graphId, st
         resourceUsageVector.push_back(resourceUsageInfo);
         resourceUsageMap[placeId] = resourceUsageVector;
     }
-}
-
-ResourceConsumption PerformanceUtil::retrieveLocalResourceConsumption(std::string host, std::string placeId) {
-    ResourceConsumption placeResourceConsumption;
-
-    int memoryUsage = StatisticCollector::getMemoryUsageByProcess();
-    double cpuUsage = StatisticCollector::getCpuUsage();
-
-    placeResourceConsumption.memoryUsage = memoryUsage;
-    placeResourceConsumption.host = host;
-
-    return placeResourceConsumption;
-}
-
-ResourceConsumption PerformanceUtil::retrieveRemoteResourceConsumption(std::string host, int port, std::string hostId,
-                                                                       std::string placeId) {
-    ResourceConsumption placeResourceConsumption;
-
-    int sockfd;
-    char data[301];
-    bool loop = false;
-    socklen_t len;
-    struct sockaddr_in serv_addr;
-    struct hostent *server;
-    std::string graphSlaId;
-    std::string isVMStatManager = "false";
-    std::string isResourceAllocationRequired = "false";
-
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-
-    if (sockfd < 0) {
-        std::cerr << "Cannot create socket" << std::endl;
-        return placeResourceConsumption;
-    }
-
-    server = gethostbyname(host.c_str());
-    if (server == NULL) {
-        scheduler_logger.error("ERROR, no host named " + host);
-        return placeResourceConsumption;
-    }
-
-    bzero((char *) &serv_addr, sizeof(serv_addr));
-    serv_addr.sin_family = AF_INET;
-    bcopy((char *) server->h_addr, (char *) &serv_addr.sin_addr.s_addr, server->h_length);
-    serv_addr.sin_port = htons(port);
-    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
-        std::cerr << "ERROR connecting" << std::endl;
-        return placeResourceConsumption;
-    }
-
-    bzero(data, 301);
-    write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
-    scheduler_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
-    bzero(data, 301);
-    read(sockfd, data, 300);
-    string response = (data);
-
-    response = Utils::trim_copy(response);
-
-    if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
-        scheduler_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
-        string server_host = Utils::getJasmineGraphProperty("org.jasminegraph.server.host");
-        write(sockfd, server_host.c_str(), server_host.size());
-        scheduler_logger.log("Sent : " + server_host, "info");
-
-        write(sockfd, JasmineGraphInstanceProtocol::PERFORMANCE_STATISTICS.c_str(),
-              JasmineGraphInstanceProtocol::PERFORMANCE_STATISTICS.size());
-        scheduler_logger.log("Sent : " + JasmineGraphInstanceProtocol::PERFORMANCE_STATISTICS, "info");
-        bzero(data, 301);
-        read(sockfd, data, 300);
-        response = (data);
-        response = Utils::trim_copy(response);
-        scheduler_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
-
-        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-            write(sockfd, isVMStatManager.c_str(), isVMStatManager.size());
-            scheduler_logger.log("Sent : VM Manager Status " + isVMStatManager, "info");
-
-            bzero(data, 301);
-            read(sockfd, data, 300);
-            response = (data);
-            response = Utils::trim_copy(response);
-
-            if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-                write(sockfd, isResourceAllocationRequired.c_str(), isResourceAllocationRequired.size());
-                scheduler_logger.log("Sent : Resource Allocation Requested " + isResourceAllocationRequired, "info");
-
-                bzero(data, 301);
-                read(sockfd, data, 300);
-                response = (data);
-                response = Utils::trim_copy(response);
-
-                scheduler_logger.log("Performance Response " + response, "info");
-
-                std::vector<std::string> strArr = Utils::split(response, ',');
-
-                std::string processTime = strArr[0];
-                std::string memoryUsage = strArr[1];
-                std::string cpuUsage = strArr[2];
-
-                placeResourceConsumption.memoryUsage = atoi(memoryUsage.c_str());
-                placeResourceConsumption.host = host;
-            }
-        }
-    }
-    return placeResourceConsumption;
 }
 
 std::vector<long> PerformanceUtil::getResourceAvailableTime(std::vector<std::string> graphIdList, std::string command,
@@ -649,10 +212,9 @@ std::vector<long> PerformanceUtil::getResourceAvailableTime(std::vector<std::str
                 "graph_place_sla_performance.elapsed_time from graph_place_sla_performance inner join graph_sla"
                 "  inner join sla_category where graph_place_sla_performance.graph_sla_id=graph_sla.id"
                 "  and graph_sla.id_sla_category=sla_category.id and graph_sla.graph_id='" +
-                    currentGraphId + "' and sla_category.command='" + command + "' and sla_category.category='"
-                    + category +
-                    "' and graph_place_sla_performance.elapsed_time > '" + std::to_string(adjustedElapsedTime) +
-                    "' order by graph_place_sla_performance.place_id,graph_place_sla_performance.elapsed_time;";
+                currentGraphId + "' and sla_category.command='" + command + "' and sla_category.category='" + category +
+                "' and graph_place_sla_performance.elapsed_time > '" + std::to_string(adjustedElapsedTime) +
+                "' order by graph_place_sla_performance.place_id,graph_place_sla_performance.elapsed_time;";
 
             std::vector<vector<pair<string, string>>> loadAvgResults = perfDb->runSelect(slaLoadQuery);
 
@@ -738,8 +300,8 @@ std::vector<long> PerformanceUtil::getResourceAvailableTime(std::vector<std::str
             "graph_place_sla_performance.elapsed_time from graph_place_sla_performance inner join graph_sla"
             "  inner join sla_category where graph_place_sla_performance.graph_sla_id=graph_sla.id"
             "  and graph_sla.id_sla_category=sla_category.id and graph_sla.graph_id='" +
-                graphId + "' and sla_category.command='" + command + "' and sla_category.category='" + category +
-                "' order by graph_place_sla_performance.place_id,graph_place_sla_performance.elapsed_time;";
+            graphId + "' and sla_category.command='" + command + "' and sla_category.category='" + category +
+            "' order by graph_place_sla_performance.place_id,graph_place_sla_performance.elapsed_time;";
 
         std::vector<vector<pair<string, string>>> newJobLoadAvgResults = perfDb->runSelect(newJobLoadQuery);
 
@@ -879,7 +441,6 @@ void PerformanceUtil::logLoadAverage() {
     double currentLoadAverage = StatisticCollector::getLoadAverage();
 
     std::cout << "###PERF### CURRENT LOAD: " + std::to_string(currentLoadAverage) << std::endl;
-    Utils::send_job("loadAverage", "load_average", std::to_string(currentLoadAverage));
 }
 
 void PerformanceUtil::updateResourceConsumption(PerformanceSQLiteDBInterface *performanceDb, std::string graphId,
@@ -895,7 +456,7 @@ void PerformanceUtil::updateResourceConsumption(PerformanceSQLiteDBInterface *pe
         std::string graphSlaId;
 
         std::string query = "SELECT id from graph_sla where graph_id='" + graphId + "' and partition_count='" +
-            std::to_string(partitionCount) + "' and id_sla_category='" + slaCategoryId + "';";
+                            std::to_string(partitionCount) + "' and id_sla_category='" + slaCategoryId + "';";
 
         std::vector<vector<pair<string, string>>> results = performanceDb->runSelect(query);
 
@@ -904,7 +465,7 @@ void PerformanceUtil::updateResourceConsumption(PerformanceSQLiteDBInterface *pe
         } else {
             std::string insertQuery =
                 "insert into graph_sla (id_sla_category, graph_id, partition_count, sla_value, attempt) VALUES ('" +
-                    slaCategoryId + "','" + graphId + "'," + std::to_string(partitionCount) + ",0,0);";
+                slaCategoryId + "','" + graphId + "'," + std::to_string(partitionCount) + ",0,0);";
 
             int slaId = performanceDb->runInsert(insertQuery);
             graphSlaId = std::to_string(slaId);
@@ -925,7 +486,7 @@ void PerformanceUtil::updateResourceConsumption(PerformanceSQLiteDBInterface *pe
                 ResourceUsageInfo usageInfo = *usageIterator;
 
                 valuesString += "('" + graphSlaId + "','" + placeId + "', '','" + usageInfo.loadAverage + "','" +
-                    usageInfo.elapsedTime + "'),";
+                                usageInfo.elapsedTime + "'),";
 
                 Utils::send_job("loadAverageSLA", "load_average", usageInfo.loadAverage);
             }
@@ -966,10 +527,9 @@ void PerformanceUtil::updateRemoteResourceConsumption(PerformanceSQLiteDBInterfa
             std::string loadString = requestRemoteLoadAverages(host, atoi(serverPort.c_str()), isHostReporter, "false",
                                                                placeId, 0, masterIP);
             std::vector<std::string> loadVector = Utils::split(loadString, ',');
-            std::vector<std::string>::iterator loadVectorIterator;
             string valuesString;
             std::string query = "SELECT id from graph_sla where graph_id='" + graphId + "' and partition_count='" +
-                std::to_string(partitionCount) + "' and id_sla_category='" + slaCategoryId + "';";
+                                std::to_string(partitionCount) + "' and id_sla_category='" + slaCategoryId + "';";
 
             std::vector<vector<pair<string, string>>> results = performanceDb->runSelect(query);
 
@@ -978,7 +538,7 @@ void PerformanceUtil::updateRemoteResourceConsumption(PerformanceSQLiteDBInterfa
             } else {
                 std::string insertQuery =
                     "insert into graph_sla (id_sla_category, graph_id, partition_count, sla_value, attempt) VALUES ('" +
-                        slaCategoryId + "','" + graphId + "'," + std::to_string(partitionCount) + ",0,0);";
+                    slaCategoryId + "','" + graphId + "'," + std::to_string(partitionCount) + ",0,0);";
 
                 int slaId = performanceDb->runInsert(insertQuery);
                 graphSlaId = std::to_string(slaId);
@@ -991,12 +551,12 @@ void PerformanceUtil::updateRemoteResourceConsumption(PerformanceSQLiteDBInterfa
                     "elapsed_time) "
                     "values ";
 
-                for (loadVectorIterator = loadVector.begin(); loadVectorIterator != loadVector.end();
+                for (auto loadVectorIterator = loadVector.begin(); loadVectorIterator != loadVector.end();
                      ++loadVectorIterator) {
                     std::string loadAverage = *loadVectorIterator;
 
                     valuesString += "('" + graphSlaId + "','" + placeId + "', '','" + loadAverage + "','" +
-                        std::to_string(elapsedTime * 1000) + "'),";
+                                    std::to_string(elapsedTime * 1000) + "'),";
                     elapsedTime += 5;
 
                     Utils::send_job("loadAverageSLARem", "load_average_rem", loadAverage);
@@ -1055,11 +615,11 @@ void PerformanceUtil::initiateCollectingRemoteSLAResourceUtilization(std::string
         return;
     }
 
-    bzero((char *) &serv_addr, sizeof(serv_addr));
+    bzero((char *)&serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *) server->h_addr, (char *) &serv_addr.sin_addr.s_addr, server->h_length);
+    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
     serv_addr.sin_port = htons(port);
-    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
         return;
     }
@@ -1104,87 +664,9 @@ void PerformanceUtil::initiateCollectingRemoteSLAResourceUtilization(std::string
 std::string PerformanceUtil::requestRemoteLoadAverages(std::string host, int port, std::string isVMStatManager,
                                                        std::string isResourceAllocationRequired, std::string placeId,
                                                        int elapsedTime, std::string masterIP) {
-    int sockfd;
-    char data[301];
-    bool loop = false;
-    socklen_t len;
-    struct sockaddr_in serv_addr;
-    struct hostent *server;
-    std::string graphSlaId;
-
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-
-    if (sockfd < 0) {
-        std::cerr << "Cannot create socket" << std::endl;
-        return 0;
-    }
-
-    if (host.find('@') != std::string::npos) {
-        host = Utils::split(host, '@')[1];
-    }
-
-    server = gethostbyname(host.c_str());
-    if (server == NULL) {
-        scheduler_logger.error("ERROR, no host named " + host);
-        return 0;
-    }
-
-    bzero((char *) &serv_addr, sizeof(serv_addr));
-    serv_addr.sin_family = AF_INET;
-    bcopy((char *) server->h_addr, (char *) &serv_addr.sin_addr.s_addr, server->h_length);
-    serv_addr.sin_port = htons(port);
-    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
-        std::cerr << "ERROR connecting" << std::endl;
-        return 0;
-    }
-
-    bzero(data, 301);
-    write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
-    scheduler_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
-    bzero(data, 301);
-    read(sockfd, data, 300);
-    string response = (data);
-
-    response = Utils::trim_copy(response);
-
-    if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
-        scheduler_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
-        write(sockfd, masterIP.c_str(), masterIP.size());
-        scheduler_logger.log("Sent : " + masterIP, "info");
-
-        bzero(data, 301);
-        read(sockfd, data, 300);
-        response = (data);
-        response = Utils::trim_copy(response);
-        scheduler_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
-
-        if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
-            write(sockfd, JasmineGraphInstanceProtocol::REQUEST_COLLECTED_STATS.c_str(),
-                  JasmineGraphInstanceProtocol::REQUEST_COLLECTED_STATS.size());
-            scheduler_logger.log("Sent : " + JasmineGraphInstanceProtocol::REQUEST_COLLECTED_STATS, "info");
-            bzero(data, 301);
-            read(sockfd, data, 300);
-            response = (data);
-            response = Utils::trim_copy(response);
-            string status = response.substr(response.size() - 5);
-            std::string result = response.substr(0, response.size() - 5);
-
-            while (status == "/SEND") {
-                write(sockfd, status.c_str(), status.size());
-
-                bzero(data, 301);
-                read(sockfd, data, 300);
-                response = (data);
-                response = Utils::trim_copy(response);
-                status = response.substr(response.size() - 5);
-                std::string loadAverageString = response.substr(0, response.size() - 5);
-                result = result + loadAverageString;
-            }
-            response = result;
-        }
-    }
-
-    return response;
+    // TODO(thevindu-w): master should not request load averages directly from workers.
+    // Instead it should get from Prometheus.
+    return "";
 }
 
 double PerformanceUtil::getAggregatedLoadAverage(std::string graphId, std::string placeId, std::string command,
@@ -1222,11 +704,11 @@ double PerformanceUtil::getAggregatedLoadAverage(std::string graphId, std::strin
                     "graph_place_sla_performance.elapsed_time from graph_place_sla_performance inner join graph_sla"
                     "  inner join sla_category where graph_place_sla_performance.graph_sla_id=graph_sla.id"
                     "  and graph_sla.id_sla_category=sla_category.id and graph_sla.graph_id='" +
-                        currentGraphId + "' and sla_category.command='" + command +
-                        "' and graph_place_sla_performance.place_id='" + placeId + "' and sla_category.category='" +
-                        category + "' and graph_place_sla_performance.elapsed_time ='" +
-                        std::to_string(adjustedElapsedTime) +
-                        "' order by graph_place_sla_performance.place_id,graph_place_sla_performance.elapsed_time;";
+                    currentGraphId + "' and sla_category.command='" + command +
+                    "' and graph_place_sla_performance.place_id='" + placeId + "' and sla_category.category='" +
+                    category + "' and graph_place_sla_performance.elapsed_time ='" +
+                    std::to_string(adjustedElapsedTime) +
+                    "' order by graph_place_sla_performance.place_id,graph_place_sla_performance.elapsed_time;";
 
                 std::vector<vector<pair<string, string>>> loadAvgResults = perfDb->runSelect(slaLoadQuery);
                 if (loadAvgResults.empty()) {
@@ -1245,12 +727,12 @@ double PerformanceUtil::getAggregatedLoadAverage(std::string graphId, std::strin
                     "graph_place_sla_performance.elapsed_time from graph_place_sla_performance inner join graph_sla"
                     "  inner join sla_category where graph_place_sla_performance.graph_sla_id=graph_sla.id"
                     "  and graph_sla.id_sla_category=sla_category.id and graph_sla.graph_id='" +
-                        currentGraphId + "' and sla_category.command='" + command +
-                        "' and graph_place_sla_performance.place_id='" + placeId + "' and sla_category.category='" +
-                        category + "' and graph_place_sla_performance.elapsed_time > '" +
-                        std::to_string(adjustedElapsedTime) +
-                        "' order by graph_place_sla_performance.place_id,graph_place_sla_performance.elapsed_time" +
-                        " LIMIT 2;";
+                    currentGraphId + "' and sla_category.command='" + command +
+                    "' and graph_place_sla_performance.place_id='" + placeId + "' and sla_category.category='" +
+                    category + "' and graph_place_sla_performance.elapsed_time > '" +
+                    std::to_string(adjustedElapsedTime) +
+                    "' order by graph_place_sla_performance.place_id,graph_place_sla_performance.elapsed_time" +
+                    " LIMIT 2;";
 
                 std::vector<vector<pair<string, string>>> loadAvgResults = perfDb->runSelect(slaLoadQuery);
 

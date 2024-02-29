@@ -1912,12 +1912,7 @@ bool JasmineGraphServer::receiveGlobalWeights(std::string host, int port, std::s
     serv_addr.sin_family = AF_INET;
     bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
     serv_addr.sin_port = htons(port);
-
-    while (true) {
-        if (!(Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)) {
-            break;
-        }
-    }
+    Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
 
     bool isTrue = false;
     int count = 0;

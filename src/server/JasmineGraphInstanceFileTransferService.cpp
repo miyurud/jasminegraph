@@ -32,7 +32,7 @@ void *filetransferservicesession(void *dummyPt) {
         Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
 
     write(connFd, JasmineGraphInstanceProtocol::SEND_FILE.c_str(), JasmineGraphInstanceProtocol::SEND_FILE.size());
-    int bytesReceived = 0;
+    int bytesReceived;
     char buffer[1024];
     std::ofstream file(filePathWithName, std::ios::out | std::ios::binary);
     do {

@@ -31,7 +31,6 @@ extern std::mutex responseVectorMutex;
 extern bool isStatCollect;
 extern bool isCalibrating;
 extern std::vector<std::string> loadAverageVector;
-extern bool collectValid;
 extern std::map<int, int> aggregateWeightMap;
 extern std::mutex aggregateWeightMutex;
 extern std::mutex triangleTreeMutex;

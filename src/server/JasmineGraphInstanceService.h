@@ -142,7 +142,6 @@ class JasmineGraphInstanceService {
     static string aggregateCompositeCentralStoreTriangles(std::string compositeFileList, std::string availableFileList,
                                                           int threadPriority);
     static map<long, long> getOutDegreeDistributionHashMap(map<long, unordered_set<long>> &graphMap);
-    static string requestPerformanceStatistics(std::string isVMStatManager, std::string isResourceAllocationRequested);
 
     struct workerPartitions {
         int port;

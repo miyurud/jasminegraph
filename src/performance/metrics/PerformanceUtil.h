@@ -60,16 +60,15 @@ class PerformanceUtil {
     static int collectSLAResourceConsumption(std::vector<Place> placeList, std::string graphId, std::string command,
                                              std::string category, std::string masterIP, int elapsedTime,
                                              bool autoCalibrate);
-    static std::vector<ResourceConsumption> retrieveCurrentResourceUtilization(std::string masterIP);
     static std::vector<long> getResourceAvailableTime(std::vector<std::string> graphIdList, std::string command,
                                                       std::string category, std::string masterIP,
                                                       std::vector<JobRequest>& pendingHPJobList);
 
     static void logLoadAverage();
     static std::vector<Place> getHostReporterList();
-    static void updateResourceConsumption(PerformanceSQLiteDBInterface *performanceDb, std::string graphId,
+    static void updateResourceConsumption(PerformanceSQLiteDBInterface* performanceDb, std::string graphId,
                                           int partitionCount, std::vector<Place> placeList, std::string slaCategoryId);
-    static void updateRemoteResourceConsumption(PerformanceSQLiteDBInterface *performanceDb, std::string graphId,
+    static void updateRemoteResourceConsumption(PerformanceSQLiteDBInterface* performanceDb, std::string graphId,
                                                 int partitionCount, std::vector<Place> placeList,
                                                 std::string slaCategoryId, std::string masterIP);
     static std::string getSLACategoryId(std::string command, std::string category);
@@ -84,19 +83,8 @@ class PerformanceUtil {
                                            std::string category, int elapsedTime);
 
  private:
-    static void collectRemotePerformanceData(std::string host, int port, std::string isVMStatManager,
-                                             std::string isResourceAllocationRequired, std::string hostId,
-                                             std::string placeId);
-    static void collectLocalPerformanceData(std::string isVMStatManager, std::string isResourceAllocationRequired,
-                                            std::string hostId, std::string placeId);
-    static int collectRemoteSLAResourceUtilization(std::string host, int port, std::string isVMStatManager,
-                                                   std::string isResourceAllocationRequired, std::string placeId,
-                                                   int elapsedTime, std::string masterIP);
     static void collectLocalSLAResourceUtilization(std::string graphId, std::string placeId, std::string command,
                                                    std::string category, int elapsedTime, bool autoCalibrate);
-    static ResourceConsumption retrieveRemoteResourceConsumption(std::string host, int port, std::string hostId,
-                                                                 std::string placeId);
-    static ResourceConsumption retrieveLocalResourceConsumption(std::string hostId, std::string placeId);
     static void adjustAggregateLoadMap(std::map<std::string, std::vector<double>>& aggregateLoadAvgMap,
                                        std::map<std::string, std::vector<double>>& newJobLoadAvgMap,
                                        long newJobAcceptanceTime);

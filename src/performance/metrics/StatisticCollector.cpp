@@ -206,31 +206,6 @@ double StatisticCollector::getCpuUsage() {
     return (diffTotal - diffIdle) / (double)diffTotal;
 }
 
-std::string StatisticCollector::collectVMStatistics(std::string isVMStatManager,
-                                                    std::string isTotalAllocationRequired) {
-    std::string vmLevelStatistics;
-
-    if (isVMStatManager == "true") {
-        long totalMemoryUsed = getTotalMemoryUsage();
-        double totalCPUUsage = getTotalCpuUsage();
-
-        std::stringstream stream;
-        stream << std::fixed << std::setprecision(2) << totalCPUUsage;
-        std::string cpuUsageString = stream.str();
-
-        vmLevelStatistics = std::to_string(totalMemoryUsed) + "," + cpuUsageString + ",";
-    }
-
-    if (isTotalAllocationRequired == "true") {
-        long totalMemory = getTotalMemoryAllocated();
-        int totalCoresAvailable = getTotalNumberofCores();
-
-        vmLevelStatistics = vmLevelStatistics + std::to_string(totalMemory) + "," + std::to_string(totalCoresAvailable);
-    }
-
-    return vmLevelStatistics;
-}
-
 long StatisticCollector::getTotalMemoryAllocated() {
     std::string token;
     std::ifstream file("/proc/meminfo");
@@ -346,7 +321,6 @@ void StatisticCollector::logLoadAverage(std::string name) {
     performanceUtil.init();
 
     start = time(0);
-
     while (true) {
         if (isStatCollect) {
             std::this_thread::sleep_for(std::chrono::seconds(60));

@@ -128,7 +128,7 @@ void *frontendservicesesion(void *dummyPt) {
     cppkafka::Configuration configs;
     KafkaConnector *kstream;
     Partitioner graphPartitioner(numberOfPartitions, 1, spt::Algorithms::HASH);
-    
+
     vector<DataPublisher *> workerClients;
     bool workerClientsInitialized = false;
 
