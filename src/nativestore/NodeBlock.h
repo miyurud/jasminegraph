@@ -36,7 +36,6 @@ class NodeBlock {
 
     char usage = false;   // Whether this block is in use or not
     unsigned int nodeId;  // nodeId for each block
-    unsigned int partitionId;  // partitionId of each node
     unsigned int edgeRef = 0;         // edges database block address for relations size of edgeRef is 4 bytes
     unsigned int centralEdgeRef = 0;  // edges cut database block address for edge cut relations
     unsigned char edgeRefPID = 0;     // Partition ID of the edge reference
@@ -51,15 +50,14 @@ class NodeBlock {
      * Where user don't have properties DB address or edge DB addresses
      *
      **/
-    NodeBlock(std::string newId, unsigned int node, unsigned int address, unsigned int partitionId) {
+    NodeBlock(std::string newId, unsigned int node, unsigned int address) {
         id = newId;
         nodeId = node;
         addr = address;
         usage = true;
-        partitionId = partitionId;
     };
 
-    NodeBlock(std::string id, unsigned int nodeId, unsigned int address, unsigned int partitionId, unsigned int propRef, unsigned int edgeRef,
+    NodeBlock(std::string id, unsigned int nodeId, unsigned int address, unsigned int propRef, unsigned int edgeRef,
               unsigned int centralEdgeRef, unsigned char edgeRefPID, const char *_label, bool usage);
 
     void save();
