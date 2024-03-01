@@ -233,7 +233,8 @@ NodeBlock *NodeManager::addNode(std::string nodeId, unsigned char partitionId) {
     if (this->nodeIndex.find(nodeId) == this->nodeIndex.end()) {
         node_manager_logger.debug("Can't find NodeId (" + nodeId + ") in the index database");
         unsigned int vertexId = std::stoul(nodeId);
-        NodeBlock *sourceBlk = new NodeBlock(nodeId, vertexId, this->nextNodeIndex * NodeBlock::BLOCK_SIZE, partitionId);
+        NodeBlock *sourceBlk = new NodeBlock(nodeId, vertexId, this->nextNodeIndex * NodeBlock::BLOCK_SIZE, 
+                                             partitionId);
         this->addNodeIndex(nodeId, this->nextNodeIndex);
         assignedNodeIndex = this->nextNodeIndex;
         this->nextNodeIndex++;
