@@ -197,9 +197,9 @@ bool Utils::fileExists(std::string fileName) { return access(fileName.c_str(), F
  * @param dirName
  */
 void Utils::createDirectory(const std::string dirName) {
-    // TODO: check if directory exists before creating
     // TODO: check return value
-    mkdir(dirName.c_str(), 0777);
+    string command = "mkdir -p " + dirName;
+    system(command.c_str());
 }
 
 std::vector<std::string> Utils::getListOfFilesInDirectory(std::string dirName) {

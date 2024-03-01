@@ -103,9 +103,6 @@ static void attributeFileCreate(std::map<long, int> &vertexToIDMap, std::map<std
 
 static void readFile(std::map<long, int> &vertexToIDMap, std::map<std::string, int> &fieldsMap,
                      std::string inputFilePath, string outputFilePath) {
-    Utils::createDirectory(Utils::getHomeDir() + "/.jasminegraph/");
-    Utils::createDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp");
-    Utils::createDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp/JSONParser");
     Utils::createDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp/JSONParser/output");
 
     auto edgeListFuture = std::async(createEdgeList, inputFilePath, outputFilePath);

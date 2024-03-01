@@ -39,7 +39,6 @@ void MetisPartitioner::loadDataSet(string inputFilePath, int graphID) {
 
     // Have to call createDirectory twice since it does not support recursive directory creation. Could use
     // boost::filesystem for path creation
-    Utils::createDirectory(Utils::getHomeDir() + "/.jasminegraph/");
     Utils::createDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp");
     Utils::createDirectory(this->outputFilePath);
 

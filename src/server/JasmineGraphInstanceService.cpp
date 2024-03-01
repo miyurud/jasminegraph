@@ -151,8 +151,6 @@ void *instanceservicesession(void *dummyPt) {
     instance_logger.info("New service session started on thread:" + to_string(pthread_self()) +
                          " connFd:" + to_string(connFd));
 
-    Utils::createDirectory(Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder"));
-
     char data[DATA_BUFFER_SIZE];
     bool loop_exit = false;
     while (!loop_exit) {
@@ -374,7 +372,6 @@ void removeGraphFragments(std::string graphID) {
 }
 
 void writeCatalogRecord(string record) {
-    Utils::createDirectory(Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder"));
     string catalogFilePath =
         Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/catalog.txt";
     ofstream outfile;
@@ -827,7 +824,6 @@ int JasmineGraphInstanceService::collectTrainedModelThreadFunction(instanceservi
 
 void JasmineGraphInstanceService::createPartitionFiles(std::string graphID, std::string partitionID,
                                                        std::string fileType) {
-    Utils::createDirectory(Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.trainedmodelfolder"));
     JasmineGraphHashMapLocalStore *hashMapLocalStore = new JasmineGraphHashMapLocalStore();
     string inputFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" +
                            graphID + "_" + partitionID;
