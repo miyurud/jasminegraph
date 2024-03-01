@@ -770,12 +770,9 @@ std::string Utils::send_job(std::string job_group_name, std::string metric_name,
         res = curl_easy_perform(curl);
         long code = -1;
         curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &code);
-        if (res != CURLE_OK) {
+        if (res != CURLE_OK || code != 200) {
             util_logger.error("curl failed: " + std::string(curl_easy_strerror(res)) + "| url: " + hostPGAddr +
                               "| data: " + job_data);
-        } else {
-            util_logger.info("curl success | url: " + hostPGAddr + "| data: " + job_data +
-                             "| status: " + to_string(code));
         }
 
         curl_easy_cleanup(curl);
