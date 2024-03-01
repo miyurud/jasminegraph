@@ -21,6 +21,7 @@ limitations under the License.
 #include <map>
 #include <string>
 
+#include "../../globals.h"
 #include "../k8s/K8sWorkerController.h"
 #include "../ml/trainer/JasmineGraphTrainingSchedular.h"
 #include "../partitioner/local/MetisPartitioner.h"
@@ -64,9 +65,12 @@ static bool initiateAggregator(std::string host, int port, int dataPort, std::st
 static bool initiateOrgServer(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
                               std::string masterIP);
 static void degreeDistributionCommon(std::string graphID, std::string command);
+static int getPortByHost(const std::string &host);
+static int getDataPortByHost(const std::string &host);
+static size_t getWorkerCount();
 
 static std::vector<JasmineGraphServer::worker> hostWorkerList;
-static map<string, pair<int, int>> hostPortMap;
+static unordered_map<string, pair<int, int>> hostPortMap;
 std::map<int, int> aggregateWeightMap;
 
 void *runfrontend(void *dummyPt) {
@@ -113,8 +117,7 @@ JasmineGraphServer::~JasmineGraphServer() {
     delete this->jobScheduler;
 }
 
-int JasmineGraphServer::run(std::string profile, std::string masterIp, int numberofWorkers, std::string workerIps,
-                            std::string enableNmon) {
+int JasmineGraphServer::run(std::string masterIp, int numberofWorkers, std::string workerIps, std::string enableNmon) {
     server_logger.info("Running the server...");
     std::vector<int> masterPortVector;
     if (masterIp.empty()) {
@@ -123,7 +126,6 @@ int JasmineGraphServer::run(std::string profile, std::string masterIp, int numbe
         this->masterHost = masterIp;
     }
     server_logger.info("masterHost = " + this->masterHost);
-    this->profile = profile;
     this->numberOfWorkers = numberofWorkers;
     this->workerHosts = workerIps;
     this->enableNmon = enableNmon;
@@ -131,7 +133,7 @@ int JasmineGraphServer::run(std::string profile, std::string masterIp, int numbe
     masterPortVector.push_back(Conts::JASMINEGRAPH_FRONTEND_PORT);
     updateOperationalGraphList();
 
-    if (profile == Conts::PROFILE_K8S) {
+    if (jasminegraph_profile == PROFILE_K8S) {
         // Create K8s worker controller
         (void)K8sWorkerController::getInstance(masterIp, numberofWorkers, sqlite);
         hostWorkerList = K8sWorkerController::workerList;
@@ -142,7 +144,7 @@ int JasmineGraphServer::run(std::string profile, std::string masterIp, int numbe
 
     std::thread *myThreads = new std::thread[1];
     myThreads[0] = std::thread(StatisticCollector::logLoadAverage, "Load Average");
-    sleep(2);
+    sleep(1);
     waitForAcknowledgement(numberofWorkers);
     resolveOperationalGraphs();
     initiateAggregateMap();
@@ -161,13 +163,13 @@ void JasmineGraphServer::start_workers() {
     int numberOfWorkersPerHost;
     std::vector<std::string> hostsList;
     std::string nWorkers;
-    if (profile == Conts::PROFILE_NATIVE) {
+    if (jasminegraph_profile == PROFILE_NATIVE) {
         hostsList = Utils::getHostListFromProperties();
         if ((this->numberOfWorkers) == -1) {
             nWorkers = Utils::getJasmineGraphProperty("org.jasminegraph.server.nworkers");
         }
         enableNmon = Utils::getJasmineGraphProperty("org.jasminegraph.server.enable.nmon");
-    } else if (profile == Conts::PROFILE_DOCKER) {
+    } else if (jasminegraph_profile == PROFILE_DOCKER) {
         hostsList = getWorkerVector(workerHosts);
     }
 
@@ -304,7 +306,7 @@ void JasmineGraphServer::start_workers() {
         addHostsToMetaDB(host, workerPortsMap[host], workerDataPortsMap[host]);
         addInstanceDetailsToPerformanceDB(host, workerPortsMap[host], "false");
         myThreads[count] = std::thread(startRemoteWorkers, workerPortsMap[host], workerDataPortsMap[host], host,
-                                       profile, masterHost, enableNmon);
+                                       masterHost, enableNmon);
         count++;
     }
 
@@ -312,6 +314,27 @@ void JasmineGraphServer::start_workers() {
         myThreads[threadCount].join();
     }
     delete[] myThreads;
+}
+
+static int getPortByHost(const std::string &host) {
+    if (jasminegraph_profile == PROFILE_K8S) {
+        return Conts::JASMINEGRAPH_INSTANCE_PORT;
+    }
+    return hostPortMap[host].first;
+}
+
+static int getDataPortByHost(const std::string &host) {
+    if (jasminegraph_profile == PROFILE_K8S) {
+        return Conts::JASMINEGRAPH_INSTANCE_DATA_PORT;
+    }
+    return hostPortMap[host].second;
+}
+
+static size_t getWorkerCount() {
+    if (jasminegraph_profile == PROFILE_K8S) {
+        return K8sWorkerController::workerList.size();
+    }
+    return hostWorkerList.size();
 }
 
 void JasmineGraphServer::waitForAcknowledgement(int numberOfWorkers) {
@@ -333,7 +356,7 @@ void JasmineGraphServer::waitForAcknowledgement(int numberOfWorkers) {
 }
 
 void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, std::vector<int> workerDataPortsVector,
-                                            string host, string profile, string masterHost, string enableNmon) {
+                                            string host, string masterHost, string enableNmon) {
     std::string executableFile;
     std::string workerPath = Utils::getJasmineGraphProperty("org.jasminegraph.worker.path");
     std::string artifactPath = Utils::getJasmineGraphProperty("org.jasminegraph.artifact.path");
@@ -347,7 +370,7 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
     std::string instanceFolderLocal = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.local");
 
     std::string jasmineGraphExecutableName = Conts::JASMINEGRAPH_EXECUTABLE;
-    server_logger.info("###MASTER#### Starting remote workers for profile " + profile);
+    server_logger.info("###MASTER#### Starting remote workers");
     if (hasEnding(workerPath, "/")) {
         executableFile = workerPath + jasmineGraphExecutableName;
     } else {
@@ -361,7 +384,7 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
         artifactPath = Utils::getJasmineGraphHome();
     }
 
-    if (profile == Conts::PROFILE_NATIVE) {
+    if (jasminegraph_profile == PROFILE_NATIVE) {
         copyArtifactsToWorkers(workerPath, artifactPath, host);
         for (int i = 0; i < workerPortsVector.size(); i++) {
             if (host.find("localhost") != std::string::npos) {
@@ -380,7 +403,7 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                 _exit(1);
             }
         }
-    } else if (profile == Conts::PROFILE_DOCKER) {
+    } else if (jasminegraph_profile == PROFILE_DOCKER) {
         char *env_testing = getenv("TESTING");
         bool is_testing = (env_testing != nullptr && strcasecmp(env_testing, "true") == 0);
         for (int i = 0; i < workerPortsVector.size(); i++) {
@@ -448,7 +471,7 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
     }
 }
 
-bool JasmineGraphServer::spawnNewWorker(string host, string port, string dataPort, string profile, string masterHost,
+bool JasmineGraphServer::spawnNewWorker(string host, string port, string dataPort, string masterHost,
                                         string enableNmon) {
     auto *refToSqlite = new SQLiteDBInterface();
     refToSqlite->init();
@@ -501,8 +524,7 @@ bool JasmineGraphServer::spawnNewWorker(string host, string port, string dataPor
     workerPortsVector.push_back(atoi(port.c_str()));
     workerDataPortsVector.push_back(atoi(dataPort.c_str()));
 
-    JasmineGraphServer::startRemoteWorkers(workerPortsVector, workerDataPortsVector, host, profile, masterHost,
-                                           enableNmon);
+    JasmineGraphServer::startRemoteWorkers(workerPortsVector, workerDataPortsVector, host, masterHost, enableNmon);
     return true;
 }
 
@@ -688,32 +710,38 @@ void JasmineGraphServer::deleteNonOperationalGraphFragment(int graphID) {
     server_logger.info("Deleting non-operational fragment " + to_string(graphID));
     int count = 0;
     // Define threads for each host
-    std::thread *deleteThreads = new std::thread[hostPortMap.size()];
+    std::thread *deleteThreads = new std::thread[getWorkerCount()];
+    std::vector<JasmineGraphServer::worker> *workerListAll;
+    if (jasminegraph_profile == PROFILE_K8S) {
+        workerListAll = &(K8sWorkerController::workerList);
+    } else {
+        workerListAll = &hostWorkerList;
+    }
     // Iterate through all hosts
-    for (std::map<string, pair<int, int>>::iterator it = hostPortMap.begin(); it != hostPortMap.end(); it++) {
+    for (auto it = (*workerListAll).begin(); it != (*workerListAll).end(); it++) {
         // Fetch hostname and port
-        string hostname = it->first;
-        int port = (it->second).first;
+        const string &hostname = it->hostname;
+        int port = it->port;
         // Initialize threads for host
         // Each thread runs the service to remove the given graph ID fragments in their datafolders
         deleteThreads[count++] =
             std::thread(removeFragmentThroughService, hostname, port, to_string(graphID), this->masterHost);
-        sleep(1);
-        server_logger.info("Deleted graph fragments of graph ID " + to_string(graphID));
     }
+    sleep(1);
 
     for (int threadCount = 0; threadCount < count; threadCount++) {
         if (deleteThreads[threadCount].joinable()) {
             deleteThreads[threadCount].join();
         }
     }
+    server_logger.info("Deleted graph fragments of graph ID " + to_string(graphID));
 }
 
 void JasmineGraphServer::shutdown_workers() {
     server_logger.info("Shutting down workers");
     auto *server = JasmineGraphServer::getInstance();
 
-    if (server->profile == Conts::PROFILE_K8S) {
+    if (jasminegraph_profile == PROFILE_K8S) {
         K8sWorkerController::getInstance()->setNumberOfWorkers(0);
         return;
     }
@@ -797,9 +825,9 @@ static map<string, float> scaleK8s(size_t npart) {
     return cpu_loads;
 }
 
-static std::vector<JasmineGraphServer::worker> getWorkers(size_t npart, std::string profile) {
+static std::vector<JasmineGraphServer::worker> getWorkers(size_t npart) {
     if (Utils::getJasmineGraphProperty("org.jasminegraph.autoscale.enabled") != "true") {
-        if (profile == Conts::PROFILE_K8S) {
+        if (jasminegraph_profile == PROFILE_K8S) {
             return K8sWorkerController::workerList;
         }
         return hostWorkerList;
@@ -807,11 +835,11 @@ static std::vector<JasmineGraphServer::worker> getWorkers(size_t npart, std::str
     // TODO: get the workers with lowest load from workerList
     std::vector<JasmineGraphServer::worker> *workerListAll;
     map<string, float> cpu_loads;
-    if (profile == Conts::PROFILE_K8S) {
+    if (jasminegraph_profile == PROFILE_K8S) {
         workerListAll = &(K8sWorkerController::workerList);
         cpu_loads = scaleK8s(npart);
     } else {
-        workerListAll = &(hostWorkerList);
+        workerListAll = &hostWorkerList;
         for (auto it = hostWorkerList.begin(); it != hostWorkerList.end(); it++) {
             auto &worker = *it;
             string workerHostPort = worker.hostname + ":" + to_string(worker.port);
@@ -865,7 +893,7 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
     int file_count = 0;
     std::thread *workerThreads = new std::thread[total_threads];
     while (count < total_threads) {
-        const auto &workerList = getWorkers(partitionFileMap.size(), this->profile);
+        const auto &workerList = getWorkers(partitionFileMap.size());
         for (auto listIterator = workerList.begin(); listIterator < workerList.end(); listIterator++) {
             worker worker = *listIterator;
             if (count >= total_threads) {
@@ -1096,8 +1124,8 @@ void JasmineGraphServer::removeGraph(vector<pair<string, string>> hostHasPartiti
     int count = 0;
     std::thread *deleteThreads = new std::thread[hostHasPartition.size()];
     for (std::vector<pair<string, string>>::iterator j = (hostHasPartition.begin()); j != hostHasPartition.end(); ++j) {
-        deleteThreads[count] = std::thread(removePartitionThroughService, j->first, hostPortMap[j->first].first,
-                                           graphID, j->second, masterIP);
+        deleteThreads[count] =
+            std::thread(removePartitionThroughService, j->first, getPortByHost(j->first), graphID, j->second, masterIP);
         count++;
     }
 
@@ -1235,9 +1263,9 @@ void JasmineGraphServer::updateOperationalGraphList() {
     string graphIDs = "";
     std::vector<std::string> hostsList;
 
-    if (profile == Conts::PROFILE_NATIVE) {
+    if (jasminegraph_profile == PROFILE_NATIVE) {
         hostsList = Utils::getHostListFromProperties();
-    } else if (profile == "docker") {
+    } else if (jasminegraph_profile == PROFILE_DOCKER) {
         hostsList = getWorkerVector(workerHosts);
     }
     vector<string>::iterator it;
@@ -1274,13 +1302,12 @@ std::map<string, JasmineGraphServer::workerPartitions> JasmineGraphServer::getGr
     auto *refToSqlite = new SQLiteDBInterface();
     refToSqlite->init();
     vector<vector<pair<string, string>>> hostPartitionResults = refToSqlite->runSelect(
-        "SELECT name, partition_idpartition FROM worker_has_partition INNER JOIN worker ON worker_"
-        "idworker = idworker WHERE partition_graph_idgraph = '" +
+        "SELECT name, partition_idpartition FROM worker_has_partition INNER JOIN worker ON "
+        "worker_idworker = idworker WHERE partition_graph_idgraph = '" +
         graphID + "'");
     refToSqlite->finalize();
     delete refToSqlite;
-    for (vector<vector<pair<string, string>>>::iterator i = hostPartitionResults.begin();
-         i != hostPartitionResults.end(); ++i) {
+    for (auto i = hostPartitionResults.begin(); i != hostPartitionResults.end(); ++i) {
         int count = 0;
         string hostname;
         string partitionID;
@@ -1296,10 +1323,11 @@ std::map<string, JasmineGraphServer::workerPartitions> JasmineGraphServer::getGr
     }
 
     map<string, vector<string>> hostPartitions;
-    for (std::vector<pair<string, string>>::iterator j = (hostHasPartition.begin()); j != hostHasPartition.end(); ++j) {
+    for (auto j = hostHasPartition.begin(); j != hostHasPartition.end(); ++j) {
         string hostname = j->first;
-        if (hostPartitions.count(hostname) > 0) {
-            hostPartitions[hostname].push_back(j->second);
+        auto it = hostPartitions.find(hostname);
+        if (it != hostPartitions.end()) {
+            it->second.push_back(j->second);
         } else {
             vector<string> vec;
             vec.push_back(j->second);
@@ -1309,7 +1337,7 @@ std::map<string, JasmineGraphServer::workerPartitions> JasmineGraphServer::getGr
 
     map<string, JasmineGraphServer::workerPartitions> graphPartitionedHosts;
     for (map<string, vector<string>>::iterator it = hostPartitions.begin(); it != hostPartitions.end(); ++it) {
-        graphPartitionedHosts[it->first] = {hostPortMap[it->first].first, hostPortMap[it->first].second,
+        graphPartitionedHosts[it->first] = {getPortByHost(it->first), getDataPortByHost(it->first),
                                             hostPartitions[it->first]};
     }
 

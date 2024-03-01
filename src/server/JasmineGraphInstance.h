@@ -31,8 +31,7 @@ class JasmineGraphInstance {
     static const int BUFFER_SIZE = 128;
 
  public:
-    int start_running(string profile, string hostName, string masterHost, int serverPort, int serverDataPort,
-                      string enableNmon);
+    int start_running(string hostName, string masterHost, int serverPort, int serverDataPort, string enableNmon);
 
     bool acknowledgeMaster(string masterHost, string workerIP, string workerPort);
 
@@ -45,7 +44,6 @@ class JasmineGraphInstance {
     void shutdown();
 
     string hostName;
-    string profile;
     string masterHostName;
     int serverPort;
     int serverDataPort;

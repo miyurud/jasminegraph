@@ -16,6 +16,9 @@ limitations under the License.
 #ifndef JASMINEGRAPH__GLOBALS_H_
 #define JASMINEGRAPH__GLOBALS_H_
 
-extern char *jasminegraph_profile;
+#define PROFILE_NATIVE 0
+#define PROFILE_DOCKER 1
+#define PROFILE_K8S 2
+extern int jasminegraph_profile;
 
 #endif  // JASMINEGRAPH__GLOBALS_H_

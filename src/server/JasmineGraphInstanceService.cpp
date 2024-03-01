@@ -145,7 +145,6 @@ void *instanceservicesession(void *dummyPt) {
 
     string serverName = sessionargs.host;
     string masterHost = sessionargs.masterHost;
-    string profile = sessionargs.profile;
     int serverPort = sessionargs.port;
     int serverDataPort = sessionargs.dataPort;
 
@@ -267,7 +266,7 @@ void *instanceservicesession(void *dummyPt) {
 
 JasmineGraphInstanceService::JasmineGraphInstanceService() {}
 
-void JasmineGraphInstanceService::run(string profile, string masterHost, string host, int serverPort,
+void JasmineGraphInstanceService::run(string masterHost, string host, int serverPort,
                                       int serverDataPort) {
     int listenFd;
     socklen_t len;
@@ -324,7 +323,6 @@ void JasmineGraphInstanceService::run(string profile, string masterHost, string 
         serviceArguments_p->graphDBMapCentralStores = graphDBMapCentralStores;
         serviceArguments_p->graphDBMapDuplicateCentralStores = graphDBMapDuplicateCentralStores;
         serviceArguments_p->incrementalLocalStore = incrementalLocalStore;
-        serviceArguments_p->profile = profile;
         serviceArguments_p->masterHost = masterHost;
         serviceArguments_p->port = serverPort;
         serviceArguments_p->dataPort = serverDataPort;

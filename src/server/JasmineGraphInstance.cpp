@@ -21,7 +21,7 @@ Logger graphInstance_logger;
 void *runInstanceService(void *dummyPt) {
     JasmineGraphInstance *refToInstance = (JasmineGraphInstance *)dummyPt;
     refToInstance->instanceService = new JasmineGraphInstanceService();
-    refToInstance->instanceService->run(refToInstance->profile, refToInstance->masterHostName, refToInstance->hostName,
+    refToInstance->instanceService->run(refToInstance->masterHostName, refToInstance->hostName,
                                         refToInstance->serverPort, refToInstance->serverDataPort);
     return NULL;
 }
@@ -33,12 +33,11 @@ void *runFileTransferService(void *dummyPt) {
     return NULL;
 }
 
-int JasmineGraphInstance::start_running(string profile, string hostName, string masterHost, int serverPort,
+int JasmineGraphInstance::start_running(string hostName, string masterHost, int serverPort,
                                         int serverDataPort, string enableNmon) {
     graphInstance_logger.info("Worker started");
 
     this->hostName = hostName;
-    this->profile = profile;
     this->masterHostName = masterHost;
     this->serverPort = serverPort;
     this->serverDataPort = serverDataPort;

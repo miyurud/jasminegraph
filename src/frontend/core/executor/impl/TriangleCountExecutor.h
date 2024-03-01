@@ -41,10 +41,6 @@ class TriangleCountExecutor : public AbstractExecutor {
     static long aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, std::string graphId, std::string masterIP,
                                                int threadPriority);
 
-    static string isFileAccessibleToWorker(std::string graphId, std::string partitionId, std::string aggregatorHostName,
-                                           std::string aggregatorPort, std::string masterIP, std::string fileType,
-                                           std::string fileName);
-
     static std::string copyCompositeCentralStoreToAggregator(std::string aggregatorHostName, std::string aggregatorPort,
                                                              std::string aggregatorDataPort, std::string fileName,
                                                              std::string masterIP);
@@ -52,8 +48,6 @@ class TriangleCountExecutor : public AbstractExecutor {
     static string countCompositeCentralStoreTriangles(std::string aggregatorHostName, std::string aggregatorPort,
                                                       std::string compositeCentralStoreFileList, std::string masterIP,
                                                       std::string availableFileList, int threadPriority);
-
-    static std::vector<std::vector<string>> getWorkerCombination(SQLiteDBInterface *sqlite, std::string graphId);
 
     static std::string copyCentralStoreToAggregator(std::string aggregatorHostName, std::string aggregatorPort,
                                                     std::string aggregatorDataPort, int graphId, int partitionId,

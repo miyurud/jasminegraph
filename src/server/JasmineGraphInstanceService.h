@@ -102,7 +102,6 @@ map<long, unordered_set<long>> getEdgesWorldToLocal(string graphID, string parti
                                                     std::vector<string> &workerSockets);
 
 struct instanceservicesessionargs {
-    string profile;
     string masterHost;
     string host;
     int connFd;
@@ -120,7 +119,7 @@ class JasmineGraphInstanceService {
     static const string END_OF_MESSAGE;
     JasmineGraphInstanceService();
 
-    void run(string profile, string masterHost, string hostName, int serverPort, int serverDataPort);
+    void run(string masterHost, string hostName, int serverPort, int serverDataPort);
 
     static bool isGraphDBExists(std::string graphId, std::string partitionId);
     static bool isInstanceCentralStoreExists(std::string graphId, std::string partitionId);

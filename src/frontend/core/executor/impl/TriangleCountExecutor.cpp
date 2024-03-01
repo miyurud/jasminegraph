@@ -25,6 +25,11 @@ std::mutex fileCombinationMutex;
 std::mutex processStatusMutex;
 std::mutex responseVectorMutex;
 
+static std::vector<std::vector<string>> getWorkerCombination(SQLiteDBInterface *sqlite, std::string graphId);
+static string isFileAccessibleToWorker(std::string graphId, std::string partitionId, std::string aggregatorHostName,
+                                       std::string aggregatorPort, std::string masterIP, std::string fileType,
+                                       std::string fileName);
+
 TriangleCountExecutor::TriangleCountExecutor() {}
 
 TriangleCountExecutor::TriangleCountExecutor(SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb,
@@ -122,7 +127,7 @@ void TriangleCountExecutor::execute() {
                 compositeCentralStoreFiles.push_back(graphFileName);
             }
         }
-        fileCombinations = getCombinations(compositeCentralStoreFiles);
+        fileCombinations = AbstractExecutor::getCombinations(compositeCentralStoreFiles);
     }
 
     std::map<string, std::vector<string>> partitionMap;
@@ -644,9 +649,9 @@ long TriangleCountExecutor::aggregateCentralStoreTriangles(SQLiteDBInterface *sq
             "WHERE partition_graph_idgraph=" +
             graphId + " and idworker=" + minWeightWorker + ";";
 
-        std::vector<vector<pair<string, string>>> result = sqlite->runSelect(aggregatorSqlStatement);
+        const std::vector<vector<pair<string, string>>> &result = sqlite->runSelect(aggregatorSqlStatement);
 
-        vector<pair<string, string>> aggregatorData = result.at(0);
+        const vector<pair<string, string>> &aggregatorData = result.at(0);
 
         std::string aggregatorIp = aggregatorData.at(0).second;
         std::string aggregatorPort = aggregatorData.at(1).second;
@@ -665,9 +670,9 @@ long TriangleCountExecutor::aggregateCentralStoreTriangles(SQLiteDBInterface *sq
                     "WHERE partition_graph_idgraph=" +
                     graphId + " and idworker=" + workerId + ";";
 
-                std::vector<vector<pair<string, string>>> result = sqlite->runSelect(sqlStatement);
+                const std::vector<vector<pair<string, string>>> &result = sqlite->runSelect(sqlStatement);
 
-                vector<pair<string, string>> workerData = result.at(0);
+                const vector<pair<string, string>> &workerData = result.at(0);
 
                 std::string partitionId = workerData.at(0).second;
 
@@ -719,10 +724,9 @@ long TriangleCountExecutor::aggregateCentralStoreTriangles(SQLiteDBInterface *sq
     return aggregatedTriangleCount;
 }
 
-string TriangleCountExecutor::isFileAccessibleToWorker(std::string graphId, std::string partitionId,
-                                                       std::string aggregatorHostName, std::string aggregatorPort,
-                                                       std::string masterIP, std::string fileType,
-                                                       std::string fileName) {
+static string isFileAccessibleToWorker(std::string graphId, std::string partitionId, std::string aggregatorHostName,
+                                       std::string aggregatorPort, std::string masterIP, std::string fileType,
+                                       std::string fileName) {
     int sockfd;
     char data[301];
     bool loop = false;
@@ -1224,8 +1228,7 @@ string TriangleCountExecutor::countCompositeCentralStoreTriangles(std::string ag
     return response;
 }
 
-std::vector<std::vector<string>> TriangleCountExecutor::getWorkerCombination(SQLiteDBInterface *sqlite,
-                                                                             std::string graphId) {
+static std::vector<std::vector<string>> getWorkerCombination(SQLiteDBInterface *sqlite, std::string graphId) {
     std::set<string> workerIdSet;
 
     string sqlStatement =
@@ -1234,19 +1237,17 @@ std::vector<std::vector<string>> TriangleCountExecutor::getWorkerCombination(SQL
         "WHERE partition_graph_idgraph=" +
         graphId + ";";
 
-    std::vector<vector<pair<string, string>>> results = sqlite->runSelect(sqlStatement);
+    const std::vector<vector<pair<string, string>>> &results = sqlite->runSelect(sqlStatement);
 
-    for (std::vector<vector<pair<string, string>>>::iterator i = results.begin(); i != results.end(); ++i) {
-        std::vector<pair<string, string>> rowData = *i;
-
+    for (auto i = results.begin(); i != results.end(); ++i) {
+        const std::vector<pair<string, string>> &rowData = *i;
         string workerId = rowData.at(0).second;
-
         workerIdSet.insert(workerId);
     }
 
     std::vector<string> workerIdVector(workerIdSet.begin(), workerIdSet.end());
 
-    std::vector<std::vector<string>> workerIdCombination = getCombinations(workerIdVector);
+    std::vector<std::vector<string>> workerIdCombination = AbstractExecutor::getCombinations(workerIdVector);
 
     return workerIdCombination;
 }

@@ -573,7 +573,7 @@ std::vector<std::vector<string>> StreamingTriangleCountExecutor::getWorkerCombin
 
     std::vector<string> workerIdVector(workerIdSet.begin(), workerIdSet.end());
 
-    std::vector<std::vector<string>> workerIdCombination = getCombinations(workerIdVector);
+    std::vector<std::vector<string>> workerIdCombination = AbstractExecutor::getCombinations(workerIdVector);
 
     return workerIdCombination;
 }

@@ -2341,7 +2341,6 @@ static void start_remote_worker_command(int connFd, bool *loop_exit_p) {
     string host = "";
     string port = "";
     string dataPort = "";
-    string profile = "";
     string masterHost = "";
     string enableNmon = "";
 
@@ -2360,11 +2359,10 @@ static void start_remote_worker_command(int connFd, bool *loop_exit_p) {
     host = strArr[0];
     port = strArr[1];
     dataPort = strArr[2];
-    profile = strArr[3];
     masterHost = strArr[4];
     enableNmon = strArr[5];
 
-    JasmineGraphServer::spawnNewWorker(host, port, dataPort, profile, masterHost, enableNmon);
+    JasmineGraphServer::spawnNewWorker(host, port, dataPort, masterHost, enableNmon);
 }
 
 static void sla_command(int connFd, SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfSqlite,

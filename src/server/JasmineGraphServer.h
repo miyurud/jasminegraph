@@ -37,7 +37,6 @@ using std::map;
 class JasmineGraphServer {
  private:
     map<std::string, long> hostPlaceMap;
-    std::string profile;
     std::string workerHosts;
     std::string enableNmon;
     static const int BUFFER_SIZE = 128;
@@ -49,7 +48,7 @@ class JasmineGraphServer {
     JasmineGraphServer();
 
     static void startRemoteWorkers(std::vector<int> workerPortsVector, std::vector<int> workerDataPortsVector,
-                                   std::string host, string profile, string masterHost, string enableNmon);
+                                   std::string host, string masterHost, string enableNmon);
 
     void addHostsToMetaDB(std::string host, std::vector<int> portVector, std::vector<int> dataPortVector);
 
@@ -84,8 +83,7 @@ class JasmineGraphServer {
 
     static int shutdown_worker(std::string host, int port);
 
-    int run(std::string profile, std::string masterIp, int numberofWorkers, std::string workerIps,
-            std::string enableNmon);
+    int run(std::string masterIp, int numberofWorkers, std::string workerIps, std::string enableNmon);
 
     void uploadGraphLocally(int graphID, const std::string graphType,
                             std::vector<std::map<int, std::string>> fullFileList, std::string masterIP);
@@ -97,8 +95,7 @@ class JasmineGraphServer {
 
     static void copyCentralStoreToAggregateLocation(std::string filePath);
 
-    static bool spawnNewWorker(string host, string port, string dataPort, string profile, string masterHost,
-                               string enableNmon);
+    static bool spawnNewWorker(string host, string port, string dataPort, string masterHost, string enableNmon);
 
     JasmineGraphFrontEnd *frontend;
     SQLiteDBInterface *sqlite;

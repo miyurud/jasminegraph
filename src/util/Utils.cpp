@@ -38,7 +38,7 @@ using namespace std;
 Logger util_logger;
 
 #ifdef UNIT_TEST
-char *jasminegraph_profile = NULL;
+int jasminegraph_profile = PROFILE_K8S;
 #endif
 
 unordered_map<std::string, std::string> Utils::propertiesMap;
@@ -718,7 +718,7 @@ std::string Utils::send_job(std::string job_group_name, std::string metric_name,
     CURL *curl;
     CURLcode res;
     std::string pushGatewayJobAddr;
-    if (string(jasminegraph_profile) == Conts::PROFILE_K8S) {
+    if (jasminegraph_profile == PROFILE_K8S) {
         std::unique_ptr<K8sInterface> interface(new K8sInterface());
         pushGatewayJobAddr = interface->getJasmineGraphConfig("pushgateway_address");
     } else {
@@ -787,7 +787,7 @@ std::map<std::string, std::string> Utils::getMetricMap(std::string metricName) {
     std::string response_cpu_usages;
 
     std::string prometheusAddr;
-    if (string(jasminegraph_profile) == Conts::PROFILE_K8S) {
+    if (jasminegraph_profile == PROFILE_K8S) {
         std::unique_ptr<K8sInterface> interface(new K8sInterface());
         prometheusAddr = interface->getJasmineGraphConfig("prometheus_address");
     } else {
