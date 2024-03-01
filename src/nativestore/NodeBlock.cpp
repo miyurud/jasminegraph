@@ -23,11 +23,12 @@ Logger node_block_logger;
 pthread_mutex_t lockSaveNode;
 pthread_mutex_t lockAddNodeProperty;
 
-NodeBlock::NodeBlock(std::string id, unsigned int nodeId, unsigned int address, unsigned int propRef,
+NodeBlock::NodeBlock(std::string id, unsigned int nodeId, unsigned int address, unsigned int partitionId, unsigned int propRef,
                      unsigned int edgeRef, unsigned int centralEdgeRef, unsigned char edgeRefPID, const char* _label,
                      bool usage)
     : id(id),
       nodeId(nodeId),
+      partitionId(partitionId),
       addr(address),
       propRef(propRef),
       edgeRef(edgeRef),
@@ -57,6 +58,7 @@ void NodeBlock::save() {
     NodeBlock::nodesDB->seekp(this->addr);
     NodeBlock::nodesDB->put(this->usage);                                                                       // 1
     NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(this->nodeId)), sizeof(this->nodeId));                  // 4
+    NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(this->partitionId)), sizeof(this->partitionId)); 
     NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(this->edgeRef)), sizeof(this->edgeRef));                // 4
     NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(this->centralEdgeRef)), sizeof(this->centralEdgeRef));  // 4
     NodeBlock::nodesDB->put(this->edgeRefPID);                                                                  // 1
@@ -378,6 +380,7 @@ NodeBlock* NodeBlock::get(unsigned int blockAddress) {
     NodeBlock* nodeBlockPointer = NULL;
     NodeBlock::nodesDB->seekg(blockAddress);
     unsigned int nodeId;
+    unsigned int partitionId;
     unsigned int edgeRef;
     unsigned int centralEdgeRef;
     unsigned char edgeRefPID;
@@ -421,7 +424,7 @@ NodeBlock* NodeBlock::get(unsigned int blockAddress) {
         id = std::string(label);
     }
     nodeBlockPointer =
-        new NodeBlock(id, nodeId, blockAddress, propRef, edgeRef, centralEdgeRef, edgeRefPID, label, usage);
+        new NodeBlock(id, nodeId, partitionId, blockAddress, propRef, edgeRef, centralEdgeRef, edgeRefPID, label, usage);
     if (nodeBlockPointer->id.length() == 0) {  // if label not found in node block look in the properties
         std::map<std::string, char*> props = nodeBlockPointer->getAllProperties();
         if (props["label"]) {

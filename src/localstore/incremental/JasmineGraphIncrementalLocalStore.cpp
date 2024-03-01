@@ -54,13 +54,15 @@ void JasmineGraphIncrementalLocalStore::addEdgeFromString(std::string edgeString
         auto destinationJson = edgeJson["destination"];
 
         std::string sId = std::string(sourceJson["id"]);
+        unsigned int sPId = sourceJson["partitionId"].get<unsigned int>();
         std::string dId = std::string(destinationJson["id"]);
+        unsigned int dPId = destinationJson["partitionId"].get<unsigned int>();
 
         RelationBlock* newRelation;
         if (edgeJson["EdgeType"] == "Central") {
-            newRelation = this->nm->addCentralEdge({sId, dId});
+            newRelation = this->nm->addCentralEdge(sId, sPId, dId, dPId);
         } else {
-            newRelation = this->nm->addLocalEdge({sId, dId});
+            newRelation = this->nm->addLocalEdge(sId, sPId, dId, dPId);
         }
         if (!newRelation) {
             return;

@@ -227,13 +227,13 @@ RelationBlock *NodeManager::addCentralRelation(NodeBlock source, NodeBlock desti
     return newRelation;
 }
 
-NodeBlock *NodeManager::addNode(std::string nodeId) {
+NodeBlock *NodeManager::addNode(std::string nodeId, unsigned int partitionId) {
     unsigned int assignedNodeIndex;
     node_manager_logger.debug("Adding node index " + std::to_string(this->nextNodeIndex));
     if (this->nodeIndex.find(nodeId) == this->nodeIndex.end()) {
         node_manager_logger.debug("Can't find NodeId (" + nodeId + ") in the index database");
         unsigned int vertexId = std::stoul(nodeId);
-        NodeBlock *sourceBlk = new NodeBlock(nodeId, vertexId, this->nextNodeIndex * NodeBlock::BLOCK_SIZE);
+        NodeBlock *sourceBlk = new NodeBlock(nodeId, vertexId, this->nextNodeIndex * NodeBlock::BLOCK_SIZE, partitionId);
         this->addNodeIndex(nodeId, this->nextNodeIndex);
         assignedNodeIndex = this->nextNodeIndex;
         this->nextNodeIndex++;
@@ -245,11 +245,11 @@ NodeBlock *NodeManager::addNode(std::string nodeId) {
     return this->get(nodeId);
 }
 
-RelationBlock *NodeManager::addLocalEdge(std::pair<std::string, std::string> edge) {
+RelationBlock *NodeManager::addLocalEdge(std::string sId, unsigned int sPId, std::string dId, unsigned int dPId) {
     pthread_mutex_lock(&lockEdgeAdd);
 
-    NodeBlock *sourceNode = this->addNode(edge.first);
-    NodeBlock *destNode = this->addNode(edge.second);
+    NodeBlock *sourceNode = this->addNode(sId, sPId);
+    NodeBlock *destNode = this->addNode(dId, dPId);
     RelationBlock *newRelation = this->addLocalRelation(*sourceNode, *destNode);
     if (newRelation) {
         newRelation->setDestination(destNode);
@@ -262,14 +262,14 @@ RelationBlock *NodeManager::addLocalEdge(std::pair<std::string, std::string> edg
     return newRelation;
 }
 
-RelationBlock *NodeManager::addCentralEdge(std::pair<std::string, std::string> edge) {
+RelationBlock *NodeManager::addCentralEdge(std::string sId, unsigned int sPId, std::string dId, unsigned int dPId) {
     //    std::unique_lock<std::mutex> guard1(lockCentralEdgeAdd);
     //
     //    guard1.lock();
     pthread_mutex_lock(&lockEdgeAdd);
 
-    NodeBlock *sourceNode = this->addNode(edge.first);
-    NodeBlock *destNode = this->addNode(edge.second);
+    NodeBlock *sourceNode = this->addNode(sId, sPId);
+    NodeBlock *destNode = this->addNode(dId, dPId);
     RelationBlock *newRelation = this->addCentralRelation(*sourceNode, *destNode);
     if (newRelation) {
         newRelation->setDestination(destNode);
@@ -343,6 +343,7 @@ NodeBlock *NodeManager::get(std::string nodeId) {
     const unsigned int blockAddress = nodeIndex * NodeBlock::BLOCK_SIZE;
     NodeBlock::nodesDB->seekg(blockAddress);
     unsigned int vertexId;
+    unsigned int partitionId;
     unsigned int edgeRef;
     unsigned int centralEdgeRef;
     unsigned char edgeRefPID;
@@ -354,6 +355,9 @@ NodeBlock *NodeManager::get(std::string nodeId) {
         node_manager_logger.error("Error while reading usage data from block " + std::to_string(blockAddress));
     }
     if (!NodeBlock::nodesDB->read(reinterpret_cast<char *>(&vertexId), sizeof(unsigned int))) {
+        node_manager_logger.error("Error while reading nodeId  data from block " + std::to_string(blockAddress));
+    }
+    if (!NodeBlock::nodesDB->read(reinterpret_cast<char *>(&partitionId), sizeof(unsigned int))) {
         node_manager_logger.error("Error while reading nodeId  data from block " + std::to_string(blockAddress));
     }
     if (!NodeBlock::nodesDB->read(reinterpret_cast<char *>(&edgeRef), sizeof(unsigned int))) {
@@ -382,7 +386,7 @@ NodeBlock *NodeManager::get(std::string nodeId) {
     node_manager_logger.debug("DEBUG: raw edgeRef from DB (disk) " + std::to_string(edgeRef));
 
     nodeBlockPointer =
-        new NodeBlock(nodeId, vertexId, blockAddress, propRef, edgeRef, centralEdgeRef, edgeRefPID, label, usage);
+        new NodeBlock(nodeId, vertexId, blockAddress, partitionId, propRef, edgeRef, centralEdgeRef, edgeRefPID, label, usage);
 
     node_manager_logger.debug("DEBUG: nodeBlockPointer after creating the object edgeRef " +
                               std::to_string(nodeBlockPointer->edgeRef));
