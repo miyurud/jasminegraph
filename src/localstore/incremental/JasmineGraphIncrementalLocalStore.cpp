@@ -18,6 +18,7 @@ limitations under the License.
 
 #include "../../nativestore/RelationBlock.h"
 #include "../../util/logger/Logger.h"
+#include "../../util/Utils.h"
 
 Logger incremental_localstore_logger;
 
@@ -25,8 +26,8 @@ JasmineGraphIncrementalLocalStore::JasmineGraphIncrementalLocalStore(unsigned in
                                                                      std::string openMode) {
     gc.graphID = graphID;
     gc.partitionID = partitionID;
-    gc.maxLabelSize = 43;   // TODO tmkasun: read from .properties file
-    gc.openMode = openMode;  // TODO tmkasun: read from .properties file
+    gc.maxLabelSize = std::stoi(Utils::getJasmineGraphProperty("org.jasminegraph.nativestore.max.label.size"));
+    gc.openMode = openMode;
     this->nm = new NodeManager(gc);
 };
 

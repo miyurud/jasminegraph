@@ -40,18 +40,20 @@ class StreamingTriangles {
     static NativeStoreTriangleResult countLocalStreamingTriangles(
             JasmineGraphIncrementalLocalStore *incrementalLocalStoreInstance);
 
-    static std::string countCentralStoreStreamingTriangles(
-            std::vector<JasmineGraphIncrementalLocalStore*> incrementalLocalStoreInstances);
+    static std::string countCentralStoreStreamingTriangles(std::string graphId,
+            std::vector<std::string> partitionIdList);
 
     static NativeStoreTriangleResult countDynamicLocalTriangles(
             JasmineGraphIncrementalLocalStore *incrementalLocalStoreInstance,
     long old_local_relation_count, long old_central_relation_count);
 
-    static std::string countDynamicCentralTriangles(
-            std::vector<JasmineGraphIncrementalLocalStore*> incrementalLocalStoreInstances,
-            std::vector<std::string> oldCentralRelationCount);
+    static string countDynamicCentralTriangles(string graphId, std::vector<std::string> partitionIdList,
+                                        std::vector<std::string> oldCentralRelationCount);
 
-    static std::string getPartitionID(std::vector<JasmineGraphIncrementalLocalStore *> vector1);
+    static std::vector<std::pair<long, long>> getEdges(unsigned int graphID, unsigned int partitionID,
+                                                       long previousCentralRelationCount);
+
+    static map<long, unordered_set<long>> getCentralAdjacencyList(unsigned int graphID, unsigned int partitionID);
 };
 
 #endif  // JASMINEGRAPH_STRAMINGTRIANGLES_H
