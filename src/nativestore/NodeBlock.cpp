@@ -24,7 +24,7 @@ pthread_mutex_t lockSaveNode;
 pthread_mutex_t lockAddNodeProperty;
 
 NodeBlock::NodeBlock(std::string id, unsigned int nodeId, unsigned int address, unsigned int propRef,
-                     unsigned int edgeRef, unsigned int centralEdgeRef, unsigned char edgeRefPID, const char* _label,
+                     unsigned int edgeRef, unsigned int centralEdgeRef, unsigned char partitionId, const char* _label,
                      bool usage)
     : id(id),
       nodeId(nodeId),
@@ -32,7 +32,7 @@ NodeBlock::NodeBlock(std::string id, unsigned int nodeId, unsigned int address, 
       propRef(propRef),
       edgeRef(edgeRef),
       centralEdgeRef(centralEdgeRef),
-      edgeRefPID(edgeRefPID),
+      partitionId(partitionId),
       usage(usage) {
     strcpy(this->label, _label);
 };
@@ -59,7 +59,7 @@ void NodeBlock::save() {
     NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(this->nodeId)), sizeof(this->nodeId));                  // 4
     NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(this->edgeRef)), sizeof(this->edgeRef));                // 4
     NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(this->centralEdgeRef)), sizeof(this->centralEdgeRef));  // 4
-    NodeBlock::nodesDB->put(this->edgeRefPID);                                                                  // 1
+    NodeBlock::nodesDB->put(this->partitionId);                                                                  // 1
     NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(this->propRef)), sizeof(this->propRef));                // 4
     NodeBlock::nodesDB->write(this->label, sizeof(this->label));                                                // 6
     NodeBlock::nodesDB->flush();  // Sync the file with in-memory stream
@@ -80,7 +80,7 @@ void NodeBlock::addProperty(std::string name, const char* value) {
             // block
             //            node_block_logger.info("propRef = " + std::to_string(this->propRef));
             NodeBlock::nodesDB->seekp(this->addr + sizeof(this->nodeId) + sizeof(this->edgeRef) +
-                                      sizeof(this->centralEdgeRef) + sizeof(this->edgeRefPID));
+                                      sizeof(this->centralEdgeRef) + sizeof(this->partitionId));
             NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(this->propRef)), sizeof(this->propRef));
             NodeBlock::nodesDB->flush();
         } else {
@@ -380,7 +380,7 @@ NodeBlock* NodeBlock::get(unsigned int blockAddress) {
     unsigned int nodeId;
     unsigned int edgeRef;
     unsigned int centralEdgeRef;
-    unsigned char edgeRefPID;
+    unsigned char partitionId;
     unsigned int propRef;
     char usageBlock;
     char label[NodeBlock::LABEL_SIZE];
@@ -400,7 +400,7 @@ NodeBlock* NodeBlock::get(unsigned int blockAddress) {
                                 std::to_string(blockAddress));
     }
 
-    if (!NodeBlock::nodesDB->read(reinterpret_cast<char*>(&edgeRefPID), sizeof(unsigned char))) {
+    if (!NodeBlock::nodesDB->read(reinterpret_cast<char*>(&partitionId), sizeof(unsigned char))) {
         node_block_logger.error("Error while reading edge reference partition ID data from block " +
                                 std::to_string(blockAddress));
     }
@@ -421,7 +421,7 @@ NodeBlock* NodeBlock::get(unsigned int blockAddress) {
         id = std::string(label);
     }
     nodeBlockPointer =
-        new NodeBlock(id, nodeId, blockAddress, propRef, edgeRef, centralEdgeRef, edgeRefPID, label, usage);
+        new NodeBlock(id, nodeId, blockAddress, propRef, edgeRef, centralEdgeRef, partitionId, label, usage);
     if (nodeBlockPointer->id.length() == 0) {  // if label not found in node block look in the properties
         std::map<std::string, char*> props = nodeBlockPointer->getAllProperties();
         if (props["label"]) {

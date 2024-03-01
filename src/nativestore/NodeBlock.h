@@ -38,7 +38,7 @@ class NodeBlock {
     unsigned int nodeId;  // nodeId for each block
     unsigned int edgeRef = 0;         // edges database block address for relations size of edgeRef is 4 bytes
     unsigned int centralEdgeRef = 0;  // edges cut database block address for edge cut relations
-    unsigned char edgeRefPID = 0;     // Partition ID of the edge reference
+    unsigned char partitionId;     // partitionId of node
     unsigned int propRef = 0;         // Properties DB block address for node properties
     char label[LABEL_SIZE] = {
         0};  // Initialize with null chars label === ID if length(id) < 6 else ID will be stored as a Node's property
@@ -50,15 +50,16 @@ class NodeBlock {
      * Where user don't have properties DB address or edge DB addresses
      *
      **/
-    NodeBlock(std::string newId, unsigned int node, unsigned int address) {
+    NodeBlock(std::string newId, unsigned int node, unsigned int address, unsigned char partitionId) {
         id = newId;
         nodeId = node;
         addr = address;
         usage = true;
+        partitionId = partitionId;
     };
 
     NodeBlock(std::string id, unsigned int nodeId, unsigned int address, unsigned int propRef, unsigned int edgeRef,
-              unsigned int centralEdgeRef, unsigned char edgeRefPID, const char *_label, bool usage);
+              unsigned int centralEdgeRef, unsigned char partitionId, const char *_label, bool usage);
 
     void save();
     std::string getLabel();

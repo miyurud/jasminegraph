@@ -57,13 +57,13 @@ class NodeManager {
     std::string getDbPrefix();
     void close();
 
-    RelationBlock* addLocalEdge(std::pair<std::string, std::string>);
-    RelationBlock* addCentralEdge(std::pair<std::string, std::string> edge);
+    RelationBlock* addLocalEdge(std::string sId, unsigned int sPId, std::string dId, unsigned int dPId);
+    RelationBlock* addCentralEdge(std::string sId, unsigned int sPId, std::string dId, unsigned int dPId);
 
     RelationBlock* addLocalRelation(NodeBlock, NodeBlock);
     RelationBlock* addCentralRelation(NodeBlock source, NodeBlock destination);
 
-    NodeBlock* addNode(std::string);  // will return DB block address
+    NodeBlock* addNode(std::string, unsigned char);  // will return DB block address
     NodeBlock* get(std::string);
 
     std::list<NodeBlock*> getCentralGraph();
