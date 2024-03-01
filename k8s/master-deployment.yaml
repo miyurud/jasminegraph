@@ -56,3 +56,10 @@ spec:
               name: jasminegraph-data
             - mountPath: /tmp/jasminegraph
               name: jasminegraph-logs
+          resources:
+            requests:
+              cpu: "1000m"
+              memory: "2Gi"
+            limits:
+              cpu: "2000m"
+              memory: "4Gi"
