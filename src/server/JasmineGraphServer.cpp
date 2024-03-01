@@ -988,10 +988,7 @@ void JasmineGraphServer::copyCentralStoreToAggregateLocation(std::string filePat
     std::string aggregatorDirPath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
 
     if (access(aggregatorDirPath.c_str(), F_OK)) {
-        std::string createDirCommand = "mkdir -p " + aggregatorDirPath;
-        if (system(createDirCommand.c_str())) {
-            server_logger.error("Creating directory " + aggregatorDirPath + " failed");
-        }
+        Utils::createDirectory(aggregatorDirPath);
     }
 
     std::string copyCommand = "cp " + filePath + " " + aggregatorDirPath;

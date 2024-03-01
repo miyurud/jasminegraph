@@ -264,14 +264,14 @@ void *instanceservicesession(void *dummyPt) {
 
 JasmineGraphInstanceService::JasmineGraphInstanceService() {}
 
-void JasmineGraphInstanceService::run(string masterHost, string host, int serverPort,
-                                      int serverDataPort) {
+void JasmineGraphInstanceService::run(string masterHost, string host, int serverPort, int serverDataPort) {
     int listenFd;
     socklen_t len;
     struct sockaddr_in svrAdd;
     struct sockaddr_in clntAdd;
 
     Utils::createDirectory(Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder"));
+    Utils::createDirectory(Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder"));
 
     // create socket
     listenFd = socket(AF_INET, SOCK_STREAM, 0);
