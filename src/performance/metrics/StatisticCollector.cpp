@@ -168,11 +168,11 @@ static long parseLine(char *line) {
     return val;
 }
 
-double StatisticCollector::getCpuUsage() {
-    static long long lastTotal = 0, lastIdle = 0;
-
+static void getCpuCycles(long long *totalp, long long *idlep) {
+    *totalp = 0;
+    *idlep = 0;
     FILE *fp = fopen("/proc/stat", "r");
-    if (!fp) return -1;
+    if (!fp) return;
     char line[1024];
     fscanf(fp, "%[^\r\n]%*c", line);
     fclose(fp);
@@ -198,10 +198,21 @@ double StatisticCollector::getCpuUsage() {
         }
         total += value;
     }
-    long long diffTotal = lastTotal - total;
-    long long diffIdle = lastIdle - idle;
-    lastTotal = total;
-    lastIdle = idle;
+    *totalp = total;
+    *idlep = idle;
+}
+
+double StatisticCollector::getCpuUsage() {
+    long long total1;
+    long long idle1;
+    getCpuCycles(&total1, &idle1);
+    sleep(5);
+    long long total2;
+    long long idle2;
+    getCpuCycles(&total2, &idle2);
+
+    long long diffTotal = total2 - total1;
+    long long diffIdle = idle2 - idle1;
 
     return (diffTotal - diffIdle) / (double)diffTotal;
 }

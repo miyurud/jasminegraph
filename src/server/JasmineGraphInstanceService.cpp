@@ -1971,12 +1971,10 @@ static void handshake_command(int connFd, bool *loop_exit_p) {
 
 static inline void close_command(int connFd, bool *loop_exit_p) {
     *loop_exit_p = true;
-    Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::CLOSE_ACK);
     close(connFd);
 }
 
 static inline void shutdown_command(int connFd) {
-    Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::CLOSE_ACK);
     close(connFd);
     exit(0);
 }

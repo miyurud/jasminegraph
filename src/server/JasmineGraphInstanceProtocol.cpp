@@ -18,7 +18,6 @@ const string JasmineGraphInstanceProtocol::HANDSHAKE_OK = "hske-ok";
 const string JasmineGraphInstanceProtocol::HOST_OK = "hst-ok";
 const string JasmineGraphInstanceProtocol::BATCH_UPLOAD_COMPOSITE_CENTRAL = "upload-g-c-c";
 const string JasmineGraphInstanceProtocol::CLOSE = "close";
-const string JasmineGraphInstanceProtocol::CLOSE_ACK = "close-ok";
 const string JasmineGraphInstanceProtocol::SHUTDOWN = "shdn";
 const string JasmineGraphInstanceProtocol::SHUTDOWN_ACK = "shdn-ok";
 const string JasmineGraphInstanceProtocol::READY = "ready";
