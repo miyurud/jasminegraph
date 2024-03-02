@@ -38,8 +38,7 @@ class K8sInterface {
 
     v1_deployment_t *createJasmineGraphWorkerDeployment(int workerId,
                                                         const std::string &ip,
-                                                        const std::string &masterIp,
-                                                        const std::string &nodeName) const;
+                                                        const std::string &masterIp) const;
 
     v1_status_t *deleteJasmineGraphWorkerDeployment(int workerId) const;
 

@@ -34,8 +34,6 @@ class K8sWorkerController {
     std::string masterIp;
     int numberOfWorkers;
 
-    std::map<std::string, int> nodes;
-
     K8sWorkerController(std::string masterIp, int numberOfWorkers, SQLiteDBInterface *metadb);
 
     void spawnWorker(int workerId);
