@@ -15,12 +15,12 @@ limitations under the License.
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <cctype>
 #include <chrono>
 #include <ctime>
-#include <fstream>  // C++ header file for file access
+#include <fstream>
 #include <iostream>
-#include <iostream>  // C++ header file for printing
 #include <map>
 #include <nlohmann/json.hpp>
 #include <set>
@@ -575,8 +575,15 @@ bool JasmineGraphFrontEnd::modelExistsByID(string id, SQLiteDBInterface *sqlite)
 }
 
 static std::string getPartitionCount(std::string path) {
-    // TODO: Implement
-    return "";
+    if (Utils::getJasmineGraphProperty("org.jasminegraph.autopartition.enabled") != "true") {
+        return "";
+    }
+    ifstream dataFile(path);
+    size_t edges = std::count(std::istreambuf_iterator<char>(dataFile), std::istreambuf_iterator<char>(), '\n');
+    dataFile.close();
+    int partCnt = (int)round(pow(edges, 0.2) / 6);
+    if (partCnt < 2) partCnt = 2;
+    return to_string(partCnt);
 }
 
 static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
