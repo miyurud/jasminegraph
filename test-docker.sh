@@ -106,6 +106,7 @@ while ! nc -zvn 127.0.0.1 7777 &>/dev/null; do
     sleep .5
 done
 
+sleep 2
 stop_tests_on_failure &
 
 timeout "$TIMEOUT_SECONDS" python3 -u "${TEST_ROOT}/test.py" |& tee "$TEST_LOG"
