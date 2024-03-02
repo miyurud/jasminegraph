@@ -196,10 +196,9 @@ bool Utils::fileExists(std::string fileName) { return access(fileName.c_str(), F
  * This method creates a new directory if it does not exist
  * @param dirName
  */
-void Utils::createDirectory(const std::string dirName) {
-    // TODO: check return value
+int Utils::createDirectory(const std::string dirName) {
     string command = "mkdir -p " + dirName;
-    system(command.c_str());
+    return system(command.c_str());
 }
 
 std::vector<std::string> Utils::getListOfFilesInDirectory(std::string dirName) {
@@ -339,7 +338,7 @@ int Utils::compressFile(const std::string filePath, std::string mode) {
 int Utils::unzipFile(std::string filePath, std::string mode) {
     if (mode == "pigz") {
         if (access("/usr/bin/pigz", X_OK) != 0) {
-            util_logger.info("pigz not found. Compressing using gzip");
+            util_logger.info("pigz not found. Decompressing using gzip");
             mode = "gzip";
         }
     }
@@ -946,7 +945,7 @@ bool Utils::uploadFileToWorker(std::string host, int port, int dataPort, int gra
             continue;
         } else if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK) == 0) {
             util_logger.info("Received: " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK);
-            util_logger.info("Batch upload completed");
+            util_logger.info("Batch upload completed: " + fileName);
             break;
         }
     }
@@ -988,6 +987,13 @@ bool Utils::sendFileThroughService(std::string host, int dataPort, std::string f
     }
 
     if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, fileName,
+                                   JasmineGraphInstanceProtocol::SEND_FILE_LEN)) {
+        close(sockfd);
+        return false;
+    }
+
+    int fsize = Utils::getFileSize(filePath);
+    if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, to_string(fsize),
                                    JasmineGraphInstanceProtocol::SEND_FILE)) {
         close(sockfd);
         return false;

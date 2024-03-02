@@ -270,9 +270,6 @@ void JasmineGraphInstanceService::run(string masterHost, string host, int server
     struct sockaddr_in svrAdd;
     struct sockaddr_in clntAdd;
 
-    Utils::createDirectory(Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder"));
-    Utils::createDirectory(Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder"));
-
     // create socket
     listenFd = socket(AF_INET, SOCK_STREAM, 0);
     if (listenFd < 0) {

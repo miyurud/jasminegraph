@@ -50,19 +50,15 @@ static bool batchUploadCompositeCentralstoreFile(std::string host, int port, int
                                                  std::string filePath, std::string masterIP);
 static bool removeFragmentThroughService(string host, int port, string graphID, string masterIP);
 static bool removePartitionThroughService(string host, int port, string graphID, string partitionID, string masterIP);
-static bool initiateCommon(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
-                           std::string masterIP, std::string initType);
-static bool initiateTrain(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
-                          std::string masterIP);
-static bool initiatePredict(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
-                            std::string masterIP);
-static bool initiateServer(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
-                           std::string masterIP);
-static bool initiateClient(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
-                           std::string masterIP);
-static bool initiateAggregator(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
+static bool initiateCommon(std::string host, int port, std::string trainingArgs, int iteration, std::string masterIP,
+                           std::string initType);
+static bool initiateTrain(std::string host, int port, std::string trainingArgs, int iteration, std::string masterIP);
+static bool initiatePredict(std::string host, int port, std::string trainingArgs, int iteration, std::string masterIP);
+static bool initiateServer(std::string host, int port, std::string trainingArgs, int iteration, std::string masterIP);
+static bool initiateClient(std::string host, int port, std::string trainingArgs, int iteration, std::string masterIP);
+static bool initiateAggregator(std::string host, int port, std::string trainingArgs, int iteration,
                                std::string masterIP);
-static bool initiateOrgServer(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
+static bool initiateOrgServer(std::string host, int port, std::string trainingArgs, int iteration,
                               std::string masterIP);
 static void degreeDistributionCommon(std::string graphID, std::string command);
 static int getPortByHost(const std::string &host);
@@ -1655,9 +1651,8 @@ void JasmineGraphServer::initiateFiles(std::string graphID, std::string training
         map<int, int> scheduleOfHost = scheduleForAllHosts[j->first];
         for (k = workerPartition.partitionID.begin(); k != workerPartition.partitionID.end(); k++) {
             int iterationOfPart = scheduleOfHost[stoi(*k)];
-            workerThreads[count++] =
-                std::thread(initiateTrain, j->first, workerPartition.port, workerPartition.dataPort,
-                            trainingArgs + " " + *k, iterationOfPart, this->masterHost);
+            workerThreads[count++] = std::thread(initiateTrain, j->first, workerPartition.port, trainingArgs + " " + *k,
+                                                 iterationOfPart, this->masterHost);
         }
     }
 
@@ -1682,15 +1677,14 @@ void JasmineGraphServer::initiateCommunication(std::string graphID, std::string 
         workerInstance = workerVector[i];
 
         int serverPort = stoi(workerInstance.port);
-        int serverDataPort = stoi(workerInstance.dataPort);
 
         if (i == 0) {
-            workerThreads[threadID] = std::thread(initiateServer, workerInstance.hostname, serverPort, serverDataPort,
-                                                  trainingArgs, fl_clients, masterIP);
+            workerThreads[threadID] =
+                std::thread(initiateServer, workerInstance.hostname, serverPort, trainingArgs, fl_clients, masterIP);
             threadID++;
         }
 
-        workerThreads[threadID] = std::thread(initiateClient, workerInstance.hostname, serverPort, serverDataPort,
+        workerThreads[threadID] = std::thread(initiateClient, workerInstance.hostname, serverPort,
                                               trainingArgs + " " + to_string(i), fl_clients, masterIP);
         threadID++;
     }
@@ -1715,8 +1709,7 @@ void JasmineGraphServer::initiateOrgCommunication(std::string graphID, std::stri
     vector<Utils::worker> workerVector = Utils::getWorkerList(sqlite);
 
     if (Utils::getJasmineGraphProperty("org.jasminegraph.fl.aggregator") == "true") {
-        initiateAggregator("localhost", stoi(workerVector[0].port), stoi(workerVector[0].dataPort), trainingArgs,
-                           fl_clients, masterIP);
+        initiateAggregator("localhost", stoi(workerVector[0].port), trainingArgs, fl_clients, masterIP);
     }
 
     std::ifstream file(Utils::getJasmineGraphProperty("org.jasminegraph.fl.organization.file"));
@@ -1753,15 +1746,14 @@ void JasmineGraphServer::initiateOrgCommunication(std::string graphID, std::stri
     for (int i = 0; i < workerVector.size(); i++) {
         workerInstance = workerVector[i];
         int serverPort = stoi(workerInstance.port);
-        int serverDataPort = stoi(workerInstance.dataPort);
 
         if (i == 0) {
-            workerThreads[threadID] = std::thread(initiateOrgServer, workerInstance.hostname, serverPort,
-                                                  serverDataPort, trainingArgs, fl_clients, masterIP);
+            workerThreads[threadID] =
+                std::thread(initiateOrgServer, workerInstance.hostname, serverPort, trainingArgs, fl_clients, masterIP);
             threadID++;
         }
 
-        workerThreads[threadID] = std::thread(initiateClient, workerInstance.hostname, serverPort, serverDataPort,
+        workerThreads[threadID] = std::thread(initiateClient, workerInstance.hostname, serverPort,
                                               trainingArgs + " " + to_string(i), fl_clients, masterIP);
         threadID++;
     }
@@ -1799,8 +1791,8 @@ void JasmineGraphServer::initiateMerge(std::string graphID, std::string training
         map<int, int> scheduleOfHost = scheduleForAllHosts[j->first];
         for (k = workerPartition.partitionID.begin(); k != workerPartition.partitionID.end(); k++) {
             int iterationOfPart = scheduleOfHost[stoi(*k)];
-            workerThreads[count] = std::thread(mergeFiles, j->first, workerPartition.port, workerPartition.dataPort,
-                                               trainingArgs + " " + *k, fl_clients, *k, this->masterHost);
+            workerThreads[count] = std::thread(mergeFiles, j->first, workerPartition.port, trainingArgs + " " + *k,
+                                               fl_clients, *k, this->masterHost);
             count++;
         }
     }
@@ -1812,8 +1804,8 @@ void JasmineGraphServer::initiateMerge(std::string graphID, std::string training
     delete[] workerThreads;
 }
 
-static bool initiateCommon(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
-                           std::string masterIP, std::string initType) {
+static bool initiateCommon(std::string host, int port, std::string trainingArgs, int iteration, std::string masterIP,
+                           std::string initType) {
     bool result = true;
     int sockfd;
     char data[FED_DATA_LENGTH + 1];
@@ -1867,40 +1859,32 @@ static bool initiateCommon(std::string host, int port, int dataPort, std::string
     return true;
 }
 
-static bool initiateTrain(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
-                          std::string masterIP) {
-    return initiateCommon(host, port, dataPort, trainingArgs, iteration, masterIP,
+static bool initiateTrain(std::string host, int port, std::string trainingArgs, int iteration, std::string masterIP) {
+    return initiateCommon(host, port, trainingArgs, iteration, masterIP,
                           JasmineGraphInstanceProtocol::INITIATE_FED_PREDICT);
 }
 
-static bool initiatePredict(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
-                            std::string masterIP) {
-    return initiateCommon(host, port, dataPort, trainingArgs, iteration, masterIP,
-                          JasmineGraphInstanceProtocol::INITIATE_FILES);
+static bool initiatePredict(std::string host, int port, std::string trainingArgs, int iteration, std::string masterIP) {
+    return initiateCommon(host, port, trainingArgs, iteration, masterIP, JasmineGraphInstanceProtocol::INITIATE_FILES);
 }
 
-static bool initiateServer(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
-                           std::string masterIP) {
-    return initiateCommon(host, port, dataPort, trainingArgs, iteration, masterIP,
-                          JasmineGraphInstanceProtocol::INITIATE_SERVER);
+static bool initiateServer(std::string host, int port, std::string trainingArgs, int iteration, std::string masterIP) {
+    return initiateCommon(host, port, trainingArgs, iteration, masterIP, JasmineGraphInstanceProtocol::INITIATE_SERVER);
 }
 
 // todo Remove partCount from parameters as the partition id is being parsed within the training args
-static bool initiateClient(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
-                           std::string masterIP) {
-    return initiateCommon(host, port, dataPort, trainingArgs, iteration, masterIP,
-                          JasmineGraphInstanceProtocol::INITIATE_CLIENT);
+static bool initiateClient(std::string host, int port, std::string trainingArgs, int iteration, std::string masterIP) {
+    return initiateCommon(host, port, trainingArgs, iteration, masterIP, JasmineGraphInstanceProtocol::INITIATE_CLIENT);
 }
 
-static bool initiateAggregator(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
+static bool initiateAggregator(std::string host, int port, std::string trainingArgs, int iteration,
                                std::string masterIP) {
-    return initiateCommon(host, port, dataPort, trainingArgs, iteration, masterIP,
-                          JasmineGraphInstanceProtocol::INITIATE_AGG);
+    return initiateCommon(host, port, trainingArgs, iteration, masterIP, JasmineGraphInstanceProtocol::INITIATE_AGG);
 }
 
-static bool initiateOrgServer(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
+static bool initiateOrgServer(std::string host, int port, std::string trainingArgs, int iteration,
                               std::string masterIP) {
-    return initiateCommon(host, port, dataPort, trainingArgs, iteration, masterIP,
+    return initiateCommon(host, port, trainingArgs, iteration, masterIP,
                           JasmineGraphInstanceProtocol::INITIATE_ORG_SERVER);
 }
 
@@ -2000,7 +1984,7 @@ bool JasmineGraphServer::receiveGlobalWeights(std::string host, int port, std::s
     return true;
 }
 
-bool JasmineGraphServer::mergeFiles(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
+bool JasmineGraphServer::mergeFiles(std::string host, int port, std::string trainingArgs, int iteration,
                                     string partCount, std::string masterIP) {
     bool result = true;
     int sockfd;
@@ -2115,7 +2099,6 @@ void JasmineGraphServer::egoNet(std::string graphID) {
         JasmineGraphServer::workerPartitions workerPartition = workerit->second;
         string host = workerit->first;
         int port = workerPartition.port;
-        int dataPort = workerPartition.dataPort;
 
         for (std::vector<std::string>::iterator partitionit = workerPartition.partitionID.begin();
              partitionit != workerPartition.partitionID.end(); partitionit++) {

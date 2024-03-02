@@ -33,8 +33,6 @@ class JasmineGraphInstance {
  public:
     int start_running(string hostName, string masterHost, int serverPort, int serverDataPort, string enableNmon);
 
-    bool acknowledgeMaster(string masterHost, string workerIP, string workerPort);
-
     void startNmonAnalyzer(string enableNmon, int serverPort);
 
     void registerShutdownHook();

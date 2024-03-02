@@ -76,7 +76,7 @@ class Utils {
 
     static bool is_number(const std::string &compareString);
 
-    static void createDirectory(const std::string dirName);
+    static int createDirectory(const std::string dirName);
 
     static std::vector<std::string> getListOfFilesInDirectory(std::string dirName);
 

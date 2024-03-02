@@ -13,6 +13,7 @@ limitations under the License.
 
 #include "JasmineGraphInstanceFileTransferService.h"
 
+#include "../server/JasmineGraphInstanceProtocol.h"
 #include "../util/Utils.h"
 #include "../util/logger/Logger.h"
 
@@ -24,26 +25,27 @@ void *filetransferservicesession(void *dummyPt) {
     filetransferservicesessionargs *sessionargs = (filetransferservicesessionargs *)dummyPt;
     int connFd = sessionargs->connFd;
     delete sessionargs;
-    char data[301];
-    bzero(data, 301);
-    read(connFd, data, 300);
-    string fileName = (data);
+    char data[INSTANCE_DATA_LENGTH + 1];
+    string fileName = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     string filePathWithName =
         Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
 
-    write(connFd, JasmineGraphInstanceProtocol::SEND_FILE.c_str(), JasmineGraphInstanceProtocol::SEND_FILE.size());
-    int bytesReceived;
-    char buffer[1024];
+    Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_FILE_LEN);
+    string fsizeStr = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    int fsize = stoi(fsizeStr);
+    Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_FILE);
+    char buffer[4096];
+    file_service_logger.info("File transfer started for file: " + fileName);
     std::ofstream file(filePathWithName, std::ios::out | std::ios::binary);
-    do {
-        bytesReceived = recv(connFd, buffer, sizeof(buffer), 0);
+    while (fsize > 0) {
+        int bytesReceived = recv(connFd, buffer, sizeof(buffer), 0);
         if (bytesReceived > 0) {
             file.write(buffer, bytesReceived);
-            // printf("Buffer: %.*s\n", connFd, buffer);
-            // or: printf("Buffer: %*.*s\n", bytes_read, bytes_read, buffer);
+            fsize -= bytesReceived;
         }
-    } while (bytesReceived > 0);
+    }
     file.close();
+    file_service_logger.info("File transfer completed for file: " + fileName);
     return NULL;
 }
 

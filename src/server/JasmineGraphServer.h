@@ -148,7 +148,7 @@ class JasmineGraphServer {
 
     void initiateMerge(std::string graphID, std::string trainingArgs, SQLiteDBInterface *sqlite);
 
-    static bool mergeFiles(std::string host, int port, int dataPort, std::string trainingArgs, int iteration,
+    static bool mergeFiles(std::string host, int port, std::string trainingArgs, int iteration,
                            string partCount, std::string masterIP);
 
     static bool receiveGlobalWeights(std::string host, int port, std::string trainingArgs, int iteration,
