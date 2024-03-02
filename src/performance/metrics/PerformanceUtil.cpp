@@ -659,6 +659,8 @@ void PerformanceUtil::initiateCollectingRemoteSLAResourceUtilization(std::string
             }
         }
     }
+    Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+    close(sockfd);
 }
 
 std::string PerformanceUtil::requestRemoteLoadAverages(std::string host, int port, std::string isVMStatManager,

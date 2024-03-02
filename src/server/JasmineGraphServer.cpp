@@ -632,6 +632,7 @@ void JasmineGraphServer::resolveOperationalGraphs() {
         }
 
         if (!Utils::performHandshake(sockfd, data, FED_DATA_LENGTH, this->masterHost)) {
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
             close(sockfd);
             continue;
         }
@@ -639,6 +640,7 @@ void JasmineGraphServer::resolveOperationalGraphs() {
         if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH,
                                        JasmineGraphInstanceProtocol::INITIATE_FRAGMENT_RESOLUTION,
                                        JasmineGraphInstanceProtocol::OK)) {
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
             close(sockfd);
             continue;
         }
@@ -667,6 +669,7 @@ void JasmineGraphServer::resolveOperationalGraphs() {
             continue;
         }
         if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::FRAGMENT_RESOLUTION_DONE)) {
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
             close(sockfd);
             continue;
         }
@@ -680,6 +683,7 @@ void JasmineGraphServer::resolveOperationalGraphs() {
                 graphIDsFromWorkersSet.insert(atoi(it->c_str()));
             }
         }
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
         close(sockfd);
     }
 
@@ -789,6 +793,7 @@ int JasmineGraphServer::shutdown_worker(std::string workerIP, int port) {
 
     string response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
     server_logger.info("Response: " + response);
+    close(sockfd);
     return 0;
 }
 
@@ -1171,6 +1176,7 @@ static bool removeFragmentThroughService(string host, int port, string graphID, 
     }
 
     if (!Utils::performHandshake(sockfd, data, FED_DATA_LENGTH, masterIP)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
         close(sockfd);
         return false;
     }
@@ -1178,6 +1184,7 @@ static bool removeFragmentThroughService(string host, int port, string graphID, 
     if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH,
                                    JasmineGraphInstanceProtocol::DELETE_GRAPH_FRAGMENT,
                                    JasmineGraphInstanceProtocol::OK)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
         close(sockfd);
         return false;
     }
@@ -1186,7 +1193,7 @@ static bool removeFragmentThroughService(string host, int port, string graphID, 
         close(sockfd);
         return false;
     }
-
+    Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
     close(sockfd);
     return true;
 }
@@ -1226,12 +1233,14 @@ static bool removePartitionThroughService(string host, int port, string graphID,
     }
 
     if (!Utils::performHandshake(sockfd, data, FED_DATA_LENGTH, masterIP)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
         close(sockfd);
         return false;
     }
 
     if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, JasmineGraphInstanceProtocol::DELETE_GRAPH,
                                    JasmineGraphInstanceProtocol::OK)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
         close(sockfd);
         return false;
     }
@@ -1243,10 +1252,12 @@ static bool removePartitionThroughService(string host, int port, string graphID,
     }
 
     if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, partitionID, JasmineGraphInstanceProtocol::OK)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
         close(sockfd);
         return false;
     }
 
+    Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
     close(sockfd);
     return true;
 }
@@ -1495,26 +1506,31 @@ static void degreeDistributionCommon(std::string graphID, std::string command) {
 
             if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, command,
                                            JasmineGraphInstanceProtocol::OK)) {
+                Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
                 close(sockfd);
                 continue;
             }
 
             if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, graphID,
                                            JasmineGraphInstanceProtocol::OK)) {
+                Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
                 close(sockfd);
                 continue;
             }
 
             if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, partition,
                                            JasmineGraphInstanceProtocol::OK)) {
+                Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
                 close(sockfd);
                 continue;
             }
 
             if (!Utils::send_str_wrapper(sockfd, workerList)) {
+                Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
                 close(sockfd);
                 continue;
             }
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
             close(sockfd);
             server_logger.info("Sent: " + workerList);
         }
@@ -1602,18 +1618,21 @@ void JasmineGraphServer::duplicateCentralStore(std::string graphID) {
             if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH,
                                            JasmineGraphInstanceProtocol::DP_CENTRALSTORE,
                                            JasmineGraphInstanceProtocol::OK)) {
+                Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
                 close(sockfd);
                 continue;
             }
 
             if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, graphID,
                                            JasmineGraphInstanceProtocol::OK)) {
+                Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
                 close(sockfd);
                 continue;
             }
 
             if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, partition,
                                            JasmineGraphInstanceProtocol::OK)) {
+                Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
                 close(sockfd);
                 continue;
             }
@@ -1623,6 +1642,7 @@ void JasmineGraphServer::duplicateCentralStore(std::string graphID) {
                 continue;
             }
             server_logger.info("Sent: " + workerList);
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
             close(sockfd);
         }
     }
@@ -1840,21 +1860,25 @@ static bool initiateCommon(std::string host, int port, std::string trainingArgs,
     }
 
     if (!Utils::performHandshake(sockfd, data, FED_DATA_LENGTH, masterIP)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
         close(sockfd);
         return false;
     }
 
     if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, initType, JasmineGraphInstanceProtocol::OK)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
         close(sockfd);
         return false;
     }
 
     if (!Utils::send_str_wrapper(sockfd, trainingArgs)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
         close(sockfd);
         return false;
     }
     server_logger.info("Sent: " + trainingArgs);
 
+    Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
     close(sockfd);
     return true;
 }
@@ -1980,6 +2004,7 @@ bool JasmineGraphServer::receiveGlobalWeights(std::string host, int port, std::s
             break;
         }
     }
+    Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
     close(sockfd);
     return true;
 }
@@ -2020,22 +2045,26 @@ bool JasmineGraphServer::mergeFiles(std::string host, int port, std::string trai
     }
 
     if (!Utils::performHandshake(sockfd, data, FED_DATA_LENGTH, masterIP)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
         close(sockfd);
         return false;
     }
 
     if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, JasmineGraphInstanceProtocol::MERGE_FILES,
                                    JasmineGraphInstanceProtocol::OK)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
         close(sockfd);
         return false;
     }
 
     if (!Utils::send_str_wrapper(sockfd, trainingArgs)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
         close(sockfd);
         return false;
     }
     server_logger.info("Sent: " + trainingArgs);
 
+    Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
     close(sockfd);
     return true;
 }
@@ -2076,16 +2105,19 @@ bool JasmineGraphServer::sendTrainCommand(std::string host, int port, std::strin
 
     if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, JasmineGraphInstanceProtocol::INITIATE_TRAIN,
                                    JasmineGraphInstanceProtocol::OK)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
         close(sockfd);
         return false;
     }
 
     if (!Utils::send_str_wrapper(sockfd, trainingArgs)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
         close(sockfd);
         return false;
     }
     server_logger.info("Sent: " + trainingArgs);
 
+    Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
     close(sockfd);
     return true;
 }
@@ -2145,28 +2177,33 @@ void JasmineGraphServer::egoNet(std::string graphID) {
 
             if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, JasmineGraphInstanceProtocol::EGONET,
                                            JasmineGraphInstanceProtocol::OK)) {
+                Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
                 close(sockfd);
                 return;
             }
 
             if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, graphID,
                                            JasmineGraphInstanceProtocol::OK)) {
+                Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
                 close(sockfd);
                 return;
             }
 
             if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, partition,
                                            JasmineGraphInstanceProtocol::OK)) {
+                Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
                 close(sockfd);
                 return;
             }
 
             if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, workerList,
                                            JasmineGraphInstanceProtocol::OK)) {
+                Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
                 close(sockfd);
                 return;
             }
 
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
             close(sockfd);
         }
     }

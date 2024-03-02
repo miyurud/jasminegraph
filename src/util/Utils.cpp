@@ -873,11 +873,13 @@ bool Utils::uploadFileToWorker(std::string host, int port, int dataPort, int gra
     }
 
     if (!Utils::performHandshake(sockfd, data, FED_DATA_LENGTH, masterIP)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
         close(sockfd);
         return false;
     }
 
     if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, uploadType, JasmineGraphInstanceProtocol::OK)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
         close(sockfd);
         return false;
     }
@@ -888,18 +890,21 @@ bool Utils::uploadFileToWorker(std::string host, int port, int dataPort, int gra
 
     if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, std::to_string(graphID),
                                    JasmineGraphInstanceProtocol::SEND_FILE_NAME)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
         close(sockfd);
         return false;
     }
 
     if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, fileName,
                                    JasmineGraphInstanceProtocol::SEND_FILE_LEN)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
         close(sockfd);
         return false;
     }
 
     if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, fileLength,
                                    JasmineGraphInstanceProtocol::SEND_FILE_CONT)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
         close(sockfd);
         return false;
     }
@@ -911,6 +916,7 @@ bool Utils::uploadFileToWorker(std::string host, int port, int dataPort, int gra
     int count = 0;
     while (true) {
         if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::FILE_RECV_CHK)) {
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
             close(sockfd);
             return false;
         }
@@ -933,6 +939,7 @@ bool Utils::uploadFileToWorker(std::string host, int port, int dataPort, int gra
     // Next we wait till the batch upload completes
     while (true) {
         if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK)) {
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
             close(sockfd);
             return false;
         }
@@ -949,6 +956,7 @@ bool Utils::uploadFileToWorker(std::string host, int port, int dataPort, int gra
             break;
         }
     }
+    Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
     close(sockfd);
     return true;
 }
@@ -988,6 +996,7 @@ bool Utils::sendFileThroughService(std::string host, int dataPort, std::string f
 
     if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, fileName,
                                    JasmineGraphInstanceProtocol::SEND_FILE_LEN)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
         close(sockfd);
         return false;
     }
@@ -995,6 +1004,7 @@ bool Utils::sendFileThroughService(std::string host, int dataPort, std::string f
     int fsize = Utils::getFileSize(filePath);
     if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, to_string(fsize),
                                    JasmineGraphInstanceProtocol::SEND_FILE)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
         close(sockfd);
         return false;
     }
@@ -1018,6 +1028,7 @@ bool Utils::sendFileThroughService(std::string host, int dataPort, std::string f
     }
 
     fclose(fp);
+    Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
     close(sockfd);
     return status;
 }

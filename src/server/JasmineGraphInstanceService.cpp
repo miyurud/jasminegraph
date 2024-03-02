@@ -814,7 +814,7 @@ int JasmineGraphInstanceService::collectTrainedModelThreadFunction(instanceservi
     } else {
         instance_logger.error("There was an error in the model collection process and the response is :: " + response);
     }
-
+    Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
     close(sockfd);
     return 0;
 }
@@ -1026,6 +1026,7 @@ bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int 
         if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) != 0) {
             instance_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::HANDSHAKE_OK +
                                   " ; Received: " + response);
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
             close(sockfd);
             continue;
         }
@@ -1039,6 +1040,7 @@ bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int 
         if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) != 0) {
             instance_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::HOST_OK +
                                   " ; Received: " + response);
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
             close(sockfd);
             continue;
         }
@@ -1052,6 +1054,7 @@ bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int 
         if (response.compare(JasmineGraphInstanceProtocol::OK) != 0) {
             instance_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::OK +
                                   " ; Received: " + response);
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
             close(sockfd);
             continue;
         }
@@ -1069,6 +1072,7 @@ bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int 
         if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_NAME) != 0) {
             instance_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::SEND_FILE_NAME +
                                   " ; Received: " + response);
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
             close(sockfd);
             continue;
         }
@@ -1082,6 +1086,7 @@ bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int 
         if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_LEN) != 0) {
             instance_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::SEND_FILE_LEN +
                                   " ; Received: " + response);
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
             close(sockfd);
             continue;
         }
@@ -1094,6 +1099,7 @@ bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int 
         if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_CONT) != 0) {
             instance_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::SEND_FILE_CONT +
                                   " ; Received: " + response);
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
             close(sockfd);
             continue;
         }
@@ -1146,6 +1152,7 @@ bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int 
             }
         }
     END_OUTER_LOOP:
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
         close(sockfd);
     }
     return true;
@@ -1494,6 +1501,7 @@ void calculateEgoNet(string graphID, string partitionID, int serverPort, Jasmine
         }
 
         if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::WORKER_EGO_NET)) {
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
             close(sockfd);
             continue;
         }
@@ -1502,12 +1510,14 @@ void calculateEgoNet(string graphID, string partitionID, int serverPort, Jasmine
         string response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::OK) != 0) {
             instance_logger.error("Error reading from socket");
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
             close(sockfd);
             continue;
         }
         instance_logger.info("Received : " + response);
 
         if (Utils::send_str_wrapper(sockfd, graphID)) {
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
             close(sockfd);
             continue;
         }
@@ -1515,6 +1525,7 @@ void calculateEgoNet(string graphID, string partitionID, int serverPort, Jasmine
         response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::OK) != 0) {
             instance_logger.error("Error reading from socket");
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
             close(sockfd);
             continue;
         }
@@ -1524,6 +1535,7 @@ void calculateEgoNet(string graphID, string partitionID, int serverPort, Jasmine
         string egonetString;
 
         if (!Utils::send_str_wrapper(sockfd, workerSocketPair[2])) {
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
             close(sockfd);
             continue;
         }
@@ -1532,11 +1544,13 @@ void calculateEgoNet(string graphID, string partitionID, int serverPort, Jasmine
         response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::OK) != 0) {
             instance_logger.error("Error reading from socket");
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
             close(sockfd);
             continue;
         }
 
         if (!Utils::send_str_wrapper(sockfd, workerList)) {
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
             close(sockfd);
             continue;
         }
@@ -1545,9 +1559,11 @@ void calculateEgoNet(string graphID, string partitionID, int serverPort, Jasmine
         response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::OK) != 0) {
             instance_logger.error("Error reading from socket");
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
             close(sockfd);
             continue;
         }
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
         close(sockfd);
     }
 }

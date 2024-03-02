@@ -44,7 +44,10 @@ DataPublisher::DataPublisher(int worker_port, std::string worker_address) {
     }
 }
 
-DataPublisher::~DataPublisher() { close(sock); }
+DataPublisher::~DataPublisher() {
+    Utils::send_str_wrapper(sock, JasmineGraphInstanceProtocol::CLOSE);
+    close(sock);
+}
 
 void DataPublisher::publish(std::string message) {
     char receiver_buffer[MAX_STREAMING_DATA_LENGTH] = {0};

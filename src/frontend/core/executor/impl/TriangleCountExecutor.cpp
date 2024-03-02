@@ -511,13 +511,16 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
         }
 
         triangleCount_logger.info("###COMPOSITE### Returning Total Triangles from executer ");
-
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
         return triangleCount;
 
     } else {
         triangleCount_logger.log("There was an error in the upload process and the response is :: " + response,
                                  "error");
     }
+    Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+    close(sockfd);
     return 0;
 }
 
@@ -859,7 +862,8 @@ static string isFileAccessibleToWorker(std::string graphId, std::string partitio
             }
         }
     }
-
+    Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+    close(sockfd);
     return isFileAccessible;
 }
 
@@ -1049,6 +1053,8 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
         triangleCount_logger.log("There was an error in the upload process and the response is :: " + response,
                                  "error");
     }
+    Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+    close(sockfd);
     return response;
 }
 
@@ -1225,6 +1231,8 @@ string TriangleCountExecutor::countCompositeCentralStoreTriangles(std::string ag
         triangleCount_logger.log("There was an error in the upload process and the response is :: " + response,
                                  "error");
     }
+    Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+    close(sockfd);
     return response;
 }
 
@@ -1433,6 +1441,8 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
         triangleCount_logger.log("There was an error in the upload process and the response is :: " + response,
                                  "error");
     }
+    Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+    close(sockfd);
     return response;
 }
 
@@ -1602,6 +1612,8 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorP
         triangleCount_logger.log("There was an error in the upload process and the response is :: " + response,
                                  "error");
     }
+    Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+    close(sockfd);
     return response;
 }
 
