@@ -655,8 +655,7 @@ void MetisPartitioner::writeSerializedPartitionFiles(int part) {
 
     std::map<int, std::vector<int>> partEdgeMap = partitionedLocalGraphStorageMap[part];
 
-    JasmineGraphHashMapLocalStore *hashMapLocalStore = new JasmineGraphHashMapLocalStore();
-    hashMapLocalStore->storePartEdgeMap(partEdgeMap, outputFilePart);
+    JasmineGraphHashMapLocalStore::storePartEdgeMap(partEdgeMap, outputFilePart);
 
     // Compress part files
     Utils::compressFile(outputFilePart);
@@ -672,8 +671,7 @@ void MetisPartitioner::writeSerializedMasterFiles(int part) {
 
     std::map<int, std::vector<int>> partMasterEdgeMap = masterGraphStorageMap[part];
 
-    JasmineGraphHashMapCentralStore *hashMapCentralStore = new JasmineGraphHashMapCentralStore();
-    hashMapCentralStore->storePartEdgeMap(partMasterEdgeMap, outputFilePartMaster);
+    JasmineGraphHashMapCentralStore::storePartEdgeMap(partMasterEdgeMap, outputFilePartMaster);
 
     Utils::compressFile(outputFilePartMaster);
     masterFileMutex.lock();
@@ -688,8 +686,7 @@ void MetisPartitioner::writeSerializedDuplicateMasterFiles(int part) {
 
     std::map<int, std::vector<int>> partMasterEdgeMap = duplicateMasterGraphStorageMap[part];
 
-    JasmineGraphHashMapCentralStore *hashMapCentralStore = new JasmineGraphHashMapCentralStore();
-    hashMapCentralStore->storePartEdgeMap(partMasterEdgeMap, outputFilePartMaster);
+    JasmineGraphHashMapCentralStore::storePartEdgeMap(partMasterEdgeMap, outputFilePartMaster);
 
     Utils::compressFile(outputFilePartMaster);
     masterFileMutex.lock();
@@ -793,8 +790,7 @@ void MetisPartitioner::writeRDFAttributeFilesForPartitions(int part) {
         }
     }
 
-    JasmineGraphHashMapLocalStore *hashMapLocalStore = new JasmineGraphHashMapLocalStore();
-    hashMapLocalStore->storeAttributes(partitionedEdgeAttributes, attributeFilePart);
+    JasmineGraphHashMapLocalStore::storeAttributes(partitionedEdgeAttributes, attributeFilePart);
 
     Utils::compressFile(attributeFilePart);
     partAttrFileMutex.lock();
@@ -826,8 +822,7 @@ void MetisPartitioner::writeRDFAttributeFilesForMasterParts(int part) {
         }
     }
 
-    JasmineGraphHashMapLocalStore *hashMapLocalStore = new JasmineGraphHashMapLocalStore();
-    hashMapLocalStore->storeAttributes(centralStoreEdgeAttributes, attributeFilePartMaster);
+    JasmineGraphHashMapLocalStore::storeAttributes(centralStoreEdgeAttributes, attributeFilePartMaster);
 
     Utils::compressFile(attributeFilePartMaster);
     masterAttrFileMutex.lock();

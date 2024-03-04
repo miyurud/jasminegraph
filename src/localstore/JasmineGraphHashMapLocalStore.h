@@ -92,7 +92,7 @@ class JasmineGraphHashMapLocalStore : public JasmineGraphLocalStore {
 
     bool storeGraph();
 
-    bool storeAttributes(std::map<long, std::vector<string>> attributeMap, const std::string storePath);
+    static bool storeAttributes(const std::map<long, std::vector<string>> &attributeMap, const std::string &storePath);
 
     long getEdgeCount();
 
@@ -122,7 +122,7 @@ class JasmineGraphHashMapLocalStore : public JasmineGraphLocalStore {
 
     bool loadPartEdgeMap(const std::string filePath);
 
-    bool storePartEdgeMap(std::map<int, std::vector<int>> edgeMap, const std::string savePath);
+    static bool storePartEdgeMap(const std::map<int, std::vector<int>> &edgeMap, const std::string &savePath);
 
     map<int, std::vector<int>> getEdgeHashMap(const std::string filePath);
 };

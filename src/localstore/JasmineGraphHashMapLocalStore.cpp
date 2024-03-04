@@ -176,34 +176,25 @@ void JasmineGraphHashMapLocalStore::initialize() {}
 
 void JasmineGraphHashMapLocalStore::addVertex(string *attributes) {}
 
-bool JasmineGraphHashMapLocalStore::storeAttributes(std::map<long, std::vector<string>> attributeMap,
-                                                    const string storePath) {
-    this->localAttributeMap = attributeMap;
-    bool result = false;
+bool JasmineGraphHashMapLocalStore::storeAttributes(const std::map<long, std::vector<string>> &attributeMap,
+                                                    const string &storePath) {
     flatbuffers::FlatBufferBuilder builder;
     std::vector<flatbuffers::Offset<AttributeStoreEntry>> attributeStoreEntriesVector;
 
-    std::map<long, std::vector<std::string>>::iterator mapIterator;
-    for (mapIterator = localAttributeMap.begin(); mapIterator != localAttributeMap.end(); mapIterator++) {
+    for (auto mapIterator = attributeMap.begin(); mapIterator != attributeMap.end(); mapIterator++) {
         long key = mapIterator->first;
-        std::vector<std::string> attributeVector = mapIterator->second;
-
-        auto flatbufferVector = builder.CreateVectorOfStrings(attributeVector);
+        auto flatbufferVector = builder.CreateVectorOfStrings(mapIterator->second);
         auto attributeStoreEntry = CreateAttributeStoreEntry(builder, key, flatbufferVector);
         attributeStoreEntriesVector.push_back(attributeStoreEntry);
     }
 
     auto flatBuffersAttributeStoreEntriesVector = builder.CreateVectorOfSortedTables(&attributeStoreEntriesVector);
-
     auto attributeStore = CreateAttributeStore(builder, flatBuffersAttributeStoreEntriesVector);
-
     builder.Finish(attributeStore);
 
     flatbuffers::SaveFile(storePath.c_str(), (const char *)builder.GetBufferPointer(), (size_t)builder.GetSize(), true);
 
-    result = true;
-
-    return result;
+    return true;
 }
 
 bool JasmineGraphHashMapLocalStore::loadAttributes() {
@@ -298,26 +289,20 @@ bool JasmineGraphHashMapLocalStore::loadPartEdgeMap(const std::string filePath) 
     return result;
 }
 
-bool JasmineGraphHashMapLocalStore::storePartEdgeMap(std::map<int, std::vector<int>> edgeMap,
-                                                     const std::string savePath) {
+bool JasmineGraphHashMapLocalStore::storePartEdgeMap(const std::map<int, std::vector<int>> &edgeMap,
+                                                     const std::string &savePath) {
     bool result = false;
     flatbuffers::FlatBufferBuilder builder;
     std::vector<flatbuffers::Offset<PartEdgeMapStoreEntry>> edgeStoreEntriesVector;
-
-    std::map<int, std::vector<int>>::iterator mapIterator;
-    for (mapIterator = edgeMap.begin(); mapIterator != edgeMap.end(); mapIterator++) {
+    for (auto mapIterator = edgeMap.begin(); mapIterator != edgeMap.end(); mapIterator++) {
         int key = mapIterator->first;
-        std::vector<int> value = mapIterator->second;
-        std::vector<int> valueVector(value.begin(), value.end());
-        auto flatbufferVector = builder.CreateVector(valueVector);
+        auto flatbufferVector = builder.CreateVector(mapIterator->second);
         auto edgeStoreEntry = CreatePartEdgeMapStoreEntry(builder, key, flatbufferVector);
         edgeStoreEntriesVector.push_back(edgeStoreEntry);
     }
 
     auto flatBuffersEdgeStoreEntriesVector = builder.CreateVectorOfSortedTables(&edgeStoreEntriesVector);
-
     auto edgeStore = CreatePartEdgeMapStore(builder, flatBuffersEdgeStoreEntriesVector);
-
     builder.Finish(edgeStore);
 
     flatbuffers::SaveFile(savePath.c_str(), (const char *)builder.GetBufferPointer(), (size_t)builder.GetSize(), true);

@@ -178,9 +178,8 @@ long JasmineGraphHashMapCentralStore::getVertexCount() {
 
 long JasmineGraphHashMapCentralStore::getEdgeCount() {
     if (edgeCount == 0) {
-        std::map<long, std::unordered_set<long>>::iterator localSubGraphMapIterator;
         long mapSize = centralSubgraphMap.size();
-        for (localSubGraphMapIterator = centralSubgraphMap.begin();
+        for (auto localSubGraphMapIterator = centralSubgraphMap.begin();
              localSubGraphMapIterator != centralSubgraphMap.end(); localSubGraphMapIterator++) {
             edgeCount = edgeCount + localSubGraphMapIterator->second.size();
         }
@@ -211,31 +210,23 @@ void JasmineGraphHashMapCentralStore::toLocalSubGraphMap(const PartEdgeMapStore 
     }
 }
 
-bool JasmineGraphHashMapCentralStore::storePartEdgeMap(std::map<int, std::vector<int>> edgeMap,
-                                                       const std::string savePath) {
-    bool result = false;
+bool JasmineGraphHashMapCentralStore::storePartEdgeMap(const std::map<int, std::vector<int>> &edgeMap,
+                                                       const std::string &savePath) {
     flatbuffers::FlatBufferBuilder builder;
     std::vector<flatbuffers::Offset<PartEdgeMapStoreEntry>> edgeStoreEntriesVector;
 
-    std::map<int, std::vector<int>>::iterator mapIterator;
-    for (mapIterator = edgeMap.begin(); mapIterator != edgeMap.end(); mapIterator++) {
+    for (auto mapIterator = edgeMap.begin(); mapIterator != edgeMap.end(); mapIterator++) {
         int key = mapIterator->first;
-        std::vector<int> value = mapIterator->second;
-        std::vector<int> valueVector(value.begin(), value.end());
-        auto flatbufferVector = builder.CreateVector(valueVector);
+        auto flatbufferVector = builder.CreateVector(mapIterator->second);
         auto edgeStoreEntry = CreatePartEdgeMapStoreEntry(builder, key, flatbufferVector);
         edgeStoreEntriesVector.push_back(edgeStoreEntry);
     }
 
     auto flatBuffersEdgeStoreEntriesVector = builder.CreateVectorOfSortedTables(&edgeStoreEntriesVector);
-
     auto edgeStore = CreatePartEdgeMapStore(builder, flatBuffersEdgeStoreEntriesVector);
-
     builder.Finish(edgeStore);
 
     flatbuffers::SaveFile(savePath.c_str(), (const char *)builder.GetBufferPointer(), (size_t)builder.GetSize(), true);
 
-    result = true;
-
-    return result;
+    return true;
 }

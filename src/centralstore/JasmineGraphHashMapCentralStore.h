@@ -80,7 +80,7 @@ class JasmineGraphHashMapCentralStore : public JasmineGraphLocalStore {
 
     long getEdgeCount();
 
-    bool storePartEdgeMap(std::map<int, std::vector<int>> edgeMap, const std::string savePath);
+    static bool storePartEdgeMap(const std::map<int, std::vector<int>> &edgeMap, const std::string &savePath);
 };
 
 #endif  // JASMINEGRAPH_JASMINEGRAPHHASHMAPCENTRALSTORE_H
