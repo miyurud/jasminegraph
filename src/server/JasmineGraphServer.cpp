@@ -155,6 +155,7 @@ void JasmineGraphServer::init() {
 }
 
 void JasmineGraphServer::start_workers() {
+    // Not used in K8s mode
     int hostListModeNWorkers = 0;
     int numberOfWorkersPerHost;
     std::vector<std::string> hostsList;
@@ -537,19 +538,18 @@ void JasmineGraphServer::resolveOperationalGraphs() {
     std::vector<vector<pair<string, string>>> output = this->sqlite->runSelect(sqlStatement);
     std::map<int, vector<string>> partitionMap;
 
-    for (std::vector<vector<pair<string, string>>>::iterator i = output.begin(); i != output.end(); ++i) {
+    for (auto i = output.begin(); i != output.end(); ++i) {
         int workerID = -1;
         string graphID;
         string partitionID;
-        std::vector<pair<string, string>>::iterator j = (i->begin());
+        auto j = i->begin();
         graphID = j->second;
         ++j;
         partitionID = j->second;
         ++j;
         workerID = std::stoi(j->second);
-        std::vector<string> partitionList = partitionMap[workerID];
+        std::vector<string> &partitionList = partitionMap[workerID];
         partitionList.push_back(graphID + "_" + partitionID);
-        partitionMap[workerID] = partitionList;
     }
 
     int RECORD_AGGREGATION_FREQUENCY = 5;
@@ -562,25 +562,23 @@ void JasmineGraphServer::resolveOperationalGraphs() {
 
         for (std::vector<string>::iterator x = (it->second).begin(); x != (it->second).end(); ++x) {
             if (counter >= RECORD_AGGREGATION_FREQUENCY) {
-                std::vector<string> partitionList = partitionAggregatedMap[workerID];
+                std::vector<string> &partitionList = partitionAggregatedMap[workerID];
                 string data = ss.str();
                 std::stringstream().swap(ss);
                 counter = 0;
                 data = data.substr(0, data.find_last_of(","));
                 partitionList.push_back(data);
-                partitionAggregatedMap[workerID] = partitionList;
             }
             ss << x->c_str() << ",";
             counter++;
         }
 
-        std::vector<string> partitionList = partitionAggregatedMap[workerID];
+        std::vector<string> &partitionList = partitionAggregatedMap[workerID];
         string data = ss.str();
         std::stringstream().swap(ss);
         counter = 0;
         data = data.substr(0, data.find_last_of(","));
         partitionList.push_back(data);
-        partitionAggregatedMap[workerID] = partitionList;
     }
 
     sqlStatement = "SELECT idworker,ip,server_port FROM worker";
@@ -592,7 +590,7 @@ void JasmineGraphServer::resolveOperationalGraphs() {
         string host;
         int workerPort = -1;
         string partitionID;
-        std::vector<pair<string, string>>::iterator j = (i->begin());
+        std::vector<pair<string, string>>::iterator j = i->begin();
         workerID = std::stoi(j->second);
         ++j;
         host = j->second;
@@ -665,6 +663,7 @@ void JasmineGraphServer::resolveOperationalGraphs() {
             }
         }
         if (!success) {
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
             close(sockfd);
             continue;
         }
@@ -690,8 +689,8 @@ void JasmineGraphServer::resolveOperationalGraphs() {
     sqlStatement = "SELECT idgraph FROM graph";
     std::vector<vector<pair<string, string>>> output2 = this->sqlite->runSelect(sqlStatement);
     std::set<int> graphIDsFromMetDBSet;
-    for (std::vector<vector<pair<string, string>>>::iterator i = output2.begin(); i != output2.end(); ++i) {
-        std::vector<pair<string, string>>::iterator j = (i->begin());
+    for (auto i = output2.begin(); i != output2.end(); ++i) {
+        auto j = i->begin();
         graphIDsFromMetDBSet.insert(atoi(j->second.c_str()));
     }
 
@@ -955,7 +954,7 @@ static void assignPartitionToWorker(std::string fileName, int graphId, std::stri
         workerHost = Utils::split(workerHost, '@')[1];
     }
 
-    std::string workerSearchQuery = "select idworker from worker where ip='" + workerHost + "' and server_port='" +
+    std::string workerSearchQuery = "SELECT idworker FROM worker WHERE ip='" + workerHost + "' AND server_port='" +
                                     std::to_string(workerPort) + "'";
 
     std::vector<vector<pair<string, string>>> results = refToSqlite->runSelect(workerSearchQuery);
@@ -963,7 +962,7 @@ static void assignPartitionToWorker(std::string fileName, int graphId, std::stri
     std::string workerID = results[0][0].second;
 
     std::string partitionToWorkerQuery =
-        "insert into worker_has_partition (partition_idpartition, partition_graph_idgraph, worker_idworker) values "
+        "INSERT INTO worker_has_partition (partition_idpartition, partition_graph_idgraph, worker_idworker) VALUES "
         "('" +
         partitionID + "','" + std::to_string(graphId) + "','" + workerID + "')";
 
@@ -1271,25 +1270,26 @@ void JasmineGraphServer::updateOperationalGraphList() {
         hostsList = Utils::getHostListFromProperties();
     } else if (jasminegraph_profile == PROFILE_DOCKER) {
         hostsList = getWorkerVector(workerHosts);
+    } else {
+        return;  // TODO(thevindu-w): implement.for k8s
     }
-    vector<string>::iterator it;
-    for (it = hostsList.begin(); it < hostsList.end(); it++) {
+    for (auto it = hostsList.begin(); it < hostsList.end(); it++) {
         string host = *it;
         hosts += ("'" + host + "', ");
     }
     hosts = hosts.substr(0, hosts.size() - 2);
     string sqlStatement =
-        ("SELECT b.partition_graph_idgraph FROM worker_has_partition AS b "
-         "JOIN worker WHERE worker.idworker = b.worker_idworker AND worker.name IN "
-         "(" +
-         hosts +
-         ") GROUP BY b.partition_graph_idgraph HAVING COUNT(b.partition_idpartition)= "
-         "(SELECT COUNT(a.idpartition) FROM partition AS a "
-         "WHERE a.graph_idgraph = b.partition_graph_idgraph);");
+        "SELECT b.partition_graph_idgraph FROM worker_has_partition AS b "
+        "JOIN worker WHERE worker.idworker = b.worker_idworker AND worker.name IN "
+        "(" +
+        hosts +
+        ") GROUP BY b.partition_graph_idgraph HAVING COUNT(b.partition_idpartition)= "
+        "(SELECT COUNT(a.idpartition) FROM partition AS a "
+        "WHERE a.graph_idgraph = b.partition_graph_idgraph);";
     std::vector<vector<pair<string, string>>> v = this->sqlite->runSelect(sqlStatement);
     for (std::vector<vector<pair<string, string>>>::iterator i = v.begin(); i != v.end(); ++i) {
-        for (std::vector<pair<string, string>>::iterator j = (i->begin()); j != i->end(); ++j) {
-            graphIDs += (j->second + ", ");
+        for (std::vector<pair<string, string>>::iterator j = i->begin(); j != i->end(); ++j) {
+            graphIDs += j->second + ", ";
         }
     }
     graphIDs = graphIDs.substr(0, graphIDs.size() - 2);

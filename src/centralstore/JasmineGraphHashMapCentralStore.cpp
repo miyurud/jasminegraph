@@ -62,9 +62,8 @@ bool JasmineGraphHashMapCentralStore::loadGraph() {
     return result;
 }
 
-bool JasmineGraphHashMapCentralStore::loadGraph(std::string fileName) {
+bool JasmineGraphHashMapCentralStore::loadGraph(const std::string &edgeStorePath) {
     bool result = false;
-    std::string edgeStorePath = fileName;
 
     std::ifstream dbFile;
     dbFile.open(edgeStorePath, std::ios::binary | std::ios::in);
@@ -134,9 +133,7 @@ map<long, long> JasmineGraphHashMapCentralStore::getOutDegreeDistributionHashMap
     for (map<long, unordered_set<long>>::iterator it = centralSubgraphMap.begin(); it != centralSubgraphMap.end();
          ++it) {
         long distribution = (it->second).size();
-        auto key = it->first;
-        auto nodes = it->second;
-        unordered_set<long> neighboursOfNeighbour = nodes;
+        unordered_set<long> neighboursOfNeighbour = it->second;
         distributionHashMap[it->first] = distribution;
     }
     return distributionHashMap;
@@ -145,12 +142,10 @@ map<long, long> JasmineGraphHashMapCentralStore::getOutDegreeDistributionHashMap
 map<long, long> JasmineGraphHashMapCentralStore::getInDegreeDistributionHashMap() {
     map<long, long> distributionHashMap;
 
-    for (map<long, unordered_set<long>>::iterator it = centralSubgraphMap.begin(); it != centralSubgraphMap.end();
-         ++it) {
-        unordered_set<long> distribution = it->second;
-
+    for (auto it = centralSubgraphMap.begin(); it != centralSubgraphMap.end(); ++it) {
+        const auto &distribution = it->second;
         for (auto itr = distribution.begin(); itr != distribution.end(); ++itr) {
-            std::map<long, long>::iterator distMapItr = distributionHashMap.find(*itr);
+            auto distMapItr = distributionHashMap.find(*itr);
             if (distMapItr != distributionHashMap.end()) {
                 long previousValue = distMapItr->second;
                 distMapItr->second = previousValue + 1;

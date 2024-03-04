@@ -60,7 +60,7 @@ class JasmineGraphHashMapCentralStore : public JasmineGraphLocalStore {
 
     bool loadGraph();
 
-    bool loadGraph(std::string fileName);
+    bool loadGraph(const std::string &fileName);
 
     bool storeGraph();
 

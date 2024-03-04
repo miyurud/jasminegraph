@@ -134,32 +134,30 @@ void *frontendservicesesion(void *dummyPt) {
     bool workerClientsInitialized = false;
 
     bool loop_exit = false;
+    int failCnt = 0;
     while (!loop_exit) {
-        if (currentFESession == Conts::MAX_FE_SESSIONS + 1) {
-            currentFESession--;
-            std::string errorResponse = "Jasminegraph Server is Busy. Please try again later.";
-            int result_wr = write(connFd, errorResponse.c_str(), errorResponse.length());
-            if (result_wr < 0) {
+        if (currentFESession > Conts::MAX_FE_SESSIONS) {
+            if (!Utils::send_str_wrapper(connFd, "Jasminegraph Server is Busy. Please try again later.")) {
                 frontend_logger.error("Error writing to socket");
             }
             break;
         }
 
-        bzero(data, FRONTEND_DATA_LENGTH + 1);
-        read(connFd, data, FRONTEND_DATA_LENGTH);
-
-        string line(data);
-        if (line.compare("\r\n") == 0) {
+        string line = Utils::read_str_wrapper(connFd, data, FRONTEND_DATA_LENGTH, true);
+        if (line.empty()) {
+            failCnt++;
+            if (failCnt > 4) {
+                break;
+            }
+            sleep(1);
             continue;
         }
-        frontend_logger.info("Command received: " + line);
-
-        if (line.empty()) {
-            currentFESession--;
-            break;
-        }
-
+        failCnt = 0;
         line = Utils::trim_copy(line);
+        frontend_logger.info("Command received: " + line);
+        if (line.empty()) {
+            continue;
+        }
 
         if (currentFESession > 1) {
             canCalibrate = false;
@@ -169,7 +167,6 @@ void *frontendservicesesion(void *dummyPt) {
         }
 
         if (line.compare(EXIT) == 0) {
-            currentFESession--;
             break;
         } else if (line.compare(LIST) == 0) {
             list_command(connFd, sqlite, &loop_exit);
@@ -240,6 +237,7 @@ void *frontendservicesesion(void *dummyPt) {
     }
     frontend_logger.info("Closing thread " + to_string(pthread_self()) + " and connection");
     close(connFd);
+    currentFESession--;
     return NULL;
 }
 
@@ -443,14 +441,6 @@ void JasmineGraphFrontEnd::getAndUpdateUploadTime(std::string graphID, SQLiteDBI
     double difTime = difftime(end, start);
     sqlite->runUpdate("UPDATE graph SET upload_time = " + to_string(difTime) + " WHERE idgraph = " + graphID);
     frontend_logger.info("Upload time updated in the database");
-}
-
-JasmineGraphHashMapCentralStore JasmineGraphFrontEnd::loadCentralStore(std::string centralStoreFileName) {
-    frontend_logger.info("Loading Central Store File : Started " + centralStoreFileName);
-    JasmineGraphHashMapCentralStore *jasmineGraphHashMapCentralStore = new JasmineGraphHashMapCentralStore();
-    jasmineGraphHashMapCentralStore->loadGraph(centralStoreFileName);
-    frontend_logger.info("Loading Central Store File : Completed");
-    return *jasmineGraphHashMapCentralStore;
 }
 
 map<long, long> JasmineGraphFrontEnd::getOutDegreeDistributionHashMap(map<long, unordered_set<long>> graphMap) {
@@ -1406,9 +1396,9 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
         jobDetails.setJobId(std::to_string(uniqueId));
         jobDetails.setJobType(TRIANGLES);
 
-        long graphSLA;
-        // All high priority threads will be set the same high priority level
+        long graphSLA = -1;  // This prevents auto calibration for priority=1 (=default priority)
         if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
+            // All high priority threads will be set the same high priority level
             threadPriority = Conts::HIGH_PRIORITY_DEFAULT_VALUE;
             graphSLA = JasmineGraphFrontEnd::getSLAForGraphId(sqlite, perfSqlite, graph_id, TRIANGLES,
                                                               Conts::SLA_CATEGORY::LATENCY);
@@ -2067,9 +2057,9 @@ static void page_rank_command(std::string masterIP, int connFd, SQLiteDBInterfac
     jobDetails.setJobId(std::to_string(uniqueId));
     jobDetails.setJobType(PAGE_RANK);
 
-    long graphSLA;
-    // All high priority threads will be set the same high priority level
+    long graphSLA = -1;  // This prevents auto calibration for priority=1 (=default priority)
     if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
+        // All high priority threads will be set the same high priority level
         threadPriority = Conts::HIGH_PRIORITY_DEFAULT_VALUE;
         graphSLA = JasmineGraphFrontEnd::getSLAForGraphId(sqlite, perfSqlite, graphID, PAGE_RANK,
                                                           Conts::SLA_CATEGORY::LATENCY);

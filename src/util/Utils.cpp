@@ -405,6 +405,7 @@ int Utils::unzipDirectory(std::string filePath) {
 }
 
 void Utils::assignPartitionsToWorkers(int numberOfWorkers, SQLiteDBInterface *sqlite) {
+    // Not used in K8s mode
     sqlite->runUpdate("DELETE FROM worker_has_partition");
 
     std::vector<vector<pair<string, string>>> v =

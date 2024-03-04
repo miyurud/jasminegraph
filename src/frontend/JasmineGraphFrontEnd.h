@@ -67,8 +67,6 @@ class JasmineGraphFrontEnd {
 
     static bool isGraphActiveAndTrained(std::string graphID, SQLiteDBInterface *sqlite);
 
-    static JasmineGraphHashMapCentralStore loadCentralStore(std::string centralStoreFileName);
-
     static map<long, long> getOutDegreeDistributionHashMap(map<long, unordered_set<long>> graphMap);
 
     static bool isGraphActive(string graphID, SQLiteDBInterface *sqlite);
