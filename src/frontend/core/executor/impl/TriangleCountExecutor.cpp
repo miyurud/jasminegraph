@@ -92,10 +92,7 @@ void TriangleCountExecutor::execute() {
     int partitionCount = 0;
     std::vector<std::future<long>> intermRes;
     std::vector<std::future<int>> statResponse;
-    std::vector<std::future<string>> remoteCopyRes;
-    PlacesToNodeMapper placesToNodeMapper;
     std::vector<std::string> compositeCentralStoreFiles;
-    int slaStatCount = 0;
 
     auto begin = chrono::high_resolution_clock::now();
 
@@ -154,10 +151,6 @@ void TriangleCountExecutor::execute() {
         triangleCount_logger.log("###TRIANGLE-COUNT-EXECUTOR### Getting Triangle Count : Host " + host +
                                      " Server Port " + serverPort + " PartitionId " + partitionId,
                                  "info");
-    }
-
-    for (auto &&futureCall : remoteCopyRes) {
-        futureCall.wait();
     }
 
     for (int i = 0; i < workerListSize; i++) {

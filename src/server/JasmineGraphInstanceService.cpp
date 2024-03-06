@@ -121,7 +121,7 @@ static void degree_distribution_common(int connFd, int serverPort,
                                        std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
                                        std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
                                        bool *loop_exit_p, bool in);
-static void push_file_command(int connFd, bool *loop_exit_p);
+static void push_partition_command(int connFd, bool *loop_exit_p);
 
 char *converter(const std::string &s) {
     char *pc = new char[s.size() + 1];
@@ -250,8 +250,8 @@ void *instanceservicesession(void *dummyPt) {
             graph_stream_start_command(connFd, streamHandler, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::SEND_PRIORITY) == 0) {
             send_priority_command(connFd, &loop_exit);
-        } else if (line.compare(JasmineGraphInstanceProtocol::PUSH_FILE) == 0) {
-            push_file_command(connFd, &loop_exit);
+        } else if (line.compare(JasmineGraphInstanceProtocol::PUSH_PARTITION) == 0) {
+            push_partition_command(connFd, &loop_exit);
         } else {
             instance_logger.error("Invalid command");
             loop_exit = true;
@@ -2051,9 +2051,13 @@ static void batch_upload_common(int connFd, bool *loop_exit_p, bool batch_upload
     instance_logger.info("File received and saved to " + fullFilePath);
     *loop_exit_p = true;
 
-    Utils::unzipFile(fullFilePath);
-    size_t lastindex = fileName.find_last_of(".");
-    string rawname = fileName.substr(0, lastindex);
+    string rawname = fileName;
+    if (fullFilePath.compare(fullFilePath.size() - 3, 3, ".gz") == 0) {
+        Utils::unzipFile(fullFilePath);
+        size_t lastindex = fileName.find_last_of(".");
+        rawname = fileName.substr(0, lastindex);
+    }
+
     fullFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + rawname;
 
     if (batch_upload) {
@@ -4060,7 +4064,7 @@ static void send_priority_command(int connFd, bool *loop_exit_p) {
     highestPriority = retrievedPriority;
 }
 
-static void push_file_command(int connFd, bool *loop_exit_p) {
+static void push_partition_command(int connFd, bool *loop_exit_p) {
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
@@ -4079,15 +4083,29 @@ static void push_file_command(int connFd, bool *loop_exit_p) {
     }
     instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
 
-    string fileName = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
-    instance_logger.info("Received fileName: " + fileName);
-    string path = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
-    if (!Utils::sendFileThroughService(host, port, fileName, path)) {
-        instance_logger.error("Sending failed");
-        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::ERROR)) {
-            *loop_exit_p = true;
+    string graphIDPartitionID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    instance_logger.info("Received graphID,partionID: " + graphIDPartitionID);
+    std::vector<std::string> graphPartitionList = Utils::split(graphIDPartitionID, ',');
+    int graphID = std::stoi(graphPartitionList[0]);
+    int partitionID = std::stoi(graphPartitionList[1]);
+
+    std::vector<std::string> fileList = {
+        to_string(graphID) + "_" + to_string(partitionID),
+        to_string(graphID) + "_centralstore_" + to_string(partitionID),
+        to_string(graphID) + "_centralstore_dp_" + to_string(partitionID)
+    };
+
+    for (auto it = fileList.begin(); it != fileList.end(); it++) {
+        std::string fileName = *it;
+        std::string path = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
+
+        if (!Utils::sendFileThroughService(host, port, fileName, path)) {
+            instance_logger.error("Sending failed");
+            if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::ERROR)) {
+                *loop_exit_p = true;
+            }
+            return;
         }
-        return;
     }
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;

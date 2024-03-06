@@ -126,7 +126,9 @@ JobResponse JobScheduler::getResult(JobRequest jobRequest) {
             responseFound = true;
         }
         responseVectorMutex.unlock();
-        usleep(50000);
+        if (!responseFound) {
+            usleep(50000);
+        }
     }
 
     return jobResponse;
