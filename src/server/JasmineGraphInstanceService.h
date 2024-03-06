@@ -50,12 +50,6 @@ void *instanceservicesession(void *dummyPt);
 void writeCatalogRecord(string record);
 int deleteGraphPartition(std::string graphID, std::string partitionID);
 void removeGraphFragments(std::string graphID);
-long countLocalTriangles(
-    std::string graphId, std::string partitionId,
-    std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
-    std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
-    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores,
-    int threadPriority);
 
 map<long, long> calculateOutDegreeDist(string graphID, string partitionID, int serverPort,
                                        std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
@@ -107,10 +101,10 @@ struct instanceservicesessionargs {
     int connFd;
     int port;
     int dataPort;
-    std::map<std::string, JasmineGraphHashMapLocalStore> graphDBMapLocalStores;
-    std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores;
-    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> graphDBMapDuplicateCentralStores;
-    std::map<std::string, JasmineGraphIncrementalLocalStore *> incrementalLocalStore;
+    std::map<std::string, JasmineGraphHashMapLocalStore> *graphDBMapLocalStores;
+    std::map<std::string, JasmineGraphHashMapCentralStore> *graphDBMapCentralStores;
+    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> *graphDBMapDuplicateCentralStores;
+    std::map<std::string, JasmineGraphIncrementalLocalStore *> *incrementalLocalStore;
 };
 
 class JasmineGraphInstanceService {
