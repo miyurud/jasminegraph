@@ -1033,3 +1033,82 @@ bool Utils::sendFileThroughService(std::string host, int dataPort, std::string f
     close(sockfd);
     return status;
 }
+
+/*
+ * Function to transfer a partition from one worker to another
+ * Caller should ensure that the partition exists in the source worker
+ * and the destination worker is ready to accept the partition
+ * Also, the caller should update the worker_has_partition table.
+ * */
+bool Utils::transferPartition(std::string sourceWorker,
+                              int sourceWorkerPort,
+                              int sourceWorkerDataPort,
+                              std::string destinationWorker,
+                              int destinationWorkerPort,
+                              int destinationWorkerDataPort,
+                              int graphID,
+                              int partitionID) {
+    util_logger.info("### Transferring partition " + to_string(partitionID) + " of graph " + to_string(graphID)
+    + " from " + sourceWorker + " to " + destinationWorker);
+
+    int sockfd;
+    char data[FED_DATA_LENGTH + 1];
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        util_logger.error("Cannot create socket");
+        return false;
+    }
+
+    server = gethostbyname(sourceWorker.c_str());
+    if (server == NULL) {
+        util_logger.error("ERROR, no host named " + sourceWorker);
+        return false;
+    }
+
+    bzero((char *)&serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    serv_addr.sin_port = htons(sourceWorkerPort);
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+        return false;
+    }
+
+    if (!Utils::performHandshake(sockfd, data, FED_DATA_LENGTH, destinationWorker)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return false;
+    }
+
+    if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, JasmineGraphInstanceProtocol::PUSH_PARTITION,
+                                   JasmineGraphInstanceProtocol::OK)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return false;
+    }
+
+    if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH,
+                                   destinationWorker + ":" + to_string(destinationWorkerDataPort),
+                                   JasmineGraphInstanceProtocol::OK)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return false;
+    }
+
+    if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH,
+                                   to_string(graphID) + "," + to_string(partitionID),
+                                   JasmineGraphInstanceProtocol::OK)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return false;
+    }
+
+    util_logger.info("### Transfer partition completed");
+    Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+    close(sockfd);
+    return true;
+}
+
+

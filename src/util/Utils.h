@@ -178,6 +178,14 @@ class Utils {
                                    std::string masterIP, std::string uploadType);
 
     static bool sendFileThroughService(std::string host, int dataPort, std::string fileName, std::string filePath);
+
+    static bool transferPartition(std::string sourceWorker,
+                                  int sourceWorkerPort,
+                                  int sourceWorkerDataPort,
+                                  std::string  destinationWorker,
+                                  int destinationWorkerPort,
+                                  int destinationWorkerDataPort,
+                                  int graphID, int partitionID);
 };
 
 #endif  // JASMINEGRAPH_UTILS_H
