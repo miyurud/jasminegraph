@@ -797,10 +797,6 @@ static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterfac
         JasmineGraphServer *server = JasmineGraphServer::getInstance();
         server->uploadGraphLocally(newGraphID, Conts::GRAPH_TYPE_NORMAL, fullFileList, masterIP);
         Utils::deleteDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
-        string workerCountQuery = "select count(*) from worker";
-        std::vector<vector<pair<string, string>>> results = sqlite->runSelect(workerCountQuery);
-        string workerCount = results[0][0].second;
-        int nWorkers = atoi(workerCount.c_str());
         JasmineGraphFrontEnd::getAndUpdateUploadTime(to_string(newGraphID), sqlite);
         int result_wr = write(connFd, DONE.c_str(), DONE.size());
         if (result_wr < 0) {

@@ -24,9 +24,6 @@ limitations under the License.
 #include "../../globals.h"
 #include "../k8s/K8sWorkerController.h"
 #include "../ml/trainer/JasmineGraphTrainingSchedular.h"
-#include "../partitioner/local/MetisPartitioner.h"
-#include "../util/Utils.h"
-#include "../util/logger/Logger.h"
 #include "JasmineGraphInstance.h"
 #include "JasmineGraphInstanceProtocol.h"
 
@@ -68,6 +65,8 @@ static size_t getWorkerCount();
 static std::vector<JasmineGraphServer::worker> hostWorkerList;
 static unordered_map<string, pair<int, int>> hostPortMap;
 std::map<int, int> aggregateWeightMap;
+
+static int graphUploadWorkerTracker = 0;
 
 void *runfrontend(void *dummyPt) {
     JasmineGraphServer *refToServer = (JasmineGraphServer *)dummyPt;
@@ -894,11 +893,11 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
     std::thread *workerThreads = new std::thread[total_threads];
     while (count < total_threads) {
         const auto &workerList = getWorkers(partitionFileMap.size());
-        for (auto listIterator = workerList.begin(); listIterator < workerList.end(); listIterator++) {
-            worker worker = *listIterator;
+        while (true) {
             if (count >= total_threads) {
                 break;
             }
+            worker worker = workerList[graphUploadWorkerTracker];
             std::string partitionFileName = partitionFileMap[file_count];
             workerThreads[count++] = std::thread(batchUploadFile, worker.hostname, worker.port, worker.dataPort,
                                                  graphID, partitionFileName, masterHost);
@@ -925,6 +924,9 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
             }
             assignPartitionToWorker(partitionFileName, graphID, worker.hostname, worker.port);
             file_count++;
+
+            graphUploadWorkerTracker++;
+            graphUploadWorkerTracker %= workerList.size();
         }
     }
 
