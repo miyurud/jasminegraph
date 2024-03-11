@@ -136,8 +136,8 @@ static int alloc_plan(std::map<int, int> &alloc, std::set<int> &remain, std::map
     return best_rem;
 }
 
-static void reallocate_parts(std::map<int, int> &alloc, std::set<int> &remain,
-                             const std::map<int, std::vector<int>> &P_AVAIL, std::map<int, int> &loads) {
+static std::vector<int> reallocate_parts(std::map<int, int> &alloc, std::set<int> &remain,
+                                         const std::map<int, std::vector<int>> &P_AVAIL) {
     map<int, int> P_COUNT;
     for (auto it = P_AVAIL.begin(); it != P_AVAIL.end(); it++) {
         P_COUNT[it->first] = it->second.size();
@@ -184,6 +184,25 @@ static void reallocate_parts(std::map<int, int> &alloc, std::set<int> &remain,
         }
         if (need_pushing) copying.push_back(p0);
     }
+    return copying;
+}
+
+static void scale_up(std::map<int, int> &loads, int copy_cnt) {
+    int curr_load = 0;
+    for (auto it = loads.begin(); it != loads.end(); it++) {
+        curr_load += it->second;
+    }
+    int n_cores = copy_cnt + curr_load - 3 * loads.size();
+    if (n_cores < 0) n_cores = 0;
+    int n_workers = n_cores / 3;
+    if (n_cores % 3 > 0) n_workers++;
+    if (n_workers == 0) return;
+
+    // TODO(thevindu-w): replace with call to K8sWorkerController scale up
+    vector<int> w_new;
+    for (int i = 0; i < n_workers; i++) w_new.push_back(i + 30);
+
+    for (auto it = w_new.begin(); it != w_new.end(); it++) loads[*it] = 0;
 }
 
 static int alloc_net_plan(std::vector<int> parts, std::map<int, std::pair<int, int>> transfer,
