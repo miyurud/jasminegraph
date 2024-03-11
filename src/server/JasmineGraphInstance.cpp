@@ -46,12 +46,10 @@ int JasmineGraphInstance::start_running(string hostName, string masterHost, int 
     if (Utils::createDirectory(Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder"))) {
         graphInstance_logger.error("Could not create directory: " +
                                    Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder"));
-        exit(1);
     }
     if (Utils::createDirectory(Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder"))) {
         graphInstance_logger.error("Could not create directory: " +
                                    Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder"));
-        exit(1);
     }
 
     startNmonAnalyzer(enableNmon, serverPort);

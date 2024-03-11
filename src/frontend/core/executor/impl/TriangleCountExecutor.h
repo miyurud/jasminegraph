@@ -38,9 +38,6 @@ class TriangleCountExecutor : public AbstractExecutor {
     static long getTriangleCount(int graphId, std::string host, int port, int dataPort, int partitionId,
                                  std::string masterIP, int uniqueId, bool isCompositeAggregation, int threadPriority);
 
-    static long aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, std::string graphId, std::string masterIP,
-                                               int threadPriority);
-
     static std::string copyCompositeCentralStoreToAggregator(std::string aggregatorHostName, std::string aggregatorPort,
                                                              std::string aggregatorDataPort, std::string fileName,
                                                              std::string masterIP);

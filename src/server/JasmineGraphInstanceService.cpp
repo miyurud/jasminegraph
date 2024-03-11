@@ -512,8 +512,8 @@ JasmineGraphHashMapCentralStore *JasmineGraphInstanceService::loadCentralStore(s
     return jasmineGraphHashMapCentralStore;
 }
 
-string JasmineGraphInstanceService::aggregateCentralStoreTriangles(std::string graphId, std::string partitionId,
-                                                                   std::string partitionIdList, int threadPriority) {
+static string aggregateCentralStoreTriangles(std::string graphId, std::string partitionId, std::string partitionIdList,
+                                             int threadPriority) {
     instance_logger.info("###INSTANCE### Started Aggregating Central Store Triangles");
     std::string aggregatorDirPath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
     std::vector<std::string> fileNames;
@@ -3188,8 +3188,8 @@ static void aggregate_centralstore_triangles_command(int connFd, bool *loop_exit
         threadPriorityMutex.unlock();
     }
 
-    std::string aggregatedTriangles = JasmineGraphInstanceService::aggregateCentralStoreTriangles(
-        graphId, partitionId, partitionIdList, threadPriority);
+    std::string aggregatedTriangles =
+        aggregateCentralStoreTriangles(graphId, partitionId, partitionIdList, threadPriority);
 
     if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
         threadPriorityMutex.lock();

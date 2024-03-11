@@ -25,10 +25,13 @@ std::mutex fileCombinationMutex;
 std::mutex processStatusMutex;
 std::mutex responseVectorMutex;
 
-static std::vector<std::vector<string>> getWorkerCombination(SQLiteDBInterface *sqlite, std::string graphId);
+static std::vector<std::vector<string>> getWorkerCombination(std::vector<string> &workerIdVector);
 static string isFileAccessibleToWorker(std::string graphId, std::string partitionId, std::string aggregatorHostName,
                                        std::string aggregatorPort, std::string masterIP, std::string fileType,
                                        std::string fileName);
+static long aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, std::string graphId, std::string masterIP,
+                                           int threadPriority, std::vector<string> &workerIdVector,
+                                           std::map<std::string, std::vector<string>> &partitionMap);
 
 TriangleCountExecutor::TriangleCountExecutor() {}
 
@@ -315,7 +318,6 @@ void TriangleCountExecutor::execute() {
     Utils::worker aggregatorWorker;
     vector<Utils::worker> workerList = Utils::getWorkerList(sqlite);
     int workerListSize = workerList.size();
-    int partitionCount = 0;
     std::vector<std::future<long>> intermRes;
     std::vector<std::future<int>> statResponse;
     std::vector<std::string> compositeCentralStoreFiles;
@@ -323,12 +325,33 @@ void TriangleCountExecutor::execute() {
     auto begin = chrono::high_resolution_clock::now();
 
     string sqlStatement =
-        "SELECT worker_idworker, name,ip,user,server_port,server_data_port,partition_idpartition "
+        "SELECT worker_idworker,partition_idpartition "
         "FROM worker_has_partition INNER JOIN worker ON worker_has_partition.worker_idworker=worker.idworker "
         "WHERE partition_graph_idgraph=" +
         graphId + ";";
 
-    std::vector<vector<pair<string, string>>> results = sqlite->runSelect(sqlStatement);
+    const std::vector<vector<pair<string, string>>> &results = sqlite->runSelect(sqlStatement);
+
+    std::map<string, std::vector<string>> partitionMap;
+
+    for (auto i = results.begin(); i != results.end(); ++i) {
+        const std::vector<pair<string, string>> &rowData = *i;
+
+        string workerID = rowData.at(0).second;
+        string partitionId = rowData.at(1).second;
+
+        if (partitionMap.find(workerID) == partitionMap.end()) {
+            std::vector<string> partitionVec;
+            partitionVec.push_back(partitionId);
+            partitionMap[workerID] = partitionVec;
+        } else {
+            partitionMap[workerID].push_back(partitionId);
+        }
+
+        triangleCount_logger.info("###TRIANGLE-COUNT-EXECUTOR### Getting Triangle Count : PartitionId " + partitionId);
+    }
+
+    // TODO(thevindu-w): if auto-scale, select only 1 copy from each partition and update partition map
 
     if (results.size() > Conts::COMPOSITE_CENTRAL_STORE_WORKER_THRESHOLD) {
         isCompositeAggregation = true;
@@ -353,32 +376,7 @@ void TriangleCountExecutor::execute() {
         fileCombinations = AbstractExecutor::getCombinations(compositeCentralStoreFiles);
     }
 
-    std::map<string, std::vector<string>> partitionMap;
-
-    for (auto i = results.begin(); i != results.end(); ++i) {
-        std::vector<pair<string, string>> rowData = *i;
-
-        string workerID = rowData.at(0).second;
-        string name = rowData.at(1).second;
-        string host = rowData.at(2).second;
-        string user = rowData.at(3).second;
-        string serverPort = rowData.at(4).second;
-        string serverDataPort = rowData.at(5).second;
-        string partitionId = rowData.at(6).second;
-
-        if (partitionMap.find(workerID) == partitionMap.end()) {
-            std::vector<string> partitionVec;
-            partitionVec.push_back(partitionId);
-            partitionMap[workerID] = partitionVec;
-        } else {
-            partitionMap[workerID].push_back(partitionId);
-        }
-
-        triangleCount_logger.log("###TRIANGLE-COUNT-EXECUTOR### Getting Triangle Count : Host " + host +
-                                     " Server Port " + serverPort + " PartitionId " + partitionId,
-                                 "info");
-    }
-
+    int partitionCount = 0;
     for (int i = 0; i < workerListSize; i++) {
         Utils::worker currentWorker = workerList.at(i);
         string host = currentWorker.hostname;
@@ -408,7 +406,7 @@ void TriangleCountExecutor::execute() {
         "' and sla_category.category='" + Conts::SLA_CATEGORY::LATENCY + "' and sla_category.command='" + TRIANGLES +
         "';";
 
-    std::vector<vector<pair<string, string>>> queryResults = perfDB->runSelect(query);
+    const std::vector<vector<pair<string, string>>> &queryResults = perfDB->runSelect(query);
 
     if (queryResults.size() > 0) {
         std::string attemptString = queryResults[0][0].second;
@@ -431,8 +429,13 @@ void TriangleCountExecutor::execute() {
     }
 
     if (!isCompositeAggregation) {
+        std::vector<string> workerIdVector;
+        for (auto it = partitionMap.begin(); it != partitionMap.end(); it++) {
+            workerIdVector.push_back(it->first);
+        }
+
         long aggregatedTriangleCount =
-            TriangleCountExecutor::aggregateCentralStoreTriangles(sqlite, graphId, masterIP, threadPriority);
+            aggregateCentralStoreTriangles(sqlite, graphId, masterIP, threadPriority, workerIdVector, partitionMap);
         result += aggregatedTriangleCount;
         workerResponded = true;
         triangleCount_logger.log(
@@ -828,9 +831,10 @@ int TriangleCountExecutor::updateTriangleTreeAndGetTriangleCount(std::vector<std
     return aggregateCount;
 }
 
-long TriangleCountExecutor::aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, std::string graphId,
-                                                           std::string masterIP, int threadPriority) {
-    const std::vector<std::vector<string>> &workerCombinations = getWorkerCombination(sqlite, graphId);
+static long aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, std::string graphId, std::string masterIP,
+                                           int threadPriority, std::vector<string> &workerIdVector,
+                                           std::map<string, std::vector<string>> &partitionMap) {
+    const std::vector<std::vector<string>> &workerCombinations = getWorkerCombination(workerIdVector);
     std::map<string, int> workerWeightMap;
     std::vector<std::future<string>> triangleCountResponse;
     std::string result = "";
@@ -842,7 +846,6 @@ long TriangleCountExecutor::aggregateCentralStoreTriangles(SQLiteDBInterface *sq
         std::vector<std::future<string>> remoteGraphCopyResponse;
         int minimumWeight = 0;
         std::string minWeightWorker;
-        std::string partitionIdList = "";
 
         for (auto workerCombinationIterator = workerCombination.begin();
              workerCombinationIterator != workerCombination.end(); ++workerCombinationIterator) {
@@ -851,7 +854,7 @@ long TriangleCountExecutor::aggregateCentralStoreTriangles(SQLiteDBInterface *sq
             auto workerWeightMapIterator = workerWeightMap.find(workerId);
 
             if (workerWeightMapIterator != workerWeightMap.end()) {
-                int weight = workerWeightMap.at(workerId);
+                int weight = workerWeightMapIterator->second;
 
                 if (minimumWeight == 0 || minimumWeight > weight) {
                     minimumWeight = weight + 1;
@@ -864,10 +867,9 @@ long TriangleCountExecutor::aggregateCentralStoreTriangles(SQLiteDBInterface *sq
         }
 
         string aggregatorSqlStatement =
-            "SELECT ip,server_port,server_data_port,partition_idpartition "
-            "FROM worker_has_partition INNER JOIN worker ON worker_has_partition.worker_idworker=worker.idworker "
-            "WHERE partition_graph_idgraph=" +
-            graphId + " and idworker=" + minWeightWorker + ";";
+            "SELECT ip,server_port,server_data_port FROM worker "
+            "WHERE idworker=" +
+            minWeightWorker + ";";
 
         const std::vector<vector<pair<string, string>>> &result = sqlite->runSelect(aggregatorSqlStatement);
 
@@ -876,25 +878,17 @@ long TriangleCountExecutor::aggregateCentralStoreTriangles(SQLiteDBInterface *sq
         std::string aggregatorIp = aggregatorData.at(0).second;
         std::string aggregatorPort = aggregatorData.at(1).second;
         std::string aggregatorDataPort = aggregatorData.at(2).second;
-        std::string aggregatorPartitionId = aggregatorData.at(3).second;
+        std::string aggregatorPartitionId = partitionMap[minWeightWorker][0];  // why only 1 partition from the worker?
 
+        std::string partitionIdList = "";
         for (auto aggregatorCopyCombinationIterator = workerCombination.begin();
              aggregatorCopyCombinationIterator != workerCombination.end(); ++aggregatorCopyCombinationIterator) {
             std::string workerId = *aggregatorCopyCombinationIterator;
 
             if (workerId != minWeightWorker) {
-                string sqlStatement =
-                    "SELECT partition_idpartition "
-                    "FROM worker_has_partition INNER JOIN worker ON "
-                    "worker_has_partition.worker_idworker=worker.idworker "
-                    "WHERE partition_graph_idgraph=" +
-                    graphId + " and idworker=" + workerId + ";";
-
-                const std::vector<vector<pair<string, string>>> &result = sqlite->runSelect(sqlStatement);
-
                 const vector<pair<string, string>> &workerData = result.at(0);
 
-                std::string partitionId = workerData.at(0).second;
+                std::string partitionId = partitionMap[workerId][0];  // why only 1 partition from the worker?
 
                 partitionIdList += partitionId + ",";
 
@@ -1453,28 +1447,8 @@ string TriangleCountExecutor::countCompositeCentralStoreTriangles(std::string ag
     return response;
 }
 
-static std::vector<std::vector<string>> getWorkerCombination(SQLiteDBInterface *sqlite, std::string graphId) {
-    std::set<string> workerIdSet;
-
-    string sqlStatement =
-        "SELECT worker_idworker "
-        "FROM worker_has_partition INNER JOIN worker ON worker_has_partition.worker_idworker=worker.idworker "
-        "WHERE partition_graph_idgraph=" +
-        graphId + ";";
-
-    const std::vector<vector<pair<string, string>>> &results = sqlite->runSelect(sqlStatement);
-
-    for (auto i = results.begin(); i != results.end(); ++i) {
-        const std::vector<pair<string, string>> &rowData = *i;
-        string workerId = rowData.at(0).second;
-        workerIdSet.insert(workerId);
-    }
-
-    std::vector<string> workerIdVector(workerIdSet.begin(), workerIdSet.end());
-
-    std::vector<std::vector<string>> workerIdCombination = AbstractExecutor::getCombinations(workerIdVector);
-
-    return workerIdCombination;
+static std::vector<std::vector<string>> getWorkerCombination(std::vector<string> &workerIdVector) {
+    return AbstractExecutor::getCombinations(workerIdVector);
 }
 
 std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggregatorHostName,
