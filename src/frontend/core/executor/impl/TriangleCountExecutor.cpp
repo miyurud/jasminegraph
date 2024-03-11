@@ -39,6 +39,163 @@ TriangleCountExecutor::TriangleCountExecutor(SQLiteDBInterface *db, PerformanceS
     this->request = jobRequest;
 }
 
+static void allocate(int p,
+                     int w,
+                     std::map<int, int> &alloc,
+                     std::set<int> &remain,
+                     std::map<int, std::vector<int>> &p_avail,
+                     std::map<int, int> &loads) {
+    alloc[p] = w;
+    remain.erase(p);
+    p_avail.erase(p);
+    loads[w]++;
+    if (loads[w] >= 3) {
+        for (auto it = p_avail.begin(); it != p_avail.end(); it++) {
+            auto &ws = it->second;
+            auto itr = std::find(ws.begin(), ws.end(), w);
+            if (itr != ws.end()) {
+                ws.erase(itr);
+            }
+        }
+    }
+}
+
+static int get_min_partition(std::set<int> &remain, std::map<int, std::vector<int>> &p_avail) {
+    int p0 = *remain.begin();
+    size_t m = 1000000000;
+    for (auto it = remain.begin(); it != remain.end(); it++) {
+        int p = *it;
+        auto &ws = p_avail[p];
+        if (ws.size() > 0 && ws.size() < m) {
+            m = ws.size();
+            p0 = p;
+        }
+    }
+    return p0;
+}
+
+static const std::vector<int> LOAD_PREFERENCE = {2, 3, 1, 0};
+static int compare_loads(int w1, int w2, std::map<int, int> &loads) {
+    if (loads[w1] == loads[w2]) return 0;
+    return LOAD_PREFERENCE[loads[w1]] < LOAD_PREFERENCE[loads[w2]];
+}
+
+static int alloc_plan(std::map<int, int> &alloc,
+                      std::set<int> &remain,
+                      std::map<int, std::vector<int>> &p_avail,
+                      std::map<int, int> &loads) {
+    for (bool done = false; !done;) {
+        int w = -1;
+        done = true;
+        int p;
+        for (auto it = remain.begin(); it != remain.end(); it++) {
+            p = *it;
+            if (p_avail[p].size() == 1) {
+                w = p_avail[p][0];
+                done = false;
+            }
+        }
+        if (w >= 0) allocate(p, w, alloc, remain, p_avail, loads);
+    }
+    if (remain.empty())
+        return 0;
+    int p0 = get_min_partition(remain, p_avail);
+    auto &ws = p_avail[p0];
+    if (ws.empty())
+        return (int) remain.size();
+    sort(ws.begin(), ws.end(), [&loads](int &w1, int &w2) {
+        return LOAD_PREFERENCE[loads[w1]] > LOAD_PREFERENCE[loads[w2]];
+    }); // load=1 goes first and load=3 goes last
+    struct best_alloc {
+        std::map<int, int> alloc;
+        std::set<int> remain;
+        std::map<int, std::vector<int>> p_avail;
+        std::map<int, int> loads;
+    };
+    int best_rem = remain.size();
+    struct best_alloc best = {.alloc = alloc, .remain = remain, .p_avail = p_avail, .loads = loads};
+    for (auto it = ws.begin(); it != ws.end(); it++) {
+        int w = *it;
+        auto alloc2 = alloc; // need copy => do not copy reference
+        auto remain2 = remain; // need copy => do not copy reference
+        auto p_avail2 = p_avail; // need copy => do not copy reference
+        auto loads2 = loads; // need copy => do not copy reference
+        allocate(p0, w, alloc2, remain2, p_avail2, loads2);
+        int rem = alloc_plan(alloc2, remain2, p_avail2, loads2);
+        if (rem == 0) {
+            remain.clear();
+            p_avail.clear();
+            alloc.insert(alloc2.begin(), alloc2.end());
+            loads.insert(loads2.begin(), loads2.end());
+            return 0;
+        }
+        if (rem < best_rem) {
+            best_rem = rem;
+            best = {.alloc = alloc2, .remain = remain2, .p_avail = p_avail2, .loads = loads2};
+        }
+        alloc.insert(best.alloc.begin(), best.alloc.end());
+        remain.clear();
+        remain.insert(best.remain.begin(), best.remain.end());
+        p_avail.clear();
+        p_avail.insert(best.p_avail.begin(), best.p_avail.end());
+        loads.clear();
+        loads.insert(best.loads.begin(), best.loads.end());
+        return best_rem;
+    }
+}
+
+static void reallocate_parts(std::map<int, int> &alloc,
+                             std::set<int> &remain,
+                             const std::map<int, std::vector<int>> &P_AVAIL,
+                             std::map<int, int> &loads) {
+    map<int, int> P_COUNT;
+    for (auto it = P_AVAIL.begin(); it != P_AVAIL.end(); it++) {
+        P_COUNT[it->first] = it->second.size();
+    }
+    vector<int> remain_l(remain.begin(), remain.end());
+    sort(remain_l.begin(), remain_l.end(), [&P_COUNT](int &p1, int &p2) {
+        return P_COUNT[p1] > P_COUNT[p2];
+    }); // partitions with more copies goes first
+    vector<int> PARTITIONS;
+    for (auto it = P_COUNT.begin(); it != P_COUNT.end(); it++) {
+        PARTITIONS.push_back(it->first);
+    }
+    sort(PARTITIONS.begin(), PARTITIONS.end(), [&P_COUNT](int &p1, int &p2) {
+        return P_COUNT[p1] < P_COUNT[p2];
+    }); // partitions with fewer copies goes first
+    vector<int> copying;
+    while (!remain_l.empty()) {
+        int p0 = remain_l.back();
+        int w_cnt = P_COUNT[p0];
+        if (w_cnt == 1) {
+            copying.push_back(p0);
+            continue;
+        }
+        bool need_pushing = true;
+        for (auto it = PARTITIONS.begin(); it != PARTITIONS.end(); it++) {
+            int p = *it;
+            if (w_cnt <= P_COUNT[p]) {
+                copying.push_back(p0); // assuming PARTITIONS are in sorted order of copy count
+                need_pushing = false;
+                break;
+            }
+            if (alloc.find(p) == alloc.end()) {
+                continue;
+            }
+            int w = alloc[p];
+            const auto &ws = P_AVAIL.find(p0)->second;
+            if (std::find(ws.begin(), ws.end(), w) != ws.end()) {
+                alloc.erase(p);
+                alloc[p0] = w;
+                remain_l.push_back(p);
+                need_pushing = false;
+                break;
+            }
+        }
+        if (need_pushing) copying.push_back(p0);
+    }
+}
+
 void TriangleCountExecutor::execute() {
     int uniqueId = getUid();
     std::string masterIP = request.getMasterIP();
@@ -100,7 +257,7 @@ void TriangleCountExecutor::execute() {
         "SELECT worker_idworker, name,ip,user,server_port,server_data_port,partition_idpartition "
         "FROM worker_has_partition INNER JOIN worker ON worker_has_partition.worker_idworker=worker.idworker "
         "WHERE partition_graph_idgraph=" +
-        graphId + ";";
+            graphId + ";";
 
     std::vector<vector<pair<string, string>>> results = sqlite->runSelect(sqlStatement);
 
@@ -180,9 +337,10 @@ void TriangleCountExecutor::execute() {
     std::string query =
         "SELECT attempt from graph_sla INNER JOIN sla_category where graph_sla.id_sla_category=sla_category.id and "
         "graph_sla.graph_id='" +
-        graphId + "' and graph_sla.partition_count='" + std::to_string(partitionCount) +
-        "' and sla_category.category='" + Conts::SLA_CATEGORY::LATENCY + "' and sla_category.command='" + TRIANGLES +
-        "';";
+            graphId + "' and graph_sla.partition_count='" + std::to_string(partitionCount) +
+            "' and sla_category.category='" + Conts::SLA_CATEGORY::LATENCY + "' and sla_category.command='" + TRIANGLES
+            +
+                "';";
 
     std::vector<vector<pair<string, string>>> queryResults = perfDB->runSelect(query);
 
@@ -285,11 +443,11 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
         return 0;
     }
 
-    bzero((char *)&serv_addr, sizeof(serv_addr));
+    bzero((char *) &serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    bcopy((char *) server->h_addr, (char *) &serv_addr.sin_addr.s_addr, server->h_length);
     serv_addr.sin_port = htons(port);
-    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
         return 0;
     }
@@ -643,7 +801,7 @@ long TriangleCountExecutor::aggregateCentralStoreTriangles(SQLiteDBInterface *sq
             "SELECT ip,server_port,server_data_port,partition_idpartition "
             "FROM worker_has_partition INNER JOIN worker ON worker_has_partition.worker_idworker=worker.idworker "
             "WHERE partition_graph_idgraph=" +
-            graphId + " and idworker=" + minWeightWorker + ";";
+                graphId + " and idworker=" + minWeightWorker + ";";
 
         const std::vector<vector<pair<string, string>>> &result = sqlite->runSelect(aggregatorSqlStatement);
 
@@ -664,7 +822,7 @@ long TriangleCountExecutor::aggregateCentralStoreTriangles(SQLiteDBInterface *sq
                     "FROM worker_has_partition INNER JOIN worker ON "
                     "worker_has_partition.worker_idworker=worker.idworker "
                     "WHERE partition_graph_idgraph=" +
-                    graphId + " and idworker=" + workerId + ";";
+                        graphId + " and idworker=" + workerId + ";";
 
                 const std::vector<vector<pair<string, string>>> &result = sqlite->runSelect(sqlStatement);
 
@@ -744,11 +902,11 @@ static string isFileAccessibleToWorker(std::string graphId, std::string partitio
         return 0;
     }
 
-    bzero((char *)&serv_addr, sizeof(serv_addr));
+    bzero((char *) &serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    bcopy((char *) server->h_addr, (char *) &serv_addr.sin_addr.s_addr, server->h_length);
     serv_addr.sin_port = htons(atoi(aggregatorPort.c_str()));
-    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
         // TODO::exit
         return 0;
@@ -893,11 +1051,11 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
         return 0;
     }
 
-    bzero((char *)&serv_addr, sizeof(serv_addr));
+    bzero((char *) &serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    bcopy((char *) server->h_addr, (char *) &serv_addr.sin_addr.s_addr, server->h_length);
     serv_addr.sin_port = htons(atoi(aggregatorPort.c_str()));
-    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
         // TODO::exit
         return 0;
@@ -1076,11 +1234,11 @@ string TriangleCountExecutor::countCompositeCentralStoreTriangles(std::string ag
         return 0;
     }
 
-    bzero((char *)&serv_addr, sizeof(serv_addr));
+    bzero((char *) &serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    bcopy((char *) server->h_addr, (char *) &serv_addr.sin_addr.s_addr, server->h_length);
     serv_addr.sin_port = htons(atoi(aggregatorPort.c_str()));
-    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
         // TODO::exit
         return 0;
@@ -1236,7 +1394,7 @@ static std::vector<std::vector<string>> getWorkerCombination(SQLiteDBInterface *
         "SELECT worker_idworker "
         "FROM worker_has_partition INNER JOIN worker ON worker_has_partition.worker_idworker=worker.idworker "
         "WHERE partition_graph_idgraph=" +
-        graphId + ";";
+            graphId + ";";
 
     const std::vector<vector<pair<string, string>>> &results = sqlite->runSelect(sqlStatement);
 
@@ -1283,11 +1441,11 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
         return "";
     }
 
-    bzero((char *)&serv_addr, sizeof(serv_addr));
+    bzero((char *) &serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    bcopy((char *) server->h_addr, (char *) &serv_addr.sin_addr.s_addr, server->h_length);
     serv_addr.sin_port = htons(atoi(aggregatorPort.c_str()));
-    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
         return "";
     }
@@ -1463,11 +1621,11 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorP
         return 0;
     }
 
-    bzero((char *)&serv_addr, sizeof(serv_addr));
+    bzero((char *) &serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    bcopy((char *) server->h_addr, (char *) &serv_addr.sin_addr.s_addr, server->h_length);
     serv_addr.sin_port = htons(atoi(aggregatorPort.c_str()));
-    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
         // TODO::exit
         return 0;
