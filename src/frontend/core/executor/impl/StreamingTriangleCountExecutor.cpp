@@ -51,19 +51,6 @@ void StreamingTriangleCountExecutor::execute() {
     std::vector<std::future<long>> intermRes;
     long result = 0;
 
-    if (partitionCount > 2) {
-        long aggregatedTriangleCount = StreamingTriangleCountExecutor::aggregateCentralStoreTriangles(
-                sqlite, streamingDB, graphId, masterIP, mode, partitionCount);
-        if (mode == "0") {
-            saveCentralValues(streamingDB, graphId, std::to_string(aggregatedTriangleCount));
-            result += aggregatedTriangleCount;
-        } else {
-            long old_result = stol(retrieveCentralValues(streamingDB, graphId));
-            saveCentralValues(streamingDB, graphId, std::to_string(aggregatedTriangleCount + old_result));
-            result += (aggregatedTriangleCount + old_result);
-        }
-    }
-
     streaming_triangleCount_logger.info("###STREAMING-TRIANGLE-COUNT-EXECUTOR### Completed central store counting");
 
     for (int i = 0; i < partitionCount; i++) {
@@ -76,6 +63,19 @@ void StreamingTriangleCountExecutor::execute() {
         intermRes.push_back(std::async(
                 std::launch::async, StreamingTriangleCountExecutor::getTriangleCount, atoi(graphId.c_str()),
                 host, workerPort, workerDataPort, i, masterIP, mode, streamingDB));
+    }
+
+    if (partitionCount > 2) {
+        long aggregatedTriangleCount = StreamingTriangleCountExecutor::aggregateCentralStoreTriangles(
+                sqlite, streamingDB, graphId, masterIP, mode, partitionCount);
+        if (mode == "0") {
+            saveCentralValues(streamingDB, graphId, std::to_string(aggregatedTriangleCount));
+            result += aggregatedTriangleCount;
+        } else {
+            long old_result = stol(retrieveCentralValues(streamingDB, graphId));
+            saveCentralValues(streamingDB, graphId, std::to_string(aggregatedTriangleCount + old_result));
+            result += (aggregatedTriangleCount + old_result);
+        }
     }
 
     for (auto &&futureCall : intermRes) {

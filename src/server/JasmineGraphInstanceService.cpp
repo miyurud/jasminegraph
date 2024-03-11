@@ -651,7 +651,7 @@ string JasmineGraphInstanceService::aggregateCompositeCentralStoreTriangles(std:
     map<long, long> distributionHashMap =
         JasmineGraphInstanceService::getOutDegreeDistributionHashMap(aggregatedCompositeCentralStore);
 
-    TriangleResult triangleResult =
+    const TriangleResult &triangleResult =
         Triangles::countTriangles(aggregatedCompositeCentralStore, distributionHashMap, true);
     return triangleResult.triangles;
 }
@@ -3319,6 +3319,12 @@ static void aggregate_streaming_centralstore_triangles_command(
             highestPriority = Conts::DEFAULT_THREAD_PRIORITY;
         }
         threadPriorityMutex.unlock();
+    }
+
+    if (aggregatedTriangles.empty()) {
+        Utils::send_str_wrapper(connFd, "/CMPT");
+        *loop_exit_p = true;
+        return;
     }
 
     std::vector<std::string> chunksVector;
