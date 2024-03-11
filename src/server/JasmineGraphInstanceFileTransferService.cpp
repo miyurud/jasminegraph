@@ -42,10 +42,13 @@ void *filetransferservicesession(void *dummyPt) {
         if (bytesReceived > 0) {
             file.write(buffer, bytesReceived);
             fsize -= bytesReceived;
+        } else if (bytesReceived == 0) {
+            file_service_logger.error("File transfer failed for file: " + fileName);
+            break;
         }
     }
     file.close();
-    file_service_logger.info("File transfer completed for file: " + fileName);
+    if (fsize == 0) file_service_logger.info("File transfer completed for file: " + fileName);
     return NULL;
 }
 

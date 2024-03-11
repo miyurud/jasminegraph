@@ -997,7 +997,6 @@ bool Utils::sendFileThroughService(std::string host, int dataPort, std::string f
 
     if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, fileName,
                                    JasmineGraphInstanceProtocol::SEND_FILE_LEN)) {
-        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
         close(sockfd);
         return false;
     }
@@ -1005,7 +1004,6 @@ bool Utils::sendFileThroughService(std::string host, int dataPort, std::string f
     int fsize = Utils::getFileSize(filePath);
     if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, to_string(fsize),
                                    JasmineGraphInstanceProtocol::SEND_FILE)) {
-        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
         close(sockfd);
         return false;
     }
@@ -1029,7 +1027,6 @@ bool Utils::sendFileThroughService(std::string host, int dataPort, std::string f
     }
 
     fclose(fp);
-    Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
     close(sockfd);
     return status;
 }
