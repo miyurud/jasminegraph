@@ -88,6 +88,7 @@ static int alloc_plan(std::map<int, string> &alloc, std::set<int> &remain, std::
             if (p_avail[p].size() == 1) {
                 w = p_avail[p][0];
                 done = false;
+                break;
             }
         }
         if (!w.empty()) allocate(p, w, alloc, remain, p_avail, loads);
@@ -208,20 +209,24 @@ static void scale_up(std::map<string, int> &loads, int copy_cnt) {
 
 static int alloc_net_plan(std::vector<int> &parts, std::map<int, std::pair<string, string>> &transfer,
                           std::map<string, int> &net_loads, std::map<string, int> &loads,
-                          const std::map<int, std::vector<string>> &p_avail) {
+                          const std::map<int, std::vector<string>> &p_avail, int curr_best) {
+    int curr_load = std::max_element(net_loads.begin(), net_loads.end(),
+                                     [](const std::map<string, int>::value_type &p1,
+                                        const std::map<string, int>::value_type &p2) { return p1.second < p2.second; })
+                        ->second;
+    if (curr_load >= curr_best) {
+        return curr_load;
+    }
     if (parts.empty()) {
         if (net_loads.empty()) return 0;
-        return std::max_element(net_loads.begin(), net_loads.end(),
-                                [](const std::map<string, int>::value_type &p1,
-                                   const std::map<string, int>::value_type &p2) { return p1.second < p2.second; })
-            ->second;
+        return curr_load;
     }
     struct best_net_alloc {
         std::map<int, std::pair<string, string>> transfer;
         std::map<string, int> net_loads;
         std::map<string, int> loads;
     };
-    int best = 10000000;  // large number
+    int best = curr_best;
     struct best_net_alloc best_plan = {.transfer = transfer, .net_loads = net_loads, .loads = loads};
     int p = parts.back();
     parts.pop_back();
@@ -239,7 +244,7 @@ static int alloc_net_plan(std::vector<int> &parts, std::map<int, std::pair<strin
     const auto &ws = p_avail.find(p)->second;
     for (auto itf = ws.begin(); itf != ws.end(); itf++) {
         auto wf = *itf;
-        for (auto itt = ws.begin(); itt != ws.end(); itt++) {
+        for (auto itt = wts.begin(); itt != wts.end(); itt++) {
             auto wt = *itt;
             auto parts2 = parts;          // need copy => do not copy reference
             auto transfer2 = transfer;    // need copy => do not copy reference
@@ -250,7 +255,7 @@ static int alloc_net_plan(std::vector<int> &parts, std::map<int, std::pair<strin
             net_loads2[wt]++;
             loads2[wt]++;
             if (loads2[wt] == 3) loads2.erase(wt);
-            int new_net_load = alloc_net_plan(parts2, transfer2, net_loads2, loads2, p_avail);
+            int new_net_load = alloc_net_plan(parts2, transfer2, net_loads2, loads2, p_avail, best);
             if (new_net_load < best) {
                 if (loads2.find(wt) == loads.end()) loads2[wt] = 3;
                 best = new_net_load;
@@ -304,9 +309,23 @@ static void filter_partitions(std::map<string, std::vector<string>> &partitionMa
     }
     const std::map<int, std::vector<string>> P_AVAIL = p_avail;  // get a copy and make it const
 
+    for (auto loadIt = LOADS.begin(); loadIt != LOADS.end(); loadIt++) {
+        if (loadIt->second < 3) continue;
+        auto w = loadIt->first;
+        for (auto it = p_avail.begin(); it != p_avail.end(); it++) {
+            auto &workers = it->second;
+            for (auto workerIt = workers.begin(); workerIt != workers.end();) {
+                if (*workerIt == w) {
+                    workers.erase(workerIt);
+                } else {
+                    workerIt++;
+                }
+            }
+        }
+    }
+
     std::map<int, string> alloc;
     int unallocated = alloc_plan(alloc, remain, p_avail, loads);
-    triangleCount_logger.info("Unallocated = " + to_string(unallocated));
     if (unallocated > 0) {
         auto copying = reallocate_parts(alloc, remain, P_AVAIL);
         scale_up(loads, copying.size());
@@ -324,7 +343,7 @@ static void filter_partitions(std::map<string, std::vector<string>> &partitionMa
         }
 
         std::map<int, std::pair<string, string>> transfer;
-        int net_load = alloc_net_plan(copying, transfer, net_loads, loads, P_AVAIL);
+        int net_load = alloc_net_plan(copying, transfer, net_loads, loads, P_AVAIL, 100000000);
         for (auto it = transfer.begin(); it != transfer.end(); it++) {
             auto p = it->first;
             auto w_from = it->second.first;
