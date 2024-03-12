@@ -198,7 +198,13 @@ bool Utils::fileExists(std::string fileName) { return access(fileName.c_str(), F
  */
 int Utils::createDirectory(const std::string dirName) {
     string command = "mkdir -p " + dirName;
-    return system(command.c_str());
+    int status = system(command.c_str());
+    if (status != 0) {
+        util_logger.warn("Command failed: " + command + "      trying again");
+        sleep(1);
+        status = system(command.c_str());
+    }
+    return status;
 }
 
 std::vector<std::string> Utils::getListOfFilesInDirectory(std::string dirName) {
@@ -1107,5 +1113,3 @@ bool Utils::transferPartition(std::string sourceWorker,
     close(sockfd);
     return true;
 }
-
-
