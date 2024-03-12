@@ -13,6 +13,8 @@ limitations under the License.
 
 #include "TriangleCountExecutor.h"
 
+#include "../../../../../globals.h"
+
 using namespace std::chrono;
 
 Logger triangleCount_logger;
@@ -42,8 +44,8 @@ TriangleCountExecutor::TriangleCountExecutor(SQLiteDBInterface *db, PerformanceS
     this->request = jobRequest;
 }
 
-static void allocate(int p, int w, std::map<int, int> &alloc, std::set<int> &remain,
-                     std::map<int, std::vector<int>> &p_avail, std::map<int, int> &loads) {
+static void allocate(int p, string w, std::map<int, string> &alloc, std::set<int> &remain,
+                     std::map<int, std::vector<string>> &p_avail, std::map<string, int> &loads) {
     alloc[p] = w;
     remain.erase(p);
     p_avail.erase(p);
@@ -59,7 +61,7 @@ static void allocate(int p, int w, std::map<int, int> &alloc, std::set<int> &rem
     }
 }
 
-static int get_min_partition(std::set<int> &remain, std::map<int, std::vector<int>> &p_avail) {
+static int get_min_partition(std::set<int> &remain, std::map<int, std::vector<string>> &p_avail) {
     int p0 = *remain.begin();
     size_t m = 1000000000;
     for (auto it = remain.begin(); it != remain.end(); it++) {
@@ -74,15 +76,11 @@ static int get_min_partition(std::set<int> &remain, std::map<int, std::vector<in
 }
 
 static const std::vector<int> LOAD_PREFERENCE = {2, 3, 1, 0};
-static int compare_loads(int w1, int w2, std::map<int, int> &loads) {
-    if (loads[w1] == loads[w2]) return 0;
-    return LOAD_PREFERENCE[loads[w1]] < LOAD_PREFERENCE[loads[w2]];
-}
 
-static int alloc_plan(std::map<int, int> &alloc, std::set<int> &remain, std::map<int, std::vector<int>> &p_avail,
-                      std::map<int, int> &loads) {
+static int alloc_plan(std::map<int, string> &alloc, std::set<int> &remain, std::map<int, std::vector<string>> &p_avail,
+                      std::map<string, int> &loads) {
     for (bool done = false; !done;) {
-        int w = -1;
+        string w = "";
         done = true;
         int p;
         for (auto it = remain.begin(); it != remain.end(); it++) {
@@ -92,25 +90,25 @@ static int alloc_plan(std::map<int, int> &alloc, std::set<int> &remain, std::map
                 done = false;
             }
         }
-        if (w >= 0) allocate(p, w, alloc, remain, p_avail, loads);
+        if (!w.empty()) allocate(p, w, alloc, remain, p_avail, loads);
     }
     if (remain.empty()) return 0;
     int p0 = get_min_partition(remain, p_avail);
     auto &ws = p_avail[p0];
     if (ws.empty()) return (int)remain.size();
-    sort(ws.begin(), ws.end(), [&loads](int &w1, int &w2) {
+    sort(ws.begin(), ws.end(), [&loads](string &w1, string &w2) {
         return LOAD_PREFERENCE[loads[w1]] > LOAD_PREFERENCE[loads[w2]];
     });  // load=1 goes first and load=3 goes last
     struct best_alloc {
-        std::map<int, int> alloc;
+        std::map<int, string> alloc;
         std::set<int> remain;
-        std::map<int, std::vector<int>> p_avail;
-        std::map<int, int> loads;
+        std::map<int, std::vector<string>> p_avail;
+        std::map<string, int> loads;
     };
     int best_rem = remain.size();
     struct best_alloc best = {.alloc = alloc, .remain = remain, .p_avail = p_avail, .loads = loads};
     for (auto it = ws.begin(); it != ws.end(); it++) {
-        int w = *it;
+        string w = *it;
         auto alloc2 = alloc;      // need copy => do not copy reference
         auto remain2 = remain;    // need copy => do not copy reference
         auto p_avail2 = p_avail;  // need copy => do not copy reference
@@ -139,8 +137,8 @@ static int alloc_plan(std::map<int, int> &alloc, std::set<int> &remain, std::map
     return best_rem;
 }
 
-static std::vector<int> reallocate_parts(std::map<int, int> &alloc, std::set<int> &remain,
-                                         const std::map<int, std::vector<int>> &P_AVAIL) {
+static std::vector<int> reallocate_parts(std::map<int, string> &alloc, std::set<int> &remain,
+                                         const std::map<int, std::vector<string>> &P_AVAIL) {
     map<int, int> P_COUNT;
     for (auto it = P_AVAIL.begin(); it != P_AVAIL.end(); it++) {
         P_COUNT[it->first] = it->second.size();
@@ -175,7 +173,7 @@ static std::vector<int> reallocate_parts(std::map<int, int> &alloc, std::set<int
             if (alloc.find(p) == alloc.end()) {
                 continue;
             }
-            int w = alloc[p];
+            auto w = alloc[p];
             const auto &ws = P_AVAIL.find(p0)->second;
             if (std::find(ws.begin(), ws.end(), w) != ws.end()) {
                 alloc.erase(p);
@@ -190,7 +188,7 @@ static std::vector<int> reallocate_parts(std::map<int, int> &alloc, std::set<int
     return copying;
 }
 
-static void scale_up(std::map<int, int> &loads, int copy_cnt) {
+static void scale_up(std::map<string, int> &loads, int copy_cnt) {
     int curr_load = 0;
     for (auto it = loads.begin(); it != loads.end(); it++) {
         curr_load += it->second;
@@ -202,44 +200,47 @@ static void scale_up(std::map<int, int> &loads, int copy_cnt) {
     if (n_workers == 0) return;
 
     // TODO(thevindu-w): replace with call to K8sWorkerController scale up
-    vector<int> w_new;
-    for (int i = 0; i < n_workers; i++) w_new.push_back(i + 30);
+    vector<string> w_new;
+    for (int i = 0; i < n_workers; i++) w_new.push_back(string("10.11.12.") + to_string(i) + string(":7780"));
 
     for (auto it = w_new.begin(); it != w_new.end(); it++) loads[*it] = 0;
 }
 
-static int alloc_net_plan(std::vector<int> parts, std::map<int, std::pair<int, int>> transfer,
-                          std::map<int, int> net_loads, std::map<int, int> loads,
-                          const std::map<int, std::vector<int>> &p_avail) {
+static int alloc_net_plan(std::vector<int> &parts, std::map<int, std::pair<string, string>> &transfer,
+                          std::map<string, int> &net_loads, std::map<string, int> &loads,
+                          const std::map<int, std::vector<string>> &p_avail) {
     if (parts.empty()) {
         if (net_loads.empty()) return 0;
         return std::max_element(net_loads.begin(), net_loads.end(),
-                                [](const std::map<int, int>::value_type &p1, const std::map<int, int>::value_type &p2) {
-                                    return p1.second < p2.second;
-                                })
+                                [](const std::map<string, int>::value_type &p1,
+                                   const std::map<string, int>::value_type &p2) { return p1.second < p2.second; })
             ->second;
     }
     struct best_net_alloc {
-        std::map<int, std::pair<int, int>> transfer;
-        std::map<int, int> net_loads;
-        std::map<int, int> loads;
+        std::map<int, std::pair<string, string>> transfer;
+        std::map<string, int> net_loads;
+        std::map<string, int> loads;
     };
     int best = 10000000;  // large number
     struct best_net_alloc best_plan = {.transfer = transfer, .net_loads = net_loads, .loads = loads};
     int p = parts.back();
     parts.pop_back();
-    vector<int> wts;
+    vector<string> wts;
     for (auto it = loads.begin(); it != loads.end(); it++) {
         wts.push_back(it->first);
     }
-    sort(wts.begin(), wts.end(), [&loads](int &w1, int &w2) {
-        return LOAD_PREFERENCE[loads[w1]] > LOAD_PREFERENCE[loads[w2]];
+    sort(wts.begin(), wts.end(), [&loads](string &w1, string &w2) {
+        int l1 = loads[w1];
+        int l2 = loads[w2];
+        if (l1 < 3 && l2 < 3) return LOAD_PREFERENCE[l1] > LOAD_PREFERENCE[loads[w2]];
+        if (l1 < 3 || l2 < 3) return l1 < l2;
+        return l1 <= l2;
     });  // load=1 goes first and load=3 goes last
     const auto &ws = p_avail.find(p)->second;
     for (auto itf = ws.begin(); itf != ws.end(); itf++) {
-        int wf = *itf;
+        auto wf = *itf;
         for (auto itt = ws.begin(); itt != ws.end(); itt++) {
-            int wt = *itt;
+            auto wt = *itt;
             auto parts2 = parts;          // need copy => do not copy reference
             auto transfer2 = transfer;    // need copy => do not copy reference
             auto net_loads2 = net_loads;  // need copy => do not copy reference
@@ -268,13 +269,84 @@ static int alloc_net_plan(std::vector<int> parts, std::map<int, std::pair<int, i
     return best;
 }
 
+static void filter_partitions(std::map<string, std::vector<string>> &partitionMap, SQLiteDBInterface *sqlite) {
+    vector<string> workers;
+    const std::vector<vector<pair<string, string>>> &results = sqlite->runSelect("SELECT ip,server_port FROM worker;");
+    for (int i = 0; i < results.size(); i++) {
+        string ip = results[i][0].second;
+        string port = results[i][1].second;
+        workers.push_back(ip + ":" + port);
+    }
+
+    map<string, int> loads;
+    const map<string, string> &cpu_map = Utils::getMetricMap("cpu_usage");
+    for (auto it = workers.begin(); it != workers.end(); it++) {
+        auto worker = *it;
+        const auto workerLoadIt = cpu_map.find(worker);
+        if (workerLoadIt != cpu_map.end()) {
+            loads[worker] = (int)round(stod(workerLoadIt->second.c_str()));
+        } else {
+            loads[worker] = 0;
+        }
+    }
+    const map<string, int> LOADS = loads;
+
+    std::map<int, std::vector<string>> p_avail;
+    std::set<int> remain;
+    for (auto it = partitionMap.begin(); it != partitionMap.end(); it++) {
+        auto worker = it->first;
+        auto &partitions = it->second;
+        for (auto partitionIt = partitions.begin(); partitionIt != partitions.end(); partitionIt++) {
+            auto partition = stoi(*partitionIt);
+            p_avail[partition].push_back(worker);
+            remain.insert(partition);
+        }
+    }
+    const std::map<int, std::vector<string>> P_AVAIL = p_avail;  // get a copy and make it const
+
+    std::map<int, string> alloc;
+    int unallocated = alloc_plan(alloc, remain, p_avail, loads);
+    triangleCount_logger.info("Unallocated = " + to_string(unallocated));
+    if (unallocated > 0) {
+        auto copying = reallocate_parts(alloc, remain, P_AVAIL);
+        scale_up(loads, copying.size());
+
+        map<string, int> net_loads;
+        for (auto it = loads.begin(); it != loads.end(); it++) {
+            net_loads[it->first] = 0;
+        }
+        for (auto it = loads.begin(); it != loads.end();) {
+            if (it->second >= 3) {
+                loads.erase(it++);
+            } else {
+                it++;
+            }
+        }
+
+        std::map<int, std::pair<string, string>> transfer;
+        int net_load = alloc_net_plan(copying, transfer, net_loads, loads, P_AVAIL);
+        for (auto it = transfer.begin(); it != transfer.end(); it++) {
+            auto p = it->first;
+            auto w_from = it->second.first;
+            auto w_to = it->second.second;
+            alloc[p] = w_to;
+        }
+    }
+
+    partitionMap.clear();
+    for (auto it = alloc.begin(); it != alloc.end(); it++) {
+        auto partition = it->first;
+        auto worker = it->second;
+        partitionMap[worker].push_back(to_string(partition));
+    }
+}
+
 void TriangleCountExecutor::execute() {
     int uniqueId = getUid();
     std::string masterIP = request.getMasterIP();
     std::string graphId = request.getParameter(Conts::PARAM_KEYS::GRAPH_ID);
     std::string canCalibrateString = request.getParameter(Conts::PARAM_KEYS::CAN_CALIBRATE);
     std::string queueTime = request.getParameter(Conts::PARAM_KEYS::QUEUE_TIME);
-    std::string graphSLAString = request.getParameter(Conts::PARAM_KEYS::GRAPH_SLA);
 
     bool canCalibrate = Utils::parseBoolean(canCalibrateString);
     int threadPriority = request.getPriority();
@@ -351,7 +423,10 @@ void TriangleCountExecutor::execute() {
         triangleCount_logger.info("###TRIANGLE-COUNT-EXECUTOR### Getting Triangle Count : PartitionId " + partitionId);
     }
 
-    // TODO(thevindu-w): if auto-scale, select only 1 copy from each partition and update partition map
+    if (jasminegraph_profile == PROFILE_K8S &&
+        Utils::getJasmineGraphProperty("org.jasminegraph.autoscale.enabled") == "true") {
+        filter_partitions(partitionMap, sqlite);
+    }
 
     if (results.size() > Conts::COMPOSITE_CENTRAL_STORE_WORKER_THRESHOLD) {
         isCompositeAggregation = true;
@@ -968,7 +1043,6 @@ static string isFileAccessibleToWorker(std::string graphId, std::string partitio
     serv_addr.sin_port = htons(atoi(aggregatorPort.c_str()));
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
-        // TODO::exit
         return 0;
     }
 
@@ -1117,7 +1191,6 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
     serv_addr.sin_port = htons(atoi(aggregatorPort.c_str()));
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
-        // TODO::exit
         return 0;
     }
 
@@ -1300,7 +1373,6 @@ string TriangleCountExecutor::countCompositeCentralStoreTriangles(std::string ag
     serv_addr.sin_port = htons(atoi(aggregatorPort.c_str()));
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
-        // TODO::exit
         return 0;
     }
 
@@ -1667,7 +1739,6 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorP
     serv_addr.sin_port = htons(atoi(aggregatorPort.c_str()));
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
-        // TODO::exit
         return 0;
     }
 
