@@ -99,8 +99,10 @@ void Utils::writeFileContent(const std::string &filePath, const std::string &con
     out.close();
 }
 
+static bool initializedProperties = false;
 std::string Utils::getJasmineGraphProperty(std::string key) {
-    if (Utils::propertiesMap.empty()) {
+    if (!initializedProperties && Utils::propertiesMap.empty()) {
+        initializedProperties = true;
         const vector<std::string> &vec = Utils::getFileContent(ROOT_DIR "conf/jasminegraph-server.properties");
         for (auto it = vec.begin(); it < vec.end(); it++) {
             std::string item = *it;
@@ -197,6 +199,9 @@ bool Utils::fileExists(std::string fileName) { return access(fileName.c_str(), F
  * @param dirName
  */
 int Utils::createDirectory(const std::string dirName) {
+    if (dirName.empty()) {
+        util_logger.error("Cannot mkdir empty dirName");
+    }
     string command = "mkdir -p " + dirName;
     int status = system(command.c_str());
     if (status != 0) {
