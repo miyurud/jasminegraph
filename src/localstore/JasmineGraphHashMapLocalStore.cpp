@@ -113,17 +113,6 @@ unordered_set<long> JasmineGraphHashMapLocalStore::getVertexSet() {
     return vertexSet;
 }
 
-int *JasmineGraphHashMapLocalStore::getOutDegreeDistribution() {
-    distributionArray = new int[vertexCount];
-    int counter = 0;
-
-    for (map<long, unordered_set<long>>::iterator it = localSubGraphMap.begin(); it != localSubGraphMap.end(); ++it) {
-        distributionArray[counter] = (it->second).size();
-        counter++;
-    }
-    return distributionArray;
-}
-
 map<long, long> JasmineGraphHashMapLocalStore::getOutDegreeDistributionHashMap() {
     map<long, long> distributionHashMap;
 

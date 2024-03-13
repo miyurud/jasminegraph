@@ -815,7 +815,6 @@ int JasmineGraphInstanceService::collectTrainedModelThreadFunction(instanceservi
 
 void JasmineGraphInstanceService::createPartitionFiles(std::string graphID, std::string partitionID,
                                                        std::string fileType) {
-    JasmineGraphHashMapLocalStore *hashMapLocalStore = new JasmineGraphHashMapLocalStore();
     string inputFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" +
                            graphID + "_" + partitionID;
     string outputFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.trainedmodelfolder") +
@@ -826,7 +825,8 @@ void JasmineGraphInstanceService::createPartitionFiles(std::string graphID, std:
         outputFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.trainedmodelfolder") + "/" +
                          graphID + "_centralstore_" + partitionID;
     }
-    std::map<int, std::vector<int>> partEdgeMap = hashMapLocalStore->getEdgeHashMap(inputFilePath);
+    JasmineGraphHashMapLocalStore hashMapLocalStore;
+    std::map<int, std::vector<int>> partEdgeMap = hashMapLocalStore.getEdgeHashMap(inputFilePath);
 
     if (partEdgeMap.empty()) {
         return;

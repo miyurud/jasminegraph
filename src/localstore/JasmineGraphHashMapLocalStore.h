@@ -42,7 +42,6 @@ class JasmineGraphHashMapLocalStore : public JasmineGraphLocalStore {
 
     long vertexCount;
     long edgeCount;
-    int *distributionArray;
 
     std::string getFileSeparator();
 
@@ -102,8 +101,6 @@ class JasmineGraphHashMapLocalStore : public JasmineGraphLocalStore {
     void addEdge(long startVid, long endVid);
 
     unordered_set<long> getVertexSet();
-
-    int *getOutDegreeDistribution();
 
     map<long, long> getOutDegreeDistributionHashMap();
 
