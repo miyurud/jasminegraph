@@ -22,6 +22,15 @@ Logger controller_logger;
 
 std::vector<JasmineGraphServer::worker> K8sWorkerController::workerList = {};
 static int TIME_OUT = 180;
+static std::vector<int> activeWorkerIds = {};
+
+static inline int getNextWorkerId() {
+    if (activeWorkerIds.empty()) {
+        return 0;
+    } else {
+        return *max_element(activeWorkerIds.begin(), activeWorkerIds.end()) + 1;
+    }
+}
 
 K8sWorkerController::K8sWorkerController(std::string masterIp, int numberOfWorkers, SQLiteDBInterface *metadb) {
     this->masterIp = std::move(masterIp);
@@ -40,7 +49,7 @@ K8sWorkerController::K8sWorkerController(std::string masterIp, int numberOfWorke
     // Delete all the workers from the database
     metadb->runUpdate("DELETE FROM worker");
     int workersAttached = this->attachExistingWorkers();
-    for (int i = workersAttached; i < numberOfWorkers; i++) {
+    for (int i = getNextWorkerId(); i < numberOfWorkers; i++) {
         this->spawnWorker(i);
     }
 }
@@ -135,7 +144,7 @@ std::string K8sWorkerController::spawnWorker(int workerId) {
     if (status == -1) {
         controller_logger.error("Worker " + std::to_string(workerId) + " database insertion failed");
     }
-
+    activeWorkerIds.push_back(workerId);
     return ip + ":" + to_string(Conts::JASMINEGRAPH_INSTANCE_PORT);
 }
 
@@ -170,6 +179,7 @@ void K8sWorkerController::deleteWorker(int workerId) {
 
     std::string deleteQuery = "DELETE FROM worker WHERE idworker = " + std::to_string(workerId);
     metadb.runUpdate(deleteQuery);
+    std::remove(activeWorkerIds.begin(), activeWorkerIds.end(), workerId);
 }
 
 int K8sWorkerController::attachExistingWorkers() {
@@ -213,6 +223,7 @@ int K8sWorkerController::attachExistingWorkers() {
                     if (status == -1) {
                         controller_logger.error("Worker " + std::to_string(workerId) + " database insertion failed");
                     }
+                    activeWorkerIds.push_back(workerId);
                     break;
                 }
             }
@@ -249,9 +260,9 @@ std::map<int, string> K8sWorkerController::scaleUp(int count) {
     }
     std::map<int, string> workers;
     auto *asyncCalls = new std::future<string>[count];
+    int nextWorkerId = getNextWorkerId();
     for (int i = 0; i < count; i++) {
-        // TODO (Ishad-M-I-M): Implement a robust way to give a worker id.
-        asyncCalls[i] = std::async(&K8sWorkerController::spawnWorker, this, i);
+        asyncCalls[i] = std::async(&K8sWorkerController::spawnWorker, this, nextWorkerId + i);
     }
 
     for (int i = 0; i < count; i++) {
