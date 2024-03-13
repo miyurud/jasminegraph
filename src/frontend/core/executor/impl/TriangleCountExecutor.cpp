@@ -189,7 +189,7 @@ static std::vector<int> reallocate_parts(std::map<int, string> &alloc, std::set<
     return copying;
 }
 
-static void scale_up(std::map<string, int> &loads, int copy_cnt) {
+static void scale_up(std::map<string, int> &loads, map<string, string> &workers, int copy_cnt) {
     int curr_load = 0;
     for (auto it = loads.begin(); it != loads.end(); it++) {
         curr_load += it->second;
@@ -201,10 +201,14 @@ static void scale_up(std::map<string, int> &loads, int copy_cnt) {
     if (n_workers == 0) return;
 
     // TODO(thevindu-w): replace with call to K8sWorkerController scale up
-    vector<string> w_new;
-    for (int i = 0; i < n_workers; i++) w_new.push_back(string("10.11.12.") + to_string(i) + string(":7780"));
+    map<string, string> w_new;
+    for (int i = 0; i < n_workers; i++)
+        w_new[to_string(i + loads.size())] = string("10.11.12.") + to_string(i) + string(":7780");
 
-    for (auto it = w_new.begin(); it != w_new.end(); it++) loads[*it] = 0;
+    for (auto it = w_new.begin(); it != w_new.end(); it++) {
+        loads[it->first] = 0.1;
+        workers[it->first] = it->second;
+    }
 }
 
 static int alloc_net_plan(std::vector<int> &parts, std::map<int, std::pair<string, string>> &transfer,
@@ -274,24 +278,30 @@ static int alloc_net_plan(std::vector<int> &parts, std::map<int, std::pair<strin
     return best;
 }
 
-static void filter_partitions(std::map<string, std::vector<string>> &partitionMap, SQLiteDBInterface *sqlite) {
-    vector<string> workers;
-    const std::vector<vector<pair<string, string>>> &results = sqlite->runSelect("SELECT ip,server_port FROM worker;");
+static void filter_partitions(std::map<string, std::vector<string>> &partitionMap, SQLiteDBInterface *sqlite,
+                              string graphId) {
+    map<string, string> workers;
+    const std::vector<vector<pair<string, string>>> &results =
+        sqlite->runSelect("SELECT idworker,ip,server_port FROM worker;");
     for (int i = 0; i < results.size(); i++) {
-        string ip = results[i][0].second;
-        string port = results[i][1].second;
-        workers.push_back(ip + ":" + port);
+        string workerId = results[i][0].second;
+        string ip = results[i][1].second;
+        string port = results[i][2].second;
+        workers[workerId] = ip + ":" + port;
     }
 
     map<string, int> loads;
     const map<string, string> &cpu_map = Utils::getMetricMap("cpu_usage");
     for (auto it = workers.begin(); it != workers.end(); it++) {
-        auto worker = *it;
+        auto workerId = it->first;
+        auto worker = it->second;
         const auto workerLoadIt = cpu_map.find(worker);
         if (workerLoadIt != cpu_map.end()) {
-            loads[worker] = (int)round(stod(workerLoadIt->second.c_str()));
+            double load = stod(workerLoadIt->second.c_str());
+            if (load < 0.1) load = 0.1;
+            loads[workerId] = (int)round(4 * load - 0.6);
         } else {
-            loads[worker] = 0;
+            loads[workerId] = 0;
         }
     }
     const map<string, int> LOADS = loads;
@@ -313,10 +323,10 @@ static void filter_partitions(std::map<string, std::vector<string>> &partitionMa
         if (loadIt->second < 3) continue;
         auto w = loadIt->first;
         for (auto it = p_avail.begin(); it != p_avail.end(); it++) {
-            auto &workers = it->second;
-            for (auto workerIt = workers.begin(); workerIt != workers.end();) {
+            auto &partitionWorkers = it->second;
+            for (auto workerIt = partitionWorkers.begin(); workerIt != partitionWorkers.end();) {
                 if (*workerIt == w) {
-                    workers.erase(workerIt);
+                    partitionWorkers.erase(workerIt);
                 } else {
                     workerIt++;
                 }
@@ -328,7 +338,7 @@ static void filter_partitions(std::map<string, std::vector<string>> &partitionMa
     int unallocated = alloc_plan(alloc, remain, p_avail, loads);
     if (unallocated > 0) {
         auto copying = reallocate_parts(alloc, remain, P_AVAIL);
-        scale_up(loads, copying.size());
+        scale_up(loads, workers, copying.size());
 
         map<string, int> net_loads;
         for (auto it = loads.begin(); it != loads.end(); it++) {
@@ -349,8 +359,42 @@ static void filter_partitions(std::map<string, std::vector<string>> &partitionMa
             auto w_to = it->second.second;
             alloc[p] = w_to;
         }
-    }
 
+        if (!transfer.empty()) {
+            const std::vector<vector<pair<string, string>>> &workerData =
+                sqlite->runSelect("SELECT ip,server_port,server_data_port FROM worker;");
+            map<string, string> dataPortMap;
+            for (int i = 0; i < results.size(); i++) {
+                string ip = results[i][0].second;
+                string port = results[i][1].second;
+                string dport = results[i][2].second;
+                workers[ip + ":" + port] = dport;
+            }
+            map<string, string> workers_r;
+            for (auto it = workers.begin(); it != workers.end(); it++) {
+                workers_r[it->second] = it->first;
+            }
+            for (auto it = transfer.begin(); it != transfer.end(); it++) {
+                auto partition = it->first;
+                auto w_from = workers[it->second.first];
+                auto w_to = workers[it->second.second];
+                const auto &ip_port_from = Utils::split(w_from, ':');
+                auto ip_from = ip_port_from[0];
+                auto port_from = stoi(ip_port_from[1]);
+                auto dport_from = stoi(dataPortMap[w_from]);
+                const auto &ip_port_to = Utils::split(w_to, ':');
+                auto ip_to = ip_port_to[0];
+                auto port_to = stoi(ip_port_to[1]);
+                auto dport_to = stoi(dataPortMap[w_to]);
+                Utils::transferPartition(ip_from, port_from, dport_from, ip_to, port_to, dport_to, stoi(graphId),
+                                         partition);
+                sqlite->runInsert(
+                    "INSERT INTO worker_has_partition "
+                    "(partition_idpartition, partition_graph_idgraph, worker_idworker) VALUES ('" +
+                    to_string(partition) + "', '" + graphId + "', '" + workers_r[w_to] + "')");
+            }
+        }
+    }
     partitionMap.clear();
     for (auto it = alloc.begin(); it != alloc.end(); it++) {
         auto partition = it->first;
@@ -443,7 +487,7 @@ void TriangleCountExecutor::execute() {
 
     if (jasminegraph_profile == PROFILE_K8S &&
         Utils::getJasmineGraphProperty("org.jasminegraph.autoscale.enabled") == "true") {
-        filter_partitions(partitionMap, sqlite);
+        filter_partitions(partitionMap, sqlite, graphId);
     }
 
     if (results.size() > Conts::COMPOSITE_CENTRAL_STORE_WORKER_THRESHOLD) {
@@ -736,8 +780,8 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
 
                     std::vector<std::string> fileNameParts = Utils::split(rawFileName, '_');
 
-                    /*Partition numbers are extracted from  the file name. The starting index of partition number is 2.
-                     * Therefore the loop starts with 2*/
+                    /*Partition numbers are extracted from  the file name. The starting index of partition number
+                     * is 2. Therefore the loop starts with 2*/
                     for (int index = 2; index < fileNameParts.size(); ++index) {
                         partitionSet.insert(fileNameParts[index]);
                     }
@@ -809,7 +853,8 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
 
                     triangleCount_logger.log("###COMPOSITE### Retrieved Composite triangle list ", "debug");
 
-                    const auto &triangles = countCompositeCentralStoreTriangles(host, std::to_string(port), adjustedTransferredFile,
+                    const auto &triangles =
+                        countCompositeCentralStoreTriangles(host, std::to_string(port), adjustedTransferredFile,
                                                             masterIP, adjustedAvailableFiles, threadPriority);
                     if (triangles.size() > 0) {
                         triangleCount += updateTriangleTreeAndGetTriangleCount(triangles);
@@ -1353,11 +1398,9 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
     return response;
 }
 
-std::vector<string> TriangleCountExecutor::countCompositeCentralStoreTriangles(std::string aggregatorHostName,
-                                                                  std::string aggregatorPort,
-                                                                  std::string compositeCentralStoreFileList,
-                                                                  std::string masterIP, std::string availableFileList,
-                                                                  int threadPriority) {
+std::vector<string> TriangleCountExecutor::countCompositeCentralStoreTriangles(
+    std::string aggregatorHostName, std::string aggregatorPort, std::string compositeCentralStoreFileList,
+    std::string masterIP, std::string availableFileList, int threadPriority) {
     int sockfd;
     char data[301];
     bool loop = false;
@@ -1526,7 +1569,8 @@ std::vector<string> TriangleCountExecutor::countCompositeCentralStoreTriangles(s
     }
     Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
     close(sockfd);
-    return Utils::split(response, ':');;
+    return Utils::split(response, ':');
+    ;
 }
 
 static std::vector<std::vector<string>> getWorkerCombination(std::vector<string> &workerIdVector) {
