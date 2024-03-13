@@ -12,6 +12,7 @@ limitations under the License.
  */
 
 #include "TriangleCountExecutor.h"
+#include "../../../../k8s/K8sWorkerController.h"
 
 #include "../../../../../globals.h"
 
@@ -200,10 +201,8 @@ static void scale_up(std::map<string, int> &loads, map<string, string> &workers,
     if (n_cores % 3 > 0) n_workers++;
     if (n_workers == 0) return;
 
-    // TODO(thevindu-w): replace with call to K8sWorkerController scale up
-    map<string, string> w_new;
-    for (int i = 0; i < n_workers; i++)
-        w_new[to_string(i + loads.size())] = string("10.11.12.") + to_string(i) + string(":7780");
+    K8sWorkerController *k8sController = K8sWorkerController::getInstance();
+    map<string, string> w_new = k8sController->scaleUp(n_workers);
 
     for (auto it = w_new.begin(); it != w_new.end(); it++) {
         loads[it->first] = 0.1;

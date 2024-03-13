@@ -57,7 +57,7 @@ class K8sWorkerController {
 
     void setNumberOfWorkers(int newNumberOfWorkers);
 
-    std::map<int, string> scaleUp(int numberOfWorkers);
+    std::map<string, string> scaleUp(int numberOfWorkers);
 };
 
 #endif  // JASMINEGRAPH_K8SWORKERCONTROLLER_H

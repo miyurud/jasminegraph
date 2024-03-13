@@ -122,6 +122,7 @@ std::string K8sWorkerController::spawnWorker(int workerId) {
             waiting += 30; // Added overhead in connection retry attempts
             sleep(10);
         } else {
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
             close(sockfd);
             break;
         }
@@ -254,21 +255,21 @@ void K8sWorkerController::setNumberOfWorkers(int newNumberOfWorkers) {
     this->numberOfWorkers = newNumberOfWorkers;
 }
 
-std::map<int, string> K8sWorkerController::scaleUp(int count) {
+std::map<string, string> K8sWorkerController::scaleUp(int count) {
     if (this->numberOfWorkers + count > this->maxWorkers) {
         count = this->maxWorkers - this->numberOfWorkers;
     }
-    std::map<int, string> workers;
     auto *asyncCalls = new std::future<string>[count];
     int nextWorkerId = getNextWorkerId();
     for (int i = 0; i < count; i++) {
         asyncCalls[i] = std::async(&K8sWorkerController::spawnWorker, this, nextWorkerId + i);
     }
 
+    std::map<string, string> workers;
     for (int i = 0; i < count; i++) {
         std::string result = asyncCalls[i].get();
         if (!result.empty()) {
-            workers.insert(std::make_pair(i, result));
+            workers.insert(std::make_pair(to_string(i), result));
         }
     }
     this->numberOfWorkers += count;
