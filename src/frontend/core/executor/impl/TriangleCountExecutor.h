@@ -15,6 +15,8 @@ limitations under the License.
 #define JASMINEGRAPH_TRIANGLECOUNTEXECUTOR_H
 
 #include <chrono>
+#include <unordered_map>
+#include <unordered_set>
 
 #include "../../../../metadb/SQLiteDBInterface.h"
 #include "../../../../performance/metrics/PerformanceUtil.h"
@@ -42,7 +44,7 @@ class TriangleCountExecutor : public AbstractExecutor {
                                                              std::string aggregatorDataPort, std::string fileName,
                                                              std::string masterIP);
 
-    static string countCompositeCentralStoreTriangles(std::string aggregatorHostName, std::string aggregatorPort,
+    static std::vector<string> countCompositeCentralStoreTriangles(std::string aggregatorHostName, std::string aggregatorPort,
                                                       std::string compositeCentralStoreFileList, std::string masterIP,
                                                       std::string availableFileList, int threadPriority);
 
@@ -58,15 +60,15 @@ class TriangleCountExecutor : public AbstractExecutor {
 
     static void updateMap(int partitionId);
 
-    static int updateTriangleTreeAndGetTriangleCount(std::vector<std::string> triangles);
-
     static std::vector<std::vector<string>> fileCombinations;
     static std::map<std::string, std::string> combinationWorkerMap;
-    static std::map<long, std::map<long, std::vector<long>>> triangleTree;
+    static std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> triangleTree;
 
  private:
     SQLiteDBInterface *sqlite;
     PerformanceSQLiteDBInterface *perfDB;
+
+    static int updateTriangleTreeAndGetTriangleCount(const std::vector<std::string> &triangles);
 };
 
 #endif  // JASMINEGRAPH_TRIANGLECOUNTEXECUTOR_H

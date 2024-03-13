@@ -78,9 +78,6 @@ class JasmineGraphFrontEnd {
 
     static int getRunningHighPriorityTaskCount();
     static bool areRunningJobsForSameGraph();
-    static std::vector<std::vector<string>> fileCombinations;
-    static std::map<std::string, std::string> combinationWorkerMap;
-    static std::map<long, std::map<long, std::vector<long>>> triangleTree;
     std::map<std::string, std::atomic<bool>> *streamsState;
     std::map<std::string, std::thread> streamingThreads;
 

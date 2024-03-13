@@ -20,7 +20,7 @@ using namespace std::chrono;
 Logger triangleCount_logger;
 std::vector<std::vector<string>> TriangleCountExecutor::fileCombinations;
 std::map<std::string, std::string> TriangleCountExecutor::combinationWorkerMap;
-std::map<long, std::map<long, std::vector<long>>> TriangleCountExecutor::triangleTree;
+std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> TriangleCountExecutor::triangleTree;
 bool isStatCollect = false;
 
 std::mutex fileCombinationMutex;
@@ -346,7 +346,6 @@ static void filter_partitions(std::map<string, std::vector<string>> &partitionMa
         int net_load = alloc_net_plan(copying, transfer, net_loads, loads, P_AVAIL, 100000000);
         for (auto it = transfer.begin(); it != transfer.end(); it++) {
             auto p = it->first;
-            auto w_from = it->second.first;
             auto w_to = it->second.second;
             alloc[p] = w_to;
         }
@@ -808,14 +807,10 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
                         }
                     }
 
-                    std::string compositeTriangles =
-                        countCompositeCentralStoreTriangles(host, std::to_string(port), adjustedTransferredFile,
-                                                            masterIP, adjustedAvailableFiles, threadPriority);
-
                     triangleCount_logger.log("###COMPOSITE### Retrieved Composite triangle list ", "debug");
 
-                    std::vector<std::string> triangles = Utils::split(compositeTriangles, ':');
-
+                    const auto &triangles = countCompositeCentralStoreTriangles(host, std::to_string(port), adjustedTransferredFile,
+                                                            masterIP, adjustedAvailableFiles, threadPriority);
                     if (triangles.size() > 0) {
                         triangleCount += updateTriangleTreeAndGetTriangleCount(triangles);
                     }
@@ -887,14 +882,13 @@ void TriangleCountExecutor::updateMap(int partitionId) {
                              "info");
 }
 
-int TriangleCountExecutor::updateTriangleTreeAndGetTriangleCount(std::vector<std::string> triangles) {
+int TriangleCountExecutor::updateTriangleTreeAndGetTriangleCount(const std::vector<std::string> &triangles) {
     const std::lock_guard<std::mutex> lock1(triangleTreeMutex);
-    std::vector<std::string>::iterator triangleIterator;
     int aggregateCount = 0;
 
     triangleCount_logger.log("###COMPOSITE### Triangle Tree locked ", "debug");
 
-    for (triangleIterator = triangles.begin(); triangleIterator != triangles.end(); ++triangleIterator) {
+    for (auto triangleIterator = triangles.begin(); triangleIterator != triangles.end(); ++triangleIterator) {
         std::string triangle = *triangleIterator;
 
         if (!triangle.empty() && triangle != "NILL") {
@@ -904,19 +898,17 @@ int TriangleCountExecutor::updateTriangleTreeAndGetTriangleCount(std::vector<std
             long vertexTwo = std::atol(triangleVertexList.at(1).c_str());
             long vertexThree = std::atol(triangleVertexList.at(2).c_str());
 
-            std::map<long, std::vector<long>> itemRes = triangleTree[vertexOne];
-
-            std::map<long, std::vector<long>>::iterator itemResIterator = itemRes.find(vertexTwo);
-
+            auto &itemRes = triangleTree[vertexOne];
+            auto itemResIterator = itemRes.find(vertexTwo);
             if (itemResIterator != itemRes.end()) {
-                std::vector<long> list = itemRes[vertexTwo];
-
-                if (std::find(list.begin(), list.end(), vertexThree) == list.end()) {
-                    triangleTree[vertexOne][vertexTwo].push_back(vertexThree);
+                auto &set2 = itemResIterator->second;
+                auto set2Iter = set2.find(vertexThree);
+                if (set2Iter == set2.end()) {
+                    set2.insert(vertexThree);
                     aggregateCount++;
                 }
             } else {
-                triangleTree[vertexOne][vertexTwo].push_back(vertexThree);
+                triangleTree[vertexOne][vertexTwo].insert(vertexThree);
                 aggregateCount++;
             }
         }
@@ -1361,7 +1353,7 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
     return response;
 }
 
-string TriangleCountExecutor::countCompositeCentralStoreTriangles(std::string aggregatorHostName,
+std::vector<string> TriangleCountExecutor::countCompositeCentralStoreTriangles(std::string aggregatorHostName,
                                                                   std::string aggregatorPort,
                                                                   std::string compositeCentralStoreFileList,
                                                                   std::string masterIP, std::string availableFileList,
@@ -1377,13 +1369,13 @@ string TriangleCountExecutor::countCompositeCentralStoreTriangles(std::string ag
 
     if (sockfd < 0) {
         std::cerr << "Cannot create socket" << std::endl;
-        return 0;
+        return {};
     }
 
     server = gethostbyname(aggregatorHostName.c_str());
     if (server == NULL) {
         triangleCount_logger.error("ERROR, no host named " + aggregatorHostName);
-        return 0;
+        return {};
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -1392,7 +1384,7 @@ string TriangleCountExecutor::countCompositeCentralStoreTriangles(std::string ag
     serv_addr.sin_port = htons(atoi(aggregatorPort.c_str()));
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "ERROR connecting" << std::endl;
-        return 0;
+        return {};
     }
 
     bzero(data, 301);
@@ -1508,8 +1500,8 @@ string TriangleCountExecutor::countCompositeCentralStoreTriangles(std::string ag
             response = (data);
             response = Utils::trim_copy(response);
             string status = response.substr(response.size() - 5);
-            std::string result = response.substr(0, response.size() - 5);
-
+            std::basic_ostringstream<char> resultStream;
+            resultStream << response.substr(0, response.size() - 5);
             while (status.compare("/SEND") == 0) {
                 result_wr = write(sockfd, status.c_str(), status.size());
 
@@ -1521,10 +1513,9 @@ string TriangleCountExecutor::countCompositeCentralStoreTriangles(std::string ag
                 response = (data);
                 response = Utils::trim_copy(response);
                 status = response.substr(response.size() - 5);
-                std::string triangleResponse = response.substr(0, response.size() - 5);
-                result = result + triangleResponse;
+                resultStream << response.substr(0, response.size() - 5);
             }
-            response = result;
+            response = resultStream.str();
         }
 
         triangleCount_logger.log("Aggregate Response Received", "info");
@@ -1535,7 +1526,7 @@ string TriangleCountExecutor::countCompositeCentralStoreTriangles(std::string ag
     }
     Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
     close(sockfd);
-    return response;
+    return Utils::split(response, ':');;
 }
 
 static std::vector<std::vector<string>> getWorkerCombination(std::vector<string> &workerIdVector) {
