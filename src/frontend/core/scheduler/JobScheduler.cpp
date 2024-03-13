@@ -106,11 +106,13 @@ void JobScheduler::processJob(JobRequest request, SQLiteDBInterface *sqlite, Per
 void JobScheduler::executeJob(JobRequest request, SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfDB) {
     ExecutorFactory *executorFactory = new ExecutorFactory(sqlite, perfDB);
     AbstractExecutor *abstractExecutor = executorFactory->getExecutor(request);
+    delete executorFactory;
     if (abstractExecutor == nullptr) {
         jobScheduler_Logger.error("abstractExecutor is null");
         return;
     }
     abstractExecutor->execute();
+    delete abstractExecutor;
 }
 
 void JobScheduler::pushJob(JobRequest jobDetails) { jobQueue.push(jobDetails); }

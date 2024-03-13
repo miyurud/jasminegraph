@@ -217,6 +217,7 @@ bool JasmineGraphHashMapLocalStore::loadAttributes() {
     auto attributeStoreData = GetAttributeStore(data);
 
     toLocalAttributeMap(attributeStoreData);
+    delete data;
 
     result = true;
 
@@ -283,6 +284,7 @@ bool JasmineGraphHashMapLocalStore::loadPartEdgeMap(const std::string filePath) 
     auto edgeMapStoreData = GetPartEdgeMapStore(data);
 
     toLocalEdgeMap(edgeMapStoreData);
+    delete data;
 
     result = true;
 

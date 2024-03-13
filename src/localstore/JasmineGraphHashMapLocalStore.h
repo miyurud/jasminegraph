@@ -84,6 +84,7 @@ class JasmineGraphHashMapLocalStore : public JasmineGraphLocalStore {
 
         vertexCount = localSubGraphMap.size();
         edgeCount = getEdgeCount();
+        delete data;
 
         return result;
     }

@@ -315,7 +315,7 @@ void MetisPartitioner::createPartitionFiles(std::map<int, int> partMap) {
     edgeMap = GetConfig::getEdgeMap();
     articlesMap = GetConfig::getAttributesMap();
 
-    std::thread *threadList = new std::thread[nParts];
+    std::thread threadList[nParts];
     int count = 0;
     for (int part = 0; part < nParts; part++) {
         populatePartMaps(partMap, part);
@@ -357,7 +357,7 @@ void MetisPartitioner::createPartitionFiles(std::map<int, int> partMap) {
     if (graphAttributeType == Conts::GRAPH_WITH_TEXT_ATTRIBUTES || graphType == Conts::GRAPH_TYPE_RDF) {
         threadCount = nParts * 5;
     }
-    std::thread *threads = new std::thread[threadCount];
+    std::thread threads[threadCount];
     count = 0;
     for (int part = 0; part < nParts; part++) {
         threads[count++] = std::thread(&MetisPartitioner::writeSerializedPartitionFiles, this, part);
@@ -517,7 +517,7 @@ void MetisPartitioner::createPartitionFiles(std::map<int, int> partMap) {
         }
 
         std::vector<std::string>::iterator compositeGraphIdListIterator;
-        std::thread *compositeCopyThreads = new std::thread[threadCount];
+        std::thread compositeCopyThreads[threadCount];
         int compositeCopyCount = 0;
 
         for (compositeGraphIdListIterator = compositeGraphIdList.begin();
@@ -997,6 +997,7 @@ void MetisPartitioner::writeSerializedCompositeMasterFiles(std::string part) {
 
     JasmineGraphHashMapCentralStore *hashMapCentralStore = new JasmineGraphHashMapCentralStore();
     hashMapCentralStore->storePartEdgeMap(partMasterEdgeMap, outputFilePartMaster);
+    delete hashMapCentralStore;
 
     std::vector<std::string> graphIds = Utils::split(part, '_');
     std::vector<std::string>::iterator graphIdIterator;

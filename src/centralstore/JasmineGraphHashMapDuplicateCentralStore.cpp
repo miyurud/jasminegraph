@@ -53,6 +53,7 @@ bool JasmineGraphHashMapDuplicateCentralStore::loadGraph() {
 
     vertexCount = centralDuplicateStoreSubgraphMap.size();
     edgeCount = getEdgeCount();
+    delete data;
 
     return result;
 }
@@ -83,6 +84,7 @@ bool JasmineGraphHashMapDuplicateCentralStore::loadGraph(std::string fileName) {
 
     vertexCount = centralDuplicateStoreSubgraphMap.size();
     edgeCount = getEdgeCount();
+    delete data;
 
     return result;
 }

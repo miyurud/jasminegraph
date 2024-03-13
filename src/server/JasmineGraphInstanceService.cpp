@@ -3188,7 +3188,7 @@ static void aggregate_centralstore_triangles_command(int connFd, bool *loop_exit
         threadPriorityMutex.unlock();
     }
 
-    std::string aggregatedTriangles =
+    const std::string &aggregatedTriangles =
         aggregateCentralStoreTriangles(graphId, partitionId, partitionIdList, threadPriority);
 
     if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
@@ -3218,7 +3218,7 @@ static void aggregate_centralstore_triangles_command(int connFd, bool *loop_exit
             std::string chunk = chunksVector.at(loopCount);
             if (!Utils::send_str_wrapper(connFd, chunk)) {
                 *loop_exit_p = true;
-                return;
+                break;
             }
         } else {
             string chunkStatus = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
@@ -3228,6 +3228,8 @@ static void aggregate_centralstore_triangles_command(int connFd, bool *loop_exit
             }
         }
     }
+    chunksVector.clear();
+    chunksVector.shrink_to_fit();
 }
 
 static void aggregate_streaming_centralstore_triangles_command(
@@ -3417,7 +3419,7 @@ static void aggregate_composite_centralstore_triangles_command(int connFd, bool 
             std::string chunk = chunksVector.at(loopCount);
             if (!Utils::send_str_wrapper(connFd, chunk)) {
                 *loop_exit_p = true;
-                return;
+                break;
             }
         } else {
             string chunkStatus = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
@@ -3427,6 +3429,8 @@ static void aggregate_composite_centralstore_triangles_command(int connFd, bool 
             }
         }
     }
+    chunksVector.clear();
+    chunksVector.shrink_to_fit();
 }
 
 static void initiate_files_command(int connFd, bool *loop_exit_p) {
@@ -3450,7 +3454,7 @@ static void initiate_files_command(int connFd, bool *loop_exit_p) {
         }
     }
 
-    std::thread *workerThreads = new std::thread[2];
+    std::thread workerThreads[2];
     workerThreads[0] = std::thread(&JasmineGraphInstanceService::createPartitionFiles, graphID, partitionID, "local");
     workerThreads[1] =
         std::thread(&JasmineGraphInstanceService::createPartitionFiles, graphID, partitionID, "centralstore");
@@ -3573,7 +3577,7 @@ static void initiate_train_command(int connFd, bool *loop_exit_p) {
         }
     }
 
-    std::thread *workerThreads = new std::thread[2];
+    std::thread workerThreads[2];
     workerThreads[0] = std::thread(&JasmineGraphInstanceService::createPartitionFiles, graphID, partitionID, "local");
     workerThreads[1] =
         std::thread(&JasmineGraphInstanceService::createPartitionFiles, graphID, partitionID, "centralstore");

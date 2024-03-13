@@ -165,6 +165,7 @@ TriangleResult Triangles::countTriangles(map<long, unordered_set<long>> &central
             }
         }
     }
+    triangleTree.clear();
 
     TriangleResult result;
 
