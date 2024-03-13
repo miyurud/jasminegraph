@@ -12,9 +12,9 @@ limitations under the License.
  */
 
 #include "TriangleCountExecutor.h"
-#include "../../../../k8s/K8sWorkerController.h"
 
 #include "../../../../../globals.h"
+#include "../../../../k8s/K8sWorkerController.h"
 
 using namespace std::chrono;
 
@@ -334,10 +334,15 @@ static void filter_partitions(std::map<string, std::vector<string>> &partitionMa
     }
 
     std::map<int, string> alloc;
+    cout << "calling alloc_plan" << endl;
     int unallocated = alloc_plan(alloc, remain, p_avail, loads);
+    cout << "alloc_plan returned " << unallocated << endl;
     if (unallocated > 0) {
+        cout << "calling reallocate_parts" << endl;
         auto copying = reallocate_parts(alloc, remain, P_AVAIL);
+        cout << "reallocate_parts completed" << endl;
         scale_up(loads, workers, copying.size());
+        cout << "scale_up completed" << endl;
 
         map<string, int> net_loads;
         for (auto it = loads.begin(); it != loads.end(); it++) {
@@ -353,20 +358,23 @@ static void filter_partitions(std::map<string, std::vector<string>> &partitionMa
 
         std::map<int, std::pair<string, string>> transfer;
         int net_load = alloc_net_plan(copying, transfer, net_loads, loads, P_AVAIL, 100000000);
+        cout << "alloc_net_plan completed with net_load=" << net_load << endl;
         for (auto it = transfer.begin(); it != transfer.end(); it++) {
             auto p = it->first;
             auto w_to = it->second.second;
             alloc[p] = w_to;
+            cout << "planned sending partition " << p << " from " << it->second.first << " to " << it->second.second
+                 << endl;
         }
 
         if (!transfer.empty()) {
             const std::vector<vector<pair<string, string>>> &workerData =
                 sqlite->runSelect("SELECT ip,server_port,server_data_port FROM worker;");
             map<string, string> dataPortMap;
-            for (int i = 0; i < results.size(); i++) {
-                string ip = results[i][0].second;
-                string port = results[i][1].second;
-                string dport = results[i][2].second;
+            for (int i = 0; i < workerData.size(); i++) {
+                string ip = workerData[i][0].second;
+                string port = workerData[i][1].second;
+                string dport = workerData[i][2].second;
                 workers[ip + ":" + port] = dport;
             }
             map<string, string> workers_r;
@@ -385,8 +393,12 @@ static void filter_partitions(std::map<string, std::vector<string>> &partitionMa
                 auto ip_to = ip_port_to[0];
                 auto port_to = stoi(ip_port_to[1]);
                 auto dport_to = stoi(dataPortMap[w_to]);
+                cout << "Sending partition " << partition << " from " << w_from << ":" << dport_from << " to " << w_to
+                     << ":" << dport_to << endl;
+                // TODO(thevindu-w): run transferPartition in a separate thread
                 Utils::transferPartition(ip_from, port_from, dport_from, ip_to, port_to, dport_to, stoi(graphId),
                                          partition);
+                cout << "Send completed";
                 sqlite->runInsert(
                     "INSERT INTO worker_has_partition "
                     "(partition_idpartition, partition_graph_idgraph, worker_idworker) VALUES ('" +
@@ -484,10 +496,34 @@ void TriangleCountExecutor::execute() {
         triangleCount_logger.info("###TRIANGLE-COUNT-EXECUTOR### Getting Triangle Count : PartitionId " + partitionId);
     }
 
+    cout << "initial partitionMap = {" << endl;
+    for (auto it = partitionMap.begin(); it != partitionMap.end(); it++) {
+        cout << "  " << it->first << ": [";
+        auto &pts = it->second;
+        for (auto it2 = pts.begin(); it2 != pts.end(); it2++) {
+            cout << *it2 << ", ";
+        }
+        cout << "]" << endl;
+    }
+    cout << "}" << endl;
+    cout << endl;
+
     if (jasminegraph_profile == PROFILE_K8S &&
         Utils::getJasmineGraphProperty("org.jasminegraph.autoscale.enabled") == "true") {
         filter_partitions(partitionMap, sqlite, graphId);
     }
+
+    cout << "initial partitionMap = {" << endl;
+    for (auto it = partitionMap.begin(); it != partitionMap.end(); it++) {
+        cout << "  " << it->first << ": [";
+        auto &pts = it->second;
+        for (auto it2 = pts.begin(); it2 != pts.end(); it2++) {
+            cout << *it2 << ", ";
+        }
+        cout << "]" << endl;
+    }
+    cout << "}" << endl;
+    cout << endl;
 
     if (results.size() > Conts::COMPOSITE_CENTRAL_STORE_WORKER_THRESHOLD) {
         isCompositeAggregation = true;
