@@ -57,16 +57,15 @@ std::vector<std::string> Utils::getFileContent(std::string file) {
     ifstream in(file);
 
     std::string str;
-    vector<std::string> *vec = new vector<std::string>();
+    vector<std::string> vec;
     while (std::getline(in, str)) {
         // now we loop back and get the next line in 'str'
-
         if (str.length() > 0) {
-            vec->insert(vec->begin(), str);
+            vec.push_back(str);
         }
     }
 
-    return *vec;
+    return vec;
 };
 
 std::string Utils::getFileContentAsString(std::string file) {
@@ -99,22 +98,27 @@ void Utils::writeFileContent(const std::string &filePath, const std::string &con
     out.close();
 }
 
-static bool initializedProperties = false;
+static std::mutex propertiesMapMutex;
+static bool propertiesMapInitialized = false;
 std::string Utils::getJasmineGraphProperty(std::string key) {
-    if (!initializedProperties && Utils::propertiesMap.empty()) {
-        initializedProperties = true;
-        const vector<std::string> &vec = Utils::getFileContent(ROOT_DIR "conf/jasminegraph-server.properties");
-        for (auto it = vec.begin(); it < vec.end(); it++) {
-            std::string item = *it;
-            if (item.length() > 0 && !(item.rfind("#", 0) == 0)) {
-                const std::vector<std::string> &vec2 = split(item, '=');
-                if (vec2.size() == 2) {
-                    Utils::propertiesMap[vec2.at(0)] = vec2.at(1);
-                } else {
-                    Utils::propertiesMap[vec2.at(0)] = string(" ");
+    if (!propertiesMapInitialized) {
+        propertiesMapMutex.lock();
+        if (!propertiesMapInitialized) {  // double-checking lock
+            const vector<std::string> &vec = Utils::getFileContent(ROOT_DIR "conf/jasminegraph-server.properties");
+            for (auto it = vec.begin(); it < vec.end(); it++) {
+                std::string item = *it;
+                if (item.length() > 0 && !(item.rfind("#", 0) == 0)) {
+                    const std::vector<std::string> &vec2 = split(item, '=');
+                    if (vec2.size() == 2) {
+                        Utils::propertiesMap[vec2.at(0)] = vec2.at(1);
+                    } else {
+                        Utils::propertiesMap[vec2.at(0)] = string(" ");
+                    }
                 }
             }
         }
+        propertiesMapInitialized = true;
+        propertiesMapMutex.unlock();
     }
     auto it = Utils::propertiesMap.find(key);
     if (it != Utils::propertiesMap.end()) {
@@ -1048,16 +1052,11 @@ bool Utils::sendFileThroughService(std::string host, int dataPort, std::string f
  * and the destination worker is ready to accept the partition
  * Also, the caller should update the worker_has_partition table.
  * */
-bool Utils::transferPartition(std::string sourceWorker,
-                              int sourceWorkerPort,
-                              int sourceWorkerDataPort,
-                              std::string destinationWorker,
-                              int destinationWorkerPort,
-                              int destinationWorkerDataPort,
-                              int graphID,
-                              int partitionID) {
-    util_logger.info("### Transferring partition " + to_string(partitionID) + " of graph " + to_string(graphID)
-    + " from " + sourceWorker + " to " + destinationWorker);
+bool Utils::transferPartition(std::string sourceWorker, int sourceWorkerPort, int sourceWorkerDataPort,
+                              std::string destinationWorker, int destinationWorkerPort, int destinationWorkerDataPort,
+                              int graphID, int partitionID) {
+    util_logger.info("### Transferring partition " + to_string(partitionID) + " of graph " + to_string(graphID) +
+                     " from " + sourceWorker + " to " + destinationWorker);
 
     int sockfd;
     char data[FED_DATA_LENGTH + 1];
