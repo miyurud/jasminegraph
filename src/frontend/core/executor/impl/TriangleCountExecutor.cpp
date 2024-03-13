@@ -279,7 +279,7 @@ static int alloc_net_plan(std::vector<int> &parts, std::map<int, std::pair<strin
 
 static void filter_partitions(std::map<string, std::vector<string>> &partitionMap, SQLiteDBInterface *sqlite,
                               string graphId) {
-    map<string, string> workers;
+    map<string, string> workers;  // id => "ip:port"
     const std::vector<vector<pair<string, string>>> &results =
         sqlite->runSelect("SELECT idworker,ip,server_port FROM worker;");
     for (int i = 0; i < results.size(); i++) {
@@ -297,8 +297,8 @@ static void filter_partitions(std::map<string, std::vector<string>> &partitionMa
         const auto workerLoadIt = cpu_map.find(worker);
         if (workerLoadIt != cpu_map.end()) {
             double load = stod(workerLoadIt->second.c_str());
-            if (load < 0.1) load = 0.1;
-            loads[workerId] = (int)round(4 * load - 0.6);
+            if (load < 0) load = 0;
+            loads[workerId] = (int)round(4 * load);
         } else {
             loads[workerId] = 0;
         }
@@ -370,14 +370,15 @@ static void filter_partitions(std::map<string, std::vector<string>> &partitionMa
         if (!transfer.empty()) {
             const std::vector<vector<pair<string, string>>> &workerData =
                 sqlite->runSelect("SELECT ip,server_port,server_data_port FROM worker;");
-            map<string, string> dataPortMap;
+            map<string, string> dataPortMap;  // "ip:port" => data_port
             for (int i = 0; i < workerData.size(); i++) {
                 string ip = workerData[i][0].second;
                 string port = workerData[i][1].second;
                 string dport = workerData[i][2].second;
-                workers[ip + ":" + port] = dport;
+                dataPortMap[ip + ":" + port] = dport;
+                cout << "dataPortMap[" << ip + ":" + port << "] = " << dport << endl;
             }
-            map<string, string> workers_r;
+            map<string, string> workers_r;  // "ip:port" => id
             for (auto it = workers.begin(); it != workers.end(); it++) {
                 workers_r[it->second] = it->first;
             }
