@@ -243,19 +243,22 @@ void K8sWorkerController::setNumberOfWorkers(int newNumberOfWorkers) {
     this->numberOfWorkers = newNumberOfWorkers;
 }
 
-std::vector<string> K8sWorkerController::scaleUp(int count) {
+std::map<int, string> K8sWorkerController::scaleUp(int count) {
     if (this->numberOfWorkers + count > this->maxWorkers) {
         count = this->maxWorkers - this->numberOfWorkers;
     }
-    std::vector<string> workers;
+    std::map<int, string> workers;
     auto *asyncCalls = new std::future<string>[count];
     for (int i = 0; i < count; i++) {
         // TODO (Ishad-M-I-M): Implement a robust way to give a worker id.
         asyncCalls[i] = std::async(&K8sWorkerController::spawnWorker, this, i);
     }
-    workers.reserve(count);
+
     for (int i = 0; i < count; i++) {
-        workers.push_back(asyncCalls[i].get());
+        std::string result = asyncCalls[i].get();
+        if (!result.empty()) {
+            workers.insert(std::make_pair(i, result));
+        }
     }
     this->numberOfWorkers += count;
     return workers;
