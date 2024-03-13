@@ -211,9 +211,7 @@ std::vector<std::map<int, std::string>> MetisPartitioner::partitioneWithGPMetis(
 
     char buffer[128];
     std::string result = "";
-    std::string metisBinDir = Utils::getJasmineGraphProperty("org.jasminegraph.partitioner.metis.bin");
-    string metisCommand =
-        metisBinDir + "/gpmetis " + this->outputFilePath + "/grf " + to_string(this->nParts) + " 2>&1";
+    string metisCommand = "gpmetis " + this->outputFilePath + "/grf " + to_string(this->nParts) + " 2>&1";
     partitioner_logger.log("metisCommand " + metisCommand, "info");
 
     FILE *input = popen(metisCommand.c_str(), "r");
