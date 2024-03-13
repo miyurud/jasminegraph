@@ -76,3 +76,23 @@ TEST_F(K8sWorkerControllerTest, TestScalingUpAndDown) {
     service_list = interface->getServiceList(strdup("service=jasminegraph-worker"));
     ASSERT_EQ(service_list->items->count, 0);
 }
+
+TEST_F(K8sWorkerControllerTest, TestScaleUp) {
+    controller->setNumberOfWorkers(0);
+    auto result = controller->scaleUp(2);
+    ASSERT_EQ(result.size(), 2);
+    v1_deployment_list_t *deployment_list = interface->getDeploymentList(strdup("deployment=jasminegraph-worker"));
+    ASSERT_EQ(deployment_list->items->count, 2);
+    v1_service_list_t *service_list = interface->getServiceList(strdup("service=jasminegraph-worker"));
+    ASSERT_EQ(service_list->items->count, 2);
+}
+
+TEST_F(K8sWorkerControllerTest, TestScaleUpBeyondLimit) {
+    controller->setNumberOfWorkers(0);
+    auto result = controller->scaleUp(5);
+    ASSERT_EQ(result.size(), 4);
+    v1_deployment_list_t *deployment_list = interface->getDeploymentList(strdup("deployment=jasminegraph-worker"));
+    ASSERT_EQ(deployment_list->items->count, 4);
+    v1_service_list_t *service_list = interface->getServiceList(strdup("service=jasminegraph-worker"));
+    ASSERT_EQ(service_list->items->count, 4);
+}

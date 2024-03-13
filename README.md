@@ -26,9 +26,10 @@ Run JasmineGraph in Kubernetes environment by providing appropriate parameters:
         --DATA_PATH "$(pwd)/data" \
         --LOG_PATH "$(pwd)/logs" \
         --NO_OF_WORKERS 2 \
-        --ENABLE_NMON false
+        --ENABLE_NMON false \
+        --MAX_COUNT 4 \
 
->Note: `NO_OF_WORKERS` and `ENABLE_NMON` are optional arguments, and it defaults to `2` and `false` respectively.
+>Note: `NO_OF_WORKERS`, `MAX_COUNT`, and `ENABLE_NMON` are optional arguments, and it defaults to `2`, `4` and `false` respectively.
 
 
 Remove all resources created by JasmineGraph in Kubernetes environment:

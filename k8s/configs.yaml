@@ -7,5 +7,5 @@ metadata:
 data:
   pushgateway_address: "${pushgateway_address}"
   prometheus_address: "${prometheus_address}"
-
+  max_worker_count: "${max_worker_count}"
   

@@ -18,6 +18,7 @@ DATA_PATH=${DATA_PATH}
 LOG_PATH=${LOG_PATH}
 NO_OF_WORKERS=${NO_OF_WORKERS}
 ENABLE_NMON=${ENABLE_NMON}
+MAX_COUNT=${MAX_COUNT}
 
 while [ $# -gt 0 ]; do
 
@@ -56,6 +57,10 @@ fi
 
 if [ -z "$ENABLE_NMON" ]; then
     ENABLE_NMON="false"
+fi
+
+if [ -z "$MAX_COUNT" ]; then
+    MAX_COUNT="4"
 fi
 
 kubectl apply -f ./k8s/rbac.yaml
@@ -98,6 +103,7 @@ done
 
 pushgateway_address="${pushgatewayIP}:9091/" \
     prometheus_address="${prometheusIP}:9090/" \
+    max_worker_count="${MAX_COUNT}" \
     envsubst <"./k8s/configs.yaml" | kubectl apply -f -
 
 metadb_path="${META_DB_PATH}" \

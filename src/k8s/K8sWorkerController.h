@@ -33,10 +33,11 @@ class K8sWorkerController {
 
     std::string masterIp;
     int numberOfWorkers;
+    int maxWorkers;
 
     K8sWorkerController(std::string masterIp, int numberOfWorkers, SQLiteDBInterface *metadb);
 
-    void spawnWorker(int workerId);
+    std::string spawnWorker(int workerId);
 
     void deleteWorker(int workerId);
 
@@ -55,6 +56,8 @@ class K8sWorkerController {
     int getNumberOfWorkers() const;
 
     void setNumberOfWorkers(int newNumberOfWorkers);
+
+    std::vector<string> scaleUp(int numberOfWorkers);
 };
 
 #endif  // JASMINEGRAPH_K8SWORKERCONTROLLER_H

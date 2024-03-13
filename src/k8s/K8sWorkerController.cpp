@@ -21,12 +21,21 @@ limitations under the License.
 Logger controller_logger;
 
 std::vector<JasmineGraphServer::worker> K8sWorkerController::workerList = {};
+static int TIME_OUT = 180;
 
 K8sWorkerController::K8sWorkerController(std::string masterIp, int numberOfWorkers, SQLiteDBInterface *metadb) {
     this->masterIp = std::move(masterIp);
     this->numberOfWorkers = numberOfWorkers;
     this->interface = new K8sInterface();
     this->metadb = *metadb;
+
+    try {
+        this->maxWorkers = stoi(this->interface->getJasmineGraphConfig("max_worker_count"));
+    } catch (std::invalid_argument &e) {
+        controller_logger.error("Invalid max_worker_count value. Defaulted to 4");
+        this->maxWorkers = 4;
+    }
+
 
     // Delete all the workers from the database
     metadb->runUpdate("DELETE FROM worker");
@@ -58,7 +67,7 @@ K8sWorkerController *K8sWorkerController::getInstance(std::string masterIp, int 
     return instance;
 }
 
-void K8sWorkerController::spawnWorker(int workerId) {
+std::string K8sWorkerController::spawnWorker(int workerId) {
     v1_service_t *service = this->interface->createJasmineGraphWorkerService(workerId);
     if (service != nullptr && service->metadata != nullptr && service->metadata->name != nullptr) {
         controller_logger.info("Worker " + std::to_string(workerId) + " service created successfully");
@@ -77,6 +86,43 @@ void K8sWorkerController::spawnWorker(int workerId) {
         throw std::runtime_error("Worker " + std::to_string(workerId) + " deployment creation failed");
     }
 
+    int sockfd;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        controller_logger.error("Cannot create socket");
+        return "";
+    }
+
+    server = gethostbyname(ip.c_str());
+    if (server == NULL) {
+        controller_logger.error("ERROR, no host named " + ip);
+        return "";
+    }
+
+    bzero((char *)&serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    serv_addr.sin_port = htons(Conts::JASMINEGRAPH_INSTANCE_PORT);
+
+    int waiting = 0;
+    while (true) {
+        if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+            waiting += 30; // Added overhead in connection retry attempts
+            sleep(10);
+        } else {
+            close(sockfd);
+            break;
+        }
+
+        if (waiting >= TIME_OUT) {
+            return "";
+        }
+
+    }
+
     JasmineGraphServer::worker worker = {
         .hostname = ip, .port = Conts::JASMINEGRAPH_INSTANCE_PORT, .dataPort = Conts::JASMINEGRAPH_INSTANCE_DATA_PORT};
     K8sWorkerController::workerList.push_back(worker);
@@ -89,6 +135,8 @@ void K8sWorkerController::spawnWorker(int workerId) {
     if (status == -1) {
         controller_logger.error("Worker " + std::to_string(workerId) + " database insertion failed");
     }
+
+    return ip + ":" + to_string(Conts::JASMINEGRAPH_INSTANCE_PORT);
 }
 
 void K8sWorkerController::deleteWorker(int workerId) {
@@ -179,6 +227,9 @@ std::string K8sWorkerController::getMasterIp() const { return this->masterIp; }
 
 int K8sWorkerController::getNumberOfWorkers() const { return numberOfWorkers; }
 
+/*
+ * @deprecated
+ */
 void K8sWorkerController::setNumberOfWorkers(int newNumberOfWorkers) {
     if (newNumberOfWorkers > this->numberOfWorkers) {
         for (int i = this->numberOfWorkers; i < newNumberOfWorkers; i++) {
@@ -190,4 +241,22 @@ void K8sWorkerController::setNumberOfWorkers(int newNumberOfWorkers) {
         }
     }
     this->numberOfWorkers = newNumberOfWorkers;
+}
+
+std::vector<string> K8sWorkerController::scaleUp(int count) {
+    if (this->numberOfWorkers + count > this->maxWorkers) {
+        count = this->maxWorkers - this->numberOfWorkers;
+    }
+    std::vector<string> workers;
+    auto *asyncCalls = new std::future<string>[count];
+    for (int i = 0; i < count; i++) {
+        // TODO (Ishad-M-I-M): Implement a robust way to give a worker id.
+        asyncCalls[i] = std::async(&K8sWorkerController::spawnWorker, this, i);
+    }
+    workers.reserve(count);
+    for (int i = 0; i < count; i++) {
+        workers.push_back(asyncCalls[i].get());
+    }
+    this->numberOfWorkers += count;
+    return workers;
 }
