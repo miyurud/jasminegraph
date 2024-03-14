@@ -282,7 +282,7 @@ static void filter_partitions(std::map<string, std::vector<string>> &partitionMa
                               string graphId) {
     map<string, string> workers;  // id => "ip:port"
     const std::vector<vector<pair<string, string>>> &results =
-        sqlite->runSelect("SELECT idworker,ip,server_port FROM worker;");
+        sqlite->runSelect("SELECT DISTINCT idworker,ip,server_port FROM worker;");
     for (int i = 0; i < results.size(); i++) {
         string workerId = results[i][0].second;
         string ip = results[i][1].second;
@@ -370,7 +370,7 @@ static void filter_partitions(std::map<string, std::vector<string>> &partitionMa
 
         if (!transfer.empty()) {
             const std::vector<vector<pair<string, string>>> &workerData =
-                sqlite->runSelect("SELECT ip,server_port,server_data_port FROM worker;");
+                sqlite->runSelect("SELECT DISTINCT ip,server_port,server_data_port FROM worker;");
             map<string, string> dataPortMap;  // "ip:port" => data_port
             for (int i = 0; i < workerData.size(); i++) {
                 string ip = workerData[i][0].second;
@@ -471,7 +471,7 @@ void TriangleCountExecutor::execute() {
     auto begin = chrono::high_resolution_clock::now();
 
     string sqlStatement =
-        "SELECT worker_idworker,partition_idpartition "
+        "SELECT DISTINCT worker_idworker,partition_idpartition "
         "FROM worker_has_partition INNER JOIN worker ON worker_has_partition.worker_idworker=worker.idworker "
         "WHERE partition_graph_idgraph=" +
         graphId + ";";
@@ -993,7 +993,7 @@ static long aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, std::strin
     long aggregatedTriangleCount = 0;
 
     const std::vector<vector<pair<string, string>>> &workerDataResult =
-        sqlite->runSelect("SELECT idworker,ip,server_port,server_data_port FROM worker;");
+        sqlite->runSelect("SELECT DISTINCT idworker,ip,server_port,server_data_port FROM worker;");
     map<string, vector<string>> workerDataMap;  // worker_id => [ip,port,data_port]
     for (auto it = workerDataResult.begin(); it != workerDataResult.end(); it++) {
         const auto &ipPortDport = *it;
