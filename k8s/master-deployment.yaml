@@ -29,6 +29,9 @@ spec:
         - name: jasminegraph-logs
           persistentVolumeClaim:
             claimName: jasminegraph-logs-claim
+        - name: jasminegraph-aggregate
+          persistentVolumeClaim:
+              claimName: jasminegraph-aggregate-claim
       containers:
         - name: jasminegraph-master
           image: jasminegraph
@@ -56,6 +59,8 @@ spec:
               name: jasminegraph-data
             - mountPath: /tmp/jasminegraph
               name: jasminegraph-logs
+            - mountPath: /var/tmp/jasminegraph-aggregate
+              name: jasminegraph-aggregate
           resources:
             requests:
               cpu: "1000m"

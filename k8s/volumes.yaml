@@ -130,3 +130,35 @@ spec:
   resources:
     requests:
       storage: 1Gi
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: jasminegraph-aggregate
+  labels:
+    application: jasminegraph
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteMany
+  hostPath:
+    path: "${aggregate_path}"
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jasminegraph-aggregate-claim
+  labels:
+    application: jasminegraph
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi

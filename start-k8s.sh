@@ -16,6 +16,7 @@ META_DB_PATH=${META_DB_PATH}
 PERFORMANCE_DB_PATH=${PERFORMANCE_DB_PATH}
 DATA_PATH=${DATA_PATH}
 LOG_PATH=${LOG_PATH}
+AGGREGATE_PATH=${AGGREGATE_PATH}
 NO_OF_WORKERS=${NO_OF_WORKERS}
 ENABLE_NMON=${ENABLE_NMON}
 MAX_COUNT=${MAX_COUNT}
@@ -110,6 +111,7 @@ metadb_path="${META_DB_PATH}" \
     performancedb_path="${PERFORMANCE_DB_PATH}" \
     data_path="${DATA_PATH}" \
     log_path="${LOG_PATH}" \
+    aggregate_path="${AGGREGATE_PATH}" \
     envsubst <"./k8s/volumes.yaml" | kubectl apply -f -
 
 no_of_workers="${NO_OF_WORKERS}" \
