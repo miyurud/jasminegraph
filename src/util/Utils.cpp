@@ -1049,14 +1049,13 @@ bool Utils::sendFileThroughService(std::string host, int dataPort, std::string f
 /*
  * Function to transfer a partition from one worker to another
  * Caller should ensure that the partition exists in the source worker
- * and the destination worker is ready to accept the partition
- * Also, the caller should update the worker_has_partition table.
+ * and the destination worker is ready to accept the partition.
  * */
-bool Utils::transferPartition(std::string sourceWorker, int sourceWorkerPort, int sourceWorkerDataPort,
-                              std::string destinationWorker, int destinationWorkerPort, int destinationWorkerDataPort,
-                              int graphID, int partitionID) {
-    util_logger.info("### Transferring partition " + to_string(partitionID) + " of graph " + to_string(graphID) +
-                     " from " + sourceWorker + " to " + destinationWorker);
+bool Utils::transferPartition(std::string sourceWorker, int sourceWorkerPort, std::string destinationWorker,
+                              int destinationWorkerDataPort, std::string graphID, std::string partitionID,
+                              std::string workerID, SQLiteDBInterface *sqlite) {
+    util_logger.info("### Transferring partition " + partitionID + " of graph " + graphID + " from " + sourceWorker +
+                     " to " + destinationWorker);
 
     int sockfd;
     char data[FED_DATA_LENGTH + 1];
@@ -1104,8 +1103,7 @@ bool Utils::transferPartition(std::string sourceWorker, int sourceWorkerPort, in
         return false;
     }
 
-    if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH,
-                                   to_string(graphID) + "," + to_string(partitionID),
+    if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, graphID + "," + partitionID,
                                    JasmineGraphInstanceProtocol::OK)) {
         Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
         close(sockfd);
@@ -1113,6 +1111,11 @@ bool Utils::transferPartition(std::string sourceWorker, int sourceWorkerPort, in
     }
 
     util_logger.info("### Transfer partition completed");
+    sqlite->runInsert(
+        "INSERT INTO worker_has_partition "
+        "(partition_idpartition, partition_graph_idgraph, worker_idworker) VALUES ('" +
+        partitionID + "', '" + graphID + "', '" + workerID + "')");
+
     Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
     close(sockfd);
     return true;

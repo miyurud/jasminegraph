@@ -383,28 +383,25 @@ static void filter_partitions(std::map<string, std::vector<string>> &partitionMa
             for (auto it = workers.begin(); it != workers.end(); it++) {
                 workers_r[it->second] = it->first;
             }
+            thread transferThreads[transfer.size()];
+            int threadCnt = 0;
             for (auto it = transfer.begin(); it != transfer.end(); it++) {
                 auto partition = it->first;
-                auto w_from = workers[it->second.first];
-                auto w_to = workers[it->second.second];
+                auto from_worker = it->second.first;
+                auto to_worker = it->second.second;
+                auto w_from = workers[from_worker];
+                auto w_to = workers[to_worker];
                 const auto &ip_port_from = Utils::split(w_from, ':');
                 auto ip_from = ip_port_from[0];
                 auto port_from = stoi(ip_port_from[1]);
-                auto dport_from = stoi(dataPortMap[w_from]);
                 const auto &ip_port_to = Utils::split(w_to, ':');
                 auto ip_to = ip_port_to[0];
-                auto port_to = stoi(ip_port_to[1]);
                 auto dport_to = stoi(dataPortMap[w_to]);
-                cout << "Sending partition " << partition << " from " << w_from << ":" << dport_from << " to " << w_to
-                     << ":" << dport_to << endl;
-                // TODO(thevindu-w): run transferPartition in a separate thread
-                Utils::transferPartition(ip_from, port_from, dport_from, ip_to, port_to, dport_to, stoi(graphId),
-                                         partition);
-                cout << "Send completed";
-                sqlite->runInsert(
-                    "INSERT INTO worker_has_partition "
-                    "(partition_idpartition, partition_graph_idgraph, worker_idworker) VALUES ('" +
-                    to_string(partition) + "', '" + graphId + "', '" + workers_r[w_to] + "')");
+                transferThreads[threadCnt++] = std::thread(&Utils::transferPartition, ip_from, port_from, ip_to,
+                                                           dport_to, graphId, to_string(partition), to_worker, sqlite);
+            }
+            for (int i = 0; i < threadCnt; i++) {
+                transferThreads[i].join();
             }
         }
     }

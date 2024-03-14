@@ -163,6 +163,7 @@ void *instanceservicesession(void *dummyPt) {
     while (!loop_exit) {
         string line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, true);
         if (line.empty()) {
+            sleep(1);
             continue;
         }
         line = Utils::trim_copy(line);
