@@ -49,8 +49,8 @@ K8sWorkerController::K8sWorkerController(std::string masterIp, int numberOfWorke
     // Delete all the workers from the database
     metadb->runUpdate("DELETE FROM worker");
     int workersAttached = this->attachExistingWorkers();
-    for (int i = getNextWorkerId(); i < numberOfWorkers; i++) {
-        this->spawnWorker(i);
+    if (numberOfWorkers - workersAttached > 0){
+        this->scaleUp(numberOfWorkers-workersAttached);
     }
 }
 
@@ -128,6 +128,8 @@ std::string K8sWorkerController::spawnWorker(int workerId) {
         }
 
         if (waiting >= TIME_OUT) {
+            controller_logger.error("Error in spawning new worker");
+            deleteWorker(workerId);
             return "";
         }
 
@@ -266,12 +268,14 @@ std::map<string, string> K8sWorkerController::scaleUp(int count) {
     }
 
     std::map<string, string> workers;
+    int success = 0;
     for (int i = 0; i < count; i++) {
         std::string result = asyncCalls[i].get();
         if (!result.empty()) {
+            success++;
             workers.insert(std::make_pair(to_string(i), result));
         }
     }
-    this->numberOfWorkers += count;
+    this->numberOfWorkers += success;
     return workers;
 }
