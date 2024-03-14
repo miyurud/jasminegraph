@@ -514,7 +514,7 @@ void TriangleCountExecutor::execute() {
         filter_partitions(partitionMap, sqlite, graphId);
     }
 
-    cout << "initial partitionMap = {" << endl;
+    cout << "final partitionMap = {" << endl;
     for (auto it = partitionMap.begin(); it != partitionMap.end(); it++) {
         cout << "  " << it->first << ": [";
         auto &pts = it->second;
@@ -1046,9 +1046,10 @@ static long aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, std::strin
             string part = *partitionCombinationIterator;
             string workerId = partitionWorkerMap[part];
 
-            if (workerId != minWeightWorker) {
+            if (part != minWeightWorkerPartition) {
                 partitionIdList += part + ",";
-
+            }
+            if (workerId != minWeightWorker) {
                 std::string centralStoreAvailable = isFileAccessibleToWorker(
                     graphId, part, aggregatorIp, aggregatorPort, masterIP,
                     JasmineGraphInstanceProtocol::FILE_TYPE_CENTRALSTORE_AGGREGATE, std::string());
@@ -1371,10 +1372,8 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
 
             triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
             triangleCount_logger.log("Checking if file is received", "info");
-            bzero(data, 301);
-            read(sockfd, data, 300);
-            response = (data);
 
+            response = Utils::read_str_trim_wrapper(sockfd, data, 300);
             if (response.compare(JasmineGraphInstanceProtocol::FILE_RECV_WAIT) == 0) {
                 triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_WAIT, "info");
                 triangleCount_logger.log("Checking file status : " + to_string(count), "info");
@@ -1385,6 +1384,8 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
                 triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_ACK, "info");
                 triangleCount_logger.log("File transfer completed for file : " + aggregateStoreFile, "info");
                 break;
+            } else {
+                triangleCount_logger.error("Invalid response " + response);
             }
         }
 
@@ -1635,7 +1636,6 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
         return "";
     }
 
-    bzero(data, 301);
     int result_wr =
         write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
 
@@ -1732,10 +1732,8 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
 
             triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
             triangleCount_logger.log("Checking if file is received", "info");
-            bzero(data, 301);
-            read(sockfd, data, 300);
-            response = (data);
 
+            response = Utils::read_str_trim_wrapper(sockfd, data, 300);
             if (response.compare(JasmineGraphInstanceProtocol::FILE_RECV_WAIT) == 0) {
                 triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_WAIT, "info");
                 triangleCount_logger.log("Checking file status : " + to_string(count), "info");
@@ -1746,6 +1744,8 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
                 triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_ACK, "info");
                 triangleCount_logger.log("File transfer completed for file : " + centralStoreFile, "info");
                 break;
+            } else {
+                triangleCount_logger.error("Invalid response " + response);
             }
         }
 
@@ -1901,7 +1901,7 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorP
                 triangleCount_logger.log("Error writing to socket", "error");
             }
 
-            triangleCount_logger.log("Sent : Partition ID List : " + partitionId, "info");
+            triangleCount_logger.log("Sent : Partition ID List : " + partitionIdList, "info");
 
             bzero(data, 301);
             read(sockfd, data, 300);
