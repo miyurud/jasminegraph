@@ -77,6 +77,20 @@ K8sWorkerController *K8sWorkerController::getInstance(std::string masterIp, int 
 }
 
 std::string K8sWorkerController::spawnWorker(int workerId) {
+    auto volume = this->interface->createJasmineGraphPersistentVolume(workerId);
+    if (volume != nullptr && volume->metadata != nullptr && volume->metadata->name != nullptr) {
+        controller_logger.info("Worker " + std::to_string(workerId) + " persistent volume created successfully");
+    } else {
+        throw std::runtime_error("Worker " + std::to_string(workerId) + " persistent volume creation failed");
+    }
+
+    auto claim = this->interface->createJasmineGraphPersistentVolumeClaim(workerId);
+    if (claim != nullptr && claim->metadata != nullptr && claim->metadata->name != nullptr) {
+        controller_logger.info("Worker " + std::to_string(workerId) + " persistent volume claim created successfully");
+    } else {
+        throw std::runtime_error("Worker " + std::to_string(workerId) + " persistent volume claim creation failed");
+    }
+
     v1_service_t *service = this->interface->createJasmineGraphWorkerService(workerId);
     if (service != nullptr && service->metadata != nullptr && service->metadata->name != nullptr) {
         controller_logger.info("Worker " + std::to_string(workerId) + " service created successfully");
@@ -178,6 +192,20 @@ void K8sWorkerController::deleteWorker(int workerId) {
         controller_logger.info("Worker " + std::to_string(workerId) + " service deleted successfully");
     } else {
         controller_logger.error("Worker " + std::to_string(workerId) + " service deletion failed");
+    }
+
+    auto volume = this->interface->deleteJasmineGraphPersistentVolume(workerId);
+    if (volume != nullptr && volume->metadata != nullptr && volume->metadata->name != nullptr) {
+        controller_logger.info("Worker " + std::to_string(workerId) + " persistent volume deleted successfully");
+    } else {
+        controller_logger.error("Worker " + std::to_string(workerId) + " persistent volume deletion failed");
+    }
+
+    auto claim = this->interface->deleteJasmineGraphPersistentVolumeClaim(workerId);
+    if (claim != nullptr && claim->metadata != nullptr && claim->metadata->name != nullptr) {
+        controller_logger.info("Worker " + std::to_string(workerId) + " persistent volume claim deleted successfully");
+    } else {
+        controller_logger.error("Worker " + std::to_string(workerId) + " persistent volume claim deletion failed");
     }
 
     std::string deleteQuery = "DELETE FROM worker WHERE idworker = " + std::to_string(workerId);

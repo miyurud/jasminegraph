@@ -53,6 +53,7 @@ build_and_run_on_k8s() {
         --PERFORMANCE_DB_PATH performancedb_path "${TEST_ROOT}/env/databases/performancedb" \
         --DATA_PATH "${TEST_ROOT}/env/data" \
         --LOG_PATH "${LOG_DIR}" \
+        --AGGREGATE_PATH "${TEST_ROOT}/env/aggregate" \
         --NO_OF_WORKERS 2 \
         --ENABLE_NMON false
 }
