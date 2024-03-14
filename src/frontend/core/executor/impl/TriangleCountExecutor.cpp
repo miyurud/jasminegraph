@@ -19,12 +19,12 @@ limitations under the License.
 using namespace std::chrono;
 
 Logger triangleCount_logger;
-std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> TriangleCountExecutor::triangleTree;
 bool isStatCollect = false;
 
 std::mutex fileCombinationMutex;
 std::mutex processStatusMutex;
 std::mutex responseVectorMutex;
+static std::mutex aggregateWeightMutex;
 
 static string isFileAccessibleToWorker(std::string graphId, std::string partitionId, std::string aggregatorHostName,
                                        std::string aggregatorPort, std::string masterIP, std::string fileType,
@@ -32,6 +32,10 @@ static string isFileAccessibleToWorker(std::string graphId, std::string partitio
 static long aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, std::string graphId, std::string masterIP,
                                            int threadPriority,
                                            const std::map<std::string, std::vector<string>> &partitionMap);
+static int updateTriangleTreeAndGetTriangleCount(
+    const std::vector<std::string> &triangles,
+    std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> *triangleTree_p,
+    std::mutex *triangleTreeMutex_p);
 
 TriangleCountExecutor::TriangleCountExecutor() {}
 
@@ -431,7 +435,6 @@ void TriangleCountExecutor::execute() {
 
     // Below code is used to update the process details
     processStatusMutex.lock();
-    std::set<ProcessInfo>::iterator processIterator;
     bool processInfoExists = false;
     std::chrono::milliseconds startTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
 
@@ -548,6 +551,8 @@ void TriangleCountExecutor::execute() {
     }
 
     std::map<std::string, std::string> combinationWorkerMap;
+    std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> triangleTree;
+    std::mutex triangleTreeMutex;
     int partitionCount = 0;
     for (int i = 0; i < workerListSize; i++) {
         Utils::worker currentWorker = workerList.at(i);
@@ -563,10 +568,10 @@ void TriangleCountExecutor::execute() {
             partitionCount++;
 
             partitionId = *partitionIterator;
-            intermRes.push_back(std::async(std::launch::async, TriangleCountExecutor::getTriangleCount,
-                                           atoi(graphId.c_str()), host, workerPort, workerDataPort,
-                                           atoi(partitionId.c_str()), masterIP, uniqueId, isCompositeAggregation,
-                                           threadPriority, fileCombinations, &combinationWorkerMap));
+            intermRes.push_back(std::async(
+                std::launch::async, TriangleCountExecutor::getTriangleCount, atoi(graphId.c_str()), host, workerPort,
+                workerDataPort, atoi(partitionId.c_str()), masterIP, uniqueId, isCompositeAggregation, threadPriority,
+                fileCombinations, &combinationWorkerMap, &triangleTree, &triangleTreeMutex));
         }
     }
 
@@ -600,6 +605,8 @@ void TriangleCountExecutor::execute() {
     for (auto &&futureCall : intermRes) {
         result += futureCall.get();
     }
+    triangleTree.clear();
+    combinationWorkerMap.clear();
 
     if (!isCompositeAggregation) {
         long aggregatedTriangleCount =
@@ -634,8 +641,7 @@ void TriangleCountExecutor::execute() {
     }
 
     processStatusMutex.lock();
-    std::set<ProcessInfo>::iterator processCompleteIterator;
-    for (processCompleteIterator = processData.begin(); processCompleteIterator != processData.end();
+    for (auto processCompleteIterator = processData.begin(); processCompleteIterator != processData.end();
          ++processCompleteIterator) {
         ProcessInfo processInformation = *processCompleteIterator;
 
@@ -645,14 +651,14 @@ void TriangleCountExecutor::execute() {
         }
     }
     processStatusMutex.unlock();
-    triangleTree.clear();
-    combinationWorkerMap.clear();
 }
 
-long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int port, int dataPort, int partitionId,
-                                             std::string masterIP, int uniqueId, bool isCompositeAggregation,
-                                             int threadPriority, std::vector<std::vector<string>> fileCombinations,
-                                             std::map<std::string, std::string> *combinationWorkerMap_p) {
+long TriangleCountExecutor::getTriangleCount(
+    int graphId, std::string host, int port, int dataPort, int partitionId, std::string masterIP, int uniqueId,
+    bool isCompositeAggregation, int threadPriority, std::vector<std::vector<string>> fileCombinations,
+    std::map<std::string, std::string> *combinationWorkerMap_p,
+    std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> *triangleTree_p,
+    std::mutex *triangleTreeMutex_p) {
     int sockfd;
     char data[301];
     bool loop = false;
@@ -764,8 +770,6 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
 
         if (isCompositeAggregation) {
             triangleCount_logger.log("###COMPOSITE### Started Composite aggregation ", "info");
-            static std::vector<std::vector<string>>::iterator combinationsIterator;
-
             for (int combinationIndex = 0; combinationIndex < fileCombinations.size(); ++combinationIndex) {
                 const std::vector<string> &fileList = fileCombinations.at(combinationIndex);
                 std::set<string> partitionIdSet;
@@ -841,9 +845,7 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
                 fileCombinationMutex.unlock();
 
                 if (isAggregateValid) {
-                    std::set<string>::iterator transferRequireFileIterator;
-
-                    for (transferRequireFileIterator = transferRequireFiles.begin();
+                    for (auto transferRequireFileIterator = transferRequireFiles.begin();
                          transferRequireFileIterator != transferRequireFiles.end(); ++transferRequireFileIterator) {
                         std::string transferFileName = *transferRequireFileIterator;
                         std::string fileAccessible = isFileAccessibleToWorker(
@@ -862,7 +864,8 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
                         countCompositeCentralStoreTriangles(host, std::to_string(port), adjustedTransferredFile,
                                                             masterIP, adjustedAvailableFiles, threadPriority);
                     if (triangles.size() > 0) {
-                        triangleCount += updateTriangleTreeAndGetTriangleCount(triangles);
+                        triangleCount +=
+                            updateTriangleTreeAndGetTriangleCount(triangles, triangleTree_p, triangleTreeMutex_p);
                     }
                 }
                 updateMap(partitionId);
@@ -897,9 +900,7 @@ bool TriangleCountExecutor::proceedOrNot(std::set<string> partitionSet, int part
     int currentWorkerWeight = tempWeightMap[partitionId];
     pair<int, int> entryWithMinValue = make_pair(partitionId, currentWorkerWeight);
 
-    map<int, int>::iterator currentEntry;
-
-    for (currentEntry = aggregateWeightMap.begin(); currentEntry != aggregateWeightMap.end(); ++currentEntry) {
+    for (auto currentEntry = aggregateWeightMap.begin(); currentEntry != aggregateWeightMap.end(); ++currentEntry) {
         if (entryWithMinValue.second > currentEntry->second) {
             entryWithMinValue = make_pair(currentEntry->first, currentEntry->second);
         }
@@ -916,7 +917,6 @@ bool TriangleCountExecutor::proceedOrNot(std::set<string> partitionSet, int part
         result = true;
     }
 
-    aggregateWeightMutex.unlock();
     return result;
 }
 
@@ -931,9 +931,14 @@ void TriangleCountExecutor::updateMap(int partitionId) {
                              "info");
 }
 
-int TriangleCountExecutor::updateTriangleTreeAndGetTriangleCount(const std::vector<std::string> &triangles) {
+static int updateTriangleTreeAndGetTriangleCount(
+    const std::vector<std::string> &triangles,
+    std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> *triangleTree_p,
+    std::mutex *triangleTreeMutex_p) {
+    std::mutex &triangleTreeMutex = *triangleTreeMutex_p;
     const std::lock_guard<std::mutex> lock1(triangleTreeMutex);
     int aggregateCount = 0;
+    auto &triangleTree = *triangleTree_p;
 
     triangleCount_logger.log("###COMPOSITE### Triangle Tree locked ", "debug");
 

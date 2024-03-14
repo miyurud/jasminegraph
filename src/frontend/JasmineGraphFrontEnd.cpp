@@ -59,8 +59,6 @@ static int currentFESession;
 static bool canCalibrate = true;
 Logger frontend_logger;
 std::set<ProcessInfo> processData;
-std::mutex aggregateWeightMutex;
-std::mutex triangleTreeMutex;
 std::string stream_topic_name;
 
 static std::string getPartitionCount(std::string path);

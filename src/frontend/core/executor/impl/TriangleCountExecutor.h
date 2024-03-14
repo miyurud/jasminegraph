@@ -37,10 +37,12 @@ class TriangleCountExecutor : public AbstractExecutor {
 
     int getUid();
 
-    static long getTriangleCount(int graphId, std::string host, int port, int dataPort, int partitionId,
-                                 std::string masterIP, int uniqueId, bool isCompositeAggregation, int threadPriority,
-                                 std::vector<std::vector<string>> fileCombinations,
-                                 std::map<std::string, std::string> *combinationWorkerMap_p);
+    static long getTriangleCount(
+        int graphId, std::string host, int port, int dataPort, int partitionId, std::string masterIP, int uniqueId,
+        bool isCompositeAggregation, int threadPriority, std::vector<std::vector<string>> fileCombinations,
+        std::map<std::string, std::string> *combinationWorkerMap_p,
+        std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> *triangleTree_p,
+        std::mutex *triangleTreeMutex_p);
 
     static std::string copyCompositeCentralStoreToAggregator(std::string aggregatorHostName, std::string aggregatorPort,
                                                              std::string aggregatorDataPort, std::string fileName,
@@ -64,13 +66,9 @@ class TriangleCountExecutor : public AbstractExecutor {
 
     static void updateMap(int partitionId);
 
-    static std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> triangleTree;
-
  private:
     SQLiteDBInterface *sqlite;
     PerformanceSQLiteDBInterface *perfDB;
-
-    static int updateTriangleTreeAndGetTriangleCount(const std::vector<std::string> &triangles);
 };
 
 #endif  // JASMINEGRAPH_TRIANGLECOUNTEXECUTOR_H
