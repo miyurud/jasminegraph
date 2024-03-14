@@ -144,6 +144,7 @@ std::string K8sWorkerController::spawnWorker(int workerId) {
         if (waiting >= TIME_OUT) {
             controller_logger.error("Error in spawning new worker");
             deleteWorker(workerId);
+            close(sockfd);
             return "";
         }
 
