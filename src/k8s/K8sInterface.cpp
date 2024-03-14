@@ -191,3 +191,45 @@ std::string K8sInterface::getJasmineGraphConfig(std::string key) {
     }
     return "";
 }
+
+v1_persistent_volume_t *K8sInterface::createJasmineGraphPersistentVolume(int workerId) const {
+    std::string definition = Utils::getJsonStringFromYamlFile(ROOT_DIR "/k8s/worker-volume.yaml");
+    definition = Utils::replaceAll(definition, "<worker-id>", std::to_string(workerId));
+    cJSON *volumeTemplate = cJSON_Parse(definition.c_str());
+    v1_persistent_volume_t *volume = v1_persistent_volume_parseFromJSON(volumeTemplate);
+    v1_persistent_volume_t *result = CoreV1API_createPersistentVolume(apiClient, volume, NULL, NULL, NULL, NULL);
+    return result;
+}
+
+v1_persistent_volume_claim_t *K8sInterface::createJasmineGraphPersistentVolumeClaim(int workerId) const {
+    std::string definition = Utils::getJsonStringFromYamlFile(ROOT_DIR "/k8s/worker-volume-claim.yaml");
+    definition = Utils::replaceAll(definition, "<worker-id>", std::to_string(workerId));
+    cJSON *volumeClaimTemplate = cJSON_Parse(definition.c_str());
+    v1_persistent_volume_claim_t *volumeClaim = v1_persistent_volume_claim_parseFromJSON(volumeClaimTemplate);
+    v1_persistent_volume_claim_t *result = CoreV1API_createNamespacedPersistentVolumeClaim(apiClient,
+                                                                                           namespace_,
+                                                                                           volumeClaim,
+                                                                                           NULL,
+                                                                                           NULL,
+                                                                                           NULL,
+                                                                                           NULL);
+    return result;
+}
+
+v1_persistent_volume_t *K8sInterface::deleteJasmineGraphPersistentVolume(int workerId) const {
+    std::string volumeName = "jasminegraph-worker" + std::to_string(workerId) + "-data";
+    v1_persistent_volume_t *result = CoreV1API_deletePersistentVolume(apiClient, strdup(volumeName.c_str()), NULL, NULL,
+                                                                      NULL, NULL, NULL, NULL);
+    return result;
+}
+
+v1_persistent_volume_claim_t *K8sInterface::deleteJasmineGraphPersistentVolumeClaim(int workerId) const {
+    std::string volumeClaimName = "jasminegraph-worker" + std::to_string(workerId) + "-data-claim";
+    v1_persistent_volume_claim_t *result =
+        CoreV1API_deleteNamespacedPersistentVolumeClaim(apiClient,
+                                                        strdup(volumeClaimName.c_str()),
+                                                        namespace_,
+                                                        NULL, NULL, NULL, NULL, NULL,
+                                                        NULL);
+    return result;
+}

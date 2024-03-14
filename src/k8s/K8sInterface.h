@@ -57,6 +57,14 @@ class K8sInterface {
     v1_node_list_t *getNodes();
 
     std::string getJasmineGraphConfig(std::string key);
+
+    v1_persistent_volume_t *createJasmineGraphPersistentVolume(int workerId) const;
+
+    v1_persistent_volume_claim_t *createJasmineGraphPersistentVolumeClaim(int workerId) const;
+
+    v1_persistent_volume_t *deleteJasmineGraphPersistentVolume(int workerId) const;
+
+    v1_persistent_volume_claim_t *deleteJasmineGraphPersistentVolumeClaim(int workerId) const;
 };
 
 #endif  // JASMINEGRAPH_K8SINTERFACE_H
