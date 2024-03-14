@@ -38,15 +38,19 @@ class TriangleCountExecutor : public AbstractExecutor {
     int getUid();
 
     static long getTriangleCount(int graphId, std::string host, int port, int dataPort, int partitionId,
-                                 std::string masterIP, int uniqueId, bool isCompositeAggregation, int threadPriority);
+                                 std::string masterIP, int uniqueId, bool isCompositeAggregation, int threadPriority,
+                                 std::vector<std::vector<string>> fileCombinations,
+                                 std::map<std::string, std::string> *combinationWorkerMap_p);
 
     static std::string copyCompositeCentralStoreToAggregator(std::string aggregatorHostName, std::string aggregatorPort,
                                                              std::string aggregatorDataPort, std::string fileName,
                                                              std::string masterIP);
 
-    static std::vector<string> countCompositeCentralStoreTriangles(std::string aggregatorHostName, std::string aggregatorPort,
-                                                      std::string compositeCentralStoreFileList, std::string masterIP,
-                                                      std::string availableFileList, int threadPriority);
+    static std::vector<string> countCompositeCentralStoreTriangles(std::string aggregatorHostName,
+                                                                   std::string aggregatorPort,
+                                                                   std::string compositeCentralStoreFileList,
+                                                                   std::string masterIP, std::string availableFileList,
+                                                                   int threadPriority);
 
     static std::string copyCentralStoreToAggregator(std::string aggregatorHostName, std::string aggregatorPort,
                                                     std::string aggregatorDataPort, int graphId, int partitionId,
@@ -60,8 +64,6 @@ class TriangleCountExecutor : public AbstractExecutor {
 
     static void updateMap(int partitionId);
 
-    static std::vector<std::vector<string>> fileCombinations;
-    static std::map<std::string, std::string> combinationWorkerMap;
     static std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> triangleTree;
 
  private:

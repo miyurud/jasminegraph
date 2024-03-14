@@ -19,8 +19,6 @@ limitations under the License.
 using namespace std::chrono;
 
 Logger triangleCount_logger;
-std::vector<std::vector<string>> TriangleCountExecutor::fileCombinations;
-std::map<std::string, std::string> TriangleCountExecutor::combinationWorkerMap;
 std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> TriangleCountExecutor::triangleTree;
 bool isStatCollect = false;
 
@@ -28,13 +26,12 @@ std::mutex fileCombinationMutex;
 std::mutex processStatusMutex;
 std::mutex responseVectorMutex;
 
-static std::vector<std::vector<string>> getWorkerCombination(std::vector<string> &workerIdVector);
 static string isFileAccessibleToWorker(std::string graphId, std::string partitionId, std::string aggregatorHostName,
                                        std::string aggregatorPort, std::string masterIP, std::string fileType,
                                        std::string fileName);
 static long aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, std::string graphId, std::string masterIP,
-                                           int threadPriority, std::vector<string> &workerIdVector,
-                                           std::map<std::string, std::vector<string>> &partitionMap);
+                                           int threadPriority,
+                                           const std::map<std::string, std::vector<string>> &partitionMap);
 
 TriangleCountExecutor::TriangleCountExecutor() {}
 
@@ -530,15 +527,16 @@ void TriangleCountExecutor::execute() {
         isCompositeAggregation = true;
     }
 
+    std::vector<std::vector<string>> fileCombinations;
     if (isCompositeAggregation) {
         std::string aggregatorFilePath =
             Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.aggregatefolder");
         std::vector<std::string> graphFiles = Utils::getListOfFilesInDirectory(aggregatorFilePath);
 
-        std::vector<std::string>::iterator graphFilesIterator;
         std::string compositeFileNameFormat = graphId + "_compositecentralstore_";
 
-        for (graphFilesIterator = graphFiles.begin(); graphFilesIterator != graphFiles.end(); ++graphFilesIterator) {
+        for (auto graphFilesIterator = graphFiles.begin(); graphFilesIterator != graphFiles.end();
+             ++graphFilesIterator) {
             std::string graphFileName = *graphFilesIterator;
 
             if ((graphFileName.find(compositeFileNameFormat) == 0) &&
@@ -549,6 +547,7 @@ void TriangleCountExecutor::execute() {
         fileCombinations = AbstractExecutor::getCombinations(compositeCentralStoreFiles);
     }
 
+    std::map<std::string, std::string> combinationWorkerMap;
     int partitionCount = 0;
     for (int i = 0; i < workerListSize; i++) {
         Utils::worker currentWorker = workerList.at(i);
@@ -564,9 +563,10 @@ void TriangleCountExecutor::execute() {
             partitionCount++;
 
             partitionId = *partitionIterator;
-            intermRes.push_back(std::async(
-                std::launch::async, TriangleCountExecutor::getTriangleCount, atoi(graphId.c_str()), host, workerPort,
-                workerDataPort, atoi(partitionId.c_str()), masterIP, uniqueId, isCompositeAggregation, threadPriority));
+            intermRes.push_back(std::async(std::launch::async, TriangleCountExecutor::getTriangleCount,
+                                           atoi(graphId.c_str()), host, workerPort, workerDataPort,
+                                           atoi(partitionId.c_str()), masterIP, uniqueId, isCompositeAggregation,
+                                           threadPriority, fileCombinations, &combinationWorkerMap));
         }
     }
 
@@ -602,13 +602,8 @@ void TriangleCountExecutor::execute() {
     }
 
     if (!isCompositeAggregation) {
-        std::vector<string> workerIdVector;
-        for (auto it = partitionMap.begin(); it != partitionMap.end(); it++) {
-            workerIdVector.push_back(it->first);
-        }
-
         long aggregatedTriangleCount =
-            aggregateCentralStoreTriangles(sqlite, graphId, masterIP, threadPriority, workerIdVector, partitionMap);
+            aggregateCentralStoreTriangles(sqlite, graphId, masterIP, threadPriority, partitionMap);
         result += aggregatedTriangleCount;
         workerResponded = true;
         triangleCount_logger.log(
@@ -650,14 +645,14 @@ void TriangleCountExecutor::execute() {
         }
     }
     processStatusMutex.unlock();
-
     triangleTree.clear();
     combinationWorkerMap.clear();
 }
 
 long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int port, int dataPort, int partitionId,
                                              std::string masterIP, int uniqueId, bool isCompositeAggregation,
-                                             int threadPriority) {
+                                             int threadPriority, std::vector<std::vector<string>> fileCombinations,
+                                             std::map<std::string, std::string> *combinationWorkerMap_p) {
     int sockfd;
     char data[301];
     bool loop = false;
@@ -694,7 +689,6 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
         return 0;
     }
 
-    bzero(data, 301);
     int result_wr =
         write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
 
@@ -703,11 +697,7 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
     }
 
     triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
-    bzero(data, 301);
-    read(sockfd, data, 300);
-    string response = (data);
-
-    response = Utils::trim_copy(response);
+    string response = Utils::read_str_trim_wrapper(sockfd, data, 300);
 
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
         triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
@@ -716,12 +706,9 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
         if (result_wr < 0) {
             triangleCount_logger.log("Error writing to socket", "error");
         }
-
         triangleCount_logger.log("Sent : " + masterIP, "info");
-        bzero(data, 301);
-        read(sockfd, data, 300);
-        response = (data);
 
+        response = Utils::read_str_trim_wrapper(sockfd, data, 300);
         if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
             triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
         } else {
@@ -733,13 +720,9 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
         if (result_wr < 0) {
             triangleCount_logger.log("Error writing to socket", "error");
         }
-
         triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::TRIANGLES, "info");
-        bzero(data, 301);
-        read(sockfd, data, 300);
-        response = (data);
-        response = Utils::trim_copy(response);
 
+        response = Utils::read_str_trim_wrapper(sockfd, data, 300);
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
             triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
             result_wr = write(sockfd, std::to_string(graphId).c_str(), std::to_string(graphId).size());
@@ -747,13 +730,9 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
             if (result_wr < 0) {
                 triangleCount_logger.log("Error writing to socket", "error");
             }
-
             triangleCount_logger.log("Sent : Graph ID " + std::to_string(graphId), "info");
 
-            bzero(data, 301);
-            read(sockfd, data, 300);
-            response = (data);
-            response = Utils::trim_copy(response);
+            response = Utils::read_str_trim_wrapper(sockfd, data, 300);
         }
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
@@ -766,10 +745,7 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
 
             triangleCount_logger.log("Sent : Partition ID " + std::to_string(partitionId), "info");
 
-            bzero(data, 301);
-            read(sockfd, data, 300);
-            response = (data);
-            response = Utils::trim_copy(response);
+            response = Utils::read_str_trim_wrapper(sockfd, data, 300);
         }
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
@@ -779,14 +755,10 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
             if (result_wr < 0) {
                 triangleCount_logger.log("Error writing to socket", "error");
             }
-
             triangleCount_logger.log("Sent : Thread Priority " + std::to_string(threadPriority), "info");
 
-            bzero(data, 301);
-            read(sockfd, data, 300);
-            response = (data);
+            response = Utils::read_str_trim_wrapper(sockfd, data, 300);
             triangleCount_logger.log("Got response : |" + response + "|", "info");
-            response = Utils::trim_copy(response);
             triangleCount = atol(response.c_str());
         }
 
@@ -795,26 +767,23 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
             static std::vector<std::vector<string>>::iterator combinationsIterator;
 
             for (int combinationIndex = 0; combinationIndex < fileCombinations.size(); ++combinationIndex) {
-                std::vector<string> fileList = fileCombinations.at(combinationIndex);
-                std::vector<string>::iterator fileListIterator;
-                std::vector<string>::iterator listIterator;
+                const std::vector<string> &fileList = fileCombinations.at(combinationIndex);
                 std::set<string> partitionIdSet;
                 std::set<string> partitionSet;
                 std::map<int, int> tempWeightMap;
-                std::set<string>::iterator partitionSetIterator;
                 std::set<string> transferRequireFiles;
                 std::string combinationKey = "";
                 std::string availableFiles = "";
                 std::string transferredFiles = "";
                 bool isAggregateValid = false;
 
-                for (listIterator = fileList.begin(); listIterator != fileList.end(); ++listIterator) {
+                for (auto listIterator = fileList.begin(); listIterator != fileList.end(); ++listIterator) {
                     std::string fileName = *listIterator;
 
                     size_t lastIndex = fileName.find_last_of(".");
                     string rawFileName = fileName.substr(0, lastIndex);
 
-                    std::vector<std::string> fileNameParts = Utils::split(rawFileName, '_');
+                    const std::vector<std::string> &fileNameParts = Utils::split(rawFileName, '_');
 
                     /*Partition numbers are extracted from  the file name. The starting index of partition number
                      * is 2. Therefore the loop starts with 2*/
@@ -827,12 +796,11 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
                     continue;
                 }
 
-                if (proceedOrNot(partitionSet, partitionId)) {
-                } else {
+                if (!proceedOrNot(partitionSet, partitionId)) {
                     continue;
                 }
 
-                for (fileListIterator = fileList.begin(); fileListIterator != fileList.end(); ++fileListIterator) {
+                for (auto fileListIterator = fileList.begin(); fileListIterator != fileList.end(); ++fileListIterator) {
                     std::string fileName = *fileListIterator;
                     bool isTransferRequired = true;
 
@@ -863,6 +831,7 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
                 std::string adjustedTransferredFile = transferredFiles.substr(0, transferredFiles.size() - 1);
 
                 fileCombinationMutex.lock();
+                std::map<std::string, std::string> &combinationWorkerMap = *combinationWorkerMap_p;
                 if (combinationWorkerMap.find(combinationKey) == combinationWorkerMap.end()) {
                     if (partitionIdSet.find(std::to_string(partitionId)) != partitionIdSet.end()) {
                         combinationWorkerMap[combinationKey] = std::to_string(partitionId);
@@ -917,9 +886,8 @@ long TriangleCountExecutor::getTriangleCount(int graphId, std::string host, int 
 bool TriangleCountExecutor::proceedOrNot(std::set<string> partitionSet, int partitionId) {
     const std::lock_guard<std::mutex> lock(aggregateWeightMutex);
 
-    std::set<string>::iterator partitionSetIterator;
     std::map<int, int> tempWeightMap;
-    for (partitionSetIterator = partitionSet.begin(); partitionSetIterator != partitionSet.end();
+    for (auto partitionSetIterator = partitionSet.begin(); partitionSetIterator != partitionSet.end();
          ++partitionSetIterator) {
         std::string partitionIdString = *partitionSetIterator;
         int currentPartitionId = atoi(partitionIdString.c_str());
@@ -999,75 +967,91 @@ int TriangleCountExecutor::updateTriangleTreeAndGetTriangleCount(const std::vect
 }
 
 static long aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, std::string graphId, std::string masterIP,
-                                           int threadPriority, std::vector<string> &workerIdVector,
-                                           std::map<string, std::vector<string>> &partitionMap) {
-    const std::vector<std::vector<string>> &workerCombinations = getWorkerCombination(workerIdVector);
+                                           int threadPriority,
+                                           const std::map<string, std::vector<string>> &partitionMap) {
+    vector<string> partitionsVector;
+    std::map<string, string> partitionWorkerMap;  // partition_id => worker_id
+    for (auto it = partitionMap.begin(); it != partitionMap.end(); it++) {
+        const auto &parts = it->second;
+        string worker = it->first;
+        for (auto partsIt = parts.begin(); partsIt != parts.end(); partsIt++) {
+            string partition = *partsIt;
+            partitionWorkerMap[partition] = worker;
+            partitionsVector.push_back(partition);
+        }
+    }
+
+    const std::vector<std::vector<string>> &partitionCombinations = AbstractExecutor::getCombinations(partitionsVector);
     std::map<string, int> workerWeightMap;
     std::vector<std::future<string>> triangleCountResponse;
     std::string result = "";
     long aggregatedTriangleCount = 0;
 
-    for (auto workerCombinationsIterator = workerCombinations.begin();
-         workerCombinationsIterator != workerCombinations.end(); ++workerCombinationsIterator) {
-        const std::vector<string> &workerCombination = *workerCombinationsIterator;
+    const std::vector<vector<pair<string, string>>> &workerDataResult =
+        sqlite->runSelect("SELECT idworker,ip,server_port,server_data_port FROM worker;");
+    map<string, vector<string>> workerDataMap;  // worker_id => [ip,port,data_port]
+    for (auto it = workerDataResult.begin(); it != workerDataResult.end(); it++) {
+        const auto &ipPortDport = *it;
+        string id = ipPortDport[0].second;
+        string ip = ipPortDport[1].second;
+        string port = ipPortDport[2].second;
+        string dport = ipPortDport[3].second;
+        workerDataMap[id] = {ip, port, dport};
+    }
+
+    for (auto partitonCombinationsIterator = partitionCombinations.begin();
+         partitonCombinationsIterator != partitionCombinations.end(); partitonCombinationsIterator++) {
+        const std::vector<string> &partitionCombination = *partitonCombinationsIterator;
         std::vector<std::future<string>> remoteGraphCopyResponse;
         int minimumWeight = 0;
         std::string minWeightWorker;
+        std::string minWeightWorkerPartition;
 
-        for (auto workerCombinationIterator = workerCombination.begin();
-             workerCombinationIterator != workerCombination.end(); ++workerCombinationIterator) {
-            std::string workerId = *workerCombinationIterator;
-
+        for (auto partCombinationIterator = partitionCombination.begin();
+             partCombinationIterator != partitionCombination.end(); partCombinationIterator++) {
+            string part = *partCombinationIterator;
+            string workerId = partitionWorkerMap[part];
             auto workerWeightMapIterator = workerWeightMap.find(workerId);
-
             if (workerWeightMapIterator != workerWeightMap.end()) {
                 int weight = workerWeightMapIterator->second;
 
                 if (minimumWeight == 0 || minimumWeight > weight) {
                     minimumWeight = weight + 1;
                     minWeightWorker = workerId;
+                    minWeightWorkerPartition = part;
                 }
             } else {
                 minimumWeight = 1;
                 minWeightWorker = workerId;
+                minWeightWorkerPartition = part;
             }
         }
+        workerWeightMap[minWeightWorker] = minimumWeight;
 
-        string aggregatorSqlStatement =
-            "SELECT ip,server_port,server_data_port FROM worker "
-            "WHERE idworker=" +
-            minWeightWorker + ";";
+        const auto &workerData = workerDataMap[minWeightWorker];
+        std::string aggregatorIp = workerData[0];
+        std::string aggregatorPort = workerData[1];
+        std::string aggregatorDataPort = workerData[2];
 
-        const std::vector<vector<pair<string, string>>> &result = sqlite->runSelect(aggregatorSqlStatement);
-
-        const vector<pair<string, string>> &aggregatorData = result.at(0);
-
-        std::string aggregatorIp = aggregatorData.at(0).second;
-        std::string aggregatorPort = aggregatorData.at(1).second;
-        std::string aggregatorDataPort = aggregatorData.at(2).second;
-        std::string aggregatorPartitionId = partitionMap[minWeightWorker][0];  // why only 1 partition from the worker?
+        std::string aggregatorPartitionId = minWeightWorkerPartition;
 
         std::string partitionIdList = "";
-        for (auto aggregatorCopyCombinationIterator = workerCombination.begin();
-             aggregatorCopyCombinationIterator != workerCombination.end(); ++aggregatorCopyCombinationIterator) {
-            std::string workerId = *aggregatorCopyCombinationIterator;
+        for (auto partitionCombinationIterator = partitionCombination.begin();
+             partitionCombinationIterator != partitionCombination.end(); ++partitionCombinationIterator) {
+            string part = *partitionCombinationIterator;
+            string workerId = partitionWorkerMap[part];
 
             if (workerId != minWeightWorker) {
-                const vector<pair<string, string>> &workerData = result.at(0);
-
-                std::string partitionId = partitionMap[workerId][0];  // why only 1 partition from the worker?
-
-                partitionIdList += partitionId + ",";
+                partitionIdList += part + ",";
 
                 std::string centralStoreAvailable = isFileAccessibleToWorker(
-                    graphId, partitionId, aggregatorIp, aggregatorPort, masterIP,
+                    graphId, part, aggregatorIp, aggregatorPort, masterIP,
                     JasmineGraphInstanceProtocol::FILE_TYPE_CENTRALSTORE_AGGREGATE, std::string());
 
                 if (centralStoreAvailable.compare("false") == 0) {
-                    remoteGraphCopyResponse.push_back(
-                        std::async(std::launch::async, TriangleCountExecutor::copyCentralStoreToAggregator,
-                                   aggregatorIp, aggregatorPort, aggregatorDataPort, atoi(graphId.c_str()),
-                                   atoi(partitionId.c_str()), masterIP));
+                    remoteGraphCopyResponse.push_back(std::async(
+                        std::launch::async, TriangleCountExecutor::copyCentralStoreToAggregator, aggregatorIp,
+                        aggregatorPort, aggregatorDataPort, atoi(graphId.c_str()), atoi(part.c_str()), masterIP));
                 }
             }
         }
@@ -1077,7 +1061,6 @@ static long aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, std::strin
         }
 
         std::string adjustedPartitionIdList = partitionIdList.substr(0, partitionIdList.size() - 1);
-        workerWeightMap[minWeightWorker] = minimumWeight;
 
         triangleCountResponse.push_back(std::async(
             std::launch::async, TriangleCountExecutor::countCentralStoreTriangles, aggregatorPort, aggregatorIp,
@@ -1088,11 +1071,9 @@ static long aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, std::strin
         result = result + ":" + futureCall.get();
     }
 
-    std::vector<std::string> triangles = Utils::split(result, ':');
-    std::vector<std::string>::iterator triangleIterator;
+    const std::vector<std::string> &triangles = Utils::split(result, ':');
     std::set<std::string> uniqueTriangleSet;
-
-    for (triangleIterator = triangles.begin(); triangleIterator != triangles.end(); ++triangleIterator) {
+    for (auto triangleIterator = triangles.begin(); triangleIterator != triangles.end(); ++triangleIterator) {
         std::string triangle = *triangleIterator;
 
         if (!triangle.empty() && triangle != "NILL") {
@@ -1101,6 +1082,7 @@ static long aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, std::strin
     }
 
     aggregatedTriangleCount = uniqueTriangleSet.size();
+    uniqueTriangleSet.clear();
 
     return aggregatedTriangleCount;
 }
@@ -1609,10 +1591,6 @@ std::vector<string> TriangleCountExecutor::countCompositeCentralStoreTriangles(
     ;
 }
 
-static std::vector<std::vector<string>> getWorkerCombination(std::vector<string> &workerIdVector) {
-    return AbstractExecutor::getCombinations(workerIdVector);
-}
-
 std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggregatorHostName,
                                                                 std::string aggregatorPort,
                                                                 std::string aggregatorDataPort, int graphId,
@@ -1936,12 +1914,10 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorP
 
             triangleCount_logger.log("Sent : Thread Priority " + std::to_string(threadPriority), "info");
 
-            bzero(data, 301);
-            read(sockfd, data, 300);
-            response = (data);
-            response = Utils::trim_copy(response);
+            response = Utils::read_str_trim_wrapper(sockfd, data, 300);
             string status = response.substr(response.size() - 5);
-            std::string result = response.substr(0, response.size() - 5);
+            std::basic_ostringstream<char> resultStream;
+            resultStream << response.substr(0, response.size() - 5);
 
             while (status == "/SEND") {
                 result_wr = write(sockfd, status.c_str(), status.size());
@@ -1949,15 +1925,11 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorP
                 if (result_wr < 0) {
                     triangleCount_logger.log("Error writing to socket", "error");
                 }
-                bzero(data, 301);
-                read(sockfd, data, 300);
-                response = (data);
-                response = Utils::trim_copy(response);
+                response = Utils::read_str_trim_wrapper(sockfd, data, 300);
                 status = response.substr(response.size() - 5);
-                std::string triangleResponse = response.substr(0, response.size() - 5);
-                result = result + triangleResponse;
+                resultStream << response.substr(0, response.size() - 5);
             }
-            response = result;
+            response = resultStream.str();
         }
 
     } else {
