@@ -21,7 +21,7 @@ limitations under the License.
 Logger controller_logger;
 
 std::vector<JasmineGraphServer::worker> K8sWorkerController::workerList = {};
-static int TIME_OUT = 180;
+static int TIME_OUT = 300;
 static std::vector<int> activeWorkerIds = {};
 
 static inline int getNextWorkerId() {
@@ -109,29 +109,27 @@ std::string K8sWorkerController::spawnWorker(int workerId) {
         throw std::runtime_error("Worker " + std::to_string(workerId) + " deployment creation failed");
     }
 
-    int sockfd;
-    struct sockaddr_in serv_addr;
-    struct hostent *server;
-
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0) {
-        controller_logger.error("Cannot create socket");
-        return "";
-    }
-
-    server = gethostbyname(ip.c_str());
-    if (server == NULL) {
-        controller_logger.error("ERROR, no host named " + ip);
-        return "";
-    }
-
-    bzero((char *)&serv_addr, sizeof(serv_addr));
-    serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
-    serv_addr.sin_port = htons(Conts::JASMINEGRAPH_INSTANCE_PORT);
-
     int waiting = 0;
     while (true) {
+        int sockfd;
+        struct sockaddr_in serv_addr;
+        struct hostent *server;
+
+        sockfd = socket(AF_INET, SOCK_STREAM, 0);
+        if (sockfd < 0) {
+            controller_logger.error("Cannot create socket");
+        }
+
+        server = gethostbyname(ip.c_str());
+        if (server == NULL) {
+            controller_logger.error("ERROR, no host named " + ip);
+        }
+
+        bzero((char *)&serv_addr, sizeof(serv_addr));
+        serv_addr.sin_family = AF_INET;
+        bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+        serv_addr.sin_port = htons(Conts::JASMINEGRAPH_INSTANCE_PORT);
+
         if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
             waiting += 30; // Added overhead in connection retry attempts
             sleep(10);
