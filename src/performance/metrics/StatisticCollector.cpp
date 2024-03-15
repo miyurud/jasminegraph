@@ -48,7 +48,7 @@ long StatisticCollector::getMemoryUsageByProcess() {
         }
     }
     fclose(file);
-    std::cout << "Memory Usage: " + std::to_string(result) << std::endl;
+    // std::cout << "Memory Usage: " + std::to_string(result) << std::endl;
     return result;
 }
 
@@ -103,13 +103,13 @@ static long getSwapSpace(int field) {
 
 long StatisticCollector::getUsedSwapSpace() {
     long result = getSwapSpace(4);
-    std::cout << "Used swap space: " + std::to_string(result) << std::endl;
+    // std::cout << "Used swap space: " + std::to_string(result) << std::endl;
     return result;
 }
 
 long StatisticCollector::getTotalSwapSpace() {
     long result = getSwapSpace(3);
-    std::cout << "Total swap space: " + std::to_string(result) << std::endl;
+    // std::cout << "Total swap space: " + std::to_string(result) << std::endl;
     return result;
 }
 
@@ -118,7 +118,7 @@ long StatisticCollector::getRXBytes() {
     long result = -1;
     fscanf(file, "%li", &result);
     fclose(file);
-    std::cout << "Total read bytes: " + std::to_string(result) << std::endl;
+    // std::cout << "Total read bytes: " + std::to_string(result) << std::endl;
     return result;
 }
 
@@ -127,8 +127,7 @@ long StatisticCollector::getTXBytes() {
     long result = -1;
     fscanf(file, "%li", &result);
     fclose(file);
-    std::cout << "Total sent bytes: " + std::to_string(result) << std::endl;
-
+    // std::cout << "Total sent bytes: " + std::to_string(result) << std::endl;
     return result;
 }
 
@@ -154,7 +153,7 @@ int StatisticCollector::getSocketCount() {
     }
     (void)closedir(d);
 
-    std::cout << "Total sockets: " + std::to_string(count) << std::endl;
+    // std::cout << "Total sockets: " + std::to_string(count) << std::endl;
     return count;
 }
 

@@ -69,6 +69,8 @@ int PerformanceUtil::collectPerformanceStatistics() {
     long totalMemoryUsage = StatisticCollector::getTotalMemoryUsage();
     // Host
     Utils::send_job("", "total_memory", std::to_string(totalMemoryUsage));
+
+    scheduler_logger.info("Pushed performance metrics");
     return 0;
 }
 
@@ -440,7 +442,7 @@ void PerformanceUtil::adjustAggregateLoadMap(std::map<std::string, std::vector<d
 void PerformanceUtil::logLoadAverage() {
     double currentLoadAverage = StatisticCollector::getLoadAverage();
 
-    std::cout << "###PERF### CURRENT LOAD: " + std::to_string(currentLoadAverage) << std::endl;
+    // std::cout << "###PERF### CURRENT LOAD: " + std::to_string(currentLoadAverage) << std::endl;
 }
 
 void PerformanceUtil::updateResourceConsumption(PerformanceSQLiteDBInterface *performanceDb, std::string graphId,

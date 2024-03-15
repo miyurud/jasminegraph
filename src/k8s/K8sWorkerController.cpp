@@ -21,7 +21,7 @@ limitations under the License.
 Logger controller_logger;
 
 std::vector<JasmineGraphServer::worker> K8sWorkerController::workerList = {};
-static int TIME_OUT = 300;
+static int TIME_OUT = 900;
 static std::vector<int> activeWorkerIds = {};
 
 static inline int getNextWorkerId() {
