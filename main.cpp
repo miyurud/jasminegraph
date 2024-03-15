@@ -36,7 +36,6 @@ int jasminegraph_profile = PROFILE_DOCKER;
 
 void fnExit3(void) {
     delete (server);
-    puts("Shutting down the server.");
 }
 
 int main(int argc, char *argv[]) {

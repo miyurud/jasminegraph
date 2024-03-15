@@ -322,21 +322,29 @@ void JasmineGraphInstanceService::run(string masterHost, string host, int server
             continue;
         }
         instance_logger.info("Connection successful to port " + to_string(serverPort));
-        instanceservicesessionargs *serviceArguments_p = new instanceservicesessionargs;
-        serviceArguments_p->graphDBMapLocalStores = &graphDBMapLocalStores;
-        serviceArguments_p->graphDBMapCentralStores = &graphDBMapCentralStores;
-        serviceArguments_p->graphDBMapDuplicateCentralStores = &graphDBMapDuplicateCentralStores;
-        serviceArguments_p->incrementalLocalStore = &incrementalLocalStore;
-        serviceArguments_p->masterHost = masterHost;
-        serviceArguments_p->port = serverPort;
-        serviceArguments_p->dataPort = serverDataPort;
-        serviceArguments_p->host = host;
-        serviceArguments_p->connFd = connFd;
-        pthread_t pt;
-        pthread_create(&pt, NULL, instanceservicesession, serviceArguments_p);
+
+        pid_t pid = fork();
+        if (pid == 0) {
+            close(listenFd);
+            instanceservicesessionargs *serviceArguments_p = new instanceservicesessionargs;
+            serviceArguments_p->graphDBMapLocalStores = &graphDBMapLocalStores;
+            serviceArguments_p->graphDBMapCentralStores = &graphDBMapCentralStores;
+            serviceArguments_p->graphDBMapDuplicateCentralStores = &graphDBMapDuplicateCentralStores;
+            serviceArguments_p->incrementalLocalStore = &incrementalLocalStore;
+            serviceArguments_p->masterHost = masterHost;
+            serviceArguments_p->port = serverPort;
+            serviceArguments_p->dataPort = serverDataPort;
+            serviceArguments_p->host = host;
+            serviceArguments_p->connFd = connFd;
+            instanceservicesession(serviceArguments_p);
+            break;
+        } else {
+            close(connFd);
+        }
     }
 
     pthread_mutex_destroy(&file_lock);
+    exit(0); // FIXME: Cleanup before exit.
 }
 
 int deleteGraphPartition(std::string graphID, std::string partitionID) {

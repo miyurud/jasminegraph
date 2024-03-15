@@ -39,7 +39,13 @@ static string get_worker_name() {
 
 void Logger::log(std::string message, const std::string log_type) {
     pthread_t tid = pthread_self();
-    message = "[" + worker_name + " : " + to_string(tid) + "] " + message;
+    
+    // TODO: temporary fix only.
+    // message = "[" + worker_name + " : " + to_string(tid) + "] " + message;
+    message = " [" + log_type + "] [" + worker_name + " : " + to_string(tid) + "] " + message;
+    puts(message.c_str());
+    return;
+
     if (log_type.compare("info") == 0) {
         daily_logger->info(message);
         logger->info(message);
