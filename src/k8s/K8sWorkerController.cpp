@@ -300,7 +300,7 @@ std::map<string, string> K8sWorkerController::scaleUp(int count) {
         std::string result = asyncCalls[i].get();
         if (!result.empty()) {
             success++;
-            workers.insert(std::make_pair(to_string(i), result));
+            workers.insert(std::make_pair(to_string(nextWorkerId + i), result));
         }
     }
     this->numberOfWorkers += success;
