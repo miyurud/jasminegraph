@@ -824,17 +824,16 @@ static map<string, float> scaleK8s(size_t npart) {
 }
 
 static std::vector<JasmineGraphServer::worker> getWorkers(size_t npart) {
-    if (Utils::getJasmineGraphProperty("org.jasminegraph.autoscale.scale_on_adgr") != "true" ||
-        Utils::getJasmineGraphProperty("org.jasminegraph.autoscale.enabled") != "true") {
-        if (jasminegraph_profile == PROFILE_K8S) {
-            return K8sWorkerController::workerList;
-        }
-        return hostWorkerList;
-    }
     // TODO: get the workers with lowest load from workerList
     std::vector<JasmineGraphServer::worker> *workerListAll;
     map<string, float> cpu_loads;
     if (jasminegraph_profile == PROFILE_K8S) {
+        auto k8sInterface = new K8sInterface();
+        if (k8sInterface->getJasmineGraphConfig("auto_scaling_enabled") != "ture") {
+            delete k8sInterface;
+            return K8sWorkerController::workerList;
+        }
+        delete k8sInterface;
         workerListAll = &(K8sWorkerController::workerList);
         cpu_loads = scaleK8s(npart);
     } else {

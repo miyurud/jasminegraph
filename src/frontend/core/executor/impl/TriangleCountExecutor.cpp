@@ -520,10 +520,12 @@ void TriangleCountExecutor::execute() {
     cout << "}" << endl;
     cout << endl;
 
+    auto *k8sInterface = new K8sInterface();
     if (jasminegraph_profile == PROFILE_K8S &&
-        Utils::getJasmineGraphProperty("org.jasminegraph.autoscale.enabled") == "true") {
+        k8sInterface->getJasmineGraphConfig("auto_scaling_enabled") == "true") {
         filter_partitions(partitionMap, sqlite, graphId);
     }
+    delete k8sInterface;
 
     cout << "final partitionMap = {" << endl;
     for (auto it = partitionMap.begin(); it != partitionMap.end(); it++) {
