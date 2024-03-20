@@ -473,8 +473,6 @@ void TriangleCountExecutor::execute() {
     long result = 0;
     bool isCompositeAggregation = false;
     Utils::worker aggregatorWorker;
-    vector<Utils::worker> workerList = Utils::getWorkerList(sqlite);
-    int workerListSize = workerList.size();
     std::vector<std::future<long>> intermRes;
     std::vector<std::future<int>> statResponse;
     std::vector<std::string> compositeCentralStoreFiles;
@@ -521,8 +519,7 @@ void TriangleCountExecutor::execute() {
     cout << endl;
 
     auto *k8sInterface = new K8sInterface();
-    if (jasminegraph_profile == PROFILE_K8S &&
-        k8sInterface->getJasmineGraphConfig("auto_scaling_enabled") == "true") {
+    if (jasminegraph_profile == PROFILE_K8S && k8sInterface->getJasmineGraphConfig("auto_scaling_enabled") == "true") {
         filter_partitions(partitionMap, sqlite, graphId);
     }
     delete k8sInterface;
@@ -567,6 +564,9 @@ void TriangleCountExecutor::execute() {
     std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> triangleTree;
     std::mutex triangleTreeMutex;
     int partitionCount = 0;
+    vector<Utils::worker> workerList = Utils::getWorkerList(sqlite);
+    int workerListSize = workerList.size();
+    cout << "workerListSize = " << workerListSize << endl;
     for (int i = 0; i < workerListSize; i++) {
         Utils::worker currentWorker = workerList.at(i);
         string host = currentWorker.hostname;
@@ -574,13 +574,14 @@ void TriangleCountExecutor::execute() {
         string partitionId;
         int workerPort = atoi(string(currentWorker.port).c_str());
         int workerDataPort = atoi(string(currentWorker.dataPort).c_str());
-        triangleCount_logger.info("worker_"+workerID+" host="+host+":"+ to_string(workerPort)+":"+ to_string(workerDataPort));
+        triangleCount_logger.info("worker_" + workerID + " host=" + host + ":" + to_string(workerPort) + ":" +
+                                  to_string(workerDataPort));
         const std::vector<string> &partitionList = partitionMap[workerID];
         for (auto partitionIterator = partitionList.begin(); partitionIterator != partitionList.end();
              ++partitionIterator) {
             partitionCount++;
             partitionId = *partitionIterator;
-            triangleCount_logger.info("> partition"+partitionId);
+            triangleCount_logger.info("> partition" + partitionId);
             intermRes.push_back(std::async(
                 std::launch::async, TriangleCountExecutor::getTriangleCount, atoi(graphId.c_str()), host, workerPort,
                 workerDataPort, atoi(partitionId.c_str()), masterIP, uniqueId, isCompositeAggregation, threadPriority,
@@ -616,7 +617,7 @@ void TriangleCountExecutor::execute() {
     }
 
     for (auto &&futureCall : intermRes) {
-        triangleCount_logger.info("Waiting for result. uuid="+ to_string(uniqueId));
+        triangleCount_logger.info("Waiting for result. uuid=" + to_string(uniqueId));
         result += futureCall.get();
     }
     triangleTree.clear();
