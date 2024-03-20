@@ -574,13 +574,13 @@ void TriangleCountExecutor::execute() {
         string partitionId;
         int workerPort = atoi(string(currentWorker.port).c_str());
         int workerDataPort = atoi(string(currentWorker.dataPort).c_str());
-
+        triangleCount_logger.info("worker_"+workerID+" host="+host+":"+ to_string(workerPort)+":"+ to_string(workerDataPort));
         const std::vector<string> &partitionList = partitionMap[workerID];
         for (auto partitionIterator = partitionList.begin(); partitionIterator != partitionList.end();
              ++partitionIterator) {
             partitionCount++;
-
             partitionId = *partitionIterator;
+            triangleCount_logger.info("> partition"+partitionId);
             intermRes.push_back(std::async(
                 std::launch::async, TriangleCountExecutor::getTriangleCount, atoi(graphId.c_str()), host, workerPort,
                 workerDataPort, atoi(partitionId.c_str()), masterIP, uniqueId, isCompositeAggregation, threadPriority,
@@ -616,6 +616,7 @@ void TriangleCountExecutor::execute() {
     }
 
     for (auto &&futureCall : intermRes) {
+        triangleCount_logger.info("Waiting for result. uuid="+ to_string(uniqueId));
         result += futureCall.get();
     }
     triangleTree.clear();
