@@ -23,13 +23,12 @@ Logger controller_logger;
 std::vector<JasmineGraphServer::worker> K8sWorkerController::workerList = {};
 static int TIME_OUT = 900;
 static std::vector<int> activeWorkerIds = {};
+std::mutex workerIdMutex;
+static volatile int nextWorkerId = 0;
 
 static inline int getNextWorkerId() {
-    if (activeWorkerIds.empty()) {
-        return 0;
-    } else {
-        return *max_element(activeWorkerIds.begin(), activeWorkerIds.end()) + 1;
-    }
+    const std::lock_guard<std::mutex> lock(workerIdMutex);
+    return nextWorkerId++;
 }
 
 K8sWorkerController::K8sWorkerController(std::string masterIp, int numberOfWorkers, SQLiteDBInterface *metadb) {
@@ -45,12 +44,11 @@ K8sWorkerController::K8sWorkerController(std::string masterIp, int numberOfWorke
         this->maxWorkers = 4;
     }
 
-
     // Delete all the workers from the database
     metadb->runUpdate("DELETE FROM worker");
     int workersAttached = this->attachExistingWorkers();
-    if (numberOfWorkers - workersAttached > 0){
-        this->scaleUp(numberOfWorkers-workersAttached);
+    if (numberOfWorkers - workersAttached > 0) {
+        this->scaleUp(numberOfWorkers - workersAttached);
     }
 }
 
@@ -100,8 +98,7 @@ std::string K8sWorkerController::spawnWorker(int workerId) {
 
     std::string ip(service->spec->cluster_ip);
 
-    v1_deployment_t *deployment =
-        this->interface->createJasmineGraphWorkerDeployment(workerId, ip, this->masterIp);
+    v1_deployment_t *deployment = this->interface->createJasmineGraphWorkerDeployment(workerId, ip, this->masterIp);
     if (deployment != nullptr && deployment->metadata != nullptr && deployment->metadata->name != nullptr) {
         controller_logger.info("Worker " + std::to_string(workerId) + " deployment created successfully");
 
@@ -131,7 +128,7 @@ std::string K8sWorkerController::spawnWorker(int workerId) {
         serv_addr.sin_port = htons(Conts::JASMINEGRAPH_INSTANCE_PORT);
 
         if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-            waiting += 30; // Added overhead in connection retry attempts
+            waiting += 30;  // Added overhead in connection retry attempts
             sleep(10);
         } else {
             Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
@@ -145,7 +142,6 @@ std::string K8sWorkerController::spawnWorker(int workerId) {
             close(sockfd);
             return "";
         }
-
     }
 
     JasmineGraphServer::worker worker = {
@@ -153,7 +149,8 @@ std::string K8sWorkerController::spawnWorker(int workerId) {
     K8sWorkerController::workerList.push_back(worker);
     std::string insertQuery =
         "INSERT INTO worker (host_idhost, server_port, server_data_port, name, ip, idworker) "
-        "VALUES ( -1, " + std::to_string(Conts::JASMINEGRAPH_INSTANCE_PORT) + ", " +
+        "VALUES ( -1, " +
+        std::to_string(Conts::JASMINEGRAPH_INSTANCE_PORT) + ", " +
         std::to_string(Conts::JASMINEGRAPH_INSTANCE_DATA_PORT) + ", " + "'" + std::string(service->metadata->name) +
         "', " + "'" + ip + "', " + std::to_string(workerId) + ")";
     int status = metadb.runInsert(insertQuery);
@@ -229,6 +226,9 @@ int K8sWorkerController::attachExistingWorkers() {
                 v1_service_t *service;
                 if (strcmp(pair->key, "workerId") == 0) {
                     int workerId = std::stoi(static_cast<char *>(pair->value));
+                    workerIdMutex.lock();
+                    nextWorkerId = workerId + 1;
+                    workerIdMutex.unlock();
                     v1_service_list_t *service_list = this->interface->getServiceList(
                         strdup(("service=jasminegraph-worker,workerId=" + std::to_string(workerId)).c_str()));
 
@@ -245,7 +245,8 @@ int K8sWorkerController::attachExistingWorkers() {
                     K8sWorkerController::workerList.push_back(worker);
                     std::string insertQuery =
                         "INSERT INTO worker (host_idhost, server_port, server_data_port, name, ip, idworker) "
-                        "VALUES ( -1, " + std::to_string(Conts::JASMINEGRAPH_INSTANCE_PORT) + ", " +
+                        "VALUES ( -1, " +
+                        std::to_string(Conts::JASMINEGRAPH_INSTANCE_PORT) + ", " +
                         std::to_string(Conts::JASMINEGRAPH_INSTANCE_DATA_PORT) + ", " + "'" +
                         std::string(service->metadata->name) + "', " + "'" + ip + "', " + std::to_string(workerId) +
                         ")";
