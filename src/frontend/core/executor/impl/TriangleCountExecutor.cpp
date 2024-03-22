@@ -21,10 +21,11 @@ using namespace std::chrono;
 Logger triangleCount_logger;
 bool isStatCollect = false;
 
-std::mutex fileCombinationMutex;
 std::mutex processStatusMutex;
 std::mutex responseVectorMutex;
+static std::mutex fileCombinationMutex;
 static std::mutex aggregateWeightMutex;
+static std::mutex schedulerMutex;
 
 static string isFileAccessibleToWorker(std::string graphId, std::string partitionId, std::string aggregatorHostName,
                                        std::string aggregatorPort, std::string masterIP, std::string fileType,
@@ -428,6 +429,7 @@ static void filter_partitions(std::map<string, std::vector<string>> &partitionMa
 }
 
 void TriangleCountExecutor::execute() {
+    schedulerMutex.lock();
     int uniqueId = getUid();
     std::string masterIP = request.getMasterIP();
     std::string graphId = request.getParameter(Conts::PARAM_KEYS::GRAPH_ID);
@@ -506,6 +508,10 @@ void TriangleCountExecutor::execute() {
         triangleCount_logger.info("###TRIANGLE-COUNT-EXECUTOR### Getting Triangle Count : PartitionId " + partitionId);
     }
 
+    if (results.size() > Conts::COMPOSITE_CENTRAL_STORE_WORKER_THRESHOLD) {
+        isCompositeAggregation = true;
+    }
+
     cout << "initial partitionMap = {" << endl;
     for (auto it = partitionMap.begin(); it != partitionMap.end(); it++) {
         cout << "  " << it->first << ": [";
@@ -535,10 +541,6 @@ void TriangleCountExecutor::execute() {
     }
     cout << "}" << endl;
     cout << endl;
-
-    if (results.size() > Conts::COMPOSITE_CENTRAL_STORE_WORKER_THRESHOLD) {
-        isCompositeAggregation = true;
-    }
 
     std::vector<std::vector<string>> fileCombinations;
     if (isCompositeAggregation) {
@@ -615,6 +617,8 @@ void TriangleCountExecutor::execute() {
                                           masterIP, autoCalibrate));
         isStatCollect = true;
     }
+
+    schedulerMutex.unlock();
 
     for (auto &&futureCall : intermRes) {
         triangleCount_logger.info("Waiting for result. uuid=" + to_string(uniqueId));
