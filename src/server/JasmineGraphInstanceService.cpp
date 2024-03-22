@@ -344,7 +344,7 @@ void JasmineGraphInstanceService::run(string masterHost, string host, int server
     }
 
     pthread_mutex_destroy(&file_lock);
-    exit(0); // FIXME: Cleanup before exit.
+    exit(0);  // FIXME: Cleanup before exit.
 }
 
 int deleteGraphPartition(std::string graphID, std::string partitionID) {
@@ -2871,6 +2871,8 @@ static void triangles_command(
         threadPriorityMutex.unlock();
     }
 
+    std::thread perfThread = std::thread(&PerformanceUtil::collectPerformanceStatistics);
+    perfThread.detach();
     long localCount = countLocalTriangles(graphID, partitionId, graphDBMapLocalStores, graphDBMapCentralStores,
                                           graphDBMapDuplicateCentralStores, threadPriority);
 

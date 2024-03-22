@@ -153,6 +153,7 @@ int JasmineGraphBackend::run() {
         sessionargs->connFd = connFd;
         pthread_t pt;
         pthread_create(&pt, NULL, backendservicesesion, sessionargs);
+        pthread_detach(pt);
     }
 
     return 1;

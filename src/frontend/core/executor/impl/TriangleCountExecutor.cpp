@@ -201,7 +201,7 @@ static void scale_up(std::map<string, int> &loads, map<string, string> &workers,
     if (n_cores < 0) {
         return;
     }
-    int n_workers = n_cores / 2;  // allocate a little more to prevent saturation
+    int n_workers = n_cores / 2 + 1;  // allocate a little more to prevent saturation
     if (n_cores % 2 > 0) n_workers++;
     if (n_workers == 0) return;
 

@@ -149,7 +149,9 @@ void JasmineGraphServer::init() {
     pthread_t frontendthread;
     pthread_t backendthread;
     pthread_create(&frontendthread, NULL, runfrontend, this);
+    pthread_detach(frontendthread);
     pthread_create(&backendthread, NULL, runbackend, this);
+    pthread_detach(backendthread);
 }
 
 void JasmineGraphServer::start_workers() {

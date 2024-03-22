@@ -309,6 +309,7 @@ int JasmineGraphFrontEnd::run() {
         sessionargs->jobScheduler = this->jobScheduler;
         pthread_t pt;
         pthread_create(&pt, NULL, frontendservicesesion, sessionargs);
+        pthread_detach(pt);
     }
 }
 

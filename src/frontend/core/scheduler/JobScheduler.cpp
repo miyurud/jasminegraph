@@ -97,6 +97,7 @@ void *startScheduler(void *dummyPt) {
 void JobScheduler::init() {
     pthread_t schedulerThread;
     pthread_create(&schedulerThread, NULL, startScheduler, this);
+    pthread_detach(schedulerThread);
 }
 
 void JobScheduler::processJob(JobRequest request, SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfDB) {
