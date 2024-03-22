@@ -18,6 +18,7 @@ limitations under the License.
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include <iostream>
 
@@ -39,12 +40,12 @@ static string get_worker_name() {
 
 void Logger::log(std::string message, const std::string log_type) {
     pthread_t tid = pthread_self();
-    
+
     // TODO: temporary fix only.
-    // message = "[" + worker_name + " : " + to_string(tid) + "] " + message;
-    message = " [" + log_type + "] [" + worker_name + " : " + to_string(tid) + "] " + message;
-    puts(message.c_str());
+    cout << " [" << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now().time_since_epoch()).count()
+         << "] [" << log_type << "] [" << worker_name << " : " << getpid() << ":" << tid << "] " << message << endl;
     return;
+    // message = "[" + worker_name + " : " + to_string(tid) + "] " + message;
 
     if (log_type.compare("info") == 0) {
         daily_logger->info(message);
