@@ -831,7 +831,7 @@ static std::vector<JasmineGraphServer::worker> getWorkers(size_t npart) {
     map<string, float> cpu_loads;
     if (jasminegraph_profile == PROFILE_K8S) {
         auto k8sInterface = new K8sInterface();
-        if (k8sInterface->getJasmineGraphConfig("auto_scaling_enabled") != "ture") {
+        if (k8sInterface->getJasmineGraphConfig("scale_on_adgr") != "true") {
             delete k8sInterface;
             return K8sWorkerController::workerList;
         }

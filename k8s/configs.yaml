@@ -9,4 +9,4 @@ data:
   prometheus_address: "${prometheus_address}"
   max_worker_count: "${max_worker_count}"
   auto_scaling_enabled: "true"
-  
+  scale_on_adgr: "false"
