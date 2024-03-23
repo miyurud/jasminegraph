@@ -24,6 +24,7 @@ std::vector<JasmineGraphServer::worker> K8sWorkerController::workerList = {};
 static int TIME_OUT = 900;
 static std::vector<int> activeWorkerIds = {};
 std::mutex workerIdMutex;
+std::mutex k8sSpawnMutex;
 static volatile int nextWorkerId = 0;
 
 static inline int getNextWorkerId() {
@@ -75,6 +76,8 @@ K8sWorkerController *K8sWorkerController::getInstance(std::string masterIp, int 
 }
 
 std::string K8sWorkerController::spawnWorker(int workerId) {
+    k8sSpawnMutex.lock();
+    controller_logger.info("Spawning worker " + to_string(workerId));
     auto volume = this->interface->createJasmineGraphPersistentVolume(workerId);
     if (volume != nullptr && volume->metadata != nullptr && volume->metadata->name != nullptr) {
         controller_logger.info("Worker " + std::to_string(workerId) + " persistent volume created successfully");
@@ -105,7 +108,8 @@ std::string K8sWorkerController::spawnWorker(int workerId) {
     } else {
         throw std::runtime_error("Worker " + std::to_string(workerId) + " deployment creation failed");
     }
-
+    k8sSpawnMutex.unlock();
+    controller_logger.info("Waiting for worker " + to_string(workerId) + " to respond");
     int waiting = 0;
     while (true) {
         int sockfd;
@@ -143,6 +147,7 @@ std::string K8sWorkerController::spawnWorker(int workerId) {
             return "";
         }
     }
+    controller_logger.info("Worker " + to_string(workerId) + " responded");
 
     JasmineGraphServer::worker worker = {
         .hostname = ip, .port = Conts::JASMINEGRAPH_INSTANCE_PORT, .dataPort = Conts::JASMINEGRAPH_INSTANCE_DATA_PORT};

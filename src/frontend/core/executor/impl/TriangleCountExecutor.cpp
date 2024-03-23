@@ -246,7 +246,8 @@ static int alloc_net_plan(std::map<int, string> &alloc, std::vector<int> &parts,
     sort(wts.begin(), wts.end(), [&loads](string &w1, string &w2) {
         int l1 = loads[w1];
         int l2 = loads[w2];
-        if (l1 < 3 && l2 < 3) return LOAD_PREFERENCE[l1] > LOAD_PREFERENCE[loads[w2]];
+        // TODO: temporarily commented for scale up only
+        // if (l1 < 3 && l2 < 3) return LOAD_PREFERENCE[l1] > LOAD_PREFERENCE[loads[w2]];
         if (l1 < 3 || l2 < 3) return l1 < l2;
         return l1 <= l2;
     });  // load=1 goes first and load=3 goes last
