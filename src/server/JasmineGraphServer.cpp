@@ -812,9 +812,8 @@ static map<string, float> scaleK8s(size_t npart) {
     }
     if (npart <= 0) return cpu_loads;
     K8sWorkerController *controller = K8sWorkerController::getInstance();
-    size_t new_workers = workerList.size() + npart;
-    controller->setNumberOfWorkers((int)new_workers);
-    server_logger.info("Scalled up to " + to_string(new_workers) + " workers");
+    controller->scaleUp((int)npart);
+    server_logger.info("Scalled up with " + to_string(npart) + " new workers");
     for (auto it = K8sWorkerController::workerList.begin(); it != K8sWorkerController::workerList.end(); it++) {
         auto &worker = *it;
         string workerHostPort = worker.hostname + ":" + to_string(worker.port);
