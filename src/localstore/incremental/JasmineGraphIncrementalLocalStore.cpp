@@ -54,9 +54,9 @@ void JasmineGraphIncrementalLocalStore::addEdgeFromString(std::string edgeString
         auto destinationJson = edgeJson["destination"];
 
         std::string sId = std::string(sourceJson["id"]);
-        unsigned char sPId = sourceJson["partitionId"].get<unsigned int>();
+        unsigned char sPId = sourceJson["pid"].get<unsigned int>();
         std::string dId = std::string(destinationJson["id"]);
-        unsigned char dPId = destinationJson["partitionId"].get<unsigned int>();
+        unsigned char dPId = destinationJson["pid"].get<unsigned int>();
 
         RelationBlock* newRelation;
         if (edgeJson["EdgeType"] == "Central") {
