@@ -32,7 +32,7 @@ class K8sWorkerController {
     SQLiteDBInterface metadb;
 
     std::string masterIp;
-    int numberOfWorkers;
+    std::atomic<int> numberOfWorkers;
     int maxWorkers;
 
     K8sWorkerController(std::string masterIp, int numberOfWorkers, SQLiteDBInterface *metadb);

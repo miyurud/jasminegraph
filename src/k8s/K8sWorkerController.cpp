@@ -36,7 +36,7 @@ static inline int getNextWorkerId(int count) {
 
 K8sWorkerController::K8sWorkerController(std::string masterIp, int numberOfWorkers, SQLiteDBInterface *metadb) {
     this->masterIp = std::move(masterIp);
-    this->numberOfWorkers = numberOfWorkers;
+    this->numberOfWorkers = 0;
     this->interface = new K8sInterface();
     this->metadb = *metadb;
 
