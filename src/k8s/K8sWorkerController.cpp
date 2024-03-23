@@ -27,9 +27,11 @@ std::mutex workerIdMutex;
 std::mutex k8sSpawnMutex;
 static volatile int nextWorkerId = 0;
 
-static inline int getNextWorkerId() {
+static inline int getNextWorkerId(int count) {
     const std::lock_guard<std::mutex> lock(workerIdMutex);
-    return nextWorkerId++;
+    int returnId = nextWorkerId;
+    nextWorkerId += count;
+    return returnId;
 }
 
 K8sWorkerController::K8sWorkerController(std::string masterIp, int numberOfWorkers, SQLiteDBInterface *metadb) {
@@ -295,7 +297,7 @@ std::map<string, string> K8sWorkerController::scaleUp(int count) {
         count = this->maxWorkers - this->numberOfWorkers;
     }
     auto *asyncCalls = new std::future<string>[count];
-    int nextWorkerId = getNextWorkerId();
+    int nextWorkerId = getNextWorkerId(count);
     for (int i = 0; i < count; i++) {
         asyncCalls[i] = std::async(&K8sWorkerController::spawnWorker, this, nextWorkerId + i);
     }
