@@ -174,7 +174,7 @@ v1_node_list_t *K8sInterface::getNodes() {
     return node_list;
 }
 
-std::string K8sInterface::getJasmineGraphConfig(std::string key) {
+std::string K8sInterface::loadFromConfig(std::string key) {
     v1_config_map_t *config_map =
         CoreV1API_readNamespacedConfigMap(apiClient, strdup("jasminegraph-config"), namespace_, NULL);
     if (config_map->metadata->name == NULL) {
@@ -190,6 +190,22 @@ std::string K8sInterface::getJasmineGraphConfig(std::string key) {
         }
     }
     return "";
+}
+
+static std::map<string, string> configMap;
+static std::mutex configMapMutex;
+std::string K8sInterface::getJasmineGraphConfig(std::string key) {
+    auto item = configMap.find(key);
+    if (item == configMap.end()) {
+        configMapMutex.lock();
+        if (configMap.find(key) == configMap.end()) {
+            k8s_logger.info("Key " + key + " not found in cache. Loading from config.");
+            configMap[key] = loadFromConfig(key);
+        }
+        configMapMutex.unlock();
+        item = configMap.find(key);
+    }
+    return item->second;
 }
 
 v1_persistent_volume_t *K8sInterface::createJasmineGraphPersistentVolume(int workerId) const {

@@ -65,6 +65,9 @@ class K8sInterface {
     v1_persistent_volume_t *deleteJasmineGraphPersistentVolume(int workerId) const;
 
     v1_persistent_volume_claim_t *deleteJasmineGraphPersistentVolumeClaim(int workerId) const;
+
+private:
+    std::string loadFromConfig(std::string key);
 };
 
 #endif  // JASMINEGRAPH_K8SINTERFACE_H
