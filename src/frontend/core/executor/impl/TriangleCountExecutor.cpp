@@ -430,7 +430,10 @@ static void filter_partitions(std::map<string, std::vector<string>> &partitionMa
 }
 
 void TriangleCountExecutor::execute() {
-    schedulerMutex.lock();
+    if (!schedulerMutex.try_lock()) {
+        schedulerMutex.lock();
+        sleep(8);
+    }
     int uniqueId = getUid();
     std::string masterIP = request.getMasterIP();
     std::string graphId = request.getParameter(Conts::PARAM_KEYS::GRAPH_ID);

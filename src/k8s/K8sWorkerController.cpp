@@ -296,14 +296,15 @@ std::map<string, string> K8sWorkerController::scaleUp(int count) {
     if (this->numberOfWorkers + count > this->maxWorkers) {
         count = this->maxWorkers - this->numberOfWorkers;
     }
+    std::map<string, string> workers;
+    if (count <= 0) return workers;
     controller_logger.info("Scale up with " + to_string(count) + " new workers");
-    auto *asyncCalls = new std::future<string>[count];
+    std::future<string> asyncCalls[count];
     int nextWorkerId = getNextWorkerId(count);
     for (int i = 0; i < count; i++) {
         asyncCalls[i] = std::async(&K8sWorkerController::spawnWorker, this, nextWorkerId + i);
     }
 
-    std::map<string, string> workers;
     int success = 0;
     for (int i = 0; i < count; i++) {
         std::string result = asyncCalls[i].get();
