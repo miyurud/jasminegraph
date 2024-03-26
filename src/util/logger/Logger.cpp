@@ -18,6 +18,7 @@ limitations under the License.
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
 #include <stdlib.h>
+#include <sys/time.h>
 #include <unistd.h>
 
 #include <iostream>
@@ -41,9 +42,12 @@ static string get_worker_name() {
 void Logger::log(std::string message, const std::string log_type) {
     pthread_t tid = pthread_self();
 
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    long millis = tv.tv_sec * 1000 + tv.tv_usec / 1000;
     // TODO: temporary fix only.
-    cout << " [" << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now().time_since_epoch()).count()
-         << "] [" << log_type << "] [" << worker_name << " : " << getpid() << ":" << tid << "] " << message << endl;
+    cout << " [" << millis << "] [" << log_type << "] [" << worker_name << " : " << getpid() << ":" << tid << "] "
+         << message << endl;
     return;
     // message = "[" + worker_name + " : " + to_string(tid) + "] " + message;
 
