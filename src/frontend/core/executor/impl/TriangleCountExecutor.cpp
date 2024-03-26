@@ -1614,7 +1614,6 @@ std::vector<string> TriangleCountExecutor::countCompositeCentralStoreTriangles(
     Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
     close(sockfd);
     return Utils::split(response, ':');
-    ;
 }
 
 std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggregatorHostName,

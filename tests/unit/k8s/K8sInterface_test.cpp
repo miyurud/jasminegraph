@@ -27,9 +27,7 @@ class K8sInterfaceTest : public ::testing::Test {
 const int HTTP_OK = 200;
 const int HTTP_CREATED = 201;
 
-TEST_F(K8sInterfaceTest, TestConstructor) {
-    ASSERT_NE(interface->apiClient, nullptr);
-}
+TEST_F(K8sInterfaceTest, TestConstructor) { ASSERT_NE(interface->apiClient, nullptr); }
 
 TEST_F(K8sInterfaceTest, TestGetNodes) {
     v1_node_list_t *nodes = interface->getNodes();

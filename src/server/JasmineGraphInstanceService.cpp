@@ -313,6 +313,9 @@ void JasmineGraphInstanceService::run(string masterHost, string host, int server
     std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> graphDBMapDuplicateCentralStores;
     std::map<std::string, JasmineGraphIncrementalLocalStore *> incrementalLocalStore;
 
+    std::thread perfThread = std::thread(&PerformanceUtil::collectPerformanceStatistics);
+    perfThread.detach();
+
     instance_logger.info("Worker listening on port " + to_string(serverPort));
     while (true) {
         int connFd = accept(listenFd, (struct sockaddr *)&clntAdd, &len);

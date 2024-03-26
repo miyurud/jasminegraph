@@ -36,8 +36,7 @@ class K8sInterface {
 
     v1_service_list_t *getServiceList(char *labelSelectors);
 
-    v1_deployment_t *createJasmineGraphWorkerDeployment(int workerId,
-                                                        const std::string &ip,
+    v1_deployment_t *createJasmineGraphWorkerDeployment(int workerId, const std::string &ip,
                                                         const std::string &masterIp) const;
 
     v1_status_t *deleteJasmineGraphWorkerDeployment(int workerId) const;
@@ -66,7 +65,7 @@ class K8sInterface {
 
     v1_persistent_volume_claim_t *deleteJasmineGraphPersistentVolumeClaim(int workerId) const;
 
-private:
+ private:
     std::string loadFromConfig(std::string key);
 };
 

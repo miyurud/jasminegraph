@@ -35,41 +35,38 @@ void PerformanceUtil::init() {
 }
 
 int PerformanceUtil::collectPerformanceStatistics() {
-    long memoryUsage = StatisticCollector::getMemoryUsageByProcess();
-    Utils::send_job("", "memory_usage", std::to_string(memoryUsage));
-
+    // Host level
     double cpuUsage = StatisticCollector::getCpuUsage();
-    // Worker
     Utils::send_job("", "cpu_usage", std::to_string(cpuUsage));
 
-    int threadCount = StatisticCollector::getThreadCount();
-    // Host
-    Utils::send_job("", "thread_count", std::to_string(threadCount));
-
-    long totalSwapSpace = StatisticCollector::getTotalSwapSpace();
-    // Host
-    Utils::send_job("", "total_swap_space", std::to_string(totalSwapSpace));
-
-    long usedSwapSpace = StatisticCollector::getUsedSwapSpace();
-    // Host
-    Utils::send_job("", "used_swap_space", std::to_string(usedSwapSpace));
-
     long rxBytes = StatisticCollector::getRXBytes();
-    // Worker
     Utils::send_job("", "rx_bytes", std::to_string(rxBytes));
 
     long txBytes = StatisticCollector::getTXBytes();
-    // Worker
     Utils::send_job("", "tx_bytes", std::to_string(txBytes));
 
-    int socketCount = StatisticCollector::getSocketCount();
-    // Host
-    Utils::send_job("", "socket_count", std::to_string(socketCount));
-
     long totalMemoryUsage = StatisticCollector::getTotalMemoryUsage();
-    // Host
     Utils::send_job("", "total_memory", std::to_string(totalMemoryUsage));
 
+    long usedSwapSpace = StatisticCollector::getUsedSwapSpace();
+    Utils::send_job("", "used_swap_space", std::to_string(usedSwapSpace));
+
+    /*
+    long totalSwapSpace = StatisticCollector::getTotalSwapSpace();
+    Utils::send_job("", "total_swap_space", std::to_string(totalSwapSpace));
+    */
+
+    // Per process
+    /*
+    long memoryUsage = StatisticCollector::getMemoryUsageByProcess();
+    Utils::send_job("", "memory_usage", std::to_string(memoryUsage));
+
+    int threadCount = StatisticCollector::getThreadCount();
+    Utils::send_job("", "thread_count", std::to_string(threadCount));
+
+    int socketCount = StatisticCollector::getSocketCount();
+    Utils::send_job("", "socket_count", std::to_string(socketCount));
+    */
     scheduler_logger.info("Pushed performance metrics");
     return 0;
 }
