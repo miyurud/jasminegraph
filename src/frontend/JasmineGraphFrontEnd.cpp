@@ -1386,6 +1386,9 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
 
         int threadPriority = std::atoi(priority.c_str());
 
+        static volatile int reqCounter = 0;
+        string reqId = to_string(reqCounter++);
+        frontend_logger.info("Started processing request " + reqId);
         auto begin = chrono::high_resolution_clock::now();
         JobRequest jobDetails;
         jobDetails.setJobId(std::to_string(uniqueId));
@@ -1453,8 +1456,8 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
         auto end = chrono::high_resolution_clock::now();
         auto dur = end - begin;
         auto msDuration = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
-        frontend_logger.info("Triangle Count: " + triangleCount + " Time Taken: " + to_string(msDuration) +
-                             " milliseconds");
+        frontend_logger.info("Req: " + reqId + " Triangle Count: " + triangleCount +
+                             " Time Taken: " + to_string(msDuration) + " milliseconds");
         result_wr = write(connFd, triangleCount.c_str(), triangleCount.length());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
