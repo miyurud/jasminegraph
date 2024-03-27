@@ -37,6 +37,7 @@ static inline int getNextWorkerId(int count) {
 K8sWorkerController::K8sWorkerController(std::string masterIp, int numberOfWorkers, SQLiteDBInterface *metadb) {
     this->masterIp = std::move(masterIp);
     this->numberOfWorkers = 0;
+    apiClient_setupGlobalEnv();
     this->interface = new K8sInterface();
     this->metadb = *metadb;
 
@@ -55,7 +56,10 @@ K8sWorkerController::K8sWorkerController(std::string masterIp, int numberOfWorke
     }
 }
 
-K8sWorkerController::~K8sWorkerController() { delete this->interface; }
+K8sWorkerController::~K8sWorkerController() {
+    delete this->interface;
+    apiClient_unsetupGlobalEnv();
+}
 
 static K8sWorkerController *instance = nullptr;
 
