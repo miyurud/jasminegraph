@@ -13,6 +13,9 @@ limitations under the License.
 
 #include "TriangleCountExecutor.h"
 
+#include <time.h>
+#include <unistd.h>
+
 #include "../../../../../globals.h"
 #include "../../../../k8s/K8sWorkerController.h"
 
@@ -430,9 +433,11 @@ static void filter_partitions(std::map<string, std::vector<string>> &partitionMa
 }
 
 void TriangleCountExecutor::execute() {
-    if (!schedulerMutex.try_lock()) {
-        schedulerMutex.lock();
-        sleep(8);
+    static time_t last_exec = 0;
+    schedulerMutex.lock();
+    time_t curr_time = time(NULL);
+    if (curr_time < last_exec + 8) {
+        sleep(last_exec + 9 - curr_time);
     }
     int uniqueId = getUid();
     std::string masterIP = request.getMasterIP();
@@ -622,6 +627,7 @@ void TriangleCountExecutor::execute() {
         isStatCollect = true;
     }
 
+    last_exec = time(NULL);
     schedulerMutex.unlock();
 
     for (auto &&futureCall : intermRes) {
