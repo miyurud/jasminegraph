@@ -22,10 +22,6 @@ spec:
           ports:
             - containerPort: 9091
           imagePullPolicy: IfNotPresent
-          resources:
-            requests:
-              cpu: "1500m"
-              memory: "4Gi"
       restartPolicy: Always
 
 ---

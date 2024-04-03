@@ -61,7 +61,3 @@ spec:
               name: jasminegraph-logs
             - mountPath: /var/tmp/jasminegraph-aggregate
               name: jasminegraph-aggregate
-          resources:
-            requests:
-              cpu: "2500m"
-              memory: "12Gi"
