@@ -71,6 +71,7 @@ class NodeManager {
     std::list<NodeBlock*> getGraph();
 
     std::map<long, std::unordered_set<long>> getAdjacencyList();
+    std::map<long, std::unordered_set<long>> getAdjacencyList(bool isLocal);
     std::map<long, long> getDistributionMap();
 };
 

@@ -480,7 +480,35 @@ std::map<long, std::unordered_set<long>> NodeManager::getAdjacencyList() {
         }
         adjacencyList.emplace((long)node->nodeId, neighbors);
     }
+    return adjacencyList;
+}
 
+std::map<long, std::unordered_set<long>> NodeManager::getAdjacencyList(bool isLocal) {
+    std::map<long, std::unordered_set<long>> adjacencyList;
+
+    int relationBlockSize = RelationBlock::BLOCK_SIZE;
+    long  newRelationCount;
+
+    if (isLocal) {
+         newRelationCount = dbSize(dbPrefix + "_relations.db") / relationBlockSize - 1;
+    } else {
+         newRelationCount = dbSize(dbPrefix + "_central_relations.db") / relationBlockSize - 1;
+    }
+
+    RelationBlock* relationBlock;
+
+    for (int i = 1; i <=  newRelationCount ; i++) {
+        if (isLocal) {
+            relationBlock = RelationBlock::getLocalRelation(i * relationBlockSize);
+        } else {
+            relationBlock = RelationBlock::getCentralRelation(i * relationBlockSize);
+        }
+        long src = std::stol(relationBlock->getSource()->id);
+        long dest = std::stol(relationBlock->getDestination()->id);
+
+        // Insert into adjacency list
+        adjacencyList[src].insert(dest);
+    }
     return adjacencyList;
 }
 
@@ -494,6 +522,7 @@ std::map<long, long> NodeManager::getDistributionMap() {
 
     return distributionMap;
 }
+
 /**
  *
  * When closing the node manager,

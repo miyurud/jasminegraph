@@ -4142,29 +4142,13 @@ string JasmineGraphInstanceService::aggregateStreamingCentralStoreTriangles(
     std::vector<std::string> centralCountList = Utils::split(centralCountString, ',');
     std::vector<std::string> partitionIdList = Utils::split(partitionIdString, ',');
     partitionIdList.push_back(partitionId);
-    std::vector<std::string>::iterator partitionIdListIterator;
-
-    for (partitionIdListIterator = partitionIdList.begin(); partitionIdListIterator != partitionIdList.end();
-         ++partitionIdListIterator) {
-        std::string aggregatePartitionId = *partitionIdListIterator;
-
-        std::string graphIdentifier = graphId + "_" + aggregatePartitionId;
-        JasmineGraphIncrementalLocalStore *incrementalLocalStoreInstance;
-
-        if (incrementalLocalStores.find(graphIdentifier) == incrementalLocalStores.end()) {
-            incrementalLocalStoreInstance = JasmineGraphInstanceService::loadStreamingStore(
-                graphId, aggregatePartitionId, incrementalLocalStores, "app");
-        } else {
-            incrementalLocalStoreInstance = incrementalLocalStores[graphIdentifier];
-        }
-        incrementalLocalStoreInstances.push_back(incrementalLocalStoreInstance);
-    }
 
     std::string triangles;
     if (mode == "0") {
-        triangles = StreamingTriangles::countCentralStoreStreamingTriangles(incrementalLocalStoreInstances);
+        triangles = StreamingTriangles::countCentralStoreStreamingTriangles(graphId, partitionIdList);
     } else {
-        triangles = StreamingTriangles::countDynamicCentralTriangles(incrementalLocalStoreInstances, centralCountList);
+        triangles = StreamingTriangles::countDynamicCentralTriangles(
+                graphId, partitionIdList, centralCountList);
     }
 
     instance_logger.info("###INSTANCE### Central Store Aggregation : Completed");
