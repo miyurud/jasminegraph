@@ -18,7 +18,9 @@ jobs:
           repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
 
       - name: Build unit test
-        run: docker build -f ./tests/unit/Dockerfile -t jasminegraph:unit .
+        run: |
+          docker build -t jasminegraph .
+          docker build -f ./tests/unit/Dockerfile -t jasminegraph:unit .
 
       - uses: jupyterhub/action-k3s-helm@v4
         with:
@@ -29,10 +31,8 @@ jobs:
 
       - name: Run unit test
         run: |
-          mkdir coverage
-          kubectl apply -f ./.github/workflows/resources/unit-test-conf.yaml
-          sleep 30
-          kubectl logs -f jasminegraph-unit-test-pod
+          chmod +x ./.github/workflows/resources/unit-test.sh
+          ./.github/workflows/resources/unit-test.sh          
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v4

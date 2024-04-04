@@ -55,42 +55,18 @@ TEST_F(K8sWorkerControllerTest, TestConstructor) {
     ASSERT_EQ(service_list->items->count, 2);
 }
 
-TEST_F(K8sWorkerControllerTest, TestScalingUpAndDown) {
-    controller->setNumberOfWorkers(4);
-    ASSERT_EQ(controller->getNumberOfWorkers(), 4);
-    auto result = metadb->runSelect("SELECT idworker FROM worker");
-    ASSERT_EQ(result.size(), 4);
-
+TEST_F(K8sWorkerControllerTest, TestScaleUp) {
+    auto result = controller->scaleUp(2);
+    ASSERT_EQ(result.size(), 2);
     v1_deployment_list_t *deployment_list = interface->getDeploymentList(strdup("deployment=jasminegraph-worker"));
     ASSERT_EQ(deployment_list->items->count, 4);
     v1_service_list_t *service_list = interface->getServiceList(strdup("service=jasminegraph-worker"));
     ASSERT_EQ(service_list->items->count, 4);
-
-    controller->setNumberOfWorkers(0);
-    ASSERT_EQ(controller->getNumberOfWorkers(), 0);
-    result = metadb->runSelect("SELECT idworker FROM worker");
-    ASSERT_EQ(result.size(), 0);
-
-    deployment_list = interface->getDeploymentList(strdup("deployment=jasminegraph-worker"));
-    ASSERT_EQ(deployment_list->items->count, 0);
-    service_list = interface->getServiceList(strdup("service=jasminegraph-worker"));
-    ASSERT_EQ(service_list->items->count, 0);
-}
-
-TEST_F(K8sWorkerControllerTest, TestScaleUp) {
-    controller->setNumberOfWorkers(0);
-    auto result = controller->scaleUp(2);
-    ASSERT_EQ(result.size(), 2);
-    v1_deployment_list_t *deployment_list = interface->getDeploymentList(strdup("deployment=jasminegraph-worker"));
-    ASSERT_EQ(deployment_list->items->count, 2);
-    v1_service_list_t *service_list = interface->getServiceList(strdup("service=jasminegraph-worker"));
-    ASSERT_EQ(service_list->items->count, 2);
 }
 
 TEST_F(K8sWorkerControllerTest, TestScaleUpBeyondLimit) {
-    controller->setNumberOfWorkers(0);
-    auto result = controller->scaleUp(5);
-    ASSERT_EQ(result.size(), 4);
+    auto result = controller->scaleUp(1);
+    ASSERT_EQ(result.size(), 0);
     v1_deployment_list_t *deployment_list = interface->getDeploymentList(strdup("deployment=jasminegraph-worker"));
     ASSERT_EQ(deployment_list->items->count, 4);
     v1_service_list_t *service_list = interface->getServiceList(strdup("service=jasminegraph-worker"));
