@@ -51,6 +51,9 @@ int PerformanceUtil::collectPerformanceStatistics() {
     long usedSwapSpace = StatisticCollector::getUsedSwapSpace();
     Utils::send_job("", "used_swap_space", std::to_string(usedSwapSpace));
 
+    double currentLoadAverage = StatisticCollector::getLoadAverage();
+    Utils::send_job("", "load_average", std::to_string(currentLoadAverage));
+
     /*
     long totalSwapSpace = StatisticCollector::getTotalSwapSpace();
     Utils::send_job("", "total_swap_space", std::to_string(totalSwapSpace));
