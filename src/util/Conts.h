@@ -105,6 +105,7 @@ class Conts {
     static int MAX_HIGH_PRIORIY_TASKS;
 
     static int SCHEDULER_SLEEP_TIME;
+    static int STREAMING_STRAIN_GAP;
 
     struct GRAPH_STATUS {
         static const int LOADING;  // Graph partitions are being uploaded

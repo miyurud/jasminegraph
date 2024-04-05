@@ -11,6 +11,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
+#include <chrono>
 #include "JobRequest.h"
 
 std::string JobRequest::getJobId() { return jobId; }
@@ -32,3 +33,12 @@ int JobRequest::getPriority() { return priority; }
 void JobRequest::setMasterIP(std::string masterip) { this->masterIP = masterip; }
 
 std::string JobRequest::getMasterIP() { return masterIP; }
+
+void JobRequest::setBeginTime(std::chrono::time_point<std::chrono::system_clock> begin) {
+    this->begin = begin;
+}
+
+std::chrono::time_point<std::chrono::system_clock> JobRequest::getBegin() {
+    return begin;
+}
+

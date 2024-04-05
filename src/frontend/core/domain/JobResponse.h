@@ -16,17 +16,22 @@ limitations under the License.
 
 #include <map>
 #include <string>
+#include <chrono>
 
 class JobResponse {
  private:
     std::string jobId;
     std::map<std::string, std::string> responseParams;
+    std::chrono::time_point<std::chrono::system_clock> begin;
+    std::chrono::time_point<std::chrono::system_clock> end;
 
  public:
     std::string getJobId();
     void setJobId(std::string inputJobId);
     void addParameter(std::string key, std::string value);
     std::string getParameter(std::string key);
+    std::chrono::time_point<std::chrono::system_clock> getEndTime();
+    void setEndTime(std::chrono::time_point<std::chrono::system_clock> end);
 };
 
 #endif  // JASMINEGRAPH_JOBRESPONSE_H

@@ -31,7 +31,6 @@ set(HEADERS globals.h
         src/partitioner/local/MetisPartitioner.h
         src/partitioner/local/RDFParser.h
         src/partitioner/local/RDFPartitioner.h
-        src/partitioner/stream/JasmineGraphIncrementalStore.h
         src/partitioner/stream/Partition.h
         src/partitioner/stream/Partitioner.h
         src/performance/metrics/PerformanceUtil.h
@@ -98,7 +97,6 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/partitioner/local/MetisPartitioner.cpp
         src/partitioner/local/RDFParser.cpp
         src/partitioner/local/RDFPartitioner.cpp
-        src/partitioner/stream/JasmineGraphIncrementalStore.cpp
         src/partitioner/stream/Partition.cpp
         src/partitioner/stream/Partitioner.cpp
         src/performance/metrics/PerformanceUtil.cpp

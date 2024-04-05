@@ -11,6 +11,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
+#include <chrono>
 #include "JobResponse.h"
 
 std::string JobResponse::getJobId() { return jobId; }
@@ -20,3 +21,11 @@ void JobResponse::setJobId(std::string inputJobId) { jobId = inputJobId; }
 void JobResponse::addParameter(std::string key, std::string value) { responseParams[key] = value; }
 
 std::string JobResponse::getParameter(std::string key) { return responseParams[key]; }
+
+std::chrono::time_point<std::chrono::system_clock> JobResponse::getEndTime() {
+    return end;
+}
+
+void JobResponse::setEndTime(const std::chrono::time_point<std::chrono::system_clock> end) {
+    this->end = end;
+}

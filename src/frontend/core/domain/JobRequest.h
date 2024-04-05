@@ -16,6 +16,7 @@ limitations under the License.
 
 #include <map>
 #include <string>
+#include <chrono>
 
 class JobRequest {
  private:
@@ -23,6 +24,8 @@ class JobRequest {
     std::string jobType;
     std::string masterIP;
     std::map<std::string, std::string> requestParams;
+    std::chrono::time_point<std::chrono::system_clock> begin;
+    std::chrono::time_point<std::chrono::system_clock> end;
 
  public:
     int priority;
@@ -37,6 +40,8 @@ class JobRequest {
     int getPriority();
     void setMasterIP(std::string masterip);
     std::string getMasterIP();
+    std::chrono::time_point<std::chrono::system_clock> getBegin();
+    void setBeginTime(std::chrono::time_point<std::chrono::system_clock> begin);
 };
 
 #endif  // JASMINEGRAPH_JOBREQUEST_H

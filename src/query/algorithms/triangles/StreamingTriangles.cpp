@@ -20,7 +20,8 @@ limitations under the License.
 #include "../../../util/logger/Logger.h"
 
 Logger streaming_triangle_logger;
-std::map<long, std::unordered_set<long>> StreamingTriangles::adjacenyList;
+std::map<long, std::unordered_set<long>> StreamingTriangles::localAdjacenyList;
+std::map<std::string, std::map<long, std::unordered_set<long>>> StreamingTriangles::centralAdjacenyList;
 
 TriangleResult StreamingTriangles::countTriangles(NodeManager* nodeManager, bool returnTriangles) {
     std::map<long, std::unordered_set<long>> adjacenyList = nodeManager->getAdjacencyList();
@@ -93,22 +94,6 @@ std::string StreamingTriangles::countCentralStoreStreamingTriangles(std::string 
     return result.triangles;
 }
 
-std::map<long, std::unordered_set<long>> StreamingTriangles::getIncrementalAdjacencyList(
-                                            NodeManager* &nodeManager, std::vector<std::pair<long, long>> &edges) {
-    if (adjacenyList.empty()) {
-        adjacenyList = nodeManager->getAdjacencyList();
-    } else {
-        for (const auto& edge : edges) {
-            long sourceNode = edge.first;
-            long targetNode = edge.second;
-
-            adjacenyList[sourceNode].insert(targetNode);
-            adjacenyList[targetNode].insert(sourceNode);
-        }
-    }
-    return adjacenyList;
-}
-
 std::map<long, std::unordered_set<long>> StreamingTriangles::getCentralAdjacencyList(unsigned int graphID,
                                                                                      unsigned int partitionID) {
     std::map<long, std::unordered_set<long>> adjacencyList;
@@ -119,8 +104,8 @@ std::map<long, std::unordered_set<long>> StreamingTriangles::getCentralAdjacency
     gc.maxLabelSize = std::stoi(Utils::getJasmineGraphProperty("org.jasminegraph.nativestore.max.label.size"));
     gc.openMode = "app";
     NodeManager* nm = new NodeManager(gc);
-
-    return nm->getAdjacencyList(false);
+    adjacencyList = nm->getAdjacencyList(false);
+    return adjacencyList;
 }
 
 std::vector<std::pair<long, long>> StreamingTriangles::getEdges(unsigned int graphID, unsigned int partitionID,
@@ -142,10 +127,10 @@ std::vector<std::pair<long, long>> StreamingTriangles::getEdges(unsigned int gra
 
     for (int i = previousCentralRelationCount + 1; i <= newCentralRelationCount ; i++) {
         RelationBlock* relationBlock = RelationBlock::getCentralRelation(i*relationBlockSize);
-        edges.push_back(std::make_pair(std::stol(relationBlock->getSource()->id),
-                                       std::stol(relationBlock->getDestination()->id)));
-        edges.push_back(std::make_pair(std::stol(relationBlock->getDestination()->id),
-                                           std::stol(relationBlock->getSource()->id)));
+        long source = std::stol(relationBlock->getSource()->id);
+        long target = std::stol(relationBlock->getDestination()->id);
+        edges.push_back(std::make_pair(source, target));
+        edges.push_back(std::make_pair(target, source));
     }
 
     return edges;
@@ -189,6 +174,8 @@ NativeStoreTriangleResult StreamingTriangles::countDynamicLocalTriangles(
         edges.push_back(std::make_pair(targetNode, sourceNode));
         newAdjacencyList[sourceNode].insert(targetNode);
         newAdjacencyList[targetNode].insert(sourceNode);
+        localAdjacenyList[sourceNode].insert(targetNode);
+        localAdjacenyList[targetNode].insert(sourceNode);
     }
 
     for (int i = oldCentralRelationCount + 1; i <= newCentralRelationCount ; i++) {
@@ -199,9 +186,11 @@ NativeStoreTriangleResult StreamingTriangles::countDynamicLocalTriangles(
         edges.push_back(std::make_pair(targetNode, sourceNode));
         newAdjacencyList[sourceNode].insert(targetNode);
         newAdjacencyList[targetNode].insert(sourceNode);
+        localAdjacenyList[sourceNode].insert(targetNode);
+        localAdjacenyList[targetNode].insert(sourceNode);
     }
 
-    std::map<long, std::unordered_set<long>> adjacenyList = getIncrementalAdjacencyList(nodeManager, edges);
+    std::map<long, std::unordered_set<long>> adjacenyList = localAdjacenyList;
 
     long trianglesValue = totalCount(adjacenyList, newAdjacencyList, edges);
 
@@ -218,6 +207,7 @@ std::string StreamingTriangles::countDynamicCentralTriangles(
         std::vector<std::string> oldCentralRelationCount) {
     streaming_triangle_logger.info("###STREAMING TRIANGLE### Dynamic Streaming Central Triangle "
                                   "Counting: Started");
+    std::string joinedString = partitionIdList[0] + partitionIdList[1] + partitionIdList[2];
     std::map<long, std::unordered_set<long>> adjacencyList;
     std::vector<std::pair<long, long>> edges;
     int position = 0;
@@ -230,9 +220,6 @@ std::string StreamingTriangles::countDynamicCentralTriangles(
          ++partitionIdListIterator) {
         std::string aggregatePartitionId = *partitionIdListIterator;
 
-        adjacencyListResponse.push_back(std::async(std::launch::async, StreamingTriangles::getCentralAdjacencyList,
-                                                   std::stoi(graphId), std::stoi(aggregatePartitionId)));
-
         long previousCentralRelationCount = std::stol(oldCentralRelationCount[position]);
         position++;
         streaming_triangle_logger.debug("got previous central count " +
@@ -242,32 +229,28 @@ std::string StreamingTriangles::countDynamicCentralTriangles(
                                                    std::stoi(aggregatePartitionId), previousCentralRelationCount));
     }
 
-    for (auto &&futureCall : adjacencyListResponse) {
-        // Merge adjacency lists
-        std::map<long, std::unordered_set<long>> currentAdjacencyList = futureCall.get();
-        for (const auto& entry : currentAdjacencyList) {
-            adjacencyList[entry.first].insert(entry.second.begin(), entry.second.end());
-        }
-    }
-
     for (auto &&futureCall : edgeMapResponse) {
         // Merge degree maps
         std::vector<std::pair<long, long>> edgeMap = futureCall.get();
         for (const auto& entry : edgeMap) {
+            long sourceNode = entry.first;
+            long targetNode = entry.second;
             edges.push_back(entry);
+            centralAdjacenyList[joinedString][sourceNode].insert(targetNode);
+            centralAdjacenyList[joinedString][targetNode].insert(sourceNode);
         }
     }
 
+    adjacencyList = centralAdjacenyList[joinedString];
     std::basic_ostringstream<char> triangleStream;
+    long count = 0;
 
     for (const auto& edge : edges) {
         long u = edge.first;
         long v = edge.second;
-        long count = 0;
 
         for (auto w : adjacencyList[u]) {
-            for (long v_i : adjacencyList[v]) {
-                if (v_i == w) {
+            if (adjacencyList[v].count(w) > 0) {
                     long varOne = u;
                     long varTwo = v;
                     long varThree = w;
@@ -289,7 +272,6 @@ std::string StreamingTriangles::countDynamicCentralTriangles(
                     triangleStream << varOne << "," << varTwo << "," << varThree << ":";
                     count++;
                     break;
-                }
             }
         }
     }
@@ -313,11 +295,8 @@ long StreamingTriangles::count(std::map<long, std::unordered_set<long>>& g1,
         long count = 0;
 
         for (long w : g1[u]) {
-            for (long v_i : g2[v]) {
-                if (v_i == w) {
-                    count++;
-                    break;
-                }
+            if (g2[v].count(w) > 0) {
+                count++;
             }
         }
 
@@ -337,8 +316,9 @@ long StreamingTriangles::totalCount(std::map<long, std::unordered_set<long>>& g1
                                        std::ref(g1), std::ref(g2), std::ref(edges)));
     countResponse.push_back(std::async(std::launch::async, StreamingTriangles::count,
                                        std::ref(g2), std::ref(g2), std::ref(edges)));
-    long s1 = countResponse[0].get();
-    long s2 = countResponse[1].get();
     long s3 = countResponse[2].get();
+    long s2 = countResponse[1].get();
+    long s1 = countResponse[0].get();
+
     return 0.5 * ((s1 - s2) + (s3 / 3));
 }

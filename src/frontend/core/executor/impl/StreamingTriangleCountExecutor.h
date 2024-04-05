@@ -29,7 +29,10 @@ limitations under the License.
 
 class StreamingTriangleCountExecutor : public AbstractExecutor{
  public:
-        StreamingTriangleCountExecutor();
+    static std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> triangleTree;
+    static long triangleCount;
+
+    StreamingTriangleCountExecutor();
 
         StreamingTriangleCountExecutor(SQLiteDBInterface *db, JobRequest jobRequest);
 
