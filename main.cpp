@@ -69,10 +69,10 @@ int main(int argc, char *argv[]) {
         server = JasmineGraphServer::getInstance();
 
         if (jasminegraph_profile == PROFILE_K8S) {
-            K8sInterface *interface = new K8sInterface();
-            masterIp = interface->getMasterIp();
+            std::unique_ptr<K8sInterface> k8sInterface(new K8sInterface());
+            masterIp = k8sInterface->getMasterIp();
             if (masterIp.empty()) {
-                masterIp = interface->createJasmineGraphMasterService()->spec->cluster_ip;
+                masterIp = k8sInterface->createJasmineGraphMasterService()->spec->cluster_ip;
             }
         }
         server->run(masterIp, numberOfWorkers, workerIps, enableNmon);

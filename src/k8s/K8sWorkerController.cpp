@@ -40,20 +40,6 @@ K8sWorkerController::K8sWorkerController(std::string masterIp, int numberOfWorke
     apiClient_setupGlobalEnv();
     this->interface = new K8sInterface();
     this->metadb = *metadb;
-
-    try {
-        this->maxWorkers = stoi(this->interface->getJasmineGraphConfig("max_worker_count"));
-    } catch (std::invalid_argument &e) {
-        controller_logger.error("Invalid max_worker_count value. Defaulted to 4");
-        this->maxWorkers = 4;
-    }
-
-    // Delete all the workers from the database
-    metadb->runUpdate("DELETE FROM worker");
-    int workersAttached = this->attachExistingWorkers();
-    if (numberOfWorkers - workersAttached > 0) {
-        this->scaleUp(numberOfWorkers - workersAttached);
-    }
 }
 
 K8sWorkerController::~K8sWorkerController() {
@@ -75,6 +61,19 @@ K8sWorkerController *K8sWorkerController::getInstance(std::string masterIp, int 
     // TODO(thevindu-w): synchronize
     if (instance == nullptr) {
         instance = new K8sWorkerController(masterIp, numberOfWorkers, metadb);
+        try {
+            instance->maxWorkers = stoi(instance->interface->getJasmineGraphConfig("max_worker_count"));
+        } catch (std::invalid_argument &e) {
+            controller_logger.error("Invalid max_worker_count value. Defaulted to 4");
+            instance->maxWorkers = 4;
+        }
+
+        // Delete all the workers from the database
+        metadb->runUpdate("DELETE FROM worker");
+        int workersAttached = instance->attachExistingWorkers();
+        if (numberOfWorkers - workersAttached > 0) {
+            instance->scaleUp(numberOfWorkers - workersAttached);
+        }
     } else {
         controller_logger.warn("Not initializing again");
     }

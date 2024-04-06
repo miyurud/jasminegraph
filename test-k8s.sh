@@ -59,10 +59,7 @@ build_and_run_on_k8s() {
 }
 
 clear_resources() {
-    kubectl delete deployments jasminegraph-master-deployment jasminegraph-worker1-deployment \
-        jasminegraph-worker0-deployment
-    kubectl delete services jasminegraph-master-service jasminegraph-worker0-service jasminegraph-worker1-service
-    kubectl delete -f "${PROJECT_ROOT}/k8s/volumes.yaml"
+    ./start-k8s.sh clean
 }
 
 cd "$TEST_ROOT"
@@ -71,6 +68,34 @@ cp -r env_init env
 
 cd "$PROJECT_ROOT"
 build_and_run_on_k8s
+
+# Wait till all pods are running
+cur_timestamp="$(date +%s)"
+end_timestamp="$((cur_timestamp + TIMEOUT_SECONDS))"
+while true; do
+    if [ "$(date +%s)" -gt "$end_timestamp" ]; then
+        echo "Pods are not running"
+        echo "Build log:"
+        cat "$BUILD_LOG"
+        echo "Run log:"
+        cat "$RUN_LOG"
+        force_remove "${TEST_ROOT}/env"
+        clear_resources
+        exit 1
+    fi
+
+    set +e
+    pods_status="$(kubectl get pods | grep -v 'STATUS' | grep -v 'Running')"
+    set -e
+    if [ -z "$pods_status" ]; then
+        echo "All pods are running"
+        break
+    fi
+
+    echo "Waiting for pods to be running"
+    echo "$pods_status"
+    sleep 5
+done
 
 # Wait till JasmineGraph server start listening
 cur_timestamp="$(date +%s)"
@@ -92,9 +117,10 @@ while ! nc -zvn -w 1 "$masterIP" 7777 &>/dev/null; do
     sleep .5
 done
 
-echo
+echo '-------------------- pods -------------------------------------'
 kubectl get pods -o wide
 echo
+echo '------------------ services -----------------------------------'
 kubectl get services -o wide
 echo
 

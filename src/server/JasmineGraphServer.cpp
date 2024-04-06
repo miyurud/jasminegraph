@@ -123,7 +123,6 @@ int JasmineGraphServer::run(std::string masterIp, int numberofWorkers, std::stri
     this->numberOfWorkers = numberofWorkers;
     this->workerHosts = workerIps;
     this->enableNmon = enableNmon;
-    init();
     masterPortVector.push_back(Conts::JASMINEGRAPH_FRONTEND_PORT);
     updateOperationalGraphList();
 
@@ -136,6 +135,7 @@ int JasmineGraphServer::run(std::string masterIp, int numberofWorkers, std::stri
         addInstanceDetailsToPerformanceDB(masterHost, masterPortVector, "true");
     }
 
+    init();
     std::thread *myThreads = new std::thread[1];
     myThreads[0] = std::thread(StatisticCollector::logLoadAverage, "Load Average");
     sleep(1);
@@ -829,12 +829,10 @@ static std::vector<JasmineGraphServer::worker> getWorkers(size_t npart) {
     std::vector<JasmineGraphServer::worker> *workerListAll;
     map<string, float> cpu_loads;
     if (jasminegraph_profile == PROFILE_K8S) {
-        auto k8sInterface = new K8sInterface();
+        std::unique_ptr<K8sInterface> k8sInterface(new K8sInterface());
         if (k8sInterface->getJasmineGraphConfig("scale_on_adgr") != "true") {
-            delete k8sInterface;
             return K8sWorkerController::workerList;
         }
-        delete k8sInterface;
         workerListAll = &(K8sWorkerController::workerList);
         cpu_loads = scaleK8s(npart);
     } else {
