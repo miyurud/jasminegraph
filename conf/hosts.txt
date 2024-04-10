@@ -1,4 +1,4 @@
-#This is the hosts file for Jasminegraph. All the host names on which Jasminegraph workers should get started needs
+#This is the hosts file for JasmineGraph. All the host names on which JasmineGraph workers should get started needs
 #to be listed here
 localhost
 
