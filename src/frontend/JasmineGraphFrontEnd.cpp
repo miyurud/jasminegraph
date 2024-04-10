@@ -135,7 +135,7 @@ void *frontendservicesesion(void *dummyPt) {
     int failCnt = 0;
     while (!loop_exit) {
         if (currentFESession > Conts::MAX_FE_SESSIONS) {
-            if (!Utils::send_str_wrapper(connFd, "Jasminegraph Server is Busy. Please try again later.")) {
+            if (!Utils::send_str_wrapper(connFd, "JasmineGraph server is busy. Please try again later.")) {
                 frontend_logger.error("Error writing to socket");
             }
             break;
