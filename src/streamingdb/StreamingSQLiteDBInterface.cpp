@@ -23,7 +23,7 @@ Logger streamdb_logger;
 
 int StreamingSQLiteDBInterface::init() {
     if (!Utils::fileExists(this->databaseLocation.c_str())) {
-        if (Utils::createDatabaseFromDDL(this->databaseLocation.c_str(), ROOT_DIR "src/streamingdb/ddl.sql") != 0) {
+        if (Utils::createDatabaseFromDDL(this->databaseLocation.c_str(), ROOT_DIR "ddl/streamingdb.sql") != 0) {
             streamdb_logger.error("Cannot create database: " + databaseLocation);
             return -1;
         }

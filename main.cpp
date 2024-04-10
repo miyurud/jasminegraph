@@ -54,9 +54,7 @@ int main(int argc, char *argv[]) {
     std::string JASMINEGRAPH_HOME = Utils::getJasmineGraphHome();
     jasminegraph_profile = strcmp(argv[1], "docker") == 0 ? PROFILE_DOCKER : PROFILE_K8S;
     std::string enableNmon = "false";
-
-    main_logger.log("Using JASMINE_GRAPH_HOME", "info");
-    std::cout << JASMINEGRAPH_HOME << std::endl;
+    main_logger.info("Using JASMINE_GRAPH_HOME=" + JASMINEGRAPH_HOME);
 
     StatisticCollector::init();
     thread schedulerThread(SchedulerService::startScheduler);

@@ -58,13 +58,13 @@ std::vector<std::string> Utils::getFileContent(std::string file) {
 
     std::string str;
     vector<std::string> vec;
+    if (!in.is_open()) return vec;
     while (std::getline(in, str)) {
         // now we loop back and get the next line in 'str'
         if (str.length() > 0) {
             vec.push_back(str);
         }
     }
-
     return vec;
 };
 

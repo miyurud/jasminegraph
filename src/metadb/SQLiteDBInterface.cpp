@@ -31,7 +31,7 @@ SQLiteDBInterface::SQLiteDBInterface(string databaseLocation) {
 
 int SQLiteDBInterface::init() {
     if (!Utils::fileExists(this->databaseLocation.c_str())) {
-        if (Utils::createDatabaseFromDDL(this->databaseLocation.c_str(), ROOT_DIR "src/metadb/ddl.sql") != 0) {
+        if (Utils::createDatabaseFromDDL(this->databaseLocation.c_str(), ROOT_DIR "ddl/metadb.sql") != 0) {
             return -1;
         }
     }

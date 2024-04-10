@@ -23,7 +23,7 @@ Logger perfdb_logger;
 
 int PerformanceSQLiteDBInterface::init() {
     if (!Utils::fileExists(this->databaseLocation.c_str())) {
-        if (Utils::createDatabaseFromDDL(this->databaseLocation.c_str(), ROOT_DIR "src/performancedb/ddl.sql") != 0) {
+        if (Utils::createDatabaseFromDDL(this->databaseLocation.c_str(), ROOT_DIR "ddl/perfdb.sql") != 0) {
             return -1;
         }
     }

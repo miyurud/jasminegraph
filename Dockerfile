@@ -29,6 +29,7 @@ COPY ./run-docker.sh ./run-docker.sh
 COPY ./src_python ./src_python
 COPY ./conf ./conf
 COPY ./k8s ./k8s
+COPY ./ddl ./ddl
 
 ENTRYPOINT ["/home/ubuntu/software/jasminegraph/run-docker.sh"]
 CMD ["bash"]

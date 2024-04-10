@@ -38,7 +38,6 @@ limitations under the License.
 #include "../metadb/SQLiteDBInterface.h"
 #include "../performancedb/PerformanceSQLiteDBInterface.h"
 #include "../query/algorithms/triangles/Triangles.h"
-#include "../util/PlacesToNodeMapper.h"
 #include "core/scheduler/JobScheduler.h"
 
 class JasmineGraphHashMapCentralStore;

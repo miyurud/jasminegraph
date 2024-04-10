@@ -46,7 +46,6 @@ set(HEADERS globals.h
         src/server/JasmineGraphInstanceService.h
         src/server/JasmineGraphServer.h
         src/util/Conts.h
-        src/util/PlacesToNodeMapper.h
         src/util/Utils.h
         src/util/dbutil/attributestore_generated.h
         src/util/dbutil/edgestore_generated.h
@@ -114,7 +113,6 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/server/JasmineGraphInstanceService.cpp
         src/server/JasmineGraphServer.cpp
         src/util/Conts.cpp
-        src/util/PlacesToNodeMapper.cpp
         src/util/Utils.cpp
         src/util/kafka/KafkaCC.cpp
         src/util/kafka/StreamHandler.cpp

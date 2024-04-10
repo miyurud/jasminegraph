@@ -29,7 +29,6 @@ limitations under the License.
 #include "../../performancedb/PerformanceSQLiteDBInterface.h"
 #include "../../server/JasmineGraphInstanceProtocol.h"
 #include "../../util/Conts.h"
-#include "../../util/PlacesToNodeMapper.h"
 #include "../../util/Utils.h"
 #include "../../util/logger/Logger.h"
 #include "StatisticCollector.h"
