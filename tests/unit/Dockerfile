@@ -20,6 +20,7 @@ COPY ./build.sh ./build.sh
 COPY ./CMakeLists.txt ./CMakeLists.txt
 COPY ./src_python ./src_python
 COPY ./src ./src
+COPY ./ddl ./ddl
 COPY ./main.h ./main.h
 COPY ./main.cpp ./main.cpp
 COPY ./globals.h ./globals.h
