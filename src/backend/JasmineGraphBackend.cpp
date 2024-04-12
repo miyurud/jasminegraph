@@ -85,7 +85,7 @@ void *backendservicesesion(void *dummyPt) {
             break;
 
         } else {
-            backend_logger.log("Message format not recognized", "error");
+            backend_logger.error("Message format not recognized");
             sleep(1);
         }
     }
