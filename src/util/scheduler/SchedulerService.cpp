@@ -24,7 +24,7 @@ void SchedulerService::startScheduler() {
 
     if (schedulerEnabled == "true") {
         sleep(3);
-        schedulerservice_logger.log("#######SCHEDULER ENABLED#####", "info");
+        schedulerservice_logger.info("#######SCHEDULER ENABLED#####");
 
         startPerformanceScheduler();
     }

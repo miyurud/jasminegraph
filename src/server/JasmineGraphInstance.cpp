@@ -89,7 +89,7 @@ void JasmineGraphInstance::startNmonAnalyzer(string enableNmon, int serverPort) 
                 }
             }
             if (!result.empty()) {
-                graphInstance_logger.log("Error in performance database backup process", "error");
+                graphInstance_logger.error("Error in performance database backup process");
             }
 
             pclose(input);

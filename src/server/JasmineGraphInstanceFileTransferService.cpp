@@ -85,7 +85,7 @@ void JasmineGraphInstanceFileTransferService::run(int dataPort) {
     }
     int connFd;
     listen(listenFd, 10);
-    file_service_logger.log("Worker FileTransfer Service listening on port " + to_string(dataPort), "info");
+    file_service_logger.info("Worker FileTransfer Service listening on port " + to_string(dataPort));
 
     len = sizeof(clntAdd);
 
@@ -93,10 +93,10 @@ void JasmineGraphInstanceFileTransferService::run(int dataPort) {
         connFd = accept(listenFd, (struct sockaddr *)&clntAdd, &len);
 
         if (connFd < 0) {
-            file_service_logger.log("Cannot accept connection to port " + to_string(dataPort), "error");
+            file_service_logger.info("Cannot accept connection to port " + to_string(dataPort));
             continue;
         }
-        file_service_logger.log("Connection successful to port " + to_string(dataPort), "info");
+        file_service_logger.info("Connection successful to port " + to_string(dataPort));
 
         pid_t pid = fork();
         if (pid == 0) {

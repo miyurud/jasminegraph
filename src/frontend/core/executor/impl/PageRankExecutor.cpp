@@ -71,8 +71,7 @@ void PageRankExecutor::execute() {
         processStatusMutex.unlock();
     }
 
-    pageRank_logger.log("###PAGERANK-EXECUTOR### Started with graph ID : " + graphId + " Master IP : " + masterIP,
-                        "info");
+    pageRank_logger.info("###PAGERANK-EXECUTOR### Started with graph ID : " + graphId + " Master IP : " + masterIP);
 
     int partitionCount = 0;
     std::vector<std::future<void>> intermRes;
@@ -87,16 +86,15 @@ void PageRankExecutor::execute() {
     int dataPort;
     std::string workerList;
 
-    std::map<std::string, JasmineGraphServer::workerPartitions>::iterator workerIter;
-    for (workerIter = graphPartitionedHosts.begin(); workerIter != graphPartitionedHosts.end(); workerIter++) {
+    for (auto workerIter = graphPartitionedHosts.begin(); workerIter != graphPartitionedHosts.end(); workerIter++) {
         JasmineGraphServer::workerPartitions workerPartition = workerIter->second;
         host = workerIter->first;
         port = workerPartition.port;
         dataPort = workerPartition.dataPort;
 
-        for (std::vector<std::string>::iterator partitionit = workerPartition.partitionID.begin();
-             partitionit != workerPartition.partitionID.end(); partitionit++) {
-            std::string partition = *partitionit;
+        for (auto partitionIterator = workerPartition.partitionID.begin();
+             partitionIterator != workerPartition.partitionID.end(); partitionIterator++) {
+            std::string partition = *partitionIterator;
             workerList.append(host + ":" + std::to_string(port) + ":" + partition + ",");
         }
     }
@@ -104,15 +102,15 @@ void PageRankExecutor::execute() {
     workerList.pop_back();
     pageRank_logger.info("Worker list " + workerList);
 
-    for (workerIter = graphPartitionedHosts.begin(); workerIter != graphPartitionedHosts.end(); workerIter++) {
+    for (auto workerIter = graphPartitionedHosts.begin(); workerIter != graphPartitionedHosts.end(); workerIter++) {
         JasmineGraphServer::workerPartitions workerPartition = workerIter->second;
         host = workerIter->first;
         port = workerPartition.port;
         dataPort = workerPartition.dataPort;
 
-        for (std::vector<std::string>::iterator partitionit = workerPartition.partitionID.begin();
-             partitionit != workerPartition.partitionID.end(); partitionit++) {
-            std::string partition = *partitionit;
+        for (auto partitionIterator = workerPartition.partitionID.begin();
+             partitionIterator != workerPartition.partitionID.end(); partitionIterator++) {
+            std::string partition = *partitionIterator;
             intermRes.push_back(std::async(std::launch::async, PageRankExecutor::doPageRank, graphId, alpha, iterations,
                                            partition, host, port, dataPort, workerList));
         }
@@ -137,7 +135,7 @@ void PageRankExecutor::execute() {
             canCalibrate = false;
         }
     } else {
-        pageRank_logger.log("###PAGERANK-EXECUTOR### Inserting initial record for SLA ", "info");
+        pageRank_logger.info("###PAGERANK-EXECUTOR### Inserting initial record for SLA ");
         Utils::updateSLAInformation(perfDB, graphId, partitionCount, 0, PAGE_RANK, Conts::SLA_CATEGORY::LATENCY);
         statResponse.push_back(std::async(std::launch::async, AbstractExecutor::collectPerformaceData, perfDB,
                                           graphId.c_str(), PAGE_RANK, Conts::SLA_CATEGORY::LATENCY, partitionCount,
@@ -173,8 +171,7 @@ void PageRankExecutor::execute() {
     }
 
     processStatusMutex.lock();
-    std::set<ProcessInfo>::iterator processCompleteIterator;
-    for (processCompleteIterator = processData.begin(); processCompleteIterator != processData.end();
+    for (auto processCompleteIterator = processData.begin(); processCompleteIterator != processData.end();
          ++processCompleteIterator) {
         ProcessInfo processInformation = *processCompleteIterator;
 

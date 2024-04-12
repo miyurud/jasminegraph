@@ -55,7 +55,7 @@ using namespace std::chrono;
 
 std::atomic<int> highPriorityTaskCount;
 static int connFd;
-static int currentFESession;
+static volatile int currentFESession;
 static bool canCalibrate = true;
 Logger frontend_logger;
 std::set<ProcessInfo> processData;
@@ -98,7 +98,6 @@ static vector<DataPublisher *> getWorkerClients(SQLiteDBInterface *sqlite) {
     for (int i = 0; i < workerList.size(); i++) {
         Utils::worker currentWorker = workerList.at(i);
         string workerHost = currentWorker.hostname;
-        string workerID = currentWorker.workerID;
         int workerPort = atoi(string(currentWorker.port).c_str());
         DataPublisher *workerClient = new DataPublisher(workerPort, workerHost);
         workerClients.push_back(workerClient);
@@ -114,6 +113,15 @@ void *frontendservicesesion(void *dummyPt) {
     PerformanceSQLiteDBInterface *perfSqlite = sessionargs->perfSqlite;
     JobScheduler *jobScheduler = sessionargs->jobScheduler;
     delete sessionargs;
+    if (currentFESession++ > Conts::MAX_FE_SESSIONS) {
+        if (!Utils::send_str_wrapper(connFd, "JasmineGraph server is busy. Please try again later.")) {
+            frontend_logger.error("Error writing to socket");
+        }
+        close(connFd);
+        currentFESession--;
+        return NULL;
+    }
+
     frontend_logger.info("Thread No: " + to_string(pthread_self()));
     frontend_logger.info("Master IP: " + masterIP);
     char data[FRONTEND_DATA_LENGTH + 1];
@@ -134,13 +142,6 @@ void *frontendservicesesion(void *dummyPt) {
     bool loop_exit = false;
     int failCnt = 0;
     while (!loop_exit) {
-        if (currentFESession > Conts::MAX_FE_SESSIONS) {
-            if (!Utils::send_str_wrapper(connFd, "JasmineGraph server is busy. Please try again later.")) {
-                frontend_logger.error("Error writing to socket");
-            }
-            break;
-        }
-
         string line = Utils::read_str_wrapper(connFd, data, FRONTEND_DATA_LENGTH, true);
         if (line.empty()) {
             failCnt++;
@@ -958,10 +959,9 @@ static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInt
             string reformattedFilePath = partitioner.reformatDataSet(edgeListPath, newGraphID);
             partitioner.loadDataSet(reformattedFilePath, newGraphID);
             partitioner.constructMetisFormat(Conts::GRAPH_TYPE_NORMAL_REFORMATTED);
-            fullFileList = partitioner.partitioneWithGPMetis("");
-        } else {
-            fullFileList = partitioner.partitioneWithGPMetis("");
         }
+        fullFileList = partitioner.partitioneWithGPMetis("");
+
         // Graph type should be changed to identify graphs with attributes
         // because this graph type has additional attribute files to be uploaded
         JasmineGraphServer *server = JasmineGraphServer::getInstance();

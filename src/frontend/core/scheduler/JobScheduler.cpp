@@ -38,7 +38,7 @@ void *startScheduler(void *dummyPt) {
     PerformanceUtil::init();
     while (true) {
         if (jobQueue.size() > 0) {
-            jobScheduler_Logger.log("##JOB SCHEDULER## Jobs Available for Scheduling", "info");
+            jobScheduler_Logger.info("##JOB SCHEDULER## Jobs Available for Scheduling");
 
             std::vector<JobRequest> pendingHPJobList;
             std::vector<std::string> highPriorityGraphList;
@@ -57,9 +57,8 @@ void *startScheduler(void *dummyPt) {
             }
 
             if (pendingHPJobList.size() > 0) {
-                jobScheduler_Logger.log(
-                    "##JOB SCHEDULER## High Priority Jobs in Queue: " + std::to_string(pendingHPJobList.size()),
-                    "info");
+                jobScheduler_Logger.info("##JOB SCHEDULER## High Priority Jobs in Queue: " +
+                                         std::to_string(pendingHPJobList.size()));
                 std::string masterIP = pendingHPJobList[0].getMasterIP();
                 std::string jobType = pendingHPJobList[0].getJobType();
                 std::string category = pendingHPJobList[0].getParameter(Conts::PARAM_KEYS::CATEGORY);

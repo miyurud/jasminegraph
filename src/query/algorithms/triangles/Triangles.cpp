@@ -32,7 +32,7 @@ long Triangles::run(JasmineGraphHashMapLocalStore &graphDB, JasmineGraphHashMapC
 long Triangles::run(JasmineGraphHashMapLocalStore &graphDB, JasmineGraphHashMapCentralStore &centralStore,
                     JasmineGraphHashMapDuplicateCentralStore &duplicateCentralStore, std::string graphId,
                     std::string partitionId, int threadPriority) {
-    triangle_logger.log("###TRIANGLE### Triangle Counting: Started", "info");
+    triangle_logger.info("###TRIANGLE### Triangle Counting: Started");
     map<long, unordered_set<long>> localSubGraphMap = graphDB.getUnderlyingHashMap();
     map<long, unordered_set<long>> centralDBSubGraphMap = centralStore.getUnderlyingHashMap();
     map<long, unordered_set<long>> duplicateCentralDBSubGraphMap = duplicateCentralStore.getUnderlyingHashMap();
@@ -77,7 +77,7 @@ long Triangles::run(JasmineGraphHashMapLocalStore &graphDB, JasmineGraphHashMapC
     auto mergeDur = mergeEnd - mergeBbegin;
     auto mergeMsDuration = std::chrono::duration_cast<std::chrono::milliseconds>(mergeDur).count();
 
-    triangle_logger.log(" Merge time Taken: " + std::to_string(mergeMsDuration) + " milliseconds", "info");
+    triangle_logger.info(" Merge time Taken: " + std::to_string(mergeMsDuration) + " milliseconds");
 
     const TriangleResult &triangleResult = countTriangles(localSubGraphMap, degreeDistribution, false);
     return triangleResult.count;

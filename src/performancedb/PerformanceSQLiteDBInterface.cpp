@@ -28,13 +28,12 @@ int PerformanceSQLiteDBInterface::init() {
         }
     }
 
-    int rc =
-        sqlite3_open(this->databaseLocation.c_str(), &database);
+    int rc = sqlite3_open(this->databaseLocation.c_str(), &database);
     if (rc) {
-        perfdb_logger.log("Cannot open database: " + string(sqlite3_errmsg(database)), "error");
+        perfdb_logger.error("Cannot open database: " + string(sqlite3_errmsg(database)));
         return -1;
     }
-    perfdb_logger.log("Database opened successfully", "info");
+    perfdb_logger.info("Database opened successfully");
     return 0;
 }
 

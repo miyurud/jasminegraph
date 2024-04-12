@@ -126,7 +126,7 @@ unsigned int PropertyLink::insert(std::string name, const char* value) {
         property_link_logger.warn("Property key/name already exist key = " + std::string(name));
         return this->blockAddress;
     } else if (this->nextPropAddress) {  // Traverse to the edge/end of the link list
-        property_link_logger.log("Next Called", "info");
+        property_link_logger.info("Next Called");
         return this->next()->insert(name, value);
     } else {  // No next link means end of the link, Now add the new link
         //        property_link_logger.debug("Next prop index = " + std::to_string(PropertyLink::nextPropertyIndex));

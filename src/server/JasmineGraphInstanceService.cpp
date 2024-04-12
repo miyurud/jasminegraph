@@ -2570,7 +2570,7 @@ static void page_rank_command(int connFd, int serverPort,
         *loop_exit_p = true;
         return;
     }
-    instance_logger.log("Sent : " + JasmineGraphInstanceProtocol::OK, "info");
+    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
 
     instance_logger.info("Finish : Calculate Local PageRank.");
 }

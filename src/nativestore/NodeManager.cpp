@@ -83,7 +83,7 @@ NodeManager::NodeManager(GraphConfig gConfig) {
     //            std::ios::binary);
     // TODO (tmkasun): set PropertyLink nextPropertyIndex after validating by modulus check from file number of bytes
 
-    node_manager_logger.log("NodesDB, PropertiesDB, and RelationsDB files opened (or created) successfully.", "info");
+    node_manager_logger.info("NodesDB, PropertiesDB, and RelationsDB files opened (or created) successfully.");
     //    unsigned int nextAddress;
     //    unsigned int propertyBlockAddress = 0;
     //    PropertyLink::propertiesDB->seekg(propertyBlockAddress * PropertyLink::PROPERTY_BLOCK_SIZE);

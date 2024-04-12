@@ -34,18 +34,15 @@ Logger main_logger;
 int jasminegraph_profile = PROFILE_DOCKER;
 #endif
 
-void fnExit3(void) {
-    delete (server);
-}
+void fnExit3(void) { delete (server); }
 
 int main(int argc, char *argv[]) {
     atexit(fnExit3);
 
     if (argc <= 1) {
-        main_logger.log(
+        main_logger.error(
             "\"Use argument 1 to start JasmineGraph in Master mode. Use 2 "
-            "<hostName> <serverPort> <serverDataPort> to start as worker",
-            "error");
+            "<hostName> <serverPort> <serverDataPort> to start as worker");
         return -1;
     }
     std::cout << argc << std::endl;
@@ -78,7 +75,7 @@ int main(int argc, char *argv[]) {
         schedulerThread.join();
         delete server;
     } else if (mode == Conts::JASMINEGRAPH_RUNTIME_PROFILE_WORKER) {
-        main_logger.log(to_string(argc), "info");
+        main_logger.info(to_string(argc));
 
         if (argc < 8) {
             main_logger.info(

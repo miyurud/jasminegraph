@@ -69,13 +69,13 @@ static void allocate(int p, string w, std::map<int, string> &alloc, std::set<int
 
 static int get_min_partition(std::set<int> &remain, std::map<int, std::vector<string>> &p_avail) {
     int p0 = *remain.begin();
-    size_t m = 1000000000;
+    size_t minimum = 1000000000;
     for (auto it = remain.begin(); it != remain.end(); it++) {
-        int p = *it;
-        auto &ws = p_avail[p];
-        if (ws.size() > 0 && ws.size() < m) {
-            m = ws.size();
-            p0 = p;
+        int partition = *it;
+        auto &workers = p_avail[partition];
+        if (workers.size() > 0 && workers.size() < minimum) {
+            minimum = workers.size();
+            p0 = partition;
         }
     }
     return p0;

@@ -282,7 +282,7 @@ std::string Utils::getJasmineGraphHome() {
         jasminegraph_home = std::string(temp);
     }
     if (jasminegraph_home.empty()) {
-        util_logger.log("Returning empty value for " + Conts::JASMINEGRAPH_HOME, "warn");
+        util_logger.warn("Returning empty value for " + Conts::JASMINEGRAPH_HOME);
     }
     return jasminegraph_home;
 }
@@ -304,7 +304,7 @@ std::string Utils::getHomeDir() {
  * @param filePath
  */
 int Utils::copyFile(const std::string sourceFilePath, const std::string destinationFilePath) {
-    util_logger.log("Starting file copy source: " + sourceFilePath + " destination: " + destinationFilePath, "info");
+    util_logger.info("Starting file copy source: " + sourceFilePath + " destination: " + destinationFilePath);
     std::string command = "cp " + sourceFilePath + " " + destinationFilePath;
     int status = system(command.c_str());
     if (status != 0) util_logger.error("Copy failed with exit code " + std::to_string(status));
@@ -495,7 +495,7 @@ void Utils::updateSLAInformation(PerformanceSQLiteDBInterface *perfSqlite, std::
             perfSqlite->runInsert(insertQuery);
         }
     } else {
-        util_logger.log("Invalid SLA " + category + " for " + command + " command", "error");
+        util_logger.error("Invalid SLA " + category + " for " + command + " command");
     }
 }
 
