@@ -77,7 +77,7 @@ static void process_dataset_command(int connFd, bool *loop_exit_p);
 static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
                               PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler, bool *loop_exit_p);
 static void streaming_triangles_command(std::string masterIP, int connFd, JobScheduler *jobScheduler, bool *loop_exit_p,
-                                        int numberOfPartitions, bool *strian_exist);
+                                        int numberOfPartitions, bool *strian_exit);
 static void stop_strian_command(int connFd, bool *strian_exit);
 static void vertex_count_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void edge_count_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
@@ -1475,11 +1475,8 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
 }
 
 void JasmineGraphFrontEnd::scheduleStrianJobs(JobRequest &jobDetails, std::priority_queue<JobRequest> &jobQueue,
-                                               JobScheduler *jobScheduler, bool *strian_exist) {
-    while (true) {
-        if (*strian_exist) {
-            break;
-        }
+                                               JobScheduler *jobScheduler, bool *strian_exit) {
+    while (!(*strian_exit)) {
         auto begin = chrono::high_resolution_clock::now();
         jobDetails.setBeginTime(begin);
         int uniqueId = JasmineGraphFrontEnd::getUid();
@@ -1554,10 +1551,7 @@ static void streaming_triangles_command(std::string masterIP, int connFd, JobSch
     std::thread schedulerThread(JasmineGraphFrontEnd::scheduleStrianJobs, std::ref(jobDetails), std::ref(jobQueue),
                                 jobScheduler, std::ref(strian_exit));
 
-    while (true) {
-        if (*strian_exit) {
-            break;
-        }
+    while (!(*strian_exit)) {
         if (!jobQueue.empty()) {
             JobRequest request = jobQueue.top();
             JobResponse jobResponse = jobScheduler->getResult(request);
