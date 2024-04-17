@@ -122,10 +122,7 @@ void *frontendservicesesion(void *dummyPt) {
         return NULL;
     }
 
-    frontend_logger.info("Thread No: " + to_string(pthread_self()));
-    frontend_logger.info("Master IP: " + masterIP);
     char data[FRONTEND_DATA_LENGTH + 1];
-
     //  Initiate Thread
     thread input_stream_handler;
     //  Initiate kafka consumer parameters

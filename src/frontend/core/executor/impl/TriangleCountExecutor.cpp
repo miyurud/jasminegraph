@@ -105,7 +105,7 @@ static int alloc_plan(std::map<int, string> &alloc, std::set<int> &remain, std::
     if (ws.empty()) return (int)remain.size();
     sort(ws.begin(), ws.end(), [&loads](string &w1, string &w2) {
         return LOAD_PREFERENCE[loads[w1]] > LOAD_PREFERENCE[loads[w2]];
-    });  // load=1 goes first and load=3 goes last
+    });  // load=1 goes first and load=3 goes last. The order is 1,0,2,3 for 4 cores.
     struct best_alloc {
         std::map<int, string> alloc;
         std::set<int> remain;
@@ -249,11 +249,9 @@ static int alloc_net_plan(std::map<int, string> &alloc, std::vector<int> &parts,
     sort(wts.begin(), wts.end(), [&loads](string &w1, string &w2) {
         int l1 = loads[w1];
         int l2 = loads[w2];
-        // TODO: temporarily commented for scale up only
-        // if (l1 < 3 && l2 < 3) return LOAD_PREFERENCE[l1] > LOAD_PREFERENCE[loads[w2]];
         if (l1 < 3 || l2 < 3) return l1 < l2;
         return l1 <= l2;
-    });  // load=1 goes first and load=3 goes last
+    });  // load=1 goes first and load=3 goes last. The order is 1,0,2,3 for 4 cores.
     const auto &ws = p_avail.find(p)->second;
     int minLoad = 100000000;
     for (auto it = loads.begin(); it != loads.end(); it++) {
@@ -356,15 +354,12 @@ static void filter_partitions(std::map<string, std::vector<string>> &partitionMa
     }
 
     std::map<int, string> alloc;
-    cout << "calling alloc_plan" << endl;
     int unallocated = alloc_plan(alloc, remain, p_avail, loads);
-    cout << "alloc_plan returned " << unallocated << endl;
     if (unallocated > 0) {
-        cout << "calling reallocate_parts" << endl;
+        triangleCount_logger.info(to_string(unallocated) + " partitions remaining after alloc_plan");
         auto copying = reallocate_parts(alloc, remain, P_AVAIL);
-        cout << "reallocate_parts completed" << endl;
         scale_up(loads, workers, copying.size());
-        cout << "scale_up completed" << endl;
+        triangleCount_logger.info("Scale up completed");
 
         map<string, int> net_loads;
         for (auto it = loads.begin(); it != loads.end(); it++) {
@@ -378,13 +373,10 @@ static void filter_partitions(std::map<string, std::vector<string>> &partitionMa
 
         std::map<int, std::pair<string, string>> transfer;
         int net_load = alloc_net_plan(alloc, copying, transfer, net_loads, loads, P_AVAIL, 100000000);
-        cout << "alloc_net_plan completed with net_load=" << net_load << endl;
         for (auto it = transfer.begin(); it != transfer.end(); it++) {
             auto p = it->first;
             auto w_to = it->second.second;
             alloc[p] = w_to;
-            cout << "planned sending partition " << p << " from " << it->second.first << " to " << it->second.second
-                 << endl;
         }
 
         if (!transfer.empty()) {
@@ -396,7 +388,6 @@ static void filter_partitions(std::map<string, std::vector<string>> &partitionMa
                 string port = workerData[i][1].second;
                 string dport = workerData[i][2].second;
                 dataPortMap[ip + ":" + port] = dport;
-                cout << "dataPortMap[" << ip + ":" + port << "] = " << dport << endl;
             }
             map<string, string> workers_r;  // "ip:port" => id
             for (auto it = workers.begin(); it != workers.end(); it++) {
@@ -521,34 +512,10 @@ void TriangleCountExecutor::execute() {
         isCompositeAggregation = true;
     }
 
-    cout << "initial partitionMap = {" << endl;
-    for (auto it = partitionMap.begin(); it != partitionMap.end(); it++) {
-        cout << "  " << it->first << ": [";
-        auto &pts = it->second;
-        for (auto it2 = pts.begin(); it2 != pts.end(); it2++) {
-            cout << *it2 << ", ";
-        }
-        cout << "]" << endl;
-    }
-    cout << "}" << endl;
-    cout << endl;
-
     std::unique_ptr<K8sInterface> k8sInterface(new K8sInterface());
     if (jasminegraph_profile == PROFILE_K8S && k8sInterface->getJasmineGraphConfig("auto_scaling_enabled") == "true") {
         filter_partitions(partitionMap, sqlite, graphId);
     }
-
-    cout << "final partitionMap = {" << endl;
-    for (auto it = partitionMap.begin(); it != partitionMap.end(); it++) {
-        cout << "  " << it->first << ": [";
-        auto &pts = it->second;
-        for (auto it2 = pts.begin(); it2 != pts.end(); it2++) {
-            cout << *it2 << ", ";
-        }
-        cout << "]" << endl;
-    }
-    cout << "}" << endl;
-    cout << endl;
 
     std::vector<std::vector<string>> fileCombinations;
     if (isCompositeAggregation) {
@@ -576,7 +543,6 @@ void TriangleCountExecutor::execute() {
     int partitionCount = 0;
     vector<Utils::worker> workerList = Utils::getWorkerList(sqlite);
     int workerListSize = workerList.size();
-    cout << "workerListSize = " << workerListSize << endl;
     for (int i = 0; i < workerListSize; i++) {
         Utils::worker currentWorker = workerList.at(i);
         string host = currentWorker.hostname;
