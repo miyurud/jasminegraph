@@ -13,23 +13,26 @@ limitations under the License.
 
 #include "StatisticCollector.h"
 
+Logger stat_logger;
 static int numProcessors;
 
 static long parseLine(char *line);
 static long getSwapSpace(const char *type);
 
+#define LINE_BUF_SIZE 128
+
 int StatisticCollector::init() {
     FILE *file;
     struct tms timeSample;
-    char line[128];
+    char line[LINE_BUF_SIZE];
 
     file = fopen("/proc/cpuinfo", "r");
     if (!file) {
-        std::cout << "Cannot open /proc/cpuinfo" << std::endl;
+        stat_logger.error("Cannot open /proc/cpuinfo");
         exit(-1);
     }
     numProcessors = 0;
-    while (fgets(line, 128, file) != NULL) {
+    while (fgets(line, LINE_BUF_SIZE, file) != NULL) {
         if (strncmp(line, "processor", 9) == 0) numProcessors++;
     }
     fclose(file);
@@ -39,23 +42,22 @@ int StatisticCollector::init() {
 long StatisticCollector::getMemoryUsageByProcess() {
     FILE *file = fopen("/proc/self/status", "r");
     long result = -1;
-    char line[128];
+    char line[LINE_BUF_SIZE];
 
-    while (fgets(line, 128, file) != NULL) {
+    while (fgets(line, LINE_BUF_SIZE, file) != NULL) {
         if (strncmp(line, "VmSize:", 7) == 0) {
             result = parseLine(line);
             break;
         }
     }
     fclose(file);
-    // std::cout << "Memory Usage: " + std::to_string(result) << std::endl;
     return result;
 }
 
 int StatisticCollector::getThreadCount() {
     FILE *file = fopen("/proc/self/stat", "r");
     long result;
-    char line[128];
+    char line[LINE_BUF_SIZE];
 
     for (int i = 0; i < 20; i++) {
         if (fscanf(file, "%127s%*c", line) < 0) {
@@ -72,11 +74,11 @@ int StatisticCollector::getThreadCount() {
 static long getSwapSpace(int field) {
     FILE *file = fopen("/proc/swaps", "r");
     long result = -1;
-    char line[128];
+    char line[LINE_BUF_SIZE];
 
-    fgets(line, 128, file);
+    fgets(line, LINE_BUF_SIZE, file);
 
-    while (fgets(line, 128, file) != NULL) {
+    while (fgets(line, LINE_BUF_SIZE, file) != NULL) {
         char *value;
         char *save = NULL;
         for (int i = 0; i < field; i++) {
@@ -103,13 +105,11 @@ static long getSwapSpace(int field) {
 
 long StatisticCollector::getUsedSwapSpace() {
     long result = getSwapSpace(4);
-    // std::cout << "Used swap space: " + std::to_string(result) << std::endl;
     return result;
 }
 
 long StatisticCollector::getTotalSwapSpace() {
     long result = getSwapSpace(3);
-    // std::cout << "Total swap space: " + std::to_string(result) << std::endl;
     return result;
 }
 
@@ -118,7 +118,6 @@ long StatisticCollector::getRXBytes() {
     long result = -1;
     fscanf(file, "%li", &result);
     fclose(file);
-    // std::cout << "Total read bytes: " + std::to_string(result) << std::endl;
     return result;
 }
 
@@ -127,7 +126,6 @@ long StatisticCollector::getTXBytes() {
     long result = -1;
     fscanf(file, "%li", &result);
     fclose(file);
-    // std::cout << "Total sent bytes: " + std::to_string(result) << std::endl;
     return result;
 }
 
@@ -152,8 +150,6 @@ int StatisticCollector::getSocketCount() {
         }
     }
     (void)closedir(d);
-
-    // std::cout << "Total sockets: " + std::to_string(count) << std::endl;
     return count;
 }
 
@@ -175,7 +171,7 @@ static void getCpuCycles(long long *totalp, long long *idlep) {
     char line[1024];
     fscanf(fp, "%[^\r\n]%*c", line);
     fclose(fp);
-    std::cout << line << std::endl;
+
     char *p = line;
     while (*p < '0' || *p > '9') p++;
     long long total = 0;
@@ -190,7 +186,7 @@ static void getCpuCycles(long long *totalp, long long *idlep) {
         long long value = strtoll(p, &end_ptr, 10);
         p = end_ptr;
         if (value < 0) {
-            std::cerr << "Value is " << value << " for line " << line << std::endl;
+            stat_logger.error("Value is " + to_string(value) + " for line " + string(line));
         }
         if (field == 4) {
             idle += value;

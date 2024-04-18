@@ -94,11 +94,15 @@ JasmineGraphServer::JasmineGraphServer() {
     this->jobScheduler->init();
 }
 
+static std::mutex instanceMutex;
 JasmineGraphServer *JasmineGraphServer::getInstance() {
     static JasmineGraphServer *instance = nullptr;
-    // TODO(thevindu-w): synchronize
     if (instance == nullptr) {
-        instance = new JasmineGraphServer();
+        instanceMutex.lock();
+        if (instance == nullptr) {  // double-checking lock
+            instance = new JasmineGraphServer();
+        }
+        instanceMutex.unlock();
     }
     return instance;
 }
@@ -844,7 +848,6 @@ static std::vector<JasmineGraphServer::worker> getWorkers(size_t npart) {
         }
     }
     size_t len = workerListAll->size();
-    std::cout << "workerListAll len = " << len << std::endl;
     std::vector<JasmineGraphServer::worker> workerList;
     for (int i = 0; i < npart; i++) {
         JasmineGraphServer::worker worker_min;
@@ -861,7 +864,6 @@ static std::vector<JasmineGraphServer::worker> getWorkers(size_t npart) {
         string workerHostPort = worker_min.hostname + ":" + to_string(worker_min.port);
         cpu_loads[workerHostPort] += 0.25;  // 0.25 = 1/nproc
         workerList.push_back(worker_min);
-        std::cout << "worker = " << worker_min.hostname << ":" << worker_min.port << std::endl;
     }
     return workerList;
 }
@@ -1532,7 +1534,6 @@ static void degreeDistributionCommon(std::string graphID, std::string command) {
             }
             Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
             close(sockfd);
-            server_logger.info("Sent: " + workerList);
         }
     }
 }

@@ -746,16 +746,6 @@ std::string Utils::send_job(std::string job_group_name, std::string metric_name,
     curl = curl_easy_init();
     if (curl) {
         std::string hostPGAddr;
-        /*
-        const char *envWorkerID = getenv("WORKER_ID");
-        std::string workerID;
-        if (envWorkerID) {
-            workerID = std::string(getenv("WORKER_ID"));
-        } else {
-            workerID = "-1";
-        }
-        */
-
         const char *hostAddress = getenv("HOST_NAME");
         const char *port = getenv("PORT");
 
@@ -765,7 +755,6 @@ std::string Utils::send_job(std::string job_group_name, std::string metric_name,
         } else {
             uniqueWorkerID = "Master";
         }
-        // hostPGAddr = pushGatewayJobAddr + job_group_name + "_" + workerID;
         hostPGAddr = pushGatewayJobAddr + uniqueWorkerID;
         curl_easy_setopt(curl, CURLOPT_URL, hostPGAddr.c_str());
 
@@ -823,9 +812,9 @@ std::map<std::string, std::string> Utils::getMetricMap(std::string metricName) {
 
         res = curl_easy_perform(curl);
         if (res != CURLE_OK) {
-            std::cerr << "cURL failed: " << curl_easy_strerror(res) << std::endl;
+            util_logger.error("cURL failed: " + string(curl_easy_strerror(res)));
         } else {
-            std::cout << response_cpu_usages << std::endl;
+            util_logger.info(response_cpu_usages);
             Json::Value root;
             Json::Reader reader;
             reader.parse(response_cpu_usages, root);
@@ -925,7 +914,7 @@ bool Utils::uploadFileToWorker(std::string host, int port, int dataPort, int gra
         return false;
     }
 
-    util_logger.info("Going to send file through file transfer service to worker");
+    util_logger.info("Going to send file" + filePath + "/" + fileName + "through file transfer service to worker");
     Utils::sendFileThroughService(host, dataPort, fileName, filePath);
 
     string response;

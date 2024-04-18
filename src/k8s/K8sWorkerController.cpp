@@ -51,31 +51,34 @@ static K8sWorkerController *instance = nullptr;
 
 K8sWorkerController *K8sWorkerController::getInstance() {
     if (instance == nullptr) {
+        controller_logger.error("K8sWorkerController is not instantiated");
         throw std::runtime_error("K8sWorkerController is not instantiated");
     }
     return instance;
 }
 
+static std::mutex instanceMutex;
 K8sWorkerController *K8sWorkerController::getInstance(std::string masterIp, int numberOfWorkers,
                                                       SQLiteDBInterface *metadb) {
-    // TODO(thevindu-w): synchronize
     if (instance == nullptr) {
-        instance = new K8sWorkerController(masterIp, numberOfWorkers, metadb);
-        try {
-            instance->maxWorkers = stoi(instance->interface->getJasmineGraphConfig("max_worker_count"));
-        } catch (std::invalid_argument &e) {
-            controller_logger.error("Invalid max_worker_count value. Defaulted to 4");
-            instance->maxWorkers = 4;
-        }
+        instanceMutex.lock();
+        if (instance == nullptr) {  // double-checking lock
+            instance = new K8sWorkerController(masterIp, numberOfWorkers, metadb);
+            try {
+                instance->maxWorkers = stoi(instance->interface->getJasmineGraphConfig("max_worker_count"));
+            } catch (std::invalid_argument &e) {
+                controller_logger.error("Invalid max_worker_count value. Defaulted to 4");
+                instance->maxWorkers = 4;
+            }
 
-        // Delete all the workers from the database
-        metadb->runUpdate("DELETE FROM worker");
-        int workersAttached = instance->attachExistingWorkers();
-        if (numberOfWorkers - workersAttached > 0) {
-            instance->scaleUp(numberOfWorkers - workersAttached);
+            // Delete all the workers from the database
+            metadb->runUpdate("DELETE FROM worker");
+            int workersAttached = instance->attachExistingWorkers();
+            if (numberOfWorkers - workersAttached > 0) {
+                instance->scaleUp(numberOfWorkers - workersAttached);
+            }
         }
-    } else {
-        controller_logger.warn("Not initializing again");
+        instanceMutex.unlock();
     }
     return instance;
 }
@@ -87,6 +90,7 @@ std::string K8sWorkerController::spawnWorker(int workerId) {
     if (volume != nullptr && volume->metadata != nullptr && volume->metadata->name != nullptr) {
         controller_logger.info("Worker " + std::to_string(workerId) + " persistent volume created successfully");
     } else {
+        controller_logger.error("Worker " + std::to_string(workerId) + " persistent volume creation failed");
         throw std::runtime_error("Worker " + std::to_string(workerId) + " persistent volume creation failed");
     }
 
@@ -94,6 +98,7 @@ std::string K8sWorkerController::spawnWorker(int workerId) {
     if (claim != nullptr && claim->metadata != nullptr && claim->metadata->name != nullptr) {
         controller_logger.info("Worker " + std::to_string(workerId) + " persistent volume claim created successfully");
     } else {
+        controller_logger.error("Worker " + std::to_string(workerId) + " persistent volume claim creation failed");
         throw std::runtime_error("Worker " + std::to_string(workerId) + " persistent volume claim creation failed");
     }
 
@@ -101,6 +106,7 @@ std::string K8sWorkerController::spawnWorker(int workerId) {
     if (service != nullptr && service->metadata != nullptr && service->metadata->name != nullptr) {
         controller_logger.info("Worker " + std::to_string(workerId) + " service created successfully");
     } else {
+        controller_logger.error("Worker " + std::to_string(workerId) + " service creation failed");
         throw std::runtime_error("Worker " + std::to_string(workerId) + " service creation failed");
     }
 
@@ -109,8 +115,8 @@ std::string K8sWorkerController::spawnWorker(int workerId) {
     v1_deployment_t *deployment = this->interface->createJasmineGraphWorkerDeployment(workerId, ip, this->masterIp);
     if (deployment != nullptr && deployment->metadata != nullptr && deployment->metadata->name != nullptr) {
         controller_logger.info("Worker " + std::to_string(workerId) + " deployment created successfully");
-
     } else {
+        controller_logger.error("Worker " + std::to_string(workerId) + " deployment creation failed");
         throw std::runtime_error("Worker " + std::to_string(workerId) + " deployment creation failed");
     }
     k8sSpawnMutex.unlock();

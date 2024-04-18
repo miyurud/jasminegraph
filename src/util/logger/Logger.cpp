@@ -49,7 +49,6 @@ void Logger::log(std::string message, const std::string log_type) {
     cout << " [" << millis << "] [" << log_type << "] [" << worker_name << " : " << getpid() << ":" << tid << "] "
          << message << endl;
     return;
-    // message = "[" + worker_name + " : " + to_string(tid) + "] " + message;
 
     if (log_type.compare("info") == 0) {
         daily_logger->info(message);

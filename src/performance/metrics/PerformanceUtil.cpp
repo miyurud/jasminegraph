@@ -54,13 +54,10 @@ int PerformanceUtil::collectPerformanceStatistics() {
     double currentLoadAverage = StatisticCollector::getLoadAverage();
     Utils::send_job("", "load_average", std::to_string(currentLoadAverage));
 
-    /*
     long totalSwapSpace = StatisticCollector::getTotalSwapSpace();
     Utils::send_job("", "total_swap_space", std::to_string(totalSwapSpace));
-    */
 
     // Per process
-    /*
     long memoryUsage = StatisticCollector::getMemoryUsageByProcess();
     Utils::send_job("", "memory_usage", std::to_string(memoryUsage));
 
@@ -69,7 +66,7 @@ int PerformanceUtil::collectPerformanceStatistics() {
 
     int socketCount = StatisticCollector::getSocketCount();
     Utils::send_job("", "socket_count", std::to_string(socketCount));
-    */
+
     scheduler_logger.info("Pushed performance metrics");
     return 0;
 }
@@ -441,8 +438,6 @@ void PerformanceUtil::adjustAggregateLoadMap(std::map<std::string, std::vector<d
 
 void PerformanceUtil::logLoadAverage() {
     double currentLoadAverage = StatisticCollector::getLoadAverage();
-
-    // std::cout << "###PERF### CURRENT LOAD: " + std::to_string(currentLoadAverage) << std::endl;
 }
 
 void PerformanceUtil::updateResourceConsumption(PerformanceSQLiteDBInterface *performanceDb, std::string graphId,
@@ -668,7 +663,7 @@ void PerformanceUtil::initiateCollectingRemoteSLAResourceUtilization(std::string
 std::string PerformanceUtil::requestRemoteLoadAverages(std::string host, int port, std::string isVMStatManager,
                                                        std::string isResourceAllocationRequired, std::string placeId,
                                                        int elapsedTime, std::string masterIP) {
-    // TODO(thevindu-w): master should not request load averages directly from workers.
+    // master should not request load averages directly from workers.
     // Instead it should get from Prometheus.
     return "";
 }

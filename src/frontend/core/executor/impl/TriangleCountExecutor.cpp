@@ -654,7 +654,7 @@ long TriangleCountExecutor::getTriangleCount(
     std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> *triangleTree_p,
     std::mutex *triangleTreeMutex_p) {
     int sockfd;
-    char data[301];
+    char data[INSTANCE_DATA_LENGTH + 1];
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
@@ -664,7 +664,7 @@ long TriangleCountExecutor::getTriangleCount(
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        std::cerr << "Cannot create socket" << std::endl;
+        triangleCount_logger.error("Cannot create socket");
         return 0;
     }
 
@@ -685,7 +685,7 @@ long TriangleCountExecutor::getTriangleCount(
     bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
     serv_addr.sin_port = htons(port);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-        std::cerr << "ERROR connecting" << std::endl;
+        triangleCount_logger.error("ERROR connecting");
         return 0;
     }
 
@@ -697,7 +697,7 @@ long TriangleCountExecutor::getTriangleCount(
     }
 
     triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
-    string response = Utils::read_str_trim_wrapper(sockfd, data, 300);
+    string response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
 
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
         triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
@@ -708,7 +708,7 @@ long TriangleCountExecutor::getTriangleCount(
         }
         triangleCount_logger.log("Sent : " + masterIP, "info");
 
-        response = Utils::read_str_trim_wrapper(sockfd, data, 300);
+        response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
             triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
         } else {
@@ -722,7 +722,7 @@ long TriangleCountExecutor::getTriangleCount(
         }
         triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::TRIANGLES, "info");
 
-        response = Utils::read_str_trim_wrapper(sockfd, data, 300);
+        response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
             triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
             result_wr = write(sockfd, std::to_string(graphId).c_str(), std::to_string(graphId).size());
@@ -732,7 +732,7 @@ long TriangleCountExecutor::getTriangleCount(
             }
             triangleCount_logger.log("Sent : Graph ID " + std::to_string(graphId), "info");
 
-            response = Utils::read_str_trim_wrapper(sockfd, data, 300);
+            response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
         }
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
@@ -745,7 +745,7 @@ long TriangleCountExecutor::getTriangleCount(
 
             triangleCount_logger.log("Sent : Partition ID " + std::to_string(partitionId), "info");
 
-            response = Utils::read_str_trim_wrapper(sockfd, data, 300);
+            response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
         }
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
@@ -757,7 +757,7 @@ long TriangleCountExecutor::getTriangleCount(
             }
             triangleCount_logger.log("Sent : Thread Priority " + std::to_string(threadPriority), "info");
 
-            response = Utils::read_str_trim_wrapper(sockfd, data, 300);
+            response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
             triangleCount_logger.log("Got response : |" + response + "|", "info");
             triangleCount = atol(response.c_str());
         }
@@ -1091,7 +1091,7 @@ static string isFileAccessibleToWorker(std::string graphId, std::string partitio
                                        std::string aggregatorPort, std::string masterIP, std::string fileType,
                                        std::string fileName) {
     int sockfd;
-    char data[301];
+    char data[INSTANCE_DATA_LENGTH + 1];
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
@@ -1101,7 +1101,7 @@ static string isFileAccessibleToWorker(std::string graphId, std::string partitio
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        std::cerr << "Cannot create socket" << std::endl;
+        triangleCount_logger.error("Cannot create socket");
         return 0;
     }
 
@@ -1116,25 +1116,19 @@ static string isFileAccessibleToWorker(std::string graphId, std::string partitio
     bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
     serv_addr.sin_port = htons(atoi(aggregatorPort.c_str()));
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-        std::cerr << "ERROR connecting" << std::endl;
+        triangleCount_logger.error("ERROR connecting");
         return 0;
     }
 
-    bzero(data, 301);
     int result_wr =
         write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
 
     if (result_wr < 0) {
         triangleCount_logger.log("Error writing to socket", "error");
     }
-
     triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
-    bzero(data, 301);
-    read(sockfd, data, 300);
-    string response = (data);
 
-    response = Utils::trim_copy(response);
-
+    string response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
         triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
         result_wr = write(sockfd, masterIP.c_str(), masterIP.size());
@@ -1142,12 +1136,9 @@ static string isFileAccessibleToWorker(std::string graphId, std::string partitio
         if (result_wr < 0) {
             triangleCount_logger.log("Error writing to socket", "error");
         }
-
         triangleCount_logger.log("Sent : " + masterIP, "info");
-        bzero(data, 301);
-        read(sockfd, data, 300);
-        response = (data);
 
+        response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
             triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
         } else {
@@ -1160,11 +1151,7 @@ static string isFileAccessibleToWorker(std::string graphId, std::string partitio
             triangleCount_logger.log("Error writing to socket", "error");
         }
 
-        bzero(data, 301);
-        read(sockfd, data, 300);
-        response = (data);
-        response = Utils::trim_copy(response);
-
+        response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_TYPE) == 0) {
             result_wr = write(sockfd, fileType.c_str(), fileType.size());
 
@@ -1172,11 +1159,7 @@ static string isFileAccessibleToWorker(std::string graphId, std::string partitio
                 triangleCount_logger.log("Error writing to socket", "error");
             }
 
-            bzero(data, 301);
-            read(sockfd, data, 300);
-            response = (data);
-            response = Utils::trim_copy(response);
-
+            response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
             if (fileType.compare(JasmineGraphInstanceProtocol::FILE_TYPE_CENTRALSTORE_AGGREGATE) == 0) {
                 if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
                     result_wr = write(sockfd, graphId.c_str(), graphId.size());
@@ -1185,11 +1168,7 @@ static string isFileAccessibleToWorker(std::string graphId, std::string partitio
                         triangleCount_logger.log("Error writing to socket", "error");
                     }
 
-                    bzero(data, 301);
-                    read(sockfd, data, 300);
-                    response = (data);
-                    response = Utils::trim_copy(response);
-
+                    response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
                     if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
                         result_wr = write(sockfd, partitionId.c_str(), partitionId.size());
 
@@ -1197,10 +1176,7 @@ static string isFileAccessibleToWorker(std::string graphId, std::string partitio
                             triangleCount_logger.log("Error writing to socket", "error");
                         }
 
-                        bzero(data, 301);
-                        read(sockfd, data, 300);
-                        response = (data);
-                        isFileAccessible = Utils::trim_copy(response);
+                        isFileAccessible = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
                     }
                 }
             } else if (fileType.compare(JasmineGraphInstanceProtocol::FILE_TYPE_CENTRALSTORE_COMPOSITE) == 0) {
@@ -1213,10 +1189,7 @@ static string isFileAccessibleToWorker(std::string graphId, std::string partitio
                         triangleCount_logger.log("Error writing to socket", "error");
                     }
 
-                    bzero(data, 301);
-                    read(sockfd, data, 300);
-                    response = (data);
-                    isFileAccessible = Utils::trim_copy(response);
+                    isFileAccessible = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
                 }
             }
         }
@@ -1231,7 +1204,7 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
                                                                          std::string aggregatorDataPort,
                                                                          std::string fileName, std::string masterIP) {
     int sockfd;
-    char data[301];
+    char data[INSTANCE_DATA_LENGTH + 1];
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
@@ -1245,7 +1218,7 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        std::cerr << "Cannot create socket" << std::endl;
+        triangleCount_logger.error("Cannot create socket");
         return 0;
     }
 
@@ -1264,25 +1237,19 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
     bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
     serv_addr.sin_port = htons(atoi(aggregatorPort.c_str()));
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-        std::cerr << "ERROR connecting" << std::endl;
+        triangleCount_logger.error("ERROR connecting");
         return 0;
     }
 
-    bzero(data, 301);
     int result_wr =
         write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
 
     if (result_wr < 0) {
         triangleCount_logger.log("Error writing to socket", "error");
     }
-
     triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
-    bzero(data, 301);
-    read(sockfd, data, 300);
-    string response = (data);
 
-    response = Utils::trim_copy(response);
-
+    string response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
         triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
         result_wr = write(sockfd, masterIP.c_str(), masterIP.size());
@@ -1290,12 +1257,9 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
         if (result_wr < 0) {
             triangleCount_logger.log("Error writing to socket", "error");
         }
-
         triangleCount_logger.log("Sent : " + masterIP, "info");
-        bzero(data, 301);
-        read(sockfd, data, 300);
-        response = (data);
 
+        response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
             triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
         } else {
@@ -1307,14 +1271,10 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
         if (result_wr < 0) {
             triangleCount_logger.log("Error writing to socket", "error");
         }
-
         triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_COMPOSITE_CENTRALSTORE_TO_AGGREGATOR,
                                  "info");
-        bzero(data, 301);
-        read(sockfd, data, 300);
-        response = (data);
-        response = Utils::trim_copy(response);
 
+        response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_NAME) == 0) {
             triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_NAME, "info");
             result_wr = write(sockfd, fileName.c_str(), fileName.size());
@@ -1322,14 +1282,9 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
             if (result_wr < 0) {
                 triangleCount_logger.log("Error writing to socket", "error");
             }
-
             triangleCount_logger.log("Sent : File Name " + fileName, "info");
 
-            bzero(data, 301);
-            read(sockfd, data, 300);
-            response = (data);
-            response = Utils::trim_copy(response);
-
+            response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
             if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_LEN) == 0) {
                 triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN, "info");
                 result_wr = write(sockfd, fileLength.c_str(), fileLength.size());
@@ -1337,14 +1292,9 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
                 if (result_wr < 0) {
                     triangleCount_logger.log("Error writing to socket", "error");
                 }
-
                 triangleCount_logger.log("Sent : File Length: " + fileLength, "info");
 
-                bzero(data, 301);
-                read(sockfd, data, 300);
-                response = (data);
-                response = Utils::trim_copy(response);
-
+                response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
                 if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_CONT) == 0) {
                     triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
                     triangleCount_logger.log("Going to send file through service", "info");
@@ -1367,7 +1317,7 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
             triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
             triangleCount_logger.log("Checking if file is received", "info");
 
-            response = Utils::read_str_trim_wrapper(sockfd, data, 300);
+            response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
             if (response.compare(JasmineGraphInstanceProtocol::FILE_RECV_WAIT) == 0) {
                 triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_WAIT, "info");
                 triangleCount_logger.log("Checking file status : " + to_string(count), "info");
@@ -1391,12 +1341,9 @@ std::string TriangleCountExecutor::copyCompositeCentralStoreToAggregator(std::st
             if (result_wr < 0) {
                 triangleCount_logger.log("Error writing to socket", "error");
             }
-
             triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
-            bzero(data, 301);
-            read(sockfd, data, 300);
-            response = (data);
 
+            response = Utils::read_str_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
             if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT) == 0) {
                 triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT, "info");
                 sleep(1);
@@ -1420,7 +1367,7 @@ std::vector<string> TriangleCountExecutor::countCompositeCentralStoreTriangles(
     std::string aggregatorHostName, std::string aggregatorPort, std::string compositeCentralStoreFileList,
     std::string masterIP, std::string availableFileList, int threadPriority) {
     int sockfd;
-    char data[301];
+    char data[INSTANCE_DATA_LENGTH + 1];
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
@@ -1429,7 +1376,7 @@ std::vector<string> TriangleCountExecutor::countCompositeCentralStoreTriangles(
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        std::cerr << "Cannot create socket" << std::endl;
+        triangleCount_logger.error("Cannot create socket");
         return {};
     }
 
@@ -1444,25 +1391,19 @@ std::vector<string> TriangleCountExecutor::countCompositeCentralStoreTriangles(
     bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
     serv_addr.sin_port = htons(atoi(aggregatorPort.c_str()));
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-        std::cerr << "ERROR connecting" << std::endl;
+        triangleCount_logger.error("ERROR connecting");
         return {};
     }
 
-    bzero(data, 301);
     int result_wr =
         write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
 
     if (result_wr < 0) {
         triangleCount_logger.log("Error writing to socket", "error");
     }
-
     triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
-    bzero(data, 301);
-    read(sockfd, data, 300);
-    string response = (data);
 
-    response = Utils::trim_copy(response);
-
+    string response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
         triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
         result_wr = write(sockfd, masterIP.c_str(), masterIP.size());
@@ -1470,13 +1411,10 @@ std::vector<string> TriangleCountExecutor::countCompositeCentralStoreTriangles(
         if (result_wr < 0) {
             triangleCount_logger.log("Error writing to socket", "error");
         }
-
         triangleCount_logger.log("Sent : " + masterIP, "info");
         triangleCount_logger.log("Port : " + aggregatorPort, "info");
-        bzero(data, 301);
-        read(sockfd, data, 300);
-        response = (data);
 
+        response = Utils::read_str_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
             triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
         } else {
@@ -1488,14 +1426,10 @@ std::vector<string> TriangleCountExecutor::countCompositeCentralStoreTriangles(
         if (result_wr < 0) {
             triangleCount_logger.log("Error writing to socket", "error");
         }
-
         triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::AGGREGATE_COMPOSITE_CENTRALSTORE_TRIANGLES,
                                  "info");
-        bzero(data, 301);
-        read(sockfd, data, 300);
-        response = (data);
-        response = Utils::trim_copy(response);
 
+        response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
             triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
             result_wr = write(sockfd, availableFileList.c_str(), availableFileList.size());
@@ -1506,10 +1440,7 @@ std::vector<string> TriangleCountExecutor::countCompositeCentralStoreTriangles(
 
             triangleCount_logger.log("Sent : Available File List " + availableFileList, "info");
 
-            bzero(data, 301);
-            read(sockfd, data, 300);
-            response = (data);
-            response = Utils::trim_copy(response);
+            response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
         }
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
@@ -1532,18 +1463,13 @@ std::vector<string> TriangleCountExecutor::countCompositeCentralStoreTriangles(
                     std::string chunk = chunksVector.at(loopCount);
                     write(sockfd, chunk.c_str(), chunk.size());
                 } else {
-                    bzero(data, 301);
-                    read(sockfd, data, 300);
-                    string chunkStatus = (data);
+                    string chunkStatus = Utils::read_str_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
                     std::string chunk = chunksVector.at(loopCount);
                     write(sockfd, chunk.c_str(), chunk.size());
                 }
             }
 
-            bzero(data, 301);
-            read(sockfd, data, 300);
-            response = (data);
-            response = Utils::trim_copy(response);
+            response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
         }
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
@@ -1556,10 +1482,7 @@ std::vector<string> TriangleCountExecutor::countCompositeCentralStoreTriangles(
 
             triangleCount_logger.log("Sent : Thread Priority " + std::to_string(threadPriority), "info");
 
-            bzero(data, 301);
-            read(sockfd, data, 300);
-            response = (data);
-            response = Utils::trim_copy(response);
+            response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
             string status = response.substr(response.size() - 5);
             std::basic_ostringstream<char> resultStream;
             resultStream << response.substr(0, response.size() - 5);
@@ -1569,10 +1492,7 @@ std::vector<string> TriangleCountExecutor::countCompositeCentralStoreTriangles(
                 if (result_wr < 0) {
                     triangleCount_logger.log("Error writing to socket", "error");
                 }
-                bzero(data, 301);
-                read(sockfd, data, 300);
-                response = (data);
-                response = Utils::trim_copy(response);
+                response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
                 status = response.substr(response.size() - 5);
                 resultStream << response.substr(0, response.size() - 5);
             }
@@ -1595,7 +1515,7 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
                                                                 std::string aggregatorDataPort, int graphId,
                                                                 int partitionId, std::string masterIP) {
     int sockfd;
-    char data[301];
+    char data[INSTANCE_DATA_LENGTH + 1];
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
@@ -1610,7 +1530,7 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        std::cerr << "Cannot create socket" << std::endl;
+        triangleCount_logger.error("Cannot create socket");
         return "";
     }
 
@@ -1625,7 +1545,7 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
     bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
     serv_addr.sin_port = htons(atoi(aggregatorPort.c_str()));
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-        std::cerr << "ERROR connecting" << std::endl;
+        triangleCount_logger.error("ERROR connecting");
         return "";
     }
 
@@ -1635,14 +1555,9 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
     if (result_wr < 0) {
         triangleCount_logger.log("Error writing to socket", "error");
     }
-
     triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
-    bzero(data, 301);
-    read(sockfd, data, 300);
-    string response = (data);
 
-    response = Utils::trim_copy(response);
-
+    string response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
         triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
         result_wr = write(sockfd, masterIP.c_str(), masterIP.size());
@@ -1650,12 +1565,9 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
         if (result_wr < 0) {
             triangleCount_logger.log("Error writing to socket", "error");
         }
-
         triangleCount_logger.log("Sent : " + masterIP, "info");
-        bzero(data, 301);
-        read(sockfd, data, 300);
-        response = (data);
 
+        response = Utils::read_str_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
             triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
         } else {
@@ -1667,13 +1579,9 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
         if (result_wr < 0) {
             triangleCount_logger.log("Error writing to socket", "error");
         }
-
         triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::SEND_CENTRALSTORE_TO_AGGREGATOR, "info");
-        bzero(data, 301);
-        read(sockfd, data, 300);
-        response = (data);
-        response = Utils::trim_copy(response);
 
+        response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_NAME) == 0) {
             triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_NAME, "info");
             result_wr = write(sockfd, fileName.c_str(), fileName.size());
@@ -1681,14 +1589,9 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
             if (result_wr < 0) {
                 triangleCount_logger.log("Error writing to socket", "error");
             }
-
             triangleCount_logger.log("Sent : File Name " + fileName, "info");
 
-            bzero(data, 301);
-            read(sockfd, data, 300);
-            response = (data);
-            response = Utils::trim_copy(response);
-
+            response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
             if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_LEN) == 0) {
                 triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN, "info");
                 result_wr = write(sockfd, fileLength.c_str(), fileLength.size());
@@ -1696,14 +1599,9 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
                 if (result_wr < 0) {
                     triangleCount_logger.log("Error writing to socket", "error");
                 }
-
                 triangleCount_logger.log("Sent : File Length: " + fileLength, "info");
 
-                bzero(data, 301);
-                read(sockfd, data, 300);
-                response = (data);
-                response = Utils::trim_copy(response);
-
+                response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
                 if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_CONT) == 0) {
                     triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
                     triangleCount_logger.log("Going to send file through service", "info");
@@ -1726,7 +1624,7 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
             triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::FILE_RECV_CHK, "info");
             triangleCount_logger.log("Checking if file is received", "info");
 
-            response = Utils::read_str_trim_wrapper(sockfd, data, 300);
+            response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
             if (response.compare(JasmineGraphInstanceProtocol::FILE_RECV_WAIT) == 0) {
                 triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::FILE_RECV_WAIT, "info");
                 triangleCount_logger.log("Checking file status : " + to_string(count), "info");
@@ -1750,12 +1648,9 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
             if (result_wr < 0) {
                 triangleCount_logger.log("Error writing to socket", "error");
             }
-
             triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK, "info");
-            bzero(data, 301);
-            read(sockfd, data, 300);
-            response = (data);
 
+            response = Utils::read_str_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
             if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT) == 0) {
                 triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT, "info");
                 sleep(1);
@@ -1780,7 +1675,7 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorP
                                                          std::string graphId, std::string masterIP,
                                                          int threadPriority) {
     int sockfd;
-    char data[301];
+    char data[INSTANCE_DATA_LENGTH + 1];
     bool loop = false;
     socklen_t len;
     struct sockaddr_in serv_addr;
@@ -1789,7 +1684,7 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorP
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) {
-        std::cerr << "Cannot create socket" << std::endl;
+        triangleCount_logger.error("Cannot create socket");
         return 0;
     }
 
@@ -1804,25 +1699,19 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorP
     bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
     serv_addr.sin_port = htons(atoi(aggregatorPort.c_str()));
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-        std::cerr << "ERROR connecting" << std::endl;
+        triangleCount_logger.error("ERROR connecting");
         return 0;
     }
 
-    bzero(data, 301);
     int result_wr =
         write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
 
     if (result_wr < 0) {
         triangleCount_logger.log("Error writing to socket", "error");
     }
-
     triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
-    bzero(data, 301);
-    read(sockfd, data, 300);
-    string response = (data);
 
-    response = Utils::trim_copy(response);
-
+    string response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
         triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
         result_wr = write(sockfd, masterIP.c_str(), masterIP.size());
@@ -1830,12 +1719,9 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorP
         if (result_wr < 0) {
             triangleCount_logger.log("Error writing to socket", "error");
         }
-
         triangleCount_logger.log("Sent : " + masterIP, "info");
-        bzero(data, 301);
-        read(sockfd, data, 300);
-        response = (data);
 
+        response = Utils::read_str_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::HOST_OK) == 0) {
             triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::HOST_OK, "info");
         } else {
@@ -1847,13 +1733,9 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorP
         if (result_wr < 0) {
             triangleCount_logger.log("Error writing to socket", "error");
         }
-
         triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::AGGREGATE_CENTRALSTORE_TRIANGLES, "info");
-        bzero(data, 301);
-        read(sockfd, data, 300);
-        response = (data);
-        response = Utils::trim_copy(response);
 
+        response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
             triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
             result_wr = write(sockfd, graphId.c_str(), graphId.size());
@@ -1861,13 +1743,9 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorP
             if (result_wr < 0) {
                 triangleCount_logger.log("Error writing to socket", "error");
             }
-
             triangleCount_logger.log("Sent : Graph ID " + graphId, "info");
 
-            bzero(data, 301);
-            read(sockfd, data, 300);
-            response = (data);
-            response = Utils::trim_copy(response);
+            response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
         }
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
@@ -1877,13 +1755,9 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorP
             if (result_wr < 0) {
                 triangleCount_logger.log("Error writing to socket", "error");
             }
-
             triangleCount_logger.log("Sent : Partition ID " + partitionId, "info");
 
-            bzero(data, 301);
-            read(sockfd, data, 300);
-            response = (data);
-            response = Utils::trim_copy(response);
+            response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
         }
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
@@ -1893,13 +1767,9 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorP
             if (result_wr < 0) {
                 triangleCount_logger.log("Error writing to socket", "error");
             }
-
             triangleCount_logger.log("Sent : Partition ID List : " + partitionIdList, "info");
 
-            bzero(data, 301);
-            read(sockfd, data, 300);
-            response = (data);
-            response = Utils::trim_copy(response);
+            response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
         }
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
@@ -1912,7 +1782,7 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorP
 
             triangleCount_logger.log("Sent : Thread Priority " + std::to_string(threadPriority), "info");
 
-            response = Utils::read_str_trim_wrapper(sockfd, data, 300);
+            response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
             string status = response.substr(response.size() - 5);
             std::basic_ostringstream<char> resultStream;
             resultStream << response.substr(0, response.size() - 5);
@@ -1923,7 +1793,7 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorP
                 if (result_wr < 0) {
                     triangleCount_logger.log("Error writing to socket", "error");
                 }
-                response = Utils::read_str_trim_wrapper(sockfd, data, 300);
+                response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
                 status = response.substr(response.size() - 5);
                 resultStream << response.substr(0, response.size() - 5);
             }
