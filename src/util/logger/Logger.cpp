@@ -45,7 +45,8 @@ void Logger::log(std::string message, const std::string log_type) {
     struct timeval tv;
     gettimeofday(&tv, NULL);
     long millis = tv.tv_sec * 1000 + tv.tv_usec / 1000;
-    // TODO: temporary fix only.
+    // TODO: This temporarily fixes spdlog hanging after forking. This will prevent using the actual logger and simulate
+    // the behavior using cout instead. But it will not write logs to the log file.
     cout << " [" << millis << "] [" << log_type << "] [" << worker_name << " : " << getpid() << ":" << tid << "] "
          << message << endl;
     return;
