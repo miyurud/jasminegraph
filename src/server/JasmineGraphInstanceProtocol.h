@@ -76,12 +76,12 @@ class JasmineGraphInstanceProtocol {
     static const string AGGREGATE_CENTRALSTORE_TRIANGLES;
     static const string AGGREGATE_STREAMING_CENTRALSTORE_TRIANGLES;
     static const string AGGREGATE_COMPOSITE_CENTRALSTORE_TRIANGLES;
-    static const string PERFORMANCE_STATISTICS;
     static const string START_STAT_COLLECTION;
     static const string REQUEST_COLLECTED_STATS;
     static const string INITIATE_TRAIN;
     static const string INITIATE_PREDICT;
     static const string SEND_HOSTS;
+    static const string PUSH_PARTITION;
     static const string INITIATE_MODEL_COLLECTION;
     static const string INITIATE_FRAGMENT_RESOLUTION;
     static const string FRAGMENT_RESOLUTION_CHK;
@@ -99,6 +99,7 @@ class JasmineGraphInstanceProtocol {
     static const string SEND_FILE_TYPE;
     static const string FILE_TYPE_CENTRALSTORE_AGGREGATE;
     static const string FILE_TYPE_CENTRALSTORE_COMPOSITE;
+    static const string FILE_TYPE_DATA;
     static const string GRAPH_STREAM_START;
     static const string GRAPH_STREAM_START_ACK;
     static const string GRAPH_CSV_STREAM_START;

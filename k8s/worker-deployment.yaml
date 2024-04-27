@@ -3,6 +3,7 @@ kind: Deployment
 metadata:
   name: "jasminegraph-worker<worker-id>-deployment"
   labels:
+      application: "jasminegraph"
       deployment: "jasminegraph-worker"
       workerId: "<worker-id>"
 spec:
@@ -19,7 +20,10 @@ spec:
         workerId: "<worker-id>"
         service: "jasminegraph"
     spec:
-      nodeName: "<node-name>"
+      volumes:
+        - name: "jasminegraph-worker<worker-id>-data"
+          persistentVolumeClaim:
+            claimName: "jasminegraph-worker<worker-id>-data-claim"
       containers:
         - name: "jasminegraph-worker"
           image: "<image>"
@@ -28,7 +32,7 @@ spec:
               - "--MODE"
               - "2"
               - "--HOST_NAME"
-              - "jasminegraph-worker<worker-id>"
+              - "<host-name>"
               - "--MASTERIP"
               - "<master-ip>"
               - "--SERVER_PORT"
@@ -45,3 +49,6 @@ spec:
           ports:
             - containerPort: 7777
             - containerPort: 7778
+          volumeMounts:
+            - mountPath: "/var/tmp/"
+              name: "jasminegraph-worker<worker-id>-data"

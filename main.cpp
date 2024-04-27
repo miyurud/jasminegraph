@@ -18,6 +18,8 @@ limitations under the License.
 #include <future>
 #include <iostream>
 
+#include "globals.h"
+#include "src/k8s/K8sWorkerController.h"
 #include "src/server/JasmineGraphInstance.h"
 #include "src/util/logger/Logger.h"
 #include "src/util/scheduler/SchedulerService.h"
@@ -28,77 +30,92 @@ JasmineGraphInstance *instance;
 SchedulerService schedulerService;
 Logger main_logger;
 
-void fnExit3(void) {
-    delete (server);
-    puts("Shutting down the server.");
-}
+#ifndef UNIT_TEST
+int jasminegraph_profile = PROFILE_DOCKER;
+#endif
+
+enum args {
+    PROFILE = 1,
+    MODE = 2
+};
+
+enum master_mode_args {
+    MASTER_IP = 3,
+    NUMBER_OF_WORKERS = 4,
+    WORKER_IPS = 5,
+    ENABLE_NMON = 6
+};
+
+enum worker_mode_args {
+    HOST_NAME = 3,
+    MASTER_HOST = 4,
+    SERVER_PORT = 5,
+    SERVER_DATA_PORT = 6,
+    WORKER_ENABLE_NMON = 7
+};
+
+void fnExit3(void) { delete (server); }
 
 int main(int argc, char *argv[]) {
     atexit(fnExit3);
 
     if (argc <= 1) {
-        main_logger.log(
+        main_logger.error(
             "\"Use argument 1 to start JasmineGraph in Master mode. Use 2 "
-            "<hostName> <serverPort> <serverDataPort> to start as worker",
-            "error");
+            "<hostName> <serverPort> <serverDataPort> to start as worker");
         return -1;
     }
     std::cout << argc << std::endl;
 
-    int mode = atoi(argv[2]);
+    int mode = atoi(argv[args::MODE]);
     std::string JASMINEGRAPH_HOME = Utils::getJasmineGraphHome();
-    std::string profile = argv[1];  // This can be either "docker" or "native"
+    jasminegraph_profile = strcmp(argv[args::PROFILE], "docker") == 0 ? PROFILE_DOCKER : PROFILE_K8S;
     std::string enableNmon = "false";
+    main_logger.info("Using JASMINE_GRAPH_HOME=" + JASMINEGRAPH_HOME);
 
-    main_logger.log("Using JASMINE_GRAPH_HOME", "info");
-    std::cout << JASMINEGRAPH_HOME << std::endl;
+    StatisticCollector::init();
+    thread schedulerThread(SchedulerService::startScheduler);
 
     if (mode == Conts::JASMINEGRAPH_RUNTIME_PROFILE_MASTER) {
-        std::string masterIp = argv[3];
-        int numberOfWorkers = atoi(argv[4]);
-        std::string workerIps = argv[5];
-        enableNmon = argv[6];
+        std::string masterIp = argv[master_mode_args::MASTER_IP];
+        int numberOfWorkers = atoi(argv[master_mode_args::NUMBER_OF_WORKERS]);
+        std::string workerIps = argv[master_mode_args::WORKER_IPS];
+        enableNmon = argv[master_mode_args::ENABLE_NMON];
         server = JasmineGraphServer::getInstance();
-        thread schedulerThread(SchedulerService::startScheduler);
 
-        if (profile == Conts::PROFILE_K8S) {
-            K8sInterface* interface = new K8sInterface();
-            masterIp = interface->getMasterIp();
+        if (jasminegraph_profile == PROFILE_K8S) {
+            std::unique_ptr<K8sInterface> k8sInterface(new K8sInterface());
+            masterIp = k8sInterface->getMasterIp();
             if (masterIp.empty()) {
-                masterIp = interface->createJasmineGraphMasterService()->spec->cluster_ip;
+                masterIp = k8sInterface->createJasmineGraphMasterService()->spec->cluster_ip;
             }
         }
-        server->run(profile, masterIp, numberOfWorkers, workerIps, enableNmon);
-
-        while (server->isRunning()) {
-            usleep(microseconds);
-        }
+        server->run(masterIp, numberOfWorkers, workerIps, enableNmon);
 
         schedulerThread.join();
         delete server;
     } else if (mode == Conts::JASMINEGRAPH_RUNTIME_PROFILE_WORKER) {
-        main_logger.log(to_string(argc), "info");
+        main_logger.info(to_string(argc));
 
-        if (argc < 5) {
-            main_logger.log("Need Four arguments. Use 2 <hostName> <serverPort> <serverDataPort> to start as worker",
-                            "info");
+        if (argc < 8) {
+            main_logger.info(
+                "Need 7 arguments. Use <mode> 2 <hostName> <masterIP> <serverPort> <serverDataPort> <enable-nmon> to "
+                "start as worker");
             return -1;
         }
 
         string hostName;
-        hostName = argv[3];
-        std::string masterHost = argv[4];
-        int serverPort = atoi(argv[5]);
-        int serverDataPort = atoi(argv[6]);
-        enableNmon = argv[7];
+        hostName = argv[worker_mode_args::HOST_NAME];
+        setenv("HOST_NAME", argv[worker_mode_args::HOST_NAME], 1);
+        std::string masterHost = argv[worker_mode_args::MASTER_HOST];
+        int serverPort = atoi(argv[worker_mode_args::SERVER_PORT]);
+        setenv("PORT", argv[worker_mode_args::SERVER_PORT], 1);
+        int serverDataPort = atoi(argv[worker_mode_args::SERVER_DATA_PORT]);
+        enableNmon = argv[worker_mode_args::WORKER_ENABLE_NMON];
 
         std::cout << "In worker mode" << std::endl;
         instance = new JasmineGraphInstance();
-        instance->start_running(profile, hostName, masterHost, serverPort, serverDataPort, enableNmon);
-
-        while (instance->isRunning()) {
-            usleep(microseconds);
-        }
+        instance->start_running(hostName, masterHost, serverPort, serverDataPort, enableNmon);
 
         delete instance;
     }

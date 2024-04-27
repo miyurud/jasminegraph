@@ -5,7 +5,8 @@ set(CMAKE_CXX_STANDARD 11)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
-set(HEADERS src/backend/JasmineGraphBackend.h
+set(HEADERS globals.h
+        src/backend/JasmineGraphBackend.h
         src/backend/JasmineGraphBackendProtocol.h
         src/centralstore/JasmineGraphHashMapCentralStore.h
         src/centralstore/JasmineGraphHashMapDuplicateCentralStore.h
@@ -45,7 +46,6 @@ set(HEADERS src/backend/JasmineGraphBackend.h
         src/server/JasmineGraphInstanceService.h
         src/server/JasmineGraphServer.h
         src/util/Conts.h
-        src/util/PlacesToNodeMapper.h
         src/util/Utils.h
         src/util/dbutil/attributestore_generated.h
         src/util/dbutil/edgestore_generated.h
@@ -113,7 +113,6 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/server/JasmineGraphInstanceService.cpp
         src/server/JasmineGraphServer.cpp
         src/util/Conts.cpp
-        src/util/PlacesToNodeMapper.cpp
         src/util/Utils.cpp
         src/util/kafka/KafkaCC.cpp
         src/util/kafka/StreamHandler.cpp
@@ -134,6 +133,10 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/util/dbinterface/DBInterface.cpp
 )
 
+if (CMAKE_BUILD_TYPE STREQUAL "DEBUG")
+add_compile_options(-DUNIT_TEST)
+endif ()
+
 add_library(JasmineGraphLib ${HEADERS} ${SOURCES})
 add_executable(JasmineGraph main.h main.cpp)
 
@@ -143,6 +146,8 @@ if (CMAKE_ENABLE_DEBUG)
     message(STATUS "DEBUG enabled")
     target_compile_options(JasmineGraph PRIVATE -g)
 endif ()
+
+SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-s,--gc-sections")
 
 #TODO: Need to install the library separately
 target_link_libraries(JasmineGraphLib PRIVATE sqlite3)
@@ -155,19 +160,13 @@ target_link_libraries(JasmineGraphLib PRIVATE /usr/lib/x86_64-linux-gnu/libflatb
 target_link_libraries(JasmineGraphLib PRIVATE /usr/lib/x86_64-linux-gnu/libjsoncpp.so)
 target_link_libraries(JasmineGraphLib PRIVATE /usr/local/lib/libcppkafka.so)
 target_link_libraries(JasmineGraph JasmineGraphLib)
-target_include_directories(JasmineGraph PRIVATE /usr/include/python3)
+target_link_libraries(JasmineGraph curl)
 
-set(PYTHON_EXECUTABLE "/usr/bin/python3")
-set(PYTHON_INCLUDE_DIR "/usr/include/python3")
-set(PYTHON_LIBRARIES "/usr/lib/x86_64-linux-gnu/libpython3.so")
-
-include_directories(${PYTHON_INCLUDE_DIRS})
-include_directories(${PYTHON_DIRECTORIES})
 include_directories(/usr/local/include/yaml-cpp)
-target_link_libraries(JasmineGraphLib PRIVATE ${PYTHON_LIBRARIES})
 target_link_libraries(JasmineGraphLib PRIVATE m)
 target_link_libraries(JasmineGraphLib PRIVATE /usr/local/lib/libkubernetes.so)
 target_link_libraries(JasmineGraphLib PRIVATE yaml-cpp)
+target_link_libraries(JasmineGraphLib PRIVATE curl)
 
 if (CMAKE_BUILD_TYPE STREQUAL "DEBUG")
     # Include google test

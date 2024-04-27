@@ -18,6 +18,8 @@ limitations under the License.
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
 #include <stdlib.h>
+#include <sys/time.h>
+#include <unistd.h>
 
 #include <iostream>
 
@@ -39,7 +41,16 @@ static string get_worker_name() {
 
 void Logger::log(std::string message, const std::string log_type) {
     pthread_t tid = pthread_self();
-    message = "[" + worker_name + " : " + to_string(tid) + "] " + message;
+
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    long millis = tv.tv_sec * 1000 + tv.tv_usec / 1000;
+    // TODO: This temporarily fixes spdlog hanging after forking. This will prevent using the actual logger and simulate
+    // the behavior using cout instead. But it will not write logs to the log file.
+    cout << " [" << millis << "] [" << log_type << "] [" << worker_name << " : " << getpid() << ":" << tid << "] "
+         << message << endl;
+    return;
+
     if (log_type.compare("info") == 0) {
         daily_logger->info(message);
         logger->info(message);

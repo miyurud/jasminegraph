@@ -66,4 +66,3 @@ TEST_F(SQLiteDBInterfaceTest, TestRunInsertAndUpdate) {
     ASSERT_EQ(data[0][2].second, "127.0.0.1");
     ASSERT_EQ(data[0][3].second, "false");
 }
-

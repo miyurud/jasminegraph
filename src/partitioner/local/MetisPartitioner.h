@@ -70,7 +70,7 @@ class MetisPartitioner {
     int smallestVertex = std::numeric_limits<int>::max();
     string graphAttributeType;
 
-    std::map<int, std::string> partitionFileList;
+    std::map<int, std::string> partitionFileMap;
     std::map<int, std::string> centralStoreFileList;
     std::map<int, std::string> compositeCentralStoreFileList;
     std::map<int, std::string> centralStoreDuplicateFileList;
@@ -99,10 +99,6 @@ class MetisPartitioner {
     void createPartitionFiles(std::map<int, int> partMap);
 
     void populatePartMaps(std::map<int, int> partMap, int part);
-
-    void writePartitionFiles(int part);
-
-    void writeMasterFiles(int part);
 
     void writeSerializedMasterFiles(int part);
 

@@ -27,9 +27,7 @@ class K8sInterfaceTest : public ::testing::Test {
 const int HTTP_OK = 200;
 const int HTTP_CREATED = 201;
 
-TEST_F(K8sInterfaceTest, TestConstructor) {
-    ASSERT_NE(interface->apiClient, nullptr);
-}
+TEST_F(K8sInterfaceTest, TestConstructor) { ASSERT_NE(interface->apiClient, nullptr); }
 
 TEST_F(K8sInterfaceTest, TestGetNodes) {
     v1_node_list_t *nodes = interface->getNodes();
@@ -47,9 +45,7 @@ TEST_F(K8sInterfaceTest, TestGetServiceList) {
 }
 
 TEST_F(K8sInterfaceTest, TestCreateJasmineGraphWorkerDeployment) {
-    v1_node_list_t *nodeList = interface->getNodes();
-    auto nodeName = static_cast<v1_node_t *>(nodeList->items->firstEntry->data)->metadata->name;
-    v1_deployment_t *deployment = interface->createJasmineGraphWorkerDeployment(1, "10.43.0.1", nodeName);
+    v1_deployment_t *deployment = interface->createJasmineGraphWorkerDeployment(1, "10.43.0.2", "10.43.0.1");
     ASSERT_STREQ(deployment->metadata->name, "jasminegraph-worker1-deployment");
     ASSERT_EQ(interface->apiClient->response_code, HTTP_CREATED);
 }
@@ -94,4 +90,28 @@ TEST_F(K8sInterfaceTest, TestDeleteJasmineGraphMasterService) {
     ASSERT_STREQ(service->metadata->name, "jasminegraph-master-service");
     ASSERT_EQ(interface->apiClient->response_code, HTTP_OK);
     ASSERT_EQ(interface->getMasterIp(), "");
+}
+
+TEST_F(K8sInterfaceTest, createJasmineGraphPersistentVolume) {
+    auto result = interface->createJasmineGraphPersistentVolume(1);
+    ASSERT_EQ(interface->apiClient->response_code, HTTP_CREATED);
+    ASSERT_STREQ(result->metadata->name, "jasminegraph-worker1-data");
+}
+
+TEST_F(K8sInterfaceTest, createJasmineGraphPersistentVolumeClaim) {
+    auto result = interface->createJasmineGraphPersistentVolumeClaim(1);
+    ASSERT_EQ(interface->apiClient->response_code, HTTP_CREATED);
+    ASSERT_STREQ(result->metadata->name, "jasminegraph-worker1-data-claim");
+}
+
+TEST_F(K8sInterfaceTest, deleteJasmineGraphPersistentVolume) {
+    auto result = interface->deleteJasmineGraphPersistentVolume(1);
+    ASSERT_EQ(interface->apiClient->response_code, HTTP_OK);
+    ASSERT_STREQ(result->metadata->name, "jasminegraph-worker1-data");
+}
+
+TEST_F(K8sInterfaceTest, deleteJasmineGraphPersistentVolumeClaim) {
+    auto result = interface->deleteJasmineGraphPersistentVolumeClaim(1);
+    ASSERT_EQ(interface->apiClient->response_code, HTTP_OK);
+    ASSERT_STREQ(result->metadata->name, "jasminegraph-worker1-data-claim");
 }

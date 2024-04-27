@@ -17,8 +17,7 @@ JasmineGraphHashMapLocalStore JasmineGraphLocalStoreFactory::load(std::string gr
                                                                   std::string baseDir) {
     int graphIdentifier = atoi(graphId.c_str());
     int partitionIdentifier = atoi(partitionId.c_str());
-    JasmineGraphHashMapLocalStore hashMapLocalStore =
-        *new JasmineGraphHashMapLocalStore(graphIdentifier, partitionIdentifier, baseDir);
+    JasmineGraphHashMapLocalStore hashMapLocalStore(graphIdentifier, partitionIdentifier, baseDir);
 
     return hashMapLocalStore;
 }

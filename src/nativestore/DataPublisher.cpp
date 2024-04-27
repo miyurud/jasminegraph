@@ -28,7 +28,7 @@ DataPublisher::DataPublisher(int worker_port, std::string worker_address) {
 
     server = gethostbyname(worker_address.c_str());
     if (server == NULL) {
-        data_publisher_logger.log("ERROR, no host named " + worker_address, "error");
+        data_publisher_logger.error("ERROR, no host named " + worker_address);
         pthread_exit(NULL);
     }
 
@@ -44,7 +44,10 @@ DataPublisher::DataPublisher(int worker_port, std::string worker_address) {
     }
 }
 
-DataPublisher::~DataPublisher() { close(sock); }
+DataPublisher::~DataPublisher() {
+    Utils::send_str_wrapper(sock, JasmineGraphInstanceProtocol::CLOSE);
+    close(sock);
+}
 
 void DataPublisher::publish(std::string message) {
     char receiver_buffer[MAX_STREAMING_DATA_LENGTH] = {0};

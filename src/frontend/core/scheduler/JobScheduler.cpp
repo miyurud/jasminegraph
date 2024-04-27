@@ -38,7 +38,7 @@ void *startScheduler(void *dummyPt) {
     PerformanceUtil::init();
     while (true) {
         if (jobQueue.size() > 0) {
-            jobScheduler_Logger.log("##JOB SCHEDULER## Jobs Available for Scheduling", "info");
+            jobScheduler_Logger.info("##JOB SCHEDULER## Jobs Available for Scheduling");
 
             std::vector<JobRequest> pendingHPJobList;
             std::vector<std::string> highPriorityGraphList;
@@ -57,9 +57,8 @@ void *startScheduler(void *dummyPt) {
             }
 
             if (pendingHPJobList.size() > 0) {
-                jobScheduler_Logger.log(
-                    "##JOB SCHEDULER## High Priority Jobs in Queue: " + std::to_string(pendingHPJobList.size()),
-                    "info");
+                jobScheduler_Logger.info("##JOB SCHEDULER## High Priority Jobs in Queue: " +
+                                         std::to_string(pendingHPJobList.size()));
                 std::string masterIP = pendingHPJobList[0].getMasterIP();
                 std::string jobType = pendingHPJobList[0].getJobType();
                 std::string category = pendingHPJobList[0].getParameter(Conts::PARAM_KEYS::CATEGORY);
@@ -97,6 +96,7 @@ void *startScheduler(void *dummyPt) {
 void JobScheduler::init() {
     pthread_t schedulerThread;
     pthread_create(&schedulerThread, NULL, startScheduler, this);
+    pthread_detach(schedulerThread);
 }
 
 void JobScheduler::processJob(JobRequest request, SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfDB) {
@@ -106,11 +106,13 @@ void JobScheduler::processJob(JobRequest request, SQLiteDBInterface *sqlite, Per
 void JobScheduler::executeJob(JobRequest request, SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfDB) {
     ExecutorFactory *executorFactory = new ExecutorFactory(sqlite, perfDB);
     AbstractExecutor *abstractExecutor = executorFactory->getExecutor(request);
+    delete executorFactory;
     if (abstractExecutor == nullptr) {
         jobScheduler_Logger.error("abstractExecutor is null");
         return;
     }
     abstractExecutor->execute();
+    delete abstractExecutor;
 }
 
 void JobScheduler::pushJob(JobRequest jobDetails) { jobQueue.push(jobDetails); }
@@ -126,7 +128,9 @@ JobResponse JobScheduler::getResult(JobRequest jobRequest) {
             responseFound = true;
         }
         responseVectorMutex.unlock();
-        usleep(50000);
+        if (!responseFound) {
+            usleep(50000);
+        }
     }
 
     return jobResponse;

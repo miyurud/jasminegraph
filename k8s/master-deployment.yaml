@@ -2,6 +2,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: jasminegraph-master-deployment
+  labels:
+    application: jasminegraph
 spec:
   replicas: 1
   selector:
@@ -27,6 +29,9 @@ spec:
         - name: jasminegraph-logs
           persistentVolumeClaim:
             claimName: jasminegraph-logs-claim
+        - name: jasminegraph-aggregate
+          persistentVolumeClaim:
+              claimName: jasminegraph-aggregate-claim
       containers:
         - name: jasminegraph-master
           image: jasminegraph
@@ -54,3 +59,5 @@ spec:
               name: jasminegraph-data
             - mountPath: /tmp/jasminegraph
               name: jasminegraph-logs
+            - mountPath: /var/tmp/jasminegraph-aggregate
+              name: jasminegraph-aggregate

@@ -68,15 +68,15 @@ class Utils {
 
     static bool fileExists(std::string fileName);
 
-    static bool fileExistsWithReadPermission(const std::string& path);
+    static bool fileExistsWithReadPermission(const std::string &path);
 
-    static std::fstream* openFile(const std::string &path, std::ios_base::openmode mode);
+    static std::fstream *openFile(const std::string &path, std::ios_base::openmode mode);
 
     static int compressFile(const std::string filePath, std::string mode = "pigz");
 
     static bool is_number(const std::string &compareString);
 
-    static void createDirectory(const std::string dirName);
+    static int createDirectory(const std::string dirName);
 
     static std::vector<std::string> getListOfFilesInDirectory(std::string dirName);
 
@@ -127,7 +127,7 @@ class Utils {
      * @return The string read or "" on error. Logs error if recv failed. Also logs error if allowEmpty is false and
      * read length 0 string.
      */
-    static std::string read_str_wrapper(int connFd, char *buf, size_t len, bool allowEmpty);
+    static std::string read_str_wrapper(int connFd, char *buf, size_t len, bool allowEmpty = false);
 
     /**
      * Wrapper to recv(2) to read a string and trim it.
@@ -169,6 +169,19 @@ class Utils {
     static std::string getJsonStringFromYamlFile(const std::string &yamlFile);
 
     static int createDatabaseFromDDL(const char *dbLocation, const char *ddlFileLocation);
+
+    static std::string send_job(std::string job_group_name, std::string metric_name, std::string metric_value);
+
+    static map<string, string> getMetricMap(string metricName);
+
+    static bool uploadFileToWorker(std::string host, int port, int dataPort, int graphID, std::string filePath,
+                                   std::string masterIP, std::string uploadType);
+
+    static bool sendFileThroughService(std::string host, int dataPort, std::string fileName, std::string filePath);
+
+    static bool transferPartition(std::string sourceWorker, int sourceWorkerPort, std::string destinationWorker,
+                                  int destinationWorkerDataPort, std::string graphID, std::string partitionID,
+                                  std::string workerID, SQLiteDBInterface *sqlite);
 };
 
 #endif  // JASMINEGRAPH_UTILS_H

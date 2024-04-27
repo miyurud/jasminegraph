@@ -44,7 +44,7 @@ void JasminGraphLinkPredictor::initiateLinkPrediction(std::string graphID, std::
             selectedHostPartitions = (graphPartitionedHosts[it->first]).partitionID;
             selectedHostPartitionsNo = selectedHostPartitions.size();
         } else {
-            remainHostMap.insert(std::pair<std::string, JasmineGraphServer::workerPartitions>(it->first, it->second));
+            remainHostMap[it->first] = it->second;
         }
         count++;
     }
@@ -194,7 +194,7 @@ int JasminGraphLinkPredictor::sendQueryToWorker(std::string host, int port, int 
                         if (response.compare(JasmineGraphInstanceProtocol::SEND_FILE_CONT) == 0) {
                             predictor_logger.log("Received : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT, "info");
                             predictor_logger.log("Going to send file through service", "info");
-                            JasmineGraphServer::sendFileThroughService(host, dataPort, fileName, filePath, masterIP);
+                            Utils::sendFileThroughService(host, dataPort, fileName, filePath);
                         }
                     }
                 }

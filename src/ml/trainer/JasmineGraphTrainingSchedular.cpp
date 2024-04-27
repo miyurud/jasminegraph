@@ -69,7 +69,7 @@ map<string, std::map<int, int>> JasmineGraphTrainingSchedular::schedulePartition
     int vertexcount;
     int centralVertexCount;
     trainScheduler_logger.log("Scheduling training order for each worker", "info");
-    for (std::vector<pair<string, string>>::iterator j = (hostData.begin()); j != hostData.end(); ++j) {
+    for (std::vector<pair<string, string>>::iterator j = hostData.begin(); j != hostData.end(); ++j) {
         sqlStatement =
             "SELECT idpartition, vertexcount, central_vertexcount, graph_idgraph FROM partition INNER JOIN "
             "(SELECT host_idhost, partition_idpartition, partition_graph_idgraph, worker_idworker FROM "
@@ -104,7 +104,7 @@ map<string, std::map<int, int>> JasmineGraphTrainingSchedular::schedulePartition
         }
         std::map<int, int> scheduledPartitionSets =
             packPartitionsToMemory(memoryEstimationForEachPartition, availableMemory);
-        scheduleForEachHost.insert(make_pair(j->second, scheduledPartitionSets));
+        scheduleForEachHost[j->second] = scheduledPartitionSets;
     }
     refToSqlite->finalize();
     delete refToSqlite;
@@ -270,9 +270,8 @@ static map<string, std::map<int, map<int, int>>> scheduleGradientPassingTraining
             graphID + " AND a.host_idhost = " + j->first;
         std::vector<vector<pair<string, string>>> results = refToSqlite->runSelect(sqlStatement);
 
-        vector<vector<int>> partitionMetadata;  // Vector for node count, edge count, feature count for memory
-                                                // estimation of each partition
         map<int, int> partitionWorkerMap;
+        map<int, vector<int>> partitionMetadataMap;
         // Iterate through partition list and get partition details
         trainScheduler_logger.log("Commence schedule creation for host" + j->second, "info");
         for (std::vector<vector<pair<string, string>>>::iterator i = results.begin(); i != results.end(); ++i) {
@@ -295,12 +294,26 @@ static map<string, std::map<int, map<int, int>>> scheduleGradientPassingTraining
             partitionValues.push_back(featurecount);
             partitionValues.push_back(featureSize);
 
-            partitionMetadata.push_back(partitionValues);
+            if (partitionMetadataMap.find(partitionID) == partitionMetadataMap.end()) {
+                partitionMetadataMap[partitionID] = partitionValues;
+            }
 
             // Store assigned worker per partition
             workerid = stoi(rowData.at(5).second);
-            partitionWorkerMap[partitionID] = workerid;
+            if (partitionWorkerMap.find(partitionID) == partitionWorkerMap.end()) {
+                partitionWorkerMap[partitionID] = workerid;
+            } else {
+                if (partitionWorkerMap[partitionID] > workerid) {
+                    partitionWorkerMap[partitionID] = workerid;
+                }
+            }
         }
+        vector<vector<int>> partitionMetadata;  // Vector for node count, edge count, feature count for memory
+                                                // estimation of each partition
+        for (auto it = partitionMetadataMap.begin(); it != partitionMetadataMap.end(); it++) {
+            partitionMetadata.push_back(it->second);
+        }
+        partitionMetadataMap.clear();
 
         long availableMemory = getAvailableMemory(j->second);  // Host memory (in KB)
 
@@ -310,7 +323,7 @@ static map<string, std::map<int, map<int, int>>> scheduleGradientPassingTraining
         // Get schedule for host
         map<int, map<int, int>> scheduledPartitionSets =
             schedulePartitionsBestFit(partitionMemoryList, partitionWorkerMap, availableMemory);
-        scheduleForEachHost.insert(make_pair(j->second, scheduledPartitionSets));
+        scheduleForEachHost[j->second] = scheduledPartitionSets;
     }
     refToSqlite->finalize();
     delete refToSqlite;

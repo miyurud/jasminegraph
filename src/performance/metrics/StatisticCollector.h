@@ -40,11 +40,15 @@ class StatisticCollector {
     static const int BUFFER_SIZE = 128;
 
  public:
-    int init();
-    static int getMemoryUsageByProcess();
-    static int parseLine(char* line);
+    static int init();
+    static long getMemoryUsageByProcess();
+    static int getThreadCount();
+    static long getUsedSwapSpace();
+    static long getTotalSwapSpace();
+    static long getRXBytes();
+    static long getTXBytes();
+    static int getSocketCount();
     static double getCpuUsage();
-    static std::string collectVMStatistics(std::string isVMStatManager, std::string isTotalAllocationRequired);
     static long getTotalMemoryAllocated();
     static int getTotalNumberofCores();
     static long getTotalMemoryUsage();

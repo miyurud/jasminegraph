@@ -103,9 +103,6 @@ static void attributeFileCreate(std::map<long, int> &vertexToIDMap, std::map<std
 
 static void readFile(std::map<long, int> &vertexToIDMap, std::map<std::string, int> &fieldsMap,
                      std::string inputFilePath, string outputFilePath) {
-    Utils::createDirectory(Utils::getHomeDir() + "/.jasminegraph/");
-    Utils::createDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp");
-    Utils::createDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp/JSONParser");
     Utils::createDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp/JSONParser/output");
 
     auto edgeListFuture = std::async(createEdgeList, inputFilePath, outputFilePath);
@@ -188,7 +185,7 @@ static std::map<std::string, int> countFileds(std::string inputFilePath) {
                 continue;
             }
             if (fieldCounts.find(field) == fieldCounts.end()) {
-                fieldCounts.insert(make_pair(field, 1));
+                fieldCounts[field] = 1;
             } else {
                 fieldCounts[field]++;
             }
@@ -202,7 +199,7 @@ static std::map<std::string, int> countFileds(std::string inputFilePath) {
         std::string field = it->first;
         if (it->second > 821) {
             if (fieldsMap.find(field) == fieldsMap.end()) {
-                fieldsMap.insert(make_pair(field, field_counter));
+                fieldsMap[field] = field_counter;
                 field_counter++;
             }
         }

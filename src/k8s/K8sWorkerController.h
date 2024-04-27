@@ -11,14 +11,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
+class K8sWorkerController;
+
 #ifndef JASMINEGRAPH_K8SWORKERCONTROLLER_H
 #define JASMINEGRAPH_K8SWORKERCONTROLLER_H
+
+#include <vector>
 
 extern "C" {
 #include <kubernetes/api/AppsV1API.h>
 }
 
 #include "../metadb/SQLiteDBInterface.h"
+#include "../server/JasmineGraphServer.h"
 #include "./K8sInterface.h"
 
 class K8sWorkerController {
@@ -27,26 +32,32 @@ class K8sWorkerController {
     SQLiteDBInterface metadb;
 
     std::string masterIp;
-    int numberOfWorkers;
+    std::atomic<int> numberOfWorkers;
+    int maxWorkers;
 
-    std::map<std::string, int> nodes;
+    K8sWorkerController(std::string masterIp, int numberOfWorkers, SQLiteDBInterface *metadb);
 
-    void spawnWorker(int workerId);
+    std::string spawnWorker(int workerId);
 
     void deleteWorker(int workerId);
 
     int attachExistingWorkers();
 
  public:
-    K8sWorkerController(std::string masterIp, int numberOfWorkers, SQLiteDBInterface *metadb);
+    static std::vector<JasmineGraphServer::worker> workerList;
 
     ~K8sWorkerController();
+
+    static K8sWorkerController *getInstance(std::string masterIp, int numberOfWorkers, SQLiteDBInterface *metadb);
+    static K8sWorkerController *getInstance();
 
     std::string getMasterIp() const;
 
     int getNumberOfWorkers() const;
 
     void setNumberOfWorkers(int newNumberOfWorkers);
+
+    std::map<string, string> scaleUp(int numberOfWorkers);
 };
 
 #endif  // JASMINEGRAPH_K8SWORKERCONTROLLER_H

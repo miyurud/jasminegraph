@@ -1,0 +1,42 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  IMAGE: "${{ secrets.DOCKER_USER }}/jasminegraph:${{  github.ref_name }}"
+
+jobs:
+    release:
+      runs-on: ubuntu-latest
+
+      steps:
+        - uses: actions/checkout@v4
+          with:
+            ref: ${{github.ref}}
+            repository: ${{ github.repository }}
+
+        - name: Docker Build
+          run: |
+            sed -i "s#org.jasminegraph.k8s.image=.*#org.jasminegraph.k8s.image=${IMAGE}#" ./conf/jasminegraph-server.properties
+            docker build -t "jasminegraph:temp" .
+            CONTAINER_ID=$(docker create "jasminegraph:temp")
+            docker export "${CONTAINER_ID}" | docker import - "jasminegraph:pre-build"
+            docker build -t "${IMAGE}" -f .github/workflows/resources/Dockerfile .
+
+        - name: Docker Minimal Image Build
+          run: |
+            sed -i "s#org.jasminegraph.k8s.image=.*#org.jasminegraph.k8s.image=${IMAGE}-minimal#" ./conf/jasminegraph-server.properties
+            chmod +x ./minimal/build.sh
+            ./minimal/build.sh
+            docker tag "jasminegraph:minimal" "${IMAGE}-minimal"
+
+        - name: Docker Login
+          run: docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PASS }}
+
+        - name: Docker Push
+          run: |
+            docker push "${IMAGE}"
+            docker push "${IMAGE}-minimal"

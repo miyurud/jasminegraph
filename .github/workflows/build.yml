@@ -6,20 +6,22 @@ on:
   pull_request:
     branches: [master]
 
-env:
-  # Customize the build type here (Release, Debug, RelWithDebInfo, etc.)
-  BUILD_TYPE: Release
-
 jobs:
   unit-tests:
     runs-on: ubuntu-latest
+    if: ${{!contains(github.event.pull_request.labels.*.name, 'Skip unit tests')}}
 
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{github.head_ref}}
-          fetch-depth: 0
           repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+
+      - name: Build unit test
+        run: |
+          docker build -t jasminegraph .
+          docker build -f ./tests/unit/Dockerfile -t jasminegraph:unit .
+
       - uses: jupyterhub/action-k3s-helm@v4
         with:
           docker-enabled: true
@@ -27,18 +29,10 @@ jobs:
       - name: Grant permissions for default user
         run: kubectl apply -f ./k8s/rbac.yaml
 
-      - name: Docker Build
-        run: docker build -t jasminegraph .
-
-      - name: Build unit test
-        run: docker build -f ./tests/unit/Dockerfile -t jasminegraph:unit .
-
       - name: Run unit test
         run: |
-          mkdir coverage
-          kubectl apply -f ./.github/workflows/resources/unit-test-conf.yaml
-          sleep 30
-          kubectl logs -f jasminegraph-unit-test-pod
+          chmod +x ./.github/workflows/resources/unit-test.sh
+          ./.github/workflows/resources/unit-test.sh          
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v4
@@ -50,16 +44,15 @@ jobs:
 
   docker-integration-tests:
     runs-on: ubuntu-latest
+    if: ${{!contains(github.event.pull_request.labels.*.name, 'Skip docker integration')}}
 
     steps:
     - uses: actions/checkout@v4
       with:
         ref: ${{github.head_ref}}
-        fetch-depth: 0
         repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
 
     - name: Docker Build
-      # Build JasmineGraph docker image
       run: docker build -t jasminegraph .
 
     - name: Run Integration Tests
@@ -69,13 +62,14 @@ jobs:
 
   k8s-integration-tests:
     runs-on: ubuntu-latest
+    if: ${{!contains(github.event.pull_request.labels.*.name, 'Skip k8s integration')}}
 
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{github.head_ref}}
-          fetch-depth: 0
           repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+
       - uses: jupyterhub/action-k3s-helm@v4
         with:
           docker-enabled: true

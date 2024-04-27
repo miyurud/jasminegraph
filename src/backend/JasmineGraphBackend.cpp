@@ -27,17 +27,12 @@ void *backendservicesesion(void *dummyPt) {
     int connFd = sessionargs->connFd;
     SQLiteDBInterface *sqLiteDbInterface = sessionargs->sqlite;
     delete sessionargs;
-    backend_logger.log("Thread No: " + to_string(pthread_self()), "info");
-    char data[301];
-    bzero(data, 301);
+    backend_logger.info("Thread No: " + to_string(pthread_self()));
+    char data[BACKEND_DATA_LENGTH + 1];
     bool loop = false;
     while (!loop) {
-        bzero(data, 301);
-        read(connFd, data, 300);
-
-        string line(data);
-        backend_logger.log("Command received: " + line, "info");
-        line = Utils::trim_copy(line);
+        string line = Utils::read_str_trim_wrapper(connFd, data, BACKEND_DATA_LENGTH);
+        backend_logger.info("Command received: " + line);
 
         if (line.compare(EXIT_BACKEND) == 0) {
             write(connFd, EXIT_ACK.c_str(), EXIT_ACK.size());
@@ -47,32 +42,22 @@ void *backendservicesesion(void *dummyPt) {
             write(connFd, HANDSHAKE_OK.c_str(), HANDSHAKE_OK.size());
             write(connFd, "\r\n", 2);
 
-            char host[301];
-            bzero(host, 301);
-            read(connFd, host, 300);
-            string hostname(host);
-            hostname = Utils::trim_copy(hostname);
+            string hostname = Utils::read_str_trim_wrapper(connFd, data, BACKEND_DATA_LENGTH);
             write(connFd, HOST_OK.c_str(), HOST_OK.size());
-            backend_logger.log("Hostname of the worker: " + hostname, "info");
+            backend_logger.info("Hostname of the worker: " + hostname);
 
         } else if (line.compare(ACKNOWLEGE_MASTER) == 0) {
             int result_wr = write(connFd, WORKER_INFO_SEND.c_str(), WORKER_INFO_SEND.size());
             if (result_wr < 0) {
-                backend_logger.log("Error writing to socket", "error");
+                backend_logger.error("Error writing to socket");
             }
             result_wr = write(connFd, "\r\n", 2);
             if (result_wr < 0) {
-                backend_logger.log("Error writing to socket", "error");
+                backend_logger.error("Error writing to socket");
             }
 
             // We get the name and the path to graph as a pair separated by |.
-            char worker_info_data[301];
-            bzero(worker_info_data, 301);
-            string name = "";
-
-            read(connFd, worker_info_data, 300);
-
-            string worker_info(worker_info_data);
+            string worker_info = Utils::read_str_trim_wrapper(connFd, data, BACKEND_DATA_LENGTH);
             worker_info.erase(std::remove(worker_info.begin(), worker_info.end(), '\n'), worker_info.end());
             worker_info.erase(std::remove(worker_info.begin(), worker_info.end(), '\r'), worker_info.end());
 
@@ -85,10 +70,11 @@ void *backendservicesesion(void *dummyPt) {
             break;
 
         } else {
-            backend_logger.log("Message format not recognized", "error");
+            backend_logger.error("Message format not recognized");
+            sleep(1);
         }
     }
-    backend_logger.log("Closing thread " + to_string(pthread_self()) + " and connection", "info");
+    backend_logger.info("Closing thread " + to_string(pthread_self()) + " and connection");
     close(connFd);
     return NULL;
 }
@@ -111,7 +97,7 @@ int JasmineGraphBackend::run() {
     listenFd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (listenFd < 0) {
-        backend_logger.log("Cannot open socket", "error");
+        backend_logger.error("Cannot open socket");
         return 0;
     }
 
@@ -128,7 +114,7 @@ int JasmineGraphBackend::run() {
 
     // bind socket
     if (bind(listenFd, (struct sockaddr *)&svrAdd, sizeof(svrAdd)) < 0) {
-        backend_logger.log("Cannot bind on port " + portNo, "error");
+        backend_logger.error("Cannot bind on port " + portNo);
         return 0;
     }
 
@@ -137,21 +123,22 @@ int JasmineGraphBackend::run() {
     len = sizeof(clntAdd);
 
     while (true) {
-        backend_logger.log("Backend Listening", "info");
+        backend_logger.info("Backend Listening");
 
         // this is where client connects. svr will hang in this mode until client conn
         int connFd = accept(listenFd, (struct sockaddr *)&clntAdd, &len);
 
         if (connFd < 0) {
-            backend_logger.log("Cannot accept connection", "error");
+            backend_logger.error("Cannot accept connection");
             continue;
         }
-        backend_logger.log("Connection successful", "info");
+        backend_logger.info("Connection successful");
         backendservicesessionargs *sessionargs = new backendservicesessionargs;
         sessionargs->sqlite = this->sqlite;
         sessionargs->connFd = connFd;
         pthread_t pt;
         pthread_create(&pt, NULL, backendservicesesion, sessionargs);
+        pthread_detach(pt);
     }
 
     return 1;

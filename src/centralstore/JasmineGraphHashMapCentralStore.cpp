@@ -58,13 +58,13 @@ bool JasmineGraphHashMapCentralStore::loadGraph() {
 
     vertexCount = centralSubgraphMap.size();
     edgeCount = getEdgeCount();
+    delete data;
 
     return result;
 }
 
-bool JasmineGraphHashMapCentralStore::loadGraph(std::string fileName) {
+bool JasmineGraphHashMapCentralStore::loadGraph(const std::string &edgeStorePath) {
     bool result = false;
-    std::string edgeStorePath = fileName;
 
     std::ifstream dbFile;
     dbFile.open(edgeStorePath, std::ios::binary | std::ios::in);
@@ -88,6 +88,7 @@ bool JasmineGraphHashMapCentralStore::loadGraph(std::string fileName) {
 
     vertexCount = centralSubgraphMap.size();
     edgeCount = getEdgeCount();
+    delete data;
 
     return result;
 }
@@ -134,10 +135,8 @@ map<long, long> JasmineGraphHashMapCentralStore::getOutDegreeDistributionHashMap
     for (map<long, unordered_set<long>>::iterator it = centralSubgraphMap.begin(); it != centralSubgraphMap.end();
          ++it) {
         long distribution = (it->second).size();
-        auto key = it->first;
-        auto nodes = it->second;
-        unordered_set<long> neighboursOfNeighbour = nodes;
-        distributionHashMap.insert(std::make_pair(it->first, distribution));
+        unordered_set<long> neighboursOfNeighbour = it->second;
+        distributionHashMap[it->first] = distribution;
     }
     return distributionHashMap;
 }
@@ -145,17 +144,15 @@ map<long, long> JasmineGraphHashMapCentralStore::getOutDegreeDistributionHashMap
 map<long, long> JasmineGraphHashMapCentralStore::getInDegreeDistributionHashMap() {
     map<long, long> distributionHashMap;
 
-    for (map<long, unordered_set<long>>::iterator it = centralSubgraphMap.begin(); it != centralSubgraphMap.end();
-         ++it) {
-        unordered_set<long> distribution = it->second;
-
+    for (auto it = centralSubgraphMap.begin(); it != centralSubgraphMap.end(); ++it) {
+        const auto &distribution = it->second;
         for (auto itr = distribution.begin(); itr != distribution.end(); ++itr) {
-            std::map<long, long>::iterator distMapItr = distributionHashMap.find(*itr);
+            auto distMapItr = distributionHashMap.find(*itr);
             if (distMapItr != distributionHashMap.end()) {
                 long previousValue = distMapItr->second;
                 distMapItr->second = previousValue + 1;
             } else {
-                distributionHashMap.insert(std::make_pair(*itr, 1));
+                distributionHashMap[*itr] = 1;
             }
         }
     }
@@ -183,9 +180,8 @@ long JasmineGraphHashMapCentralStore::getVertexCount() {
 
 long JasmineGraphHashMapCentralStore::getEdgeCount() {
     if (edgeCount == 0) {
-        std::map<long, std::unordered_set<long>>::iterator localSubGraphMapIterator;
         long mapSize = centralSubgraphMap.size();
-        for (localSubGraphMapIterator = centralSubgraphMap.begin();
+        for (auto localSubGraphMapIterator = centralSubgraphMap.begin();
              localSubGraphMapIterator != centralSubgraphMap.end(); localSubGraphMapIterator++) {
             edgeCount = edgeCount + localSubGraphMapIterator->second.size();
         }
@@ -212,35 +208,27 @@ void JasmineGraphHashMapCentralStore::toLocalSubGraphMap(const PartEdgeMapStore 
         auto value = entry->value();
         const flatbuffers::Vector<int> &vector = *value;
         unordered_set<long> valueSet(vector.begin(), vector.end());
-        centralSubgraphMap.insert(std::make_pair(key, valueSet));
+        centralSubgraphMap[key] = valueSet;
     }
 }
 
-bool JasmineGraphHashMapCentralStore::storePartEdgeMap(std::map<int, std::vector<int>> edgeMap,
-                                                       const std::string savePath) {
-    bool result = false;
+bool JasmineGraphHashMapCentralStore::storePartEdgeMap(const std::map<int, std::vector<int>> &edgeMap,
+                                                       const std::string &savePath) {
     flatbuffers::FlatBufferBuilder builder;
     std::vector<flatbuffers::Offset<PartEdgeMapStoreEntry>> edgeStoreEntriesVector;
 
-    std::map<int, std::vector<int>>::iterator mapIterator;
-    for (mapIterator = edgeMap.begin(); mapIterator != edgeMap.end(); mapIterator++) {
+    for (auto mapIterator = edgeMap.begin(); mapIterator != edgeMap.end(); mapIterator++) {
         int key = mapIterator->first;
-        std::vector<int> value = mapIterator->second;
-        std::vector<int> valueVector(value.begin(), value.end());
-        auto flatbufferVector = builder.CreateVector(valueVector);
+        auto flatbufferVector = builder.CreateVector(mapIterator->second);
         auto edgeStoreEntry = CreatePartEdgeMapStoreEntry(builder, key, flatbufferVector);
         edgeStoreEntriesVector.push_back(edgeStoreEntry);
     }
 
     auto flatBuffersEdgeStoreEntriesVector = builder.CreateVectorOfSortedTables(&edgeStoreEntriesVector);
-
     auto edgeStore = CreatePartEdgeMapStore(builder, flatBuffersEdgeStoreEntriesVector);
-
     builder.Finish(edgeStore);
 
     flatbuffers::SaveFile(savePath.c_str(), (const char *)builder.GetBufferPointer(), (size_t)builder.GetSize(), true);
 
-    result = true;
-
-    return result;
+    return true;
 }

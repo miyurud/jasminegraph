@@ -1,5 +1,5 @@
 /**
-Copyright 2018 JasmineGraph Team
+Copyright 2024 JasmineGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -11,22 +11,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
-#ifndef JASMINEGRAPH_PLACESTONODEMAPPER_H
-#define JASMINEGRAPH_PLACESTONODEMAPPER_H
-
 #include <string>
 
-#include "Utils.h"
+#ifndef JASMINEGRAPH__GLOBALS_H_
+#define JASMINEGRAPH__GLOBALS_H_
 
-class PlacesToNodeMapper {
- private:
-    static int numberOfWorkers;
+#define PROFILE_NATIVE 0
+#define PROFILE_DOCKER 1
+#define PROFILE_K8S 2
+extern int jasminegraph_profile;
 
- public:
-    static std::string getHost(long placeId);
-    static std::vector<int> getInstancePorts(long placeId);
-    static std::vector<int> getInstancePortsList(long placeId);
-    static std::vector<int> getFileTransferServicePort(long placeId);
-};
-
-#endif  // JASMINEGRAPH_PLACESTONODEMAPPER_H
+#endif  // JASMINEGRAPH__GLOBALS_H_

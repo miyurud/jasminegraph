@@ -87,13 +87,13 @@ v1_service_list_t *K8sInterface::getServiceList(char *labelSelectors) {
 }
 
 v1_deployment_t *K8sInterface::createJasmineGraphWorkerDeployment(int workerId,
-                                                                  const std::string &masterIp,
-                                                                  const std::string &nodeName) const {
+                                                                  const std::string &ip,
+                                                                  const std::string &masterIp) const {
     std::string definiton = Utils::getJsonStringFromYamlFile(ROOT_DIR "/k8s/worker-deployment.yaml");
     definiton = Utils::replaceAll(definiton, "<worker-id>", std::to_string(workerId));
     definiton = Utils::replaceAll(definiton, "<master-ip>", masterIp);
     definiton = Utils::replaceAll(definiton, "<image>", Utils::getJasmineGraphProperty("org.jasminegraph.k8s.image"));
-    definiton = Utils::replaceAll(definiton, "<node-name>", nodeName);
+    definiton = Utils::replaceAll(definiton, "<host-name>", ip);
 
     cJSON *deploymentTemplate = cJSON_Parse(definiton.c_str());
     v1_deployment_t *deployment = v1_deployment_parseFromJSON(deploymentTemplate);
@@ -172,4 +172,80 @@ v1_node_list_t *K8sInterface::getNodes() {
                                    NULL,                  /* timeoutSeconds */
                                    NULL);                 /* watch */
     return node_list;
+}
+
+std::string K8sInterface::loadFromConfig(std::string key) {
+    v1_config_map_t *config_map =
+        CoreV1API_readNamespacedConfigMap(apiClient, strdup("jasminegraph-config"), namespace_, NULL);
+    if (config_map->metadata->name == NULL) {
+        k8s_logger.error("No jasminegraph-config config map.");
+        return "";
+    }
+
+    listEntry_t *data = NULL;
+    list_ForEach(data, config_map->data) {
+        auto *pair = static_cast<keyValuePair_t *>(data->data);
+        if (strcmp(pair->key, key.c_str()) == 0) {
+            return std::string(static_cast<char *>(pair->value));
+        }
+    }
+    return "";
+}
+
+static std::map<string, string> configMap;
+static std::mutex configMapMutex;
+std::string K8sInterface::getJasmineGraphConfig(std::string key) {
+    auto item = configMap.find(key);
+    if (item == configMap.end()) {
+        configMapMutex.lock();
+        if (configMap.find(key) == configMap.end()) {
+            k8s_logger.info("Key " + key + " not found in cache. Loading from config.");
+            configMap[key] = loadFromConfig(key);
+        }
+        configMapMutex.unlock();
+        item = configMap.find(key);
+    }
+    return item->second;
+}
+
+v1_persistent_volume_t *K8sInterface::createJasmineGraphPersistentVolume(int workerId) const {
+    std::string definition = Utils::getJsonStringFromYamlFile(ROOT_DIR "/k8s/worker-volume.yaml");
+    definition = Utils::replaceAll(definition, "<worker-id>", std::to_string(workerId));
+    cJSON *volumeTemplate = cJSON_Parse(definition.c_str());
+    v1_persistent_volume_t *volume = v1_persistent_volume_parseFromJSON(volumeTemplate);
+    v1_persistent_volume_t *result = CoreV1API_createPersistentVolume(apiClient, volume, NULL, NULL, NULL, NULL);
+    return result;
+}
+
+v1_persistent_volume_claim_t *K8sInterface::createJasmineGraphPersistentVolumeClaim(int workerId) const {
+    std::string definition = Utils::getJsonStringFromYamlFile(ROOT_DIR "/k8s/worker-volume-claim.yaml");
+    definition = Utils::replaceAll(definition, "<worker-id>", std::to_string(workerId));
+    cJSON *volumeClaimTemplate = cJSON_Parse(definition.c_str());
+    v1_persistent_volume_claim_t *volumeClaim = v1_persistent_volume_claim_parseFromJSON(volumeClaimTemplate);
+    v1_persistent_volume_claim_t *result = CoreV1API_createNamespacedPersistentVolumeClaim(apiClient,
+                                                                                           namespace_,
+                                                                                           volumeClaim,
+                                                                                           NULL,
+                                                                                           NULL,
+                                                                                           NULL,
+                                                                                           NULL);
+    return result;
+}
+
+v1_persistent_volume_t *K8sInterface::deleteJasmineGraphPersistentVolume(int workerId) const {
+    std::string volumeName = "jasminegraph-worker" + std::to_string(workerId) + "-data";
+    v1_persistent_volume_t *result = CoreV1API_deletePersistentVolume(apiClient, strdup(volumeName.c_str()), NULL, NULL,
+                                                                      NULL, NULL, NULL, NULL);
+    return result;
+}
+
+v1_persistent_volume_claim_t *K8sInterface::deleteJasmineGraphPersistentVolumeClaim(int workerId) const {
+    std::string volumeClaimName = "jasminegraph-worker" + std::to_string(workerId) + "-data-claim";
+    v1_persistent_volume_claim_t *result =
+        CoreV1API_deleteNamespacedPersistentVolumeClaim(apiClient,
+                                                        strdup(volumeClaimName.c_str()),
+                                                        namespace_,
+                                                        NULL, NULL, NULL, NULL, NULL,
+                                                        NULL);
+    return result;
 }

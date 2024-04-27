@@ -53,6 +53,7 @@ bool JasmineGraphHashMapDuplicateCentralStore::loadGraph() {
 
     vertexCount = centralDuplicateStoreSubgraphMap.size();
     edgeCount = getEdgeCount();
+    delete data;
 
     return result;
 }
@@ -83,6 +84,7 @@ bool JasmineGraphHashMapDuplicateCentralStore::loadGraph(std::string fileName) {
 
     vertexCount = centralDuplicateStoreSubgraphMap.size();
     edgeCount = getEdgeCount();
+    delete data;
 
     return result;
 }
@@ -131,7 +133,7 @@ map<long, long> JasmineGraphHashMapDuplicateCentralStore::getOutDegreeDistributi
     for (map<long, unordered_set<long>>::iterator it = centralDuplicateStoreSubgraphMap.begin();
          it != centralDuplicateStoreSubgraphMap.end(); ++it) {
         long distribution = (it->second).size();
-        distributionHashMap.insert(std::make_pair(it->first, distribution));
+        distributionHashMap[it->first] = distribution;
     }
     return distributionHashMap;
 }
@@ -186,7 +188,7 @@ void JasmineGraphHashMapDuplicateCentralStore::toLocalSubGraphMap(const PartEdge
         auto value = entry->value();
         const flatbuffers::Vector<int> &vector = *value;
         unordered_set<long> valueSet(vector.begin(), vector.end());
-        centralDuplicateStoreSubgraphMap.insert(std::make_pair(key, valueSet));
+        centralDuplicateStoreSubgraphMap[key] = valueSet;
     }
 }
 

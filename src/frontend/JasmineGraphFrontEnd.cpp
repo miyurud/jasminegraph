@@ -15,12 +15,12 @@ limitations under the License.
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <cctype>
 #include <chrono>
 #include <ctime>
-#include <fstream>  // C++ header file for file access
+#include <fstream>
 #include <iostream>
-#include <iostream>  // C++ header file for printing
 #include <map>
 #include <nlohmann/json.hpp>
 #include <set>
@@ -55,14 +55,13 @@ using namespace std::chrono;
 
 std::atomic<int> highPriorityTaskCount;
 static int connFd;
-static int currentFESession;
+static volatile int currentFESession;
 static bool canCalibrate = true;
 Logger frontend_logger;
 std::set<ProcessInfo> processData;
-std::mutex aggregateWeightMutex;
-std::mutex triangleTreeMutex;
 std::string stream_topic_name;
 
+static std::string getPartitionCount(std::string path);
 static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
@@ -93,6 +92,19 @@ static void start_remote_worker_command(int connFd, bool *loop_exit_p);
 static void sla_command(int connFd, SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfSqlite,
                         bool *loop_exit_p);
 
+static vector<DataPublisher *> getWorkerClients(SQLiteDBInterface *sqlite) {
+    const vector<Utils::worker> &workerList = Utils::getWorkerList(sqlite);
+    vector<DataPublisher *> workerClients;
+    for (int i = 0; i < workerList.size(); i++) {
+        Utils::worker currentWorker = workerList.at(i);
+        string workerHost = currentWorker.hostname;
+        int workerPort = atoi(string(currentWorker.port).c_str());
+        DataPublisher *workerClient = new DataPublisher(workerPort, workerHost);
+        workerClients.push_back(workerClient);
+    }
+    return workerClients;
+}
+
 void *frontendservicesesion(void *dummyPt) {
     frontendservicesessionargs *sessionargs = (frontendservicesessionargs *)dummyPt;
     std::string masterIP = sessionargs->masterIP;
@@ -101,13 +113,16 @@ void *frontendservicesesion(void *dummyPt) {
     PerformanceSQLiteDBInterface *perfSqlite = sessionargs->perfSqlite;
     JobScheduler *jobScheduler = sessionargs->jobScheduler;
     delete sessionargs;
-    frontend_logger.info("Thread No: " + to_string(pthread_self()));
-    frontend_logger.info("Master IP: " + masterIP);
-    char data[FRONTEND_DATA_LENGTH + 1];
-    bzero(data, FRONTEND_DATA_LENGTH + 1);
-    vector<Utils::worker> workerList = Utils::getWorkerList(sqlite);
-    vector<DataPublisher *> workerClients;
+    if (currentFESession++ > Conts::MAX_FE_SESSIONS) {
+        if (!Utils::send_str_wrapper(connFd, "JasmineGraph server is busy. Please try again later.")) {
+            frontend_logger.error("Error writing to socket");
+        }
+        close(connFd);
+        currentFESession--;
+        return NULL;
+    }
 
+    char data[FRONTEND_DATA_LENGTH + 1];
     //  Initiate Thread
     thread input_stream_handler;
     //  Initiate kafka consumer parameters
@@ -118,41 +133,27 @@ void *frontendservicesesion(void *dummyPt) {
     KafkaConnector *kstream;
     Partitioner graphPartitioner(numberOfPartitions, 1, spt::Algorithms::HASH);
 
-    for (int i = 0; i < workerList.size(); i++) {
-        Utils::worker currentWorker = workerList.at(i);
-        string workerHost = currentWorker.hostname;
-        string workerID = currentWorker.workerID;
-        int workerPort = atoi(string(currentWorker.port).c_str());
-        DataPublisher *workerClient = new DataPublisher(workerPort, workerHost);
-        workerClients.push_back(workerClient);
-    }
+    vector<DataPublisher *> workerClients;
+    bool workerClientsInitialized = false;
+
     bool loop_exit = false;
+    int failCnt = 0;
     while (!loop_exit) {
-        if (currentFESession == Conts::MAX_FE_SESSIONS + 1) {
-            currentFESession--;
-            std::string errorResponse = "Jasminegraph Server is Busy. Please try again later.";
-            int result_wr = write(connFd, errorResponse.c_str(), errorResponse.length());
-            if (result_wr < 0) {
-                frontend_logger.error("Error writing to socket");
+        string line = Utils::read_str_wrapper(connFd, data, FRONTEND_DATA_LENGTH, true);
+        if (line.empty()) {
+            failCnt++;
+            if (failCnt > 4) {
+                break;
             }
-            break;
-        }
-
-        bzero(data, FRONTEND_DATA_LENGTH + 1);
-        read(connFd, data, FRONTEND_DATA_LENGTH);
-
-        string line(data);
-        if (line.compare("\r\n") == 0) {
+            sleep(1);
             continue;
         }
-        frontend_logger.info("Command received: " + line);
-
-        if (line.empty()) {
-            currentFESession--;
-            break;
-        }
-
+        failCnt = 0;
         line = Utils::trim_copy(line);
+        frontend_logger.info("Command received: " + line);
+        if (line.empty()) {
+            continue;
+        }
 
         if (currentFESession > 1) {
             canCalibrate = false;
@@ -162,7 +163,6 @@ void *frontendservicesesion(void *dummyPt) {
         }
 
         if (line.compare(EXIT) == 0) {
-            currentFESession--;
             break;
         } else if (line.compare(LIST) == 0) {
             list_command(connFd, sqlite, &loop_exit);
@@ -179,6 +179,10 @@ void *frontendservicesesion(void *dummyPt) {
         } else if (line.compare(ADGR_CUST) == 0) {
             add_graph_cust_command(masterIP, connFd, sqlite, &loop_exit);
         } else if (line.compare(ADD_STREAM_KAFKA) == 0) {
+            if (!workerClientsInitialized) {
+                workerClients = getWorkerClients(sqlite);
+                workerClientsInitialized = true;
+            }
             add_stream_kafka_command(connFd, kafka_server_IP, configs, kstream, input_stream_handler, workerClients,
                                      numberOfPartitions, &loop_exit);
         } else if (line.compare(STOP_STREAM_KAFKA) == 0) {
@@ -229,6 +233,7 @@ void *frontendservicesesion(void *dummyPt) {
     }
     frontend_logger.info("Closing thread " + to_string(pthread_self()) + " and connection");
     close(connFd);
+    currentFESession--;
     return NULL;
 }
 
@@ -302,6 +307,7 @@ int JasmineGraphFrontEnd::run() {
         sessionargs->jobScheduler = this->jobScheduler;
         pthread_t pt;
         pthread_create(&pt, NULL, frontendservicesesion, sessionargs);
+        pthread_detach(pt);
     }
 }
 
@@ -434,20 +440,12 @@ void JasmineGraphFrontEnd::getAndUpdateUploadTime(std::string graphID, SQLiteDBI
     frontend_logger.info("Upload time updated in the database");
 }
 
-JasmineGraphHashMapCentralStore JasmineGraphFrontEnd::loadCentralStore(std::string centralStoreFileName) {
-    frontend_logger.info("Loading Central Store File : Started " + centralStoreFileName);
-    JasmineGraphHashMapCentralStore *jasmineGraphHashMapCentralStore = new JasmineGraphHashMapCentralStore();
-    jasmineGraphHashMapCentralStore->loadGraph(centralStoreFileName);
-    frontend_logger.info("Loading Central Store File : Completed");
-    return *jasmineGraphHashMapCentralStore;
-}
-
 map<long, long> JasmineGraphFrontEnd::getOutDegreeDistributionHashMap(map<long, unordered_set<long>> graphMap) {
     map<long, long> distributionHashMap;
 
     for (map<long, unordered_set<long>>::iterator it = graphMap.begin(); it != graphMap.end(); ++it) {
         long distribution = (it->second).size();
-        distributionHashMap.insert(std::make_pair(it->first, distribution));
+        distributionHashMap[it->first] = distribution;
     }
     return distributionHashMap;
 }
@@ -561,6 +559,18 @@ bool JasmineGraphFrontEnd::modelExistsByID(string id, SQLiteDBInterface *sqlite)
     }
 
     return result;
+}
+
+static std::string getPartitionCount(std::string path) {
+    if (Utils::getJasmineGraphProperty("org.jasminegraph.autopartition.enabled") != "true") {
+        return "";
+    }
+    ifstream dataFile(path);
+    size_t edges = std::count(std::istreambuf_iterator<char>(dataFile), std::istreambuf_iterator<char>(), '\n');
+    dataFile.close();
+    int partCnt = (int)round(pow(edges, 0.2) / 6);
+    if (partCnt < 2) partCnt = 2;
+    return to_string(partCnt);
 }
 
 static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
@@ -679,14 +689,14 @@ static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface 
         GetConfig appConfig;
         appConfig.readConfigFile(path, newGraphID);
 
-        MetisPartitioner *metisPartitioner = new MetisPartitioner(sqlite);
+        MetisPartitioner metisPartitioner(sqlite);
         vector<std::map<int, string>> fullFileList;
         string input_file_path =
             Utils::getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID) + "/" + to_string(newGraphID);
-        metisPartitioner->loadDataSet(input_file_path, newGraphID);
+        metisPartitioner.loadDataSet(input_file_path, newGraphID);
 
-        metisPartitioner->constructMetisFormat(Conts::GRAPH_TYPE_RDF);
-        fullFileList = metisPartitioner->partitioneWithGPMetis("");
+        metisPartitioner.constructMetisFormat(Conts::GRAPH_TYPE_RDF);
+        fullFileList = metisPartitioner.partitioneWithGPMetis("");
         JasmineGraphServer *server = JasmineGraphServer::getInstance();
         server->uploadGraphLocally(newGraphID, Conts::GRAPH_WITH_ATTRIBUTES, fullFileList, masterIP);
         Utils::deleteDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
@@ -750,9 +760,7 @@ static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterfac
     name = strArr[0];
     path = strArr[1];
 
-    if (strArr.size() == 3) {
-        partitionCount = strArr[2];
-    }
+    partitionCount = getPartitionCount(path);
 
     if (JasmineGraphFrontEnd::graphExists(path, sqlite)) {
         frontend_logger.error("Graph exists");
@@ -769,27 +777,23 @@ static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterfac
             name + "\", \"" + path + "\", \"" + uploadStartTime + "\", \"\",\"" +
             to_string(Conts::GRAPH_STATUS::LOADING) + "\", \"\", \"\", \"\")";
         int newGraphID = sqlite->runInsert(sqlStatement);
-        MetisPartitioner *partitioner = new MetisPartitioner(sqlite);
+        MetisPartitioner partitioner(sqlite);
         vector<std::map<int, string>> fullFileList;
 
-        partitioner->loadDataSet(path, newGraphID);
-        int result = partitioner->constructMetisFormat(Conts::GRAPH_TYPE_NORMAL);
+        partitioner.loadDataSet(path, newGraphID);
+        int result = partitioner.constructMetisFormat(Conts::GRAPH_TYPE_NORMAL);
         if (result == 0) {
-            string reformattedFilePath = partitioner->reformatDataSet(path, newGraphID);
-            partitioner->loadDataSet(reformattedFilePath, newGraphID);
-            partitioner->constructMetisFormat(Conts::GRAPH_TYPE_NORMAL_REFORMATTED);
-            fullFileList = partitioner->partitioneWithGPMetis(partitionCount);
+            string reformattedFilePath = partitioner.reformatDataSet(path, newGraphID);
+            partitioner.loadDataSet(reformattedFilePath, newGraphID);
+            partitioner.constructMetisFormat(Conts::GRAPH_TYPE_NORMAL_REFORMATTED);
+            fullFileList = partitioner.partitioneWithGPMetis(partitionCount);
         } else {
-            fullFileList = partitioner->partitioneWithGPMetis(partitionCount);
+            fullFileList = partitioner.partitioneWithGPMetis(partitionCount);
         }
         frontend_logger.info("Upload done");
         JasmineGraphServer *server = JasmineGraphServer::getInstance();
         server->uploadGraphLocally(newGraphID, Conts::GRAPH_TYPE_NORMAL, fullFileList, masterIP);
         Utils::deleteDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
-        string workerCountQuery = "select count(*) from worker";
-        std::vector<vector<pair<string, string>>> results = sqlite->runSelect(workerCountQuery);
-        string workerCount = results[0][0].second;
-        int nWorkers = atoi(workerCount.c_str());
         JasmineGraphFrontEnd::getAndUpdateUploadTime(to_string(newGraphID), sqlite);
         int result_wr = write(connFd, DONE.c_str(), DONE.size());
         if (result_wr < 0) {
@@ -943,19 +947,18 @@ static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInt
             name + "\", \"" + edgeListPath + "\", \"" + uploadStartTime + "\", \"\",\"" +
             to_string(Conts::GRAPH_STATUS::LOADING) + "\", \"\", \"\", \"\")";
         int newGraphID = sqlite->runInsert(sqlStatement);
-        MetisPartitioner *partitioner = new MetisPartitioner(sqlite);
+        MetisPartitioner partitioner(sqlite);
         vector<std::map<int, string>> fullFileList;
-        partitioner->loadContentData(attributeListPath, graphAttributeType, newGraphID, attrDataType);
-        partitioner->loadDataSet(edgeListPath, newGraphID);
-        int result = partitioner->constructMetisFormat(Conts::GRAPH_TYPE_NORMAL);
+        partitioner.loadContentData(attributeListPath, graphAttributeType, newGraphID, attrDataType);
+        partitioner.loadDataSet(edgeListPath, newGraphID);
+        int result = partitioner.constructMetisFormat(Conts::GRAPH_TYPE_NORMAL);
         if (result == 0) {
-            string reformattedFilePath = partitioner->reformatDataSet(edgeListPath, newGraphID);
-            partitioner->loadDataSet(reformattedFilePath, newGraphID);
-            partitioner->constructMetisFormat(Conts::GRAPH_TYPE_NORMAL_REFORMATTED);
-            fullFileList = partitioner->partitioneWithGPMetis("");
-        } else {
-            fullFileList = partitioner->partitioneWithGPMetis("");
+            string reformattedFilePath = partitioner.reformatDataSet(edgeListPath, newGraphID);
+            partitioner.loadDataSet(reformattedFilePath, newGraphID);
+            partitioner.constructMetisFormat(Conts::GRAPH_TYPE_NORMAL_REFORMATTED);
         }
+        fullFileList = partitioner.partitioneWithGPMetis("");
+
         // Graph type should be changed to identify graphs with attributes
         // because this graph type has additional attribute files to be uploaded
         JasmineGraphServer *server = JasmineGraphServer::getInstance();
@@ -1171,7 +1174,6 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
         // reading kafka_server IP from the given file.
         std::vector<std::string>::iterator it;
         vector<std::string> vec = Utils::getFileContent(file_path_s);
-        it = vec.begin();
         for (it = vec.begin(); it < vec.end(); it++) {
             std::string item = *it;
             if (item.length() > 0 && !(item.rfind("#", 0) == 0)) {
@@ -1219,14 +1221,14 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     }
     // create kafka consumer and graph partitioner
     kstream = new KafkaConnector(configs);
-// Create the Partitioner object.
+    // Create the Partitioner object.
     Partitioner graphPartitioner(numberOfPartitions, 0, spt::Algorithms::FENNEL);
-// Create the KafkaConnector object.
+    // Create the KafkaConnector object.
     kstream = new KafkaConnector(configs);
     // Subscribe to the Kafka topic.
     kstream->Subscribe(topic_name_s);
-// Create the StreamHandler object.
-    StreamHandler* stream_handler = new StreamHandler(kstream, numberOfPartitions, workerClients);
+    // Create the StreamHandler object.
+    StreamHandler *stream_handler = new StreamHandler(kstream, numberOfPartitions, workerClients);
 
     frontend_logger.info("Start listening to " + topic_name_s);
     input_stream_handler_thread = thread(&StreamHandler::listen_to_kafka_topic, stream_handler);
@@ -1381,14 +1383,17 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
 
         int threadPriority = std::atoi(priority.c_str());
 
+        static volatile int reqCounter = 0;
+        string reqId = to_string(reqCounter++);
+        frontend_logger.info("Started processing request " + reqId);
         auto begin = chrono::high_resolution_clock::now();
         JobRequest jobDetails;
         jobDetails.setJobId(std::to_string(uniqueId));
         jobDetails.setJobType(TRIANGLES);
 
-        long graphSLA;
-        // All high priority threads will be set the same high priority level
+        long graphSLA = -1;  // This prevents auto calibration for priority=1 (=default priority)
         if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
+            // All high priority threads will be set the same high priority level
             threadPriority = Conts::HIGH_PRIORITY_DEFAULT_VALUE;
             graphSLA = JasmineGraphFrontEnd::getSLAForGraphId(sqlite, perfSqlite, graph_id, TRIANGLES,
                                                               Conts::SLA_CATEGORY::LATENCY);
@@ -1448,8 +1453,8 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
         auto end = chrono::high_resolution_clock::now();
         auto dur = end - begin;
         auto msDuration = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
-        frontend_logger.info("Triangle Count: " + triangleCount + " Time Taken: " + to_string(msDuration) +
-                             " milliseconds");
+        frontend_logger.info("Req: " + reqId + " Triangle Count: " + triangleCount +
+                             " Time Taken: " + to_string(msDuration) + " milliseconds");
         result_wr = write(connFd, triangleCount.c_str(), triangleCount.length());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
@@ -2047,9 +2052,9 @@ static void page_rank_command(std::string masterIP, int connFd, SQLiteDBInterfac
     jobDetails.setJobId(std::to_string(uniqueId));
     jobDetails.setJobType(PAGE_RANK);
 
-    long graphSLA;
-    // All high priority threads will be set the same high priority level
+    long graphSLA = -1;  // This prevents auto calibration for priority=1 (=default priority)
     if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
+        // All high priority threads will be set the same high priority level
         threadPriority = Conts::HIGH_PRIORITY_DEFAULT_VALUE;
         graphSLA = JasmineGraphFrontEnd::getSLAForGraphId(sqlite, perfSqlite, graphID, PAGE_RANK,
                                                           Conts::SLA_CATEGORY::LATENCY);
@@ -2110,8 +2115,7 @@ static void page_rank_command(std::string masterIP, int connFd, SQLiteDBInterfac
     auto end = chrono::high_resolution_clock::now();
     auto dur = end - begin;
     auto msDuration = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
-    frontend_logger.info("PageRank Time Taken : " + to_string(msDuration) +
-                         " milliseconds");
+    frontend_logger.info("PageRank Time Taken : " + to_string(msDuration) + " milliseconds");
 
     result_wr = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
     if (result_wr < 0) {
@@ -2329,7 +2333,6 @@ static void start_remote_worker_command(int connFd, bool *loop_exit_p) {
     string host = "";
     string port = "";
     string dataPort = "";
-    string profile = "";
     string masterHost = "";
     string enableNmon = "";
 
@@ -2348,11 +2351,10 @@ static void start_remote_worker_command(int connFd, bool *loop_exit_p) {
     host = strArr[0];
     port = strArr[1];
     dataPort = strArr[2];
-    profile = strArr[3];
     masterHost = strArr[4];
     enableNmon = strArr[5];
 
-    JasmineGraphServer::spawnNewWorker(host, port, dataPort, profile, masterHost, enableNmon);
+    JasmineGraphServer::spawnNewWorker(host, port, dataPort, masterHost, enableNmon);
 }
 
 static void sla_command(int connFd, SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfSqlite,

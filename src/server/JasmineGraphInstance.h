@@ -31,10 +31,7 @@ class JasmineGraphInstance {
     static const int BUFFER_SIZE = 128;
 
  public:
-    int start_running(string profile, string hostName, string masterHost, int serverPort, int serverDataPort,
-                      string enableNmon);
-
-    bool acknowledgeMaster(string masterHost, string workerIP, string workerPort);
+    int start_running(string hostName, string masterHost, int serverPort, int serverDataPort, string enableNmon);
 
     void startNmonAnalyzer(string enableNmon, int serverPort);
 
@@ -44,10 +41,7 @@ class JasmineGraphInstance {
 
     void shutdown();
 
-    bool isRunning();
-
     string hostName;
-    string profile;
     string masterHostName;
     int serverPort;
     int serverDataPort;
@@ -55,7 +49,6 @@ class JasmineGraphInstance {
 
     JasmineGraphInstanceService *instanceService;
     JasmineGraphInstanceFileTransferService *ftpService;
-    static bool sendFileThroughService(std::string host, int dataPort, std::string fileName, std::string filePath);
 };
 
 #endif  // JASMINEGRAPH_JASMINEGRAPHINSTANCE_H

@@ -23,7 +23,8 @@ void SchedulerService::startScheduler() {
     std::string schedulerEnabled = Utils::getJasmineGraphProperty("org.jasminegraph.scheduler.enabled");
 
     if (schedulerEnabled == "true") {
-        schedulerservice_logger.log("#######SCHEDULER ENABLED#####", "info");
+        sleep(3);
+        schedulerservice_logger.info("#######SCHEDULER ENABLED#####");
 
         startPerformanceScheduler();
     }

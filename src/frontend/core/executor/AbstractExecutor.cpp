@@ -12,6 +12,7 @@ limitations under the License.
  */
 
 #include "AbstractExecutor.h"
+
 #include "../../../performance/metrics/PerformanceUtil.h"
 
 AbstractExecutor::AbstractExecutor(JobRequest jobRequest) { this->request = jobRequest; }
@@ -87,8 +88,7 @@ int AbstractExecutor::collectPerformaceData(PerformanceSQLiteDBInterface *perDB,
 
         if (!(isMaster.find("true") != std::string::npos || host == "localhost" || host.compare(masterIP) == 0)) {
             PerformanceUtil::initiateCollectingRemoteSLAResourceUtilization(
-                    host, atoi(serverPort.c_str()), isHostReporter, "false",
-                    placeId, elapsedTime, masterIP);
+                host, atoi(serverPort.c_str()), isHostReporter, "false", placeId, elapsedTime, masterIP);
         }
     }
 
@@ -108,8 +108,8 @@ int AbstractExecutor::collectPerformaceData(PerformanceSQLiteDBInterface *perDB,
         }
     }
 
-    PerformanceUtil::updateRemoteResourceConsumption(perDB, graphId, partitionCount, placeList,
-                                                     slaCategoryId, masterIP);
+    PerformanceUtil::updateRemoteResourceConsumption(perDB, graphId, partitionCount, placeList, slaCategoryId,
+                                                     masterIP);
     PerformanceUtil::updateResourceConsumption(perDB, graphId, partitionCount, placeList, slaCategoryId);
 
     return 0;

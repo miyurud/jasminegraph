@@ -42,7 +42,6 @@ class JasmineGraphHashMapLocalStore : public JasmineGraphLocalStore {
 
     long vertexCount;
     long edgeCount;
-    int *distributionArray;
 
     std::string getFileSeparator();
 
@@ -84,6 +83,7 @@ class JasmineGraphHashMapLocalStore : public JasmineGraphLocalStore {
 
         vertexCount = localSubGraphMap.size();
         edgeCount = getEdgeCount();
+        delete data;
 
         return result;
     }
@@ -92,7 +92,7 @@ class JasmineGraphHashMapLocalStore : public JasmineGraphLocalStore {
 
     bool storeGraph();
 
-    bool storeAttributes(std::map<long, std::vector<string>> attributeMap, const std::string storePath);
+    static bool storeAttributes(const std::map<long, std::vector<string>> &attributeMap, const std::string &storePath);
 
     long getEdgeCount();
 
@@ -101,8 +101,6 @@ class JasmineGraphHashMapLocalStore : public JasmineGraphLocalStore {
     void addEdge(long startVid, long endVid);
 
     unordered_set<long> getVertexSet();
-
-    int *getOutDegreeDistribution();
 
     map<long, long> getOutDegreeDistributionHashMap();
 
@@ -122,7 +120,7 @@ class JasmineGraphHashMapLocalStore : public JasmineGraphLocalStore {
 
     bool loadPartEdgeMap(const std::string filePath);
 
-    bool storePartEdgeMap(std::map<int, std::vector<int>> edgeMap, const std::string savePath);
+    static bool storePartEdgeMap(const std::map<int, std::vector<int>> &edgeMap, const std::string &savePath);
 
     map<int, std::vector<int>> getEdgeHashMap(const std::string filePath);
 };

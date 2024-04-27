@@ -13,9 +13,11 @@ limitations under the License.
 
 #include "Utils.h"
 
+#include <curl/curl.h>
 #include <dirent.h>
+#include <jsoncpp/json/json.h>
+#include <netdb.h>
 #include <pwd.h>
-#include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -25,12 +27,19 @@ limitations under the License.
 #include <sstream>
 #include <vector>
 
+#include "../../globals.h"
+#include "../k8s/K8sInterface.h"
 #include "../server/JasmineGraphInstanceProtocol.h"
+#include "../server/JasmineGraphServer.h"
 #include "Conts.h"
 #include "logger/Logger.h"
 
 using namespace std;
 Logger util_logger;
+
+#ifdef UNIT_TEST
+int jasminegraph_profile = PROFILE_K8S;
+#endif
 
 unordered_map<std::string, std::string> Utils::propertiesMap;
 
@@ -48,16 +57,15 @@ std::vector<std::string> Utils::getFileContent(std::string file) {
     ifstream in(file);
 
     std::string str;
-    vector<std::string> *vec = new vector<std::string>();
+    vector<std::string> vec;
+    if (!in.is_open()) return vec;
     while (std::getline(in, str)) {
         // now we loop back and get the next line in 'str'
-
         if (str.length() > 0) {
-            vec->insert(vec->begin(), str);
+            vec.push_back(str);
         }
     }
-
-    return *vec;
+    return vec;
 };
 
 std::string Utils::getFileContentAsString(std::string file) {
@@ -90,23 +98,27 @@ void Utils::writeFileContent(const std::string &filePath, const std::string &con
     out.close();
 }
 
+static std::mutex propertiesMapMutex;
+static bool propertiesMapInitialized = false;
 std::string Utils::getJasmineGraphProperty(std::string key) {
-    if (Utils::propertiesMap.empty()) {
-        std::vector<std::string>::iterator it;
-        vector<std::string> vec = Utils::getFileContent(ROOT_DIR "conf/jasminegraph-server.properties");
-        it = vec.begin();
-
-        for (it = vec.begin(); it < vec.end(); it++) {
-            std::string item = *it;
-            if (item.length() > 0 && !(item.rfind("#", 0) == 0)) {
-                std::vector<std::string> vec2 = split(item, '=');
-                if (vec2.size() == 2) {
-                    Utils::propertiesMap[vec2.at(0)] = vec2.at(1);
-                } else {
-                    Utils::propertiesMap[vec2.at(0)] = string(" ");
+    if (!propertiesMapInitialized) {
+        propertiesMapMutex.lock();
+        if (!propertiesMapInitialized) {  // double-checking lock
+            const vector<std::string> &vec = Utils::getFileContent(ROOT_DIR "conf/jasminegraph-server.properties");
+            for (auto it = vec.begin(); it < vec.end(); it++) {
+                std::string item = *it;
+                if (item.length() > 0 && !(item.rfind("#", 0) == 0)) {
+                    const std::vector<std::string> &vec2 = split(item, '=');
+                    if (vec2.size() == 2) {
+                        Utils::propertiesMap[vec2.at(0)] = vec2.at(1);
+                    } else {
+                        Utils::propertiesMap[vec2.at(0)] = string(" ");
+                    }
                 }
             }
         }
+        propertiesMapInitialized = true;
+        propertiesMapMutex.unlock();
     }
     auto it = Utils::propertiesMap.find(key);
     if (it != Utils::propertiesMap.end()) {
@@ -190,10 +202,18 @@ bool Utils::fileExists(std::string fileName) { return access(fileName.c_str(), F
  * This method creates a new directory if it does not exist
  * @param dirName
  */
-void Utils::createDirectory(const std::string dirName) {
-    // TODO: check if directory exists before creating
-    // TODO: check return value
-    mkdir(dirName.c_str(), 0777);
+int Utils::createDirectory(const std::string dirName) {
+    if (dirName.empty()) {
+        util_logger.error("Cannot mkdir empty dirName");
+    }
+    string command = "mkdir -p " + dirName;
+    int status = system(command.c_str());
+    if (status != 0) {
+        util_logger.warn("Command failed: " + command + "      trying again");
+        sleep(1);
+        status = system(command.c_str());
+    }
+    return status;
 }
 
 std::vector<std::string> Utils::getListOfFilesInDirectory(std::string dirName) {
@@ -249,7 +269,7 @@ bool Utils::is_number(const std::string &compareString) {
  * @return
  */
 std::string Utils::getFileName(std::string filePath) {
-    std::string filename = filePath.substr(filePath.find_last_of("/\\") + 1);
+    std::string filename = filePath.substr(filePath.find_last_of("/") + 1);
     return filename;
 }
 
@@ -262,7 +282,7 @@ std::string Utils::getJasmineGraphHome() {
         jasminegraph_home = std::string(temp);
     }
     if (jasminegraph_home.empty()) {
-        util_logger.log("Returning empty value for " + Conts::JASMINEGRAPH_HOME, "warn");
+        util_logger.warn("Returning empty value for " + Conts::JASMINEGRAPH_HOME);
     }
     return jasminegraph_home;
 }
@@ -284,10 +304,10 @@ std::string Utils::getHomeDir() {
  * @param filePath
  */
 int Utils::copyFile(const std::string sourceFilePath, const std::string destinationFilePath) {
-    util_logger.log("Starting file copy source: " + sourceFilePath + " destination: " + destinationFilePath, "info");
+    util_logger.info("Starting file copy source: " + sourceFilePath + " destination: " + destinationFilePath);
     std::string command = "cp " + sourceFilePath + " " + destinationFilePath;
     int status = system(command.c_str());
-    if (status != 0) util_logger.warn("Copy failed with exit code " + std::to_string(status));
+    if (status != 0) util_logger.error("Copy failed with exit code " + std::to_string(status));
     return status;
 }
 
@@ -333,7 +353,7 @@ int Utils::compressFile(const std::string filePath, std::string mode) {
 int Utils::unzipFile(std::string filePath, std::string mode) {
     if (mode == "pigz") {
         if (access("/usr/bin/pigz", X_OK) != 0) {
-            util_logger.info("pigz not found. Compressing using gzip");
+            util_logger.info("pigz not found. Decompressing using gzip");
             mode = "gzip";
         }
     }
@@ -400,6 +420,7 @@ int Utils::unzipDirectory(std::string filePath) {
 }
 
 void Utils::assignPartitionsToWorkers(int numberOfWorkers, SQLiteDBInterface *sqlite) {
+    // Not used in K8s mode
     sqlite->runUpdate("DELETE FROM worker_has_partition");
 
     std::vector<vector<pair<string, string>>> v =
@@ -474,15 +495,22 @@ void Utils::updateSLAInformation(PerformanceSQLiteDBInterface *perfSqlite, std::
             perfSqlite->runInsert(insertQuery);
         }
     } else {
-        util_logger.log("Invalid SLA " + category + " for " + command + " command", "error");
+        util_logger.error("Invalid SLA " + category + " for " + command + " command");
     }
 }
 
-int Utils::copyToDirectory(std::string currentPath, std::string copyPath) {
-    std::string command = "mkdir -p " + copyPath + "&& " + "cp " + currentPath + " " + copyPath;
-    int status = system(command.c_str());
+int Utils::copyToDirectory(std::string currentPath, std::string destinationDir) {
+    if (access(destinationDir.c_str(), F_OK)) {
+        std::string createDirCommand = "mkdir -p " + destinationDir;
+        if (system(createDirCommand.c_str())) {
+            util_logger.error("Creating directory " + destinationDir + " failed");
+            return -1;
+        }
+    }
+    std::string copyCommand = "cp " + currentPath + " " + destinationDir;
+    int status = system(copyCommand.c_str());
     if (status != 0) {
-        util_logger.error("Copying " + currentPath + " to directory " + copyPath + " failed with code " +
+        util_logger.error("Copying " + currentPath + " to directory " + destinationDir + " failed with code " +
                           std::to_string(status));
     }
     return status;
@@ -567,7 +595,7 @@ std::string Utils::read_str_wrapper(int connFd, char *buf, size_t len, bool allo
 }
 
 std::string Utils::read_str_trim_wrapper(int connFd, char *buf, size_t len) {
-    string str = read_str_wrapper(connFd, buf, len, false);
+    string str = read_str_wrapper(connFd, buf, len);
     if (!str.empty()) str = trim_copy(str);
     return str;
 }
@@ -665,6 +693,7 @@ std::string Utils::getJsonStringFromYamlFile(const std::string &yamlFile) {
     YAML::Node yamlNode = YAML::LoadFile(yamlFile);
     return to_string(yaml2json(yamlNode));
 }
+
 int Utils::createDatabaseFromDDL(const char *dbLocation, const char *ddlFileLocation) {
     if (!Utils::fileExists(ddlFileLocation)) {
         util_logger.error("DDL file not found: " + string(ddlFileLocation));
@@ -695,9 +724,114 @@ int Utils::createDatabaseFromDDL(const char *dbLocation, const char *ddlFileLoca
     return 0;
 }
 
-bool Utils::fileExistsWithReadPermission(const string &path) {
-    return access(path.c_str(), R_OK) == 0;
+static size_t write_callback(void *contents, size_t size, size_t nmemb, std::string *output) {
+    size_t totalSize = size * nmemb;
+    output->append(static_cast<char *>(contents), totalSize);
+    return totalSize;
 }
+std::string Utils::send_job(std::string job_group_name, std::string metric_name, std::string metric_value) {
+    CURL *curl;
+    CURLcode res;
+    std::string pushGatewayJobAddr;
+    if (jasminegraph_profile == PROFILE_K8S) {
+        std::unique_ptr<K8sInterface> interface(new K8sInterface());
+        pushGatewayJobAddr = interface->getJasmineGraphConfig("pushgateway_address");
+    } else {
+        pushGatewayJobAddr = getJasmineGraphProperty("org.jasminegraph.collector.pushgateway");
+    }
+
+    pushGatewayJobAddr += "metrics/job/";
+
+    std::string response_string;
+    curl = curl_easy_init();
+    if (curl) {
+        std::string hostPGAddr;
+        const char *hostAddress = getenv("HOST_NAME");
+        const char *port = getenv("PORT");
+
+        std::string uniqueWorkerID;
+        if (hostAddress) {
+            uniqueWorkerID = std::string(hostAddress) + ":" + std::string(port);
+        } else {
+            uniqueWorkerID = "Master";
+        }
+        hostPGAddr = pushGatewayJobAddr + uniqueWorkerID;
+        curl_easy_setopt(curl, CURLOPT_URL, hostPGAddr.c_str());
+
+        // Set the callback function to handle the response data
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
+        std::string job_data = metric_name + " " + metric_value + "\n";
+        const char *data = job_data.c_str();
+
+        curl_slist *headers = NULL;
+        headers = curl_slist_append(headers, "Content-Type: application/x-prometheus-remote-write-v1");
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
+        curl_easy_setopt(curl, CURLOPT_POST, 1);
+
+        res = curl_easy_perform(curl);
+        long code = -1;
+        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &code);
+        if (res != CURLE_OK || code != 200) {
+            util_logger.error("curl failed: " + std::string(curl_easy_strerror(res)) + "| url: " + hostPGAddr +
+                              "| data: " + job_data);
+        }
+
+        curl_easy_cleanup(curl);
+    }
+    return response_string;
+}
+
+std::map<std::string, std::string> Utils::getMetricMap(std::string metricName) {
+    std::map<std::string, std::string> map;
+    CURL *curl;
+    CURLcode res;
+    std::string response_cpu_usages;
+
+    std::string prometheusAddr;
+    if (jasminegraph_profile == PROFILE_K8S) {
+        std::unique_ptr<K8sInterface> interface(new K8sInterface());
+        prometheusAddr = interface->getJasmineGraphConfig("prometheus_address");
+    } else {
+        prometheusAddr = getJasmineGraphProperty("org.jasminegraph.collector.prometheus");
+    }
+    std::string prometheusQueryAddr = prometheusAddr + "api/v1/query?query=" + metricName;
+
+    curl = curl_easy_init();
+    if (curl) {
+        curl_easy_setopt(curl, CURLOPT_URL, prometheusQueryAddr.c_str());
+
+        // Set the callback function to handle the response data
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_cpu_usages);
+        curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_0);
+        curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
+        curl_easy_setopt(curl, CURLOPT_FORBID_REUSE, 1L);
+
+        res = curl_easy_perform(curl);
+        if (res != CURLE_OK) {
+            util_logger.error("cURL failed: " + string(curl_easy_strerror(res)));
+        } else {
+            util_logger.info(response_cpu_usages);
+            Json::Value root;
+            Json::Reader reader;
+            reader.parse(response_cpu_usages, root);
+            const Json::Value results = root["data"]["result"];
+            Json::Value currentExportedJobName;
+            for (int i = 0; i < results.size(); i++) {
+                currentExportedJobName = results[i]["metric"]["exported_job"];
+                map[(currentExportedJobName.asString().c_str())] = (results[i]["value"][1]).asString();
+            }
+            curl_easy_cleanup(curl);
+        }
+    }
+
+    return map;
+}
+
+bool Utils::fileExistsWithReadPermission(const string &path) { return access(path.c_str(), R_OK) == 0; }
 
 std::fstream *Utils::openFile(const string &path, std::ios_base::openmode mode) {
     if (!fileExistsWithReadPermission(path)) {
@@ -707,4 +841,271 @@ std::fstream *Utils::openFile(const string &path, std::ios_base::openmode mode) 
     }
     // Now open the file in the desired mode
     return new std::fstream(path, mode | std::ios::binary);
+}
+
+bool Utils::uploadFileToWorker(std::string host, int port, int dataPort, int graphID, std::string filePath,
+                               std::string masterIP, std::string uploadType) {
+    util_logger.info("Host:" + host + " Port:" + to_string(port) + " DPort:" + to_string(dataPort));
+    bool result = true;
+    int sockfd;
+    char data[FED_DATA_LENGTH + 1];
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sockfd < 0) {
+        util_logger.error("Cannot create socket");
+        return false;
+    }
+
+    if (host.find('@') != std::string::npos) {
+        host = Utils::split(host, '@')[1];
+    }
+
+    server = gethostbyname(host.c_str());
+    if (server == NULL) {
+        util_logger.error("ERROR, no host named " + host);
+        return false;
+    }
+
+    bzero((char *)&serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    serv_addr.sin_port = htons(port);
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+        return false;
+    }
+
+    if (!Utils::performHandshake(sockfd, data, FED_DATA_LENGTH, masterIP)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return false;
+    }
+
+    if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, uploadType, JasmineGraphInstanceProtocol::OK)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return false;
+    }
+
+    std::string fileName = Utils::getFileName(filePath);
+    int fileSize = Utils::getFileSize(filePath);
+    std::string fileLength = to_string(fileSize);
+
+    if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, std::to_string(graphID),
+                                   JasmineGraphInstanceProtocol::SEND_FILE_NAME)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return false;
+    }
+
+    if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, fileName,
+                                   JasmineGraphInstanceProtocol::SEND_FILE_LEN)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return false;
+    }
+
+    if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, fileLength,
+                                   JasmineGraphInstanceProtocol::SEND_FILE_CONT)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return false;
+    }
+
+    util_logger.info("Going to send file" + filePath + "/" + fileName + "through file transfer service to worker");
+    Utils::sendFileThroughService(host, dataPort, fileName, filePath);
+
+    string response;
+    int count = 0;
+    while (true) {
+        if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::FILE_RECV_CHK)) {
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+            close(sockfd);
+            return false;
+        }
+        util_logger.info("Sent: " + JasmineGraphInstanceProtocol::FILE_RECV_CHK);
+
+        util_logger.info("Checking if file is received");
+        response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
+        if (response.compare(JasmineGraphInstanceProtocol::FILE_RECV_WAIT) == 0) {
+            util_logger.info("Received: " + JasmineGraphInstanceProtocol::FILE_RECV_WAIT);
+            util_logger.info("Checking file status : " + to_string(count));
+            count++;
+            sleep(1);
+            continue;
+        } else if (response.compare(JasmineGraphInstanceProtocol::FILE_ACK) == 0) {
+            util_logger.info("Received: " + JasmineGraphInstanceProtocol::FILE_ACK);
+            util_logger.info("File transfer completed for file : " + filePath);
+            break;
+        }
+    }
+    // Next we wait till the batch upload completes
+    while (true) {
+        if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK)) {
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+            close(sockfd);
+            return false;
+        }
+        util_logger.info("Sent: " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_CHK);
+
+        response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
+        if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT) == 0) {
+            util_logger.info("Received: " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_WAIT);
+            sleep(1);
+            continue;
+        } else if (response.compare(JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK) == 0) {
+            util_logger.info("Received: " + JasmineGraphInstanceProtocol::BATCH_UPLOAD_ACK);
+            util_logger.info("Batch upload completed: " + fileName);
+            break;
+        }
+    }
+    Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+    close(sockfd);
+    return true;
+}
+
+bool Utils::sendFileThroughService(std::string host, int dataPort, std::string fileName, std::string filePath) {
+    int sockfd;
+    char data[FED_DATA_LENGTH + 1];
+    socklen_t len;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+
+    util_logger.info("Sending file " + filePath + " through port " + std::to_string(dataPort));
+    FILE *fp = fopen(filePath.c_str(), "r");
+    if (fp == NULL) {
+        return false;
+    }
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        util_logger.error("Cannot create socket");
+        return false;
+    }
+
+    server = gethostbyname(host.c_str());
+    if (server == NULL) {
+        util_logger.error("ERROR, no host named " + host);
+        return false;
+    }
+
+    bzero((char *)&serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    serv_addr.sin_port = htons(dataPort);
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+        return false;
+    }
+
+    if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, fileName,
+                                   JasmineGraphInstanceProtocol::SEND_FILE_LEN)) {
+        close(sockfd);
+        return false;
+    }
+
+    int fsize = Utils::getFileSize(filePath);
+    if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, to_string(fsize),
+                                   JasmineGraphInstanceProtocol::SEND_FILE)) {
+        close(sockfd);
+        return false;
+    }
+
+    bool status = true;
+    while (true) {
+        unsigned char buff[1024];
+        int nread = fread(buff, 1, sizeof(buff), fp);
+
+        /* If read was success, send data. */
+        if (nread > 0) {
+            write(sockfd, buff, nread);
+        } else {
+            if (feof(fp)) util_logger.info("End of file");
+            if (ferror(fp)) {
+                status = false;
+                util_logger.error("Error reading file: " + filePath);
+            }
+            break;
+        }
+    }
+
+    fclose(fp);
+    close(sockfd);
+    return status;
+}
+
+/*
+ * Function to transfer a partition from one worker to another
+ * Caller should ensure that the partition exists in the source worker
+ * and the destination worker is ready to accept the partition.
+ * */
+bool Utils::transferPartition(std::string sourceWorker, int sourceWorkerPort, std::string destinationWorker,
+                              int destinationWorkerDataPort, std::string graphID, std::string partitionID,
+                              std::string workerID, SQLiteDBInterface *sqlite) {
+    util_logger.info("### Transferring partition " + partitionID + " of graph " + graphID + " from " + sourceWorker +
+                     " to " + destinationWorker);
+
+    int sockfd;
+    char data[FED_DATA_LENGTH + 1];
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        util_logger.error("Cannot create socket");
+        return false;
+    }
+
+    server = gethostbyname(sourceWorker.c_str());
+    if (server == NULL) {
+        util_logger.error("ERROR, no host named " + sourceWorker);
+        return false;
+    }
+
+    bzero((char *)&serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    serv_addr.sin_port = htons(sourceWorkerPort);
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+        return false;
+    }
+
+    if (!Utils::performHandshake(sockfd, data, FED_DATA_LENGTH, destinationWorker)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return false;
+    }
+
+    if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, JasmineGraphInstanceProtocol::PUSH_PARTITION,
+                                   JasmineGraphInstanceProtocol::OK)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return false;
+    }
+
+    if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH,
+                                   destinationWorker + ":" + to_string(destinationWorkerDataPort),
+                                   JasmineGraphInstanceProtocol::OK)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return false;
+    }
+
+    if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, graphID + "," + partitionID,
+                                   JasmineGraphInstanceProtocol::OK)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return false;
+    }
+
+    util_logger.info("### Transfer partition completed");
+    sqlite->runInsert(
+        "INSERT INTO worker_has_partition "
+        "(partition_idpartition, partition_graph_idgraph, worker_idworker) VALUES ('" +
+        partitionID + "', '" + graphID + "', '" + workerID + "')");
+
+    Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+    close(sockfd);
+    return true;
 }

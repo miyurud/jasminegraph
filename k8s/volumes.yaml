@@ -3,6 +3,7 @@ kind: PersistentVolume
 metadata:
   name: jasminegraph-metadb
   labels:
+    application: jasminegraph
     type: local
 spec:
   storageClassName: manual
@@ -21,6 +22,8 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: jasminegraph-metadb-claim
+  labels:
+    application: jasminegraph
 spec:
   storageClassName: manual
   accessModes:
@@ -35,6 +38,7 @@ kind: PersistentVolume
 metadata:
   name: jasminegraph-performancedb
   labels:
+    application: jasminegraph
     type: local
 spec:
   storageClassName: manual
@@ -53,6 +57,8 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: jasminegraph-performancedb-claim
+  labels:
+    application: jasminegraph
 spec:
   storageClassName: manual
   accessModes:
@@ -67,6 +73,7 @@ kind: PersistentVolume
 metadata:
   name: jasminegraph-data
   labels:
+    application: jasminegraph
     type: local
 spec:
   storageClassName: manual
@@ -82,6 +89,8 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: jasminegraph-data-claim
+  labels:
+      application: jasminegraph
 spec:
   storageClassName: manual
   accessModes:
@@ -96,6 +105,7 @@ kind: PersistentVolume
 metadata:
   name: jasminegraph-logs
   labels:
+    application: jasminegraph
     type: local
 spec:
   storageClassName: manual
@@ -111,6 +121,40 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: jasminegraph-logs-claim
+  labels:
+      application: jasminegraph
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: jasminegraph-aggregate
+  labels:
+    application: jasminegraph
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteMany
+  hostPath:
+    path: "${aggregate_path}"
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jasminegraph-aggregate-claim
+  labels:
+    application: jasminegraph
 spec:
   storageClassName: manual
   accessModes:

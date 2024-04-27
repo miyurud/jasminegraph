@@ -24,37 +24,32 @@ limitations under the License.
 
 Logger triangle_logger;
 
-long Triangles::run(JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCentralStore centralStore,
-                    JasmineGraphHashMapDuplicateCentralStore duplicateCentralStore, std::string hostName) {
+long Triangles::run(JasmineGraphHashMapLocalStore &graphDB, JasmineGraphHashMapCentralStore &centralStore,
+                    JasmineGraphHashMapDuplicateCentralStore &duplicateCentralStore, std::string hostName) {
     return run(graphDB, centralStore, duplicateCentralStore, NULL, NULL, 0);
 }
 
-long Triangles::run(JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCentralStore centralStore,
-                    JasmineGraphHashMapDuplicateCentralStore duplicateCentralStore, std::string graphId,
+long Triangles::run(JasmineGraphHashMapLocalStore &graphDB, JasmineGraphHashMapCentralStore &centralStore,
+                    JasmineGraphHashMapDuplicateCentralStore &duplicateCentralStore, std::string graphId,
                     std::string partitionId, int threadPriority) {
-    triangle_logger.log("###TRIANGLE### Triangle Counting: Started", "info");
+    triangle_logger.info("###TRIANGLE### Triangle Counting: Started");
     map<long, unordered_set<long>> localSubGraphMap = graphDB.getUnderlyingHashMap();
     map<long, unordered_set<long>> centralDBSubGraphMap = centralStore.getUnderlyingHashMap();
     map<long, unordered_set<long>> duplicateCentralDBSubGraphMap = duplicateCentralStore.getUnderlyingHashMap();
     map<long, long> degreeDistribution = graphDB.getOutDegreeDistributionHashMap();
     map<long, long> centralDBDegreeDistribution = centralStore.getOutDegreeDistributionHashMap();
     map<long, long> centralDuplicateDBDegreeDistribution = duplicateCentralStore.getOutDegreeDistributionHashMap();
-    std::map<long, std::set<long>> degreeMap;
-
-    std::map<long, long>::iterator it;
-    std::map<long, long>::iterator centralDBDegreeDistributionIterator;
-    std::map<long, long>::iterator centralDuplicateDBDegreeDistributionIterator;
 
     auto mergeBbegin = std::chrono::high_resolution_clock::now();
 
-    for (centralDuplicateDBDegreeDistributionIterator = centralDuplicateDBDegreeDistribution.begin();
+    for (auto centralDuplicateDBDegreeDistributionIterator = centralDuplicateDBDegreeDistribution.begin();
          centralDuplicateDBDegreeDistributionIterator != centralDuplicateDBDegreeDistribution.end();
          ++centralDuplicateDBDegreeDistributionIterator) {
         long centralDuplicateDBStartVid = centralDuplicateDBDegreeDistributionIterator->first;
 
-        unordered_set<long> centralDBSecondVertexSet = centralDBSubGraphMap[centralDuplicateDBStartVid];
-        unordered_set<long> duplicateSecondVertexSet = duplicateCentralDBSubGraphMap[centralDuplicateDBStartVid];
-        std::set<long> result;
+        unordered_set<long> &centralDBSecondVertexSet = centralDBSubGraphMap[centralDuplicateDBStartVid];
+        const unordered_set<long> &duplicateSecondVertexSet = duplicateCentralDBSubGraphMap[centralDuplicateDBStartVid];
+        unordered_set<long> result;
 
         std::set_difference(duplicateSecondVertexSet.begin(), duplicateSecondVertexSet.end(),
                             centralDBSecondVertexSet.begin(), centralDBSecondVertexSet.end(),
@@ -62,12 +57,12 @@ long Triangles::run(JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCe
 
         if (result.size() > 0) {
             centralDBDegreeDistribution[centralDuplicateDBStartVid] += result.size();
-            centralDBSubGraphMap[centralDuplicateDBStartVid].insert(result.begin(), result.end());
+            centralDBSecondVertexSet.insert(result.begin(), result.end());
         }
     }
 
     // Merging Local Store and Workers central stores before starting triangle count
-    for (centralDBDegreeDistributionIterator = centralDBDegreeDistribution.begin();
+    for (auto centralDBDegreeDistributionIterator = centralDBDegreeDistribution.begin();
          centralDBDegreeDistributionIterator != centralDBDegreeDistribution.end();
          ++centralDBDegreeDistributionIterator) {
         long centralDBStartVid = centralDBDegreeDistributionIterator->first;
@@ -82,7 +77,7 @@ long Triangles::run(JasmineGraphHashMapLocalStore graphDB, JasmineGraphHashMapCe
     auto mergeDur = mergeEnd - mergeBbegin;
     auto mergeMsDuration = std::chrono::duration_cast<std::chrono::milliseconds>(mergeDur).count();
 
-    triangle_logger.log(" Merge time Taken: " + std::to_string(mergeMsDuration) + " milliseconds", "info");
+    triangle_logger.info(" Merge time Taken: " + std::to_string(mergeMsDuration) + " milliseconds");
 
     const TriangleResult &triangleResult = countTriangles(localSubGraphMap, degreeDistribution, false);
     return triangleResult.count;
@@ -105,23 +100,24 @@ TriangleResult Triangles::countTriangles(map<long, unordered_set<long>> &central
 
     long triangleCount = 0;
     std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> triangleTree;
+    // TODO(thevindu-w): Make centralstore undirected and prevent saving triangles in-memory
 
     for (auto iterator = degreeMap.begin(); iterator != degreeMap.end(); ++iterator) {
-        std::set<long> &vertices = iterator->second;
+        auto &vertices = iterator->second;
 
         for (auto verticesIterator = vertices.begin(); verticesIterator != vertices.end(); ++verticesIterator) {
             long temp = *verticesIterator;
-            std::unordered_set<long> &unorderedUSet = centralStore[temp];
+            auto &unorderedUSet = centralStore[temp];
             for (auto uSetIterator = unorderedUSet.begin(); uSetIterator != unorderedUSet.end(); ++uSetIterator) {
                 long u = *uSetIterator;
                 if (temp == u) continue;
-                std::unordered_set<long> &unorderedNuSet = centralStore[u];
+                auto &unorderedNuSet = centralStore[u];
                 for (auto nuSetIterator = unorderedNuSet.begin(); nuSetIterator != unorderedNuSet.end();
                      ++nuSetIterator) {
                     long nu = *nuSetIterator;
                     if (temp == nu) continue;
                     if (u == nu) continue;
-                    std::unordered_set<long> &centralStoreNu = centralStore[nu];
+                    auto &centralStoreNu = centralStore[nu];
                     if ((unorderedUSet.find(nu) != unorderedUSet.end()) ||
                         (centralStoreNu.find(temp) != centralStoreNu.end())) {
                         long varOne = temp;
@@ -152,6 +148,7 @@ TriangleResult Triangles::countTriangles(map<long, unordered_set<long>> &central
                                 set2.insert(varThree);
                                 triangleCount++;
                                 if (returnTriangles) {
+                                    // TODO(thevindu-w): Flush to file on count exceeds value
                                     triangleStream << varOne << "," << varTwo << "," << varThree << ":";
                                 }
                             }
@@ -159,6 +156,7 @@ TriangleResult Triangles::countTriangles(map<long, unordered_set<long>> &central
                             triangleTree[varOne][varTwo].insert(varThree);
                             triangleCount++;
                             if (returnTriangles) {
+                                // TODO(thevindu-w): Flush to file on count exceeds value
                                 triangleStream << varOne << "," << varTwo << "," << varThree << ":";
                             }
                         }
@@ -167,6 +165,7 @@ TriangleResult Triangles::countTriangles(map<long, unordered_set<long>> &central
             }
         }
     }
+    triangleTree.clear();
 
     TriangleResult result;
 

@@ -31,10 +31,7 @@ extern std::mutex responseVectorMutex;
 extern bool isStatCollect;
 extern bool isCalibrating;
 extern std::vector<std::string> loadAverageVector;
-extern bool collectValid;
 extern std::map<int, int> aggregateWeightMap;
-extern std::mutex aggregateWeightMutex;
-extern std::mutex triangleTreeMutex;
 
 struct ProcessInfo {
     int id;
@@ -69,10 +66,6 @@ class Conts {
     static std::string GRAPH_WITH_TEXT_ATTRIBUTES;
     static std::string GRAPH_WITH_JSON_ATTRIBUTES;
     static std::string GRAPH_WITH_XML_ATTRIBUTES;
-
-    static std::string PROFILE_NATIVE;
-    static std::string PROFILE_DOCKER;
-    static std::string PROFILE_K8S;
 
     static std::string CARRIAGE_RETURN_NEW_LINE;
 

@@ -34,13 +34,13 @@ force_remove() {
 }
 
 stop_and_remove_containers() {
-    if [ "$(docker ps -a -q)" ]; then
+    if [ ! -z "$(docker ps -a -q)" ]; then
         docker ps -a -q | xargs docker rm -f &>/dev/null
     else
         echo "No containers to stop and remove."
     fi
     docker run -v '/tmp/jasminegraph:/tmp/jasminegraph' --entrypoint /bin/bash jasminegraph:test -c 'rm -rf /tmp/jasminegraph/*' || echo 'Not removing existing tmp logs'
-    if [ "$(docker ps -a -q)" ]; then
+    if [ ! -z "$(docker ps -a -q)" ]; then
         docker ps -a -q | xargs docker rm -f &>/dev/null
     fi
 }
@@ -78,7 +78,7 @@ stop_tests_on_failure() {
                 break
             fi
         fi
-        sleep 1
+        sleep 5
     done
 }
 
@@ -97,7 +97,7 @@ while ! nc -zvn 127.0.0.1 7777 &>/dev/null; do
         echo "JasmineGraph is not listening"
         echo "Build log:"
         cat "$BUILD_LOG"
-        echo "Build log:"
+        echo -e '\n\e[33;1mMASTER LOG:\e[0m'
         cat "$RUN_LOG"
         force_remove "${TEST_ROOT}/env"
         stop_and_remove_containers
@@ -106,6 +106,7 @@ while ! nc -zvn 127.0.0.1 7777 &>/dev/null; do
     sleep .5
 done
 
+sleep 2
 stop_tests_on_failure &
 
 timeout "$TIMEOUT_SECONDS" python3 -u "${TEST_ROOT}/test.py" |& tee "$TEST_LOG"

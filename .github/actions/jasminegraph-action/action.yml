@@ -1,6 +1,0 @@
-# action.yml
-name: 'Build'
-description: 'Build a JasmineGraph docker image'
-runs:
-  using: 'docker'
-  image: 'docker/Dockerfile'

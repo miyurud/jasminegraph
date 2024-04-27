@@ -85,3 +85,4 @@ __pycache__
 *.db-*
 
 coverage.xml
+*.tmp
