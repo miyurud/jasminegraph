@@ -20,14 +20,14 @@ limitations under the License.
 #include "../../../util/logger/Logger.h"
 
 Logger streaming_triangle_logger;
-std::map<long, std::unordered_set<long>> StreamingTriangles::localAdjacenyList;
-std::map<std::string, std::map<long, std::unordered_set<long>>> StreamingTriangles::centralAdjacenyList;
+std::map<long, std::unordered_set<long>> StreamingTriangles::localAdjacencyList;
+std::map<std::string, std::map<long, std::unordered_set<long>>> StreamingTriangles::centralAdjacencyList;
 
 TriangleResult StreamingTriangles::countTriangles(NodeManager* nodeManager, bool returnTriangles) {
-    std::map<long, std::unordered_set<long>> adjacenyList = nodeManager->getAdjacencyList();
+    std::map<long, std::unordered_set<long>> adjacencyList = nodeManager->getAdjacencyList();
     std::map<long, long> distributionMap = nodeManager->getDistributionMap();
 
-    const TriangleResult &result = Triangles::countTriangles(adjacenyList, distributionMap, returnTriangles);
+    const TriangleResult &result = Triangles::countTriangles(adjacencyList, distributionMap, returnTriangles);
 
     return result;
 }
@@ -174,8 +174,8 @@ NativeStoreTriangleResult StreamingTriangles::countDynamicLocalTriangles(
         edges.push_back(std::make_pair(targetNode, sourceNode));
         newAdjacencyList[sourceNode].insert(targetNode);
         newAdjacencyList[targetNode].insert(sourceNode);
-        localAdjacenyList[sourceNode].insert(targetNode);
-        localAdjacenyList[targetNode].insert(sourceNode);
+        localAdjacencyList[sourceNode].insert(targetNode);
+        localAdjacencyList[targetNode].insert(sourceNode);
     }
 
     for (int i = oldCentralRelationCount + 1; i <= newCentralRelationCount ; i++) {
@@ -186,13 +186,13 @@ NativeStoreTriangleResult StreamingTriangles::countDynamicLocalTriangles(
         edges.push_back(std::make_pair(targetNode, sourceNode));
         newAdjacencyList[sourceNode].insert(targetNode);
         newAdjacencyList[targetNode].insert(sourceNode);
-        localAdjacenyList[sourceNode].insert(targetNode);
-        localAdjacenyList[targetNode].insert(sourceNode);
+        localAdjacencyList[sourceNode].insert(targetNode);
+        localAdjacencyList[targetNode].insert(sourceNode);
     }
 
-    std::map<long, std::unordered_set<long>> adjacenyList = localAdjacenyList;
+    std::map<long, std::unordered_set<long>> adjacencyList = localAdjacencyList;
 
-    long trianglesValue = totalCount(adjacenyList, newAdjacencyList, edges);
+    long trianglesValue = totalCount(adjacencyList, newAdjacencyList, edges);
 
     nativeStoreTriangleResult.localRelationCount = newLocalRelationCount;
     nativeStoreTriangleResult.centralRelationCount = newCentralRelationCount;
@@ -207,7 +207,11 @@ std::string StreamingTriangles::countDynamicCentralTriangles(
         std::vector<std::string> oldCentralRelationCount) {
     streaming_triangle_logger.info("###STREAMING TRIANGLE### Dynamic Streaming Central Triangle "
                                   "Counting: Started");
-    std::string joinedString = partitionIdList[0] + partitionIdList[1] + partitionIdList[2];
+    std::string joinedString;
+    for (std::string& partitionId : partitionIdList) {
+        joinedString += partitionId;
+    }
+
     std::map<long, std::unordered_set<long>> adjacencyList;
     std::vector<std::pair<long, long>> edges;
     int position = 0;
@@ -236,12 +240,12 @@ std::string StreamingTriangles::countDynamicCentralTriangles(
             long sourceNode = entry.first;
             long targetNode = entry.second;
             edges.push_back(entry);
-            centralAdjacenyList[joinedString][sourceNode].insert(targetNode);
-            centralAdjacenyList[joinedString][targetNode].insert(sourceNode);
+            centralAdjacencyList[joinedString][sourceNode].insert(targetNode);
+            centralAdjacencyList[joinedString][targetNode].insert(sourceNode);
         }
     }
 
-    adjacencyList = centralAdjacenyList[joinedString];
+    adjacencyList = centralAdjacencyList[joinedString];
     std::basic_ostringstream<char> triangleStream;
     long count = 0;
 

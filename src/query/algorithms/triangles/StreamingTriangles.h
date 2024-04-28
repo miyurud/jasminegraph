@@ -35,8 +35,8 @@ struct NativeStoreTriangleResult {
 
 class StreamingTriangles {
  public:
-    static std::map<long, std::unordered_set<long>> localAdjacenyList;
-    static std::map<std::string, std::map<long, std::unordered_set<long>>> centralAdjacenyList;
+    static std::map<long, std::unordered_set<long>> localAdjacencyList;
+    static std::map<std::string, std::map<long, std::unordered_set<long>>> centralAdjacencyList;
     static TriangleResult countTriangles(NodeManager* nodeManager, bool returnTriangles);
 
     static NativeStoreTriangleResult countLocalStreamingTriangles(
