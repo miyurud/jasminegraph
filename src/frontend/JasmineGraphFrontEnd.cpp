@@ -60,6 +60,7 @@ static bool canCalibrate = true;
 Logger frontend_logger;
 std::set<ProcessInfo> processData;
 std::string stream_topic_name;
+bool JasmineGraphFrontEnd::strian_exit;
 
 static std::string getPartitionCount(std::string path);
 static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
@@ -76,7 +77,8 @@ static void process_dataset_command(int connFd, bool *loop_exit_p);
 static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
                               PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler, bool *loop_exit_p);
 static void streaming_triangles_command(std::string masterIP, int connFd, JobScheduler *jobScheduler, bool *loop_exit_p,
-                                        int numberOfPartitions);
+                                        int numberOfPartitions, bool *strian_exit);
+static void stop_strian_command(int connFd, bool *strian_exit);
 static void vertex_count_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void edge_count_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void merge_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
@@ -194,7 +196,10 @@ void *frontendservicesesion(void *dummyPt) {
         } else if (line.compare(TRIANGLES) == 0) {
             triangles_command(masterIP, connFd, sqlite, perfSqlite, jobScheduler, &loop_exit);
         } else if (line.compare(STREAMING_TRIANGLES) == 0) {
-            streaming_triangles_command(masterIP, connFd, jobScheduler, &loop_exit, numberOfPartitions);
+            streaming_triangles_command(masterIP, connFd, jobScheduler, &loop_exit,
+                                        numberOfPartitions, &JasmineGraphFrontEnd::strian_exit);
+        } else if (line.compare(STOP_STRIAN) == 0) {
+            stop_strian_command(connFd, &JasmineGraphFrontEnd::strian_exit);
         } else if (line.compare(VCOUNT) == 0) {
             vertex_count_command(connFd, sqlite, &loop_exit);
         } else if (line.compare(ECOUNT) == 0) {
@@ -1469,9 +1474,21 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
     }
 }
 
+void JasmineGraphFrontEnd::scheduleStrianJobs(JobRequest &jobDetails, std::priority_queue<JobRequest> &jobQueue,
+                                               JobScheduler *jobScheduler, bool *strian_exit) {
+    while (!(*strian_exit)) {
+        auto begin = chrono::high_resolution_clock::now();
+        jobDetails.setBeginTime(begin);
+        int uniqueId = JasmineGraphFrontEnd::getUid();
+        jobDetails.setJobId(std::to_string(uniqueId));
+        jobQueue.push(jobDetails);
+        jobScheduler->pushJob(jobDetails);
+        sleep(Conts::STREAMING_STRAIN_GAP);
+    }
+}
+
 static void streaming_triangles_command(std::string masterIP, int connFd, JobScheduler *jobScheduler, bool *loop_exit_p,
-                                        int numberOfPartitions) {
-    int uniqueId = JasmineGraphFrontEnd::getUid();
+                                        int numberOfPartitions, bool *strian_exit) {
     int result_wr = write(connFd, GRAPHID_SEND.c_str(), FRONTEND_COMMAND_LENGTH);
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
@@ -1518,8 +1535,8 @@ static void streaming_triangles_command(std::string masterIP, int connFd, JobSch
     mode = Utils::trim_copy(mode, " \f\n\r\t\v");
     frontend_logger.info("Got mode " + mode);
 
+    std::priority_queue<JobRequest> jobQueue;
     JobRequest jobDetails;
-    jobDetails.setJobId(std::to_string(uniqueId));
     jobDetails.setJobType(STREAMING_TRIANGLES);
 
     jobDetails.setMasterIP(masterIP);
@@ -1527,38 +1544,67 @@ static void streaming_triangles_command(std::string masterIP, int connFd, JobSch
     jobDetails.addParameter(Conts::PARAM_KEYS::MODE, mode);
     jobDetails.addParameter(Conts::PARAM_KEYS::PARTITION, std::to_string(numberOfPartitions));
 
-    jobScheduler->pushJob(jobDetails);
-    JobResponse jobResponse = jobScheduler->getResult(jobDetails);
-    std::string errorMessage = jobResponse.getParameter(Conts::PARAM_KEYS::ERROR_MESSAGE);
+    if (*strian_exit) {
+        *strian_exit = false;
+    }
 
-    if (!errorMessage.empty()) {
-        *loop_exit_p = true;
-        result_wr = write(connFd, errorMessage.c_str(), errorMessage.length());
+    std::thread schedulerThread(JasmineGraphFrontEnd::scheduleStrianJobs, std::ref(jobDetails), std::ref(jobQueue),
+                                jobScheduler, std::ref(strian_exit));
 
-        if (result_wr < 0) {
-            frontend_logger.error("Error writing to socket");
-            return;
+    while (!(*strian_exit)) {
+        if (!jobQueue.empty()) {
+            JobRequest request = jobQueue.top();
+            JobResponse jobResponse = jobScheduler->getResult(request);
+            std::string errorMessage = jobResponse.getParameter(Conts::PARAM_KEYS::ERROR_MESSAGE);
+
+            if (!errorMessage.empty()) {
+                *loop_exit_p = true;
+                result_wr = write(connFd, errorMessage.c_str(), errorMessage.length());
+
+                if (result_wr < 0) {
+                    frontend_logger.error("Error writing to socket");
+                    return;
+                }
+                result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+                                  Conts::CARRIAGE_RETURN_NEW_LINE.size());
+                if (result_wr < 0) {
+                    frontend_logger.error("Error writing to socket");
+                }
+                return;
+            }
+
+            std::string triangleCount = jobResponse.getParameter(Conts::PARAM_KEYS::STREAMING_TRIANGLE_COUNT);
+            std::time_t begin_time_t = std::chrono::system_clock::to_time_t(request.getBegin());
+            std::time_t end_time_t = std::chrono::system_clock::to_time_t(jobResponse.getEndTime());
+            auto dur = jobResponse.getEndTime() - request.getBegin();
+            auto msDuration = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
+            frontend_logger.info("Streaming triangle " + request.getJobId() +
+                                 " Count : " + triangleCount + " Time Taken: " + to_string(msDuration) +
+                                 " milliseconds");
+            std::string out = triangleCount + " Time Taken: " + to_string(msDuration) + " ms , Begin Time: " +
+                              std::ctime(&begin_time_t) + " End Time: " + std::ctime(&end_time_t);
+            result_wr = write(connFd, out.c_str(), out.length());
+            if (result_wr < 0) {
+                frontend_logger.error("Error writing to socket");
+                *loop_exit_p = true;
+                return;
+            }
+            result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            if (result_wr < 0) {
+                frontend_logger.error("Error writing to socket");
+                *loop_exit_p = true;
+            }
+            jobQueue.pop();
+        } else {
+            sleep(Conts::SCHEDULER_SLEEP_TIME);
         }
-        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-        if (result_wr < 0) {
-            frontend_logger.error("Error writing to socket");
-        }
-        return;
     }
 
-    std::string triangleCount = jobResponse.getParameter(Conts::PARAM_KEYS::STREAMING_TRIANGLE_COUNT);
+    schedulerThread.join();  // Wait for the scheduler thread to finish
+}
 
-    result_wr = write(connFd, triangleCount.c_str(), triangleCount.length());
-    if (result_wr < 0) {
-        frontend_logger.error("Error writing to socket");
-        *loop_exit_p = true;
-        return;
-    }
-    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-    if (result_wr < 0) {
-        frontend_logger.error("Error writing to socket");
-        *loop_exit_p = true;
-    }
+static void stop_strian_command(int connFd, bool *strian_exit) {
+    *strian_exit = true;
 }
 
 static void vertex_count_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {

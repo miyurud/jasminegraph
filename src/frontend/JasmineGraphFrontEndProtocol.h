@@ -82,6 +82,7 @@ extern const string SLA;
 extern const string COMMAND;
 extern const string PRIORITY;
 extern const string STOP_STREAM_KAFKA;
+extern const string STOP_STRIAN;
 
 extern const string ADMDL;
 extern const string MERGE;

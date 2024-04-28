@@ -35,6 +35,8 @@ struct NativeStoreTriangleResult {
 
 class StreamingTriangles {
  public:
+    static std::map<long, std::unordered_set<long>> localAdjacencyList;
+    static std::map<std::string, std::map<long, std::unordered_set<long>>> centralAdjacencyList;
     static TriangleResult countTriangles(NodeManager* nodeManager, bool returnTriangles);
 
     static NativeStoreTriangleResult countLocalStreamingTriangles(
@@ -54,6 +56,13 @@ class StreamingTriangles {
                                                        long previousCentralRelationCount);
 
     static map<long, unordered_set<long>> getCentralAdjacencyList(unsigned int graphID, unsigned int partitionID);
+
+    static long count(std::map<long, std::unordered_set<long>>& g1,
+                                   std::map<long, std::unordered_set<long>>& g2,
+                                   std::vector<std::pair<long, long>>& edges);
+    static long totalCount(std::map<long, std::unordered_set<long>>& g1,
+                    std::map<long, std::unordered_set<long>>& g2,
+                    std::vector<std::pair<long, long>>& edges);
 };
 
 #endif  // JASMINEGRAPH_STRAMINGTRIANGLES_H

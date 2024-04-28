@@ -16,6 +16,9 @@ limitations under the License.
 #define DATA_BUFFER_SIZE (FRONTEND_DATA_LENGTH + 1)
 
 Logger streaming_triangleCount_logger;
+std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>>
+        StreamingTriangleCountExecutor::triangleTree;
+long StreamingTriangleCountExecutor::triangleCount;
 
 void saveLocalValues(StreamingSQLiteDBInterface stramingdb, std::string graphID, std::string partitionID,
                       NativeStoreTriangleResult result);
@@ -51,19 +54,6 @@ void StreamingTriangleCountExecutor::execute() {
     std::vector<std::future<long>> intermRes;
     long result = 0;
 
-    if (partitionCount > 2) {
-        long aggregatedTriangleCount = StreamingTriangleCountExecutor::aggregateCentralStoreTriangles(
-                sqlite, streamingDB, graphId, masterIP, mode, partitionCount);
-        if (mode == "0") {
-            saveCentralValues(streamingDB, graphId, std::to_string(aggregatedTriangleCount));
-            result += aggregatedTriangleCount;
-        } else {
-            long old_result = stol(retrieveCentralValues(streamingDB, graphId));
-            saveCentralValues(streamingDB, graphId, std::to_string(aggregatedTriangleCount + old_result));
-            result += (aggregatedTriangleCount + old_result);
-        }
-    }
-
     streaming_triangleCount_logger.info("###STREAMING-TRIANGLE-COUNT-EXECUTOR### Completed central store counting");
 
     for (int i = 0; i < partitionCount; i++) {
@@ -76,6 +66,19 @@ void StreamingTriangleCountExecutor::execute() {
         intermRes.push_back(std::async(
                 std::launch::async, StreamingTriangleCountExecutor::getTriangleCount, atoi(graphId.c_str()),
                 host, workerPort, workerDataPort, i, masterIP, mode, streamingDB));
+    }
+
+    if (partitionCount > 2) {
+        long aggregatedTriangleCount = StreamingTriangleCountExecutor::aggregateCentralStoreTriangles(
+                sqlite, streamingDB, graphId, masterIP, mode, partitionCount);
+        if (mode == "0") {
+            saveCentralValues(streamingDB, graphId, std::to_string(aggregatedTriangleCount));
+            result += aggregatedTriangleCount;
+        } else {
+            long old_result = stol(retrieveCentralValues(streamingDB, graphId));
+            saveCentralValues(streamingDB, graphId, std::to_string(aggregatedTriangleCount + old_result));
+            result += (aggregatedTriangleCount + old_result);
+        }
     }
 
     for (auto &&futureCall : intermRes) {
@@ -91,6 +94,7 @@ void StreamingTriangleCountExecutor::execute() {
     JobResponse jobResponse;
     jobResponse.setJobId(request.getJobId());
     jobResponse.addParameter(Conts::PARAM_KEYS::STREAMING_TRIANGLE_COUNT, std::to_string(result));
+    jobResponse.setEndTime(chrono::high_resolution_clock::now());
     responseVector.push_back(jobResponse);
 
     responseMap[request.getJobId()] = jobResponse;
@@ -365,19 +369,34 @@ long StreamingTriangleCountExecutor::aggregateCentralStoreTriangles(
 
     std::vector<std::string> triangles = Utils::split(result, ':');
     std::vector<std::string>::iterator triangleIterator;
-    std::set<std::string> uniqueTriangleSet;
+    long currentSize = triangleCount;
 
     for (triangleIterator = triangles.begin(); triangleIterator != triangles.end(); ++triangleIterator) {
         std::string triangle = *triangleIterator;
 
         if (!triangle.empty() && triangle != "NILL") {
-            uniqueTriangleSet.insert(triangle);
+            std::vector<std::string> triangleList = Utils::split(triangle, ',');
+            long varOne = std::stol(triangleList[0]);
+            long varTwo = std::stol(triangleList[1]);
+            long varThree = std::stol(triangleList[2]);
+
+            auto &itemRes = triangleTree[varOne];
+            auto itemResIterator = itemRes.find(varTwo);
+            if (itemResIterator != itemRes.end()) {
+                auto &set2 = itemRes[varTwo];
+                auto set2Iter = set2.find(varThree);
+                if (set2Iter == set2.end()) {
+                    set2.insert(varThree);
+                    triangleCount++;
+                }
+            } else {
+                triangleTree[varOne][varTwo].insert(varThree);
+                triangleCount++;
+            }
         }
     }
 
-    aggregatedTriangleCount = uniqueTriangleSet.size();
-
-    return aggregatedTriangleCount;
+    return triangleCount - currentSize;
 }
 
 string StreamingTriangleCountExecutor::countCentralStoreTriangles(

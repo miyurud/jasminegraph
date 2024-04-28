@@ -75,8 +75,12 @@ class JasmineGraphFrontEnd {
     static long getSLAForGraphId(SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfSqlite,
                                  std::string graphId, std::string command, std::string category);
 
+    static void scheduleStrianJobs(JobRequest &jobDetails, std::priority_queue<JobRequest> &jobQueue,
+                                    JobScheduler *jobScheduler, bool *strian_exist);
+
     static int getRunningHighPriorityTaskCount();
     static bool areRunningJobsForSameGraph();
+    static bool strian_exit;
     std::map<std::string, std::atomic<bool>> *streamsState;
     std::map<std::string, std::thread> streamingThreads;
 
