@@ -18,6 +18,7 @@ limitations under the License.
 
 #include "../../../../../globals.h"
 #include "../../../../k8s/K8sWorkerController.h"
+#include "../../../../scale/scaler.h"
 
 using namespace std::chrono;
 
@@ -28,7 +29,8 @@ std::mutex processStatusMutex;
 std::mutex responseVectorMutex;
 static std::mutex fileCombinationMutex;
 static std::mutex aggregateWeightMutex;
-static std::mutex schedulerMutex;
+
+time_t last_exec_time = 0;
 
 static string isFileAccessibleToWorker(std::string graphId, std::string partitionId, std::string aggregatorHostName,
                                        std::string aggregatorPort, std::string masterIP, std::string fileType,
@@ -424,11 +426,10 @@ static void filter_partitions(std::map<string, std::vector<string>> &partitionMa
 }
 
 void TriangleCountExecutor::execute() {
-    static time_t last_exec = 0;
     schedulerMutex.lock();
     time_t curr_time = time(NULL);
-    if (curr_time < last_exec + 8) {
-        sleep(last_exec + 9 - curr_time);
+    if (curr_time < last_exec_time + 8) {
+        sleep(last_exec_time + 9 - curr_time);
     }
     int uniqueId = getUid();
     std::string masterIP = request.getMasterIP();
@@ -592,7 +593,7 @@ void TriangleCountExecutor::execute() {
         isStatCollect = true;
     }
 
-    last_exec = time(NULL);
+    last_exec_time = time(NULL);
     schedulerMutex.unlock();
 
     for (auto &&futureCall : intermRes) {
