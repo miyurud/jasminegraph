@@ -30,7 +30,7 @@ std::mutex responseVectorMutex;
 static std::mutex fileCombinationMutex;
 static std::mutex aggregateWeightMutex;
 
-time_t last_exec_time = 0;
+static time_t last_exec_time = 0;
 
 static string isFileAccessibleToWorker(std::string graphId, std::string partitionId, std::string aggregatorHostName,
                                        std::string aggregatorPort, std::string masterIP, std::string fileType,
@@ -513,9 +513,11 @@ void TriangleCountExecutor::execute() {
         isCompositeAggregation = true;
     }
 
-    std::unique_ptr<K8sInterface> k8sInterface(new K8sInterface());
-    if (jasminegraph_profile == PROFILE_K8S && k8sInterface->getJasmineGraphConfig("auto_scaling_enabled") == "true") {
-        filter_partitions(partitionMap, sqlite, graphId);
+    if (jasminegraph_profile == PROFILE_K8S) {
+        std::unique_ptr<K8sInterface> k8sInterface(new K8sInterface());
+        if (k8sInterface->getJasmineGraphConfig("auto_scaling_enabled") == "true") {
+            filter_partitions(partitionMap, sqlite, graphId);
+        }
     }
 
     std::vector<std::vector<string>> fileCombinations;
@@ -536,6 +538,15 @@ void TriangleCountExecutor::execute() {
             }
         }
         fileCombinations = AbstractExecutor::getCombinations(compositeCentralStoreFiles);
+    }
+
+    for (auto it = partitionMap.begin(); it != partitionMap.end(); it++) {
+        string worker = it->first;
+        if (used_workers.find(worker) != used_workers.end()) {
+            used_workers[worker]++;
+        } else {
+            used_workers[worker] = 1;
+        }
     }
 
     std::map<std::string, std::string> combinationWorkerMap;
@@ -611,6 +622,20 @@ void TriangleCountExecutor::execute() {
         triangleCount_logger.log(
             "###TRIANGLE-COUNT-EXECUTOR### Getting Triangle Count : Completed: Triangles " + to_string(result), "info");
     }
+
+    schedulerMutex.lock();
+    for (auto it = partitionMap.begin(); it != partitionMap.end(); it++) {
+        string worker = it->first;
+        used_workers[worker]--;
+    }
+    for (auto it = used_workers.cbegin(); it != used_workers.cend();) {
+        if (it->second <= 0) {
+            used_workers.erase(it++);  // or "it = m.erase(it)" since C++11
+        } else {
+            it++;
+        }
+    }
+    schedulerMutex.unlock();
 
     workerResponded = true;
 

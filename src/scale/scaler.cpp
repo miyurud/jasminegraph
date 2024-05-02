@@ -13,11 +13,14 @@ limitations under the License.
 
 #include "scaler.h"
 
+#include <unistd.h>
+
 #include <map>
 #include <thread>
 #include <vector>
-#include <unistd.h>
 
+#include "../../globals.h"
+#include "../k8s/K8sWorkerController.h"
 #include "../metadb/SQLiteDBInterface.h"
 #include "../util/Utils.h"
 
@@ -27,10 +30,12 @@ std::mutex schedulerMutex;
 static std::thread *scale_down_thread = nullptr;
 static volatile bool running = false;
 SQLiteDBInterface *sqlite = nullptr;
+std::map<std::string, int> used_workers;
 
 static void scale_down_thread_fn();
 
 void start_scale_down(SQLiteDBInterface *sqliteInterface) {
+    if (jasminegraph_profile != PROFILE_K8S) return;
     if (scale_down_thread) return;
     sqlite = sqliteInterface;
     running = true;
@@ -38,6 +43,7 @@ void start_scale_down(SQLiteDBInterface *sqliteInterface) {
 }
 
 void stop_scale_down() {
+    if (jasminegraph_profile != PROFILE_K8S) return;
     if (!scale_down_thread) return;
     running = false;
     scale_down_thread->join();
@@ -48,27 +54,27 @@ static void scale_down_thread_fn() {
     while (running) {
         sleep(30);
         if (!running) break;
-        std::vector<string> workers;  // "ip:port"
+        schedulerMutex.lock();
+        vector<string> workers;  // id => "ip:port"
         const std::vector<vector<pair<string, string>>> &results =
-            sqlite->runSelect("SELECT DISTINCT idworker,ip,server_port FROM worker;");
+            sqlite->runSelect("SELECT DISTINCT idworker FROM worker;");
         for (int i = 0; i < results.size(); i++) {
-            string ip = results[i][1].second;
-            string port = results[i][2].second;
-            workers.push_back(ip + ":" + port);
+            string workerId = results[i][0].second;
+            workers.push_back(workerId);
         }
 
-        map<string, int> loads;
-        const map<string, string> &cpu_map = Utils::getMetricMap("cpu_usage");
+        vector<int> removing;
         for (auto it = workers.begin(); it != workers.end(); it++) {
-            auto &worker = *it;
-            const auto workerLoadIt = cpu_map.find(worker);
-            if (workerLoadIt != cpu_map.end()) {
-                double load = stod(workerLoadIt->second.c_str());
-                if (load < 0) load = 0;
-                loads[worker] = (int)(4 * load);
-            } else {
-                loads[worker] = 0;
-            }
+            const string &worker = *it;
+            auto it_used = used_workers.find(worker);
+            if (it_used != used_workers.end() && it_used->second > 0) continue;
+            removing.push_back(stoi(worker));
         }
+
+        // TODO(thevindu-w): Transfer partitions and spare 2 workers
+
+        K8sWorkerController *k8s = K8sWorkerController::getInstance();
+        k8s->scaleDown(removing);
+        schedulerMutex.unlock();
     }
 }

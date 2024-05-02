@@ -12,9 +12,10 @@ limitations under the License.
  */
 
 #include <mutex>
+#include <map>
 
 extern std::mutex schedulerMutex;
-extern time_t last_exec_time;
+extern std::map<std::string, int> used_workers; // { worker_id => use_count }
 
 extern void start_scale_down();
 

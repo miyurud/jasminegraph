@@ -325,3 +325,17 @@ std::map<string, string> K8sWorkerController::scaleUp(int count) {
     this->numberOfWorkers += success;
     return workers;
 }
+
+void K8sWorkerController::scaleDown(const vector<int> workerIds) {
+    size_t count = workerIds.size();
+    controller_logger.info("Scale down with " + to_string(count) + " workers");
+    std::thread threads[count];
+    int ind = 0;
+    for (auto it = workerIds.begin(); it != workerIds.end(); it++) {
+        threads[ind++] = std::thread(&K8sWorkerController::deleteWorker, this, *it);
+    }
+
+    for (int i = 0; i < count; i++) {
+        threads[i].join();
+    }
+}
