@@ -131,7 +131,7 @@ RelationBlock* RelationBlock::addLocalRelation(NodeBlock source, NodeBlock desti
 }
 
 RelationBlock* RelationBlock::addCentralRelation(NodeBlock source, NodeBlock destination) {
-    relation_block_logger.info("Writing central relation with source " + std::to_string(source.nodeId) +
+    relation_block_logger.debug("Writing central relation with source " + std::to_string(source.nodeId) +
                                " and destination " + std::to_string(destination.nodeId));
     int RECORD_SIZE = sizeof(unsigned int);
 

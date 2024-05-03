@@ -49,7 +49,7 @@ void InstanceStreamHandler::handleRequest(const std::string& nodeString) {
 
     queues[graphIdentifier].push(nodeString);
     cond_vars[graphIdentifier].notify_one();
-    instance_stream_logger.info("Pushed into the Queue");
+    instance_stream_logger.debug("Pushed into the Queue");
 }
 
 void InstanceStreamHandler::threadFunction(const std::string& nodeString) {

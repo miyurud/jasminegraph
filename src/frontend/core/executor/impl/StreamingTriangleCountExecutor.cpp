@@ -369,12 +369,19 @@ long StreamingTriangleCountExecutor::aggregateCentralStoreTriangles(
 
     std::vector<std::string> triangles = Utils::split(result, ':');
     std::vector<std::string>::iterator triangleIterator;
+    std::set<std::string> uniqueTriangleSet;
+
     long currentSize = triangleCount;
 
     for (triangleIterator = triangles.begin(); triangleIterator != triangles.end(); ++triangleIterator) {
         std::string triangle = *triangleIterator;
 
         if (!triangle.empty() && triangle != "NILL") {
+            if (runMode == "0") {
+                uniqueTriangleSet.insert(triangle);
+                continue;
+            }
+
             std::vector<std::string> triangleList = Utils::split(triangle, ',');
             long varOne = std::stol(triangleList[0]);
             long varTwo = std::stol(triangleList[1]);
@@ -396,6 +403,9 @@ long StreamingTriangleCountExecutor::aggregateCentralStoreTriangles(
         }
     }
 
+    if (runMode == "0") {
+        return uniqueTriangleSet.size();
+    }
     return triangleCount - currentSize;
 }
 
