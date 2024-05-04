@@ -16,21 +16,22 @@ limitations under the License.
 #include <unistd.h>
 
 #include <map>
+#include <set>
 #include <thread>
 #include <vector>
 
 #include "../../globals.h"
 #include "../k8s/K8sWorkerController.h"
-#include "../metadb/SQLiteDBInterface.h"
 #include "../util/Utils.h"
 
 using namespace std;
 
 std::mutex schedulerMutex;
+std::map<std::string, int> used_workers;
+
 static std::thread *scale_down_thread = nullptr;
 static volatile bool running = false;
-SQLiteDBInterface *sqlite = nullptr;
-std::map<std::string, int> used_workers;
+static SQLiteDBInterface *sqlite = nullptr;
 
 static void scale_down_thread_fn();
 
@@ -63,15 +64,28 @@ static void scale_down_thread_fn() {
             workers.push_back(workerId);
         }
 
-        vector<int> removing;
+        set<int> removing;
         for (auto it = workers.begin(); it != workers.end(); it++) {
-            const string &worker = *it;
+            const auto &worker = *it;
             auto it_used = used_workers.find(worker);
             if (it_used != used_workers.end() && it_used->second > 0) continue;
-            removing.push_back(stoi(worker));
+            removing.insert(stoi(worker));
         }
 
-        // TODO(thevindu-w): Transfer partitions and spare 2 workers
+        int spare = 2;
+        if (removing.find(0) != removing.end()) {
+            removing.erase(0);
+            spare--;
+        }
+        if (removing.find(1) != removing.end()) {
+            removing.erase(1);
+            spare--;
+        }
+        while (spare-- > 0) {
+            auto it = removing.begin();
+            if (it == removing.end()) break;
+            removing.erase(it);
+        }
 
         K8sWorkerController *k8s = K8sWorkerController::getInstance();
         k8s->scaleDown(removing);

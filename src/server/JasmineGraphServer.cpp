@@ -24,6 +24,7 @@ limitations under the License.
 #include "../../globals.h"
 #include "../k8s/K8sWorkerController.h"
 #include "../ml/trainer/JasmineGraphTrainingSchedular.h"
+#include "../scale/scaler.h"
 #include "JasmineGraphInstance.h"
 #include "JasmineGraphInstanceProtocol.h"
 
@@ -132,8 +133,8 @@ int JasmineGraphServer::run(std::string masterIp, int numberofWorkers, std::stri
 
     if (jasminegraph_profile == PROFILE_K8S) {
         // Create K8s worker controller
-        // start_scale_down(this->sqlite);
         (void)K8sWorkerController::getInstance(masterIp, numberofWorkers, sqlite);
+        start_scale_down(this->sqlite);
         hostWorkerList = K8sWorkerController::workerList;
     } else {
         start_workers();

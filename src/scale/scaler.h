@@ -11,12 +11,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
-#include <mutex>
 #include <map>
+#include <mutex>
+
+#include "../metadb/SQLiteDBInterface.h"
 
 extern std::mutex schedulerMutex;
-extern std::map<std::string, int> used_workers; // { worker_id => use_count }
+extern std::map<std::string, int> used_workers;  // { worker_id => use_count }
 
-extern void start_scale_down();
+extern void start_scale_down(SQLiteDBInterface *sqliteInterface);
 
 extern void stop_scale_down();

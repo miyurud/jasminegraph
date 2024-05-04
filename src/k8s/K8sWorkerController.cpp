@@ -222,6 +222,8 @@ void K8sWorkerController::deleteWorker(int workerId) {
 
     std::string deleteQuery = "DELETE FROM worker WHERE idworker = " + std::to_string(workerId);
     metadb.runUpdate(deleteQuery);
+    deleteQuery = "DELETE FROM worker_has_partition WHERE worker_idworker = " + std::to_string(workerId);
+    metadb.runUpdate(deleteQuery);
     std::remove(activeWorkerIds.begin(), activeWorkerIds.end(), workerId);
 }
 
@@ -326,7 +328,7 @@ std::map<string, string> K8sWorkerController::scaleUp(int count) {
     return workers;
 }
 
-void K8sWorkerController::scaleDown(const vector<int> workerIds) {
+void K8sWorkerController::scaleDown(const set<int> workerIds) {
     size_t count = workerIds.size();
     controller_logger.info("Scale down with " + to_string(count) + " workers");
     std::thread threads[count];
