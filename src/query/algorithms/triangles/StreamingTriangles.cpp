@@ -95,7 +95,7 @@ std::map<long, std::unordered_set<long>> StreamingTriangles::getCentralAdjacency
                                                                                      unsigned int partitionID) {
     unsigned long maxLabel = std::stol(Utils::getJasmineGraphProperty("org.jasminegraph.nativestore.max.label.size"));
     GraphConfig gc{maxLabel, graphID, partitionID, "app"};
-    NodeManager* nodeManager = new NodeManager(gc);
+    std::unique_ptr<NodeManager> nodeManager(new NodeManager(gc));
 
     return nodeManager->getAdjacencyList(false);
 }
@@ -105,7 +105,7 @@ std::vector<std::pair<long, long>> StreamingTriangles::getEdges(unsigned int gra
     std::vector<std::pair<long, long>> edges;
     unsigned long maxLabel = std::stol(Utils::getJasmineGraphProperty("org.jasminegraph.nativestore.max.label.size"));
     GraphConfig gc{maxLabel, graphID, partitionID, "app"};
-    NodeManager* nodeManager = new NodeManager(gc);
+    std::unique_ptr<NodeManager> nodeManager(new NodeManager(gc));
 
     const std::string& dbPrefix = nodeManager->getDbPrefix();
     int relationBlockSize = RelationBlock::BLOCK_SIZE;
@@ -120,6 +120,7 @@ std::vector<std::pair<long, long>> StreamingTriangles::getEdges(unsigned int gra
         long target = std::stol(relationBlock->getDestination()->id);
         edges.push_back(std::make_pair(source, target));
         edges.push_back(std::make_pair(target, source));
+        delete relationBlock;
     }
 
     return edges;

@@ -1548,105 +1548,58 @@ static void streaming_triangles_command(std::string masterIP, int connFd, JobSch
         *strian_exit = false;
     }
 
-//    std::thread schedulerThread(JasmineGraphFrontEnd::scheduleStrianJobs, std::ref(jobDetails), std::ref(jobQueue),
-//                                jobScheduler, std::ref(strian_exit));
-//
-//    while (!(*strian_exit)) {
-//        if (!jobQueue.empty()) {
-//            JobRequest request = jobQueue.top();
-//            JobResponse jobResponse = jobScheduler->getResult(request);
-//            std::string errorMessage = jobResponse.getParameter(Conts::PARAM_KEYS::ERROR_MESSAGE);
-//
-//            if (!errorMessage.empty()) {
-//                *loop_exit_p = true;
-//                result_wr = write(connFd, errorMessage.c_str(), errorMessage.length());
-//
-//                if (result_wr < 0) {
-//                    frontend_logger.error("Error writing to socket");
-//                    return;
-//                }
-//                result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
-//                                  Conts::CARRIAGE_RETURN_NEW_LINE.size());
-//                if (result_wr < 0) {
-//                    frontend_logger.error("Error writing to socket");
-//                }
-//                return;
-//            }
-//
-//            std::string triangleCount = jobResponse.getParameter(Conts::PARAM_KEYS::STREAMING_TRIANGLE_COUNT);
-//            std::time_t begin_time_t = std::chrono::system_clock::to_time_t(request.getBegin());
-//            std::time_t end_time_t = std::chrono::system_clock::to_time_t(jobResponse.getEndTime());
-//            auto dur = jobResponse.getEndTime() - request.getBegin();
-//            auto msDuration = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
-//            frontend_logger.info("Streaming triangle " + request.getJobId() +
-//                                 " Count : " + triangleCount + " Time Taken: " + to_string(msDuration) +
-//                                 " milliseconds");
-//            std::string out = triangleCount + " Time Taken: " + to_string(msDuration) + " ms , Begin Time: " +
-//                              std::ctime(&begin_time_t) + " End Time: " + std::ctime(&end_time_t);
-//            result_wr = write(connFd, out.c_str(), out.length());
-//            if (result_wr < 0) {
-//                frontend_logger.error("Error writing to socket");
-//                *loop_exit_p = true;
-//                return;
-//            }
-//            result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-//            if (result_wr < 0) {
-//                frontend_logger.error("Error writing to socket");
-//                *loop_exit_p = true;
-//            }
-//            jobQueue.pop();
-//        } else {
-//            sleep(Conts::SCHEDULER_SLEEP_TIME);
-//        }
-//    }
-//
-//    schedulerThread.join();  // Wait for the scheduler thread to finish
+    std::thread schedulerThread(JasmineGraphFrontEnd::scheduleStrianJobs, std::ref(jobDetails), std::ref(jobQueue),
+                                jobScheduler, std::ref(strian_exit));
+
     while (!(*strian_exit)) {
-        auto begin = chrono::high_resolution_clock::now();
-        int uniqueId = JasmineGraphFrontEnd::getUid();
-        jobDetails.setJobId(std::to_string(uniqueId));
-        jobScheduler->pushJob(jobDetails);
-        JobResponse jobResponse = jobScheduler->getResult(jobDetails);
-        std::string errorMessage = jobResponse.getParameter(Conts::PARAM_KEYS::ERROR_MESSAGE);
+        if (!jobQueue.empty()) {
+            JobRequest request = jobQueue.top();
+            JobResponse jobResponse = jobScheduler->getResult(request);
+            std::string errorMessage = jobResponse.getParameter(Conts::PARAM_KEYS::ERROR_MESSAGE);
 
-        if (!errorMessage.empty()) {
-            *loop_exit_p = true;
-            result_wr = write(connFd, errorMessage.c_str(), errorMessage.length());
+            if (!errorMessage.empty()) {
+                *loop_exit_p = true;
+                result_wr = write(connFd, errorMessage.c_str(), errorMessage.length());
 
+                if (result_wr < 0) {
+                    frontend_logger.error("Error writing to socket");
+                    return;
+                }
+                result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+                                  Conts::CARRIAGE_RETURN_NEW_LINE.size());
+                if (result_wr < 0) {
+                    frontend_logger.error("Error writing to socket");
+                }
+                return;
+            }
+
+            std::string triangleCount = jobResponse.getParameter(Conts::PARAM_KEYS::STREAMING_TRIANGLE_COUNT);
+            std::time_t begin_time_t = std::chrono::system_clock::to_time_t(request.getBegin());
+            std::time_t end_time_t = std::chrono::system_clock::to_time_t(jobResponse.getEndTime());
+            auto dur = jobResponse.getEndTime() - request.getBegin();
+            auto msDuration = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
+            frontend_logger.info("Streaming triangle " + request.getJobId() +
+                                 " Count : " + triangleCount + " Time Taken: " + to_string(msDuration) +
+                                 " milliseconds");
+            std::string out = triangleCount + " Time Taken: " + to_string(msDuration) + " ms , Begin Time: " +
+                              std::ctime(&begin_time_t) + " End Time: " + std::ctime(&end_time_t);
+            result_wr = write(connFd, out.c_str(), out.length());
             if (result_wr < 0) {
                 frontend_logger.error("Error writing to socket");
+                *loop_exit_p = true;
                 return;
             }
             result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
             if (result_wr < 0) {
                 frontend_logger.error("Error writing to socket");
+                *loop_exit_p = true;
             }
-            return;
+            jobQueue.pop();
+        } else {
+            sleep(Conts::SCHEDULER_SLEEP_TIME);
         }
-
-        std::string triangleCount = jobResponse.getParameter(Conts::PARAM_KEYS::STREAMING_TRIANGLE_COUNT);
-        auto end = chrono::high_resolution_clock::now();
-        auto dur = end - begin;
-        std::time_t begin_time_t = std::chrono::system_clock::to_time_t(begin);
-        std::time_t end_time_t = std::chrono::system_clock::to_time_t(end);
-        auto msDuration = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
-        frontend_logger.info("Streaming triangle " + std::to_string(uniqueId) +
-                             " Count : " + triangleCount + " Time Taken: " + to_string(msDuration) + " milliseconds");
-        std::string out = triangleCount + " Time Taken: " + to_string(msDuration) + " ms , Begin Time: " +
-                                                       std::ctime(&begin_time_t) + " End Time: " + std::ctime(&end_time_t);
-        result_wr = write(connFd, out.c_str(), out.length());
-        if (result_wr < 0) {
-            frontend_logger.error("Error writing to socket");
-            *loop_exit_p = true;
-            return;
-        }
-        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-        if (result_wr < 0) {
-            frontend_logger.error("Error writing to socket");
-            *loop_exit_p = true;
-        }
-        //sleep(25);
     }
+    schedulerThread.join();  // Wait for the scheduler thread to finish
 }
 
 static void stop_strian_command(int connFd, bool *strian_exit) {

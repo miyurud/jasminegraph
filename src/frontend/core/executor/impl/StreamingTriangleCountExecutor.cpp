@@ -15,8 +15,8 @@ limitations under the License.
 
 #define DATA_BUFFER_SIZE (FRONTEND_DATA_LENGTH + 1)
 
-std::map<int, int> StreamingTriangleCountExecutor::local_socket_map; // port:socket
-std::map<int, int> StreamingTriangleCountExecutor::central_socket_map; // port:socket
+std::map<int, int> StreamingTriangleCountExecutor::localSocketMap;
+std::map<int, int> StreamingTriangleCountExecutor::centralSocketMap;
 
 Logger streaming_triangleCount_logger;
 std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>>
@@ -113,11 +113,11 @@ long StreamingTriangleCountExecutor::getTriangleCount(int graphId, std::string h
                                        std::to_string(partitionId));
     }
     int sockfd;
-    if (local_socket_map.find(port) == local_socket_map.end()) {
+    if (localSocketMap.find(port) == localSocketMap.end()) {
         struct sockaddr_in serv_addr;
         struct hostent *server;
 
-        local_socket_map[port] = socket(AF_INET, SOCK_STREAM, 0);
+        localSocketMap[port] = socket(AF_INET, SOCK_STREAM, 0);
 
         if (sockfd < 0) {
             std::cerr << "Cannot accept connection" << std::endl;
@@ -140,11 +140,11 @@ long StreamingTriangleCountExecutor::getTriangleCount(int graphId, std::string h
         bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
         serv_addr.sin_port = htons(port);
 
-        if (Utils::connect_wrapper(local_socket_map[port], (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+        if (Utils::connect_wrapper(localSocketMap[port], (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
             std::cerr << "ERROR connecting" << std::endl;
         }
     }
-    sockfd = local_socket_map[port];
+    sockfd = localSocketMap[port];
     char data[DATA_BUFFER_SIZE];
 
     if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE)) {
@@ -253,16 +253,16 @@ long StreamingTriangleCountExecutor::getTriangleCount(int graphId, std::string h
     }
     streaming_triangleCount_logger.info("Sent :  mode " + runMode);
 
-    string local_relation_count = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
-    streaming_triangleCount_logger.info("Received Local relation count: " + local_relation_count);
+    string localRelationCount = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+    streaming_triangleCount_logger.info("Received Local relation count: " + localRelationCount);
 
     if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::OK)) {
         streaming_triangleCount_logger.error("Error writing to socket");
         return 0;
     }
 
-    string central_relation_count = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
-    streaming_triangleCount_logger.info("Received Central relation count: " + central_relation_count);
+    string centralRelationCount = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+    streaming_triangleCount_logger.info("Received Central relation count: " + centralRelationCount);
 
     if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::OK)) {
         streaming_triangleCount_logger.error("Error writing to socket");
@@ -272,8 +272,8 @@ long StreamingTriangleCountExecutor::getTriangleCount(int graphId, std::string h
     string triangles = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
     streaming_triangleCount_logger.info("Received result: " + triangles);
 
-    NativeStoreTriangleResult newResult{ std::stol(local_relation_count),
-                                         std::stol(central_relation_count),
+    NativeStoreTriangleResult newResult{ std::stol(localRelationCount),
+                                         std::stol(centralRelationCount),
                                          std::stol(triangles) + oldResult.result};
     saveLocalValues(streamingDB, std::to_string(graphId),
                     std::to_string(partitionId), newResult);
@@ -418,13 +418,13 @@ string StreamingTriangleCountExecutor::countCentralStoreTriangles(
         int threadPriority, std::string runMode) {
     int port = stoi(aggregatorPort);
     int sockfd;
-    if (central_socket_map.find(port) == central_socket_map.end()) {
+    if (centralSocketMap.find(port) == centralSocketMap.end()) {
         struct sockaddr_in serv_addr;
         struct hostent *server;
 
-        central_socket_map[port] = socket(AF_INET, SOCK_STREAM, 0);
+        centralSocketMap[port] = socket(AF_INET, SOCK_STREAM, 0);
 
-        if (central_socket_map[port] < 0) {
+        if (centralSocketMap[port] < 0) {
             std::cerr << "Cannot accept connection" << std::endl;
             return 0;
         }
@@ -445,11 +445,11 @@ string StreamingTriangleCountExecutor::countCentralStoreTriangles(
         bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
         serv_addr.sin_port = htons(port);
 
-        if (Utils::connect_wrapper(central_socket_map[port], (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+        if (Utils::connect_wrapper(centralSocketMap[port], (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
             std::cerr << "ERROR connecting" << std::endl;
         }
     }
-    sockfd = central_socket_map[port];
+    sockfd = centralSocketMap[port];
 
     char data[DATA_BUFFER_SIZE];
     std::string result = "";
