@@ -4062,7 +4062,7 @@ static void graph_stream_start_command(int connFd, InstanceStreamHandler &instan
     std::string nodeString(content_length, 0);
     return_status = recv(connFd, &nodeString[0], content_length, 0);
     if (return_status > 0) {
-        instance_logger.info("Received edge data.");
+        instance_logger.debug("Received edge data.");
     } else {
         instance_logger.error("Error while reading content length");
         *loop_exit_p = true;

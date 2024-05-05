@@ -58,7 +58,7 @@ int Conts::LOAD_AVG_COLLECTING_GAP = 5;
 double Conts::LOAD_AVG_THREASHOLD = 20;
 
 int Conts::SCHEDULER_SLEEP_TIME = 2;
-int Conts::STREAMING_STRAIN_GAP = 10;
+int Conts::STREAMING_STRAIN_GAP = 30;
 
 const int Conts::GRAPH_STATUS::LOADING = 1;
 const int Conts::GRAPH_STATUS::OPERATIONAL = 2;

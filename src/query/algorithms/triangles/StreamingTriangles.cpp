@@ -137,7 +137,7 @@ NativeStoreTriangleResult StreamingTriangles::countDynamicLocalTriangles(
     streaming_triangle_logger.debug("got previous count " + std::to_string(oldLocalRelationCount) + " " +
                                   std::to_string(oldCentralRelationCount));
 
-    std::string dbPrefix = nodeManager->getDbPrefix();
+    const std::string& dbPrefix = nodeManager->getDbPrefix();
     int relationBlockSize = RelationBlock::BLOCK_SIZE;
 
     long newLocalRelationCount = nodeManager->dbSize(dbPrefix + "_relations.db") / relationBlockSize - 1;
@@ -153,9 +153,8 @@ NativeStoreTriangleResult StreamingTriangles::countDynamicLocalTriangles(
         return  nativeStoreTriangleResult;
     }
 
-    RelationBlock* relationBlock;
     for (int i = oldLocalRelationCount + 1; i <= newLocalRelationCount; i++) {
-        relationBlock = RelationBlock::getLocalRelation(i*relationBlockSize);
+        RelationBlock* relationBlock = RelationBlock::getLocalRelation(i*relationBlockSize);
         long sourceNode = std::stol(relationBlock->getSource()->id);
         long targetNode = std::stol(relationBlock->getDestination()->id);
         edges.push_back(std::make_pair(sourceNode, targetNode));
@@ -164,10 +163,11 @@ NativeStoreTriangleResult StreamingTriangles::countDynamicLocalTriangles(
         newAdjacencyList[targetNode].insert(sourceNode);
         localAdjacencyList[sourceNode].insert(targetNode);
         localAdjacencyList[targetNode].insert(sourceNode);
+        delete relationBlock;
     }
 
     for (int i = oldCentralRelationCount + 1; i <= newCentralRelationCount ; i++) {
-        relationBlock = RelationBlock::getCentralRelation(i*relationBlockSize);
+        RelationBlock* relationBlock = RelationBlock::getCentralRelation(i*relationBlockSize);
         long sourceNode = std::stol(relationBlock->getSource()->id);
         long targetNode = std::stol(relationBlock->getDestination()->id);
         edges.push_back(std::make_pair(sourceNode, targetNode));
@@ -176,6 +176,7 @@ NativeStoreTriangleResult StreamingTriangles::countDynamicLocalTriangles(
         newAdjacencyList[targetNode].insert(sourceNode);
         localAdjacencyList[sourceNode].insert(targetNode);
         localAdjacencyList[targetNode].insert(sourceNode);
+        delete relationBlock;
     }
 
     std::map<long, std::unordered_set<long>> adjacencyList = localAdjacencyList;
@@ -240,7 +241,7 @@ std::string StreamingTriangles::countDynamicCentralTriangles(
         long v = edge.second;
 
         for (auto w : adjacencyList[u]) {
-            if (adjacencyList[v].count(w) > 0) {
+            if (adjacencyList[v].find(w) != adjacencyList[v].end()) {
                     long varOne = u;
                     long varTwo = v;
                     long varThree = w;
@@ -284,7 +285,7 @@ long StreamingTriangles::count(const std::map<long, std::unordered_set<long>>& g
         long count = 0;
 
         for (long w : g1.at(u)) {
-            if (g2.at(v).count(w) > 0) {
+            if (g2.at(v).find(w) != g2.at(v).end()) {
                 count++;
             }
         }
