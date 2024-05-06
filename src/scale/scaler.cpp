@@ -29,6 +29,8 @@ using namespace std;
 std::mutex schedulerMutex;
 std::map<std::string, int> used_workers;
 
+static Logger scaler_logger;
+
 static std::thread *scale_down_thread = nullptr;
 static volatile bool running = false;
 static SQLiteDBInterface *sqlite = nullptr;
@@ -40,6 +42,7 @@ void start_scale_down(SQLiteDBInterface *sqliteInterface) {
     if (scale_down_thread) return;
     sqlite = sqliteInterface;
     running = true;
+    scaler_logger.info("Starting scale down thread");
     scale_down_thread = new std::thread(scale_down_thread_fn);
 }
 
@@ -55,8 +58,9 @@ static void scale_down_thread_fn() {
     while (running) {
         sleep(30);
         if (!running) break;
+        scaler_logger.info("Scale down thread is running");
         schedulerMutex.lock();
-        vector<string> workers;  // id => "ip:port"
+        vector<string> workers;  // [worker_id]
         const std::vector<vector<pair<string, string>>> &results =
             sqlite->runSelect("SELECT DISTINCT idworker FROM worker;");
         for (int i = 0; i < results.size(); i++) {
@@ -65,12 +69,15 @@ static void scale_down_thread_fn() {
         }
 
         set<int> removing;
+        cout << "Idle workers = [";
         for (auto it = workers.begin(); it != workers.end(); it++) {
             const auto &worker = *it;
             auto it_used = used_workers.find(worker);
             if (it_used != used_workers.end() && it_used->second > 0) continue;
             removing.insert(stoi(worker));
+            cout << worker << ", ";
         }
+        cout << "]" << endl;
 
         int spare = 2;
         if (removing.find(0) != removing.end()) {
