@@ -120,7 +120,7 @@ long StreamingTriangleCountExecutor::getTriangleCount(int graphId, std::string h
         localSocketMap[port] = socket(AF_INET, SOCK_STREAM, 0);
 
         if (sockfd < 0) {
-            std::cerr << "Cannot accept connection" << std::endl;
+            streaming_triangleCount_logger.error("Cannot accept connection");
             return 0;
         }
 
@@ -132,7 +132,7 @@ long StreamingTriangleCountExecutor::getTriangleCount(int graphId, std::string h
 
         server = gethostbyname(host.c_str());
         if (server == NULL) {
-            std::cerr << "ERROR, no host named " << server << std::endl;
+            streaming_triangleCount_logger.error("ERROR, no host named " + host);
         }
 
         bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -141,7 +141,7 @@ long StreamingTriangleCountExecutor::getTriangleCount(int graphId, std::string h
         serv_addr.sin_port = htons(port);
 
         if (Utils::connect_wrapper(localSocketMap[port], (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-            std::cerr << "ERROR connecting" << std::endl;
+            streaming_triangleCount_logger.error("ERROR connecting");
         }
     }
     sockfd = localSocketMap[port];
@@ -425,7 +425,7 @@ string StreamingTriangleCountExecutor::countCentralStoreTriangles(
         centralSocketMap[port] = socket(AF_INET, SOCK_STREAM, 0);
 
         if (centralSocketMap[port] < 0) {
-            std::cerr << "Cannot accept connection" << std::endl;
+            streaming_triangleCount_logger.error("Cannot accept connection");
             return 0;
         }
 
@@ -437,7 +437,7 @@ string StreamingTriangleCountExecutor::countCentralStoreTriangles(
 
         server = gethostbyname(host.c_str());
         if (server == NULL) {
-            std::cerr << "ERROR, no host named " << server << std::endl;
+            streaming_triangleCount_logger.error("ERROR, no host named " + host);
         }
 
         bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -446,7 +446,7 @@ string StreamingTriangleCountExecutor::countCentralStoreTriangles(
         serv_addr.sin_port = htons(port);
 
         if (Utils::connect_wrapper(centralSocketMap[port], (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-            std::cerr << "ERROR connecting" << std::endl;
+            streaming_triangleCount_logger.error("ERROR connecting");
         }
     }
     sockfd = centralSocketMap[port];

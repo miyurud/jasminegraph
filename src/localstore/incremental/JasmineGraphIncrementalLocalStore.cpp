@@ -94,7 +94,7 @@ void JasmineGraphIncrementalLocalStore::addEdgeFromString(std::string edgeString
             }
         }
 
-        incremental_localstore_logger.debug("Added successfully!");
+        incremental_localstore_logger.debug("Edge (" + sId + ", " + dId + ") Added successfully!");
     } catch (const std::exception&) {  // TODO tmkasun: Handle multiple types of exceptions
         incremental_localstore_logger.log(
             "Error while processing edge data = " + edgeString +
