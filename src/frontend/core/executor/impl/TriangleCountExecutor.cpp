@@ -630,7 +630,7 @@ void TriangleCountExecutor::execute() {
     }
     for (auto it = used_workers.cbegin(); it != used_workers.cend();) {
         if (it->second <= 0) {
-            used_workers.erase(it++);  // or "it = m.erase(it)" since C++11
+            used_workers.erase(it++);
         } else {
             it++;
         }

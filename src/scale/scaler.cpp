@@ -62,8 +62,19 @@ static void scale_down_thread_fn() {
         schedulerMutex.lock();
         vector<string> workers;  // [worker_id]
         const std::vector<vector<pair<string, string>>> &results =
-            sqlite->runSelect("SELECT DISTINCT idworker FROM worker;");
+            sqlite->runSelect("SELECT DISTINCT idworker, ip, server_port FROM worker;");
+
+        map<string, int> loads;
+        const map<string, string> &cpu_map = Utils::getMetricMap("cpu_usage");
+
         for (int i = 0; i < results.size(); i++) {
+            string ip = results[i][1].second;
+            string port = results[i][2].second;
+            const auto workerLoadIt = cpu_map.find(ip + ":" + port);
+            if (workerLoadIt != cpu_map.end()) {
+                double load = stod(workerLoadIt->second.c_str());
+                if (load > 0.25) continue;  // worker is running some task. should not remove this node.
+            }
             string workerId = results[i][0].second;
             workers.push_back(workerId);
         }
@@ -93,6 +104,7 @@ static void scale_down_thread_fn() {
             if (it == removing.end()) break;
             removing.erase(it);
         }
+        if (removing.empty()) continue;
 
         K8sWorkerController *k8s = K8sWorkerController::getInstance();
         k8s->scaleDown(removing);
