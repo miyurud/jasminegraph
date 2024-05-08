@@ -104,10 +104,11 @@ static void scale_down_thread_fn() {
             if (it == removing.end()) break;
             removing.erase(it);
         }
-        if (removing.empty()) continue;
+        if (!removing.empty()) {
+            K8sWorkerController *k8s = K8sWorkerController::getInstance();
+            k8s->scaleDown(removing);
+        };
 
-        K8sWorkerController *k8s = K8sWorkerController::getInstance();
-        k8s->scaleDown(removing);
         schedulerMutex.unlock();
     }
 }
