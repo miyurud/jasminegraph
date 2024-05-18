@@ -118,6 +118,30 @@ no_of_workers="${NO_OF_WORKERS}" \
     enable_nmon="${ENABLE_NMON}" \
     envsubst <"./k8s/master-deployment.yaml" | kubectl apply -f -
 
+# Wait till all pods are running
+cur_timestamp="$(date +%s)"
+end_timestamp="$((cur_timestamp + TIMEOUT_SECONDS))"
+while true; do
+    if [ "$(date +%s)" -gt "$end_timestamp" ]; then
+        echo "Pods are not running"
+        exit 1
+    fi
+
+    set +e
+    pods_status="$(kubectl get pods | grep -v 'STATUS' | grep -v 'Running')"
+    set -e
+    if [ -z "$pods_status" ]; then
+        echo "All pods are running"
+        break
+    fi
+
+    echo "----------------------------------------"
+    echo "Waiting for pods to be running"
+    echo "----------------------------------------"
+    echo "$pods_status"
+    sleep 5
+done
+
 # wait until master starts listening
 cur_timestamp="$(date +%s)"
 end_timestamp="$((cur_timestamp + TIMEOUT_SECONDS))"
