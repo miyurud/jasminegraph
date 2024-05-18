@@ -123,6 +123,9 @@ cur_timestamp="$(date +%s)"
 end_timestamp="$((cur_timestamp + TIMEOUT_SECONDS))"
 while true; do
     if [ "$(date +%s)" -gt "$end_timestamp" ]; then
+        for pod in $(kubectl get pods -o jsonpath='{.items[*].metadata.name}'); do
+            kubectl describe pod "$pod"
+        done
         echo "Pods are not running"
         exit 1
     fi

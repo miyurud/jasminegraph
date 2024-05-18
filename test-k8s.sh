@@ -50,7 +50,7 @@ build_and_run_on_k8s() {
     set -e
 
     ./start-k8s.sh --META_DB_PATH "${TEST_ROOT}/env/databases/metadb" \
-        --PERFORMANCE_DB_PATH performancedb_path "${TEST_ROOT}/env/databases/performancedb" \
+        --PERFORMANCE_DB_PATH "${TEST_ROOT}/env/databases/performancedb" \
         --DATA_PATH "${TEST_ROOT}/env/data" \
         --LOG_PATH "${LOG_DIR}" \
         --AGGREGATE_PATH "${TEST_ROOT}/env/aggregate" \

@@ -32,6 +32,7 @@ jobs:
 
       - name: Run unit test
         run: |
+          mkdir /var/tmp/worker0 /var/tmp/worker1 /var/tmp/worker2 /var/tmp/worker3
           chmod +x ./.github/workflows/resources/unit-test.sh
           ./.github/workflows/resources/unit-test.sh          
 
@@ -85,5 +86,6 @@ jobs:
 
       - name: K8S integration tests
         run: |
+          mkdir /var/tmp/worker0 /var/tmp/worker1
           chmod +x test-k8s.sh
           ./test-k8s.sh
