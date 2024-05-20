@@ -80,15 +80,12 @@ static void scale_down_thread_fn() {
         }
 
         set<int> removing;
-        cout << "Idle workers = [";
         for (auto it = workers.begin(); it != workers.end(); it++) {
             const auto &worker = *it;
             auto it_used = used_workers.find(worker);
             if (it_used != used_workers.end() && it_used->second > 0) continue;
             removing.insert(stoi(worker));
-            cout << worker << ", ";
         }
-        cout << "]" << endl;
 
         int spare = 2;
         if (removing.find(0) != removing.end()) {
