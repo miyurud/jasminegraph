@@ -73,7 +73,8 @@ static void scale_down_thread_fn() {
             const auto workerLoadIt = cpu_map.find(ip + ":" + port);
             if (workerLoadIt != cpu_map.end()) {
                 double load = stod(workerLoadIt->second.c_str());
-                if (load > 0.25) continue;  // worker is running some task. should not remove this node.
+                if (load > 0.25)
+                    continue;  // worker is running some task. should not remove this node. (0.25=1/4 is for 4-core CPU)
             }
             string workerId = results[i][0].second;
             workers.push_back(workerId);

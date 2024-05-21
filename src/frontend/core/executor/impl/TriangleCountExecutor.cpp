@@ -428,8 +428,9 @@ static void filter_partitions(std::map<string, std::vector<string>> &partitionMa
 void TriangleCountExecutor::execute() {
     schedulerMutex.lock();
     time_t curr_time = time(NULL);
+    // 8 seconds = upper bound to the time to send performance metrics after allocating trian task to a worker
     if (curr_time < last_exec_time + 8) {
-        sleep(last_exec_time + 9 - curr_time);
+        sleep(last_exec_time + 9 - curr_time);  // 9 = 8+1 to ensure it waits more than 8 seconds
     }
     int uniqueId = getUid();
     std::string masterIP = request.getMasterIP();
