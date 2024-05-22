@@ -59,16 +59,28 @@ class Model:
         """
         if 'batch_size' not in hyper_params:
             batch_size = 20
+        else:
+            batch_size = hyper_params['batch_size']
         if 'layer_sizes' not in hyper_params:
-            num_samples = [20, 10]
-        if 'num_samples' not in hyper_params:
             layer_sizes = [10, 10]
+        else:
+            layer_sizes = hyper_params['layer_sizes']
+        if 'num_samples' not in hyper_params:
+            num_samples = [20, 10]
+        else:
+            num_samples = hyper_params['num_samples']
         if 'bias' not in hyper_params:
             bias = True
+        else:
+            bias = hyper_params['bias']
         if 'dropout' not in hyper_params:
             dropout = 0.1
+        else:
+            dropout = hyper_params['dropout']
         if 'lr' not in hyper_params:
             lr = 1e-2
+        else:
+            lr = hyper_params['lr']
 
         graph = sg.StellarGraph(nodes=self.nodes, edges=self.edges)
 
