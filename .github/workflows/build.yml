@@ -9,6 +9,7 @@ on:
 jobs:
   unit-tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     if: ${{!contains(github.event.pull_request.labels.*.name, 'Skip unit tests')}}
 
     steps:
@@ -31,6 +32,7 @@ jobs:
 
       - name: Run unit test
         run: |
+          mkdir /var/tmp/worker0 /var/tmp/worker1 /var/tmp/worker2 /var/tmp/worker3
           chmod +x ./.github/workflows/resources/unit-test.sh
           ./.github/workflows/resources/unit-test.sh          
 
@@ -44,6 +46,7 @@ jobs:
 
   docker-integration-tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     if: ${{!contains(github.event.pull_request.labels.*.name, 'Skip docker integration')}}
 
     steps:
@@ -62,6 +65,7 @@ jobs:
 
   k8s-integration-tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     if: ${{!contains(github.event.pull_request.labels.*.name, 'Skip k8s integration')}}
 
     steps:
@@ -82,5 +86,6 @@ jobs:
 
       - name: K8S integration tests
         run: |
+          mkdir /var/tmp/worker0 /var/tmp/worker1
           chmod +x test-k8s.sh
           ./test-k8s.sh

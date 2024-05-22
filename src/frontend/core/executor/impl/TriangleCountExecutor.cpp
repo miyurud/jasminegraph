@@ -18,6 +18,7 @@ limitations under the License.
 
 #include "../../../../../globals.h"
 #include "../../../../k8s/K8sWorkerController.h"
+#include "../../../../scale/scaler.h"
 
 using namespace std::chrono;
 
@@ -28,7 +29,8 @@ std::mutex processStatusMutex;
 std::mutex responseVectorMutex;
 static std::mutex fileCombinationMutex;
 static std::mutex aggregateWeightMutex;
-static std::mutex schedulerMutex;
+
+static time_t last_exec_time = 0;
 
 static string isFileAccessibleToWorker(std::string graphId, std::string partitionId, std::string aggregatorHostName,
                                        std::string aggregatorPort, std::string masterIP, std::string fileType,
@@ -424,11 +426,11 @@ static void filter_partitions(std::map<string, std::vector<string>> &partitionMa
 }
 
 void TriangleCountExecutor::execute() {
-    static time_t last_exec = 0;
     schedulerMutex.lock();
     time_t curr_time = time(NULL);
-    if (curr_time < last_exec + 8) {
-        sleep(last_exec + 9 - curr_time);
+    // 8 seconds = upper bound to the time to send performance metrics after allocating trian task to a worker
+    if (curr_time < last_exec_time + 8) {
+        sleep(last_exec_time + 9 - curr_time);  // 9 = 8+1 to ensure it waits more than 8 seconds
     }
     int uniqueId = getUid();
     std::string masterIP = request.getMasterIP();
@@ -512,9 +514,11 @@ void TriangleCountExecutor::execute() {
         isCompositeAggregation = true;
     }
 
-    std::unique_ptr<K8sInterface> k8sInterface(new K8sInterface());
-    if (jasminegraph_profile == PROFILE_K8S && k8sInterface->getJasmineGraphConfig("auto_scaling_enabled") == "true") {
-        filter_partitions(partitionMap, sqlite, graphId);
+    if (jasminegraph_profile == PROFILE_K8S) {
+        std::unique_ptr<K8sInterface> k8sInterface(new K8sInterface());
+        if (k8sInterface->getJasmineGraphConfig("auto_scaling_enabled") == "true") {
+            filter_partitions(partitionMap, sqlite, graphId);
+        }
     }
 
     std::vector<std::vector<string>> fileCombinations;
@@ -535,6 +539,15 @@ void TriangleCountExecutor::execute() {
             }
         }
         fileCombinations = AbstractExecutor::getCombinations(compositeCentralStoreFiles);
+    }
+
+    for (auto it = partitionMap.begin(); it != partitionMap.end(); it++) {
+        string worker = it->first;
+        if (used_workers.find(worker) != used_workers.end()) {
+            used_workers[worker]++;
+        } else {
+            used_workers[worker] = 1;
+        }
     }
 
     std::map<std::string, std::string> combinationWorkerMap;
@@ -592,7 +605,7 @@ void TriangleCountExecutor::execute() {
         isStatCollect = true;
     }
 
-    last_exec = time(NULL);
+    last_exec_time = time(NULL);
     schedulerMutex.unlock();
 
     for (auto &&futureCall : intermRes) {
@@ -610,6 +623,20 @@ void TriangleCountExecutor::execute() {
         triangleCount_logger.log(
             "###TRIANGLE-COUNT-EXECUTOR### Getting Triangle Count : Completed: Triangles " + to_string(result), "info");
     }
+
+    schedulerMutex.lock();
+    for (auto it = partitionMap.begin(); it != partitionMap.end(); it++) {
+        string worker = it->first;
+        used_workers[worker]--;
+    }
+    for (auto it = used_workers.cbegin(); it != used_workers.cend();) {
+        if (it->second <= 0) {
+            used_workers.erase(it++);
+        } else {
+            it++;
+        }
+    }
+    schedulerMutex.unlock();
 
     workerResponded = true;
 

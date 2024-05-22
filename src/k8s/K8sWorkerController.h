@@ -16,6 +16,7 @@ class K8sWorkerController;
 #ifndef JASMINEGRAPH_K8SWORKERCONTROLLER_H
 #define JASMINEGRAPH_K8SWORKERCONTROLLER_H
 
+#include <set>
 #include <vector>
 
 extern "C" {
@@ -58,6 +59,7 @@ class K8sWorkerController {
     void setNumberOfWorkers(int newNumberOfWorkers);
 
     std::map<string, string> scaleUp(int numberOfWorkers);
+    void scaleDown(const set<int> workerIds);
 };
 
 #endif  // JASMINEGRAPH_K8SWORKERCONTROLLER_H
