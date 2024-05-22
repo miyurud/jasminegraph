@@ -15,6 +15,9 @@ limitations under the License.
 
 #define DATA_BUFFER_SIZE (FRONTEND_DATA_LENGTH + 1)
 
+std::map<int, int> StreamingTriangleCountExecutor::localSocketMap;
+std::map<int, int> StreamingTriangleCountExecutor::centralSocketMap;
+
 Logger streaming_triangleCount_logger;
 std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>>
         StreamingTriangleCountExecutor::triangleTree;
@@ -103,48 +106,46 @@ void StreamingTriangleCountExecutor::execute() {
 long StreamingTriangleCountExecutor::getTriangleCount(int graphId, std::string host, int port,
                                                       int dataPort, int partitionId, std::string masterIP,
                                                       std::string runMode, StreamingSQLiteDBInterface streamingDB) {
-    NativeStoreTriangleResult oldResult;
-    NativeStoreTriangleResult newResult;
-    oldResult.localRelationCount = 1;
-    oldResult.centralRelationCount = 1;
-    oldResult.result = 0;
+    NativeStoreTriangleResult oldResult{1, 1, 0};
 
     if (runMode == "1") {
        oldResult = retrieveLocalValues(streamingDB, std::to_string(graphId),
                                        std::to_string(partitionId));
     }
-
     int sockfd;
+    if (localSocketMap.find(port) == localSocketMap.end()) {
+        struct sockaddr_in serv_addr;
+        struct hostent *server;
+
+        localSocketMap[port] = socket(AF_INET, SOCK_STREAM, 0);
+
+        if (sockfd < 0) {
+            streaming_triangleCount_logger.error("Cannot accept connection");
+            return 0;
+        }
+
+        if (host.find('@') != std::string::npos) {
+            host = Utils::split(host, '@')[1];
+        }
+
+        streaming_triangleCount_logger.info("###STREAMING-TRIANGLE-COUNT-EXECUTOR### Get Host By Name : " + host);
+
+        server = gethostbyname(host.c_str());
+        if (server == NULL) {
+            streaming_triangleCount_logger.error("ERROR, no host named " + host);
+        }
+
+        bzero((char *)&serv_addr, sizeof(serv_addr));
+        serv_addr.sin_family = AF_INET;
+        bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+        serv_addr.sin_port = htons(port);
+
+        if (Utils::connect_wrapper(localSocketMap[port], (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+            streaming_triangleCount_logger.error("ERROR connecting");
+        }
+    }
+    sockfd = localSocketMap[port];
     char data[DATA_BUFFER_SIZE];
-    struct sockaddr_in serv_addr;
-    struct hostent *server;
-
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-
-    if (sockfd < 0) {
-        std::cerr << "Cannot accept connection" << std::endl;
-        return 0;
-    }
-
-    if (host.find('@') != std::string::npos) {
-        host = Utils::split(host, '@')[1];
-    }
-
-    streaming_triangleCount_logger.info("###STREAMING-TRIANGLE-COUNT-EXECUTOR### Get Host By Name : " + host);
-
-    server = gethostbyname(host.c_str());
-    if (server == NULL) {
-        std::cerr << "ERROR, no host named " << server << std::endl;
-    }
-
-    bzero((char *)&serv_addr, sizeof(serv_addr));
-    serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
-    serv_addr.sin_port = htons(port);
-
-    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-        std::cerr << "ERROR connecting" << std::endl;
-    }
 
     if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE)) {
         streaming_triangleCount_logger.error("Error writing to socket");
@@ -252,18 +253,16 @@ long StreamingTriangleCountExecutor::getTriangleCount(int graphId, std::string h
     }
     streaming_triangleCount_logger.info("Sent :  mode " + runMode);
 
-    string local_relation_count = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
-    newResult.localRelationCount = std::stol(local_relation_count);
-    streaming_triangleCount_logger.info("Received Local relation count: " + local_relation_count);
+    string localRelationCount = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+    streaming_triangleCount_logger.info("Received Local relation count: " + localRelationCount);
 
     if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::OK)) {
         streaming_triangleCount_logger.error("Error writing to socket");
         return 0;
     }
 
-    string central_relation_count = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
-    newResult.centralRelationCount = std::stol(central_relation_count);
-    streaming_triangleCount_logger.info("Received Central relation count: " + central_relation_count);
+    string centralRelationCount = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+    streaming_triangleCount_logger.info("Received Central relation count: " + centralRelationCount);
 
     if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::OK)) {
         streaming_triangleCount_logger.error("Error writing to socket");
@@ -271,9 +270,11 @@ long StreamingTriangleCountExecutor::getTriangleCount(int graphId, std::string h
     }
 
     string triangles = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
-    newResult.result = std::stol(triangles) + oldResult.result;
     streaming_triangleCount_logger.info("Received result: " + triangles);
 
+    NativeStoreTriangleResult newResult{ std::stol(localRelationCount),
+                                         std::stol(centralRelationCount),
+                                         std::stol(triangles) + oldResult.result};
     saveLocalValues(streamingDB, std::to_string(graphId),
                     std::to_string(partitionId), newResult);
     return newResult.result;
@@ -369,12 +370,19 @@ long StreamingTriangleCountExecutor::aggregateCentralStoreTriangles(
 
     std::vector<std::string> triangles = Utils::split(result, ':');
     std::vector<std::string>::iterator triangleIterator;
+    std::set<std::string> uniqueTriangleSet;
+
     long currentSize = triangleCount;
 
     for (triangleIterator = triangles.begin(); triangleIterator != triangles.end(); ++triangleIterator) {
         std::string triangle = *triangleIterator;
 
         if (!triangle.empty() && triangle != "NILL") {
+            if (runMode == "0") {
+                uniqueTriangleSet.insert(triangle);
+                continue;
+            }
+
             std::vector<std::string> triangleList = Utils::split(triangle, ',');
             long varOne = std::stol(triangleList[0]);
             long varTwo = std::stol(triangleList[1]);
@@ -396,6 +404,9 @@ long StreamingTriangleCountExecutor::aggregateCentralStoreTriangles(
         }
     }
 
+    if (runMode == "0") {
+        return uniqueTriangleSet.size();
+    }
     return triangleCount - currentSize;
 }
 
@@ -405,38 +416,43 @@ string StreamingTriangleCountExecutor::countCentralStoreTriangles(
         std::string partitionIdList, std::string centralCountList,
         std::string graphId, std::string masterIP,
         int threadPriority, std::string runMode) {
+    int port = stoi(aggregatorPort);
     int sockfd;
+    if (centralSocketMap.find(port) == centralSocketMap.end()) {
+        struct sockaddr_in serv_addr;
+        struct hostent *server;
+
+        centralSocketMap[port] = socket(AF_INET, SOCK_STREAM, 0);
+
+        if (centralSocketMap[port] < 0) {
+            streaming_triangleCount_logger.error("Cannot accept connection");
+            return 0;
+        }
+
+        if (host.find('@') != std::string::npos) {
+            host = Utils::split(host, '@')[1];
+        }
+
+        streaming_triangleCount_logger.info("###STREAMING-TRIANGLE-COUNT-EXECUTOR### Get Host By Name : " + host);
+
+        server = gethostbyname(host.c_str());
+        if (server == NULL) {
+            streaming_triangleCount_logger.error("ERROR, no host named " + host);
+        }
+
+        bzero((char *)&serv_addr, sizeof(serv_addr));
+        serv_addr.sin_family = AF_INET;
+        bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+        serv_addr.sin_port = htons(port);
+
+        if (Utils::connect_wrapper(centralSocketMap[port], (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+            streaming_triangleCount_logger.error("ERROR connecting");
+        }
+    }
+    sockfd = centralSocketMap[port];
+
     char data[DATA_BUFFER_SIZE];
-    struct sockaddr_in serv_addr;
-    struct hostent *server;
     std::string result = "";
-
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-
-    if (sockfd < 0) {
-        std::cerr << "Cannot create socket" << std::endl;
-        return result;
-    }
-
-    if (host.find('@') != std::string::npos) {
-        host = Utils::split(host, '@')[1];
-    }
-
-    server = gethostbyname(host.c_str());
-    if (server == NULL) {
-        std::cerr << "ERROR, no host named " << server << std::endl;
-        return result;
-    }
-
-    bzero((char *)&serv_addr, sizeof(serv_addr));
-    serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
-    serv_addr.sin_port = htons(atoi(aggregatorPort.c_str()));
-    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-        std::cerr << "ERROR connecting" << std::endl;
-        // TODO::exit
-        return result;
-    }
 
     if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE)) {
         streaming_triangleCount_logger.error("Error writing to socket");

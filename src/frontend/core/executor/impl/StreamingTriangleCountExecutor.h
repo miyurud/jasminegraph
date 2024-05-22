@@ -29,6 +29,9 @@ limitations under the License.
 
 class StreamingTriangleCountExecutor : public AbstractExecutor{
  public:
+    static std::map<int, int> localSocketMap;  // port->socket
+    static std::map<int, int> centralSocketMap;  // port->socket
+
     static std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> triangleTree;
     static long triangleCount;
 

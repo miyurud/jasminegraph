@@ -1599,7 +1599,6 @@ static void streaming_triangles_command(std::string masterIP, int connFd, JobSch
             sleep(Conts::SCHEDULER_SLEEP_TIME);
         }
     }
-
     schedulerThread.join();  // Wait for the scheduler thread to finish
 }
 

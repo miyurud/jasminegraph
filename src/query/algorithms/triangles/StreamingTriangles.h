@@ -49,18 +49,18 @@ class StreamingTriangles {
             JasmineGraphIncrementalLocalStore *incrementalLocalStoreInstance,
     long old_local_relation_count, long old_central_relation_count);
 
-    static string countDynamicCentralTriangles(string graphId, std::vector<std::string> partitionIdList,
-                                        std::vector<std::string> oldCentralRelationCount);
+    static string countDynamicCentralTriangles(string graphId, std::vector<std::string>& partitionIdList,
+                                               std::vector<std::string>& oldCentralRelationCount);
 
     static std::vector<std::pair<long, long>> getEdges(unsigned int graphID, unsigned int partitionID,
                                                        long previousCentralRelationCount);
 
     static map<long, unordered_set<long>> getCentralAdjacencyList(unsigned int graphID, unsigned int partitionID);
 
-    static long count(std::map<long, std::unordered_set<long>>& g1,
-                                   std::map<long, std::unordered_set<long>>& g2,
-                                   std::vector<std::pair<long, long>>& edges);
-    static long totalCount(std::map<long, std::unordered_set<long>>& g1,
+    static long count(const std::map<long, std::unordered_set<long>>& g1,
+                      const std::map<long, std::unordered_set<long>>& g2,
+                      const std::vector<std::pair<long, long>>& edges);
+    static long totalCount(const std::map<long, std::unordered_set<long>>& g1,
                     std::map<long, std::unordered_set<long>>& g2,
                     std::vector<std::pair<long, long>>& edges);
 };

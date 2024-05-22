@@ -23,8 +23,8 @@ limitations under the License.
 
 struct GraphConfig {
     unsigned long maxLabelSize;
-    unsigned int graphID = 0;
-    unsigned int partitionID = 0;
+    unsigned int graphID;
+    unsigned int partitionID;
     std::string openMode;
 };
 

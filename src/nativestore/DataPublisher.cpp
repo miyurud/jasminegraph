@@ -64,20 +64,20 @@ void DataPublisher::publish(std::string message) {
 
     int message_length = message.length();
     int converted_number = htonl(message_length);
-    data_publisher_logger.info("Sending content length\n");
+    data_publisher_logger.debug("Sending content length\n");
     send(this->sock, &converted_number, sizeof(converted_number), 0);
 
     int received_int = 0;
-    data_publisher_logger.info("Waiting for content length ack\n");
+    data_publisher_logger.debug("Waiting for content length ack\n");
     auto return_status = recv(this->sock, &received_int, sizeof(received_int), 0);
 
     if (return_status > 0) {
-        data_publisher_logger.info("Received int =" + std::to_string(ntohl(received_int)));
+        data_publisher_logger.debug("Received int =" + std::to_string(ntohl(received_int)));
     } else {
         data_publisher_logger.error("Error while receiving content length ack\n");
     }
     send(this->sock, message.c_str(), message.length(), 0);
-    data_publisher_logger.info("Edge data sent\n");
+    data_publisher_logger.debug("Edge data sent\n");
     char CRLF;
     do {
         auto return_status = recv(this->sock, &CRLF, sizeof(CRLF), 0);

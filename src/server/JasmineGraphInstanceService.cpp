@@ -4038,14 +4038,14 @@ static void graph_stream_start_command(int connFd, InstanceStreamHandler &instan
         *loop_exit_p = true;
         return;
     }
-    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK);
+    instance_logger.debug("Sent : " + JasmineGraphInstanceProtocol::GRAPH_STREAM_START_ACK);
 
     int content_length;
-    instance_logger.info("Waiting for edge content length");
+    instance_logger.debug("Waiting for edge content length");
     ssize_t return_status = recv(connFd, &content_length, sizeof(int), 0);
     if (return_status > 0) {
         content_length = ntohl(content_length);
-        instance_logger.info("Received content_length = " + std::to_string(content_length));
+        instance_logger.debug("Received content_length = " + std::to_string(content_length));
     } else {
         instance_logger.error("Error while reading content length");
         *loop_exit_p = true;
@@ -4056,13 +4056,13 @@ static void graph_stream_start_command(int connFd, InstanceStreamHandler &instan
         *loop_exit_p = true;
         return;
     }
-    instance_logger.info("Acked for content length");
+    instance_logger.debug("Acked for content length");
 
-    instance_logger.info("Waiting for edge data");
+    instance_logger.debug("Waiting for edge data");
     std::string nodeString(content_length, 0);
     return_status = recv(connFd, &nodeString[0], content_length, 0);
     if (return_status > 0) {
-        instance_logger.info("Received edge data.");
+        instance_logger.debug("Received edge data.");
     } else {
         instance_logger.error("Error while reading content length");
         *loop_exit_p = true;
@@ -4073,7 +4073,7 @@ static void graph_stream_start_command(int connFd, InstanceStreamHandler &instan
         *loop_exit_p = true;
         return;
     }
-    instance_logger.info("Sent CRLF string to mark the end");
+    instance_logger.debug("Sent CRLF string to mark the end");
 }
 
 static void send_priority_command(int connFd, bool *loop_exit_p) {
