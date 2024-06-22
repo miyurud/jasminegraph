@@ -61,9 +61,10 @@ int Conts::SCHEDULER_SLEEP_TIME = 2;
 int Conts::STREAMING_STRAIN_GAP = 10;
 
 const int Conts::GRAPH_STATUS::LOADING = 1;
-const int Conts::GRAPH_STATUS::OPERATIONAL = 2;
-const int Conts::GRAPH_STATUS::DELETING = 3;
-const int Conts::GRAPH_STATUS::NONOPERATIONAL = 4;
+const int Conts::GRAPH_STATUS::STREAMING = 2;
+const int Conts::GRAPH_STATUS::OPERATIONAL = 3;
+const int Conts::GRAPH_STATUS::DELETING = 4;
+const int Conts::GRAPH_STATUS::NONOPERATIONAL = 5;
 
 const std::string Conts::TRAIN_STATUS::TRAINED = "trained";
 const std::string Conts::TRAIN_STATUS::NOT_TRAINED = "not_trained";
