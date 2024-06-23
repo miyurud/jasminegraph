@@ -109,6 +109,7 @@ class Conts {
 
     struct GRAPH_STATUS {
         static const int LOADING;  // Graph partitions are being uploaded
+        static const int STREAMING;
         static const int
             OPERATIONAL;  // Graph is uploaded and all its partitions are accessible in the current hosts setting
         static const int DELETING;        // Graph partitions are being deleted
