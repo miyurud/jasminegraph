@@ -81,6 +81,16 @@ create table worker_has_partition
     worker_idworker         INTEGER
 );
 
+create table operation_timebound
+(
+    idgraph INTEGER NOT NULL,
+    operation VARCHAR,
+    timebound INTEGER
+);
+
+create index timebound_index
+    on operation_timebound (idgraph, operation);
+
 INSERT INTO graph_status (idgraph_status, description) VALUES (1, 'LOADING');
 INSERT INTO graph_status (idgraph_status, description) VALUES (2, 'OPERATIONAL');
 INSERT INTO graph_status (idgraph_status, description) VALUES (3, 'DELETED');

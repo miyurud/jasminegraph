@@ -1400,6 +1400,20 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
 
         int threadPriority = std::atoi(priority.c_str());
 
+        string timebound_query = "SELECT timebound FROM operation_timebound WHERE idgraph=" + graph_id
+                        + " AND operation='trian'";
+
+        vector<vector<pair<string, string>>> result = sqlite->runSelect(timebound_query);
+
+        if (result.empty()) {
+            // TODO (Ishad-M-I-M): Schedule the operation if the system resource usage is not saturated at maximum.
+            frontend_logger.info("First operation. No gauaranteed timebound");
+
+        } else {
+            frontend_logger.info("Operation will be completed within " + result[0][0].second + " ms");
+        }
+
+
         static volatile int reqCounter = 0;
         string reqId = to_string(reqCounter++);
         frontend_logger.info("Started processing request " + reqId);
@@ -1470,6 +1484,14 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
         auto end = chrono::high_resolution_clock::now();
         auto dur = end - begin;
         auto msDuration = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
+
+        if (result.empty()) {
+            // TODO (Ishad-M-I-M): Insert the timebound with the overaheads added
+            string insert_timebound_query = "INSERT INTO operation_timebound VALUES (" +
+                                            graph_id + ", trian, " + to_string(msDuration)+ ")";
+            sqlite->runInsert(insert_timebound_query);
+        }
+
         frontend_logger.info("Req: " + reqId + " Triangle Count: " + triangleCount +
                              " Time Taken: " + to_string(msDuration) + " milliseconds");
         result_wr = write(connFd, triangleCount.c_str(), triangleCount.length());
