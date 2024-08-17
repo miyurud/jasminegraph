@@ -45,6 +45,12 @@ limitations under the License.
 #include "JasmineGraphFrontEndProtocol.h"
 #include "core/CoreConstants.h"
 #include "core/scheduler/JobScheduler.h"
+#include "antlr4-runtime.h"
+#include "/home/ubuntu/software/jasminegraph/code_generated/antlr/CypherLexer.h"
+#include "/home/ubuntu/software/jasminegraph/code_generated/antlr/CypherParser.h"
+#include "../query/processor/cypher/astbuilder/ASTBuilder.h"
+#include "../query/processor/cypher/astbuilder/ASTNode.h"
+
 
 #define MAX_PENDING_CONNECTIONS 10
 #define DATA_BUFFER_SIZE (FRONTEND_DATA_LENGTH + 1)
@@ -64,6 +70,7 @@ bool JasmineGraphFrontEnd::strian_exit;
 
 static std::string getPartitionCount(std::string path);
 static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
+static void cypher_ast_command(int connFd, bool *loop_exit_p);
 static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
@@ -169,7 +176,9 @@ void *frontendservicesesion(void *dummyPt) {
             break;
         } else if (line.compare(LIST) == 0) {
             list_command(connFd, sqlite, &loop_exit);
-        } else if (line.compare(SHTDN) == 0) {
+        } else if (line.compare(CYPHER_AST) == 0){
+            cypher_ast_command(connFd, &loop_exit);
+        }else if (line.compare(SHTDN) == 0) {
             JasmineGraphServer::shutdown_workers();
             close(connFd);
             exit(0);
@@ -627,6 +636,49 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
     }
 }
 
+static void cypher_ast_command(int connFd, bool *loop_exit)
+{
+
+    string msg_1 = "Input Query :";
+    int result_wr = write(connFd, msg_1.c_str(), msg_1.length());
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit = true;
+        return;
+    }
+    result_wr = write(connFd, "\r\n", 2);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit = true;
+        return;
+    }
+
+    // Get user response.
+    char user_res[FRONTEND_DATA_LENGTH + 1];
+    bzero(user_res, FRONTEND_DATA_LENGTH + 1);
+    read(connFd, user_res, FRONTEND_DATA_LENGTH);
+    string user_res_s(user_res);
+
+    antlr4::ANTLRInputStream input(user_res_s);
+    // Create a lexer from the input
+    CypherLexer lexer(&input);
+
+    // Create a token stream from the lexer
+    antlr4::CommonTokenStream tokens(&lexer);
+
+    // Create a parser from the token stream
+    CypherParser parser(&tokens);
+
+    ASTBuilder ast_builder;
+    auto* ast = any_cast<ASTNode*>(ast_builder.visitOC_Cypher(parser.oC_Cypher()));
+    string result = ast->print(1);
+    int result_wrn = write(connFd, result.c_str(), result.length());
+    if (result_wrn < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit = true;
+    }
+}
+
 static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
     // add RDF graph
     int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
@@ -804,7 +856,8 @@ static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterfac
         int result_wr = write(connFd, DONE.c_str(), DONE.size());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
-            *loop_exit_p = true;
+            *loop_exit_p =
+                true;
             return;
         }
         result_wr = write(connFd, "\r\n", 2);
