@@ -49,6 +49,8 @@ limitations under the License.
 #include "/home/ubuntu/software/jasminegraph/code_generated/antlr/CypherLexer.h"
 #include "/home/ubuntu/software/jasminegraph/code_generated/antlr/CypherParser.h"
 #include "../query/processor/cypher/astbuilder/ASTBuilder.h"
+#include "../query/processor/cypher/astbuilder/ASTNode.h"
+
 
 #define MAX_PENDING_CONNECTIONS 10
 #define DATA_BUFFER_SIZE (FRONTEND_DATA_LENGTH + 1)
@@ -667,7 +669,7 @@ static void cypher_ast_command(int connFd, bool *loop_exit)
     // Create a parser from the token stream
     CypherParser parser(&tokens);
 
-    CypherASTBuilder ast_builder;
+    ASTBuilder ast_builder;
     auto* ast = any_cast<ASTNode*>(ast_builder.visitOC_Cypher(parser.oC_Cypher()));
     string result = ast->print(1);
     int result_wrn = write(connFd, result.c_str(), result.length());

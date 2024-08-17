@@ -42,8 +42,8 @@ set(HEADERS globals.h
         src/query/processor/cypher/astbuilder/ASTBuilder.h
         src/query/processor/cypher/astbuilder/ASTInternalNode.h
         src/query/processor/cypher/astbuilder/ASTLeafNoValue.h
+        src/query/processor/cypher/astbuilder/ASTNode.h
         src/query/processor/cypher/astbuilder/ASTLeafValue.h
-        src/query/processor/cypher/astbuilder/ASTStructure.h
         src/scale/scaler.h
         src/server/JasmineGraphInstance.h
         src/server/JasmineGraphInstanceFileTransferService.h
@@ -114,8 +114,8 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/query/processor/cypher/astbuilder/ASTBuilder.cpp
         src/query/processor/cypher/astbuilder/ASTInternalNode.cpp
         src/query/processor/cypher/astbuilder/ASTLeafNoValue.cpp
+        src/query/processor/cypher/astbuilder/ASTNode.cpp
         src/query/processor/cypher/astbuilder/ASTLeafValue.cpp
-        src/query/processor/cypher/astbuilder/ASTStructure.cpp
         src/scale/scaler.cpp
         src/server/JasmineGraphInstance.cpp
         src/server/JasmineGraphInstanceFileTransferService.cpp

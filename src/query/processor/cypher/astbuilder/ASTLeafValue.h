@@ -1,11 +1,6 @@
-//
-// Created by thamindu on 7/25/24.
-//
-#include "ASTStructure.h"
+#include "ASTNode.h"
 #ifndef ASTLEAFVALUE_H
 #define ASTLEAFVALUE_H
-
-
 
 class ASTLeafValue : public ASTNode {
 public:
@@ -17,7 +12,5 @@ public:
     };
 
 };
-
-
 
 #endif //ASTLEAFVALUE_H
