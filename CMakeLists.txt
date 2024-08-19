@@ -71,6 +71,8 @@ set(HEADERS globals.h
         src/streamingdb/StreamingSQLiteDBInterface.h
         src/frontend/core/executor/impl/PageRankExecutor.h
         src/util/dbinterface/DBInterface.h
+        src/util/hdfs/HDFSConnector.h
+        src/util/hdfs/HDFSStreamHandler.h
 )
 
 set(SOURCES src/backend/JasmineGraphBackend.cpp
@@ -131,6 +133,8 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/streamingdb/StreamingSQLiteDBInterface.cpp
         src/frontend/core/executor/impl/PageRankExecutor.cpp
         src/util/dbinterface/DBInterface.cpp
+        src/util/hdfs/HDFSConnector.cpp
+        src/util/hdfs/HDFSStreamHandler.cpp
 )
 
 if (CMAKE_BUILD_TYPE STREQUAL "DEBUG")
@@ -159,9 +163,11 @@ target_link_libraries(JasmineGraphLib PRIVATE /usr/lib/x86_64-linux-gnu/libxerce
 target_link_libraries(JasmineGraphLib PRIVATE /usr/lib/x86_64-linux-gnu/libflatbuffers.a)
 target_link_libraries(JasmineGraphLib PRIVATE /usr/lib/x86_64-linux-gnu/libjsoncpp.so)
 target_link_libraries(JasmineGraphLib PRIVATE /usr/local/lib/libcppkafka.so)
+target_link_libraries(JasmineGraphLib PRIVATE /usr/local/libhdfs3/lib/libhdfs3.so)
 target_link_libraries(JasmineGraph JasmineGraphLib)
 target_link_libraries(JasmineGraph curl)
 
+include_directories(/usr/local/libhdfs3/include/hdfs/)
 include_directories(/usr/local/include/yaml-cpp)
 target_link_libraries(JasmineGraphLib PRIVATE m)
 target_link_libraries(JasmineGraphLib PRIVATE /usr/local/lib/libkubernetes.so)
