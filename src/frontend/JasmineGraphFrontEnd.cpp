@@ -672,11 +672,7 @@ static void cypher_ast_command(int connFd, bool *loop_exit)
     ASTBuilder ast_builder;
     auto* ast = any_cast<ASTNode*>(ast_builder.visitOC_Cypher(parser.oC_Cypher()));
     string result = ast->print(1);
-    int result_wrn = write(connFd, result.c_str(), result.length());
-    if (result_wrn < 0) {
-        frontend_logger.error("Error writing to socket");
-        *loop_exit = true;
-    }
+    frontend_logger.log(result, "log");
 }
 
 static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
