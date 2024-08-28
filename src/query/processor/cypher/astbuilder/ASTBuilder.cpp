@@ -301,30 +301,42 @@ any ASTBuilder::visitOC_SinglePartQuery(CypherParser::OC_SinglePartQueryContext 
 }
 
 
-//TODO: try to solve a efficient way
+any ASTBuilder::visitOC_MultiPartQuery(CypherParser::OC_MultiPartQueryContext *ctx) {
+  auto *node = new ASTInternalNode("MULTI_PART_QUERY");
+  auto *newNode = new ASTInternalNode("SINGLE_QUERY");
 
-any ASTBuilder::visitOC_MultiPartQuery(CypherParser::OC_MultiPartQueryContext *ctx)  {
-  auto *node = new ASTInternalNode("MULTIPLE_QUERY");
-  for(CypherParser::OC_WithContext* withElement : ctx->oC_With())
-  {
-    size_t const with = withElement->getStart()->getTokenIndex();
-    for(CypherParser::OC_ReadingClauseContext* element : ctx->oC_ReadingClause())
-    {
-      if(element->getStop()->getTokenIndex() < with)
-      {
-        node->addElements(any_cast<ASTNode*>(visitOC_ReadingClause(element)));
-      }
-    }
-    for(CypherParser::OC_UpdatingClauseContext* element : ctx->oC_UpdatingClause())
-    {
-      if(element->getStop()->getTokenIndex() < with)
-      {
-        node->addElements(any_cast<ASTNode*>(visitOC_UpdatingClause(element)));
-      }
+  int withIndex = 0;
+  int readIndex = 0;
+  int updateIndex = 0;
 
+  for (int i = 0; i < ctx->children.size(); i++) {
+    auto *child = ctx->children[i];
+    string typeName = typeid(*child).name();
+    string grammarName = typeName.substr(17);
+
+    if (i + 1 < ctx->children.size()) {
+      auto *nextChild = ctx->children[i + 1];
+      string nextTypeName = typeid(*nextChild).name();
+      string nextGrammarName = nextTypeName.substr(17);
+
+      if (grammarName == "OC_WithContextE" && nextGrammarName == "OC_SinglePartQueryContextE") {
+        newNode->addElements(any_cast<ASTNode*>(visitOC_With(ctx->oC_With(withIndex++))));
+        node->addElements(newNode);
+        break;
+      } else if (grammarName == "OC_WithContextE") {
+        newNode->addElements(any_cast<ASTNode*>(visitOC_With(ctx->oC_With(withIndex++))));
+        node->addElements(newNode);
+        newNode = new ASTInternalNode("SINGLE_QUERY");
+      } else if (grammarName == "OC_ReadingClauseContextE") {
+        newNode->addElements(any_cast<ASTNode*>(visitOC_ReadingClause(ctx->oC_ReadingClause(readIndex++))));
+      } else if (grammarName == "OC_UpdatingClauseContextE") {
+        newNode->addElements(any_cast<ASTNode*>(visitOC_UpdatingClause(ctx->oC_UpdatingClause(updateIndex++))));
+      }
     }
   }
+
   node->addElements(any_cast<ASTNode*>(visitOC_SinglePartQuery(ctx->oC_SinglePartQuery())));
+
   return static_cast<ASTNode*>(node);
 }
 
