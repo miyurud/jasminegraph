@@ -78,6 +78,15 @@ void *runfrontend(void *dummyPt) {
     return NULL;
 }
 
+void *runuifrontend(void *dummyPt){
+    JasmineGraphServer *refToServer = (JasmineGraphServer *)dummyPt;
+    refToServer->frontendUI = new JasmineGraphFrontEndUI(refToServer->sqlite, refToServer->performanceSqlite,
+                                                        refToServer->masterHost, refToServer->jobScheduler);
+    refToServer->frontendUI->run();
+    delete refToServer->frontendUI;
+    return NULL;
+}
+
 void *runbackend(void *dummyPt) {
     JasmineGraphServer *refToServer = (JasmineGraphServer *)dummyPt;
     refToServer->backend = new JasmineGraphBackend(refToServer->sqlite, refToServer->numberOfWorkers);
@@ -153,9 +162,12 @@ int JasmineGraphServer::run(std::string masterIp, int numberofWorkers, std::stri
 
 void JasmineGraphServer::init() {
     pthread_t frontendthread;
+    pthread_t frontenduithread;
     pthread_t backendthread;
     pthread_create(&frontendthread, NULL, runfrontend, this);
     pthread_detach(frontendthread);
+    pthread_create(&frontenduithread, NULL, runuifrontend, this);
+    pthread_detach(frontenduithread);
     pthread_create(&backendthread, NULL, runbackend, this);
     pthread_detach(backendthread);
 }

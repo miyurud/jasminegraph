@@ -131,6 +131,10 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/streamingdb/StreamingSQLiteDBInterface.cpp
         src/frontend/core/executor/impl/PageRankExecutor.cpp
         src/util/dbinterface/DBInterface.cpp
+        src/frontend/ui/JasmineGraphFrontEndUIProtocol.h
+        src/frontend/ui/JasmineGraphFrontEndUIProtocol.cpp
+        src/frontend/ui/JasmineGraphFrontEndUI.cpp
+        src/frontend/ui/JasmineGraphFrontEndUI.h
 )
 
 if (CMAKE_BUILD_TYPE STREQUAL "DEBUG")
