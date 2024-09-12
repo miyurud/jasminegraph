@@ -50,7 +50,7 @@ limitations under the License.
 #include "/home/ubuntu/software/jasminegraph/code_generated/antlr/CypherParser.h"
 #include "../query/processor/cypher/astbuilder/ASTBuilder.h"
 #include "../query/processor/cypher/astbuilder/ASTNode.h"
-#include "../query//processor/cypher/semanticanalyzer/SemanticAnalyzer.h"
+#include "../query/processor/cypher/semanticanalyzer/SemanticAnalyzer.h"
 
 
 #define MAX_PENDING_CONNECTIONS 10
@@ -679,10 +679,10 @@ static void cypher_ast_command(int connFd, bool *loop_exit)
     SemanticAnalyzer semantic_analyzer;
     if(semantic_analyzer.analyze(ast))
     {
-        cout<<"successfully analyzed "<<endl;
+        frontend_logger.log("AST is succssusfully analyzed", "log");
     }else
     {
-        cout<<"analyzed failed" <<endl;
+        frontend_logger.error("query isn't semantically correct");
     }
 }
 

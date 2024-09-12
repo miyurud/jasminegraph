@@ -55,6 +55,7 @@ string ScopeManager::getType(const std::string& symbolName)
     {
         return currentScope->getType(symbolName);
     }
+    return nullptr;
 }
 
 optional<string> ScopeManager::lookup(const string& symbolName) const {
