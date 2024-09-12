@@ -50,6 +50,7 @@ limitations under the License.
 #include "/home/ubuntu/software/jasminegraph/code_generated/antlr/CypherParser.h"
 #include "../query/processor/cypher/astbuilder/ASTBuilder.h"
 #include "../query/processor/cypher/astbuilder/ASTNode.h"
+#include "../query//processor/cypher/semanticanalyzer/SemanticAnalyzer.h"
 
 
 #define MAX_PENDING_CONNECTIONS 10
@@ -672,7 +673,17 @@ static void cypher_ast_command(int connFd, bool *loop_exit)
     ASTBuilder ast_builder;
     auto* ast = any_cast<ASTNode*>(ast_builder.visitOC_Cypher(parser.oC_Cypher()));
     string result = ast->print(1);
+
     frontend_logger.log(result, "log");
+
+    SemanticAnalyzer semantic_analyzer;
+    if(semantic_analyzer.analyze(ast))
+    {
+        cout<<"successfully analyzed "<<endl;
+    }else
+    {
+        cout<<"analyzed failed" <<endl;
+    }
 }
 
 static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {

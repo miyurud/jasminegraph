@@ -11,7 +11,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
-
 #include "ASTBuilder.h"
 #include <any>
 #include <string>
@@ -300,7 +299,6 @@ any ASTBuilder::visitOC_SinglePartQuery(CypherParser::OC_SinglePartQueryContext 
   return static_cast<ASTNode*>(queryNode);
 }
 
-
 any ASTBuilder::visitOC_MultiPartQuery(CypherParser::OC_MultiPartQueryContext *ctx) {
   auto *node = new ASTInternalNode("MULTI_PART_QUERY");
   auto *newNode = new ASTInternalNode("SINGLE_QUERY");
@@ -339,6 +337,7 @@ any ASTBuilder::visitOC_MultiPartQuery(CypherParser::OC_MultiPartQueryContext *c
 
   return static_cast<ASTNode*>(node);
 }
+
 
 
 any ASTBuilder::visitOC_UpdatingClause(CypherParser::OC_UpdatingClauseContext *ctx)  {
@@ -584,6 +583,7 @@ any ASTBuilder::visitOC_YieldItem(CypherParser::OC_YieldItemContext *ctx)  {
     as->addElements(any_cast<ASTNode*>(visitOC_ProcedureResultField(ctx->oC_ProcedureResultField())));
     as->addElements(any_cast<ASTNode*>(visitOC_Variable(ctx->oC_Variable())));
     node->addElements(as);
+    return static_cast<ASTNode*>(node);
   }
   node->addElements(any_cast<ASTNode*>(visitOC_Variable(ctx->oC_Variable())));
   return static_cast<ASTNode*>(node);
@@ -1200,9 +1200,9 @@ any ASTBuilder::visitOC_UnaryAddOrSubtractExpression(CypherParser::OC_UnaryAddOr
 
 
 any ASTBuilder::visitOC_NonArithmeticOperatorExpression(CypherParser::OC_NonArithmeticOperatorExpressionContext *ctx)  {
+  auto *node = new ASTInternalNode("NON_ARITHMETIC_OPERATOR");
   if(!ctx->oC_ListOperatorExpression().empty() | !ctx->oC_PropertyLookup().empty())
   {
-    auto *node = new ASTInternalNode("NON_ARITHMETIC_OPERATOR");
     int i = 0;
     int j = 0;
     for(auto *child : ctx->children)
@@ -1222,6 +1222,11 @@ any ASTBuilder::visitOC_NonArithmeticOperatorExpression(CypherParser::OC_NonArit
         node->addElements(any_cast<ASTNode*>(visitOC_NodeLabels(ctx->oC_NodeLabels())));
       }
     }
+    return static_cast<ASTNode*>(node);
+  }else if(ctx->oC_NodeLabels())
+  {
+    node->addElements(any_cast<ASTNode*>(visitOC_Atom(ctx->oC_Atom())));
+    node->addElements(any_cast<ASTNode*>(visitOC_NodeLabels(ctx->oC_NodeLabels())));
     return static_cast<ASTNode*>(node);
   }
   return visitOC_Atom(ctx->oC_Atom());
@@ -1243,7 +1248,9 @@ any ASTBuilder::visitOC_ListOperatorExpression(CypherParser::OC_ListOperatorExpr
 
 
 any ASTBuilder::visitOC_PropertyLookup(CypherParser::OC_PropertyLookupContext *ctx)  {
-  return visitOC_PropertyKeyName(ctx->oC_PropertyKeyName());
+  auto *node = new ASTInternalNode("PROPERTY_LOOKUP");
+  node->addElements(any_cast<ASTNode*>(visitOC_PropertyKeyName(ctx->oC_PropertyKeyName())));
+  return static_cast<ASTNode*>(node);
 }
 
 

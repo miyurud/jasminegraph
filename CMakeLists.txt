@@ -44,6 +44,9 @@ set(HEADERS globals.h
         src/query/processor/cypher/astbuilder/ASTLeafNoValue.h
         src/query/processor/cypher/astbuilder/ASTNode.h
         src/query/processor/cypher/astbuilder/ASTLeafValue.h
+        src/query/processor/cypher/semanticanalyzer/SemanticAnalyzer.h
+        src/query/processor/cypher/semanticanalyzer/Scope.h
+        src/query/processor/cypher/semanticanalyzer/ScopeManager.h
         src/scale/scaler.h
         src/server/JasmineGraphInstance.h
         src/server/JasmineGraphInstanceFileTransferService.h
@@ -116,6 +119,9 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/query/processor/cypher/astbuilder/ASTLeafNoValue.cpp
         src/query/processor/cypher/astbuilder/ASTNode.cpp
         src/query/processor/cypher/astbuilder/ASTLeafValue.cpp
+        src/query/processor/cypher/semanticanalyzer/SemanticAnalyzer.cpp
+        src/query/processor/cypher/semanticanalyzer/Scope.cpp
+        src/query/processor/cypher/semanticanalyzer/ScopeManager.cpp
         src/scale/scaler.cpp
         src/server/JasmineGraphInstance.cpp
         src/server/JasmineGraphInstanceFileTransferService.cpp
@@ -141,6 +147,7 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/streamingdb/StreamingSQLiteDBInterface.cpp
         src/frontend/core/executor/impl/PageRankExecutor.cpp
         src/util/dbinterface/DBInterface.cpp
+        src/query/processor/cypher/semanticanalyzer/SemanticAnalyzer.cpp
 )
 
 if (CMAKE_BUILD_TYPE STREQUAL "DEBUG")
