@@ -224,7 +224,7 @@ std::vector<std::vector<std::pair<std::string, std::string>>> JasmineGraphFrontE
     return sqlite->runSelect("SELECT idgraph, name, upload_path, graph_status_idgraph_status FROM graph;");
 }
 
-bool JasmineGraphFrontEndCommon::checkServerBusy(volatile int *currentFESession, int connFd) {
+bool JasmineGraphFrontEndCommon::checkServerBusy(std::atomic<int> *currentFESession, int connFd) {
     if (*currentFESession >= Conts::MAX_FE_SESSIONS) {
         if (!Utils::send_str_wrapper(connFd, "JasmineGraph server is busy. Please try again later.")) {
             common_logger.error("Error writing to socket");

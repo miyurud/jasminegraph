@@ -56,7 +56,7 @@ using namespace std::chrono;
 
 std::atomic<int> highPriorityTaskCount;
 static int connFd;
-static volatile int currentFESession;
+static std::atomic<int> currentFESession;
 static bool canCalibrate = true;
 Logger frontend_logger;
 std::set<ProcessInfo> processData;

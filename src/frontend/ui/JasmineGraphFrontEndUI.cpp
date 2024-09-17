@@ -45,7 +45,7 @@ using namespace std;
 using namespace std::chrono;
 
 static int connFd;
-static volatile int currentFESession;
+static std::atomic<int> currentFESession;
 static bool canCalibrate = true;
 Logger ui_frontend_logger;
 std::set<ProcessInfo> processdata;
