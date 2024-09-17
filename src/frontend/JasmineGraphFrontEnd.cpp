@@ -117,12 +117,9 @@ void *frontendservicesesion(void *dummyPt) {
     PerformanceSQLiteDBInterface *perfSqlite = sessionargs->perfSqlite;
     JobScheduler *jobScheduler = sessionargs->jobScheduler;
     delete sessionargs;
-    if (currentFESession++ > Conts::MAX_FE_SESSIONS) {
-        if (!Utils::send_str_wrapper(connFd, "JasmineGraph server is busy. Please try again later.")) {
-            frontend_logger.error("Error writing to socket");
-        }
-        close(connFd);
-        currentFESession--;
+
+    if(JasmineGraphFrontEndCommon::checkServerBusy(&currentFESession, connFd)){
+        frontend_logger.error("Server is busy");
         return NULL;
     }
 
@@ -143,17 +140,10 @@ void *frontendservicesesion(void *dummyPt) {
     bool loop_exit = false;
     int failCnt = 0;
     while (!loop_exit) {
-        string line = Utils::read_str_wrapper(connFd, data, FRONTEND_DATA_LENGTH, true);
+        std::string line = JasmineGraphFrontEndCommon::readAndProcessInput(connFd, data, failCnt);
         if (line.empty()) {
-            failCnt++;
-            if (failCnt > 4) {
-                break;
-            }
-            sleep(1);
             continue;
         }
-        failCnt = 0;
-        line = Utils::trim_copy(line);
         frontend_logger.info("Command received: " + line);
         if (line.empty()) {
             continue;

@@ -47,6 +47,10 @@ public:
 
     // Method to execute SQL query and return results
     static std::vector<std::vector<std::pair<std::string, std::string>>> getGraphData(SQLiteDBInterface *sqlite);
+
+    static bool checkServerBusy(volatile int *currentFESession, int connFd);
+
+    static std::string readAndProcessInput(int connFd, char* data, int &failCnt);
 };
 
 #endif //JASMINEGRAPHFRONTENDCOMMON_H
