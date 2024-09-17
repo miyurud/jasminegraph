@@ -170,15 +170,15 @@ std::vector<std::string> Utils::getHostListFromProperties() {
 static inline std::string trim_right_copy(const std::string &s, const std::string &delimiters) {
     size_t end = s.find_last_not_of(delimiters);
     if (end == std::string::npos) {
-        return ""; // return empty string if all characters are delimiters
+        return "";  // Return empty string if all characters are delimiters
     }
     return s.substr(0, end + 1);
 }
 
 static inline std::string trim_left_copy(const std::string &s, const std::string &delimiters) {
     size_t start = s.find_first_not_of(delimiters);
-    if (start == std::string::npos){
-        return "";  // return empty string if all characters are delimiters
+    if (start == std::string::npos) {
+        return "";  // Return empty string if all characters are delimiters
     }
     return s.substr(start);
 }
