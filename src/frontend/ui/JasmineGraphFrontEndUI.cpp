@@ -34,6 +34,7 @@ limitations under the License.
 #include "../../util/kafka/KafkaCC.h"
 #include "../../util/logger/Logger.h"
 #include "JasmineGraphFrontEndUIProtocol.h"
+#include "../core/common/JasmineGraphFrontendCommon.h"
 #include "../core/scheduler/JobScheduler.h"
 
 #define MAX_PENDING_CONNECTIONS 10
@@ -210,8 +211,7 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
     json result_json = json::array();  // Create a JSON array to hold the result
 
     // Fetch data from the database
-    std::vector<vector<pair<string, string>>> v =
-        sqlite->runSelect("SELECT idgraph, name, upload_path, graph_status_idgraph_status FROM graph;");
+    std::vector<vector<pair<string, string>>> v = JasmineGraphFrontEndCommon::getGraphData(sqlite);
 
     // Iterate through the result set and construct the JSON array
     for (auto &row : v) {
@@ -239,6 +239,15 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
                     } else if (std::stoi(column.second) == Conts::GRAPH_STATUS::OPERATIONAL) {
                         entry["status"] = "op";
                     }
+                    break;
+                case 4:
+                    entry["vertexcount"] = column.second;
+                    break;
+                case 5:
+                    entry["edgecount"] = column.second;
+                    break;
+                case 6:
+                    entry["centralpartitioncount"] = column.second;
                     break;
                 default:
                     break;

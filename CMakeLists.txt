@@ -135,6 +135,8 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/frontend/ui/JasmineGraphFrontEndUIProtocol.cpp
         src/frontend/ui/JasmineGraphFrontEndUI.cpp
         src/frontend/ui/JasmineGraphFrontEndUI.h
+        src/frontend/core/common/JasmineGraphFrontendCommon.cpp
+        src/frontend/core/common/JasmineGraphFrontendCommon.h
 )
 
 if (CMAKE_BUILD_TYPE STREQUAL "DEBUG")

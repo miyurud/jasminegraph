@@ -52,34 +52,12 @@ class JasmineGraphFrontEnd {
 
     int run();
 
-    static bool graphExists(std::string basic_string, SQLiteDBInterface *sqlite);
-
-    static bool modelExists(std::string basic_string, SQLiteDBInterface *sqlite);
-
-    static bool graphExistsByID(std::string id, SQLiteDBInterface *sqlite);
-
-    static bool modelExistsByID(std::string id, SQLiteDBInterface *sqlite);
-
-    static void removeGraph(std::string graphID, SQLiteDBInterface *sqlite, std::string masterIP);
-
-    static void getAndUpdateUploadTime(std::string graphID, SQLiteDBInterface *sqlite);
-
-    static bool isGraphActiveAndTrained(std::string graphID, SQLiteDBInterface *sqlite);
-
-    static map<long, long> getOutDegreeDistributionHashMap(map<long, unordered_set<long>> graphMap);
-
-    static bool isGraphActive(string graphID, SQLiteDBInterface *sqlite);
-
-    static int getUid();
-
-    static long getSLAForGraphId(SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfSqlite,
-                                 std::string graphId, std::string command, std::string category);
-
     static void scheduleStrianJobs(JobRequest &jobDetails, std::priority_queue<JobRequest> &jobQueue,
                                     JobScheduler *jobScheduler, bool *strian_exist);
 
     static int getRunningHighPriorityTaskCount();
     static bool areRunningJobsForSameGraph();
+
     static bool strian_exit;
     std::map<std::string, std::atomic<bool>> *streamsState;
     std::map<std::string, std::thread> streamingThreads;
