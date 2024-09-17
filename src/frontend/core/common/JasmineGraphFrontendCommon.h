@@ -18,6 +18,7 @@ limitations under the License.
 #include <thread>
 
 #include "../../../metadb/SQLiteDBInterface.h"
+#include "../../../partitioner/stream/Partitioner.h"
 #include "../../../query/algorithms/triangles/Triangles.h"
 
 class JasmineGraphFrontEndCommon {
@@ -51,6 +52,8 @@ public:
     static bool checkServerBusy(volatile int *currentFESession, int connFd);
 
     static std::string readAndProcessInput(int connFd, char* data, int &failCnt);
+
+    static Partitioner getPartitioner(SQLiteDBInterface *sqlite);
 };
 
 #endif //JASMINEGRAPHFRONTENDCOMMON_H

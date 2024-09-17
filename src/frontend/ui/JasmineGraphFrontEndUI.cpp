@@ -71,16 +71,6 @@ void *uifrontendservicesesion(void *dummyPt) {
     char data[FRONTEND_DATA_LENGTH + 1];
     //  Initiate Thread
     thread input_stream_handler;
-    //  Initiate kafka consumer parameters
-    std::string partitionCount = Utils::getJasmineGraphProperty("org.jasminegraph.server.npartitions");
-    int numberOfPartitions = std::stoi(partitionCount);
-    std::string kafka_server_IP;
-    cppkafka::Configuration configs;
-    KafkaConnector *kstream;
-    Partitioner graphPartitioner(numberOfPartitions, 1, spt::Algorithms::HASH);
-
-    vector<DataPublisher *> workerClients;
-    bool workerClientsInitialized = false;
 
     bool loop_exit = false;
     int failCnt = 0;
