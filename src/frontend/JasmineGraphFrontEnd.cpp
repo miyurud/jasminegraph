@@ -672,9 +672,6 @@ static void cypher_ast_command(int connFd, bool *loop_exit)
 
     ASTBuilder ast_builder;
     auto* ast = any_cast<ASTNode*>(ast_builder.visitOC_Cypher(parser.oC_Cypher()));
-    string result = ast->print(1);
-
-    frontend_logger.log(result, "log");
 
     SemanticAnalyzer semantic_analyzer;
     if(semantic_analyzer.analyze(ast))
@@ -682,6 +679,7 @@ static void cypher_ast_command(int connFd, bool *loop_exit)
         frontend_logger.log("AST is succssusfully analyzed", "log");
     }else
     {
+        frontend_logger.log(user_res, "error");
         frontend_logger.error("query isn't semantically correct");
     }
 }
