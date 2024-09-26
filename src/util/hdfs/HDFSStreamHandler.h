@@ -15,9 +15,8 @@
 #define HDFSSTREAMHANDLER_H
 
 #include "../logger/Logger.h"
-#include "../../partitioner/stream/Partitioner.h"
-#include "../../partitioner/local/MetisPartitioner.h"
 #include "../Utils.h"
+#include "../../partitioner/stream/HashPartitioner.h"
 
 #include <hdfs.h>
 #include <vector>
@@ -30,27 +29,19 @@
 
 class HDFSStreamHandler {
 public:
-    HDFSStreamHandler(hdfsFS fileSystem, const std::string &filePath, int numberOfPartitions, int graphId,
+            HDFSStreamHandler(hdfsFS fileSystem, const std::string &filePath, int numberOfPartitions, int graphId,
                       SQLiteDBInterface *sqlite,
                       std::string masterIP);
 
-    void start_streaming_data_from_hdfs_into_partitions();
+    void startStreamingFromBufferToPartitions();
 
 private:
-    void stream_from_hdfs_into_buffer();
-
-    void stream_from_buffer_to_processing_queue();
-
-    void process_lines();
-
-    void open_new_file_chunk();
-
-    void load_data_and_close_file_chunk();
+    void streamFromHDFSIntoBuffer();
+    void streamFromBufferToProcessingQueue();
+    void processLines();
 
     hdfsFS fileSystem;
-    MetisPartitioner partitioner;
     std::string filePath;
-
     std::queue<std::string> dataBuffer;
     std::queue<std::string> lineBuffer;
 

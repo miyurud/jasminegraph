@@ -69,6 +69,8 @@ class Partition {
     void printEdges();
     bool isExist(std::string);
     bool isExistInEdgeCuts(std::string);
+    std::map<int, std::vector<int>> getLocalStorageMap();
+    std::map<int, std::vector<int>> getPartitionMasterEdgeMap();
 };
 
 #endif
