@@ -1,18 +1,6 @@
-/*
- * Copyright 2024 JasminGraph Team
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *    http://www.apache.org/licenses/LICENSE-2.0
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 #include "HDFSStreamHandler.h"
 #include "../../server/JasmineGraphServer.h"
+#include "../../partitioner/stream/HashPartitioner.h"
 #include <chrono>
 #include <nlohmann/json.hpp>
 #include <string>
@@ -21,6 +9,7 @@
 #include <mutex>
 #include <queue>
 #include <regex>
+#include <thread>
 
 using json = nlohmann::json;
 using namespace std;
@@ -28,10 +17,9 @@ using namespace std::chrono;
 
 Logger hdfs_stream_handler_logger;
 
-const size_t MESSAGE_SIZE = 1024;
-const size_t MAX_BUFFER_SIZE = MESSAGE_SIZE * 1024;
+const size_t MESSAGE_SIZE = 5 * 1024 * 1024;  // Increased message size :5MB
+const size_t MAX_BUFFER_SIZE = MESSAGE_SIZE * 512;  // Increased buffer size
 const std::string END_OF_STREAM_MARKER = "-1";
-const size_t FILE_SIZE_THRESHOLD = 10485760; // Example: 10 MB threshold
 
 HDFSStreamHandler::HDFSStreamHandler(hdfsFS fileSystem, const std::string &filePath, int numberOfPartitions,
                                      int graphId, SQLiteDBInterface *sqlite,
@@ -45,45 +33,40 @@ HDFSStreamHandler::HDFSStreamHandler(hdfsFS fileSystem, const std::string &fileP
           currentFileSize(0),
           sqlite(sqlite),
           masterIP(masterIP),
-          partitioner(sqlite),
           fileIndex(0) {}
 
-void HDFSStreamHandler::stream_from_hdfs_into_buffer() {
+void HDFSStreamHandler::streamFromHDFSIntoBuffer() {
     auto start_time = high_resolution_clock::now();
+    hdfs_stream_handler_logger.info("Started streaming data from HDFS into data buffer...");
 
     hdfsFile file = hdfsOpenFile(fileSystem, filePath.c_str(), O_RDONLY, 0, 0, 0);
     if (!file) {
         hdfs_stream_handler_logger.error("Failed to open HDFS file.");
-        isReading = false; // Signal completion
-        dataBufferCV.notify_all(); // Notify any waiting consumers
+        isReading = false;
+        dataBufferCV.notify_all();
         return;
     }
 
-    char buffer[MESSAGE_SIZE];
+    std::vector<char> buffer(MESSAGE_SIZE);
     tSize num_read_bytes = 0;
+    std::string leftover;
 
-    std::string leftover; // Store any leftover data between reads
-
-    while ((num_read_bytes = hdfsRead(fileSystem, file, buffer, MESSAGE_SIZE)) > 0) {
-        std::string data(buffer, num_read_bytes);
-
-        // Prepend leftover data from the previous read
+    while ((num_read_bytes = hdfsRead(fileSystem, file, buffer.data(), MESSAGE_SIZE)) > 0) {
+        std::string data(buffer.data(), num_read_bytes);
         data = leftover + data;
         leftover.clear();
 
-        // Process data into complete lines
         std::istringstream dataStream(data);
         std::string line;
         while (std::getline(dataStream, line)) {
             if (dataStream.eof() && data.back() != '\n') {
-                // If this is the last line but doesn't end with a newline, save it as leftover
                 leftover = line;
             } else {
                 std::unique_lock<std::mutex> lock(dataBufferMutex);
                 dataBufferCV.wait(lock, [this] { return dataBuffer.size() < MAX_BUFFER_SIZE || !isReading; });
-                dataBuffer.push(line);  // Push the line into the buffer
+                dataBuffer.push(line);
                 lock.unlock();
-                dataBufferCV.notify_one();  // Notify the processor thread
+                dataBufferCV.notify_one();
             }
         }
     }
@@ -91,29 +74,29 @@ void HDFSStreamHandler::stream_from_hdfs_into_buffer() {
     hdfsCloseFile(fileSystem, file);
     isReading = false;
 
-    // Push any remaining leftover data if it's non-empty
     if (!leftover.empty()) {
         std::unique_lock<std::mutex> lock(dataBufferMutex);
-        dataBuffer.push(leftover);  // Critical section
+        dataBuffer.push(leftover);
         lock.unlock();
-        dataBufferCV.notify_all();  // Notify the processor thread that reading is done
+        dataBufferCV.notify_all();
     }
 
-    // Push end-of-stream marker into the buffer
     {
         std::unique_lock<std::mutex> lock(dataBufferMutex);
-        dataBuffer.push(END_OF_STREAM_MARKER);  // Critical section
-        lock.unlock(); // Ensure the mutex is unlocked
+        dataBuffer.push(END_OF_STREAM_MARKER);
+        lock.unlock();
     }
 
-    dataBufferCV.notify_all();  // Notify the processor thread that reading is done
-
+    dataBufferCV.notify_all();
     auto end_time = high_resolution_clock::now();
     std::chrono::duration<double> duration = end_time - start_time;
+    hdfs_stream_handler_logger.info("Successfully streamed data from HDFS into data buffer.");
     hdfs_stream_handler_logger.info("Time taken to read from HDFS: " + to_string(duration.count()) + " seconds");
 }
 
-void HDFSStreamHandler::stream_from_buffer_to_processing_queue() {
+void HDFSStreamHandler::streamFromBufferToProcessingQueue() {
+    hdfs_stream_handler_logger.info("Started streaming data from data buffer to line buffer...");
+    HashPartitioner partitioner(numberOfPartitions, graphId);
     auto start_time = high_resolution_clock::now();
 
     while (true) {
@@ -122,153 +105,130 @@ void HDFSStreamHandler::stream_from_buffer_to_processing_queue() {
 
         if (!dataBuffer.empty()) {
             std::string line = dataBuffer.front();
-            dataBuffer.pop();  // Critical section
-            lock.unlock();  // Unlock the mutex
+            dataBuffer.pop();
+            lock.unlock();
 
-            // Check if the data is the end-of-stream marker
             if (line == END_OF_STREAM_MARKER) {
                 hdfs_stream_handler_logger.info("Received end-of-stream marker");
-                lineBuffer.push(END_OF_STREAM_MARKER);  // Push end-of-stream marker to the line buffer
-                break; // Exit the loop after handling the end-of-stream marker
+                lineBuffer.push(END_OF_STREAM_MARKER);
+                break;
             }
 
-            // Push complete line to line buffer
             std::unique_lock<std::mutex> lineLock(lineBufferMutex);
             lineBuffer.push(line);
             lineLock.unlock();
-            lineBufferCV.notify_one();  // Notify the line processor thread
+            lineBufferCV.notify_one();
         } else if (!isReading) {
             break;
         }
     }
 
     isProcessing = false;
-    lineBufferCV.notify_all();  // Notify the line processor thread that processing is done
+    lineBufferCV.notify_all();
 
     auto end_time = high_resolution_clock::now();
     std::chrono::duration<double> duration = end_time - start_time;
-    hdfs_stream_handler_logger.info(
-            "Time taken to read from buffer to processing queue: " + to_string(duration.count()) + " seconds");
+    hdfs_stream_handler_logger.info("Successfully streamed data from data buffer to line buffer.");
+    hdfs_stream_handler_logger.info("Time taken to read from buffer to processing queue: " + to_string(duration.count()) + " seconds");
 }
 
-void HDFSStreamHandler::process_lines() {
+void HDFSStreamHandler::processLines() {
+    hdfs_stream_handler_logger.info("Started processing data from line buffer...");
+
     auto start_time = high_resolution_clock::now();
-    int edgeCount = 0;
+    HashPartitioner partitioner(numberOfPartitions, graphId);
 
-    partitioner.setPathAndGraphID(graphId);
+    const int numWorkers = std::thread::hardware_concurrency();  // Number of worker threads
+    std::vector<std::thread> workers;
+    std::atomic<bool> done(false);  // To signal all threads to exit
 
-    while (true) {
-        std::unique_lock<std::mutex> lineLock(lineBufferMutex);
-        lineBufferCV.wait(lineLock, [this] { return !lineBuffer.empty() || !isProcessing; });
+    // Worker function to process lines in parallel
+    auto workerFunction = [this, &partitioner, &done]() {
+        while (!done.load()) {
+            std::string line;
 
-        if (!lineBuffer.empty()) {
-            std::string line = lineBuffer.front();
-            lineBuffer.pop();  // Critical section
-            lineLock.unlock();  // Unlock the mutex
+            // Lock the line buffer to safely access a line
+            {
+                std::unique_lock<std::mutex> lineLock(lineBufferMutex);
+                lineBufferCV.wait(lineLock, [this, &done] { return !lineBuffer.empty() || done.load(); });
 
-            // Check if the line is the end-of-stream marker
-            if (line == END_OF_STREAM_MARKER) {
-                load_data_and_close_file_chunk();
-                break;
-            }
+                if (!lineBuffer.empty()) {
+                    line = lineBuffer.front();
+                    lineBuffer.pop();
 
-            // Define regex pattern to match any of the delimiters (space, tab, comma)
+                    // Check for end-of-stream marker
+                    if (line == END_OF_STREAM_MARKER) {
+                        done.store(true);  // Signal other threads to exit
+                        return;
+                    }
+                } else if (done.load()) {
+                    return;  // Exit thread if processing is done
+                }
+            }  // Unlock the mutex here
+
+            // Process the line outside the lock
             std::regex delimiter_regex("\\s+|,");
             std::sregex_token_iterator iter(line.begin(), line.end(), delimiter_regex, -1);
             std::sregex_token_iterator end;
 
             std::vector<std::string> tokens(iter, end);
-
             if (tokens.size() == 2) {
                 std::string sourceId = tokens[0];
                 std::string destId = tokens[1];
-
+//                hdfs_stream_handler_logger.info("Source : "+sourceId+" Dest : "+destId);
                 if (!sourceId.empty() && !destId.empty()) {
-                    edgeCount++;
-
-                    // Check if file needs to be opened or if it exceeds size threshold
-                    if (!currentFile.is_open() || currentFileSize >= FILE_SIZE_THRESHOLD) {
-                        load_data_and_close_file_chunk();
-                        open_new_file_chunk();
-                    }
-
-                    // Write the edge data to the file chunk
-                    line += "\n";
-                    currentFile.write(line.c_str(), line.size());
-                    currentFileSize += line.size();
+                    partitioner.hashPartitioning({sourceId, destId});
                 } else {
                     hdfs_stream_handler_logger.error("Malformed line: " + line);
                 }
             } else {
                 hdfs_stream_handler_logger.error("Malformed line (unexpected token count): " + line);
             }
-        } else if (!isProcessing) {
-            break;
         }
+    };
+
+    // Create and start the worker threads
+    for (int i = 0; i < 1; i++) {
+        workers.emplace_back(workerFunction);
     }
-    vector<std::map<int, string>> fullFileList;
-    fullFileList = partitioner.partitioneWithGPMetis(to_string(numberOfPartitions));
-    hdfs_stream_handler_logger.info("Upload done");
-    JasmineGraphServer *server = JasmineGraphServer::getInstance();
-    server->uploadGraphLocally(graphId, Conts::GRAPH_TYPE_NORMAL, fullFileList, masterIP);
-    Utils::deleteDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp/" + to_string(graphId));
-    JasmineGraphFrontEnd::getAndUpdateUploadTime(to_string(graphId), sqlite);
+
+    // Wait for all threads to finish
+    for (auto &worker : workers) {
+        worker.join();
+    }
+
+    partitioner.printStats();
+
+    long vertexCount=partitioner.getVertexCount();
+    long edgeCount=partitioner.getEdgeCount();
+    string sqlStatement = "UPDATE graph SET vertexcount = '" + std::to_string(vertexCount) +
+                          "' ,centralpartitioncount = '" + std::to_string(this->numberOfPartitions) + "' ,edgecount = '" +
+                          std::to_string(edgeCount) + "' WHERE idgraph = '" +
+                          std::to_string(this->graphId) + "'";
+    this->sqlite->runUpdate(sqlStatement);
+    partitioner.uploadGraphLocally(masterIP);
 
     auto end_time = high_resolution_clock::now();
     std::chrono::duration<double> duration = end_time - start_time;
+    hdfs_stream_handler_logger.info("Successfully processed data from line buffer.");
     hdfs_stream_handler_logger.info("Time taken to process lines: " + to_string(duration.count()) + " seconds");
 }
 
-void HDFSStreamHandler::open_new_file_chunk() {
-    currentFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.tempdatafolder") + "/aaa_" +
-                      std::to_string(graphId) + std::to_string(fileIndex);
-    hdfs_stream_handler_logger.info("Opening new file: " + currentFilePath);
-    currentFile.open(currentFilePath, std::ios::out | std::ios::binary);
-    if (!currentFile.is_open()) {
-        hdfs_stream_handler_logger.error("Failed to open file: " + currentFilePath);
-        return;
-    }
-    currentFileSize = 0;  // Reset the file size after opening a new file
-}
-
-void HDFSStreamHandler::load_data_and_close_file_chunk() {
-    if (currentFile.is_open()) {
-        currentFile.close();
-        partitioner.loadFileChunks(currentFilePath);
-        int result = partitioner.constructMetisFormat(Conts::GRAPH_TYPE_NORMAL);
-        if (result == 0) {
-            string reformattedFilePath = partitioner.reformatDataSet(currentFilePath, graphId);
-            partitioner.loadDataSet(reformattedFilePath, graphId);
-        }
-    }
-    fileIndex++;  // Increment the file index
-}
-
-void HDFSStreamHandler::start_streaming_data_from_hdfs_into_partitions() {
+void HDFSStreamHandler::startStreamingFromBufferToPartitions() {
     auto start_time = high_resolution_clock::now();
-    Utils::createDirectory(Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.tempdatafolder"));
 
     currentFileSize = 0;
-    open_new_file_chunk();
 
-    // Start threads for streaming and processing
-    std::thread readerThread(&HDFSStreamHandler::stream_from_hdfs_into_buffer, this);
-    std::thread bufferProcessorThread(&HDFSStreamHandler::stream_from_buffer_to_processing_queue, this);
-    std::thread lineProcessorThread(&HDFSStreamHandler::process_lines, this);
+    std::thread readerThread(&HDFSStreamHandler::streamFromHDFSIntoBuffer, this);
+    std::thread bufferProcessorThread(&HDFSStreamHandler::streamFromBufferToProcessingQueue, this);
+    std::thread lineProcessorThread(&HDFSStreamHandler::processLines, this);
 
-    // Wait for the threads to finish
     readerThread.join();
     bufferProcessorThread.join();
     lineProcessorThread.join();
-
-    // Close and publish the final file if needed
-    if (currentFile.is_open()) {
-        load_data_and_close_file_chunk();
-    }
 
     auto end_time = high_resolution_clock::now();
     std::chrono::duration<double> duration = end_time - start_time;
     hdfs_stream_handler_logger.info(
             "Total time taken for streaming from HDFS into partitions: " + to_string(duration.count()) + " seconds");
-    Utils::deleteDirectory(Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.tempdatafolder"));
 }
