@@ -73,6 +73,7 @@ set(HEADERS globals.h
         src/util/dbinterface/DBInterface.h
         src/util/hdfs/HDFSConnector.h
         src/util/hdfs/HDFSStreamHandler.h
+        src/partitioner/stream/HashPartitioner.h
 )
 
 set(SOURCES src/backend/JasmineGraphBackend.cpp
@@ -135,6 +136,7 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/util/dbinterface/DBInterface.cpp
         src/util/hdfs/HDFSConnector.cpp
         src/util/hdfs/HDFSStreamHandler.cpp
+        src/partitioner/stream/HashPartitioner.cpp
 )
 
 if (CMAKE_BUILD_TYPE STREQUAL "DEBUG")
@@ -168,6 +170,9 @@ target_link_libraries(JasmineGraph JasmineGraphLib)
 target_link_libraries(JasmineGraph curl)
 
 include_directories(/usr/local/libhdfs3/include/hdfs/)
+include_directories(/usr/include/oneapi/)
+include_directories(/usr/local/parmetis/include/)
+include_directories(/usr/lib/x86_64-linux-gnu/openmpi/include/)
 include_directories(/usr/local/include/yaml-cpp)
 target_link_libraries(JasmineGraphLib PRIVATE m)
 target_link_libraries(JasmineGraphLib PRIVATE /usr/local/lib/libkubernetes.so)

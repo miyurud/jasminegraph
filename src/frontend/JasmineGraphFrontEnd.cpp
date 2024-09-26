@@ -1395,7 +1395,7 @@ void add_stream_hdfs_command(std::string masterIP,int connFd, std::string &hdfs_
     frontend_logger.info("Created graph ID: " + std::to_string(newGraphID));
     HDFSStreamHandler *stream_handler = new HDFSStreamHandler(hdfsConnector->getFileSystem(), hdfs_file_path_s, numberOfPartitions,  newGraphID,sqlite,masterIP);
     frontend_logger.info("Start listening to " + hdfs_file_path_s);
-    input_stream_handler_thread = std::thread(&HDFSStreamHandler::start_streaming_data_from_hdfs_into_partitions, stream_handler);
+    input_stream_handler_thread = std::thread(&HDFSStreamHandler::startStreamingFromBufferToPartitions, stream_handler);
 }
 
 static void stop_stream_kafka_command(int connFd, KafkaConnector *kstream, bool *loop_exit_p) {
