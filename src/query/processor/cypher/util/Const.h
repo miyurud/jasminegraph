@@ -133,6 +133,12 @@ public:
     static string RESERVED_WORD;
     static string LEFT_ARRROW;
     static string RIGHT_ARROW;
+
+    static string MAP;
+    static string PATH_PATTERN;
+    static string NODE;
+    static string RELATIONSHIP;
+    static string LOOKUP;
 };
 
 #endif //CONST_H
