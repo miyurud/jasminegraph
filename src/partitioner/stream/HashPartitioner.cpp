@@ -8,6 +8,92 @@ Logger hash_partitioner_logger;
 std::mutex partitionFileMutex;
 std::mutex centralStoreFileMutex;
 
+HashPartitioner::HashPartitioner(int numberOfPartitions, int graphID)
+        : numberOfPartitions(numberOfPartitions), graphId(graphID), partitionLocks(numberOfPartitions),
+          vertexCount(0), edgeCount(0), localEdgeArrays(numberOfPartitions),
+          edgeCutsArrays(numberOfPartitions), localEdgeMutexes(numberOfPartitions),
+          edgeAvailableCV(numberOfPartitions), edgeReady(numberOfPartitions, false),
+          edgeCutsMutexes(numberOfPartitions), edgeCutsAvailableCV(numberOfPartitions),
+          edgeCutsReady(numberOfPartitions, false) {
+
+    for (int i = 0; i < numberOfPartitions; i++) {
+        this->partitions.push_back(Partition(i, numberOfPartitions));
+    }
+    // Start consumer threads for adding local edges and edge cuts
+    for (int i = 0; i < numberOfPartitions; ++i) {
+        std::thread(&HashPartitioner::consumeLocalEdges, this, i).detach();
+        std::thread(&HashPartitioner::consumeEdgeCuts, this, i).detach();
+    }
+    this->outputFilePath = Utils::getHomeDir() + "/.jasminegraph/tmp/" + std::to_string(this->graphId);
+}
+
+// Function to add edge to localEdgeArrays
+void HashPartitioner::addLocalEdge(const std::pair<std::string, std::string> &edge, int index) {
+    if (index < numberOfPartitions) {
+        std::lock_guard<std::mutex> lock(localEdgeMutexes[index]);
+        localEdgeArrays[index].push_back(edge);
+        edgeReady[index] = true;  // Mark that there are new edges
+        edgeAvailableCV[index].notify_one();  // Notify the consumer
+    } else {
+        hash_partitioner_logger.info("Invalid partition index in addLocalEdge");
+    }
+}
+
+void HashPartitioner::consumeLocalEdges(int partitionIndex) {
+    while (true) {
+        std::unique_lock<std::mutex> lock(localEdgeMutexes[partitionIndex]);
+        edgeAvailableCV[partitionIndex].wait(lock, [this, partitionIndex] {
+            return edgeReady[partitionIndex];  // Wait until there are new edges
+        });
+
+        // Process all edges in localEdgeArrays[partitionIndex]
+        while (!localEdgeArrays[partitionIndex].empty()) {
+            std::pair<std::string, std::string> edge = localEdgeArrays[partitionIndex].back();
+            localEdgeArrays[partitionIndex].pop_back();
+
+            // Add the edge to the respective partition
+            std::lock_guard<std::mutex> partitionLock(partitionLocks[partitionIndex]);
+            partitions[partitionIndex].addEdge(edge);
+        }
+
+        edgeReady[partitionIndex] = false;  // Reset the flag after processing
+    }
+}
+
+// Function to add edge to edgeCutsArrays
+void HashPartitioner::addEdgeCut(const std::pair<std::string, std::string> &edge, int index) {
+    if (index < numberOfPartitions) {
+        std::lock_guard<std::mutex> lock(edgeCutsMutexes[index]);
+        edgeCutsArrays[index].push_back(edge);
+        edgeCutsReady[index] = true;  // Mark that there are new edge cuts
+        edgeCutsAvailableCV[index].notify_one();  // Notify the consumer
+    } else {
+        hash_partitioner_logger.info("Invalid partition index in addEdgeCut");
+    }
+}
+
+void HashPartitioner::consumeEdgeCuts(int partitionIndex) {
+    while (true) {
+        std::unique_lock<std::mutex> lock(edgeCutsMutexes[partitionIndex]);
+        edgeCutsAvailableCV[partitionIndex].wait(lock, [this, partitionIndex] {
+            return edgeCutsReady[partitionIndex];  // Wait until there are new edge cuts
+        });
+
+        // Process all edges in edgeCutsArrays[partitionIndex]
+        while (!edgeCutsArrays[partitionIndex].empty()) {
+            std::pair<std::string, std::string> edge = edgeCutsArrays[partitionIndex].back();
+            edgeCutsArrays[partitionIndex].pop_back();
+
+            // Add the edge cut to the respective partition or perform the required processing
+            std::lock_guard<std::mutex> partitionLock(partitionLocks[partitionIndex]);
+            partitions[partitionIndex].addToEdgeCuts(edge.first, edge.second,
+                                                     partitionIndex);  // Assuming you have a method to handle edge cuts
+        }
+
+        edgeCutsReady[partitionIndex] = false;  // Reset the flag after processing
+    }
+}
+
 partitionedEdge HashPartitioner::hashPartitioning(std::pair<std::string, std::string> edge) {
     int firstPartition = std::hash<std::string>()(edge.first) % this->numberOfPartitions;
     int secondPartition = std::hash<std::string>()(edge.second) % this->numberOfPartitions;
