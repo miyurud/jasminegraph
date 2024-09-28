@@ -14,9 +14,10 @@ limitations under the License.
 #include <iostream>
 #include "SemanticAnalyzer.h"
 #include "ScopeManager.h"
-
+#include "../../../../util/logger/Logger.h"
 
 using namespace std;
+
 // Constructor
 SemanticAnalyzer::SemanticAnalyzer() {
     // Initialize the scope manager with the global scope
@@ -215,7 +216,7 @@ bool SemanticAnalyzer::checkVariableDeclarations(ASTNode* node, string type) {
         return true;
     }
     else {
-        reportError("Variable already declared: " + node->value, node);
+        reportError("Varmiable already declared: " + node->value, node);
         return false;
     }
 
@@ -257,5 +258,6 @@ bool SemanticAnalyzer::checkVariableUsage(ASTNode* node, string type)
 
 // Report errors
 void SemanticAnalyzer::reportError(const std::string &message, ASTNode* node) {
-    std::cerr << "Error: " << message << std::endl;
+    Logger logger;
+    logger.error(message);
 }
