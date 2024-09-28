@@ -171,11 +171,17 @@ bool SemanticAnalyzer::analyze(ASTNode* root, bool canDefine, string type) {
                 if(child->elements[0]->nodeType == Const::VARIABLE)
                 {
                     tempType = scopeManager->getType(child->elements[0]->value);
+                }else if(child->elements[0]->nodeType == Const::PROPERIES_MAP)
+                {
+                    tempType = Const::MAP;
+                }else if(child->elements[0]->nodeType == Const::LIST)
+                {
+                    tempType = Const::LIST;
                 }else
                 {
                     tempType = Const::ANY;
                 }
-                pair<string,string> x = pair<string,string>(child->elements[0]->value,tempType);
+                pair<string,string> x = pair<string,string>(child->elements[1]->value,tempType);
                 temp->insert(x);
             } else if(child->nodeType == Const::VARIABLE)
             {
@@ -193,6 +199,7 @@ bool SemanticAnalyzer::analyze(ASTNode* root, bool canDefine, string type) {
         for (auto tempNode = temp->begin(); tempNode != temp->end(); ++tempNode) {
             scopeManager->addSymbol(tempNode->first,tempNode->second);
         }
+
     }
     else
     {
