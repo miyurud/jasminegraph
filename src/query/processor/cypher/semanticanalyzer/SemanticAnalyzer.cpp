@@ -14,9 +14,11 @@ limitations under the License.
 #include <iostream>
 #include "SemanticAnalyzer.h"
 #include "ScopeManager.h"
-
+#include "../../../../util/logger/Logger.h"
+#include "../util/Const.h"
 
 using namespace std;
+
 // Constructor
 SemanticAnalyzer::SemanticAnalyzer() {
     // Initialize the scope manager with the global scope
@@ -33,54 +35,54 @@ SemanticAnalyzer::~SemanticAnalyzer() {
 
 // Main method to analyze the AST
 bool SemanticAnalyzer::analyze(ASTNode* root, bool canDefine, string type) {
-    if(root->nodeType == "VARIABLE" && canDefine)
+    if(root->nodeType == Const::VARIABLE && canDefine)
     {
         if(!checkVariableDeclarations(root, type))
         {
             return false;
         }
-    }else if(root->nodeType == "VARIABLE")
+    }else if(root->nodeType == Const::VARIABLE)
     {
         if(!checkVariableUsage(root, type))
         {
             return false;
         }
-    }else if (root->nodeType == "AS")
+    }else if (root->nodeType == Const::AS)
     {
         string ntype;
-        if (root->elements[0]->nodeType == "LIST" || root->elements[0]->nodeType == "LIST_COMPREHENSION")
+        if (root->elements[0]->nodeType == Const::LIST || root->elements[0]->nodeType == Const::LIST_COMPREHENSION)
         {
-            ntype = "LIST";
+            ntype = Const::LIST;
         }
-        else if (root->elements[0]->nodeType == "PROPERIES_MAP")
+        else if (root->elements[0]->nodeType == Const::PROPERIES_MAP)
         {
-            ntype = "MAP";
+            ntype = Const::MAP;
         }
         else
         {
-            ntype = "ANY";
+            ntype = Const::ANY;
         }
         if(!analyze(root->elements[0]))
         {
             return false;
         }
-        if(root->elements[1]->nodeType != "VARIABLE" || !analyze(root->elements[1],true, ntype))
+        if(root->elements[1]->nodeType != Const::VARIABLE || !analyze(root->elements[1],true, ntype))
         {
             return false;
         }
-    }else if(root->nodeType == "YIELD")
+    }else if(root->nodeType == Const::YIELD)
     {
-        if(root->elements[0]->nodeType == "AS" && !analyze(root->elements[0], "STRING"))
+        if(root->elements[0]->nodeType == "AS" && !analyze(root->elements[0], false,Const::STRING))
         {
             return false;
         }
-        if(!analyze(root->elements[0],true, "STRING"))
+        if(!analyze(root->elements[0],true, Const::STRING))
         {
             return false;
         }
-    }else if(root->nodeType == "=")
+    }else if(root->nodeType == Const::EQUAL)
     {
-        string ntype = root->nodeType == "PATTERN_ELEMENTS" ? "PATH_PATTERN" : "ANY";
+        string ntype = root->nodeType == Const::PATTERN_ELEMENTS ? Const::PATH_PATTERN : Const::ANY;
         if(!analyze(root->elements[0],true, ntype))
         {
             return false;
@@ -89,9 +91,9 @@ bool SemanticAnalyzer::analyze(ASTNode* root, bool canDefine, string type) {
         {
             return false;
         }
-    }else if(root->nodeType == "NODE_PATTERN" && !root->elements.empty())
+    }else if(root->nodeType == Const::NODE_PATTERN && !root->elements.empty())
     {
-        if(root->elements[0]->nodeType == "VARIABLE" && !analyze(root->elements[0],true,"NODE"))
+        if(root->elements[0]->nodeType == Const::VARIABLE && !analyze(root->elements[0],true,Const::NODE))
         {
             return false;
         }
@@ -102,9 +104,9 @@ bool SemanticAnalyzer::analyze(ASTNode* root, bool canDefine, string type) {
                 return false;
             }
         }
-    }else if(root->nodeType == "RELATIONSHIP_DETAILS" && !root->elements.empty())
+    }else if(root->nodeType == Const::RELATIONSHIP_DETAILS && !root->elements.empty())
     {
-        if(root->elements[0]->nodeType == "VARIABLE" && !analyze(root->elements[0],true,"RELATIONSHIP"))
+        if(root->elements[0]->nodeType == Const::VARIABLE && !analyze(root->elements[0],true,Const::RELATIONSHIP))
         {
             return false;
         }
@@ -115,7 +117,7 @@ bool SemanticAnalyzer::analyze(ASTNode* root, bool canDefine, string type) {
                 return false;
             }
         }
-    }else if(root->nodeType == "LIST_ITERATOR")
+    }else if(root->nodeType == Const::LIST_ITERATE)
     {
         if(!analyze(root->elements[0],true))
         {
@@ -125,19 +127,19 @@ bool SemanticAnalyzer::analyze(ASTNode* root, bool canDefine, string type) {
         {
             return false;
         }
-    }else if(root->nodeType == "NON_ARITHMETIC_OPERATOR" && root->elements[0]->nodeType == "VARIABLE")
+    }else if(root->nodeType == Const::NON_ARITHMETIC_OPERATOR && root->elements[0]->nodeType == Const::VARIABLE)
     {
-        if(root->elements[1]->nodeType == "LIST_INDEX_RANGE" && !analyze(root->elements[0], false, "LIST"))
+        if(root->elements[1]->nodeType == Const::LIST_INDEX_RANGE && !analyze(root->elements[0], false, Const::LIST))
         {
             return false;
-        }else if(root->elements[1]->nodeType == "LIST_INDEX" && root->elements[1]->elements[0]->nodeType == "DECIMAL" && !analyze(root->elements[0], false, "LIST"))
+        }else if(root->elements[1]->nodeType == Const::LIST_INDEX && root->elements[1]->elements[0]->nodeType == Const::DECIMAL && !analyze(root->elements[0], false, "LIST"))
         {
             return false;
-        }else if (root->elements[1]->nodeType == "PROPERTY_LOOKUP" && !analyze(root->elements[0], false, "LOOKUP"))
+        }else if (root->elements[1]->nodeType == Const::PROPERTY_LOOKUP && !analyze(root->elements[0], false, Const::LOOKUP))
         {
             return false;
         }
-    }else if(root->nodeType == "EXISTS")
+    }else if(root->nodeType == Const::EXISTS)
     {
         scopeManager->enterScope();
         for(int i=0; i<root->elements.size(); i++)
@@ -149,7 +151,7 @@ bool SemanticAnalyzer::analyze(ASTNode* root, bool canDefine, string type) {
         }
         scopeManager->exitScope();
 
-    }else if(root->nodeType == "WITH")
+    }else if(root->nodeType == Const::WITH)
     {
         for(int i=0; i<root->elements.size(); i++)
         {
@@ -163,19 +165,19 @@ bool SemanticAnalyzer::analyze(ASTNode* root, bool canDefine, string type) {
         auto *node = root->elements[0]->elements[0];
         for (auto* child: node->elements)
         {
-            if(child->nodeType == "AS")
+            if(child->nodeType == Const::AS)
             {
                 string tempType;
-                if(child->elements[0]->nodeType == "VARIABLE")
+                if(child->elements[0]->nodeType == Const::VARIABLE)
                 {
                     tempType = scopeManager->getType(child->elements[0]->value);
                 }else
                 {
-                    tempType = "ANY";
+                    tempType = Const::ANY;
                 }
                 pair<string,string> x = pair<string,string>(child->elements[0]->value,tempType);
                 temp->insert(x);
-            } else if(child->nodeType == "VARIABLE")
+            } else if(child->nodeType == Const::VARIABLE)
             {
                 string tempType = scopeManager->getType(child->value);
                 pair<string,string> x = pair<string,string>(child->value,tempType);
@@ -215,7 +217,7 @@ bool SemanticAnalyzer::checkVariableDeclarations(ASTNode* node, string type) {
         return true;
     }
     else {
-        reportError("Variable already declared: " + node->value, node);
+        reportError("Varmiable already declared: " + node->value, node);
         return false;
     }
 
@@ -234,16 +236,16 @@ bool SemanticAnalyzer::checkVariableUsage(ASTNode* node, string type)
     {
         reportError("Variable is not defined in this scope: " + node->value, node);
         return false;
-    }else if(scopeManager->lookup(node->value) && type == "ANY")
+    }else if(scopeManager->lookup(node->value) && type == Const::ANY)
     {
         return true;
     }else if (scopeManager->lookup(node->value) && scopeManager->lookup(node->value) == type)
     {
         return true;
     }
-    else if (type == "LOOKUP" && (scopeManager->lookup(node->value) == "NODE" ||
-                                  scopeManager->lookup(node->value) == "RELATIONSHIP" ||
-                                  scopeManager->lookup(node->value) == "MAP"))
+    else if (type == "LOOKUP" && (scopeManager->lookup(node->value) == Const::NODE ||
+                                  scopeManager->lookup(node->value) == Const::RELATIONSHIP ||
+                                  scopeManager->lookup(node->value) == Const::MAP))
     {
         return true;
     }
@@ -257,5 +259,6 @@ bool SemanticAnalyzer::checkVariableUsage(ASTNode* node, string type)
 
 // Report errors
 void SemanticAnalyzer::reportError(const std::string &message, ASTNode* node) {
-    std::cerr << "Error: " << message << std::endl;
+    Logger logger;
+    logger.error(message);
 }

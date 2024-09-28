@@ -18,6 +18,7 @@ limitations under the License.
 #include "ASTLeafNoValue.h"
 #include "ASTLeafValue.h"
 #include "/home/ubuntu/software/jasminegraph/code_generated/antlr/CypherBaseVisitor.h"
+#include "../util/Const.h"
 
 any visitOC_Cypher(CypherParser::OC_CypherContext *ctx) ;
 
@@ -250,7 +251,7 @@ any ASTBuilder::visitOC_Query(CypherParser::OC_QueryContext *ctx)  {
 any ASTBuilder::visitOC_RegularQuery(CypherParser::OC_RegularQueryContext *ctx)  {
   if(!ctx->oC_Union().empty())
   {
-    auto *node = new ASTInternalNode("UNION");
+    auto *node = new ASTInternalNode(Const::UNION);
     node->addElements(any_cast<ASTNode*>(visitOC_SingleQuery(ctx->oC_SingleQuery())));
     for(CypherParser::OC_UnionContext* element : ctx->oC_Union())
     {
@@ -265,7 +266,7 @@ any ASTBuilder::visitOC_RegularQuery(CypherParser::OC_RegularQueryContext *ctx) 
 any ASTBuilder::visitOC_Union(CypherParser::OC_UnionContext *ctx)  {
   if(ctx->ALL())
   {
-    auto *node = new ASTInternalNode("ALL");
+    auto *node = new ASTInternalNode(Const::ALL);
     node->addElements(any_cast<ASTNode*>(visitOC_SingleQuery(ctx->oC_SingleQuery())));
     return static_cast<ASTNode*>(node);
   }
@@ -283,7 +284,7 @@ any ASTBuilder::visitOC_SingleQuery(CypherParser::OC_SingleQueryContext *ctx)  {
 
 
 any ASTBuilder::visitOC_SinglePartQuery(CypherParser::OC_SinglePartQueryContext *ctx)  {
-  auto *queryNode = new ASTInternalNode("SINGLE_QUERY");
+  auto *queryNode = new ASTInternalNode(Const::SINGLE_QUERY);
   for (CypherParser::OC_ReadingClauseContext* element : ctx->oC_ReadingClause()) {
     queryNode->addElements(any_cast<ASTNode*>(visitOC_ReadingClause(element)));
   }
@@ -300,8 +301,8 @@ any ASTBuilder::visitOC_SinglePartQuery(CypherParser::OC_SinglePartQueryContext 
 }
 
 any ASTBuilder::visitOC_MultiPartQuery(CypherParser::OC_MultiPartQueryContext *ctx) {
-  auto *node = new ASTInternalNode("MULTI_PART_QUERY");
-  auto *newNode = new ASTInternalNode("SINGLE_QUERY");
+  auto *node = new ASTInternalNode(Const::MULTI_PART_QUERY);
+  auto *newNode = new ASTInternalNode(Const::SINGLE_QUERY);
 
   int withIndex = 0;
   int readIndex = 0;
@@ -324,7 +325,7 @@ any ASTBuilder::visitOC_MultiPartQuery(CypherParser::OC_MultiPartQueryContext *c
       } else if (grammarName == "OC_WithContextE") {
         newNode->addElements(any_cast<ASTNode*>(visitOC_With(ctx->oC_With(withIndex++))));
         node->addElements(newNode);
-        newNode = new ASTInternalNode("SINGLE_QUERY");
+        newNode = new ASTInternalNode(Const::SINGLE_QUERY);
       } else if (grammarName == "OC_ReadingClauseContextE") {
         newNode->addElements(any_cast<ASTNode*>(visitOC_ReadingClause(ctx->oC_ReadingClause(readIndex++))));
       } else if (grammarName == "OC_UpdatingClauseContextE") {
@@ -373,10 +374,10 @@ any ASTBuilder::visitOC_ReadingClause(CypherParser::OC_ReadingClauseContext *ctx
 
 
 any ASTBuilder::visitOC_Match(CypherParser::OC_MatchContext *ctx)  {
-  auto *node = new ASTInternalNode("MATCH");
+  auto *node = new ASTInternalNode(Const::MATCH);
   if(ctx->OPTIONAL())
   {
-    node->addElements(new ASTLeafNoValue("OPTIONAL"));
+    node->addElements(new ASTLeafNoValue(Const::OPTIONAL));
   }
   node->addElements(any_cast<ASTNode*>(visitOC_Pattern(ctx->oC_Pattern())));
   if (ctx->oC_Where()) {
@@ -387,8 +388,8 @@ any ASTBuilder::visitOC_Match(CypherParser::OC_MatchContext *ctx)  {
 
 
 any ASTBuilder::visitOC_Unwind(CypherParser::OC_UnwindContext *ctx)  {
-  auto *node = new ASTInternalNode("UNWIND");
-  auto *nodeAS = new ASTInternalNode("AS");
+  auto *node = new ASTInternalNode(Const::UNWIND);
+  auto *nodeAS = new ASTInternalNode(Const::AS);
   nodeAS->addElements(any_cast<ASTNode*>(visitOC_Expression(ctx->oC_Expression())));
   nodeAS->addElements(any_cast<ASTNode*>(visitOC_Variable(ctx->oC_Variable())));
   node->addElements(nodeAS);
@@ -397,7 +398,7 @@ any ASTBuilder::visitOC_Unwind(CypherParser::OC_UnwindContext *ctx)  {
 
 
 any ASTBuilder::visitOC_Merge(CypherParser::OC_MergeContext *ctx)  {
-  auto *node = new ASTInternalNode("MERGE");
+  auto *node = new ASTInternalNode(Const::MERGE);
   node->addElements(any_cast<ASTNode*>(visitOC_PatternPart(ctx->oC_PatternPart())));
   for(CypherParser::OC_MergeActionContext* element : ctx->oC_MergeAction())
   {
@@ -411,18 +412,18 @@ any ASTBuilder::visitOC_Merge(CypherParser::OC_MergeContext *ctx)  {
 any ASTBuilder::visitOC_MergeAction(CypherParser::OC_MergeActionContext *ctx)  {
   if(ctx->CREATE())
   {
-    auto *node = new ASTInternalNode("ON_CREATE");
+    auto *node = new ASTInternalNode(Const::ON_CREATE);
     node->addElements(any_cast<ASTNode*>(visitOC_Set(ctx->oC_Set())));
     return static_cast<ASTNode*>(node);
   }
-  auto *node = new ASTInternalNode("ON_MATCH");
+  auto *node = new ASTInternalNode(Const::ON_MATCH);
   node->addElements(any_cast<ASTNode*>(visitOC_Set(ctx->oC_Set())));
   return static_cast<ASTNode*>(node);
 }
 
 
 any ASTBuilder::visitOC_Create(CypherParser::OC_CreateContext *ctx)  {
-  auto *node = new ASTInternalNode("CREATE");
+  auto *node = new ASTInternalNode(Const::CREATE);
   node->addElements(any_cast<ASTNode*>(visitOC_Pattern(ctx->oC_Pattern())));
   return static_cast<ASTNode*>(node);
 }
@@ -432,7 +433,7 @@ any ASTBuilder::visitOC_Create(CypherParser::OC_CreateContext *ctx)  {
 any ASTBuilder::visitOC_Set(CypherParser::OC_SetContext *ctx)  {
   if(ctx->oC_SetItem().size()>1)
   {
-    auto *node = new ASTInternalNode("MULTIPLE_SET");
+    auto *node = new ASTInternalNode(Const::MULTIPLE_SET);
     for(CypherParser::OC_SetItemContext* element: ctx->oC_SetItem())
     {
       node->addElements(any_cast<ASTNode*>(visitOC_SetItem(element)));
@@ -446,7 +447,7 @@ any ASTBuilder::visitOC_Set(CypherParser::OC_SetContext *ctx)  {
 any ASTBuilder::visitOC_SetItem(CypherParser::OC_SetItemContext *ctx)  {
   if(ctx->oC_PropertyExpression())
   {
-    auto *node = new ASTInternalNode("SET");
+    auto *node = new ASTInternalNode(Const::SET);
     node->addElements(any_cast<ASTNode*>(visitOC_PropertyExpression(ctx->oC_PropertyExpression())));
     node->addElements(any_cast<ASTNode*>(visitOC_Expression(ctx->oC_Expression())));
     return static_cast<ASTNode*>(node);
@@ -454,18 +455,18 @@ any ASTBuilder::visitOC_SetItem(CypherParser::OC_SetItemContext *ctx)  {
   {
     if(ctx->getText().find("+=") != std::string::npos)
     {
-      auto *node = new ASTInternalNode("SET_+=");
+      auto *node = new ASTInternalNode(Const::SET_PLUS_EQAL);
       node->addElements(any_cast<ASTNode*>(visitOC_Variable(ctx->oC_Variable())));
       node->addElements(any_cast<ASTNode*>(visitOC_Expression(ctx->oC_Expression())));
       return static_cast<ASTNode*>(node);
     }else if (ctx->getText().find("=") != std::string::npos)
     {
-      auto *node = new ASTInternalNode("SET_=");
+      auto *node = new ASTInternalNode(Const::SET_EUAL);
     node->addElements(any_cast<ASTNode*>(visitOC_Variable(ctx->oC_Variable())));
     node->addElements(any_cast<ASTNode*>(visitOC_Expression(ctx->oC_Expression())));
     return static_cast<ASTNode*>(node);
     }
-    auto *node = new ASTInternalNode("SET");
+    auto *node = new ASTInternalNode(Const::SET);
     node->addElements(any_cast<ASTNode*>(visitOC_Variable(ctx->oC_Variable())));
     node->addElements(any_cast<ASTNode*>(visitOC_NodeLabels(ctx->oC_NodeLabels())));
     return static_cast<ASTNode*>(node);
@@ -474,14 +475,14 @@ any ASTBuilder::visitOC_SetItem(CypherParser::OC_SetItemContext *ctx)  {
 
 
 any ASTBuilder::visitOC_Delete(CypherParser::OC_DeleteContext *ctx)  {
-  auto *deleteNode = new ASTInternalNode("DELETE");
+  auto *deleteNode = new ASTInternalNode(Const::DELETE);
   for(CypherParser::OC_ExpressionContext* element : ctx->oC_Expression())
   {
     deleteNode->addElements(any_cast<ASTNode*>(visitOC_Expression(element)));
   }
   if(ctx->DETACH())
   {
-    auto *node = new ASTInternalNode("DETACH");
+    auto *node = new ASTInternalNode(Const::DETACH);
     node->addElements(deleteNode);
     return static_cast<ASTNode*>(node);
   }
@@ -492,7 +493,7 @@ any ASTBuilder::visitOC_Delete(CypherParser::OC_DeleteContext *ctx)  {
 any ASTBuilder::visitOC_Remove(CypherParser::OC_RemoveContext *ctx)  {
   if(ctx->oC_RemoveItem().size()>1)
   {
-    auto *node = new ASTInternalNode("REMOVE_LIST");
+    auto *node = new ASTInternalNode(Const::REMOVE_LIST);
     for(CypherParser::OC_RemoveItemContext* element : ctx->oC_RemoveItem())
     {
       node->addElements(any_cast<ASTNode*>(visitOC_RemoveItem(element)));
@@ -506,7 +507,7 @@ any ASTBuilder::visitOC_Remove(CypherParser::OC_RemoveContext *ctx)  {
 
 
 any ASTBuilder::visitOC_RemoveItem(CypherParser::OC_RemoveItemContext *ctx)  {
-  auto *node = new ASTInternalNode("REMOVE");
+  auto *node = new ASTInternalNode(Const::REMOVE);
   if(ctx->oC_Variable())
   {
     node->addElements(any_cast<ASTNode*>(visitOC_Variable(ctx->oC_Variable())));
@@ -519,7 +520,7 @@ any ASTBuilder::visitOC_RemoveItem(CypherParser::OC_RemoveItemContext *ctx)  {
 
 
 any ASTBuilder::visitOC_InQueryCall(CypherParser::OC_InQueryCallContext *ctx)  {
-  auto *node = new ASTInternalNode("CALL");
+  auto *node = new ASTInternalNode(Const::CALL);
   node->addElements(any_cast<ASTNode*>(visitOC_ExplicitProcedureInvocation(ctx->oC_ExplicitProcedureInvocation())));
 
   if(ctx->oC_YieldItems())
@@ -533,27 +534,27 @@ any ASTBuilder::visitOC_InQueryCall(CypherParser::OC_InQueryCallContext *ctx)  {
 any ASTBuilder::visitOC_StandaloneCall(CypherParser::OC_StandaloneCallContext *ctx)  {
   if(ctx->oC_ExplicitProcedureInvocation())
   {
-    auto *node = new ASTInternalNode("CALL");
+    auto *node = new ASTInternalNode(Const::CALL);
     node->addElements(any_cast<ASTNode*>(visitOC_ExplicitProcedureInvocation(ctx->oC_ExplicitProcedureInvocation())));
     if(ctx->oC_YieldItems())
     {
       node->addElements(any_cast<ASTNode*>(visitOC_YieldItems(ctx->oC_YieldItems())));
     }else if(ctx->getText().find('*') != std::string::npos)
     {
-      auto *star = new ASTLeafNoValue("*");
+      auto *star = new ASTLeafNoValue(Const::STAR);
       node->addElements(star);
     }
     return static_cast<ASTNode*>(node);
   }
 
-  auto *node = new ASTInternalNode("CALL");
+  auto *node = new ASTInternalNode(Const::CALL);
   node->addElements(any_cast<ASTNode*>(visitOC_ImplicitProcedureInvocation(ctx->oC_ImplicitProcedureInvocation())));
   if(ctx->oC_YieldItems())
   {
     node->addElements(any_cast<ASTNode*>(visitOC_YieldItems(ctx->oC_YieldItems())));
   }else if(ctx->getText().find('*') != std::string::npos)
   {
-    auto *star = new ASTLeafNoValue("*");
+    auto *star = new ASTLeafNoValue(Const::STAR);
     node->addElements(star);
   }
   return static_cast<ASTNode*>(node);
@@ -562,7 +563,7 @@ any ASTBuilder::visitOC_StandaloneCall(CypherParser::OC_StandaloneCallContext *c
 
 any ASTBuilder::visitOC_YieldItems(CypherParser::OC_YieldItemsContext *ctx)  {
 
-  auto *node = new ASTInternalNode("YIELD_ITEMS");
+  auto *node = new ASTInternalNode(Const::YIELD_ITEMS);
   for(CypherParser::OC_YieldItemContext* element : ctx->oC_YieldItem())
   {
     node->addElements(any_cast<ASTNode*>(visitOC_YieldItem(element)));
@@ -576,10 +577,10 @@ any ASTBuilder::visitOC_YieldItems(CypherParser::OC_YieldItemsContext *ctx)  {
 
 
 any ASTBuilder::visitOC_YieldItem(CypherParser::OC_YieldItemContext *ctx)  {
-  auto *node = new ASTInternalNode("YIELD");
+  auto *node = new ASTInternalNode(Const::YIELD);
   if(ctx->oC_ProcedureResultField())
   {
-    auto *as = new ASTInternalNode("AS");
+    auto *as = new ASTInternalNode(Const::AS);
     as->addElements(any_cast<ASTNode*>(visitOC_ProcedureResultField(ctx->oC_ProcedureResultField())));
     as->addElements(any_cast<ASTNode*>(visitOC_Variable(ctx->oC_Variable())));
     node->addElements(as);
@@ -591,7 +592,7 @@ any ASTBuilder::visitOC_YieldItem(CypherParser::OC_YieldItemContext *ctx)  {
 
 
 any ASTBuilder::visitOC_With(CypherParser::OC_WithContext *ctx)  {
-  auto *node = new ASTInternalNode("WITH");
+  auto *node = new ASTInternalNode(Const::WITH);
   node->addElements(any_cast<ASTNode*>(visitOC_ProjectionBody(ctx->oC_ProjectionBody())));
   if(ctx->oC_Where())
   {
@@ -607,10 +608,10 @@ any ASTBuilder::visitOC_Return(CypherParser::OC_ReturnContext *ctx)  {
 
 
 any ASTBuilder::visitOC_ProjectionBody(CypherParser::OC_ProjectionBodyContext *ctx)  {
-  auto *node = new ASTInternalNode("RETURN");
+  auto *node = new ASTInternalNode(Const::RETURN);
   if(ctx->DISTINCT())
   {
-    auto *distinct = new ASTInternalNode("DISTINCT");
+    auto *distinct = new ASTInternalNode(Const::DISTINCT);
     distinct->addElements(any_cast<ASTNode*>(visitOC_ProjectionItems(ctx->oC_ProjectionItems())));
     node->addElements(distinct);
   }else
@@ -634,10 +635,10 @@ any ASTBuilder::visitOC_ProjectionBody(CypherParser::OC_ProjectionBodyContext *c
 
 
 any ASTBuilder::visitOC_ProjectionItems(CypherParser::OC_ProjectionItemsContext *ctx)  {
-  auto *node = new ASTInternalNode("RETURN_BODY");
+  auto *node = new ASTInternalNode(Const::RETURN_BODY);
   if(ctx->children[0]->getText() == "*")
   {
-    node->addElements(new ASTLeafNoValue("*"));
+    node->addElements(new ASTLeafNoValue(Const::STAR));
   }
   for(CypherParser::OC_ProjectionItemContext* element : ctx->oC_ProjectionItem())
   {
@@ -650,7 +651,7 @@ any ASTBuilder::visitOC_ProjectionItems(CypherParser::OC_ProjectionItemsContext 
 any ASTBuilder::visitOC_ProjectionItem(CypherParser::OC_ProjectionItemContext *ctx)  {
   if(ctx->oC_Variable())
   {
-    auto *node = new ASTInternalNode("AS");
+    auto *node = new ASTInternalNode(Const::AS);
     node->addElements(any_cast<ASTNode*>(visitOC_Expression(ctx->oC_Expression())));
     node->addElements(any_cast<ASTNode*>(visitOC_Variable(ctx->oC_Variable())));
     return static_cast<ASTNode*>(node);
@@ -660,7 +661,7 @@ any ASTBuilder::visitOC_ProjectionItem(CypherParser::OC_ProjectionItemContext *c
 
 
 any ASTBuilder::visitOC_Order(CypherParser::OC_OrderContext *ctx)  {
-  auto *node = new ASTInternalNode("ORDERED BY");
+  auto *node = new ASTInternalNode(Const::ORDERED_BY);
   for(CypherParser::OC_SortItemContext* element : ctx->oC_SortItem())
   {
     node->addElements(any_cast<ASTNode*>(visitOC_SortItem(element)));
@@ -670,14 +671,14 @@ any ASTBuilder::visitOC_Order(CypherParser::OC_OrderContext *ctx)  {
 
 
 any ASTBuilder::visitOC_Skip(CypherParser::OC_SkipContext *ctx)  {
-  auto *node = new ASTInternalNode("SKIP");
+  auto *node = new ASTInternalNode(Const::SKIP);
   node->addElements(any_cast<ASTNode*>(visitOC_Expression(ctx->oC_Expression())));
   return static_cast<ASTNode*>(node);
 }
 
 
 any ASTBuilder::visitOC_Limit(CypherParser::OC_LimitContext *ctx)  {
-  auto *node = new ASTInternalNode("LIMIT");
+  auto *node = new ASTInternalNode(Const::LIMIT);
   node->addElements(any_cast<ASTNode*>(visitOC_Expression(ctx->oC_Expression())));
   return static_cast<ASTNode*>(node);
 }
@@ -687,12 +688,12 @@ any ASTBuilder::visitOC_Limit(CypherParser::OC_LimitContext *ctx)  {
 any ASTBuilder::visitOC_SortItem(CypherParser::OC_SortItemContext *ctx)  {
   if(ctx->ASC() or ctx->ASCENDING())
   {
-    auto *node = new ASTInternalNode("ASC");
+    auto *node = new ASTInternalNode(Const::ASC);
     node->addElements(any_cast<ASTNode*>(visitOC_Expression(ctx->oC_Expression())));
     return static_cast<ASTNode*>(node);
   }else
   {
-    auto *node = new ASTInternalNode("DESC");
+    auto *node = new ASTInternalNode(Const::DESC);
     node->addElements(any_cast<ASTNode*>(visitOC_Expression(ctx->oC_Expression())));
     return static_cast<ASTNode*>(node);
   }
@@ -700,14 +701,14 @@ any ASTBuilder::visitOC_SortItem(CypherParser::OC_SortItemContext *ctx)  {
 
 
 any ASTBuilder::visitOC_Where(CypherParser::OC_WhereContext *ctx)  {
-  auto *node = new ASTInternalNode("WHERE");
+  auto *node = new ASTInternalNode(Const::WHERE);
   node->addElements(any_cast<ASTNode*>(visitOC_Expression(ctx->oC_Expression())));
   return static_cast<ASTNode*>(node);
 }
 
 
 any ASTBuilder::visitOC_Pattern(CypherParser::OC_PatternContext *ctx)  {
-  auto *node = new ASTInternalNode("PATTERN");
+  auto *node = new ASTInternalNode(Const::PATTERN);
   for(CypherParser::OC_PatternPartContext* element : ctx->oC_PatternPart())
   {
     node->addElements(any_cast<ASTNode*>(visitOC_PatternPart(element)));
@@ -719,7 +720,7 @@ any ASTBuilder::visitOC_Pattern(CypherParser::OC_PatternContext *ctx)  {
 any ASTBuilder::visitOC_PatternPart(CypherParser::OC_PatternPartContext *ctx)  {
   if(ctx->oC_Variable())
   {
-    auto *node = new ASTInternalNode("=");
+    auto *node = new ASTInternalNode(Const::EQUAL);
 
     node->addElements(any_cast<ASTNode*>(visitOC_Variable(ctx->oC_Variable())));
     node->addElements(any_cast<ASTNode*>(visitOC_AnonymousPatternPart(ctx->oC_AnonymousPatternPart())));
@@ -743,7 +744,7 @@ any ASTBuilder::visitOC_PatternElement(CypherParser::OC_PatternElementContext *c
 
   if(!ctx->oC_PatternElementChain().empty())
   {
-    auto *node = new ASTInternalNode("PATTERN_ELEMENTS");
+    auto *node = new ASTInternalNode(Const::PATTERN_ELEMENTS);
     node->addElements(any_cast<ASTNode*>(visitOC_NodePattern(ctx->oC_NodePattern())));
     for(CypherParser::OC_PatternElementChainContext* element : ctx->oC_PatternElementChain())
     {
@@ -756,7 +757,7 @@ any ASTBuilder::visitOC_PatternElement(CypherParser::OC_PatternElementContext *c
 
 //finsihed
 any ASTBuilder::visitOC_RelationshipsPattern(CypherParser::OC_RelationshipsPatternContext *ctx)  {
-  auto *node = new ASTInternalNode("PATTERN_ELEMENTS");
+  auto *node = new ASTInternalNode(Const::PATTERN_ELEMENTS);
   node->addElements(any_cast<ASTNode*>(visitOC_NodePattern(ctx->oC_NodePattern())));
   for(CypherParser::OC_PatternElementChainContext* element : ctx->oC_PatternElementChain())
   {
@@ -767,7 +768,7 @@ any ASTBuilder::visitOC_RelationshipsPattern(CypherParser::OC_RelationshipsPatte
 
 
 any ASTBuilder::visitOC_NodePattern(CypherParser::OC_NodePatternContext *ctx)  {
-  auto *node = new ASTInternalNode("NODE_PATTERN");
+  auto *node = new ASTInternalNode(Const::NODE_PATTERN);
   if(ctx->oC_Variable())
   {
     node->addElements(any_cast<ASTNode*>(visitOC_Variable(ctx->oC_Variable())));
@@ -785,7 +786,7 @@ any ASTBuilder::visitOC_NodePattern(CypherParser::OC_NodePatternContext *ctx)  {
 
 
 any ASTBuilder::visitOC_PatternElementChain(CypherParser::OC_PatternElementChainContext *ctx)  {
-  auto *node = new ASTInternalNode("PATTERN_ELEMENT_CHAIN");
+  auto *node = new ASTInternalNode(Const::PATTERN_ELEMENT_CHAIN);
   node->addElements(any_cast<ASTNode*>(visitOC_RelationshipPattern(ctx->oC_RelationshipPattern())));
   node->addElements(any_cast<ASTNode*>(visitOC_NodePattern(ctx->oC_NodePattern())));
   return static_cast<ASTNode*>(node);
@@ -793,7 +794,7 @@ any ASTBuilder::visitOC_PatternElementChain(CypherParser::OC_PatternElementChain
 
 
 any ASTBuilder::visitOC_RelationshipPattern(CypherParser::OC_RelationshipPatternContext *ctx)  {
-  auto *node = new ASTInternalNode("RELATIONSHIP_PATTTERN");
+  auto *node = new ASTInternalNode(Const::RELATIONSHIP_PATTTERN);
   if(ctx->oC_LeftArrowHead() && !ctx->oC_RightArrowHead())
   {
     node->addElements(any_cast<ASTNode*>(visitOC_LeftArrowHead(ctx->oC_LeftArrowHead())));
@@ -802,7 +803,7 @@ any ASTBuilder::visitOC_RelationshipPattern(CypherParser::OC_RelationshipPattern
     node->addElements(any_cast<ASTNode*>(visitOC_RightArrowHead(ctx->oC_RightArrowHead())));
   }else
   {
-    node->addElements(new ASTLeafNoValue("UNIDIRECTION_ARROW"));
+    node->addElements(new ASTLeafNoValue(Const::UNIDIRECTION_ARROW));
   }
   if(ctx->oC_RelationshipDetail())
   {
@@ -813,7 +814,7 @@ any ASTBuilder::visitOC_RelationshipPattern(CypherParser::OC_RelationshipPattern
 
 
 any ASTBuilder::visitOC_RelationshipDetail(CypherParser::OC_RelationshipDetailContext *ctx)  {
-  auto *node = new ASTInternalNode("RELATIONSHIP_DETAILS");
+  auto *node = new ASTInternalNode(Const::RELATIONSHIP_DETAILS);
   if(ctx->oC_Variable())
   {
     node->addElements(any_cast<ASTNode*>(visitOC_Variable(ctx->oC_Variable())));
@@ -847,7 +848,7 @@ any ASTBuilder::visitOC_RelationshipTypes(CypherParser::OC_RelationshipTypesCont
 
   if(ctx->oC_RelTypeName().size()>1)
   {
-    auto *node = new ASTInternalNode("RELATIONSHIP_TYPES");
+    auto *node = new ASTInternalNode(Const::RELATIONSHIP_TYPES);
     for(CypherParser::OC_RelTypeNameContext* element : ctx->oC_RelTypeName())
     {
       node->addElements(any_cast<ASTNode*>(visitOC_RelTypeName(element)));
@@ -861,7 +862,7 @@ any ASTBuilder::visitOC_RelationshipTypes(CypherParser::OC_RelationshipTypesCont
 any ASTBuilder::visitOC_NodeLabels(CypherParser::OC_NodeLabelsContext *ctx)  {
   if(ctx->oC_NodeLabel().size()>1)
   {
-    auto *node = new ASTInternalNode("NODE_LABELS");
+    auto *node = new ASTInternalNode(Const::NODE_LABELS);
     for(CypherParser::OC_NodeLabelContext* element : ctx->oC_NodeLabel())
     {
       node->addElements(any_cast<ASTNode*>(visitOC_NodeLabel(element)));
@@ -873,14 +874,14 @@ any ASTBuilder::visitOC_NodeLabels(CypherParser::OC_NodeLabelsContext *ctx)  {
 
 
 any ASTBuilder::visitOC_NodeLabel(CypherParser::OC_NodeLabelContext *ctx)  {
-  auto *node = new ASTInternalNode("NODE_LABEL");
+  auto *node = new ASTInternalNode(Const::NODE_LABEL);
   node->addElements(any_cast<ASTNode*>(visitOC_LabelName(ctx->oC_LabelName())));
   return static_cast<ASTNode*>(node);
 }
 
 
 any ASTBuilder::visitOC_RangeLiteral(CypherParser::OC_RangeLiteralContext *ctx)  {
-  auto *node = new ASTInternalNode("RANGE");
+  auto *node = new ASTInternalNode(Const::RANGE);
   if(ctx->oC_IntegerLiteral().size()>1)
   {
     node->addElements(any_cast<ASTNode*>(visitOC_IntegerLiteral(ctx->oC_IntegerLiteral()[0])));
@@ -903,7 +904,7 @@ any ASTBuilder::visitOC_RelTypeName(CypherParser::OC_RelTypeNameContext *ctx)  {
 
 
 any ASTBuilder::visitOC_PropertyExpression(CypherParser::OC_PropertyExpressionContext *ctx)  {
-  auto *node = new ASTInternalNode("PROPERTY");
+  auto *node = new ASTInternalNode(Const::PROPERTY);
   node->addElements(any_cast<ASTNode*>(visitOC_Atom(ctx->oC_Atom())));
   for(CypherParser::OC_PropertyLookupContext* element : ctx->oC_PropertyLookup())
   {
@@ -921,7 +922,7 @@ any ASTBuilder::visitOC_Expression(CypherParser::OC_ExpressionContext *ctx)  {
 any ASTBuilder::visitOC_OrExpression(CypherParser::OC_OrExpressionContext *ctx)  {
   if(ctx->oC_XorExpression().size()>1)
   {
-    auto *node = new ASTInternalNode("OR");
+    auto *node = new ASTInternalNode(Const::OR);
     for(CypherParser::OC_XorExpressionContext* element : ctx->oC_XorExpression())
     {
       node->addElements(any_cast<ASTNode*>(visitOC_XorExpression(element)));
@@ -935,7 +936,7 @@ any ASTBuilder::visitOC_OrExpression(CypherParser::OC_OrExpressionContext *ctx) 
 any ASTBuilder::visitOC_XorExpression(CypherParser::OC_XorExpressionContext *ctx)  {
   if(ctx->oC_AndExpression().size()>1)
   {
-    auto *node = new ASTInternalNode("XOR");
+    auto *node = new ASTInternalNode(Const::XOR);
     for(CypherParser::OC_AndExpressionContext* element : ctx->oC_AndExpression())
     {
       node->addElements(any_cast<ASTNode*>(visitOC_AndExpression(element)));
@@ -948,7 +949,7 @@ any ASTBuilder::visitOC_XorExpression(CypherParser::OC_XorExpressionContext *ctx
 any ASTBuilder::visitOC_AndExpression(CypherParser::OC_AndExpressionContext *ctx)  {
   if(ctx->oC_NotExpression().size()>1)
   {
-    auto *node = new ASTInternalNode("AND");
+    auto *node = new ASTInternalNode(Const::AND);
     for(CypherParser::OC_NotExpressionContext* element : ctx->oC_NotExpression())
     {
       node->addElements(any_cast<ASTNode*>(visitOC_NotExpression(element)));
@@ -964,7 +965,7 @@ any ASTBuilder::visitOC_NotExpression(CypherParser::OC_NotExpressionContext *ctx
   {
     if(ctx->NOT().size() % 2 != 0)
     {
-      auto *node = new ASTInternalNode("NOT");
+      auto *node = new ASTInternalNode(Const::NOT);
       node->addElements(any_cast<ASTNode*>(visitOC_ComparisonExpression(ctx->oC_ComparisonExpression())));
       return static_cast<ASTNode*>(node);
     }
@@ -977,7 +978,7 @@ any ASTBuilder::visitOC_NotExpression(CypherParser::OC_NotExpressionContext *ctx
 any ASTBuilder::visitOC_ComparisonExpression(CypherParser::OC_ComparisonExpressionContext *ctx)  {
   if(!ctx->oC_PartialComparisonExpression().empty())
   {
-    auto *node = new ASTInternalNode("COMPARISON");
+    auto *node = new ASTInternalNode(Const::COMPARISON);
     node->addElements(any_cast<ASTNode*>(visitOC_StringListNullPredicateExpression(ctx->oC_StringListNullPredicateExpression())));
     for(CypherParser::OC_PartialComparisonExpressionContext* element : ctx->oC_PartialComparisonExpression())
     {
@@ -992,32 +993,32 @@ any ASTBuilder::visitOC_ComparisonExpression(CypherParser::OC_ComparisonExpressi
 any ASTBuilder::visitOC_PartialComparisonExpression(CypherParser::OC_PartialComparisonExpressionContext *ctx)  {
   if(ctx->getText().find(">") != string::npos)
   {
-    auto *node = new ASTInternalNode(">");
+    auto *node = new ASTInternalNode(Const::GREATER_THAN);
     node->addElements(any_cast<ASTNode*>(visitOC_StringListNullPredicateExpression(ctx->oC_StringListNullPredicateExpression())));
     return static_cast<ASTNode*>(node);
   }else if(ctx->getText().find("<>") != string::npos)
   {
-    auto *node = new ASTInternalNode("<>");
+    auto *node = new ASTInternalNode(Const::GREATER_THAN_LOWER_THAN);
     node->addElements(any_cast<ASTNode*>(visitOC_StringListNullPredicateExpression(ctx->oC_StringListNullPredicateExpression())));
     return static_cast<ASTNode*>(node);
   }else if(ctx->getText().find("=") != string::npos)
   {
-    auto *node = new ASTInternalNode("==");
+    auto *node = new ASTInternalNode(Const::DOUBLE_EQUAL);
     node->addElements(any_cast<ASTNode*>(visitOC_StringListNullPredicateExpression(ctx->oC_StringListNullPredicateExpression())));
     return static_cast<ASTNode*>(node);
   }else if(ctx->getText().find("<") != string::npos)
   {
-    auto *node = new ASTInternalNode("<");
+    auto *node = new ASTInternalNode(Const::LOWER_THAN);
     node->addElements(any_cast<ASTNode*>(visitOC_StringListNullPredicateExpression(ctx->oC_StringListNullPredicateExpression())));
     return static_cast<ASTNode*>(node);
   }else if(ctx->getText().find(">=") != string::npos)
   {
-    auto *node = new ASTInternalNode(">=");
+    auto *node = new ASTInternalNode(Const::GREATER_THAN_OR_EQUAL);
     node->addElements(any_cast<ASTNode*>(visitOC_StringListNullPredicateExpression(ctx->oC_StringListNullPredicateExpression())));
     return static_cast<ASTNode*>(node);
   }else
   {
-    auto *node = new ASTInternalNode("<=");
+    auto *node = new ASTInternalNode(Const::LOWER_THAN_OR_EQUAL);
     node->addElements(any_cast<ASTNode*>(visitOC_StringListNullPredicateExpression(ctx->oC_StringListNullPredicateExpression())));
     return static_cast<ASTNode*>(node);
   }
@@ -1025,11 +1026,11 @@ any ASTBuilder::visitOC_PartialComparisonExpression(CypherParser::OC_PartialComp
 
 
 any ASTBuilder::visitOC_StringListNullPredicateExpression(CypherParser::OC_StringListNullPredicateExpressionContext *ctx)  {
-  auto *node = new ASTInternalNode("PREDICATE_EXPRESSIONS");
+  auto *node = new ASTInternalNode(Const::PREDICATE_EXPRESSIONS);
   node->addElements(any_cast<ASTNode*>(visitOC_AddOrSubtractExpression(ctx->oC_AddOrSubtractExpression())));
   if(!ctx->oC_StringPredicateExpression().empty())
   {
-    auto *strPredicate = new ASTInternalNode("STRING_PREDICATES");
+    auto *strPredicate = new ASTInternalNode(Const::STRING_PREDICATES);
     for(CypherParser::OC_StringPredicateExpressionContext* element: ctx->oC_StringPredicateExpression())
     {
       strPredicate->addElements(any_cast<ASTNode*>(visitOC_StringPredicateExpression(element)));
@@ -1038,7 +1039,7 @@ any ASTBuilder::visitOC_StringListNullPredicateExpression(CypherParser::OC_Strin
   }
   if(!ctx->oC_ListPredicateExpression().empty())
   {
-    auto *listPredicate = new ASTInternalNode("LIST_PREDICATES");
+    auto *listPredicate = new ASTInternalNode(Const::LIST_PREDICATES);
     for(CypherParser::OC_ListPredicateExpressionContext* element: ctx->oC_ListPredicateExpression())
     {
       listPredicate->addElements(any_cast<ASTNode*>(visitOC_ListPredicateExpression(element)));
@@ -1047,7 +1048,7 @@ any ASTBuilder::visitOC_StringListNullPredicateExpression(CypherParser::OC_Strin
   }
   if(!ctx->oC_NullPredicateExpression().empty())
   {
-    auto *nullPredicate = new ASTInternalNode("NULL_PREDICATES");
+    auto *nullPredicate = new ASTInternalNode(Const::NULL_PREDICATES);
     for(CypherParser::OC_NullPredicateExpressionContext* element: ctx->oC_NullPredicateExpression())
     {
       nullPredicate->addElements(any_cast<ASTNode*>(visitOC_NullPredicateExpression(element)));
@@ -1067,17 +1068,17 @@ any ASTBuilder::visitOC_StringListNullPredicateExpression(CypherParser::OC_Strin
 any ASTBuilder::visitOC_StringPredicateExpression(CypherParser::OC_StringPredicateExpressionContext *ctx)  {
   if(ctx->STARTS())
   {
-    auto *node = new ASTInternalNode("STARTS_WITH");
+    auto *node = new ASTInternalNode(Const::STARTS_WITH);
     node->addElements(any_cast<ASTNode*>(visitOC_AddOrSubtractExpression(ctx->oC_AddOrSubtractExpression())));
     return static_cast<ASTNode*>(node);
   }else if(ctx->ENDS())
   {
-    auto *node = new ASTInternalNode("ENDS_WITH");
+    auto *node = new ASTInternalNode(Const::ENDS_WITH);
     node->addElements(any_cast<ASTNode*>(visitOC_AddOrSubtractExpression(ctx->oC_AddOrSubtractExpression())));
     return static_cast<ASTNode*>(node);
   }else
   {
-    auto *node = new ASTInternalNode("CONTAINS");
+    auto *node = new ASTInternalNode(Const::CONTAINS);
     node->addElements(any_cast<ASTNode*>(visitOC_AddOrSubtractExpression(ctx->oC_AddOrSubtractExpression())));
     return static_cast<ASTNode*>(node);
   }
@@ -1086,7 +1087,7 @@ any ASTBuilder::visitOC_StringPredicateExpression(CypherParser::OC_StringPredica
 
 
 any ASTBuilder::visitOC_ListPredicateExpression(CypherParser::OC_ListPredicateExpressionContext *ctx)  {
-  auto *node = new ASTInternalNode("IN");
+  auto *node = new ASTInternalNode(Const::IN);
   node->addElements(any_cast<ASTNode*>(visitOC_AddOrSubtractExpression(ctx->oC_AddOrSubtractExpression())));
   return static_cast<ASTNode*>(node);
 }
@@ -1095,10 +1096,10 @@ any ASTBuilder::visitOC_ListPredicateExpression(CypherParser::OC_ListPredicateEx
 any ASTBuilder::visitOC_NullPredicateExpression(CypherParser::OC_NullPredicateExpressionContext *ctx)  {
   if(ctx->NOT())
   {
-    auto *node = new ASTLeafNoValue("IS_NOT_NULL");
+    auto *node = new ASTLeafNoValue(Const::IS_NOT_NULL);
     return static_cast<ASTNode*>(node);
   }
-  auto *node = new ASTLeafNoValue("IS_NULL");
+  auto *node = new ASTLeafNoValue(Const::IS_NULL);
   return static_cast<ASTNode*>(node);
 }
 
@@ -1107,19 +1108,19 @@ any ASTBuilder::visitOC_AddOrSubtractExpression(CypherParser::OC_AddOrSubtractEx
   if(ctx->oC_MultiplyDivideModuloExpression().size()>1)
   {
     int multIndex =1;
-    auto *node = new ASTInternalNode("ADD_OR_SUBSTRACT");
+    auto *node = new ASTInternalNode(Const::ADD_OR_SUBSTRACT);
     node->addElements(any_cast<ASTNode*>(visitOC_MultiplyDivideModuloExpression(ctx->oC_MultiplyDivideModuloExpression(0))));
 
     for(int i=0; i<ctx->children.size();i++)
     {
       if(ctx->children[i]->getText() == "+")
       {
-        auto *plus = new ASTInternalNode("+");
+        auto *plus = new ASTInternalNode(Const::PLUS);
         plus->addElements(any_cast<ASTNode*>(visitOC_MultiplyDivideModuloExpression(ctx->oC_MultiplyDivideModuloExpression(multIndex++))));
         node->addElements(plus);
       }else if(ctx->children[i]->getText() == "-")
       {
-        auto *minus = new ASTInternalNode("-");
+        auto *minus = new ASTInternalNode(Const::MINUS);
         minus->addElements(any_cast<ASTNode*>(visitOC_MultiplyDivideModuloExpression(ctx->oC_MultiplyDivideModuloExpression(multIndex++))));
         node->addElements(minus);
       }
@@ -1134,19 +1135,19 @@ any ASTBuilder::visitOC_MultiplyDivideModuloExpression(CypherParser::OC_Multiply
   if(ctx->oC_PowerOfExpression().size()>1)
   {
     int powIndex = 1;
-    auto *node = new ASTInternalNode("MULTIPLY_DIVID_MODULO");
+    auto *node = new ASTInternalNode(Const::MULTIPLY_DIVID_MODULO);
     node->addElements(any_cast<ASTNode*>(visitOC_PowerOfExpression(ctx->oC_PowerOfExpression(0))));
 
     for(int i=0; i<ctx->children.size();i++)
     {
       if(ctx->children[i]->getText() == "*")
       {
-        auto *plus = new ASTInternalNode("*");
+        auto *plus = new ASTInternalNode(Const::STAR);
         plus->addElements(any_cast<ASTNode*>(visitOC_PowerOfExpression(ctx->oC_PowerOfExpression(powIndex++))));
         node->addElements(plus);
       }else if(ctx->children[i]->getText() == "/")
       {
-        auto *minus = new ASTInternalNode("/");
+        auto *minus = new ASTInternalNode(Const::DIVIDE);
         minus->addElements(any_cast<ASTNode*>(visitOC_PowerOfExpression(ctx->oC_PowerOfExpression(powIndex++))));
         node->addElements(minus);
       }
@@ -1162,14 +1163,14 @@ any ASTBuilder::visitOC_PowerOfExpression(CypherParser::OC_PowerOfExpressionCont
   if(ctx->oC_UnaryAddOrSubtractExpression().size()>1)
   {
     int unaryIndex = 1;
-    auto *node = new ASTInternalNode("POWER_OF");
+    auto *node = new ASTInternalNode(Const::POWER_OF);
     node->addElements(any_cast<ASTNode*>(visitOC_UnaryAddOrSubtractExpression(ctx->oC_UnaryAddOrSubtractExpression(0))));
 
     for(int i=0; i<ctx->children.size();i++)
     {
       if(ctx->children[i]->getText() == "^")
       {
-        auto *plus = new ASTInternalNode("^");
+        auto *plus = new ASTInternalNode(Const::POWER);
         plus->addElements(any_cast<ASTNode*>(visitOC_UnaryAddOrSubtractExpression(ctx->oC_UnaryAddOrSubtractExpression(unaryIndex++))));
         node->addElements(plus);
       }
@@ -1184,12 +1185,12 @@ any ASTBuilder::visitOC_PowerOfExpression(CypherParser::OC_PowerOfExpressionCont
 any ASTBuilder::visitOC_UnaryAddOrSubtractExpression(CypherParser::OC_UnaryAddOrSubtractExpressionContext *ctx)  {
   if(ctx->children[0]->getText() == "+")
   {
-    auto *node = new ASTInternalNode("UNARY_+");
+    auto *node = new ASTInternalNode(Const::UNARY_PLUS);
     node->addElements(any_cast<ASTNode*>(visitOC_NonArithmeticOperatorExpression(ctx->oC_NonArithmeticOperatorExpression())));
     return static_cast<ASTNode*>(node);
   }else if(ctx->children[0]->getText() == "-")
   {
-    auto *node = new ASTInternalNode("UNARY_-");
+    auto *node = new ASTInternalNode(Const::UNARY_MINUS);
     node->addElements(any_cast<ASTNode*>(visitOC_NonArithmeticOperatorExpression(ctx->oC_NonArithmeticOperatorExpression())));
     return static_cast<ASTNode*>(node);
   }else
@@ -1200,7 +1201,7 @@ any ASTBuilder::visitOC_UnaryAddOrSubtractExpression(CypherParser::OC_UnaryAddOr
 
 
 any ASTBuilder::visitOC_NonArithmeticOperatorExpression(CypherParser::OC_NonArithmeticOperatorExpressionContext *ctx)  {
-  auto *node = new ASTInternalNode("NON_ARITHMETIC_OPERATOR");
+  auto *node = new ASTInternalNode(Const::NON_ARITHMETIC_OPERATOR);
   if(!ctx->oC_ListOperatorExpression().empty() | !ctx->oC_PropertyLookup().empty())
   {
     int i = 0;
@@ -1236,19 +1237,19 @@ any ASTBuilder::visitOC_NonArithmeticOperatorExpression(CypherParser::OC_NonArit
 any ASTBuilder::visitOC_ListOperatorExpression(CypherParser::OC_ListOperatorExpressionContext *ctx)  {
   if(ctx->oC_Expression().size() == 2)
   {
-    auto *node = new ASTInternalNode("LIST_INDEX_RANGE");
+    auto *node = new ASTInternalNode(Const::LIST_INDEX_RANGE);
     node->addElements(any_cast<ASTNode*>(visitOC_Expression(ctx->oC_Expression(0))));
     node->addElements(any_cast<ASTNode*>(visitOC_Expression(ctx->oC_Expression(1))));
     return static_cast<ASTNode*>(node);
   }
-  auto *node = new ASTInternalNode("LIST_INDEX");
+  auto *node = new ASTInternalNode(Const::LIST_INDEX);
   node->addElements(any_cast<ASTNode*>(visitOC_Expression(ctx->oC_Expression(0))));
   return static_cast<ASTNode*>(node);
 }
 
 
 any ASTBuilder::visitOC_PropertyLookup(CypherParser::OC_PropertyLookupContext *ctx)  {
-  auto *node = new ASTInternalNode("PROPERTY_LOOKUP");
+  auto *node = new ASTInternalNode(Const::PROPERTY_LOOKUP);
   node->addElements(any_cast<ASTNode*>(visitOC_PropertyKeyName(ctx->oC_PropertyKeyName())));
   return static_cast<ASTNode*>(node);
 }
@@ -1290,14 +1291,14 @@ any ASTBuilder::visitOC_Atom(CypherParser::OC_AtomContext *ctx)  {
     return visitOC_PatternPredicate(ctx->oC_PatternPredicate());
   }else
   {
-    auto *node = new ASTLeafValue("COUNT", "*");
+    auto *node = new ASTLeafValue(Const::COUNT, "*");
     return static_cast<ASTNode*>(node);
   }
 }
 
 
 any ASTBuilder::visitOC_CaseExpression(CypherParser::OC_CaseExpressionContext *ctx)  {
-  auto *caseNode = new ASTInternalNode("CASE_PATTERN");
+  auto *caseNode = new ASTInternalNode(Const::CASE_PATTERN);
   int caseAlt = 0;
   for(int i = 0; i<ctx->children.size(); i++)
   {
@@ -1310,17 +1311,17 @@ any ASTBuilder::visitOC_CaseExpression(CypherParser::OC_CaseExpressionContext *c
     }
     if(text == "CASE" && type.substr(17) == "OC_ExpressionContextE")
     {
-      auto *node = new ASTInternalNode("CASE_EXPRESSION");
+      auto *node = new ASTInternalNode(Const::CASE_EXPRESSION);
       node->addElements(any_cast<ASTNode*>(visitOC_Expression(ctx->oC_Expression(0))));
       caseNode->addElements(node);
     }else if(text == "ELSE" && ctx->oC_Expression().size()>1)
     {
-      auto *node = new ASTInternalNode("ELSE_EXPRESSION");
+      auto *node = new ASTInternalNode(Const::ELSE_EXPRESSION);
       node->addElements(any_cast<ASTNode*>(visitOC_Expression(ctx->oC_Expression(1))));
       caseNode->addElements(node);
     }else if(text == "ELSE")
     {
-      auto *node = new ASTInternalNode("ELSE_EXPRESSION");
+      auto *node = new ASTInternalNode(Const::ELSE_EXPRESSION);
       node->addElements(any_cast<ASTNode*>(visitOC_Expression(ctx->oC_Expression(0))));
       caseNode->addElements(node);
     }else if(text.find("WHEN") != string::npos)
@@ -1333,12 +1334,12 @@ any ASTBuilder::visitOC_CaseExpression(CypherParser::OC_CaseExpressionContext *c
 
 
 any ASTBuilder::visitOC_CaseAlternative(CypherParser::OC_CaseAlternativeContext *ctx)  {
-  auto *node = new ASTInternalNode("CASE");
+  auto *node = new ASTInternalNode(Const::CASE);
 
-  auto *when = new ASTInternalNode("WHEN");
+  auto *when = new ASTInternalNode(Const::WHEN);
   when->addElements(any_cast<ASTNode*>(visitOC_Expression(ctx->oC_Expression(0))));
 
-  auto *then = new ASTInternalNode("THEN");
+  auto *then = new ASTInternalNode(Const::THEN);
   then->addElements(any_cast<ASTNode*>(visitOC_Expression(ctx->oC_Expression(1))));
 
   node->addElements(when);
@@ -1348,11 +1349,11 @@ any ASTBuilder::visitOC_CaseAlternative(CypherParser::OC_CaseAlternativeContext 
 
 
 any ASTBuilder::visitOC_ListComprehension(CypherParser::OC_ListComprehensionContext *ctx)  {
-  auto *node = new ASTInternalNode("LIST_COMPREHENSION");
+  auto *node = new ASTInternalNode(Const::LIST_COMPREHENSION);
   node->addElements(any_cast<ASTNode*>(visitOC_FilterExpression(ctx->oC_FilterExpression())));
   if(ctx->getText().find('|') != string::npos)
   {
-    auto *result = new ASTInternalNode("FILTER_RESULT");
+    auto *result = new ASTInternalNode(Const::FILTER_RESULT);
     result->addElements(any_cast<ASTNode*>(visitOC_Expression(ctx->oC_Expression())));
     node->addElements(result);
   }
@@ -1361,13 +1362,13 @@ any ASTBuilder::visitOC_ListComprehension(CypherParser::OC_ListComprehensionCont
 
 
 any ASTBuilder::visitOC_PatternComprehension(CypherParser::OC_PatternComprehensionContext *ctx)  {
-  auto *node = new ASTInternalNode("PATTERN_COMPREHENSION");
+  auto *node = new ASTInternalNode(Const::PATTERN_COMPREHENSION);
   if(ctx->oC_Variable())
   {
-    auto *eual = new ASTInternalNode("=");
-    eual->addElements(any_cast<ASTNode*>(visitOC_Variable(ctx->oC_Variable())));
-    eual->addElements(any_cast<ASTNode*>(visitOC_RelationshipsPattern(ctx->oC_RelationshipsPattern())));
-    node->addElements(eual);
+    auto *equal = new ASTInternalNode(Const::EQUAL);
+    equal->addElements(any_cast<ASTNode*>(visitOC_Variable(ctx->oC_Variable())));
+    equal->addElements(any_cast<ASTNode*>(visitOC_RelationshipsPattern(ctx->oC_RelationshipsPattern())));
+    node->addElements(equal);
   }else
   {
     node->addElements(any_cast<ASTNode*>(visitOC_RelationshipsPattern(ctx->oC_RelationshipsPattern())));
@@ -1376,7 +1377,7 @@ any ASTBuilder::visitOC_PatternComprehension(CypherParser::OC_PatternComprehensi
   {
     node->addElements(any_cast<ASTNode*>(visitOC_Where(ctx->oC_Where())));
   }
-  auto *result = new ASTInternalNode("FILTER_RESULT");
+  auto *result = new ASTInternalNode(Const::FILTER_RESULT);
   result->addElements(any_cast<ASTNode*>(visitOC_Expression(ctx->oC_Expression())));
   node->addElements(result);
   return static_cast<ASTNode*>(node);
@@ -1386,22 +1387,22 @@ any ASTBuilder::visitOC_PatternComprehension(CypherParser::OC_PatternComprehensi
 any ASTBuilder::visitOC_Quantifier(CypherParser::OC_QuantifierContext *ctx)  {
   if(ctx->ALL())
   {
-    auto *node = new ASTInternalNode("ALL");
+    auto *node = new ASTInternalNode(Const::ALL);
     node->addElements(any_cast<ASTNode*>(visitOC_FilterExpression(ctx->oC_FilterExpression())));
     return static_cast<ASTNode*>(node);
   }else if(ctx->ANY())
   {
-    auto *node = new ASTInternalNode("ANY");
+    auto *node = new ASTInternalNode(Const::ANY);
     node->addElements(any_cast<ASTNode*>(visitOC_FilterExpression(ctx->oC_FilterExpression())));
     return static_cast<ASTNode*>(node);
   }else if(ctx->NONE())
   {
-    auto *node = new ASTInternalNode("NONE");
+    auto *node = new ASTInternalNode(Const::NONE);
     node->addElements(any_cast<ASTNode*>(visitOC_FilterExpression(ctx->oC_FilterExpression())));
     return static_cast<ASTNode*>(node);
   }else
   {
-    auto *node = new ASTInternalNode("SINGLE");
+    auto *node = new ASTInternalNode(Const::SINGLE);
     node->addElements(any_cast<ASTNode*>(visitOC_FilterExpression(ctx->oC_FilterExpression())));
     return static_cast<ASTNode*>(node);
   }
@@ -1409,7 +1410,7 @@ any ASTBuilder::visitOC_Quantifier(CypherParser::OC_QuantifierContext *ctx)  {
 
 
 any ASTBuilder::visitOC_FilterExpression(CypherParser::OC_FilterExpressionContext *ctx)  {
-  auto *node = new ASTInternalNode("FILTER_EXPRESSION");
+  auto *node = new ASTInternalNode(Const::FILTER_EXPRESSION);
   node->addElements(any_cast<ASTNode*>(visitOC_IdInColl(ctx->oC_IdInColl())));
   if(ctx->oC_Where())
   {
@@ -1430,7 +1431,7 @@ any ASTBuilder::visitOC_ParenthesizedExpression(CypherParser::OC_ParenthesizedEx
 
 
 any ASTBuilder::visitOC_IdInColl(CypherParser::OC_IdInCollContext *ctx)  {
-  auto *node = new ASTInternalNode("LIST_ITERATE");
+  auto *node = new ASTInternalNode(Const::LIST_ITERATE);
   node->addElements(any_cast<ASTNode*>(visitOC_Variable(ctx->oC_Variable())));
   node->addElements(any_cast<ASTNode*>(visitOC_Expression(ctx->oC_Expression())));
   return static_cast<ASTNode*>(node);
@@ -1438,13 +1439,13 @@ any ASTBuilder::visitOC_IdInColl(CypherParser::OC_IdInCollContext *ctx)  {
 
 
 any ASTBuilder::visitOC_FunctionInvocation(CypherParser::OC_FunctionInvocationContext *ctx)  {
-  auto *node = new ASTInternalNode("FUNCTION_BODY");
+  auto *node = new ASTInternalNode(Const::FUNCTION_BODY);
   node->addElements(any_cast<ASTNode*>(visitOC_FunctionName(ctx->oC_FunctionName())));
 
-  auto *aug = new ASTInternalNode("ARGUMENTS");
+  auto *aug = new ASTInternalNode(Const::ARGUMENTS);
   if(ctx->DISTINCT())
   {
-    auto *distinct = new ASTInternalNode("DISTINCT");
+    auto *distinct = new ASTInternalNode(Const::DISTINCT);
     for(CypherParser::OC_ExpressionContext* elements : ctx->oC_Expression())
     {
       distinct->addElements(any_cast<ASTNode*>(visitOC_Expression(elements)));
@@ -1467,16 +1468,16 @@ any ASTBuilder::visitOC_FunctionInvocation(CypherParser::OC_FunctionInvocationCo
 
 
 any ASTBuilder::visitOC_FunctionName(CypherParser::OC_FunctionNameContext *ctx)  {
-  auto *node = new ASTInternalNode("FUNCTION");
+  auto *node = new ASTInternalNode(Const::FUNCTION);
   node->addElements(any_cast<ASTNode*>(visitOC_Namespace(ctx->oC_Namespace())));
-  auto *name = new ASTLeafValue("FUNCTION_NAME", any_cast<string>(visitOC_SymbolicName(ctx->oC_SymbolicName())));
+  auto *name = new ASTLeafValue(Const::FUNCTION_NAME, any_cast<string>(visitOC_SymbolicName(ctx->oC_SymbolicName())));
   node->addElements(name);
   return static_cast<ASTNode*>(node);
 }
 
 
 any ASTBuilder::visitOC_ExistentialSubquery(CypherParser::OC_ExistentialSubqueryContext *ctx)  {
-  auto *node = new ASTInternalNode("EXISTS");
+  auto *node = new ASTInternalNode(Const::EXISTS);
   if(ctx->oC_RegularQuery())
   {
     node->addElements(any_cast<ASTNode*>(visitOC_RegularQuery(ctx->oC_RegularQuery())));
@@ -1494,11 +1495,11 @@ any ASTBuilder::visitOC_ExistentialSubquery(CypherParser::OC_ExistentialSubquery
 
 
 any ASTBuilder::visitOC_ExplicitProcedureInvocation(CypherParser::OC_ExplicitProcedureInvocationContext *ctx)  {
-  auto *node = new ASTInternalNode("EXPLICIT_PROCEDURE");
+  auto *node = new ASTInternalNode(Const::EXPLICIT_PROCEDURE);
   node->addElements(any_cast<ASTNode*>(visitOC_ProcedureName(ctx->oC_ProcedureName())));
   if(ctx->oC_Expression().size()>1)
   {
-    auto *arg = new ASTInternalNode("ARGUMENTS");
+    auto *arg = new ASTInternalNode(Const::ARGUMENTS);
     for(CypherParser::OC_ExpressionContext* elements : ctx->oC_Expression())
     {
       arg->addElements(any_cast<ASTNode*>(visitOC_Expression(elements)));
@@ -1511,22 +1512,22 @@ any ASTBuilder::visitOC_ExplicitProcedureInvocation(CypherParser::OC_ExplicitPro
 
 
 any ASTBuilder::visitOC_ImplicitProcedureInvocation(CypherParser::OC_ImplicitProcedureInvocationContext *ctx)  {
-  auto *node = new ASTInternalNode("IMPLICIT_PROCEDURE");
+  auto *node = new ASTInternalNode(Const::IMPLICIT_PROCEDURE);
   node->addElements(any_cast<ASTNode*>(visitOC_ProcedureName(ctx->oC_ProcedureName())));
   return static_cast<ASTNode*>(node);
 }
 
 
 any ASTBuilder::visitOC_ProcedureResultField(CypherParser::OC_ProcedureResultFieldContext *ctx)  {
-  auto *node = new ASTLeafValue("PROCEDURE_RESULT", any_cast<string>(visitOC_SymbolicName(ctx->oC_SymbolicName())));
+  auto *node = new ASTLeafValue(Const::PROCEDURE_RESULT, any_cast<string>(visitOC_SymbolicName(ctx->oC_SymbolicName())));
   return static_cast<ASTNode*>(node);
 }
 
 
 any ASTBuilder::visitOC_ProcedureName(CypherParser::OC_ProcedureNameContext *ctx)  {
-  auto *node = new ASTInternalNode("PROCEDURE");
+  auto *node = new ASTInternalNode(Const::PROCEDURE);
   node->addElements(any_cast<ASTNode*>(visitOC_Namespace(ctx->oC_Namespace())));
-  auto *name = new ASTLeafValue("PROCEDURE_NAME", any_cast<string>(visitOC_SymbolicName(ctx->oC_SymbolicName())));
+  auto *name = new ASTLeafValue(Const::PROCEDURE_NAME, any_cast<string>(visitOC_SymbolicName(ctx->oC_SymbolicName())));
   node->addElements(name);
   return static_cast<ASTNode*>(node);
 }
@@ -1534,7 +1535,7 @@ any ASTBuilder::visitOC_ProcedureName(CypherParser::OC_ProcedureNameContext *ctx
 
 
 any ASTBuilder::visitOC_Namespace(CypherParser::OC_NamespaceContext *ctx)  {
-  auto *node = new ASTInternalNode("NAMESPACE");
+  auto *node = new ASTInternalNode(Const::NAMESPACE);
   for(CypherParser::OC_SymbolicNameContext* element : ctx->oC_SymbolicName())
   {
     auto *name = new ASTLeafNoValue(any_cast<string>(visitOC_SymbolicName(element)));
@@ -1545,7 +1546,7 @@ any ASTBuilder::visitOC_Namespace(CypherParser::OC_NamespaceContext *ctx)  {
 
 
 any ASTBuilder::visitOC_Variable(CypherParser::OC_VariableContext *ctx)  {
-  auto *node = new ASTLeafValue("VARIABLE", any_cast<string>(visitOC_SymbolicName(ctx->oC_SymbolicName())));
+  auto *node = new ASTLeafValue(Const::VARIABLE, any_cast<string>(visitOC_SymbolicName(ctx->oC_SymbolicName())));
   return static_cast<ASTNode*>(node);
 }
 
@@ -1565,11 +1566,11 @@ any ASTBuilder::visitOC_Literal(CypherParser::OC_LiteralContext *ctx)  {
     return visitOC_NumberLiteral(ctx->oC_NumberLiteral());
   }else if(ctx->NULL_())
   {
-    auto *node = new ASTLeafNoValue("NULL");
+    auto *node = new ASTLeafNoValue(Const::NULL_STRING);
     return static_cast<ASTNode*>(node);
   }else
   {
-    auto *node = new ASTLeafValue("STRING", ctx->getText());
+    auto *node = new ASTLeafValue(Const::STRING, ctx->getText());
     return static_cast<ASTNode*>(node);
   }
 }
@@ -1578,11 +1579,11 @@ any ASTBuilder::visitOC_Literal(CypherParser::OC_LiteralContext *ctx)  {
 any ASTBuilder::visitOC_BooleanLiteral(CypherParser::OC_BooleanLiteralContext *ctx)  {
   if(ctx->TRUE())
   {
-    auto *node = new ASTLeafValue("BOOLEAN", "TRUE");
+    auto *node = new ASTLeafValue(Const::BOOLEAN, "TRUE");
     return static_cast<ASTNode*>(node);
   } else
   {
-    auto *node = new ASTLeafValue("BOOLEAN", "FALSE");
+    auto *node = new ASTLeafValue(Const::BOOLEAN, "FALSE");
     return static_cast<ASTNode*>(node);
   }
 }
@@ -1600,15 +1601,15 @@ any ASTBuilder::visitOC_NumberLiteral(CypherParser::OC_NumberLiteralContext *ctx
 any ASTBuilder::visitOC_IntegerLiteral(CypherParser::OC_IntegerLiteralContext *ctx)  {
   if(ctx->DecimalInteger())
   {
-    auto *node = new ASTLeafValue("DECIMAL", ctx->getText());
+    auto *node = new ASTLeafValue(Const::DECIMAL, ctx->getText());
     return static_cast<ASTNode*>(node);
   } else if(ctx->HexInteger())
   {
-    auto *node = new ASTLeafValue("HEX", ctx->getText());
+    auto *node = new ASTLeafValue(Const::HEX, ctx->getText());
     return static_cast<ASTNode*>(node);
   }else
   {
-    auto *node = new ASTLeafValue("OCTAL", ctx->getText());
+    auto *node = new ASTLeafValue(Const::OCTAL, ctx->getText());
     return static_cast<ASTNode*>(node);
   }
 
@@ -1618,18 +1619,18 @@ any ASTBuilder::visitOC_IntegerLiteral(CypherParser::OC_IntegerLiteralContext *c
 any ASTBuilder::visitOC_DoubleLiteral(CypherParser::OC_DoubleLiteralContext *ctx)  {
   if(ctx->ExponentDecimalReal())
   {
-    auto *node = new ASTLeafValue("EXP_DECIMAL", ctx->getText());
+    auto *node = new ASTLeafValue(Const::EXP_DECIMAL, ctx->getText());
     return static_cast<ASTNode*>(node);
   }else
   {
-    auto *node = new ASTLeafValue("REGULAR_DECIMAL", ctx->getText());
+    auto *node = new ASTLeafValue(Const::REGULAR_DECIMAL, ctx->getText());
     return static_cast<ASTNode*>(node);
   }
 }
 
 
 any ASTBuilder::visitOC_ListLiteral(CypherParser::OC_ListLiteralContext *ctx)  {
-  auto *node = new ASTInternalNode("LIST");
+  auto *node = new ASTInternalNode(Const::LIST);
   for(CypherParser::OC_ExpressionContext* element: ctx->oC_Expression())
   {
     node->addElements(any_cast<ASTNode*>(visitOC_Expression(element)));
@@ -1639,10 +1640,10 @@ any ASTBuilder::visitOC_ListLiteral(CypherParser::OC_ListLiteralContext *ctx)  {
 
 
 any ASTBuilder::visitOC_MapLiteral(CypherParser::OC_MapLiteralContext *ctx)  {
-  auto *node = new ASTInternalNode("PROPERIES_MAP");
+  auto *node = new ASTInternalNode(Const::PROPERIES_MAP);
   for(int i=0; i<ctx->oC_PropertyKeyName().size();i++)
   {
-    auto *propNode = new ASTInternalNode("PROPERTY");
+    auto *propNode = new ASTInternalNode(Const::PROPERTY);
     propNode->addElements(any_cast<ASTNode*>(visitOC_PropertyKeyName(ctx->oC_PropertyKeyName()[i])));
     propNode->addElements(any_cast<ASTNode*>(visitOC_Expression(ctx->oC_Expression()[i])));
     node->addElements(propNode);
@@ -1660,11 +1661,11 @@ any ASTBuilder::visitOC_PropertyKeyName(CypherParser::OC_PropertyKeyNameContext 
 any ASTBuilder::visitOC_Parameter(CypherParser::OC_ParameterContext *ctx)  {
   if(ctx->oC_SymbolicName())
   {
-    auto *node = new ASTLeafValue("PARAMETER", any_cast<string>(visitOC_SymbolicName(ctx->oC_SymbolicName())));
+    auto *node = new ASTLeafValue(Const::PARAMETER, any_cast<string>(visitOC_SymbolicName(ctx->oC_SymbolicName())));
     return static_cast<ASTNode*>(node);
   }else
   {
-    auto *node = new ASTLeafValue("PARAMETER", ctx->getText());
+    auto *node = new ASTLeafValue(Const::PARAMETER, ctx->getText());
     return static_cast<ASTNode*>(node);
   }
 }
@@ -1675,13 +1676,13 @@ any ASTBuilder::visitOC_SchemaName(CypherParser::OC_SchemaNameContext *ctx)  {
   {
     return visitOC_ReservedWord(ctx->oC_ReservedWord());
   }
-  auto *node = new ASTLeafValue("SYMBOLIC_WORD",any_cast<string>(visitOC_SymbolicName(ctx->oC_SymbolicName())));
+  auto *node = new ASTLeafValue(Const::SYMBOLIC_WORD,any_cast<string>(visitOC_SymbolicName(ctx->oC_SymbolicName())));
   return static_cast<ASTNode*>(node);
 }
 
 
 any ASTBuilder::visitOC_ReservedWord(CypherParser::OC_ReservedWordContext *ctx)  {
-  auto *node = new ASTLeafValue("RESERVED_WORD", ctx->getText());
+  auto *node = new ASTLeafValue(Const::RESERVED_WORD, ctx->getText());
   return static_cast<ASTNode*>(node);
 }
 
@@ -1692,10 +1693,10 @@ any ASTBuilder::visitOC_SymbolicName(CypherParser::OC_SymbolicNameContext *ctx) 
 
 
 any ASTBuilder::visitOC_LeftArrowHead(CypherParser::OC_LeftArrowHeadContext *ctx)  {
-  return static_cast<ASTNode*>(new ASTLeafNoValue("LEFT_ARRROW"));
+  return static_cast<ASTNode*>(new ASTLeafNoValue(Const::LEFT_ARRROW));
 }
 
 
 any ASTBuilder::visitOC_RightArrowHead(CypherParser::OC_RightArrowHeadContext *ctx)  {
-  return static_cast<ASTNode*>(new ASTLeafNoValue("RIGHT_ARROW"));;
+  return static_cast<ASTNode*>(new ASTLeafNoValue(Const::RIGHT_ARROW));;
 }
