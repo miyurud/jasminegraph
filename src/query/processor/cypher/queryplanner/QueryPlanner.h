@@ -12,6 +12,7 @@ public:
 
     Operator* createExecutionPlan(ASTNode* ast, Operator* op = nullptr, string var = "");
     Operator* optimizePlan(Operator* root);
+    bool isAvailable(string nodeType, ASTNode* subtree)
 };
 
 #endif // QUERY_PLANNER_H
