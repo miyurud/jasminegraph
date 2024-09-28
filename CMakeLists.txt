@@ -47,8 +47,6 @@ set(HEADERS globals.h
         src/query/processor/cypher/semanticanalyzer/SemanticAnalyzer.h
         src/query/processor/cypher/semanticanalyzer/Scope.h
         src/query/processor/cypher/semanticanalyzer/ScopeManager.h
-        src/query/processor/cypher/queryplanner/Operators.h
-        src/query/processor/cypher/queryplanner/QueryPlanner.h
         src/scale/scaler.h
         src/server/JasmineGraphInstance.h
         src/server/JasmineGraphInstanceFileTransferService.h
@@ -125,8 +123,6 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/query/processor/cypher/semanticanalyzer/SemanticAnalyzer.cpp
         src/query/processor/cypher/semanticanalyzer/Scope.cpp
         src/query/processor/cypher/semanticanalyzer/ScopeManager.cpp
-        src/query/processor/cypher/queryplanner/Operators.cpp
-        src/query/processor/cypher/queryplanner/QueryPlanner.cpp
         src/scale/scaler.cpp
         src/server/JasmineGraphInstance.cpp
         src/server/JasmineGraphInstanceFileTransferService.cpp
