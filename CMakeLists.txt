@@ -81,6 +81,8 @@ set(HEADERS globals.h
         src/streamingdb/StreamingSQLiteDBInterface.h
         src/frontend/core/executor/impl/PageRankExecutor.h
         src/util/dbinterface/DBInterface.h
+        src/query/processor/cypher/util/const.cpp
+        src/query/processor/cypher/util/const.h
 )
 
 set(SOURCES src/backend/JasmineGraphBackend.cpp
@@ -152,6 +154,8 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/frontend/core/executor/impl/PageRankExecutor.cpp
         src/util/dbinterface/DBInterface.cpp
         src/query/processor/cypher/semanticanalyzer/SemanticAnalyzer.cpp
+        src/query/processor/cypher/util/const.cpp
+        src/query/processor/cypher/util/const.h
 )
 
 if (CMAKE_BUILD_TYPE STREQUAL "DEBUG")
