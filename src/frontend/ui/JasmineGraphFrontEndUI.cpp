@@ -288,6 +288,13 @@ std::string extractFileNameFromURL(const std::string& url) {
     }
     return "downloaded_file";
 }
+
+std::string sanitizeFileName(const std::string& fileName) {
+    // Remove unsafe characters using regex (allow alphanumeric and some safe symbols)
+    std::regex unsafePattern("[^a-zA-Z0-9_.-]");
+    return std::regex_replace(fileName, unsafePattern, "");
+}
+
 static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p, std::string command) {
     char delimiter = '|';
     std::stringstream ss(command);
@@ -299,13 +306,14 @@ static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterfac
     std::getline(ss, graph, delimiter);
     std::getline(ss, fileURL, delimiter);
 
-    std::string localFilePath = "/var/tmp/" + extractFileNameFromURL(fileURL);
+    std::string safeFileName = sanitizeFileName(extractFileNameFromURL(fileURL));
+    std::string localFilePath = Conts::TEMP_GRAPH_FILE_PATH + safeFileName;
     std::string savedFilePath = Utils::downloadFile(fileURL, localFilePath);
 
     if (!savedFilePath.empty()) {
-        std::cout << "File downloaded and saved as " << savedFilePath << std::endl;
+        ui_frontend_logger.info("File downloaded and saved as "+ savedFilePath);
     } else {
-        std::cout << "Failed to download the file." << std::endl;
+        ui_frontend_logger.info("Failed to download the file.");
     }
 
     int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
