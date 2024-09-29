@@ -737,6 +737,59 @@ static size_t write_callback(void *contents, size_t size, size_t nmemb, std::str
     output->append(static_cast<char *>(contents), totalSize);
     return totalSize;
 }
+
+// Callback function to write the data to a file
+static size_t write_file_callback(void* contents, size_t size, size_t nmemb, void* userp) {
+    std::ofstream* file = static_cast<std::ofstream*>(userp);
+    size_t totalSize = size * nmemb;
+    file->write(static_cast<char*>(contents), totalSize);
+    return totalSize;
+}
+
+// Utility function to download a file from a URL and save it locally
+std::string Utils::downloadFile(const std::string& fileURL, const std::string& localFilePath) {
+    CURL* curl;
+    CURLcode res;
+
+    // Initialize curl
+    curl = curl_easy_init();
+    if (!curl) {
+        std::cerr << "Error initializing curl!" << std::endl;
+        return "";
+    }
+
+    // Open file to save the downloaded data
+    std::ofstream outFile(localFilePath, std::ios::binary);
+    if (!outFile) {
+        std::cerr << "Error: Could not open file for writing!" << std::endl;
+        curl_easy_cleanup(curl);
+        return "";
+    }
+
+    // Set curl options
+    curl_easy_setopt(curl, CURLOPT_URL, fileURL.c_str());
+    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L); // Follow redirects if any
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_file_callback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &outFile);
+
+    // Perform the request
+    res = curl_easy_perform(curl);
+
+    // Check for errors
+    if (res != CURLE_OK) {
+        std::cerr << "curl_easy_perform() failed: " << curl_easy_strerror(res) << std::endl;
+        outFile.close();
+        curl_easy_cleanup(curl);
+        return "";
+    }
+
+    // Cleanup
+    curl_easy_cleanup(curl);
+    outFile.close();
+
+    return localFilePath;
+}
+
 std::string Utils::send_job(std::string job_group_name, std::string metric_name, std::string metric_value) {
     CURL *curl;
     CURLcode res;

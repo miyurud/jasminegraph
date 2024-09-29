@@ -170,6 +170,8 @@ class Utils {
 
     static int createDatabaseFromDDL(const char *dbLocation, const char *ddlFileLocation);
 
+    static std::string downloadFile(const std::string& fileURL, const std::string& localFilePath);
+
     static std::string send_job(std::string job_group_name, std::string metric_name, std::string metric_value);
 
     static map<string, string> getMetricMap(string metricName);

@@ -51,6 +51,8 @@ public:
     static bool checkServerBusy(std::atomic<int> *currentFESession, int connFd);
 
     static std::string readAndProcessInput(int connFd, char* data, int &failCnt);
+
+    static std::string getPartitionCount(std::string path);
 };
 
 #endif //JASMINEGRAPHFRONTENDCOMMON_H

@@ -26,15 +26,10 @@ Logger common_logger;
  * @return
  */
 bool JasmineGraphFrontEndCommon::graphExists(string path, SQLiteDBInterface *sqlite) {
-    bool result = true;
     string stmt = "SELECT COUNT( * ) FROM graph WHERE upload_path LIKE '" + path +
                   "' AND graph_status_idgraph_status = '" + to_string(Conts::GRAPH_STATUS::OPERATIONAL) + "';";
     std::vector<vector<pair<string, string>>> v = sqlite->runSelect(stmt);
-    int count = std::stoi(v[0][0].second);
-    if (count == 0) {
-        result = false;
-    }
-    return result;
+    return (std::stoi(v[0][0].second) != 0);
 }
 
 /**
@@ -44,16 +39,9 @@ bool JasmineGraphFrontEndCommon::graphExists(string path, SQLiteDBInterface *sql
  * @return
  */
 bool JasmineGraphFrontEndCommon::graphExistsByID(string id, SQLiteDBInterface *sqlite) {
-    bool result = true;
     string stmt = "SELECT COUNT( * ) FROM graph WHERE idgraph = " + id;
     std::vector<vector<pair<string, string>>> v = sqlite->runSelect(stmt);
-    int count = std::stoi(v[0][0].second);
-
-    if (count == 0) {
-        result = false;
-    }
-
-    return result;
+    return (std::stoi(v[0][0].second) != 0);
 }
 
 /**
@@ -81,7 +69,7 @@ void JasmineGraphFrontEndCommon::removeGraph(std::string graphID, SQLiteDBInterf
         }
     }
     for (std::vector<pair<string, string>>::iterator j = (hostHasPartition.begin()); j != hostHasPartition.end(); ++j) {
-        cout << "HOST ID : " << j->first << " Partition ID : " << j->second << endl;
+        common_logger.info("HOST ID : " + j->second + " PARTITION ID : " + j->first);
     }
     sqlite->runUpdate("UPDATE graph SET graph_status_idgraph_status = " + to_string(Conts::GRAPH_STATUS::DELETING) +
                       " WHERE idgraph = " + graphID);
@@ -100,16 +88,11 @@ void JasmineGraphFrontEndCommon::removeGraph(std::string graphID, SQLiteDBInterf
  * @return
  */
 bool JasmineGraphFrontEndCommon::isGraphActiveAndTrained(std::string graphID, SQLiteDBInterface *sqlite) {
-    bool result = true;
     string stmt = "SELECT COUNT( * ) FROM graph WHERE idgraph LIKE '" + graphID +
                   "' AND graph_status_idgraph_status = '" + to_string(Conts::GRAPH_STATUS::OPERATIONAL) +
                   "' AND train_status = '" + (Conts::TRAIN_STATUS::TRAINED) + "';";
     std::vector<vector<pair<string, string>>> v = sqlite->runSelect(stmt);
-    int count = std::stoi(v[0][0].second);
-    if (count == 0) {
-        result = false;
-    }
-    return result;
+    return (std::stoi(v[0][0].second) != 0);
 }
 
 /**
@@ -119,41 +102,24 @@ bool JasmineGraphFrontEndCommon::isGraphActiveAndTrained(std::string graphID, SQ
  * @return
  */
 bool JasmineGraphFrontEndCommon::isGraphActive(std::string graphID, SQLiteDBInterface *sqlite) {
-    bool result = false;
     string stmt = "SELECT COUNT( * ) FROM graph WHERE idgraph LIKE '" + graphID +
                   "' AND graph_status_idgraph_status = '" + to_string(Conts::GRAPH_STATUS::OPERATIONAL) + "';";
     std::vector<vector<pair<string, string>>> v = sqlite->runSelect(stmt);
-    int count = std::stoi(v[0][0].second);
-    if (count != 0) {
-        result = true;
-    }
-    return result;
+    return (std::stoi(v[0][0].second) != 0);
 }
 
 bool JasmineGraphFrontEndCommon::modelExistsByID(string id, SQLiteDBInterface *sqlite) {
-    bool result = true;
     string stmt = "SELECT COUNT( * ) FROM model WHERE idmodel = " + id +
                   " and model_status_idmodel_status = " + to_string(Conts::GRAPH_STATUS::OPERATIONAL);
     std::vector<vector<pair<string, string>>> v = sqlite->runSelect(stmt);
-    int count = std::stoi(v[0][0].second);
-
-    if (count == 0) {
-        result = false;
-    }
-
-    return result;
+    return (std::stoi(v[0][0].second) != 0);
 }
 
 bool JasmineGraphFrontEndCommon::modelExists(string path, SQLiteDBInterface *sqlite) {
-    bool result = true;
     string stmt = "SELECT COUNT( * ) FROM model WHERE upload_path LIKE '" + path +
                   "' AND model_status_idmodel_status = '" + to_string(Conts::GRAPH_STATUS::OPERATIONAL) + "';";
     std::vector<vector<pair<string, string>>> v = sqlite->runSelect(stmt);
-    int count = std::stoi(v[0][0].second);
-    if (count == 0) {
-        result = false;
-    }
-    return result;
+    return (std::stoi(v[0][0].second) != 0);
 }
 
 void JasmineGraphFrontEndCommon::getAndUpdateUploadTime(std::string graphID, SQLiteDBInterface *sqlite) {
@@ -199,7 +165,6 @@ long JasmineGraphFrontEndCommon::getSLAForGraphId(SQLiteDBInterface *sqlite, Per
         graphId + ";";
 
     std::vector<vector<pair<string, string>>> results = sqlite->runSelect(sqlStatement);
-
     int partitionCount = results.size();
 
     string graphSlaQuery =
@@ -221,7 +186,7 @@ long JasmineGraphFrontEndCommon::getSLAForGraphId(SQLiteDBInterface *sqlite, Per
 }
 
 std::vector<std::vector<std::pair<std::string, std::string>>> JasmineGraphFrontEndCommon::getGraphData(SQLiteDBInterface *sqlite) {
-    return sqlite->runSelect("SELECT idgraph, name, upload_path, graph_status_idgraph_status FROM graph;");
+    return sqlite->runSelect("SELECT idgraph, name, upload_path, graph_status_idgraph_status, vertexcount, edgecount, centralpartitioncount FROM graph;");
 }
 
 bool JasmineGraphFrontEndCommon::checkServerBusy(std::atomic<int> *currentFESession, int connFd) {
@@ -248,4 +213,16 @@ std::string JasmineGraphFrontEndCommon::readAndProcessInput(int connFd, char* da
         failCnt = 0;
     }
     return Utils::trim_copy(line);
+}
+
+std::string JasmineGraphFrontEndCommon::getPartitionCount(std::string path) {
+    if (Utils::getJasmineGraphProperty("org.jasminegraph.autopartition.enabled") != "true") {
+        return "";
+    }
+    ifstream dataFile(path);
+    size_t edges = std::count(std::istreambuf_iterator<char>(dataFile), std::istreambuf_iterator<char>(), '\n');
+    dataFile.close();
+    int partCnt = (int)round(pow(edges, 0.2) / 6);
+    if (partCnt < 2) partCnt = 2;
+    return to_string(partCnt);
 }

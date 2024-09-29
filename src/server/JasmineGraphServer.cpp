@@ -161,15 +161,15 @@ int JasmineGraphServer::run(std::string masterIp, int numberofWorkers, std::stri
 }
 
 void JasmineGraphServer::init() {
-    pthread_t frontendthread;
-    pthread_t frontenduithread;
-    pthread_t backendthread;
-    pthread_create(&frontendthread, NULL, runfrontend, this);
-    pthread_detach(frontendthread);
-    pthread_create(&frontenduithread, NULL, runuifrontend, this);
-    pthread_detach(frontenduithread);
-    pthread_create(&backendthread, NULL, runbackend, this);
-    pthread_detach(backendthread);
+    pthread_t frontendThread;
+    pthread_t frontendUIThread;
+    pthread_t backendThread;
+    pthread_create(&frontendThread, NULL, runfrontend, this);
+    pthread_detach(frontendThread);
+    pthread_create(&frontendUIThread, NULL, runuifrontend, this);
+    pthread_detach(frontendUIThread);
+    pthread_create(&backendThread, NULL, runbackend, this);
+    pthread_detach(backendThread);
 }
 
 void JasmineGraphServer::start_workers() {

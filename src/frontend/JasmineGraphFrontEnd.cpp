@@ -63,7 +63,6 @@ std::set<ProcessInfo> processData;
 std::string stream_topic_name;
 bool JasmineGraphFrontEnd::strian_exit;
 
-static std::string getPartitionCount(std::string path);
 static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
@@ -356,18 +355,6 @@ bool JasmineGraphFrontEnd::areRunningJobsForSameGraph() {
     return true;
 }
 
-static std::string getPartitionCount(std::string path) {
-    if (Utils::getJasmineGraphProperty("org.jasminegraph.autopartition.enabled") != "true") {
-        return "";
-    }
-    ifstream dataFile(path);
-    size_t edges = std::count(std::istreambuf_iterator<char>(dataFile), std::istreambuf_iterator<char>(), '\n');
-    dataFile.close();
-    int partCnt = (int)round(pow(edges, 0.2) / 6);
-    if (partCnt < 2) partCnt = 2;
-    return to_string(partCnt);
-}
-
 static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
     std::stringstream ss;
 
@@ -555,7 +542,7 @@ static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterfac
     name = strArr[0];
     path = strArr[1];
 
-    partitionCount = getPartitionCount(path);
+    partitionCount = JasmineGraphFrontEndCommon::getPartitionCount(path);
 
     if (JasmineGraphFrontEndCommon::graphExists(path, sqlite)) {
         frontend_logger.error("Graph exists");
@@ -1427,12 +1414,12 @@ static void vertex_count_command(int connFd, SQLiteDBInterface *sqlite, bool *lo
 
     read(connFd, graph_id_data, 300);
 
-    string graph_id(graph_id_data);
+    string graphId(graph_id_data);
 
-    graph_id.erase(std::remove(graph_id.begin(), graph_id.end(), '\n'), graph_id.end());
-    graph_id.erase(std::remove(graph_id.begin(), graph_id.end(), '\r'), graph_id.end());
+    graphId.erase(std::remove(graphId.begin(), graphId.end(), '\n'), graphId.end());
+    graphId.erase(std::remove(graphId.begin(), graphId.end(), '\r'), graphId.end());
 
-    if (!JasmineGraphFrontEndCommon::graphExistsByID(graph_id, sqlite)) {
+    if (!JasmineGraphFrontEndCommon::graphExistsByID(graphId, sqlite)) {
         string error_message = "The specified graph id does not exist";
         result_wr = write(connFd, error_message.c_str(), FRONTEND_COMMAND_LENGTH);
         if (result_wr < 0) {
@@ -1446,7 +1433,7 @@ static void vertex_count_command(int connFd, SQLiteDBInterface *sqlite, bool *lo
             *loop_exit_p = true;
         }
     } else {
-        string sqlStatement = "SELECT vertexcount from graph where idgraph=" + graph_id;
+        string sqlStatement = "SELECT vertexcount from graph where idgraph=" + graphId;
 
         std::vector<vector<pair<string, string>>> output = sqlite->runSelect(sqlStatement);
 
@@ -2146,7 +2133,7 @@ static void predict_command(std::string masterIP, int connFd, SQLiteDBInterface 
 
         if (JasmineGraphFrontEndCommon::isGraphActiveAndTrained(graphID, sqlite)) {
             if (Utils::fileExists(path)) {
-                std::cout << "Path exists" << endl;
+                frontend_logger.error("Path exists");
                 JasminGraphLinkPredictor::initiateLinkPrediction(graphID, path, masterIP);
             } else {
                 frontend_logger.error("Graph edge file does not exist on the specified path");

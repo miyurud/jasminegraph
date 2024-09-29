@@ -22,6 +22,11 @@ limitations under the License.
 #include <nlohmann/json.hpp>
 #include <set>
 #include <thread>
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <curl/curl.h>
+#include <regex>
 
 #include "../../metadb/SQLiteDBInterface.h"
 #include "../../nativestore/DataPublisher.h"
@@ -53,6 +58,7 @@ bool JasmineGraphFrontEndUI::strian_exit;
 string JasmineGraphFrontEndUI::stream_topic_name;
 
 static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
+static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p, std::string command);
 
 void *uifrontendservicesesion(void *dummyPt) {
     frontendservicesessionargs *sessionargs = (frontendservicesessionargs *)dummyPt;
@@ -91,10 +97,18 @@ void *uifrontendservicesesion(void *dummyPt) {
             workerResponded = false;
         }
 
-        if (line.compare(EXIT) == 0) {
+        // split the string in '|' and take first
+        char delimiter = '|';
+        std::stringstream ss(line);
+        std::string token;
+        std::getline(ss, token, delimiter);
+
+        if (token.compare(EXIT) == 0) {
             break;
-        } else if (line.compare(LIST) == 0) {
+        } else if (token.compare(LIST) == 0){
             list_command(connFd, sqlite, &loop_exit);
+        } else if (token.compare(ADGR) == 0) {
+            add_graph_command(masterIP, connFd, sqlite, &loop_exit, line);
         } else {
             ui_frontend_logger.error("Message format not recognized " + line);
             int result_wr = write(connFd, INVALID_FORMAT.c_str(), INVALID_FORMAT.size());
@@ -191,10 +205,10 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
     json result_json = json::array();  // Create a JSON array to hold the result
 
     // Fetch data from the database
-    std::vector<vector<pair<string, string>>> v = JasmineGraphFrontEndCommon::getGraphData(sqlite);
+    std::vector<vector<pair<string, string>>> data = JasmineGraphFrontEndCommon::getGraphData(sqlite);
 
     // Iterate through the result set and construct the JSON array
-    for (auto &row : v) {
+    for (auto &row : data) {
         json entry;  // JSON object for a single row
         int counter = 0;
 
@@ -262,5 +276,108 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
             ui_frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
         }
+    }
+}
+
+// Function to extract the file name from the URL
+std::string extractFileNameFromURL(const std::string& url) {
+    std::regex urlRegex("([^/]+)$");
+    std::smatch matches;
+    if (std::regex_search(url, matches, urlRegex) && matches.size() > 1) {
+        return matches.str(1);
+    }
+    return "downloaded_file";
+}
+static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p, std::string command) {
+    char delimiter = '|';
+    std::stringstream ss(command);
+    std::string token;
+    std::string graph;
+    std::string fileURL;
+
+    std::getline(ss, token, delimiter);
+    std::getline(ss, graph, delimiter);
+    std::getline(ss, fileURL, delimiter);
+
+    std::string localFilePath = "/var/tmp/" + extractFileNameFromURL(fileURL);
+    std::string savedFilePath = Utils::downloadFile(fileURL, localFilePath);
+
+    if (!savedFilePath.empty()) {
+        std::cout << "File downloaded and saved as " << savedFilePath << std::endl;
+    } else {
+        std::cout << "Failed to download the file." << std::endl;
+    }
+
+    int result_wr = write(connFd, SEND.c_str(), FRONTEND_COMMAND_LENGTH);
+    if (result_wr < 0) {
+        ui_frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    result_wr = write(connFd, "\r\n", 2);
+    if (result_wr < 0) {
+        ui_frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+
+    string name = "";
+    string path = "";
+    string partitionCount = "";
+
+    name = graph;
+    path = savedFilePath;
+
+    std::time_t time = chrono::system_clock::to_time_t(chrono::system_clock::now());
+    string uploadStartTime = ctime(&time);
+
+    partitionCount = JasmineGraphFrontEndCommon::getPartitionCount(path);
+
+    if (JasmineGraphFrontEndCommon::graphExists(path, sqlite)) {
+        ui_frontend_logger.error("Graph exists");
+        // TODO: inform client?
+        return;
+    }
+
+    if (Utils::fileExists(path)) {
+        ui_frontend_logger.info("Path exists");
+
+        string sqlStatement =
+            "INSERT INTO graph (name,upload_path,upload_start_time,upload_end_time,graph_status_idgraph_status,"
+            "vertexcount,centralpartitioncount,edgecount) VALUES(\"" +
+            name + "\", \"" + path + "\", \"" + uploadStartTime + "\", \"\",\"" +
+            to_string(Conts::GRAPH_STATUS::LOADING) + "\", \"\", \"\", \"\")";
+        int newGraphID = sqlite->runInsert(sqlStatement);
+        MetisPartitioner partitioner(sqlite);
+        vector<std::map<int, string>> fullFileList;
+
+        partitioner.loadDataSet(path, newGraphID);
+        int result = partitioner.constructMetisFormat(Conts::GRAPH_TYPE_NORMAL);
+        if (result == 0) {
+            string reformattedFilePath = partitioner.reformatDataSet(path, newGraphID);
+            partitioner.loadDataSet(reformattedFilePath, newGraphID);
+            partitioner.constructMetisFormat(Conts::GRAPH_TYPE_NORMAL_REFORMATTED);
+            fullFileList = partitioner.partitioneWithGPMetis(partitionCount);
+        } else {
+            fullFileList = partitioner.partitioneWithGPMetis(partitionCount);
+        }
+        ui_frontend_logger.info("Upload done");
+        JasmineGraphServer *server = JasmineGraphServer::getInstance();
+        server->uploadGraphLocally(newGraphID, Conts::GRAPH_TYPE_NORMAL, fullFileList, masterIP);
+        Utils::deleteDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp/" + to_string(newGraphID));
+        JasmineGraphFrontEndCommon::getAndUpdateUploadTime(to_string(newGraphID), sqlite);
+        int result_wr = write(connFd, DONE.c_str(), DONE.size());
+        if (result_wr < 0) {
+            ui_frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        result_wr = write(connFd, "\r\n", 2);
+        if (result_wr < 0) {
+            ui_frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+        }
+    } else {
+        ui_frontend_logger.error("Graph data file does not exist on the specified path");
     }
 }
