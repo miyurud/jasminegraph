@@ -69,7 +69,7 @@ void *uifrontendservicesesion(void *dummyPt) {
     JobScheduler *jobScheduler = sessionargs->jobScheduler;
     delete sessionargs;
 
-    if(JasmineGraphFrontEndCommon::checkServerBusy(&currentFESession, connFd)){
+    if (JasmineGraphFrontEndCommon::checkServerBusy(&currentFESession, connFd)) {
         ui_frontend_logger.error("Server is busy");
         return NULL;
     }
@@ -105,7 +105,7 @@ void *uifrontendservicesesion(void *dummyPt) {
 
         if (token.compare(EXIT) == 0) {
             break;
-        } else if (token.compare(LIST) == 0){
+        } else if (token.compare(LIST) == 0) {
             list_command(connFd, sqlite, &loop_exit);
         } else if (token.compare(ADGR) == 0) {
             add_graph_command(masterIP, connFd, sqlite, &loop_exit, line);

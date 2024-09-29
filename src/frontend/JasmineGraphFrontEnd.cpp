@@ -117,7 +117,7 @@ void *frontendservicesesion(void *dummyPt) {
     JobScheduler *jobScheduler = sessionargs->jobScheduler;
     delete sessionargs;
 
-    if(JasmineGraphFrontEndCommon::checkServerBusy(&currentFESession, connFd)){
+    if (JasmineGraphFrontEndCommon::checkServerBusy(&currentFESession, connFd)) {
         frontend_logger.error("Server is busy");
         return NULL;
     }
