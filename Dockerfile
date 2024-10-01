@@ -1,4 +1,4 @@
-FROM pre:latest
+miyurud/jasminegraph-prerequisites:20240101T095619
 
 RUN apt-get update && apt-get install -y libcurl4-openssl-dev sysstat nmon
 RUN rm -r /usr/lib/python3.8/distutils
