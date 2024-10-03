@@ -85,6 +85,22 @@ double Partition::getVertextCount() {
     return edgeListVetices + edgeCutVertices;
 }
 
+double Partition::getLocalEdgeCount(){
+    double total=0;
+    for(auto edge:this->edgeList){
+        total+= edge.second.size();
+    }
+    return total;
+}
+
+double Partition::getEdgeCutCount(){
+    double total;
+    for(auto edgeCut: this->edgeCuts){
+        total+=edgeCut.size();
+    }
+    return total;
+}
+
 double Partition::getVertextCountQuick() { return this->vertexCount; }
 
 template <typename Out>
