@@ -6,16 +6,20 @@
 #include "../../util/Utils.h"
 #include <vector>
 #include <string>
-#include <stdio.h>
-#include <stdlib.h>
 #include <map>
-#include <functional>  // For std::hash
+#include <functional>
 #include <mutex>
 #include <condition_variable>
+#include <thread>
 
 class HashPartitioner {
 
     std::vector<Partition> partitions; // Holds partition objects
+
+    std::atomic<bool> terminateConsumers;  // Termination flag
+    std::vector<std::thread> localEdgeThreads;
+    std::vector<std::thread> edgeCutThreads;
+
     std::vector<std::mutex> partitionLocks; // Array of mutexes for each partition
     std::vector<std::vector<std::pair<std::string, std::string>>> localEdgeArrays; // Array of arrays of edges for local partitioning
     std::vector<std::vector<std::pair<std::string, std::string>>> edgeCutsArrays;  // Array of arrays of edges for edge cuts
@@ -32,13 +36,11 @@ class HashPartitioner {
     int graphId;
 
 public:
+    ~HashPartitioner();
     HashPartitioner(int numberOfPartitions, int graphID);
     void uploadGraphLocally(std::string masterIP);
-    partitionedEdge hashPartitioning(std::pair<std::string, std::string> edge);
     void writeSerializedPartitionFiles(int partition);
     void writeSerializedMasterFiles(int partition);
-//    void writeSerializedDuplicateMasterFiles(int partition);
-//    std::vector<std::map<int, std::string>> generateFullFileList();
     void printStats();
     long getVertexCount();
     long getEdgeCount();
@@ -61,6 +63,7 @@ private:
     std::vector<std::map<int, std::string>> generateFullFileList();
     void consumeLocalEdges(int partitionIndex);
     void consumeEdgeCuts(int partitionIndex);
+    void stopConsumerThreads();
 };
 
 #endif  // !JASMINE_HASH_PARTITIONER_HEADER
