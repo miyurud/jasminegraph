@@ -71,6 +71,9 @@ class Partition {
     bool isExistInEdgeCuts(std::string);
     std::map<int, std::vector<int>> getLocalStorageMap();
     std::map<int, std::vector<int>> getPartitionMasterEdgeMap();
+    double getLocalEdgeCount();
+
+    double getEdgeCutCount();
 };
 
 #endif
