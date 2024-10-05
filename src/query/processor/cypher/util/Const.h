@@ -52,6 +52,7 @@ public:
     static string UNIDIRECTION_ARROW;
     static string RELATIONSHIP_DETAILS;
     static string RELATIONSHIP_TYPES;
+    static string RELATIONSHIP_TYPE;
     static string NODE_LABELS;
     static string NODE_LABEL;
     static string RANGE;
