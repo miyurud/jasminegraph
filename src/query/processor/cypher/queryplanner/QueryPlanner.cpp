@@ -2,13 +2,8 @@
 #include "QueryPlanner.h"
 #include "../util/Const.h"
 
-Operator* QueryPlanner::optimizePlan(Operator* root) {
-    // Placeholder for optimization logic
-    std::cout << "Optimizing the execution plan..." << std::endl;
-    return root; // Return the original plan for now
-}
 Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string var) {
-    cout<<ast->nodeType<<endl;
+
     Operator* oprtr = op;
     // Example: Create a simple execution plan based on the AST
     if(ast->nodeType == Const::UNION)
@@ -31,7 +26,10 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
         }
     }else if(ast->nodeType == Const::MATCH)
     {
-        oprtr = createExecutionPlan(ast->elements[0]->elements[0],oprtr);
+        for(int i = 0; i< ast->elements.size(); i++)
+        {
+            oprtr = createExecutionPlan(ast->elements[i],oprtr);
+        }
     }else if(ast->nodeType == Const::OPTIONAL)
     {
 
@@ -100,10 +98,43 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
 
     }else if(ast->nodeType == Const::RETURN_BODY)
     {
-        if(ast->elements[0]->nodeType == Const::VARIABLE)
+        vector<ASTNode*> var;
+        if(isAllChildAreGivenType(Const::VARIABLE, ast))
         {
-            return new ProduceResults(ast->elements[0]->value, oprtr);
+            return new ProduceResults(op, var);
         }
+
+        vector<ASTNode*> nonArith = getSubTreeListByNodeType(ast,Const::NON_ARITHMETIC_OPERATOR);
+        vector<ASTNode*> property;
+        Operator* temp_opt = nullptr;
+
+        if(!nonArith.empty())
+        {
+            for(auto* node: nonArith)
+            {
+                if(isAvailable(Const::PROPERTY_LOOKUP, node))
+                {
+                    property.push_back(node);
+                }
+            }
+            if(!property.empty())
+            {
+                temp_opt = new CacheProperty(oprtr,property);
+            }
+        }
+
+        if(temp_opt!=nullptr)
+        {
+            temp_opt = new Projection(temp_opt, ast->elements);
+        }else
+        {
+            temp_opt = new Projection(oprtr, ast->elements);
+        }
+
+        return new ProduceResults(temp_opt, vector<ASTNode*>(ast->elements));
+
+
+
     }else if(ast->nodeType == Const::ORDERED_BY)
     {
 
@@ -121,42 +152,78 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
 
     }else if(ast->nodeType == Const::WHERE)
     {
-
+        return new Filter(op, ast);
     }else if(ast->nodeType == Const::PATTERN)
     {
         oprtr = createExecutionPlan(ast->elements[0],oprtr);
 
     }else if(ast->nodeType == Const::PATTERN_ELEMENTS)
     {
+        vector<ASTNode*> patternElements = getSubTreeListByNodeType(ast, Const::PATTERN_ELEMENT_CHAIN);
+        int strat;
+        for(int i=patternElements.size()-1;i>=0;i--)
+        {
+            auto* e = patternElements[i];
+            if(!e->elements[0]->elements[1]->elements.empty()
+                && isAvailable(Const::RELATIONSHIP_TYPE,e->elements[0]->elements[1])
+                && e->elements[0]->elements[0]->nodeType == Const::UNIDIRECTION_ARROW)
+            {
+                oprtr = new UndirectedRelationshipTypeScan("Person");
+            }
+        }
 
     }else if(ast->nodeType == Const::NODE_PATTERN)
     {
-        int size = ast->elements.size();
-        bool isVar = ast->elements[0]->nodeType == Const::VARIABLE;
-        string var_0 = isVar ? ast->elements[0]->value : "";
+        if(ast->elements.empty())
+        {
+            return new AllNodeScan();
+        }
 
-        if(ast->elements[0]->nodeType == Const::VARIABLE && size == 1)
+        if(isAvailable(Const::PROPERTIES_MAP,ast))
         {
-            return new AllNodeScan(ast->elements[0]->value);
-        }else if(ast->elements[0]->nodeType == Const::NODE_LABELS && size == 1)
+            if(isAvailable(Const::NODE_LABEL,ast) && isAvailable(Const::VARIABLE, ast))
+            {
+                oprtr = new NodeScanByLabel(ast->elements[1]->value,ast->elements[0]->value);
+                return new Filter(oprtr, ast->elements[2]);
+            }else if(!isAvailable(Const::NODE_LABEL,ast) && !isAvailable(Const::NODE_LABELS,ast) && isAvailable(Const::VARIABLE, ast))
+            {
+                oprtr = new AllNodeScan(ast->elements[0]->value);
+                return new Filter(oprtr, ast->elements[1]);
+            }else if(isAvailable(Const::NODE_LABEL,ast) && !isAvailable(Const::VARIABLE, ast))
+            {
+                oprtr = new NodeScanByLabel(ast->elements[0]->value);
+                return new Filter(oprtr, ast->elements[1]);
+            }else if(isAvailable(Const::NODE_LABELS,ast) && isAvailable(Const::VARIABLE, ast))
+            {
+                oprtr = createExecutionPlan(ast->elements[1],oprtr);
+                return new Filter(oprtr, ast->elements[2]);
+            }else if(isAvailable(Const::NODE_LABELS,ast) && !isAvailable(Const::VARIABLE, ast))
+            {
+                oprtr = createExecutionPlan(ast->elements[0],oprtr);
+                return new Filter(oprtr, ast->elements[1]);
+            }
+        }else
         {
-            oprtr = createExecutionPlan(ast->elements[0], oprtr);
-        }else if(ast->elements[0]->nodeType == Const::NODE_LABEL && size == 1)
-        {
-            oprtr = createExecutionPlan(ast->elements[0], oprtr);
-        }else if(ast->elements[0]->nodeType == Const::PROPERTIES_MAP && size == 1)
-        {
-            oprtr = createExecutionPlan(ast->elements[0], oprtr);
-        }else if(ast->elements[1]->nodeType == Const::NODE_LABELS && size == 2 && isVar)
-        {
-            oprtr = createExecutionPlan(ast->elements[1], oprtr, var_0);
-        }else if(ast->elements[1]->nodeType == Const::NODE_LABEL && size == 2 && isVar)
-        {
-            oprtr = createExecutionPlan(ast->elements[1], oprtr, var_0);
+            if( !isAvailable(Const::NODE_LABEL,ast) && !isAvailable(Const::NODE_LABELS,ast) && isAvailable(Const::VARIABLE, ast))
+            {
+                return new AllNodeScan(ast->elements[0]->value);
 
-        }else if(ast->elements[1]->nodeType == Const::PROPERTIES_MAP && size == 1 && isVar)
-        {
-            oprtr = createExecutionPlan(ast->elements[1], oprtr, var_0);
+            }else if(isAvailable(Const::VARIABLE, ast) && ast->elements[1]->nodeType == Const::NODE_LABEL)
+            {
+                return new NodeScanByLabel(ast->elements[1]->value,ast->elements[0]->value);
+
+            }else if(!isAvailable(Const::VARIABLE, ast) && ast->elements[0]->nodeType == Const::NODE_LABEL)
+            {
+                return new NodeScanByLabel(ast->elements[0]->value);
+
+            }else if(isAvailable(Const::NODE_LABELS,ast) && isAvailable(Const::VARIABLE, ast))
+            {
+                return createExecutionPlan(ast->elements[1],oprtr);
+
+            }else if(isAvailable(Const::NODE_LABELS,ast) && !isAvailable(Const::VARIABLE, ast))
+            {
+                return createExecutionPlan(ast->elements[0],oprtr);
+            }
         }
 
     }else if(ast->nodeType == Const::PATTERN_ELEMENT_CHAIN)
@@ -414,7 +481,7 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
 
     }else if(ast->nodeType == Const::PROPERTIES_MAP)
     {
-
+        return new Filter(op,ast);
     }else if(ast->nodeType == Const::PROPERTY)
     {
 
@@ -438,6 +505,18 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
     return oprtr;
 }
 
+bool QueryPlanner::isAllChildAreGivenType(string nodeType, ASTNode* root)
+{
+    for(int i=0;i<root->elements.size(); i++)
+    {
+        if(root->elements[i]->nodeType != nodeType )
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
 bool QueryPlanner::isAvailable(string nodeType, ASTNode* subtree)
 {
     if(subtree->nodeType == nodeType)
@@ -454,6 +533,38 @@ bool QueryPlanner::isAvailable(string nodeType, ASTNode* subtree)
             }
         }
         return false;
+    }
+}
+
+vector<ASTNode*> QueryPlanner::getSubTreeListByNodeType(ASTNode* root, string nodeType)
+{
+    vector<ASTNode*> treeList;
+    vector<ASTNode*> temp;
+    for(auto* element : root->elements)
+    {
+        if(getSubtreeByType(element,nodeType))
+        {
+            treeList.push_back(element);
+        }else if(!element->elements.empty())
+        {
+            temp = getSubTreeListByNodeType(element,nodeType);
+            for (auto* e:temp) {
+                treeList.push_back(e);
+            }
+            temp.clear();
+        }
+    }
+    return treeList;
+}
+
+ASTNode* QueryPlanner::getSubtreeByType(ASTNode* root, string nodeType)
+{
+    if(root->nodeType == nodeType)
+    {
+        return root;
+    }else
+    {
+        return nullptr;
     }
 }
 

@@ -1640,7 +1640,7 @@ any ASTBuilder::visitOC_ListLiteral(CypherParser::OC_ListLiteralContext *ctx)  {
 
 
 any ASTBuilder::visitOC_MapLiteral(CypherParser::OC_MapLiteralContext *ctx)  {
-  auto *node = new ASTInternalNode(Const::PROPERIES_MAP);
+  auto *node = new ASTInternalNode(Const::PROPERTIES_MAP);
   for(int i=0; i<ctx->oC_PropertyKeyName().size();i++)
   {
     auto *propNode = new ASTInternalNode(Const::PROPERTY);

@@ -6,6 +6,7 @@
 #include <iostream>
 #include <vector>
 
+class ASTNode;
 using namespace std;
 // Base Operator Class
 class Operator {
@@ -49,30 +50,40 @@ private:
 // ProduceResults Operator
 class ProduceResults : public Operator {
 public:
-    ProduceResults(const string& variable, Operator* op);
+    ProduceResults(Operator* op, vector<ASTNode*> item);
     void execute() override;
 
 private:
-    string variable;
+    vector<ASTNode*> item;
     Operator* op;
 };
-
 
 // Filter Operator
 class Filter : public Operator {
 public:
-    Filter(Operator* input, const string& predicate);
+    Filter(Operator* input, ASTNode* root);
     void execute() override;
 
 private:
     Operator* input;
-    string predicate;
+    ASTNode* root;
 };
 
 // Projection Operator
 class Projection : public Operator {
 public:
-    Projection(Operator* input, const vector<std::string>& columns);
+    Projection(Operator* input, const vector<ASTNode*> columns);
+    void execute() override;
+
+private:
+    Operator* input;
+    vector<ASTNode*> columns;
+};
+
+//ExpandAll Operator
+class ExpandAll : public Operator {
+public:
+    ExpandAll(Operator* input, const vector<std::string>& columns);
     void execute() override;
 
 private:
@@ -157,6 +168,41 @@ public:
     Intersection(Operator* left, Operator* right);
     void execute() override;
 };
-// Optional: Add other operators like Project, Join, etc.
+
+//CacheProperty
+class CacheProperty : public Operator {
+public:
+    CacheProperty(Operator* input, vector<ASTNode*> property);
+    void execute() override;
+
+private:
+    Operator* input;
+    vector<ASTNode*> property;
+};
+
+class UndirectedRelationshipTypeScan : public Operator {
+public:
+    // Constructor
+    UndirectedRelationshipTypeScan(string relType, string startVar = "var_0", string endVar = "var_1");
+
+    // Execute method to perform the scan
+    void execute() override;
+
+private:
+    string relType;  // The relationship type to scan for
+    string startVar; // Variable name for the start node
+    string endVar;   // Variable name for the end node
+};
+
+class UndirectedAllRelationshipScan : public Operator {
+public:
+
+    UndirectedAllRelationshipScan( string startVar = "var_0", string endVar = "var_1");
+    void execute() override;
+
+private:
+    string startVar; // Variable name for the start node
+    string endVar;   // Variable name for the end node
+};
 
 #endif // OPERATORS_H

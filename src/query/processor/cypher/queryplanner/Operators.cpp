@@ -1,10 +1,12 @@
 #include "Operators.h"
+
+#include "../astbuilder/ASTNode.h"
 using namespace std;
 // NodeScan Implementation
 NodeScanByLabel::NodeScanByLabel(const string& label, const string& var) : label(label), var(var) {}
 
 void NodeScanByLabel::execute() {
-    cout << "scanning node based on single label: " << label <<" -|- with variable: "<<var<< endl;
+    cout << "scanning node based on single label: " << label <<" and assigned with variable: "<<var<< endl;
 }
 
 // MultipleNodeScanByLabel Implementation
@@ -17,7 +19,7 @@ void MultipleNodeScanByLabel::execute() {
         label_string+= label[i];
         label_string+= ", ";
     }
-    cout << "scanning node based on multiple label: " << label_string <<" -|- with variable: "<<var<< endl;
+    cout << "scanning node based on multiple label: " << label_string <<" and assigned with variable: "<<var<< endl;
 
 }
 
@@ -25,33 +27,36 @@ void MultipleNodeScanByLabel::execute() {
 AllNodeScan::AllNodeScan(const string& var) : var(var) {}
 
 void AllNodeScan::execute() {
-    cout << "scanning all nodes : " << var << endl;
+    cout << "scanning all nodes and assigned with : " << var << endl;
 }
 
 // ProduceResults Implementation
-ProduceResults::ProduceResults(const string& variable, Operator* opr) : variable(variable), op(opr) {}
+ProduceResults::ProduceResults(Operator* opr, vector<ASTNode*> item) : item(item), op(opr) {}
 
 void ProduceResults::execute() {
     op->execute();
-    cout << "Producing result: "<< variable << endl;
+    for(auto* e: item)
+    {
+        cout<< e->nodeType<<endl;
+    }
 }
 
 // Filter Implementation
-Filter::Filter(Operator* input, const string& predicate) : input(input), predicate(predicate) {}
+Filter::Filter(Operator* input, ASTNode* root) : input(input), root(root) {}
 
 void Filter::execute() {
     input->execute();
-    cout << "Applying Filter with predicate: " << predicate << endl;
+    cout << "Applying Filter with predicate: " << root->nodeType << endl;
 }
 
 // Projection Implementation
-Projection::Projection(Operator* input, const vector<std::string>& columns) : input(input), columns(columns) {}
+Projection::Projection(Operator* input, const vector<ASTNode*> columns) : input(input), columns(columns) {}
 
 void Projection::execute() {
     input->execute();
     cout << "Projecting columns: ";
-    for (const auto& col : columns) {
-        cout << col << " ";
+    for (auto* col : columns) {
+        cout << col->nodeType << " ";
     }
     cout << endl;
 }
@@ -90,7 +95,7 @@ void Sort::execute() {
 }
 
 // GroupBy Implementation
-GroupBy::GroupBy(Operator* input, const vector<std::string>& groupByColumns) : input(input), groupByColumns(groupByColumns) {}
+GroupBy::GroupBy(Operator* input, const vector<  string>& groupByColumns) : input(input), groupByColumns(groupByColumns) {}
 
 void GroupBy::execute() {
     input->execute();
@@ -127,3 +132,37 @@ void Intersection::execute() {
     cout << "Performing Intersection of results." << endl;
 }
 
+CacheProperty::CacheProperty(Operator* input, vector<ASTNode*> property) : property(property), input(input){}
+
+void CacheProperty::execute()
+{
+    input->execute();
+    int i=1;
+    for(auto* prop: property)
+    {
+        string s = prop->elements[0]->value +"."+prop->elements[1]->elements[0]->value;
+        cout<<"get property "<<i++<<" and cache here: "<<s<<endl;
+
+    }
+}
+
+UndirectedRelationshipTypeScan::UndirectedRelationshipTypeScan(string relType, string startVar, string endVar)
+    : relType(relType), startVar(startVar), endVar(endVar) {}
+
+// Execute method
+void UndirectedRelationshipTypeScan::execute() {
+      cout << "Executing UndirectedRelationshipTypeScan for relationship type: " << relType <<   endl;
+      cout << "Start variable: " << startVar << ", End variable: " << endVar <<   endl;
+
+}
+
+UndirectedAllRelationshipScan::UndirectedAllRelationshipScan(string startVar, string endVar)
+    : startVar(startVar), endVar(endVar) {}
+
+
+void UndirectedAllRelationshipScan::execute() {
+     cout << "Executing UndirectedAllRelationshipScan for all relationship types." <<  endl;
+     cout << "Start variable: " << startVar << ", End variable: " << endVar <<  endl;
+
+
+}

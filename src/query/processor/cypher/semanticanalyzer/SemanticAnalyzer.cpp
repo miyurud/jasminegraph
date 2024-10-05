@@ -54,7 +54,7 @@ bool SemanticAnalyzer::analyze(ASTNode* root, bool canDefine, string type) {
         {
             ntype = Const::LIST;
         }
-        else if (root->elements[0]->nodeType == Const::PROPERIES_MAP)
+        else if (root->elements[0]->nodeType == Const::PROPERTIES_MAP)
         {
             ntype = Const::MAP;
         }
