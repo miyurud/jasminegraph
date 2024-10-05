@@ -127,7 +127,7 @@ public:
     static string EXP_DECIMAL;
     static string REGULAR_DECIMAL;
     static string LIST;
-    static string PROPERIES_MAP;
+    static string PROPERTIES_MAP;
     static string PARAMETER;
     static string SYMBOLIC_WORD;
     static string RESERVED_WORD;
