@@ -59,6 +59,7 @@ string JasmineGraphFrontEndUI::stream_topic_name;
 
 static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p, std::string command);
+static void remove_graph_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p, std::string command);
 
 void *uifrontendservicesesion(void *dummyPt) {
     frontendservicesessionargs *sessionargs = (frontendservicesessionargs *)dummyPt;
@@ -107,8 +108,10 @@ void *uifrontendservicesesion(void *dummyPt) {
             break;
         } else if (token.compare(LIST) == 0) {
             list_command(connFd, sqlite, &loop_exit);
-        } else if (token.compare(ADGR) == 0) {
+        } else if (token.compare(ADGR) == 0){
             add_graph_command(masterIP, connFd, sqlite, &loop_exit, line);
+        }else if (token.compare(RMGR) == 0) {
+            remove_graph_command(masterIP, connFd, sqlite, &loop_exit, line);
         } else {
             ui_frontend_logger.error("Message format not recognized " + line);
             int result_wr = write(connFd, INVALID_FORMAT.c_str(), INVALID_FORMAT.size());
@@ -387,5 +390,47 @@ static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterfac
         }
     } else {
         ui_frontend_logger.error("Graph data file does not exist on the specified path");
+    }
+}
+
+static void remove_graph_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p, std::string command){
+    char delimiter = '|';
+    std::stringstream ss(command);
+    std::string token;
+    std::string graphID;
+
+    std::getline(ss, token, delimiter);
+    std::getline(ss, graphID, delimiter);
+
+    std::cout << "recieved graph id: " <<graphID << std::endl;
+
+    if (JasmineGraphFrontEndCommon::graphExistsByID(graphID, sqlite)) {
+        ui_frontend_logger.info("Graph with ID " + graphID + " is being deleted now");
+        JasmineGraphFrontEndCommon::removeGraph(graphID, sqlite, masterIP);
+        int result_wr = write(connFd, DONE.c_str(), DONE.size());
+        if (result_wr < 0) {
+            ui_frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        result_wr = write(connFd, "\r\n", 2);
+        if (result_wr < 0) {
+            ui_frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+    } else {
+        ui_frontend_logger.error("Graph does not exist or cannot be deleted with the current hosts setting");
+        int result_wr = write(connFd, ERROR.c_str(), ERROR.size());
+        if (result_wr < 0) {
+            ui_frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        result_wr = write(connFd, "\r\n", 2);
+        if (result_wr < 0) {
+            ui_frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+        }
     }
 }
