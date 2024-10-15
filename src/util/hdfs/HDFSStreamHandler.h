@@ -38,7 +38,6 @@ public:
 private:
     void streamFromHDFSIntoBuffer();
     void streamFromBufferToProcessingQueue();
-    void processLines();
 
     hdfsFS fileSystem;
     std::string filePath;
@@ -58,6 +57,9 @@ private:
     bool isProcessing;
     int graphId;
     int numberOfPartitions;
+
+    HashPartitioner partitioner;
+
 
     std::ofstream currentFile;  // Current file being written to
     std::string currentFilePath;  // Path of the current file
