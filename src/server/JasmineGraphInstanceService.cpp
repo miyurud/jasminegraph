@@ -45,6 +45,14 @@ std::mutex threadPriorityMutex;
 std::vector<std::string> loadAverageVector;
 bool collectValid = false;
 std::thread JasmineGraphInstanceService::workerThread;
+std::vector<std::string> localFileNamesQueue;
+std::condition_variable localFileNamesQueueCV;
+std::mutex localFileNamesQueueMutex;
+
+std::vector<std::string> centralFileNamesQueue;
+std::condition_variable centralFileNamesQueueCV;
+std::mutex centralFileNamesQueueMutex;
+
 
 std::string masterIP;
 
@@ -122,6 +130,11 @@ static void degree_distribution_common(int connFd, int serverPort,
                                        std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
                                        bool *loop_exit_p, bool in);
 static void push_partition_command(int connFd, bool *loop_exit_p);
+
+static void send_worker_file_chunk_command(int connFd, bool *loop_exit_p,bool isLocalChunk);
+
+static void send_worker_central_file_chunk_command(int connFd, bool *loop_exit_p);
+
 static void push_file_command(int connFd, bool *loop_exit_p);
 long countLocalTriangles(
     std::string graphId, std::string partitionId,
@@ -261,6 +274,10 @@ void *instanceservicesession(void *dummyPt) {
             send_priority_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::PUSH_PARTITION) == 0) {
             push_partition_command(connFd, &loop_exit);
+        } else if (line.compare(JasmineGraphInstanceProtocol::SEND_WORKER_LOCAL_FILE_CHUNK) == 0) {
+            send_worker_file_chunk_command(connFd, &loop_exit,true);
+        } else if (line.compare(JasmineGraphInstanceProtocol::SEND_WORKER_CENTRAL_FILE_CHUNK) == 0) {
+            send_worker_file_chunk_command(connFd, &loop_exit,false);
         } else {
             instance_logger.error("Invalid command");
             loop_exit = true;
@@ -4161,3 +4178,211 @@ string JasmineGraphInstanceService::aggregateStreamingCentralStoreTriangles(
 
     return triangles;
 }
+
+static void send_worker_file_chunk_command(int connFd, bool *loop_exit_p,bool isLocalChunk) {
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
+
+    char data[DATA_BUFFER_SIZE];
+    string line;
+
+    string fileName = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
+    instance_logger.info("Received File name: " + fileName);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_FILE_LEN)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_LEN);
+
+    string size = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
+    instance_logger.info("Received file size in bytes: " + size);
+
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_FILE_CONT)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::SEND_FILE_CONT);
+
+    string fullFilePath =
+            Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
+
+    int fileSize = stoi(size);
+    while (!Utils::fileExists(fullFilePath)) {
+        instance_logger.info("Instance data file " + fullFilePath + " does not exist");
+        sleep(1);
+    }
+    while (Utils::getFileSize(fullFilePath) < fileSize) {
+        line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
+        if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) != 0) {
+            instance_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::FILE_RECV_CHK +
+                                  " ; Received: " + line);
+            close(connFd);
+            return;
+        }
+        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT)) {
+            *loop_exit_p = true;
+            return;
+        }
+        instance_logger.info("Waiting for file to be received to " + fullFilePath);
+    }
+    line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
+    if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) != 0) {
+        instance_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::FILE_RECV_CHK +
+                              " ; Received: " + line);
+        close(connFd);
+        return;
+    }
+    instance_logger.info("Received : " + line);
+
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_ACK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::FILE_ACK);
+
+    instance_logger.info("File received and saved to " + fullFilePath);
+    *loop_exit_p = true;
+
+    string rawname = fileName;
+    if (fullFilePath.compare(fullFilePath.size() - 3, 3, ".gz") == 0) {
+        Utils::unzipFile(fullFilePath);
+        size_t lastindex = fileName.find_last_of(".");
+        rawname = fileName.substr(0, lastindex);
+    }
+
+    fullFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + rawname;
+
+//    if (batch_upload) {
+//        string partitionID = rawname.substr(rawname.find_last_of("_") + 1);
+//        pthread_mutex_lock(&file_lock);
+//        writeCatalogRecord(graphID + ":" + partitionID);
+//        pthread_mutex_unlock(&file_lock);
+//    }
+
+    while (!Utils::fileExists(fullFilePath)) {
+        line = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+        if (line.compare(JasmineGraphInstanceProtocol::SEND_WORKER_FILE_CHUNK_CHK) != 0) {
+            instance_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::SEND_WORKER_FILE_CHUNK_CHK +
+                                  " ; Received: " + line);
+            close(connFd);
+            return;
+        }
+        instance_logger.info("Received : " + line);
+        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_WORKER_FILE_CHUNK_WAIT)) {
+            *loop_exit_p = true;
+            return;
+        }
+        instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::SEND_WORKER_FILE_CHUNK_WAIT);
+    }
+
+    line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
+    if (line.compare(JasmineGraphInstanceProtocol::SEND_WORKER_FILE_CHUNK_CHK) != 0) {
+        instance_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::SEND_WORKER_FILE_CHUNK_CHK +
+                              " ; Received: " + line);
+        close(connFd);
+        return;
+    }
+    instance_logger.info("Received : " + line);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_WORKER_FILE_CHUNK_ACK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::SEND_WORKER_FILE_CHUNK_ACK);
+
+    string isEnd=Utils::read_str_wrapper(connFd,data,INSTANCE_DATA_LENGTH,false);
+    if (isEnd.compare(JasmineGraphInstanceProtocol::END_OF_WORKER_FILE_CHUNKS_MSG)){
+        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::END_OF_WORKER_FILE_CHUNKS_MSG_ACK)) {
+            *loop_exit_p = true;
+            return;
+        }
+    }
+
+
+
+}
+
+void JasmineGraphInstanceService::localFileChunksConsumer() {
+    std::unique_lock<std::mutex> lock(localFileNamesQueueMutex);
+
+    while (true) {
+        localFileNamesQueueCV.wait(lock, [] { return !localFileNamesQueue.empty(); });
+
+        while (!localFileNamesQueue.empty()) {
+            std::string filePath = localFileNamesQueue.front();
+            localFileNamesQueue.pop_back();
+
+            lock.unlock();
+
+
+            instance_logger.info("Processing local file chunk: " + filePath);
+//            processLocalFileChunk(filePath);
+
+            lock.lock();
+        }
+
+        // if (exit_condition) {
+        //     break;
+        // }
+    }
+}
+
+
+static void send_worker_central_file_chunk_command(int connFd, bool *loop_exit_p) {
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
+
+    char data[DATA_BUFFER_SIZE];
+    string filePath = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    instance_logger.info("Received file : " + filePath);
+
+    centralFileNamesQueue.push_back(filePath);
+    centralFileNamesQueueCV.notify_all();
+
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
+
+    if (Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH) ==
+        JasmineGraphInstanceProtocol::END_OF_WORKER_FILE_CHUNKS_MSG) {
+        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::END_OF_WORKER_FILE_CHUNKS_MSG_ACK)) {
+            *loop_exit_p = true;
+            return;
+        }
+    }
+}
+
+void JasmineGraphInstanceService::centralFileChunksConsumer() {
+    std::unique_lock<std::mutex> lock(centralFileNamesQueueMutex);
+
+    while (true) {
+
+        centralFileNamesQueueCV.wait(lock, [] { return !centralFileNamesQueue.empty(); });
+
+        while (!centralFileNamesQueue.empty()) {
+            std::string filePath = centralFileNamesQueue.front();
+            centralFileNamesQueue.pop_back();
+
+            lock.unlock();
+
+
+            instance_logger.info("Processing central file chunk: " + filePath);
+//            processCentralFileChunk(filePath);
+            lock.lock();
+        }
+
+        // if (exit_condition) {
+        //     break;
+        // }
+    }
+}
+
+
+

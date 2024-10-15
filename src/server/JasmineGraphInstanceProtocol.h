@@ -113,6 +113,13 @@ class JasmineGraphInstanceProtocol {
     static const string INITIATE_STREAMING_SERVER;
     static const string INITIATE_STREAMING_CLIENT;
     static const string INITIATE_STREAMING_TRIAN;
+    static const string SEND_WORKER_LOCAL_FILE_CHUNK;
+    static const string SEND_WORKER_FILE_CHUNK_CHK;
+    static const string SEND_WORKER_FILE_CHUNK_WAIT;
+    static const string SEND_WORKER_FILE_CHUNK_ACK;
+    static const string SEND_WORKER_CENTRAL_FILE_CHUNK;
+    static const string END_OF_WORKER_FILE_CHUNKS_MSG;
+    static const string END_OF_WORKER_FILE_CHUNKS_MSG_ACK;
 };
 
 const int INSTANCE_DATA_LENGTH = 300;

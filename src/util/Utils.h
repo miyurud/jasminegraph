@@ -182,6 +182,8 @@ class Utils {
     static bool transferPartition(std::string sourceWorker, int sourceWorkerPort, std::string destinationWorker,
                                   int destinationWorkerDataPort, std::string graphID, std::string partitionID,
                                   std::string workerID, SQLiteDBInterface *sqlite);
+
+    static bool sendFileChunkToWorker(std::string host, int port, int dataPort, std::string filePath, std::string masterIP,bool endOfSending,std::string uploadType);
 };
 
 #endif  // JASMINEGRAPH_UTILS_H

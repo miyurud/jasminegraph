@@ -183,6 +183,9 @@ class JasmineGraphInstanceService {
     static int partitionCounter;
 
     static std::thread workerThread;
+
+    void localFileChunksConsumer();
+    void centralFileChunksConsumer();
 };
 
 #endif  // JASMINEGRAPH_JASMINEGRAPHINSTANCESERVICE_H

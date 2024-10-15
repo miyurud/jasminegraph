@@ -4,6 +4,7 @@
 #include "Partitioner.h"
 #include "../../util/logger/Logger.h"
 #include "../../util/Utils.h"
+#include "../../server/JasmineGraphServer.h"
 #include <vector>
 #include <string>
 #include <map>
@@ -15,6 +16,7 @@
 class HashPartitioner {
 
     std::vector<Partition> partitions; // Holds partition objects
+    std::vector<JasmineGraphServer::worker> workers;
 
     std::atomic<bool> terminateConsumers;  // Termination flag
     std::vector<std::thread> localEdgeThreads;
@@ -34,10 +36,11 @@ class HashPartitioner {
 
     int numberOfPartitions;
     int graphId;
+    std::string masterIp;
 
 public:
     ~HashPartitioner();
-    HashPartitioner(int numberOfPartitions, int graphID);
+    HashPartitioner(int numberOfPartitions, int graphID,std::string masterIp);
     void uploadGraphLocally(std::string masterIP);
     void writeSerializedPartitionFiles(int partition);
     void writeSerializedMasterFiles(int partition);
