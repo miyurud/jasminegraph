@@ -66,7 +66,7 @@ class Conts {
     static std::string GRAPH_WITH_TEXT_ATTRIBUTES;
     static std::string GRAPH_WITH_JSON_ATTRIBUTES;
     static std::string GRAPH_WITH_XML_ATTRIBUTES;
-
+    static std::string TEMP_GRAPH_FILE_PATH;
     static std::string CARRIAGE_RETURN_NEW_LINE;
 
     static std::string
@@ -79,6 +79,7 @@ class Conts {
     };
 
     int JASMINEGRAPH_PARTITION_INDEX_PORT;
+    static int JASMINEGRAPH_UI_FRONTEND_PORT;
     static int JASMINEGRAPH_FRONTEND_PORT;
     static int JASMINEGRAPH_BACKEND_PORT;
     static int JASMINEGRAPH_VERTEXCOUNTER_PORT;
