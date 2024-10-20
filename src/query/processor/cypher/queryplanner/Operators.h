@@ -5,7 +5,6 @@
 #include <string>
 #include <iostream>
 #include <vector>
-
 class ASTNode;
 using namespace std;
 // Base Operator Class
@@ -61,12 +60,12 @@ private:
 // Filter Operator
 class Filter : public Operator {
 public:
-    Filter(Operator* input, ASTNode* root);
+    Filter(Operator* input, vector<pair<string,ASTNode*>> filterCases);
     void execute() override;
 
 private:
     Operator* input;
-    ASTNode* root;
+    vector<pair<string,ASTNode*>> filterCases;
 };
 
 // Projection Operator
@@ -83,12 +82,16 @@ private:
 //ExpandAll Operator
 class ExpandAll : public Operator {
 public:
-    ExpandAll(Operator* input, const vector<std::string>& columns);
+    ExpandAll(Operator* input, string startVar, string destVar, string relVar, string relType = "null", string direction = "");
     void execute() override;
 
 private:
     Operator* input;
-    vector<std::string> columns;
+    string startVar;
+    string destVar;
+    string relVar;
+    string relType;
+    string direction;
 };
 
 // Join Operator
@@ -183,7 +186,7 @@ private:
 class UndirectedRelationshipTypeScan : public Operator {
 public:
     // Constructor
-    UndirectedRelationshipTypeScan(string relType, string startVar = "var_0", string endVar = "var_1");
+    UndirectedRelationshipTypeScan(string relType, string relvar = "rel_var", string startVar = "var_0", string endVar = "var_1");
 
     // Execute method to perform the scan
     void execute() override;
@@ -192,6 +195,7 @@ private:
     string relType;  // The relationship type to scan for
     string startVar; // Variable name for the start node
     string endVar;   // Variable name for the end node
+    string relvar;
 };
 
 class UndirectedAllRelationshipScan : public Operator {
@@ -205,4 +209,21 @@ private:
     string endVar;   // Variable name for the end node
 };
 
+class DirectedRelationshipTypeScan : public Operator {
+public:
+    // Constructor
+    DirectedRelationshipTypeScan(string direction, string relType, string relvar = "rel_var", string startVar = "var_0", string endVar = "var_1");
+
+    // Execute method to perform the scan
+    void execute() override;
+
+private:
+    string direction;
+    string relType;  // The relationship type to scan for
+    string startVar; // Variable name for the start node
+    string endVar;   // Variable name for the end node
+    string relvar;
+};
+
+void printDownArrow(int width);
 #endif // OPERATORS_H

@@ -1,6 +1,9 @@
 // QueryPlanner.cpp
 #include "QueryPlanner.h"
 #include "../util/Const.h"
+#include "../astbuilder/ASTLeafValue.h"
+#include "../astbuilder/ASTInternalNode.h"
+#include "../astbuilder/ASTNode.h"
 
 Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string var) {
 
@@ -30,6 +33,7 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
         {
             oprtr = createExecutionPlan(ast->elements[i],oprtr);
         }
+
     }else if(ast->nodeType == Const::OPTIONAL)
     {
 
@@ -101,6 +105,7 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
         vector<ASTNode*> var;
         if(isAllChildAreGivenType(Const::VARIABLE, ast))
         {
+            var = ast->elements;
             return new ProduceResults(op, var);
         }
 
@@ -152,26 +157,16 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
 
     }else if(ast->nodeType == Const::WHERE)
     {
-        return new Filter(op, ast);
+        auto filterCase = pair<string,ASTNode*>("null", ast);
+        vector<pair<string,ASTNode*>> vec = {filterCase};
+        return new Filter(op, vec);
     }else if(ast->nodeType == Const::PATTERN)
     {
-        oprtr = createExecutionPlan(ast->elements[0],oprtr);
+        return createExecutionPlan(ast->elements[0],oprtr);
 
     }else if(ast->nodeType == Const::PATTERN_ELEMENTS)
     {
-        vector<ASTNode*> patternElements = getSubTreeListByNodeType(ast, Const::PATTERN_ELEMENT_CHAIN);
-        int strat;
-        for(int i=patternElements.size()-1;i>=0;i--)
-        {
-            auto* e = patternElements[i];
-            if(!e->elements[0]->elements[1]->elements.empty()
-                && isAvailable(Const::RELATIONSHIP_TYPE,e->elements[0]->elements[1])
-                && e->elements[0]->elements[0]->nodeType == Const::UNIDIRECTION_ARROW)
-            {
-                oprtr = new UndirectedRelationshipTypeScan("Person");
-            }
-        }
-
+        return pathPatternHandler(ast);
     }else if(ast->nodeType == Const::NODE_PATTERN)
     {
         if(ast->elements.empty())
@@ -184,23 +179,33 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
             if(isAvailable(Const::NODE_LABEL,ast) && isAvailable(Const::VARIABLE, ast))
             {
                 oprtr = new NodeScanByLabel(ast->elements[1]->value,ast->elements[0]->value);
-                return new Filter(oprtr, ast->elements[2]);
+                auto filterCase = pair<string,ASTNode*>(ast->elements[0]->value, ast->elements[2]);
+                vector<pair<string,ASTNode*>> vec = {filterCase};
+                return new Filter(oprtr, vec);
             }else if(!isAvailable(Const::NODE_LABEL,ast) && !isAvailable(Const::NODE_LABELS,ast) && isAvailable(Const::VARIABLE, ast))
             {
                 oprtr = new AllNodeScan(ast->elements[0]->value);
-                return new Filter(oprtr, ast->elements[1]);
+                auto filterCase = pair<string,ASTNode*>(ast->elements[0]->value, ast->elements[1]);
+                vector<pair<string,ASTNode*>> vec = {filterCase};
+                return new Filter(oprtr, vec);
             }else if(isAvailable(Const::NODE_LABEL,ast) && !isAvailable(Const::VARIABLE, ast))
             {
                 oprtr = new NodeScanByLabel(ast->elements[0]->value);
-                return new Filter(oprtr, ast->elements[1]);
+                auto filterCase = pair<string,ASTNode*>("node_0", ast->elements[1]);
+                vector<pair<string,ASTNode*>> vec = {filterCase};
+                return new Filter(oprtr, vec);
             }else if(isAvailable(Const::NODE_LABELS,ast) && isAvailable(Const::VARIABLE, ast))
             {
                 oprtr = createExecutionPlan(ast->elements[1],oprtr);
-                return new Filter(oprtr, ast->elements[2]);
+                auto filterCase = pair<string,ASTNode*>(ast->elements[0]->value, ast->elements[2]);
+                vector<pair<string,ASTNode*>> vec = {filterCase};
+                return new Filter(oprtr, vec);
             }else if(isAvailable(Const::NODE_LABELS,ast) && !isAvailable(Const::VARIABLE, ast))
             {
                 oprtr = createExecutionPlan(ast->elements[0],oprtr);
-                return new Filter(oprtr, ast->elements[1]);
+                auto filterCase = pair<string,ASTNode*>("node_0", ast->elements[1]);
+                vector<pair<string,ASTNode*>> vec = {filterCase};
+                return new Filter(oprtr, vec);
             }
         }else
         {
@@ -481,7 +486,7 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
 
     }else if(ast->nodeType == Const::PROPERTIES_MAP)
     {
-        return new Filter(op,ast);
+
     }else if(ast->nodeType == Const::PROPERTY)
     {
 
@@ -567,5 +572,345 @@ ASTNode* QueryPlanner::getSubtreeByType(ASTNode* root, string nodeType)
         return nullptr;
     }
 }
+
+pair<vector<bool>, vector<ASTNode *>> QueryPlanner::getRelationshipDetails(ASTNode *node) {
+    vector<bool> availability = {false,false,false};
+    vector<ASTNode*> nodes;
+    for(int i = 0; i<3;i++){
+        if(i<node->elements.size()){
+            auto* e = node->elements[i];
+            if(e->nodeType == Const::VARIABLE){
+                availability[0] = true;
+                nodes.push_back(e);
+            }else if(e->nodeType == Const::RELATIONSHIP_TYPE){
+                availability[1] = true;
+                nodes.push_back(e);
+            }else if(e->nodeType == Const::RELATIONSHIP_TYPES){
+                availability[1] = true;
+                auto* types = e;
+                types->elements.clear();
+                for(auto* type: e->elements){
+                    types->elements.push_back(type->elements[0]);
+                }
+                nodes.push_back(types);
+            }else if(e->nodeType == Const::PROPERTIES_MAP){
+                availability[2] = true;
+                nodes.push_back(e);
+            }
+        }else{
+            nodes.push_back(nullptr);
+        }
+    }
+    auto outputPair = pair<vector<bool>, vector<ASTNode *>>(availability,nodes);
+
+    return outputPair;
+}
+
+pair<vector<bool>, vector<ASTNode *>> QueryPlanner::getNodeDetails(ASTNode *node) {
+    vector<bool> availability = {false,false,false};
+    vector<ASTNode*> nodes;
+    for(int i = 0; i<3;i++){
+        if(i<node->elements.size()){
+            auto* e = node->elements[i];
+            if(e->nodeType == Const::VARIABLE){
+                availability[0] = true;
+                nodes.push_back(e);
+            }else if(e->nodeType == Const::NODE_LABEL | e->nodeType == Const::NODE_LABELS){
+                availability[1] = true;
+                nodes.push_back(e);
+            }else if(e->nodeType == Const::PROPERTIES_MAP){
+                availability[2] = true;
+                nodes.push_back(e);
+            }
+        }else{
+            nodes.push_back(nullptr);
+        }
+    }
+    auto outputPair = pair<vector<bool>, vector<ASTNode *>>(availability,nodes);
+
+    return outputPair;
+}
+
+Operator *QueryPlanner::pathPatternHandler(ASTNode *pattern) {
+
+    Operator* opr;
+    auto* startNode  = pattern->elements[0];
+    vector<ASTNode*> patternElements = getSubTreeListByNodeType(pattern, Const::PATTERN_ELEMENT_CHAIN);
+    bool isRelTypeExist = false;
+    int index;
+
+    for(int i=patternElements.size()-1;i>=0;i--)
+    {
+        auto* e = patternElements[i];
+        auto analyzedDetails = getRelationshipDetails(e->elements[0]->elements[1]);
+        if(analyzedDetails.first[1]){
+            isRelTypeExist = true;
+            index = i;
+            break;
+        }
+    }
+
+    if(isRelTypeExist){
+        auto* e = patternElements[index];
+        auto analyzedDetails = getRelationshipDetails(e->elements[0]->elements[1]);
+        ASTNode* sourceNodePattern = nullptr;
+        ASTNode* destinationNodePattern = nullptr;
+        if(index>0){
+            sourceNodePattern = patternElements[index-1]->elements[1];
+            destinationNodePattern = patternElements[index]->elements[1];
+        }else{
+            sourceNodePattern = startNode;
+            destinationNodePattern = patternElements[index]->elements[1];
+        }
+
+        auto analyzedSource = getNodeDetails(sourceNodePattern);
+        auto analyzedDest = getNodeDetails(destinationNodePattern);
+
+        vector<pair<string,ASTNode*>> filterCases;
+        string relVar = analyzedDetails.first[0] ? analyzedDetails.second[0]->value : "edge_var_"+to_string(index);
+        string startVar = analyzedSource.first[0]? analyzedSource.second[0]->value : "node_var_"+ to_string(index);
+        string destVar = analyzedDest.first[0]? analyzedDest.second[0]->value : "node_var_"+ to_string(index+1);
+
+        if( e->elements[0]->elements[0]->nodeType == Const::UNIDIRECTION_ARROW)
+        {
+            opr = new UndirectedRelationshipTypeScan(analyzedDetails.second[1]->elements[0]->value, relVar, startVar, destVar);
+
+        }else{
+            auto direction = e->elements[0]->elements[0]->nodeType == Const::LEFT_ARRROW ? "left" : "right";
+            opr = new DirectedRelationshipTypeScan(direction,analyzedDetails.second[1]->elements[0]->value, relVar, startVar, destVar);
+        }
+
+        if (analyzedDetails.first[2]){
+            filterCases.push_back(pair<string,ASTNode*>(relVar,analyzedDetails.second[2]));
+        }
+        if(analyzedSource.first[1]){
+            filterCases.push_back(pair<string,ASTNode*>(startVar,analyzedSource.second[1]));
+        }
+        if(analyzedSource.first[2]){
+            filterCases.push_back(pair<string,ASTNode*>(startVar,analyzedSource.second[2]));
+        }
+        if(analyzedDest.first[1]){
+            filterCases.push_back(pair<string,ASTNode*>(destVar,analyzedDest.second[1]));
+        }
+        if(analyzedDest.first[2]){
+            filterCases.push_back(pair<string,ASTNode*>(destVar,analyzedDest.second[2]));
+        }
+        if(!filterCases.empty()){
+            opr = new Filter(opr, filterCases);
+        }
+
+        auto prevRel = relVar;
+        if(sourceNodePattern->elements.size() < destinationNodePattern->elements.size()){
+            for(int right = index+1; right<patternElements.size(); right++){
+                filterCases.clear();
+                auto analyzedRel = getRelationshipDetails(patternElements[right]->elements[0]->elements[1]);
+                auto analyzedNode = getNodeDetails(patternElements[right]->elements[1]);
+
+                string newStartVar = destVar;
+                string newDestvar = analyzedNode.first[0]? analyzedNode.second[0]->value : "node_var_"+ to_string(right);
+                string newRelVar = analyzedRel.first[0] ? analyzedRel.second[0]->value : "edge_var_"+to_string(right);
+                string newRelType = analyzedRel.first[1] ? analyzedRel.second[1]->elements[0]->value : "null";
+
+                if( patternElements[right]->elements[0]->elements[0]->nodeType == Const::UNIDIRECTION_ARROW)
+                {
+                    opr = new ExpandAll(opr,newStartVar,newDestvar, newRelVar,newRelType);
+
+                }else{
+                    auto direction = patternElements[right]->elements[0]->elements[0]->nodeType == Const::LEFT_ARRROW ? "left" : "right";
+                    opr = new ExpandAll(opr,newStartVar,newDestvar, newRelVar,newRelType,direction);
+                }
+
+
+                auto* whereClause = new ASTInternalNode(Const::WHERE);
+                auto* comp = new ASTInternalNode(Const::COMPARISON);
+                auto* var1 = new ASTLeafValue(Const::VARIABLE, newRelVar);
+                auto* var2 = new ASTLeafValue(Const::VARIABLE, prevRel);
+                auto* comp_op = new ASTInternalNode(Const::GREATER_THAN_LOWER_THAN);
+                comp_op->addElements(var2);
+                comp->addElements(var1);
+                comp->addElements(comp_op);
+                whereClause->addElements(comp);
+                filterCases.push_back(pair<string,ASTNode*>("null",whereClause));
+
+                prevRel = newRelVar;
+                destVar = newDestvar;
+
+                if (analyzedRel.first[2]){
+                    filterCases.push_back(pair<string,ASTNode*>(relVar,analyzedRel.second[2]));
+                }
+                if(analyzedNode.first[1]){
+                    filterCases.push_back(pair<string,ASTNode*>(destVar,analyzedNode.second[1]));
+                }
+                if(analyzedNode.first[2]){
+                    filterCases.push_back(pair<string,ASTNode*>(destVar,analyzedNode.second[2]));
+                }
+                if(!filterCases.empty()){
+                    opr = new Filter(opr, filterCases);
+                }
+            }
+
+            prevRel = relVar;
+            for(int left = index - 1; left >= 0; left--){
+                filterCases.clear();
+                auto analyzedRel = getRelationshipDetails(patternElements[left]->elements[0]->elements[1]);
+                pair<vector<bool>,vector<ASTNode*>> analyzedNode;
+                if(left>0){
+                    analyzedNode = getNodeDetails(patternElements[left-1]->elements[1]);
+                }else{
+                    analyzedNode = getNodeDetails(startNode);
+                }
+
+                string newStartVar = startVar;
+                string newDestvar = analyzedNode.first[0]? analyzedNode.second[0]->value : "node_var_"+ to_string(left);
+                string newRelVar = analyzedRel.first[0] ? analyzedRel.second[0]->value : "edge_var_"+to_string(left);
+                string newRelType = analyzedRel.first[1] ? analyzedRel.second[1]->elements[0]->value : "null";
+                if( patternElements[left]->elements[0]->elements[0]->nodeType == Const::UNIDIRECTION_ARROW)
+                {
+                    opr = new ExpandAll(opr,newStartVar,newDestvar, newRelVar,newRelType);
+
+                }else{
+                    auto direction = patternElements[left]->elements[0]->elements[0]->nodeType == Const::LEFT_ARRROW ? "left" : "right";
+                    opr = new ExpandAll(opr,newStartVar,newDestvar, newRelVar,newRelType,direction);
+                }
+
+                auto* whereClause = new ASTInternalNode(Const::WHERE);
+                auto* comp = new ASTInternalNode(Const::COMPARISON);
+                auto* var1 = new ASTLeafValue(Const::VARIABLE, newRelVar);
+                auto* var2 = new ASTLeafValue(Const::VARIABLE, relVar);
+                auto* comp_op = new ASTInternalNode(Const::GREATER_THAN_LOWER_THAN);
+                comp_op->addElements(var2);
+                comp->addElements(var1);
+                comp->addElements(comp_op);
+                whereClause->addElements(comp);
+                filterCases.push_back(pair<string,ASTNode*>("null",whereClause));
+
+
+                prevRel = newRelVar;
+                startVar = newStartVar;
+
+                if (analyzedRel.first[2]){
+                    filterCases.push_back(pair<string,ASTNode*>(relVar,analyzedRel.second[2]));
+                }
+                if(analyzedNode.first[1]){
+                    filterCases.push_back(pair<string,ASTNode*>(destVar,analyzedNode.second[1]));
+                }
+                if(analyzedNode.first[2]){
+                    filterCases.push_back(pair<string,ASTNode*>(destVar,analyzedNode.second[2]));
+                }
+                if(!filterCases.empty()){
+                    opr = new Filter(opr, filterCases);
+                }
+            }
+        }else{
+            prevRel = relVar;
+            for(int left = index - 1; left >= 0; left--){
+                filterCases.clear();
+                auto analyzedRel = getRelationshipDetails(patternElements[left]->elements[0]->elements[1]);
+                pair<vector<bool>,vector<ASTNode*>> analyzedNode;
+                if(left>0){
+                    analyzedNode = getNodeDetails(patternElements[left-1]->elements[1]);
+                }else{
+                    analyzedNode = getNodeDetails(startNode);
+                }
+
+                string newStartVar = startVar;
+                string newDestvar = analyzedNode.first[0]? analyzedNode.second[0]->value : "node_var_"+ to_string(left);
+                string newRelVar = analyzedRel.first[0] ? analyzedRel.second[0]->value : "edge_var_"+to_string(left);
+                string newRelType = analyzedRel.first[1] ? analyzedRel.second[1]->elements[0]->value : "null";
+                if( patternElements[left]->elements[0]->elements[0]->nodeType == Const::UNIDIRECTION_ARROW)
+                {
+                    opr = new ExpandAll(opr,newStartVar,newDestvar, newRelVar,newRelType);
+
+                }else{
+                    auto direction = patternElements[left]->elements[0]->elements[0]->nodeType == Const::LEFT_ARRROW ? "left" : "right";
+                    opr = new ExpandAll(opr,newStartVar,newDestvar, newRelVar,newRelType,direction);
+                }
+
+
+                auto* whereClause = new ASTInternalNode(Const::WHERE);
+                auto* comp = new ASTInternalNode(Const::COMPARISON);
+                auto* var1 = new ASTLeafValue(Const::VARIABLE, newRelVar);
+                auto* var2 = new ASTLeafValue(Const::VARIABLE, prevRel);
+                auto* comp_op = new ASTInternalNode(Const::GREATER_THAN_LOWER_THAN);
+                comp_op->addElements(var2);
+                comp->addElements(var1);
+                comp->addElements(comp_op);
+                whereClause->addElements(comp);
+                filterCases.push_back(pair<string,ASTNode*>("null",whereClause));
+
+
+                prevRel = newRelVar;
+                startVar = newStartVar;
+
+                if (analyzedRel.first[2]){
+                    filterCases.push_back(pair<string,ASTNode*>(relVar,analyzedRel.second[2]));
+                }
+                if(analyzedNode.first[1]){
+                    filterCases.push_back(pair<string,ASTNode*>(destVar,analyzedNode.second[1]));
+                }
+                if(analyzedNode.first[2]){
+                    filterCases.push_back(pair<string,ASTNode*>(destVar,analyzedNode.second[2]));
+                }
+                if(!filterCases.empty()){
+                    opr = new Filter(opr, filterCases);
+                }
+            }
+
+            prevRel = relVar;
+            for(int right = index+1; right<patternElements.size(); right++){
+                filterCases.clear();
+                auto analyzedRel = getRelationshipDetails(patternElements[right]->elements[0]->elements[1]);
+                auto analyzedNode = getNodeDetails(patternElements[right]->elements[1]);
+
+                string newStartVar = destVar;
+                string newDestvar = analyzedNode.first[0]? analyzedNode.second[0]->value : "node_var_"+ to_string(right);
+                string newRelVar = analyzedRel.first[0] ? analyzedRel.second[0]->value : "edge_var_"+to_string(right);
+                string newRelType = analyzedRel.first[1] ? analyzedRel.second[1]->elements[0]->value : "null";
+
+                if( patternElements[right]->elements[0]->elements[0]->nodeType == Const::UNIDIRECTION_ARROW)
+                {
+                    opr = new ExpandAll(opr,newStartVar,newDestvar, newRelVar,newRelType);
+
+                }else{
+                    auto direction = patternElements[right]->elements[0]->elements[0]->nodeType == Const::LEFT_ARRROW ? "left" : "right";
+                    opr = new ExpandAll(opr,newStartVar,newDestvar, newRelVar,newRelType,direction);
+                }
+
+
+                auto* whereClause = new ASTInternalNode(Const::WHERE);
+                auto* comp = new ASTInternalNode(Const::COMPARISON);
+                auto* var1 = new ASTLeafValue(Const::VARIABLE, newRelVar);
+                auto* var2 = new ASTLeafValue(Const::VARIABLE, prevRel);
+                auto* comp_op = new ASTInternalNode(Const::GREATER_THAN_LOWER_THAN);
+                comp_op->addElements(var2);
+                comp->addElements(var1);
+                comp->addElements(comp_op);
+                whereClause->addElements(comp);
+                filterCases.push_back(pair<string,ASTNode*>("null",whereClause));
+
+
+                prevRel = newRelVar;
+                destVar = newDestvar;
+
+                if (analyzedRel.first[2]){
+                    filterCases.push_back(pair<string,ASTNode*>(relVar,analyzedRel.second[2]));
+                }
+                if(analyzedNode.first[1]){
+                    filterCases.push_back(pair<string,ASTNode*>(destVar,analyzedNode.second[1]));
+                }
+                if(analyzedNode.first[2]){
+                    filterCases.push_back(pair<string,ASTNode*>(destVar,analyzedNode.second[2]));
+                }
+                if(!filterCases.empty()){
+                    opr = new Filter(opr, filterCases);
+                }
+            }
+
+        }
+    }
+    return opr;
+}
+
+
 
 

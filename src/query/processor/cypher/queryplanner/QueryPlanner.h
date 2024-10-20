@@ -15,6 +15,10 @@ public:
     bool isAvailable(string nodeType, ASTNode* subtree);
     vector<ASTNode*> getSubTreeListByNodeType(ASTNode* root, string nodeType);
     ASTNode* getSubtreeByType(ASTNode* root, string nodeType);
+    pair<vector<bool>, vector<ASTNode*>> getRelationshipDetails(ASTNode* node);
+    pair<vector<bool>, vector<ASTNode*>> getNodeDetails(ASTNode* node);
+    Operator* pathPatternHandler(ASTNode* pattern);
+    pair<bool, string> getNodeVariable(ASTNode* nodePattern);
 };
 
 #endif // QUERY_PLANNER_H

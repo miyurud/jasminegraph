@@ -51,6 +51,8 @@ limitations under the License.
 #include "../query/processor/cypher/astbuilder/ASTBuilder.h"
 #include "../query/processor/cypher/astbuilder/ASTNode.h"
 #include "../query/processor/cypher/semanticanalyzer/SemanticAnalyzer.h"
+#include "../query/processor/cypher/queryplanner/Operators.h"
+#include "../query/processor/cypher/queryplanner/QueryPlanner.h"
 
 
 #define MAX_PENDING_CONNECTIONS 10
@@ -676,11 +678,12 @@ static void cypher_ast_command(int connFd, bool *loop_exit)
     SemanticAnalyzer semantic_analyzer;
     if(semantic_analyzer.analyze(ast))
     {
-        frontend_logger.log("AST is successfully analyzed", "log");
+        QueryPlanner query_planner;
+        Operator* opr = query_planner.createExecutionPlan(ast);
+        opr->execute();
     }else
     {
-        frontend_logger.log(user_res, "error");
-        frontend_logger.error("query isn't semantically correct");
+        cout<<"Error"<<endl;
     }
 }
 

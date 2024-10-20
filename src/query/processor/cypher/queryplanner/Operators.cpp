@@ -1,11 +1,13 @@
 #include "Operators.h"
-
+#include "../util/Const.h"
 #include "../astbuilder/ASTNode.h"
 using namespace std;
+
 // NodeScan Implementation
 NodeScanByLabel::NodeScanByLabel(const string& label, const string& var) : label(label), var(var) {}
 
 void NodeScanByLabel::execute() {
+    cout<<"NodeScanByLabel: \n"<<endl;
     cout << "scanning node based on single label: " << label <<" and assigned with variable: "<<var<< endl;
 }
 
@@ -13,6 +15,8 @@ void NodeScanByLabel::execute() {
 MultipleNodeScanByLabel::MultipleNodeScanByLabel(vector<string> label, const string& var) : label(label), var(var) {}
 
 void MultipleNodeScanByLabel::execute() {
+    cout<<"MultipleNodeScanByLabel: \n"<<endl;
+
     string label_string = "";
     for(int i=0; i<label.size();i++)
     {
@@ -27,6 +31,7 @@ void MultipleNodeScanByLabel::execute() {
 AllNodeScan::AllNodeScan(const string& var) : var(var) {}
 
 void AllNodeScan::execute() {
+    cout<<"AllNodeScan: \n"<<endl;
     cout << "scanning all nodes and assigned with : " << var << endl;
 }
 
@@ -35,18 +40,49 @@ ProduceResults::ProduceResults(Operator* opr, vector<ASTNode*> item) : item(item
 
 void ProduceResults::execute() {
     op->execute();
+    cout<<"ProduceResults: \n"<<endl;
+
     for(auto* e: item)
     {
-        cout<< e->nodeType<<endl;
+        cout<<"Return variable: "<< e->value<<endl;
     }
 }
 
 // Filter Implementation
-Filter::Filter(Operator* input, ASTNode* root) : input(input), root(root) {}
+Filter::Filter(Operator* input, vector<pair<string,ASTNode*>> filterCases) : input(input), filterCases(filterCases) {}
 
 void Filter::execute() {
     input->execute();
-    cout << "Applying Filter with predicate: " << root->nodeType << endl;
+    cout<<"Filter: \n"<<endl;
+    string condition;
+    for(auto item: filterCases){
+        if(item.second->nodeType==Const::WHERE){
+            cout<<item.second->print(1)<<endl;
+
+        }else if(item.second->nodeType==Const::PROPERTIES_MAP){
+            for(auto* prop: item.second->elements){
+                condition+=item.first+"."+prop->elements[0]->value+" = "+prop->elements[1]->value;
+                if(prop != item.second->elements.back()){
+                    condition+=" AND \n";
+                }
+            }
+        }else if(item.second->nodeType==Const::NODE_LABELS){
+            for(auto* prop: item.second->elements){
+                condition+=item.first+": "+prop->elements[0]->value;
+                if(prop != item.second->elements.back()){
+                    condition+=" AND \n";
+                }
+            }
+        }else if(item.second->nodeType==Const::NODE_LABEL){
+            condition = item.first+": "+item.second->elements[0]->value;
+        }
+
+        if(item != filterCases.back()){
+            condition+=" AND \n";
+        }
+    }
+    cout<<condition<<endl;
+
 }
 
 // Projection Implementation
@@ -54,6 +90,8 @@ Projection::Projection(Operator* input, const vector<ASTNode*> columns) : input(
 
 void Projection::execute() {
     input->execute();
+    cout<<"Projection: \n"<<endl;
+
     cout << "Projecting columns: ";
     for (auto* col : columns) {
         cout << col->nodeType << " ";
@@ -137,6 +175,8 @@ CacheProperty::CacheProperty(Operator* input, vector<ASTNode*> property) : prope
 void CacheProperty::execute()
 {
     input->execute();
+    cout<<"CacheProperty: \n"<<endl;
+
     int i=1;
     for(auto* prop: property)
     {
@@ -146,23 +186,67 @@ void CacheProperty::execute()
     }
 }
 
-UndirectedRelationshipTypeScan::UndirectedRelationshipTypeScan(string relType, string startVar, string endVar)
-    : relType(relType), startVar(startVar), endVar(endVar) {}
+UndirectedRelationshipTypeScan::UndirectedRelationshipTypeScan(string relType, string relvar, string startVar, string endVar)
+        : relType(relType), relvar(relvar), startVar(startVar), endVar(endVar) {}
 
 // Execute method
 void UndirectedRelationshipTypeScan::execute() {
-      cout << "Executing UndirectedRelationshipTypeScan for relationship type: " << relType <<   endl;
-      cout << "Start variable: " << startVar << ", End variable: " << endVar <<   endl;
+    cout<<"UndirectedRelationshipTypeScan: \n"<<endl;
+    cout << "("<<startVar<<") -[" << relvar<<" :"<< relType << "]- (" << endVar << ")" << endl;
 
 }
 
 UndirectedAllRelationshipScan::UndirectedAllRelationshipScan(string startVar, string endVar)
-    : startVar(startVar), endVar(endVar) {}
+        : startVar(startVar), endVar(endVar) {}
 
 
 void UndirectedAllRelationshipScan::execute() {
-     cout << "Executing UndirectedAllRelationshipScan for all relationship types." <<  endl;
-     cout << "Start variable: " << startVar << ", End variable: " << endVar <<  endl;
+    cout << "Executing UndirectedAllRelationshipScan for all relationship types." <<  endl;
+    cout << "Start variable: " << startVar << ", End variable: " << endVar <<  endl;
 
 
 }
+
+DirectedRelationshipTypeScan::DirectedRelationshipTypeScan(string direction, string relType, string relvar, string startVar, string endVar)
+        : relType(relType), relvar(relvar), startVar(startVar), endVar(endVar), direction(direction) {
+
+}
+
+
+// Execute method
+void DirectedRelationshipTypeScan::execute() {
+    cout<<"DirectedRelationshipTypeScan: \n"<<endl;
+
+    if(direction == "right"){
+        cout << "("<<startVar<<") -[" << relvar<<" :"<< relType << "]-> (" << endVar << ")" << endl;
+    }else{
+        cout << "("<<startVar<<") <-[" << relvar<<" :"<< relType << "]- (" << endVar << ")" << endl;
+    }
+}
+
+ExpandAll::ExpandAll(Operator *input, std::string startVar, std::string destVar, std::string relVar,
+                     std::string relType, std::string direction): input(input), relType(relType), relVar(relVar), startVar(startVar), destVar(destVar), direction(direction){}
+
+void ExpandAll::execute() {
+    input->execute();
+    cout<<"ExpandAll: \n"<<endl;
+
+    string line;
+
+    if(relType == "null" && direction == ""){
+        line = "("+startVar+") -["+relVar+"]- ("+destVar+")";
+        cout<<line<<endl;
+    }else if(relType != "null" && direction == ""){
+        line = "("+startVar+") -["+relVar+" :"+relType+"]- ("+destVar+")";
+        cout<<line<<endl;
+    }else if(relType == "null" && direction == "right") {
+        cout << "(" << startVar << ") -[" << relVar << "]-> (" << destVar << ")" << endl;
+    }else if(relType != "null" && direction == "right"){
+        cout << "(" << startVar << ") -[" << relVar << " :" << relType << "]-> (" << destVar << ")" << endl;
+    }else if(relType == "null" && direction == "left") {
+        cout << "(" << startVar << ") <-[" << relVar << "]- (" << destVar << ")" << endl;
+    }else if(relType != "null" && direction == "left"){
+        cout << "(" << startVar << ") <-[" << relVar << " :" << relType << "]- (" << destVar << ")" << endl;
+    }
+}
+
