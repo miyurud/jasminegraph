@@ -18,7 +18,7 @@ public:
     pair<vector<bool>, vector<ASTNode*>> getRelationshipDetails(ASTNode* node);
     pair<vector<bool>, vector<ASTNode*>> getNodeDetails(ASTNode* node);
     Operator* pathPatternHandler(ASTNode* pattern);
-    pair<bool, string> getNodeVariable(ASTNode* nodePattern);
+    ASTNode* prepareWhereClause(std::string var1, std::string var2)
 };
 
 #endif // QUERY_PLANNER_H
