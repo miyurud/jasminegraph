@@ -156,7 +156,7 @@ if (CMAKE_BUILD_TYPE STREQUAL "DEBUG")
 add_compile_options(-DUNIT_TEST)
 endif ()
 
-file(GLOB GENERATED_SRC ${CMAKE_SOURCE_DIR}/code_generated/antlr/*.cpp)
+file(GLOB GENERATED_SRC /home/ubuntu/software/antlr/*.cpp)
 add_library(JasmineGraphLib ${HEADERS} ${SOURCES} ${GENERATED_SRC})
 add_executable(JasmineGraph main.h main.cpp)
 
