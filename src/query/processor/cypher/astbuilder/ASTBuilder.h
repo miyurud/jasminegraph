@@ -12,7 +12,7 @@ limitations under the License.
  */
 
 #include <any>
-#include "/home/ubuntu/software/jasminegraph/code_generated/antlr/CypherBaseVisitor.h"
+#include "/home/ubuntu/software/antlr/CypherBaseVisitor.h"
 #ifndef AST_BUILDER_H
 #define AST_BUILDER_H
 

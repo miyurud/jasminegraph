@@ -46,13 +46,15 @@ limitations under the License.
 #include "core/CoreConstants.h"
 #include "core/scheduler/JobScheduler.h"
 #include "antlr4-runtime.h"
-#include "/home/ubuntu/software/jasminegraph/code_generated/antlr/CypherLexer.h"
-#include "/home/ubuntu/software/jasminegraph/code_generated/antlr/CypherParser.h"
+#include "/home/ubuntu/software/antlr/CypherLexer.h"
+#include "/home/ubuntu/software/antlr/CypherParser.h"
 #include "../query/processor/cypher/astbuilder/ASTBuilder.h"
 #include "../query/processor/cypher/astbuilder/ASTNode.h"
 #include "../query/processor/cypher/semanticanalyzer/SemanticAnalyzer.h"
 #include "../query/processor/cypher/queryplanner/Operators.h"
 #include "../query/processor/cypher/queryplanner/QueryPlanner.h"
+#include "../localstore/incremental/JasmineGraphIncrementalLocalStore.h"
+#include "../server/JasmineGraphInstanceService.h"
 
 
 #define MAX_PENDING_CONNECTIONS 10
@@ -685,6 +687,27 @@ static void cypher_ast_command(int connFd, bool *loop_exit)
     {
         cout<<"Error"<<endl;
     }
+
+
+//    int mode = 0;
+//    int graphID = 1;
+//    int partitionId = 0;
+//    frontend_logger.info("Received mode: " + mode);
+//
+//    std::string graphIdentifier = graphID + "_" + partitionId;
+//    JasmineGraphIncrementalLocalStore *incrementalLocalStoreInstance;
+//
+//    if (incrementalLocalStoreMap.find(graphIdentifier) == incrementalLocalStoreMap.end()) {
+//        incrementalLocalStoreInstance =
+//                JasmineGraphInstanceService::loadStreamingStore(graphID, partitionId, incrementalLocalStoreMap, "app");
+//    } else {
+//        incrementalLocalStoreInstance = incrementalLocalStoreMap[graphIdentifier];
+//    }
+//
+//    NativeStoreTriangleResult localCount;
+//    if (mode == "0") {
+//        localCount = StreamingTriangles::countLocalStreamingTriangles(incrementalLocalStoreInstance);
+//    }
 }
 
 static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
@@ -1297,7 +1320,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     kstream->Subscribe(topic_name_s);
     // Create the StreamHandler object.
     StreamHandler *stream_handler = new StreamHandler(kstream, numberOfPartitions, workerClients);
-
+    frontend_logger.info("LLLLLLLLLLLLLLLLLLLLLLLLL");
     string path = "kafka:\\" + topic_name_s + ":" + group_id;
     std::time_t time = chrono::system_clock::to_time_t(chrono::system_clock::now());
     string uploadStartTime = ctime(&time);

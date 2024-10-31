@@ -17,7 +17,8 @@ limitations under the License.
 #include "ASTInternalNode.h"
 #include "ASTLeafNoValue.h"
 #include "ASTLeafValue.h"
-#include "/home/ubuntu/software/jasminegraph/code_generated/antlr/CypherBaseVisitor.h"
+#include "/home/ubuntu/software/antlr/CypherBaseVisitor.h"
+#include "/home/ubuntu/software/antlr/CypherParser.h"
 #include "../util/Const.h"
 
 any visitOC_Cypher(CypherParser::OC_CypherContext *ctx) ;
