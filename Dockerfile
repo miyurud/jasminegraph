@@ -16,6 +16,8 @@ RUN if [ "$DEBUG" = "true" ]; then apt-get update \
 && apt-get install --no-install-recommends -y gdb gdbserver \
 && apt-get clean; fi
 
+
+WORKDIR "${JASMINEGRAPH_HOME}"
 COPY ./build.sh ./build.sh
 COPY ./CMakeLists.txt ./CMakeLists.txt
 COPY ./main.h ./main.h

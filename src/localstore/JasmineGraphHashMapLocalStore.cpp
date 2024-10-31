@@ -222,7 +222,7 @@ void JasmineGraphHashMapLocalStore::toLocalAttributeMap(const AttributeStore *at
         auto entry = allEntries->Get(i);
         long key = entry->key();
         auto attributes = entry->value();
-        auto attributesSize = attributes->Length();
+        auto attributesSize = attributes->size();
         for (int j = 0; j < attributesSize; j = j + 1) {
             attributeVector.push_back(attributes->Get(j)->c_str());
         }
