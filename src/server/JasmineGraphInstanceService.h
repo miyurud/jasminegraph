@@ -47,6 +47,7 @@ limitations under the License.
 #include "JasmineGraphInstanceProtocol.h"
 
 void *instanceservicesession(void *dummyPt);
+void *instanceservicesessionbackground(void *dummyPt);
 void writeCatalogRecord(string record);
 int deleteGraphPartition(std::string graphID, std::string partitionID);
 void removeGraphFragments(std::string graphID);

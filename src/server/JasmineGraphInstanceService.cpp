@@ -43,6 +43,7 @@ int highestPriority = Conts::DEFAULT_THREAD_PRIORITY;
 std::atomic<int> workerHighPriorityTaskCount;
 std::mutex threadPriorityMutex;
 std::vector<std::string> loadAverageVector;
+std::vector<int *> writePipeFDList;
 bool collectValid = false;
 std::thread JasmineGraphInstanceService::workerThread;
 
@@ -134,6 +135,21 @@ char *converter(const std::string &s) {
     char *pc = new char[s.size() + 1];
     std::strcpy(pc, s.c_str());
     return pc;
+}
+
+void *instanceservicesessionbackground(void *dummyPt) {
+    int *fd = (int *)dummyPt;
+    int shutdownFlag = 0;
+    while (true) {
+        if (read(fd[0], &shutdownFlag, sizeof(int)) == -1) {
+            instance_logger.error("An error ocurred with reading from the pipe");
+        }
+
+        if (shutdownFlag == 1) {
+            instance_logger.info("Shutdown message received from master. Will shutdown immediately...");
+            exit(0);
+        }
+    }
 }
 
 void *instanceservicesession(void *dummyPt) {
@@ -326,8 +342,27 @@ void JasmineGraphInstanceService::run(string masterHost, string host, int server
         }
         instance_logger.info("Connection successful to port " + to_string(serverPort));
 
+        // TODO: First create pipe. There will be two file descriptors.
+        int fd[2];
+
+        if (pipe(fd) == -1) {
+            instance_logger.error("An error ocurred with opening the pipe");
+            continue;
+        }
+
         pid_t pid = fork();
+
+        if (pid == -1) {
+            instance_logger.error("An error ocurred while forking a child process for instance service session");
+            continue;
+        }
+
         if (pid == 0) {
+            // This is the child process
+            // Close the write end of the file descriptor since we are not going to write to the parent
+            close(fd[1]);
+            std::thread exitMonitorThread = std::thread(&instanceservicesessionbackground, &fd);
+            exitMonitorThread.detach();
             close(listenFd);
             instanceservicesessionargs *serviceArguments_p = new instanceservicesessionargs;
             serviceArguments_p->graphDBMapLocalStores = &graphDBMapLocalStores;
@@ -342,6 +377,10 @@ void JasmineGraphInstanceService::run(string masterHost, string host, int server
             instanceservicesession(serviceArguments_p);
             break;
         } else {
+            // This is the parent process
+            // Close the read end of the file descriptor since we are not going to read from the child
+            close(fd[0]);
+            writePipeFDList.push_back(fd);
             close(connFd);
         }
     }
@@ -1979,6 +2018,17 @@ static inline void close_command(int connFd, bool *loop_exit_p) {
 }
 
 static inline void shutdown_command(int connFd) {
+    std::vector<int *>::iterator writePipeFDListIterator;
+
+    for (writePipeFDListIterator = writePipeFDList.begin(); writePipeFDListIterator != writePipeFDList.end(); ++writePipeFDListIterator) {
+        int *fd = *writePipeFDListIterator;
+        int communicateByte = 1;
+        if (write(fd[1], &communicateByte, sizeof(int)) == -1) {
+            instance_logger.error("An error ocurred with writing to the pipe");
+        }
+        close(fd[1]);
+    }
+
     close(connFd);
     exit(0);
 }
