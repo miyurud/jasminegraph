@@ -13,6 +13,7 @@ limitations under the License.
 
 #include "JasmineGraphInstanceService.h"
 
+#include <signal.h>
 #include <stdio.h>
 #include <unistd.h>
 
@@ -1980,6 +1981,8 @@ static inline void close_command(int connFd, bool *loop_exit_p) {
 
 static inline void shutdown_command(int connFd) {
     close(connFd);
+    pid_t ppid = getppid();
+    kill(ppid, SIGTERM);
     exit(0);
 }
 
