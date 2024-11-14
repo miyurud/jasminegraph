@@ -39,7 +39,7 @@ class Server:
     """Server
     """
 
-    #pylint: disable=too-many-arguments
+    #pylint: disable=too-many-positional-arguments
     def __init__(self, org_id, model_weights, rounds, num_clients, ip, port):
 
         # Parameters
