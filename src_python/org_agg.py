@@ -38,6 +38,7 @@ class Aggregator:
     """Aggregator
     """
 
+    #pylint: disable=too-many-arguments
     def __init__(self, model, rounds, num_orgs, ip, port):
 
         # Parameters

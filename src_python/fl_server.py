@@ -36,6 +36,7 @@ class Server:
     learning process (Without partition sheduling)
     """
 
+    #pylint: disable=too-many-arguments
     def __init__(self, model, rounds, weights_path, graph_id, max_conn=2, ip=socket.gethostname(),
                  port=5000, header_length=10):
 
