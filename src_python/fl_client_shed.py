@@ -53,6 +53,7 @@ class Client:
     on a given GCN model (With partition sheduling)
     """
 
+    #pylint: disable=too-many-positional-arguments
     def __init__(self, client_id, weights_path, graph_id, partition_ids, epochs=10,
                  ip=socket.gethostname(), port=5000, header_length=10):
 

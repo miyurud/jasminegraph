@@ -49,6 +49,7 @@ class Client:
     (Without partition sheduling)
     """
 
+    #pylint: disable=too-many-positional-arguments
     def __init__(self, model, graph_params, weights_path, graph_id, partition_id, epochs=10,
                  ip=socket.gethostname(), port=5000, header_length=10):
 
