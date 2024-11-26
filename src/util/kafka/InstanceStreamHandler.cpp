@@ -102,3 +102,23 @@ InstanceStreamHandler::loadStreamingStore(std::string graphId, std::string parti
     instance_stream_logger.info("###INSTANCE### Loading Local Store : Completed");
     return jasmineGraphStreamingLocalStore;
 }
+
+void InstanceStreamHandler::handleLocalEdge(const std::pair<std::string, std::string> &edge,std::string graphId,std::string partitionId,std::string graphIdentifier) {
+    instance_stream_logger.info("adding local edge "+ edge.first+"->"+edge.second);
+    std::unique_lock<std::mutex> lock(queue_mutexes[graphIdentifier]);
+    if (incrementalLocalStoreMap.find(graphIdentifier) == incrementalLocalStoreMap.end()) {
+        loadStreamingStore(graphId, partitionId, incrementalLocalStoreMap);
+    }
+    JasmineGraphIncrementalLocalStore* localStore = incrementalLocalStoreMap[graphIdentifier];
+    localStore->addLocalEdge(edge);
+}
+void InstanceStreamHandler::handleCentralEdge(const std::pair<std::string, std::string> &edge,std::string graphId,std::string partitionId,std::string graphIdentifier) {
+    instance_stream_logger.info("adding central edge "+ edge.first+"->"+edge.second);
+
+    std::unique_lock<std::mutex> lock(queue_mutexes[graphIdentifier]);
+    if (incrementalLocalStoreMap.find(graphIdentifier) == incrementalLocalStoreMap.end()) {
+        loadStreamingStore(graphId, partitionId, incrementalLocalStoreMap);
+    }
+    JasmineGraphIncrementalLocalStore* localStore = incrementalLocalStoreMap[graphIdentifier];
+    localStore->addCentralEdge(edge);
+}

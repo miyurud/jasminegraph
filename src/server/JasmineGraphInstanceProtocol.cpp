@@ -105,3 +105,13 @@ const string JasmineGraphInstanceProtocol::END_OF_WORKER_FILE_CHUNKS_MSG_ACK= "e
 const string JasmineGraphInstanceProtocol::SEND_WORKER_FILE_CHUNK_CHK="send-worker-file-chunk-chk";
 const string JasmineGraphInstanceProtocol::SEND_WORKER_FILE_CHUNK_ACK="send-worker-file-chunk-ack";
 const string JasmineGraphInstanceProtocol::SEND_WORKER_FILE_CHUNK_WAIT="send-worker-file-chunk-wait";
+
+const string JasmineGraphInstanceProtocol::HDFS_LOCAL_STREAM_START="hdfs-local-stream-start";
+const string JasmineGraphInstanceProtocol::HDFS_CENTRAL_STREAM_START="hdfs-central-stream-start";
+const string JasmineGraphInstanceProtocol::HDFS_STREAM_END_WAIT="hdfs-stream-end-wait";
+const string JasmineGraphInstanceProtocol::HDFS_STREAM_START_ACK="hdfs-stream-start-ack";
+const string JasmineGraphInstanceProtocol::HDFS_STREAM_END_ACK="hdfs-stream-end-ack";
+const string JasmineGraphInstanceProtocol::HDFS_STREAM_END_CHK="hdfs-stream-end-chk";
+const string JasmineGraphInstanceProtocol::HDFS_STREAM_FILE_NAME_ACK="hdfs-file-name-ack";
+const string JasmineGraphInstanceProtocol::HDFS_STREAM_FILE_NAME_LENGTH_ACK="hdfs-file-name-length-ack";
+const string JasmineGraphInstanceProtocol::HDFS_STREAM_FILE_SIZE_ACK="hdfs-file-size-ack";

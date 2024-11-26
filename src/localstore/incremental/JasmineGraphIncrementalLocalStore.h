@@ -27,6 +27,8 @@ class JasmineGraphIncrementalLocalStore {
     static std::pair<std::string, unsigned int> getIDs(std::string edgeString);
     JasmineGraphIncrementalLocalStore(unsigned int graphID = 0,
                                       unsigned int partitionID = 0, std::string openMode = "trunk");
+    void addLocalEdge(const std::pair<std::string, std::string> &edge);
+    void addCentralEdge(const std::pair<std::string, std::string> &edge);
 };
 
 #endif

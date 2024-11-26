@@ -120,6 +120,16 @@ class JasmineGraphInstanceProtocol {
     static const string SEND_WORKER_CENTRAL_FILE_CHUNK;
     static const string END_OF_WORKER_FILE_CHUNKS_MSG;
     static const string END_OF_WORKER_FILE_CHUNKS_MSG_ACK;
+
+    static const string HDFS_LOCAL_STREAM_START;
+    static const string HDFS_CENTRAL_STREAM_START;
+    static const string HDFS_STREAM_END_WAIT;
+    static const string HDFS_STREAM_START_ACK;
+    static const string HDFS_STREAM_END_ACK;
+    static const string HDFS_STREAM_END_CHK;
+    static const string HDFS_STREAM_FILE_NAME_ACK;
+    static const string HDFS_STREAM_FILE_NAME_LENGTH_ACK;
+    static const string HDFS_STREAM_FILE_SIZE_ACK;
 };
 
 const int INSTANCE_DATA_LENGTH = 300;

@@ -17,6 +17,7 @@
 #include "../logger/Logger.h"
 #include "../Utils.h"
 #include "../../partitioner/stream/HashPartitioner.h"
+#include "../../nativestore/DataPublisher.h"
 
 #include <hdfs.h>
 #include <vector>
@@ -31,13 +32,13 @@ class HDFSStreamHandler {
 public:
             HDFSStreamHandler(hdfsFS fileSystem, const std::string &filePath, int numberOfPartitions, int graphId,
                       SQLiteDBInterface *sqlite,
-                      std::string masterIP);
+                      std::string masterIP,std::vector<DataPublisher *> &workerClients);
 
     void startStreamingFromBufferToPartitions();
 
 private:
     void streamFromHDFSIntoBuffer();
-    void streamFromBufferToProcessingQueue();
+    void streamFromBufferToProcessingQueue(HashPartitioner &partitioner);
 
     hdfsFS fileSystem;
     std::string filePath;
@@ -58,13 +59,14 @@ private:
     int graphId;
     int numberOfPartitions;
 
-    HashPartitioner partitioner;
+//    HashPartitioner partitioner;
 
 
-    std::ofstream currentFile;  // Current file being written to
-    std::string currentFilePath;  // Path of the current file
-    size_t currentFileSize;  // Current size of the file in bytes
-    size_t fileIndex;  // Index to keep track of file numbers
+//    std::ofstream currentFile;  // Current file being written to
+//    std::string currentFilePath;  // Path of the current file
+//    size_t fileIndex;  // Index to keep track of file numbers
+
+    std::vector<DataPublisher *> &workerClients;
 };
 
 #endif // HDFSSTREAMHANDLER_H

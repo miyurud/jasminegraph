@@ -5,6 +5,7 @@
 #include "../../util/logger/Logger.h"
 #include "../../util/Utils.h"
 #include "../../server/JasmineGraphServer.h"
+#include "../../nativestore/DataPublisher.h"
 #include <vector>
 #include <string>
 #include <map>
@@ -16,7 +17,6 @@
 class HashPartitioner {
 
     std::vector<Partition> partitions; // Holds partition objects
-    std::vector<JasmineGraphServer::worker> workers;
 
     std::atomic<bool> terminateConsumers;  // Termination flag
     std::vector<std::thread> localEdgeThreads;
@@ -38,12 +38,16 @@ class HashPartitioner {
     int graphId;
     std::string masterIp;
 
+    std::vector<DataPublisher *> &workerClients;
+    std::vector<std::mutex> workerClientMutexes;
+
+
 public:
     ~HashPartitioner();
-    HashPartitioner(int numberOfPartitions, int graphID,std::string masterIp);
-    void uploadGraphLocally(std::string masterIP);
-    void writeSerializedPartitionFiles(int partition);
-    void writeSerializedMasterFiles(int partition);
+    HashPartitioner(int numberOfPartitions, int graphID,std::string masterIp,std::vector<DataPublisher *> &workerClients);
+//    void uploadGraphLocally(std::string masterIP);
+//    void writeSerializedPartitionFiles(int partition);
+//    void writeSerializedMasterFiles(int partition);
     void printStats();
     long getVertexCount();
     long getEdgeCount();
@@ -63,9 +67,9 @@ private:
     std::vector<std::map<int, std::string>> fullFileList;
     std::map<int, std::map<int, std::vector<int>>> partitionedLocalGraphStorageMap;
 
-    std::vector<std::map<int, std::string>> generateFullFileList();
-    void consumeLocalEdges(int partitionIndex);
-    void consumeEdgeCuts(int partitionIndex);
+//    std::vector<std::map<int, std::string>> generateFullFileList();
+    void consumeLocalEdges(int partitionIndex,DataPublisher* dp);
+    void consumeEdgeCuts(int partitionIndex,DataPublisher* dp);
     void stopConsumerThreads();
 };
 
