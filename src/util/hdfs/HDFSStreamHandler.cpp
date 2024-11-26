@@ -23,17 +23,17 @@ const std::string END_OF_STREAM_MARKER = "-1";
 
 HDFSStreamHandler::HDFSStreamHandler(hdfsFS fileSystem, const std::string &filePath, int numberOfPartitions,
                                      int graphId, SQLiteDBInterface *sqlite,
-                                     std::string masterIP)
+                                     std::string masterIP,std::vector<DataPublisher *> &workerClients )
         : fileSystem(fileSystem),
           filePath(filePath),
           numberOfPartitions(numberOfPartitions),
           isReading(true),
           isProcessing(true),
           graphId(graphId),
-          currentFileSize(0),
           sqlite(sqlite),
           masterIP(masterIP),
-          fileIndex(0), partitioner(numberOfPartitions, graphId, masterIP) {}
+          workerClients(workerClients)
+          {}
 
 void HDFSStreamHandler::streamFromHDFSIntoBuffer() {
     auto startTime = high_resolution_clock::now();
@@ -94,7 +94,7 @@ void HDFSStreamHandler::streamFromHDFSIntoBuffer() {
     hdfs_stream_handler_logger.info("Time taken to read from HDFS: " + to_string(duration.count()) + " seconds");
 }
 
-void HDFSStreamHandler::streamFromBufferToProcessingQueue() {
+void HDFSStreamHandler::streamFromBufferToProcessingQueue(HashPartitioner &partitioner) {
     auto startTime = high_resolution_clock::now();
     while (isProcessing) {
         std::unique_lock<std::mutex> lock(dataBufferMutex);
@@ -142,7 +142,6 @@ void HDFSStreamHandler::streamFromBufferToProcessingQueue() {
             }
 
         } else if (!isReading) {
-            // If no more data and reading is done, exit
             break;
         }
     }
@@ -150,12 +149,12 @@ void HDFSStreamHandler::streamFromBufferToProcessingQueue() {
 
 void HDFSStreamHandler::startStreamingFromBufferToPartitions() {
     auto startTime = high_resolution_clock::now();
-    currentFileSize = 0;
+    HashPartitioner partitioner(numberOfPartitions, graphId, masterIP, workerClients);
 
     std::thread readerThread(&HDFSStreamHandler::streamFromHDFSIntoBuffer, this);
     std::vector<std::thread> bufferProcessorThreads;
     for (int i = 0; i < 20; ++i) {
-        bufferProcessorThreads.emplace_back(&HDFSStreamHandler::streamFromBufferToProcessingQueue, this);
+        bufferProcessorThreads.emplace_back(&HDFSStreamHandler::streamFromBufferToProcessingQueue, this, std::ref(partitioner));
     }
     readerThread.join();
     for (auto &thread: bufferProcessorThreads) {
