@@ -53,6 +53,12 @@ std::vector<std::string> centralFileNamesQueue;
 std::condition_variable centralFileNamesQueueCV;
 std::mutex centralFileNamesQueueMutex;
 
+std::queue<std::string> centralStoreQueue;
+std::queue<std::string> localStoreQueue;
+std::mutex centralStoreQueueMutex;
+std::mutex localStoreQueueMutex;
+std::condition_variable centralStoreQueueCV;
+std::condition_variable localStoreQueueCV;
 
 std::string masterIP;
 
@@ -132,6 +138,7 @@ static void degree_distribution_common(int connFd, int serverPort,
 static void push_partition_command(int connFd, bool *loop_exit_p);
 
 static void send_worker_file_chunk_command(int connFd, bool *loop_exit_p,bool isLocalChunk);
+static void hdfs_start_stream_command(int connFd, bool *loop_exit_p,bool isLocalStream);
 
 static void send_worker_central_file_chunk_command(int connFd, bool *loop_exit_p);
 
@@ -162,6 +169,14 @@ void *instanceservicesession(void *dummyPt) {
     std::map<std::string, JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap =
         *(sessionargs.incrementalLocalStore);
     InstanceStreamHandler streamHandler(incrementalLocalStoreMap);
+
+//    JasmineGraphInstanceService instance;
+//    std::thread centralConsumerThread(&JasmineGraphInstanceService::centralQueueConsumer, &instance, std::ref(streamHandler));
+//    std::thread localConsumerThread(&JasmineGraphInstanceService::localQueueConsumer, &instance, std::ref(streamHandler));
+
+//    centralConsumerThread.detach();
+//    localConsumerThread.detach();
+
 
     string serverName = sessionargs.host;
     string masterHost = sessionargs.masterHost;
@@ -278,6 +293,10 @@ void *instanceservicesession(void *dummyPt) {
             send_worker_file_chunk_command(connFd, &loop_exit,true);
         } else if (line.compare(JasmineGraphInstanceProtocol::SEND_WORKER_CENTRAL_FILE_CHUNK) == 0) {
             send_worker_file_chunk_command(connFd, &loop_exit,false);
+        } else if (line.compare(JasmineGraphInstanceProtocol::HDFS_LOCAL_STREAM_START) == 0) {
+            hdfs_start_stream_command(connFd, &loop_exit,true);
+        } else if (line.compare(JasmineGraphInstanceProtocol::HDFS_CENTRAL_STREAM_START) == 0) {
+            hdfs_start_stream_command(connFd, &loop_exit,false);
         } else {
             instance_logger.error("Invalid command");
             loop_exit = true;
@@ -286,6 +305,10 @@ void *instanceservicesession(void *dummyPt) {
     instance_logger.info("Closing thread " + to_string(pthread_self()));
     close(connFd);
     return NULL;
+
+//    centralConsumerThread.join();
+//    localConsumerThread.join();
+
 }
 
 JasmineGraphInstanceService::JasmineGraphInstanceService() {}
@@ -4384,5 +4407,258 @@ void JasmineGraphInstanceService::centralFileChunksConsumer() {
     }
 }
 
+static void hdfs_start_stream_command(int connFd, bool *loop_exit_p,bool isLocalStream){
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::HDFS_STREAM_START_ACK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.debug("Sent : " + JasmineGraphInstanceProtocol::HDFS_STREAM_START_ACK);
+
+    int file_name_length;
+    instance_logger.debug("Waiting for edge file name length");
+    ssize_t return_status = recv(connFd, &file_name_length, sizeof(int), 0);
+    if (return_status > 0) {
+        file_name_length = ntohl(file_name_length);
+        instance_logger.debug("Received file name length = " + std::to_string(file_name_length));
+    } else {
+        instance_logger.error("Error while reading file name length");
+        *loop_exit_p = true;
+        return;
+    }
+
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::HDFS_STREAM_FILE_NAME_LENGTH_ACK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.debug("Acked for content length");
+
+    //get file name
+    string fileName(file_name_length,0);
+    instance_logger.debug("Waiting for edge file chunk name");
+    ssize_t return_status_f_name = recv(connFd, &fileName[0], file_name_length, 0);
+    if (return_status_f_name > 0) {
+        instance_logger.info("Received file name = " + fileName);
+    } else {
+        instance_logger.error("Error while reading file name");
+        *loop_exit_p = true;
+        return;
+    }
+
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::HDFS_STREAM_FILE_NAME_ACK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.debug("Acked for file name");
+
+    //get file size
+    int fileSize;
+    instance_logger.debug("Waiting for edge file chunk size");
+    ssize_t return_status_f_size = recv(connFd, &fileSize, sizeof(fileSize), 0);
+    if (return_status_f_size > 0) {
+        instance_logger.debug("Received file size = " + to_string(fileSize));
+    } else {
+        instance_logger.error("Error while reading file size");
+        *loop_exit_p = true;
+        return;
+    }
+
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::HDFS_STREAM_FILE_SIZE_ACK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.debug("Acked for file size");
+
+    char data[DATA_BUFFER_SIZE];
+    string line;
+    string fullFilePath =
+            Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
+
+    while (!Utils::fileExists(fullFilePath)) {
+        instance_logger.error("Instance data file " + fullFilePath + " does not exist");
+        sleep(1);
+    }
+    instance_logger.info("Instance data file " + fullFilePath + " exist");
+
+    while (Utils::getFileSize(fullFilePath) < fileSize) {
+        line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
+        if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) != 0) {
+            instance_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::FILE_RECV_CHK +
+                                  " ; Received: " + line);
+            close(connFd);
+            return;
+        }
+        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT)) {
+            *loop_exit_p = true;
+            return;
+        }
+    }
+
+    line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
+    if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) != 0) {
+        instance_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::FILE_RECV_CHK +
+                              " ; Received: " + line);
+        close(connFd);
+        return;
+    }
+    instance_logger.debug("Received : " + line);
+
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_ACK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.debug("Sent : " + JasmineGraphInstanceProtocol::FILE_ACK);
+
+
+    while (!Utils::fileExists(fullFilePath)) {
+        line = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+        if (line.compare(JasmineGraphInstanceProtocol::HDFS_STREAM_END_CHK) != 0) {
+            instance_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::HDFS_STREAM_END_CHK +
+                                  " ; Received: " + line);
+            close(connFd);
+            return;
+        }
+        instance_logger.info("Received : " + line);
+        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::HDFS_STREAM_END_WAIT)) {
+            *loop_exit_p = true;
+            return;
+        }
+        instance_logger.debug("Sent : " + JasmineGraphInstanceProtocol::HDFS_STREAM_END_WAIT);
+    }
+
+    line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
+    if (line.compare(JasmineGraphInstanceProtocol::HDFS_STREAM_END_CHK) != 0) {
+        instance_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::HDFS_STREAM_END_CHK +
+                              " ; Received: " + line);
+        close(connFd);
+        return;
+    }
+    instance_logger.debug("Received : " + line);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::HDFS_STREAM_END_ACK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.debug("Sent : " + JasmineGraphInstanceProtocol::HDFS_STREAM_END_ACK);
+
+    if (isLocalStream) {
+        // Push file to local queue and notify the local queue consumer
+        {
+//            std::unique_lock<std::mutex> lock(localStoreQueueMutex);
+            localStoreQueue.push(fileName);
+        }
+        localStoreQueueCV.notify_one();
+        instance_logger.info("File " + fullFilePath + " added to localStoreQueue for processing.");
+    } else {
+        // Push file to central queue and notify the central queue consumer
+        {
+//            std::unique_lock<std::mutex> lock(centralStoreQueueMutex);
+            centralStoreQueue.push(fileName);
+        }
+        centralStoreQueueCV.notify_one();
+        instance_logger.info("File " + fullFilePath + " added to centralStoreQueue for processing.");
+    }
+
+
+}
+
+void JasmineGraphInstanceService::centralQueueConsumer(InstanceStreamHandler &instanceStreamHandler) {
+    instance_logger.info("Central store queue consumer started.");
+    std::string fileDirectory=Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder")+"/";
+    std::regex fileNamePattern(R"((\d+)_(\d+)_centralstore_(\d+))"); // Pattern to match "graphId_partitionIndex_centralstore_fileIndex"
+
+    while (true) {
+        std::unique_lock<std::mutex> lock(centralStoreQueueMutex);
+        centralStoreQueueCV.wait(lock, [] { return !centralStoreQueue.empty(); });
+        std::string fileName = centralStoreQueue.front();
+        centralStoreQueue.pop();
+        lock.unlock();
+
+        string filePath=fileDirectory+fileName;
+        std::smatch match;
+        int graphId,partitionIndex;
+        if (std::regex_match(fileName, match, fileNamePattern)) {
+            graphId = std::stoi(match[1].str());         // Extract graphId
+            partitionIndex = std::stoi(match[2].str());  // Extract partitionIndex
+
+            instance_logger.info("Extracted graphId: " + std::to_string(graphId) + ", partitionIndex: " + std::to_string(partitionIndex));
+        } else {
+            instance_logger.error("File name format is incorrect: " + fileName);
+            continue;
+        }
+
+        std::ifstream file(filePath);
+        if (!file.is_open()) {
+            instance_logger.error("Error opening file: " + filePath);
+            continue;
+        }
+
+        instance_logger.info("Processing file from centralStoreQueue: " + filePath);
+
+        std::string line;
+        while (std::getline(file, line)) {
+            // Process file lines
+            std::regex delimiterRegex("\\s+|,");
+            std::sregex_token_iterator iter(line.begin(), line.end(), delimiterRegex, -1);
+            std::sregex_token_iterator end;
+
+            std::vector<std::string> tokens(iter, end);
+
+            instanceStreamHandler.handleCentralEdge({tokens[0],tokens[1]},std::to_string(graphId),std::to_string(partitionIndex),std::to_string(graphId)+"_"+std::to_string(partitionIndex));
+        }
+
+        file.close();
+        instance_logger.info("Finished processing file: " + filePath);
+    }
+}
+
+void JasmineGraphInstanceService::localQueueConsumer(InstanceStreamHandler &instanceStreamHandler) {
+    instance_logger.info("Local store queue consumer started.");
+    std::string fileDirectory=Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder")+"/";
+    std::regex fileNamePattern(R"((\d+)_(\d+)_localstore_(\d+))"); // Pattern to match "graphId_partitionIndex_localstore_fileIndex"
+
+    while (true) {
+        std::unique_lock<std::mutex> lock(localStoreQueueMutex);
+        localStoreQueueCV.wait(lock, [] { return !localStoreQueue.empty(); });
+        std::string fileName = localStoreQueue.front();
+        localStoreQueue.pop();
+        lock.unlock();
+
+        string filePath=fileDirectory+fileName;
+        std::smatch match;
+        int graphId,partitionIndex;
+        if (std::regex_match(fileName, match, fileNamePattern)) {
+             graphId = std::stoi(match[1].str());         // Extract graphId
+             partitionIndex = std::stoi(match[2].str());  // Extract partitionIndex
+
+            instance_logger.info("Extracted graphId: " + std::to_string(graphId) + ", partitionIndex: " + std::to_string(partitionIndex));
+        } else {
+            instance_logger.error("File name format is incorrect: " + fileName);
+            continue;
+        }
+
+        std::ifstream file(filePath);
+        if (!file.is_open()) {
+            instance_logger.error("Error opening file: " + filePath);
+            continue;
+        }
+
+        instance_logger.info("Processing file from localStoreQueue: " + filePath);
+
+        std::string line;
+        while (std::getline(file, line)) {
+            //process file lines
+            std::regex delimiterRegex("\\s+|,");
+            std::sregex_token_iterator iter(line.begin(), line.end(), delimiterRegex, -1);
+            std::sregex_token_iterator end;
+
+            std::vector<std::string> tokens(iter, end);
+
+            instanceStreamHandler.handleLocalEdge({tokens[0],tokens[1]},std::to_string(graphId),std::to_string(partitionIndex),std::to_string(graphId)+"_"+std::to_string(partitionIndex));
+
+        }
+
+        file.close();
+        instance_logger.info("Finished processing file: " + filePath);
+    }
+}
 
 

@@ -106,8 +106,9 @@ static vector<DataPublisher *> getWorkerClients(SQLiteDBInterface *sqlite) {
     for (int i = 0; i < workerList.size(); i++) {
         Utils::worker currentWorker = workerList.at(i);
         string workerHost = currentWorker.hostname;
+        int workerDataPort = std::stoi(currentWorker.dataPort);
         int workerPort = atoi(string(currentWorker.port).c_str());
-        DataPublisher *workerClient = new DataPublisher(workerPort, workerHost);
+        DataPublisher *workerClient = new DataPublisher(workerPort, workerHost,workerDataPort);
         workerClients.push_back(workerClient);
     }
     return workerClients;
@@ -1393,7 +1394,7 @@ void add_stream_hdfs_command(std::string masterIP,int connFd, std::string &hdfs_
             std::to_string(Conts::GRAPH_STATUS::STREAMING) + "\", \"\", \"\", \"\")";
     int newGraphID = sqlite->runInsert(sqlStatement);
     frontend_logger.info("Created graph ID: " + std::to_string(newGraphID));
-    HDFSStreamHandler *stream_handler = new HDFSStreamHandler(hdfsConnector->getFileSystem(), hdfs_file_path_s, numberOfPartitions,  newGraphID,sqlite,masterIP);
+    HDFSStreamHandler *stream_handler = new HDFSStreamHandler(hdfsConnector->getFileSystem(), hdfs_file_path_s, numberOfPartitions,  newGraphID,sqlite,masterIP,workerClients);
     frontend_logger.info("Start listening to " + hdfs_file_path_s);
     input_stream_handler_thread = std::thread(&HDFSStreamHandler::startStreamingFromBufferToPartitions, stream_handler);
 }

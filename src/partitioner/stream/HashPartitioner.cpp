@@ -1,34 +1,36 @@
 #include "HashPartitioner.h"
 #include "../../server/JasmineGraphServer.h"
+#include <nlohmann/json.hpp>
 
 Logger hash_partitioner_logger;
-std::mutex partitionFileMutex;
-std::mutex centralStoreFileMutex;
+//std::mutex partitionFileMutex;
+//std::mutex centralStoreFileMutex;
 
-int PARTITION_FILE_EDGE_COUNT_THRESHOLD = 1000;
+int PARTITION_FILE_EDGE_COUNT_THRESHOLD = 1000000;
 
-HashPartitioner::HashPartitioner(int numberOfPartitions, int graphID, std::string masterIp)
+HashPartitioner::HashPartitioner(int numberOfPartitions, int graphID, std::string masterIp,
+                                 std::vector<DataPublisher *> &workerClients)
         : numberOfPartitions(numberOfPartitions), graphId(graphID),
           partitionLocks(numberOfPartitions), vertexCount(0), edgeCount(0),
           localEdgeArrays(numberOfPartitions), edgeCutsArrays(numberOfPartitions),
           localEdgeMutexes(numberOfPartitions), edgeAvailableCV(numberOfPartitions),
           edgeReady(numberOfPartitions, false), edgeCutsMutexes(numberOfPartitions),
           edgeCutsAvailableCV(numberOfPartitions), edgeCutsReady(numberOfPartitions, false),
-          terminateConsumers(false), masterIp(masterIp) {
+          terminateConsumers(false), masterIp(masterIp), workerClients(workerClients),
+          workerClientMutexes(numberOfPartitions) {
+
     this->outputFilePath = Utils::getHomeDir() + "/.jasminegraph/tmp/hdfsstore/" + std::to_string(this->graphId);
     Utils::createDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp/hdfsstore");
     Utils::createDirectory(this->outputFilePath);
-
-    JasmineGraphServer *server = JasmineGraphServer::getInstance();
-    workers = server->workers(numberOfPartitions);
 
     for (int i = 0; i < numberOfPartitions; i++) {
         this->partitions.push_back(Partition(i, numberOfPartitions));
     }
     // Start consumer threads and store them
-    for (int i = 0; i < numberOfPartitions; ++i) {
-        localEdgeThreads.emplace_back(&HashPartitioner::consumeLocalEdges, this, i);
-        edgeCutThreads.emplace_back(&HashPartitioner::consumeEdgeCuts, this, i);
+    for (int i = 0; i < numberOfPartitions; i++) {
+
+        localEdgeThreads.emplace_back(&HashPartitioner::consumeLocalEdges, this, i, workerClients.at(i));
+        edgeCutThreads.emplace_back(&HashPartitioner::consumeEdgeCuts, this, i, workerClients.at(i));
     }
 }
 
@@ -59,9 +61,8 @@ void HashPartitioner::addEdgeCut(const std::pair<std::string, std::string> &edge
 }
 
 void HashPartitioner::stopConsumerThreads() {
-    terminateConsumers = true;  // Set the termination flag to true
+    terminateConsumers = true;
 
-    // Notify all threads to wake up and check termination flag
     for (auto &cv: edgeAvailableCV) {
         cv.notify_all();
     }
@@ -82,21 +83,23 @@ void HashPartitioner::stopConsumerThreads() {
     }
 }
 
-void HashPartitioner::consumeLocalEdges(int partitionIndex) {
+void HashPartitioner::consumeLocalEdges(int partitionIndex, DataPublisher* dp) {
     int threadEdgeCount = 0;
     int fileIndex = 0;
     std::ofstream partitionFile;
     string fileName =
-            this->outputFilePath + "/" + std::to_string(partitionIndex) + "_localstore_" + std::to_string(fileIndex);
+            std::to_string(graphId) + "_" + std::to_string(partitionIndex) + "_localstore_" + std::to_string(fileIndex);
+    string filePath =
+            this->outputFilePath + "/" + fileName;
 
     // Open the first partition file initially
-    partitionFile.open(fileName);
+    partitionFile.open(filePath);
     if (!partitionFile.is_open()) {
         hash_partitioner_logger.error("Error opening file for partition " + std::to_string(partitionIndex));
         return;
     }
 
-    while (!terminateConsumers) {  // Check for termination flag
+    while (true) {  // Check for termination flag
         std::unique_lock<std::mutex> lock(localEdgeMutexes[partitionIndex]);
 
         // Wait until there are edges available or the thread is signaled to terminate
@@ -108,8 +111,13 @@ void HashPartitioner::consumeLocalEdges(int partitionIndex) {
         if (terminateConsumers) {
             if (partitionFile.is_open()) {
                 partitionFile.close();
-                Utils::sendFileChunkToWorker(workers[partitionIndex].hostname, workers[partitionIndex].port,
-                                             workers[partitionIndex].dataPort, fileName, masterIp, true,JasmineGraphInstanceProtocol::SEND_WORKER_LOCAL_FILE_CHUNK);
+                hash_partitioner_logger.info("Local edge consumer " + std::to_string(partitionIndex) +
+                                             " generated file of " +
+                                             std::to_string(threadEdgeCount) +
+                                             " edges: " + filePath);
+                workerClientMutexes[partitionIndex].lock();
+                dp->publish_file_chunk(fileName, filePath, JasmineGraphInstanceProtocol::HDFS_LOCAL_STREAM_START);
+                workerClientMutexes[partitionIndex].unlock();
             }
             break;
         }
@@ -127,18 +135,21 @@ void HashPartitioner::consumeLocalEdges(int partitionIndex) {
             if (threadEdgeCount == PARTITION_FILE_EDGE_COUNT_THRESHOLD) {
                 threadEdgeCount = 0;
                 partitionFile.close();  // Close the file after reaching the threshold
-                Utils::sendFileChunkToWorker(workers[partitionIndex].hostname, workers[partitionIndex].port,
-                                             workers[partitionIndex].dataPort, fileName, masterIp, false,JasmineGraphInstanceProtocol::SEND_WORKER_LOCAL_FILE_CHUNK);
+
+                workerClientMutexes[partitionIndex].lock();
+                dp->publish_file_chunk(fileName, filePath, JasmineGraphInstanceProtocol::HDFS_LOCAL_STREAM_START);
+                workerClientMutexes[partitionIndex].unlock();
                 hash_partitioner_logger.info("Local edge consumer " + std::to_string(partitionIndex) +
                                              " generated file of " +
                                              std::to_string(PARTITION_FILE_EDGE_COUNT_THRESHOLD) +
-                                             " edges: " + fileName);
+                                             " edges: " + filePath);
 
                 // Increment file index and open the next file
                 fileIndex++;
-                fileName = this->outputFilePath + "/" + std::to_string(partitionIndex) + "_localstore_" +
+                fileName = std::to_string(graphId) + "_" + std::to_string(partitionIndex) + "_localstore_" +
                            std::to_string(fileIndex);
-                partitionFile.open(fileName);
+                filePath = this->outputFilePath + "/" + fileName;
+                partitionFile.open(filePath);
                 if (!partitionFile.is_open()) {
                     hash_partitioner_logger.error("Error opening file for partition " + std::to_string(partitionIndex));
                     break;
@@ -162,16 +173,17 @@ void HashPartitioner::consumeLocalEdges(int partitionIndex) {
     hash_partitioner_logger.info("Local edge consumer " + std::to_string(partitionIndex) + " finished processing.");
 }
 
-void HashPartitioner::consumeEdgeCuts(int partitionIndex) {
+void HashPartitioner::consumeEdgeCuts(int partitionIndex, DataPublisher* dp) {
     int threadEdgeCount = 0;
     int fileIndex = 0;
     std::ofstream edgeCutsFile;
-    string fileName =
-            this->outputFilePath + "/" + std::to_string(partitionIndex) + "_centralstore_" + std::to_string(fileIndex);
+    string fileName = std::to_string(graphId) + "_" + std::to_string(partitionIndex) + "_centralstore_" +
+                      std::to_string(fileIndex);
+    string filePath =
+            this->outputFilePath + "/" + fileName;
 
     // Open the first file for edge cuts
-    edgeCutsFile.open(
-            this->outputFilePath + "/" + std::to_string(partitionIndex) + "_" + std::to_string(fileIndex));
+    edgeCutsFile.open(filePath);
     if (!edgeCutsFile.is_open()) {
         hash_partitioner_logger.error("Error opening edge cuts file for partition " + std::to_string(partitionIndex));
         return;
@@ -186,6 +198,13 @@ void HashPartitioner::consumeEdgeCuts(int partitionIndex) {
         if (terminateConsumers) {
             if (edgeCutsFile.is_open()) {
                 edgeCutsFile.close();
+                hash_partitioner_logger.info("Central edge consumer " + std::to_string(partitionIndex) +
+                                             " generated file of " +
+                                             std::to_string(threadEdgeCount) +
+                                             " edges: " + filePath);
+                workerClientMutexes[partitionIndex].lock();
+                dp->publish_file_chunk(fileName, filePath, JasmineGraphInstanceProtocol::HDFS_CENTRAL_STREAM_START);
+                workerClientMutexes[partitionIndex].unlock();
             }
             break;
         }
@@ -203,16 +222,22 @@ void HashPartitioner::consumeEdgeCuts(int partitionIndex) {
             if (threadEdgeCount == PARTITION_FILE_EDGE_COUNT_THRESHOLD) {
                 threadEdgeCount = 0;
                 edgeCutsFile.close();
+
+                workerClientMutexes[partitionIndex].lock();
+                dp->publish_file_chunk(fileName, filePath, JasmineGraphInstanceProtocol::HDFS_CENTRAL_STREAM_START);
+                workerClientMutexes[partitionIndex].unlock();
+
                 hash_partitioner_logger.info("Central edge consumer " + std::to_string(partitionIndex) +
                                              " generated file of " +
                                              std::to_string(PARTITION_FILE_EDGE_COUNT_THRESHOLD) +
-                                             " edges: " + fileName);
+                                             " edges: " + filePath);
 
                 // Open the next file
                 fileIndex++;
-                fileName = this->outputFilePath + "/" + std::to_string(partitionIndex) + "_centralstore_" +
+                fileName = std::to_string(graphId) + "_" + std::to_string(partitionIndex) + "_centralstore_" +
                            std::to_string(fileIndex);
-                edgeCutsFile.open(fileName);
+                filePath = this->outputFilePath + "/" + fileName;
+                edgeCutsFile.open(filePath);
                 if (!edgeCutsFile.is_open()) {
                     hash_partitioner_logger.error(
                             "Error opening edge cuts file for partition " + std::to_string(partitionIndex));
@@ -279,65 +304,65 @@ long HashPartitioner::getEdgeCount() {
     return this->edgeCount;
 }
 
-std::vector<std::map<int, std::string>> HashPartitioner::generateFullFileList() {
-    hash_partitioner_logger.info("Generating full file list..");
-    std::thread threads[numberOfPartitions * 3];
-    int count = 0;
-    for (int i = 0; i < numberOfPartitions; i++) {
-        threads[count++] = std::thread(&HashPartitioner::writeSerializedPartitionFiles, this, i);
-        threads[count++] = std::thread(&HashPartitioner::writeSerializedMasterFiles, this, i);
-    }
+//std::vector<std::map<int, std::string>> HashPartitioner::generateFullFileList() {
+//    hash_partitioner_logger.info("Generating full file list..");
+//    std::thread threads[numberOfPartitions * 3];
+//    int count = 0;
+//    for (int i = 0; i < numberOfPartitions; i++) {
+//        threads[count++] = std::thread(&HashPartitioner::writeSerializedPartitionFiles, this, i);
+//        threads[count++] = std::thread(&HashPartitioner::writeSerializedMasterFiles, this, i);
+//    }
+//
+//    for (int i = 0; i < count; i++) {
+//        threads[i].join();
+//    }
+//
+//    // Generate full file list
+//    this->fullFileList.push_back(this->partitionFileMap);
+//    this->fullFileList.push_back(this->centralStoreFileList);
+//    this->fullFileList.push_back(this->centralStoreDuplicateFileList);
+//    this->fullFileList.push_back(this->partitionAttributeFileList);
+//    this->fullFileList.push_back(this->centralStoreAttributeFileList);
+//    this->fullFileList.push_back(this->compositeCentralStoreFileList);
+//
+//    hash_partitioner_logger.info("Successfully generated full file list");
+//    return this->fullFileList;
+//}
 
-    for (int i = 0; i < count; i++) {
-        threads[i].join();
-    }
-
-    // Generate full file list
-    this->fullFileList.push_back(this->partitionFileMap);
-    this->fullFileList.push_back(this->centralStoreFileList);
-    this->fullFileList.push_back(this->centralStoreDuplicateFileList);
-    this->fullFileList.push_back(this->partitionAttributeFileList);
-    this->fullFileList.push_back(this->centralStoreAttributeFileList);
-    this->fullFileList.push_back(this->compositeCentralStoreFileList);
-
-    hash_partitioner_logger.info("Successfully generated full file list");
-    return this->fullFileList;
-}
-
-void HashPartitioner::uploadGraphLocally(std::string masterIP) {
-    hash_partitioner_logger.info("Uploading graph locally..");
-    JasmineGraphServer *server = JasmineGraphServer::getInstance();
-    server->uploadGraphLocally(graphId, Conts::GRAPH_TYPE_NORMAL, generateFullFileList(), masterIP);
-    hash_partitioner_logger.info("Successfully uploaded the graph.");
-}
-
-void HashPartitioner::writeSerializedPartitionFiles(int partition) {
-    std::string outputFilePartition =
-            outputFilePath + "/" + std::to_string(this->graphId) + "_" + std::to_string(partition);
-
-    std::map<int, std::vector<int>> partitionEdgeMap = partitions[partition].getLocalStorageMap();
-
-    JasmineGraphHashMapLocalStore::storePartEdgeMap(partitionEdgeMap, outputFilePartition);
-
-    Utils::compressFile(outputFilePartition);
-    std::lock_guard<std::mutex> lock(partitionFileMutex);
-    partitionFileMap[partition] = outputFilePartition + ".gz";
-    hash_partitioner_logger.log("Serializing done for local part " + std::to_string(partition), "info");
-}
-
-void HashPartitioner::writeSerializedMasterFiles(int partition) {
-    std::string outputFilePartMaster =
-            outputFilePath + "/" + std::to_string(this->graphId) + "_centralstore_" + std::to_string(partition);
-
-    std::map<int, std::vector<int>> partitionMasterEdgeMap = partitions[partition].getPartitionMasterEdgeMap();
-
-    JasmineGraphHashMapCentralStore::storePartEdgeMap(partitionMasterEdgeMap, outputFilePartMaster);
-
-    Utils::compressFile(outputFilePartMaster);
-    std::lock_guard<std::mutex> lock(centralStoreFileMutex);
-    centralStoreFileList[partition] = outputFilePartMaster + ".gz";
-    hash_partitioner_logger.log("Serializing done for central part " + std::to_string(partition), "info");
-}
+//void HashPartitioner::uploadGraphLocally(std::string masterIP) {
+//    hash_partitioner_logger.info("Uploading graph locally..");
+//    JasmineGraphServer *server = JasmineGraphServer::getInstance();
+//    server->uploadGraphLocally(graphId, Conts::GRAPH_TYPE_NORMAL, generateFullFileList(), masterIP);
+//    hash_partitioner_logger.info("Successfully uploaded the graph.");
+//}
+//
+//void HashPartitioner::writeSerializedPartitionFiles(int partition) {
+//    std::string outputFilePartition =
+//            outputFilePath + "/" + std::to_string(this->graphId) + "_" + std::to_string(partition);
+//
+//    std::map<int, std::vector<int>> partitionEdgeMap = partitions[partition].getLocalStorageMap();
+//
+//    JasmineGraphHashMapLocalStore::storePartEdgeMap(partitionEdgeMap, outputFilePartition);
+//
+//    Utils::compressFile(outputFilePartition);
+//    std::lock_guard<std::mutex> lock(partitionFileMutex);
+//    partitionFileMap[partition] = outputFilePartition + ".gz";
+//    hash_partitioner_logger.log("Serializing done for local part " + std::to_string(partition), "info");
+//}
+//
+//void HashPartitioner::writeSerializedMasterFiles(int partition) {
+//    std::string outputFilePartMaster =
+//            outputFilePath + "/" + std::to_string(this->graphId) + "_centralstore_" + std::to_string(partition);
+//
+//    std::map<int, std::vector<int>> partitionMasterEdgeMap = partitions[partition].getPartitionMasterEdgeMap();
+//
+//    JasmineGraphHashMapCentralStore::storePartEdgeMap(partitionMasterEdgeMap, outputFilePartMaster);
+//
+//    Utils::compressFile(outputFilePartMaster);
+//    std::lock_guard<std::mutex> lock(centralStoreFileMutex);
+//    centralStoreFileList[partition] = outputFilePartMaster + ".gz";
+//    hash_partitioner_logger.log("Serializing done for central part " + std::to_string(partition), "info");
+//}
 
 
 
