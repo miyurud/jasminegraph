@@ -23,7 +23,7 @@ limitations under the License.
 
 class StreamHandler {
  public:
-    StreamHandler(KafkaConnector *kstream, int numberOfPartitions, std::vector<DataPublisher *> &workerClients);
+    StreamHandler(KafkaConnector *kstream, int numberOfPartitions, std::vector<DataPublisher *> &workerClients, SQLiteDBInterface* sqlite);
     void listen_to_kafka_topic();
     cppkafka::Message pollMessage();
     bool isErrorInMessage(const cppkafka::Message &msg);
