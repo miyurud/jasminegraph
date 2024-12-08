@@ -83,7 +83,7 @@ void StreamHandler::listen_to_kafka_topic() {
             continue;
         }
         auto prop = edgeJson["properties"];
-        string graphID = std::string(prop["graphId"]);
+        auto graphID = std::string(prop["graphId"]);
         graphPartitioner.setGraphID(stoi(graphID));
         auto sourceJson = edgeJson["source"];
         auto destinationJson = edgeJson["destination"];
