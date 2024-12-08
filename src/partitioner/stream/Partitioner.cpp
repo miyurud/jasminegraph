@@ -146,9 +146,9 @@ void Partitioner::updateMetaDB() {
 
     double numberOfEdges = edgesCount + edgeCutsCount/2;
     std::string sqlStatement = "UPDATE graph SET vertexcount = '" + std::to_string(vertexCount) +
-                          "' ,centralpartitioncount = '" + std::to_string(this->numberOfPartitions) + "' ,edgecount = '" +
-                          std::to_string(numberOfEdges) + "' WHERE idgraph = '" +
-                          std::to_string(this->graphID) + "'";
+                          "' ,centralpartitioncount = '" + std::to_string(this->numberOfPartitions) +
+                          "' ,edgecount = '" + std::to_string(numberOfEdges) +
+                          "' WHERE idgraph = '" + std::to_string(this->graphID) + "'";
     this->sqlite->runUpdate(sqlStatement);
     streaming_partitioner_logger.info("Successfully updated metaDB");
 }
