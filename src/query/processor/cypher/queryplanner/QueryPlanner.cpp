@@ -17,15 +17,22 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
 
     }else if(ast->nodeType == Const::SINGLE_QUERY)
     {
-        for(int i = 0; i< ast->elements.size(); i++)
-        {
+        for(int i=0;i<ast->elements.size();i++){
             oprtr = createExecutionPlan(ast->elements[i],oprtr);
         }
     }else if(ast->nodeType == Const::MULTI_PART_QUERY)
     {
-        for(int i = 0; i< ast->elements.size(); i++)
+        int i = 0;
+        while (i < ast->elements.size())
         {
-            oprtr = createExecutionPlan(ast->elements[i],oprtr);
+            oprtr = createExecutionPlan(ast->elements[i++],oprtr);
+            Apply* apply = new Apply(oprtr);
+            if(i != ast->elements.size() - 1){
+                apply->addOperator(createExecutionPlan(ast->elements[i++],oprtr));
+            }else{
+                apply->addOperator(createExecutionPlan(ast->elements[i++],oprtr));
+                oprtr = apply;
+            }
         }
     }else if(ast->nodeType == Const::MATCH)
     {
@@ -93,7 +100,7 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
 
     }else if(ast->nodeType == Const::WITH)
     {
-
+        oprtr = createExecutionPlan(ast->elements[0],oprtr);
     }else if(ast->nodeType == Const::RETURN)
     {
         oprtr = createExecutionPlan(ast->elements[0],oprtr);
@@ -615,7 +622,7 @@ pair<vector<bool>, vector<ASTNode *>> QueryPlanner::getNodeDetails(ASTNode *node
             if(e->nodeType == Const::VARIABLE){
                 availability[0] = true;
                 nodes.push_back(e);
-            }else if(e->nodeType == Const::NODE_LABEL | e->nodeType == Const::NODE_LABELS){
+            }else if(e->nodeType == Const::NODE_LABEL || e->nodeType == Const::NODE_LABELS){
                 availability[1] = true;
                 nodes.push_back(e);
             }else if(e->nodeType == Const::PROPERTIES_MAP){
@@ -924,7 +931,7 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern) {
         if(!filterCases.empty()){
             opr = new Filter(opr, filterCases);
         }
-        cout<<labelIndex<<endl;
+
         string prevRel;
 
         for(int right = labelIndex+1; right<patternElements.size(); right++){

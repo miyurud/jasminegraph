@@ -17,7 +17,7 @@ public:
 // NodeScanByLabel Operator
 class NodeScanByLabel : public Operator {
 public:
-    NodeScanByLabel(const string& label, const string& var = "var_0");
+    NodeScanByLabel(string label, string var = "var_0");
     void execute() override;
 
 private:
@@ -223,6 +223,20 @@ private:
     string startVar; // Variable name for the start node
     string endVar;   // Variable name for the end node
     string relvar;
+};
+
+class Apply : public Operator {
+public:
+    // Constructor
+    Apply(Operator* opr);
+    void addOperator(Operator* opr);
+
+    // Execute method to perform the scan
+    void execute() override;
+
+private:
+    Operator* opr1;
+    Operator* opr2;
 };
 
 void printDownArrow(int width);

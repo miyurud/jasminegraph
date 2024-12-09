@@ -4,7 +4,7 @@
 using namespace std;
 
 // NodeScan Implementation
-NodeScanByLabel::NodeScanByLabel(const string& label, const string& var) : label(label), var(var) {}
+NodeScanByLabel::NodeScanByLabel(string label, string var) : label(label), var(var) {}
 
 void NodeScanByLabel::execute() {
     cout<<"NodeScanByLabel: \n"<<endl;
@@ -248,5 +248,24 @@ void ExpandAll::execute() {
     }else if(relType != "null" && direction == "left"){
         cout << "(" << startVar << ") <-[" << relVar << " :" << relType << "]- (" << destVar << ")" << endl;
     }
+}
+
+Apply::Apply(Operator* opr): opr1(opr){}
+
+void Apply::addOperator(Operator *opr) {
+    this->opr2 = opr;
+}
+
+
+// Execute method
+void Apply::execute() {
+    if (opr1 != nullptr){
+        opr1->execute();
+    }
+    if (opr2 != nullptr){
+        opr2->execute();
+    }
+
+    cout<<"Apply: result merged"<<endl;
 }
 
