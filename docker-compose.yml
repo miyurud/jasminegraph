@@ -1,0 +1,45 @@
+services:
+  jasminegraph:
+    image: jasminegraph:latest
+    ports:
+      - '7777:7777'
+      - '7778:7778'
+    volumes:
+      - '/var/run/docker.sock:/var/run/docker.sock:rw'
+      - './env/databases/metadb:/home/ubuntu/software/jasminegraph/metadb'
+      - './env/databases/performancedb:/home/ubuntu/software/jasminegraph/performancedb'
+      - './env/data:/var/tmp/data'
+      - '/tmp/jasminegraph:/tmp/jasminegraph'
+    networks:
+      - jasminenet
+    command: --MODE 1 --MASTERIP 172.28.5.1 --WORKERS 2 --WORKERIP 172.28.5.1 --ENABLE_NMON false
+    depends_on:
+      - prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - 9090:9090
+    volumes:
+      - './conf/prometheus.yaml:/etc/prometheus/prometheus.yml'
+    networks:
+      jasminenet:
+        ipv4_address: 172.28.5.2
+    depends_on:
+      - pushgateway
+  pushgateway:
+    image: prom/pushgateway
+    ports:
+      - 9091:9091
+    networks:
+      jasminenet:
+        ipv4_address: 172.28.5.3    
+networks:
+  jasminenet:
+    external: false
+    name: jasminenet
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.5.0/24
+          ip_range: 172.28.5.0/24
+          gateway: 172.28.5.1
