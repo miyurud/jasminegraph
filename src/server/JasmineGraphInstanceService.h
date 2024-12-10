@@ -49,8 +49,11 @@ limitations under the License.
 #include "../util/kafka/InstanceStreamHandler.h"
 
 void *instanceservicesession(void *dummyPt);
+
 void writeCatalogRecord(string record);
+
 int deleteGraphPartition(std::string graphID, std::string partitionID);
+
 void removeGraphFragments(std::string graphID);
 
 map<long, long> calculateOutDegreeDist(string graphID, string partitionID, int serverPort,
@@ -59,8 +62,8 @@ map<long, long> calculateOutDegreeDist(string graphID, string partitionID, int s
                                        std::vector<string> &workerSockets);
 
 map<long, long> calculateLocalOutDegreeDist(
-    string graphID, string partitionID, std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
-    std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores);
+        string graphID, string partitionID, std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
+        std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores);
 
 map<long, long> calculateInDegreeDist(string graphID, string partitionID, int serverPort,
                                       std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
@@ -68,8 +71,8 @@ map<long, long> calculateInDegreeDist(string graphID, string partitionID, int se
                                       std::vector<string> &workerSockets, string workerList);
 
 map<long, long> calculateLocalInDegreeDist(
-    string graphID, string partitionID, std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
-    std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores);
+        string graphID, string partitionID, std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
+        std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores);
 
 map<long, map<long, unordered_set<long>>> calculateLocalEgoNet(string graphID, string partitionID, int serverPort,
                                                                JasmineGraphHashMapLocalStore localDB,
@@ -186,10 +189,6 @@ class JasmineGraphInstanceService {
 
     static std::thread workerThread;
 
-    void localFileChunksConsumer();
-    void centralFileChunksConsumer();
-    void centralQueueConsumer(InstanceStreamHandler &instanceStreamHandler);
-    void localQueueConsumer(InstanceStreamHandler &instanceStreamHandler);
 };
 
 #endif  // JASMINEGRAPH_JASMINEGRAPHINSTANCESERVICE_H
