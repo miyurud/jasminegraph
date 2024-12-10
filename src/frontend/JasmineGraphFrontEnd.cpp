@@ -76,8 +76,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
                                      vector<DataPublisher *> &workerClients, int numberOfPartitions,
                                      SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void add_stream_hdfs_command(std::string masterIP,int connFd, std::string &hdfs_server_IP, std::thread &input_stream_handler_thread,
-                                    std::vector<DataPublisher *> &workerClients, int numberOfPartitions,
-                                    SQLiteDBInterface *sqlite, bool *loop_exit_p);
+                                    int numberOfPartitions, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void stop_stream_kafka_command(int connFd, KafkaConnector *kstream, bool *loop_exit_p);
 static void process_dataset_command(int connFd, bool *loop_exit_p);
 static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
@@ -203,7 +202,7 @@ void *frontendservicesesion(void *dummyPt) {
                 workerClients = getWorkerClients(sqlite);
                 workerClientsInitialized = true;
             }
-            add_stream_hdfs_command(masterIP,connFd, hdfs_server_IP, input_stream_handler, workerClients, numberOfPartitions,
+            add_stream_hdfs_command(masterIP,connFd, hdfs_server_IP, input_stream_handler, numberOfPartitions,
                                     sqlite, &loop_exit);
         } else if (line.compare(STOP_STREAM_KAFKA) == 0) {
             stop_stream_kafka_command(connFd, kstream, &loop_exit);
@@ -1268,8 +1267,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     input_stream_handler_thread = thread(&StreamHandler::listen_to_kafka_topic, stream_handler);
 }
 
-void add_stream_hdfs_command(std::string masterIP,int connFd, std::string &hdfs_server_IP, std::thread &input_stream_handler_thread,
-                             std::vector<DataPublisher *> &workerClients, int numberOfPartitions,
+void add_stream_hdfs_command(std::string masterIP,int connFd, std::string &hdfs_server_IP, std::thread &input_stream_handler_thread, int numberOfPartitions,
                              SQLiteDBInterface *sqlite, bool *loop_exit_p) {
     std::string hdfs_port;
     std::string msg_1 = "Do you want to use the default HDFS server(y/n)?";
@@ -1347,7 +1345,7 @@ void add_stream_hdfs_command(std::string masterIP,int connFd, std::string &hdfs_
 
     frontend_logger.info("HDFS server IP: " + hdfs_server_IP + " HDFS port: " + hdfs_port);
 
-    frontend_logger.info("Start serving HDFS command");
+    frontend_logger.debug("Start serving HDFS command");
     std::string message = "Send HDFS file path";
     result_wr = write(connFd, message.c_str(), message.length());
     if (result_wr < 0) {
@@ -1394,7 +1392,7 @@ void add_stream_hdfs_command(std::string masterIP,int connFd, std::string &hdfs_
             std::to_string(Conts::GRAPH_STATUS::STREAMING) + "\", \"\", \"\", \"\")";
     int newGraphID = sqlite->runInsert(sqlStatement);
     frontend_logger.info("Created graph ID: " + std::to_string(newGraphID));
-    HDFSStreamHandler *stream_handler = new HDFSStreamHandler(hdfsConnector->getFileSystem(), hdfs_file_path_s, numberOfPartitions,  newGraphID,sqlite,masterIP,workerClients);
+    HDFSStreamHandler *stream_handler = new HDFSStreamHandler(hdfsConnector->getFileSystem(), hdfs_file_path_s, numberOfPartitions,  newGraphID,sqlite,masterIP);
     frontend_logger.info("Start listening to " + hdfs_file_path_s);
     input_stream_handler_thread = std::thread(&HDFSStreamHandler::startStreamingFromBufferToPartitions, stream_handler);
 }

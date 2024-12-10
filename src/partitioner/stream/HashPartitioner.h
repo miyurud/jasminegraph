@@ -38,17 +38,11 @@ class HashPartitioner {
     int graphId;
     std::string masterIp;
 
-    std::vector<DataPublisher *> &workerClients;
-    std::vector<std::mutex> workerClientMutexes;
-
+    std::vector<std::mutex> partitionMutexArray;
 
 public:
     ~HashPartitioner();
-    HashPartitioner(int numberOfPartitions, int graphID,std::string masterIp,std::vector<DataPublisher *> &workerClients);
-//    void uploadGraphLocally(std::string masterIP);
-//    void writeSerializedPartitionFiles(int partition);
-//    void writeSerializedMasterFiles(int partition);
-    void printStats();
+    HashPartitioner(int numberOfPartitions, int graphID,std::string masterIp);
     long getVertexCount();
     long getEdgeCount();
     void addEdgeCut(const pair<std::string, std::string> &edge, int index);
@@ -67,9 +61,8 @@ private:
     std::vector<std::map<int, std::string>> fullFileList;
     std::map<int, std::map<int, std::vector<int>>> partitionedLocalGraphStorageMap;
 
-//    std::vector<std::map<int, std::string>> generateFullFileList();
-    void consumeLocalEdges(int partitionIndex,DataPublisher* dp);
-    void consumeEdgeCuts(int partitionIndex,DataPublisher* dp);
+    void consumeLocalEdges(int partitionIndex,JasmineGraphServer::worker worker);
+    void consumeEdgeCuts(int partitionIndex,JasmineGraphServer::worker worker);
     void stopConsumerThreads();
 };
 
