@@ -22,8 +22,7 @@ const size_t MAX_BUFFER_SIZE = MESSAGE_SIZE * 512;
 const std::string END_OF_STREAM_MARKER = "-1";
 
 HDFSStreamHandler::HDFSStreamHandler(hdfsFS fileSystem, const std::string &filePath, int numberOfPartitions,
-                                     int graphId, SQLiteDBInterface *sqlite,
-                                     std::string masterIP,std::vector<DataPublisher *> &workerClients )
+                                     int graphId, SQLiteDBInterface *sqlite, std::string masterIP)
         : fileSystem(fileSystem),
           filePath(filePath),
           numberOfPartitions(numberOfPartitions),
@@ -31,9 +30,7 @@ HDFSStreamHandler::HDFSStreamHandler(hdfsFS fileSystem, const std::string &fileP
           isProcessing(true),
           graphId(graphId),
           sqlite(sqlite),
-          masterIP(masterIP),
-          workerClients(workerClients)
-          {}
+          masterIP(masterIP){}
 
 void HDFSStreamHandler::streamFromHDFSIntoBuffer() {
     auto startTime = high_resolution_clock::now();
@@ -90,7 +87,7 @@ void HDFSStreamHandler::streamFromHDFSIntoBuffer() {
     dataBufferCV.notify_all();
     auto endTime = high_resolution_clock::now();
     std::chrono::duration<double> duration = endTime - startTime;
-    hdfs_stream_handler_logger.info("Successfully streamed data from HDFS into data buffer.");
+    hdfs_stream_handler_logger.debug("Successfully streamed data from HDFS into data buffer.");
     hdfs_stream_handler_logger.info("Time taken to read from HDFS: " + to_string(duration.count()) + " seconds");
 }
 
@@ -107,7 +104,7 @@ void HDFSStreamHandler::streamFromBufferToProcessingQueue(HashPartitioner &parti
 
             // Check for the end-of-stream marker
             if (line == END_OF_STREAM_MARKER) {
-                hdfs_stream_handler_logger.info("Received end-of-stream marker in one of the threads.");
+                hdfs_stream_handler_logger.debug("Received end-of-stream marker in one of the threads.");
 
                 // Set the flag to stop processing in all threads
                 isProcessing = false;
@@ -149,18 +146,32 @@ void HDFSStreamHandler::streamFromBufferToProcessingQueue(HashPartitioner &parti
 
 void HDFSStreamHandler::startStreamingFromBufferToPartitions() {
     auto startTime = high_resolution_clock::now();
-    HashPartitioner partitioner(numberOfPartitions, graphId, masterIP, workerClients);
+    HashPartitioner partitioner(numberOfPartitions, graphId, masterIP);
 
     std::thread readerThread(&HDFSStreamHandler::streamFromHDFSIntoBuffer, this);
     std::vector<std::thread> bufferProcessorThreads;
     for (int i = 0; i < 20; ++i) {
-        bufferProcessorThreads.emplace_back(&HDFSStreamHandler::streamFromBufferToProcessingQueue, this, std::ref(partitioner));
+        bufferProcessorThreads.emplace_back(&HDFSStreamHandler::streamFromBufferToProcessingQueue, this,
+                                            std::ref(partitioner));
     }
     readerThread.join();
     for (auto &thread: bufferProcessorThreads) {
         thread.join();
     }
-    partitioner.printStats();
+
+    long vertices = partitioner.getVertexCount();
+    long edges = partitioner.getEdgeCount();
+
+    string sqlStatement = "UPDATE graph SET vertexcount = '" + std::to_string(vertices) +
+                          "' ,centralpartitioncount = '" + std::to_string(this->numberOfPartitions) +
+                          "' ,edgecount = '" +
+                          std::to_string(edges) + "' WHERE idgraph = '" +
+                          std::to_string(this->graphId) + "'";
+
+    dbLock.lock();
+    this->sqlite->runUpdate(sqlStatement);
+    dbLock.unlock();
+
     auto endTime = high_resolution_clock::now();
     std::chrono::duration<double> duration = endTime - startTime;
     hdfs_stream_handler_logger.info(
