@@ -82,6 +82,8 @@ class Utils {
 
     static int deleteDirectory(const std::string dirName);
 
+    static int deleteFile(const std::string fileName);
+
     static std::string getFileName(std::string filePath);
 
     static int getFileSize(std::string filePath);
@@ -183,7 +185,7 @@ class Utils {
                                   int destinationWorkerDataPort, std::string graphID, std::string partitionID,
                                   std::string workerID, SQLiteDBInterface *sqlite);
 
-    static bool sendFileChunkToWorker(std::string host, int port, int dataPort, std::string filePath, std::string masterIP,bool endOfSending,std::string uploadType);
+    static bool sendFileChunkToWorker(std::string host, int port, int dataPort, std::string filePath, std::string masterIP,std::string uploadType);
 };
 
 #endif  // JASMINEGRAPH_UTILS_H
