@@ -34,7 +34,7 @@ void Partition::addEdge(std::pair<std::string, std::string> edge) {
             this->vertexCount += 1;
         }
     }
-
+    this->edgeCount++;
     auto exsistSecondVertext = this->edgeList.find(edge.second);
     if (exsistSecondVertext != this->edgeList.end()) {
         this->edgeList[edge.second].insert(edge.first);
@@ -84,6 +84,15 @@ double Partition::getVertextCount() {
     }
     return edgeListVetices + edgeCutVertices;
 }
+/*Other functions seems to be incorrect. Therefore added this functionality to get edgeCutCount for hdfs implementation*/
+long Partition::edgeCutC() {
+    return edgeCutCount;
+}
+
+/*Other functions seems to be incorrect. Therefore added this functionality to get edgeCount for hdfs implementation*/
+long Partition::edgeC() {
+    return edgeCount;
+}
 
 double Partition::getLocalEdgeCount(){
     double total=0;
@@ -129,6 +138,7 @@ void Partition::addToEdgeCuts(std::string resident, std::string foreign, int par
         } else {
             this->edgeCuts[partitionId][resident] = std::unordered_set<std::string>({foreign});
         }
+        this->edgeCutCount++;
     }
 }
 
