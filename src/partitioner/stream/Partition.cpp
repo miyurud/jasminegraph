@@ -34,7 +34,7 @@ void Partition::addEdge(std::pair<std::string, std::string> edge) {
             this->vertexCount += 1;
         }
     }
-
+    this->edgeCount++;
     auto exsistSecondVertext = this->edgeList.find(edge.second);
     if (exsistSecondVertext != this->edgeList.end()) {
         this->edgeList[edge.second].insert(edge.first);
@@ -84,6 +84,31 @@ double Partition::getVertextCount() {
     }
     return edgeListVetices + edgeCutVertices;
 }
+/*Other functions seems to be incorrect. Therefore added this functionality to get edgeCutCount for hdfs implementation*/
+long Partition::edgeCutC() {
+    return edgeCutCount;
+}
+
+/*Other functions seems to be incorrect. Therefore added this functionality to get edgeCount for hdfs implementation*/
+long Partition::edgeC() {
+    return edgeCount;
+}
+
+double Partition::getLocalEdgeCount(){
+    double total=0;
+    for(auto edge:this->edgeList){
+        total+= edge.second.size();
+    }
+    return total;
+}
+
+double Partition::getEdgeCutCount(){
+    double total;
+    for(auto edgeCut: this->edgeCuts){
+        total+=edgeCut.size();
+    }
+    return total;
+}
 
 double Partition::getVertextCountQuick() { return this->vertexCount; }
 
@@ -113,6 +138,7 @@ void Partition::addToEdgeCuts(std::string resident, std::string foreign, int par
         } else {
             this->edgeCuts[partitionId][resident] = std::unordered_set<std::string>({foreign});
         }
+        this->edgeCutCount++;
     }
 }
 
@@ -185,3 +211,65 @@ bool Partition::isExistInEdgeCuts(std::string vertext) {
     }
     return inEdgeCuts;
 }
+
+std::map<int, std::vector<int>> Partition::getLocalStorageMap() {
+    std::map<int, std::vector<int>> localStorageMap;
+
+    // Iterate over each vertex and its neighbors in the edge list
+    for (const auto &vertexPair : this->edgeList) {
+        std::string vertex = vertexPair.first;
+        const std::set<std::string> &neighbors = vertexPair.second;
+
+        // Check if the current vertex is NOT in edge cuts
+        if (!isExistInEdgeCuts(vertex)) {
+            // Convert the vertex to an integer (assuming integer IDs)
+            int vertexId = std::stoi(vertex);
+            std::vector<int> localNeighbors;
+
+            // Iterate over the neighbors of the vertex
+            for (const auto &neighbor : neighbors) {
+                // Only add local edges (i.e., neighbor should also not be in edge cuts)
+                if (!isExistInEdgeCuts(neighbor)) {
+                    int neighborId = std::stoi(neighbor);
+                    localNeighbors.push_back(neighborId);
+                }
+            }
+
+            // If the vertex has local neighbors, add it to the local storage map
+            if (!localNeighbors.empty()) {
+                localStorageMap[vertexId] = localNeighbors;
+            }
+        }
+    }
+
+    return localStorageMap;
+}
+
+std::map<int, std::vector<int>> Partition::getPartitionMasterEdgeMap() {
+    std::map<int, std::vector<int>> masterEdgeMap;
+
+    // Iterate over each partition in edgeCuts
+    for (const auto &partition : this->edgeCuts) {
+        // Iterate over each vertex and its foreign neighbors in the partition
+        for (const auto &vertexPair : partition) {
+            int vertexId = std::stoi(vertexPair.first);
+            std::vector<int> foreignNeighbors;
+
+            // Convert each foreign neighbor to an integer and add to the list
+            for (const auto &neighbor : vertexPair.second) {
+                int neighborId = std::stoi(neighbor);
+                foreignNeighbors.push_back(neighborId);
+            }
+
+            // Add the vertex and its foreign neighbors to the master edge map
+            if (!foreignNeighbors.empty()) {
+                masterEdgeMap[vertexId] = foreignNeighbors;
+            }
+        }
+    }
+
+    return masterEdgeMap;
+}
+
+
+
