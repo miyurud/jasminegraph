@@ -42,8 +42,6 @@ class DataPublisher {
     ~DataPublisher();
 
     void publish_central_relation(std::string message);
-
-    void publish_file_chunk(std::string fileName,std::string filepath,std::string sendingType);
 };
 
 #endif  // !Worker_data_publisher
