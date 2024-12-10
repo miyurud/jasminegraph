@@ -22,6 +22,22 @@ HDFSConnector::HDFSConnector(const std::string &hdfsServerIP, const std::string 
     }
 }
 
+bool HDFSConnector::isPathValid(const std::string &hdfsPath) {
+    if (!fileSystem) {
+        frontend_logger.error("HDFS connection is not established");
+        return false;
+    }
+
+    int exists = hdfsExists(fileSystem, hdfsPath.c_str());
+    if (exists == 0) {
+        frontend_logger.info("Path exists: " + hdfsPath);
+        return true;
+    } else {
+        frontend_logger.error("Invalid path: " + hdfsPath);
+        return false;
+    }
+}
+
 HDFSConnector::~HDFSConnector() {
     if (fileSystem) {
         hdfsDisconnect(fileSystem);
