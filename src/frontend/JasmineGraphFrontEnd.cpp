@@ -1366,6 +1366,18 @@ void add_stream_hdfs_command(std::string masterIP,int connFd, std::string &hdfs_
     std::string hdfs_file_path_s(hdfs_file_path);
     hdfs_file_path_s = Utils::trim_copy(hdfs_file_path_s);
 
+    HDFSConnector *hdfsConnector = new HDFSConnector(hdfs_server_IP, hdfs_port);
+
+    if (!hdfsConnector->isPathValid(hdfs_file_path_s)) {
+        frontend_logger.error("Invalid HDFS file path: " + hdfs_file_path_s);
+        std::string error_message = "The provided HDFS path is invalid.";
+        write(connFd, error_message.c_str(), error_message.length());
+        write(connFd, "\r\n", 2);
+        delete hdfsConnector;
+        *loop_exit_p = true;
+        return;
+    }
+
     std::string con_message = "Received the HDFS file path";
     int con_result_wr = write(connFd, con_message.c_str(), con_message.length());
     if (con_result_wr < 0) {
@@ -1380,7 +1392,6 @@ void add_stream_hdfs_command(std::string masterIP,int connFd, std::string &hdfs_
         return;
     }
 
-    HDFSConnector *hdfsConnector = new HDFSConnector(hdfs_server_IP, hdfs_port);
     std::string path = "hdfs:\\" + hdfs_file_path_s;
 
     std::time_t time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
