@@ -32,7 +32,7 @@ class HDFSStreamHandler {
 public:
             HDFSStreamHandler(hdfsFS fileSystem, const std::string &filePath, int numberOfPartitions, int graphId,
                       SQLiteDBInterface *sqlite,
-                      std::string masterIP,std::vector<DataPublisher *> &workerClients);
+                      std::string masterIP);
 
     void startStreamingFromBufferToPartitions();
 
@@ -41,15 +41,12 @@ private:
     void streamFromBufferToProcessingQueue(HashPartitioner &partitioner);
 
     hdfsFS fileSystem;
+
     std::string filePath;
     std::queue<std::string> dataBuffer;
-    std::queue<std::string> lineBuffer;
 
     std::mutex dataBufferMutex;
-    std::mutex lineBufferMutex;
-
     std::condition_variable dataBufferCV;
-    std::condition_variable lineBufferCV;
 
     std::string masterIP;
     SQLiteDBInterface *sqlite;
@@ -58,15 +55,8 @@ private:
     bool isProcessing;
     int graphId;
     int numberOfPartitions;
+    std::mutex dbLock;
 
-//    HashPartitioner partitioner;
-
-
-//    std::ofstream currentFile;  // Current file being written to
-//    std::string currentFilePath;  // Path of the current file
-//    size_t fileIndex;  // Index to keep track of file numbers
-
-    std::vector<DataPublisher *> &workerClients;
 };
 
 #endif // HDFSSTREAMHANDLER_H
