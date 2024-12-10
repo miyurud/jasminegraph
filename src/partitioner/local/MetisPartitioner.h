@@ -54,6 +54,10 @@ class MetisPartitioner {
 
     void loadContentData(string inputAttributeFilePath, string graphAttributeType, int graphID, string attrType);
 
+    void setPathAndGraphID(int graphID);
+
+    void loadFileChunks(string inputFilePath);
+
     MetisPartitioner(SQLiteDBInterface *);
 
  private:
