@@ -41,7 +41,8 @@ class Partition {
     std::vector<std::map<std::string, std::unordered_set<std::string>>> edgeCuts;
     int id;
     int numberOfPartitions;  // Size of the cluster TODO: can be removed
-
+    long edgeCutCount;
+    long edgeCount;
     int vertexCount;
 
  public:
@@ -52,11 +53,15 @@ class Partition {
             this->edgeCuts.push_back({});
         }
         this->vertexCount = 0;
+        this->edgeCutCount=0;
+        this->edgeCount=0;
     };
     void addEdge(std::pair<std::string, std::string> edge);
     std::set<std::string> getNeighbors(std::string);
     double partitionScore(std::string vertex);
     double getEdgesCount();
+    long edgeCutC();
+    long edgeC();
     double getVertextCount();
     double getVertextCountQuick();
     void addToEdgeCuts(std::string resident, std::string foreign, int partitionId);
