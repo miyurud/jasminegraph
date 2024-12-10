@@ -13,8 +13,7 @@ HashPartitioner::HashPartitioner(int numberOfPartitions, int graphID, std::strin
           localEdgeMutexes(numberOfPartitions), edgeAvailableCV(numberOfPartitions),
           edgeReady(numberOfPartitions, false), edgeCutsMutexes(numberOfPartitions),
           edgeCutsAvailableCV(numberOfPartitions), edgeCutsReady(numberOfPartitions, false),
-          terminateConsumers(false), masterIp(masterIp),
-          partitionMutexArray(numberOfPartitions) {
+          terminateConsumers(false), masterIp(masterIp), partitionMutexArray(numberOfPartitions) {
 
     this->outputFilePath = Utils::getHomeDir() + "/.jasminegraph/tmp/hdfsstore/" + std::to_string(this->graphId);
     Utils::createDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp/hdfsstore");
@@ -29,7 +28,6 @@ HashPartitioner::HashPartitioner(int numberOfPartitions, int graphID, std::strin
         localEdgeThreads.emplace_back(&HashPartitioner::consumeLocalEdges, this, i, workers[i]);
         edgeCutThreads.emplace_back(&HashPartitioner::consumeEdgeCuts, this, i, workers[i]);
     }
-
 }
 
 HashPartitioner::~HashPartitioner() {
@@ -111,9 +109,9 @@ void HashPartitioner::consumeLocalEdges(int partitionIndex, JasmineGraphServer::
             if (partitionFile.is_open()) {
                 partitionFile.close();
                 hash_partitioner_logger.debug("Local edge consumer " + std::to_string(partitionIndex) +
-                                             " generated file of " +
-                                             std::to_string(threadEdgeCount) +
-                                             " edges: " + filePath);
+                                              " generated file of " +
+                                              std::to_string(threadEdgeCount) +
+                                              " edges: " + filePath);
                 partitionMutexArray[partitionIndex].lock();
                 Utils::sendFileChunkToWorker(worker.hostname, worker.port, worker.dataPort, filePath, masterIp,
                                              JasmineGraphInstanceProtocol::HDFS_LOCAL_STREAM_START);
@@ -142,9 +140,9 @@ void HashPartitioner::consumeLocalEdges(int partitionIndex, JasmineGraphServer::
                 partitionMutexArray[partitionIndex].unlock();
 
                 hash_partitioner_logger.debug("Local edge consumer " + std::to_string(partitionIndex) +
-                                             " generated file of " +
-                                             std::to_string(PARTITION_FILE_EDGE_COUNT_THRESHOLD) +
-                                             " edges: " + filePath);
+                                              " generated file of " +
+                                              std::to_string(PARTITION_FILE_EDGE_COUNT_THRESHOLD) +
+                                              " edges: " + filePath);
 
                 // Increment file index and open the next file
                 fileIndex++;
@@ -170,7 +168,6 @@ void HashPartitioner::consumeLocalEdges(int partitionIndex, JasmineGraphServer::
     if (partitionFile.is_open()) {
         partitionFile.close();
     }
-
     hash_partitioner_logger.debug("Local edge consumer " + std::to_string(partitionIndex) + " finished processing.");
 }
 
@@ -200,9 +197,9 @@ void HashPartitioner::consumeEdgeCuts(int partitionIndex, JasmineGraphServer::wo
             if (edgeCutsFile.is_open()) {
                 edgeCutsFile.close();
                 hash_partitioner_logger.debug("Central edge consumer " + std::to_string(partitionIndex) +
-                                             " generated file of " +
-                                             std::to_string(threadEdgeCount) +
-                                             " edges: " + filePath);
+                                              " generated file of " +
+                                              std::to_string(threadEdgeCount) +
+                                              " edges: " + filePath);
                 partitionMutexArray[partitionIndex].lock();
                 Utils::sendFileChunkToWorker(worker.hostname, worker.port, worker.dataPort, filePath, masterIp,
                                              JasmineGraphInstanceProtocol::HDFS_CENTRAL_STREAM_START);
@@ -231,9 +228,9 @@ void HashPartitioner::consumeEdgeCuts(int partitionIndex, JasmineGraphServer::wo
                 partitionMutexArray[partitionIndex].unlock();
 
                 hash_partitioner_logger.debug("Central edge consumer " + std::to_string(partitionIndex) +
-                                             " generated file of " +
-                                             std::to_string(PARTITION_FILE_EDGE_COUNT_THRESHOLD) +
-                                             " edges: " + filePath);
+                                              " generated file of " +
+                                              std::to_string(PARTITION_FILE_EDGE_COUNT_THRESHOLD) +
+                                              " edges: " + filePath);
 
                 // Open the next file
                 fileIndex++;
@@ -264,29 +261,47 @@ void HashPartitioner::consumeEdgeCuts(int partitionIndex, JasmineGraphServer::wo
 }
 
 long HashPartitioner::getVertexCount() {
-    if (this->vertexCount == 0) {
+    if (this->vertexCount == 0 && this->edgeCount == 0) {
         int totalVertices = 0;
         int totalEdges = 0;
-        for (auto &partition: this->partitions) {
+        int edgeCuts = 0;
+        for (auto & partition : this->partitions) {
             totalVertices += partition.getVertextCount();
-            totalEdges += partition.getEdgesCount();
+            totalEdges += partition.edgeC();
+            edgeCuts += partition.edgeCutC();
         }
         this->vertexCount = totalVertices;
-        this->edgeCount = totalEdges;
+        this->edgeCount = totalEdges + edgeCuts / 2;
+    } else if (this->vertexCount == 0) {
+        int totalVertices = 0;
+        for (auto & partition : this->partitions) {
+            totalVertices += partition.getVertextCount();
+        }
+        this->vertexCount = totalVertices;
     }
     return this->vertexCount;
 }
 
 long HashPartitioner::getEdgeCount() {
-    if (this->edgeCount == 0) {
+    if (this->edgeCount == 0 && this->vertexCount == 0) {
         int totalVertices = 0;
         int totalEdges = 0;
-        for (auto &partition: this->partitions) {
+        int edgeCuts = 0;
+        for (auto & partition : this->partitions) {
             totalVertices += partition.getVertextCount();
-            totalEdges += partition.getEdgesCount();
+            totalEdges += partition.edgeC();
+            edgeCuts += partition.edgeCutC();
         }
         this->vertexCount = totalVertices;
-        this->edgeCount = totalEdges;
+        this->edgeCount = totalEdges + edgeCuts / 2;
+    } else if (this->edgeCount == 0) {
+        int totalEdges = 0;
+        int edgeCuts = 0;
+        for (auto & partition : this->partitions) {
+            totalEdges += partition.edgeC();
+            edgeCuts += partition.edgeCutC();
+        }
+        this->edgeCount = totalEdges + edgeCuts / 2;
     }
     return this->edgeCount;
 }
