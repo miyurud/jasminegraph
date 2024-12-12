@@ -196,15 +196,13 @@ void UndirectedRelationshipTypeScan::execute() {
 
 }
 
-UndirectedAllRelationshipScan::UndirectedAllRelationshipScan(string startVar, string endVar)
-        : startVar(startVar), endVar(endVar) {}
+UndirectedAllRelationshipScan::UndirectedAllRelationshipScan(string startVar, string endVar, string relVar)
+        : startVar(startVar), endVar(endVar), relVar(relVar) {}
 
 
 void UndirectedAllRelationshipScan::execute() {
-    cout << "Executing UndirectedAllRelationshipScan for all relationship types." <<  endl;
-    cout << "Start variable: " << startVar << ", End variable: " << endVar <<  endl;
-
-
+    cout<<"UndirectedRelationshipTypeScan: \n"<<endl;
+    cout << "("<<startVar<<") -[" << relVar<<"]- (" << endVar << ")" << endl;
 }
 
 DirectedRelationshipTypeScan::DirectedRelationshipTypeScan(string direction, string relType, string relvar, string startVar, string endVar)
@@ -221,6 +219,19 @@ void DirectedRelationshipTypeScan::execute() {
         cout << "("<<startVar<<") -[" << relvar<<" :"<< relType << "]-> (" << endVar << ")" << endl;
     }else{
         cout << "("<<startVar<<") <-[" << relvar<<" :"<< relType << "]- (" << endVar << ")" << endl;
+    }
+}
+
+DirectedAllRelationshipScan::DirectedAllRelationshipScan(std::string direction, std::string startVar, std::string endVar, std::string relVar)
+        : startVar(startVar), endVar(endVar), relVar(relVar), direction(direction) {}
+
+void DirectedAllRelationshipScan::execute() {
+    cout<<"DirectedAllRelationshipScan: \n"<<endl;
+
+    if(direction == "right"){
+        cout << "("<<startVar<<") -[" << relVar<<"]-> (" << endVar << ")" << endl;
+    }else{
+        cout << "("<<startVar<<") <-[" << relVar<<"]- (" << endVar << ")" << endl;
     }
 }
 
@@ -260,9 +271,11 @@ void Apply::addOperator(Operator *opr) {
 // Execute method
 void Apply::execute() {
     if (opr1 != nullptr){
+        cout<<"     left of Apply"<<endl;
         opr1->execute();
     }
     if (opr2 != nullptr){
+        cout<<"     right of Apply"<<endl;
         opr2->execute();
     }
 

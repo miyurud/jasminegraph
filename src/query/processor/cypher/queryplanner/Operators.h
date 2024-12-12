@@ -201,12 +201,26 @@ private:
 class UndirectedAllRelationshipScan : public Operator {
 public:
 
-    UndirectedAllRelationshipScan( string startVar = "var_0", string endVar = "var_1");
+    UndirectedAllRelationshipScan( string startVar = "var_0", string endVar = "var_1", string relVar = "edge_var_0");
     void execute() override;
 
 private:
     string startVar; // Variable name for the start node
     string endVar;   // Variable name for the end node
+    string relVar;
+};
+
+class DirectedAllRelationshipScan : public Operator {
+public:
+
+    DirectedAllRelationshipScan( string direction, string startVar = "var_0", string endVar = "var_1", string relVar = "edge_var_0");
+    void execute() override;
+
+private:
+    string startVar; // Variable name for the start node
+    string endVar;   // Variable name for the end node
+    string relVar;
+    string direction;
 };
 
 class DirectedRelationshipTypeScan : public Operator {
