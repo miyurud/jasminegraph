@@ -16,9 +16,9 @@
 
 class HashPartitioner {
 
-    std::vector<Partition> partitions; // Holds partition objects
+    std::vector<Partition> partitions;
 
-    std::atomic<bool> terminateConsumers;  // Termination flag
+    std::atomic<bool> terminateConsumers;
     std::vector<std::thread> localEdgeThreads;
     std::vector<std::thread> edgeCutThreads;
 
@@ -52,14 +52,6 @@ private:
     long vertexCount;
     long edgeCount;
     std::string outputFilePath;
-    std::map<int, std::string> partitionFileMap;
-    std::map<int, std::string> centralStoreFileList;
-    std::map<int, std::string> centralStoreDuplicateFileList;
-    std::map<int, std::string> partitionAttributeFileList;
-    std::map<int, std::string> centralStoreAttributeFileList;
-    std::map<int, std::string> compositeCentralStoreFileList;
-    std::vector<std::map<int, std::string>> fullFileList;
-    std::map<int, std::map<int, std::vector<int>>> partitionedLocalGraphStorageMap;
 
     void consumeLocalEdges(int partitionIndex,JasmineGraphServer::worker worker);
     void consumeEdgeCuts(int partitionIndex,JasmineGraphServer::worker worker);
