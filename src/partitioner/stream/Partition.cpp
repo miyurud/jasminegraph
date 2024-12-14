@@ -13,7 +13,6 @@
 
 #include "Partition.h"
 
-#include <iostream>
 #include <sstream>
 #include <vector>
 #include <string>
@@ -84,12 +83,10 @@ double Partition::getVertextCount() {
     }
     return edgeListVetices + edgeCutVertices;
 }
-/*Other functions seems to be incorrect. Therefore added this functionality to get edgeCutCount for hdfs implementation*/
 long Partition::edgeCutC() {
     return edgeCutCount;
 }
 
-/*Other functions seems to be incorrect. Therefore added this functionality to get edgeCount for hdfs implementation*/
 long Partition::edgeC() {
     return edgeCount;
 }

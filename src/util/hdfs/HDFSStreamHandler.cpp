@@ -162,11 +162,11 @@ void HDFSStreamHandler::startStreamingFromBufferToPartitions() {
     long vertices = partitioner.getVertexCount();
     long edges = partitioner.getEdgeCount();
 
-    string sqlStatement = "UPDATE graph SET vertexcount = '" + std::to_string(vertices) +
-                          "' ,centralpartitioncount = '" + std::to_string(this->numberOfPartitions) +
-                          "' ,edgecount = '" +
-                          std::to_string(edges) + "' WHERE idgraph = '" +
-                          std::to_string(this->graphId) + "'";
+    std::string sqlStatement = "UPDATE graph SET vertexcount = '" + std::to_string(vertices) +
+                               "', centralpartitioncount = '" + std::to_string(this->numberOfPartitions) +
+                               "', edgecount = '" + std::to_string(edges) +
+                               "', graph_status_idgraph_status = '" + std::to_string(Conts::GRAPH_STATUS::OPERATIONAL) +
+                               "' WHERE idgraph = '" + std::to_string(this->graphId) + "'";
 
     dbLock.lock();
     this->sqlite->runUpdate(sqlStatement);
