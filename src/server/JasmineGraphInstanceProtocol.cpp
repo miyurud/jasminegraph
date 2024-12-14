@@ -98,3 +98,5 @@ const string JasmineGraphInstanceProtocol::INITIATE_FED_PREDICT = "initiate-fed-
 const string JasmineGraphInstanceProtocol::INITIATE_STREAMING_SERVER = "initiate-streaming-server";
 const string JasmineGraphInstanceProtocol::INITIATE_STREAMING_CLIENT = "initiate-streaming-client";
 const string JasmineGraphInstanceProtocol::INITIATE_STREAMING_TRIAN = "initiate-streaming-trian";
+const string JasmineGraphInstanceProtocol::QUERY_START = "query-start";
+const string JasmineGraphInstanceProtocol::QUERY_START_ACK = "query-start-ack";

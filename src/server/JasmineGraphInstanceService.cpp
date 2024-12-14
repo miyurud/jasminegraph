@@ -23,6 +23,7 @@ limitations under the License.
 #include <string>
 
 #include "../query/algorithms/triangles/StreamingTriangles.h"
+#include "../query/processor/cypher/runtime/InstanceHandler.h"
 #include "../server/JasmineGraphServer.h"
 #include "../util/kafka/InstanceStreamHandler.h"
 #include "../util/logger/Logger.h"
@@ -124,6 +125,7 @@ static void degree_distribution_common(int connFd, int serverPort,
                                        bool *loop_exit_p, bool in);
 static void push_partition_command(int connFd, bool *loop_exit_p);
 static void push_file_command(int connFd, bool *loop_exit_p);
+static void query_start_command(int connFd, InstanceHandler &instanceHandler, bool *loop_exit_p);
 long countLocalTriangles(
     std::string graphId, std::string partitionId,
     std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
@@ -150,6 +152,7 @@ void *instanceservicesession(void *dummyPt) {
     std::map<std::string, JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap =
         *(sessionargs.incrementalLocalStore);
     InstanceStreamHandler streamHandler(incrementalLocalStoreMap);
+    InstanceHandler instanceHandler(incrementalLocalStoreMap);
 
     string serverName = sessionargs.host;
     string masterHost = sessionargs.masterHost;
@@ -262,7 +265,9 @@ void *instanceservicesession(void *dummyPt) {
             send_priority_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::PUSH_PARTITION) == 0) {
             push_partition_command(connFd, &loop_exit);
-        } else {
+        } else if(line.compare(JasmineGraphInstanceProtocol::QUERY_START) == 0){
+            query_start_command(connFd, instanceHandler, &loop_exit);
+        }else {
             instance_logger.error("Invalid command");
             loop_exit = true;
         }
@@ -4163,4 +4168,47 @@ string JasmineGraphInstanceService::aggregateStreamingCentralStoreTriangles(
     instance_logger.info("###INSTANCE### Central Store Aggregation : Completed");
 
     return triangles;
+}
+
+static void query_start_command(int connFd, InstanceHandler &instanceHandler, bool *loop_exit_p){
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::QUERY_START_ACK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::QUERY_START_ACK);
+
+    int content_length;
+    instance_logger.info("Waiting for edge content length");
+    ssize_t return_status = recv(connFd, &content_length, sizeof(int), 0);
+    if (return_status > 0) {
+        content_length = ntohl(content_length);
+        instance_logger.info("Received content_length = " + std::to_string(content_length));
+    } else {
+        instance_logger.info("Error while reading content length");
+        *loop_exit_p = true;
+        return;
+    }
+    
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK)) {
+        instance_logger.info("Methanata awa");
+        *loop_exit_p = true;
+        return;
+    }
+    
+    std::string nodeString(content_length, 0);
+    return_status = recv(connFd, &nodeString[0], content_length, 0);
+    if (return_status > 0) {
+        instance_logger.info("Received edge data.");
+    } else {
+        instance_logger.info("Error while reading content length");
+        *loop_exit_p = true;
+        return;
+    }
+   
+    instanceHandler.handleRequest(nodeString);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_END_OF_EDGE)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.debug("Sent CRLF string to mark the end");
 }

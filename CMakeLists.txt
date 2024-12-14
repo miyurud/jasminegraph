@@ -82,6 +82,8 @@ set(HEADERS globals.h
         src/frontend/core/executor/impl/PageRankExecutor.h
         src/util/dbinterface/DBInterface.h
         src/query/processor/cypher/util/Const.h
+        src/query/processor/cypher/runtime/QueryPlanHandler.h
+        src/query/processor/cypher/runtime/InstanceHandler.h
 )
 
 set(SOURCES src/backend/JasmineGraphBackend.cpp
@@ -154,6 +156,8 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/util/dbinterface/DBInterface.cpp
         src/query/processor/cypher/semanticanalyzer/SemanticAnalyzer.cpp
         src/query/processor/cypher/util/Const.cpp
+        src/query/processor/cypher/runtime/QueryPlanHandler.cpp
+        src/query/processor/cypher/runtime/InstanceHandler.cpp
 )
 
 if (CMAKE_BUILD_TYPE STREQUAL "DEBUG")

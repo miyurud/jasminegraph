@@ -37,6 +37,7 @@ class DataPublisher {
     void publish(std::string);
     void publish_relation(std::string);
     void publish_edge(std::string);
+    void queryPublish(std::string);
 
     ~DataPublisher();
 

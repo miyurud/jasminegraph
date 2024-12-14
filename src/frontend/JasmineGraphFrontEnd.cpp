@@ -55,6 +55,7 @@ limitations under the License.
 #include "../query/processor/cypher/queryplanner/QueryPlanner.h"
 #include "../localstore/incremental/JasmineGraphIncrementalLocalStore.h"
 #include "../server/JasmineGraphInstanceService.h"
+#include "../query/processor/cypher/runtime/QueryPlanHandler.h"
 
 
 #define MAX_PENDING_CONNECTIONS 10
@@ -75,7 +76,7 @@ bool JasmineGraphFrontEnd::strian_exit;
 
 static std::string getPartitionCount(std::string path);
 static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
-static void cypher_ast_command(int connFd, bool *loop_exit_p);
+static void cypher_ast_command(int connFd,vector<DataPublisher *> &workerClients, int numberOfPartitions, bool *loop_exit_p);
 static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
@@ -182,7 +183,9 @@ void *frontendservicesesion(void *dummyPt) {
         } else if (line.compare(LIST) == 0) {
             list_command(connFd, sqlite, &loop_exit);
         } else if (line.compare(CYPHER_AST) == 0){
-            cypher_ast_command(connFd, &loop_exit);
+            workerClients = getWorkerClients(sqlite);
+            workerClientsInitialized = true;
+            cypher_ast_command(connFd, workerClients, numberOfPartitions, &loop_exit);
         }else if (line.compare(SHTDN) == 0) {
             JasmineGraphServer::shutdown_workers();
             close(connFd);
@@ -641,7 +644,7 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
     }
 }
 
-static void cypher_ast_command(int connFd, bool *loop_exit)
+static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClients, int numberOfPartitions, bool *loop_exit)
 {
 
     string msg_1 = "Input Query :";
@@ -664,29 +667,36 @@ static void cypher_ast_command(int connFd, bool *loop_exit)
     read(connFd, user_res, FRONTEND_DATA_LENGTH);
     string user_res_s(user_res);
 
-    antlr4::ANTLRInputStream input(user_res_s);
-    // Create a lexer from the input
-    CypherLexer lexer(&input);
-
-    // Create a token stream from the lexer
-    antlr4::CommonTokenStream tokens(&lexer);
-
-    // Create a parser from the token stream
-    CypherParser parser(&tokens);
-
-    ASTBuilder ast_builder;
-    auto* ast = any_cast<ASTNode*>(ast_builder.visitOC_Cypher(parser.oC_Cypher()));
-
-    SemanticAnalyzer semantic_analyzer;
-    if(semantic_analyzer.analyze(ast))
-    {
-        QueryPlanner query_planner;
-        Operator* opr = query_planner.createExecutionPlan(ast);
-        opr->execute();
-    }else
-    {
-        cout<<"Error"<<endl;
+    QueryPlanHandler *query_handler = new QueryPlanHandler(numberOfPartitions, workerClients);
+    for(auto worker: workerClients){
+        worker->queryPublish(user_res_s);
     }
+
+
+
+//    antlr4::ANTLRInputStream input(user_res_s);
+//    // Create a lexer from the input
+//    CypherLexer lexer(&input);
+//
+//    // Create a token stream from the lexer
+//    antlr4::CommonTokenStream tokens(&lexer);
+//
+//    // Create a parser from the token stream
+//    CypherParser parser(&tokens);
+//
+//    ASTBuilder ast_builder;
+//    auto* ast = any_cast<ASTNode*>(ast_builder.visitOC_Cypher(parser.oC_Cypher()));
+//
+//    SemanticAnalyzer semantic_analyzer;
+//    if(semantic_analyzer.analyze(ast))
+//    {
+//        QueryPlanner query_planner;
+//        Operator* opr = query_planner.createExecutionPlan(ast);
+//        opr->execute();
+//    }else
+//    {
+//        cout<<"Error"<<endl;
+//    }
 
 
 //    int mode = 0;
