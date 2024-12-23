@@ -1401,20 +1401,6 @@ void addStreamHDFSCommand(std::string masterIP,int connFd, std::string &hdfsServ
         directed = false;
     }
 
-    std::string conMsg = "Received the HDFS file path";
-    int conResultWr = write(connFd, conMsg.c_str(), conMsg.length());
-    if (conResultWr < 0) {
-        frontend_logger.error("Error writing to socket");
-        *loop_exit_p = true;
-        return;
-    }
-    resultWr = write(connFd, "\r\n", 2);
-    if (resultWr < 0) {
-        frontend_logger.error("Error writing to socket");
-        *loop_exit_p = true;
-        return;
-    }
-
     std::string path = "hdfs:\\" + hdfsFilePathS;
 
     std::time_t time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
@@ -1432,6 +1418,28 @@ void addStreamHDFSCommand(std::string masterIP,int connFd, std::string &hdfsServ
                                                               numberOfPartitions, newGraphID, sqlite, masterIP);
     frontend_logger.info("Started listening to " + hdfsFilePathS);
     inputStreamHandlerThread = std::thread(&HDFSStreamHandler::startStreamingFromBufferToPartitions, streamHandler);
+    inputStreamHandlerThread.join();
+
+    std::string uploadEndTime = ctime(&time);
+    std::string sqlStatementUpdateEndTime =
+            "UPDATE graph "
+            "SET upload_end_time = \"" + uploadEndTime + "\" "
+                                                         "WHERE idgraph = " + std::to_string(newGraphID);
+    sqlite->runInsert(sqlStatementUpdateEndTime);
+
+
+    int conResultWr = write(connFd, DONE.c_str(), DONE.length());
+    if (conResultWr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    resultWr = write(connFd, "\r\n", 2);
+    if (resultWr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
 }
 
 static void stop_stream_kafka_command(int connFd, KafkaConnector *kstream, bool *loop_exit_p) {
