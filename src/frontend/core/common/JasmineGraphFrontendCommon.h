@@ -21,7 +21,7 @@ limitations under the License.
 #include "../../../query/algorithms/triangles/Triangles.h"
 
 class JasmineGraphFrontEndCommon {
-public:
+ public:
     static bool graphExists(std::string basic_string, SQLiteDBInterface *sqlite);
 
     static bool graphExistsByID(std::string id, SQLiteDBInterface *sqlite);
