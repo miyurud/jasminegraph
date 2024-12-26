@@ -20,4 +20,4 @@ limitations under the License.
 class JasmineGraphFrontEndUIProtocol : public JasminGraphFrontEndProtocol {
 };
 
-#endif  //JASMINEGRAPHFRONTENDUIPROTOCOL_H
+#endif  // JASMINEGRAPHFRONTENDUIPROTOCOL_H

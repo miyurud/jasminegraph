@@ -63,8 +63,8 @@ static void add_graph_command(std::string masterIP,
 static void remove_graph_command(std::string masterIP,
     int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p, std::string command);
 static void triangles_command(std::string masterIP,
-    int connFd, SQLiteDBInterface *sqlite,
-                              PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler, bool *loop_exit_p, std::string command);
+    int connFd, SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfSqlite,
+    JobScheduler *jobScheduler, bool *loop_exit_p, std::string command);
 
 void *uifrontendservicesesion(void *dummyPt) {
     frontendservicesessionargs *sessionargs = (frontendservicesessionargs *)dummyPt;
