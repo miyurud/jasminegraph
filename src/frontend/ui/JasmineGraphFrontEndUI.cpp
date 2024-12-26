@@ -58,9 +58,12 @@ bool JasmineGraphFrontEndUI::strian_exit;
 string JasmineGraphFrontEndUI::stream_topic_name;
 
 static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
-static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p, std::string command);
-static void remove_graph_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p, std::string command);
-static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
+static void add_graph_command(std::string masterIP,
+    int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p, std::string command);
+static void remove_graph_command(std::string masterIP,
+    int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p, std::string command);
+static void triangles_command(std::string masterIP,
+    int connFd, SQLiteDBInterface *sqlite,
                               PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler, bool *loop_exit_p, std::string command);
 
 void *uifrontendservicesesion(void *dummyPt) {
@@ -110,11 +113,11 @@ void *uifrontendservicesesion(void *dummyPt) {
             break;
         } else if (token.compare(LIST) == 0) {
             list_command(connFd, sqlite, &loop_exit);
-        } else if (token.compare(ADGR) == 0){
+        } else if (token.compare(ADGR) == 0) {
             add_graph_command(masterIP, connFd, sqlite, &loop_exit, line);
         } else if (token.compare(TRIANGLES) == 0) {
             triangles_command(masterIP, connFd, sqlite, perfSqlite, jobScheduler, &loop_exit, line);
-        }else if (token.compare(RMGR) == 0) {
+        } else if (token.compare(RMGR) == 0) {
             remove_graph_command(masterIP, connFd, sqlite, &loop_exit, line);
         } else {
             ui_frontend_logger.error("Message format not recognized " + line);
@@ -302,7 +305,8 @@ std::string sanitizeFileName(const std::string& fileName) {
     return std::regex_replace(fileName, unsafePattern, "");
 }
 
-static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p, std::string command) {
+static void add_graph_command(std::string masterIP,
+    int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p, std::string command) {
     char delimiter = '|';
     std::stringstream ss(command);
     std::string token;
@@ -397,7 +401,8 @@ static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterfac
     }
 }
 
-static void remove_graph_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p, std::string command){
+static void remove_graph_command(std::string masterIP,
+    int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p, std::string command) {
     char delimiter = '|';
     std::stringstream ss(command);
     std::string token;
@@ -439,8 +444,9 @@ static void remove_graph_command(std::string masterIP, int connFd, SQLiteDBInter
     }
 }
 
-static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
-                              PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler, bool *loop_exit_p, std::string command) {
+static void triangles_command(std::string masterIP, int connFd,
+    SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfSqlite,
+    JobScheduler *jobScheduler, bool *loop_exit_p, std::string command) {
     char delimiter = '|';
     std::stringstream ss(command);
     std::string token;

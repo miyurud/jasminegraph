@@ -65,4 +65,4 @@ class JasmineGraphFrontEndUI {
     JobScheduler *jobScheduler;
 };
 
-#endif //JASMINEGRAPHFRONTENDUI_H
+#endif  //JASMINEGRAPHFRONTENDUI_H

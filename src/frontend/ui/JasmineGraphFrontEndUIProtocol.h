@@ -17,9 +17,7 @@ limitations under the License.
 
 #include "../JasmineGraphFrontEndProtocol.h"
 
-class JasmineGraphFrontEndUIProtocol : public JasminGraphFrontEndProtocol
-{
-
+class JasmineGraphFrontEndUIProtocol : public JasminGraphFrontEndProtocol {
 };
 
-#endif //JASMINEGRAPHFRONTENDUIPROTOCOL_H
+#endif  //JASMINEGRAPHFRONTENDUIPROTOCOL_H

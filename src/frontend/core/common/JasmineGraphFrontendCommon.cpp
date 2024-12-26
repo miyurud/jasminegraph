@@ -185,7 +185,8 @@ long JasmineGraphFrontEndCommon::getSLAForGraphId(SQLiteDBInterface *sqlite, Per
     return graphSLAValue;
 }
 
-std::vector<std::vector<std::pair<std::string, std::string>>> JasmineGraphFrontEndCommon::getGraphData(SQLiteDBInterface *sqlite) {
+std::vector<std::vector<std::pair<std::string, std::string>>>
+    JasmineGraphFrontEndCommon::getGraphData(SQLiteDBInterface *sqlite) {
     return sqlite->runSelect("SELECT idgraph, name, upload_path, graph_status_idgraph_status, vertexcount, edgecount, centralpartitioncount FROM graph;");
 }
 

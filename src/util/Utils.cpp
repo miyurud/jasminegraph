@@ -768,7 +768,7 @@ std::string Utils::downloadFile(const std::string& fileURL, const std::string& l
 
     // Set curl options
     curl_easy_setopt(curl, CURLOPT_URL, fileURL.c_str());
-    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L); // Follow redirects if any
+    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);  // Follow redirects if any
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_file_callback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &outFile);
 

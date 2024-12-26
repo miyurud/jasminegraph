@@ -78,7 +78,7 @@ void *runfrontend(void *dummyPt) {
     return NULL;
 }
 
-void *runuifrontend(void *dummyPt){
+void *runuifrontend(void *dummyPt) {
     JasmineGraphServer *refToServer = (JasmineGraphServer *)dummyPt;
     refToServer->frontendUI = new JasmineGraphFrontEndUI(refToServer->sqlite, refToServer->performanceSqlite,
                                                         refToServer->masterHost, refToServer->jobScheduler);
