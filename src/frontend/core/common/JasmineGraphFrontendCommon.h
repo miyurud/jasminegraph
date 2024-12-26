@@ -21,37 +21,37 @@ limitations under the License.
 #include "../../../query/algorithms/triangles/Triangles.h"
 
 class JasmineGraphFrontEndCommon {
-    public:
-        static bool graphExists(std::string basic_string, SQLiteDBInterface *sqlite);
+public:
+    static bool graphExists(std::string basic_string, SQLiteDBInterface *sqlite);
 
-        static bool graphExistsByID(std::string id, SQLiteDBInterface *sqlite);
+    static bool graphExistsByID(std::string id, SQLiteDBInterface *sqlite);
 
-        static void removeGraph(std::string graphID, SQLiteDBInterface *sqlite, std::string masterIP);
+    static void removeGraph(std::string graphID, SQLiteDBInterface *sqlite, std::string masterIP);
 
-        static bool isGraphActive(string graphID, SQLiteDBInterface *sqlite);
+    static bool isGraphActive(string graphID, SQLiteDBInterface *sqlite);
 
-        static bool modelExists(std::string basic_string, SQLiteDBInterface *sqlite);
+    static bool modelExists(std::string basic_string, SQLiteDBInterface *sqlite);
 
-        static bool modelExistsByID(std::string id, SQLiteDBInterface *sqlite);
+    static bool modelExistsByID(std::string id, SQLiteDBInterface *sqlite);
 
-        static void getAndUpdateUploadTime(std::string graphID, SQLiteDBInterface *sqlite);
+    static void getAndUpdateUploadTime(std::string graphID, SQLiteDBInterface *sqlite);
 
-        static bool isGraphActiveAndTrained(std::string graphID, SQLiteDBInterface *sqlite);
+    static bool isGraphActiveAndTrained(std::string graphID, SQLiteDBInterface *sqlite);
 
-        static map<long, long> getOutDegreeDistributionHashMap(map<long, unordered_set<long>> graphMap);
+    static map<long, long> getOutDegreeDistributionHashMap(map<long, unordered_set<long>> graphMap);
 
-        static int getUid();
+    static int getUid();
 
-        static long getSLAForGraphId(SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfSqlite,
-                                 std::string graphId, std::string command, std::string category);
+    static long getSLAForGraphId(SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfSqlite,
+                             std::string graphId, std::string command, std::string category);
 
-        static std::vector<std::vector<std::pair<std::string, std::string>>> getGraphData(SQLiteDBInterface *sqlite);
+    static std::vector<std::vector<std::pair<std::string, std::string>>> getGraphData(SQLiteDBInterface *sqlite);
 
-        static bool checkServerBusy(std::atomic<int> *currentFESession, int connFd);
+    static bool checkServerBusy(std::atomic<int> *currentFESession, int connFd);
 
-        static std::string readAndProcessInput(int connFd, char* data, int &failCnt);
+    static std::string readAndProcessInput(int connFd, char* data, int &failCnt);
 
-        static std::string getPartitionCount(std::string path);
+    static std::string getPartitionCount(std::string path);
 };
 
 #endif  // JASMINEGRAPHFRONTENDCOMMON_H
