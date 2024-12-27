@@ -60,6 +60,53 @@ build_and_run_docker() {
     docker compose -f "${TEST_ROOT}/docker-compose.yml" up >"$RUN_LOG" 2>&1 &
 }
 
+wait_for_hadoop() {
+    # Wait for the Namenode web interface to be accessible
+    while ! curl -s http://localhost:9870 &>/dev/null; do
+        sleep 5
+    done
+    echo "Hadoop Namenode is ready."
+
+    # Check and leave safe mode if necessary
+    docker exec -i namenode hadoop dfsadmin -safemode get
+    if docker exec -i namenode hadoop dfsadmin -safemode get | grep -q "Safe mode is ON"; then
+        echo "Exiting safe mode..."
+        docker exec -i namenode hadoop dfsadmin -safemode leave
+        echo "Safe mode exited."
+    else
+        echo "Namenode is not in safe mode."
+    fi
+
+    # Define file paths
+    FILE_NAME="powergrid.dl"
+    LOCAL_DIRECTORY="/var/tmp/data/"
+    LOCAL_FILE_PATH="${LOCAL_DIRECTORY}${FILE_NAME}"
+
+    HDFS_DIRECTORY="/home/"
+    HDFS_FILE_PATH="${HDFS_DIRECTORY}${FILE_NAME}"
+
+    # Upload the file to HDFS
+    # Ensure local directory exists
+    mkdir -p "${LOCAL_DIRECTORY}"
+
+    # Copy the file from integration-jasminegraph-1 to the current container
+    docker cp integration-jasminegraph-1:"${LOCAL_FILE_PATH}" "${LOCAL_DIRECTORY}"
+
+    # Create the HDFS directory (this ensures it exists in HDFS)
+    docker exec -i namenode hadoop fs -mkdir -p "${HDFS_DIRECTORY}"
+
+    # Copy the file from host to the namenode container
+    docker cp "${LOCAL_FILE_PATH}" namenode:"${HDFS_FILE_PATH}"
+
+    # Check if the file exists in HDFS
+    if ! docker exec -i namenode hadoop fs -test -e "${HDFS_FILE_PATH}"; then
+        docker exec -i namenode hadoop fs -put "${LOCAL_FILE_PATH}" "${HDFS_DIRECTORY}"
+        echo "File: ${LOCAL_FILE_PATH} successfully uploaded to HDFS."
+    else
+        echo "File already exists in HDFS at ${HDFS_FILE_PATH}. Skipping upload."
+    fi
+}
+
 stop_tests_on_failure() {
     set +ex
     failCnt=0
@@ -87,6 +134,9 @@ force_remove env
 cp -r env_init env
 cd "$PROJECT_ROOT"
 build_and_run_docker
+
+# Wait for Hadoop to start
+wait_for_hadoop
 
 # sleep until server starts listening
 cur_timestamp="$(date +%s)"
