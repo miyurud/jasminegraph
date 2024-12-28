@@ -79,7 +79,7 @@ void NodeBlock::addProperty(std::string name, const char* value) {
             // If it was an empty prop link before inserting, Then update the property reference of this node
             // block
             //            node_block_logger.info("propRef = " + std::to_string(this->propRef));
-            NodeBlock::nodesDB->seekp(this->addr + sizeof(this->nodeId) + sizeof(this->edgeRef) +
+            NodeBlock::nodesDB->seekp(this->addr +sizeof(this->usage) +sizeof(this->nodeId) + sizeof(this->edgeRef) +
                                       sizeof(this->centralEdgeRef) + sizeof(this->edgeRefPID));
             NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(this->propRef)), sizeof(this->propRef));
             NodeBlock::nodesDB->flush();
