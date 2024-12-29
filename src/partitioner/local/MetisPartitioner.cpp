@@ -302,7 +302,7 @@ std::vector<std::map<int, std::string>> MetisPartitioner::partitioneWithGPMetis(
         partitioner_logger.log("Popen error in executing gpmetis command", "error");
     }
 
-    return std::vector<std::map<int, std::string>>{}; // Return an empty vector in case of error
+    return std::vector<std::map<int, std::string>>{};  // Return an empty vector in case of error
 }
 
 void MetisPartitioner::createPartitionFiles(std::map<int, int> partMap) {

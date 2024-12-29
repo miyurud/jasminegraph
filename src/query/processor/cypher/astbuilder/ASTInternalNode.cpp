@@ -15,4 +15,4 @@ limitations under the License.
 
 void ASTInternalNode::addElements(ASTNode* element) {
     elements.push_back(element);
-};
+}

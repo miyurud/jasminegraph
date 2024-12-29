@@ -47,8 +47,7 @@ bool SemanticAnalyzer::analyze(ASTNode* root, bool canDefine, string type) {
         string ntype;
         if (root->elements[0]->nodeType == Const::LIST || root->elements[0]->nodeType == Const::LIST_COMPREHENSION) {
             ntype = Const::LIST;
-        }
-        else if (root->elements[0]->nodeType == Const::PROPERTIES_MAP) {
+        } else if (root->elements[0]->nodeType == Const::PROPERTIES_MAP) {
             ntype = Const::MAP;
         } else {
             ntype = Const::ANY;
@@ -57,7 +56,7 @@ bool SemanticAnalyzer::analyze(ASTNode* root, bool canDefine, string type) {
             return false;
         }
         if (root->elements[1]->nodeType != Const::VARIABLE
-            || !analyze(root->elements[1],true, ntype)) {
+            || !analyze(root->elements[1], true, ntype)) {
             return false;
         }
     } else if (root->nodeType == Const::YIELD) {
@@ -77,7 +76,7 @@ bool SemanticAnalyzer::analyze(ASTNode* root, bool canDefine, string type) {
             return false;
         }
     } else if (root->nodeType == Const::NODE_PATTERN && !root->elements.empty()) {
-        if (root->elements[0]->nodeType == Const::VARIABLE && 
+        if (root->elements[0]->nodeType == Const::VARIABLE &&
             !analyze(root->elements[0], true, Const::NODE)) {
             return false;
         }
@@ -87,7 +86,7 @@ bool SemanticAnalyzer::analyze(ASTNode* root, bool canDefine, string type) {
             }
         }
     } else if (root->nodeType == Const::RELATIONSHIP_DETAILS && !root->elements.empty()) {
-        if (root->elements[0]->nodeType == Const::VARIABLE && 
+        if (root->elements[0]->nodeType == Const::VARIABLE &&
             !analyze(root->elements[0], true, Const::RELATIONSHIP)) {
             return false;
         }
@@ -97,21 +96,21 @@ bool SemanticAnalyzer::analyze(ASTNode* root, bool canDefine, string type) {
             }
         }
     } else if (root->nodeType == Const::LIST_ITERATE) {
-        if (!analyze(root->elements[0],true)) {
+        if (!analyze(root->elements[0], true)) {
             return false;
         }
         if (!analyze(root->elements[1])) {
             return false;
         }
     } else if (root->nodeType == Const::NON_ARITHMETIC_OPERATOR && root->elements[0]->nodeType == Const::VARIABLE) {
-        if (root->elements[1]->nodeType == Const::LIST_INDEX_RANGE && 
+        if (root->elements[1]->nodeType == Const::LIST_INDEX_RANGE &&
             !analyze(root->elements[0], false, Const::LIST)) {
             return false;
-        } else if (root->elements[1]->nodeType == Const::LIST_INDEX && 
-            root->elements[1]->elements[0]->nodeType == Const::DECIMAL && 
+        } else if (root->elements[1]->nodeType == Const::LIST_INDEX &&
+            root->elements[1]->elements[0]->nodeType == Const::DECIMAL &&
             !analyze(root->elements[0], false, "LIST")) {
             return false;
-        } else if (root->elements[1]->nodeType == Const::PROPERTY_LOOKUP && 
+        } else if (root->elements[1]->nodeType == Const::PROPERTY_LOOKUP &&
             !analyze(root->elements[0], false, Const::LOOKUP)) {
             return false;
         }
@@ -133,7 +132,7 @@ bool SemanticAnalyzer::analyze(ASTNode* root, bool canDefine, string type) {
 
         clearTemp();
         auto *node = root->elements[0]->elements[0];
-        for (auto* child: node->elements) {
+        for (auto* child : node->elements) {
             if (child->nodeType == Const::AS) {
                 string tempType;
                 if (child->elements[0]->nodeType == Const::VARIABLE) {
@@ -145,11 +144,11 @@ bool SemanticAnalyzer::analyze(ASTNode* root, bool canDefine, string type) {
                 } else {
                     tempType = Const::ANY;
                 }
-                pair<string,string> x = pair<string,string>(child->elements[1]->value,tempType);
+                pair<string,string> x = pair<string,string>(child->elements[1]->value, tempType);
                 temp->insert(x);
             } else if (child->nodeType == Const::VARIABLE) {
                 string tempType = scopeManager->getType(child->value);
-                pair<string,string> x = pair<string,string>(child->value, tempType);
+                pair<string,string> x = pair<string, string>(child->value, tempType);
                 temp->insert(x);
             } else {
                 reportError("use 'as' keyword to assign it to new variable" + node->value, node);
@@ -173,7 +172,7 @@ bool SemanticAnalyzer::analyze(ASTNode* root, bool canDefine, string type) {
 
 // Check for variable declarations
 bool SemanticAnalyzer::checkVariableDeclarations(ASTNode* node, string type) {
-    if (!scopeManager->lookup(node->value)){
+    if (!scopeManager->lookup(node->value)) {
         // If variable is not in current scope, add it
         scopeManager->addSymbol(node->value, type);
     } else if (scopeManager->lookup(node->value) == type) {
@@ -190,8 +189,7 @@ void SemanticAnalyzer::clearTemp() {
     temp->clear();
 }
 
-bool SemanticAnalyzer::checkVariableUsage(ASTNode* node, string type)
-{
+bool SemanticAnalyzer::checkVariableUsage(ASTNode* node, string type) {
     if (!(scopeManager->lookup(node->value))) {
         reportError("Variable is not defined in this scope: " + node->value, node);
         return false;
@@ -207,7 +205,6 @@ bool SemanticAnalyzer::checkVariableUsage(ASTNode* node, string type)
         reportError("Variable type mismatch: " + node->value, node);
         return false;
     }
-
 }
 
 // Report errors

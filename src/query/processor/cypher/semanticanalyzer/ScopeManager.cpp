@@ -42,13 +42,13 @@ void ScopeManager::addSymbol(const string& symbolName, const string& symbolType)
 }
 
 void ScopeManager::clearTable() {
-    if(currentScope) {
+    if (currentScope) {
         currentScope->clearTable();
     }
 }
 
 string ScopeManager::getType(const std::string& symbolName) {
-    if(currentScope) {
+    if (currentScope) {
         return currentScope->getType(symbolName);
     }
     return nullptr;
