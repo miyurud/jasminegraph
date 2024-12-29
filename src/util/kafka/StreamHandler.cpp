@@ -27,10 +27,10 @@ using namespace std::chrono;
 Logger stream_handler_logger;
 
 StreamHandler::StreamHandler(KafkaConnector *kstream, int numberOfPartitions,
-                             vector<DataPublisher *> &workerClients)
+                             vector<DataPublisher *> &workerClients, SQLiteDBInterface* sqlite)
         : kstream(kstream),
           workerClients(workerClients),
-          graphPartitioner(numberOfPartitions, 0, spt::Algorithms::HASH),
+          graphPartitioner(numberOfPartitions, 0, spt::Algorithms::HASH, sqlite),
           stream_topic_name("stream_topic_name") { }
 
 
@@ -82,6 +82,10 @@ void StreamHandler::listen_to_kafka_topic() {
             stream_handler_logger.error("Edge Rejected. Streaming edge should Include the Graph ID.");
             continue;
         }
+
+        auto prop = edgeJson["properties"];
+        auto graphID = std::string(prop["graphId"]);
+        graphPartitioner.setGraphID(stoi(graphID));
         auto sourceJson = edgeJson["source"];
         auto destinationJson = edgeJson["destination"];
         string sId = std::string(sourceJson["id"]);
@@ -114,6 +118,6 @@ void StreamHandler::listen_to_kafka_topic() {
             workerClients.at(temp_d)->publish(obj.dump());
         }
     }
-
+    graphPartitioner.updateMetaDB();
     graphPartitioner.printStats();
 }
