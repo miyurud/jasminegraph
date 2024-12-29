@@ -27,7 +27,7 @@ class Scope {
     std::string getType(const std::string& symbolName);
     std::optional<std::string> lookup(const std::string& symbolName) const;
     std::unordered_map<std::string, std::string> *symbolTable;
-private:
+ private:
     Scope* parentScope;
 };
 
