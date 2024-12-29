@@ -16,10 +16,10 @@ limitations under the License.
 #define ASTLEAFNOVALUE_H
 
 class ASTLeafNoValue : public ASTNode {
-    public:
-        ASTLeafNoValue(const std::string& name) {
-            this->nodeType = name;
-        };
+ public:
+    ASTLeafNoValue(const std::string& name) {
+        this->nodeType = name;
+    };
 };
 
 #endif  // ASTLEAFNOVALUE_H

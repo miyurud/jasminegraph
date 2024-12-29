@@ -144,11 +144,11 @@ bool SemanticAnalyzer::analyze(ASTNode* root, bool canDefine, string type) {
                 } else {
                     tempType = Const::ANY;
                 }
-                pair<string,string> x = pair<string,string>(child->elements[1]->value, tempType);
+                pair<string, string> x = pair<string, string>(child->elements[1]->value, tempType);
                 temp->insert(x);
             } else if (child->nodeType == Const::VARIABLE) {
                 string tempType = scopeManager->getType(child->value);
-                pair<string,string> x = pair<string, string>(child->value, tempType);
+                pair<string, string> x = pair<string, string>(child->value, tempType);
                 temp->insert(x);
             } else {
                 reportError("use 'as' keyword to assign it to new variable" + node->value, node);

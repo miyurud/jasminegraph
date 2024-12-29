@@ -16,7 +16,6 @@ limitations under the License.
 #include <string>
 #include <sstream>
 
-
 using namespace std;
 
 string ASTNode::print(int depth, string prefix, bool isLast) const {
