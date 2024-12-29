@@ -133,6 +133,23 @@ void Partitioner::printStats() {
     }
 }
 
+void Partitioner::updateMetaDB() {
+    double vertexCount = 0;
+    double edgesCount = 0;
+    double edgeCutsCount = 0;
+    for (auto partition : this->partitions) {
+        vertexCount += partition.getVertextCount();
+        edgesCount += partition.getEdgesCount();
+        edgeCutsCount += partition.edgeCutsCount();
+    }
+    double numberOfEdges = edgesCount + edgeCutsCount/2;
+    std::string sqlStatement = "UPDATE graph SET vertexcount = '" + std::to_string(vertexCount) +
+            "' ,centralpartitioncount = '" + std::to_string(this->numberOfPartitions) +
+            "' ,edgecount = '" + std::to_string(numberOfEdges) +
+            "' WHERE idgraph = '" + std::to_string(this->graphID) + "'";
+    this->sqlite->runUpdate(sqlStatement);
+    streaming_partitioner_logger.info("Successfully updated metaDB");
+}
 /**
  * Greedy vertex assignment objectives of minimizing the number of cut edges
 and balancing of the partition sizes. Assign the vertext to partition P that maximize the partition score
