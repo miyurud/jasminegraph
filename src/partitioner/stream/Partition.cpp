@@ -61,12 +61,11 @@ double Partition::getEdgesCount() {
     double total = 0;
     std::set<std::string> uniqueEdges;
     for (auto edge : this->edgeList) {
-        std::string vertex1 = edge.first;
         for (auto vertext : edge.second) {
             uniqueEdges.insert(edge.first + vertext);
         }
     }
-    return uniqueEdges.size();
+    return uniqueEdges.size()/2;
 }
 
 // The number of vertices, the cardinality of V, is called the order of graph and devoted by |V|. We usually use n to
