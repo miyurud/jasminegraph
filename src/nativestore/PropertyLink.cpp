@@ -31,7 +31,7 @@ PropertyLink::PropertyLink(unsigned int propertyBlockAddress) : blockAddress(pro
     // The problem is when we create the PropertyLink.
     pthread_mutex_lock(&lockPropertyLink);
     if (propertyBlockAddress > 0) {
-        PropertyLink::propertiesDB->seekg(propertyBlockAddress * PropertyLink::PROPERTY_BLOCK_SIZE);
+        PropertyLink::propertiesDB->seekg(propertyBlockAddress);
         char rawName[PropertyLink::MAX_NAME_SIZE] = {0};
         //        property_link_logger.info("Traverse state  = " +
         //        std::to_string(PropertyLink::propertiesDB->rdstate()));
@@ -135,7 +135,7 @@ unsigned int PropertyLink::insert(std::string name, const char* value) {
         this->propertiesDB->seekp(newAddress);
         this->propertiesDB->write(dataName, PropertyLink::MAX_NAME_SIZE);
         this->propertiesDB->write(reinterpret_cast<char*>(dataValue), PropertyLink::MAX_VALUE_SIZE);
-        if (!this->propertiesDB->write(reinterpret_cast<char*>(nextAddress), sizeof(nextAddress))) {
+        if (!this->propertiesDB->write(reinterpret_cast<char*>(&nextAddress), sizeof(nextAddress))) {
             property_link_logger.error("Error while inserting a property " + name + " into block address " +
                                        std::to_string(newAddress));
             return -1;
@@ -208,7 +208,7 @@ PropertyLink* PropertyLink::get(unsigned int propertyBlockAddress) {
         char propertyName[PropertyLink::MAX_NAME_SIZE] = {0};
         char propertyValue[PropertyLink::MAX_VALUE_SIZE] = {0};
         unsigned int nextAddress;
-        PropertyLink::propertiesDB->seekg(propertyBlockAddress * PropertyLink::PROPERTY_BLOCK_SIZE);
+        PropertyLink::propertiesDB->seekg(propertyBlockAddress);
 
         //        property_link_logger.info("Searching propertyHead state  = " +
         //        std::to_string(PropertyLink::propertiesDB->rdstate())); std::cout << "Stream state: " <<
