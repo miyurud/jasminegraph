@@ -51,10 +51,10 @@ class NodeBlock {
      *
      **/
     NodeBlock(std::string newId, unsigned int node, unsigned int address) {
-        id = newId;
-        nodeId = node;
-        addr = address;
-        usage = true;
+        this->id = newId;
+        this->nodeId = node;
+        this->addr = address;
+        this->usage = true;
     };
 
     NodeBlock(std::string id, unsigned int nodeId, unsigned int address, unsigned int propRef, unsigned int edgeRef,

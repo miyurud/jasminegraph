@@ -36,7 +36,7 @@ class Partitioner {
 
  public:
     Partitioner(int numberOfPartitions, int graphID, spt::Algorithms alog, SQLiteDBInterface* sqlite)
-        : numberOfPartitions(numberOfPartitions), graphID(graphID), algorithmInUse(alog), sqlite(sqlite) {
+            : numberOfPartitions(numberOfPartitions), graphID(graphID), algorithmInUse(alog), sqlite(sqlite) {
         for (size_t i = 0; i < numberOfPartitions; i++) {
             this->partitions.push_back(Partition(i, numberOfPartitions));
         };
@@ -50,7 +50,7 @@ class Partitioner {
     partitionedEdge ldgPartitioning(std::pair<std::string, std::string> edge);
     static std::pair<long, long> deserialize(std::string data);
     void updateMetaDB();
-    void setGraphID(int graphId){this->graphID = graphId;}
+    void setGraphID(int graphId){this->graphID = graphId;};
 };
 
 #endif  // !JASMINE_PARTITIONER_HEADER

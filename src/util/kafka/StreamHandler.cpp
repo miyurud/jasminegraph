@@ -82,6 +82,7 @@ void StreamHandler::listen_to_kafka_topic() {
             stream_handler_logger.error("Edge Rejected. Streaming edge should Include the Graph ID.");
             continue;
         }
+
         auto prop = edgeJson["properties"];
         auto graphID = std::string(prop["graphId"]);
         graphPartitioner.setGraphID(stoi(graphID));

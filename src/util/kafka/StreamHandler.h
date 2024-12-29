@@ -20,6 +20,7 @@ limitations under the License.
 #include "../../partitioner/stream/Partitioner.h"
 #include "../logger/Logger.h"
 #include "KafkaCC.h"
+#include "../../metadb/SQLiteDBInterface.h"
 
 class StreamHandler {
  public:
