@@ -7,9 +7,8 @@
 #define CONST_H
 using namespace std;
 
-class Const
-{
-public:
+class Const {
+  public:
     static string UNION;
     static string ALL;
     static string SINGLE_QUERY;
@@ -141,4 +140,4 @@ public:
     static string LOOKUP;
 };
 
-#endif //CONST_H
+#endif  // CONST_H

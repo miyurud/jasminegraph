@@ -18,7 +18,7 @@ limitations under the License.
 #define SEMANTICANALYZER_H
 
 class SemanticAnalyzer {
-public:
+  public:
     // Constructor
     SemanticAnalyzer();
 
@@ -31,15 +31,14 @@ public:
     ScopeManager* getScopeManager();
     unordered_map<std::string, std::string> *temp;
 
-private:
+  private:
     ScopeManager* scopeManager;  // Add a ScopeManager instance
     void clearTemp();
     // Private helper methods
     bool checkVariableDeclarations(ASTNode* node, string type);
     bool checkVariableUsage(ASTNode* node, string type);
-
     // Method to report errors
     void reportError(const std::string &message, ASTNode* node);
 };
 
-#endif //SEMANTICANALYZER_H
+#endif  // SEMANTICANALYZER_H

@@ -177,9 +177,9 @@ void *frontendservicesesion(void *dummyPt) {
             break;
         } else if (line.compare(LIST) == 0) {
             list_command(connFd, sqlite, &loop_exit);
-        } else if (line.compare(CYPHER_AST) == 0){
+        } else if (line.compare(CYPHER_AST) == 0) {
             cypher_ast_command(connFd, &loop_exit);
-        }else if (line.compare(SHTDN) == 0) {
+        } else if (line.compare(SHTDN) == 0) {
             JasmineGraphServer::shutdown_workers();
             close(connFd);
             exit(0);
@@ -637,9 +637,7 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
     }
 }
 
-static void cypher_ast_command(int connFd, bool *loop_exit)
-{
-
+static void cypher_ast_command(int connFd, bool *loop_exit) {
     string msg_1 = "Input Query :";
     int result_wr = write(connFd, msg_1.c_str(), msg_1.length());
     if (result_wr < 0) {
@@ -674,11 +672,9 @@ static void cypher_ast_command(int connFd, bool *loop_exit)
     auto* ast = any_cast<ASTNode*>(ast_builder.visitOC_Cypher(parser.oC_Cypher()));
 
     SemanticAnalyzer semantic_analyzer;
-    if(semantic_analyzer.analyze(ast))
-    {
+    if (semantic_analyzer.analyze(ast)) {
         frontend_logger.log("AST is successfully analyzed", "log");
-    }else
-    {
+    } else {
         frontend_logger.log(user_res, "error");
         frontend_logger.error("query isn't semantically correct");
     }

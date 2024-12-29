@@ -19,8 +19,7 @@ limitations under the License.
 
 using namespace std;
 
-string ASTNode::print(int depth, string prefix, bool isLast) const
-{
+string ASTNode::print(int depth, string prefix, bool isLast) const {
     stringstream ss;
 
     ss << prefix;

@@ -44,7 +44,8 @@ std::pair<std::string, unsigned int> JasmineGraphIncrementalLocalStore::getIDs(s
                 "Could be due to JSON parsing error or error while persisting the data to disk",
             "error");
     }
-    return {"", 0}; // all plath of the function must return std::pair<std::string, unsigned int> type object even there is an error
+    return {"", 0};  // all plath of the function must return std::pair<std::string, unsigned int>
+    // type object even there is an error
 }
 
 void JasmineGraphIncrementalLocalStore::addEdgeFromString(std::string edgeString) {

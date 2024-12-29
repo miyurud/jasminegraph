@@ -26,12 +26,7 @@ class ASTNode {
         vector<ASTNode*> elements;
         string value;
         virtual ~ASTNode() = default;
-
         string print(int depth = 0, string prefix = "", bool isLast = true) const;
-
 };
-
-
-
 
 #endif
