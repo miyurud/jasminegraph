@@ -15,7 +15,7 @@ limitations under the License.
 
 #include "gtest/gtest.h"
 
-std::string sample =
+std::string testSample =
     "apiVersion: v1\n"
     "kind: Pod\n"
     "metadata:\n"
@@ -31,7 +31,7 @@ TEST(UtilsTest, TestGetJasmineGraphProperty) {
 
 TEST(UtilsTest, TestGetFileContentAsString) {
     auto actual = Utils::getFileContentAsString(TEST_RESOURCE_DIR "sample.yaml");
-    ASSERT_EQ(sample, actual);
+    ASSERT_EQ(testSample, actual);
 }
 
 TEST(UtilsTest, TestReplaceAll) {
@@ -44,14 +44,14 @@ TEST(UtilsTest, TestReplaceAll) {
         "spec:\n"
         "  containers:\n"
         "    - name: jasminegraph";
-    std::string actual = Utils::replaceAll(sample, "<name>", "jasminegraph");
+    std::string actual = Utils::replaceAll(testSample, "<name>", "jasminegraph");
     ASSERT_EQ(actual, expected);
 }
 
 TEST(UtilsTest, TestWriteFileContent) {
-    Utils::writeFileContent(TEST_RESOURCE_DIR "temp/sample.yaml", sample);
+    Utils::writeFileContent(TEST_RESOURCE_DIR "temp/sample.yaml", testSample);
     std::string actual = Utils::getFileContentAsString(TEST_RESOURCE_DIR "temp/sample.yaml");
-    ASSERT_EQ(actual, sample);
+    ASSERT_EQ(actual, testSample);
 }
 
 TEST(UtilsTest, TestGetJsonStringFromYamlFile) {
