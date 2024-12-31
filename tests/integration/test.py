@@ -201,30 +201,37 @@ def test(host, port):
         # 1.for default hdfs server: 10.8.100.246
         print()
         logging.info('Testing adhdfs for default HDFS server')
-        send_and_expect_response(sock, 'adhdfs', ADHDFS, b'Do you want to use the default HDFS server(y/n)?',
+        send_and_expect_response(sock, 'adhdfs', ADHDFS,
+                                 b'Do you want to use the default HDFS server(y/n)?',
                                  exit_on_failure=True)
         send_and_expect_response(sock, 'adhdfs', b'y', b'HDFS file path: ', exit_on_failure=True)
-        send_and_expect_response(sock, 'adhdfs', b'/home/data/powergrid.dl', b'Is this a directed graph(y/n)?',
+        send_and_expect_response(sock, 'adhdfs', b'/home/data/powergrid.dl',
+                                 b'Is this a directed graph(y/n)?',
                                  exit_on_failure=True)
         send_and_expect_response(sock, 'adhdfs', b'y', DONE, exit_on_failure=True)
 
         # 2. for custom hdfs server
         print()
         logging.info('Testing adhdfs for custom HDFS server')
-        send_and_expect_response(sock, 'adhdfs', ADHDFS, b'Do you want to use the default HDFS server(y/n)?',
+        send_and_expect_response(sock, 'adhdfs', ADHDFS,
+                                 b'Do you want to use the default HDFS server(y/n)?',
                                  exit_on_failure=True)
-        send_and_expect_response(sock, 'adhdfs', b'n', b'Send the file path to the HDFS configuration file.',
+        send_and_expect_response(sock, 'adhdfs', b'n',
+                                 b'Send the file path to the HDFS configuration file.',
                                  exit_on_failure=True)
-        send_and_expect_response(sock, 'adhdfs', b'/var/tmp/hdfs/hdfs_config.txt', b'HDFS file path: ',
+        send_and_expect_response(sock, 'adhdfs', b'/var/tmp/hdfs/hdfs_config.txt',
+                                 b'HDFS file path: ',
                                  exit_on_failure=True)
-        send_and_expect_response(sock, 'adhdfs', b'/home/powergrid.dl', b'Is this a directed graph(y/n)?',
+        send_and_expect_response(sock, 'adhdfs', b'/home/powergrid.dl',
+                                 b'Is this a directed graph(y/n)?',
                                  exit_on_failure=True)
         send_and_expect_response(sock, 'adhdfs', b'y', DONE, exit_on_failure=True)
 
         print()
         logging.info('Testing lst after adhdfs')
         send_and_expect_response(sock, 'lst after adhdfs', LIST,
-                                 b'|1|/home/data/powergrid.dl|hdfs:\/home/data/powergrid.dl|op|' + LINE_END + b'|2|/home/powergrid.dl|hdfs:\/home/powergrid.dl|op|',
+                                 b'|1|/home/data/powergrid.dl|hdfs:/home/data/powergrid.dl|op|' + LINE_END +
+                                 b'|2|/home/powergrid.dl|hdfs:/home/powergrid.dl|op|',
                                  exit_on_failure=True)
 
         print()

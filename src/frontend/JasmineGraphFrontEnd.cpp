@@ -1393,7 +1393,6 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
     read(connFd, isDirectedRes, FRONTEND_DATA_LENGTH);
     std::string isDirectedS(isDirectedRes);
     isDirectedS = Utils::trim_copy(isDirectedS);
-    /**/
 
     bool directed;
     if (isDirectedS == "y") {
@@ -1402,7 +1401,7 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
         directed = false;
     }
 
-    std::string path = "hdfs:\\" + hdfsFilePathS;
+    std::string path = "hdfs:" + hdfsFilePathS;
 
     std::time_t time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
     std::string uploadStartTime = ctime(&time);
