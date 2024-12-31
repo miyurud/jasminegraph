@@ -230,7 +230,8 @@ def test(host, port):
         print()
         logging.info('Testing lst after adhdfs')
         send_and_expect_response(sock, 'lst after adhdfs', LIST,
-                                 b'|1|/home/data/powergrid.dl|hdfs:/home/data/powergrid.dl|op|' + LINE_END +
+                                 b'|1|/home/data/powergrid.dl|hdfs:/home/data/powergrid.dl|op|'
+                                 + LINE_END +
                                  b'|2|/home/powergrid.dl|hdfs:/home/powergrid.dl|op|',
                                  exit_on_failure=True)
 
