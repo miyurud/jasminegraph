@@ -29,14 +29,14 @@
 #include <fstream>
 
 class HDFSStreamHandler {
-public:
+ public:
             HDFSStreamHandler(hdfsFS fileSystem, const std::string &filePath, int numberOfPartitions, int graphId,
                       SQLiteDBInterface *sqlite,
                       std::string masterIP);
 
     void startStreamingFromBufferToPartitions();
 
-private:
+ private:
     void streamFromHDFSIntoBuffer();
     void streamFromBufferToProcessingQueue(HashPartitioner &partitioner);
 
@@ -56,7 +56,6 @@ private:
     int graphId;
     int numberOfPartitions;
     std::mutex dbLock;
-
 };
 
-#endif // HDFSSTREAMHANDLER_H
+#endif  // HDFSSTREAMHANDLER_H

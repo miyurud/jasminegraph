@@ -30,7 +30,7 @@ HDFSStreamHandler::HDFSStreamHandler(hdfsFS fileSystem, const std::string &fileP
           isProcessing(true),
           graphId(graphId),
           sqlite(sqlite),
-          masterIP(masterIP){}
+          masterIP(masterIP) {}
 
 void HDFSStreamHandler::streamFromHDFSIntoBuffer() {
     auto startTime = high_resolution_clock::now();
@@ -155,7 +155,7 @@ void HDFSStreamHandler::startStreamingFromBufferToPartitions() {
                                             std::ref(partitioner));
     }
     readerThread.join();
-    for (auto &thread: bufferProcessorThreads) {
+    for (auto &thread : bufferProcessorThreads) {
         thread.join();
     }
 

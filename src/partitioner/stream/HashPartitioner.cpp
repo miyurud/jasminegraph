@@ -27,7 +27,6 @@ HashPartitioner::HashPartitioner(int numberOfPartitions, int graphID, std::strin
           edgeReady(numberOfPartitions, false), edgeCutsMutexes(numberOfPartitions),
           edgeCutsAvailableCV(numberOfPartitions), edgeCutsReady(numberOfPartitions, false),
           terminateConsumers(false), masterIp(masterIp), partitionMutexArray(numberOfPartitions) {
-
     this->outputFilePath = Utils::getHomeDir() + "/.jasminegraph/tmp/hdfsstore/" + std::to_string(this->graphId);
     Utils::createDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp/hdfsstore");
     Utils::createDirectory(this->outputFilePath);
@@ -72,20 +71,20 @@ void HashPartitioner::addEdgeCut(const std::pair<std::string, std::string> &edge
 void HashPartitioner::stopConsumerThreads() {
     terminateConsumers = true;
 
-    for (auto &cv: edgeAvailableCV) {
+    for (auto &cv : edgeAvailableCV) {
         cv.notify_all();
     }
-    for (auto &cv: edgeCutsAvailableCV) {
+    for (auto &cv : edgeCutsAvailableCV) {
         cv.notify_all();
     }
 
     // Join all threads to ensure clean termination
-    for (auto &thread: localEdgeThreads) {
+    for (auto &thread : localEdgeThreads) {
         if (thread.joinable()) {
             thread.join();
         }
     }
-    for (auto &thread: edgeCutThreads) {
+    for (auto &thread : edgeCutThreads) {
         if (thread.joinable()) {
             thread.join();
         }
@@ -93,7 +92,6 @@ void HashPartitioner::stopConsumerThreads() {
 }
 
 void HashPartitioner::consumeLocalEdges(int partitionIndex, JasmineGraphServer::worker worker) {
-
     int threadEdgeCount = 0;
     int fileIndex = 0;
     std::ofstream partitionFile;

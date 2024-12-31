@@ -28,16 +28,15 @@
 #include <thread>
 
 class HashPartitioner {
-
     std::vector<Partition> partitions;
 
     std::atomic<bool> terminateConsumers;
     std::vector<std::thread> localEdgeThreads;
     std::vector<std::thread> edgeCutThreads;
 
-    std::vector<std::mutex> partitionLocks; // Array of mutexes for each partition
-    std::vector<std::vector<std::pair<std::string, std::string>>> localEdgeArrays; // Array of arrays of edges for local partitioning
-    std::vector<std::vector<std::pair<std::string, std::string>>> edgeCutsArrays;  // Array of arrays of edges for edge cuts
+    std::vector<std::mutex> partitionLocks;  // Array of mutexes for each partition
+    std::vector<std::vector<std::pair<std::string, std::string>>> localEdgeArrays;
+    std::vector<std::vector<std::pair<std::string, std::string>>> edgeCutsArrays;
 
     std::vector<std::mutex> localEdgeMutexes;
     std::vector<std::condition_variable> edgeAvailableCV;
@@ -53,21 +52,21 @@ class HashPartitioner {
 
     std::vector<std::mutex> partitionMutexArray;
 
-public:
+ public:
     ~HashPartitioner();
-    HashPartitioner(int numberOfPartitions, int graphID,std::string masterIp);
+    HashPartitioner(int numberOfPartitions, int graphID, std::string masterIp);
     long getVertexCount();
     long getEdgeCount();
     void addEdgeCut(const pair<std::string, std::string> &edge, int index);
     void addLocalEdge(const pair<std::string, std::string> &edge, int index);
 
-private:
+ private:
     long vertexCount;
     long edgeCount;
     std::string outputFilePath;
 
-    void consumeLocalEdges(int partitionIndex,JasmineGraphServer::worker worker);
-    void consumeEdgeCuts(int partitionIndex,JasmineGraphServer::worker worker);
+    void consumeLocalEdges(int partitionIndex, JasmineGraphServer::worker worker);
+    void consumeEdgeCuts(int partitionIndex, JasmineGraphServer::worker worker);
     void stopConsumerThreads();
 };
 

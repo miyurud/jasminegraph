@@ -75,8 +75,9 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
                                      KafkaConnector *&kstream, thread &input_stream_handler_thread,
                                      vector<DataPublisher *> &workerClients, int numberOfPartitions,
                                      SQLiteDBInterface *sqlite, bool *loop_exit_p);
-static void addStreamHDFSCommand(std::string masterIP,int connFd, std::string &hdfsServerIp, std::thread &inputStreamHandlerThread,
-                                    int numberOfPartitions, SQLiteDBInterface *sqlite, bool *loop_exit_p);
+static void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsServerIp,
+                                 std::thread &inputStreamHandlerThread, int numberOfPartitions,
+                                 SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void stop_stream_kafka_command(int connFd, KafkaConnector *kstream, bool *loop_exit_p);
 static void process_dataset_command(int connFd, bool *loop_exit_p);
 static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
@@ -107,7 +108,7 @@ static vector<DataPublisher *> getWorkerClients(SQLiteDBInterface *sqlite) {
         string workerHost = currentWorker.hostname;
         int workerDataPort = std::stoi(currentWorker.dataPort);
         int workerPort = atoi(string(currentWorker.port).c_str());
-        DataPublisher *workerClient = new DataPublisher(workerPort, workerHost,workerDataPort);
+        DataPublisher *workerClient = new DataPublisher(workerPort, workerHost, workerDataPort);
         workerClients.push_back(workerClient);
     }
     return workerClients;
@@ -141,7 +142,7 @@ void *frontendservicesesion(void *dummyPt) {
     KafkaConnector *kstream;
     Partitioner graphPartitioner(numberOfPartitions, 1, spt::Algorithms::HASH, sqlite);
 
-    //Initiate HDFS parameters
+    // Initiate HDFS parameters
     std::string hdfsServerIp;
     hdfsFS fileSystem;
 
@@ -198,7 +199,7 @@ void *frontendservicesesion(void *dummyPt) {
             add_stream_kafka_command(connFd, kafka_server_IP, configs, kstream, input_stream_handler, workerClients,
                                      numberOfPartitions, sqlite, &loop_exit);
         } else if (line.compare(ADD_STREAM_HDFS) == 0) {
-            addStreamHDFSCommand(masterIP,connFd, hdfsServerIp, input_stream_handler, numberOfPartitions,
+            addStreamHDFSCommand(masterIP, connFd, hdfsServerIp, input_stream_handler, numberOfPartitions,
                                     sqlite, &loop_exit);
         } else if (line.compare(STOP_STREAM_KAFKA) == 0) {
             stop_stream_kafka_command(connFd, kstream, &loop_exit);
@@ -1263,7 +1264,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     input_stream_handler_thread = thread(&StreamHandler::listen_to_kafka_topic, stream_handler);
 }
 
-void addStreamHDFSCommand(std::string masterIP,int connFd, std::string &hdfsServerIp,
+void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsServerIp,
                              std::thread &inputStreamHandlerThread, int numberOfPartitions,
                              SQLiteDBInterface *sqlite, bool *loop_exit_p) {
     std::string hdfsPort;
@@ -1286,7 +1287,7 @@ void addStreamHDFSCommand(std::string masterIP,int connFd, std::string &hdfsServ
     read(connFd, userRes, FRONTEND_DATA_LENGTH);
     std::string userResS(userRes);
     userResS = Utils::trim_copy(userResS);
-    for (char &c: userResS) {
+    for (char &c : userResS) {
         c = tolower(c);
     }
 

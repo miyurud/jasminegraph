@@ -275,7 +275,6 @@ void *instanceservicesession(void *dummyPt) {
     instance_logger.info("Closing thread " + to_string(pthread_self()));
     close(connFd);
     return NULL;
-
 }
 
 JasmineGraphInstanceService::JasmineGraphInstanceService() {}
@@ -1705,7 +1704,7 @@ map<long, double> calculateLocalPageRank(string graphID, double alpha, string pa
             long degree = endVidSet.size();
             double distributedRank = alpha * (existingParentRank / degree) + mu;
 
-            for (long itr: endVidSet) {
+            for (long itr : endVidSet) {
                 auto rankMapItr = rankMap.find(itr);
 
                 double existingChildRank = 0;
@@ -4276,19 +4275,17 @@ static void hdfs_start_stream_command(int connFd, bool *loop_exit_p, bool isLoca
     instance_logger.debug("Sent : " + JasmineGraphInstanceProtocol::HDFS_STREAM_END_ACK);
 
     if (isLocalStream) {
-        processFile(fileName, true,instanceStreamHandler); // Call for local store
+        processFile(fileName, true, instanceStreamHandler);  // Call for local store
     } else {
-        processFile(fileName, false,instanceStreamHandler); // Call for central store
+        processFile(fileName, false, instanceStreamHandler);  // Call for central store
     }
 
-    //delete file chunk after adding to the store
+    // delete file chunk after adding to the store
     Utils::deleteFile(fullFilePath);
-
 }
 
 static void processFile(string fileName, bool isLocal,
                                               InstanceStreamHandler &handler) {
-
     std::string fileDirectory = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/";
     std::string filePath = fileDirectory + fileName;
 

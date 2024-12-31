@@ -34,7 +34,7 @@ class DataPublisher {
     int data_port;
 
  public:
-    DataPublisher(int, std::string,int);
+    DataPublisher(int, std::string, int);
     void publish(std::string);
     void publish_relation(std::string);
     void publish_edge(std::string);

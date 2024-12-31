@@ -91,17 +91,17 @@ long Partition::edgeC() {
     return edgeCount;
 }
 
-double Partition::getLocalEdgeCount(){
-    double total=0;
-    for(auto edge:this->edgeList){
+double Partition::getLocalEdgeCount() {
+    double total = 0;
+    for (auto edge : this->edgeList) {
         total+= edge.second.size();
     }
     return total;
 }
 
-double Partition::getEdgeCutCount(){
-    double total;
-    for(auto edgeCut: this->edgeCuts){
+double Partition::getEdgeCutCount() {
+    double total = 0;
+    for (auto edgeCut : this->edgeCuts) {
         total+=edgeCut.size();
     }
     return total;

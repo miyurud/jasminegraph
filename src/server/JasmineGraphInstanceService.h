@@ -188,7 +188,6 @@ class JasmineGraphInstanceService {
     static int partitionCounter;
 
     static std::thread workerThread;
-
 };
 
 #endif  // JASMINEGRAPH_JASMINEGRAPHINSTANCESERVICE_H

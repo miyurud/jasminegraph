@@ -14,7 +14,7 @@
 #include "HDFSConnector.h"
 
 HDFSConnector::HDFSConnector(const std::string &hdfsServerIP, const std::string &hdfsServerPort) {
-    fileSystem = hdfsConnect( hdfsServerIP.c_str(), std::stoi(hdfsServerPort));
+    fileSystem = hdfsConnect(hdfsServerIP.c_str(), std::stoi(hdfsServerPort));
     if (!fileSystem) {
         frontend_logger.error("Failed to connect to HDFS server at " + hdfsServerIP);
     } else {

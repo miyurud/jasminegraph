@@ -108,13 +108,13 @@ void JasmineGraphIncrementalLocalStore::addEdgeFromString(std::string edgeString
 void JasmineGraphIncrementalLocalStore::addLocalEdge(const std::pair<std::string, std::string> &edge) {
     RelationBlock* newRelation;
     newRelation = this->nm->addLocalEdge({edge.first, edge.second});
-    //[ToDo]:implement add edge properties
+    // [ToDo]:implement add edge properties
     incremental_localstore_logger.debug("Local edge ("+edge.first+"-> "+edge.second+" ) added successfully");
 }
 
 void JasmineGraphIncrementalLocalStore::addCentralEdge(const std::pair<std::string, std::string> &edge) {
     RelationBlock* newRelation;
     newRelation = this->nm->addCentralEdge({edge.first, edge.second});
-    //[ToDo]:implement add edge properties
+    // [ToDo]:implement add edge properties
     incremental_localstore_logger.debug("Central edge ("+edge.first+"-> "+edge.second+" ) added successfully");
 }

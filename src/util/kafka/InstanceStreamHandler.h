@@ -29,8 +29,10 @@ class InstanceStreamHandler {
     ~InstanceStreamHandler();
 
     void handleRequest(const std::string& nodeString);
-    void handleLocalEdge(const std::pair<std::string, std::string> &edge,std::string graphId,std::string partitionId,std::string graphIdentifier);
-    void handleCentralEdge(const std::pair<std::string, std::string> &edge,std::string graphId,std::string partitionId,std::string graphIdentifier);
+    void handleLocalEdge(const std::pair<std::string, std::string> &edge, std::string graphId,
+                         std::string partitionId, std::string graphIdentifier);
+    void handleCentralEdge(const std::pair<std::string, std::string> &edge, std::string graphId,
+                           std::string partitionId, std::string graphIdentifier);
 
  private:
     std::map<std::string, JasmineGraphIncrementalLocalStore*>& incrementalLocalStoreMap;

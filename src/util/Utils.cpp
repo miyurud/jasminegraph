@@ -267,7 +267,7 @@ int Utils::deleteDirectory(const std::string dirName) {
 }
 
 int Utils::deleteFile(const std::string fileName) {
-    std::string command = "rm -f " + fileName; // Use -f to force deletion
+    std::string command = "rm -f " + fileName;  // Use -f to force deletion
     int status = system(command.c_str());
     if (status == 0)
         util_logger.info("File: "+ fileName + " deleted successfully");

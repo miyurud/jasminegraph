@@ -19,15 +19,15 @@
 #include "hdfs.h"
 
 class HDFSConnector {
-public:
+ public:
     HDFSConnector(const std::string &hdfsServerIP, const std::string &hdfsServerPort);
     bool isPathValid(const std::string &hdfsPath);
     ~HDFSConnector();
     hdfsFS getFileSystem();
 
-private:
+ private:
     hdfsFS fileSystem;
     Logger frontend_logger;
 };
 
-#endif // HDFSCONNECTOR_H
+#endif  // HDFSCONNECTOR_H

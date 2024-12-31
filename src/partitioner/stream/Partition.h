@@ -53,8 +53,8 @@ class Partition {
             this->edgeCuts.push_back({});
         }
         this->vertexCount = 0;
-        this->edgeCutCount=0;
-        this->edgeCount=0;
+        this->edgeCutCount = 0;
+        this->edgeCount = 0;
     };
     void addEdge(std::pair<std::string, std::string> edge);
     std::set<std::string> getNeighbors(std::string);

@@ -870,7 +870,7 @@ static std::vector<JasmineGraphServer::worker> getWorkers(size_t npart) {
     return workerList;
 }
 
-std::vector<JasmineGraphServer::worker> JasmineGraphServer::workers(size_t npart){
+std::vector<JasmineGraphServer::worker> JasmineGraphServer::workers(size_t npart) {
     return getWorkers(npart);
 }
 
