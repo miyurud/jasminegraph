@@ -675,8 +675,7 @@ static void cypher_ast_command(int connFd, bool *loop_exit) {
     if (semantic_analyzer.analyze(ast)) {
         frontend_logger.log("AST is successfully analyzed", "log");
     } else {
-        frontend_logger.log(user_res, "error");
-        frontend_logger.error("query isn't semantically correct");
+        frontend_logger.error("query isn't semantically correct: "+user_res_s);
     }
 }
 

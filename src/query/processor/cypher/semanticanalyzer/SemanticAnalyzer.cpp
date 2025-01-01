@@ -18,7 +18,7 @@ limitations under the License.
 #include "../util/Const.h"
 
 using namespace std;
-
+Logger semantic_logger;
 // Constructor
 SemanticAnalyzer::SemanticAnalyzer() {
     // Initialize the scope manager with the global scope
@@ -151,7 +151,7 @@ bool SemanticAnalyzer::analyze(ASTNode* root, bool canDefine, string type) {
                 pair<string, string> x = pair<string, string>(child->value, tempType);
                 temp->insert(x);
             } else {
-                reportError("use 'as' keyword to assign it to new variable" + node->value, node);
+                semantic_logger.error("use 'as' keyword to assign it to new variable: " + node->value);
                 return false;
             }
         }
@@ -178,7 +178,7 @@ bool SemanticAnalyzer::checkVariableDeclarations(ASTNode* node, string type) {
     } else if (scopeManager->lookup(node->value) == type) {
         return true;
     } else {
-        reportError("Varmiable already declared: " + node->value, node);
+        semantic_logger.error("Variable already declared: " + node->value);
         return false;
     }
     return true;
@@ -191,7 +191,7 @@ void SemanticAnalyzer::clearTemp() {
 
 bool SemanticAnalyzer::checkVariableUsage(ASTNode* node, string type) {
     if (!(scopeManager->lookup(node->value))) {
-        reportError("Variable is not defined in this scope: " + node->value, node);
+        semantic_logger.error("Variable is not defined in this scope: " + node->value);
         return false;
     } else if (scopeManager->lookup(node->value) && type == Const::ANY) {
         return true;
@@ -202,13 +202,8 @@ bool SemanticAnalyzer::checkVariableUsage(ASTNode* node, string type) {
                                   scopeManager->lookup(node->value) == Const::MAP)) {
         return true;
     } else {
-        reportError("Variable type mismatch: " + node->value, node);
+        semantic_logger.error("Variable type mismatch: " + node->value);
         return false;
     }
 }
 
-// Report errors
-void SemanticAnalyzer::reportError(const std::string &message, ASTNode* node) {
-    Logger logger;
-    logger.error(message);
-}
