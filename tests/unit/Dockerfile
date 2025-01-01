@@ -1,4 +1,4 @@
-FROM miyurud/jasminegraph-prerequisites:20240101T095619
+FROM miyurud/jasminegraph-prerequisites:20241230T132919
 
 RUN apt-get update
 RUN apt-get install libcurl4-openssl-dev -y
