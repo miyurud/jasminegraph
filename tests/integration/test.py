@@ -186,12 +186,12 @@ def test(host, port):
         print()
         logging.info('Testing rmgr')
         send_and_expect_response(sock, 'rmgr', RMGR, SEND)
-        send_and_expect_response(sock, 'rmgr', b'1', DONE)
+        send_and_expect_response(sock, 'rmgr', b'2', DONE)
 
         print()
         logging.info('Testing lst after rmgr')
         send_and_expect_response(sock, 'lst after rmgr',
-                                 LIST, b'|2|cora|/var/tmp/data/cora/cora.cites|op|')
+                                 LIST, b'|1|powergrid|/var/tmp/data/powergrid.dl|op|')
 
         print()
         logging.info('Shutting down')
@@ -213,7 +213,8 @@ def test_ui(host, port):
 
         print()
         logging.info('Testing lst')
-        send_and_expect_response(sock, 'Initial lst', LIST, EMPTY)
+        send_and_expect_response(sock, 'Initial lst',
+                                 LIST, b'[{"centralpartitioncount":"2","edgecount":"6594","idgraph":"5","name":"powergrid","status":"op","upload_path":"/var/tmp/powergrid.dl","vertexcount":"4941"}]')
 
         if passed_all:
             print()
