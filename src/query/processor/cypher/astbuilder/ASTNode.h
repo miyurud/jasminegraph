@@ -21,17 +21,12 @@ limitations under the License.
 using namespace std;
 
 class ASTNode {
-    public:
-        string nodeType;
-        vector<ASTNode*> elements;
-        string value;
-        virtual ~ASTNode() = default;
-
-        string print(int depth = 0, string prefix = "", bool isLast = true) const;
-
+ public:
+    string nodeType;
+    vector<ASTNode*> elements;
+    string value;
+    virtual ~ASTNode() = default;
+    string print(int depth = 0, string prefix = "", bool isLast = true) const;
 };
-
-
-
 
 #endif

@@ -20,7 +20,7 @@ limitations under the License.
 #include "Scope.h"
 
 class ScopeManager {
-public:
+ public:
     ScopeManager();
 
     void enterScope();
@@ -30,9 +30,9 @@ public:
     std::string getType(const std::string& symbolName);
     std::optional<std::string> lookup(const std::string& symbolName) const;
 
-private:
-    std::stack<Scope*> scopeStack; // Stack of smart pointers
-    Scope* currentScope = nullptr;           // Current scope managed by smart pointer
+ private:
+    std::stack<Scope*> scopeStack;  // Stack of smart pointers
+    Scope* currentScope = nullptr;  // Current scope managed by smart pointer
 };
 
-#endif // SCOPE_MANAGER_H
+#endif  // SCOPE_MANAGER_H

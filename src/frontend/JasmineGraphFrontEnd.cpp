@@ -667,57 +667,30 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
     read(connFd, user_res, FRONTEND_DATA_LENGTH);
     string user_res_s(user_res);
 
+    antlr4::ANTLRInputStream input(user_res_s);
+    // Create a lexer from the input
+    CypherLexer lexer(&input);
+
+    // Create a token stream from the lexer
+    antlr4::CommonTokenStream tokens(&lexer);
+
+    // Create a parser from the token stream
+    CypherParser parser(&tokens);
+
+    ASTBuilder ast_builder;
+    auto* ast = any_cast<ASTNode*>(ast_builder.visitOC_Cypher(parser.oC_Cypher()));
+
+    SemanticAnalyzer semantic_analyzer;
+    if (semantic_analyzer.analyze(ast)) {
+        frontend_logger.log("AST is successfully analyzed", "log");
+    } else {
+        frontend_logger.error("query isn't semantically correct: "+user_res_s);
+
+
     QueryPlanHandler *query_handler = new QueryPlanHandler(numberOfPartitions, workerClients);
     for(auto worker: workerClients){
         worker->queryPublish(user_res_s);
     }
-
-
-
-//    antlr4::ANTLRInputStream input(user_res_s);
-//    // Create a lexer from the input
-//    CypherLexer lexer(&input);
-//
-//    // Create a token stream from the lexer
-//    antlr4::CommonTokenStream tokens(&lexer);
-//
-//    // Create a parser from the token stream
-//    CypherParser parser(&tokens);
-//
-//    ASTBuilder ast_builder;
-//    auto* ast = any_cast<ASTNode*>(ast_builder.visitOC_Cypher(parser.oC_Cypher()));
-//
-//    SemanticAnalyzer semantic_analyzer;
-//    if(semantic_analyzer.analyze(ast))
-//    {
-//        QueryPlanner query_planner;
-//        Operator* opr = query_planner.createExecutionPlan(ast);
-//        opr->execute();
-//    }else
-//    {
-//        cout<<"Error"<<endl;
-//    }
-
-
-//    int mode = 0;
-//    int graphID = 1;
-//    int partitionId = 0;
-//    frontend_logger.info("Received mode: " + mode);
-//
-//    std::string graphIdentifier = graphID + "_" + partitionId;
-//    JasmineGraphIncrementalLocalStore *incrementalLocalStoreInstance;
-//
-//    if (incrementalLocalStoreMap.find(graphIdentifier) == incrementalLocalStoreMap.end()) {
-//        incrementalLocalStoreInstance =
-//                JasmineGraphInstanceService::loadStreamingStore(graphID, partitionId, incrementalLocalStoreMap, "app");
-//    } else {
-//        incrementalLocalStoreInstance = incrementalLocalStoreMap[graphIdentifier];
-//    }
-//
-//    NativeStoreTriangleResult localCount;
-//    if (mode == "0") {
-//        localCount = StreamingTriangles::countLocalStreamingTriangles(incrementalLocalStoreInstance);
-//    }
 }
 
 static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {

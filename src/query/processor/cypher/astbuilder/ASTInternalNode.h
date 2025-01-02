@@ -18,15 +18,12 @@ limitations under the License.
 
 using namespace std;
 
-class ASTInternalNode : public ASTNode{
-
-    public:
-        ASTInternalNode(string nodeType)
-        {
-            this->nodeType = nodeType;
-        }
-
-        void addElements(ASTNode* element) ;
+class ASTInternalNode : public ASTNode {
+ public:
+    ASTInternalNode(string nodeType) {
+        this->nodeType = nodeType;
+    }
+    void addElements(ASTNode* element);
 };
 
-#endif //ASTINTERNALNODE_H
+#endif  // ASTINTERNALNODE_H
