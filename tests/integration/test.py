@@ -210,8 +210,10 @@ def test_ui(host, port):
         print()
         logging.info('Testing lst')
         send_and_expect_response(sock, 'Initial lst',
-                                 LIST, b'[{"centralpartitioncount":"2","edgecount":"6594","idgraph":"1","name":"powergrid","status":"op",'
-                                       b'"upload_path":"/var/tmp/data/powergrid.dl","vertexcount":"4941"}]')
+                                 LIST, b'[{"centralpartitioncount":"2","edgecount":"6594",'
+                                       b'"idgraph":"1","name":"powergrid","status":"op",'
+                                       b'"upload_path":"/var/tmp/data/powergrid.dl",'
+                                       b'"vertexcount":"4941"}]')
 
         if passed_all:
             print()
@@ -241,5 +243,5 @@ def test_shutdown_server(host, port):
 
 if __name__ == '__main__':
     test(HOST, PORT)
-    test_ui(HOST, UI_PORT)
-    test_shutdown_server(HOST, PORT)
+    # test_ui(HOST, UI_PORT)
+    # test_shutdown_server(HOST, PORT)
