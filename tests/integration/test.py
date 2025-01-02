@@ -193,41 +193,6 @@ def test(host, port):
         send_and_expect_response(sock, 'lst after rmgr',
                                  LIST, b'|1|powergrid|/var/tmp/data/powergrid.dl|op|')
 
-        if passed_all:
-            print()
-            logging.info('Passed all tests')
-        else:
-            print()
-            logging.critical('Failed some tests')
-            print(*failed_tests, sep='\n', file=sys.stderr)
-            sys.exit(1)
-
-def test_ui(host, port):
-    """Test the JasmineGraph server by sending a series of commands and checking the responses."""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.connect((host, port))
-
-        print()
-        logging.info('Testing lst')
-        send_and_expect_response(sock, 'Initial lst',
-                                 LIST, b'[{"centralpartitioncount":"2","edgecount":"6594",'
-                                       b'"idgraph":"1","name":"powergrid","status":"op",'
-                                       b'"upload_path":"/var/tmp/data/powergrid.dl",'
-                                       b'"vertexcount":"4941"}]')
-
-        if passed_all:
-            print()
-            logging.info('Passed all tests')
-        else:
-            print()
-            logging.critical('Failed some tests')
-            print(*failed_tests, sep='\n', file=sys.stderr)
-            sys.exit(1)
-
-def test_shutdown_server(host, port):
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.connect((host, port))
-
         print()
         logging.info('Shutting down')
         sock.sendall(SHDN + LINE_END)
@@ -243,5 +208,3 @@ def test_shutdown_server(host, port):
 
 if __name__ == '__main__':
     test(HOST, PORT)
-    # test_ui(HOST, UI_PORT)
-    # test_shutdown_server(HOST, PORT)
