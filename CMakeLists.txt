@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 project(JasmineGraph)
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
@@ -39,6 +39,14 @@ set(HEADERS globals.h
         src/query/algorithms/linkprediction/JasminGraphLinkPredictor.h
         src/query/algorithms/triangles/Triangles.h
         src/query/algorithms/triangles/StreamingTriangles.h
+        src/query/processor/cypher/astbuilder/ASTBuilder.h
+        src/query/processor/cypher/astbuilder/ASTInternalNode.h
+        src/query/processor/cypher/astbuilder/ASTLeafNoValue.h
+        src/query/processor/cypher/astbuilder/ASTNode.h
+        src/query/processor/cypher/astbuilder/ASTLeafValue.h
+        src/query/processor/cypher/semanticanalyzer/SemanticAnalyzer.h
+        src/query/processor/cypher/semanticanalyzer/Scope.h
+        src/query/processor/cypher/semanticanalyzer/ScopeManager.h
         src/scale/scaler.h
         src/server/JasmineGraphInstance.h
         src/server/JasmineGraphInstanceFileTransferService.h
@@ -71,6 +79,7 @@ set(HEADERS globals.h
         src/streamingdb/StreamingSQLiteDBInterface.h
         src/frontend/core/executor/impl/PageRankExecutor.h
         src/util/dbinterface/DBInterface.h
+        src/query/processor/cypher/util/Const.h
 )
 
 set(SOURCES src/backend/JasmineGraphBackend.cpp
@@ -106,6 +115,14 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/query/algorithms/linkprediction/JasminGraphLinkPredictor.cpp
         src/query/algorithms/triangles/Triangles.cpp
         src/query/algorithms/triangles/StreamingTriangles.cpp
+        src/query/processor/cypher/astbuilder/ASTBuilder.cpp
+        src/query/processor/cypher/astbuilder/ASTInternalNode.cpp
+        src/query/processor/cypher/astbuilder/ASTLeafNoValue.cpp
+        src/query/processor/cypher/astbuilder/ASTNode.cpp
+        src/query/processor/cypher/astbuilder/ASTLeafValue.cpp
+        src/query/processor/cypher/semanticanalyzer/SemanticAnalyzer.cpp
+        src/query/processor/cypher/semanticanalyzer/Scope.cpp
+        src/query/processor/cypher/semanticanalyzer/ScopeManager.cpp
         src/scale/scaler.cpp
         src/server/JasmineGraphInstance.cpp
         src/server/JasmineGraphInstanceFileTransferService.cpp
@@ -131,6 +148,8 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/streamingdb/StreamingSQLiteDBInterface.cpp
         src/frontend/core/executor/impl/PageRankExecutor.cpp
         src/util/dbinterface/DBInterface.cpp
+        src/query/processor/cypher/semanticanalyzer/SemanticAnalyzer.cpp
+        src/query/processor/cypher/util/Const.cpp
         src/frontend/ui/JasmineGraphFrontEndUIProtocol.h
         src/frontend/ui/JasmineGraphFrontEndUIProtocol.cpp
         src/frontend/ui/JasmineGraphFrontEndUI.cpp
@@ -143,7 +162,8 @@ if (CMAKE_BUILD_TYPE STREQUAL "DEBUG")
 add_compile_options(-DUNIT_TEST)
 endif ()
 
-add_library(JasmineGraphLib ${HEADERS} ${SOURCES})
+file(GLOB GENERATED_SRC /home/ubuntu/software/antlr/*.cpp)
+add_library(JasmineGraphLib ${HEADERS} ${SOURCES} ${GENERATED_SRC})
 add_executable(JasmineGraph main.h main.cpp)
 
 target_compile_definitions(JasmineGraphLib PUBLIC ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}/")
@@ -168,11 +188,15 @@ target_link_libraries(JasmineGraphLib PRIVATE /usr/local/lib/libcppkafka.so)
 target_link_libraries(JasmineGraph JasmineGraphLib)
 target_link_libraries(JasmineGraph curl)
 
+include_directories(/usr/local/include/antlr4-runtime)
+link_directories(/usr/local/lib)
 include_directories(/usr/local/include/yaml-cpp)
 target_link_libraries(JasmineGraphLib PRIVATE m)
 target_link_libraries(JasmineGraphLib PRIVATE /usr/local/lib/libkubernetes.so)
 target_link_libraries(JasmineGraphLib PRIVATE yaml-cpp)
 target_link_libraries(JasmineGraphLib PRIVATE curl)
+target_link_libraries(JasmineGraphLib PRIVATE antlr4-runtime)
+
 
 if (CMAKE_BUILD_TYPE STREQUAL "DEBUG")
     # Include google test

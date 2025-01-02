@@ -79,7 +79,7 @@ void NodeBlock::addProperty(std::string name, const char* value) {
             // If it was an empty prop link before inserting, Then update the property reference of this node
             // block
             //            node_block_logger.info("propRef = " + std::to_string(this->propRef));
-            NodeBlock::nodesDB->seekp(this->addr + sizeof(this->nodeId) + sizeof(this->edgeRef) +
+            NodeBlock::nodesDB->seekp(this->addr +sizeof(this->usage) +sizeof(this->nodeId) + sizeof(this->edgeRef) +
                                       sizeof(this->centralEdgeRef) + sizeof(this->edgeRefPID));
             NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(this->propRef)), sizeof(this->propRef));
             NodeBlock::nodesDB->flush();
@@ -365,7 +365,10 @@ std::map<std::string, char*> NodeBlock::getAllProperties() {
     std::map<std::string, char*> allProperties;
     PropertyLink* current = this->getPropertyHead();
     while (current) {
-        allProperties.insert({current->name, current->value});
+        // don't forget to free the allocated memory after using this method
+        char* copiedValue = new char[PropertyLink::MAX_VALUE_SIZE];
+        std::strncpy(copiedValue, current->value, PropertyLink::MAX_VALUE_SIZE);
+        allProperties.insert({current->name, copiedValue});
         PropertyLink* temp = current->next();
         delete current;  // To prevent memory leaks
         current = temp;
