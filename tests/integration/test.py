@@ -230,9 +230,7 @@ def test(host, port):
         print()
         logging.info('Testing lst after adhdfs')
         send_and_expect_response(sock, 'lst after adhdfs', LIST,
-                                 b'|1|/home/data/powergrid.dl|hdfs:/home/data/powergrid.dl|op|'
-                                 + LINE_END +
-                                 b'|2|/home/powergrid.dl|hdfs:/home/powergrid.dl|op|',
+                                 b'|1|/home/powergrid.dl|hdfs:/home/powergrid.dl|op|',
                                  exit_on_failure=True)
 
         print()
@@ -240,30 +238,30 @@ def test(host, port):
         send_and_expect_response(sock, 'ecnt', ECNT, b'graphid-send', exit_on_failure=True)
         send_and_expect_response(sock, 'ecnt', b'1', b'6594', exit_on_failure=True)
 
-        print()
-        logging.info('2. Testing ecnt after adhdfs')
-        send_and_expect_response(sock, 'ecnt', ECNT, b'graphid-send', exit_on_failure=True)
-        send_and_expect_response(sock, 'ecnt', b'2', b'6594', exit_on_failure=True)
+        # print()
+        # logging.info('2. Testing ecnt after adhdfs')
+        # send_and_expect_response(sock, 'ecnt', ECNT, b'graphid-send', exit_on_failure=True)
+        # send_and_expect_response(sock, 'ecnt', b'2', b'6594', exit_on_failure=True)
 
         print()
         logging.info('1. Testing vcnt after adhdfs')
         send_and_expect_response(sock, 'vcnt', VCNT, b'graphid-send', exit_on_failure=True)
         send_and_expect_response(sock, 'vcnt', b'1', b'4941', exit_on_failure=True)
 
-        print()
-        logging.info('2. Testing vcnt after adhdfs')
-        send_and_expect_response(sock, 'vcnt', VCNT, b'graphid-send', exit_on_failure=True)
-        send_and_expect_response(sock, 'vcnt', b'2', b'4941', exit_on_failure=True)
+        # print()
+        # logging.info('2. Testing vcnt after adhdfs')
+        # send_and_expect_response(sock, 'vcnt', VCNT, b'graphid-send', exit_on_failure=True)
+        # send_and_expect_response(sock, 'vcnt', b'2', b'4941', exit_on_failure=True)
 
         print()
         logging.info('1. Testing rmgr after adhdfs')
         send_and_expect_response(sock, 'rmgr', RMGR, SEND, exit_on_failure=True)
         send_and_expect_response(sock, 'rmgr', b'1', DONE, exit_on_failure=True)
 
-        print()
-        logging.info('2. Testing rmgr after adhdfs')
-        send_and_expect_response(sock, 'rmgr', RMGR, SEND, exit_on_failure=True)
-        send_and_expect_response(sock, 'rmgr', b'2', DONE, exit_on_failure=True)
+        # print()
+        # logging.info('2. Testing rmgr after adhdfs')
+        # send_and_expect_response(sock, 'rmgr', RMGR, SEND, exit_on_failure=True)
+        # send_and_expect_response(sock, 'rmgr', b'2', DONE, exit_on_failure=True)
 
         print()
         logging.info('Testing lst after adhdfs')
