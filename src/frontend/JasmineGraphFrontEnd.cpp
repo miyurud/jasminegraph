@@ -383,6 +383,7 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
                 } else if (std::stoi(j->second) == Conts::GRAPH_STATUS::OPERATIONAL) {
                     ss << "op|";
                 }
+                break;
             } else {
                 ss << j->second << "|";
             }
