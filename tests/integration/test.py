@@ -27,6 +27,7 @@ logging.getLogger().setLevel(logging.INFO)
 
 HOST = '127.0.0.1'
 PORT = 7777  # The port used by the server
+UI_PORT = 7776 # The port used by the frontend-ui
 
 LIST = b'lst'
 ADGR = b'adgr'
@@ -205,6 +206,24 @@ def test(host, port):
             print(*failed_tests, sep='\n', file=sys.stderr)
             sys.exit(1)
 
+def test_ui(host, port):
+    """Test the JasmineGraph server by sending a series of commands and checking the responses."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.connect((host, port))
+
+        print()
+        logging.info('Testing lst')
+        send_and_expect_response(sock, 'Initial lst', LIST, EMPTY)
+
+        if passed_all:
+            print()
+            logging.info('Passed all tests')
+        else:
+            print()
+            logging.critical('Failed some tests')
+            print(*failed_tests, sep='\n', file=sys.stderr)
+            sys.exit(1)
 
 if __name__ == '__main__':
     test(HOST, PORT)
+    test_ui(HOST, UI_PORT)
