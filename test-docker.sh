@@ -100,7 +100,7 @@ wait_for_hadoop() {
 
     # Check if the file exists in HDFS
     if ! docker exec -i namenode hadoop fs -test -e "${HDFS_FILE_PATH}"; then
-        docker exec -i namenode hadoop fs -put "${LOCAL_FILE_PATH}" "${HDFS_DIRECTORY}"
+        docker exec -i namenode hadoop fs -put "${HDFS_FILE_PATH}" "${HDFS_DIRECTORY}"
         echo "File: ${LOCAL_FILE_PATH} successfully uploaded to HDFS."
     else
         echo "File already exists in HDFS at ${HDFS_FILE_PATH}. Skipping upload."
