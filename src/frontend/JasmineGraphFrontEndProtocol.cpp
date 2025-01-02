@@ -55,4 +55,5 @@ const string SLA = "sla";
 const string COMMAND = "command";
 const string PRIORITY = "priority(>=1)";
 const string INVALID_FORMAT = "Invalid message format";
+const string CYPHER_AST = "cypher-ast";
 
