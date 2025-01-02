@@ -11,8 +11,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
-#ifndef JASMINEGRAPH_JASMINEGRAPHFRONTEND_H
-#define JASMINEGRAPH_JASMINEGRAPHFRONTEND_H
+#ifndef JASMINEGRAPHFRONTENDUI_H
+#define JASMINEGRAPHFRONTENDUI_H
 
 #include <dirent.h>
 #include <netdb.h>
@@ -35,30 +35,26 @@ limitations under the License.
 #include <string>
 #include <thread>
 
-#include "../metadb/SQLiteDBInterface.h"
-#include "../performancedb/PerformanceSQLiteDBInterface.h"
-#include "../query/algorithms/triangles/Triangles.h"
-#include "core/scheduler/JobScheduler.h"
+#include "../../metadb/SQLiteDBInterface.h"
+#include "../../performancedb/PerformanceSQLiteDBInterface.h"
+#include "../../query/algorithms/triangles/Triangles.h"
+#include "../core/scheduler/JobScheduler.h"
 
 class JasmineGraphHashMapCentralStore;
 
-void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
+void *uifrontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
                             PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler);
 
-class JasmineGraphFrontEnd {
+class JasmineGraphFrontEndUI {
  public:
-    JasmineGraphFrontEnd(SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb, std::string masterIP,
+    JasmineGraphFrontEndUI(SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb, std::string masterIP,
                          JobScheduler *jobScheduler);
 
     int run();
 
-    static void scheduleStrianJobs(JobRequest &jobDetails, std::priority_queue<JobRequest> &jobQueue,
-                                    JobScheduler *jobScheduler, bool *strian_exist);
-
-    static int getRunningHighPriorityTaskCount();
-    static bool areRunningJobsForSameGraph();
-
     static bool strian_exit;
+    std::set<ProcessInfo> processData;
+    static std::string stream_topic_name;
     std::map<std::string, std::atomic<bool>> *streamsState;
     std::map<std::string, std::thread> streamingThreads;
 
@@ -69,12 +65,4 @@ class JasmineGraphFrontEnd {
     JobScheduler *jobScheduler;
 };
 
-struct frontendservicesessionargs {
-    std::string masterIP;
-    int connFd;
-    SQLiteDBInterface *sqlite;
-    PerformanceSQLiteDBInterface *perfSqlite;
-    JobScheduler *jobScheduler;
-};
-
-#endif  // JASMINGRAPH_JASMINGRAPHFRONTEND_H
+#endif  // JASMINEGRAPHFRONTENDUI_H

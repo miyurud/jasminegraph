@@ -150,6 +150,12 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/util/dbinterface/DBInterface.cpp
         src/query/processor/cypher/semanticanalyzer/SemanticAnalyzer.cpp
         src/query/processor/cypher/util/Const.cpp
+        src/frontend/ui/JasmineGraphFrontEndUIProtocol.h
+        src/frontend/ui/JasmineGraphFrontEndUIProtocol.cpp
+        src/frontend/ui/JasmineGraphFrontEndUI.cpp
+        src/frontend/ui/JasmineGraphFrontEndUI.h
+        src/frontend/core/common/JasmineGraphFrontendCommon.cpp
+        src/frontend/core/common/JasmineGraphFrontendCommon.h
 )
 
 if (CMAKE_BUILD_TYPE STREQUAL "DEBUG")

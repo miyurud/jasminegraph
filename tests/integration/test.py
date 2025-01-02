@@ -27,6 +27,7 @@ logging.getLogger().setLevel(logging.INFO)
 
 HOST = '127.0.0.1'
 PORT = 7777  # The port used by the server
+UI_PORT = 7776 # The port used by the frontend-ui
 
 LIST = b'lst'
 ADGR = b'adgr'
@@ -185,12 +186,12 @@ def test(host, port):
         print()
         logging.info('Testing rmgr')
         send_and_expect_response(sock, 'rmgr', RMGR, SEND)
-        send_and_expect_response(sock, 'rmgr', b'1', DONE)
+        send_and_expect_response(sock, 'rmgr', b'2', DONE)
 
         print()
         logging.info('Testing lst after rmgr')
         send_and_expect_response(sock, 'lst after rmgr',
-                                 LIST, b'|2|cora|/var/tmp/data/cora/cora.cites|op|')
+                                 LIST, b'|1|powergrid|/var/tmp/data/powergrid.dl|op|')
 
         print()
         logging.info('Shutting down')
@@ -204,7 +205,6 @@ def test(host, port):
             logging.critical('Failed some tests')
             print(*failed_tests, sep='\n', file=sys.stderr)
             sys.exit(1)
-
 
 if __name__ == '__main__':
     test(HOST, PORT)
