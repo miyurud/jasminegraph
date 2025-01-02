@@ -10,12 +10,68 @@ services:
       - './env/databases/metadb:/home/ubuntu/software/jasminegraph/metadb'
       - './env/databases/performancedb:/home/ubuntu/software/jasminegraph/performancedb'
       - './env/data:/var/tmp/data'
+      - './env/hdfs:/var/tmp/hdfs'
       - '/tmp/jasminegraph:/tmp/jasminegraph'
     environment:
       - TESTING=true
     networks:
       - jasminenet
     command: --MODE 1 --MASTERIP 172.28.5.1 --WORKERS 2 --WORKERIP 172.28.5.1 --ENABLE_NMON false
+
+  namenode:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    container_name: namenode
+    restart: always
+    ports:
+      - 9870:9870
+      - 9000:9000
+    volumes:
+      - hadoop_namenode:/hadoop/dfs/name
+    environment:
+      - CLUSTER_NAME=test
+    env_file:
+      - env_init/hdfs/hadoop.env
+    networks:
+      - jasminenet
+
+  datanode:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    container_name: datanode
+    restart: always
+    volumes:
+      - hadoop_datanode:/hadoop/dfs/data
+    environment:
+      - SERVICE_PRECONDITION=namenode:9870
+    env_file:
+      - env_init/hdfs/hadoop.env
+    networks:
+      - jasminenet
+
+  resourcemanager:
+    image: bde2020/hadoop-resourcemanager:2.0.0-hadoop3.2.1-java8
+    container_name: resourcemanager
+    restart: always
+    environment:
+      - SERVICE_PRECONDITION=namenode:9000 namenode:9870 datanode:9864
+    env_file:
+      - env_init/hdfs/hadoop.env
+    networks:
+      - jasminenet
+
+  nodemanager1:
+    image: bde2020/hadoop-nodemanager:2.0.0-hadoop3.2.1-java8
+    container_name: nodemanager
+    restart: always
+    environment:
+      - SERVICE_PRECONDITION=namenode:9000 namenode:9870 datanode:9864 resourcemanager:8088
+    env_file:
+      - env_init/hdfs/hadoop.env
+    networks:
+      - jasminenet
+
+volumes:
+  hadoop_namenode:
+  hadoop_datanode:
 
 networks:
   jasminenet:
