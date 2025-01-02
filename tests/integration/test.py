@@ -193,10 +193,6 @@ def test(host, port):
         send_and_expect_response(sock, 'lst after rmgr',
                                  LIST, b'|1|powergrid|/var/tmp/data/powergrid.dl|op|')
 
-        print()
-        logging.info('Shutting down')
-        sock.sendall(SHDN + LINE_END)
-
         if passed_all:
             print()
             logging.info('Passed all tests')
@@ -226,6 +222,24 @@ def test_ui(host, port):
             print(*failed_tests, sep='\n', file=sys.stderr)
             sys.exit(1)
 
+def test_shutdown_server(host, port):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.connect((host, port))
+
+        print()
+        logging.info('Shutting down')
+        sock.sendall(SHDN + LINE_END)
+
+        if passed_all:
+            print()
+            logging.info('Passed all tests')
+        else:
+            print()
+            logging.critical('Failed some tests')
+            print(*failed_tests, sep='\n', file=sys.stderr)
+            sys.exit(1)
+
 if __name__ == '__main__':
     test(HOST, PORT)
     test_ui(HOST, UI_PORT)
+    test_shutdown_server(HOST, PORT)
