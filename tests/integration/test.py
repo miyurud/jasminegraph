@@ -214,7 +214,8 @@ def test_ui(host, port):
         print()
         logging.info('Testing lst')
         send_and_expect_response(sock, 'Initial lst',
-                                 LIST, b'[{"centralpartitioncount":"2","edgecount":"6594","idgraph":"5","name":"powergrid","status":"op","upload_path":"/var/tmp/powergrid.dl","vertexcount":"4941"}]')
+                                 LIST, b'[{"centralpartitioncount":"2","edgecount":"6594","idgraph":"1","name":"powergrid","status":"op",'
+                                       b'"upload_path":"/var/tmp/data/powergrid.dl","vertexcount":"4941"}]')
 
         if passed_all:
             print()
