@@ -24,14 +24,14 @@ using namespace std;
 class Operator {
 public:
     virtual ~Operator() = default;
-    virtual void execute() = 0; // Pure virtual function to be implemented by derived classes
+    virtual string execute() = 0; // Pure virtual function to be implemented by derived classes
 };
 
 // NodeScanByLabel Operator
 class NodeScanByLabel : public Operator {
 public:
     NodeScanByLabel(string label, string var = "var_0");
-    void execute() override;
+    string execute() override;
 
 private:
     string label;
@@ -42,7 +42,7 @@ private:
 class MultipleNodeScanByLabel : public Operator {
 public:
     MultipleNodeScanByLabel(vector<string> label, const string& var = "var_0");
-    void execute() override;
+    string execute() override;
 
 private:
     vector<string> label;
@@ -53,7 +53,7 @@ private:
 class AllNodeScan : public Operator {
 public:
     AllNodeScan(const string& var = "var_0");
-    void execute() override;
+    string execute() override;
 
 private:
     string var;
@@ -63,7 +63,7 @@ private:
 class ProduceResults : public Operator {
 public:
     ProduceResults(Operator* op, vector<ASTNode*> item);
-    void execute() override;
+    string execute() override;
 
 private:
     vector<ASTNode*> item;
@@ -74,7 +74,7 @@ private:
 class Filter : public Operator {
 public:
     Filter(Operator* input, vector<pair<string,ASTNode*>> filterCases);
-    void execute() override;
+    string execute() override;
 
 private:
     Operator* input;
@@ -85,7 +85,7 @@ private:
 class Projection : public Operator {
 public:
     Projection(Operator* input, const vector<ASTNode*> columns);
-    void execute() override;
+    string execute() override;
 
 private:
     Operator* input;
@@ -96,7 +96,7 @@ private:
 class ExpandAll : public Operator {
 public:
     ExpandAll(Operator* input, string startVar, string destVar, string relVar, string relType = "null", string direction = "");
-    void execute() override;
+    string execute() override;
 
 private:
     Operator* input;
@@ -111,7 +111,7 @@ private:
 class Join : public Operator {
 public:
     Join(Operator* left, Operator* right, const string& joinCondition);
-    void execute() override;
+    string execute() override;
 
 private:
     Operator* left;
@@ -123,7 +123,7 @@ private:
 class Aggregation : public Operator {
 public:
     Aggregation(Operator* input, const string& aggFunction, const string& column);
-    void execute() override;
+    string execute() override;
 
 private:
     Operator* input;
@@ -137,7 +137,7 @@ class Limit : public Operator {
     int limit;
 public:
     Limit(Operator* input, int limit);
-    void execute() override;
+    string execute() override;
 };
 
 // Sort Operator
@@ -147,7 +147,7 @@ class Sort : public Operator {
     bool ascending;
 public:
     Sort(Operator* input, const string& sortByColumn, bool ascending);
-    void execute() override;
+    string execute() override;
 };
 
 // GroupBy Operator
@@ -156,7 +156,7 @@ class GroupBy : public Operator {
     vector<std::string> groupByColumns;
 public:
     GroupBy(Operator* input, const vector<std::string>& groupByColumns);
-    void execute() override;
+    string execute() override;
 };
 
 // Distinct Operator
@@ -164,7 +164,7 @@ class Distinct : public Operator {
     Operator* input;
 public:
     Distinct(Operator* input);
-    void execute() override;
+    string execute() override;
 };
 
 // Union Operator
@@ -173,7 +173,7 @@ class Union : public Operator {
     Operator* right;
 public:
     Union(Operator* left, Operator* right);
-    void execute() override;
+    string execute() override;
 };
 
 // Intersection Operator
@@ -182,14 +182,14 @@ class Intersection : public Operator {
     Operator* right;
 public:
     Intersection(Operator* left, Operator* right);
-    void execute() override;
+    string execute() override;
 };
 
 //CacheProperty
 class CacheProperty : public Operator {
 public:
     CacheProperty(Operator* input, vector<ASTNode*> property);
-    void execute() override;
+    string execute() override;
 
 private:
     Operator* input;
@@ -202,7 +202,7 @@ public:
     UndirectedRelationshipTypeScan(string relType, string relvar = "rel_var", string startVar = "var_0", string endVar = "var_1");
 
     // Execute method to perform the scan
-    void execute() override;
+    string execute() override;
 
 private:
     string relType;  // The relationship type to scan for
@@ -215,7 +215,7 @@ class UndirectedAllRelationshipScan : public Operator {
 public:
 
     UndirectedAllRelationshipScan( string startVar = "var_0", string endVar = "var_1", string relVar = "edge_var_0");
-    void execute() override;
+    string execute() override;
 
 private:
     string startVar; // Variable name for the start node
@@ -227,7 +227,7 @@ class DirectedAllRelationshipScan : public Operator {
 public:
 
     DirectedAllRelationshipScan( string direction, string startVar = "var_0", string endVar = "var_1", string relVar = "edge_var_0");
-    void execute() override;
+    string execute() override;
 
 private:
     string startVar; // Variable name for the start node
@@ -242,7 +242,7 @@ public:
     DirectedRelationshipTypeScan(string direction, string relType, string relvar = "rel_var", string startVar = "var_0", string endVar = "var_1");
 
     // Execute method to perform the scan
-    void execute() override;
+    string execute() override;
 
 private:
     string direction;
@@ -259,12 +259,12 @@ public:
     void addOperator(Operator* opr);
 
     // Execute method to perform the scan
-    void execute() override;
+    string execute() override;
 
 private:
     Operator* opr1;
     Operator* opr2;
 };
 
-void printDownArrow(int width);
+string printDownArrow(int width);
 #endif // OPERATORS_H

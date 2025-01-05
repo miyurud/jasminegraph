@@ -170,6 +170,6 @@ fi
 stop_and_remove_containers
 force_remove "${TEST_ROOT}/env" "${WORKER_LOG_DIR}"
 if [ "$exit_code" = '0' ]; then
-    docker tag jasminegraph:test jasminegraph:latest
+    docker tag jasminegraph:test jasminegraph1:latest
 fi
 exit "$exit_code"

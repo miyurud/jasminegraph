@@ -158,6 +158,7 @@ class Utils {
      * @return true on success or false otherwise. Uses Utils::send_wrapper(int, const char *, size_t) internally.
      */
     static bool send_str_wrapper(int connFd, std::string str);
+    static bool send_int_wrapper(int connFd, int* value, size_t datalength);
 
     static bool sendExpectResponse(int sockfd, char *data, size_t data_length, std::string sendMsg,
                                    std::string expectMsg);

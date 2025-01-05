@@ -644,8 +644,8 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
     }
 }
 
-static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClients, int numberOfPartitions, bool *loop_exit)
-{
+static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClients,
+                               int numberOfPartitions, bool *loop_exit) {
 
     string msg_1 = "Input Query :";
     int result_wr = write(connFd, msg_1.c_str(), msg_1.length());
@@ -660,12 +660,30 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
         *loop_exit = true;
         return;
     }
-
-    // Get user response.
     char user_res[FRONTEND_DATA_LENGTH + 1];
     bzero(user_res, FRONTEND_DATA_LENGTH + 1);
     read(connFd, user_res, FRONTEND_DATA_LENGTH);
-    string user_res_s(user_res);
+    string user_res_1(user_res);
+
+    string msg_2 = "Input query :";
+    result_wr = write(connFd, msg_2.c_str(), msg_2.length());
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit = true;
+        return;
+    }
+    result_wr = write(connFd, "\r\n", 2);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit = true;
+        return;
+    }
+
+    // Get user response.
+    char query[FRONTEND_DATA_LENGTH + 1];
+    bzero(query, FRONTEND_DATA_LENGTH + 1);
+    read(connFd, query, FRONTEND_DATA_LENGTH);
+    string user_res_s(query);
 
     antlr4::ANTLRInputStream input(user_res_s);
     // Create a lexer from the input
@@ -681,15 +699,19 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
     auto* ast = any_cast<ASTNode*>(ast_builder.visitOC_Cypher(parser.oC_Cypher()));
 
     SemanticAnalyzer semantic_analyzer;
+    string obj;
     if (semantic_analyzer.analyze(ast)) {
         frontend_logger.log("AST is successfully analyzed", "log");
+        QueryPlanner query_planner;
+        Operator *opr = query_planner.createExecutionPlan(ast);
+        obj = opr->execute();
     } else {
         frontend_logger.error("query isn't semantically correct: "+user_res_s);
+    }
 
-
-    QueryPlanHandler *query_handler = new QueryPlanHandler(numberOfPartitions, workerClients);
+    int partitionId = 0;
     for(auto worker: workerClients){
-        worker->queryPublish(user_res_s);
+        worker->queryPublish(user_res_1, to_string(partitionId++), obj);
     }
 }
 
@@ -1304,7 +1326,6 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     // Create the StreamHandler object.
     StreamHandler *stream_handler = new StreamHandler(kstream, numberOfPartitions, workerClients, sqlite);
 
-    StreamHandler *stream_handler = new StreamHandler(kstream, numberOfPartitions, workerClients, sqlite);
     string path = "kafka:\\" + topic_name_s + ":" + group_id;
     std::time_t time = chrono::system_clock::to_time_t(chrono::system_clock::now());
     string uploadStartTime = ctime(&time);

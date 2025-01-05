@@ -617,7 +617,18 @@ bool Utils::send_wrapper(int connFd, const char *buf, size_t size) {
     return true;
 }
 
-bool Utils::send_str_wrapper(int connFd, std::string str) { return send_wrapper(connFd, str.c_str(), str.length()); }
+bool Utils::send_str_wrapper(int connFd, std::string str) {
+    return send_wrapper(connFd, str.c_str(), str.length());
+}
+
+bool Utils::send_int_wrapper(int connFd, int *value, size_t datalength) {
+    ssize_t sz = send(connFd, value, datalength, 0);
+    if (sz < datalength) {
+        util_logger.error("Send failed");
+        return false;
+    }
+    return true;
+}
 
 bool Utils::sendExpectResponse(int sockfd, char *data, size_t data_length, std::string sendMsg, std::string expectMsg) {
     if (!Utils::send_str_wrapper(sockfd, sendMsg)) {

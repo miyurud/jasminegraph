@@ -100,3 +100,6 @@ const string JasmineGraphInstanceProtocol::INITIATE_STREAMING_CLIENT = "initiate
 const string JasmineGraphInstanceProtocol::INITIATE_STREAMING_TRIAN = "initiate-streaming-trian";
 const string JasmineGraphInstanceProtocol::QUERY_START = "query-start";
 const string JasmineGraphInstanceProtocol::QUERY_START_ACK = "query-start-ack";
+const string JasmineGraphInstanceProtocol::QUERY_DATA_START = "query-data-start";
+const string JasmineGraphInstanceProtocol::QUERY_DATA_ACK = "query-data-ack";
+const string JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS = "graph_data_success";

@@ -24,9 +24,7 @@ limitations under the License.
 
 class QueryPlanHandler {
 public:
-    QueryPlanHandler(int numberOfPartitions,
-            std::vector<DataPublisher *> &workerClients);
-
+    QueryPlanHandler(int numberOfPartitions, std::vector<DataPublisher *> &workerClients);
     int numberOfPartitions;
     std::vector<DataPublisher *> &workerClients;
 

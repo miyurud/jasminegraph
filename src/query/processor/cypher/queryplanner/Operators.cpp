@@ -12,59 +12,67 @@ limitations under the License.
  */
 
 #include "Operators.h"
+#include <nlohmann/json.hpp>
 #include "../util/Const.h"
 #include "../astbuilder/ASTNode.h"
 using namespace std;
 
+using json = nlohmann::json;
+
 // NodeScan Implementation
 NodeScanByLabel::NodeScanByLabel(string label, string var) : label(label), var(var) {}
 
-void NodeScanByLabel::execute() {
-    cout<<"NodeScanByLabel: \n"<<endl;
-    cout << "scanning node based on single label: " << label <<" and assigned with variable: "<<var<< endl;
+string NodeScanByLabel::execute() {
+    json nodeByLabel;
+    nodeByLabel["Operator"] = "NodeByLabel";
+    nodeByLabel["variables"] = var;
+    nodeByLabel["Label"] = label;
+    return nodeByLabel.dump();
 }
 
 // MultipleNodeScanByLabel Implementation
 MultipleNodeScanByLabel::MultipleNodeScanByLabel(vector<string> label, const string& var) : label(label), var(var) {}
 
-void MultipleNodeScanByLabel::execute() {
-    cout<<"MultipleNodeScanByLabel: \n"<<endl;
+string MultipleNodeScanByLabel::execute() {
 
-    string label_string = "";
-    for(int i=0; i<label.size();i++)
-    {
-        label_string+= label[i];
-        label_string+= ", ";
-    }
-    cout << "scanning node based on multiple label: " << label_string <<" and assigned with variable: "<<var<< endl;
-
+    json multipleNodeByLabel;
+    multipleNodeByLabel["Operator"] = "MultipleNodeScanByLabel";
+    multipleNodeByLabel["variables"] = var;
+    multipleNodeByLabel["Label"] = label;
+    return multipleNodeByLabel.dump();
 }
 
 // AllNodeScan Implementation
 AllNodeScan::AllNodeScan(const string& var) : var(var) {}
 
-void AllNodeScan::execute() {
-    cout<<"AllNodeScan: \n"<<endl;
-    cout << "scanning all nodes and assigned with : " << var << endl;
+string AllNodeScan::execute() {
+    json allNodeScan;
+    allNodeScan["Operator"] = "AllNodeScan";
+    allNodeScan["variables"] = var;
+    return allNodeScan.dump();
 }
 
 // ProduceResults Implementation
 ProduceResults::ProduceResults(Operator* opr, vector<ASTNode*> item) : item(item), op(opr) {}
 
-void ProduceResults::execute() {
-    op->execute();
-    cout<<"ProduceResults: \n"<<endl;
-
-    for(auto* e: item)
-    {
-        cout<<"Return variable: "<< e->value<<endl;
+string ProduceResults::execute() {
+    cout<< "produce result"<<endl;
+    json produceResult;
+    produceResult["Operator"] = "ProduceResult";
+    if(op){
+        produceResult["NextOperator"] = op->execute();
     }
+    for(auto* e: item) {
+        cout<<e->print()<<endl;
+        produceResult["variable"] = e->value;
+    }
+    return produceResult.dump();
 }
 
 // Filter Implementation
 Filter::Filter(Operator* input, vector<pair<string,ASTNode*>> filterCases) : input(input), filterCases(filterCases) {}
 
-void Filter::execute() {
+string Filter::execute() {
     input->execute();
     cout<<"Filter: \n"<<endl;
     string condition;
@@ -95,97 +103,103 @@ void Filter::execute() {
         }
     }
     cout<<condition<<endl;
-
+    return "";
 }
 
 // Projection Implementation
 Projection::Projection(Operator* input, const vector<ASTNode*> columns) : input(input), columns(columns) {}
 
-void Projection::execute() {
+string Projection::execute() {
     input->execute();
-    cout<<"Projection: \n"<<endl;
-
-    cout << "Projecting columns: ";
+    cout<<"Projection"<<endl;
     for (auto* col : columns) {
-        cout << col->nodeType << " ";
+        cout << col->print() << endl;
     }
-    cout << endl;
+    return "";
 }
 
 // Join Implementation
 Join::Join(Operator* left, Operator* right, const string& joinCondition) : left(left), right(right), joinCondition(joinCondition) {}
 
-void Join::execute() {
+string Join::execute() {
     left->execute();
     right->execute();
     cout << "Joining on condition: " << joinCondition << endl;
+    return "";
 }
 
 // Aggregation Implementation
 Aggregation::Aggregation(Operator* input, const string& aggFunction, const string& column) : input(input), aggFunction(aggFunction), column(column) {}
 
-void Aggregation::execute() {
+string Aggregation::execute() {
     input->execute();
     cout << "Performing aggregation: " << aggFunction << " on column: " << column << endl;
+    return "";
 }
 
 // Limit Implementation
 Limit::Limit(Operator* input, int limit) : input(input), limit(limit) {}
 
-void Limit::execute() {
+string Limit::execute() {
     input->execute();
     cout << "Limiting result to " << limit << " rows." << endl;
+    return "";
 }
 
 // Sort Implementation
 Sort::Sort(Operator* input, const string& sortByColumn, bool ascending) : input(input), sortByColumn(sortByColumn), ascending(ascending) {}
 
-void Sort::execute() {
+string Sort::execute() {
     input->execute();
     cout << "Sorting by column: " << sortByColumn << " in " << (ascending ? "ascending" : "descending") << " order." << endl;
+    return "";
 }
 
 // GroupBy Implementation
 GroupBy::GroupBy(Operator* input, const vector<  string>& groupByColumns) : input(input), groupByColumns(groupByColumns) {}
 
-void GroupBy::execute() {
+string GroupBy::execute() {
     input->execute();
     cout << "Grouping by columns: ";
     for (const auto& col : groupByColumns) {
         cout << col << " ";
     }
     cout << endl;
+    return "";
 }
 
 // Distinct Implementation
 Distinct::Distinct(Operator* input) : input(input) {}
 
-void Distinct::execute() {
+string Distinct::execute() {
     input->execute();
     cout << "Applying Distinct to remove duplicates." << endl;
+    return "";
 }
 
 // Union Implementation
 Union::Union(Operator* left, Operator* right) : left(left), right(right) {}
 
-void Union::execute() {
+string Union::execute() {
     left->execute();
     right->execute();
     cout << "Performing Union of results." << endl;
+    return "";
 }
 
 // Intersection Implementation
 Intersection::Intersection(Operator* left, Operator* right) : left(left), right(right) {}
 
-void Intersection::execute() {
+string Intersection::execute() {
     left->execute();
     right->execute();
     cout << "Performing Intersection of results." << endl;
+    return "";
 }
 
 CacheProperty::CacheProperty(Operator* input, vector<ASTNode*> property) : property(property), input(input){}
 
-void CacheProperty::execute()
+string CacheProperty::execute()
 {
     input->execute();
     cout<<"CacheProperty: \n"<<endl;
@@ -197,35 +211,35 @@ void CacheProperty::execute()
         cout<<"get property "<<i++<<" and cache here: "<<s<<endl;
 
     }
+    return "";
 }
 
 UndirectedRelationshipTypeScan::UndirectedRelationshipTypeScan(string relType, string relvar, string startVar, string endVar)
         : relType(relType), relvar(relvar), startVar(startVar), endVar(endVar) {}
 
 // Execute method
-void UndirectedRelationshipTypeScan::execute() {
+string UndirectedRelationshipTypeScan::execute() {
     cout<<"UndirectedRelationshipTypeScan: \n"<<endl;
     cout << "("<<startVar<<") -[" << relvar<<" :"<< relType << "]- (" << endVar << ")" << endl;
-
+    return "";
 }
 
 UndirectedAllRelationshipScan::UndirectedAllRelationshipScan(string startVar, string endVar, string relVar)
         : startVar(startVar), endVar(endVar), relVar(relVar) {}
 
 
-void UndirectedAllRelationshipScan::execute() {
+string UndirectedAllRelationshipScan::execute() {
     cout<<"UndirectedRelationshipTypeScan: \n"<<endl;
     cout << "("<<startVar<<") -[" << relVar<<"]- (" << endVar << ")" << endl;
+    return "";
 }
 
 DirectedRelationshipTypeScan::DirectedRelationshipTypeScan(string direction, string relType, string relvar, string startVar, string endVar)
-        : relType(relType), relvar(relvar), startVar(startVar), endVar(endVar), direction(direction) {
-
-}
+        : relType(relType), relvar(relvar), startVar(startVar), endVar(endVar), direction(direction) {}
 
 
 // Execute method
-void DirectedRelationshipTypeScan::execute() {
+string DirectedRelationshipTypeScan::execute() {
     cout<<"DirectedRelationshipTypeScan: \n"<<endl;
 
     if(direction == "right"){
@@ -233,12 +247,13 @@ void DirectedRelationshipTypeScan::execute() {
     }else{
         cout << "("<<startVar<<") <-[" << relvar<<" :"<< relType << "]- (" << endVar << ")" << endl;
     }
+    return "";
 }
 
 DirectedAllRelationshipScan::DirectedAllRelationshipScan(std::string direction, std::string startVar, std::string endVar, std::string relVar)
         : startVar(startVar), endVar(endVar), relVar(relVar), direction(direction) {}
 
-void DirectedAllRelationshipScan::execute() {
+string DirectedAllRelationshipScan::execute() {
     cout<<"DirectedAllRelationshipScan: \n"<<endl;
 
     if(direction == "right"){
@@ -246,12 +261,13 @@ void DirectedAllRelationshipScan::execute() {
     }else{
         cout << "("<<startVar<<") <-[" << relVar<<"]- (" << endVar << ")" << endl;
     }
+    return "";
 }
 
 ExpandAll::ExpandAll(Operator *input, std::string startVar, std::string destVar, std::string relVar,
                      std::string relType, std::string direction): input(input), relType(relType), relVar(relVar), startVar(startVar), destVar(destVar), direction(direction){}
 
-void ExpandAll::execute() {
+string ExpandAll::execute() {
     input->execute();
     cout<<"ExpandAll: \n"<<endl;
 
@@ -272,6 +288,7 @@ void ExpandAll::execute() {
     }else if(relType != "null" && direction == "left"){
         cout << "(" << startVar << ") <-[" << relVar << " :" << relType << "]- (" << destVar << ")" << endl;
     }
+    return "";
 }
 
 Apply::Apply(Operator* opr): opr1(opr){}
@@ -282,7 +299,7 @@ void Apply::addOperator(Operator *opr) {
 
 
 // Execute method
-void Apply::execute() {
+string Apply::execute() {
     if (opr1 != nullptr){
         cout<<"     left of Apply"<<endl;
         opr1->execute();
@@ -293,5 +310,6 @@ void Apply::execute() {
     }
 
     cout<<"Apply: result merged"<<endl;
+    return "";
 }
 

@@ -437,7 +437,7 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                         "/var/tmp/jasminegraph/logs" + " -p " + std::to_string(workerPortsVector.at(i)) + ":" +
                         std::to_string(workerPortsVector.at(i)) + " -p " + std::to_string(workerDataPortsVector.at(i)) +
                         ":" + std::to_string(workerDataPortsVector.at(i)) + " -e WORKER_ID=" + to_string(i) +
-                        " jasminegraph:latest --MODE 2 --HOST_NAME " + host + " --MASTERIP " + masterHost +
+                        " jasminegraph1:latest --MODE 2 --HOST_NAME " + host + " --MASTERIP " + masterHost +
                         " --SERVER_PORT " + std::to_string(workerPortsVector.at(i)) + " --SERVER_DATA_PORT " +
                         std::to_string(workerDataPortsVector.at(i)) + " --ENABLE_NMON " + enableNmon;
                 }
@@ -447,7 +447,7 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                         "docker -H ssh://" + host + " run -p " + std::to_string(workerPortsVector.at(i)) + ":" +
                         std::to_string(workerPortsVector.at(i)) + " -p " + std::to_string(workerDataPortsVector.at(i)) +
                         ":" + std::to_string(workerDataPortsVector.at(i)) + " -e WORKER_ID=" + to_string(i) +
-                        " jasminegraph:test --MODE 2 --HOST_NAME " + host + " --MASTERIP " + masterHost +
+                        " jasminegraph1:test --MODE 2 --HOST_NAME " + host + " --MASTERIP " + masterHost +
                         " --SERVER_PORT " + std::to_string(workerPortsVector.at(i)) + " --SERVER_DATA_PORT " +
                         std::to_string(workerDataPortsVector.at(i)) + " --ENABLE_NMON " + enableNmon + " >" +
                         worker_logdir + "/worker.log 2>&1";
@@ -459,7 +459,7 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                         "/var/tmp/jasminegraph/logs" + " -p " + std::to_string(workerPortsVector.at(i)) + ":" +
                         std::to_string(workerPortsVector.at(i)) + " -p " + std::to_string(workerDataPortsVector.at(i)) +
                         ":" + std::to_string(workerDataPortsVector.at(i)) + " -e WORKER_ID=" + to_string(i) +
-                        " jasminegraph:latest --MODE 2 --HOST_NAME " + host + " --MASTERIP " + masterHost +
+                        " jasminegraph1:latest --MODE 2 --HOST_NAME " + host + " --MASTERIP " + masterHost +
                         " --SERVER_PORT " + std::to_string(workerPortsVector.at(i)) + " --SERVER_DATA_PORT " +
                         std::to_string(workerDataPortsVector.at(i)) + " --ENABLE_NMON " + enableNmon;
                 }

@@ -135,31 +135,22 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
 
         if(!nonArith.empty())
         {
-            for(auto* node: nonArith)
-            {
-                if(isAvailable(Const::PROPERTY_LOOKUP, node))
-                {
+            for(auto* node: nonArith) {
+                if(isAvailable(Const::PROPERTY_LOOKUP, node)) {
                     property.push_back(node);
                 }
             }
-            if(!property.empty())
-            {
+            if(!property.empty()) {
                 temp_opt = new CacheProperty(oprtr,property);
             }
         }
 
-        if(temp_opt!=nullptr)
-        {
-            temp_opt = new Projection(temp_opt, ast->elements);
-        }else
-        {
-            temp_opt = new Projection(oprtr, ast->elements);
+        if(temp_opt!=nullptr) {
+            temp_opt = new Projection(temp_opt, nonArith);
+        } else {
+            temp_opt = new Projection(oprtr, nonArith);
         }
-
         return new ProduceResults(temp_opt, vector<ASTNode*>(ast->elements));
-
-
-
     }else if(ast->nodeType == Const::ORDERED_BY)
     {
 
@@ -570,8 +561,7 @@ vector<ASTNode*> QueryPlanner::getSubTreeListByNodeType(ASTNode* root, string no
         if(getSubtreeByType(element,nodeType))
         {
             treeList.push_back(element);
-        }else if(!element->elements.empty())
-        {
+        }else if(!element->elements.empty()) {
             temp = getSubTreeListByNodeType(element,nodeType);
             for (auto* e:temp) {
                 treeList.push_back(e);

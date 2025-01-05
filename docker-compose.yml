@@ -1,16 +1,18 @@
 services:
   jasminegraph:
-    image: jasminegraph:latest
+    image: jasminegraph1:latest
     ports:
       - '7777:7777'
       - '7778:7778'
     volumes:
       - '/var/run/docker.sock:/var/run/docker.sock:rw'
-      - './env/databases/metadb:/home/ubuntu/software/jasminegraph/metadb'
-      - './env/databases/performancedb:/home/ubuntu/software/jasminegraph/performancedb'
-      - './env/data:/var/tmp/data'
-      - '/tmp/jasminegraph:/tmp/jasminegraph'
+      - '/home/kumarawansha/jasminegraph/databases/metadb:/home/ubuntu/software/jasminegraph/metadb'
+      - '/home/kumarawansha/jasminegraph/databases/performancedb:/home/ubuntu/software/jasminegraph/performancedb'
+      - '/home/kumarawansha/jasminegraph/data:/var/tmp/data'
       - '/var/tmp/jasminegraph:/var/tmp/jasminegraph'
+      - '/tmp/jasminegraph:/tmp/jasminegraph'
+      - '/var/tmp:/var/tmp'
+
     networks:
       - jasminenet
     command: --MODE 1 --MASTERIP 172.28.5.1 --WORKERS 2 --WORKERIP 172.28.5.1 --ENABLE_NMON false

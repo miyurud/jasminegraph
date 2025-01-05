@@ -82,6 +82,8 @@ set(HEADERS globals.h
         src/query/processor/cypher/util/Const.h
         src/query/processor/cypher/runtime/QueryPlanHandler.h
         src/query/processor/cypher/runtime/InstanceHandler.h
+        src/query/processor/cypher/runtime/OperatorExecutor.h
+        src/query/processor/cypher/runtime/sharedBuffer.h
 )
 
 set(SOURCES src/backend/JasmineGraphBackend.cpp
@@ -154,6 +156,8 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/query/processor/cypher/util/Const.cpp
         src/query/processor/cypher/runtime/QueryPlanHandler.cpp
         src/query/processor/cypher/runtime/InstanceHandler.cpp
+        src/query/processor/cypher/runtime/OperatorExecutor.cpp
+        src/query/processor/cypher/runtime/sharedBuffer.cpp
 )
 
 if (CMAKE_BUILD_TYPE STREQUAL "DEBUG")

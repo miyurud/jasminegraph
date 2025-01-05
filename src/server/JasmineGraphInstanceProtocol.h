@@ -115,6 +115,9 @@ class JasmineGraphInstanceProtocol {
     static const string INITIATE_STREAMING_TRIAN;
     static const string QUERY_START;
     static const string QUERY_START_ACK;
+    static const string QUERY_DATA_START;
+    static const string QUERY_DATA_ACK;
+    static const string GRAPH_DATA_SUCCESS;
 };
 
 const int INSTANCE_DATA_LENGTH = 300;

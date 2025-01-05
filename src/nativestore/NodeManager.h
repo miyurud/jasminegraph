@@ -38,7 +38,7 @@ class NodeManager {
     static const std::string FILE_MODE;
     unsigned long INDEX_KEY_SIZE = 6;  // Size of an index key entry in bytes
     std::string indexDBPath;
-    std::unordered_map<std::string, unsigned int> nodeIndex;
+
 
     void persistNodeIndex();
     std::unordered_map<std::string, unsigned int> readNodeIndex();
@@ -46,7 +46,7 @@ class NodeManager {
 
  public:
     static unsigned int nextPropertyIndex;  // Next available property block index
-
+    std::unordered_map<std::string, unsigned int> nodeIndex;
     NodeManager(GraphConfig);
     ~NodeManager() { delete NodeBlock::nodesDB; };
 
