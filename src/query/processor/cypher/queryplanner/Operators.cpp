@@ -63,7 +63,6 @@ string ProduceResults::execute() {
         produceResult["NextOperator"] = op->execute();
     }
     for(auto* e: item) {
-        cout<<e->print()<<endl;
         produceResult["variable"] = e->value;
     }
     return produceResult.dump();

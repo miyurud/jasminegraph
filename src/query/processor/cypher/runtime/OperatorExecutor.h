@@ -6,24 +6,21 @@
 #define JASMINEGRAPH_OPERATOREXECUTOR_H
 #include "../../../../nativestore/NodeManager.h"
 #include "InstanceHandler.h"
-#include "sharedBuffer.h"
+#include "../util/SharedBuffer.h"
 #include <string>
 #include <vector>
 
 using namespace  std;
 
-class InstanceHandler;
-
 class OperatorExecutor {
  public:
-    OperatorExecutor(NodeManager* nodeManager, string queryPlan);
-    void start(int connFd, bool *loop_exit_p, InstanceHandler* instanceHandler);
-    void AllnodeScan(SharedBuffer &buffer, string jsonPlan);
-    void ProduceResult(SharedBuffer &buffer, string jsonPlan);
+    OperatorExecutor(GraphConfig gc, string queryPlan);
+    void AllnodeScan(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
+    void ProduceResult(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
     string  queryPlan;
-    NodeManager* nm;
+    GraphConfig gc;
     json query;
-    static std::unordered_map<std::string, std::function<void(OperatorExecutor &, SharedBuffer &, std::string)>> methodMap;
+    static std::unordered_map<std::string, std::function<void(OperatorExecutor &, SharedBuffer &, std::string, GraphConfig)>> methodMap;
     static void initializeMethodMap();
 };
 

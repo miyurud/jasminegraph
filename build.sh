@@ -5,4 +5,4 @@ if [ "$1" = "--debug" ]; then
 else
     cmake clean .
 fi
-cmake --build . --target JasmineGraph -- -j 50
+cmake --build . --target JasmineGraph -- -j 4

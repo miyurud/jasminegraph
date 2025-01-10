@@ -437,7 +437,7 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                         "/var/tmp/jasminegraph/logs" + " -p " + std::to_string(workerPortsVector.at(i)) + ":" +
                         std::to_string(workerPortsVector.at(i)) + " -p " + std::to_string(workerDataPortsVector.at(i)) +
                         ":" + std::to_string(workerDataPortsVector.at(i)) + " -e WORKER_ID=" + to_string(i) +
-                        " jasminegraph1:latest --MODE 2 --HOST_NAME " + host + " --MASTERIP " + masterHost +
+                        " jasminegraph:latest --MODE 2 --HOST_NAME " + host + " --MASTERIP " + masterHost +
                         " --SERVER_PORT " + std::to_string(workerPortsVector.at(i)) + " --SERVER_DATA_PORT " +
                         std::to_string(workerDataPortsVector.at(i)) + " --ENABLE_NMON " + enableNmon;
                 }
@@ -447,7 +447,7 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                         "docker -H ssh://" + host + " run -p " + std::to_string(workerPortsVector.at(i)) + ":" +
                         std::to_string(workerPortsVector.at(i)) + " -p " + std::to_string(workerDataPortsVector.at(i)) +
                         ":" + std::to_string(workerDataPortsVector.at(i)) + " -e WORKER_ID=" + to_string(i) +
-                        " jasminegraph1:test --MODE 2 --HOST_NAME " + host + " --MASTERIP " + masterHost +
+                        " jasminegraph:test --MODE 2 --HOST_NAME " + host + " --MASTERIP " + masterHost +
                         " --SERVER_PORT " + std::to_string(workerPortsVector.at(i)) + " --SERVER_DATA_PORT " +
                         std::to_string(workerDataPortsVector.at(i)) + " --ENABLE_NMON " + enableNmon + " >" +
                         worker_logdir + "/worker.log 2>&1";
@@ -459,7 +459,7 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                         "/var/tmp/jasminegraph/logs" + " -p " + std::to_string(workerPortsVector.at(i)) + ":" +
                         std::to_string(workerPortsVector.at(i)) + " -p " + std::to_string(workerDataPortsVector.at(i)) +
                         ":" + std::to_string(workerDataPortsVector.at(i)) + " -e WORKER_ID=" + to_string(i) +
-                        " jasminegraph1:latest --MODE 2 --HOST_NAME " + host + " --MASTERIP " + masterHost +
+                        " jasminegraph:latest --MODE 2 --HOST_NAME " + host + " --MASTERIP " + masterHost +
                         " --SERVER_PORT " + std::to_string(workerPortsVector.at(i)) + " --SERVER_DATA_PORT " +
                         std::to_string(workerDataPortsVector.at(i)) + " --ENABLE_NMON " + enableNmon;
                 }
@@ -945,6 +945,21 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
     updateMetaDB(graphID, uploadEndTime);
     server_logger.info("Upload Graph Locally done");
     delete[] workerThreads;
+}
+
+void JasmineGraphServer::sendQueryPlan(int graphID, int numberOfPartitions, string queryPlan, SharedBuffer &sharedBuffer){
+    const auto &workerList = getWorkers(numberOfPartitions);
+    std::thread *workerThreads = new std::thread[numberOfPartitions];
+    int count = 0;
+    for(auto worker: workerList){
+        workerThreads[count++] = std::thread(queryDataCommunicator, worker.hostname, worker.port,
+                                             masterHost, graphID, count, queryPlan, std::ref(sharedBuffer));
+    }
+}
+
+bool JasmineGraphServer::queryDataCommunicator(std::string host, int port, std::string masterIP, int graphID,
+                                               int PartitionId, std::string message, SharedBuffer &sharedBuffer){
+    return Utils::sendQueryPlanToWorker(host, port, masterIP, graphID, PartitionId, message, sharedBuffer);
 }
 
 static void assignPartitionToWorker(std::string fileName, int graphId, std::string workerHost, int workerPort) {

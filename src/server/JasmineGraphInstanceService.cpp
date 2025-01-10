@@ -28,6 +28,7 @@ limitations under the License.
 #include "../util/kafka/InstanceStreamHandler.h"
 #include "../util/logger/Logger.h"
 #include "JasmineGraphInstance.h"
+#include <thread>
 
 using namespace std;
 
@@ -4199,7 +4200,7 @@ static void query_start_command(int connFd, InstanceHandler &instanceHandler, st
     std::string graphId(content_length, 0);
     return_status = recv(connFd, &graphId[0], content_length, 0);
     if (return_status > 0) {
-        instance_logger.info("Received graph id.");
+        instance_logger.info("Received graph id: "+graphId);
     } else {
         instance_logger.info("Error while reading content length");
         *loop_exit_p = true;
@@ -4225,7 +4226,7 @@ static void query_start_command(int connFd, InstanceHandler &instanceHandler, st
     std::string partition(content_length, 0);
     return_status = recv(connFd, &partition[0], content_length, 0);
     if (return_status > 0) {
-        instance_logger.info("Received partition id.");
+        instance_logger.info("Received partition id: "+partition);
     } else {
         instance_logger.info("Error while reading content length");
         *loop_exit_p = true;
@@ -4268,7 +4269,7 @@ static void query_start_command(int connFd, InstanceHandler &instanceHandler, st
         return;
     }
     instance_logger.info("Received full query: " + message);
-    instanceHandler.handleRequest(connFd, loop_exit_p, incrementalLocalStoreInstance, message);
+    instanceHandler.handleRequest(connFd, loop_exit_p, incrementalLocalStoreInstance->gc, message);
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_END_OF_EDGE)) {
         *loop_exit_p = true;
         return;
