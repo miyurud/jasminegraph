@@ -36,8 +36,9 @@ using json = nlohmann::json;
 class Utils {
  private:
     static unordered_map<std::string, std::string> propertiesMap;
+    static std::mutex sqliteMutex;
 
- public:
+public:
     struct worker {
         std::string workerID;
         std::string hostname;
@@ -82,6 +83,8 @@ class Utils {
 
     static int deleteDirectory(const std::string dirName);
 
+    static int deleteAllMatchingFiles(const std::string fileNamePattern);
+
     static std::string getFileName(std::string filePath);
 
     static int getFileSize(std::string filePath);
@@ -116,6 +119,8 @@ class Utils {
     static std::string checkFlag(std::string flagPath);
 
     static int connect_wrapper(int sock, const sockaddr *addr, socklen_t slen);
+
+    static void assignPartitionToWorker(int graphId, int partitionIndex, string  hostname,int port);
 
     /**
      * Wrapper to recv(2) to read a string.

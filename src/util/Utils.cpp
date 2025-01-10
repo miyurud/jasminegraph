@@ -42,6 +42,7 @@ int jasminegraph_profile = PROFILE_K8S;
 #endif
 
 unordered_map<std::string, std::string> Utils::propertiesMap;
+std::mutex Utils::sqliteMutex;
 
 std::vector<std::string> Utils::split(const std::string &s, char delimiter) {
     std::vector<std::string> tokens;
@@ -263,6 +264,16 @@ int Utils::deleteDirectory(const std::string dirName) {
         util_logger.info(dirName + " deleted successfully");
     else
         util_logger.warn("Deleting " + dirName + " failed with exit code " + std::to_string(status));
+    return status;
+}
+
+int Utils::deleteAllMatchingFiles(const std::string fileNamePattern){
+    std::string command = "rm -f " + fileNamePattern + "*"; // Use -f to force deletion
+    int status = system(command.c_str());
+    if (status == 0)
+        util_logger.info("Deleted All files associated with: "+ fileNamePattern + "* successfully");
+    else
+        util_logger.warn("Deleting files associated with: " + fileNamePattern + "* failed with exit code " + std::to_string(status));
     return status;
 }
 
@@ -1116,4 +1127,46 @@ bool Utils::transferPartition(std::string sourceWorker, int sourceWorkerPort, st
     Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
     close(sockfd);
     return true;
+}
+
+void Utils::assignPartitionToWorker(int graphId, int partitionIndex, string  hostname, int port) {
+    util_logger.info("Assigning partition: " + std::to_string(partitionIndex) + " to worker");
+
+    auto *sqlite = new SQLiteDBInterface();
+    sqlite->init();
+
+    string workerHost;
+    if (hostname.find('@') != std::string::npos) {
+        workerHost = Utils::split(hostname, '@')[1];
+    }
+
+    sqliteMutex.lock();
+
+    try {
+        std::string workerSearchQuery =
+                "SELECT idworker FROM worker WHERE ip='" + workerHost +
+                "' AND server_port='" + std::to_string(port) + "'";
+
+        std::vector<std::vector<std::pair<std::string, std::string>>> results = sqlite->runSelect(workerSearchQuery);
+
+        if (results.empty()) {
+            util_logger.error("Worker not found in database: " + workerHost);
+            throw std::runtime_error("Worker not found in database");
+        }
+
+        std::string workerID = results[0][0].second;
+
+        std::string partitionToWorkerQuery =
+                "INSERT INTO worker_has_partition (partition_idpartition, partition_graph_idgraph, worker_idworker) VALUES "
+                "('" + std::to_string(partitionIndex) + "','" + std::to_string(graphId) + "','" + workerID + "')";
+
+        sqlite->runInsert(partitionToWorkerQuery);
+    } catch (const std::exception &ex) {
+        util_logger.error("Error assigning partition to worker: " + std::string(ex.what()));
+    }
+
+    sqlite->finalize();
+    sqliteMutex.unlock();
+
+    delete sqlite;
 }
