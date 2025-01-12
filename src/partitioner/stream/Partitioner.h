@@ -50,6 +50,7 @@ class Partitioner {
     partitionedEdge ldgPartitioning(std::pair<std::string, std::string> edge);
     static std::pair<long, long> deserialize(std::string data);
     void updateMetaDB();
+    bool getIsDirected();
     void setGraphID(int graphId){this->graphID = graphId;};
 };
 

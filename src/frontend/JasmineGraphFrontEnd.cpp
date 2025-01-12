@@ -1279,6 +1279,49 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
         *loop_exit_p = true;
         return;
     }
+    result_wr = write(connFd, "\r\n", 2);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    string msg_2 = "Is this graph Directed (y/n)? ";
+    result_wr = write(connFd, msg_2.c_str(), msg_2.length());
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    // Get user response.
+    char isDirected[FRONTEND_DATA_LENGTH + 1];
+    bzero(isDirected, FRONTEND_DATA_LENGTH + 1);
+    read(connFd, isDirected, FRONTEND_DATA_LENGTH);
+    string is_directed(isDirected);
+    is_directed = Utils::trim_copy(is_directed);
+    for (char &c : is_directed) {
+        c = tolower(c);
+    }
+    string direction;
+    if(is_directed == "y") {
+        direction = "1";
+    } else {
+        direction = "0";
+    }
+
+    string msg_3 = "Graph type received";
+    result_wr = write(connFd, msg_3.c_str(), msg_3.length());
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+
+    result_wr = write(connFd, "\r\n", 2);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
     // create kafka consumer and graph partitioner
     kstream = new KafkaConnector(configs);
     // Create the Partitioner object.
@@ -1295,9 +1338,9 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     string uploadStartTime = ctime(&time);
     string sqlStatement =
         "INSERT INTO graph (name,upload_path,upload_start_time,upload_end_time,graph_status_idgraph_status,"
-        "vertexcount,centralpartitioncount,edgecount) VALUES(\"" +
+        "vertexcount,centralpartitioncount,edgecount,is_directed) VALUES(\"" +
         topic_name_s + "\", \"" + path + "\", \"" + uploadStartTime + "\", \"\",\"" +
-        to_string(Conts::GRAPH_STATUS::STREAMING) + "\", \"\", \"\", \"\")";
+        to_string(Conts::GRAPH_STATUS::STREAMING) + "\", \"\", \"\", \"\",\"" +direction+"\")";
     int newGraphID = sqlite->runInsert(sqlStatement);
 
     frontend_logger.info("Start listening to " + topic_name_s);

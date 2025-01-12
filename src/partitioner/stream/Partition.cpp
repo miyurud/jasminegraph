@@ -23,7 +23,7 @@
 Logger streaming_partition_logger;
 
 // This addition is unidirectional , Add both items of the pair as keys
-void Partition::addEdge(std::pair<std::string, std::string> edge) {
+void Partition::addEdge(std::pair<std::string, std::string> edge, bool isDirected) {
     auto exsistFirstVertext = this->edgeList.find(edge.first);
     if (exsistFirstVertext != this->edgeList.end()) {
         this->edgeList[edge.first].insert(edge.second);
@@ -35,14 +35,16 @@ void Partition::addEdge(std::pair<std::string, std::string> edge) {
         }
     }
 
-    auto exsistSecondVertext = this->edgeList.find(edge.second);
-    if (exsistSecondVertext != this->edgeList.end()) {
-        this->edgeList[edge.second].insert(edge.first);
-    } else {
-        this->edgeList[edge.second] = std::set<std::string>({edge.first});
+    if (!isDirected) {
+        auto exsistSecondVertext = this->edgeList.find(edge.second);
+        if (exsistSecondVertext != this->edgeList.end()) {
+            this->edgeList[edge.second].insert(edge.first);
+        } else {
+            this->edgeList[edge.second] = std::set<std::string>({edge.first});
 
-        if (!isExistInEdgeCuts(edge.second)) {
-            this->vertexCount += 1;
+            if (!isExistInEdgeCuts(edge.second)) {
+                this->vertexCount += 1;
+            }
         }
     }
 }
@@ -57,7 +59,7 @@ std::set<std::string> Partition::getNeighbors(std::string vertex) {
 
 // The number of edges, the cardinality of E, is called the size of graph and denoted by |E|. We usually use m to denote
 // the size of G.
-double Partition::getEdgesCount() {
+double Partition::getEdgesCount(bool isDirected) {
     double total = 0;
     std::set<std::string> uniqueEdges;
     for (auto edge : this->edgeList) {
@@ -66,7 +68,10 @@ double Partition::getEdgesCount() {
             uniqueEdges.insert(edge.first + vertext);
         }
     }
-    return uniqueEdges.size();
+    if (isDirected) {
+        return  uniqueEdges.size();
+    }
+    return uniqueEdges.size()/2;
 }
 
 // The number of vertices, the cardinality of V, is called the order of graph and devoted by |V|. We usually use n to
