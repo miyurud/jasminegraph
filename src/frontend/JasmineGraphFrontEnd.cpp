@@ -1419,7 +1419,7 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
         frontend_logger.error("Invalid HDFS file path: " + hdfsFilePathS);
         std::string error_message = "The provided HDFS path is invalid.";
         write(connFd, error_message.c_str(), error_message.length());
-        write(connFd, "\r\n", 2);
+        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         delete hdfsConnector;
         *loop_exit_p = true;
         return;
