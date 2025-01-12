@@ -1320,7 +1320,7 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
                              std::thread &inputStreamHandlerThread, int numberOfPartitions,
                              SQLiteDBInterface *sqlite, bool *loop_exit_p) {
     std::string hdfsPort;
-    std::string msg1 = "Do you want to use the default HDFS server(y/n)?";
+    std::string message = "Do you want to use the default HDFS server(y/n)?";
     int resultWr = write(connFd, msg1.c_str(), msg1.length());
     if (resultWr < 0) {
         frontend_logger.error("Error writing to socket");
