@@ -1152,8 +1152,8 @@ void Utils::assignPartitionToWorker(int graphId, int partitionIndex, string  hos
         std::vector<std::vector<std::pair<std::string, std::string>>> results = sqlite->runSelect(workerSearchQuery);
 
         if (results.empty()) {
-            util_logger.error("Worker not found in database: " + workerHost);
-            throw std::runtime_error("Worker not found in database");
+            util_logger.error("Worker not found : " + workerHost);
+            throw std::runtime_error("Worker not found");
         }
 
         std::string workerID = results[0][0].second;
