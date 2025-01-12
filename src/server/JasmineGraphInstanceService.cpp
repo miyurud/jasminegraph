@@ -378,7 +378,7 @@ int deleteGraphPartition(std::string graphID, std::string partitionID) {
     return status;
 }
 
-int deleteStreamingGraphPartition(std::string graphID, std::string partitionID){
+int deleteStreamingGraphPartition(std::string graphID, std::string partitionID) {
     int status = 0;
     string partitionFilePathPattern = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder")
                                       + "/g" + graphID + "_p" + partitionID;

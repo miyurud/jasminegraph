@@ -38,7 +38,7 @@ class Utils {
     static unordered_map<std::string, std::string> propertiesMap;
     static std::mutex sqliteMutex;
 
-public:
+ public:
     struct worker {
         std::string workerID;
         std::string hostname;
@@ -120,7 +120,7 @@ public:
 
     static int connect_wrapper(int sock, const sockaddr *addr, socklen_t slen);
 
-    static void assignPartitionToWorker(int graphId, int partitionIndex, string  hostname,int port);
+    static void assignPartitionToWorker(int graphId, int partitionIndex, string  hostname, int port);
 
     /**
      * Wrapper to recv(2) to read a string.

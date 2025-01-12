@@ -267,13 +267,14 @@ int Utils::deleteDirectory(const std::string dirName) {
     return status;
 }
 
-int Utils::deleteAllMatchingFiles(const std::string fileNamePattern){
-    std::string command = "rm -f " + fileNamePattern + "*"; // Use -f to force deletion
+int Utils::deleteAllMatchingFiles(const std::string fileNamePattern) {
+    std::string command = "rm -f " + fileNamePattern + "*";
     int status = system(command.c_str());
     if (status == 0)
         util_logger.info("Deleted All files associated with: "+ fileNamePattern + "* successfully");
     else
-        util_logger.warn("Deleting files associated with: " + fileNamePattern + "* failed with exit code " + std::to_string(status));
+        util_logger.warn("Deleting files associated with: " + fileNamePattern
+        + "* failed with exit code " + std::to_string(status));
     return status;
 }
 
@@ -1157,8 +1158,9 @@ void Utils::assignPartitionToWorker(int graphId, int partitionIndex, string  hos
         std::string workerID = results[0][0].second;
 
         std::string partitionToWorkerQuery =
-                "INSERT INTO worker_has_partition (partition_idpartition, partition_graph_idgraph, worker_idworker) VALUES "
-                "('" + std::to_string(partitionIndex) + "','" + std::to_string(graphId) + "','" + workerID + "')";
+                "INSERT INTO worker_has_partition (partition_idpartition, partition_graph_idgraph, worker_idworker) "
+                "VALUES ('" + std::to_string(partitionIndex) + "','" + std::to_string(graphId)
+                + "','" + workerID + "')";
 
         sqlite->runInsert(partitionToWorkerQuery);
     } catch (const std::exception &ex) {
