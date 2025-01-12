@@ -1446,7 +1446,7 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
     std::string isDirectedS(isDirectedRes);
     isDirectedS = Utils::trim_copy(isDirectedS);
 
-    bool directed;
+    bool directed = false;
     if (isDirectedS == "y") {
         directed = true;
     } else {
