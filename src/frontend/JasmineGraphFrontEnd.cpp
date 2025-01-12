@@ -1302,7 +1302,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
         c = tolower(c);
     }
     string direction;
-    if(is_directed == "y") {
+    if (is_directed == "y") {
         direction = "1";
     } else {
         direction = "0";
