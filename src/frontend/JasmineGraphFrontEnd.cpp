@@ -1320,8 +1320,8 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
                              std::thread &inputStreamHandlerThread, int numberOfPartitions,
                              SQLiteDBInterface *sqlite, bool *loop_exit_p) {
     std::string hdfsPort;
-    std::string message = "Do you want to use the default HDFS server(y/n)?";
-    int resultWr = write(connFd, msg1.c_str(), msg1.length());
+    std::string message1 = "Do you want to use the default HDFS server(y/n)?";
+    int resultWr = write(connFd, message1.c_str(), message1.length());
     if (resultWr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -1354,7 +1354,8 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
             *loop_exit_p = true;
             return;
         }
-        resultWr = write(connFd, "\r\n", 2);
+        resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+                         Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (resultWr < 0) {
             frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -1393,8 +1394,8 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
         frontend_logger.error("HDFS server port is empty.");
     }
 
-    std::string message = "HDFS file path: ";
-    resultWr = write(connFd, message.c_str(), message.length());
+    std::string message2 = "HDFS file path: ";
+    resultWr = write(connFd, message2.c_str(), message2.length());
     if (resultWr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -1449,8 +1450,6 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
     bool directed = false;
     if (isDirectedS == "y") {
         directed = true;
-    } else {
-        directed = false;
     }
 
     std::string path = "hdfs:" + hdfsFilePathS;
