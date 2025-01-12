@@ -1486,7 +1486,7 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
         *loop_exit_p = true;
         return;
     }
-    resultWr = write(connFd, "\r\n", 2);
+    resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (resultWr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
