@@ -1152,7 +1152,7 @@ void Utils::assignPartitionToWorker(int graphId, int partitionIndex, string  hos
 
         if (results.empty()) {
             util_logger.error("Worker not found in database: " + workerHost);
-            throw std::runtime_error("Worker not found in database");
+            throw std::runtime_error("Worker not found");
         }
 
         std::string workerID = results[0][0].second;
