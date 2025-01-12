@@ -260,10 +260,11 @@ std::vector<std::string> Utils::getListOfFilesInDirectory(std::string dirName) {
 int Utils::deleteDirectory(const std::string dirName) {
     string command = "rm -rf " + dirName;
     int status = system(command.c_str());
-    if (status == 0)
+    if (status == 0) {
         util_logger.info(dirName + " deleted successfully");
-    else
+    } else {
         util_logger.warn("Deleting " + dirName + " failed with exit code " + std::to_string(status));
+    }
     return status;
 }
 
