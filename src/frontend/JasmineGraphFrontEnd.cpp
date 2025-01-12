@@ -1390,7 +1390,7 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
         frontend_logger.error("HDFS server IP is empty.");
     }
     if (hdfsPort.empty()) {
-        frontend_logger.error("HDFS server port is not set or empty.");
+        frontend_logger.error("HDFS server port is empty.");
     }
 
     std::string message = "HDFS file path: ";
