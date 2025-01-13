@@ -368,8 +368,8 @@ bool JasmineGraphFrontEnd::areRunningJobsForSameGraph() {
 static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
     std::stringstream ss;
 
-    std::vector<vector<pair<string, string>>> v = JasmineGraphFrontEndCommon::getGraphData(sqlite);
-    for (std::vector<vector<pair<string, string>>>::iterator i = v.begin(); i != v.end(); ++i) {
+    std::vector<vector<pair<string, string>>> graphData = JasmineGraphFrontEndCommon::getGraphData(sqlite);
+    for (std::vector<vector<pair<string, string>>>::iterator i = graphData.begin(); i != graphData.end(); ++i) {
         ss << "|";
         int counter = 0;
         for (std::vector<pair<string, string>>::iterator j = (i->begin()); j != i->end(); ++j) {
