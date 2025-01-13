@@ -271,11 +271,12 @@ int Utils::deleteDirectory(const std::string dirName) {
 int Utils::deleteAllMatchingFiles(const std::string fileNamePattern) {
     std::string command = "rm -f " + fileNamePattern + "*";
     int status = system(command.c_str());
-    if (status == 0)
-        util_logger.info("Deleted All files associated with: "+ fileNamePattern + "* successfully");
-    else
+    if (status == 0) {
+        util_logger.info("Deleted All files associated with: " + fileNamePattern + "* successfully");
+    } else {
         util_logger.warn("Deleting files associated with: " + fileNamePattern
-        + "* failed with exit code " + std::to_string(status));
+                         + "* failed with exit code " + std::to_string(status));
+    }
     return status;
 }
 
@@ -1132,7 +1133,7 @@ bool Utils::transferPartition(std::string sourceWorker, int sourceWorkerPort, st
 }
 
 void Utils::assignPartitionToWorker(int graphId, int partitionIndex, string  hostname, int port) {
-    util_logger.info("Assigning graph ID: " + std::to_string(graphId) + "  partition: " + std::to_string(partitionIndex) + " to worker");
+    util_logger.debug("Assigning graph ID: " + std::to_string(graphId) + "  partition: " + std::to_string(partitionIndex) + " to worker");
 
     auto *sqlite = new SQLiteDBInterface();
     sqlite->init();
