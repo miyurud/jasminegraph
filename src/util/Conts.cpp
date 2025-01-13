@@ -15,7 +15,8 @@ limitations under the License.
 
 std::string Conts::JASMINEGRAPH_EXECUTABLE = "run.sh";
 std::string Conts::JASMINEGRAPH_HOME = "JASMINEGRAPH_HOME";
-
+std::string Conts::DIRECTED = "1";
+std::string Conts::UNDIRECTED = "0";
 std::string Conts::CARRIAGE_RETURN_NEW_LINE = "\r\n";
 
 std::string Conts::GRAPH_TYPE_RDF = "RDF_GRAPH";

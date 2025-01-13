@@ -1279,14 +1279,14 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
         return;
     }
-    string msg_2 = "Is this graph Directed (y/n)? ";
-    result_wr = write(connFd, msg_2.c_str(), msg_2.length());
+    string checkDirection = "Is this graph Directed (y/n)? ";
+    result_wr = write(connFd, checkDirection.c_str(), checkDirection.length());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -1303,20 +1303,20 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     }
     string direction;
     if (is_directed == "y") {
-        direction = "1";
+        direction = Conts::DIRECTED;
     } else {
-        direction = "0";
+        direction = Conts::UNDIRECTED;
     }
 
-    string msg_3 = "Graph type received";
-    result_wr = write(connFd, msg_3.c_str(), msg_3.length());
+    string checkGraphType = "Graph type received";
+    result_wr = write(connFd, checkGraphType.c_str(), checkGraphType.length());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
         return;
     }
 
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
