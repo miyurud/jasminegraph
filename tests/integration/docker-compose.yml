@@ -3,6 +3,7 @@ services:
   jasminegraph:
     image: jasminegraph:test
     ports:
+      - '7776:7776'
       - '7777:7777'
       - '7778:7778'
     volumes:
