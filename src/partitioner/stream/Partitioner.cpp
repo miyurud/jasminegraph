@@ -109,7 +109,7 @@ partitionedEdge Partitioner::hashPartitioning(std::pair<std::string, std::string
     int secondIndex = std::hash<std::string>()(edge.second) % this->numberOfPartitions;  // Hash partitioning
 
     if (firstIndex == secondIndex) {
-        this->partitions[firstIndex].addEdge(edge);
+        this->partitions[firstIndex].addEdge(edge, this->getIsDirected());
     } else {
         this->partitions[firstIndex].addToEdgeCuts(edge.first, edge.second, secondIndex);
         this->partitions[secondIndex].addToEdgeCuts(edge.second, edge.first, firstIndex);
@@ -121,7 +121,7 @@ void Partitioner::printStats() {
     int id = 0;
     for (auto partition : this->partitions) {
         double vertexCount = partition.getVertextCount();
-        double edgesCount = partition.getEdgesCount();
+        double edgesCount = partition.getEdgesCount(this->getIsDirected());
         double edgeCutsCount = partition.edgeCutsCount();
         double edgeCutRatio = partition.edgeCutsRatio();
         streaming_partitioner_logger.info(std::to_string(id) + " => Vertex count = " + std::to_string(vertexCount));
@@ -139,7 +139,7 @@ void Partitioner::updateMetaDB() {
     double edgeCutsCount = 0;
     for (auto partition : this->partitions) {
         vertexCount += partition.getVertextCount();
-        edgesCount += partition.getEdgesCount();
+        edgesCount += partition.getEdgesCount(this->getIsDirected());
         edgeCutsCount += partition.edgeCutsCount();
     }
     double numberOfEdges = edgesCount + edgeCutsCount/2;
@@ -150,6 +150,16 @@ void Partitioner::updateMetaDB() {
     this->sqlite->runUpdate(sqlStatement);
     streaming_partitioner_logger.info("Successfully updated metaDB");
 }
+
+bool Partitioner::getIsDirected() {
+    std::string sqlStatement = "SELECT is_directed FROM graph WHERE idgraph = '"+std::to_string(this->graphID)+"'";
+    auto result = this->sqlite->runSelect(sqlStatement);
+    if (result[0][0].second == "0") {
+        return false;
+    }
+    return true;
+}
+
 /**
  * Greedy vertex assignment objectives of minimizing the number of cut edges
 and balancing of the partition sizes. Assign the vertext to partition P that maximize the partition score

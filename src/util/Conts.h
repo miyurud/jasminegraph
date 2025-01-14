@@ -66,6 +66,8 @@ class Conts {
     static std::string GRAPH_WITH_TEXT_ATTRIBUTES;
     static std::string GRAPH_WITH_JSON_ATTRIBUTES;
     static std::string GRAPH_WITH_XML_ATTRIBUTES;
+    static std::string DIRECTED;
+    static std::string UNDIRECTED;
     static std::string TEMP_GRAPH_FILE_PATH;
     static std::string CARRIAGE_RETURN_NEW_LINE;
 

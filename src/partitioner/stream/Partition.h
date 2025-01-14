@@ -53,10 +53,10 @@ class Partition {
         }
         this->vertexCount = 0;
     };
-    void addEdge(std::pair<std::string, std::string> edge);
+    void addEdge(std::pair<std::string, std::string> edge, bool isDirected = false);
     std::set<std::string> getNeighbors(std::string);
     double partitionScore(std::string vertex);
-    double getEdgesCount();
+    double getEdgesCount(bool isDirected = false);
     double getVertextCount();
     double getVertextCountQuick();
     void addToEdgeCuts(std::string resident, std::string foreign, int partitionId);
