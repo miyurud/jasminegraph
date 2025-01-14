@@ -24,8 +24,8 @@ Logger streaming_partition_logger;
 
 // This addition is unidirectional , Add both items of the pair as keys
 void Partition::addEdge(std::pair<std::string, std::string> edge, bool isDirected) {
-    auto exsistFirstVertext = this->edgeList.find(edge.first);
-    if (exsistFirstVertext != this->edgeList.end()) {
+    auto existFirstVertex = this->edgeList.find(edge.first);
+    if (existFirstVertex != this->edgeList.end()) {
         this->edgeList[edge.first].insert(edge.second);
     } else {
         this->edgeList[edge.first] = std::set<std::string>({edge.second});
@@ -36,8 +36,8 @@ void Partition::addEdge(std::pair<std::string, std::string> edge, bool isDirecte
     }
 
     if (!isDirected) {
-        auto exsistSecondVertext = this->edgeList.find(edge.second);
-        if (exsistSecondVertext != this->edgeList.end()) {
+        auto existSecondVertex = this->edgeList.find(edge.second);
+        if (existSecondVertex != this->edgeList.end()) {
             this->edgeList[edge.second].insert(edge.first);
         } else {
             this->edgeList[edge.second] = std::set<std::string>({edge.first});
