@@ -1283,6 +1283,7 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
             return false;
         }
         if(data == "-1"){
+            sharedBuffer.add(data);
             break;
         }
 //        auto str = json::parse(data);
