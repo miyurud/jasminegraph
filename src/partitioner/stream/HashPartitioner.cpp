@@ -27,8 +27,8 @@ HashPartitioner::HashPartitioner(int numberOfPartitions, int graphID, std::strin
           edgeReady(numberOfPartitions, false), edgeCutsMutexes(numberOfPartitions),
           edgeCutsAvailableCV(numberOfPartitions), edgeCutsReady(numberOfPartitions, false),
           terminateConsumers(false), masterIp(masterIp), partitionMutexArray(numberOfPartitions) {
-    this->outputFilePath = Utils::getHomeDir() + "/.jasminegraph/tmp/hdfsstore/" + std::to_string(this->graphId);
-    Utils::createDirectory(Utils::getHomeDir() + "/.jasminegraph/tmp/hdfsstore");
+    this->outputFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.hdfs.tempfolder")
+            + "/" + std::to_string(this->graphId);
     Utils::createDirectory(this->outputFilePath);
 
     JasmineGraphServer *server = JasmineGraphServer::getInstance();
