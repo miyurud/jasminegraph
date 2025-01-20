@@ -93,7 +93,7 @@ INSERT INTO graph_status (idgraph_status, description) VALUES (2, 'OPERATIONAL')
 INSERT INTO graph_status (idgraph_status, description) VALUES (3, 'DELETED');
 INSERT INTO graph_status (idgraph_status, description) VALUES (4, 'NONOPERATIONAL');
 
-INSERT INTO partitioning_algorithm (idalgorithm, algorithm_name) VALUES (1, 'HASH');
-INSERT INTO partitioning_algorithm (idalgorithm, algorithm_name) VALUES (2, 'FENNEL');
-INSERT INTO partitioning_algorithm (idalgorithm, algorithm_name) VALUES (3, 'LDG');
-INSERT INTO partitioning_algorithm (idalgorithm, algorithm_name) VALUES (4, 'METIS');
+INSERT INTO partitioning_algorithm (id_algorithm, algorithm_name) VALUES (1, 'HASH');
+INSERT INTO partitioning_algorithm (id_algorithm, algorithm_name) VALUES (2, 'FENNEL');
+INSERT INTO partitioning_algorithm (id_algorithm, algorithm_name) VALUES (3, 'LDG');
+INSERT INTO partitioning_algorithm (id_algorithm, algorithm_name) VALUES (4, 'METIS');

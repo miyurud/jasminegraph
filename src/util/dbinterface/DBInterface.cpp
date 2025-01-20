@@ -174,7 +174,7 @@ int DBInterface::getNextGraphId() {
 }
 
 std::string DBInterface::getPartitionAlgoByGraphID(std::string graphID) {
-    std::string query = "SELECT idalgorithm FROM graph WHERE idgraph = ?;";
+    std::string query = "SELECT id_algorithm FROM graph WHERE idgraph = ?;";
     sqlite3_stmt* stmt;
 
     if (sqlite3_prepare_v2(database, query.c_str(), -1, &stmt, NULL) != SQLITE_OK) {

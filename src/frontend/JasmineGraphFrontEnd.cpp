@@ -1078,10 +1078,10 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
             return;
         }
         // Get user response.
-        string partitionAlgo = Utils::getFrontendInput(connFd);
+        string partitionAlgoInput = Utils::getFrontendInput(connFd);
 
-        if (partitionAlgo == "1" || partitionAlgo == "2" || partitionAlgo == "3") {
-            string partition_success_msg = "Set partition technique: " + partitionAlgo;
+        if (partitionAlgoInput == "1" || partitionAlgoInput == "2" || partitionAlgoInput == "3") {
+            string partition_success_msg = "Set partition technique: " + partitionAlgoInput;
             result_wr = write(connFd, partition_success_msg.c_str(), partition_success_msg.length());
             if (result_wr < 0) {
                 frontend_logger.error("Error writing to socket");
@@ -1094,9 +1094,9 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
                 *loop_exit_p = true;
                 return;
             }
-            partitionAlgo = partitionAlgo;
+            partitionAlgo = partitionAlgoInput;
         } else {
-            string errorMsg = "Error: invalid partition option: "+partitionAlgo;
+            string errorMsg = "Error: invalid partition option: "+partitionAlgoInput;
             result_wr = write(connFd, errorMsg.c_str(), errorMsg.length());
             if (result_wr < 0) {
                 frontend_logger.error("Error writing to socket");
@@ -1245,8 +1245,8 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
         std::time_t time = chrono::system_clock::to_time_t(chrono::system_clock::now());
         string uploadStartTime = ctime(&time);
         string sqlStatement =
-            "INSERT INTO graph (idgraph,idalgorithm,name,upload_path, upload_start_time, upload_end_time,"
-            "graph_status_idgraph_status, vertexcount, centralpartitioncount, edgecount, isDirected) VALUES("+
+            "INSERT INTO graph (idgraph,id_algorithm,name,upload_path, upload_start_time, upload_end_time,"
+            "graph_status_idgraph_status, vertexcount, centralpartitioncount, edgecount, is_directed) VALUES("+
             graphId+","+partitionAlgo+",\"" +topic_name_s + "\", \"" + path + "\", \"" +uploadStartTime+ "\", \"\",\"" +
             to_string(Conts::GRAPH_STATUS::STREAMING) + "\", \"\","+ to_string(numberOfPartitions)+
             ", \"\",\"" +direction+"\")";
