@@ -124,3 +124,85 @@ int DBInterface::runSqlNoCallback(const char *zSql) {
 
     return rc;
 }
+
+bool DBInterface::isGraphIdExist(std::string graphId) {
+    std::string query = "SELECT COUNT(idgraph) FROM graph WHERE idgraph = ?";
+    sqlite3_stmt* stmt;
+
+    if (sqlite3_prepare_v2(database, query.c_str(), -1, &stmt, NULL) != SQLITE_OK) {
+        interface_logger.error("SQL Error: Failed to prepare statement");
+        return false;
+    }
+
+    if (sqlite3_bind_text(stmt, 1, graphId.c_str(), -1, SQLITE_STATIC) != SQLITE_OK) {
+        interface_logger.error("SQL Error: Failed to bind parameter");
+        sqlite3_finalize(stmt);
+        return false;
+    }
+
+    bool exists = false;
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        int count = sqlite3_column_int(stmt, 0);
+        exists = (count > 0);
+    }
+
+    sqlite3_finalize(stmt);
+    return exists;
+}
+
+
+int DBInterface::getNextGraphId() {
+
+    std::string query = "SELECT MAX(idgraph) FROM graph;";
+    sqlite3_stmt* stmt;
+
+    if (sqlite3_prepare_v2(database, query.c_str(), -1, &stmt, NULL) != SQLITE_OK) {
+        interface_logger.error("SQL Error: Failed to prepare statement");
+        return -1;
+    }
+
+    int nextGraphId = 1;
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+
+        if (sqlite3_column_type(stmt, 0) != SQLITE_NULL) {
+            int maxId = sqlite3_column_int(stmt, 0);
+            nextGraphId = maxId + 1;
+        }
+    }
+
+    sqlite3_finalize(stmt);
+
+    return nextGraphId;
+}
+
+std::string DBInterface::getPartitionAlgoByGraphID(std::string graphID) {
+    std::string query = "SELECT idalgorithm FROM graph WHERE idgraph = ?;";
+    sqlite3_stmt* stmt;
+
+    if (sqlite3_prepare_v2(database, query.c_str(), -1, &stmt, NULL) != SQLITE_OK) {
+        interface_logger.error("SQL Error: Failed to prepare statement");
+        return "";
+    }
+
+    if (sqlite3_bind_text(stmt, 1, graphID.c_str(), -1, SQLITE_STATIC) != SQLITE_OK) {
+        interface_logger.error("SQL Error: Failed to bind parameter");
+        sqlite3_finalize(stmt);
+        return "";
+    }
+
+    std::string result = "";
+
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+
+        if (sqlite3_column_type(stmt, 0) != SQLITE_NULL) {
+            result = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+        }
+    } else {
+        interface_logger.info("No record found for graphID: " + graphID);
+    }
+
+    sqlite3_finalize(stmt);
+
+    return result;
+}
+

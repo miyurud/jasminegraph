@@ -52,6 +52,7 @@ limitations under the License.
 #include "../query/processor/cypher/astbuilder/ASTBuilder.h"
 #include "../query/processor/cypher/astbuilder/ASTNode.h"
 #include "../query/processor/cypher/semanticanalyzer/SemanticAnalyzer.h"
+#include "../partitioner/stream/Partitioner.h"
 
 
 #define MAX_PENDING_CONNECTIONS 10
@@ -139,9 +140,8 @@ void *frontendservicesesion(void *dummyPt) {
     std::string kafka_server_IP;
     cppkafka::Configuration configs;
     KafkaConnector *kstream;
-    Partitioner graphPartitioner(numberOfPartitions, 1, spt::Algorithms::HASH, sqlite);
-
     vector<DataPublisher *> workerClients;
+
     bool workerClientsInitialized = false;
 
     bool loop_exit = false;
@@ -957,14 +957,228 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
                                      KafkaConnector *&kstream, thread &input_stream_handler_thread,
                                      vector<DataPublisher *> &workerClients, int numberOfPartitions,
                                      SQLiteDBInterface *sqlite, bool *loop_exit_p) {
-    string msg_1 = "Do you want to use default KAFKA consumer(y/n) ?";
-    int result_wr = write(connFd, msg_1.c_str(), msg_1.length());
+    string exist = "Do you want to stream into existing graph(y/n) ? " ;
+    int result_wr = write(connFd, exist.c_str(), exist.length());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+
+    // Get user response.
+    char exist_graph[FRONTEND_DATA_LENGTH + 1];
+    bzero(exist_graph, FRONTEND_DATA_LENGTH + 1);
+    read(connFd, exist_graph, FRONTEND_DATA_LENGTH);
+    string exist_g(exist_graph);
+    exist_g = Utils::trim_copy(exist_g);
+    for (char &c : exist_g) {
+        c = tolower(c);
+    }
+    string graphId;
+    string partitionAlgo;
+    string direction;
+
+    if (exist_g == "y") {
+        string exist_graph_id_msg = "Send the existing graph ID ? " ;
+        int result_wr = write(connFd, exist_graph_id_msg.c_str(), exist_graph_id_msg.length());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        // Get user response.
+        char exist_graph_id[FRONTEND_DATA_LENGTH + 1];
+        bzero(exist_graph_id, FRONTEND_DATA_LENGTH + 1);
+        read(connFd, exist_graph_id, FRONTEND_DATA_LENGTH);
+        string exist_g_i(exist_graph_id);
+        exist_g_i = Utils::trim_copy(exist_g_i);
+        for (char &c : exist_g_i) {
+            c = tolower(c);
+        }
+
+        bool isExist = sqlite->isGraphIdExist(exist_g_i);
+        if (!isExist) {
+            string Err_msg = "Error: Graph ID you entered is not in the system";
+            result_wr = write(connFd, Err_msg.c_str(), Err_msg.length());
+            if (result_wr < 0) {
+                frontend_logger.error("Error writing to socket");
+                *loop_exit_p = true;
+                return;
+            }
+            return;
+        }
+        string exist_success_msg = "Set data streaming into graph ID: "+exist_g_i;
+        result_wr = write(connFd, exist_success_msg.c_str(), exist_success_msg.length());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        graphId = exist_g_i;
+        partitionAlgo = sqlite->getPartitionAlgoByGraphID(graphId);
+
+    } else {
+        int nextID = sqlite->getNextGraphId();
+        if (nextID < 0) {
+            return;
+        }
+        graphId = to_string(nextID);
+        string default_id = "Do you use Default graph ID: "+ graphId +"(y/n) ? " ;
+        int result_wr = write(connFd, default_id.c_str(), default_id.length());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        // Get user response.
+        char default_graph_id[FRONTEND_DATA_LENGTH + 1];
+        bzero(default_graph_id, FRONTEND_DATA_LENGTH + 1);
+        read(connFd, default_graph_id, FRONTEND_DATA_LENGTH);
+        string default_g_i(default_graph_id);
+        default_g_i = Utils::trim_copy(default_g_i);
+        for (char &c : default_g_i) {
+            c = tolower(c);
+        }
+
+        if (default_g_i != "y") {
+            string input_graph_id = "Input your graph ID: ";
+            result_wr = write(connFd, input_graph_id.c_str(), input_graph_id.length());
+            if (result_wr < 0) {
+                frontend_logger.error("Error writing to socket");
+                *loop_exit_p = true;
+                return;
+            }
+
+            // Get user response.
+            char graph_id[FRONTEND_DATA_LENGTH + 1];
+            bzero(graph_id, FRONTEND_DATA_LENGTH + 1);
+            read(connFd, graph_id, FRONTEND_DATA_LENGTH);
+            string user_graph_id(graph_id);
+            user_graph_id = Utils::trim_copy(user_graph_id);
+            for (char &c : user_graph_id) {
+                c = tolower(c);
+            }
+
+            bool isExist = sqlite->isGraphIdExist(user_graph_id);
+            if (isExist) {
+                string Err_msg = "Error: Graph ID you entered is already exist";
+                result_wr = write(connFd, Err_msg.c_str(), Err_msg.length());
+                if (result_wr < 0) {
+                    frontend_logger.error("Error writing to socket");
+                    *loop_exit_p = true;
+                    return;
+                }
+                return;
+            }
+
+            string user_success_msg = "Set graph ID successfully";
+            result_wr = write(connFd, user_success_msg.c_str(), user_success_msg.length());
+            if (result_wr < 0) {
+                frontend_logger.error("Error writing to socket");
+                *loop_exit_p = true;
+                return;
+            }
+            result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            if (result_wr < 0) {
+                frontend_logger.error("Error writing to socket");
+                *loop_exit_p = true;
+                return;
+            }
+            graphId = user_graph_id;
+        }
+
+        std::string partition_selection = "Select the partition technique\n"
+                                          "\toption 1: Hash partitioning\n"
+                                          "\toption 2: Fennel partitioning\n"
+                                          "\toption 3: LDG partitioning\n"
+                                          "Choose an option(1,2,3): ";
+        result_wr = write(connFd, partition_selection.c_str(), partition_selection.length());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        // Get user response.
+        char partition_algo[FRONTEND_DATA_LENGTH + 1];
+        bzero(partition_algo, FRONTEND_DATA_LENGTH + 1);
+        read(connFd, partition_algo, FRONTEND_DATA_LENGTH);
+        string partition_a(partition_algo);
+        partition_a = Utils::trim_copy(partition_a);
+        for (char &c : partition_a) {
+            c = tolower(c);
+        }
+
+        if (partition_a == "1" || partition_a == "2" || partition_a == "3") {
+            string partition_success_msg = "Set partition technique: "+partition_a;
+            result_wr = write(connFd, partition_success_msg.c_str(), partition_success_msg.length());
+            if (result_wr < 0) {
+                frontend_logger.error("Error writing to socket");
+                *loop_exit_p = true;
+                return;
+            }
+            result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            if (result_wr < 0) {
+                frontend_logger.error("Error writing to socket");
+                *loop_exit_p = true;
+                return;
+            }
+            partitionAlgo = partition_a;
+        } else {
+            string Err_msg = "Error: invalid partition option: "+partition_a;
+            result_wr = write(connFd, Err_msg.c_str(), Err_msg.length());
+            if (result_wr < 0) {
+                frontend_logger.error("Error writing to socket");
+                *loop_exit_p = true;
+                return;
+            }
+            return;
+        }
+
+        string checkDirection = "Is this graph Directed (y/n)? ";
+        result_wr = write(connFd, checkDirection.c_str(), checkDirection.length());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        // Get user response.
+        char isDirected[FRONTEND_DATA_LENGTH + 1];
+        bzero(isDirected, FRONTEND_DATA_LENGTH + 1);
+        read(connFd, isDirected, FRONTEND_DATA_LENGTH);
+        string is_directed(isDirected);
+        is_directed = Utils::trim_copy(is_directed);
+        for (char &c : is_directed) {
+            c = tolower(c);
+        }
+        if (is_directed == "y") {
+            direction = Conts::DIRECTED;
+        } else {
+            direction = Conts::UNDIRECTED;
+        }
+
+        string checkGraphType = "Graph type received";
+        result_wr = write(connFd, checkGraphType.c_str(), checkGraphType.length());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+    }
+
+    string msg_1 = "Do you want to use default KAFKA consumer(y/n) ?";
+    result_wr = write(connFd, msg_1.c_str(), msg_1.length());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -1062,64 +1276,35 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
         *loop_exit_p = true;
         return;
     }
-    string checkDirection = "Is this graph Directed (y/n)? ";
-    result_wr = write(connFd, checkDirection.c_str(), checkDirection.length());
-    if (result_wr < 0) {
-        frontend_logger.error("Error writing to socket");
-        *loop_exit_p = true;
-        return;
-    }
-    // Get user response.
-    char isDirected[FRONTEND_DATA_LENGTH + 1];
-    bzero(isDirected, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, isDirected, FRONTEND_DATA_LENGTH);
-    string is_directed(isDirected);
-    is_directed = Utils::trim_copy(is_directed);
-    for (char &c : is_directed) {
-        c = tolower(c);
-    }
-    string direction;
-    if (is_directed == "y") {
-        direction = Conts::DIRECTED;
-    } else {
-        direction = Conts::UNDIRECTED;
-    }
 
-    string checkGraphType = "Graph type received";
-    result_wr = write(connFd, checkGraphType.c_str(), checkGraphType.length());
-    if (result_wr < 0) {
-        frontend_logger.error("Error writing to socket");
-        *loop_exit_p = true;
-        return;
-    }
-
-    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-    if (result_wr < 0) {
-        frontend_logger.error("Error writing to socket");
-        *loop_exit_p = true;
-        return;
-    }
     // create kafka consumer and graph partitioner
     kstream = new KafkaConnector(configs);
-    // Create the Partitioner object.
-    Partitioner graphPartitioner(numberOfPartitions, 0, spt::Algorithms::FENNEL, sqlite);
     // Create the KafkaConnector object.
     kstream = new KafkaConnector(configs);
     // Subscribe to the Kafka topic.
     kstream->Subscribe(topic_name_s);
     // Create the StreamHandler object.
-    StreamHandler *stream_handler = new StreamHandler(kstream, numberOfPartitions, workerClients, sqlite);
+    StreamHandler *stream_handler = new StreamHandler(kstream, numberOfPartitions, workerClients, sqlite,
+                                                      stoi(graphId),
+                                                      spt::getPartitioner(partitionAlgo));
 
-    string path = "kafka:\\" + topic_name_s + ":" + group_id;
-    std::time_t time = chrono::system_clock::to_time_t(chrono::system_clock::now());
-    string uploadStartTime = ctime(&time);
-    string sqlStatement =
-        "INSERT INTO graph (name,upload_path,upload_start_time,upload_end_time,graph_status_idgraph_status,"
-        "vertexcount,centralpartitioncount,edgecount,is_directed) VALUES(\"" +
-        topic_name_s + "\", \"" + path + "\", \"" + uploadStartTime + "\", \"\",\"" +
-        to_string(Conts::GRAPH_STATUS::STREAMING) + "\", \"\", \"\", \"\",\"" +direction+"\")";
-    int newGraphID = sqlite->runInsert(sqlStatement);
-
+    if (exist_g != "y") {
+        string path = "kafka:\\" + topic_name_s + ":" + group_id;
+        std::time_t time = chrono::system_clock::to_time_t(chrono::system_clock::now());
+        string uploadStartTime = ctime(&time);
+        string sqlStatement =
+            "INSERT INTO graph (idgraph,idalgorithm,name,upload_path, upload_start_time, upload_end_time,"
+            "graph_status_idgraph_status, vertexcount, centralpartitioncount, edgecount, is_directed) VALUES("+
+            graphId+","+partitionAlgo+",\"" +topic_name_s + "\", \"" + path + "\", \"" +uploadStartTime+ "\", \"\",\"" +
+            to_string(Conts::GRAPH_STATUS::STREAMING) + "\", \"\","+ to_string(numberOfPartitions)+
+            ", \"\",\"" +direction+"\")";
+        int newGraphID = sqlite->runInsert(sqlStatement);
+    } else {
+        std::string sqlStatement = "UPDATE graph SET graph_status_idgraph_status ="+
+                to_string(Conts::GRAPH_STATUS::STREAMING)+
+                " WHERE idgraph = " + graphId;
+        sqlite->runUpdate(sqlStatement);
+    }
     frontend_logger.info("Start listening to " + topic_name_s);
     input_stream_handler_thread = thread(&StreamHandler::listen_to_kafka_topic, stream_handler);
 }
