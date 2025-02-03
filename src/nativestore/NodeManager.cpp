@@ -23,6 +23,7 @@ limitations under the License.
 #include "NodeBlock.h"  // To setup node DB
 #include "PropertyEdgeLink.h"
 #include "PropertyLink.h"
+#include "MetaPropertyLink.h"
 #include "RelationBlock.h"
 #include "iostream"
 #include <sys/stat.h>
@@ -42,6 +43,7 @@ NodeManager::NodeManager(GraphConfig gConfig) {
     std::string nodesDBPath = dbPrefix + "_nodes.db";
     indexDBPath = dbPrefix + "_nodes.index.db";
     std::string propertiesDBPath = dbPrefix + "_properties.db";
+    std::string metaPropertiesDBPath = dbPrefix + "_meta_properties.db";
     std::string edgePropertiesDBPath = dbPrefix + "_edge_properties.db";
     std::string relationsDBPath = dbPrefix + "_relations.db";
     std::string centralRelationsDBPath = dbPrefix + "_central_relations.db";
@@ -74,6 +76,7 @@ NodeManager::NodeManager(GraphConfig gConfig) {
 
     NodeBlock::nodesDB = Utils::openFile(nodesDBPath, openMode);
     PropertyLink::propertiesDB = Utils::openFile(propertiesDBPath, openMode);
+    MetaPropertyLink::metaPropertiesDB = Utils::openFile(metaPropertiesDBPath, openMode);
     PropertyEdgeLink::edgePropertiesDB = Utils::openFile(edgePropertiesDBPath, openMode);
     RelationBlock::relationsDB = utils.openFile(relationsDBPath, openMode);
     RelationBlock::centralRelationsDB = Utils::openFile(centralRelationsDBPath, openMode);
@@ -124,6 +127,14 @@ NodeManager::NodeManager(GraphConfig gConfig) {
 
     } else {
         node_manager_logger.error("Error getting file size for: " + propertiesDBPath);
+    }
+
+    if (stat(metaPropertiesDBPath.c_str(), &stat_buf) == 0) {
+        MetaPropertyLink::nextPropertyIndex = (stat_buf.st_size / MetaPropertyLink::META_PROPERTY_BLOCK_SIZE) == 0 ? 1 :
+                                          (stat_buf.st_size / MetaPropertyLink::META_PROPERTY_BLOCK_SIZE);
+
+    } else {
+        node_manager_logger.error("Error getting file size for: " + metaPropertiesDBPath);
     }
 
     if (stat(edgePropertiesDBPath.c_str(), &stat_buf) == 0) {
@@ -347,6 +358,7 @@ NodeBlock *NodeManager::get(std::string nodeId) {
     unsigned int centralEdgeRef;
     unsigned char edgeRefPID;
     unsigned int propRef;
+    unsigned int metaPropRef;
     char usageBlock;
     char label[NodeBlock::LABEL_SIZE];
 
@@ -373,6 +385,10 @@ NodeBlock *NodeManager::get(std::string nodeId) {
         node_manager_logger.error("Error while reading prop reference data from block " + std::to_string(blockAddress));
     }
 
+    if (!NodeBlock::nodesDB->read(reinterpret_cast<char *>(&metaPropRef), sizeof(unsigned int))) {
+        node_manager_logger.error("Error while reading prop reference data from block " + std::to_string(blockAddress));
+    }
+
     if (!NodeBlock::nodesDB->read(&label[0], NodeBlock::LABEL_SIZE)) {
         node_manager_logger.error("Error while reading label data from block " + std::to_string(blockAddress));
     }
@@ -381,8 +397,8 @@ NodeBlock *NodeManager::get(std::string nodeId) {
     node_manager_logger.debug("Length of label = " + std::to_string(strlen(label)));
     node_manager_logger.debug("DEBUG: raw edgeRef from DB (disk) " + std::to_string(edgeRef));
 
-    nodeBlockPointer =
-        new NodeBlock(nodeId, vertexId, blockAddress, propRef, edgeRef, centralEdgeRef, edgeRefPID, label, usage);
+    nodeBlockPointer = new NodeBlock(nodeId, vertexId, blockAddress, propRef, metaPropRef, edgeRef,
+                                     centralEdgeRef,edgeRefPID, label, usage);
 
     node_manager_logger.debug("DEBUG: nodeBlockPointer after creating the object edgeRef " +
                               std::to_string(nodeBlockPointer->edgeRef));
