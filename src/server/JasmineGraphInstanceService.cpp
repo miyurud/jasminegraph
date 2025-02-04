@@ -4274,11 +4274,7 @@ static void hdfs_start_stream_command(int connFd, bool *loop_exit_p, bool isLoca
     }
     instance_logger.debug("Sent : " + JasmineGraphInstanceProtocol::HDFS_STREAM_END_ACK);
 
-    if (isLocalStream) {
-        processFile(fileName, true, instanceStreamHandler);  // Call for local store
-    } else {
-        processFile(fileName, false, instanceStreamHandler);  // Call for central store
-    }
+    processFile(fileName, isLocalStream, instanceStreamHandler);
 
     // delete file chunk after adding to the store
     Utils::deleteFile(fullFilePath);
