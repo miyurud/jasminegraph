@@ -1347,7 +1347,8 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
         hdfsServerIp = Utils::getJasmineGraphProperty("org.jasminegraph.server.streaming.hdfs.host");
         hdfsPort = Utils::getJasmineGraphProperty("org.jasminegraph.server.streaming.hdfs.port");
     } else {
-        std::string message = "Send the file path to the HDFS configuration file. This file needs to be in some directory location that is accessible for JasmineGraph master";
+        std::string message = "Send the file path to the HDFS configuration file. This file needs to be in some"
+                              " directory location that is accessible for JasmineGraph master";
         resultWr = write(connFd, message.c_str(), message.length());
         if (resultWr < 0) {
             frontend_logger.error("Error writing to socket");
