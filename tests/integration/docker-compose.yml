@@ -10,17 +10,17 @@ services:
       - './env/databases/metadb:/home/ubuntu/software/jasminegraph/metadb'
       - './env/databases/performancedb:/home/ubuntu/software/jasminegraph/performancedb'
       - './env/data:/var/tmp/data'
-      - './env/hdfs:/var/tmp/hdfs'
+      - './env/config:/var/tmp/config'
       - '/tmp/jasminegraph:/tmp/jasminegraph'
     environment:
       - TESTING=true
     networks:
-      - jasminenet
+      - jasminegraph_net
     command: --MODE 1 --MASTERIP 172.28.5.1 --WORKERS 2 --WORKERIP 172.28.5.1 --ENABLE_NMON false
 
   namenode:
     image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
-    container_name: namenode
+    container_name: hdfs-namenode
     restart: always
     ports:
       - 9870:9870
@@ -30,52 +30,52 @@ services:
     environment:
       - CLUSTER_NAME=test
     env_file:
-      - env_init/hdfs/hadoop.env
+      - env_init/config/hdfs/hadoop.env
     networks:
-      - jasminenet
+      - jasminegraph_net
 
   datanode:
     image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
-    container_name: datanode
+    container_name: hdfs-datanode
     restart: always
     volumes:
       - hadoop_datanode:/hadoop/dfs/data
     environment:
       - SERVICE_PRECONDITION=namenode:9870
     env_file:
-      - env_init/hdfs/hadoop.env
+      - env_init/config/hdfs/hadoop.env
     networks:
-      - jasminenet
+      - jasminegraph_net
 
   resourcemanager:
     image: bde2020/hadoop-resourcemanager:2.0.0-hadoop3.2.1-java8
-    container_name: resourcemanager
+    container_name: hdfs-resourcemanager
     restart: always
     environment:
       - SERVICE_PRECONDITION=namenode:9000 namenode:9870 datanode:9864
     env_file:
-      - env_init/hdfs/hadoop.env
+      - env_init/config/hdfs/hadoop.env
     networks:
-      - jasminenet
+      - jasminegraph_net
 
   nodemanager1:
     image: bde2020/hadoop-nodemanager:2.0.0-hadoop3.2.1-java8
-    container_name: nodemanager
+    container_name: hdfs-nodemanager
     restart: always
     environment:
       - SERVICE_PRECONDITION=namenode:9000 namenode:9870 datanode:9864 resourcemanager:8088
     env_file:
-      - env_init/hdfs/hadoop.env
+      - env_init/config/hdfs/hadoop.env
     networks:
-      - jasminenet
+      - jasminegraph_net
 
 volumes:
   hadoop_namenode:
   hadoop_datanode:
 
 networks:
-  jasminenet:
-    name: jasminenet
+  jasminegraph_net:
+    name: jasminegraph_net
     driver: bridge
     ipam:
       config:
