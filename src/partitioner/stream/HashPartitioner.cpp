@@ -39,6 +39,7 @@ HashPartitioner::HashPartitioner(int numberOfPartitions, int graphID, std::strin
         this->partitions.push_back(Partition(i, numberOfPartitions));
         localEdgeThreads.emplace_back(&HashPartitioner::consumeLocalEdges, this, i, workers[i]);
         edgeCutThreads.emplace_back(&HashPartitioner::consumeEdgeCuts, this, i, workers[i]);
+        Utils::assignPartitionToWorker(graphId,i,workers.at(i).hostname,workers.at(i).port);
     }
 }
 
@@ -269,6 +270,29 @@ void HashPartitioner::consumeEdgeCuts(int partitionIndex, JasmineGraphServer::wo
         edgeCutsFile.close();
     }
     hash_partitioner_logger.debug("Central edge consumer " + std::to_string(partitionIndex) + " finished processing.");
+}
+
+void HashPartitioner::updatePartitionTable() {
+    auto *sqlite = new SQLiteDBInterface();
+    sqlite->init();
+
+    std::mutex dbLock;
+    for (int i = 0; i < numberOfPartitions; i++) {
+        string sqlStatement =
+                "INSERT INTO partition (idpartition,graph_idgraph,vertexcount,central_vertexcount,edgecount) VALUES(\""
+                + std::to_string(i) + "\", \"" + std::to_string(this->graphId) + "\", \"" +
+                std::to_string(partitions.at(i).getVertextCount()) +
+                "\",\"" + std::to_string(partitions.at(i).getVertextCount()) + "\",\"" +
+                std::to_string(partitions.at(i).getLocalEdgeCount()) + "\")";
+
+        dbLock.lock();
+        sqlite->runUpdate(sqlStatement);
+        dbLock.unlock();
+
+    }
+
+    sqlite->finalize();
+    delete sqlite;
 }
 
 long HashPartitioner::getVertexCount() {

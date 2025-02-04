@@ -36,6 +36,7 @@ using json = nlohmann::json;
 class Utils {
  private:
     static unordered_map<std::string, std::string> propertiesMap;
+    static std::mutex sqliteMutex;
 
  public:
     struct worker {
@@ -187,6 +188,8 @@ class Utils {
 
     static bool sendFileChunkToWorker(std::string host, int port, int dataPort, std::string filePath,
                                       std::string masterIP, std::string uploadType);
+
+    static void assignPartitionToWorker(int graphId, int partitionIndex, string  hostname,int port);
 };
 
 #endif  // JASMINEGRAPH_UTILS_H

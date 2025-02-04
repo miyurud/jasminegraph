@@ -59,6 +59,7 @@ class HashPartitioner {
     long getEdgeCount();
     void addEdgeCut(const pair<std::string, std::string> &edge, int index);
     void addLocalEdge(const pair<std::string, std::string> &edge, int index);
+    void updatePartitionTable();
 
  private:
     long vertexCount;
