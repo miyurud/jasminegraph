@@ -68,10 +68,10 @@ wait_for_hadoop() {
     echo "Hadoop Namenode is ready."
 
     # Check and leave safe mode if necessary
-    docker exec -i namenode hadoop dfsadmin -safemode get
-    if docker exec -i namenode hadoop dfsadmin -safemode get | grep -q "Safe mode is ON"; then
+    docker exec -i hdfs-namenode hadoop dfsadmin -safemode get
+    if docker exec -i hdfs-namenode hadoop dfsadmin -safemode get | grep -q "Safe mode is ON"; then
         echo "Exiting safe mode..."
-        docker exec -i namenode hadoop dfsadmin -safemode leave
+        docker exec -i hdfs-namenode hadoop dfsadmin -safemode leave
         echo "Safe mode exited."
     else
         echo "Namenode is not in safe mode."
@@ -93,14 +93,14 @@ wait_for_hadoop() {
     docker cp integration-jasminegraph-1:"${LOCAL_FILE_PATH}" "${LOCAL_DIRECTORY}"
 
     # Create the HDFS directory (this ensures it exists in HDFS)
-    docker exec -i namenode hadoop fs -mkdir -p "${HDFS_DIRECTORY}"
+    docker exec -i hdfs-namenode hadoop fs -mkdir -p "${HDFS_DIRECTORY}"
 
     # Copy the file from host to the namenode container
-    docker cp "${LOCAL_FILE_PATH}" namenode:"${HDFS_FILE_PATH}"
+    docker cp "${LOCAL_FILE_PATH}" hdfs-namenode:"${HDFS_FILE_PATH}"
 
     # Check if the file exists in HDFS
-    if ! docker exec -i namenode hadoop fs -test -e "${HDFS_FILE_PATH}"; then
-        docker exec -i namenode hadoop fs -put "${HDFS_FILE_PATH}" "${HDFS_DIRECTORY}"
+    if ! docker exec -i hdfs-namenode hadoop fs -test -e "${HDFS_FILE_PATH}"; then
+        docker exec -i hdfs-namenode hadoop fs -put "${HDFS_FILE_PATH}" "${HDFS_DIRECTORY}"
         echo "File: ${LOCAL_FILE_PATH} successfully uploaded to HDFS."
     else
         echo "File already exists in HDFS at ${HDFS_FILE_PATH}. Skipping upload."
