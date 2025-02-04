@@ -11,8 +11,8 @@
  * limitations under the License.
  */
 
-#ifndef JASMINE_HASH_PARTITIONER_HEADER
-#define JASMINE_HASH_PARTITIONER_HEADER
+#ifndef JASMINEGRAPH_HASH_PARTITIONER_HEADER
+#define JASMINEGRAPH_HASH_PARTITIONER_HEADER
 
 #include "Partitioner.h"
 #include "../../util/logger/Logger.h"
@@ -71,4 +71,4 @@ class HashPartitioner {
     void stopConsumerThreads();
 };
 
-#endif  // !JASMINE_HASH_PARTITIONER_HEADER
+#endif  // !JASMINEGRAPH_HASH_PARTITIONER_HEADER
