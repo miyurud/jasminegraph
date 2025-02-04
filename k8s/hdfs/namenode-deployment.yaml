@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hdfs-namenode
+  labels:
+    app: hdfs
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hdfs
+      component: namenode
+  template:
+    metadata:
+      labels:
+        app: hdfs
+        component: namenode
+    spec:
+      containers:
+        - name: namenode
+          image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+          ports:
+            - containerPort: 9000
+            - containerPort: 50070
+          env:
+            - name: CLUSTER_NAME
+              value: "hdfs-cluster"
+            - name: CORE_CONF_fs_defaultFS
+              value: "hdfs://hdfs-namenode:9000"
+            - name: CORE_CONF_hadoop_http_staticuser_user
+              value: "root"
+          volumeMounts:
+            - mountPath: "/hadoop/dfs/name"
+              name: namenode-storage
+      volumes:
+        - name: namenode-storage
+          persistentVolumeClaim:
+            claimName: namenode-pvc
