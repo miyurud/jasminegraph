@@ -30,7 +30,7 @@ static Algorithms getPartitioner(string id) {
     }
     return  Algorithms::HASH;
 }
-}
+}  // namespace spt
 
 class Partitioner {
     std::vector<Partition> partitions;
@@ -49,7 +49,6 @@ class Partitioner {
         for (size_t i = 0; i < numberOfPartitions; i++) {
             this->partitions.push_back(Partition(i, numberOfPartitions));
         };
-
     };
     void printStats();
     long getTotalVertices();

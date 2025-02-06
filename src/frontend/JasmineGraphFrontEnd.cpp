@@ -957,7 +957,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
                                      KafkaConnector *&kstream, thread &input_stream_handler_thread,
                                      vector<DataPublisher *> &workerClients, int numberOfPartitions,
                                      SQLiteDBInterface *sqlite, bool *loop_exit_p) {
-    string exist = "Do you want to stream into existing graph(y/n) ? " ;
+    string exist = "Do you want to stream into existing graph(y/n) ? ";
     int result_wr = write(connFd, exist.c_str(), exist.length());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
@@ -979,7 +979,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     string direction;
 
     if (exist_g == "y") {
-        string exist_graph_id_msg = "Send the existing graph ID ? " ;
+        string exist_graph_id_msg = "Send the existing graph ID ? ";
         int result_wr = write(connFd, exist_graph_id_msg.c_str(), exist_graph_id_msg.length());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
@@ -1029,7 +1029,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
             return;
         }
         graphId = to_string(nextID);
-        string default_id = "Do you use Default graph ID: "+ graphId +"(y/n) ? " ;
+        string default_id = "Do you use Default graph ID: "+ graphId +"(y/n) ? ";
         int result_wr = write(connFd, default_id.c_str(), default_id.length());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");

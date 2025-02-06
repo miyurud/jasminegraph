@@ -152,7 +152,6 @@ bool DBInterface::isGraphIdExist(std::string graphId) {
 
 
 int DBInterface::getNextGraphId() {
-
     std::string query = "SELECT MAX(idgraph) FROM graph;";
     sqlite3_stmt* stmt;
 
@@ -163,7 +162,6 @@ int DBInterface::getNextGraphId() {
 
     int nextGraphId = 1;
     if (sqlite3_step(stmt) == SQLITE_ROW) {
-
         if (sqlite3_column_type(stmt, 0) != SQLITE_NULL) {
             int maxId = sqlite3_column_int(stmt, 0);
             nextGraphId = maxId + 1;
@@ -193,7 +191,6 @@ std::string DBInterface::getPartitionAlgoByGraphID(std::string graphID) {
     std::string result = "";
 
     if (sqlite3_step(stmt) == SQLITE_ROW) {
-
         if (sqlite3_column_type(stmt, 0) != SQLITE_NULL) {
             result = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
         }
