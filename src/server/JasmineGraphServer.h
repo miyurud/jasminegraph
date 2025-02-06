@@ -24,6 +24,7 @@ limitations under the License.
 
 #include "../backend/JasmineGraphBackend.h"
 #include "../frontend/JasmineGraphFrontEnd.h"
+#include "../frontend/ui/JasmineGraphFrontEndUI.h"
 #include "../frontend/core/scheduler/JobScheduler.h"
 #include "../metadb/SQLiteDBInterface.h"
 #include "../performance/metrics/StatisticCollector.h"
@@ -103,6 +104,7 @@ class JasmineGraphServer {
     static bool spawnNewWorker(string host, string port, string dataPort, string masterHost, string enableNmon);
 
     JasmineGraphFrontEnd *frontend;
+    JasmineGraphFrontEndUI *frontendUI;
     SQLiteDBInterface *sqlite;
     PerformanceSQLiteDBInterface *performanceSqlite;
     JobScheduler *jobScheduler;

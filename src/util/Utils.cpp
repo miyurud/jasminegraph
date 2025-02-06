@@ -42,6 +42,7 @@ int jasminegraph_profile = PROFILE_K8S;
 #endif
 
 unordered_map<std::string, std::string> Utils::propertiesMap;
+std::mutex Utils::sqliteMutex;
 
 std::vector<std::string> Utils::split(const std::string &s, char delimiter) {
     std::vector<std::string> tokens;
@@ -259,10 +260,23 @@ std::vector<std::string> Utils::getListOfFilesInDirectory(std::string dirName) {
 int Utils::deleteDirectory(const std::string dirName) {
     string command = "rm -rf " + dirName;
     int status = system(command.c_str());
-    if (status == 0)
+    if (status == 0) {
         util_logger.info(dirName + " deleted successfully");
-    else
+    } else {
         util_logger.warn("Deleting " + dirName + " failed with exit code " + std::to_string(status));
+    }
+    return status;
+}
+
+int Utils::deleteAllMatchingFiles(const std::string fileNamePattern) {
+    std::string command = "rm -f " + fileNamePattern + "*";
+    int status = system(command.c_str());
+    if (status == 0) {
+        util_logger.info("Deleted All files associated with: " + fileNamePattern + "* successfully");
+    } else {
+        util_logger.warn("Deleting files associated with: " + fileNamePattern
+                         + "* failed with exit code " + std::to_string(status));
+    }
     return status;
 }
 
@@ -763,6 +777,59 @@ static size_t write_callback(void *contents, size_t size, size_t nmemb, std::str
     output->append(static_cast<char *>(contents), totalSize);
     return totalSize;
 }
+
+// Callback function to write the data to a file
+static size_t write_file_callback(void* contents, size_t size, size_t nmemb, void* userp) {
+    std::ofstream* file = static_cast<std::ofstream*>(userp);
+    size_t totalSize = size * nmemb;
+    file->write(static_cast<char*>(contents), totalSize);
+    return totalSize;
+}
+
+// Utility function to download a file from a URL and save it locally
+std::string Utils::downloadFile(const std::string& fileURL, const std::string& localFilePath) {
+    CURL* curl;
+    CURLcode res;
+
+    // Initialize curl
+    curl = curl_easy_init();
+    if (!curl) {
+        std::cerr << "Error initializing curl!" << std::endl;
+        return "";
+    }
+
+    // Open file to save the downloaded data
+    std::ofstream outFile(localFilePath, std::ios::binary);
+    if (!outFile) {
+        std::cerr << "Error: Could not open file for writing!" << std::endl;
+        curl_easy_cleanup(curl);
+        return "";
+    }
+
+    // Set curl options
+    curl_easy_setopt(curl, CURLOPT_URL, fileURL.c_str());
+    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);  // Follow redirects if any
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_file_callback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &outFile);
+
+    // Perform the request
+    res = curl_easy_perform(curl);
+
+    // Check for errors
+    if (res != CURLE_OK) {
+        std::cerr << "curl_easy_perform() failed: " << curl_easy_strerror(res) << std::endl;
+        outFile.close();
+        curl_easy_cleanup(curl);
+        return "";
+    }
+
+    // Cleanup
+    curl_easy_cleanup(curl);
+    outFile.close();
+
+    return localFilePath;
+}
+
 std::string Utils::send_job(std::string job_group_name, std::string metric_name, std::string metric_value) {
     CURL *curl;
     CURLcode res;
@@ -1142,6 +1209,50 @@ bool Utils::transferPartition(std::string sourceWorker, int sourceWorkerPort, st
     Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
     close(sockfd);
     return true;
+}
+
+void Utils::assignPartitionToWorker(int graphId, int partitionIndex, string  hostname, int port) {
+    util_logger.debug("Assigning graph ID: " + std::to_string(graphId) + "  partition: "
+    + std::to_string(partitionIndex) + " to worker");
+
+    auto *sqlite = new SQLiteDBInterface();
+    sqlite->init();
+
+    string workerHost;
+    if (hostname.find('@') != std::string::npos) {
+        workerHost = Utils::split(hostname, '@')[1];
+    }
+
+    sqliteMutex.lock();
+
+    try {
+        std::string workerSearchQuery =
+                "SELECT idworker FROM worker WHERE ip='" + workerHost +
+                "' AND server_port='" + std::to_string(port) + "'";
+
+        std::vector<std::vector<std::pair<std::string, std::string>>> results = sqlite->runSelect(workerSearchQuery);
+
+        if (results.empty()) {
+            util_logger.error("Worker not found : " + workerHost);
+            throw std::runtime_error("Worker not found");
+        }
+
+        std::string workerID = results[0][0].second;
+
+        std::string partitionToWorkerQuery =
+                "INSERT INTO worker_has_partition (partition_idpartition, partition_graph_idgraph, worker_idworker) "
+                "VALUES ('" + std::to_string(partitionIndex) + "','" + std::to_string(graphId)
+                + "','" + workerID + "')";
+
+        sqlite->runInsert(partitionToWorkerQuery);
+    } catch (const std::exception &ex) {
+        util_logger.error("Error assigning partition to worker: " + std::string(ex.what()));
+    }
+
+    sqlite->finalize();
+    sqliteMutex.unlock();
+
+    delete sqlite;
 }
 
 bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string masterIP,

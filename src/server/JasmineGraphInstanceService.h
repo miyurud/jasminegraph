@@ -49,6 +49,7 @@ limitations under the License.
 void *instanceservicesession(void *dummyPt);
 void writeCatalogRecord(string record);
 int deleteGraphPartition(std::string graphID, std::string partitionID);
+int deleteStreamingGraphPartition(std::string graphID, std::string partitionID);
 void removeGraphFragments(std::string graphID);
 
 map<long, long> calculateOutDegreeDist(string graphID, string partitionID, int serverPort,

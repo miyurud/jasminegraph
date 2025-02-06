@@ -156,6 +156,12 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/util/dbinterface/DBInterface.cpp
         src/query/processor/cypher/semanticanalyzer/SemanticAnalyzer.cpp
         src/query/processor/cypher/util/Const.cpp
+        src/frontend/ui/JasmineGraphFrontEndUIProtocol.h
+        src/frontend/ui/JasmineGraphFrontEndUIProtocol.cpp
+        src/frontend/ui/JasmineGraphFrontEndUI.cpp
+        src/frontend/ui/JasmineGraphFrontEndUI.h
+        src/frontend/core/common/JasmineGraphFrontendCommon.cpp
+        src/frontend/core/common/JasmineGraphFrontendCommon.h
         src/query/processor/cypher/queryplanner/Operators.cpp
         src/query/processor/cypher/queryplanner/QueryPlanner.cpp
         src/query/processor/cypher/runtime/QueryPlanHandler.cpp

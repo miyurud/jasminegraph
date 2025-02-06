@@ -17,6 +17,7 @@ using namespace std::chrono;
 std::map<std::string, std::vector<ResourceUsageInfo>> resourceUsageMap;
 
 static size_t write_callback(void *contents, size_t size, size_t nmemb, std::string *output);
+static size_t write_file_callback(void* contents, size_t size, size_t nmemb, void* userp);
 
 Logger scheduler_logger;
 SQLiteDBInterface *sqlLiteDB;

@@ -385,6 +385,14 @@ int deleteGraphPartition(std::string graphID, std::string partitionID) {
     return status;
 }
 
+int deleteStreamingGraphPartition(std::string graphID, std::string partitionID) {
+    int status = 0;
+    string partitionFilePathPattern = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder")
+                                      + "/g" + graphID + "_p" + partitionID;
+    status |= Utils::deleteAllMatchingFiles(partitionFilePathPattern);
+    return status;
+}
+
 /** Method for deleting all graph fragments given a graph ID
  *
  * @param graphID ID of graph fragments to be deleted in the instance
@@ -2160,6 +2168,7 @@ static void delete_graph_command(int connFd, bool *loop_exit_p) {
     string partitionID = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
     instance_logger.info("Received partition ID: " + partitionID);
     deleteGraphPartition(graphID, partitionID);
+    deleteStreamingGraphPartition(graphID, partitionID);
     // pthread_mutex_lock(&file_lock);
     // TODO :: Update catalog file
     // pthread_mutex_unlock(&file_lock);
