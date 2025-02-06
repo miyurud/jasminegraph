@@ -149,7 +149,6 @@ MetaPropertyEdgeLink* MetaPropertyEdgeLink::get(unsigned int propertyBlockAddres
 
         if (!MetaPropertyEdgeLink::metaEdgePropertiesDB->read(reinterpret_cast<char*>(&propertyName),
                                                       MetaPropertyEdgeLink::MAX_NAME_SIZE)) {
-
             property_edge_link_logger.error("Error while reading edge property name from block = " +
                                             std::to_string(propertyBlockAddress));
         }

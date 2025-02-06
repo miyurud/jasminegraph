@@ -32,10 +32,8 @@ class MetaPropertyEdgeLink {
     static thread_local std::fstream* metaEdgePropertiesDB;
     MetaPropertyEdgeLink(unsigned int);
     MetaPropertyEdgeLink(unsigned int, std::string, char*, unsigned int);
-    bool isEmpty();
     static MetaPropertyEdgeLink* get(unsigned int);
     static MetaPropertyEdgeLink* create(std::string, char[]);
-    
     unsigned int insert(std::string, char[]);
     MetaPropertyEdgeLink* next();
 };
