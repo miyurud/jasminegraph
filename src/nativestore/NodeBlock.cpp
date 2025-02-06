@@ -455,7 +455,8 @@ NodeBlock* NodeBlock::get(unsigned int blockAddress) {
         id = std::string(label);
     }
     nodeBlockPointer =
-        new NodeBlock(id, nodeId, blockAddress, propRef, metaPropRef, edgeRef, centralEdgeRef, edgeRefPID, label, usage);
+        new NodeBlock(id, nodeId, blockAddress, propRef, metaPropRef, edgeRef,
+                      centralEdgeRef, edgeRefPID, label, usage);
     if (nodeBlockPointer->id.length() == 0) {  // if label not found in node block look in the properties
         std::map<std::string, char*> props = nodeBlockPointer->getAllProperties();
         if (props["label"]) {

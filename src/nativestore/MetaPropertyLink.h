@@ -43,4 +43,4 @@ class MetaPropertyLink {
     MetaPropertyLink* next();
 };
 
-#endif //JASMINEGRAPH_METAPROPERTYLINK_H
+#endif  //  JASMINEGRAPH_METAPROPERTYLINK_H

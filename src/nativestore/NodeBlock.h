@@ -61,7 +61,8 @@ class NodeBlock {
     };
 
     NodeBlock(std::string id, unsigned int nodeId, unsigned int address, unsigned int propRef, unsigned int metaPropRef,
-              unsigned int edgeRef, unsigned int centralEdgeRef, unsigned char edgeRefPID, const char *_label, bool usage);
+              unsigned int edgeRef, unsigned int centralEdgeRef, unsigned char edgeRefPID, const char *_label,
+              bool usage);
 
     void save();
     std::string getLabel();

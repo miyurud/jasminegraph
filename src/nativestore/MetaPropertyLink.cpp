@@ -50,13 +50,13 @@ MetaPropertyLink::MetaPropertyLink(unsigned int propertyBlockAddress) : blockAdd
     pthread_mutex_unlock(&lockMetaPropertyLink);
 };
 
-MetaPropertyLink::MetaPropertyLink(unsigned int blockAddress, std::string name, const char* rvalue, unsigned int nextAddress)
+MetaPropertyLink::MetaPropertyLink(unsigned int blockAddress, std::string name,
+                                   const char* rvalue, unsigned int nextAddress)
         : blockAddress(blockAddress), nextPropAddress(nextAddress), name(name) {
     memcpy(this->value, rvalue, MetaPropertyLink::MAX_VALUE_SIZE);
 };
 
 unsigned int MetaPropertyLink::insert(std::string name, const char* value) {
-
     char dataName[MetaPropertyLink::MAX_NAME_SIZE] = {0};
     char dataValue[MetaPropertyLink::MAX_VALUE_SIZE] = {0};
     std::strcpy(dataName, name.c_str());

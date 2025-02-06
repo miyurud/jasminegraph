@@ -24,15 +24,12 @@ class MetaPropertyEdgeLink {
     static const unsigned long MAX_VALUE_SIZE = 180;  // Size of a property value in bytes
     static thread_local unsigned int nextPropertyIndex;            // Next available property block index
     static const unsigned long META_PROPERTY_BLOCK_SIZE = MAX_NAME_SIZE + MAX_VALUE_SIZE + sizeof(unsigned int);
-    
     std::string name;
     char value[MetaPropertyEdgeLink::MAX_VALUE_SIZE] = {0};
     unsigned int blockAddress;
     unsigned int nextPropAddress;
-    
     static std::string DB_PATH;
     static thread_local std::fstream* metaEdgePropertiesDB;
-
     MetaPropertyEdgeLink(unsigned int);
     MetaPropertyEdgeLink(unsigned int, std::string, char*, unsigned int);
     bool isEmpty();
@@ -44,4 +41,4 @@ class MetaPropertyEdgeLink {
 };
 
 
-#endif //JASMINEGRAPH_METAPROPERTYEDGELINK_H
+#endif  // JASMINEGRAPH_METAPROPERTYEDGELINK_H
