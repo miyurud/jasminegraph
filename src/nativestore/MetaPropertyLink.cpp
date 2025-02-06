@@ -71,7 +71,7 @@ unsigned int MetaPropertyLink::insert(std::string name, const char* value) {
         this->metaPropertiesDB->write(reinterpret_cast<char*>(dataValue), MetaPropertyLink::MAX_VALUE_SIZE);
         this->metaPropertiesDB->flush();
         pthread_mutex_unlock(&lockInsertMetaPropertyLink);
-        meta_property_link_logger.debug("updating already existing property key = " + std::string(name));
+        meta_property_link_logger.debug("Updating already existing property key = " + std::string(name));
         return this->blockAddress;
     } else if (this->nextPropAddress) {  // Traverse to the edge/end of the link list
         return this->next()->insert(name, value);

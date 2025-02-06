@@ -74,7 +74,7 @@ unsigned int MetaPropertyEdgeLink::insert(std::string name, char* value) {
         this->metaEdgePropertiesDB->write(reinterpret_cast<char*>(dataValue), MetaPropertyEdgeLink::MAX_VALUE_SIZE);
         this->metaEdgePropertiesDB->flush();
         pthread_mutex_unlock(&lockInsertMetaPropertyEdgeLink);
-        property_edge_link_logger.debug("updating already existing property key = " + std::string(name));
+        property_edge_link_logger.debug("Updating already existing property key = " + std::string(name));
         return this->blockAddress;
     } else if (this->nextPropAddress) {  // Traverse to the edge/end of the link list
         std::unique_ptr<MetaPropertyEdgeLink> pel(new MetaPropertyEdgeLink(this->nextPropAddress));

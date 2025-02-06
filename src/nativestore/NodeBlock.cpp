@@ -98,12 +98,10 @@ void NodeBlock::addProperty(std::string name, const char* value) {
 void NodeBlock::addMetaProperty(std::string name, const char* value) {
     if (this->metaPropRef == 0) {
         MetaPropertyLink* newLink = MetaPropertyLink::create(name, value);
-        //        pthread_mutex_lock(&lockAddNodeProperty);
+
         if (newLink) {
             this->metaPropRef = newLink->blockAddress;
-            // If it was an empty prop link before inserting, Then update the property reference of this node
-            // block
-            //            node_block_logger.info("propRef = " + std::to_string(this->propRef));
+
             NodeBlock::nodesDB->seekp(this->addr +sizeof(this->usage) +sizeof(this->nodeId) + sizeof(this->edgeRef) +
                                       sizeof(this->centralEdgeRef) + sizeof(this->edgeRefPID)+ sizeof(this->propRef));
             NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(this->metaPropRef)), sizeof(this->metaPropRef));
