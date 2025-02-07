@@ -7,7 +7,7 @@ create table graph
     upload_start_time           TIME         not null,
     upload_end_time             TIME         not null,
     graph_status_idgraph_status INTEGER      not null,
-    idalgorithm                  INTEGER,
+    id_algorithm                INTEGER,
     vertexcount                 BIGINT default 0,
     centralpartitioncount       INTEGER,
     edgecount                   INTEGER default 0,
@@ -84,7 +84,7 @@ create table worker_has_partition
 
 create table partitioning_algorithm
 (
-    idalgorithm     INTEGER not null primary key,
+    id_algorithm    INTEGER not null primary key,
     algorithm_name  VARCHAR not null
 );
 
