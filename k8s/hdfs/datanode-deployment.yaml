@@ -4,18 +4,19 @@ metadata:
   name: hdfs-datanode
   labels:
     app: hdfs
+    role: datanode
 spec:
   serviceName: hdfs-datanode
   replicas: 2
   selector:
     matchLabels:
       app: hdfs
-      component: datanode
+      role: datanode
   template:
     metadata:
       labels:
         app: hdfs
-        component: datanode
+        role: datanode
     spec:
       containers:
         - name: datanode

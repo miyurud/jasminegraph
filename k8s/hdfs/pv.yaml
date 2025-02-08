@@ -2,6 +2,9 @@ apiVersion: v1
 kind: PersistentVolume
 metadata:
   name: datanode-pv-1
+  labels:
+    app: hdfs
+    role: datanode
 spec:
   capacity:
     storage: 10Gi
@@ -14,6 +17,9 @@ apiVersion: v1
 kind: PersistentVolume
 metadata:
   name: datanode-pv-2
+  labels:
+    app: hdfs
+    role: datanode
 spec:
   capacity:
     storage: 10Gi
@@ -26,6 +32,9 @@ apiVersion: v1
 kind: PersistentVolume
 metadata:
   name: namenode-pv
+  labels:
+    app: hdfs
+    role: namenode
 spec:
   capacity:
     storage: 10Gi
