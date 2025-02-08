@@ -66,81 +66,81 @@ clear_resources() {
 }
 
 ready_hdfs() {
-  echo "Applying HDFS configurations..."
+    echo "Applying HDFS configurations..."
 
-  # Clean residual resources before setting up the deployments
-  kubectl delete statefulset,deployments,svc,pvc,pv -l app=hdfs >/dev/null 2>&1
+    # Clean residual resources before setting up the deployments
+    kubectl delete statefulset,deployments,svc,pvc,pv -l app=hdfs >/dev/null 2>&1
 
-  kubectl apply -f ./k8s/hdfs/pv.yaml
-  kubectl apply -f ./k8s/hdfs/namenode-pvc.yaml
-  kubectl apply -f ./k8s/hdfs/namenode-deployment.yaml
-  kubectl apply -f ./k8s/hdfs/namenode-service.yaml
-  kubectl apply -f ./k8s/hdfs/datanode-deployment.yaml
-  kubectl apply -f ./k8s/hdfs/datanode-service.yaml
+    kubectl apply -f ./k8s/hdfs/pv.yaml
+    kubectl apply -f ./k8s/hdfs/namenode-pvc.yaml
+    kubectl apply -f ./k8s/hdfs/namenode-deployment.yaml
+    kubectl apply -f ./k8s/hdfs/namenode-service.yaml
+    kubectl apply -f ./k8s/hdfs/datanode-deployment.yaml
+    kubectl apply -f ./k8s/hdfs/datanode-service.yaml
 
-  echo "Fetching JasmineGraph Master pod name..."
-  MASTER_POD=$(kubectl get pods | grep jasminegraph-master  | awk '{print $1}')
+    echo "Fetching JasmineGraph Master pod name..."
+    MASTER_POD=$(kubectl get pods | grep jasminegraph-master  | awk '{print $1}')
 
-  if [[ -z "${MASTER_POD}" ]]; then
-      echo "Error: JasmineGraph Master pod not found. Exiting."
-      return 1
-  fi
+    if [[ -z "${MASTER_POD}" ]]; then
+        echo "Error: JasmineGraph Master pod not found. Exiting."
+        return 1
+    fi
 
-  echo "Master pod found: ${MASTER_POD}"
+    echo "Master pod found: ${MASTER_POD}"
 
-  FILE_NAME="powergrid.dl"
-  LOCAL_DIRECTORY="/var/tmp/data/"
-  LOCAL_FILE_PATH="${LOCAL_DIRECTORY}${FILE_NAME}"
-  HDFS_DIRECTORY="/home/"
-  HDFS_FILE_PATH="${HDFS_DIRECTORY}${FILE_NAME}"
+    FILE_NAME="powergrid.dl"
+    LOCAL_DIRECTORY="/var/tmp/data/"
+    LOCAL_FILE_PATH="${LOCAL_DIRECTORY}${FILE_NAME}"
+    HDFS_DIRECTORY="/home/"
+    HDFS_FILE_PATH="${HDFS_DIRECTORY}${FILE_NAME}"
 
-  # Ensure local directory exists
-  mkdir -p "${LOCAL_DIRECTORY}"
+    # Ensure local directory exists
+    mkdir -p "${LOCAL_DIRECTORY}"
 
-  # Copy the file from the master pod
-  kubectl cp "${MASTER_POD}:${LOCAL_FILE_PATH}" "${LOCAL_FILE_PATH}" || {
-      echo "Error copying file from JasmineGraph Master pod."
-      return 1
-  }
+    # Copy the file from the master pod
+    kubectl cp "${MASTER_POD}:${LOCAL_FILE_PATH}" "${LOCAL_FILE_PATH}" || {
+        echo "Error copying file from JasmineGraph Master pod."
+        return 1
+    }
 
-  #find namenode
-  echo "Fetching HDFS namenode pod name..."
-  NAMENODE_POD=$(kubectl get pods | grep hdfs-namenode | awk '{print $1}')
+    #find namenode
+    echo "Fetching HDFS namenode pod name..."
+    NAMENODE_POD=$(kubectl get pods | grep hdfs-namenode | awk '{print $1}')
 
-  if [[ -z "${NAMENODE_POD}" ]]; then
-      echo "Error: HDFS namenode pod not found. Exiting."
-      return 1
-  fi
+    if [[ -z "${NAMENODE_POD}" ]]; then
+        echo "Error: HDFS namenode pod not found. Exiting."
+        return 1
+    fi
 
-  echo "Namenode pod found: ${NAMENODE_POD}"
+    echo "Namenode pod found: ${NAMENODE_POD}"
 
-  # Wait until the NameNode service is ready
-  echo "Waiting for HDFS NameNode service to be available..."
-  while ! kubectl exec "${NAMENODE_POD}" -- hadoop dfsadmin -report &>/dev/null; do
-    echo "HDFS NameNode service is not ready yet. Retrying in 5 seconds..."
-    sleep 5
-  done
+    # Wait until the NameNode service is ready
+    echo "Waiting for HDFS NameNode service to be available..."
+    while ! kubectl exec "${NAMENODE_POD}" -- hadoop dfsadmin -report &>/dev/null; do
+      echo "HDFS NameNode service is not ready yet. Retrying in 5 seconds..."
+      sleep 5
+    done
 
-  echo "HDFS NameNode service is available."
+    echo "HDFS NameNode service is available."
 
-  # Create the HDFS directory (ensure it exists)
-  kubectl exec -i "${NAMENODE_POD}" -- hadoop fs -mkdir -p "${HDFS_DIRECTORY}"
-  echo "Created directory: $HDFS_DIRECTORY in Name node"
+    # Create the HDFS directory (ensure it exists)
+    kubectl exec -i "${NAMENODE_POD}" -- hadoop fs -mkdir -p "${HDFS_DIRECTORY}"
+    echo "Created directory: $HDFS_DIRECTORY in Name node"
 
-  # Copy the file from local to the HDFS namenode pod
-  kubectl cp "${LOCAL_FILE_PATH}" "${NAMENODE_POD}":"${HDFS_FILE_PATH}" || {
-      echo "Error copying file to HDFS namenode pod."
-      return 1
-  }
-  echo "Copied $HDFS_FILE_PATH"
+    # Copy the file from local to the HDFS namenode pod
+    kubectl cp "${LOCAL_FILE_PATH}" "${NAMENODE_POD}":"${HDFS_FILE_PATH}" || {
+        echo "Error copying file to HDFS namenode pod."
+        return 1
+    }
+    echo "Copied $HDFS_FILE_PATH"
 
-  # Check if the file exists in HDFS
-  if ! kubectl exec -i "${NAMENODE_POD}" -- hadoop fs -test -e "${HDFS_FILE_PATH}"; then
-      kubectl exec -i "${NAMENODE_POD}" -- hadoop fs -put "${HDFS_FILE_PATH}" "${HDFS_DIRECTORY}"
-      echo "File successfully uploaded to HDFS at ${HDFS_FILE_PATH}."
-  else
-      echo "File already exists in HDFS at ${HDFS_FILE_PATH}. Skipping upload."
-  fi
+    # Check if the file exists in HDFS
+    if ! kubectl exec -i "${NAMENODE_POD}" -- hadoop fs -test -e "${HDFS_FILE_PATH}"; then
+        kubectl exec -i "${NAMENODE_POD}" -- hadoop fs -put "${HDFS_FILE_PATH}" "${HDFS_DIRECTORY}"
+        echo "File successfully uploaded to HDFS at ${HDFS_FILE_PATH}."
+    else
+        echo "File already exists in HDFS at ${HDFS_FILE_PATH}. Skipping upload."
+    fi
 }
 
 cd "$TEST_ROOT"
