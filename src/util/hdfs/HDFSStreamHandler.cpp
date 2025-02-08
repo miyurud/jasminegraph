@@ -35,7 +35,7 @@ const size_t MAX_BUFFER_SIZE = MESSAGE_SIZE * 512;
 const std::string END_OF_STREAM_MARKER = "-1";
 
 HDFSStreamHandler::HDFSStreamHandler(hdfsFS fileSystem, const std::string &filePath, int numberOfPartitions,
-                                     int graphId, SQLiteDBInterface *sqlite, std::string masterIP)
+                                     int graphId, SQLiteDBInterface *sqlite, std::string masterIP, bool isDirected)
         : fileSystem(fileSystem),
           filePath(filePath),
           numberOfPartitions(numberOfPartitions),
@@ -43,7 +43,8 @@ HDFSStreamHandler::HDFSStreamHandler(hdfsFS fileSystem, const std::string &fileP
           isProcessing(true),
           graphId(graphId),
           sqlite(sqlite),
-          masterIP(masterIP) {}
+          masterIP(masterIP),
+          isDirected(isDirected) {}
 
 void HDFSStreamHandler::streamFromHDFSIntoBuffer() {
     auto startTime = high_resolution_clock::now();
@@ -159,7 +160,7 @@ void HDFSStreamHandler::streamFromBufferToProcessingQueue(HashPartitioner &parti
 
 void HDFSStreamHandler::startStreamingFromBufferToPartitions() {
     auto startTime = high_resolution_clock::now();
-    HashPartitioner partitioner(numberOfPartitions, graphId, masterIP);
+    HashPartitioner partitioner(numberOfPartitions, graphId, masterIP, isDirected);
 
     std::thread readerThread(&HDFSStreamHandler::streamFromHDFSIntoBuffer, this);
     std::vector<std::thread> bufferProcessorThreads;

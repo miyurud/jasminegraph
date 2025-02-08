@@ -1286,8 +1286,9 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
 
     int newGraphID = sqlite->runInsert(sqlStatement);
     frontend_logger.info("Created graph ID: " + std::to_string(newGraphID));
-    HDFSStreamHandler *streamHandler = new HDFSStreamHandler(hdfsConnector->getFileSystem(), hdfsFilePathS,
-                                                              numberOfPartitions, newGraphID, sqlite, masterIP);
+    HDFSStreamHandler *streamHandler = new HDFSStreamHandler(hdfsConnector->getFileSystem(),
+                                                             hdfsFilePathS, numberOfPartitions,
+                                                             newGraphID, sqlite, masterIP, directed);
     frontend_logger.info("Started listening to " + hdfsFilePathS);
     inputStreamHandlerThread = std::thread(&HDFSStreamHandler::startStreamingFromBufferToPartitions, streamHandler);
     inputStreamHandlerThread.join();

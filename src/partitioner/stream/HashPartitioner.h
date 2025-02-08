@@ -54,7 +54,7 @@ class HashPartitioner {
 
  public:
     ~HashPartitioner();
-    HashPartitioner(int numberOfPartitions, int graphID, std::string masterIp);
+    HashPartitioner(int numberOfPartitions, int graphID, std::string masterIp, bool isDirected);
     long getVertexCount();
     long getEdgeCount();
     void addEdgeCut(const pair<std::string, std::string> &edge, int index);
@@ -64,6 +64,7 @@ class HashPartitioner {
  private:
     long vertexCount;
     long edgeCount;
+    bool isDirected;
     std::string outputFilePath;
 
     void consumeLocalEdges(int partitionIndex, JasmineGraphServer::worker worker);

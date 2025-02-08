@@ -19,14 +19,15 @@ Logger hash_partitioner_logger;
 
 int PARTITION_FILE_EDGE_COUNT_THRESHOLD = 1000000;
 
-HashPartitioner::HashPartitioner(int numberOfPartitions, int graphID, std::string masterIp)
+HashPartitioner::HashPartitioner(int numberOfPartitions, int graphID, std::string masterIp, bool isDirected)
         : numberOfPartitions(numberOfPartitions), graphId(graphID),
           partitionLocks(numberOfPartitions), vertexCount(0), edgeCount(0),
           localEdgeArrays(numberOfPartitions), edgeCutsArrays(numberOfPartitions),
           localEdgeMutexes(numberOfPartitions), edgeAvailableCV(numberOfPartitions),
           edgeReady(numberOfPartitions, false), edgeCutsMutexes(numberOfPartitions),
           edgeCutsAvailableCV(numberOfPartitions), edgeCutsReady(numberOfPartitions, false),
-          terminateConsumers(false), masterIp(masterIp), partitionMutexArray(numberOfPartitions) {
+          terminateConsumers(false), masterIp(masterIp), partitionMutexArray(numberOfPartitions),
+          isDirected(isDirected) {
     this->outputFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.hdfs.tempfolder")
             + "/" + std::to_string(this->graphId);
     Utils::createDirectory(this->outputFilePath);
@@ -169,7 +170,7 @@ void HashPartitioner::consumeLocalEdges(int partitionIndex, JasmineGraphServer::
             }
 
             std::lock_guard<std::mutex> partitionLock(partitionLocks[partitionIndex]);
-            partitions[partitionIndex].addEdge(edge);
+            partitions[partitionIndex].addEdge(edge,isDirected);
         }
 
         // Reset the flag after processing the current batch of edges
@@ -283,7 +284,7 @@ void HashPartitioner::updatePartitionTable() {
                 + std::to_string(i) + "\", \"" + std::to_string(this->graphId) + "\", \"" +
                 std::to_string(partitions.at(i).getVertextCount()) +
                 "\",\"" + std::to_string(partitions.at(i).getVertextCount()) + "\",\"" +
-                std::to_string(partitions.at(i).getLocalEdgeCount()) + "\")";
+                std::to_string(partitions.at(i).getEdgesCount(isDirected)) + "\")";
 
         dbLock.lock();
         sqlite->runUpdate(sqlStatement);
@@ -296,47 +297,19 @@ void HashPartitioner::updatePartitionTable() {
 }
 
 long HashPartitioner::getVertexCount() {
-    if (this->vertexCount == 0 && this->edgeCount == 0) {
-        int totalVertices = 0;
-        int totalEdges = 0;
-        int edgeCuts = 0;
-        for (auto & partition : this->partitions) {
-            totalVertices += partition.getVertextCount();
-            totalEdges += partition.edgeC();
-            edgeCuts += partition.edgeCutC();
-        }
-        this->vertexCount = totalVertices;
-        this->edgeCount = totalEdges + edgeCuts / 2;
-    } else if (this->vertexCount == 0) {
-        int totalVertices = 0;
-        for (auto & partition : this->partitions) {
-            totalVertices += partition.getVertextCount();
-        }
-        this->vertexCount = totalVertices;
+    int totalVertices = 0;
+    for (auto & partition : this->partitions) {
+        totalVertices += partition.getVertextCount();
     }
-    return this->vertexCount;
+    return totalVertices;
 }
 
 long HashPartitioner::getEdgeCount() {
-    if (this->edgeCount == 0 && this->vertexCount == 0) {
-        int totalVertices = 0;
-        int totalEdges = 0;
-        int edgeCuts = 0;
-        for (auto & partition : this->partitions) {
-            totalVertices += partition.getVertextCount();
-            totalEdges += partition.edgeC();
-            edgeCuts += partition.edgeCutC();
-        }
-        this->vertexCount = totalVertices;
-        this->edgeCount = totalEdges + edgeCuts / 2;
-    } else if (this->edgeCount == 0) {
-        int totalEdges = 0;
-        int edgeCuts = 0;
-        for (auto & partition : this->partitions) {
-            totalEdges += partition.edgeC();
-            edgeCuts += partition.edgeCutC();
-        }
-        this->edgeCount = totalEdges + edgeCuts / 2;
+    int totalEdges = 0;
+    int edgeCuts = 0;
+    for (auto & partition : this->partitions) {
+        totalEdges += partition.getEdgesCount(isDirected);
+        edgeCuts += partition.edgeCutsCount();
     }
-    return this->edgeCount;
+   return  totalEdges + edgeCuts / 2;
 }
