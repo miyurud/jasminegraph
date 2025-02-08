@@ -61,15 +61,15 @@ build_and_run_on_k8s() {
 
 clear_resources() {
     ./start-k8s.sh clean
-    kubectl delete statefulset -l app=hdfs
-    kubectl delete deployment -l app=hdfs
-    kubectl delete service -l app=hdfs
-    kubectl delete pvc -l app=hdfs
-    kubectl delete pv -l app=hdfs
+    # Clean hdfs related deployed components
+    kubectl delete statefulset,deployments,svc,pvc,pv -l app=hdfs
 }
 
 ready_hdfs() {
   echo "Applying HDFS configurations..."
+
+  # Clean residual resources before setting up the deployments
+  kubectl delete statefulset,deployments,svc,pvc,pv -l app=hdfs >/dev/null 2>&1
 
   kubectl apply -f ./k8s/hdfs/pv.yaml
   kubectl apply -f ./k8s/hdfs/namenode-pvc.yaml
