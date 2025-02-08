@@ -124,7 +124,7 @@ ready_hdfs() {
   echo "HDFS NameNode service is available."
 
   # Create the HDFS directory (ensure it exists)
-  kubectl exec -it "${NAMENODE_POD}" -- hadoop fs -mkdir -p "${HDFS_DIRECTORY}"
+  kubectl exec -i "${NAMENODE_POD}" -- hadoop fs -mkdir -p "${HDFS_DIRECTORY}"
   echo "Created directory: $HDFS_DIRECTORY in Name node"
 
   # Copy the file from local to the HDFS namenode pod
@@ -135,8 +135,8 @@ ready_hdfs() {
   echo "Copied $HDFS_FILE_PATH"
 
   # Check if the file exists in HDFS
-  if ! kubectl exec -it "${NAMENODE_POD}" -- hadoop fs -test -e "${HDFS_FILE_PATH}"; then
-      kubectl exec -it "${NAMENODE_POD}" -- hadoop fs -put "${HDFS_FILE_PATH}" "${HDFS_DIRECTORY}"
+  if ! kubectl exec -i "${NAMENODE_POD}" -- hadoop fs -test -e "${HDFS_FILE_PATH}"; then
+      kubectl exec -i "${NAMENODE_POD}" -- hadoop fs -put "${HDFS_FILE_PATH}" "${HDFS_DIRECTORY}"
       echo "File successfully uploaded to HDFS at ${HDFS_FILE_PATH}."
   else
       echo "File already exists in HDFS at ${HDFS_FILE_PATH}. Skipping upload."
