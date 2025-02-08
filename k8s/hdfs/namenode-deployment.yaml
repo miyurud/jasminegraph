@@ -17,6 +17,7 @@ spec:
         app: hdfs
         role: namenode
     spec:
+      automountServiceAccountToken: false  # Restrict service account permissions
       containers:
         - name: namenode
           image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
@@ -30,6 +31,11 @@ spec:
               value: "hdfs://hdfs-namenode:9000"
             - name: CORE_CONF_hadoop_http_staticuser_user
               value: "root"
+          resources:  # Memory and storage limits added
+            limits:
+              memory: "2Gi"
+            requests:
+              memory: "1Gi"
           volumeMounts:
             - mountPath: "/hadoop/dfs/name"
               name: namenode-storage
