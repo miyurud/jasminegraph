@@ -85,6 +85,8 @@ class Utils {
 
     static int deleteAllMatchingFiles(const std::string fileNamePattern);
 
+    static int deleteFile(const std::string fileName);
+
     static std::string getFileName(std::string filePath);
 
     static int getFileSize(std::string filePath);
@@ -119,8 +121,6 @@ class Utils {
     static std::string checkFlag(std::string flagPath);
 
     static int connect_wrapper(int sock, const sockaddr *addr, socklen_t slen);
-
-    static void assignPartitionToWorker(int graphId, int partitionIndex, string  hostname, int port);
 
     /**
      * Wrapper to recv(2) to read a string.
@@ -189,6 +189,11 @@ class Utils {
     static bool transferPartition(std::string sourceWorker, int sourceWorkerPort, std::string destinationWorker,
                                   int destinationWorkerDataPort, std::string graphID, std::string partitionID,
                                   std::string workerID, SQLiteDBInterface *sqlite);
+
+    static bool sendFileChunkToWorker(std::string host, int port, int dataPort, std::string filePath,
+                                      std::string masterIP, std::string uploadType);
+
+    static void assignPartitionToWorker(int graphId, int partitionIndex, string  hostname,int port);
 };
 
 #endif  // JASMINEGRAPH_UTILS_H

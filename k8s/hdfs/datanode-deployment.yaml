@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: hdfs-datanode
+  labels:
+    app: hdfs
+    role: datanode
+spec:
+  serviceName: hdfs-datanode
+  replicas: 2
+  selector:
+    matchLabels:
+      app: hdfs
+      role: datanode
+  template:
+    metadata:
+      labels:
+        app: hdfs
+        role: datanode
+    spec:
+      containers:
+        - name: datanode
+          image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+          ports:
+            - containerPort: 50010
+            - containerPort: 50075
+            - containerPort: 1004
+          env:
+            - name: CLUSTER_NAME
+              value: "hdfs-cluster"
+            - name: CORE_CONF_fs_defaultFS
+              value: "hdfs://hdfs-namenode:9000"
+          volumeMounts:
+            - mountPath: "/hadoop/dfs/data"
+              name: datanode-storage
+  volumeClaimTemplates:
+    - metadata:
+        name: datanode-storage
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 10Gi
