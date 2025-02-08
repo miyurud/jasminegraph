@@ -276,7 +276,6 @@ int Utils::deleteFile(const std::string fileName) {
     } else {
         util_logger.warn("Deleting file: " + fileName + " failed with exit code " + std::to_string(status));
     }
-    }
     return status;
 }
 

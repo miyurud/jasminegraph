@@ -195,7 +195,7 @@ def test(host, port):
                                  LIST, b'|1|powergrid|/var/tmp/data/powergrid.dl|op|')
 
         send_and_expect_response(sock, 'rmgr', RMGR, SEND)
-        send_and_expect_response(sock, 'rmgr', b'2', DONE)
+        send_and_expect_response(sock, 'rmgr', b'1', DONE)
 
         # Test cases for hdfs implementation
 
