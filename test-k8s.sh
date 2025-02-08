@@ -61,17 +61,22 @@ build_and_run_on_k8s() {
 
 clear_resources() {
     ./start-k8s.sh clean
+    kubectl delete statefulset -l app=hdfs
+    kubectl delete deployment -l app=hdfs
+    kubectl delete service -l app=hdfs
+    kubectl delete pvc -l app=hdfs
+    kubectl delete pv -l app=hdfs
 }
 
 ready_hdfs() {
   echo "Applying HDFS configurations..."
 
-  kubectl apply -f ./k8s/hdfs/namenode-pvc.yaml
   kubectl apply -f ./k8s/hdfs/pv.yaml
-  kubectl apply -f ./k8s/hdfs/namenode-service.yaml
-  kubectl apply -f ./k8s/hdfs/datanode-service.yaml
+  kubectl apply -f ./k8s/hdfs/namenode-pvc.yaml
   kubectl apply -f ./k8s/hdfs/namenode-deployment.yaml
+  kubectl apply -f ./k8s/hdfs/namenode-service.yaml
   kubectl apply -f ./k8s/hdfs/datanode-deployment.yaml
+  kubectl apply -f ./k8s/hdfs/datanode-service.yaml
 
   echo "Fetching JasmineGraph Master pod name..."
   MASTER_POD=$(kubectl get pods | grep jasminegraph-master  | awk '{print $1}')
@@ -108,6 +113,15 @@ ready_hdfs() {
   fi
 
   echo "Namenode pod found: ${NAMENODE_POD}"
+
+  # Wait until the NameNode service is ready
+  echo "Waiting for HDFS NameNode service to be available..."
+  while ! kubectl exec "${NAMENODE_POD}" -- hadoop dfsadmin -report &>/dev/null; do
+    echo "HDFS NameNode service is not ready yet. Retrying in 5 seconds..."
+    sleep 5
+  done
+
+  echo "HDFS NameNode service is available."
 
   # Create the HDFS directory (ensure it exists)
   kubectl exec -it "${NAMENODE_POD}" -- hadoop fs -mkdir -p "${HDFS_DIRECTORY}"
