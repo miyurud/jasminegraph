@@ -40,7 +40,7 @@ HashPartitioner::HashPartitioner(int numberOfPartitions, int graphID, std::strin
         this->partitions.push_back(Partition(i, numberOfPartitions));
         localEdgeThreads.emplace_back(&HashPartitioner::consumeLocalEdges, this, i, workers[i]);
         edgeCutThreads.emplace_back(&HashPartitioner::consumeEdgeCuts, this, i, workers[i]);
-        Utils::assignPartitionToWorker(graphId, i, workers.at(i).hostname,workers.at(i).port);
+        Utils::assignPartitionToWorker(graphId, i, workers.at(i).hostname, workers.at(i).port);
     }
 }
 
