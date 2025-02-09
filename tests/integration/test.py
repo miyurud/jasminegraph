@@ -218,8 +218,9 @@ def test(host, port):
                                  b'Do you want to use the default HDFS server(y/n)?',
                                  exit_on_failure=True)
         send_and_expect_response(sock, 'adhdfs', b'n',
-                                 b'Send the file path to the HDFS configuration file. This file needs to be'+
-                                 b' in some directory location that is accessible for JasmineGraph master',
+                                 b'Send the file path to the HDFS configuration file.' +
+                                 b'This file needs to be in some directory location ' +
+                                 b'that is accessible for JasmineGraph master',
                                  exit_on_failure=True)
         send_and_expect_response(sock, 'adhdfs', b'/var/tmp/config/hdfs/hdfs_config.txt',
                                  b'HDFS file path: ',
