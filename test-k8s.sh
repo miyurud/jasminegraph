@@ -79,9 +79,9 @@ ready_hdfs() {
     kubectl apply -f ./k8s/hdfs/datanode-service.yaml
 
     echo "Fetching JasmineGraph Master pod name..."
-    MASTER_POD=$(kubectl get pods | grep jasminegraph-master  | awk '{print $1}')
+    MASTER_POD=$(kubectl get pods | grep jasminegraph-master | awk '{print $1}')
 
-    if [[ -z "${MASTER_POD}" ]]; then
+    if [[ -z ${MASTER_POD} ]]; then
         echo "Error: JasmineGraph Master pod not found. Exiting."
         return 1
     fi
@@ -107,7 +107,7 @@ ready_hdfs() {
     echo "Fetching HDFS namenode pod name..."
     NAMENODE_POD=$(kubectl get pods | grep hdfs-namenode | awk '{print $1}')
 
-    if [[ -z "${NAMENODE_POD}" ]]; then
+    if [[ -z ${NAMENODE_POD} ]]; then
         echo "Error: HDFS namenode pod not found. Exiting."
         return 1
     fi
@@ -117,8 +117,8 @@ ready_hdfs() {
     # Wait until the NameNode service is ready
     echo "Waiting for HDFS NameNode service to be available..."
     while ! kubectl exec "${NAMENODE_POD}" -- hadoop dfsadmin -report &>/dev/null; do
-      echo "HDFS NameNode service is not ready yet. Retrying in 5 seconds..."
-      sleep 5
+        echo "HDFS NameNode service is not ready yet. Retrying in 5 seconds..."
+        sleep 5
     done
 
     echo "HDFS NameNode service is available."
