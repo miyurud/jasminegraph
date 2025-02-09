@@ -32,7 +32,7 @@ class HDFSStreamHandler {
  public:
             HDFSStreamHandler(hdfsFS fileSystem, const std::string &filePath, int numberOfPartitions, int graphId,
                       SQLiteDBInterface *sqlite,
-                      std::string masterIP, bool isDirected=false);
+                      std::string masterIP, bool isDirected = false);
 
     void startStreamingFromBufferToPartitions();
 
