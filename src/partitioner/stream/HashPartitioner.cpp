@@ -40,7 +40,7 @@ HashPartitioner::HashPartitioner(int numberOfPartitions, int graphID, std::strin
         this->partitions.push_back(Partition(i, numberOfPartitions));
         localEdgeThreads.emplace_back(&HashPartitioner::consumeLocalEdges, this, i, workers[i]);
         edgeCutThreads.emplace_back(&HashPartitioner::consumeEdgeCuts, this, i, workers[i]);
-        Utils::assignPartitionToWorker(graphId,i,workers.at(i).hostname,workers.at(i).port);
+        Utils::assignPartitionToWorker(graphId, i, workers.at(i).hostname,workers.at(i).port);
     }
 }
 
@@ -170,7 +170,7 @@ void HashPartitioner::consumeLocalEdges(int partitionIndex, JasmineGraphServer::
             }
 
             std::lock_guard<std::mutex> partitionLock(partitionLocks[partitionIndex]);
-            partitions[partitionIndex].addEdge(edge,isDirected);
+            partitions[partitionIndex].addEdge(edge, isDirected);
         }
 
         // Reset the flag after processing the current batch of edges
@@ -289,7 +289,6 @@ void HashPartitioner::updatePartitionTable() {
         dbLock.lock();
         sqlite->runUpdate(sqlStatement);
         dbLock.unlock();
-
     }
 
     sqlite->finalize();
@@ -311,5 +310,5 @@ long HashPartitioner::getEdgeCount() {
         totalEdges += partition.getEdgesCount(isDirected);
         edgeCuts += partition.edgeCutsCount();
     }
-   return  totalEdges + edgeCuts / 2;
+    return  totalEdges + edgeCuts / 2;
 }

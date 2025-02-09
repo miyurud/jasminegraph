@@ -193,7 +193,7 @@ class Utils {
     static bool sendFileChunkToWorker(std::string host, int port, int dataPort, std::string filePath,
                                       std::string masterIP, std::string uploadType);
 
-    static void assignPartitionToWorker(int graphId, int partitionIndex, string  hostname,int port);
+    static void assignPartitionToWorker(int graphId, int partitionIndex, string  hostname, int port);
 };
 
 #endif  // JASMINEGRAPH_UTILS_H
