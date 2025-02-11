@@ -159,7 +159,7 @@ void Partitioner::updateMetaDB() {
 }
 
 bool Partitioner::getIsDirected() {
-    std::string sqlStatement = "SELECT is_directed FROM graph WHERE idgraph = "+std::to_string(this->graphID);
+    std::string sqlStatement = "SELECT is_directed FROM graph WHERE idgraph = " + std::to_string(this->graphID);
     auto result = this->sqlite->runSelect(sqlStatement);
     if (result[0][0].second == "0") {
         return false;
