@@ -219,7 +219,7 @@ def test(host, port):
                                  exit_on_failure=True)
         send_and_expect_response(sock, 'adhdfs', b'n',
                                  b'Send the file path to the HDFS configuration file.' +
-                                 b'This file needs to be in some directory location ' +
+                                 b' This file needs to be in some directory location ' +
                                  b'that is accessible for JasmineGraph master',
                                  exit_on_failure=True)
         send_and_expect_response(sock, 'adhdfs', b'/var/tmp/config/hdfs/hdfs_config.txt',
