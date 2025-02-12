@@ -27,8 +27,10 @@ spec:
           env:
             - name: CLUSTER_NAME
               value: "hdfs-cluster"
+            - name: HADOOP_NAMENODE_HOST
+              value: "hdfs-namenode.default.svc.cluster.local"
             - name: CORE_CONF_fs_defaultFS
-              value: "hdfs://hdfs-namenode:9000"
+              value: "hdfs://hdfs-namenode.default.svc.cluster.local:9000"
             - name: CORE_CONF_hadoop_http_staticuser_user
               value: "root"
           resources:  # Memory and storage limits added
