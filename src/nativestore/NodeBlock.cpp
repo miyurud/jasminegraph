@@ -18,18 +18,20 @@ limitations under the License.
 
 #include "../util/logger/Logger.h"
 #include "RelationBlock.h"
+#include "MetaPropertyLink.h"
 
 Logger node_block_logger;
 pthread_mutex_t lockSaveNode;
 pthread_mutex_t lockAddNodeProperty;
 
 NodeBlock::NodeBlock(std::string id, unsigned int nodeId, unsigned int address, unsigned int propRef,
-                     unsigned int edgeRef, unsigned int centralEdgeRef, unsigned char edgeRefPID, const char* _label,
-                     bool usage)
+                     unsigned int metaPropRef, unsigned int edgeRef, unsigned int centralEdgeRef,
+                     unsigned char edgeRefPID, const char* _label, bool usage)
     : id(id),
       nodeId(nodeId),
       addr(address),
       propRef(propRef),
+      metaPropRef(metaPropRef),
       edgeRef(edgeRef),
       centralEdgeRef(centralEdgeRef),
       edgeRefPID(edgeRefPID),
@@ -61,6 +63,7 @@ void NodeBlock::save() {
     NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(this->centralEdgeRef)), sizeof(this->centralEdgeRef));  // 4
     NodeBlock::nodesDB->put(this->edgeRefPID);                                                                  // 1
     NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(this->propRef)), sizeof(this->propRef));                // 4
+    NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(this->metaPropRef)), sizeof(this->metaPropRef));        // 4
     NodeBlock::nodesDB->write(this->label, sizeof(this->label));                                                // 6
     NodeBlock::nodesDB->flush();  // Sync the file with in-memory stream
     //    pthread_mutex_unlock(&lockSaveNode);
@@ -89,6 +92,26 @@ void NodeBlock::addProperty(std::string name, const char* value) {
         }
     } else {
         this->propRef = this->getPropertyHead()->insert(name, value);
+    }
+}
+
+void NodeBlock::addMetaProperty(std::string name, const char* value) {
+    if (this->metaPropRef == 0) {
+        MetaPropertyLink* newLink = MetaPropertyLink::create(name, value);
+
+        if (newLink) {
+            this->metaPropRef = newLink->blockAddress;
+
+            NodeBlock::nodesDB->seekp(this->addr +sizeof(this->usage) +sizeof(this->nodeId) + sizeof(this->edgeRef) +
+                                      sizeof(this->centralEdgeRef) + sizeof(this->edgeRefPID)+ sizeof(this->propRef));
+            NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(this->metaPropRef)), sizeof(this->metaPropRef));
+            NodeBlock::nodesDB->flush();
+        } else {
+            node_block_logger.error("Error occurred while adding a new property link to " +
+                                    std::to_string(this->addr) + " node block");
+        }
+    } else {
+        this->metaPropRef = this->getMetaPropertyHead()->insert(name, value);
     }
 }
 
@@ -385,6 +408,7 @@ NodeBlock* NodeBlock::get(unsigned int blockAddress) {
     unsigned int centralEdgeRef;
     unsigned char edgeRefPID;
     unsigned int propRef;
+    unsigned int metaPropRef;
     char usageBlock;
     char label[NodeBlock::LABEL_SIZE];
     std::string id;
@@ -412,6 +436,11 @@ NodeBlock* NodeBlock::get(unsigned int blockAddress) {
         node_block_logger.error("Error while reading prop reference data from block " + std::to_string(blockAddress));
     }
 
+    if (!NodeBlock::nodesDB->read(reinterpret_cast<char*>(&metaPropRef), sizeof(unsigned int))) {
+        node_block_logger.error("Error while reading prop reference data from block " +
+        std::to_string(blockAddress));
+    }
+
     if (!NodeBlock::nodesDB->read(&label[0], NodeBlock::LABEL_SIZE)) {
         node_block_logger.error("Error while reading label data from block " + std::to_string(blockAddress));
     }
@@ -424,7 +453,8 @@ NodeBlock* NodeBlock::get(unsigned int blockAddress) {
         id = std::string(label);
     }
     nodeBlockPointer =
-        new NodeBlock(id, nodeId, blockAddress, propRef, edgeRef, centralEdgeRef, edgeRefPID, label, usage);
+        new NodeBlock(id, nodeId, blockAddress, propRef, metaPropRef, edgeRef,
+                      centralEdgeRef, edgeRefPID, label, usage);
     if (nodeBlockPointer->id.length() == 0) {  // if label not found in node block look in the properties
         std::map<std::string, char*> props = nodeBlockPointer->getAllProperties();
         if (props["label"]) {
@@ -442,4 +472,6 @@ NodeBlock* NodeBlock::get(unsigned int blockAddress) {
 }
 
 PropertyLink* NodeBlock::getPropertyHead() { return PropertyLink::get(this->propRef); }
+MetaPropertyLink* NodeBlock::getMetaPropertyHead() { return MetaPropertyLink::get(this->metaPropRef); }
+
 thread_local std::fstream* NodeBlock::nodesDB = NULL;
