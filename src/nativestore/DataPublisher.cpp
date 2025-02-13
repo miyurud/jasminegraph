@@ -43,7 +43,6 @@ DataPublisher::DataPublisher(int worker_port, std::string worker_address, int wo
     if (Utils::connect_wrapper(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         data_publisher_logger.error("Connection Failed!");
     }
-    data_publisher_logger.info("socket created");
 }
 
 DataPublisher::~DataPublisher() {
