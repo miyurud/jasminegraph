@@ -19,6 +19,7 @@ limitations under the License.
 #include "../../nativestore/RelationBlock.h"
 #include "../../util/logger/Logger.h"
 #include "../../util/Utils.h"
+#include "../../nativestore/MetaPropertyLink.h"
 
 Logger incremental_localstore_logger;
 
@@ -67,8 +68,9 @@ void JasmineGraphIncrementalLocalStore::addEdgeFromString(std::string edgeString
         if (!newRelation) {
             return;
         }
-        char value[PropertyLink::MAX_VALUE_SIZE] = {};
 
+        char value[PropertyLink::MAX_VALUE_SIZE] = {};
+        char meta[MetaPropertyLink::MAX_VALUE_SIZE] = {};
         if (edgeJson.contains("properties")) {
             auto edgeProperties = edgeJson["properties"];
             for (auto it = edgeProperties.begin(); it != edgeProperties.end(); it++) {
@@ -80,7 +82,6 @@ void JasmineGraphIncrementalLocalStore::addEdgeFromString(std::string edgeString
                 }
             }
         }
-
         if (sourceJson.contains("properties")) {
             auto sourceProps = sourceJson["properties"];
             for (auto it = sourceProps.begin(); it != sourceProps.end(); it++) {
@@ -88,6 +89,10 @@ void JasmineGraphIncrementalLocalStore::addEdgeFromString(std::string edgeString
                 newRelation->getSource()->addProperty(std::string(it.key()), &value[0]);
             }
         }
+        std::string sourcePid = std::to_string(destinationJson["pid"].get<int>());
+        strcpy(meta, sourcePid.c_str());
+        newRelation->getSource()->addMetaProperty(MetaPropertyLink::PARTITION_ID, &meta[0]);
+
         if (destinationJson.contains("properties")) {
             auto destProps = destinationJson["properties"];
             for (auto it = destProps.begin(); it != destProps.end(); it++) {
@@ -95,7 +100,9 @@ void JasmineGraphIncrementalLocalStore::addEdgeFromString(std::string edgeString
                 newRelation->getDestination()->addProperty(std::string(it.key()), &value[0]);
             }
         }
-
+        std::string destPid = std::to_string(destinationJson["pid"].get<int>());
+        strcpy(meta, destPid.c_str());
+        newRelation->getDestination()->addMetaProperty(MetaPropertyLink::PARTITION_ID, &meta[0]);
         incremental_localstore_logger.debug("Edge (" + sId + ", " + dId + ") Added successfully!");
     } catch (const std::exception&) {  // TODO tmkasun: Handle multiple types of exceptions
         incremental_localstore_logger.log(

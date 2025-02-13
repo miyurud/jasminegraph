@@ -83,6 +83,8 @@ set(HEADERS globals.h
         src/util/hdfs/HDFSStreamHandler.h
         src/partitioner/stream/HashPartitioner.h
         src/query/processor/cypher/util/Const.h
+        src/nativestore/MetaPropertyLink.h
+        src/nativestore/MetaPropertyEdgeLink.h
 )
 
 set(SOURCES src/backend/JasmineGraphBackend.cpp
@@ -162,6 +164,9 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/frontend/ui/JasmineGraphFrontEndUI.h
         src/frontend/core/common/JasmineGraphFrontendCommon.cpp
         src/frontend/core/common/JasmineGraphFrontendCommon.h
+        src/nativestore/MetaPropertyLink.cpp
+        src/nativestore/MetaPropertyEdgeLink.cpp
+
 )
 
 if (CMAKE_BUILD_TYPE STREQUAL "DEBUG")
