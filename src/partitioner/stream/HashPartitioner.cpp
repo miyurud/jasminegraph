@@ -55,7 +55,9 @@ void HashPartitioner::addLocalEdge(const std::pair<std::string, std::string> &ed
         edgeReady[index] = true;
         edgeAvailableCV[index].notify_one();
     } else {
-        hash_partitioner_logger.info("Invalid partition index in addLocalEdge");
+        hash_partitioner_logger.error("Invalid partition index : "
+        + std::to_string(index) + " in addLocalEdge. Total number of partitions : "
+        + std::to_string(numberOfPartitions));
     }
 }
 
@@ -66,7 +68,9 @@ void HashPartitioner::addEdgeCut(const std::pair<std::string, std::string> &edge
         edgeCutsReady[index] = true;
         edgeCutsAvailableCV[index].notify_one();
     } else {
-        hash_partitioner_logger.info("Invalid partition index in addEdgeCut");
+        hash_partitioner_logger.error("Invalid partition index : "
+        + std::to_string(index) + " in addEdgeCut. Total number of partitions : "
+        + std::to_string(numberOfPartitions));
     }
 }
 
