@@ -32,6 +32,9 @@ spec:
         - name: jasminegraph-aggregate
           persistentVolumeClaim:
               claimName: jasminegraph-aggregate-claim
+        - name: common-config
+          persistentVolumeClaim:
+             claimName: common-config-claim
       containers:
         - name: jasminegraph-master
           image: jasminegraph
@@ -61,3 +64,5 @@ spec:
               name: jasminegraph-logs
             - mountPath: /var/tmp/jasminegraph-aggregate
               name: jasminegraph-aggregate
+            - mountPath: /var/tmp/config
+              name: common-config
