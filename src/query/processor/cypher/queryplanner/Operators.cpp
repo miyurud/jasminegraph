@@ -13,6 +13,7 @@ limitations under the License.
 
 #include "Operators.h"
 #include <nlohmann/json.hpp>
+#include <map>
 #include "../util/Const.h"
 #include "../astbuilder/ASTNode.h"
 using namespace std;
@@ -56,7 +57,6 @@ string AllNodeScan::execute() {
 ProduceResults::ProduceResults(Operator* opr, vector<ASTNode*> item) : item(item), op(opr) {}
 
 string ProduceResults::execute() {
-    cout<< "produce result"<<endl;
     json produceResult;
     produceResult["Operator"] = "ProduceResult";
     if(op){
@@ -71,14 +71,98 @@ string ProduceResults::execute() {
 // Filter Implementation
 Filter::Filter(Operator* input, vector<pair<string,ASTNode*>> filterCases) : input(input), filterCases(filterCases) {}
 
+string Filter::comparisonOperand(ASTNode *ast) {
+    json operand;
+    if (ast->nodeType == Const::NON_ARITHMETIC_OPERATOR) {
+        // there are more cases to handle
+        operand["variable"] = ast->elements[0]->value;
+        operand["type"] = Const::PROPERTY_LOOKUP;
+        vector<string> property;
+        for (auto* prop: ast->elements) {
+            if (prop->nodeType == Const::PROPERTY_LOOKUP && prop->elements[0]->nodeType != Const::RESERVED_WORD) {
+                property.push_back(prop->elements[0]->value);
+            }
+        }
+        operand["property"] = property;
+    } else if (ast->nodeType == Const::PROPERTIES_MAP) {
+        operand["type"] = Const::PROPERTIES_MAP;
+        map<string, string> property;
+        for (auto* prop: ast->elements) {
+            if (prop->elements[0]->nodeType != Const::RESERVED_WORD){
+                property.insert(pair<string, string>(prop->elements[0]->value, prop->elements[1]->value));
+            }
+        }
+        operand["property"] = property;
+    } else if (ast->nodeType == Const::LIST) {
+        operand["type"] = Const::LIST;
+        vector<string> element;
+        for (auto* prop: ast->elements) {
+            element.push_back(prop->value);
+        }
+
+        operand["element"] = element;
+    } else {
+        operand["type"] = ast->nodeType;
+        operand["value"] = ast->value;
+    }
+
+    return operand.dump();
+}
+
+string Filter::analyze(ASTNode* ast) {
+    json where;
+    if (ast->nodeType == Const::OR) {
+        where["type"] = Const::OR;
+        vector<json> comparisons;
+        for (auto* element: ast->elements) {
+            comparisons.push_back(json::parse(analyze(element)));
+        }
+        where["comparisons"] = comparisons;
+    } else if(ast->nodeType == Const::AND) {
+        where["type"] = Const::AND;
+        vector<json> comparisons;
+        for (auto* element: ast->elements) {
+            comparisons.push_back(json::parse(analyze(element)));
+        }
+        where["comparisons"] = comparisons;
+    } else if(ast->nodeType == Const::XOR) {
+        where["type"] = Const::XOR;
+        vector<string> comparisons;
+        for (auto* element: ast->elements) {
+            comparisons.push_back(json::parse(analyze(element)));
+        }
+        where["comparisons"] = comparisons;
+    } else if(ast->nodeType == Const::NOT) {
+        where["type"] = Const::NOT;
+        vector<json> comparisons;
+        for (auto* element: ast->elements) {
+            comparisons.push_back(json::parse(analyze(element)));
+        }
+        where["comparisons"] = comparisons;
+    } else if(ast->nodeType == Const::COMPARISON) {
+        where["type"] = Const::COMPARISON;
+        auto* left = ast->elements[0];
+        auto* oparator = ast->elements[1];
+        auto* right = oparator->elements[0];
+        where["left"] = json::parse(comparisonOperand(left));
+        where["operator"] = oparator->nodeType;
+        where["right"] = json::parse(comparisonOperand(right));
+    }
+    return where.dump();
+}
+
 string Filter::execute() {
-    input->execute();
-    cout<<"Filter: \n"<<endl;
+    json filter;
+    if (input) {
+        filter["NextOperator"] = input->execute();
+    }
+    filter["Operator"] = "Filter";
     string condition;
     for(auto item: filterCases){
-        if(item.second->nodeType==Const::WHERE){
-            cout<<item.second->print(1)<<endl;
 
+        if(item.second->nodeType==Const::WHERE){
+            condition = analyze(item.second->elements[0]);
+            filter["condition"] = json::parse(condition);
         }else if(item.second->nodeType==Const::PROPERTIES_MAP){
             for(auto* prop: item.second->elements){
                 condition+=item.first+"."+prop->elements[0]->value+" = "+prop->elements[1]->value;
@@ -101,8 +185,7 @@ string Filter::execute() {
             condition+=" AND \n";
         }
     }
-    cout<<condition<<endl;
-    return "";
+    return filter.dump();
 }
 
 // Projection Implementation

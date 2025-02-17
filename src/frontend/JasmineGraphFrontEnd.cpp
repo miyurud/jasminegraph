@@ -56,7 +56,6 @@ limitations under the License.
 #include "../query/processor/cypher/queryplanner/QueryPlanner.h"
 #include "../localstore/incremental/JasmineGraphIncrementalLocalStore.h"
 #include "../server/JasmineGraphInstanceService.h"
-#include "../query/processor/cypher/runtime/QueryPlanHandler.h"
 #include "../query/processor/cypher/util/SharedBuffer.h"
 #include "../partitioner/stream/Partitioner.h"
 
@@ -174,7 +173,7 @@ void *frontendservicesesion(void *dummyPt) {
             break;
         } else if (line.compare(LIST) == 0) {
             list_command(connFd, sqlite, &loop_exit);
-        } else if (line.compare(CYPHER_AST) == 0){
+        } else if (line.compare(CYPHER) == 0){
             workerClients = getWorkerClients(sqlite);
             workerClientsInitialized = true;
             cypher_ast_command(connFd, workerClients, numberOfPartitions, &loop_exit);
