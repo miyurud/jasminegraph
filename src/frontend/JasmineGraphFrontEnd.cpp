@@ -966,26 +966,26 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     }
 
     // Get user response.
-    string exist_g = Utils::getFrontendInput(connFd);
+    string existingGraph = Utils::getFrontendInput(connFd);
     string graphId;
     string partitionAlgo;
     string direction;
 
-    if (exist_g == "y") {
-        string exist_graph_id_msg = "Send the existing graph ID ? ";
-        int result_wr = write(connFd, exist_graph_id_msg.c_str(), exist_graph_id_msg.length());
+    if (existingGraph == "y") {
+        string existingGraphIdMsg = "Send the existing graph ID ? ";
+        result_wr = write(connFd, existingGraphIdMsg.c_str(), existingGraphIdMsg.length());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
             return;
         }
         // Get user response.
-        string exist_g_i = Utils::getFrontendInput(connFd);
+        string existingGraphId = Utils::getFrontendInput(connFd);
 
-        bool isExist = sqlite->isGraphIdExist(exist_g_i);
+        bool isExist = sqlite->isGraphIdExist(existingGraphId);
         if (!isExist) {
-            string Err_msg = "Error: Graph ID you entered is not in the system";
-            result_wr = write(connFd, Err_msg.c_str(), Err_msg.length());
+            string errorMsg = "Error: Graph ID you entered is not in the system";
+            result_wr = write(connFd, errorMsg.c_str(), errorMsg.length());
             if (result_wr < 0) {
                 frontend_logger.error("Error writing to socket");
                 *loop_exit_p = true;
@@ -993,20 +993,21 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
             }
             return;
         }
-        string exist_success_msg = "Set data streaming into graph ID: " + exist_g_i;
-        result_wr = write(connFd, exist_success_msg.c_str(), exist_success_msg.length());
+        string existingSuccessMsg = "Set data streaming into graph ID: " + existingGraphId;
+        result_wr = write(connFd, existingSuccessMsg.c_str(), existingSuccessMsg.length());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
             return;
         }
-        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+                          Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
             return;
         }
-        graphId = exist_g_i;
+        graphId = existingGraphId;
         partitionAlgo = sqlite->getPartitionAlgoByGraphID(graphId);
 
     } else {
@@ -1015,19 +1016,19 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
             return;
         }
         graphId = to_string(nextID);
-        string default_id = "Do you use default graph ID: "+ graphId +"(y/n) ? ";
-        int result_wr = write(connFd, default_id.c_str(), default_id.length());
+        string defaultIdMsg = "Do you use default graph ID: "+ graphId +"(y/n) ? ";
+        result_wr = write(connFd, defaultIdMsg.c_str(), defaultIdMsg.length());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
             return;
         }
         // Get user response.
-        string default_g_i = Utils::getFrontendInput(connFd);
+        string isDefaultGraphId = Utils::getFrontendInput(connFd);
 
-        if (default_g_i != "y") {
-            string input_graph_id = "Input your graph ID: ";
-            result_wr = write(connFd, input_graph_id.c_str(), input_graph_id.length());
+        if (isDefaultGraphId != "y") {
+            string inputGraphIdMsg = "Input your graph ID: ";
+            result_wr = write(connFd, inputGraphIdMsg.c_str(), inputGraphIdMsg.length());
             if (result_wr < 0) {
                 frontend_logger.error("Error writing to socket");
                 *loop_exit_p = true;
@@ -1035,12 +1036,12 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
             }
 
             // Get user response.
-            string user_graph_id = Utils::getFrontendInput(connFd);
+            string userGraphId = Utils::getFrontendInput(connFd);
 
-            bool isExist = sqlite->isGraphIdExist(user_graph_id);
+            bool isExist = sqlite->isGraphIdExist(userGraphId);
             if (isExist) {
-                string Err_msg = "Error: Graph ID you entered already exists";
-                result_wr = write(connFd, Err_msg.c_str(), Err_msg.length());
+                string errorMsg = "Error: Graph ID you entered already exists";
+                result_wr = write(connFd, errorMsg.c_str(), errorMsg.length());
                 if (result_wr < 0) {
                     frontend_logger.error("Error writing to socket");
                     *loop_exit_p = true;
@@ -1049,8 +1050,8 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
                 return;
             }
 
-            string user_success_msg = "Set graph ID successfully";
-            result_wr = write(connFd, user_success_msg.c_str(), user_success_msg.length());
+            string userGraphIdSuccessMsg = "Set graph ID successfully";
+            result_wr = write(connFd, userGraphIdSuccessMsg.c_str(), userGraphIdSuccessMsg.length());
             if (result_wr < 0) {
                 frontend_logger.error("Error writing to socket");
                 *loop_exit_p = true;
@@ -1062,25 +1063,25 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
                 *loop_exit_p = true;
                 return;
             }
-            graphId = user_graph_id;
+            graphId = userGraphId;
         }
 
-        std::string partition_selection = "Select the partitioning technique\n"
+        std::string partitionSelectionMsg = "Select the partitioning technique\n"
                                           "\toption 1: Hash partitioning\n"
                                           "\toption 2: Fennel partitioning\n"
                                           "\toption 3: LDG partitioning\n"
                                           "Choose an option(1,2,3): ";
-        result_wr = write(connFd, partition_selection.c_str(), partition_selection.length());
+        result_wr = write(connFd, partitionSelectionMsg.c_str(), partitionSelectionMsg.length());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
             return;
         }
         // Get user response.
-        string partition_algo = Utils::getFrontendInput(connFd);
+        string partitionAlgo = Utils::getFrontendInput(connFd);
 
-        if (partition_algo == "1" || partition_algo == "2" || partition_algo == "3") {
-            string partition_success_msg = "Set partition technique: " + partition_algo;
+        if (partitionAlgo == "1" || partitionAlgo == "2" || partitionAlgo == "3") {
+            string partition_success_msg = "Set partition technique: " + partitionAlgo;
             result_wr = write(connFd, partition_success_msg.c_str(), partition_success_msg.length());
             if (result_wr < 0) {
                 frontend_logger.error("Error writing to socket");
@@ -1093,10 +1094,10 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
                 *loop_exit_p = true;
                 return;
             }
-            partitionAlgo = partition_algo;
+            partitionAlgo = partitionAlgo;
         } else {
-            string Err_msg = "Error: invalid partition option: "+partition_algo;
-            result_wr = write(connFd, Err_msg.c_str(), Err_msg.length());
+            string errorMsg = "Error: invalid partition option: "+partitionAlgo;
+            result_wr = write(connFd, errorMsg.c_str(), errorMsg.length());
             if (result_wr < 0) {
                 frontend_logger.error("Error writing to socket");
                 *loop_exit_p = true;
@@ -1113,8 +1114,8 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
             return;
         }
         // Get user response.
-        string is_directed = Utils::getFrontendInput(connFd);
-        if (is_directed == "y") {
+        string isDirected = Utils::getFrontendInput(connFd);
+        if (isDirected == "y") {
             direction = Conts::DIRECTED;
         } else {
             direction = Conts::UNDIRECTED;
@@ -1154,7 +1155,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
         // user need to start relevant kafka cluster using relevant IP address
         // read relevant IP address from given file path
         string message = "Send file path to the kafka configuration file.";
-        int result_wr = write(connFd, message.c_str(), message.length());
+        result_wr = write(connFd, message.c_str(), message.length());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -1239,13 +1240,13 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
                                                       stoi(graphId),
                                                       spt::getPartitioner(partitionAlgo));
 
-    if (exist_g != "y") {
+    if (existingGraph != "y") {
         string path = "kafka:\\" + topic_name_s + ":" + group_id;
         std::time_t time = chrono::system_clock::to_time_t(chrono::system_clock::now());
         string uploadStartTime = ctime(&time);
         string sqlStatement =
             "INSERT INTO graph (idgraph,idalgorithm,name,upload_path, upload_start_time, upload_end_time,"
-            "graph_status_idgraph_status, vertexcount, centralpartitioncount, edgecount, is_directed) VALUES("+
+            "graph_status_idgraph_status, vertexcount, centralpartitioncount, edgecount, isDirected) VALUES("+
             graphId+","+partitionAlgo+",\"" +topic_name_s + "\", \"" + path + "\", \"" +uploadStartTime+ "\", \"\",\"" +
             to_string(Conts::GRAPH_STATUS::STREAMING) + "\", \"\","+ to_string(numberOfPartitions)+
             ", \"\",\"" +direction+"\")";
