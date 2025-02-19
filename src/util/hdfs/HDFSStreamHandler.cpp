@@ -128,28 +128,39 @@ void HDFSStreamHandler::streamFromBufferToProcessingQueue(HashPartitioner &parti
                 break;
             }
 
-            std::regex delimiterRegex("\\s+|,");
-            std::sregex_token_iterator iter(line.begin(), line.end(), delimiterRegex, -1);
-            std::sregex_token_iterator end;
+            auto jsonEdge = json::parse(line);
+            auto source = jsonEdge["source"];
+            auto destination = jsonEdge["destination"];
 
-            std::vector<std::string> tokens(iter, end);
-            if (tokens.size() == 2) {
-                std::string sourceId = tokens[0];
-                std::string destId = tokens[1];
-                if (!sourceId.empty() && !destId.empty()) {
-                    int sourceIndex = std::hash<std::string>()(sourceId) % this->numberOfPartitions;
-                    int destIndex = std::hash<std::string>()(destId) % this->numberOfPartitions;
-                    if (sourceIndex == destIndex) {
-                        partitioner.addLocalEdge({sourceId, destId}, sourceIndex);
-                    } else {
-                        partitioner.addEdgeCut({sourceId, destId}, sourceIndex);
-                        partitioner.addEdgeCut({destId, sourceId}, destIndex);
-                    }
+            string sourceId = std::string (source["id"]);
+            string destinationId = std::string (destination["id"]);
+
+
+            if (!sourceId.empty() && !destinationId.empty()) {
+                int sourceIndex = std::stoi(sourceId) % this->numberOfPartitions;
+                int destIndex = std::stoi(destinationId) % this->numberOfPartitions;
+
+                source["pid"] = sourceIndex;
+                destination["pid"] = destIndex;
+
+                json obj;
+                obj["source"] = source;
+                obj["destination"] = destination;
+                obj["properties"] = jsonEdge["properties"];
+
+                if (sourceIndex == destIndex) {
+                    partitioner.addLocalEdge(obj.dump(), sourceIndex);
                 } else {
-                    hdfs_stream_handler_logger.error("Malformed line: " + line);
+                    json reversedObj;
+                    reversedObj["source"] = destination;
+                    reversedObj["destination"] = source;
+                    reversedObj["properties"] = jsonEdge["properties"];
+
+                    partitioner.addEdgeCut(obj.dump(), sourceIndex);
+                    partitioner.addEdgeCut(reversedObj.dump(), destIndex);
                 }
             } else {
-                hdfs_stream_handler_logger.error("Malformed line (unexpected token count): " + line);
+                hdfs_stream_handler_logger.error("Malformed line: " + line);
             }
 
         } else if (!isReading) {

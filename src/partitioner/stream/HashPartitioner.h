@@ -35,8 +35,8 @@ class HashPartitioner {
     std::vector<std::thread> edgeCutThreads;
 
     std::vector<std::mutex> partitionLocks;  // Array of mutexes for each partition
-    std::vector<std::vector<std::pair<std::string, std::string>>> localEdgeArrays;
-    std::vector<std::vector<std::pair<std::string, std::string>>> edgeCutsArrays;
+    std::vector<std::vector<std::string>> localEdgeArrays;
+    std::vector<std::vector<std::string>> edgeCutsArrays;
 
     std::vector<std::mutex> localEdgeMutexes;
     std::vector<std::condition_variable> edgeAvailableCV;
@@ -57,8 +57,8 @@ class HashPartitioner {
     HashPartitioner(int numberOfPartitions, int graphID, std::string masterIp, bool isDirected);
     long getVertexCount();
     long getEdgeCount();
-    void addEdgeCut(const pair<std::string, std::string> &edge, int index);
-    void addLocalEdge(const pair<std::string, std::string> &edge, int index);
+    void addEdgeCut(const std::string &edge, int index);
+    void addLocalEdge(const std::string &edge, int index);
     void updatePartitionTable();
 
  private:

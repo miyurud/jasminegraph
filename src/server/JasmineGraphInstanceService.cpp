@@ -4222,7 +4222,7 @@ static void hdfs_start_stream_command(int connFd, bool *loop_exit_p, bool isLoca
         instance_logger.error("Instance data file " + fullFilePath + " does not exist");
         sleep(1);
     }
-    instance_logger.debug("Instance data file " + fullFilePath + " exist");
+    instance_logger.info("Instance data file " + fullFilePath + " exist");
 
     while (Utils::getFileSize(fullFilePath) < fileSize) {
         line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
@@ -4324,25 +4324,16 @@ static void processFile(string fileName, bool isLocal,
 
     std::string line;
     while (std::getline(file, line)) {
-        std::regex delimiterRegex("\\s+|,");
-        std::sregex_token_iterator iter(line.begin(), line.end(), delimiterRegex, -1);
-        std::sregex_token_iterator end;
-
-        std::vector<std::string> tokens(iter, end);
-        if (tokens.size() < 2) {
-            instance_logger.error("Invalid line format in file: " + line);
-            continue;
-        }
 
         if (isLocal) {
             handler.handleLocalEdge(
-                    {tokens[0], tokens[1]},
+                    line,
                     std::to_string(graphId),
                     std::to_string(partitionIndex),
                     std::to_string(graphId) + "_" + std::to_string(partitionIndex));
         } else {
             handler.handleCentralEdge(
-                    {tokens[0], tokens[1]},
+                    line,
                     std::to_string(graphId),
                     std::to_string(partitionIndex),
                     std::to_string(graphId) + "_" + std::to_string(partitionIndex));

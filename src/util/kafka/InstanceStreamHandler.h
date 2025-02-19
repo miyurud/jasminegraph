@@ -29,9 +29,9 @@ class InstanceStreamHandler {
     ~InstanceStreamHandler();
 
     void handleRequest(const std::string& nodeString);
-    void handleLocalEdge(const std::pair<std::string, std::string> &edge, std::string graphId,
+    void handleLocalEdge(std::string edge, std::string graphId,
                          std::string partitionId, std::string graphIdentifier);
-    void handleCentralEdge(const std::pair<std::string, std::string> &edge, std::string graphId,
+    void handleCentralEdge(std::string edge, std::string graphId,
                            std::string partitionId, std::string graphIdentifier);
 
  private:

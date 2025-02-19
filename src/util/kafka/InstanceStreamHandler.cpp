@@ -103,7 +103,7 @@ InstanceStreamHandler::loadStreamingStore(std::string graphId, std::string parti
     return jasmineGraphStreamingLocalStore;
 }
 
-void InstanceStreamHandler::handleLocalEdge(const std::pair<std::string, std::string> &edge, std::string graphId,
+void InstanceStreamHandler::handleLocalEdge(std::string edge, std::string graphId,
                                             std::string partitionId, std::string graphIdentifier) {
     std::unique_lock<std::mutex> lock(queue_mutexes[graphIdentifier]);
     if (incrementalLocalStoreMap.find(graphIdentifier) == incrementalLocalStoreMap.end()) {
@@ -113,7 +113,7 @@ void InstanceStreamHandler::handleLocalEdge(const std::pair<std::string, std::st
     localStore->addLocalEdge(edge);
 }
 
-void InstanceStreamHandler::handleCentralEdge(const std::pair<std::string, std::string> &edge, std::string graphId,
+void InstanceStreamHandler::handleCentralEdge(std::string edge, std::string graphId,
                                               std::string partitionId, std::string graphIdentifier) {
     std::unique_lock<std::mutex> lock(queue_mutexes[graphIdentifier]);
     if (incrementalLocalStoreMap.find(graphIdentifier) == incrementalLocalStoreMap.end()) {
