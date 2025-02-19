@@ -27,10 +27,12 @@ using namespace std::chrono;
 Logger stream_handler_logger;
 
 StreamHandler::StreamHandler(KafkaConnector *kstream, int numberOfPartitions,
-                             vector<DataPublisher *> &workerClients, SQLiteDBInterface* sqlite)
+                             vector<DataPublisher *> &workerClients, SQLiteDBInterface* sqlite,
+                             int graphId, spt::Algorithms algorithms)
         : kstream(kstream),
+          graphId(graphId),
           workerClients(workerClients),
-          graphPartitioner(numberOfPartitions, 0, spt::Algorithms::HASH, sqlite),
+          graphPartitioner(numberOfPartitions, graphId, algorithms, sqlite),
           stream_topic_name("stream_topic_name") { }
 
 
@@ -74,18 +76,11 @@ void StreamHandler::listen_to_kafka_topic() {
             frontend_logger.log("Couldn't retrieve message from Kafka.", "info");
             continue;
         }
-
         string data(msg.get_payload());
         auto edgeJson = json::parse(data);
-        // Check if graphID exists in properties
-        if (edgeJson["properties"].find("graphId") == edgeJson["properties"].end()) {
-            stream_handler_logger.error("Edge Rejected. Streaming edge should Include the Graph ID.");
-            continue;
-        }
 
         auto prop = edgeJson["properties"];
-        auto graphID = std::string(prop["graphId"]);
-        graphPartitioner.setGraphID(stoi(graphID));
+        prop["graphId"] = to_string(this->graphId);
         auto sourceJson = edgeJson["source"];
         auto destinationJson = edgeJson["destination"];
         string sId = std::string(sourceJson["id"]);
@@ -98,7 +93,7 @@ void StreamHandler::listen_to_kafka_topic() {
         json obj;
         obj["source"] = sourceJson;
         obj["destination"] = destinationJson;
-        obj["properties"] = edgeJson["properties"];
+        obj["properties"] = prop;
         long part_s = partitionedEdge[0].second;
         long part_d = partitionedEdge[1].second;
         int n_workers = atoi((Utils::getJasmineGraphProperty("org.jasminegraph.server.nworkers")).c_str());

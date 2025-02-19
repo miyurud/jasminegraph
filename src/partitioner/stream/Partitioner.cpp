@@ -17,8 +17,11 @@
 #include <cmath>
 #include <iostream>
 #include <vector>
+#include <ctime>
+#include <chrono>
 
 #include "../../util/logger/Logger.h"
+#include "../../util/Conts.h"
 
 Logger streaming_partitioner_logger;
 
@@ -105,8 +108,8 @@ partitionedEdge Partitioner::ldgPartitioning(std::pair<std::string, std::string>
 }
 
 partitionedEdge Partitioner::hashPartitioning(std::pair<std::string, std::string> edge) {
-    int firstIndex = std::hash<std::string>()(edge.first) % this->numberOfPartitions;    // Hash partitioning
-    int secondIndex = std::hash<std::string>()(edge.second) % this->numberOfPartitions;  // Hash partitioning
+    int firstIndex = stoi(edge.first) % this->numberOfPartitions;    // Hash partitioning
+    int secondIndex = stoi(edge.second) % this->numberOfPartitions;  // Hash partitioning
 
     if (firstIndex == secondIndex) {
         this->partitions[firstIndex].addEdge(edge, this->getIsDirected());
@@ -143,16 +146,20 @@ void Partitioner::updateMetaDB() {
         edgeCutsCount += partition.edgeCutsCount();
     }
     double numberOfEdges = edgesCount + edgeCutsCount/2;
-    std::string sqlStatement = "UPDATE graph SET vertexcount = '" + std::to_string(vertexCount) +
-            "' ,centralpartitioncount = '" + std::to_string(this->numberOfPartitions) +
-            "' ,edgecount = '" + std::to_string(numberOfEdges) +
-            "' WHERE idgraph = '" + std::to_string(this->graphID) + "'";
+
+    std::time_t time = chrono::system_clock::to_time_t(chrono::system_clock::now());
+    string uploadEndTime = ctime(&time);
+    std::string sqlStatement = "UPDATE graph SET vertexcount = vertexcount+" + std::to_string(vertexCount) +
+            " ,upload_end_time = \"" + uploadEndTime +
+            "\" ,graph_status_idgraph_status = " + to_string(Conts::GRAPH_STATUS::OPERATIONAL) +
+            " ,edgecount = edgecount+" + std::to_string(numberOfEdges) +
+            " WHERE idgraph = " + std::to_string(this->graphID);
     this->sqlite->runUpdate(sqlStatement);
     streaming_partitioner_logger.info("Successfully updated metaDB");
 }
 
 bool Partitioner::getIsDirected() {
-    std::string sqlStatement = "SELECT is_directed FROM graph WHERE idgraph = '"+std::to_string(this->graphID)+"'";
+    std::string sqlStatement = "SELECT is_directed FROM graph WHERE idgraph = " + std::to_string(this->graphID);
     auto result = this->sqlite->runSelect(sqlStatement);
     if (result[0][0].second == "0") {
         return false;
