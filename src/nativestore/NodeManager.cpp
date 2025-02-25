@@ -45,6 +45,7 @@ NodeManager::NodeManager(GraphConfig gConfig) {
     std::string propertiesDBPath = dbPrefix + "_properties.db";
     std::string metaPropertiesDBPath = dbPrefix + "_meta_properties.db";
     std::string edgePropertiesDBPath = dbPrefix + "_edge_properties.db";
+    std::string metaEdgePropertiesDBPath = dbPrefix + "_meta_edge_properties.db";
     std::string relationsDBPath = dbPrefix + "_relations.db";
     std::string centralRelationsDBPath = dbPrefix + "_central_relations.db";
     // This needs to be set in order to prevent index DB key overflows
@@ -78,6 +79,7 @@ NodeManager::NodeManager(GraphConfig gConfig) {
     PropertyLink::propertiesDB = Utils::openFile(propertiesDBPath, openMode);
     MetaPropertyLink::metaPropertiesDB = Utils::openFile(metaPropertiesDBPath, openMode);
     PropertyEdgeLink::edgePropertiesDB = Utils::openFile(edgePropertiesDBPath, openMode);
+    MetaPropertyEdgeLink::metaEdgePropertiesDB = Utils::openFile(metaEdgePropertiesDBPath, openMode);
     RelationBlock::relationsDB = utils.openFile(relationsDBPath, openMode);
     RelationBlock::centralRelationsDB = Utils::openFile(centralRelationsDBPath, openMode);
 
@@ -142,6 +144,13 @@ NodeManager::NodeManager(GraphConfig gConfig) {
                                             (stat_buf.st_size / PropertyEdgeLink::PROPERTY_BLOCK_SIZE);
     } else {
         node_manager_logger.error("Error getting file size for: " + edgePropertiesDBPath);
+    }
+
+    if (stat(metaEdgePropertiesDBPath.c_str(), &stat_buf) == 0) {
+        MetaPropertyEdgeLink::nextPropertyIndex = (stat_buf.st_size / MetaPropertyEdgeLink::META_PROPERTY_BLOCK_SIZE)
+                == 0 ? 1 : (stat_buf.st_size / MetaPropertyEdgeLink::META_PROPERTY_BLOCK_SIZE);
+    } else {
+        node_manager_logger.error("Error getting file size for: " + metaEdgePropertiesDBPath);
     }
 
     if (stat(relationsDBPath.c_str(), &stat_buf) == 0) {

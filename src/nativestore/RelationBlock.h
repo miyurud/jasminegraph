@@ -18,6 +18,7 @@ limitations under the License.
 
 #include "NodeBlock.h"
 #include "PropertyEdgeLink.h"
+#include "MetaPropertyEdgeLink.h"
 
 #ifndef RELATION_BLOCK
 #define RELATION_BLOCK
@@ -43,6 +44,7 @@ enum class RelationOffsets : int {
     DESTINATION_PREVIOUS = 10,
     DESTINATION_PREVIOUS_PID = 11,
     RELATION_PROPS = 12,
+    RELATION_PROPS_META = 13,
 };
 
 /**
@@ -75,15 +77,24 @@ class RelationBlock {
         this->destinationBlock = NodeBlock::get(destination.address);
     };
 
+    RelationBlock(unsigned int addr, NodeRelation source, NodeRelation destination, unsigned int propertyAddress,
+                  unsigned int metaPropertyAddress) : addr(addr), source(source), destination(destination),
+                  propertyAddress(propertyAddress), metaPropertyAddress(metaPropertyAddress){
+        this->sourceBlock = NodeBlock::get(source.address);
+        this->destinationBlock = NodeBlock::get(destination.address);
+    };
+
     char usage;
     unsigned int addr = 0;  // Block size * block ID for this block
     NodeRelation source;
     NodeRelation destination;
     unsigned int propertyAddress = 0;
+    unsigned int metaPropertyAddress = 0;
     PropertyEdgeLink *propertyHead = NULL;
     static thread_local unsigned int nextLocalRelationIndex;
     static thread_local unsigned int nextCentralRelationIndex;
     static thread_local const unsigned long BLOCK_SIZE;  // Size of a relation record block in bytes
+    static thread_local const unsigned long CENTRAL_BLOCK_SIZE;  // Size of a relation record block in bytes
     static thread_local std::string DB_PATH;
     static thread_local std::fstream *relationsDB;
     static thread_local std::fstream *centralRelationsDB;
@@ -131,8 +142,10 @@ class RelationBlock {
 
     void addLocalProperty(std::string, char *);
     void addCentralProperty(std::string name, char *value);
+    void addMetaProperty(std::string name, char *value);
 
     PropertyEdgeLink *getPropertyHead();
+    MetaPropertyEdgeLink *getMetaPropertyHead();
     std::map<std::string, char *> getAllProperties();
 };
 
