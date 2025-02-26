@@ -362,7 +362,7 @@ RelationBlock* RelationBlock::getCentralRelation(unsigned int address) {
     if (address == 0) {
         return NULL;
     }
-    if (address % RelationBlock::BLOCK_SIZE != 0) {
+    if (address % RelationBlock::CENTRAL_BLOCK_SIZE != 0) {
         relation_block_logger.error("Exception: Invalid relation block address !!\n received address = " + address);
         return NULL;
     }
@@ -371,6 +371,7 @@ RelationBlock* RelationBlock::getCentralRelation(unsigned int address) {
     NodeRelation source;
     NodeRelation destination;
     unsigned int propertyReference;
+    unsigned int metaPropertyReference;
 
     RelationBlock::centralRelationsDB->read(reinterpret_cast<char*>(&source.address),
                                             RECORD_SIZE);  // < ------ relation data offset ID = 0
@@ -463,7 +464,16 @@ RelationBlock* RelationBlock::getCentralRelation(unsigned int address) {
         return NULL;
     }
 
-    return new RelationBlock(address, source, destination, propertyReference);
+    if (!RelationBlock::centralRelationsDB->read(reinterpret_cast<char*>(&metaPropertyReference),
+                                                 RECORD_SIZE)) {  // < ------ relation data offset ID = 10
+        relation_block_logger.error(
+                "ERROR: Error while reading central relation meta property address data offset ID = 10 from "
+                "relation block address " + std::to_string(address));
+        return NULL;
+    }
+
+    return new RelationBlock(address, source, destination, propertyReference,
+                             metaPropertyReference);
 }
 
 RelationBlock* RelationBlock::nextLocalSource() {
