@@ -78,6 +78,12 @@ ready_hdfs() {
     kubectl apply -f ./k8s/hdfs/datanode-deployment.yaml
     kubectl apply -f ./k8s/hdfs/datanode-service.yaml
 
+    # Deploy YARN ResourceManager and NodeManager
+    kubectl apply -f ./k8s/hdfs/resourcemanager-deployment.yaml
+    kubectl apply -f ./k8s/hdfs/resourcemanager-service.yaml
+    kubectl apply -f ./k8s/hdfs/nodemanager-deployment.yaml
+    kubectl apply -f ./k8s/hdfs/nodemanager-service.yaml
+
     echo "Fetching JasmineGraph Master pod name..."
     MASTER_POD=$(kubectl get pods | grep jasminegraph-master | awk '{print $1}')
 

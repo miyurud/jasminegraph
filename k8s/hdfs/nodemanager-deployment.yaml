@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hdfs-nodemanager
+  labels:
+    app: hdfs
+    role: nodemanager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hdfs
+      role: nodemanager
+  template:
+    metadata:
+      labels:
+        app: hdfs
+        role: nodemanager
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: nodemanager
+          image: bde2020/hadoop-nodemanager:2.0.0-hadoop3.2.1-java8
+          ports:
+            - containerPort: 8042
+          env:
+            - name: SERVICE_PRECONDITION
+              value: "hdfs-namenode.default.svc.cluster.local:9000 hdfs-namenode.default.svc.cluster.local:9870 hdfs-datanode.default.svc.cluster.local:9864 hdfs-resourcemanager.default.svc.cluster.local:8088"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+
