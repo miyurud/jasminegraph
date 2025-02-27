@@ -49,6 +49,7 @@ std::pair<std::string, unsigned int> JasmineGraphIncrementalLocalStore::getIDs(s
     // type object even there is an error
 }
 
+
 void JasmineGraphIncrementalLocalStore::addEdgeFromString(std::string edgeString) {
     try {
         auto edgeJson = json::parse(edgeString);
@@ -59,56 +60,31 @@ void JasmineGraphIncrementalLocalStore::addEdgeFromString(std::string edgeString
         std::string sId = std::string(sourceJson["id"]);
         std::string dId = std::string(destinationJson["id"]);
 
+        bool isLocal = false;
+        if (edgeJson["EdgeType"] == "Local"){
+            isLocal = true;
+        }
+
         RelationBlock* newRelation;
-        if (edgeJson["EdgeType"] == "Central") {
-            newRelation = this->nm->addCentralEdge({sId, dId});
-        } else {
+        if (isLocal) {
             newRelation = this->nm->addLocalEdge({sId, dId});
+            addLocalEdgeProperties(newRelation,edgeJson);
+        } else {
+            newRelation = this->nm->addCentralEdge({sId, dId});
+            addCentralEdgeProperties(newRelation,edgeJson);
         }
         if (!newRelation) {
             return;
         }
 
-        char value[PropertyLink::MAX_VALUE_SIZE] = {};
-        char meta[MetaPropertyLink::MAX_VALUE_SIZE] = {};
-        if (edgeJson.contains("properties")) {
-            auto edgeProperties = edgeJson["properties"];
-            for (auto it = edgeProperties.begin(); it != edgeProperties.end(); it++) {
-                strcpy(value, it.value().get<std::string>().c_str());
-                if (edgeJson["EdgeType"] == "Central") {
-                    newRelation->addCentralProperty(std::string(it.key()), &value[0]);
-                } else {
-                    newRelation->addLocalProperty(std::string(it.key()), &value[0]);
-                }
-            }
-        }
-        if (sourceJson.contains("properties")) {
-            auto sourceProps = sourceJson["properties"];
-            for (auto it = sourceProps.begin(); it != sourceProps.end(); it++) {
-                strcpy(value, it.value().get<std::string>().c_str());
-                newRelation->getSource()->addProperty(std::string(it.key()), &value[0]);
-            }
-        }
-        std::string sourcePid = std::to_string(destinationJson["pid"].get<int>());
-        strcpy(meta, sourcePid.c_str());
-        newRelation->getSource()->addMetaProperty(MetaPropertyLink::PARTITION_ID, &meta[0]);
-
-        if (destinationJson.contains("properties")) {
-            auto destProps = destinationJson["properties"];
-            for (auto it = destProps.begin(); it != destProps.end(); it++) {
-                strcpy(value, it.value().get<std::string>().c_str());
-                newRelation->getDestination()->addProperty(std::string(it.key()), &value[0]);
-            }
-        }
-        std::string destPid = std::to_string(destinationJson["pid"].get<int>());
-        strcpy(meta, destPid.c_str());
-        newRelation->getDestination()->addMetaProperty(MetaPropertyLink::PARTITION_ID, &meta[0]);
+        addSourceProperties(newRelation, sourceJson);
+        addDestinationProperties(newRelation, destinationJson);
         incremental_localstore_logger.debug("Edge (" + sId + ", " + dId + ") Added successfully!");
     } catch (const std::exception&) {  // TODO tmkasun: Handle multiple types of exceptions
         incremental_localstore_logger.log(
-            "Error while processing edge data = " + edgeString +
+                "Error while processing edge data = " + edgeString +
                 "Could be due to JSON parsing error or error while persisting the data to disk",
-            "error");
+                "error");
         incremental_localstore_logger.log("Error malformed JSON attributes!", "error");
         // TODO tmkasun: handle JSON errors
     }
@@ -125,38 +101,13 @@ void JasmineGraphIncrementalLocalStore::addLocalEdge(std::string edge) {
     RelationBlock* newRelation;
     newRelation = this->nm->addLocalEdge({sId, dId});
 
-    char value[PropertyLink::MAX_VALUE_SIZE] = {};
-    char meta[MetaPropertyLink::MAX_VALUE_SIZE] = {};
-    if (jsonEdge.contains("properties")) {
-        auto edgeProperties = jsonEdge["properties"];
-        for (auto it = edgeProperties.begin(); it != edgeProperties.end(); it++) {
-            strcpy(value, it.value().get<std::string>().c_str());
-            newRelation->addLocalProperty(std::string(it.key()), &value[0]);
-        }
+    if (!newRelation) {
+        return;
     }
 
-    if (jsonSource.contains("properties")) {
-        auto sourceProps = jsonSource["properties"];
-        for (auto it = sourceProps.begin(); it != sourceProps.end(); it++) {
-            strcpy(value, it.value().get<std::string>().c_str());
-            newRelation->getSource()->addProperty(std::string(it.key()), &value[0]);
-        }
-    }
-
-    std::string sourcePId = std::to_string(jsonSource["pid"].get<int>());
-    strcpy(meta, sourcePId.c_str());
-    newRelation->getSource()->addMetaProperty(MetaPropertyLink::PARTITION_ID, &meta[0]);
-
-    if (jsonDestination.contains("properties")) {
-        auto destProps = jsonDestination["properties"];
-        for (auto it = destProps.begin(); it != destProps.end(); it++) {
-            strcpy(value, it.value().get<std::string>().c_str());
-            newRelation->getDestination()->addProperty(std::string(it.key()), &value[0]);
-        }
-    }
-    std::string destPid = std::to_string(jsonDestination["pid"].get<int>());
-    strcpy(meta, destPid.c_str());
-    newRelation->getDestination()->addMetaProperty(MetaPropertyLink::PARTITION_ID, &meta[0]);
+    addLocalEdgeProperties(newRelation, jsonEdge);
+    addSourceProperties(newRelation, jsonSource);
+    addDestinationProperties(newRelation, jsonDestination);
 
     incremental_localstore_logger.debug("Local edge (" + sId + "-> " + dId + " ) added successfully");
 }
@@ -172,38 +123,68 @@ void JasmineGraphIncrementalLocalStore::addCentralEdge(std::string edge) {
     RelationBlock* newRelation;
     newRelation = this->nm->addCentralEdge({sId, dId});
 
-    char value[PropertyLink::MAX_VALUE_SIZE] = {};
-    char meta[MetaPropertyLink::MAX_VALUE_SIZE] = {};
-    if (jsonEdge.contains("properties")) {
-        auto edgeProperties = jsonEdge["properties"];
-        for (auto it = edgeProperties.begin(); it != edgeProperties.end(); it++) {
-            strcpy(value, it.value().get<std::string>().c_str());
-            newRelation->addCentralProperty(std::string(it.key()), &value[0]);
-        }
+    if (!newRelation) {
+        return;
     }
 
-    if (jsonSource.contains("properties")) {
-        auto sourceProps = jsonSource["properties"];
-        for (auto it = sourceProps.begin(); it != sourceProps.end(); it++) {
-            strcpy(value, it.value().get<std::string>().c_str());
-            newRelation->getSource()->addProperty(std::string(it.key()), &value[0]);
-        }
-    }
-
-    std::string sourcePId = std::to_string(jsonSource["pid"].get<int>());
-    strcpy(meta, sourcePId.c_str());
-    newRelation->getSource()->addMetaProperty(MetaPropertyLink::PARTITION_ID, &meta[0]);
-
-    if (jsonDestination.contains("properties")) {
-        auto destProps = jsonDestination["properties"];
-        for (auto it = destProps.begin(); it != destProps.end(); it++) {
-            strcpy(value, it.value().get<std::string>().c_str());
-            newRelation->getDestination()->addProperty(std::string(it.key()), &value[0]);
-        }
-    }
-    std::string destPid = std::to_string(jsonDestination["pid"].get<int>());
-    strcpy(meta, destPid.c_str());
-    newRelation->getDestination()->addMetaProperty(MetaPropertyLink::PARTITION_ID, &meta[0]);
+    addCentralEdgeProperties(newRelation, jsonEdge);
+    addSourceProperties(newRelation, jsonSource);
+    addDestinationProperties(newRelation,jsonDestination);
 
     incremental_localstore_logger.debug("Central edge (" + sId + "-> " + dId + " ) added successfully");
+}
+
+void JasmineGraphIncrementalLocalStore::addCentralEdgeProperties(RelationBlock* relationBlock, const json& edgeJson) {
+    char value[PropertyLink::MAX_VALUE_SIZE] = {};
+    if (edgeJson.contains("properties")) {
+        auto edgeProperties = edgeJson["properties"];
+        for (auto it = edgeProperties.begin(); it != edgeProperties.end(); it++) {
+            strcpy(value, it.value().get<std::string>().c_str());
+            relationBlock->addCentralProperty(std::string(it.key()), &value[0]);
+        }
+    }
+}
+
+void JasmineGraphIncrementalLocalStore::addLocalEdgeProperties(RelationBlock* relationBlock, const json& edgeJson) {
+    char value[PropertyLink::MAX_VALUE_SIZE] = {};
+    if (edgeJson.contains("properties")) {
+        auto edgeProperties = edgeJson["properties"];
+        for (auto it = edgeProperties.begin(); it != edgeProperties.end(); it++) {
+            strcpy(value, it.value().get<std::string>().c_str());
+            relationBlock->addLocalProperty(std::string(it.key()), &value[0]);
+        }
+    }
+}
+
+void JasmineGraphIncrementalLocalStore::addSourceProperties(RelationBlock* relationBlock, const json& sourceJson) {
+    char value[PropertyLink::MAX_VALUE_SIZE] = {};
+    if (sourceJson.contains("properties")) {
+        auto sourceProps = sourceJson["properties"];
+        for (auto it = sourceProps.begin(); it != sourceProps.end(); it++) {
+            strcpy(value, it.value().get<std::string>().c_str());
+            relationBlock->getSource()->addProperty(std::string(it.key()), &value[0]);
+        }
+    }
+    std::string sourcePid = std::to_string(sourceJson["pid"].get<int>());
+    addMetaProperty(relationBlock->getSource(),MetaPropertyLink::PARTITION_ID,sourcePid);
+}
+
+void JasmineGraphIncrementalLocalStore::addDestinationProperties(RelationBlock* relationBlock, const json& destinationJson) {
+    char value[PropertyLink::MAX_VALUE_SIZE] = {};
+    if (destinationJson.contains("properties")) {
+        auto destinationProps = destinationJson["properties"];
+        for (auto it = destinationProps.begin(); it != destinationProps.end(); it++) {
+            strcpy(value, it.value().get<std::string>().c_str());
+            relationBlock->getDestination()->addProperty(std::string(it.key()), &value[0]);
+        }
+    }
+    std::string sourcePid = std::to_string(destinationJson["pid"].get<int>());
+    addMetaProperty(relationBlock->getDestination(),MetaPropertyLink::PARTITION_ID,sourcePid);
+}
+
+void JasmineGraphIncrementalLocalStore::addMetaProperty(NodeBlock* nodeBlock,
+                                                        std::string propertyKey, std::string propertyValue) {
+    char meta[MetaPropertyLink::MAX_VALUE_SIZE] = {};
+    strcpy(meta, propertyValue.c_str());
+    nodeBlock->addMetaProperty(propertyKey, &meta[0]);
 }

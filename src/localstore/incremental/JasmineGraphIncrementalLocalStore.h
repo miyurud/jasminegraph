@@ -29,6 +29,11 @@ class JasmineGraphIncrementalLocalStore {
                                       unsigned int partitionID = 0, std::string openMode = "trunk");
     void addLocalEdge(std::string edge);
     void addCentralEdge(std::string edge);
+    void addMetaProperty(NodeBlock* nodeBlock, std::string propertyKey, std::string propertyValue);
+    void addLocalEdgeProperties(RelationBlock* relationBlock, const json& edgeJson);
+    void addCentralEdgeProperties(RelationBlock* relationBlock, const json& edgeJson);
+    void addSourceProperties(RelationBlock* relationBlock, const json& sourceJson);
+    void addDestinationProperties(RelationBlock* relationBlock, const json& destinationJson);
 };
 
 #endif
