@@ -7,8 +7,12 @@ metadata:
     role: namenode
 spec:
   ports:
-    - port: 9000
+    - name: rpc
+      port: 9000
       targetPort: 9000
+    - name: http
+      port: 9870
+      targetPort: 9870
   selector:
     app: hdfs
     role: namenode

@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: datanode-pv-0
+  name: datanode-pv-1
   labels:
     app: hdfs
     role: datanode
@@ -12,7 +12,7 @@ spec:
   accessModes:
     - ReadWriteOnce
   hostPath:
-    path: "/data/hadoop/datanode/0"
+    path: "/data/hadoop/1"
 ---
 apiVersion: v1
 kind: PersistentVolume
