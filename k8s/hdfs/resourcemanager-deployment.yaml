@@ -25,7 +25,7 @@ spec:
             - containerPort: 8088
           env:
             - name: SERVICE_PRECONDITION
-              value: "hdfs-namenode.default.svc.cluster.local:9000 hdfs-namenode.default.svc.cluster.local:9870 hdfs-datanode.default.svc.cluster.local:9864"
+              value: "hdfs-namenode:9000 hdfs-namenode:9870 hdfs-datanode:50010"
           resources:
             requests:
               memory: "512Mi"
