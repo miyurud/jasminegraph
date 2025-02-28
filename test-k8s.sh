@@ -141,35 +141,26 @@ ready_hdfs() {
     }
     echo "Copied $HDFS_FILE_PATH"
 
-#    # Check if the file exists in HDFS
-#    if ! kubectl exec -i "${NAMENODE_POD}" -- hadoop fs -test -e "${HDFS_FILE_PATH}"; then
-#        kubectl exec -i "${NAMENODE_POD}" -- hadoop fs -put "${HDFS_FILE_PATH}" "${HDFS_DIRECTORY}"
-#        echo "File successfully uploaded to HDFS at ${HDFS_FILE_PATH}."
-#    else
-#        echo "File already exists in HDFS at ${HDFS_FILE_PATH}. Skipping upload."
-#    fi
-
-     # Check if the file exists in HDFS and delete it if it does
-       echo "Checking if file exists in HDFS..."
-       if kubectl exec -i "${NAMENODE_POD}" -- hadoop fs -test -e "${HDFS_FILE_PATH}"; then
-           echo "File already exists in HDFS. Deleting the existing file..."
-           kubectl exec -i "${NAMENODE_POD}" -- hadoop fs -rm "${HDFS_FILE_PATH}" || {
-               echo "Error deleting file from HDFS."
-               return 1
-           }
-           echo "File deleted from HDFS."
-       fi
-
-       # Copy the file from local to the HDFS namenode pod
-       kubectl cp "${LOCAL_FILE_PATH}" "${NAMENODE_POD}":"${HDFS_FILE_PATH}" || {
-           echo "Error copying file to HDFS namenode pod."
+    echo "Checking if file exists in HDFS..."
+    if kubectl exec -i "${NAMENODE_POD}" -- hadoop fs -test -e "${HDFS_FILE_PATH}"; then
+       echo "File already exists in HDFS. Deleting the existing file..."
+       kubectl exec -i "${NAMENODE_POD}" -- hadoop fs -rm "${HDFS_FILE_PATH}" || {
+           echo "Error deleting file from HDFS."
            return 1
        }
-       echo "Copied $HDFS_FILE_PATH"
+       echo "File deleted from HDFS."
+    fi
 
-       # Upload the file to HDFS
-       kubectl exec -i "${NAMENODE_POD}" -- hadoop fs -put "${HDFS_FILE_PATH}" "${HDFS_DIRECTORY}"
-       echo "File successfully uploaded to HDFS at ${HDFS_FILE_PATH}."
+    # Copy the file from local to the HDFS namenode pod
+    kubectl cp "${LOCAL_FILE_PATH}" "${NAMENODE_POD}":"${HDFS_FILE_PATH}" || {
+       echo "Error copying file to HDFS namenode pod."
+       return 1
+    }
+    echo "Copied $HDFS_FILE_PATH"
+
+    # Upload the file to HDFS
+    kubectl exec -i "${NAMENODE_POD}" -- hadoop fs -put "${HDFS_FILE_PATH}" "${HDFS_DIRECTORY}"
+    echo "File successfully uploaded to HDFS at ${HDFS_FILE_PATH}."
 }
 
 cd "$TEST_ROOT"
