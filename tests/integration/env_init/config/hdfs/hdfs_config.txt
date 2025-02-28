@@ -1,0 +1,2 @@
+hdfs.host=hdfs-namenode
+hdfs.port=9000
