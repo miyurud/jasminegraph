@@ -75,6 +75,7 @@ ready_hdfs() {
     kubectl apply -f ./k8s/hdfs/namenode-pvc.yaml
     kubectl apply -f ./k8s/hdfs/namenode-deployment.yaml
     kubectl apply -f ./k8s/hdfs/namenode-service.yaml
+    kubectl apply -f ./k8s/hdfs/datanode-pvc.yaml
     kubectl apply -f ./k8s/hdfs/datanode-deployment.yaml
     kubectl apply -f ./k8s/hdfs/datanode-service.yaml
 

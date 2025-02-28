@@ -34,7 +34,7 @@ spec:
             - name: CORE_CONF_hadoop_http_staticuser_user
               value: "root"
             - name: HDFS_CONF_dfs_namenode_datanode_registration_ip___hostname___check
-              value: "false"
+              value: "true"
           resources:  # Memory and storage limits added
             limits:
               memory: "2Gi"
