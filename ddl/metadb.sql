@@ -7,9 +7,10 @@ create table graph
     upload_start_time           TIME         not null,
     upload_end_time             TIME         not null,
     graph_status_idgraph_status INTEGER      not null,
-    vertexcount                 BIGINT,
+    id_algorithm                INTEGER,
+    vertexcount                 BIGINT default 0,
     centralpartitioncount       INTEGER,
-    edgecount                   INTEGER,
+    edgecount                   INTEGER default 0,
     upload_time                 VARCHAR(8),
     train_status                VARCHAR(20),
     feature_count               INTEGER(100),
@@ -81,7 +82,18 @@ create table worker_has_partition
     worker_idworker         INTEGER
 );
 
+create table partitioning_algorithm
+(
+    id_algorithm    INTEGER not null primary key,
+    algorithm_name  VARCHAR not null
+);
+
 INSERT INTO graph_status (idgraph_status, description) VALUES (1, 'LOADING');
 INSERT INTO graph_status (idgraph_status, description) VALUES (2, 'OPERATIONAL');
 INSERT INTO graph_status (idgraph_status, description) VALUES (3, 'DELETED');
 INSERT INTO graph_status (idgraph_status, description) VALUES (4, 'NONOPERATIONAL');
+
+INSERT INTO partitioning_algorithm (id_algorithm, algorithm_name) VALUES (1, 'HASH');
+INSERT INTO partitioning_algorithm (id_algorithm, algorithm_name) VALUES (2, 'FENNEL');
+INSERT INTO partitioning_algorithm (id_algorithm, algorithm_name) VALUES (3, 'LDG');
+INSERT INTO partitioning_algorithm (id_algorithm, algorithm_name) VALUES (4, 'METIS');

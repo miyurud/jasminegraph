@@ -27,6 +27,7 @@ limitations under the License.
 
 #include "../metadb/SQLiteDBInterface.h"
 #include "../performancedb/PerformanceSQLiteDBInterface.h"
+#include "../frontend/JasmineGraphFrontEndProtocol.h"
 #include "Conts.h"
 
 using std::map;
@@ -189,6 +190,7 @@ class Utils {
     static bool transferPartition(std::string sourceWorker, int sourceWorkerPort, std::string destinationWorker,
                                   int destinationWorkerDataPort, std::string graphID, std::string partitionID,
                                   std::string workerID, SQLiteDBInterface *sqlite);
+    static string getFrontendInput(int connFd);
 };
 
 #endif  // JASMINEGRAPH_UTILS_H
