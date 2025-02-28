@@ -45,6 +45,7 @@ NodeManager::NodeManager(GraphConfig gConfig) {
     std::string propertiesDBPath = dbPrefix + "_properties.db";
     std::string metaPropertiesDBPath = dbPrefix + "_meta_properties.db";
     std::string edgePropertiesDBPath = dbPrefix + "_edge_properties.db";
+    std::string metaEdgePropertiesDBPath = dbPrefix + "_meta_edge_properties.db";
     std::string relationsDBPath = dbPrefix + "_relations.db";
     std::string centralRelationsDBPath = dbPrefix + "_central_relations.db";
     // This needs to be set in order to prevent index DB key overflows
@@ -78,6 +79,7 @@ NodeManager::NodeManager(GraphConfig gConfig) {
     PropertyLink::propertiesDB = Utils::openFile(propertiesDBPath, openMode);
     MetaPropertyLink::metaPropertiesDB = Utils::openFile(metaPropertiesDBPath, openMode);
     PropertyEdgeLink::edgePropertiesDB = Utils::openFile(edgePropertiesDBPath, openMode);
+    MetaPropertyEdgeLink::metaEdgePropertiesDB = Utils::openFile(metaEdgePropertiesDBPath, openMode);
     RelationBlock::relationsDB = utils.openFile(relationsDBPath, openMode);
     RelationBlock::centralRelationsDB = Utils::openFile(centralRelationsDBPath, openMode);
 
@@ -112,9 +114,9 @@ NodeManager::NodeManager(GraphConfig gConfig) {
                                 ", RelationBlock::BLOCK_SIZE: " + std::to_string(RelationBlock::BLOCK_SIZE));
         node_manager_logger.error("RelationsDB size does not comply to node block size Path = " + relationsDBPath);
     }
-    if (dbSize(centralRelationsDBPath) % RelationBlock::BLOCK_SIZE != 0) {
+    if (dbSize(centralRelationsDBPath) % RelationBlock::CENTRAL_BLOCK_SIZE != 0) {
         node_manager_logger.warn("CentralRelationsDB size: " + std::to_string(dbSize(centralRelationsDBPath)) +
-                                ", RelationBlock::BLOCK_SIZE: " + std::to_string(RelationBlock::BLOCK_SIZE));
+                                ", RelationBlock::BLOCK_SIZE: " + std::to_string(RelationBlock::CENTRAL_BLOCK_SIZE));
         node_manager_logger.error("CentralRelationsDB size does not comply to node block size Path = " +
                                                             centralRelationsDBPath);
     }
@@ -144,6 +146,13 @@ NodeManager::NodeManager(GraphConfig gConfig) {
         node_manager_logger.error("Error getting file size for: " + edgePropertiesDBPath);
     }
 
+    if (stat(metaEdgePropertiesDBPath.c_str(), &stat_buf) == 0) {
+        MetaPropertyEdgeLink::nextPropertyIndex = (stat_buf.st_size / MetaPropertyEdgeLink::META_PROPERTY_BLOCK_SIZE)
+                == 0 ? 1 : (stat_buf.st_size / MetaPropertyEdgeLink::META_PROPERTY_BLOCK_SIZE);
+    } else {
+        node_manager_logger.error("Error getting file size for: " + metaEdgePropertiesDBPath);
+    }
+
     if (stat(relationsDBPath.c_str(), &stat_buf) == 0) {
         RelationBlock::nextLocalRelationIndex = (stat_buf.st_size / RelationBlock::BLOCK_SIZE) == 0 ? 1 :
                                         (stat_buf.st_size / RelationBlock::BLOCK_SIZE);
@@ -152,8 +161,8 @@ NodeManager::NodeManager(GraphConfig gConfig) {
     }
 
     if (stat(centralRelationsDBPath.c_str(), &stat_buf) == 0) {
-        RelationBlock::nextCentralRelationIndex = (stat_buf.st_size / RelationBlock::BLOCK_SIZE)== 0 ? 1 :
-                                                (stat_buf.st_size / RelationBlock::BLOCK_SIZE);
+        RelationBlock::nextCentralRelationIndex = (stat_buf.st_size / RelationBlock::CENTRAL_BLOCK_SIZE)== 0 ? 1 :
+                                                (stat_buf.st_size / RelationBlock::CENTRAL_BLOCK_SIZE);
     } else {
         node_manager_logger.error("Error getting file size for: " + centralRelationsDBPath);
     }
@@ -502,7 +511,12 @@ std::map<long, std::unordered_set<long>> NodeManager::getAdjacencyList() {
 std::map<long, std::unordered_set<long>> NodeManager::getAdjacencyList(bool isLocal) {
     std::map<long, std::unordered_set<long>> adjacencyList;
 
-    int relationBlockSize = RelationBlock::BLOCK_SIZE;
+    int relationBlockSize = 0;
+    if (isLocal) {
+        relationBlockSize = RelationBlock::BLOCK_SIZE;
+    } else {
+        relationBlockSize = RelationBlock::CENTRAL_BLOCK_SIZE;
+    }
     long  newRelationCount;
 
     if (isLocal) {
