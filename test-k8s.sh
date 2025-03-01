@@ -80,10 +80,10 @@ ready_hdfs() {
     kubectl apply -f ./k8s/hdfs/datanode-service.yaml
 
     # Deploy YARN ResourceManager and NodeManager
-    kubectl apply -f ./k8s/hdfs/resourcemanager-deployment.yaml
-    kubectl apply -f ./k8s/hdfs/resourcemanager-service.yaml
-    kubectl apply -f ./k8s/hdfs/nodemanager-deployment.yaml
-    kubectl apply -f ./k8s/hdfs/nodemanager-service.yaml
+#    kubectl apply -f ./k8s/hdfs/resourcemanager-deployment.yaml
+#    kubectl apply -f ./k8s/hdfs/resourcemanager-service.yaml
+#    kubectl apply -f ./k8s/hdfs/nodemanager-deployment.yaml
+#    kubectl apply -f ./k8s/hdfs/nodemanager-service.yaml
 
     echo "Fetching JasmineGraph Master pod name..."
     MASTER_POD=$(kubectl get pods | grep jasminegraph-master | awk '{print $1}')
@@ -143,18 +143,18 @@ ready_hdfs() {
 
     echo "Checking if file exists in HDFS..."
     if kubectl exec -i "${NAMENODE_POD}" -- hadoop fs -test -e "${HDFS_FILE_PATH}"; then
-       echo "File already exists in HDFS. Deleting the existing file..."
-       kubectl exec -i "${NAMENODE_POD}" -- hadoop fs -rm "${HDFS_FILE_PATH}" || {
-           echo "Error deleting file from HDFS."
-           return 1
-       }
-       echo "File deleted from HDFS."
+        echo "File already exists in HDFS. Deleting the existing file..."
+        kubectl exec -i "${NAMENODE_POD}" -- hadoop fs -rm "${HDFS_FILE_PATH}" || {
+            echo "Error deleting file from HDFS."
+            return 1
+        }
+        echo "File deleted from HDFS."
     fi
 
     # Copy the file from local to the HDFS namenode pod
     kubectl cp "${LOCAL_FILE_PATH}" "${NAMENODE_POD}":"${HDFS_FILE_PATH}" || {
-       echo "Error copying file to HDFS namenode pod."
-       return 1
+        echo "Error copying file to HDFS namenode pod."
+        return 1
     }
     echo "Copied $HDFS_FILE_PATH"
 

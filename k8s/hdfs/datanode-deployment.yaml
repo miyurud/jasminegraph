@@ -33,6 +33,12 @@ spec:
               value: "hdfs-namenode"
             - name: CORE_CONF_fs_defaultFS
               value: "hdfs://hdfs-namenode:9000"
+            - name: POD_NAME  # Automatically injected by Kubernetes
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: HADOOP_OPTS  # Add this environment variable
+              value: "-Ddfs.datanode.hostname=$(POD_NAME)"  # Use the Pod's hostname
           resources:
             requests:
               memory: "512Mi"
