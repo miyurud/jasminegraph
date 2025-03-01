@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: hdfs-nodemanager
+  labels:
+    app: hdfs
+    role: nodemanager
+spec:
+  ports:
+    - port: 8042
+      targetPort: 8042
+  selector:
+    app: hdfs
+    role: nodemanager
+  type: ClusterIP

@@ -1011,3 +1011,4 @@ void MetisPartitioner::writeSerializedCompositeMasterFiles(std::string part) {
     masterFileMutex.unlock();
     partitioner_logger.log("Serializing done for central part " + part, "info");
 }
+
