@@ -32,22 +32,22 @@ MetaPropertyEdgeLink::MetaPropertyEdgeLink(unsigned int propertyBlockAddress) : 
         char rawName[MetaPropertyEdgeLink::MAX_NAME_SIZE] = {0};
         if (!this->metaEdgePropertiesDB->read(reinterpret_cast<char*>(&rawName),
                                               MetaPropertyEdgeLink::MAX_NAME_SIZE)) {
-            MetaPropertyEdgeLinkLogger.error("Error while reading property name from block " +
+            metaPropertyEdgeLinkLogger.error("Error while reading property name from block " +
                                             std::to_string(blockAddress));
         }
-        MetaPropertyEdgeLinkLogger.debug(
+        metaPropertyEdgeLinkLogger.debug(
                 "Current file descriptor cursor position = " +
                 std::to_string(this->metaEdgePropertiesDB->tellg()) +
                 " when reading = " + std::to_string(blockAddress));
         if (!this->metaEdgePropertiesDB->read(reinterpret_cast<char*>(&this->value),
                                               MetaPropertyEdgeLink::MAX_VALUE_SIZE)) {
-            MetaPropertyEdgeLinkLogger.error("Error while reading property value from block " +
+            metaPropertyEdgeLinkLogger.error("Error while reading property value from block " +
                                             std::to_string(blockAddress));
         }
 
         if (!this->metaEdgePropertiesDB->read(reinterpret_cast<char*>(&(this->nextPropAddress)),
                                               sizeof(unsigned int))) {
-            MetaPropertyEdgeLinkLogger.error("Error while reading property next address from block " +
+            metaPropertyEdgeLinkLogger.error("Error while reading property next address from block " +
                                             std::to_string(blockAddress));
         }
 
@@ -74,7 +74,7 @@ unsigned int MetaPropertyEdgeLink::insert(std::string name, char* value) {
         this->metaEdgePropertiesDB->write(reinterpret_cast<char*>(dataValue), MetaPropertyEdgeLink::MAX_VALUE_SIZE);
         this->metaEdgePropertiesDB->flush();
         pthread_mutex_unlock(&lockInsertMetaPropertyEdgeLink);
-        MetaPropertyEdgeLinkLogger.debug("Updating already existing property key = " + std::string(name));
+        metaPropertyEdgeLinkLogger.debug("Updating already existing property key = " + std::string(name));
         return this->blockAddress;
     } else if (this->nextPropAddress) {  // Traverse to the edge/end of the link list
         std::unique_ptr<MetaPropertyEdgeLink> pel(new MetaPropertyEdgeLink(this->nextPropAddress));
@@ -87,7 +87,7 @@ unsigned int MetaPropertyEdgeLink::insert(std::string name, char* value) {
         this->metaEdgePropertiesDB->write(dataName, MetaPropertyEdgeLink::MAX_NAME_SIZE);
         this->metaEdgePropertiesDB->write(reinterpret_cast<char*>(dataValue), MetaPropertyEdgeLink::MAX_VALUE_SIZE);
         if (!this->metaEdgePropertiesDB->write(reinterpret_cast<char*>(&nextAddress), sizeof(nextAddress))) {
-            MetaPropertyEdgeLinkLogger.error("Error while inserting a property " + name
+            metaPropertyEdgeLinkLogger.error("Error while inserting a property " + name
             + " into block address " + std::to_string(newAddress));
             return -1;
         }
@@ -97,7 +97,7 @@ unsigned int MetaPropertyEdgeLink::insert(std::string name, char* value) {
         this->metaEdgePropertiesDB->seekp(this->blockAddress + MetaPropertyEdgeLink::MAX_NAME_SIZE +
                                       MetaPropertyEdgeLink::MAX_VALUE_SIZE);  // seek to current property next address
         if (!this->metaEdgePropertiesDB->write(reinterpret_cast<char*>(&newAddress), sizeof(newAddress))) {
-            MetaPropertyEdgeLinkLogger.error("Error while updating  property next address for " + name +
+            metaPropertyEdgeLinkLogger.error("Error while updating  property next address for " + name +
                                             " into block address " + std::to_string(this->blockAddress));
             return -1;
         }
@@ -120,7 +120,7 @@ MetaPropertyEdgeLink* MetaPropertyEdgeLink::create(std::string name, char value[
                                                       MetaPropertyEdgeLink::MAX_VALUE_SIZE);
     if (!MetaPropertyEdgeLink::metaEdgePropertiesDB->write(reinterpret_cast<char*>(&nextAddress),
                                                            sizeof(nextAddress))) {
-        MetaPropertyEdgeLinkLogger.error("Error while inserting the property = " + name +
+        metaPropertyEdgeLinkLogger.error("Error while inserting the property = " + name +
                                         " into block a new address = " + std::to_string(newAddress));
         return nullptr;
     }
@@ -149,24 +149,24 @@ MetaPropertyEdgeLink* MetaPropertyEdgeLink::get(unsigned int propertyBlockAddres
 
         if (!MetaPropertyEdgeLink::metaEdgePropertiesDB->read(reinterpret_cast<char*>(&propertyName),
                                                       MetaPropertyEdgeLink::MAX_NAME_SIZE)) {
-            MetaPropertyEdgeLinkLogger.error("Error while reading edge property name from block = " +
+            metaPropertyEdgeLinkLogger.error("Error while reading edge property name from block = " +
                                             std::to_string(propertyBlockAddress));
         }
         if (!MetaPropertyEdgeLink::metaEdgePropertiesDB->read(reinterpret_cast<char*>(&propertyValue),
                                                       MetaPropertyEdgeLink::MAX_VALUE_SIZE)) {
-            MetaPropertyEdgeLinkLogger.error("Error while reading edge property value from block = " +
+            metaPropertyEdgeLinkLogger.error("Error while reading edge property value from block = " +
                                             std::to_string(propertyBlockAddress));
         }
 
         if (!MetaPropertyEdgeLink::metaEdgePropertiesDB->read(reinterpret_cast<char*>(&(nextAddress)),
                                                               sizeof(unsigned int))) {
-            MetaPropertyEdgeLinkLogger.error("Error while reading edge property next address from block = " +
+            metaPropertyEdgeLinkLogger.error("Error while reading edge property next address from block = " +
                                             std::to_string(propertyBlockAddress));
         }
-        MetaPropertyEdgeLinkLogger.debug("Property head propertyBlockAddress  = " +
+        metaPropertyEdgeLinkLogger.debug("Property head propertyBlockAddress  = " +
                                         std::to_string(propertyBlockAddress));
-        MetaPropertyEdgeLinkLogger.debug("Property head property name  = " + std::string(propertyName));
-        MetaPropertyEdgeLinkLogger.debug("Property head nextAddress   = " + std::to_string(nextAddress));
+        metaPropertyEdgeLinkLogger.debug("Property head property name  = " + std::string(propertyName));
+        metaPropertyEdgeLinkLogger.debug("Property head nextAddress   = " + std::to_string(nextAddress));
 
         pl = new MetaPropertyEdgeLink(propertyBlockAddress, std::string(propertyName),
                                       propertyValue, nextAddress);
