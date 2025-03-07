@@ -729,8 +729,10 @@ NodeBlock* RelationBlock::getDestination() {
     return NULL;
 }
 
-thread_local const unsigned long RelationBlock::BLOCK_SIZE = RelationBlock::RECORD_SIZE * 13;
-thread_local const unsigned long RelationBlock::CENTRAL_BLOCK_SIZE = RelationBlock::RECORD_SIZE * 14;
+thread_local const unsigned long RelationBlock::BLOCK_SIZE = RelationBlock::RECORD_SIZE *
+        RelationBlock::NUMBER_OF_LOCAL_RELATION_RECORDS;
+thread_local const unsigned long RelationBlock::CENTRAL_BLOCK_SIZE = RelationBlock::RECORD_SIZE *
+        RelationBlock::NUMBER_OF_CENTRAL_RELATION_RECORDS;
 
 // One relation block holds 11 recods such as source addres, destination address, source next relation address etc.
 // and one record is typically 4 bytes (size of unsigned int)

@@ -77,8 +77,8 @@ class RelationBlock {
         this->destinationBlock = NodeBlock::get(destination.address);
     };
 
-    RelationBlock(unsigned int addr, NodeRelation source, NodeRelation destination, unsigned int propertyAddress,
-                  unsigned int metaPropertyAddress) : addr(addr), source(source), destination(destination),
+    RelationBlock(unsigned int address, NodeRelation source, NodeRelation destination, unsigned int propertyAddress,
+                  unsigned int metaPropertyAddress) : addr(address), source(source), destination(destination),
                   propertyAddress(propertyAddress), metaPropertyAddress(metaPropertyAddress){
         this->sourceBlock = NodeBlock::get(source.address);
         this->destinationBlock = NodeBlock::get(destination.address);
@@ -99,6 +99,9 @@ class RelationBlock {
     static thread_local std::fstream *relationsDB;
     static thread_local std::fstream *centralRelationsDB;
     static const int RECORD_SIZE = sizeof(unsigned int);
+    static const int NUMBER_OF_CENTRAL_RELATION_RECORDS = 14;
+    static const int NUMBER_OF_LOCAL_RELATION_RECORDS = 13;
+
 
     void save(std::fstream *cursor);
     bool isInUse();

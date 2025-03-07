@@ -17,7 +17,7 @@ limitations under the License.
 #include "MetaPropertyEdgeLink.h"
 #include "../util/logger/Logger.h"
 
-Logger MetaPropertyEdgeLinkLogger;
+Logger metaPropertyEdgeLinkLogger;
 thread_local unsigned int MetaPropertyEdgeLink::nextPropertyIndex = 1;
 thread_local std::fstream* MetaPropertyEdgeLink::metaEdgePropertiesDB = nullptr;
 pthread_mutex_t lockMetaPropertyEdgeLink;
