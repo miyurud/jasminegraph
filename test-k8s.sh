@@ -63,10 +63,14 @@ clear_resources() {
     ./start-k8s.sh clean
 
     # Clean hdfs related docker containers
-    if [ ! -z "$(docker ps -a --filter "name=hdfs" -q)" ]; then
-        docker ps -a --filter "name=hdfs" -q | xargs docker rm -f &>/dev/null
+    if [ ! -z "$(docker ps -a -q)" ]; then
+        docker ps -a -q | xargs docker rm -f &>/dev/null
     else
-        echo "No hdfs related containers to stop and remove."
+        echo "No containers to stop and remove."
+    fi
+    docker run -v '/tmp/jasminegraph:/tmp/jasminegraph' --entrypoint /bin/bash jasminegraph:test -c 'rm -rf /tmp/jasminegraph/*' || echo 'Not removing existing tmp logs'
+    if [ ! -z "$(docker ps -a -q)" ]; then
+        docker ps -a -q | xargs docker rm -f &>/dev/null
     fi
 
 }
