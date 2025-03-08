@@ -61,38 +61,221 @@ build_and_run_on_k8s() {
 
 clear_resources() {
     ./start-k8s.sh clean
-    # Clean hdfs related deployed components
-    kubectl delete statefulset,deployments,svc,pvc,pv -l app=hdfs
+
+    # Clean hdfs related docker containers
+    if [ ! -z "$(docker ps -a --filter "name=hdfs" -q)" ]; then
+        docker ps -a --filter "name=hdfs" -q | xargs docker rm -f &>/dev/null
+    else
+        echo "No hdfs related containers to stop and remove."
+    fi
+
 }
 
+#ready_hdfs() {
+#    echo "Applying HDFS configurations..."
+#
+#    # Clean residual resources before setting up the deployments
+#    kubectl delete statefulset,deployments,svc,pvc,pv -l app=hdfs >/dev/null 2>&1
+#
+#    kubectl apply -f ./k8s/hdfs/pv.yaml
+#    kubectl apply -f ./k8s/hdfs/namenode-pvc.yaml
+#    kubectl apply -f ./k8s/hdfs/namenode-deployment.yaml
+#    kubectl apply -f ./k8s/hdfs/namenode-service.yaml
+#    kubectl apply -f ./k8s/hdfs/datanode-pvc.yaml
+#    kubectl apply -f ./k8s/hdfs/datanode-deployment.yaml
+#    kubectl apply -f ./k8s/hdfs/datanode-service.yaml
+#
+#    # Deploy YARN ResourceManager and NodeManager
+##    kubectl apply -f ./k8s/hdfs/resourcemanager-deployment.yaml
+##    kubectl apply -f ./k8s/hdfs/resourcemanager-service.yaml
+##    kubectl apply -f ./k8s/hdfs/nodemanager-deployment.yaml
+##    kubectl apply -f ./k8s/hdfs/nodemanager-service.yaml
+#
+#    echo "Fetching JasmineGraph Master pod name..."
+#    MASTER_POD=$(kubectl get pods | grep jasminegraph-master | awk '{print $1}')
+#
+#    if [[ -z ${MASTER_POD} ]]; then
+#        echo "Error: JasmineGraph Master pod not found. Exiting."
+#        return 1
+#    fi
+#
+#    echo "Master pod found: ${MASTER_POD}"
+#
+#    FILE_NAME="powergrid.dl"
+#    LOCAL_DIRECTORY="/var/tmp/data/"
+#    LOCAL_FILE_PATH="${LOCAL_DIRECTORY}${FILE_NAME}"
+#    HDFS_DIRECTORY="/home/"
+#    HDFS_FILE_PATH="${HDFS_DIRECTORY}${FILE_NAME}"
+#
+#    # Ensure local directory exists
+#    mkdir -p "${LOCAL_DIRECTORY}"
+#
+#    # Copy the file from the master pod
+#    kubectl cp "${MASTER_POD}:${LOCAL_FILE_PATH}" "${LOCAL_FILE_PATH}" || {
+#        echo "Error copying file from JasmineGraph Master pod."
+#        return 1
+#    }
+#
+#    #find namenode
+#    echo "Fetching HDFS namenode pod name..."
+#    NAMENODE_POD=$(kubectl get pods | grep hdfs-namenode | awk '{print $1}')
+#
+#    if [[ -z ${NAMENODE_POD} ]]; then
+#        echo "Error: HDFS namenode pod not found. Exiting."
+#        return 1
+#    fi
+#
+#    echo "Namenode pod found: ${NAMENODE_POD}"
+#
+#    # Wait until the NameNode service is ready
+#    echo "Waiting for HDFS NameNode service to be available..."
+#    while ! kubectl exec "${NAMENODE_POD}" -- hadoop dfsadmin -report &>/dev/null; do
+#        echo "HDFS NameNode service is not ready yet. Retrying in 5 seconds..."
+#        sleep 5
+#    done
+#
+#    echo "HDFS NameNode service is available."
+#
+#    # Create the HDFS directory (ensure it exists)
+#    kubectl exec -i "${NAMENODE_POD}" -- hadoop fs -mkdir -p "${HDFS_DIRECTORY}"
+#    echo "Created directory: $HDFS_DIRECTORY in Name node"
+#
+#    # Copy the file from local to the HDFS namenode pod
+#    kubectl cp "${LOCAL_FILE_PATH}" "${NAMENODE_POD}":"${HDFS_FILE_PATH}" || {
+#        echo "Error copying file to HDFS namenode pod."
+#        return 1
+#    }
+#    echo "Copied $HDFS_FILE_PATH"
+#
+#    echo "Checking if file exists in HDFS..."
+#    if kubectl exec -i "${NAMENODE_POD}" -- hadoop fs -test -e "${HDFS_FILE_PATH}"; then
+#        echo "File already exists in HDFS. Deleting the existing file..."
+#        kubectl exec -i "${NAMENODE_POD}" -- hadoop fs -rm "${HDFS_FILE_PATH}" || {
+#            echo "Error deleting file from HDFS."
+#            return 1
+#        }
+#        echo "File deleted from HDFS."
+#    fi
+#
+#    # Copy the file from local to the HDFS namenode pod
+#    kubectl cp "${LOCAL_FILE_PATH}" "${NAMENODE_POD}":"${HDFS_FILE_PATH}" || {
+#        echo "Error copying file to HDFS namenode pod."
+#        return 1
+#    }
+#    echo "Copied $HDFS_FILE_PATH"
+#
+#    # Upload the file to HDFS
+#    kubectl exec -i "${NAMENODE_POD}" -- hadoop fs -put "${HDFS_FILE_PATH}" "${HDFS_DIRECTORY}"
+#    echo "File successfully uploaded to HDFS at ${HDFS_FILE_PATH}."
+#}
+
+#ready_hdfs() {
+#     docker compose -f "${TEST_ROOT}/docker-compose-k8s-hdfs.yaml" up >"$RUN_LOG" 2>&1 &
+#     while ! curl -s http://localhost:9870 &>/dev/null; do
+#            echo "Hadoop Namenode is not ready.."
+#             sleep 5
+#     done
+#     echo "Hadoop Namenode is ready."
+#
+#    # Check and leave safe mode if necessary
+#    docker exec -i hdfs-namenode hadoop dfsadmin -safemode get
+#    if docker exec -i hdfs-namenode hadoop dfsadmin -safemode get | grep -q "Safe mode is ON"; then
+#        echo "Exiting safe mode..."
+#        docker exec -i hdfs-namenode hadoop dfsadmin -safemode leave
+#        echo "Safe mode exited."
+#    else
+#        echo "Namenode is not in safe mode."
+#    fi
+#
+#    echo "Fetching JasmineGraph Master pod name..."
+#    MASTER_POD=$(kubectl get pods | grep jasminegraph-master | awk '{print $1}')
+#
+#    if [[ -z ${MASTER_POD} ]]; then
+#        echo "Error: JasmineGraph Master pod not found. Exiting."
+#        return 1
+#    fi
+#
+#    echo "Master pod found: ${MASTER_POD}"
+#
+#   FILE_NAME="powergrid.dl"
+#   LOCAL_DIRECTORY="/var/tmp/data/"
+#   LOCAL_FILE_PATH="${LOCAL_DIRECTORY}${FILE_NAME}"
+#   HDFS_DIRECTORY="/home/"
+#   HDFS_FILE_PATH="${HDFS_DIRECTORY}${FILE_NAME}"
+#
+#     # Ensure local directory exists
+#     mkdir -p "${LOCAL_DIRECTORY}"
+#
+#     # Copy the file from the master pod to local machine
+#     echo "Copying file from JasmineGraph Master pod..."
+#     kubectl cp "${MASTER_POD}:${LOCAL_FILE_PATH}" "${LOCAL_FILE_PATH}" || {
+#         echo "Error copying file from JasmineGraph Master pod."
+#         return 1
+#     }
+#
+#     echo "Fetching HDFS Namenode container name..."
+#     NAMENODE_CONTAINER=$(docker ps --format '{{.Names}}' | grep namenode)
+#
+#     if [[ -z ${NAMENODE_CONTAINER} ]]; then
+#         echo "Error: HDFS Namenode container not found. Exiting."
+#         return 1
+#     fi
+#
+#     echo "Namenode container found: ${NAMENODE_CONTAINER}"
+#
+#     # Ensure the target directory exists inside the Namenode container
+#     echo "Ensuring target directory exists in Namenode container..."
+#     docker exec -it "${NAMENODE_CONTAINER}" mkdir -p "${LOCAL_DIRECTORY}"
+#
+#     # Copy the file to the Namenode container
+#     echo "Copying file to HDFS Namenode container..."
+#     docker cp "${LOCAL_FILE_PATH}" "${NAMENODE_CONTAINER}:${LOCAL_FILE_PATH}" || {
+#         echo "Error copying file to Namenode container."
+#         return 1
+#     }
+#
+#     # Upload the file to HDFS
+#     echo "Uploading file to HDFS..."
+#     docker exec -it "${NAMENODE_CONTAINER}" hdfs dfs -mkdir -p "${HDFS_DIRECTORY}"
+#     docker exec -it "${NAMENODE_CONTAINER}" hdfs dfs -put -f "${LOCAL_FILE_PATH}" "${HDFS_FILE_PATH}" || {
+#         echo "Error uploading file to HDFS."
+#         return 1
+#     }
+#
+#     echo "File successfully uploaded to HDFS at ${HDFS_FILE_PATH}"
+# }
+
 ready_hdfs() {
-    echo "Applying HDFS configurations..."
 
-    # Clean residual resources before setting up the deployments
-    kubectl delete statefulset,deployments,svc,pvc,pv -l app=hdfs >/dev/null 2>&1
+    echo "Starting HDFS using Docker Compose..."
+    docker compose -f "${TEST_ROOT}/docker-compose-k8s-hdfs.yaml" up >"$RUN_LOG" 2>&1 &
 
-    kubectl apply -f ./k8s/hdfs/pv.yaml
-    kubectl apply -f ./k8s/hdfs/namenode-pvc.yaml
-    kubectl apply -f ./k8s/hdfs/namenode-deployment.yaml
-    kubectl apply -f ./k8s/hdfs/namenode-service.yaml
-    kubectl apply -f ./k8s/hdfs/datanode-pvc.yaml
-    kubectl apply -f ./k8s/hdfs/datanode-deployment.yaml
-    kubectl apply -f ./k8s/hdfs/datanode-service.yaml
+    echo "Waiting for Hadoop Namenode to be ready..."
+    while ! curl -s http://localhost:9870 &>/dev/null; do
+        echo "Hadoop Namenode is not ready yet. Retrying in 5 seconds..."
+        sleep 5
+    done
+    echo "Hadoop Namenode is ready."
 
-    # Deploy YARN ResourceManager and NodeManager
-#    kubectl apply -f ./k8s/hdfs/resourcemanager-deployment.yaml
-#    kubectl apply -f ./k8s/hdfs/resourcemanager-service.yaml
-#    kubectl apply -f ./k8s/hdfs/nodemanager-deployment.yaml
-#    kubectl apply -f ./k8s/hdfs/nodemanager-service.yaml
+    kubectl apply -f ./k8s/hdfs/hdfs-connector.yaml
+
+    echo "Checking and exiting safe mode if necessary..."
+    if docker exec -i hdfs-namenode hadoop dfsadmin -safemode get | grep -q "Safe mode is ON"; then
+        echo "Exiting safe mode..."
+        docker exec -i hdfs-namenode hadoop dfsadmin -safemode leave || {
+            echo "Error exiting safe mode."
+            return 1
+        }
+    else
+        echo "Namenode is not in safe mode."
+    fi
 
     echo "Fetching JasmineGraph Master pod name..."
     MASTER_POD=$(kubectl get pods | grep jasminegraph-master | awk '{print $1}')
-
     if [[ -z ${MASTER_POD} ]]; then
-        echo "Error: JasmineGraph Master pod not found. Exiting."
+        echo "Error: JasmineGraph Master pod not found."
         return 1
     fi
-
     echo "Master pod found: ${MASTER_POD}"
 
     FILE_NAME="powergrid.dl"
@@ -101,66 +284,45 @@ ready_hdfs() {
     HDFS_DIRECTORY="/home/"
     HDFS_FILE_PATH="${HDFS_DIRECTORY}${FILE_NAME}"
 
-    # Ensure local directory exists
-    mkdir -p "${LOCAL_DIRECTORY}"
+    echo "Ensuring local directory exists..."
+    mkdir -p "${LOCAL_DIRECTORY}" || {
+        echo "Error creating local directory."
+        return 1
+    }
 
-    # Copy the file from the master pod
+    echo "Copying file from JasmineGraph Master pod..."
     kubectl cp "${MASTER_POD}:${LOCAL_FILE_PATH}" "${LOCAL_FILE_PATH}" || {
         echo "Error copying file from JasmineGraph Master pod."
         return 1
     }
 
-    #find namenode
-    echo "Fetching HDFS namenode pod name..."
-    NAMENODE_POD=$(kubectl get pods | grep hdfs-namenode | awk '{print $1}')
-
-    if [[ -z ${NAMENODE_POD} ]]; then
-        echo "Error: HDFS namenode pod not found. Exiting."
+    echo "Fetching HDFS Namenode container name..."
+    NAMENODE_CONTAINER=$(docker ps --format '{{.Names}}' | grep namenode)
+    if [[ -z ${NAMENODE_CONTAINER} ]]; then
+        echo "Error: HDFS Namenode container not found."
         return 1
     fi
+    echo "Namenode container found: ${NAMENODE_CONTAINER}"
 
-    echo "Namenode pod found: ${NAMENODE_POD}"
+    docker exec -it "${NAMENODE_CONTAINER}" mkdir -p "${LOCAL_DIRECTORY}"
 
-    # Wait until the NameNode service is ready
-    echo "Waiting for HDFS NameNode service to be available..."
-    while ! kubectl exec "${NAMENODE_POD}" -- hadoop dfsadmin -report &>/dev/null; do
-        echo "HDFS NameNode service is not ready yet. Retrying in 5 seconds..."
-        sleep 5
-    done
-
-    echo "HDFS NameNode service is available."
-
-    # Create the HDFS directory (ensure it exists)
-    kubectl exec -i "${NAMENODE_POD}" -- hadoop fs -mkdir -p "${HDFS_DIRECTORY}"
-    echo "Created directory: $HDFS_DIRECTORY in Name node"
-
-    # Copy the file from local to the HDFS namenode pod
-    kubectl cp "${LOCAL_FILE_PATH}" "${NAMENODE_POD}":"${HDFS_FILE_PATH}" || {
-        echo "Error copying file to HDFS namenode pod."
+    echo "Copying file to HDFS Namenode container..."
+    docker cp "${LOCAL_FILE_PATH}" "${NAMENODE_CONTAINER}:${LOCAL_FILE_PATH}" || {
+        echo "Error copying file to Namenode container."
         return 1
     }
-    echo "Copied $HDFS_FILE_PATH"
 
-    echo "Checking if file exists in HDFS..."
-    if kubectl exec -i "${NAMENODE_POD}" -- hadoop fs -test -e "${HDFS_FILE_PATH}"; then
-        echo "File already exists in HDFS. Deleting the existing file..."
-        kubectl exec -i "${NAMENODE_POD}" -- hadoop fs -rm "${HDFS_FILE_PATH}" || {
-            echo "Error deleting file from HDFS."
-            return 1
-        }
-        echo "File deleted from HDFS."
-    fi
-
-    # Copy the file from local to the HDFS namenode pod
-    kubectl cp "${LOCAL_FILE_PATH}" "${NAMENODE_POD}":"${HDFS_FILE_PATH}" || {
-        echo "Error copying file to HDFS namenode pod."
+    echo "Uploading file to HDFS..."
+    docker exec -i "${NAMENODE_CONTAINER}" hdfs dfs -mkdir -p "${HDFS_DIRECTORY}" || {
+        echo "Error creating HDFS directory."
         return 1
     }
-    echo "Copied $HDFS_FILE_PATH"
+    docker exec -i "${NAMENODE_CONTAINER}" hdfs dfs -put -f "${LOCAL_FILE_PATH}" "${HDFS_FILE_PATH}" || {
+        echo "Error uploading file to HDFS."
+        return 1
+    }
 
-    # Upload the file to HDFS
-    kubectl exec -i "${NAMENODE_POD}" -- hadoop fs -put "${HDFS_FILE_PATH}" "${HDFS_DIRECTORY}"
-    echo "File successfully uploaded to HDFS at ${HDFS_FILE_PATH}."
+    echo "File successfully uploaded to HDFS at ${HDFS_FILE_PATH}"
 }
 
 cd "$TEST_ROOT"
@@ -217,11 +379,11 @@ if [ "$exit_code" = '124' ]; then
     echo
     echo -e '\e[31;1mERROR: Test Timeout\e[0m'
     echo
-    clear_resources
+#    clear_resources
 fi
 
 set +e
-clear_resources >/dev/null 2>&1
+#clear_resources >/dev/null 2>&1
 set -e
 
 force_remove "${TEST_ROOT}/env" "${WORKER_LOG_DIR}"
