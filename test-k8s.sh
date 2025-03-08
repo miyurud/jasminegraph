@@ -203,11 +203,11 @@ if [ "$exit_code" = '124' ]; then
     echo
     echo -e '\e[31;1mERROR: Test Timeout\e[0m'
     echo
-#    clear_resources
+    clear_resources
 fi
 
 set +e
-#clear_resources >/dev/null 2>&1
+clear_resources >/dev/null 2>&1
 set -e
 
 force_remove "${TEST_ROOT}/env" "${WORKER_LOG_DIR}"
