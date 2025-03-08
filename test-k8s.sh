@@ -304,7 +304,7 @@ ready_hdfs() {
     fi
     echo "Namenode container found: ${NAMENODE_CONTAINER}"
 
-    docker exec -it "${NAMENODE_CONTAINER}" mkdir -p "${LOCAL_DIRECTORY}"
+    docker exec -i "${NAMENODE_CONTAINER}" mkdir -p "${LOCAL_DIRECTORY}"
 
     echo "Copying file to HDFS Namenode container..."
     docker cp "${LOCAL_FILE_PATH}" "${NAMENODE_CONTAINER}:${LOCAL_FILE_PATH}" || {
