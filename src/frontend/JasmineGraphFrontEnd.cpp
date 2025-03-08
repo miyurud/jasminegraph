@@ -1375,7 +1375,7 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
 
     HDFSConnector *hdfsConnector = new HDFSConnector(hdfsServerIp, hdfsPort);
 
-    if (!hdfsConnector->getFileSystem()){
+    if (!hdfsConnector->getFileSystem()) {
         std::string error_message = "The provided HDFS server configuration is invalid";
         write(connFd, error_message.c_str(), error_message.length());
         write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());

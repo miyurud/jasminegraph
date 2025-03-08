@@ -197,7 +197,6 @@ class Utils {
     static void assignPartitionToWorker(int graphId, int partitionIndex, string  hostname, int port);
 
     static string getFrontendInput(int connFd);
-
 };
 
 #endif  // JASMINEGRAPH_UTILS_H
