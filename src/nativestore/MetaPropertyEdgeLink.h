@@ -23,6 +23,7 @@ class MetaPropertyEdgeLink {
     static const unsigned long MAX_NAME_SIZE = 12;    // Size of a property name in bytes
     static const unsigned long MAX_VALUE_SIZE = 180;  // Size of a property value in bytes
     static thread_local unsigned int nextPropertyIndex;            // Next available property block index
+    static inline const std::string PARTITION_ID = "pid";
     static const unsigned long META_PROPERTY_BLOCK_SIZE = MAX_NAME_SIZE + MAX_VALUE_SIZE + sizeof(unsigned int);
     std::string name;
     char value[MetaPropertyEdgeLink::MAX_VALUE_SIZE] = {0};
