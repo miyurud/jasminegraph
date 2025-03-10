@@ -164,7 +164,7 @@ void HDFSStreamHandler::startStreamingFromBufferToPartitions() {
 
     std::thread readerThread(&HDFSStreamHandler::streamFromHDFSIntoBuffer, this);
     std::vector<std::thread> bufferProcessorThreads;
-    for (int i = 0; i < 20; ++i) {
+    for (int i = 0; i < Conts::HDFS::EDGE_SEPARATION_LAYER_THREAD_COUNT; ++i) {
         bufferProcessorThreads.emplace_back(&HDFSStreamHandler::streamFromBufferToProcessingQueue, this,
                                             std::ref(partitioner));
     }
