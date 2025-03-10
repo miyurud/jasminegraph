@@ -80,6 +80,8 @@ set(HEADERS globals.h
         src/frontend/core/executor/impl/PageRankExecutor.h
         src/util/dbinterface/DBInterface.h
         src/query/processor/cypher/util/Const.h
+        src/nativestore/MetaPropertyLink.h
+        src/nativestore/MetaPropertyEdgeLink.h
         src/query/processor/cypher/queryplanner/Operators.h
         src/query/processor/cypher/queryplanner/QueryPlanner.h
         src/query/processor/cypher/runtime/QueryPlanHandler.h
@@ -168,6 +170,9 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/query/processor/cypher/runtime/InstanceHandler.cpp
         src/query/processor/cypher/runtime/OperatorExecutor.cpp
         src/query/processor/cypher/util/SharedBuffer.cpp
+        src/nativestore/MetaPropertyLink.cpp
+        src/nativestore/MetaPropertyEdgeLink.cpp
+
 )
 
 if (CMAKE_BUILD_TYPE STREQUAL "DEBUG")
