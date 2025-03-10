@@ -34,32 +34,12 @@ static int callback(void *ptr, int argc, char **argv, char **columnName) {
 }
 
 vector<vector<pair<string, string>>> DBInterface::runSelect(string query) {
-
-//    char *errorMessage = 0;
-//    vector<vector<pair<string, string>>> dbResults;
-//
-//    if (sqlite3_exec(database, query.c_str(), callback, &dbResults, &errorMessage) != SQLITE_OK) {
-//        interface_logger.info(query);
-//        interface_logger.error("SQL Error: " + string(errorMessage) + " " + query);
-//        sqlite3_free(errorMessage);
-//    }
-
+    char *errorMessage = 0;
     vector<vector<pair<string, string>>> dbResults;
 
-    char* errorMessage = nullptr;
-
-    int rc = sqlite3_exec(database, query.c_str(), callback, &dbResults, &errorMessage);
-
-    if (rc != SQLITE_OK) {
-        if (errorMessage != nullptr) {
-            // Log the error message from sqlite3_exec
-            interface_logger.error("SQL Error: " + string(errorMessage) + " " + query);
-            sqlite3_free(errorMessage);
-            errorMessage = nullptr;
-        } else {
-
-            interface_logger.error("SQL Error: " + string(sqlite3_errmsg(database)) + " " + query);
-        }
+    if (sqlite3_exec(database, query.c_str(), callback, &dbResults, &errorMessage) != SQLITE_OK) {
+        interface_logger.error("SQL Error: " + string(errorMessage) + " " + query);
+        sqlite3_free(errorMessage);
     }
     return dbResults;
 }
@@ -222,4 +202,3 @@ std::string DBInterface::getPartitionAlgoByGraphID(std::string graphID) {
 
     return result;
 }
-
