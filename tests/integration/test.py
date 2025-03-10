@@ -197,9 +197,7 @@ def test(host, port):
         send_and_expect_response(sock, 'rmgr', RMGR, SEND)
         send_and_expect_response(sock, 'rmgr', b'1', DONE)
 
-        # Test cases for hdfs implementation
-
-        # for custom hdfs server
+        # Test cases for hdfs implementation for custom hdfs server
         print()
         logging.info('Testing adhdfs for custom HDFS server')
         send_and_expect_response(sock, 'adhdfs', ADHDFS,
