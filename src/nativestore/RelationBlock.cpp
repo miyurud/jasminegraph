@@ -696,7 +696,10 @@ std::map<std::string, char*> RelationBlock::getAllProperties() {
     std::map<std::string, char*> allProperties;
     PropertyEdgeLink* current = this->getPropertyHead();
     while (current) {
-        allProperties.insert({current->name, current->value});
+        // don't forget to free the allocated memory after using this method
+        char* copiedValue = new char[PropertyEdgeLink::MAX_VALUE_SIZE];
+        std::strncpy(copiedValue, current->value, PropertyEdgeLink::MAX_VALUE_SIZE);
+        allProperties.insert({current->name, copiedValue});
         PropertyEdgeLink* temp = current->next();
         delete current;  // To prevent memory leaks
         current = temp;

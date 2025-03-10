@@ -52,6 +52,11 @@ limitations under the License.
 #include "../query/processor/cypher/astbuilder/ASTBuilder.h"
 #include "../query/processor/cypher/astbuilder/ASTNode.h"
 #include "../query/processor/cypher/semanticanalyzer/SemanticAnalyzer.h"
+#include "../query/processor/cypher/queryplanner/Operators.h"
+#include "../query/processor/cypher/queryplanner/QueryPlanner.h"
+#include "../localstore/incremental/JasmineGraphIncrementalLocalStore.h"
+#include "../server/JasmineGraphInstanceService.h"
+#include "../query/processor/cypher/util/SharedBuffer.h"
 #include "../partitioner/stream/Partitioner.h"
 
 
@@ -72,7 +77,7 @@ std::string stream_topic_name;
 bool JasmineGraphFrontEnd::strian_exit;
 
 static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
-static void cypher_ast_command(int connFd, bool *loop_exit_p);
+static void cypher_ast_command(int connFd,vector<DataPublisher *> &workerClients, int numberOfPartitions, bool *loop_exit_p);
 static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
@@ -140,8 +145,9 @@ void *frontendservicesesion(void *dummyPt) {
     std::string kafka_server_IP;
     cppkafka::Configuration configs;
     KafkaConnector *kstream;
-    vector<DataPublisher *> workerClients;
+    Partitioner graphPartitioner(numberOfPartitions, 1, spt::Algorithms::HASH, sqlite);
 
+    vector<DataPublisher *> workerClients;
     bool workerClientsInitialized = false;
 
     bool loop_exit = false;
@@ -167,9 +173,11 @@ void *frontendservicesesion(void *dummyPt) {
             break;
         } else if (line.compare(LIST) == 0) {
             list_command(connFd, sqlite, &loop_exit);
-        } else if (line.compare(CYPHER_AST) == 0) {
-            cypher_ast_command(connFd, &loop_exit);
-        } else if (line.compare(SHTDN) == 0) {
+        } else if (line.compare(CYPHER) == 0){
+            workerClients = getWorkerClients(sqlite);
+            workerClientsInitialized = true;
+            cypher_ast_command(connFd, workerClients, numberOfPartitions, &loop_exit);
+        }else if (line.compare(SHTDN) == 0) {
             JasmineGraphServer::shutdown_workers();
             close(connFd);
             exit(0);
@@ -414,9 +422,29 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
     }
 }
 
-static void cypher_ast_command(int connFd, bool *loop_exit) {
-    string msg_1 = "Input Query :";
+static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClients,
+                               int numberOfPartitions, bool *loop_exit) {
+
+    string msg_1 = "Graph ID:";
     int result_wr = write(connFd, msg_1.c_str(), msg_1.length());
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit = true;
+        return;
+    }
+    result_wr = write(connFd, "\r\n", 2);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit = true;
+        return;
+    }
+    char user_res[FRONTEND_DATA_LENGTH + 1];
+    bzero(user_res, FRONTEND_DATA_LENGTH + 1);
+    read(connFd, user_res, FRONTEND_DATA_LENGTH);
+    string user_res_1(user_res);
+
+    string msg_2 = "Input query :";
+    result_wr = write(connFd, msg_2.c_str(), msg_2.length());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit = true;
@@ -430,10 +458,10 @@ static void cypher_ast_command(int connFd, bool *loop_exit) {
     }
 
     // Get user response.
-    char user_res[FRONTEND_DATA_LENGTH + 1];
-    bzero(user_res, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, user_res, FRONTEND_DATA_LENGTH);
-    string user_res_s(user_res);
+    char query[FRONTEND_DATA_LENGTH + 1];
+    bzero(query, FRONTEND_DATA_LENGTH + 1);
+    read(connFd, query, FRONTEND_DATA_LENGTH);
+    string user_res_s(query);
 
     antlr4::ANTLRInputStream input(user_res_s);
     // Create a lexer from the input
@@ -449,10 +477,41 @@ static void cypher_ast_command(int connFd, bool *loop_exit) {
     auto* ast = any_cast<ASTNode*>(ast_builder.visitOC_Cypher(parser.oC_Cypher()));
 
     SemanticAnalyzer semantic_analyzer;
+    string obj;
     if (semantic_analyzer.analyze(ast)) {
         frontend_logger.log("AST is successfully analyzed", "log");
+        QueryPlanner query_planner;
+        Operator *opr = query_planner.createExecutionPlan(ast);
+        obj = opr->execute();
     } else {
         frontend_logger.error("query isn't semantically correct: "+user_res_s);
+    }
+    SharedBuffer sharedBuffer(3);
+    JasmineGraphServer *server = JasmineGraphServer::getInstance();
+    server->sendQueryPlan(stoi(user_res_1), workerClients.size(), obj, std::ref(sharedBuffer));
+
+//    std::ostringstream header;
+//    header << "| " << std::left << std::setw(10) << "ID"
+//           << "| " << std::setw(30) << "Name"
+//           << "| " << std::setw(30) << "Occupation/Category"
+//           << "| " << std::setw(10) << "Type" << "|";
+//    result_wr = write(connFd, header.str().c_str(), header.str().length());
+//    result_wr = write(connFd, "\r\n", 2);
+//    result_wr = write(connFd, std::string(90, '-').c_str(), std::string(90, '-').length());
+//    result_wr = write(connFd, "\r\n", 2);
+
+    int closeFlag = 0;
+    while(true){
+        if (closeFlag == numberOfPartitions) {
+            break;
+        }
+        std::string data = sharedBuffer.get();
+        if (data == "-1") {
+            closeFlag++;
+        } else {
+            result_wr = write(connFd, data.c_str(), data.length());
+            result_wr = write(connFd, "\r\n", 2);
+        }
     }
 }
 
