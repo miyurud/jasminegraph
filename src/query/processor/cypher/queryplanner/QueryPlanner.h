@@ -17,7 +17,7 @@ limitations under the License.
 
 #include "../astbuilder/ASTNode.h"
 #include "Operators.h" // Include all operators
-
+#include <algorithm>
 class QueryPlanner {
 public:
     QueryPlanner() = default;
@@ -27,10 +27,10 @@ public:
     bool isAllChildAreGivenType(string nodeType, ASTNode* root);
     bool isAvailable(string nodeType, ASTNode* subtree);
     vector<ASTNode*> getSubTreeListByNodeType(ASTNode* root, string nodeType);
-    ASTNode* getSubtreeByType(ASTNode* root, string nodeType);
+    ASTNode* verifyTreeType(ASTNode* root, string nodeType);
     pair<vector<bool>, vector<ASTNode*>> getRelationshipDetails(ASTNode* node);
     pair<vector<bool>, vector<ASTNode*>> getNodeDetails(ASTNode* node);
-    Operator* pathPatternHandler(ASTNode* pattern);
+    Operator* pathPatternHandler(ASTNode* pattern, Operator* opr);
     ASTNode* prepareWhereClause(string var1, string var2);
 };
 

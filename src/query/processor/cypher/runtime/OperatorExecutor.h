@@ -15,9 +15,14 @@ using namespace  std;
 class OperatorExecutor {
  public:
     OperatorExecutor(GraphConfig gc, string queryPlan);
-    void AllnodeScan(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
+    void AllNodeScan(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
     void ProduceResult(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
     void Filter(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
+    void ExpandAll(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
+    void UndirectedRelationshipTypeScan(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
+    void UndirectedAllRelationshipScan(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
+    void NodeByIdSeek(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
+
     string  queryPlan;
     GraphConfig gc;
     json query;

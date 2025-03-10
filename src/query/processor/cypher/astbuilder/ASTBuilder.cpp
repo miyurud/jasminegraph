@@ -770,7 +770,9 @@ any ASTBuilder::visitOC_LabelName(CypherParser::OC_LabelNameContext *ctx) {
 }
 
 any ASTBuilder::visitOC_RelTypeName(CypherParser::OC_RelTypeNameContext *ctx) {
-  return visitOC_SchemaName(ctx->oC_SchemaName());
+    auto *node = new ASTInternalNode(Const::RELATIONSHIP_TYPE);
+    node->addElements(any_cast<ASTNode*>(visitOC_SchemaName(ctx->oC_SchemaName())));
+    return static_cast<ASTNode*>(node);
 }
 
 any ASTBuilder::visitOC_PropertyExpression(CypherParser::OC_PropertyExpressionContext *ctx) {

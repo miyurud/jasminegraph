@@ -49,6 +49,19 @@ private:
     string var;
 };
 
+// NodeByIdSeek Operator
+class NodeByIdSeek : public Operator {
+public:
+    NodeByIdSeek(string id, string var);
+    string execute() override;
+    string getId() {return this->id;};
+    string getVariable() {return this->var;};
+
+private:
+    string id;
+    string var;
+};
+
 // AllNodeScan Operator
 class AllNodeScan : public Operator {
 public:

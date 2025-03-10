@@ -1359,6 +1359,8 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
         return false;
     }
 
+    auto startTime = std::chrono::high_resolution_clock::now();
+    std::chrono::seconds max_duration(3);
     while(true){
         char start[ACK_MESSAGE_SIZE] = {0};
         recv(sockfd, &start, sizeof(start), 0);
@@ -1395,6 +1397,12 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
         }
         if(data == "-1"){
             sharedBuffer.add(data);
+            break;
+        }
+        auto now = std::chrono::high_resolution_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - startTime);
+        if (elapsed >= max_duration) {
+            std::cout << "Time limit reached!" << std::endl;
             break;
         }
 //        auto str = json::parse(data);

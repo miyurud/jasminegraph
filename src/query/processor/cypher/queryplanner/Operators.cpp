@@ -43,6 +43,17 @@ string MultipleNodeScanByLabel::execute() {
     return multipleNodeByLabel.dump();
 }
 
+// NodeByIdSeek Implementation
+NodeByIdSeek::NodeByIdSeek(string id, string var) : id(id), var(var) {}
+
+string NodeByIdSeek::execute() {
+    json nodeByIdSeek;
+    nodeByIdSeek["Operator"] = "NodeByIdSeek";
+    nodeByIdSeek["variable"] = var;
+    nodeByIdSeek["id"] = id;
+    return nodeByIdSeek.dump();
+}
+
 // AllNodeScan Implementation
 AllNodeScan::AllNodeScan(const string& var) : var(var) {}
 
@@ -62,8 +73,9 @@ string ProduceResults::execute() {
     if(op){
         produceResult["NextOperator"] = op->execute();
     }
-    for(auto* e: item) {
-        produceResult["variable"] = e->value;
+    produceResult["variable"] = json::array();
+    for (auto* e : item) {
+        produceResult["variable"].push_back(e->value);
     }
     return produceResult.dump();
 }
@@ -99,8 +111,15 @@ string Filter::comparisonOperand(ASTNode *ast) {
         for (auto* prop: ast->elements) {
             element.push_back(prop->value);
         }
-
         operand["element"] = element;
+    } else if (ast->nodeType == Const::FUNCTION_BODY) {
+        operand["type"] = Const::FUNCTION;
+        operand["functionName"] = ast->elements[0]->elements[1]->value;
+        vector<string> arguments;
+        for (auto *arg: ast->elements[1]->elements) {
+            arguments.push_back(arg->value);
+        }
+        operand["arguments"] = arguments;
     } else {
         operand["type"] = ast->nodeType;
         operand["value"] = ast->value;
@@ -301,9 +320,13 @@ UndirectedRelationshipTypeScan::UndirectedRelationshipTypeScan(string relType, s
 
 // Execute method
 string UndirectedRelationshipTypeScan::execute() {
-    cout<<"UndirectedRelationshipTypeScan: \n"<<endl;
-    cout << "("<<startVar<<") -[" << relvar<<" :"<< relType << "]- (" << endVar << ")" << endl;
-    return "";
+    json undirected;
+    undirected["Operator"] = "UndirectedRelationshipTypeScan";
+    undirected["sourceVariable"] = startVar;
+    undirected["destVariable"] = endVar;
+    undirected["relVariable"] = relvar;
+    undirected["relType"] = relType;
+    return undirected.dump();
 }
 
 UndirectedAllRelationshipScan::UndirectedAllRelationshipScan(string startVar, string endVar, string relVar)
@@ -311,9 +334,12 @@ UndirectedAllRelationshipScan::UndirectedAllRelationshipScan(string startVar, st
 
 
 string UndirectedAllRelationshipScan::execute() {
-    cout<<"UndirectedRelationshipTypeScan: \n"<<endl;
-    cout << "("<<startVar<<") -[" << relVar<<"]- (" << endVar << ")" << endl;
-    return "";
+    json undirected;
+    undirected["Operator"] = "UndirectedAllRelationshipScan";
+    undirected["sourceVariable"] = startVar;
+    undirected["destVariable"] = endVar;
+    undirected["relVariable"] = relVar;
+    return undirected.dump();
 }
 
 DirectedRelationshipTypeScan::DirectedRelationshipTypeScan(string direction, string relType, string relvar, string startVar, string endVar)
@@ -350,27 +376,27 @@ ExpandAll::ExpandAll(Operator *input, std::string startVar, std::string destVar,
                      std::string relType, std::string direction): input(input), relType(relType), relVar(relVar), startVar(startVar), destVar(destVar), direction(direction){}
 
 string ExpandAll::execute() {
-    input->execute();
-    cout<<"ExpandAll: \n"<<endl;
 
-    string line;
-
-    if(relType == "null" && direction == ""){
-        line = "("+startVar+") -["+relVar+"]- ("+destVar+")";
-        cout<<line<<endl;
-    }else if(relType != "null" && direction == ""){
-        line = "("+startVar+") -["+relVar+" :"+relType+"]- ("+destVar+")";
-        cout<<line<<endl;
-    }else if(relType == "null" && direction == "right") {
-        cout << "(" << startVar << ") -[" << relVar << "]-> (" << destVar << ")" << endl;
-    }else if(relType != "null" && direction == "right"){
-        cout << "(" << startVar << ") -[" << relVar << " :" << relType << "]-> (" << destVar << ")" << endl;
-    }else if(relType == "null" && direction == "left") {
-        cout << "(" << startVar << ") <-[" << relVar << "]- (" << destVar << ")" << endl;
-    }else if(relType != "null" && direction == "left"){
-        cout << "(" << startVar << ") <-[" << relVar << " :" << relType << "]- (" << destVar << ")" << endl;
+    json expandAll;
+    expandAll["Operator"] = "ExpandAll";
+    expandAll["NextOperator"] = input->execute();
+    expandAll["sourceVariable"] = startVar;
+    expandAll["destVariable"] = destVar;
+    expandAll["relVariable"] = relVar;
+    if (relType != "null" && direction == "") {
+        expandAll["relType"] = relType;
+    } else if (relType == "null" && direction == "right") {
+        expandAll["direction"] = direction;
+    } else if (relType != "null" && direction == "right") {
+        expandAll["relType"] = relType;
+        expandAll["direction"] = direction;
+    } else if (relType == "null" && direction == "left") {
+        expandAll["direction"] = direction;
+    } else if (relType != "null" && direction == "left"){
+        expandAll["relType"] = relType;
+        expandAll["direction"] = direction;
     }
-    return "";
+    return expandAll.dump();
 }
 
 Apply::Apply(Operator* opr): opr1(opr){}

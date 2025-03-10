@@ -42,25 +42,84 @@ bool FilterHelper::evaluateCondition(std::string condition, std::string data) {
 }
 
 bool FilterHelper::evaluateComparison(std::string condition, std::string raw) {
+    // {"left":{"Type":"PROPERTY_LOOKUP","property":["name"],"variable":"n"},
+    // "operator":"==","right":{"Type":"STRING","value":"'hh'"},"type":"COMPARISON"}
+    // {"left":{"Type":"PROPERTY_LOOKUP","property":["name"],"variable":"n"},
+    // "operator":"==","right":{"Type":"DECIMAL","value":"10"},"type":"COMPARISON"}
+    // {"left":{"Type":"PROPERTY_LOOKUP","property":["name"],"variable":"n"},
+    // "operator":"==","right":{"Type":"BOOLEAN","value":"TRUE"},"type":"COMPARISON"}
+    // {"left":{"Type":"PROPERTY_LOOKUP","property":["name"],"variable":"n"},
+    // "operator":"==","right":{"Type":"NULL","value":""},"type":"COMPARISON"}
+    // {"left":{"Type":"VARIABLE","value":"r1"},
+    // "operator":"<>","right":{"Type":"VARIABLE","value":"r2"},"type":"COMPARISON"}
+
+    // {"left":{"Type":"PROPERTY_LOOKUP","property":["name"],"variable":"n"},
+    // "operator":"==","right":{"Type":"LIST","element":["10","4"]},"type":"COMPARISON"}
+    // {"left":{"Type":"PROPERTY_LOOKUP","property":["name"],"variable":"n"},
+    // "operator":"==","right":{"Type":"PROPERTIES_MAP","property":{"name":"'HH'"}},"type":"COMPARISON"}
+
     json predicate = json::parse(condition);
     json data = json::parse(raw);
-
-    std::string property = predicate["left"]["property"][0];
-
-    std::string variable = predicate["left"]["variable"];
-    std::string op = predicate["operator"];
-    std::string rightValue = predicate["right"]["value"];
-    rightValue = rightValue.substr(1, rightValue.size() - 2);
-
-    if (!data.contains(variable) || !data[variable].contains(property)) {
+    if (!typeCheck(predicate["left"]["type"], predicate["right"]["type"])) {
         return false;
     }
 
-    std::string leftValue = data[variable][property];
-    cout<<leftValue<<" --- "<<rightValue<<endl;
-    if (op == "==") {
-        return leftValue == rightValue;
+    ValueType leftValue;
+    ValueType rightValue;
+
+    if (predicate["left"]["type"] == "VARIABLE" && predicate["right"]["type"] == "VARIABLE") {
+        string left = predicate["left"]["value"];
+        string right = predicate["right"]["value"];
+        return evaluateNodes(data[left].dump(),
+                             data[right].dump());
     }
+
+    if (predicate["left"]["type"] == "PROPERTY_LOOKUP") {
+        std::string variable = predicate["left"]["variable"];
+        leftValue = evaluatePropertyLookup(predicate["left"].dump(),
+                                           data[variable].dump(), predicate["right"]["type"]);
+    } else if (predicate["left"]["type"] == Const::FUNCTION) {
+        leftValue = evaluateFunction(predicate["left"].dump(),
+                                     data.dump(), predicate["right"]["type"]);
+    } else {
+        // only evaluating string, decimal, boolean, null for now
+        leftValue = evaluateOtherTypes(predicate["left"].dump());
+
+    }
+
+    if (predicate["right"]["type"] == "PROPERTY_LOOKUP") {
+        std::string variable = predicate["right"]["variable"];
+        rightValue = evaluatePropertyLookup(predicate["right"].dump(),
+                                            data[variable].dump(), predicate["left"]["type"]);
+
+    } else if (predicate["right"]["type"] == Const::FUNCTION) {
+        rightValue = evaluateFunction(predicate["right"].dump(),
+                                      data.dump(), predicate["left"]["type"]);
+    } else {
+        // only evaluating string, decimal, boolean, null for now
+        rightValue = evaluateOtherTypes(predicate["right"].dump());
+
+    }
+
+    string op = predicate["operator"];
+
+    return std::visit([&op](auto&& lhs, auto&& rhs) -> bool {
+        using LType = std::decay_t<decltype(lhs)>;
+        using RType = std::decay_t<decltype(rhs)>;
+
+        if constexpr (std::is_same_v<LType, RType>) {
+            if (op == "==") return lhs == rhs;
+            if (op == "<>") return lhs != rhs;
+            if constexpr (std::is_arithmetic_v<LType>) {
+                if (op == "<") return lhs < rhs;
+                if (op == ">") return lhs > rhs;
+                if (op == "<=") return lhs <= rhs;
+                if (op == ">=") return lhs >= rhs;
+            }
+        }
+
+        return false; // Default if types are incompatible
+    }, leftValue, rightValue);
     return false;
 }
 
@@ -78,7 +137,6 @@ bool FilterHelper::evaluateLogical(std::string condition, std::string data) {
         return true;
     } else if (type == "OR") {
         for (auto comp : comparisons) {
-            cout<<comp.dump()<<endl;
             if (evaluateCondition(comp.dump(), data)) {
                 return true;
             }
@@ -100,4 +158,124 @@ bool FilterHelper::evaluateLogical(std::string condition, std::string data) {
     }
 
     return false;
+}
+
+bool FilterHelper::evaluateNodes(std::string left, std::string right) {
+    json leftNode = json::parse(left);
+    json rightNode = json::parse(right);
+    if (leftNode["id"] != rightNode["id"]) {
+        return true;
+    }
+    return false;
+}
+
+bool FilterHelper::typeCheck(std::string left, std::string right) {
+    if (left == Const::PROPERTY_LOOKUP
+        || right == Const::PROPERTY_LOOKUP
+        || left == Const::FUNCTION
+        || right == Const::FUNCTION) {
+        return true;
+    } else if (left == right) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+// {"Type":"PROPERTY_LOOKUP","property":["name"],"variable":"n"}
+// {"category":"Restaurant","id":"17","name":"Gourmet Bistro","type":"Location"}
+ValueType FilterHelper::evaluatePropertyLookup(std::string property, std::string data, string type) {
+    json prop = json::parse(property);
+    json raw = json::parse(data);
+    vector<string> properties = prop["property"];
+    string value;
+    // should be implemented to lookup nexted properties after persisting that kind of properties
+    // for now only one level of properties are supported (size of properties vector should be 1)
+    for (auto p: properties) {
+        if (!raw.contains(p)) {
+            value = "null";
+        } else {
+            value = raw[p];
+        }
+    }
+
+    try {
+        if (type == "STRING") {
+            return value;
+        } else if (type == "DECIMAL") {
+            size_t pos;
+            int num = stoi(value, &pos);
+            if (pos != value.size()) throw invalid_argument("Invalid number format");
+            return num;
+        } else if (type == "BOOLEAN") {
+            string lowerValue;
+            std::transform(value.begin(), value.end(), back_inserter(lowerValue), ::tolower);
+            if (lowerValue == "true") return true;
+            if (lowerValue == "false") return false;
+            throw invalid_argument("Invalid boolean format");
+        } else if (type == "NULL") {
+            return "null";
+        } else if ("PROPERTY_LOOKUP") {
+            return value;
+        }
+    } catch (const exception& e) {
+        return "null";
+    }
+    return "null";
+}
+
+// {"Type":"FUNCTION","arguments":["n"],"functionName":"id"}
+ValueType FilterHelper::evaluateFunction(std::string function, std::string data, std::string type) {
+    json func = json::parse(function);
+    json raw = json::parse(data);
+    vector<string> args = func["arguments"];
+    string arg = args[0];
+    string value;
+
+    if (func["functionName"] == "id") {
+        value = raw[arg]["id"];
+    }
+
+    try {
+        if (type == "STRING") {
+            return value;
+        } else if (type == "DECIMAL") {
+            size_t pos;
+            int num = stoi(value, &pos);
+            if (pos != value.size()) throw invalid_argument("Invalid number format");
+            return num;
+        } else if (type == "BOOLEAN") {
+            string lowerValue;
+            std::transform(value.begin(), value.end(), back_inserter(lowerValue), ::tolower);
+            if (lowerValue == "true") return true;
+            if (lowerValue == "false") return false;
+            throw invalid_argument("Invalid boolean format");
+        } else if (type == "NULL") {
+            return "null";
+        } else if ("PROPERTY_LOOKUP") {
+            return value;
+        }
+    } catch (const exception& e) {
+        return "null";
+    }
+    return "null";
+}
+
+// {"Type":"DECIMAL","value":"10"}
+ValueType FilterHelper::evaluateOtherTypes(std::string data) {
+    json val = json::parse(data);
+    if (val["type"] == "STRING") {
+        string str = val["value"];
+        if (str.size() >= 2 && str.front() == '\'' && str.back() == '\'') {
+            return str.substr(1, str.size() - 2); // Remove first and last character ' '
+        }
+        return val["value"];
+    } else if (val["type"] == "DECIMAL") {
+        return stoi(val["value"].get<std::string>());
+    } else if (val["type"] == "BOOLEAN") {
+        return val["value"] == "TRUE";
+    } else if (val["type"] == "NULL") {
+        return "";
+    }
+    return "";
 }
