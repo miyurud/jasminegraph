@@ -20,8 +20,17 @@
 typedef std::vector<std::pair<std::string, long>> partitionedEdge;
 namespace spt {  // spt : Streaming Partitioner
 enum Algorithms { HASH, FENNEL, LDG };
-
+static Algorithms getPartitioner(string id) {
+    if (id == "1") {
+        return Algorithms::HASH;
+    } else if (id == "2") {
+        return Algorithms::FENNEL;
+    } else if (id == "3") {
+        return Algorithms::LDG;
+    }
+    return  Algorithms::HASH;
 }
+}  // namespace spt
 
 class Partitioner {
     std::vector<Partition> partitions;

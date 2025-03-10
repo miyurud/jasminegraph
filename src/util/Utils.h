@@ -27,6 +27,7 @@ limitations under the License.
 
 #include "../metadb/SQLiteDBInterface.h"
 #include "../performancedb/PerformanceSQLiteDBInterface.h"
+#include "../frontend/JasmineGraphFrontEndProtocol.h"
 #include "Conts.h"
 #include "../query/processor/cypher/util/SharedBuffer.h"
 
@@ -195,6 +196,7 @@ class Utils {
                                       int graphID, int PartitionId, std::string message, SharedBuffer &sharedBuffer);
     static bool sendIntExpectResponse(int sockfd, char *data, size_t data_length,
                                       int value, std::string expectMsg);
+    static string getFrontendInput(int connFd);
 };
 
 #endif  // JASMINEGRAPH_UTILS_H
