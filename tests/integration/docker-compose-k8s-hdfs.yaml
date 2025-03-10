@@ -1,31 +1,12 @@
 version: '3.0'
 services:
-  jasminegraph:
-    image: jasminegraph:test
-    ports:
-      - '7776:7776'
-      - '7777:7777'
-      - '7778:7778'
-    volumes:
-      - '/var/run/docker.sock:/var/run/docker.sock:rw'
-      - './env/databases/metadb:/home/ubuntu/software/jasminegraph/metadb'
-      - './env/databases/performancedb:/home/ubuntu/software/jasminegraph/performancedb'
-      - './env/data:/var/tmp/data'
-      - './env/config:/var/tmp/config'
-      - '/tmp/jasminegraph:/tmp/jasminegraph'
-    environment:
-      - TESTING=true
-    networks:
-      - jasminegraph_net
-    command: --MODE 1 --MASTERIP 172.28.5.1 --WORKERS 2 --WORKERIP 172.28.5.1 --ENABLE_NMON false
-
   namenode:
     image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
     container_name: hdfs-namenode
     restart: always
     ports:
-      - 9870:9870
-      - 9000:9000
+      - "9870:9870"  # Namenode Web UI
+      - "9000:9000"  # Namenode RPC
     volumes:
       - hadoop_namenode:/hadoop/dfs/name
     environment:
@@ -40,6 +21,11 @@ services:
     image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
     container_name: hdfs-datanode
     restart: always
+    ports:
+      - "9864:9864"    # Datanode Web UI
+      - "50010:50010"  # DataNode Data Transfer
+      - "50020:50020"  # DataNode IPC Server
+      - "50075:50075"  # DataNode Web UI
     volumes:
       - hadoop_datanode:/hadoop/dfs/data
     environment:
@@ -53,8 +39,11 @@ services:
     image: bde2020/hadoop-resourcemanager:2.0.0-hadoop3.2.1-java8
     container_name: hdfs-resourcemanager
     restart: always
+    ports:
+      - "8088:8088"   # YARN Web UI
+      - "8032:8032"   # ResourceManager IPC
     environment:
-      - SERVICE_PRECONDITION=namenode:9000 namenode:9870 datanode:9864
+      - SERVICE_PRECONDITION=namenode:9000 namenode:9870 datanode:50010
     env_file:
       - env_init/config/hdfs/hadoop.env
     networks:
@@ -64,8 +53,10 @@ services:
     image: bde2020/hadoop-nodemanager:2.0.0-hadoop3.2.1-java8
     container_name: hdfs-nodemanager
     restart: always
+    ports:
+      - "8042:8042"  # NodeManager Web UI
     environment:
-      - SERVICE_PRECONDITION=namenode:9000 namenode:9870 datanode:9864 resourcemanager:8088
+      - SERVICE_PRECONDITION=namenode:9000 namenode:9870 datanode:50010 resourcemanager:8088
     env_file:
       - env_init/config/hdfs/hadoop.env
     networks:
@@ -82,5 +73,4 @@ networks:
     ipam:
       config:
         - subnet: 172.28.5.0/24
-          ip_range: 172.28.5.0/24
           gateway: 172.28.5.1

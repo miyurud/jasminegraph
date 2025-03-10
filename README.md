@@ -26,6 +26,7 @@ Run JasmineGraph in Kubernetes environment by providing appropriate parameters:
         --DATA_PATH "$(pwd)/data" \
         --LOG_PATH "$(pwd)/logs" \
         --AGGREGATE_PATH "$(pwd)/aggregate" \
+        --CONFIG_DIRECTORY_PATH "$(pwd)/config" \
         --NO_OF_WORKERS 2 \
         --ENABLE_NMON false \
         --MAX_COUNT 4

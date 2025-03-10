@@ -21,9 +21,10 @@
 
 Logger data_publisher_logger;
 
-DataPublisher::DataPublisher(int worker_port, std::string worker_address) {
+DataPublisher::DataPublisher(int worker_port, std::string worker_address, int worker_data_port) {
     this->worker_port = worker_port;
     this->worker_address = worker_address;
+    this->data_port = worker_data_port;
     struct hostent *server;
 
     server = gethostbyname(worker_address.c_str());
