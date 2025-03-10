@@ -199,36 +199,24 @@ def test(host, port):
 
         # Test cases for hdfs implementation
 
-        # 1.for default hdfs server: 10.8.100.246
+        # for custom hdfs server
         print()
-        logging.info('Testing adhdfs for default HDFS server')
+        logging.info('Testing adhdfs for custom HDFS server')
         send_and_expect_response(sock, 'adhdfs', ADHDFS,
                                  b'Do you want to use the default HDFS server(y/n)?',
                                  exit_on_failure=True)
-        send_and_expect_response(sock, 'adhdfs', b'y', b'HDFS file path: ', exit_on_failure=True)
+        send_and_expect_response(sock, 'adhdfs', b'n',
+                                 b'Send the file path to the HDFS configuration file.' +
+                                 b' This file needs to be in some directory location ' +
+                                 b'that is accessible for JasmineGraph master',
+                                 exit_on_failure=True)
+        send_and_expect_response(sock, 'adhdfs', b'/var/tmp/config/hdfs/hdfs_config.txt',
+                                 b'HDFS file path: ',
+                                 exit_on_failure=True)
         send_and_expect_response(sock, 'adhdfs', b'/home/powergrid.dl',
                                  b'Is this a directed graph(y/n)?',
                                  exit_on_failure=True)
         send_and_expect_response(sock, 'adhdfs', b'y', DONE, exit_on_failure=True)
-
-        # 2. for custom hdfs server
-        # print()
-        # logging.info('Testing adhdfs for custom HDFS server')
-        # send_and_expect_response(sock, 'adhdfs', ADHDFS,
-        #                          b'Do you want to use the default HDFS server(y/n)?',
-        #                          exit_on_failure=True)
-        # send_and_expect_response(sock, 'adhdfs', b'n',
-        #                          b'Send the file path to the HDFS configuration file.' +
-        #                          b' This file needs to be in some directory location ' +
-        #                          b'that is accessible for JasmineGraph master',
-        #                          exit_on_failure=True)
-        # send_and_expect_response(sock, 'adhdfs', b'/var/tmp/config/hdfs/hdfs_config.txt',
-        #                          b'HDFS file path: ',
-        #                          exit_on_failure=True)
-        # send_and_expect_response(sock, 'adhdfs', b'/home/powergrid.dl',
-        #                          b'Is this a directed graph(y/n)?',
-        #                          exit_on_failure=True)
-        # send_and_expect_response(sock, 'adhdfs', b'y', DONE, exit_on_failure=True)
 
         print()
         logging.info('Testing lst after adhdfs')
@@ -241,30 +229,15 @@ def test(host, port):
         send_and_expect_response(sock, 'ecnt', ECNT, b'graphid-send', exit_on_failure=True)
         send_and_expect_response(sock, 'ecnt', b'1', b'6594', exit_on_failure=True)
 
-        # print()
-        # logging.info('2. Testing ecnt after adhdfs')
-        # send_and_expect_response(sock, 'ecnt', ECNT, b'graphid-send', exit_on_failure=True)
-        # send_and_expect_response(sock, 'ecnt', b'2', b'6594', exit_on_failure=True)
-
         print()
         logging.info('1. Testing vcnt after adhdfs')
         send_and_expect_response(sock, 'vcnt', VCNT, b'graphid-send', exit_on_failure=True)
         send_and_expect_response(sock, 'vcnt', b'1', b'4941', exit_on_failure=True)
 
-        # print()
-        # logging.info('2. Testing vcnt after adhdfs')
-        # send_and_expect_response(sock, 'vcnt', VCNT, b'graphid-send', exit_on_failure=True)
-        # send_and_expect_response(sock, 'vcnt', b'2', b'4941', exit_on_failure=True)
-
         print()
         logging.info('1. Testing rmgr after adhdfs')
         send_and_expect_response(sock, 'rmgr', RMGR, SEND, exit_on_failure=True)
         send_and_expect_response(sock, 'rmgr', b'1', DONE, exit_on_failure=True)
-
-        # print()
-        # logging.info('2. Testing rmgr after adhdfs')
-        # send_and_expect_response(sock, 'rmgr', RMGR, SEND, exit_on_failure=True)
-        # send_and_expect_response(sock, 'rmgr', b'2', DONE, exit_on_failure=True)
 
         print()
         logging.info('Testing lst after adhdfs')
