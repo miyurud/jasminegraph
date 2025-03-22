@@ -77,7 +77,7 @@ std::string stream_topic_name;
 bool JasmineGraphFrontEnd::strian_exit;
 
 static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
-static void cypher_ast_command(int connFd,vector<DataPublisher *> &workerClients, int numberOfPartitions, bool *loop_exit_p);
+static void cypherCommand(int connFd,vector<DataPublisher *> &workerClients, int numberOfPartitions, bool *loop_exit_p);
 static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
@@ -145,9 +145,8 @@ void *frontendservicesesion(void *dummyPt) {
     std::string kafka_server_IP;
     cppkafka::Configuration configs;
     KafkaConnector *kstream;
-    Partitioner graphPartitioner(numberOfPartitions, 1, spt::Algorithms::HASH, sqlite);
-
     vector<DataPublisher *> workerClients;
+
     bool workerClientsInitialized = false;
 
     bool loop_exit = false;
@@ -176,7 +175,7 @@ void *frontendservicesesion(void *dummyPt) {
         } else if (line.compare(CYPHER) == 0){
             workerClients = getWorkerClients(sqlite);
             workerClientsInitialized = true;
-            cypher_ast_command(connFd, workerClients, numberOfPartitions, &loop_exit);
+            cypherCommand(connFd, workerClients, numberOfPartitions, &loop_exit);
         }else if (line.compare(SHTDN) == 0) {
             JasmineGraphServer::shutdown_workers();
             close(connFd);
@@ -422,11 +421,11 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
     }
 }
 
-static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClients,
+static void cypherCommand(int connFd, vector<DataPublisher *> &workerClients,
                                int numberOfPartitions, bool *loop_exit) {
 
-    string msg_1 = "Graph ID:";
-    int result_wr = write(connFd, msg_1.c_str(), msg_1.length());
+    string graphId = "Graph ID:";
+    int result_wr = write(connFd, graphId.c_str(), graphId.length());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit = true;
@@ -438,13 +437,13 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
         *loop_exit = true;
         return;
     }
-    char user_res[FRONTEND_DATA_LENGTH + 1];
-    bzero(user_res, FRONTEND_DATA_LENGTH + 1);
-    read(connFd, user_res, FRONTEND_DATA_LENGTH);
-    string user_res_1(user_res);
+    char graphIdResponse[FRONTEND_DATA_LENGTH + 1];
+    bzero(graphIdResponse, FRONTEND_DATA_LENGTH + 1);
+    read(connFd, graphIdResponse, FRONTEND_DATA_LENGTH);
+    string user_res_1(graphIdResponse);
 
-    string msg_2 = "Input query :";
-    result_wr = write(connFd, msg_2.c_str(), msg_2.length());
+    string queryInput = "Input query :";
+    result_wr = write(connFd, queryInput.c_str(), queryInput.length());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit = true;
@@ -461,9 +460,9 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
     char query[FRONTEND_DATA_LENGTH + 1];
     bzero(query, FRONTEND_DATA_LENGTH + 1);
     read(connFd, query, FRONTEND_DATA_LENGTH);
-    string user_res_s(query);
+    string queryString(query);
 
-    antlr4::ANTLRInputStream input(user_res_s);
+    antlr4::ANTLRInputStream input(queryString);
     // Create a lexer from the input
     CypherLexer lexer(&input);
 
@@ -473,32 +472,23 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
     // Create a parser from the token stream
     CypherParser parser(&tokens);
 
-    ASTBuilder ast_builder;
-    auto* ast = any_cast<ASTNode*>(ast_builder.visitOC_Cypher(parser.oC_Cypher()));
+    ASTBuilder astBuilder;
+    auto* ast = any_cast<ASTNode*>(astBuilder.visitOC_Cypher(parser.oC_Cypher()));
 
-    SemanticAnalyzer semantic_analyzer;
+    SemanticAnalyzer semanticAnalyzer;
     string obj;
-    if (semantic_analyzer.analyze(ast)) {
+    if (semanticAnalyzer.analyze(ast)) {
         frontend_logger.log("AST is successfully analyzed", "log");
-        QueryPlanner query_planner;
-        Operator *opr = query_planner.createExecutionPlan(ast);
-        obj = opr->execute();
+        QueryPlanner queryPlanner;
+        Operator *executionPlan = queryPlanner.createExecutionPlan(ast);
+        obj = executionPlan->execute();
     } else {
-        frontend_logger.error("query isn't semantically correct: "+user_res_s);
+        frontend_logger.error("query isn't semantically correct: "+queryString);
     }
     SharedBuffer sharedBuffer(3);
     JasmineGraphServer *server = JasmineGraphServer::getInstance();
-    server->sendQueryPlan(stoi(user_res_1), workerClients.size(), obj, std::ref(sharedBuffer));
-
-//    std::ostringstream header;
-//    header << "| " << std::left << std::setw(10) << "ID"
-//           << "| " << std::setw(30) << "Name"
-//           << "| " << std::setw(30) << "Occupation/Category"
-//           << "| " << std::setw(10) << "Type" << "|";
-//    result_wr = write(connFd, header.str().c_str(), header.str().length());
-//    result_wr = write(connFd, "\r\n", 2);
-//    result_wr = write(connFd, std::string(90, '-').c_str(), std::string(90, '-').length());
-//    result_wr = write(connFd, "\r\n", 2);
+    server->sendQueryPlan(stoi(graphIdResponse), workerClients.size(), obj,
+                          std::ref(sharedBuffer));
 
     int closeFlag = 0;
     while(true){
