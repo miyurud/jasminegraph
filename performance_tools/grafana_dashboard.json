@@ -303,7 +303,7 @@
           "useBackend": false
         }
       ],
-      "title": "JasmineGraph Dashboard",
+      "title": "JasmineGraph Performance",
       "type": "timeseries"
     }
   ],
@@ -319,8 +319,8 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Dashboard_Jasminegraph",
+  "title": "JasmineGraph_Performance",
   "uid": "beg67s27j6oe8b",
-  "version": 3,
+  "version": 2,
   "weekStart": ""
 }
