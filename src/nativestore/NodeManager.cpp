@@ -27,6 +27,7 @@ limitations under the License.
 #include "RelationBlock.h"
 #include "iostream"
 #include <sys/stat.h>
+#include <thread>
 
 Logger node_manager_logger;
 pthread_mutex_t lockEdgeAdd;
