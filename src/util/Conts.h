@@ -157,6 +157,10 @@ class Conts {
         static const std::string IS_CALIBRATING;
         static const std::string AUTO_CALIBRATION;
     };
+
+    struct HDFS {
+        static const int EDGE_SEPARATION_LAYER_THREAD_COUNT;
+    };
 };
 
 inline bool operator<(const ProcessInfo& lhs, const ProcessInfo& rhs) { return lhs.id < rhs.id; }

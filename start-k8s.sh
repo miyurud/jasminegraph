@@ -15,6 +15,7 @@ fi
 META_DB_PATH=${META_DB_PATH}
 PERFORMANCE_DB_PATH=${PERFORMANCE_DB_PATH}
 DATA_PATH=${DATA_PATH}
+CONFIG_DIRECTORY_PATH=${CONFIG_DIRECTORY_PATH}
 LOG_PATH=${LOG_PATH}
 AGGREGATE_PATH=${AGGREGATE_PATH}
 NO_OF_WORKERS=${NO_OF_WORKERS}
@@ -44,6 +45,11 @@ fi
 
 if [ -z "$DATA_PATH" ]; then
     echo "DATA_PATH SHOULD BE SPECIFIED"
+    exit 1
+fi
+
+if [ -z "$CONFIG_DIRECTORY_PATH" ]; then
+    echo "CONFIG_DIRECTORY_PATH SHOULD BE SPECIFIED"
     exit 1
 fi
 
@@ -110,6 +116,7 @@ pushgateway_address="${pushgatewayIP}:9091/" \
 metadb_path="${META_DB_PATH}" \
     performancedb_path="${PERFORMANCE_DB_PATH}" \
     data_path="${DATA_PATH}" \
+    config_directory_path="${CONFIG_DIRECTORY_PATH}" \
     log_path="${LOG_PATH}" \
     aggregate_path="${AGGREGATE_PATH}" \
     envsubst <"./k8s/volumes.yaml" | kubectl apply -f -
