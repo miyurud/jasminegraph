@@ -15,12 +15,22 @@
 #include <vector>
 
 #include "./Partition.h"
+#include "../../metadb/SQLiteDBInterface.h"
 
 typedef std::vector<std::pair<std::string, long>> partitionedEdge;
 namespace spt {  // spt : Streaming Partitioner
 enum Algorithms { HASH, FENNEL, LDG };
-
+static Algorithms getPartitioner(string id) {
+    if (id == "1") {
+        return Algorithms::HASH;
+    } else if (id == "2") {
+        return Algorithms::FENNEL;
+    } else if (id == "3") {
+        return Algorithms::LDG;
+    }
+    return  Algorithms::HASH;
 }
+}  // namespace spt
 
 class Partitioner {
     std::vector<Partition> partitions;
@@ -29,12 +39,13 @@ class Partitioner {
     long totalEdges = 0;
     int graphID;
     spt::Algorithms algorithmInUse;
+    SQLiteDBInterface *sqlite;
     // perPartitionCap is : Number of vertices that can be store in this partition, This is a dynamic shared pointer
     // containing a value depending on the whole graph size and # of partitions
 
  public:
-    Partitioner(int numberOfPartitions, int graphID, spt::Algorithms alog)
-        : numberOfPartitions(numberOfPartitions), graphID(graphID), algorithmInUse(alog) {
+    Partitioner(int numberOfPartitions, int graphID, spt::Algorithms alog, SQLiteDBInterface* sqlite)
+            : numberOfPartitions(numberOfPartitions), graphID(graphID), algorithmInUse(alog), sqlite(sqlite) {
         for (size_t i = 0; i < numberOfPartitions; i++) {
             this->partitions.push_back(Partition(i, numberOfPartitions));
         };
@@ -47,6 +58,9 @@ class Partitioner {
     partitionedEdge fennelPartitioning(std::pair<std::string, std::string> edge);
     partitionedEdge ldgPartitioning(std::pair<std::string, std::string> edge);
     static std::pair<long, long> deserialize(std::string data);
+    void updateMetaDB();
+    bool getIsDirected();
+    void setGraphID(int graphId){this->graphID = graphId;};
 };
 
 #endif  // !JASMINE_PARTITIONER_HEADER

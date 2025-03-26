@@ -18,6 +18,7 @@ limitations under the License.
 
 #include "../util/logger/Logger.h"
 #include "NodeManager.h"
+#include "MetaPropertyEdgeLink.h"
 
 Logger relation_block_logger;
 pthread_mutex_t lockAddProperty;
@@ -142,7 +143,7 @@ RelationBlock* RelationBlock::addCentralRelation(NodeBlock source, NodeBlock des
     destinationData.address = destination.addr;
 
     long relationBlockAddress =
-        RelationBlock::nextCentralRelationIndex * RelationBlock::BLOCK_SIZE;  // Block size is 4 * 11
+        RelationBlock::nextCentralRelationIndex * RelationBlock::CENTRAL_BLOCK_SIZE;
     RelationBlock::centralRelationsDB->seekg(relationBlockAddress);
     if (!RelationBlock::centralRelationsDB->write(reinterpret_cast<char*>(&source.nodeId), RECORD_SIZE)) {
         relation_block_logger.error("ERROR: Error while writing  sourceAddr " + std::to_string(source.nodeId) +
@@ -234,9 +235,18 @@ RelationBlock* RelationBlock::addCentralRelation(NodeBlock source, NodeBlock des
         return NULL;
     }
 
+    if (!RelationBlock::centralRelationsDB->write(reinterpret_cast<char*>(&(this->metaPropertyAddress)),
+                                                  RECORD_SIZE)) {
+        relation_block_logger.error("ERROR: Error while writing relation property address " +
+                                    std::to_string(this->metaPropertyAddress) + " into relation block address " +
+                                    std::to_string(relationBlockAddress));
+        return NULL;
+    }
+
     RelationBlock::nextCentralRelationIndex += 1;
     RelationBlock::centralRelationsDB->flush();
-    return new RelationBlock(relationBlockAddress, sourceData, destinationData, this->propertyAddress);
+    return new RelationBlock(relationBlockAddress, sourceData, destinationData,
+                             this->propertyAddress, this->metaPropertyAddress);
 }
 
 RelationBlock* RelationBlock::getLocalRelation(unsigned int address) {
@@ -352,7 +362,7 @@ RelationBlock* RelationBlock::getCentralRelation(unsigned int address) {
     if (address == 0) {
         return NULL;
     }
-    if (address % RelationBlock::BLOCK_SIZE != 0) {
+    if (address % RelationBlock::CENTRAL_BLOCK_SIZE != 0) {
         relation_block_logger.error("Exception: Invalid relation block address !!\n received address = " + address);
         return NULL;
     }
@@ -361,6 +371,7 @@ RelationBlock* RelationBlock::getCentralRelation(unsigned int address) {
     NodeRelation source;
     NodeRelation destination;
     unsigned int propertyReference;
+    unsigned int metaPropertyReference;
 
     RelationBlock::centralRelationsDB->read(reinterpret_cast<char*>(&source.address),
                                             RECORD_SIZE);  // < ------ relation data offset ID = 0
@@ -453,7 +464,16 @@ RelationBlock* RelationBlock::getCentralRelation(unsigned int address) {
         return NULL;
     }
 
-    return new RelationBlock(address, source, destination, propertyReference);
+    if (!RelationBlock::centralRelationsDB->read(reinterpret_cast<char*>(&metaPropertyReference),
+                                                 RECORD_SIZE)) {  // < ------ relation data offset ID = 10
+        relation_block_logger.error(
+                "ERROR: Error while reading central relation meta property address data offset ID = 10 from "
+                "relation block address " + std::to_string(address));
+        return NULL;
+    }
+
+    return new RelationBlock(address, source, destination, propertyReference,
+                             metaPropertyReference);
 }
 
 RelationBlock* RelationBlock::nextLocalSource() {
@@ -648,7 +668,29 @@ void RelationBlock::addCentralProperty(std::string name, char* value) {
     }
 }
 
+void RelationBlock::addMetaProperty(std::string name, char *value) {
+    if (this->metaPropertyAddress == 0) {
+        MetaPropertyEdgeLink* newLink = MetaPropertyEdgeLink::create(name, value);
+        if (newLink) {
+            this->metaPropertyAddress = newLink->blockAddress;
+            // If it was an empty prop link before inserting, Then update the property reference of this node
+            // block
+            this->updateCentralRelationRecords(RelationOffsets::RELATION_PROPS_META,
+                                               this->metaPropertyAddress);
+        } else {
+            relation_block_logger.error("Error occurred while adding a new property link to " +
+                                        std::to_string(this->addr) + " node block");
+        }
+    } else {
+        this->metaPropertyAddress = this->getMetaPropertyHead()->insert(name, value);
+    }
+}
+
 PropertyEdgeLink* RelationBlock::getPropertyHead() { return PropertyEdgeLink::get(this->propertyAddress); }
+
+MetaPropertyEdgeLink *RelationBlock::getMetaPropertyHead() {
+    return MetaPropertyEdgeLink::get(this->metaPropertyAddress);
+}
 
 std::map<std::string, char*> RelationBlock::getAllProperties() {
     std::map<std::string, char*> allProperties;
@@ -687,7 +729,11 @@ NodeBlock* RelationBlock::getDestination() {
     return NULL;
 }
 
-thread_local const unsigned long RelationBlock::BLOCK_SIZE = RelationBlock::RECORD_SIZE * 13;
+thread_local const unsigned long RelationBlock::BLOCK_SIZE = RelationBlock::RECORD_SIZE *
+        RelationBlock::NUMBER_OF_LOCAL_RELATION_RECORDS;
+thread_local const unsigned long RelationBlock::CENTRAL_BLOCK_SIZE = RelationBlock::RECORD_SIZE *
+        RelationBlock::NUMBER_OF_CENTRAL_RELATION_RECORDS;
+
 // One relation block holds 11 recods such as source addres, destination address, source next relation address etc.
 // and one record is typically 4 bytes (size of unsigned int)
 thread_local std::fstream* RelationBlock::relationsDB = NULL;

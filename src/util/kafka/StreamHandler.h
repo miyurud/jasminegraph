@@ -20,16 +20,19 @@ limitations under the License.
 #include "../../partitioner/stream/Partitioner.h"
 #include "../logger/Logger.h"
 #include "KafkaCC.h"
+#include "../../metadb/SQLiteDBInterface.h"
 
 class StreamHandler {
  public:
-    StreamHandler(KafkaConnector *kstream, int numberOfPartitions, std::vector<DataPublisher *> &workerClients);
+    StreamHandler(KafkaConnector *kstream, int numberOfPartitions,
+                  std::vector<DataPublisher *> &workerClients, SQLiteDBInterface* sqlite,
+                  int graphId, spt::Algorithms algo = spt::Algorithms::HASH);
     void listen_to_kafka_topic();
     cppkafka::Message pollMessage();
     bool isErrorInMessage(const cppkafka::Message &msg);
     bool isEndOfStream(const cppkafka::Message &msg);
     Partitioner graphPartitioner;
-
+    int  graphId;
  private:
     KafkaConnector *kstream;
     Logger frontend_logger;

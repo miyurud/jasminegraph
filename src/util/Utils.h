@@ -27,6 +27,7 @@ limitations under the License.
 
 #include "../metadb/SQLiteDBInterface.h"
 #include "../performancedb/PerformanceSQLiteDBInterface.h"
+#include "../frontend/JasmineGraphFrontEndProtocol.h"
 #include "Conts.h"
 
 using std::map;
@@ -36,6 +37,7 @@ using json = nlohmann::json;
 class Utils {
  private:
     static unordered_map<std::string, std::string> propertiesMap;
+    static std::mutex sqliteMutex;
 
  public:
     struct worker {
@@ -82,6 +84,8 @@ class Utils {
 
     static int deleteDirectory(const std::string dirName);
 
+    static int deleteAllMatchingFiles(const std::string fileNamePattern);
+
     static std::string getFileName(std::string filePath);
 
     static int getFileSize(std::string filePath);
@@ -116,6 +120,8 @@ class Utils {
     static std::string checkFlag(std::string flagPath);
 
     static int connect_wrapper(int sock, const sockaddr *addr, socklen_t slen);
+
+    static void assignPartitionToWorker(int graphId, int partitionIndex, string  hostname, int port);
 
     /**
      * Wrapper to recv(2) to read a string.
@@ -170,6 +176,8 @@ class Utils {
 
     static int createDatabaseFromDDL(const char *dbLocation, const char *ddlFileLocation);
 
+    static std::string downloadFile(const std::string& fileURL, const std::string& localFilePath);
+
     static std::string send_job(std::string job_group_name, std::string metric_name, std::string metric_value);
 
     static map<string, string> getMetricMap(string metricName);
@@ -182,6 +190,7 @@ class Utils {
     static bool transferPartition(std::string sourceWorker, int sourceWorkerPort, std::string destinationWorker,
                                   int destinationWorkerDataPort, std::string graphID, std::string partitionID,
                                   std::string workerID, SQLiteDBInterface *sqlite);
+    static string getFrontendInput(int connFd);
 };
 
 #endif  // JASMINEGRAPH_UTILS_H

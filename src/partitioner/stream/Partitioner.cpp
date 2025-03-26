@@ -17,8 +17,11 @@
 #include <cmath>
 #include <iostream>
 #include <vector>
+#include <ctime>
+#include <chrono>
 
 #include "../../util/logger/Logger.h"
+#include "../../util/Conts.h"
 
 Logger streaming_partitioner_logger;
 
@@ -105,11 +108,11 @@ partitionedEdge Partitioner::ldgPartitioning(std::pair<std::string, std::string>
 }
 
 partitionedEdge Partitioner::hashPartitioning(std::pair<std::string, std::string> edge) {
-    int firstIndex = std::hash<std::string>()(edge.first) % this->numberOfPartitions;    // Hash partitioning
-    int secondIndex = std::hash<std::string>()(edge.second) % this->numberOfPartitions;  // Hash partitioning
+    int firstIndex = stoi(edge.first) % this->numberOfPartitions;    // Hash partitioning
+    int secondIndex = stoi(edge.second) % this->numberOfPartitions;  // Hash partitioning
 
     if (firstIndex == secondIndex) {
-        this->partitions[firstIndex].addEdge(edge);
+        this->partitions[firstIndex].addEdge(edge, this->getIsDirected());
     } else {
         this->partitions[firstIndex].addToEdgeCuts(edge.first, edge.second, secondIndex);
         this->partitions[secondIndex].addToEdgeCuts(edge.second, edge.first, firstIndex);
@@ -121,7 +124,7 @@ void Partitioner::printStats() {
     int id = 0;
     for (auto partition : this->partitions) {
         double vertexCount = partition.getVertextCount();
-        double edgesCount = partition.getEdgesCount();
+        double edgesCount = partition.getEdgesCount(this->getIsDirected());
         double edgeCutsCount = partition.edgeCutsCount();
         double edgeCutRatio = partition.edgeCutsRatio();
         streaming_partitioner_logger.info(std::to_string(id) + " => Vertex count = " + std::to_string(vertexCount));
@@ -131,6 +134,37 @@ void Partitioner::printStats() {
         streaming_partitioner_logger.info(std::to_string(id) + " => Cut ratio = " + std::to_string(edgeCutRatio));
         id++;
     }
+}
+
+void Partitioner::updateMetaDB() {
+    double vertexCount = 0;
+    double edgesCount = 0;
+    double edgeCutsCount = 0;
+    for (auto partition : this->partitions) {
+        vertexCount += partition.getVertextCount();
+        edgesCount += partition.getEdgesCount(this->getIsDirected());
+        edgeCutsCount += partition.edgeCutsCount();
+    }
+    double numberOfEdges = edgesCount + edgeCutsCount/2;
+
+    std::time_t time = chrono::system_clock::to_time_t(chrono::system_clock::now());
+    string uploadEndTime = ctime(&time);
+    std::string sqlStatement = "UPDATE graph SET vertexcount = vertexcount+" + std::to_string(vertexCount) +
+            " ,upload_end_time = \"" + uploadEndTime +
+            "\" ,graph_status_idgraph_status = " + to_string(Conts::GRAPH_STATUS::OPERATIONAL) +
+            " ,edgecount = edgecount+" + std::to_string(numberOfEdges) +
+            " WHERE idgraph = " + std::to_string(this->graphID);
+    this->sqlite->runUpdate(sqlStatement);
+    streaming_partitioner_logger.info("Successfully updated metaDB");
+}
+
+bool Partitioner::getIsDirected() {
+    std::string sqlStatement = "SELECT is_directed FROM graph WHERE idgraph = " + std::to_string(this->graphID);
+    auto result = this->sqlite->runSelect(sqlStatement);
+    if (result[0][0].second == "0") {
+        return false;
+    }
+    return true;
 }
 
 /**
