@@ -7,23 +7,6 @@
 
 FilterHelper::FilterHelper(string condition) : condition(condition) {};
 
-//              "condition": {
-//                  "left": {
-//                      "Type": "PROPERTY_LOOKUP",
-//                      "property": [
-//                          "name"
-//                      ],
-//                      "variable": "n"
-//                  },
-//                  "operator": "==",
-//                  "right": {
-//                      "Type": "STRING",
-//                      "value": "'John'"
-//                  },
-//                  "type": "COMPARISON"
-//              }
-
-
 bool FilterHelper::evaluate(std::string data) {
     return evaluateCondition(condition, data);
 }
@@ -31,7 +14,6 @@ bool FilterHelper::evaluate(std::string data) {
 bool FilterHelper::evaluateCondition(std::string condition, std::string data) {
     json predicate = json::parse(condition);
     std::string type = predicate["type"];
-
     if (type == "COMPARISON") {
         return evaluateComparison(condition, data);
     } else if (type == "AND" || type == "OR" || type == "XOR" || type == "NOT") {
@@ -42,22 +24,6 @@ bool FilterHelper::evaluateCondition(std::string condition, std::string data) {
 }
 
 bool FilterHelper::evaluateComparison(std::string condition, std::string raw) {
-    // {"left":{"Type":"PROPERTY_LOOKUP","property":["name"],"variable":"n"},
-    // "operator":"==","right":{"Type":"STRING","value":"'hh'"},"type":"COMPARISON"}
-    // {"left":{"Type":"PROPERTY_LOOKUP","property":["name"],"variable":"n"},
-    // "operator":"==","right":{"Type":"DECIMAL","value":"10"},"type":"COMPARISON"}
-    // {"left":{"Type":"PROPERTY_LOOKUP","property":["name"],"variable":"n"},
-    // "operator":"==","right":{"Type":"BOOLEAN","value":"TRUE"},"type":"COMPARISON"}
-    // {"left":{"Type":"PROPERTY_LOOKUP","property":["name"],"variable":"n"},
-    // "operator":"==","right":{"Type":"NULL","value":""},"type":"COMPARISON"}
-    // {"left":{"Type":"VARIABLE","value":"r1"},
-    // "operator":"<>","right":{"Type":"VARIABLE","value":"r2"},"type":"COMPARISON"}
-
-    // {"left":{"Type":"PROPERTY_LOOKUP","property":["name"],"variable":"n"},
-    // "operator":"==","right":{"Type":"LIST","element":["10","4"]},"type":"COMPARISON"}
-    // {"left":{"Type":"PROPERTY_LOOKUP","property":["name"],"variable":"n"},
-    // "operator":"==","right":{"Type":"PROPERTIES_MAP","property":{"name":"'HH'"}},"type":"COMPARISON"}
-
     json predicate = json::parse(condition);
     json data = json::parse(raw);
     if (!typeCheck(predicate["left"]["type"], predicate["right"]["type"])) {
@@ -182,8 +148,6 @@ bool FilterHelper::typeCheck(std::string left, std::string right) {
     }
 }
 
-// {"Type":"PROPERTY_LOOKUP","property":["name"],"variable":"n"}
-// {"category":"Restaurant","id":"17","name":"Gourmet Bistro","type":"Location"}
 ValueType FilterHelper::evaluatePropertyLookup(std::string property, std::string data, string type) {
     json prop = json::parse(property);
     json raw = json::parse(data);
@@ -224,7 +188,6 @@ ValueType FilterHelper::evaluatePropertyLookup(std::string property, std::string
     return "null";
 }
 
-// {"Type":"FUNCTION","arguments":["n"],"functionName":"id"}
 ValueType FilterHelper::evaluateFunction(std::string function, std::string data, std::string type) {
     json func = json::parse(function);
     json raw = json::parse(data);
@@ -278,4 +241,36 @@ ValueType FilterHelper::evaluateOtherTypes(std::string data) {
         return "";
     }
     return "";
+}
+
+string ExpandAllHelper::generateSubQueryPlan(std::string query) {
+    antlr4::ANTLRInputStream input(query);
+    // Create a lexer from the input
+    CypherLexer lexer(&input);
+
+    // Create a token stream from the lexer
+    antlr4::CommonTokenStream tokens(&lexer);
+
+    // Create a parser from the token stream
+    CypherParser parser(&tokens);
+
+    ASTBuilder ast_builder;
+    auto* ast = any_cast<ASTNode*>(ast_builder.visitOC_Cypher(parser.oC_Cypher()));
+
+    SemanticAnalyzer semantic_analyzer;
+    string obj;
+    QueryPlanner query_planner;
+    Operator *opr = query_planner.createExecutionPlan(ast);
+    obj = opr->execute();
+    return obj;
+}
+
+string ExpandAllHelper::generateSubQuery(std::string startVar, std::string destVar, std::string relVar,
+                                         std::string id, std::string relType) {
+    if (relType == "") {
+        return "match ("+startVar+")-["+relVar+"]-("+destVar+") where id("
+                +startVar+") = "+id+" return "+relVar+","+destVar;
+    }
+    return "match ("+startVar+")-["+relVar+":"+relType+"]-("+destVar+") where id("
+            +startVar+") = "+id+" return "+relVar+","+destVar;
 }

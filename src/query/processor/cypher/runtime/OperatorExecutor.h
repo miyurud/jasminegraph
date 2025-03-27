@@ -14,7 +14,7 @@ using namespace  std;
 
 class OperatorExecutor {
  public:
-    OperatorExecutor(GraphConfig gc, string queryPlan);
+    OperatorExecutor(GraphConfig gc, string queryPlan, string masterIP);
     void AllNodeScan(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
     void ProduceResult(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
     void Filter(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
@@ -22,7 +22,7 @@ class OperatorExecutor {
     void UndirectedRelationshipTypeScan(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
     void UndirectedAllRelationshipScan(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
     void NodeByIdSeek(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
-
+    string masterIP;
     string  queryPlan;
     GraphConfig gc;
     json query;

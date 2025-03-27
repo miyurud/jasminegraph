@@ -1041,7 +1041,7 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* opr) {
             directionIndex = i;
         }
     }
-    cout<<"ll"<<endl;
+
     if(!isNodeLabelExist){
         isNodeLabelExist = getNodeDetails(startNode).first[1];
     }

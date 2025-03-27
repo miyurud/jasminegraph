@@ -28,6 +28,7 @@ struct NodeRelation {
     unsigned int nextPid = 0;
     unsigned int preRelationId = 0;
     unsigned int prePid = 0;
+    unsigned int nodeId = 0;
 };
 
 enum class RelationOffsets : int {
@@ -75,6 +76,8 @@ class RelationBlock {
         : addr(addr), source(source), destination(destination), propertyAddress(propertyAddress){
         this->sourceBlock = NodeBlock::get(source.address);
         this->destinationBlock = NodeBlock::get(destination.address);
+        this->source = source;
+        this->destination = destination;
     };
 
     RelationBlock(unsigned int address, NodeRelation source, NodeRelation destination, unsigned int propertyAddress,
@@ -82,6 +85,8 @@ class RelationBlock {
                   propertyAddress(propertyAddress), metaPropertyAddress(metaPropertyAddress){
         this->sourceBlock = NodeBlock::get(source.address);
         this->destinationBlock = NodeBlock::get(destination.address);
+        this->source = source;
+        this->destination = destination;
     };
 
     char usage;

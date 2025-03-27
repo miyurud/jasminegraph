@@ -21,3 +21,6 @@ const string ACKNOWLEGE_MASTER = "ack-master";
 const string WORKER_INFO_SEND = "worker-info";
 const string HOST_OK = "hst-ok";
 const string UPDATE_DONE = "done";
+const string WORKER_DETAILS = "worker-details";
+const string WORKER_DETAILS_ACK = "worker-details-ack";
+const string CONTENT_LENGTH_ACK = "content-length-ack";

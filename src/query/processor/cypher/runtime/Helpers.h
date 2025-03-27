@@ -10,6 +10,14 @@
 #include <iostream>
 #include <vector>
 #include "./../util/Const.h"
+#include "antlr4-runtime.h"
+#include "/home/ubuntu/software/antlr/CypherLexer.h"
+#include "/home/ubuntu/software/antlr/CypherParser.h"
+#include "../astbuilder/ASTBuilder.h"
+#include "../astbuilder/ASTNode.h"
+#include "../semanticanalyzer/SemanticAnalyzer.h"
+#include "../queryplanner/Operators.h"
+#include "../queryplanner/QueryPlanner.h"
 using namespace std;
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
@@ -31,6 +39,11 @@ class FilterHelper {
     static ValueType evaluateOtherTypes(string data);
 };
 
+class ExpandAllHelper {
+ public:
+    static string generateSubQueryPlan(string query);
+    static string generateSubQuery(string startVar, string destVar, string relVar, string id, string relType = "");
+};
 
 
 #endif //JASMINEGRAPH_HELPERS_H

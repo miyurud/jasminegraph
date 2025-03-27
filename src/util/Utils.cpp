@@ -1366,10 +1366,9 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
         recv(sockfd, &start, sizeof(start), 0);
         std::string start_msg(start);
         if (JasmineGraphInstanceProtocol::QUERY_DATA_START != start_msg) {
-            util_logger.error("Error while receiving start command ack : "+ start_msg);
+            util_logger.error("Error while receiving start command: "+ start_msg);
             continue;
         }
-        util_logger.info(start);
         send(sockfd, JasmineGraphInstanceProtocol::QUERY_DATA_ACK.c_str(),
              JasmineGraphInstanceProtocol::QUERY_DATA_ACK.length(), 0);
 
@@ -1405,19 +1404,102 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
             std::cout << "Time limit reached!" << std::endl;
             break;
         }
-//        auto str = json::parse(data);
-//        std::ostringstream row;
-//        row << "| " << std::left
-//            << std::setw(10) << str.value("id", "-")
-//            << "| " << std::setw(30) << str.value("name", "-")
-//            << "| " << std::setw(30) << str.value("occupation", str.value("category", "-"))
-//            << "| " << std::setw(10) << str.value("type", "-")
-//            << "|";
         sharedBuffer.add(data);
     }
 
     return true;
 }
+
+std::optional<pair<string, int>> Utils::getWorker(string partitionId, std::string host, int port) {
+
+    util_logger.info("Host:" + host + " Port:" + to_string(port));
+    bool result = true;
+    int sockfd;
+    char data[FED_DATA_LENGTH + 1];
+    static const int ACK_MESSAGE_SIZE = 1024;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sockfd < 0) {
+        util_logger.error("Cannot create socket");
+        return std::nullopt;
+    }
+
+    if (host.find('@') != std::string::npos) {
+        host = Utils::split(host, '@')[1];
+    }
+
+    server = gethostbyname(host.c_str());
+    if (server == NULL) {
+        util_logger.error("ERROR, no host named " + host);
+        return std::nullopt;
+    }
+
+    bzero((char *)&serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    serv_addr.sin_port = htons(port);
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+        return std::nullopt;
+    }
+
+    if (!Utils::sendExpectResponse(sockfd, data, WORKER_DETAILS_ACK.length(),
+                                   WORKER_DETAILS,
+                                   WORKER_DETAILS_ACK)) {
+        Utils::send_str_wrapper(sockfd, UPDATE_DONE);
+        close(sockfd);
+        return std::nullopt;
+    }
+
+    char ack[ACK_MESSAGE_SIZE] = {0};
+    int message_length = partitionId.length();
+    int converted_number = htonl(message_length);
+    util_logger.info("Sending content length: "+to_string(converted_number));
+
+    if (!Utils::sendIntExpectResponse(sockfd, ack,
+                                      CONTENT_LENGTH_ACK.length(),
+                                      converted_number,
+                                      CONTENT_LENGTH_ACK)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return std::nullopt;
+    }
+
+    if(!Utils::send_str_wrapper(sockfd, partitionId)) {
+        close(sockfd);
+        return std::nullopt;
+    }
+
+    int content_length;
+    ssize_t return_status = recv(sockfd, &content_length, sizeof(int), 0);
+    if (return_status > 0) {
+        content_length = ntohl(content_length);
+        util_logger.info("Received int = " + std::to_string(content_length));
+    } else {
+        util_logger.error("Error while receiving content length");
+        return nullopt;
+    }
+    Utils::send_str_wrapper(sockfd, CONTENT_LENGTH_ACK);
+
+    std::string workerData(content_length, 0);
+    return_status = recv(sockfd, &workerData[0], content_length, 0);
+    if (return_status > 0) {
+        util_logger.info("Received worker data: "+ workerData);
+    } else {
+        util_logger.info("Error while reading graph data");
+        return nullopt;
+    }
+
+    size_t pos = workerData.find('|');
+
+    string ip = workerData.substr(0, pos);
+    string portNumber = workerData.substr(pos + 1);
+    util_logger.info("IP and Port received: " + ip + " " + portNumber);
+    return pair<string, int>(ip, stoi(portNumber));
+}
+
 string Utils::getFrontendInput(int connFd) {
     char frontendInput[FRONTEND_DATA_LENGTH + 1];
     bzero(frontendInput, FRONTEND_DATA_LENGTH + 1);
@@ -1426,4 +1508,156 @@ string Utils::getFrontendInput(int connFd) {
     input = Utils::trim_copy(input);
     std::transform(input.begin(), input.end(), input.begin(), ::tolower);
     return input;
+}
+
+bool Utils::sendDataFromWorkerToWorker(string masterIP, int graphID, string partitionId,
+                                       std::string message, SharedBuffer &sharedBuffer) {
+    auto worker = getWorker(partitionId, masterIP, Conts::JASMINEGRAPH_BACKEND_PORT);
+    auto host = worker->first;
+    auto port = worker->second;
+    util_logger.info("Host:" + host + " Port:" + to_string(port));
+    bool result = true;
+    int sockfd;
+    char data[FED_DATA_LENGTH + 1];
+    static const int ACK_MESSAGE_SIZE = 1024;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sockfd < 0) {
+        util_logger.error("Cannot create socket");
+        return false;
+    }
+
+    if (host.find('@') != std::string::npos) {
+        host = Utils::split(host, '@')[1];
+    }
+
+    server = gethostbyname(host.c_str());
+    if (server == NULL) {
+        util_logger.error("ERROR, no host named " + host);
+        return false;
+    }
+
+    bzero((char *)&serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    serv_addr.sin_port = htons(port);
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+        return false;
+    }
+
+    if (!Utils::sendExpectResponse(sockfd, data, JasmineGraphInstanceProtocol::SUB_QUERY_START_ACK.length(),
+                                   JasmineGraphInstanceProtocol::SUB_QUERY_START,
+                                   JasmineGraphInstanceProtocol::SUB_QUERY_START_ACK)) {
+        close(sockfd);
+        return false;
+    }
+
+    char ack1[ACK_MESSAGE_SIZE] = {0};
+    int message_length = std::to_string(graphID).length();
+    int converted_number = htonl(message_length);
+    util_logger.info("Sending content length: "+ to_string(converted_number));
+    if (!Utils::sendIntExpectResponse(sockfd, ack1,
+                                      JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.length(),
+                                      converted_number,
+                                      JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return false;
+    }
+
+    if(!Utils::send_str_wrapper(sockfd, to_string(graphID))) {
+        close(sockfd);
+        return false;
+    }
+
+    char ack2[ACK_MESSAGE_SIZE] = {0};
+    message_length = partitionId.length();
+    converted_number = htonl(message_length);
+    util_logger.info("Sending content length: "+to_string(converted_number));
+
+    if (!Utils::sendIntExpectResponse(sockfd, ack2,
+                                      JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.length(),
+                                      converted_number,
+                                      JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return false;
+    }
+
+    if(!Utils::send_str_wrapper(sockfd, partitionId)) {
+        close(sockfd);
+        return false;
+    }
+
+    char ack3[ACK_MESSAGE_SIZE] = {0};
+    message_length = message.length();
+    converted_number = htonl(message_length);
+    util_logger.info("Sending content length of sub query plan: "+to_string(converted_number));
+
+    if (!Utils::sendIntExpectResponse(sockfd, ack3,
+                                      JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.length(),
+                                      converted_number,
+                                      JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return false;
+    }
+    if(!Utils::send_str_wrapper(sockfd, message)) {
+        close(sockfd);
+        return false;
+    }
+
+    auto startTime = std::chrono::high_resolution_clock::now();
+    std::chrono::seconds max_duration(3);
+    while(true){
+        char start[ACK_MESSAGE_SIZE] = {0};
+        recv(sockfd, &start, sizeof(start), 0);
+        std::string start_msg(start);
+        if (JasmineGraphInstanceProtocol::QUERY_DATA_START != start_msg) {
+            util_logger.error("Error while receiving sub query data start : "+ start_msg+" : ");
+            continue;
+        }
+        util_logger.info(start);
+        send(sockfd, JasmineGraphInstanceProtocol::QUERY_DATA_ACK.c_str(),
+             JasmineGraphInstanceProtocol::QUERY_DATA_ACK.length(), 0);
+
+        int content_length;
+        ssize_t return_status = recv(sockfd, &content_length, sizeof(int), 0);
+        if (return_status > 0) {
+            content_length = ntohl(content_length);
+            util_logger.info("Received int =" + std::to_string(content_length));
+        } else {
+            util_logger.error("Error while receiving content length");
+            return false;
+        }
+        send(sockfd, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.c_str(),
+             JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.length(), 0);
+
+        std::string subData(content_length, 0);
+        return_status = recv(sockfd, &subData[0], content_length, 0);
+        if (return_status > 0) {
+            util_logger.info("Received graph sub data: "+subData);
+            send(sockfd, JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS.c_str(),
+                 JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS.length(), 0);
+        } else {
+            util_logger.info("Error while reading graph data");
+            return false;
+        }
+
+        if(subData == "-1"){
+            sharedBuffer.add(subData);
+            break;
+        }
+        auto now = std::chrono::high_resolution_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - startTime);
+        if (elapsed >= max_duration) {
+            std::cout << "Time limit reached!" << std::endl;
+            break;
+        }
+        sharedBuffer.add(subData);
+    }
+    return true;
 }
