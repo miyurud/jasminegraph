@@ -120,6 +120,8 @@ string Filter::comparisonOperand(ASTNode *ast) {
             arguments.push_back(arg->value);
         }
         operand["arguments"] = arguments;
+    } else if (ast->nodeType == Const::IS_NOT_NULL || ast->nodeType == Const::IS_NULL) {
+        operand["type"] = Const::NULL_STRING;
     } else {
         operand["type"] = ast->nodeType;
         operand["value"] = ast->value;
@@ -166,6 +168,19 @@ string Filter::analyze(ASTNode* ast) {
         where["left"] = json::parse(comparisonOperand(left));
         where["operator"] = oparator->nodeType;
         where["right"] = json::parse(comparisonOperand(right));
+    } else if (ast->nodeType == Const::PREDICATE_EXPRESSIONS) {
+        where["type"] = Const::PREDICATE_EXPRESSIONS;
+        auto* left = ast->elements[0];
+        auto* opr = ast->elements[1];
+        auto* right = opr->elements[0];
+        where["left"] = json::parse(comparisonOperand(left));
+        if (opr->elements[0]->nodeType == Const::IS_NOT_NULL) {
+            where["operator"] = Const::GREATER_THAN_LOWER_THAN;
+        } else {
+            where["operator"] = Const::DOUBLE_EQUAL;
+        }
+        where["right"] = json::parse(comparisonOperand(right));
+
     }
     return where.dump();
 }

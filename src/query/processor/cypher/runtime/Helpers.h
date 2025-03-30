@@ -31,6 +31,7 @@ class FilterHelper {
     string condition;
     static bool evaluateCondition(string condition, string data);
     static bool evaluateComparison(string condition, string raw);
+    static bool evaluatePredicateExpression(string condition, string raw);
     static bool evaluateLogical(string condition, string data);
     static bool evaluateNodes(string left, string right);
     static ValueType evaluateFunction(string function, string data, string type);

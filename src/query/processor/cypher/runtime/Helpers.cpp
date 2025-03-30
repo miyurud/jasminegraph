@@ -16,6 +16,8 @@ bool FilterHelper::evaluateCondition(std::string condition, std::string data) {
     std::string type = predicate["type"];
     if (type == "COMPARISON") {
         return evaluateComparison(condition, data);
+    } else if (type == "PREDICATE_EXPRESSIONS") {
+        return evaluatePredicateExpression(condition, data);
     } else if (type == "AND" || type == "OR" || type == "XOR" || type == "NOT") {
         return evaluateLogical(condition, data);
     }
@@ -66,6 +68,59 @@ bool FilterHelper::evaluateComparison(std::string condition, std::string raw) {
         rightValue = evaluateOtherTypes(predicate["right"].dump());
 
     }
+
+    string op = predicate["operator"];
+
+    return std::visit([&op](auto&& lhs, auto&& rhs) -> bool {
+        using LType = std::decay_t<decltype(lhs)>;
+        using RType = std::decay_t<decltype(rhs)>;
+
+        if constexpr (std::is_same_v<LType, RType>) {
+            if (op == "==") return lhs == rhs;
+            if (op == "<>") return lhs != rhs;
+            if constexpr (std::is_arithmetic_v<LType>) {
+                if (op == "<") return lhs < rhs;
+                if (op == ">") return lhs > rhs;
+                if (op == "<=") return lhs <= rhs;
+                if (op == ">=") return lhs >= rhs;
+            }
+        }
+
+        return false; // Default if types are incompatible
+    }, leftValue, rightValue);
+    return false;
+}
+
+bool FilterHelper::evaluatePredicateExpression(std::string condition, std::string raw) {
+    json predicate = json::parse(condition);
+    json data = json::parse(raw);
+    if (!typeCheck(predicate["left"]["type"], predicate["right"]["type"])) {
+        return false;
+    }
+
+    ValueType leftValue;
+    ValueType rightValue;
+
+    if (predicate["left"]["type"] == "VARIABLE" && predicate["right"]["type"] == "VARIABLE") {
+        string left = predicate["left"]["value"];
+        string right = predicate["right"]["value"];
+        return evaluateNodes(data[left].dump(),
+                             data[right].dump());
+    }
+
+    if (predicate["left"]["type"] == "PROPERTY_LOOKUP") {
+        std::string variable = predicate["left"]["variable"];
+        leftValue = evaluatePropertyLookup(predicate["left"].dump(),
+                                           data[variable].dump(), predicate["right"]["type"]);
+    } else if (predicate["left"]["type"] == Const::FUNCTION) {
+        leftValue = evaluateFunction(predicate["left"].dump(),
+                                     data.dump(), predicate["right"]["type"]);
+    } else {
+        // only evaluating string, decimal, boolean, null for now
+        leftValue = evaluateOtherTypes(predicate["left"].dump());
+
+    }
+    rightValue = evaluateOtherTypes(predicate["right"].dump());
 
     string op = predicate["operator"];
 
@@ -178,7 +233,8 @@ ValueType FilterHelper::evaluatePropertyLookup(std::string property, std::string
             if (lowerValue == "false") return false;
             throw invalid_argument("Invalid boolean format");
         } else if (type == "NULL") {
-            return "null";
+            if (value == "null") return "null";
+            return value;
         } else if ("PROPERTY_LOOKUP") {
             return value;
         }
@@ -238,7 +294,7 @@ ValueType FilterHelper::evaluateOtherTypes(std::string data) {
     } else if (val["type"] == "BOOLEAN") {
         return val["value"] == "TRUE";
     } else if (val["type"] == "NULL") {
-        return "";
+        return "null";
     }
     return "";
 }
