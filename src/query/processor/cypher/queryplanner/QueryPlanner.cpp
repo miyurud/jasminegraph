@@ -138,11 +138,10 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
 
     }else if(ast->nodeType == Const::RETURN_BODY)
     {
-        vector<ASTNode*> var;
+        vector<ASTNode*> var = ast->elements;
         if(isAllChildAreGivenType(Const::VARIABLE, ast))
         {
-            var = ast->elements;
-            return new ProduceResults(oprtr, var);
+            return new ProduceResults(op, var);
         }
 
         vector<ASTNode*> nonArith = getSubTreeListByNodeType(ast,Const::NON_ARITHMETIC_OPERATOR);
@@ -173,9 +172,6 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
         }
 
         return new ProduceResults(temp_opt, vector<ASTNode*>(ast->elements));
-
-
-
     }else if(ast->nodeType == Const::ORDERED_BY)
     {
 
@@ -631,7 +627,6 @@ ASTNode* QueryPlanner::verifyTreeType(ASTNode* root, string nodeType)
         return nullptr;
     }
 }
-
 
 pair<vector<bool>, vector<ASTNode *>> QueryPlanner::getRelationshipDetails(ASTNode *node) {
     vector<bool> availability = {false,false,false};
