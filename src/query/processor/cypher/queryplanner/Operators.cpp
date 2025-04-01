@@ -70,12 +70,24 @@ ProduceResults::ProduceResults(Operator* opr, vector<ASTNode*> item) : item(item
 string ProduceResults::execute() {
     json produceResult;
     produceResult["Operator"] = "ProduceResult";
+    produceResult["variable"] = json::array();
     if(op){
         produceResult["NextOperator"] = op->execute();
     }
-    produceResult["variable"] = json::array();
-    for (auto* e : item) {
-        produceResult["variable"].push_back(e->value);
+
+    for(auto* result: item)
+    {
+        if (result->nodeType == Const::AS)
+        {
+            produceResult["variable"].push_back(result->elements[1]->value);
+        }
+        else if (result->nodeType == Const::NON_ARITHMETIC_OPERATOR)
+        {
+            produceResult["variable"].push_back(result->elements[0]->value + "." + result->elements[1]->elements[0]->value);
+        }else if (result->nodeType == Const::VARIABLE)
+        {
+            produceResult["variable"].push_back(result->value);
+        }
     }
     return produceResult.dump();
 }
@@ -226,12 +238,39 @@ string Filter::execute() {
 Projection::Projection(Operator* input, const vector<ASTNode*> columns) : input(input), columns(columns) {}
 
 string Projection::execute() {
-    input->execute();
-    cout<<"Projection"<<endl;
-    for (auto* col : columns) {
-        cout << col->print() << endl;
+    json projection;
+    if (input) {
+        projection["NextOperator"] = input->execute();
     }
-    return "";
+    projection["Operator"] = "Projection";
+    projection["project"] = json::array(); // Initialize as an empty array
+
+    for (auto* ast : columns) {
+        cout << "Projection::::" <<ast->print() <<endl;
+        json operand;
+
+        if (ast->nodeType == Const::NON_ARITHMETIC_OPERATOR) {
+            string variable = ast->elements[0]->value;
+            string property = ast->elements[1]->elements[0]->value;
+            operand["Type"] = Const::PROPERTY_LOOKUP;
+            operand["variable"] = variable;
+            operand["property"] = property;
+            operand["assign"] = variable + "." + property;
+        } else if (ast->nodeType == Const::AS) {
+            auto lookupOpr = ast->elements[0];
+            operand["Type"] = Const::PROPERTY_LOOKUP;
+            operand["variable"] = lookupOpr->elements[0]->value;
+            operand["property"] = lookupOpr->elements[1]->elements[0]->value;
+            operand["assign"] = ast->elements[1]->value;
+        } if (ast->nodeType == Const::VARIABLE)
+        {
+            continue;
+        }
+
+        projection["project"].push_back(operand); // Append operand to the array
+    }
+
+    return projection.dump(); // Print the final projection JSON with indentation
 }
 
 // Join Implementation
@@ -317,17 +356,7 @@ CacheProperty::CacheProperty(Operator* input, vector<ASTNode*> property) : prope
 
 string CacheProperty::execute()
 {
-    input->execute();
-    cout<<"CacheProperty: \n"<<endl;
-
-    int i=1;
-    for(auto* prop: property)
-    {
-        string s = prop->elements[0]->value +"."+prop->elements[1]->elements[0]->value;
-        cout<<"get property "<<i++<<" and cache here: "<<s<<endl;
-
-    }
-    return "";
+    return input->execute();;
 }
 
 UndirectedRelationshipTypeScan::UndirectedRelationshipTypeScan(string relType, string relvar, string startVar, string endVar)

@@ -47,12 +47,17 @@ void OperatorExecutor::initializeMethodMap() {
                                                     std::string jsonPlan, GraphConfig gc) {
         executor.NodeByIdSeek(buffer, jsonPlan, gc); // Ignore the unused string parameter
     };
+
+    methodMap["Projection"] = [](OperatorExecutor &executor, SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc){
+        executor.Projection(buffer, jsonPlan, gc);
+    };
 }
 
 
 void OperatorExecutor::AllNodeScan(SharedBuffer &buffer,std::string jsonPlan, GraphConfig gc) {
     json query = json::parse(jsonPlan);
     NodeManager nodeManager(gc);
+
     for (auto it : nodeManager.nodeIndex) {
         json nodeData;
         auto nodeId = it.first;
@@ -94,6 +99,7 @@ void OperatorExecutor::ProduceResult(SharedBuffer &buffer, std::string jsonPlan,
             result.join();
             break;
         }
+
         std::vector<std::string> values = query["variable"].get<std::vector<std::string>>();
         json data;
         json rawObj = json::parse(raw);
@@ -620,6 +626,55 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
                 rawObj[destVariable] = tmpData[destVariable];
                 buffer.add(rawObj.dump());
             }
+        }
+    }
+}
+
+void OperatorExecutor::Projection(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc){
+    json query = json::parse(jsonPlan);
+    SharedBuffer sharedBuffer(5);
+
+    std::string nextOpt = query["NextOperator"];
+    json next = json::parse(nextOpt);
+    auto method = OperatorExecutor::methodMap[next["Operator"]];
+
+    // Launch the method in a new thread
+    std::thread result(method, std::ref(*this), std::ref(sharedBuffer), query["NextOperator"], gc);
+    result.detach(); // Detach the thread to let it run independently
+
+    auto condition = query["project"];
+
+    if (!query.contains("project") || !query["project"].is_array()) {
+        cout << "No valid projection data available." << endl;
+        while(true) {
+            string raw = sharedBuffer.get();
+            buffer.add(raw);
+            if(raw == "-1"){
+                break;
+            }
+        }
+    } else {
+        while(true) {
+            string raw = sharedBuffer.get();
+            if(raw == "-1"){
+                buffer.add(raw);
+                break;
+            }
+            // json result;
+            cout << "Projection::::" << raw << endl;
+            auto data = json::parse(raw);
+            for (const auto& operand : query["project"]) {
+                cout << "Projection Item:: " << operand.dump() << endl;
+                for (auto& [key, value] : data.items()) {
+                    if (key == operand["variable"])
+                    {
+                        string assign = operand["assign"];
+                        string property = operand["property"];
+                        data[assign] = value[property];
+                    }
+                }
+            }
+            buffer.add(data.dump());
         }
     }
 }
