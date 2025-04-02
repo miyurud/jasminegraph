@@ -20,6 +20,9 @@ using namespace std;
 
 using json = nlohmann::json;
 
+bool Operator::isAggregate = false;
+std::string Operator::aggregateType = "";
+
 // NodeScan Implementation
 NodeScanByLabel::NodeScanByLabel(string label, string var) : label(label), var(var) {}
 
@@ -77,16 +80,21 @@ string ProduceResults::execute() {
 
     for(auto* result: item)
     {
-        if (result->nodeType == Const::AS)
-        {
+        if (result->nodeType == Const::AS) {
             produceResult["variable"].push_back(result->elements[1]->value);
-        }
-        else if (result->nodeType == Const::NON_ARITHMETIC_OPERATOR)
-        {
+        } else if (result->nodeType == Const::NON_ARITHMETIC_OPERATOR) {
             produceResult["variable"].push_back(result->elements[0]->value + "." + result->elements[1]->elements[0]->value);
-        }else if (result->nodeType == Const::VARIABLE)
-        {
+        } else if (result->nodeType == Const::VARIABLE) {
             produceResult["variable"].push_back(result->value);
+        } else if (result->nodeType == Const::FUNCTION_BODY) {
+            auto nonArithmetic = result->elements[1]->elements[0];
+            string variable = nonArithmetic->elements[0]->value;
+            string property = nonArithmetic->elements[1]->elements[0]->value;
+            produceResult["variable"].push_back(result->elements[0]->elements[1]->value
+                    + "(" + variable + "." + property + ")");
+            produceResult["variable"].push_back("variable");
+            produceResult["variable"].push_back("numberOfData");
+
         }
     }
     return produceResult.dump();
@@ -246,7 +254,6 @@ string Projection::execute() {
     projection["project"] = json::array(); // Initialize as an empty array
 
     for (auto* ast : columns) {
-        cout << "Projection::::" <<ast->print() <<endl;
         json operand;
 
         if (ast->nodeType == Const::NON_ARITHMETIC_OPERATOR) {
@@ -257,14 +264,24 @@ string Projection::execute() {
             operand["property"] = property;
             operand["assign"] = variable + "." + property;
         } else if (ast->nodeType == Const::AS) {
-            auto lookupOpr = ast->elements[0];
-            operand["Type"] = Const::PROPERTY_LOOKUP;
-            operand["variable"] = lookupOpr->elements[0]->value;
-            operand["property"] = lookupOpr->elements[1]->elements[0]->value;
+            if (ast->elements[0]->nodeType == Const::FUNCTION_BODY) {
+                auto function = ast->elements[0];
+                operand["functionName"] = function->elements[0]->elements[1]->value;
+            } else {
+                auto lookupOpr = ast->elements[0];
+                operand["Type"] = Const::PROPERTY_LOOKUP;
+                operand["variable"] = lookupOpr->elements[0]->value;
+                operand["property"] = lookupOpr->elements[1]->elements[0]->value;
+            }
             operand["assign"] = ast->elements[1]->value;
-        } if (ast->nodeType == Const::VARIABLE)
-        {
+        } else if (ast->nodeType == Const::VARIABLE){
             continue;
+        } else if (ast->nodeType == Const::FUNCTION_BODY) {
+            auto nonArithmetic = ast->elements[1]->elements[0];
+            string variable = nonArithmetic->elements[0]->value;
+            string property = nonArithmetic->elements[1]->elements[0]->value;
+            operand["functionName"] = ast->elements[0]->elements[1]->value;
+            operand["assign"] = ast->elements[0]->elements[1]->value + "(" + variable + "." + property + ")";
         }
 
         projection["project"].push_back(operand); // Append operand to the array
@@ -283,14 +300,6 @@ string Join::execute() {
     return "";
 }
 
-// Aggregation Implementation
-Aggregation::Aggregation(Operator* input, const string& aggFunction, const string& column) : input(input), aggFunction(aggFunction), column(column) {}
-
-string Aggregation::execute() {
-    input->execute();
-    cout << "Performing aggregation: " << aggFunction << " on column: " << column << endl;
-    return "";
-}
 
 // Limit Implementation
 Limit::Limit(Operator* input, int limit) : input(input), limit(limit) {}
@@ -463,5 +472,20 @@ string Apply::execute() {
 
     cout<<"Apply: result merged"<<endl;
     return "";
+}
+
+EagerFunction::EagerFunction(Operator *input, ASTNode *ast, std::string functionName):
+    input(input), ast(ast), functionName(functionName){}
+
+string EagerFunction::execute() {
+    json eagerFunction;
+    eagerFunction["Operator"] = "EagerFunction";
+    eagerFunction["NextOperator"] = input->execute();
+    eagerFunction["FunctionName"] = functionName;
+    eagerFunction["variable"] = ast->elements[0]->value;
+    eagerFunction["property"] = ast->elements[1]->elements[0]->value;
+    Operator::isAggregate = true;
+    Operator::aggregateType = "Average";
+    return eagerFunction.dump();
 }
 

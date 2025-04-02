@@ -51,13 +51,17 @@ void OperatorExecutor::initializeMethodMap() {
     methodMap["Projection"] = [](OperatorExecutor &executor, SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc){
         executor.Projection(buffer, jsonPlan, gc);
     };
+
+    methodMap["EagerFunction"] = [](OperatorExecutor &executor, SharedBuffer &buffer,
+                                   std::string jsonPlan, GraphConfig gc) {
+        executor.EargarAggregation(buffer, jsonPlan, gc); // Ignore the unused string parameter
+    };
 }
 
 
 void OperatorExecutor::AllNodeScan(SharedBuffer &buffer,std::string jsonPlan, GraphConfig gc) {
     json query = json::parse(jsonPlan);
     NodeManager nodeManager(gc);
-
     for (auto it : nodeManager.nodeIndex) {
         json nodeData;
         auto nodeId = it.first;
@@ -630,26 +634,43 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
     }
 }
 
+void OperatorExecutor::EargarAggregation(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
+    json query = json::parse(jsonPlan);
+    SharedBuffer sharedBuffer(5);
+    std::string nextOpt = query["NextOperator"];
+    json next = json::parse(nextOpt);
+    auto method = OperatorExecutor::methodMap[next["Operator"]];
+    // Launch the method in a new thread
+    std::thread result(method, std::ref(*this), std::ref(sharedBuffer), query["NextOperator"], gc);
+    AverageAggregationHelper* averageAggregationHelper =
+            new AverageAggregationHelper(query["variable"], query["property"]);
+    while(true) {
+        string raw = sharedBuffer.get();
+        if(raw == "-1"){
+            buffer.add(averageAggregationHelper->getFinalResult());
+            buffer.add(raw);
+            result.join();
+            break;
+        }
+        averageAggregationHelper->insertData(raw);
+    }
+}
+
 void OperatorExecutor::Projection(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc){
     json query = json::parse(jsonPlan);
     SharedBuffer sharedBuffer(5);
-
     std::string nextOpt = query["NextOperator"];
     json next = json::parse(nextOpt);
     auto method = OperatorExecutor::methodMap[next["Operator"]];
 
     // Launch the method in a new thread
     std::thread result(method, std::ref(*this), std::ref(sharedBuffer), query["NextOperator"], gc);
-    result.detach(); // Detach the thread to let it run independently
-
-    auto condition = query["project"];
-
     if (!query.contains("project") || !query["project"].is_array()) {
-        cout << "No valid projection data available." << endl;
         while(true) {
             string raw = sharedBuffer.get();
             buffer.add(raw);
             if(raw == "-1"){
+                result.join();
                 break;
             }
         }
@@ -658,19 +679,20 @@ void OperatorExecutor::Projection(SharedBuffer &buffer, std::string jsonPlan, Gr
             string raw = sharedBuffer.get();
             if(raw == "-1"){
                 buffer.add(raw);
+                result.join();
                 break;
             }
-            // json result;
-            cout << "Projection::::" << raw << endl;
             auto data = json::parse(raw);
             for (const auto& operand : query["project"]) {
-                cout << "Projection Item:: " << operand.dump() << endl;
                 for (auto& [key, value] : data.items()) {
-                    if (key == operand["variable"])
-                    {
+                    if (operand.contains("variable") && key == operand["variable"]) {
                         string assign = operand["assign"];
                         string property = operand["property"];
                         data[assign] = value[property];
+                    } else if (operand.contains("functionName") && key == operand["functionName"]) {
+                        string assign = operand["assign"];
+                        data["variable"] = assign;
+                        data[assign] = value;
                     }
                 }
             }

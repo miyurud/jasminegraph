@@ -22,6 +22,7 @@ class OperatorExecutor {
     void UndirectedRelationshipTypeScan(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
     void UndirectedAllRelationshipScan(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
     void NodeByIdSeek(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
+    void EargarAggregation(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
     void Projection(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
     string masterIP;
     string  queryPlan;

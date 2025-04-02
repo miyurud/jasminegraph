@@ -46,5 +46,18 @@ class ExpandAllHelper {
     static string generateSubQuery(string startVar, string destVar, string relVar, string id, string relType = "");
 };
 
+class AverageAggregationHelper {
+ public:
+    AverageAggregationHelper(string variable, string property): variable(variable), property(property){};
+    void insertData(string data);
+    string getFinalResult();
+ private:
+    string variable;
+    string property;
+    int numberOfData = 0;
+    float  localAverage = 0.0f;
+};
+
+
 
 #endif //JASMINEGRAPH_HELPERS_H

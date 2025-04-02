@@ -163,6 +163,16 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
             }
         }
 
+        if (isAvailable(Const::FUNCTION_BODY, ast)) {
+            auto functions = getSubTreeListByNodeType(ast, Const::FUNCTION_BODY);
+            for (auto func : functions) {
+                string name = func->elements[0]->elements[1]->value;
+                if (name == "avg" || name == "AVG") {
+                    temp_opt = new EagerFunction(temp_opt, func->elements[1]->elements[0], name);
+                }
+            }
+        }
+
         if(temp_opt!=nullptr)
         {
             temp_opt = new Projection(temp_opt, ast->elements);

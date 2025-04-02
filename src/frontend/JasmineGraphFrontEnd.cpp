@@ -57,6 +57,8 @@ limitations under the License.
 #include "../localstore/incremental/JasmineGraphIncrementalLocalStore.h"
 #include "../server/JasmineGraphInstanceService.h"
 #include "../query/processor/cypher/util/SharedBuffer.h"
+#include "../query/processor/cypher/runtime/AggregationFactory.h"
+#include "../query/processor/cypher/runtime/Aggregation.h"
 #include "../partitioner/stream/Partitioner.h"
 
 
@@ -475,7 +477,7 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
 
     ASTBuilder ast_builder;
     auto* ast = any_cast<ASTNode*>(ast_builder.visitOC_Cypher(parser.oC_Cypher()));
-
+    frontend_logger.info(ast->print());
     SemanticAnalyzer semantic_analyzer;
     string obj;
     if (semantic_analyzer.analyze(ast)) {
@@ -501,18 +503,35 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
 //    result_wr = write(connFd, "\r\n", 2);
 
     int closeFlag = 0;
-    while(true){
-        if (closeFlag == numberOfPartitions) {
-            break;
+    if (Operator::isAggregate) {
+        Aggregation* aggregation = AggregationFactory::getAggregationMethod(AggregationFactory::AVERAGE);
+        while(true){
+            if (closeFlag == numberOfPartitions) {
+                break;
+            }
+            std::string data = sharedBuffer.get();
+            if (data == "-1") {
+                closeFlag++;
+            } else {
+                aggregation->insert(data);
+            }
         }
-        std::string data = sharedBuffer.get();
-        if (data == "-1") {
-            closeFlag++;
-        } else {
-            result_wr = write(connFd, data.c_str(), data.length());
-            result_wr = write(connFd, "\r\n", 2);
+        aggregation->getResult(connFd);
+    } else {
+        while(true){
+            if (closeFlag == numberOfPartitions) {
+                break;
+            }
+            std::string data = sharedBuffer.get();
+            if (data == "-1") {
+                closeFlag++;
+            } else {
+                result_wr = write(connFd, data.c_str(), data.length());
+                result_wr = write(connFd, "\r\n", 2);
+            }
         }
     }
+
 }
 
 static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {

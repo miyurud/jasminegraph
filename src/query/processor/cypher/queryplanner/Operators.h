@@ -24,6 +24,8 @@ using namespace std;
 class Operator {
 public:
     virtual ~Operator() = default;
+    static bool isAggregate;
+    static string aggregateType;
     virtual string execute() = 0; // Pure virtual function to be implemented by derived classes
 };
 
@@ -132,18 +134,6 @@ private:
     Operator* left;
     Operator* right;
     string joinCondition;
-};
-
-// Aggregation Operator
-class Aggregation : public Operator {
-public:
-    Aggregation(Operator* input, const string& aggFunction, const string& column);
-    string execute() override;
-
-private:
-    Operator* input;
-    string aggFunction;
-    string column;
 };
 
 // Limit Operator
@@ -279,6 +269,18 @@ public:
 private:
     Operator* opr1;
     Operator* opr2;
+};
+
+class EagerFunction : public Operator {
+public:
+    // Constructor
+    EagerFunction(Operator* input, ASTNode* ast, string functionName);
+    string execute() override;
+
+private:
+    Operator* input;
+    ASTNode* ast;
+    string functionName;
 };
 
 string printDownArrow(int width);

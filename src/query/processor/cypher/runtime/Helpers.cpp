@@ -330,3 +330,18 @@ string ExpandAllHelper::generateSubQuery(std::string startVar, std::string destV
     return "match ("+startVar+")-["+relVar+":"+relType+"]-("+destVar+") where id("
             +startVar+") = "+id+" return "+relVar+","+destVar;
 }
+
+void AverageAggregationHelper::insertData(std::string data) {
+    json rawObj = json::parse(data);
+    string value = rawObj[this->variable][this->property];
+    float property = stof(value);
+    this->numberOfData++;
+    this->localAverage = (this->localAverage * (this->numberOfData - 1) + property) / this->numberOfData;
+}
+
+string AverageAggregationHelper::getFinalResult() {
+    json data;
+    data["avg"] = this->localAverage;
+    data["numberOfData"] = this->numberOfData;
+    return data.dump();
+}
