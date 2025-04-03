@@ -90,6 +90,8 @@ set(HEADERS globals.h
         src/nativestore/MetaPropertyLink.h
         src/nativestore/MetaPropertyEdgeLink.h
         src/query/processor/cypher/runtime/Helpers.h
+        src/query/processor/cypher/runtime/Aggregation.h
+        src/query/processor/cypher/runtime/AggregationFactory.h
 )
 
 set(SOURCES src/backend/JasmineGraphBackend.cpp
@@ -173,10 +175,11 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/query/processor/cypher/util/SharedBuffer.cpp
         src/nativestore/MetaPropertyLink.cpp
         src/nativestore/MetaPropertyEdgeLink.cpp
-
         src/nativestore/MetaPropertyLink.cpp
         src/nativestore/MetaPropertyEdgeLink.cpp
         src/query/processor/cypher/runtime/Helpers.cpp
+        src/query/processor/cypher/runtime/Aggregation.cpp
+        src/query/processor/cypher/runtime/AggregationFactory.cpp
 
 )
 
