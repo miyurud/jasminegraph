@@ -47,6 +47,18 @@ void NodeBlock::setLabel(const char *_label) {
     strcpy(this->label, _label);
 }
 
+void NodeBlock::addLabel(char *label) {
+    if (this->label == this->id && strlen(label) != 0) {
+        std::strcpy(this->label, label);
+        NodeBlock::nodesDB->seekp(this->addr +sizeof(this->usage) +sizeof(this->nodeId) + sizeof(this->edgeRef) +
+                                  sizeof(this->centralEdgeRef) + sizeof(this->edgeRefPID) + sizeof(this->propRef) +
+                                  sizeof(this->metaPropRef));
+        NodeBlock::nodesDB->write(this->label, sizeof(this->label));
+        NodeBlock::nodesDB->flush();
+    }
+
+}
+
 void NodeBlock::save() {
     //    pthread_mutex_lock(&lockSaveNode);
     char _label[PropertyLink::MAX_VALUE_SIZE] = {0};
@@ -64,7 +76,7 @@ void NodeBlock::save() {
     NodeBlock::nodesDB->put(this->edgeRefPID);                                                                  // 1
     NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(this->propRef)), sizeof(this->propRef));                // 4
     NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(this->metaPropRef)), sizeof(this->metaPropRef));        // 4
-    NodeBlock::nodesDB->write(this->label, sizeof(this->label));                                                // 6
+    NodeBlock::nodesDB->write(this->label, sizeof(this->label));                                                // 18
     NodeBlock::nodesDB->flush();  // Sync the file with in-memory stream
     //    pthread_mutex_unlock(&lockSaveNode);
 
@@ -450,7 +462,7 @@ NodeBlock* NodeBlock::get(unsigned int blockAddress) {
     node_block_logger.debug("Length of label = " + std::to_string(strlen(label)));
     node_block_logger.debug("edgeRef = " + std::to_string(edgeRef));
     if (strlen(label) != 0) {
-        id = std::string(label);
+        id = std::to_string(nodeId);
     }
     nodeBlockPointer =
         new NodeBlock(id, nodeId, blockAddress, propRef, metaPropRef, edgeRef,

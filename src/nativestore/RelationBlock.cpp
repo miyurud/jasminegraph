@@ -31,11 +31,9 @@ RelationBlock* RelationBlock::addLocalRelation(NodeBlock source, NodeBlock desti
 
     sourceData.address = source.addr;
     destinationData.address = destination.addr;
-
-    //    unsigned int relationPropAddr = this;
-
+    
     long relationBlockAddress = RelationBlock::nextLocalRelationIndex *
-            RelationBlock::BLOCK_SIZE;  // Block size is 4 * 13
+            RelationBlock::BLOCK_SIZE;  // Block size is 4 * 13 + 18
 
     RelationBlock::relationsDB->seekg(relationBlockAddress);
     if (!RelationBlock::relationsDB->write(reinterpret_cast<char*>(&source.nodeId), RECORD_SIZE)) {
@@ -126,9 +124,17 @@ RelationBlock* RelationBlock::addLocalRelation(NodeBlock source, NodeBlock desti
         return NULL;
     }
 
+    if (!RelationBlock::relationsDB->write(reinterpret_cast<char*>(&(this->type)), MAX_TYPE_SIZE)) {
+        relation_block_logger.error("ERROR: Error while writing relation type " +
+                                    this->type + " into relation block address " +
+                                    std::to_string(relationBlockAddress));
+        return NULL;
+    }
+
     RelationBlock::nextLocalRelationIndex += 1;
     RelationBlock::relationsDB->flush();
-    return new RelationBlock(relationBlockAddress, sourceData, destinationData, this->propertyAddress);
+    return new RelationBlock(relationBlockAddress, sourceData, destinationData,
+                             this->propertyAddress, this->type);
 }
 
 RelationBlock* RelationBlock::addCentralRelation(NodeBlock source, NodeBlock destination) {
@@ -243,10 +249,17 @@ RelationBlock* RelationBlock::addCentralRelation(NodeBlock source, NodeBlock des
         return NULL;
     }
 
+    if (!RelationBlock::centralRelationsDB->write(reinterpret_cast<char*>(&(this->type)), MAX_TYPE_SIZE)) {
+        relation_block_logger.error("ERROR: Error while writing relation type " +
+                                    std::to_string(this->propertyAddress) + " into relation block address " +
+                                    std::to_string(relationBlockAddress));
+        return NULL;
+    }
+
     RelationBlock::nextCentralRelationIndex += 1;
     RelationBlock::centralRelationsDB->flush();
     return new RelationBlock(relationBlockAddress, sourceData, destinationData,
-                             this->propertyAddress, this->metaPropertyAddress);
+                             this->propertyAddress, this->metaPropertyAddress, this->type);
 }
 
 RelationBlock* RelationBlock::getLocalRelation(unsigned int address) {
@@ -262,6 +275,7 @@ RelationBlock* RelationBlock::getLocalRelation(unsigned int address) {
     NodeRelation source;
     NodeRelation destination;
     unsigned int propertyReference;
+    char type[RelationBlock::MAX_TYPE_SIZE] = {0};
 
     RelationBlock::relationsDB->read(reinterpret_cast<char*>(&source.address),
                                      RECORD_SIZE);  // < ------ relation data offset ID = 0
@@ -354,7 +368,14 @@ RelationBlock* RelationBlock::getLocalRelation(unsigned int address) {
         return NULL;
     }
 
-    return new RelationBlock(address, source, destination, propertyReference);
+    if (!RelationBlock::relationsDB->read(reinterpret_cast<char*>(&type),
+                                          RelationBlock::MAX_TYPE_SIZE)) {  // < ------ relation data offset ID = 10
+        relation_block_logger.error(
+                "ERROR: Error while reading local relation property address data "
+                "offset ID = 10 from relation block address " + std::to_string(address));
+        return NULL;
+    }
+    return new RelationBlock(address, source, destination, propertyReference, type);
 }
 
 RelationBlock* RelationBlock::getCentralRelation(unsigned int address) {
@@ -372,6 +393,7 @@ RelationBlock* RelationBlock::getCentralRelation(unsigned int address) {
     NodeRelation destination;
     unsigned int propertyReference;
     unsigned int metaPropertyReference;
+    char type[RelationBlock::MAX_TYPE_SIZE] = {0};
 
     RelationBlock::centralRelationsDB->read(reinterpret_cast<char*>(&source.address),
                                             RECORD_SIZE);  // < ------ relation data offset ID = 0
@@ -472,8 +494,16 @@ RelationBlock* RelationBlock::getCentralRelation(unsigned int address) {
         return NULL;
     }
 
+    if (!RelationBlock::centralRelationsDB->read(reinterpret_cast<char*>(&type),
+                                          RelationBlock::MAX_TYPE_SIZE)) {  // < ------ relation data offset ID = 10
+        relation_block_logger.error(
+                "ERROR: Error while reading local relation property address data "
+                "offset ID = 10 from relation block address " + std::to_string(address));
+        return NULL;
+    }
+
     return new RelationBlock(address, source, destination, propertyReference,
-                             metaPropertyReference);
+                             metaPropertyReference, type);
 }
 
 RelationBlock* RelationBlock::nextLocalSource() {
@@ -628,6 +658,38 @@ bool RelationBlock::updateCentralRelationRecords(RelationOffsets recordOffset, u
     return true;
 }
 
+bool RelationBlock::updateLocalRelationshipType(int offset, std::string data) {
+    int offsetValue = static_cast<int>(offset);
+    int dataOffset = RECORD_SIZE * offsetValue;
+    RelationBlock::centralRelationsDB->seekg(this->addr + dataOffset);
+    char type[RelationBlock::MAX_TYPE_SIZE] = {0};
+    std::memcpy(type, data.c_str(),
+                MAX_TYPE_SIZE);
+    if (!RelationBlock::relationsDB->write(reinterpret_cast<char*>(&type), MAX_TYPE_SIZE)) {
+        relation_block_logger.error("Error while updating relation data record offset " + std::to_string(offsetValue) +
+                                    "data " + data);
+        return false;
+    }
+    RelationBlock::relationsDB->flush();
+    return true;
+}
+
+bool RelationBlock::updateCentralRelationshipType(int offset, std::string data) {
+    int offsetValue = static_cast<int>(offset);
+    int dataOffset = RECORD_SIZE * offsetValue;
+    RelationBlock::centralRelationsDB->seekg(this->addr + dataOffset);
+    char type[RelationBlock::MAX_TYPE_SIZE] = {0};
+    std::memcpy(type, data.c_str(),
+                MAX_TYPE_SIZE);
+    if (!RelationBlock::centralRelationsDB->write(reinterpret_cast<char*>(&type), MAX_TYPE_SIZE)) {
+        relation_block_logger.error("Error while updating relation data record offset " + std::to_string(offsetValue) +
+                                    "data " + data);
+        return false;
+    }
+    RelationBlock::centralRelationsDB->flush();
+    return true;
+}
+
 bool RelationBlock::isInUse() { return this->usage == '\1'; }
 thread_local unsigned int RelationBlock::nextLocalRelationIndex =
         1;  // Starting with 1 because of the 0 and '\0' differentiation issue
@@ -686,6 +748,51 @@ void RelationBlock::addMetaProperty(std::string name, char *value) {
     }
 }
 
+void RelationBlock::addLocalRelationshipType(char *value) {
+    if (this->type == DEFAULT_TYPE) {
+        this->updateLocalRelationshipType(RelationBlock::LOCAL_RELATIONSHIP_TYPE_OFFSET,
+                                               value);
+    } else {
+        relation_block_logger.info("Relation type is already set to " + this->type);
+    }
+}
+
+void RelationBlock::addCentralRelationshipType(char *value) {
+    if (this->type == DEFAULT_TYPE) {
+        this->updateCentralRelationshipType(RelationBlock::CENTRAL_RELATIONSHIP_TYPE_OFFSET,
+                                          value);
+    } else {
+        relation_block_logger.info("Relation type is already set to " + this->type);
+    }
+}
+
+std::string RelationBlock::getLocalRelationshipType() {
+    int address = this->addr;
+    RelationBlock::relationsDB->seekg(address + RelationBlock::LOCAL_RELATIONSHIP_TYPE_OFFSET*RelationBlock::RECORD_SIZE);
+    char type[RelationBlock::MAX_TYPE_SIZE] = {0};
+    if (!RelationBlock::relationsDB->read(reinterpret_cast<char*>(&type), RelationBlock::MAX_TYPE_SIZE)) {
+        relation_block_logger.error("Error while reading local relation type from " +
+                                    std::to_string(address));
+        return "";
+    }
+    std::string relationType(type);
+    return relationType;
+}
+
+std::string RelationBlock::getCentralRelationshipType() {
+    int address = this->addr;
+    RelationBlock::centralRelationsDB->seekg(address + RelationBlock::CENTRAL_RELATIONSHIP_TYPE_OFFSET*RelationBlock::RECORD_SIZE);
+    char type[RelationBlock::MAX_TYPE_SIZE] = {0};
+    if (!RelationBlock::centralRelationsDB->read(reinterpret_cast<char*>(&type), RelationBlock::MAX_TYPE_SIZE)) {
+        relation_block_logger.error("Error while reading local relation type from " +
+                                    std::to_string(address));
+        return "";
+    }
+    std::string relationType(type);
+    return relationType;
+}
+
+
 PropertyEdgeLink* RelationBlock::getPropertyHead() { return PropertyEdgeLink::get(this->propertyAddress); }
 
 MetaPropertyEdgeLink *RelationBlock::getMetaPropertyHead() {
@@ -730,9 +837,10 @@ NodeBlock* RelationBlock::getDestination() {
 }
 
 thread_local const unsigned long RelationBlock::BLOCK_SIZE = RelationBlock::RECORD_SIZE *
-        RelationBlock::NUMBER_OF_LOCAL_RELATION_RECORDS;
+        RelationBlock::NUMBER_OF_LOCAL_RELATION_RECORDS + RelationBlock::MAX_TYPE_SIZE;
 thread_local const unsigned long RelationBlock::CENTRAL_BLOCK_SIZE = RelationBlock::RECORD_SIZE *
-        RelationBlock::NUMBER_OF_CENTRAL_RELATION_RECORDS;
+        RelationBlock::NUMBER_OF_CENTRAL_RELATION_RECORDS + RelationBlock::MAX_TYPE_SIZE;
+const std::string RelationBlock::DEFAULT_TYPE = "DEFAULT";
 
 // One relation block holds 11 recods such as source addres, destination address, source next relation address etc.
 // and one record is typically 4 bytes (size of unsigned int)
