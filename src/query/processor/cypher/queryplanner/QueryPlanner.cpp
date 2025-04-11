@@ -18,8 +18,8 @@ limitations under the License.
 #include "../astbuilder/ASTInternalNode.h"
 #include "../astbuilder/ASTNode.h"
 
-Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string var) {
-
+Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string var)
+{
     Operator* oprtr = op;
     // Example: Create a simple execution plan based on the AST
     if(ast->nodeType == Const::UNION)
@@ -61,7 +61,7 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
                     string id = a->elements[1]->elements[0]->value;
                     string variable = a->elements[0]->elements[1]->elements[0]->value;
                     oprtr = new NodeByIdSeek(id, variable);
-                }
+                    }
             }
         }
 
@@ -132,15 +132,36 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
         oprtr = createExecutionPlan(ast->elements[0],oprtr);
     }else if(ast->nodeType == Const::RETURN)
     {
-        oprtr = createExecutionPlan(ast->elements[0],oprtr);
+        for (auto * node: ast->elements) {
+            if (node->nodeType == Const::DISTINCT) {
+                oprtr = createExecutionPlan(node->elements[0],oprtr, "distinct");
+            } else if (node->nodeType == Const::ORDERED_BY) {
+                auto temp = static_cast<ProduceResults*>(oprtr);
+                oprtr = new OrderBy(temp->getOperator(), node->elements[0]);
+                temp->setOperator(oprtr);
+                oprtr = temp;
+            } else if (node->nodeType == Const::LIMIT) {
+                auto temp = static_cast<ProduceResults*>(oprtr);
+                oprtr = new Limit(temp->getOperator(), node->elements[0]);
+                temp->setOperator(oprtr);
+                oprtr = temp;
+            } else if (node->nodeType == Const::SKIP) {
+                auto temp = static_cast<ProduceResults*>(oprtr);
+                oprtr = new Skip(temp->getOperator(), node->elements[0]);
+                temp->setOperator(oprtr);
+                oprtr = temp;
+            } else if (node->nodeType == Const::RETURN_BODY) {
+                oprtr = createExecutionPlan(node, oprtr);
+            }
+        }
     }else if(ast->nodeType == Const::DISTINCT)
     {
 
     }else if(ast->nodeType == Const::RETURN_BODY)
     {
-        vector<ASTNode*> var = ast->elements;
         if(isAllChildAreGivenType(Const::VARIABLE, ast))
         {
+            vector<ASTNode*> var = ast->elements;
             return new ProduceResults(op, var);
         }
 
@@ -175,10 +196,22 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
 
         if(temp_opt!=nullptr)
         {
-            temp_opt = new Projection(temp_opt, ast->elements);
+            if (var == "distinct")
+            {
+                temp_opt = new Distinct(temp_opt, ast->elements);
+            }else
+            {
+                temp_opt = new Projection(temp_opt, ast->elements);
+            }
         }else
         {
-            temp_opt = new Projection(oprtr, ast->elements);
+            if (var == "distinct")
+            {
+                temp_opt = new Distinct(oprtr, ast->elements);
+            }else
+            {
+                temp_opt = new Projection(oprtr, ast->elements);
+            }
         }
 
         return new ProduceResults(temp_opt, vector<ASTNode*>(ast->elements));

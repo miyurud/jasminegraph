@@ -11,6 +11,8 @@
 class AggregationFactory {
  public:
     static const string AVERAGE;
+    static const string DESC;
+    static const string ASC;
     static Aggregation* getAggregationMethod(string type);
 };
 

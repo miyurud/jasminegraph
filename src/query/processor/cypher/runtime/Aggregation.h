@@ -25,5 +25,12 @@ class AverageAggregation : public Aggregation {
     void insert(string data) override;
 };
 
+class DescAggregation : public Aggregation {
+public:
+
+    void getResult(int connFd) override;
+    void insert(string data) override;
+};
+
 
 #endif //JASMINEGRAPH_AGGREGATION_H

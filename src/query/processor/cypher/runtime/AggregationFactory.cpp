@@ -5,6 +5,8 @@
 #include "AggregationFactory.h"
 
 const string AggregationFactory::AVERAGE = "Average";
+const string AggregationFactory::DESC = "DESC";
+const string AggregationFactory::ASC = "ASC";
 
 Aggregation* AggregationFactory::getAggregationMethod(std::string type) {
     if (type == AVERAGE) {

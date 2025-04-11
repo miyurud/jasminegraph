@@ -959,13 +959,13 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
     delete[] workerThreads;
 }
 
-void JasmineGraphServer::sendQueryPlan(int graphID, int numberOfPartitions, string queryPlan, SharedBuffer &sharedBuffer){
+void JasmineGraphServer::sendQueryPlan(int graphID, int numberOfPartitions, string queryPlan, std::vector<SharedBuffer> &bufferPool){
     const auto &workerList = getWorkers(numberOfPartitions);
     std::thread *workerThreads = new std::thread[numberOfPartitions];
     int count = 0;
     for(auto worker: workerList){
         workerThreads[count++] = std::thread(queryDataCommunicator, worker.hostname, worker.port,
-                                             masterHost, graphID, count, queryPlan, std::ref(sharedBuffer));
+                                             masterHost, graphID, count, queryPlan, std::ref(bufferPool[count]));
     }
 }
 
