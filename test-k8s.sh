@@ -54,12 +54,103 @@ build_and_run_on_k8s() {
         --DATA_PATH "${TEST_ROOT}/env/data" \
         --LOG_PATH "${LOG_DIR}" \
         --AGGREGATE_PATH "${TEST_ROOT}/env/aggregate" \
+        --CONFIG_DIRECTORY_PATH "${TEST_ROOT}/env/config" \
         --NO_OF_WORKERS 2 \
         --ENABLE_NMON false
 }
 
 clear_resources() {
     ./start-k8s.sh clean
+
+    # Clean hdfs related docker containers
+    if [ ! -z "$(docker ps -a -q)" ]; then
+        docker ps -a -q | xargs docker rm -f &>/dev/null
+    else
+        echo "No containers to stop and remove."
+    fi
+    docker run -v '/tmp/jasminegraph:/tmp/jasminegraph' --entrypoint /bin/bash jasminegraph:test -c 'rm -rf /tmp/jasminegraph/*' || echo 'Not removing existing tmp logs'
+    if [ ! -z "$(docker ps -a -q)" ]; then
+        docker ps -a -q | xargs docker rm -f &>/dev/null
+    fi
+
+}
+
+ready_hdfs() {
+
+    echo "Starting HDFS using Docker Compose..."
+    docker compose -f "${TEST_ROOT}/docker-compose-k8s-hdfs.yaml" up >"$RUN_LOG" 2>&1 &
+
+    echo "Waiting for Hadoop Namenode to be ready..."
+    while ! curl -s http://localhost:9870 &>/dev/null; do
+        echo "Hadoop Namenode is not ready yet. Retrying in 5 seconds..."
+        sleep 5
+    done
+    echo "Hadoop Namenode is ready."
+
+    echo "Checking and exiting safe mode if necessary..."
+    if docker exec -i hdfs-namenode hadoop dfsadmin -safemode get | grep -q "Safe mode is ON"; then
+        echo "Exiting safe mode..."
+        docker exec -i hdfs-namenode hadoop dfsadmin -safemode leave || {
+            echo "Error exiting safe mode."
+            return 1
+        }
+    else
+        echo "Namenode is not in safe mode."
+    fi
+
+    echo "Fetching JasmineGraph Master pod name..."
+    MASTER_POD=$(kubectl get pods | grep jasminegraph-master | awk '{print $1}')
+    if [[ -z ${MASTER_POD} ]]; then
+        echo "Error: JasmineGraph Master pod not found."
+        return 1
+    fi
+    echo "Master pod found: ${MASTER_POD}"
+
+    FILE_NAME="powergrid.dl"
+    LOCAL_DIRECTORY="/var/tmp/data/"
+    LOCAL_FILE_PATH="${LOCAL_DIRECTORY}${FILE_NAME}"
+    HDFS_DIRECTORY="/home/"
+    HDFS_FILE_PATH="${HDFS_DIRECTORY}${FILE_NAME}"
+
+    echo "Ensuring local directory exists..."
+    mkdir -p "${LOCAL_DIRECTORY}" || {
+        echo "Error creating local directory."
+        return 1
+    }
+
+    echo "Copying file from JasmineGraph Master pod..."
+    kubectl cp "${MASTER_POD}:${LOCAL_FILE_PATH}" "${LOCAL_FILE_PATH}" || {
+        echo "Error copying file from JasmineGraph Master pod."
+        return 1
+    }
+
+    echo "Fetching HDFS Namenode container name..."
+    NAMENODE_CONTAINER=$(docker ps --format '{{.Names}}' | grep namenode)
+    if [[ -z ${NAMENODE_CONTAINER} ]]; then
+        echo "Error: HDFS Namenode container not found."
+        return 1
+    fi
+    echo "Namenode container found: ${NAMENODE_CONTAINER}"
+
+    docker exec -i "${NAMENODE_CONTAINER}" mkdir -p "${LOCAL_DIRECTORY}"
+
+    echo "Copying file to HDFS Namenode container..."
+    docker cp "${LOCAL_FILE_PATH}" "${NAMENODE_CONTAINER}:${LOCAL_FILE_PATH}" || {
+        echo "Error copying file to Namenode container."
+        return 1
+    }
+
+    echo "Uploading file to HDFS..."
+    docker exec -i "${NAMENODE_CONTAINER}" hdfs dfs -mkdir -p "${HDFS_DIRECTORY}" || {
+        echo "Error creating HDFS directory."
+        return 1
+    }
+    docker exec -i "${NAMENODE_CONTAINER}" hdfs dfs -put -f "${LOCAL_FILE_PATH}" "${HDFS_FILE_PATH}" || {
+        echo "Error uploading file to HDFS."
+        return 1
+    }
+
+    echo "File successfully uploaded to HDFS at ${HDFS_FILE_PATH}"
 }
 
 cd "$TEST_ROOT"
@@ -68,6 +159,7 @@ cp -r env_init env
 
 cd "$PROJECT_ROOT"
 build_and_run_on_k8s
+ready_hdfs
 
 # Wait till JasmineGraph server start listening
 cur_timestamp="$(date +%s)"
