@@ -90,7 +90,7 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
 
     }else if(ast->nodeType == Const::CREATE)
     {
-
+        return new Create(oprtr, ast);
     }else if(ast->nodeType == Const::MULTIPLE_SET)
     {
 
@@ -204,8 +204,13 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
         return new Filter(op, vec);
     }else if(ast->nodeType == Const::PATTERN)
     {
-        return createExecutionPlan(ast->elements[0],oprtr);
-
+        auto* leftOperator = createExecutionPlan(ast->elements[0],oprtr);
+        for (int i = 1; i < ast->elements.size(); i++)
+        {
+            auto* rightOperator = createExecutionPlan(ast->elements[i],oprtr);
+            leftOperator = new CartesianProduct(leftOperator, rightOperator);
+        }
+        return leftOperator;
     }else if(ast->nodeType == Const::PATTERN_ELEMENTS)
     {
         return pathPatternHandler(ast, oprtr);

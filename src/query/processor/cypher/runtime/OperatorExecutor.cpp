@@ -56,6 +56,16 @@ void OperatorExecutor::initializeMethodMap() {
                                    std::string jsonPlan, GraphConfig gc) {
         executor.EargarAggregation(buffer, jsonPlan, gc); // Ignore the unused string parameter
     };
+
+    methodMap["Create"] = [](OperatorExecutor &executor, SharedBuffer &buffer,
+                                    std::string jsonPlan, GraphConfig gc) {
+        executor.Create(buffer, jsonPlan, gc); // Ignore the unused string parameter
+    };
+
+    methodMap["CartesianProduct"] = [](OperatorExecutor &executor, SharedBuffer &buffer,
+                                     std::string jsonPlan, GraphConfig gc) {
+        executor.CartesianProduct(buffer, jsonPlan, gc); // Ignore the unused string parameter
+    };
 }
 
 
@@ -697,6 +707,65 @@ void OperatorExecutor::Projection(SharedBuffer &buffer, std::string jsonPlan, Gr
                 }
             }
             buffer.add(data.dump());
+        }
+    }
+}
+
+void OperatorExecutor::Create(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
+    json query = json::parse(jsonPlan);
+    SharedBuffer sharedBuffer(5);
+    std::string nextOpt = query["NextOperator"];
+    json next = json::parse(nextOpt);
+    auto method = OperatorExecutor::methodMap[next["Operator"]];
+    // Launch the method in a new thread
+    std::thread result(method, std::ref(*this), std::ref(sharedBuffer), query["NextOperator"], gc);
+    while(true) {
+        string raw = sharedBuffer.get();
+        if(raw == "-1"){
+            buffer.add(raw);
+            result.join();
+            break;
+        }
+        buffer.add(raw);
+    }
+}
+
+void OperatorExecutor::CartesianProduct(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
+    json query = json::parse(jsonPlan);
+    SharedBuffer left(5);
+    SharedBuffer right(5);
+    std::string leftOpt = query["left"];
+    std::string rightOpt = query["right"];
+    json leftJson = json::parse(leftOpt);
+    json rightJson = json::parse(rightOpt);
+    auto leftMethod = OperatorExecutor::methodMap[leftJson["Operator"]];
+    auto rightMethod = OperatorExecutor::methodMap[rightJson["Operator"]];
+    // Launch the method in a new thread
+    std::thread leftThread(leftMethod, std::ref(*this), std::ref(left), query["left"], gc);
+    while(true) {
+        string leftRaw = left.get();
+
+        if(leftRaw == "-1"){
+            buffer.add(leftRaw);
+            leftThread.join();
+            break;
+        }
+
+        std::thread rightThread(rightMethod, std::ref(*this), std::ref(right), query["right"], gc);
+
+        while(true) {
+            string rightRaw = right.get();
+            if(rightRaw == "-1"){
+                rightThread.join();
+                break;
+            }
+            json leftData = json::parse(leftRaw);
+            json rightData = json::parse(rightRaw);
+
+            for (auto& [key, value] : rightData.items()) {
+                leftData[key] = value;
+            }
+            buffer.add(leftData.dump());
         }
     }
 }

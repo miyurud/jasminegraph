@@ -146,7 +146,6 @@ string Filter::comparisonOperand(ASTNode *ast) {
         operand["type"] = ast->nodeType;
         operand["value"] = ast->value;
     }
-
     return operand.dump();
 }
 
@@ -211,32 +210,46 @@ string Filter::execute() {
         filter["NextOperator"] = input->execute();
     }
     filter["Operator"] = "Filter";
-    string condition;
     for(auto item: filterCases){
-
         if(item.second->nodeType==Const::WHERE){
-            condition = analyze(item.second->elements[0]);
+            string condition = analyze(item.second->elements[0]);
             filter["condition"] = json::parse(condition);
         }else if(item.second->nodeType==Const::PROPERTIES_MAP){
-            for(auto* prop: item.second->elements){
-                condition+=item.first+"."+prop->elements[0]->value+" = "+prop->elements[1]->value;
-                if(prop != item.second->elements.back()){
-                    condition+=" AND \n";
+            json condition;
+            if (item.second->elements.size() > 1) {
+                condition["type"] = Const::AND;
+                vector<json> comparisons;
+                for(auto* prop: item.second->elements){
+                    json comparison;
+                    json left;
+                    json right;
+                    left["type"] = Const::PROPERTY_LOOKUP;
+                    left["property"] = json::array({prop->elements[0]->value});
+                    left["variable"] = item.first;
+                    right["type"] = prop->elements[1]->nodeType;
+                    right["value"] = prop->elements[1]->value;
+                    comparison["left"] = left;
+                    comparison["operator"] = Const::DOUBLE_EQUAL;
+                    comparison["right"] = right;
+                    comparison["type"] = Const::COMPARISON;
+                    comparisons.push_back(comparison);
                 }
+                condition["comparisons"] = comparisons;
+            } else {
+                auto prop = item.second->elements[0];
+                json left;
+                json right;
+                left["type"] = Const::PROPERTY_LOOKUP;
+                left["property"] = json::array({prop->elements[0]->value});
+                left["variable"] = item.first;
+                right["type"] = prop->elements[1]->nodeType;
+                right["value"] = prop->elements[1]->value;
+                condition["left"] = left;
+                condition["operator"] = Const::DOUBLE_EQUAL;
+                condition["right"] = right;
+                condition["type"] = Const::COMPARISON;
             }
-        }else if(item.second->nodeType==Const::NODE_LABELS){
-            for(auto* prop: item.second->elements){
-                condition+=item.first+": "+prop->elements[0]->value;
-                if(prop != item.second->elements.back()){
-                    condition+=" AND \n";
-                }
-            }
-        }else if(item.second->nodeType==Const::NODE_LABEL){
-            condition = item.first+": "+item.second->elements[0]->value;
-        }
-
-        if(item != filterCases.back()){
-            condition+=" AND \n";
+            filter["condition"] = condition;
         }
     }
     return filter.dump();
@@ -487,5 +500,126 @@ string EagerFunction::execute() {
     Operator::isAggregate = true;
     Operator::aggregateType = "Average";
     return eagerFunction.dump();
+}
+
+Create::Create(Operator *input, ASTNode *ast) : ast(ast), input(input){}
+
+string Create::execute() {
+    json create;
+    if (input != nullptr) {
+        create["NextOperator"] = input->execute();
+    }
+    create["Operator"] = "Create";
+    vector<json> list;
+    for (auto* e: ast->elements[0]->elements) {
+        if (e->nodeType == Const::NODE_PATTERN) {
+            json data;
+            data["type"] = "Node";
+            for (auto* element: e->elements) {
+                if (element->nodeType == Const::NODE_LABEL) {
+                    data["label"] = element->elements[0]->value;
+                } else if (element->nodeType == Const::VARIABLE) {
+                    data["variable"] = element->value;
+                } else if (element->nodeType == Const::PROPERTIES_MAP) {
+                    map<string, string> property;
+                    for (auto* prop: element->elements) {
+                        if (prop->elements[0]->nodeType != Const::RESERVED_WORD){
+                            property.insert(pair<string, string>(prop->elements[0]->value, prop->elements[1]->value));
+                        }
+                    }
+                    data["properties"] = property;
+                }
+            }
+            list.push_back(data);
+        } else if (e->nodeType == Const::PATTERN_ELEMENTS) {
+            json data;
+            data["type"] = "Relationships";
+            vector<json> relationships;
+            json relationship;
+            json source;
+            json rel;
+            json dest;
+            for (auto* patternElement: e->elements) {
+                if (patternElement->nodeType == Const::NODE_PATTERN){
+                    for (auto* element: patternElement->elements) {
+                        if (element->nodeType == Const::NODE_LABEL) {
+                            source["label"] = element->elements[0]->value;
+                        } else if (element->nodeType == Const::VARIABLE) {
+                            source["variable"] = element->value;
+                        } else if (element->nodeType == Const::PROPERTIES_MAP) {
+                            map<string, string> property;
+                            for (auto* prop: element->elements) {
+                                if (prop->elements[0]->nodeType != Const::RESERVED_WORD){
+                                    property.insert(pair<string, string>(prop->elements[0]->value, prop->elements[1]->value));
+                                }
+                            }
+                            source["properties"] = property;
+                        }
+                    }
+                } else if (patternElement->nodeType == Const::PATTERN_ELEMENT_CHAIN) {
+                    for (auto* element: patternElement->elements[0]->elements[1]->elements) {
+                        if (element->nodeType == Const::RELATIONSHIP_TYPE) {
+                            rel["type"] = element->elements[0]->value;
+                        } else if (element->nodeType == Const::VARIABLE) {
+                            rel["variable"] = element->value;
+                        } else if (element->nodeType == Const::PROPERTIES_MAP) {
+                            map<string, string> property;
+                            for (auto* prop: element->elements) {
+                                if (prop->elements[0]->nodeType != Const::RESERVED_WORD){
+                                    property.insert(pair<string, string>(prop->elements[0]->value, prop->elements[1]->value));
+                                }
+                            }
+                            rel["properties"] = property;
+                        }
+                    }
+
+                    for (auto* element: patternElement->elements[1]->elements) {
+                        if (element->nodeType == Const::NODE_LABEL) {
+                            dest["label"] = element->elements[0]->value;
+                        } else if (element->nodeType == Const::VARIABLE) {
+                            dest["variable"] = element->value;
+                        } else if (element->nodeType == Const::PROPERTIES_MAP) {
+                            map<string, string> property;
+                            for (auto* prop: element->elements) {
+                                if (prop->elements[0]->nodeType != Const::RESERVED_WORD){
+                                    property.insert(pair<string, string>(prop->elements[0]->value, prop->elements[1]->value));
+                                }
+                            }
+                            dest["properties"] = property;
+                        }
+                    }
+
+                    if (patternElement->elements[0]->elements[0]->nodeType == Const::RIGHT_ARROW) {
+                        relationship["source"] = source;
+                        relationship["dest"] = dest;
+                        relationship["rel"] = rel;
+                    } else {
+                        relationship["source"] = dest;
+                        relationship["dest"] = source;
+                        relationship["rel"] = rel;
+                    }
+                    relationships.push_back(relationship);
+                    source.clear();
+                    rel.clear();
+                    source = dest;
+                    dest.clear();
+                }
+            }
+            data["relationships"] = relationships;
+            list.push_back(data);
+        }
+    }
+    create["elements"] = list;
+    return  create.dump();
+}
+
+CartesianProduct::CartesianProduct(Operator* left, Operator* right) : left(left), right(right) {}
+
+string CartesianProduct::execute() {
+    json cartesianProduct;
+    cartesianProduct["Operator"] = "CartesianProduct";
+    cartesianProduct["left"] = left->execute();
+    cartesianProduct["right"] = right->execute();
+    return cartesianProduct.dump();
 }
 
