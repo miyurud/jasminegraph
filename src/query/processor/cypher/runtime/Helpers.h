@@ -18,6 +18,12 @@
 #include "../semanticanalyzer/SemanticAnalyzer.h"
 #include "../queryplanner/Operators.h"
 #include "../queryplanner/QueryPlanner.h"
+#include "../../../../nativestore/NodeManager.h"
+#include "../../../../nativestore/MetaPropertyEdgeLink.h"
+#include "../../../../nativestore/RelationBlock.h"
+#include "../../../../partitioner/stream/Partitioner.h"
+#include "../../../../util/Utils.h"
+
 using namespace std;
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
@@ -58,6 +64,17 @@ class AverageAggregationHelper {
     float  localAverage = 0.0f;
 };
 
+class CreateHelper {
+ public:
+    CreateHelper(vector<json> elements, std::string partitionAlgo, GraphConfig gc);
+    void insertFromData(string data);
+    void insertWithoutData();
 
+ private:
+    GraphConfig gc;
+    vector<json> elements;
+    Partitioner* graphPartitioner;
+
+};
 
 #endif //JASMINEGRAPH_HELPERS_H

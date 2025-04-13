@@ -149,34 +149,34 @@ string Filter::comparisonOperand(ASTNode *ast) {
     return operand.dump();
 }
 
-string Filter::analyze(ASTNode* ast) {
+string Filter::analyzeWhere(ASTNode* ast) {
     json where;
     if (ast->nodeType == Const::OR) {
         where["type"] = Const::OR;
         vector<json> comparisons;
         for (auto* element: ast->elements) {
-            comparisons.push_back(json::parse(analyze(element)));
+            comparisons.push_back(json::parse(analyzeWhere(element)));
         }
         where["comparisons"] = comparisons;
     } else if(ast->nodeType == Const::AND) {
         where["type"] = Const::AND;
         vector<json> comparisons;
         for (auto* element: ast->elements) {
-            comparisons.push_back(json::parse(analyze(element)));
+            comparisons.push_back(json::parse(analyzeWhere(element)));
         }
         where["comparisons"] = comparisons;
     } else if(ast->nodeType == Const::XOR) {
         where["type"] = Const::XOR;
         vector<string> comparisons;
         for (auto* element: ast->elements) {
-            comparisons.push_back(json::parse(analyze(element)));
+            comparisons.push_back(json::parse(analyzeWhere(element)));
         }
         where["comparisons"] = comparisons;
     } else if(ast->nodeType == Const::NOT) {
         where["type"] = Const::NOT;
         vector<json> comparisons;
         for (auto* element: ast->elements) {
-            comparisons.push_back(json::parse(analyze(element)));
+            comparisons.push_back(json::parse(analyzeWhere(element)));
         }
         where["comparisons"] = comparisons;
     } else if(ast->nodeType == Const::COMPARISON) {
@@ -204,6 +204,44 @@ string Filter::analyze(ASTNode* ast) {
     return where.dump();
 }
 
+string Filter::analyzePropertiesMap(pair<std::string, ASTNode *> item) {
+    json condition;
+    if (item.second->elements.size() > 1) {
+        condition["type"] = Const::AND;
+        vector<json> comparisons;
+        for(auto* prop: item.second->elements){
+            json comparison;
+            json left;
+            json right;
+            left["type"] = Const::PROPERTY_LOOKUP;
+            left["property"] = json::array({prop->elements[0]->value});
+            left["variable"] = item.first;
+            right["type"] = prop->elements[1]->nodeType;
+            right["value"] = prop->elements[1]->value;
+            comparison["left"] = left;
+            comparison["operator"] = Const::DOUBLE_EQUAL;
+            comparison["right"] = right;
+            comparison["type"] = Const::COMPARISON;
+            comparisons.push_back(comparison);
+        }
+        condition["comparisons"] = comparisons;
+    } else {
+        auto prop = item.second->elements[0];
+        json left;
+        json right;
+        left["type"] = Const::PROPERTY_LOOKUP;
+        left["property"] = json::array({prop->elements[0]->value});
+        left["variable"] = item.first;
+        right["type"] = prop->elements[1]->nodeType;
+        right["value"] = prop->elements[1]->value;
+        condition["left"] = left;
+        condition["operator"] = Const::DOUBLE_EQUAL;
+        condition["right"] = right;
+        condition["type"] = Const::COMPARISON;
+    }
+    return condition.dump();
+}
+
 string Filter::execute() {
     json filter;
     if (input) {
@@ -212,44 +250,9 @@ string Filter::execute() {
     filter["Operator"] = "Filter";
     for(auto item: filterCases){
         if(item.second->nodeType==Const::WHERE){
-            string condition = analyze(item.second->elements[0]);
-            filter["condition"] = json::parse(condition);
+            filter["condition"] = json::parse(analyzeWhere(item.second->elements[0]));
         }else if(item.second->nodeType==Const::PROPERTIES_MAP){
-            json condition;
-            if (item.second->elements.size() > 1) {
-                condition["type"] = Const::AND;
-                vector<json> comparisons;
-                for(auto* prop: item.second->elements){
-                    json comparison;
-                    json left;
-                    json right;
-                    left["type"] = Const::PROPERTY_LOOKUP;
-                    left["property"] = json::array({prop->elements[0]->value});
-                    left["variable"] = item.first;
-                    right["type"] = prop->elements[1]->nodeType;
-                    right["value"] = prop->elements[1]->value;
-                    comparison["left"] = left;
-                    comparison["operator"] = Const::DOUBLE_EQUAL;
-                    comparison["right"] = right;
-                    comparison["type"] = Const::COMPARISON;
-                    comparisons.push_back(comparison);
-                }
-                condition["comparisons"] = comparisons;
-            } else {
-                auto prop = item.second->elements[0];
-                json left;
-                json right;
-                left["type"] = Const::PROPERTY_LOOKUP;
-                left["property"] = json::array({prop->elements[0]->value});
-                left["variable"] = item.first;
-                right["type"] = prop->elements[1]->nodeType;
-                right["value"] = prop->elements[1]->value;
-                condition["left"] = left;
-                condition["operator"] = Const::DOUBLE_EQUAL;
-                condition["right"] = right;
-                condition["type"] = Const::COMPARISON;
-            }
-            filter["condition"] = condition;
+            filter["condition"] = json::parse(analyzePropertiesMap(item));
         }
     }
     return filter.dump();

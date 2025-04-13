@@ -89,7 +89,8 @@ private:
 class Filter : public Operator {
 public:
     Filter(Operator* input, vector<pair<string,ASTNode*>> filterCases);
-    string analyze(ASTNode* ast);
+    string analyzeWhere(ASTNode* ast);
+    string analyzePropertiesMap(pair<string,ASTNode*> item);
     string comparisonOperand(ASTNode* ast);
     string execute() override;
 

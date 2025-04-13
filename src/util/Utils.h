@@ -200,6 +200,7 @@ class Utils {
     static bool sendIntExpectResponse(int sockfd, char *data, size_t data_length,
                                       int value, std::string expectMsg);
     static string getFrontendInput(int connFd);
+    static string getPartitionAlgorithm(string graphID, std::string host);
 };
 
 #endif  // JASMINEGRAPH_UTILS_H

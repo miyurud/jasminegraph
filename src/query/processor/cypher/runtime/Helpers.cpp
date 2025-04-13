@@ -345,3 +345,107 @@ string AverageAggregationHelper::getFinalResult() {
     data["numberOfData"] = this->numberOfData;
     return data.dump();
 }
+
+CreateHelper::CreateHelper(vector<json> elements, std::string partitionAlgo, GraphConfig gc) :
+    elements(elements), gc(gc){
+    std::string partitionCount = Utils::getJasmineGraphProperty("org.jasminegraph.server.npartitions");
+    int numberOfPartitions = std::stoi(partitionCount);
+    this->graphPartitioner = new Partitioner(4, gc.graphID,
+                                             spt::getPartitioner(partitionAlgo), nullptr);
+};
+
+//"elements": [
+//            {
+//                "relationships": [
+//                    {
+//                        "dest": {
+//                            "variable": "n"
+//                        },
+//                        "rel": {
+//                            "type": "FRIEND"
+//                        },
+//                        "source": {
+//                            "variable": "m"
+//                        }
+//                    }
+//                ],
+//                "type": "Relationships"
+//            }
+//        ]
+void CreateHelper::insertFromData(std::string data) {
+    json rawObj = json::parse(data);
+    NodeManager nodeManager(this->gc);
+    for (json insert : this->elements) {
+        if (insert["type"] == "Relationships") {
+            for (json rel : insert["relationships"]) {
+                auto source = rel["source"];
+                auto dest = rel["dest"];
+                auto relation = rel["rel"];
+                string sourceVariable;
+                string destVariable;
+                string sourceId;
+                string destId;
+                if (source.contains("variable") && rawObj.contains(source["variable"])) {
+                    sourceVariable = source["variable"];
+                    sourceId = rawObj[sourceVariable]["id"];
+                }
+                if (dest.contains("variable") && rawObj.contains(dest["variable"])) {
+                    destVariable = dest["variable"];
+                    sourceId = rawObj[destVariable]["id"];
+                }
+                partitionedEdge partitionedEdge = graphPartitioner->addEdge({sourceId, destId});
+                RelationBlock* newRelation;
+                if (partitionedEdge[0].second == partitionedEdge[1].second) {
+                    newRelation = nodeManager.addLocalEdge({sourceId, destId});
+                } else {
+                    newRelation = nodeManager.addCentralEdge({sourceId, destId});
+                }
+
+                char value[PropertyLink::MAX_VALUE_SIZE] = {};
+                char meta[MetaPropertyLink::MAX_VALUE_SIZE] = {};
+                char metaEdge[MetaPropertyEdgeLink::MAX_VALUE_SIZE] = {};
+                auto edgeProperties = relation;
+                for (auto it = edgeProperties.begin(); it != edgeProperties.end(); it++) {
+                    strcpy(value, it.value().get<std::string>().c_str());
+                    if (partitionedEdge[0].second == partitionedEdge[1].second) {
+                        newRelation->addCentralProperty(std::string(it.key()), &value[0]);
+                    } else {
+                        newRelation->addLocalProperty(std::string(it.key()), &value[0]);
+                    }
+                }
+
+                if (partitionedEdge[0].second != partitionedEdge[1].second) {
+                    std::string edgePid = to_string(partitionedEdge[0].second);
+                    strcpy(metaEdge, edgePid.c_str());
+                    newRelation->addMetaProperty(MetaPropertyEdgeLink::PARTITION_ID, &metaEdge[0]);
+                }
+
+                auto sourceProps = rawObj[sourceVariable];
+                for (auto it = sourceProps.begin(); it != sourceProps.end(); it++) {
+                    if (it.key() == "pid") {
+                        continue;
+                    }
+                    strcpy(value, it.value().get<std::string>().c_str());
+                    newRelation->getSource()->addProperty(std::string(it.key()), &value[0]);
+                }
+
+                std::string sourcePid = sourceProps["pid"];
+                strcpy(meta, sourcePid.c_str());
+                newRelation->getSource()->addMetaProperty(MetaPropertyLink::PARTITION_ID, &meta[0]);
+
+                auto destProps = rawObj[destVariable];
+                for (auto it = destProps.begin(); it != destProps.end(); it++) {
+                    if (it.key() == "pid") {
+                        continue;
+                    }
+                    strcpy(value, it.value().get<std::string>().c_str());
+                    newRelation->getSource()->addProperty(std::string(it.key()), &value[0]);
+                }
+
+                std::string destPid = destProps["pid"];
+                strcpy(meta, destPid.c_str());
+                newRelation->getSource()->addMetaProperty(MetaPropertyLink::PARTITION_ID, &meta[0]);
+            }
+        }
+    }
+}

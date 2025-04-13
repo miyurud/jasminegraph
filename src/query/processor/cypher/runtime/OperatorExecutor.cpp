@@ -144,6 +144,7 @@ void OperatorExecutor::Filter(SharedBuffer &buffer, std::string jsonPlan, GraphC
         }
         if (FilterHelper.evaluate(raw)) {
             buffer.add(raw);
+            execution_logger.info(raw);
         }
     }
 }
@@ -714,19 +715,33 @@ void OperatorExecutor::Projection(SharedBuffer &buffer, std::string jsonPlan, Gr
 void OperatorExecutor::Create(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
     json query = json::parse(jsonPlan);
     SharedBuffer sharedBuffer(5);
-    std::string nextOpt = query["NextOperator"];
-    json next = json::parse(nextOpt);
-    auto method = OperatorExecutor::methodMap[next["Operator"]];
-    // Launch the method in a new thread
-    std::thread result(method, std::ref(*this), std::ref(sharedBuffer), query["NextOperator"], gc);
-    while(true) {
-        string raw = sharedBuffer.get();
-        if(raw == "-1"){
+    string partitionAlgo = Utils::getPartitionAlgorithm(to_string(gc.graphID), masterIP);
+    CreateHelper createHelper(query["elements"], partitionAlgo, gc);
+    if (query.contains("NextOperator")) {
+        std::string nextOpt = query["NextOperator"];
+        json next = json::parse(nextOpt);
+        auto method = OperatorExecutor::methodMap[next["Operator"]];
+        // Launch the method in a new thread
+        std::thread result(method, std::ref(*this), std::ref(sharedBuffer), query["NextOperator"], gc);
+        while(true) {
+            string raw = sharedBuffer.get();
+            if(raw == "-1"){
+                buffer.add(raw);
+                result.join();
+                break;
+            }
+            createHelper.insertFromData(raw);
             buffer.add(raw);
-            result.join();
-            break;
         }
-        buffer.add(raw);
+    } else {
+        while(true) {
+            string raw = sharedBuffer.get();
+            if(raw == "-1"){
+                buffer.add(raw);
+                break;
+            }
+            buffer.add(raw);
+        }
     }
 }
 
@@ -744,7 +759,6 @@ void OperatorExecutor::CartesianProduct(SharedBuffer &buffer, std::string jsonPl
     std::thread leftThread(leftMethod, std::ref(*this), std::ref(left), query["left"], gc);
     while(true) {
         string leftRaw = left.get();
-
         if(leftRaw == "-1"){
             buffer.add(leftRaw);
             leftThread.join();
