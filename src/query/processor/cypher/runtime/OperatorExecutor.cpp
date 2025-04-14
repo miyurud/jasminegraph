@@ -67,8 +67,8 @@ void OperatorExecutor::initializeMethodMap() {
     };
 }
 
-
 void OperatorExecutor::AllNodeScan(SharedBuffer &buffer,std::string jsonPlan, GraphConfig gc) {
+    execution_logger.info(":::::::::ALl Node:::::::::::");
     json query = json::parse(jsonPlan);
     NodeManager nodeManager(gc);
     for (auto it : nodeManager.nodeIndex) {
@@ -97,6 +97,7 @@ void OperatorExecutor::AllNodeScan(SharedBuffer &buffer,std::string jsonPlan, Gr
 }
 
 void OperatorExecutor::ProduceResult(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
+    execution_logger.info("::::::::Produce Result::::::::::::");
     json query = json::parse(jsonPlan);
     SharedBuffer sharedBuffer(5);
     std::string nextOpt = query["NextOperator"];
@@ -124,6 +125,7 @@ void OperatorExecutor::ProduceResult(SharedBuffer &buffer, std::string jsonPlan,
 }
 
 void OperatorExecutor::Filter(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
+    execution_logger.info(":::::::::Filter:::::::::::");
     json query = json::parse(jsonPlan);
     SharedBuffer sharedBuffer(5);
     std::string nextOpt = query["NextOperator"];
@@ -148,6 +150,7 @@ void OperatorExecutor::Filter(SharedBuffer &buffer, std::string jsonPlan, GraphC
 }
 
 void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
+
     json query = json::parse(jsonPlan);
     NodeManager nodeManager(gc);
     for (auto it : nodeManager.nodeIndex) {
@@ -666,6 +669,7 @@ void OperatorExecutor::EargarAggregation(SharedBuffer &buffer, std::string jsonP
 }
 
 void OperatorExecutor::Projection(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc){
+    execution_logger.info("::::::::::Project::::::::::");
     json query = json::parse(jsonPlan);
     SharedBuffer sharedBuffer(5);
     std::string nextOpt = query["NextOperator"];
@@ -784,6 +788,8 @@ struct Row {
 };
 
 void OperatorExecutor::OrderBy(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc){
+    execution_logger.info("::::::::::::Order By::::::::");
+
     json query = json::parse(jsonPlan);
     SharedBuffer sharedBuffer(5);
     std::string nextOpt = query["NextOperator"];
@@ -797,6 +803,7 @@ void OperatorExecutor::OrderBy(SharedBuffer &buffer, std::string jsonPlan, Graph
     std::string sortKey = query["variable"];
     const size_t maxSize = 5000;
 
+    execution_logger.info(sortKey);
     while(true)
     {
         string jsonStr = sharedBuffer.get();
@@ -805,12 +812,15 @@ void OperatorExecutor::OrderBy(SharedBuffer &buffer, std::string jsonPlan, Graph
                 buffer.add(minHeap.top().jsonStr);
                 minHeap.pop();
             }
+            buffer.add(jsonStr); // -1 close flag
             result.join();
             break;
         }
 
         try {
             Row row(jsonStr, sortKey);
+            execution_logger.info("::::::::::::::::::::");
+            execution_logger.info(row.jsonStr);
             if (row.data.contains(sortKey)) { // Ensure field exists
                 minHeap.push(row);
                 if (minHeap.size() > maxSize) {

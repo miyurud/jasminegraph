@@ -26,6 +26,7 @@ public:
     virtual ~Operator() = default;
     static bool isAggregate;
     static string aggregateType;
+    static string aggregateKey;
     virtual string execute() = 0; // Pure virtual function to be implemented by derived classes
 };
 

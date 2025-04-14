@@ -7,6 +7,8 @@
 #include <iostream>
 #include <string>
 #include <unistd.h>
+
+#include "../util/SharedBuffer.h"
 using namespace std;
 
 class Aggregation {
@@ -25,9 +27,11 @@ class AverageAggregation : public Aggregation {
     void insert(string data) override;
 };
 
-class DescAggregation : public Aggregation {
+class AscAggregation : public Aggregation {
+private:
+    SharedBuffer resultBuffer;
 public:
-
+    explicit AscAggregation(size_t bufferSize = 1000) : resultBuffer(bufferSize) {};
     void getResult(int connFd) override;
     void insert(string data) override;
 };

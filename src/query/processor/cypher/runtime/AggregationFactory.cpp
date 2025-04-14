@@ -11,6 +11,11 @@ const string AggregationFactory::ASC = "ASC";
 Aggregation* AggregationFactory::getAggregationMethod(std::string type) {
     if (type == AVERAGE) {
         return new AverageAggregation();
+    }else if (type == ASC)
+    {
+        return new AscAggregation();
     }
+
+
     return nullptr;
 }

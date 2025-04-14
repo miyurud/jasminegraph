@@ -22,6 +22,7 @@ using json = nlohmann::json;
 
 bool Operator::isAggregate = false;
 std::string Operator::aggregateType = "";
+std::string Operator::aggregateKey = "";
 
 // NodeScan Implementation
 NodeScanByLabel::NodeScanByLabel(string label, string var) : label(label), var(var) {}
@@ -395,7 +396,7 @@ string OrderBy::execute() {
     if (input) {
         orderBy["NextOperator"] = input->execute();
     }
-    orderBy["operator"] = "OrderBy";
+    orderBy["Operator"] = "OrderBy";
     if (this->orderByClause->nodeType == Const::ASC) {
         orderBy["order"] = "ASC";
     } else {
@@ -409,6 +410,7 @@ string OrderBy::execute() {
     }
     Operator::isAggregate = true;
     Operator::aggregateType = orderBy["order"];
+    Operator::aggregateKey = orderBy["variable"];
     return orderBy.dump();
 }
 
