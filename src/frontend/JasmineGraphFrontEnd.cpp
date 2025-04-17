@@ -77,7 +77,9 @@ std::string stream_topic_name;
 bool JasmineGraphFrontEnd::strian_exit;
 
 static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
-static void cypherCommand(int connFd,vector<DataPublisher *> &workerClients, int numberOfPartitions, bool *loop_exit_p);
+static void cypherCommand(std::string masterIP, int connFd, vector<DataPublisher *> &workerClients,
+int numberOfPartitions, bool *loop_exit,  SQLiteDBInterface *sqlite,
+PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler);
 static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
@@ -175,7 +177,7 @@ void *frontendservicesesion(void *dummyPt) {
         } else if (line.compare(CYPHER) == 0){
             workerClients = getWorkerClients(sqlite);
             workerClientsInitialized = true;
-            cypherCommand(connFd, workerClients, numberOfPartitions, &loop_exit);
+            cypherCommand(masterIP, connFd, workerClients, numberOfPartitions, &loop_exit, sqlite, perfSqlite, jobScheduler);
         }else if (line.compare(SHTDN) == 0) {
             JasmineGraphServer::shutdown_workers();
             close(connFd);
@@ -421,8 +423,9 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
     }
 }
 
-static void cypherCommand(int connFd, vector<DataPublisher *> &workerClients,
-                               int numberOfPartitions, bool *loop_exit) {
+static void cypherCommand(std::string masterIP, int connFd, vector<DataPublisher *> &workerClients,
+    int numberOfPartitions, bool *loop_exit,  SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfSqlite,
+    JobScheduler *jobScheduler) {
 
     string graphId = "Graph ID:";
     int result_wr = write(connFd, graphId.c_str(), graphId.length());
@@ -462,46 +465,88 @@ static void cypherCommand(int connFd, vector<DataPublisher *> &workerClients,
     read(connFd, query, FRONTEND_DATA_LENGTH);
     string queryString(query);
 
-    antlr4::ANTLRInputStream input(queryString);
-    // Create a lexer from the input
-    CypherLexer lexer(&input);
+    auto begin = chrono::high_resolution_clock::now();
 
-    // Create a token stream from the lexer
-    antlr4::CommonTokenStream tokens(&lexer);
+    JobRequest jobDetails;
+    int uid = JasmineGraphFrontEndCommon::getUid();
+    jobDetails.setJobId(std::to_string(uid));
+    jobDetails.setJobType(CYPHER);
+    jobDetails.addParameter(Conts::PARAM_KEYS::CYPHER_QUERY::QUERY_STRING, queryString);
 
-    // Create a parser from the token stream
-    CypherParser parser(&tokens);
+    long graphSLA = -1;
+    int threadPriority = Conts::HIGH_PRIORITY_DEFAULT_VALUE;
+    graphSLA = JasmineGraphFrontEndCommon::getSLAForGraphId(sqlite, perfSqlite, graphIdResponse, CYPHER,
+                                                          Conts::SLA_CATEGORY::LATENCY);
 
-    ASTBuilder astBuilder;
-    auto* ast = any_cast<ASTNode*>(astBuilder.visitOC_Cypher(parser.oC_Cypher()));
+    jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_SLA, std::to_string(graphSLA));
 
-    SemanticAnalyzer semanticAnalyzer;
-    string obj;
-    if (semanticAnalyzer.analyze(ast)) {
-        frontend_logger.log("AST is successfully analyzed", "log");
-        QueryPlanner queryPlanner;
-        Operator *executionPlan = queryPlanner.createExecutionPlan(ast);
-        obj = executionPlan->execute();
-    } else {
-        frontend_logger.error("query isn't semantically correct: "+queryString);
-    }
-    SharedBuffer sharedBuffer(3);
-    JasmineGraphServer *server = JasmineGraphServer::getInstance();
-    server->sendQueryPlan(stoi(graphIdResponse), workerClients.size(), obj,
-                          std::ref(sharedBuffer));
-
-    int closeFlag = 0;
-    while(true){
-        if (closeFlag == numberOfPartitions) {
-            break;
-        }
-        std::string data = sharedBuffer.get();
-        if (data == "-1") {
-            closeFlag++;
+    if (graphSLA == 0) {
+        if (JasmineGraphFrontEnd::areRunningJobsForSameGraph()) {
+            if (canCalibrate) {
+                // initial calibration
+                jobDetails.addParameter(Conts::PARAM_KEYS::AUTO_CALIBRATION, "false");
+            } else {
+                // auto calibration
+                jobDetails.addParameter(Conts::PARAM_KEYS::AUTO_CALIBRATION, "true");
+            }
         } else {
-            result_wr = write(connFd, data.c_str(), data.length());
-            result_wr = write(connFd, "\r\n", 2);
+            frontend_logger.error("Can't calibrate the graph now");
         }
+    }
+
+    jobDetails.setPriority(threadPriority);
+    jobDetails.setMasterIP(masterIP);
+    jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_ID, graphIdResponse);
+    jobDetails.addParameter(Conts::PARAM_KEYS::CATEGORY, Conts::SLA_CATEGORY::LATENCY);
+    jobDetails.addParameter(Conts::PARAM_KEYS::NO_OF_PARTITIONS, std::to_string(numberOfPartitions));
+    jobDetails.addParameter(Conts::PARAM_KEYS::CONN_FILE_DESCRIPTOR, std::to_string(numberOfPartitions));
+
+    if (canCalibrate) {
+        jobDetails.addParameter(Conts::PARAM_KEYS::CAN_CALIBRATE, "true");
+    } else {
+        jobDetails.addParameter(Conts::PARAM_KEYS::CAN_CALIBRATE, "false");
+    }
+
+    jobScheduler->pushJob(jobDetails);
+    frontend_logger.info("Job pushed");
+
+    JobResponse jobResponse = jobScheduler->getResult(jobDetails);
+    std::string errorMessage = jobResponse.getParameter(Conts::PARAM_KEYS::ERROR_MESSAGE);
+
+    if (!errorMessage.empty()) {
+        *loop_exit = true;
+        result_wr = write(connFd, errorMessage.c_str(), errorMessage.length());
+
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            return;
+        }
+        result_wr = write(connFd, "\r\n", 2);
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+        }
+        return;
+    }
+
+    if (threadPriority == Conts::HIGH_PRIORITY_DEFAULT_VALUE) {
+        highPriorityTaskCount--;
+    }
+
+    auto end = chrono::high_resolution_clock::now();
+    auto dur = end - begin;
+    auto msDuration = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
+    frontend_logger.info("Time Taken for query execution: " + to_string(msDuration) + " milliseconds");
+
+    result_wr = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit = true;
+        return;
+    }
+    result_wr = write(connFd, "\r\n", 2);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit = true;
     }
 }
 

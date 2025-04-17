@@ -156,6 +156,12 @@ class Conts {
         static const std::string GRAPH_SLA;
         static const std::string IS_CALIBRATING;
         static const std::string AUTO_CALIBRATION;
+        static const std::string NO_OF_PARTITIONS;
+        static const std::string CONN_FILE_DESCRIPTOR;
+
+        struct CYPHER_QUERY {
+            static const std::string QUERY_STRING;
+        };
     };
 };
 
