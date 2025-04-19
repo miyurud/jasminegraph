@@ -120,6 +120,7 @@ static void degree_distribution_common(int connFd, int serverPort,
                                        std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
                                        bool *loop_exit_p, bool in);
 static void push_partition_command(int connFd, bool *loop_exit_p);
+static void push_file_command(int connFd, bool *loop_exit_p);
 
 static void hdfs_start_stream_command(int connFd, bool *loop_exit_p, bool isLocalStream,
                                       InstanceStreamHandler &instanceStreamHandler);
