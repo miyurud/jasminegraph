@@ -1382,7 +1382,7 @@ map<long, map<long, unordered_set<long>>> calculateLocalEgoNet(string graphID, s
             map<long, unordered_set<long>> vertexMapFromCentralStore;
             vertexMapFromCentralStore.insert(
                 std::make_pair(it->first,
-                                distribution));  // Here we do not have the relation information among neighbours
+                               distribution));  // Here we do not have the relation information among neighbours
             egonetMap[it->first] = vertexMapFromCentralStore;
 
         } else {
@@ -2533,7 +2533,7 @@ static void page_rank_command(int connFd, int serverPort,
 
     map<long, double> pageRankResults =
         calculateLocalPageRank(graphID, alpha, partitionID, serverPort, TOP_K_PAGE_RANK, graphVertexCount, graphDB,
-                                centralDB, workerSockets, iterations);
+                               centralDB, workerSockets, iterations);
     instance_logger.info("PageRank size: " + to_string(pageRankResults.size()));
 
     map<long, double> pageRankLocalstore;
@@ -2684,7 +2684,7 @@ static void worker_page_rank_distribution_command(
 
     map<long, double> pageRankResults =
         calculateLocalPageRank(graphID, alpha, partitionID, serverPort, TOP_K_PAGE_RANK, graphVertexCount, graphDB,
-                                centralDB, workerSockets, iterations);
+                               centralDB, workerSockets, iterations);
 
     instance_logger.info("PageRank size: " + to_string(pageRankResults.size()));
 
