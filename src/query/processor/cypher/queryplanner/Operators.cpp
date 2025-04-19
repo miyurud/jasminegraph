@@ -518,13 +518,13 @@ string Create::execute() {
         if (e->nodeType == Const::NODE_PATTERN) {
             json data;
             data["type"] = "Node";
+            map<string, string> property;
             for (auto* element: e->elements) {
                 if (element->nodeType == Const::NODE_LABEL) {
-                    data["label"] = element->elements[0]->value;
+                    property.insert(pair<string, string>("label", element->elements[0]->value));
                 } else if (element->nodeType == Const::VARIABLE) {
                     data["variable"] = element->value;
                 } else if (element->nodeType == Const::PROPERTIES_MAP) {
-                    map<string, string> property;
                     for (auto* prop: element->elements) {
                         if (prop->elements[0]->nodeType != Const::RESERVED_WORD){
                             property.insert(pair<string, string>(prop->elements[0]->value, prop->elements[1]->value));
@@ -545,24 +545,28 @@ string Create::execute() {
             for (auto* patternElement: e->elements) {
                 if (patternElement->nodeType == Const::NODE_PATTERN){
                     for (auto* element: patternElement->elements) {
+                        map<string, string> property;
                         if (element->nodeType == Const::NODE_LABEL) {
-                            source["label"] = element->elements[0]->value;
+                            property.insert(pair<string, string>("label", element->elements[0]->value));
                         } else if (element->nodeType == Const::VARIABLE) {
                             source["variable"] = element->value;
                         } else if (element->nodeType == Const::PROPERTIES_MAP) {
-                            map<string, string> property;
                             for (auto* prop: element->elements) {
                                 if (prop->elements[0]->nodeType != Const::RESERVED_WORD){
                                     property.insert(pair<string, string>(prop->elements[0]->value, prop->elements[1]->value));
                                 }
                             }
+                        }
+
+                        if (!property.empty()) {
                             source["properties"] = property;
                         }
                     }
                 } else if (patternElement->nodeType == Const::PATTERN_ELEMENT_CHAIN) {
                     for (auto* element: patternElement->elements[0]->elements[1]->elements) {
+                        map<string, string> property;
                         if (element->nodeType == Const::RELATIONSHIP_TYPE) {
-                            rel["type"] = element->elements[0]->value;
+                            property.insert(pair<string, string>("type", element->elements[0]->value));
                         } else if (element->nodeType == Const::VARIABLE) {
                             rel["variable"] = element->value;
                         } else if (element->nodeType == Const::PROPERTIES_MAP) {
@@ -572,13 +576,16 @@ string Create::execute() {
                                     property.insert(pair<string, string>(prop->elements[0]->value, prop->elements[1]->value));
                                 }
                             }
+                        }
+                        if (!property.empty()) {
                             rel["properties"] = property;
                         }
                     }
 
                     for (auto* element: patternElement->elements[1]->elements) {
+                        map<string, string> property;
                         if (element->nodeType == Const::NODE_LABEL) {
-                            dest["label"] = element->elements[0]->value;
+                            property.insert(pair<string, string>("label", element->elements[0]->value));
                         } else if (element->nodeType == Const::VARIABLE) {
                             dest["variable"] = element->value;
                         } else if (element->nodeType == Const::PROPERTIES_MAP) {
@@ -588,6 +595,9 @@ string Create::execute() {
                                     property.insert(pair<string, string>(prop->elements[0]->value, prop->elements[1]->value));
                                 }
                             }
+                        }
+
+                        if (!property.empty()) {
                             dest["properties"] = property;
                         }
                     }

@@ -134,3 +134,4 @@ string Const::PATH_PATTERN = "PATH_PATTERN";
 string Const::NODE = "NODE";
 string Const::RELATIONSHIP = "RELATIONSHIP";
 string Const::LOOKUP = "LOOKUP";
+string Const::DUMMY_ID = "0";

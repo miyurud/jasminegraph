@@ -144,7 +144,6 @@ void OperatorExecutor::Filter(SharedBuffer &buffer, std::string jsonPlan, GraphC
         }
         if (FilterHelper.evaluate(raw)) {
             buffer.add(raw);
-            execution_logger.info(raw);
         }
     }
 }
@@ -716,7 +715,7 @@ void OperatorExecutor::Create(SharedBuffer &buffer, std::string jsonPlan, GraphC
     json query = json::parse(jsonPlan);
     SharedBuffer sharedBuffer(5);
     string partitionAlgo = Utils::getPartitionAlgorithm(to_string(gc.graphID), masterIP);
-    CreateHelper createHelper(query["elements"], partitionAlgo, gc);
+    CreateHelper createHelper(query["elements"], partitionAlgo, gc, masterIP);
     if (query.contains("NextOperator")) {
         std::string nextOpt = query["NextOperator"];
         json next = json::parse(nextOpt);
@@ -730,18 +729,11 @@ void OperatorExecutor::Create(SharedBuffer &buffer, std::string jsonPlan, GraphC
                 result.join();
                 break;
             }
-            createHelper.insertFromData(raw);
-            buffer.add(raw);
+            createHelper.insertFromData(raw, std::ref(buffer));
         }
     } else {
-        while(true) {
-            string raw = sharedBuffer.get();
-            if(raw == "-1"){
-                buffer.add(raw);
-                break;
-            }
-            buffer.add(raw);
-        }
+        createHelper.insertWithoutData(std::ref(buffer));
+        buffer.add("-1");
     }
 }
 
@@ -765,14 +757,44 @@ void OperatorExecutor::CartesianProduct(SharedBuffer &buffer, std::string jsonPl
             break;
         }
 
-        std::thread rightThread(rightMethod, std::ref(*this), std::ref(right), query["right"], gc);
+        string partitionCount = Utils::getJasmineGraphProperty("org.jasminegraph.server.npartitions");
+        int numberOfPartitions = std::stoi(partitionCount);
+        std::vector<std::thread> workerThreads;
 
+        for (int i = 0; i < numberOfPartitions; i++) {
+            if (i == gc.partitionID) {
+                continue;
+            }
+            workerThreads.emplace_back(
+                    Utils::sendDataFromWorkerToWorker,
+                    masterIP,
+                    gc.graphID,
+                    to_string(i),
+                    query["right"],
+                    std::ref(right)
+            );
+        }
+
+        std::thread rightThread(rightMethod, std::ref(*this), std::ref(right), query["right"], gc);
+        int count = 0;
         while(true) {
             string rightRaw = right.get();
             if(rightRaw == "-1"){
-                rightThread.join();
-                break;
+                count++;
+                if (count == numberOfPartitions) {
+                    buffer.add("-1");
+                    rightThread.join();
+                    for (auto& t : workerThreads) {
+                        if (t.joinable()) {
+                            t.join();
+                        }
+                    }
+                }
+                continue;
             }
+
+
+
             json leftData = json::parse(leftRaw);
             json rightData = json::parse(rightRaw);
 

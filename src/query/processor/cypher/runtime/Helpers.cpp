@@ -346,38 +346,21 @@ string AverageAggregationHelper::getFinalResult() {
     return data.dump();
 }
 
-CreateHelper::CreateHelper(vector<json> elements, std::string partitionAlgo, GraphConfig gc) :
-    elements(elements), gc(gc){
+CreateHelper::CreateHelper(vector<json> elements, std::string partitionAlgo, GraphConfig gc, string masterIP) :
+    elements(elements), gc(gc), masterIP(masterIP){
     std::string partitionCount = Utils::getJasmineGraphProperty("org.jasminegraph.server.npartitions");
     int numberOfPartitions = std::stoi(partitionCount);
-    this->graphPartitioner = new Partitioner(4, gc.graphID,
-                                             spt::getPartitioner(partitionAlgo), nullptr);
+    this->graphPartitioner = new Partitioner(stoi(partitionCount), gc.graphID,
+                                             spt::getPartitioner(partitionAlgo), nullptr, true);
 };
 
-//"elements": [
-//            {
-//                "relationships": [
-//                    {
-//                        "dest": {
-//                            "variable": "n"
-//                        },
-//                        "rel": {
-//                            "type": "FRIEND"
-//                        },
-//                        "source": {
-//                            "variable": "m"
-//                        }
-//                    }
-//                ],
-//                "type": "Relationships"
-//            }
-//        ]
-void CreateHelper::insertFromData(std::string data) {
-    json rawObj = json::parse(data);
+void CreateHelper::insertFromData(std::string data, SharedBuffer &buffer) {
+    json rawData = json::parse(data);
     NodeManager nodeManager(this->gc);
     for (json insert : this->elements) {
         if (insert["type"] == "Relationships") {
             for (json rel : insert["relationships"]) {
+                auto rawObj = rawData;
                 auto source = rel["source"];
                 auto dest = rel["dest"];
                 auto relation = rel["rel"];
@@ -385,32 +368,149 @@ void CreateHelper::insertFromData(std::string data) {
                 string destVariable;
                 string sourceId;
                 string destId;
-                if (source.contains("variable") && rawObj.contains(source["variable"])) {
+                bool sourceFromData = false;
+                bool destFromData = false;
+                if (source.contains("variable")
+                        && rawObj.contains(source["variable"])) {
                     sourceVariable = source["variable"];
                     sourceId = rawObj[sourceVariable]["id"];
-                }
-                if (dest.contains("variable") && rawObj.contains(dest["variable"])) {
-                    destVariable = dest["variable"];
-                    sourceId = rawObj[destVariable]["id"];
-                }
-                partitionedEdge partitionedEdge = graphPartitioner->addEdge({sourceId, destId});
-                RelationBlock* newRelation;
-                if (partitionedEdge[0].second == partitionedEdge[1].second) {
-                    newRelation = nodeManager.addLocalEdge({sourceId, destId});
-                } else {
-                    newRelation = nodeManager.addCentralEdge({sourceId, destId});
+                    sourceFromData = true;
+                } else if (source.contains("variable")
+                        && !rawObj.contains(source["variable"])
+                        && source.contains("properties")
+                        && source["properties"].contains("id")) {
+                    sourceVariable = source["variable"];
+                    sourceId = source["properties"]["id"];
+                } else if ((source.contains("variable")
+                           && !rawObj.contains(source["variable"])
+                           && !source.contains("properties"))
+                           || (source.contains("variable")
+                              && !rawObj.contains(source["variable"])
+                              && source.contains("properties")
+                              && !source["properties"].contains("id"))) {
+                    return;
+                } else if (!source.contains("variable")
+                           && source.contains("properties")
+                           && !source["properties"].contains("id")){
+                    sourceId = source["properties"]["id"];
                 }
 
-                char value[PropertyLink::MAX_VALUE_SIZE] = {};
-                char meta[MetaPropertyLink::MAX_VALUE_SIZE] = {};
-                char metaEdge[MetaPropertyEdgeLink::MAX_VALUE_SIZE] = {};
-                auto edgeProperties = relation;
-                for (auto it = edgeProperties.begin(); it != edgeProperties.end(); it++) {
+                if (dest.contains("variable") && rawObj.contains(dest["variable"])) {
+                    destVariable = dest["variable"];
+                    destId = rawObj[destVariable]["id"];
+                    destFromData = true;
+                } else if (dest.contains("variable")
+                           && !rawObj.contains(dest["variable"])
+                           && dest.contains("properties")
+                           && dest["properties"].contains("id")) {
+                    destVariable = dest["variable"];
+                    destId = dest["properties"]["id"];
+                } else if ((dest.contains("variable")
+                           && !rawObj.contains(dest["variable"])
+                           && !dest.contains("properties"))
+                            || (dest.contains("variable")
+                               && !rawObj.contains(dest["variable"])
+                               && dest.contains("properties")
+                               && !dest["properties"].contains("id"))) {
+                    return;
+                } else if (!dest.contains("variable")
+                            && dest.contains("properties")
+                            && !dest["properties"].contains("id")){
+                    destId = dest["properties"]["id"];
+                }
+
+                json edgeProps;
+                if (relation.contains("properties")) {
+                    edgeProps = relation["properties"];
+                }
+
+                json sourceProps;
+                if (sourceFromData) {
+                    sourceProps = rawObj[sourceVariable];
+                } else if (source.contains("properties")) {
+                    sourceProps = source["properties"];
+                }
+
+                json destProps;
+                if (destFromData) {
+                    destProps = rawObj[destVariable];
+                } else if (dest.contains("properties")) {
+                    destProps = dest["properties"];
+                }
+
+                partitionedEdge partitionedEdge = graphPartitioner->addEdge({sourceId, destId});
+                // this Json object are used to create edge string to send to the other workers
+                json edge;
+                json sourceJson;
+                json destJson;
+
+                if (sourceProps.contains("partitionID")) {
+                    sourceProps.erase("partitionID");
+                }
+
+                if (destProps.contains("partitionID")) {
+                    destProps.erase("partitionID");
+                }
+
+                if (partitionedEdge[0].second == partitionedEdge[1].second) {
+                    edge["EdgeType"] = "Local";
+                } else {
+                    edge["EdgeType"] = "Central";
+                }
+
+                sourceJson["properties"] = sourceProps;
+                destJson["properties"] = destProps;
+                sourceJson["pid"] = partitionedEdge[0].second;
+                destJson["pid"] = partitionedEdge[1].second;
+                edge["source"] = sourceJson;
+                edge["destination"] = destJson;
+                edge["properties"] = edgeProps;
+
+                RelationBlock* newRelation;
+
+                if (partitionedEdge[0].second == partitionedEdge[1].second &&
+                partitionedEdge[0].second == gc.partitionID) {
+                    newRelation = nodeManager.addLocalEdge({sourceId, destId});
+                } else if (partitionedEdge[0].second == gc.partitionID) {
+                    newRelation = nodeManager.addCentralEdge({sourceId, destId});
+                    auto destWorker = Utils::getWorker(to_string(partitionedEdge[1].second), masterIP,
+                                                       Conts::JASMINEGRAPH_BACKEND_PORT);
+                    auto dataPublisher = new DataPublisher(destWorker->second, destWorker->first);
+                    dataPublisher->publish(edge.dump());
+                } else if (partitionedEdge[1].second == gc.partitionID) {
+                    newRelation = nodeManager.addCentralEdge({sourceId, destId});
+                    auto sourceWorker = Utils::getWorker(to_string(partitionedEdge[0].second), masterIP,
+                                                         Conts::JASMINEGRAPH_BACKEND_PORT);
+                    auto dataPublisher = new DataPublisher(sourceWorker->second, sourceWorker->first);
+                    dataPublisher->publish(edge.dump());
+                } else if (partitionedEdge[0].second == partitionedEdge[1].second){
+                    auto worker = Utils::getWorker(to_string(partitionedEdge[0].second), masterIP,
+                                                           Conts::JASMINEGRAPH_BACKEND_PORT);
+                    auto dataPublisher = new DataPublisher(worker->second, worker->first);
+                    dataPublisher->publish(edge.dump());
+                    continue;
+                } else {
+                    auto sourceWorker = Utils::getWorker(to_string(partitionedEdge[0].second), masterIP,
+                                                   Conts::JASMINEGRAPH_BACKEND_PORT);
+                    auto sourceDataPublisher = new DataPublisher(sourceWorker->second, sourceWorker->first);
+                    sourceDataPublisher->publish(edge.dump());
+                    auto destWorker = Utils::getWorker(to_string(partitionedEdge[1].second), masterIP,
+                                                       Conts::JASMINEGRAPH_BACKEND_PORT);
+                    auto destDataPublisher = new DataPublisher(destWorker->second, destWorker->first);
+                    destDataPublisher->publish(edge.dump());
+                    continue;
+                }
+
+                char value[PropertyLink::MAX_VALUE_SIZE] = {0};
+                char meta[MetaPropertyLink::MAX_VALUE_SIZE] = {0};
+                char metaEdge[MetaPropertyEdgeLink::MAX_VALUE_SIZE] = {0};
+
+                for (auto it = edgeProps.begin(); it != edgeProps.end(); it++) {
                     strcpy(value, it.value().get<std::string>().c_str());
                     if (partitionedEdge[0].second == partitionedEdge[1].second) {
-                        newRelation->addCentralProperty(std::string(it.key()), &value[0]);
-                    } else {
                         newRelation->addLocalProperty(std::string(it.key()), &value[0]);
+                    } else {
+                        newRelation->addCentralProperty(std::string(it.key()), &value[0]);
                     }
                 }
 
@@ -420,32 +520,223 @@ void CreateHelper::insertFromData(std::string data) {
                     newRelation->addMetaProperty(MetaPropertyEdgeLink::PARTITION_ID, &metaEdge[0]);
                 }
 
-                auto sourceProps = rawObj[sourceVariable];
                 for (auto it = sourceProps.begin(); it != sourceProps.end(); it++) {
-                    if (it.key() == "pid") {
-                        continue;
-                    }
                     strcpy(value, it.value().get<std::string>().c_str());
                     newRelation->getSource()->addProperty(std::string(it.key()), &value[0]);
                 }
-
-                std::string sourcePid = sourceProps["pid"];
+                std::string sourcePid = to_string(partitionedEdge[0].second);
                 strcpy(meta, sourcePid.c_str());
                 newRelation->getSource()->addMetaProperty(MetaPropertyLink::PARTITION_ID, &meta[0]);
 
-                auto destProps = rawObj[destVariable];
                 for (auto it = destProps.begin(); it != destProps.end(); it++) {
-                    if (it.key() == "pid") {
-                        continue;
-                    }
                     strcpy(value, it.value().get<std::string>().c_str());
                     newRelation->getSource()->addProperty(std::string(it.key()), &value[0]);
                 }
 
-                std::string destPid = destProps["pid"];
+                std::string destPid = to_string(partitionedEdge[1].second);;
                 strcpy(meta, destPid.c_str());
                 newRelation->getSource()->addMetaProperty(MetaPropertyLink::PARTITION_ID, &meta[0]);
+
+                if (source.contains("variable")) {
+                    string variable = source["variable"];
+                    rawObj[variable] = sourceProps;
+                }
+
+                if (dest.contains("variable")) {
+                    string variable = dest["variable"];
+                    rawObj[variable] = destProps;
+                }
+
+                if (relation.contains("variable")) {
+                    string variable = relation["variable"];
+                    rawObj[variable] = edgeProps;
+                }
+
+                buffer.add(rawObj.dump());
             }
+        } else if (insert["type"] == "Node") {
+            auto rawObj = rawData;
+            if (insert.contains("properties") && insert["properties"].contains("id")) {
+                string sourceId = insert["properties"]["id"];
+                string destId = Const::DUMMY_ID;
+                partitionedEdge partitionedEdge = graphPartitioner->addEdge({sourceId, destId});
+                NodeBlock* newNode = nullptr;
+                if (partitionedEdge[0].second == gc.partitionID) {
+                    newNode = nodeManager.addNode(sourceId);
+                } else {
+                    auto worker = Utils::getWorker(to_string(partitionedEdge[0].second), masterIP,
+                                                   Conts::JASMINEGRAPH_BACKEND_PORT);
+                    auto dataPublisher = new DataPublisher(worker->second, worker->first);
+                    json node;
+                    node["id"] = insert["properties"]["id"];
+                    node["properties"] = insert["properties"];
+                    node["pid"] = partitionedEdge[0].second;
+                    node["isNode"] = true;
+                    dataPublisher->publish(node.dump());
+                    return;
+                }
+
+                if (!newNode) {
+                    return;
+                }
+
+                char value[PropertyLink::MAX_VALUE_SIZE] = {0};
+                char meta[MetaPropertyLink::MAX_VALUE_SIZE] = {0};
+                json sourceProps = insert["properties"];
+                for (auto it = sourceProps.begin(); it != sourceProps.end(); it++) {
+                    strcpy(value, it.value().get<std::string>().c_str());
+                    newNode->addProperty(std::string(it.key()), &value[0]);
+                }
+
+                std::string sourcePid = to_string(partitionedEdge[0].second);;
+                strcpy(meta, sourcePid.c_str());
+                newNode->addMetaProperty(MetaPropertyLink::PARTITION_ID, &meta[0]);
+
+                if (insert.contains("variable")) {
+                    string variable = insert["variable"];
+                    rawObj[variable] = sourceProps;
+                }
+
+                buffer.add(rawObj.dump());
+            }
+            return;
         }
+
+    }
+}
+
+void CreateHelper::insertWithoutData(SharedBuffer &buffer) {
+    NodeManager nodeManager(this->gc);
+    for (json insert : this->elements) {
+        if (insert["type"] == "Relationships") {
+            for (json rel : insert["relationships"]) {
+                json rawObj;
+                auto source = rel["source"];
+                auto dest = rel["dest"];
+                auto relation = rel["rel"];
+                string sourceVariable;
+                string destVariable;
+                string sourceId;
+                string destId;
+                if (source.contains("properties")
+                        && source["properties"].contains("id")) {
+                    sourceId = source["properties"]["id"];
+                } else {
+                    return;
+                }
+
+                if (dest.contains("properties")
+                        && dest["properties"].contains("id")) {
+                    destId = dest["properties"]["id"];
+                } else {
+                    return;
+                }
+
+                json edgeProps;
+                if (relation.contains("properties")) {
+                    edgeProps = relation["properties"];
+                }
+                json sourceProps = source["properties"];
+                json destProps = dest["properties"];
+
+                partitionedEdge partitionedEdge = graphPartitioner->addEdge({sourceId, destId});
+                RelationBlock* newRelation;
+
+                if (partitionedEdge[0].second == partitionedEdge[1].second) {
+                    newRelation = nodeManager.addLocalEdge({sourceId, destId});
+                } else {
+                    newRelation = nodeManager.addCentralEdge({sourceId, destId});
+                }
+
+                char value[PropertyLink::MAX_VALUE_SIZE] = {0};
+                char meta[MetaPropertyLink::MAX_VALUE_SIZE] = {0};
+                char metaEdge[MetaPropertyEdgeLink::MAX_VALUE_SIZE] = {0};
+
+                for (auto it = edgeProps.begin(); it != edgeProps.end(); it++) {
+                    strcpy(value, it.value().get<std::string>().c_str());
+                    if (partitionedEdge[0].second == partitionedEdge[1].second) {
+                        newRelation->addLocalProperty(std::string(it.key()), &value[0]);
+                    } else {
+                        newRelation->addCentralProperty(std::string(it.key()), &value[0]);
+                    }
+                }
+
+                if (partitionedEdge[0].second != partitionedEdge[1].second) {
+                    std::string edgePid = to_string(partitionedEdge[0].second);
+                    strcpy(metaEdge, edgePid.c_str());
+                    newRelation->addMetaProperty(MetaPropertyEdgeLink::PARTITION_ID, &metaEdge[0]);
+                }
+
+                for (auto it = sourceProps.begin(); it != sourceProps.end(); it++) {
+                    strcpy(value, it.value().get<std::string>().c_str());
+                    newRelation->getSource()->addProperty(std::string(it.key()), &value[0]);
+                }
+                std::string sourcePid = to_string(partitionedEdge[0].second);
+                strcpy(meta, sourcePid.c_str());
+                newRelation->getSource()->addMetaProperty(MetaPropertyLink::PARTITION_ID, &meta[0]);
+
+                for (auto it = destProps.begin(); it != destProps.end(); it++) {
+                    strcpy(value, it.value().get<std::string>().c_str());
+                    newRelation->getSource()->addProperty(std::string(it.key()), &value[0]);
+                }
+
+                std::string destPid = to_string(partitionedEdge[1].second);;
+                strcpy(meta, destPid.c_str());
+                newRelation->getSource()->addMetaProperty(MetaPropertyLink::PARTITION_ID, &meta[0]);
+
+                if (source.contains("variable")) {
+                    string variable = source["variable"];
+                    rawObj[variable] = sourceProps;
+                }
+
+                if (dest.contains("variable")) {
+                    string variable = dest["variable"];
+                    rawObj[variable] = destProps;
+                }
+
+                if (relation.contains("variable")) {
+                    string variable = relation["variable"];
+                    rawObj[variable] = edgeProps;
+                }
+
+                buffer.add(rawObj.dump());
+            }
+        } else if (insert["type"] == "Node") {
+            json rawObj;
+            if (insert.contains("properties") && insert["properties"].contains("id")) {
+                string sourceId = insert["properties"]["id"];
+                string destId = Const::DUMMY_ID;
+                partitionedEdge partitionedEdge = graphPartitioner->addEdge({sourceId, destId});
+                RelationBlock* newRelation;
+                NodeBlock* newNode = nullptr;
+                if (partitionedEdge[0].second == gc.partitionID) {
+                    newNode = nodeManager.addNode(sourceId);
+                }
+
+                if (!newNode) {
+                    return;
+                }
+
+                char value[PropertyLink::MAX_VALUE_SIZE] = {0};
+                char meta[MetaPropertyLink::MAX_VALUE_SIZE] = {0};
+                json sourceProps = insert["properties"];
+                for (auto it = sourceProps.begin(); it != sourceProps.end(); it++) {
+                    strcpy(value, it.value().get<std::string>().c_str());
+                    newNode->addProperty(std::string(it.key()), &value[0]);
+                }
+
+                std::string sourcePid = to_string(partitionedEdge[0].second);;
+                strcpy(meta, sourcePid.c_str());
+                newNode->addMetaProperty(MetaPropertyLink::PARTITION_ID, &meta[0]);
+
+                if (insert.contains("variable")) {
+                    string variable = insert["variable"];
+                    rawObj[variable] = insert["properties"];
+                }
+                buffer.add(rawObj.dump());
+            }
+            return;
+        }
+
     }
 }

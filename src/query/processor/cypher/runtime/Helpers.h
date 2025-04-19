@@ -19,6 +19,7 @@
 #include "../queryplanner/Operators.h"
 #include "../queryplanner/QueryPlanner.h"
 #include "../../../../nativestore/NodeManager.h"
+#include "../../../../nativestore/DataPublisher.h"
 #include "../../../../nativestore/MetaPropertyEdgeLink.h"
 #include "../../../../nativestore/RelationBlock.h"
 #include "../../../../partitioner/stream/Partitioner.h"
@@ -66,15 +67,15 @@ class AverageAggregationHelper {
 
 class CreateHelper {
  public:
-    CreateHelper(vector<json> elements, std::string partitionAlgo, GraphConfig gc);
-    void insertFromData(string data);
-    void insertWithoutData();
+    CreateHelper(vector<json> elements, std::string partitionAlgo, GraphConfig gc, string masterIP);
+    void insertFromData(string data, SharedBuffer &buffer);
+    void insertWithoutData(SharedBuffer &buffer);
 
  private:
     GraphConfig gc;
     vector<json> elements;
     Partitioner* graphPartitioner;
-
+    string masterIP;
 };
 
 #endif //JASMINEGRAPH_HELPERS_H
