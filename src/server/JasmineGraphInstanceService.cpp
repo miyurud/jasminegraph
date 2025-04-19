@@ -124,11 +124,11 @@ static void push_partition_command(int connFd, bool *loop_exit_p);
 static void hdfs_start_stream_command(int connFd, bool *loop_exit_p, bool isLocalStream,
                                       InstanceStreamHandler &instanceStreamHandler);
 long countLocalTriangles(
-        std::string graphId, std::string partitionId,
-        std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
-        std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
-        std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores,
-        int threadPriority);
+    std::string graphId, std::string partitionId,
+    std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
+    std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
+    std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores,
+    int threadPriority);
 
 static void processFile(string basicString, bool isLocal, InstanceStreamHandler &handler);
 
@@ -292,7 +292,7 @@ void JasmineGraphInstanceService::run(string masterHost, string host, int server
         return;
     }
 
-    bzero((char *) &svrAdd, sizeof(svrAdd));
+    bzero((char *)&svrAdd, sizeof(svrAdd));
 
     svrAdd.sin_family = AF_INET;
     svrAdd.sin_addr.s_addr = INADDR_ANY;
@@ -682,8 +682,7 @@ map<long, long> JasmineGraphInstanceService::getOutDegreeDistributionHashMap(map
 
 void JasmineGraphInstanceService::collectTrainedModels(
     instanceservicesessionargs *sessionargs, std::string graphID,
-    std::map<std::string, JasmineGraphInstanceService::workerPartitions> &graphPartitionedHosts,
-    int totalPartitions) {
+    std::map<std::string, JasmineGraphInstanceService::workerPartitions> &graphPartitionedHosts, int totalPartitions) {
     int total_threads = totalPartitions;
     std::thread *workerThreads = new std::thread[total_threads];
     int count = 0;
@@ -695,7 +694,7 @@ void JasmineGraphInstanceService::collectTrainedModels(
         for (it = workerPartitions.partitionID.begin(); it != workerPartitions.partitionID.end(); it++) {
             workerThreads[count] =
                 std::thread(&JasmineGraphInstanceService::collectTrainedModelThreadFunction, sessionargs, hostName,
-                        workerPartitions.port, workerPartitions.dataPort, graphID, *it);
+                            workerPartitions.port, workerPartitions.dataPort, graphID, *it);
             count++;
         }
     }
@@ -735,7 +734,7 @@ int JasmineGraphInstanceService::collectTrainedModelThreadFunction(instanceservi
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *) server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
     serv_addr.sin_port = htons(port);
     if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         return 0;
@@ -1033,7 +1032,7 @@ bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int 
 
         bzero((char *)&serv_addr, sizeof(serv_addr));
         serv_addr.sin_family = AF_INET;
-        bcopy((char *) server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+        bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
         serv_addr.sin_port = htons(port);
         if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
             return false;
@@ -1172,7 +1171,7 @@ bool JasmineGraphInstanceService::duplicateCentralStore(int thisWorkerPort, int 
                 goto END_OUTER_LOOP;
             }
         }
-        END_OUTER_LOOP:
+    END_OUTER_LOOP:
         Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
         close(sockfd);
     }
@@ -1514,7 +1513,7 @@ void calculateEgoNet(string graphID, string partitionID, int serverPort, Jasmine
 
         bzero((char *)&serv_addr, sizeof(serv_addr));
         serv_addr.sin_family = AF_INET;
-        bcopy((char *) server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+        bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
         serv_addr.sin_port = htons(port);
         if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
             return;
