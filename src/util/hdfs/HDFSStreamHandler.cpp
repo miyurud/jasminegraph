@@ -13,7 +13,7 @@
 
 #include "HDFSStreamHandler.h"
 #include "../../server/JasmineGraphServer.h"
-#include "../../partitioner/stream/HashPartitioner.h"
+#include "../../partitioner/stream/HDFSMultiThreadedHashPartitioner.h"
 #include <chrono>
 #include <nlohmann/json.hpp>
 #include <string>
@@ -105,7 +105,7 @@ void HDFSStreamHandler::streamFromHDFSIntoBuffer() {
     hdfs_stream_handler_logger.info("Time taken to read from HDFS: " + to_string(duration.count()) + " seconds");
 }
 
-void HDFSStreamHandler::streamFromBufferToProcessingQueue(HashPartitioner &partitioner) {
+void HDFSStreamHandler::streamFromBufferToProcessingQueue(HDFSMultiThreadedHashPartitioner &partitioner) {
     auto startTime = high_resolution_clock::now();
     while (isProcessing) {
         std::unique_lock<std::mutex> lock(dataBufferMutex);
@@ -160,7 +160,7 @@ void HDFSStreamHandler::streamFromBufferToProcessingQueue(HashPartitioner &parti
 
 void HDFSStreamHandler::startStreamingFromBufferToPartitions() {
     auto startTime = high_resolution_clock::now();
-    HashPartitioner partitioner(numberOfPartitions, graphId, masterIP, isDirected);
+    HDFSMultiThreadedHashPartitioner partitioner(numberOfPartitions, graphId, masterIP, isDirected);
 
     std::thread readerThread(&HDFSStreamHandler::streamFromHDFSIntoBuffer, this);
     std::vector<std::thread> bufferProcessorThreads;
