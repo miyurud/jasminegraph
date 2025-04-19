@@ -365,7 +365,7 @@ int deleteGraphPartition(std::string graphID, std::string partitionID) {
                                  graphID + "_centralstore_" + partitionID;
     status |= Utils::deleteDirectory(centalStoreFilePath);
     string centalStoreDuplicateFilePath =
-        Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + graphID
+        Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + graphID +
         "_centralstore_dp_" + partitionID;
     status |= Utils::deleteDirectory(centalStoreDuplicateFilePath);
     string attributeFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" +
