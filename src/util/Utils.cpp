@@ -268,6 +268,17 @@ int Utils::deleteDirectory(const std::string dirName) {
     return status;
 }
 
+int Utils::deleteFile(const std::string fileName) {
+    std::string command = "rm -f " + fileName;  // Use -f to force deletion
+    int status = system(command.c_str());
+    if (status == 0) {
+        util_logger.info("File: " + fileName + " deleted successfully");
+    } else {
+        util_logger.warn("Deleting file: " + fileName + " failed with exit code " + std::to_string(status));
+    }
+    return status;
+}
+
 int Utils::deleteAllMatchingFiles(const std::string fileNamePattern) {
     std::string command = "rm -f " + fileNamePattern + "*";
     int status = system(command.c_str());
@@ -1064,6 +1075,123 @@ bool Utils::uploadFileToWorker(std::string host, int port, int dataPort, int gra
     }
     Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
     close(sockfd);
+    return true;
+}
+
+bool Utils::sendFileChunkToWorker(std::string host, int port, int dataPort, std::string filePath, std::string masterIP,
+                                  std::string uploadType) {
+    util_logger.info("Host:" + host + " Port:" + to_string(port) + " DPort:" + to_string(dataPort));
+    bool result = true;
+    int sockfd;
+    char data[FED_DATA_LENGTH + 1];
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sockfd < 0) {
+        util_logger.error("Cannot create socket");
+        return false;
+    }
+
+    if (host.find('@') != std::string::npos) {
+        host = Utils::split(host, '@')[1];
+    }
+
+    server = gethostbyname(host.c_str());
+    if (server == NULL) {
+        util_logger.error("ERROR, no host named " + host);
+        return false;
+    }
+
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *) server->h_addr, (char *) &serv_addr.sin_addr.s_addr, server->h_length);
+    serv_addr.sin_port = htons(port);
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+        return false;
+    }
+
+    if (!Utils::performHandshake(sockfd, data, FED_DATA_LENGTH, masterIP)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return false;
+    }
+
+    if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, uploadType,
+                                   JasmineGraphInstanceProtocol::HDFS_STREAM_START_ACK)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return false;
+    }
+
+    std::string fileName = Utils::getFileName(filePath);
+    int fileSize = Utils::getFileSize(filePath);
+
+    if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, fileName,
+                                   JasmineGraphInstanceProtocol::HDFS_STREAM_FILE_NAME_ACK)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return false;
+    }
+
+    if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, to_string(fileSize),
+                                   JasmineGraphInstanceProtocol::HDFS_STREAM_FILE_SIZE_ACK)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return false;
+    }
+
+    util_logger.debug("Going to send file " + filePath + " through file transfer service to worker");
+    Utils::sendFileThroughService(host, dataPort, fileName, filePath);
+
+    string response;
+    int count = 0;
+    while (true) {
+        if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::FILE_RECV_CHK)) {
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+            close(sockfd);
+            return false;
+        }
+        util_logger.debug("Sent: " + JasmineGraphInstanceProtocol::FILE_RECV_CHK);
+
+        util_logger.debug("Checking if file is received");
+        response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
+        if (response.compare(JasmineGraphInstanceProtocol::FILE_RECV_WAIT) == 0) {
+            util_logger.debug("Received: " + JasmineGraphInstanceProtocol::FILE_RECV_WAIT);
+            util_logger.debug("Checking file status : " + to_string(count));
+            count++;
+            sleep(1);
+            continue;
+        } else if (response.compare(JasmineGraphInstanceProtocol::FILE_ACK) == 0) {
+            util_logger.debug("Received: " + JasmineGraphInstanceProtocol::FILE_ACK);
+            util_logger.debug("File transfer completed for file : " + filePath);
+            break;
+        }
+    }
+
+    while (true) {
+        if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::HDFS_STREAM_END_CHK)) {
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+            close(sockfd);
+            return false;
+        }
+        util_logger.debug("Sent: " + JasmineGraphInstanceProtocol::HDFS_STREAM_END_CHK);
+
+        response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
+        if (response.compare(JasmineGraphInstanceProtocol::HDFS_STREAM_END_WAIT) == 0) {
+            util_logger.debug("Received: " + JasmineGraphInstanceProtocol::HDFS_STREAM_END_WAIT);
+            sleep(1);
+            continue;
+        } else if (response.compare(JasmineGraphInstanceProtocol::HDFS_STREAM_END_ACK) == 0) {
+            util_logger.debug("Received: " + JasmineGraphInstanceProtocol::HDFS_STREAM_END_ACK);
+            util_logger.info("File chunk upload completed: " + fileName);
+            break;
+        }
+    }
+    Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+    close(sockfd);
+    Utils::deleteFile(filePath);
     return true;
 }
 

@@ -35,6 +35,7 @@ limitations under the License.
 #include <string>
 #include <thread>
 #include <vector>
+#include <regex>
 
 #include "../localstore/JasmineGraphHashMapLocalStore.h"
 #include "../localstore/JasmineGraphLocalStore.h"
@@ -45,6 +46,7 @@ limitations under the License.
 #include "../util/Conts.h"
 #include "../util/Utils.h"
 #include "JasmineGraphInstanceProtocol.h"
+#include "../util/kafka/InstanceStreamHandler.h"
 
 void *instanceservicesession(void *dummyPt);
 void writeCatalogRecord(string record);

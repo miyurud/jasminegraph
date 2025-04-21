@@ -128,12 +128,17 @@ static void push_partition_command(int connFd, bool *loop_exit_p);
 static void push_file_command(int connFd, bool *loop_exit_p);
 static void query_start_command(int connFd, InstanceHandler &instanceHandler, std::map<std::string,
                                 JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap, bool *loop_exit_p);
+
+static void hdfs_start_stream_command(int connFd, bool *loop_exit_p, bool isLocalStream,
+                                      InstanceStreamHandler &instanceStreamHandler);
 long countLocalTriangles(
     std::string graphId, std::string partitionId,
     std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores,
     std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
     std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores,
     int threadPriority);
+
+static void processFile(string basicString, bool isLocal, InstanceStreamHandler &handler);
 
 char *converter(const std::string &s) {
     char *pc = new char[s.size() + 1];
@@ -267,6 +272,11 @@ void *instanceservicesession(void *dummyPt) {
             send_priority_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::PUSH_PARTITION) == 0) {
             push_partition_command(connFd, &loop_exit);
+        } else if (line.compare(JasmineGraphInstanceProtocol::HDFS_LOCAL_STREAM_START) == 0) {
+            hdfs_start_stream_command(connFd, &loop_exit, true, streamHandler);
+        } else if (line.compare(JasmineGraphInstanceProtocol::HDFS_CENTRAL_STREAM_START) == 0) {
+            hdfs_start_stream_command(connFd, &loop_exit, false, streamHandler);
+        } else {
         } else if(line.compare(JasmineGraphInstanceProtocol::QUERY_START) == 0){
             query_start_command(connFd, instanceHandler, incrementalLocalStoreMap, &loop_exit);
         }else {
@@ -4200,12 +4210,12 @@ static void query_start_command(int connFd, InstanceHandler &instanceHandler, st
         *loop_exit_p = true;
         return;
     }
-    
+
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK)) {
         *loop_exit_p = true;
         return;
     }
-    
+
     std::string graphId(content_length, 0);
     return_status = recv(connFd, &graphId[0], content_length, 0);
     if (return_status > 0) {
@@ -4285,3 +4295,173 @@ static void query_start_command(int connFd, InstanceHandler &instanceHandler, st
     }
     instance_logger.debug("Sent CRLF string to mark the end");
 }
+static void hdfs_start_stream_command(int connFd, bool *loop_exit_p, bool isLocalStream,
+                                      InstanceStreamHandler &instanceStreamHandler) {
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::HDFS_STREAM_START_ACK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.debug("Sent : " + JasmineGraphInstanceProtocol::HDFS_STREAM_START_ACK);
+
+    char data[DATA_BUFFER_SIZE];
+    string fileName = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
+    instance_logger.debug("Received File name: " + fileName);
+
+
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::HDFS_STREAM_FILE_NAME_ACK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.debug("Acked for file name");
+
+    string size = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
+    instance_logger.debug("Received file size in bytes: " + size);
+
+    int fileSize = stoi(size);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::HDFS_STREAM_FILE_SIZE_ACK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.debug("Acked for file size");
+
+    string line;
+    string fullFilePath =
+            Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/" + fileName;
+
+    while (!Utils::fileExists(fullFilePath)) {
+        instance_logger.error("Instance data file " + fullFilePath + " does not exist");
+        sleep(1);
+    }
+    instance_logger.debug("Instance data file " + fullFilePath + " exist");
+
+    while (Utils::getFileSize(fullFilePath) < fileSize) {
+        line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
+        if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) != 0) {
+            instance_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::FILE_RECV_CHK +
+                                  " ; Received: " + line);
+            close(connFd);
+            return;
+        }
+        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_RECV_WAIT)) {
+            *loop_exit_p = true;
+            return;
+        }
+    }
+
+    line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
+    if (line.compare(JasmineGraphInstanceProtocol::FILE_RECV_CHK) != 0) {
+        instance_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::FILE_RECV_CHK +
+                              " ; Received: " + line);
+        close(connFd);
+        return;
+    }
+    instance_logger.debug("Received : " + line);
+
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::FILE_ACK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.debug("Sent : " + JasmineGraphInstanceProtocol::FILE_ACK);
+
+    while (!Utils::fileExists(fullFilePath)) {
+        line = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+        if (line.compare(JasmineGraphInstanceProtocol::HDFS_STREAM_END_CHK) != 0) {
+            instance_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::HDFS_STREAM_END_CHK +
+                                  " ; Received: " + line);
+            close(connFd);
+            return;
+        }
+        instance_logger.debug("Received : " + line);
+        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::HDFS_STREAM_END_WAIT)) {
+            *loop_exit_p = true;
+            return;
+        }
+        instance_logger.debug("Sent : " + JasmineGraphInstanceProtocol::HDFS_STREAM_END_WAIT);
+    }
+
+    line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
+    if (line.compare(JasmineGraphInstanceProtocol::HDFS_STREAM_END_CHK) != 0) {
+        instance_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::HDFS_STREAM_END_CHK +
+                              " ; Received: " + line);
+        close(connFd);
+        return;
+    }
+    instance_logger.debug("Received : " + line);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::HDFS_STREAM_END_ACK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.debug("Sent : " + JasmineGraphInstanceProtocol::HDFS_STREAM_END_ACK);
+
+    processFile(fileName, isLocalStream, instanceStreamHandler);
+
+    // delete file chunk after adding to the store
+    Utils::deleteFile(fullFilePath);
+}
+
+static void processFile(string fileName, bool isLocal,
+                                              InstanceStreamHandler &handler) {
+    std::string fileDirectory = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/";
+    std::string filePath = fileDirectory + fileName;
+
+    std::regex fileNamePattern;
+    if (isLocal) {
+        fileNamePattern = std::regex(R"((\d+)_(\d+)_localstore_(\d+))");
+    } else  {
+        fileNamePattern = std::regex(R"((\d+)_(\d+)_centralstore_(\d+))");
+    }
+
+    std::smatch match;
+    int graphId, partitionIndex;
+    if (std::regex_match(fileName, match, fileNamePattern)) {
+        graphId = std::stoi(match[1].str());         // Extract graphId
+        partitionIndex = std::stoi(match[2].str());  // Extract partitionIndex
+
+        instance_logger.debug("Extracted graphId: " + std::to_string(graphId) +
+                             ", partitionIndex: " + std::to_string(partitionIndex));
+    } else {
+        instance_logger.error("File name format is incorrect: " + fileName);
+        return;
+    }
+
+    std::ifstream file(filePath);
+    if (!file.is_open()) {
+        instance_logger.error("Error opening file: " + filePath);
+        return;
+    }
+
+    instance_logger.debug("Processing file: " + filePath);
+
+    std::string line;
+    while (std::getline(file, line)) {
+        std::regex delimiterRegex("\\s+|,");
+        std::sregex_token_iterator iter(line.begin(), line.end(), delimiterRegex, -1);
+        std::sregex_token_iterator end;
+
+        std::vector<std::string> tokens(iter, end);
+        if (tokens.size() < 2) {
+            instance_logger.error("Invalid line format in file: " + line);
+            continue;
+        }
+
+        if (isLocal) {
+            handler.handleLocalEdge(
+                    {tokens[0], tokens[1]},
+                    std::to_string(graphId),
+                    std::to_string(partitionIndex),
+                    std::to_string(graphId) + "_" + std::to_string(partitionIndex));
+        } else {
+            handler.handleCentralEdge(
+                    {tokens[0], tokens[1]},
+                    std::to_string(graphId),
+                    std::to_string(partitionIndex),
+                    std::to_string(graphId) + "_" + std::to_string(partitionIndex));
+        }
+    }
+
+    file.close();
+    instance_logger.info("Finished processing file: " + filePath);
+}
+
+
+

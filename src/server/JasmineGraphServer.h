@@ -133,6 +133,8 @@ class JasmineGraphServer {
                              // partiton ID.
     };
 
+    std::vector<JasmineGraphServer::worker> workers(size_t npart);
+
     static std::map<std::string, workerPartitions> getGraphPartitionedHosts(std::string graphID);
 
     static void inDegreeDistribution(std::string graphID);
