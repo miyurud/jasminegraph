@@ -166,7 +166,7 @@ void JasmineGraphIncrementalLocalStore::addSourceProperties(RelationBlock* relat
         }
     }
     std::string sourcePid = std::to_string(sourceJson["pid"].get<int>());
-    addMetaProperty(relationBlock->getSource(),MetaPropertyLink::PARTITION_ID,sourcePid);
+    addNodeMetaProperty(relationBlock->getSource(),MetaPropertyLink::PARTITION_ID,sourcePid);
 }
 
 void JasmineGraphIncrementalLocalStore::addDestinationProperties(RelationBlock* relationBlock, const json& destinationJson) {
@@ -178,11 +178,11 @@ void JasmineGraphIncrementalLocalStore::addDestinationProperties(RelationBlock* 
             relationBlock->getDestination()->addProperty(std::string(it.key()), &value[0]);
         }
     }
-    std::string sourcePid = std::to_string(destinationJson["pid"].get<int>());
-    addMetaProperty(relationBlock->getDestination(),MetaPropertyLink::PARTITION_ID,sourcePid);
+    std::string destPId = std::to_string(destinationJson["pid"].get<int>());
+    addNodeMetaProperty(relationBlock->getDestination(),MetaPropertyLink::PARTITION_ID,destPId);
 }
 
-void JasmineGraphIncrementalLocalStore::addMetaProperty(NodeBlock* nodeBlock,
+void JasmineGraphIncrementalLocalStore::addNodeMetaProperty(NodeBlock* nodeBlock,
                                                         std::string propertyKey, std::string propertyValue) {
     char meta[MetaPropertyLink::MAX_VALUE_SIZE] = {};
     strcpy(meta, propertyValue.c_str());
