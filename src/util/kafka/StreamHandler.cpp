@@ -60,12 +60,11 @@ bool StreamHandler::isEndOfStream(const cppkafka::Message &msg) {
 }
 
 void StreamHandler::listen_to_kafka_topic() {
-
-    //get workers
+    // get workers
     JasmineGraphServer *server = JasmineGraphServer::getInstance();
     std::vector<JasmineGraphServer::worker> workers = server->workers(workerClients.size());
 
-    //assign partitions to workers
+    // assign partitions to workers
     for (int i = 0; i < workerClients.size(); i++) {
         Utils::assignPartitionToWorker(graphId, i, workers.at(i).hostname, workers.at(i).port);
     }
