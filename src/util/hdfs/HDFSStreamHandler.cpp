@@ -35,7 +35,7 @@ const size_t MAX_BUFFER_SIZE = MESSAGE_SIZE * 512;
 const std::string END_OF_STREAM_MARKER = "-1";
 
 HDFSStreamHandler::HDFSStreamHandler(hdfsFS fileSystem, const std::string &filePath, int numberOfPartitions,
-                                     int graphId, SQLiteDBInterface *sqlite, std::string masterIP, bool isDirected)
+                                     int graphId, SQLiteDBInterface *sqlite, std::string masterIP, bool isDirected, bool isEdgeListType)
         : fileSystem(fileSystem),
           filePath(filePath),
           numberOfPartitions(numberOfPartitions),
@@ -44,7 +44,8 @@ HDFSStreamHandler::HDFSStreamHandler(hdfsFS fileSystem, const std::string &fileP
           graphId(graphId),
           sqlite(sqlite),
           masterIP(masterIP),
-          isDirected(isDirected) {}
+          isDirected(isDirected),
+          isEdgeListType(isEdgeListType) {}
 
 void HDFSStreamHandler::streamFromHDFSIntoBuffer() {
     auto startTime = high_resolution_clock::now();
@@ -105,7 +106,85 @@ void HDFSStreamHandler::streamFromHDFSIntoBuffer() {
     hdfs_stream_handler_logger.info("Time taken to read from HDFS: " + to_string(duration.count()) + " seconds");
 }
 
-void HDFSStreamHandler::streamFromBufferToProcessingQueue(HashPartitioner &partitioner) {
+void HDFSStreamHandler::streamFromBufferToProcessingQueueEdgeListGraph(HashPartitioner &partitioner) {
+    auto startTime = high_resolution_clock::now();
+    while (isProcessing) {
+        std::unique_lock<std::mutex> lock(dataBufferMutex);
+        dataBufferCV.wait(lock, [this] { return !dataBuffer.empty() || !isReading; });
+
+        if (!dataBuffer.empty()) {
+            std::string line = dataBuffer.front();
+            dataBuffer.pop();
+            lock.unlock();
+
+            // Check for the end-of-stream marker
+            if (line == END_OF_STREAM_MARKER) {
+                hdfs_stream_handler_logger.debug("Received end-of-stream marker in one of the threads.");
+
+                // Set the flag to stop processing in all threads
+                isProcessing = false;
+
+                // Notify all waiting threads
+                dataBufferCV.notify_all();
+                break;
+            }
+
+            std::regex delimiterRegex("\\s+|,");
+            std::sregex_token_iterator iter(line.begin(), line.end(), delimiterRegex, -1);
+            std::sregex_token_iterator end;
+
+            std::vector<std::string> tokens(iter, end);
+
+            if (tokens.size() == 2) {
+                std::string sourceId = tokens[0];
+                std::string destId = tokens[1];
+
+                // Create JSON objects for source and destination
+                json source;
+                json destination;
+
+                source["id"] = sourceId;
+                destination["id"] = destId;
+
+                // Create a wrapper JSON object to hold them both
+                json edge;
+                edge["source"] = source;
+                edge["destination"] = destination;
+
+                // Example: add to partitioner (if you'd like to proceed as in the commented section)
+                int sourceIndex = std::stoi(sourceId) % this->numberOfPartitions;
+                int destIndex = std::stoi(destId) % this->numberOfPartitions;
+
+                source["pid"] = sourceIndex;
+                destination["pid"] = destIndex;
+
+                json obj;
+                obj["source"] = source;
+                obj["destination"] = destination;
+                obj["properties"] = json::object();  // assign properties if available
+
+                if (sourceIndex == destIndex) {
+                    partitioner.addLocalEdge(obj.dump(), sourceIndex);
+                } else {
+                    json reversedObj;
+                    reversedObj["source"] = destination;
+                    reversedObj["destination"] = source;
+                    reversedObj["properties"] = obj["properties"];
+
+                    partitioner.addEdgeCut(obj.dump(), sourceIndex);
+                    partitioner.addEdgeCut(reversedObj.dump(), destIndex);
+                }
+            } else {
+                hdfs_stream_handler_logger.error("Malformed line (unexpected token count): " + line);
+            }
+
+        } else if (!isReading) {
+            break;
+        }
+    }
+}
+
+void HDFSStreamHandler::streamFromBufferToProcessingQueuePropertyGraph(HashPartitioner &partitioner) {
     auto startTime = high_resolution_clock::now();
     while (isProcessing) {
         std::unique_lock<std::mutex> lock(dataBufferMutex);
@@ -175,10 +254,19 @@ void HDFSStreamHandler::startStreamingFromBufferToPartitions() {
 
     std::thread readerThread(&HDFSStreamHandler::streamFromHDFSIntoBuffer, this);
     std::vector<std::thread> bufferProcessorThreads;
-    for (int i = 0; i < 20; ++i) {
-        bufferProcessorThreads.emplace_back(&HDFSStreamHandler::streamFromBufferToProcessingQueue, this,
-                                            std::ref(partitioner));
+
+    if ( isEdgeListType) {
+        for (int i = 0; i < 20; ++i) {
+            bufferProcessorThreads.emplace_back(&HDFSStreamHandler::streamFromBufferToProcessingQueueEdgeListGraph, this,
+                                                std::ref(partitioner));
+        }
+    } else {
+        for (int i = 0; i < 20; ++i) {
+            bufferProcessorThreads.emplace_back(&HDFSStreamHandler::streamFromBufferToProcessingQueuePropertyGraph, this,
+                                                std::ref(partitioner));
+        }
     }
+
     readerThread.join();
     for (auto &thread : bufferProcessorThreads) {
         thread.join();

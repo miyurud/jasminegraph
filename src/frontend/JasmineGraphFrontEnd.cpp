@@ -1247,6 +1247,32 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
         return;
     }
 
+    /*get graph type*/
+    bool isEdgeListType = false;
+    std::string graphType = "Is this a graph edge list(y/n)?";
+    resultWr = write(connFd, graphType.c_str(), graphType.length());
+    if (resultWr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+
+    resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+    if (resultWr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+
+    char isEdgeListTypeRes[FRONTEND_DATA_LENGTH+1];
+    bzero(isEdgeListTypeRes, FRONTEND_DATA_LENGTH + 1);
+    std::string isEdgeListTypeGraph(isEdgeListTypeRes);
+    isEdgeListTypeGraph=Utils::trim_copy(isEdgeListTypeGraph);
+
+    if (isEdgeListTypeGraph=="y") {
+        isEdgeListType = true;
+    }
+
     /*get directionality*/
     std::string isDirectedGraph = "Is this a directed graph(y/n)?";
     resultWr = write(connFd, isDirectedGraph.c_str(), isDirectedGraph.length());
@@ -1288,7 +1314,7 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
     frontend_logger.info("Created graph ID: " + std::to_string(newGraphID));
     HDFSStreamHandler *streamHandler = new HDFSStreamHandler(hdfsConnector->getFileSystem(),
                                                              hdfsFilePathS, numberOfPartitions,
-                                                             newGraphID, sqlite, masterIP, directed);
+                                                             newGraphID, sqlite, masterIP, directed, isEdgeListType);
     frontend_logger.info("Started listening to " + hdfsFilePathS);
     inputStreamHandlerThread = std::thread(&HDFSStreamHandler::startStreamingFromBufferToPartitions, streamHandler);
     inputStreamHandlerThread.join();
