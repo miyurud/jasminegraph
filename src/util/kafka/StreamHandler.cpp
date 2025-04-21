@@ -20,6 +20,7 @@ limitations under the License.
 
 #include "../logger/Logger.h"
 #include "../Utils.h"
+#include "../../server/JasmineGraphServer.h"
 
 using json = nlohmann::json;
 using namespace std;
@@ -59,6 +60,16 @@ bool StreamHandler::isEndOfStream(const cppkafka::Message &msg) {
 }
 
 void StreamHandler::listen_to_kafka_topic() {
+
+    //get workers
+    JasmineGraphServer *server = JasmineGraphServer::getInstance();
+    std::vector<JasmineGraphServer::worker> workers = server->workers(workerClients.size());
+
+    //assign partitions to workers
+    for (int i = 0; i < workerClients.size(); i++) {
+        Utils::assignPartitionToWorker(graphId, i, workers.at(i).hostname, workers.at(i).port);
+    }
+
     while (true) {
         cppkafka::Message msg = this->pollMessage();
 

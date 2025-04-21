@@ -1315,12 +1315,12 @@ bool Utils::transferPartition(std::string sourceWorker, int sourceWorkerPort, st
 
 void Utils::assignPartitionToWorker(int graphId, int partitionIndex, string  hostname, int port) {
     util_logger.debug("Assigning graph ID: " + std::to_string(graphId) + "  partition: "
-    + std::to_string(partitionIndex) + " to worker");
+    + std::to_string(partitionIndex) + " to worker at " + hostname + ":" + std::to_string(port));
 
     auto *sqlite = new SQLiteDBInterface();
     sqlite->init();
 
-    string workerHost;
+    string workerHost = hostname;
     if (hostname.find('@') != std::string::npos) {
         workerHost = Utils::split(hostname, '@')[1];
     }
