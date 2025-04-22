@@ -276,10 +276,9 @@ void *instanceservicesession(void *dummyPt) {
             hdfs_start_stream_command(connFd, &loop_exit, true, streamHandler);
         } else if (line.compare(JasmineGraphInstanceProtocol::HDFS_CENTRAL_STREAM_START) == 0) {
             hdfs_start_stream_command(connFd, &loop_exit, false, streamHandler);
-        } else {
         } else if(line.compare(JasmineGraphInstanceProtocol::QUERY_START) == 0){
             query_start_command(connFd, instanceHandler, incrementalLocalStoreMap, &loop_exit);
-        }else {
+        } else {
             instance_logger.error("Invalid command");
             loop_exit = true;
         }

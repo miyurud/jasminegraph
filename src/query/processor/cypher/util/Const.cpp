@@ -134,3 +134,5 @@ string Const::PATH_PATTERN = "PATH_PATTERN";
 string Const::NODE = "NODE";
 string Const::RELATIONSHIP = "RELATIONSHIP";
 string Const::LOOKUP = "LOOKUP";
+int Const::TYPE_NAME_SIZE = 17;
+int Const::THREE = 3;

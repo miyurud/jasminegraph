@@ -36,10 +36,7 @@ class DataPublisher {
  public:
     DataPublisher(int, std::string, int);
     void publish(std::string);
-    void publish_relation(std::string);
-    void publish_edge(std::string);
     void queryPublish(std::string, std::string, std::string);
-    void queryDataReciev();
 
     ~DataPublisher();
 

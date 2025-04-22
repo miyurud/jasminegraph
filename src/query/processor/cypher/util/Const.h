@@ -138,6 +138,8 @@ class Const {
     static string NODE;
     static string RELATIONSHIP;
     static string LOOKUP;
+    static int TYPE_NAME_SIZE;
+    static int THREE;
 };
 
 #endif  // CONST_H

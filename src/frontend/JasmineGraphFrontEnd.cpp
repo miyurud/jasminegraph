@@ -444,7 +444,8 @@ static void cypherCommand(int connFd, vector<DataPublisher *> &workerClients,
         *loop_exit = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+                      Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit = true;
@@ -462,7 +463,8 @@ static void cypherCommand(int connFd, vector<DataPublisher *> &workerClients,
         *loop_exit = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+                      Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit = true;
@@ -489,19 +491,19 @@ static void cypherCommand(int connFd, vector<DataPublisher *> &workerClients,
     auto* ast = any_cast<ASTNode*>(astBuilder.visitOC_Cypher(parser.oC_Cypher()));
 
     SemanticAnalyzer semanticAnalyzer;
-    string obj;
+    string executionPlanString;
     if (semanticAnalyzer.analyze(ast)) {
         frontend_logger.log("AST is successfully analyzed", "log");
         QueryPlanner queryPlanner;
         Operator *executionPlan = queryPlanner.createExecutionPlan(ast);
-        obj = executionPlan->execute();
+        executionPlanString = executionPlan->execute();
     } else {
-        frontend_logger.error("query isn't semantically correct: "+queryString);
+        frontend_logger.error("Query isn't semantically correct: "+queryString);
     }
-    SharedBuffer sharedBuffer(3);
+    SharedBuffer sharedBuffer(MASTER_BUFFER_SIZE);
     JasmineGraphServer *server = JasmineGraphServer::getInstance();
-    server->sendQueryPlan(stoi(graphIdResponse), workerClients.size(), obj,
-                          std::ref(sharedBuffer));
+    server->sendQueryPlan(stoi(graphIdResponse), workerClients.size(),
+                          executionPlanString, std::ref(sharedBuffer));
 
     int closeFlag = 0;
     while(true){
@@ -513,7 +515,8 @@ static void cypherCommand(int connFd, vector<DataPublisher *> &workerClients,
             closeFlag++;
         } else {
             result_wr = write(connFd, data.c_str(), data.length());
-            result_wr = write(connFd, "\r\n", 2);
+            result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+                              Conts::CARRIAGE_RETURN_NEW_LINE.size());
         }
     }
 }

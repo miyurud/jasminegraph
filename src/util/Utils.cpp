@@ -1516,7 +1516,6 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
         std::string data(content_length, 0);
         return_status = recv(sockfd, &data[0], content_length, 0);
         if (return_status > 0) {
-            util_logger.info("Received graph data: ");
             send(sockfd, JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS.c_str(),
                  JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS.length(), 0);
         } else {
@@ -1533,14 +1532,6 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
             std::cout << "Time limit reached!" << std::endl;
             break;
         }
-//        auto str = json::parse(data);
-//        std::ostringstream row;
-//        row << "| " << std::left
-//            << std::setw(10) << str.value("id", "-")
-//            << "| " << std::setw(30) << str.value("name", "-")
-//            << "| " << std::setw(30) << str.value("occupation", str.value("category", "-"))
-//            << "| " << std::setw(10) << str.value("type", "-")
-//            << "|";
         sharedBuffer.add(data);
     }
 

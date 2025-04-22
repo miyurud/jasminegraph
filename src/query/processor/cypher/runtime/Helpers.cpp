@@ -1,28 +1,20 @@
-//
-// Created by kumarawansha on 2/8/25.
-//
+/**
+Copyright 2025 JasmineGraph Team
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+ */
 
 #include "Helpers.h"
 
 
 FilterHelper::FilterHelper(string condition) : condition(condition) {};
-
-//              "condition": {
-//                  "left": {
-//                      "Type": "PROPERTY_LOOKUP",
-//                      "property": [
-//                          "name"
-//                      ],
-//                      "variable": "n"
-//                  },
-//                  "operator": "==",
-//                  "right": {
-//                      "Type": "STRING",
-//                      "value": "'John'"
-//                  },
-//                  "type": "COMPARISON"
-//              }
-
 
 bool FilterHelper::evaluate(std::string data) {
     return evaluateCondition(condition, data);
@@ -41,23 +33,7 @@ bool FilterHelper::evaluateCondition(std::string condition, std::string data) {
     return false;
 }
 
-bool FilterHelper::evaluateComparison(std::string condition, std::string raw) {
-    // {"left":{"Type":"PROPERTY_LOOKUP","property":["name"],"variable":"n"},
-    // "operator":"==","right":{"Type":"STRING","value":"'hh'"},"type":"COMPARISON"}
-    // {"left":{"Type":"PROPERTY_LOOKUP","property":["name"],"variable":"n"},
-    // "operator":"==","right":{"Type":"DECIMAL","value":"10"},"type":"COMPARISON"}
-    // {"left":{"Type":"PROPERTY_LOOKUP","property":["name"],"variable":"n"},
-    // "operator":"==","right":{"Type":"BOOLEAN","value":"TRUE"},"type":"COMPARISON"}
-    // {"left":{"Type":"PROPERTY_LOOKUP","property":["name"],"variable":"n"},
-    // "operator":"==","right":{"Type":"NULL","value":""},"type":"COMPARISON"}
-    // {"left":{"Type":"VARIABLE","value":"r1"},
-    // "operator":"<>","right":{"Type":"VARIABLE","value":"r2"},"type":"COMPARISON"}
-
-    // {"left":{"Type":"PROPERTY_LOOKUP","property":["name"],"variable":"n"},
-    // "operator":"==","right":{"Type":"LIST","element":["10","4"]},"type":"COMPARISON"}
-    // {"left":{"Type":"PROPERTY_LOOKUP","property":["name"],"variable":"n"},
-    // "operator":"==","right":{"Type":"PROPERTIES_MAP","property":{"name":"'HH'"}},"type":"COMPARISON"}
-
+bool FilterHelper::evaluateComparison(std::string condition, std::string raw){
     json predicate = json::parse(condition);
     json data = json::parse(raw);
     if (!typeCheck(predicate["left"]["type"], predicate["right"]["type"])) {
@@ -182,14 +158,12 @@ bool FilterHelper::typeCheck(std::string left, std::string right) {
     }
 }
 
-// {"Type":"PROPERTY_LOOKUP","property":["name"],"variable":"n"}
-// {"category":"Restaurant","id":"17","name":"Gourmet Bistro","type":"Location"}
 ValueType FilterHelper::evaluatePropertyLookup(std::string property, std::string data, string type) {
     json prop = json::parse(property);
     json raw = json::parse(data);
     vector<string> properties = prop["property"];
     string value;
-    // should be implemented to lookup nexted properties after persisting that kind of properties
+    // should be implemented to lookup nested properties after persisting that kind of properties
     // for now only one level of properties are supported (size of properties vector should be 1)
     for (auto p: properties) {
         if (!raw.contains(p)) {
@@ -224,7 +198,6 @@ ValueType FilterHelper::evaluatePropertyLookup(std::string property, std::string
     return "null";
 }
 
-// {"Type":"FUNCTION","arguments":["n"],"functionName":"id"}
 ValueType FilterHelper::evaluateFunction(std::string function, std::string data, std::string type) {
     json func = json::parse(function);
     json raw = json::parse(data);
@@ -258,10 +231,8 @@ ValueType FilterHelper::evaluateFunction(std::string function, std::string data,
     } catch (const exception& e) {
         return "null";
     }
-    return "null";
 }
 
-// {"Type":"DECIMAL","value":"10"}
 ValueType FilterHelper::evaluateOtherTypes(std::string data) {
     json val = json::parse(data);
     if (val["type"] == "STRING") {

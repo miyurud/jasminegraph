@@ -24,7 +24,7 @@ public:
     ~QueryPlanner() = default;
 
     Operator* createExecutionPlan(ASTNode* ast, Operator* op = nullptr, string var = "");
-    bool isAllChildAreGivenType(string nodeType, ASTNode* root);
+    bool isAllChildrenAreGivenType(string nodeType, ASTNode* root);
     bool isAvailable(string nodeType, ASTNode* subtree);
     vector<ASTNode*> getSubTreeListByNodeType(ASTNode* root, string nodeType);
     ASTNode* verifyTreeType(ASTNode* root, string nodeType);

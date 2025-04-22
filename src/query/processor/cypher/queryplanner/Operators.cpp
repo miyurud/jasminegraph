@@ -182,26 +182,26 @@ string Filter::execute() {
         if(item.second->nodeType==Const::WHERE){
             condition = analyze(item.second->elements[0]);
             filter["condition"] = json::parse(condition);
-        }else if(item.second->nodeType==Const::PROPERTIES_MAP){
+        }else if(item.second->nodeType == Const::PROPERTIES_MAP){
             for(auto* prop: item.second->elements){
-                condition+=item.first+"."+prop->elements[0]->value+" = "+prop->elements[1]->value;
+                condition += item.first + "." + prop->elements[0]->value + " = " + prop->elements[1]->value;
                 if(prop != item.second->elements.back()){
-                    condition+=" AND \n";
+                    condition += " AND \n";
                 }
             }
-        }else if(item.second->nodeType==Const::NODE_LABELS){
+        }else if(item.second->nodeType == Const::NODE_LABELS){
             for(auto* prop: item.second->elements){
-                condition+=item.first+": "+prop->elements[0]->value;
+                condition += item.first + ": " +prop->elements[0]->value;
                 if(prop != item.second->elements.back()){
-                    condition+=" AND \n";
+                    condition += " AND \n";
                 }
             }
         }else if(item.second->nodeType==Const::NODE_LABEL){
-            condition = item.first+": "+item.second->elements[0]->value;
+            condition = item.first + ": " + item.second->elements[0]->value;
         }
 
         if(item != filterCases.back()){
-            condition+=" AND \n";
+            condition += " AND \n";
         }
     }
     return filter.dump();
@@ -212,7 +212,6 @@ Projection::Projection(Operator* input, const vector<ASTNode*> columns) : input(
 
 string Projection::execute() {
     input->execute();
-    cout<<"Projection"<<endl;
     for (auto* col : columns) {
         cout << col->print() << endl;
     }
@@ -362,8 +361,6 @@ DirectedAllRelationshipScan::DirectedAllRelationshipScan(std::string direction, 
         : startVar(startVar), endVar(endVar), relVar(relVar), direction(direction) {}
 
 string DirectedAllRelationshipScan::execute() {
-    cout<<"DirectedAllRelationshipScan: \n"<<endl;
-
     if(direction == "right"){
         cout << "("<<startVar<<") -[" << relVar<<"]-> (" << endVar << ")" << endl;
     }else{
