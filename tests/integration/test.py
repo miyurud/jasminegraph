@@ -212,6 +212,9 @@ def test(host, port):
                                  b'HDFS file path: ',
                                  exit_on_failure=True)
         send_and_expect_response(sock, 'adhdfs', b'/home/powergrid.dl',
+                                 b'Is this an edge list type graph(y/n)?',
+                                 exit_on_failure=True)
+        send_and_expect_response(sock, 'adhdfs', b'y',
                                  b'Is this a directed graph(y/n)?',
                                  exit_on_failure=True)
         send_and_expect_response(sock, 'adhdfs', b'y', DONE, exit_on_failure=True)
