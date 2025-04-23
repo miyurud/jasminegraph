@@ -180,8 +180,6 @@ void JasmineGraphIncrementalLocalStore::addDestinationProperties(RelationBlock* 
             relationBlock->getDestination()->addProperty(std::string(it.key()), &value[0]);
         }
     }
-    std::string sourcePid = std::to_string(destinationJson["pid"].get<int>());
-    addNodeMetaProperty(relationBlock->getDestination(),MetaPropertyLink::PARTITION_ID,sourcePid);
     std::string destPId = std::to_string(destinationJson["pid"].get<int>());
     addNodeMetaProperty(relationBlock->getDestination(),MetaPropertyLink::PARTITION_ID,destPId);
 }
