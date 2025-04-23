@@ -16,7 +16,7 @@
 
 #include "../logger/Logger.h"
 #include "../Utils.h"
-#include "../../partitioner/stream/HashPartitioner.h"
+#include "../../partitioner/stream/HDFSMultiThreadedHashPartitioner.h"
 #include "../../nativestore/DataPublisher.h"
 
 #include <hdfs.h>
@@ -38,7 +38,7 @@ class HDFSStreamHandler {
 
  private:
     void streamFromHDFSIntoBuffer();
-    void streamFromBufferToProcessingQueue(HashPartitioner &partitioner);
+    void streamFromBufferToProcessingQueue(HDFSMultiThreadedHashPartitioner &partitioner);
 
     hdfsFS fileSystem;
 
