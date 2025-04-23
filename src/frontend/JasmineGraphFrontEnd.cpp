@@ -1387,7 +1387,7 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
 
     /*get graph type*/
     bool isEdgeListType = false;
-    std::string graphType = "Is this a graph edge list(y/n)?";
+    std::string graphType = "Is this an edge list type graph(y/n)?";
     resultWr = write(connFd, graphType.c_str(), graphType.length());
     if (resultWr < 0) {
         frontend_logger.error("Error writing to socket");
