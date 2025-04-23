@@ -1,2 +1,2 @@
-hdfs.host=hdfs-namenode
+hdfs.host=172.28.5.10
 hdfs.port=9000

@@ -81,7 +81,7 @@ set(HEADERS globals.h
         src/util/dbinterface/DBInterface.h
         src/util/hdfs/HDFSConnector.h
         src/util/hdfs/HDFSStreamHandler.h
-        src/partitioner/stream/HashPartitioner.h
+        src/partitioner/stream/HDFSMultiThreadedHashPartitioner.h
         src/query/processor/cypher/util/Const.h
         src/nativestore/MetaPropertyLink.h
         src/nativestore/MetaPropertyEdgeLink.h
@@ -155,7 +155,7 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/util/dbinterface/DBInterface.cpp
         src/util/hdfs/HDFSConnector.cpp
         src/util/hdfs/HDFSStreamHandler.cpp
-        src/partitioner/stream/HashPartitioner.cpp
+        src/partitioner/stream/HDFSMultiThreadedHashPartitioner.cpp
         src/query/processor/cypher/semanticanalyzer/SemanticAnalyzer.cpp
         src/query/processor/cypher/util/Const.cpp
         src/frontend/ui/JasmineGraphFrontEndUIProtocol.h

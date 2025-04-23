@@ -27,7 +27,7 @@
 #include <condition_variable>
 #include <thread>
 
-class HashPartitioner {
+class HDFSMultiThreadedHashPartitioner {
     std::vector<Partition> partitions;
 
     std::atomic<bool> terminateConsumers;
@@ -53,8 +53,8 @@ class HashPartitioner {
     std::vector<std::mutex> partitionMutexArray;
 
  public:
-    ~HashPartitioner();
-    HashPartitioner(int numberOfPartitions, int graphID, std::string masterIp, bool isDirected);
+    ~HDFSMultiThreadedHashPartitioner();
+    HDFSMultiThreadedHashPartitioner(int numberOfPartitions, int graphID, std::string masterIp, bool isDirected);
     long getVertexCount();
     long getEdgeCount();
     void addEdgeCut(const std::string &edge, int index);

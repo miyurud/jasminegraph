@@ -1320,7 +1320,7 @@ void Utils::assignPartitionToWorker(int graphId, int partitionIndex, string  hos
     auto *sqlite = new SQLiteDBInterface();
     sqlite->init();
 
-    string workerHost;
+    string workerHost = hostname;
     if (hostname.find('@') != std::string::npos) {
         workerHost = Utils::split(hostname, '@')[1];
     }
@@ -1355,4 +1355,14 @@ void Utils::assignPartitionToWorker(int graphId, int partitionIndex, string  hos
     sqliteMutex.unlock();
 
     delete sqlite;
+}
+
+string Utils::getFrontendInput(int connFd) {
+    char frontendInput[FRONTEND_DATA_LENGTH + 1];
+    bzero(frontendInput, FRONTEND_DATA_LENGTH + 1);
+    read(connFd, frontendInput, FRONTEND_DATA_LENGTH);
+    std::string input(frontendInput);
+    input = Utils::trim_copy(input);
+    std::transform(input.begin(), input.end(), input.begin(), ::tolower);
+    return input;
 }

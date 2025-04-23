@@ -39,6 +39,12 @@ class DBInterface {
     void runInsertNoIDReturn(std::string);
 
     int runSqlNoCallback(const char *zSql);
+
+    bool isGraphIdExist(std::string);
+
+    int getNextGraphId();
+
+    std::string getPartitionAlgoByGraphID(std::string graphID);
 };
 
 #endif  // JASMINEGRAPH_SRC_UTIL_DBINTERFACE_H_

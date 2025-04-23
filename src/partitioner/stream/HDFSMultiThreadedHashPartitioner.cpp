@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-#include "HashPartitioner.h"
+#include "HDFSMultiThreadedHashPartitioner.h"
 #include "../../server/JasmineGraphServer.h"
 #include <nlohmann/json.hpp>
 
@@ -19,7 +19,8 @@ Logger hash_partitioner_logger;
 
 int PARTITION_FILE_EDGE_COUNT_THRESHOLD = 1000000;
 
-HashPartitioner::HashPartitioner(int numberOfPartitions, int graphID, std::string masterIp, bool isDirected)
+HDFSMultiThreadedHashPartitioner::HDFSMultiThreadedHashPartitioner(int numberOfPartitions, int graphID,
+    std::string masterIp, bool isDirected)
         : numberOfPartitions(numberOfPartitions), graphId(graphID),
           partitionLocks(numberOfPartitions), vertexCount(0), edgeCount(0),
           localEdgeArrays(numberOfPartitions), edgeCutsArrays(numberOfPartitions),
@@ -38,17 +39,17 @@ HashPartitioner::HashPartitioner(int numberOfPartitions, int graphID, std::strin
     // Start consumer threads and store them
     for (int i = 0; i < numberOfPartitions; i++) {
         this->partitions.push_back(Partition(i, numberOfPartitions));
-        localEdgeThreads.emplace_back(&HashPartitioner::consumeLocalEdges, this, i, workers[i]);
-        edgeCutThreads.emplace_back(&HashPartitioner::consumeEdgeCuts, this, i, workers[i]);
+        localEdgeThreads.emplace_back(&HDFSMultiThreadedHashPartitioner::consumeLocalEdges, this, i, workers[i]);
+        edgeCutThreads.emplace_back(&HDFSMultiThreadedHashPartitioner::consumeEdgeCuts, this, i, workers[i]);
         Utils::assignPartitionToWorker(graphId, i, workers.at(i).hostname, workers.at(i).port);
     }
 }
 
-HashPartitioner::~HashPartitioner() {
+HDFSMultiThreadedHashPartitioner::~HDFSMultiThreadedHashPartitioner() {
     stopConsumerThreads();
 }
 
-void HashPartitioner::addLocalEdge(const std::string &edge, int index) {
+void HDFSMultiThreadedHashPartitioner::addLocalEdge(const std::string &edge, int index) {
     if (index < numberOfPartitions) {
         std::lock_guard<std::mutex> lock(localEdgeMutexes[index]);
         localEdgeArrays[index].push_back(edge);
@@ -61,7 +62,7 @@ void HashPartitioner::addLocalEdge(const std::string &edge, int index) {
     }
 }
 
-void HashPartitioner::addEdgeCut(const std::string &edge, int index) {
+void HDFSMultiThreadedHashPartitioner::addEdgeCut(const std::string &edge, int index) {
     if (index < numberOfPartitions) {
         std::lock_guard<std::mutex> lock(edgeCutsMutexes[index]);
         edgeCutsArrays[index].push_back(edge);
@@ -74,7 +75,7 @@ void HashPartitioner::addEdgeCut(const std::string &edge, int index) {
     }
 }
 
-void HashPartitioner::stopConsumerThreads() {
+void HDFSMultiThreadedHashPartitioner::stopConsumerThreads() {
     terminateConsumers = true;
 
     for (auto &cv : edgeAvailableCV) {
@@ -97,7 +98,7 @@ void HashPartitioner::stopConsumerThreads() {
     }
 }
 
-void HashPartitioner::consumeLocalEdges(int partitionIndex, JasmineGraphServer::worker worker) {
+void HDFSMultiThreadedHashPartitioner::consumeLocalEdges(int partitionIndex, JasmineGraphServer::worker worker) {
     int threadEdgeCount = 0;
     int fileIndex = 0;
     std::ofstream partitionFile;
@@ -192,7 +193,7 @@ void HashPartitioner::consumeLocalEdges(int partitionIndex, JasmineGraphServer::
     hash_partitioner_logger.debug("Local edge consumer " + std::to_string(partitionIndex) + " finished processing.");
 }
 
-void HashPartitioner::consumeEdgeCuts(int partitionIndex, JasmineGraphServer::worker worker) {
+void HDFSMultiThreadedHashPartitioner::consumeEdgeCuts(int partitionIndex, JasmineGraphServer::worker worker) {
     int threadEdgeCount = 0;
     int fileIndex = 0;
     std::ofstream edgeCutsFile;
@@ -284,7 +285,7 @@ void HashPartitioner::consumeEdgeCuts(int partitionIndex, JasmineGraphServer::wo
     hash_partitioner_logger.debug("Central edge consumer " + std::to_string(partitionIndex) + " finished processing.");
 }
 
-void HashPartitioner::updatePartitionTable() {
+void HDFSMultiThreadedHashPartitioner::updatePartitionTable() {
     auto *sqlite = new SQLiteDBInterface();
     sqlite->init();
 
@@ -306,7 +307,7 @@ void HashPartitioner::updatePartitionTable() {
     delete sqlite;
 }
 
-long HashPartitioner::getVertexCount() {
+long HDFSMultiThreadedHashPartitioner::getVertexCount() {
     int totalVertices = 0;
     for (auto & partition : this->partitions) {
         totalVertices += partition.getVertextCount();
@@ -314,7 +315,7 @@ long HashPartitioner::getVertexCount() {
     return totalVertices;
 }
 
-long HashPartitioner::getEdgeCount() {
+long HDFSMultiThreadedHashPartitioner::getEdgeCount() {
     int totalEdges = 0;
     int edgeCuts = 0;
     for (auto & partition : this->partitions) {
