@@ -143,6 +143,8 @@ void JasmineGraphIncrementalLocalStore::addCentralEdgeProperties(RelationBlock* 
             relationBlock->addCentralProperty(std::string(it.key()), &value[0]);
         }
     }
+    std::string edgePid = std::to_string(edgeJson["source"]["pid"].get<int>());
+    addRelationMetaProperty(relationBlock,MetaPropertyEdgeLink::PARTITION_ID,edgePid);
 }
 
 void JasmineGraphIncrementalLocalStore::addLocalEdgeProperties(RelationBlock* relationBlock, const json& edgeJson) {
@@ -166,7 +168,7 @@ void JasmineGraphIncrementalLocalStore::addSourceProperties(RelationBlock* relat
         }
     }
     std::string sourcePid = std::to_string(sourceJson["pid"].get<int>());
-    addMetaProperty(relationBlock->getSource(),MetaPropertyLink::PARTITION_ID,sourcePid);
+    addNodeMetaProperty(relationBlock->getSource(),MetaPropertyLink::PARTITION_ID,sourcePid);
 }
 
 void JasmineGraphIncrementalLocalStore::addDestinationProperties(RelationBlock* relationBlock, const json& destinationJson) {
@@ -179,12 +181,19 @@ void JasmineGraphIncrementalLocalStore::addDestinationProperties(RelationBlock* 
         }
     }
     std::string sourcePid = std::to_string(destinationJson["pid"].get<int>());
-    addMetaProperty(relationBlock->getDestination(),MetaPropertyLink::PARTITION_ID,sourcePid);
+    addNodeMetaProperty(relationBlock->getDestination(),MetaPropertyLink::PARTITION_ID,sourcePid);
 }
 
-void JasmineGraphIncrementalLocalStore::addMetaProperty(NodeBlock* nodeBlock,
+void JasmineGraphIncrementalLocalStore::addNodeMetaProperty(NodeBlock* nodeBlock,
                                                         std::string propertyKey, std::string propertyValue) {
     char meta[MetaPropertyLink::MAX_VALUE_SIZE] = {};
     strcpy(meta, propertyValue.c_str());
     nodeBlock->addMetaProperty(propertyKey, &meta[0]);
+}
+
+void JasmineGraphIncrementalLocalStore::addRelationMetaProperty(RelationBlock* relationBlock,
+                                                        std::string propertyKey, std::string propertyValue) {
+    char meta[MetaPropertyEdgeLink::MAX_VALUE_SIZE] = {};
+    strcpy(meta, propertyValue.c_str());
+    relationBlock->addMetaProperty(propertyKey, &meta[0]);
 }
