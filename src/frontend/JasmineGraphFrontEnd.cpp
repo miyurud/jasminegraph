@@ -493,8 +493,6 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
     // print query plan
     frontend_logger.info((obj.c_str()));
 
-    SharedBuffer sharedBuffer(3);
-
     // Create buffer pool
     std::vector<std::unique_ptr<SharedBuffer>> bufferPool;
     bufferPool.reserve(numberOfPartitions); // Pre-allocate space for pointers
@@ -526,35 +524,47 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
                 }
             }
             aggregation->getResult(connFd);
-        } else if (Operator::aggregateType == AggregationFactory::ASC){
-            // Aggregation* aggregation = AggregationFactory::getAggregationMethod(AggregationFactory::ASC);
-
-            // Structure to track current values from each buffer
+        } else if (Operator::aggregateType == AggregationFactory::ASC || Operator::aggregateType == AggregationFactory::DESC)
+        {
             struct BufferEntry {
                 std::string value;
                 size_t bufferIndex;
                 json data;
-                BufferEntry(const std::string& v, size_t idx, const json& parsed) : value(v), bufferIndex(idx), data(parsed) {}
+                bool isAsc;
+                BufferEntry(const std::string& v, size_t idx, const json& parsed, bool asc)
+                    : value(v), bufferIndex(idx), data(parsed), isAsc(asc) {}
                 bool operator<(const BufferEntry& other) const {
                     const auto& val1 = data[Operator::aggregateKey];
                     const auto& val2 = other.data[Operator::aggregateKey];
-                    if (val1.is_number_integer() && val2.is_number_integer()) return val1.get<int>() > val2.get<int>();
-                    else if (val1.is_string() && val2.is_string()) return val1.get<std::string>() > val2.get<std::string>();
-                    else return val1.dump() > val2.dump();
+                    bool result;
+                    if (val1.is_number_integer() && val2.is_number_integer()) {
+                        result = val1.get<int>() > val2.get<int>();
+                    } else if (val1.is_string() && val2.is_string()) {
+                        result = val1.get<std::string>() > val2.get<std::string>();
+                    } else {
+                        result = val1.dump() > val2.dump();
+                    }
+                    return isAsc ? result : !result; // Flip for DESC
                 }
             };
 
             // Initialize with first value from each buffer
-            std::priority_queue<BufferEntry> mergeQueue; // Min-heap for ASC order
+            bool isAsc = (Operator::aggregateType == AggregationFactory::ASC);
+            std::priority_queue<BufferEntry> mergeQueue; // Min-heap
             for (size_t i = 0; i < numberOfPartitions; ++i) {
                 std::string value = bufferPool[i]->get();
                 if (value != "-1") {
                     try {
-                        BufferEntry entry{value, i, json::parse(value)};
+                        json parsed = json::parse(value);
+                        if (!parsed.contains(Operator::aggregateKey)) {
+                            frontend_logger.error("Missing key '" + Operator::aggregateKey + "' in JSON: " + value);
+                            continue;
+                        }
+                        BufferEntry entry{value, i, parsed, isAsc};
                         mergeQueue.push(entry);
                     } catch (const json::exception& e) {
                         frontend_logger.error("JSON parse error: " + std::string(e.what()));
-                        continue; // Skip invalid JSON
+                        continue;
                     }
                 } else {
                     closeFlag++;
@@ -593,17 +603,20 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
                         frontend_logger.info("closeflag" + std::to_string(closeFlag));
                     } else {
                         try {
-                            BufferEntry entry{nextValue, smallest.bufferIndex, json::parse(nextValue)};
+                            json parsed = json::parse(nextValue);
+                            if (!parsed.contains(Operator::aggregateKey)) {
+                                frontend_logger.error("Missing key '" + Operator::aggregateKey + "' in JSON: " + nextValue);
+                                continue;
+                            }
+                            BufferEntry entry{nextValue, smallest.bufferIndex, parsed, isAsc};
                             mergeQueue.push(entry);
                         } catch (const json::exception& e) {
                             frontend_logger.error("JSON parse error: " + std::string(e.what()));
-                            // Skip invalid JSON, don't push to queue
                         }
                     }
                 }
             }
-
-        } else {
+        }else {
             std::string log = "Query is recongnized as Aggreagation, but method doesnot have implemented yet";
             result_wr = write(connFd, log.c_str(), log.length());
             result_wr = write(connFd, "\r\n", 2);

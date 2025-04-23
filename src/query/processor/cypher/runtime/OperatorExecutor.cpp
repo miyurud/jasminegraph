@@ -760,30 +760,29 @@ void OperatorExecutor::Distinct(SharedBuffer &buffer, std::string jsonPlan, Grap
 }
 
 struct Row {
-    json data;           // Parsed JSON object
-    std::string jsonStr; // Original stringified JSON
-    std::string sortKey; // Field name to sort by
+    json data;
+    std::string jsonStr;
+    std::string sortKey;
+    bool isAsc;
 
-    // Constructor
-    Row(const std::string& str, const std::string& key)
-        : jsonStr(str), sortKey(key) {
+    Row(const std::string& str, const std::string& key, bool asc)
+        : jsonStr(str), sortKey(key), isAsc(asc) {
         data = json::parse(str);
     }
 
-    // Dynamic comparison for min-heap (smallest at top)
     bool operator<(const Row& other) const {
         const auto& val1 = data[sortKey];
         const auto& val2 = other.data[sortKey];
 
-        // Handle different types dynamically
+        bool result;
         if (val1.is_number_integer() && val2.is_number_integer()) {
-            return val1.get<int>() > val2.get<int>(); // Largest at bottom
+            result = val1.get<int>() > val2.get<int>();
         } else if (val1.is_string() && val2.is_string()) {
-            return val1.get<std::string>() > val2.get<std::string>(); // Largest at bottom
+            result = val1.get<std::string>() > val2.get<std::string>();
         } else {
-            // Fallback: convert to string if types mismatch or unsupported
-            return val1.dump() > val2.dump();
+            result = val1.dump() > val2.dump();
         }
+        return isAsc ? result : !result; // Flip for DESC
     }
 };
 
@@ -799,18 +798,18 @@ void OperatorExecutor::OrderBy(SharedBuffer &buffer, std::string jsonPlan, Graph
     // Launch the method in a new thread
     std::thread result(method, std::ref(*this), std::ref(sharedBuffer), query["NextOperator"], gc);
 
-    std::priority_queue<Row> minHeap;
     std::string sortKey = query["variable"];
+    std::string order = query["order"];
     const size_t maxSize = 5000;
+    bool isAsc = (order == "ASC");
 
-    execution_logger.info(sortKey);
-    while(true)
-    {
-        string jsonStr = sharedBuffer.get();
-        if(jsonStr == "-1"){
-            while (!minHeap.empty()) {
-                buffer.add(minHeap.top().jsonStr);
-                minHeap.pop();
+    std::priority_queue<Row> heap;
+    while (true) {
+        std::string jsonStr = sharedBuffer.get();
+        if (jsonStr == "-1") {
+            while (!heap.empty()) {
+                buffer.add(heap.top().jsonStr);
+                heap.pop();
             }
             buffer.add(jsonStr); // -1 close flag
             result.join();
@@ -818,13 +817,12 @@ void OperatorExecutor::OrderBy(SharedBuffer &buffer, std::string jsonPlan, Graph
         }
 
         try {
-            Row row(jsonStr, sortKey);
-            execution_logger.info("::::::::::::::::::::");
+            Row row(jsonStr, sortKey, isAsc);
             execution_logger.info(row.jsonStr);
             if (row.data.contains(sortKey)) { // Ensure field exists
-                minHeap.push(row);
-                if (minHeap.size() > maxSize) {
-                    minHeap.pop(); // Remove smallest
+                heap.push(row);
+                if (heap.size() > maxSize) {
+                    heap.pop(); // Remove smallest (ASC) or largest (DESC)
                 }
             }
         } catch (const std::exception& e) {
