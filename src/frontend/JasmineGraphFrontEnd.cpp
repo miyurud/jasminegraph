@@ -1404,6 +1404,7 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
 
     char isEdgeListTypeRes[FRONTEND_DATA_LENGTH+1];
     bzero(isEdgeListTypeRes, FRONTEND_DATA_LENGTH + 1);
+    read(connFd, isEdgeListTypeRes, FRONTEND_DATA_LENGTH);
     std::string isEdgeListTypeGraph(isEdgeListTypeRes);
     isEdgeListTypeGraph=Utils::trim_copy(isEdgeListTypeGraph);
 
