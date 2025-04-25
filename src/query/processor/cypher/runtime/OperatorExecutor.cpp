@@ -70,7 +70,7 @@ void OperatorExecutor::AllNodeScan(SharedBuffer &buffer, std::string jsonPlan, G
         auto nodeId = it.first;
         NodeBlock *node = nodeManager.get(nodeId);
         std::string value(node->getMetaPropertyHead()->value);
-        if(value == to_string(gc.partitionID)) {
+        if (value == to_string(gc.partitionID)) {
             std::map<std::string, char*> properties = node->getAllProperties();
             for (auto property : properties) {
                 nodeData[property.first] = property.second;
@@ -99,16 +99,16 @@ void OperatorExecutor::ProduceResult(SharedBuffer &buffer, std::string jsonPlan,
     std::thread result(method, std::ref(*this), std::ref(sharedBuffer), query["NextOperator"], gc);
     result.detach();  // Detach the thread to let it run independently
 
-    while(true) {
+    while (true) {
         string raw = sharedBuffer.get();
-        if(raw == "-1") {
+        if (raw == "-1") {
             buffer.add(raw);
             break;
         }
         std::vector<std::string> values = query["variable"].get<std::vector<std::string>>();
         json data;
         json rawObj = json::parse(raw);
-        for (auto value: values) {
+        for (auto value : values) {
             data[value] = rawObj[value];
         }
         buffer.add(data.dump());
@@ -123,14 +123,14 @@ void OperatorExecutor::Filter(SharedBuffer &buffer, std::string jsonPlan, GraphC
     auto method = OperatorExecutor::methodMap[next["Operator"]];
     // Launch the method in a new thread
     std::thread result(method, std::ref(*this), std::ref(sharedBuffer), query["NextOperator"], gc);
-    result.detach(); // Detach the thread to let it run independently
+    result.detach();  // Detach the thread to let it run independently
 
     auto condition = query["condition"];
     FilterHelper FilterHelper(condition.dump());
-    while(true) {
+    while (true) {
         string raw = sharedBuffer.get();
         cout << raw << endl;
-        if(raw == "-1") {
+        if (raw == "-1") {
             buffer.add(raw);
             break;
         }
@@ -148,7 +148,7 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
         auto nodeId = it.first;
         NodeBlock *node = nodeManager.get(nodeId);
         std::string value(node->getMetaPropertyHead()->value);
-        if(value == to_string(gc.partitionID)) {
+        if (value == to_string(gc.partitionID)) {
             std::map<std::string, char*> properties = node->getAllProperties();
             for (auto property : properties) {
                 nodeData[property.first] = property.second;
@@ -223,7 +223,7 @@ void OperatorExecutor::UndirectedAllRelationshipScan(SharedBuffer &buffer, std::
         json relationData;
         RelationBlock* relation = RelationBlock::getCentralRelation(i*RelationBlock::CENTRAL_BLOCK_SIZE);
         std::string pid(relation->getMetaPropertyHead()->value);
-        if(pid != to_string(gc.partitionID)) {
+        if (pid != to_string(gc.partitionID)) {
             continue;
         }
 
@@ -277,7 +277,7 @@ void OperatorExecutor::NodeByIdSeek(SharedBuffer &buffer, std::string jsonPlan, 
     if (node) {
         json nodeData;
         std::string value(node->getMetaPropertyHead()->value);
-        if(value == to_string(gc.partitionID)) {
+        if (value == to_string(gc.partitionID)) {
             std::map<std::string, char*> properties = node->getAllProperties();
             for (auto property : properties) {
                 nodeData[property.first] = property.second;
@@ -299,12 +299,12 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
     auto method = OperatorExecutor::methodMap[next["Operator"]];
     // Launch the method in a new thread
     std::thread result(method, std::ref(*this), std::ref(sharedBuffer), query["NextOperator"], gc);
-    result.detach(); // Detach the thread to let it run independently
+    result.detach();  // Detach the thread to let it run independently
 
-    while(true) {
+    while (true) {
         string raw = sharedBuffer.get();
         buffer.add(raw);
-        if(raw == "-1") {
+        if (raw == "-1") {
             break;
         }
     }

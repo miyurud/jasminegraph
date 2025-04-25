@@ -108,7 +108,7 @@ class Projection : public Operator {
     vector<ASTNode*> columns;
 };
 
-//ExpandAll Operator
+// ExpandAll Operator
 class ExpandAll : public Operator {
  public:
     ExpandAll(Operator* input, string startVar, string destVar, string relVar,
@@ -235,7 +235,7 @@ class UndirectedAllRelationshipScan : public Operator {
     string execute() override;
 
  private:
-    string startVar; // Variable name for the start node
+    string startVar;  // Variable name for the start node
     string endVar;   // Variable name for the end node
     string relVar;
 };
@@ -247,7 +247,7 @@ class DirectedAllRelationshipScan : public Operator {
     string execute() override;
 
  private:
-    string startVar; // Variable name for the start node
+    string startVar;  // Variable name for the start node
     string endVar;   // Variable name for the end node
     string relVar;
     string direction;
@@ -283,4 +283,4 @@ class Apply : public Operator {
 };
 
 string printDownArrow(int width);
-#endif // OPERATORS_H
+#endif  // OPERATORS_H

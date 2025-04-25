@@ -297,12 +297,10 @@ string Intersection::execute() {
 
 CacheProperty::CacheProperty(Operator* input, vector<ASTNode*> property) : property(property), input(input) {}
 
-string CacheProperty::execute()
-{
+string CacheProperty::execute() {
     input->execute();
     int i = 1;
-    for (auto* prop: property)
-    {
+    for (auto* prop : property) {
         string s = prop->elements[0]->value + "."+prop->elements[1]->elements[0]->value;
         operatorLogger.debug(s);
     }
@@ -346,7 +344,7 @@ DirectedRelationshipTypeScan::DirectedRelationshipTypeScan(string direction, str
 string DirectedRelationshipTypeScan::execute() {
     if (direction == "right") {
         operatorLogger.debug("(" + startVar + ") -[" + relvar + " :" + relType + "]-> (" + endVar + ")");
-    } else{
+    } else {
         operatorLogger.debug("(" + startVar + ") <-[" + relvar + " :" + relType + "]- (" + endVar + ")");
     }
     return "";
@@ -359,7 +357,7 @@ DirectedAllRelationshipScan::DirectedAllRelationshipScan(std::string direction, 
 string DirectedAllRelationshipScan::execute() {
     if (direction == "right") {
         operatorLogger.debug("(" + startVar + ") -[" + relVar + "]-> (" + endVar + ")");
-    } else{
+    } else {
         operatorLogger.debug("(" + startVar + ") <-[" + relVar + "]- (" + endVar + ")");
     }
     return "";

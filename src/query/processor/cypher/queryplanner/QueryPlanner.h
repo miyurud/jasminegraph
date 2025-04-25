@@ -16,10 +16,10 @@ limitations under the License.
 #define QUERY_PLANNER_H
 
 #include "../astbuilder/ASTNode.h"
-#include "Operators.h" // Include all operators
+#include "Operators.h"  // Include all operators
 #include <algorithm>
 class QueryPlanner {
-public:
+ public:
     QueryPlanner() = default;
     ~QueryPlanner() = default;
 
@@ -34,4 +34,4 @@ public:
     ASTNode* prepareWhereClause(string var1, string var2);
 };
 
-#endif // QUERY_PLANNER_H
+#endif  // QUERY_PLANNER_H

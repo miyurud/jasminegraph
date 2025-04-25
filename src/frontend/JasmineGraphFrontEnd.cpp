@@ -78,7 +78,8 @@ std::string stream_topic_name;
 bool JasmineGraphFrontEnd::strian_exit;
 
 static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
-static void cypherCommand(int connFd, vector<DataPublisher *> &workerClients, int numberOfPartitions, bool *loop_exit_p);
+static void cypherCommand(int connFd, vector<DataPublisher *> &workerClients, int numberOfPartitions,
+                          bool *loop_exit_p);
 static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
