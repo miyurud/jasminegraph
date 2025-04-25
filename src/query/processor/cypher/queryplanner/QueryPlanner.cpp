@@ -1391,7 +1391,7 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
 
         inputOperator = new UndirectedAllRelationshipScan(startVar, destVar, relVar);
         string prevRel = relVar;
-        for (int left = endIndex-1; left >= 0;left--) {
+        for (int left = endIndex-1; left >= 0; left--) {
             filterCases.clear();
             auto analyzedRel = getRelationshipDetails(patternElements[left]->elements[0]->elements[1]);
             pair<vector<bool>, vector<ASTNode*>> analyzedNode;
