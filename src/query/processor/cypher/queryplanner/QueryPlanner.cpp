@@ -185,14 +185,14 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
             } else if (isAvailable(Const::NODE_LABELS, ast) &&
                         isAvailable(Const::VARIABLE, ast)) {
                 if (!currentOperator) {
-                    currentOperator = createExecutionPlan(ast->elements[1],currentOperator);
+                    currentOperator = createExecutionPlan(ast->elements[1], currentOperator);
                 }
                 auto filterCase = pair<string, ASTNode*>(ast->elements[0]->value, ast->elements[2]);
                 vector<pair<string, ASTNode*>> vec = {filterCase};
                 return new Filter(currentOperator, vec);
             } else if (isAvailable(Const::NODE_LABELS, ast) &&
                         !isAvailable(Const::VARIABLE, ast)) {
-                currentOperator = createExecutionPlan(ast->elements[0],currentOperator);
+                currentOperator = createExecutionPlan(ast->elements[0], currentOperator);
                 auto filterCase = pair<string, ASTNode*>("node_0", ast->elements[1]);
                 vector<pair<string, ASTNode*>> vec = {filterCase};
                 return new Filter(currentOperator, vec);
@@ -219,10 +219,10 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
                 return new NodeScanByLabel(ast->elements[0]->value);
             } else if (isAvailable(Const::NODE_LABELS, ast) &&
                     isAvailable(Const::VARIABLE, ast)) {
-                return createExecutionPlan(ast->elements[1],currentOperator);
+                return createExecutionPlan(ast->elements[1], currentOperator);
             } else if (isAvailable(Const::NODE_LABELS, ast) &&
                     !isAvailable(Const::VARIABLE, ast)) {
-                return createExecutionPlan(ast->elements[0],currentOperator);
+                return createExecutionPlan(ast->elements[0], currentOperator);
             }
         }
 
@@ -505,7 +505,7 @@ pair<vector<bool>, vector<ASTNode *>> QueryPlanner::getNodeDetails(ASTNode *node
     vector<bool> availability = {false, false, false};
     vector<ASTNode*> nodes;
     for (int i = 0; i < Const::THREE; i++) {
-        if (i<node->elements.size()) {
+        if (i < node->elements.size()) {
             auto* e = node->elements[i];
             if (e->nodeType == Const::VARIABLE) {
                 availability[0] = true;
@@ -550,7 +550,7 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
 
     if (inputOperator) {
         string variable = static_cast<NodeByIdSeek*>(inputOperator)->getVariable();
-        for (int i = patternElements.size()-1; i >= 0;i--) {
+        for (int i = patternElements.size()-1; i >= 0; i--) {
             auto* e = patternElements[i];
             if (e->elements[1]->elements.size() && variable == e->elements[1]->elements[0]->value) {
                 index = i+1;
@@ -564,7 +564,7 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
             vector<pair<string, ASTNode*>> filterCases;
             string startVar = variable;
             string prevRel = "null";
-            for (int right = index; right<patternElements.size(); right++) {
+            for (int right = index; right < patternElements.size(); right++) {
                 filterCases.clear();
                 auto analyzedRel = getRelationshipDetails(patternElements[right]->elements[0]->elements[1]);
                 auto analyzedNode = getNodeDetails(patternElements[right]->elements[1]);
@@ -578,18 +578,18 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
                         "null";
 
                 if (patternElements[right]->elements[0]->elements[0]->nodeType == Const::UNIDIRECTION_ARROW) {
-                    inputOperator = new ExpandAll(inputOperator,newStartVar,newDestvar,
+                    inputOperator = new ExpandAll(inputOperator, newStartVar, newDestvar,
                                                   newRelVar, newRelType);
                 } else {
                     auto direction = patternElements[right]->elements[0]->elements[0]->nodeType == Const::LEFT_ARRROW ?
                             "left" : "right";
-                    inputOperator = new ExpandAll(inputOperator,newStartVar,newDestvar,
+                    inputOperator = new ExpandAll(inputOperator, newStartVar, newDestvar,
                                                   newRelVar, newRelType, direction);
                 }
 
                 if (prevRel != "null") {
                     auto* whereClause = prepareWhereClause(newRelVar, prevRel);
-                    filterCases.push_back(pair<string, ASTNode*>("null",whereClause));
+                    filterCases.push_back(pair<string, ASTNode*>("null", whereClause));
                 }
 
                 prevRel = newRelVar;
@@ -629,12 +629,13 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
                 string newRelVar = analyzedRel.first[0] ? analyzedRel.second[0]->value : "edge_var_"+to_string(left);
                 string newRelType = analyzedRel.first[1] ? analyzedRel.second[1]->elements[0]->value : "null";
                 if (patternElements[left]->elements[0]->elements[0]->nodeType == Const::UNIDIRECTION_ARROW) {
-                    inputOperator = new ExpandAll(inputOperator,newStartVar,newDestvar,
+                    inputOperator = new ExpandAll(inputOperator, newStartVar, newDestvar,
                                                   newRelVar, newRelType);
 
                 } else {
-                    auto direction = patternElements[left]->elements[0]->elements[0]->nodeType == Const::LEFT_ARRROW ? "right" : "left";
-                    inputOperator = new ExpandAll(inputOperator,newStartVar,newDestvar,
+                    auto direction = patternElements[left]->elements[0]->elements[0]->nodeType ==
+                            Const::LEFT_ARRROW ? "right" : "left";
+                    inputOperator = new ExpandAll(inputOperator, newStartVar, newDestvar,
                                                   newRelVar, newRelType, direction);
                 }
 
@@ -686,13 +687,13 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
                             "edge_var_"+to_string(left);
                     string newRelType = analyzedRel.first[1] ? analyzedRel.second[1]->elements[0]->value : "null";
                     if (patternElements[left]->elements[0]->elements[0]->nodeType == Const::UNIDIRECTION_ARROW) {
-                        inputOperator = new ExpandAll(inputOperator,newStartVar,newDestvar,
+                        inputOperator = new ExpandAll(inputOperator, newStartVar, newDestvar,
                                                       newRelVar, newRelType);
 
                     } else {
                         auto direction = patternElements[left]->elements[0]->elements[0]->nodeType ==
                                 Const::LEFT_ARRROW ? "right" : "left";
-                        inputOperator = new ExpandAll(inputOperator,newStartVar,newDestvar,
+                        inputOperator = new ExpandAll(inputOperator, newStartVar, newDestvar,
                                                       newRelVar, newRelType, direction);
                     }
 
@@ -735,19 +736,19 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
                     string newRelType = analyzedRel.first[1] ? analyzedRel.second[1]->elements[0]->value : "null";
 
                     if (patternElements[right]->elements[0]->elements[0]->nodeType == Const::UNIDIRECTION_ARROW) {
-                        inputOperator = new ExpandAll(inputOperator,newStartVar,newDestvar,
+                        inputOperator = new ExpandAll(inputOperator, newStartVar, newDestvar,
                                                       newRelVar, newRelType);
 
                     } else {
                         auto direction = patternElements[right]->elements[0]->elements[0]->nodeType ==
                                 Const::LEFT_ARRROW ? "left" : "right";
-                        inputOperator = new ExpandAll(inputOperator,newStartVar,newDestvar,
+                        inputOperator = new ExpandAll(inputOperator, newStartVar, newDestvar,
                                                       newRelVar, newRelType, direction);
                     }
 
                     if (prevRel != "null") {
                         auto* whereClause = prepareWhereClause(newRelVar, prevRel);
-                        filterCases.push_back(pair<string, ASTNode*>("null",whereClause));
+                        filterCases.push_back(pair<string, ASTNode*>("null", whereClause));
                     }
 
                     prevRel = newRelVar;
@@ -785,19 +786,19 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
                     string newRelType = analyzedRel.first[1] ? analyzedRel.second[1]->elements[0]->value : "null";
 
                     if (patternElements[right]->elements[0]->elements[0]->nodeType == Const::UNIDIRECTION_ARROW) {
-                        inputOperator = new ExpandAll(inputOperator,newStartVar,newDestvar,
+                        inputOperator = new ExpandAll(inputOperator, newStartVar, newDestvar,
                                                       newRelVar, newRelType);
 
                     } else {
                         auto direction = patternElements[right]->elements[0]->elements[0]->nodeType ==
                                 Const::LEFT_ARRROW ? "left" : "right";
-                        inputOperator = new ExpandAll(inputOperator,newStartVar,newDestvar,
+                        inputOperator = new ExpandAll(inputOperator, newStartVar, newDestvar,
                                                       newRelVar, newRelType, direction);
                     }
 
                     if (prevRel != "null") {
                         auto* whereClause = prepareWhereClause(newRelVar, prevRel);
-                        filterCases.push_back(pair<string, ASTNode*>("null",whereClause));
+                        filterCases.push_back(pair<string, ASTNode*>("null", whereClause));
                     } else {
                         rel = newRelVar;
                     }
@@ -838,13 +839,13 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
                             "edge_var_"+to_string(left);
                     string newRelType = analyzedRel.first[1] ? analyzedRel.second[1]->elements[0]->value : "null";
                     if (patternElements[left]->elements[0]->elements[0]->nodeType == Const::UNIDIRECTION_ARROW) {
-                        inputOperator = new ExpandAll(inputOperator,newStartVar,newDestvar,
+                        inputOperator = new ExpandAll(inputOperator, newStartVar, newDestvar,
                                                       newRelVar, newRelType);
 
                     } else {
                         auto direction = patternElements[left]->elements[0]->elements[0]->nodeType ==
                                 Const::LEFT_ARRROW ? "right" : "left";
-                        inputOperator = new ExpandAll(inputOperator,newStartVar,newDestvar,
+                        inputOperator = new ExpandAll(inputOperator, newStartVar, newDestvar,
                                                       newRelVar, newRelType, direction);
                     }
 
@@ -976,19 +977,19 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
                 string newRelType = analyzedRel.first[1] ? analyzedRel.second[1]->elements[0]->value : "null";
 
                 if (patternElements[right]->elements[0]->elements[0]->nodeType == Const::UNIDIRECTION_ARROW) {
-                    inputOperator = new ExpandAll(inputOperator,newStartVar,newDestvar,
+                    inputOperator = new ExpandAll(inputOperator, newStartVar, newDestvar,
                                                   newRelVar, newRelType);
 
                 } else {
                     auto direction = patternElements[right]->elements[0]->elements[0]->nodeType ==
                             Const::LEFT_ARRROW ? "left" : "right";
-                    inputOperator = new ExpandAll(inputOperator,newStartVar,newDestvar,
+                    inputOperator = new ExpandAll(inputOperator, newStartVar, newDestvar,
                                                   newRelVar, newRelType, direction);
                 }
 
 
                 auto* whereClause = prepareWhereClause(newRelVar, prevRel);
-                filterCases.push_back(pair<string, ASTNode*>("null",whereClause));
+                filterCases.push_back(pair<string, ASTNode*>("null", whereClause));
 
                 prevRel = newRelVar;
                 destVar = newDestvar;
@@ -1025,18 +1026,18 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
                         "edge_var_"+to_string(left);
                 string newRelType = analyzedRel.first[1] ? analyzedRel.second[1]->elements[0]->value : "null";
                 if (patternElements[left]->elements[0]->elements[0]->nodeType == Const::UNIDIRECTION_ARROW) {
-                    inputOperator = new ExpandAll(inputOperator,newStartVar,newDestvar,
+                    inputOperator = new ExpandAll(inputOperator, newStartVar, newDestvar,
                                                   newRelVar, newRelType);
 
                 } else {
                     auto direction = patternElements[left]->elements[0]->elements[0]->nodeType ==
                             Const::LEFT_ARRROW ? "right" : "left";
-                    inputOperator = new ExpandAll(inputOperator,newStartVar,newDestvar,
+                    inputOperator = new ExpandAll(inputOperator, newStartVar, newDestvar,
                                                   newRelVar, newRelType, direction);
                 }
 
                 auto* whereClause = prepareWhereClause(newRelVar,prevRel);
-                filterCases.push_back(pair<string, ASTNode*>("null",whereClause));
+                filterCases.push_back(pair<string, ASTNode*>("null", whereClause));
 
 
                 prevRel = newRelVar;
@@ -1074,19 +1075,19 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
                         "edge_var_"+to_string(left);
                 string newRelType = analyzedRel.first[1] ? analyzedRel.second[1]->elements[0]->value : "null";
                 if (patternElements[left]->elements[0]->elements[0]->nodeType == Const::UNIDIRECTION_ARROW) {
-                    inputOperator = new ExpandAll(inputOperator,newStartVar,newDestvar,
+                    inputOperator = new ExpandAll(inputOperator, newStartVar, newDestvar,
                                                   newRelVar, newRelType);
 
                 } else {
                     auto direction = patternElements[left]->elements[0]->elements[0]->nodeType ==
                             Const::LEFT_ARRROW ? "right" : "left";
-                    inputOperator = new ExpandAll(inputOperator,newStartVar,newDestvar,
+                    inputOperator = new ExpandAll(inputOperator, newStartVar, newDestvar,
                                                   newRelVar, newRelType, direction);
                 }
 
 
                 auto* whereClause = prepareWhereClause(newRelVar,prevRel);
-                filterCases.push_back(pair<string, ASTNode*>("null",whereClause));
+                filterCases.push_back(pair<string, ASTNode*>("null", whereClause));
 
 
                 prevRel = newRelVar;
@@ -1119,19 +1120,19 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
                 string newRelType = analyzedRel.first[1] ? analyzedRel.second[1]->elements[0]->value : "null";
 
                 if (patternElements[right]->elements[0]->elements[0]->nodeType == Const::UNIDIRECTION_ARROW) {
-                    inputOperator = new ExpandAll(inputOperator,newStartVar,newDestvar,
+                    inputOperator = new ExpandAll(inputOperator, newStartVar, newDestvar,
                                                   newRelVar, newRelType);
 
                 } else {
                     auto direction = patternElements[right]->elements[0]->elements[0]->nodeType ==
                             Const::LEFT_ARRROW ? "left" : "right";
-                    inputOperator = new ExpandAll(inputOperator,newStartVar,newDestvar,
+                    inputOperator = new ExpandAll(inputOperator, newStartVar, newDestvar,
                                                   newRelVar, newRelType, direction);
                 }
 
 
                 auto* whereClause = prepareWhereClause(newRelVar,prevRel);
-                filterCases.push_back(pair<string, ASTNode*>("null",whereClause));
+                filterCases.push_back(pair<string, ASTNode*>("null", whereClause));
 
 
                 prevRel = newRelVar;
@@ -1150,7 +1151,6 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
                     inputOperator = new Filter(inputOperator, filterCases);
                 }
             }
-
         }
     } else if (isNodeLabelExist) {
         auto* e = patternElements[labelIndex];
@@ -1189,18 +1189,18 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
             string newRelType = analyzedRel.first[1] ? analyzedRel.second[1]->elements[0]->value : "null";
 
             if (patternElements[right]->elements[0]->elements[0]->nodeType == Const::UNIDIRECTION_ARROW) {
-                inputOperator = new ExpandAll(inputOperator,newStartVar,newDestvar,
+                inputOperator = new ExpandAll(inputOperator, newStartVar, newDestvar,
                                               newRelVar, newRelType);
             } else {
                 auto direction = patternElements[right]->elements[0]->elements[0]->nodeType ==
                         Const::LEFT_ARRROW ? "left" : "right";
-                inputOperator = new ExpandAll(inputOperator,newStartVar,newDestvar,
+                inputOperator = new ExpandAll(inputOperator, newStartVar, newDestvar,
                                               newRelVar, newRelType, direction);
             }
 
             if (right > labelIndex+1) {
                 auto* whereClause = prepareWhereClause(newRelVar, prevRel);
-                filterCases.push_back(pair<string, ASTNode*>("null",whereClause));
+                filterCases.push_back(pair<string, ASTNode*>("null", whereClause));
                 prevRel = newRelVar;
                 startVar = newDestvar;
             } else {
@@ -1245,18 +1245,18 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
             string newRelType = analyzedRel.first[1] ? analyzedRel.second[1]->elements[0]->value : "null";
 
             if (patternElements[left]->elements[0]->elements[0]->nodeType == Const::UNIDIRECTION_ARROW) {
-                inputOperator = new ExpandAll(inputOperator,newStartVar,newDestvar,
+                inputOperator = new ExpandAll(inputOperator, newStartVar, newDestvar,
                                               newRelVar, newRelType);
 
             } else {
                 auto direction = patternElements[left]->elements[0]->elements[0]->nodeType ==
                         Const::LEFT_ARRROW ? "right" : "left";
-                inputOperator = new ExpandAll(inputOperator,newStartVar,newDestvar,
+                inputOperator = new ExpandAll(inputOperator, newStartVar, newDestvar,
                                               newRelVar, newRelType, direction);
             }
 
             auto* whereClause = prepareWhereClause(newRelVar, prevRel);
-            filterCases.push_back(pair<string, ASTNode*>("null",whereClause));
+            filterCases.push_back(pair<string, ASTNode*>("null", whereClause));
             prevRel = newRelVar;
             startVar = newDestvar;
 
@@ -1318,19 +1318,19 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
             string newRelVar = analyzedRel.first[0] ? analyzedRel.second[0]->value : "edge_var_"+to_string(left);
             string newRelType = analyzedRel.first[1] ? analyzedRel.second[1]->elements[0]->value : "null";
             if (patternElements[left]->elements[0]->elements[0]->nodeType == Const::UNIDIRECTION_ARROW) {
-                inputOperator = new ExpandAll(inputOperator,newStartVar,newDestvar,
+                inputOperator = new ExpandAll(inputOperator, newStartVar, newDestvar,
                                               newRelVar, newRelType);
 
             } else {
                 auto direction = patternElements[left]->elements[0]->elements[0]->nodeType ==
                         Const::LEFT_ARRROW ? "right" : "left";
-                inputOperator = new ExpandAll(inputOperator,newStartVar,newDestvar,
+                inputOperator = new ExpandAll(inputOperator, newStartVar, newDestvar,
                                               newRelVar, newRelType, direction);
             }
 
 
             auto* whereClause = prepareWhereClause(newRelVar,prevRel);
-            filterCases.push_back(pair<string, ASTNode*>("null",whereClause));
+            filterCases.push_back(pair<string, ASTNode*>("null", whereClause));
             inputOperator = new Filter(inputOperator, filterCases);
             prevRel = newRelVar;
             startVar = newDestvar;
@@ -1348,17 +1348,17 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
             string newRelType = analyzedRel.first[1] ? analyzedRel.second[1]->elements[0]->value : "null";
 
             if (patternElements[right]->elements[0]->elements[0]->nodeType == Const::UNIDIRECTION_ARROW) {
-                inputOperator = new ExpandAll(inputOperator,newStartVar,newDestvar,
+                inputOperator = new ExpandAll(inputOperator, newStartVar, newDestvar,
                                               newRelVar, newRelType);
             } else {
                 auto direction = patternElements[right]->elements[0]->elements[0]->nodeType ==
                         Const::LEFT_ARRROW ? "left" : "right";
-                inputOperator = new ExpandAll(inputOperator,newStartVar,newDestvar,
+                inputOperator = new ExpandAll(inputOperator, newStartVar, newDestvar,
                                               newRelVar, newRelType, direction);
             }
 
             auto* whereClause = prepareWhereClause(newRelVar,prevRel);
-            filterCases.push_back(pair<string, ASTNode*>("null",whereClause));
+            filterCases.push_back(pair<string, ASTNode*>("null", whereClause));
             inputOperator = new Filter(inputOperator, filterCases);
 
             prevRel = newRelVar;
@@ -1405,11 +1405,11 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
             string newDestvar = analyzedNode.first[0]? analyzedNode.second[0]->value : "node_var_"+ to_string(left);
             string newRelVar = analyzedRel.first[0] ? analyzedRel.second[0]->value : "edge_var_"+to_string(left);
             string newRelType = analyzedRel.first[1] ? analyzedRel.second[1]->elements[0]->value : "null";
-            inputOperator = new ExpandAll(inputOperator,newStartVar,newDestvar,
+            inputOperator = new ExpandAll(inputOperator, newStartVar, newDestvar,
                                           newRelVar, newRelType);
 
             auto* whereClause = prepareWhereClause(newRelVar,prevRel);
-            filterCases.push_back(pair<string, ASTNode*>("null",whereClause));
+            filterCases.push_back(pair<string, ASTNode*>("null", whereClause));
             inputOperator = new Filter(inputOperator, filterCases);
             prevRel = newRelVar;
             startVar = newDestvar;
