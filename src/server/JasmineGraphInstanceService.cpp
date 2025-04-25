@@ -4319,7 +4319,6 @@ static void processFile(string fileName, bool isLocal,
 
     std::string line;
     while (std::getline(file, line)) {
-
         if (isLocal) {
             handler.handleLocalEdge(
                     line,

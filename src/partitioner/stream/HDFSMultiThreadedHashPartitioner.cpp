@@ -175,8 +175,8 @@ void HDFSMultiThreadedHashPartitioner::consumeLocalEdges(int partitionIndex, Jas
             }
 
             auto jsonEdge = json::parse(edge);
-            string sourceId = std::string (jsonEdge["source"]["id"]);
-            string destinationId = std::string (jsonEdge["destination"]["id"]);
+            string sourceId = std::string(jsonEdge["source"]["id"]);
+            string destinationId = std::string(jsonEdge["destination"]["id"]);
 
             std::lock_guard<std::mutex> partitionLock(partitionLocks[partitionIndex]);
             partitions[partitionIndex].addEdge({sourceId, destinationId}, isDirected);
@@ -267,8 +267,8 @@ void HDFSMultiThreadedHashPartitioner::consumeEdgeCuts(int partitionIndex, Jasmi
                 }
             }
             auto jsonEdge = json::parse(edge);
-            string sourceId = std::string (jsonEdge["source"]["id"]);
-            string destinationId = std::string (jsonEdge["destination"]["id"]);
+            string sourceId = std::string(jsonEdge["source"]["id"]);
+            string destinationId = std::string(jsonEdge["destination"]["id"]);
 
             // Add edge cuts to the partition
             std::lock_guard<std::mutex> partitionLock(partitionLocks[partitionIndex]);
