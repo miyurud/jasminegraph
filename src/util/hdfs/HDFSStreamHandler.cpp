@@ -35,7 +35,8 @@ const size_t MAX_BUFFER_SIZE = MESSAGE_SIZE * 512;
 const std::string END_OF_STREAM_MARKER = "-1";
 
 HDFSStreamHandler::HDFSStreamHandler(hdfsFS fileSystem, const std::string &filePath, int numberOfPartitions,
-                                     int graphId, SQLiteDBInterface *sqlite, std::string masterIP, bool isDirected, bool isEdgeListType)
+                                     int graphId, SQLiteDBInterface *sqlite, std::string masterIP, bool isDirected,
+                                     bool isEdgeListType)
         : fileSystem(fileSystem),
           filePath(filePath),
           numberOfPartitions(numberOfPartitions),
@@ -174,17 +175,14 @@ void HDFSStreamHandler::streamFromBufferToProcessingQueueEdgeListGraph(HDFSMulti
                         };
                         partitioner.addEdgeCut(reversedObj.dump(), destIndex);
                     }
-
                 } catch (const std::invalid_argument &e) {
                     hdfs_stream_handler_logger.error("Invalid numeric node ID in line: " + line);
                 } catch (const std::out_of_range &e) {
                     hdfs_stream_handler_logger.error("Node ID out of range in line: " + line);
                 }
-
             } else {
                 hdfs_stream_handler_logger.error("Malformed line (unexpected token count): " + line);
             }
-
         } else if (!isReading) {
             break;
         }
@@ -248,7 +246,6 @@ void HDFSStreamHandler::streamFromBufferToProcessingQueuePropertyGraph(HDFSMulti
                 } else {
                     hdfs_stream_handler_logger.error("Malformed line: missing source/destination ID: " + line);
                 }
-
             } catch (const json::parse_error &e) {
                 hdfs_stream_handler_logger.error("JSON parse error: " + std::string(e.what()) + " | Line: " + line);
             } catch (const std::invalid_argument &e) {
@@ -256,7 +253,6 @@ void HDFSStreamHandler::streamFromBufferToProcessingQueuePropertyGraph(HDFSMulti
             } catch (const std::out_of_range &e) {
                 hdfs_stream_handler_logger.error("Node ID out of range in line: " + line);
             }
-
         } else if (!isReading) {
             break;
         }
@@ -271,15 +267,15 @@ void HDFSStreamHandler::startStreamingFromBufferToPartitions() {
     std::thread readerThread(&HDFSStreamHandler::streamFromHDFSIntoBuffer, this);
     std::vector<std::thread> bufferProcessorThreads;
 
-    if ( isEdgeListType) {
+    if (isEdgeListType) {
         for (int i = 0; i < Conts::HDFS::EDGE_SEPARATION_LAYER_THREAD_COUNT; ++i) {
-            bufferProcessorThreads.emplace_back(&HDFSStreamHandler::streamFromBufferToProcessingQueueEdgeListGraph, this,
-                                                std::ref(partitioner));
+            bufferProcessorThreads.emplace_back(&HDFSStreamHandler::streamFromBufferToProcessingQueueEdgeListGraph,
+                this, std::ref(partitioner));
         }
     } else {
         for (int i = 0; i < Conts::HDFS::EDGE_SEPARATION_LAYER_THREAD_COUNT; ++i) {
-            bufferProcessorThreads.emplace_back(&HDFSStreamHandler::streamFromBufferToProcessingQueuePropertyGraph, this,
-                                                std::ref(partitioner));
+            bufferProcessorThreads.emplace_back(&HDFSStreamHandler::streamFromBufferToProcessingQueuePropertyGraph,
+                this, std::ref(partitioner));
         }
     }
 
