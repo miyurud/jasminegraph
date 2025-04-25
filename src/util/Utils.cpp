@@ -1522,7 +1522,7 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
             util_logger.info("Error while reading graph data");
             return false;
         }
-        if( data == "-1") {
+        if (data == "-1") {
             sharedBuffer.add(data);
             break;
         }
