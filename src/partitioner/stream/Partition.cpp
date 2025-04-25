@@ -197,4 +197,20 @@ bool Partition::isExistInEdgeCuts(std::string vertext) {
     return inEdgeCuts;
 }
 
+long Partition::getCentralVertexCount(int partitionIndex) {
+    long edgeCutVertices = 0;
+    for (auto edge : this->edgeCuts[partitionIndex]) {
+        bool isExistInEdgeList = this->edgeList.find(edge.first) != this->edgeList.end();
+        if (!isExistInEdgeList) {
+            edgeCutVertices += 1;
+        }
+    }
+    return edgeCutVertices;
+}
+
+long Partition::getLocalVertexCount() {
+    return static_cast<long>(edgeList.size());
+}
+
+
 
