@@ -28,6 +28,4 @@ class SharedBuffer {
     std::string get();
 };
 
-
-
-#endif //JASMINEGRAPH_SHAREDBUFFER_H
+#endif  // JASMINEGRAPH_SHAREDBUFFER_H

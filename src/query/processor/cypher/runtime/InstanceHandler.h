@@ -26,9 +26,8 @@ limitations under the License.
 #include "../../../../nativestore/RelationBlock.h"
 #include "OperatorExecutor.h"
 
-class InstanceHandler
-{
-public:
+class InstanceHandler {
+ public:
     Logger instance_logger;
     InstanceHandler(std::map<std::string, JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap);
     void handleRequest(int connFd, bool *loop_exit_p, GraphConfig gc,
@@ -36,9 +35,9 @@ public:
     void dataPublishToMaster(int connFd, bool *loop_exit_p, std::string message);
 
 
-private:
+ private:
     std::map<std::string,
              JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap;
 };
 
-#endif // JASMINEGRAPH_INSTANCEHANDLER_H
+#endif  // JASMINEGRAPH_INSTANCEHANDLER_H

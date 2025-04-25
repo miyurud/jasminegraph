@@ -33,7 +33,7 @@ bool FilterHelper::evaluateCondition(std::string condition, std::string data) {
     return false;
 }
 
-bool FilterHelper::evaluateComparison(std::string condition, std::string raw){
+bool FilterHelper::evaluateComparison(std::string condition, std::string raw) {
     json predicate = json::parse(condition);
     json data = json::parse(raw);
     if (!typeCheck(predicate["left"]["type"], predicate["right"]["type"])) {
@@ -58,9 +58,8 @@ bool FilterHelper::evaluateComparison(std::string condition, std::string raw){
         leftValue = evaluateFunction(predicate["left"].dump(),
                                      data.dump(), predicate["right"]["type"]);
     } else {
-        // only evaluating string, decimal, boolean, null for now
+        //  only evaluating string, decimal, boolean, null for now
         leftValue = evaluateOtherTypes(predicate["left"].dump());
-
     }
 
     if (predicate["right"]["type"] == "PROPERTY_LOOKUP") {
@@ -72,11 +71,9 @@ bool FilterHelper::evaluateComparison(std::string condition, std::string raw){
         rightValue = evaluateFunction(predicate["right"].dump(),
                                       data.dump(), predicate["left"]["type"]);
     } else {
-        // only evaluating string, decimal, boolean, null for now
+        //  only evaluating string, decimal, boolean, null for now
         rightValue = evaluateOtherTypes(predicate["right"].dump());
-
     }
-
     string op = predicate["operator"];
 
     return std::visit([&op](auto&& lhs, auto&& rhs) -> bool {
@@ -93,8 +90,7 @@ bool FilterHelper::evaluateComparison(std::string condition, std::string raw){
                 if (op == ">=") return lhs >= rhs;
             }
         }
-
-        return false; // Default if types are incompatible
+        return false;  // Default if types are incompatible
     }, leftValue, rightValue);
     return false;
 }
@@ -165,7 +161,7 @@ ValueType FilterHelper::evaluatePropertyLookup(std::string property, std::string
     string value;
     // should be implemented to lookup nested properties after persisting that kind of properties
     // for now only one level of properties are supported (size of properties vector should be 1)
-    for (auto p: properties) {
+    for (auto p : properties) {
         if (!raw.contains(p)) {
             value = "null";
         } else {
@@ -238,7 +234,7 @@ ValueType FilterHelper::evaluateOtherTypes(std::string data) {
     if (val["type"] == "STRING") {
         string str = val["value"];
         if (str.size() >= 2 && str.front() == '\'' && str.back() == '\'') {
-            return str.substr(1, str.size() - 2); // Remove first and last character ' '
+            return str.substr(1, str.size() - 2);  // Remove first and last character ' '
         }
         return val["value"];
     } else if (val["type"] == "DECIMAL") {

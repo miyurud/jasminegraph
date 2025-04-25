@@ -35,9 +35,9 @@ class OperatorExecutor {
     string  queryPlan;
     GraphConfig gc;
     json query;
-    static std::unordered_map<std::string, std::function<void(OperatorExecutor &, SharedBuffer &, std::string, GraphConfig)>> methodMap;
+    static std::unordered_map<std::string, std::function<void(OperatorExecutor &, SharedBuffer &,
+            std::string, GraphConfig)>> methodMap;
     static void initializeMethodMap();
 };
 
-
-#endif //JASMINEGRAPH_OPERATOREXECUTOR_H
+#endif  // JASMINEGRAPH_OPERATOREXECUTOR_H

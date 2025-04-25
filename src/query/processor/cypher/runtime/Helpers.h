@@ -26,7 +26,7 @@ using ValueType = std::variant<std::string, int, bool>;
 
 class FilterHelper {
  public:
-    FilterHelper (string condition);
+    FilterHelper(string condition);
     bool evaluate(string data);
  private:
     string condition;
@@ -40,6 +40,4 @@ class FilterHelper {
     static ValueType evaluateOtherTypes(string data);
 };
 
-
-
-#endif //JASMINEGRAPH_HELPERS_H
+#endif  // JASMINEGRAPH_HELPERS_H

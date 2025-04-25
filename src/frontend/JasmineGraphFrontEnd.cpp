@@ -78,7 +78,7 @@ std::string stream_topic_name;
 bool JasmineGraphFrontEnd::strian_exit;
 
 static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
-static void cypherCommand(int connFd,vector<DataPublisher *> &workerClients, int numberOfPartitions, bool *loop_exit_p);
+static void cypherCommand(int connFd, vector<DataPublisher *> &workerClients, int numberOfPartitions, bool *loop_exit_p);
 static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
@@ -182,11 +182,11 @@ void *frontendservicesesion(void *dummyPt) {
             break;
         } else if (line.compare(LIST) == 0) {
             list_command(connFd, sqlite, &loop_exit);
-        } else if (line.compare(CYPHER) == 0){
+        } else if (line.compare(CYPHER) == 0) {
             workerClients = getWorkerClients(sqlite);
             workerClientsInitialized = true;
             cypherCommand(connFd, workerClients, numberOfPartitions, &loop_exit);
-        }else if (line.compare(SHTDN) == 0) {
+        } else if (line.compare(SHTDN) == 0) {
             JasmineGraphServer::shutdown_workers();
             close(connFd);
             exit(0);
@@ -436,7 +436,6 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
 
 static void cypherCommand(int connFd, vector<DataPublisher *> &workerClients,
                                int numberOfPartitions, bool *loop_exit) {
-
     string graphId = "Graph ID:";
     int result_wr = write(connFd, graphId.c_str(), graphId.length());
     if (result_wr < 0) {
@@ -506,7 +505,7 @@ static void cypherCommand(int connFd, vector<DataPublisher *> &workerClients,
                           executionPlanString, std::ref(sharedBuffer));
 
     int closeFlag = 0;
-    while(true){
+    while (true) {
         if (closeFlag == numberOfPartitions) {
             break;
         }

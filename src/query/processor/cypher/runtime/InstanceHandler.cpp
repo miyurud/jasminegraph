@@ -22,8 +22,7 @@ InstanceHandler::InstanceHandler(std::map<std::string,
 
 void InstanceHandler::handleRequest(int connFd, bool *loop_exit_p,
                                     GraphConfig gc,
-                                    std::string queryJson){
-
+                                    std::string queryJson) {
     OperatorExecutor operatorExecutor(gc, queryJson);
     operatorExecutor.initializeMethodMap();
     SharedBuffer sharedBuffer(5);
@@ -31,10 +30,10 @@ void InstanceHandler::handleRequest(int connFd, bool *loop_exit_p,
     // Launch the method in a new thread
     std::thread result(method, std::ref(operatorExecutor), std::ref(sharedBuffer),
                        std::string(operatorExecutor.queryPlan), gc);
-    result.detach(); // Detach the thread to let it run independently
-    while(true) {
+    result.detach();  // Detach the thread to let it run independently
+    while (true) {
         string raw = sharedBuffer.get();
-        if(raw == "-1"){
+        if (raw == "-1") {
             this->dataPublishToMaster(connFd, loop_exit_p, raw);
             break;
         }
@@ -61,7 +60,7 @@ void InstanceHandler::dataPublishToMaster(int connFd, bool *loop_exit_p, std::st
     int message_length = message.length();
     int converted_number = htonl(message_length);
     instance_logger.info("Sending content length"+to_string(converted_number));
-    if(!Utils::send_int_wrapper(connFd, &converted_number, sizeof(converted_number))){
+    if (!Utils::send_int_wrapper(connFd, &converted_number, sizeof(converted_number))) {
         *loop_exit_p = true;
         return;
     }
@@ -90,5 +89,4 @@ void InstanceHandler::dataPublishToMaster(int connFd, bool *loop_exit_p, std::st
         *loop_exit_p = true;
         return;
     }
-
 }
