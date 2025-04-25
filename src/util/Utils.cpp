@@ -1384,7 +1384,7 @@ void Utils::assignPartitionToWorker(int graphId, int partitionIndex, string  hos
 }
 
 bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string masterIP,
-                                  int graphID, int partitionId, std::string message, SharedBuffer &sharedBuffer){
+                                  int graphID, int partitionId, std::string message, SharedBuffer &sharedBuffer) {
     util_logger.info("Host:" + host + " Port:" + to_string(port));
     bool result = true;
     int sockfd;
@@ -1444,7 +1444,7 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
         return false;
     }
 
-    if(!Utils::send_str_wrapper(sockfd, to_string(graphID))) {
+    if (!Utils::send_str_wrapper(sockfd, to_string(graphID))) {
         close(sockfd);
         return false;
     }
@@ -1463,7 +1463,7 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
         return false;
     }
 
-    if(!Utils::send_str_wrapper(sockfd, to_string(partitionId))) {
+    if (!Utils::send_str_wrapper(sockfd, to_string(partitionId))) {
         close(sockfd);
         return false;
     }
@@ -1482,14 +1482,14 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
         return false;
     }
 
-    if(!Utils::send_str_wrapper(sockfd, message)) {
+    if (!Utils::send_str_wrapper(sockfd, message)) {
         close(sockfd);
         return false;
     }
 
     auto startTime = std::chrono::high_resolution_clock::now();
     std::chrono::seconds max_duration(3);
-    while(true){
+    while (true) {
         char start[ACK_MESSAGE_SIZE] = {0};
         recv(sockfd, &start, sizeof(start), 0);
         std::string start_msg(start);
@@ -1522,7 +1522,7 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
             util_logger.info("Error while reading graph data");
             return false;
         }
-        if(data == "-1"){
+        if( data == "-1") {
             sharedBuffer.add(data);
             break;
         }

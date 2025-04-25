@@ -276,7 +276,7 @@ void *instanceservicesession(void *dummyPt) {
             hdfs_start_stream_command(connFd, &loop_exit, true, streamHandler);
         } else if (line.compare(JasmineGraphInstanceProtocol::HDFS_CENTRAL_STREAM_START) == 0) {
             hdfs_start_stream_command(connFd, &loop_exit, false, streamHandler);
-        } else if(line.compare(JasmineGraphInstanceProtocol::QUERY_START) == 0){
+        } else if (line.compare(JasmineGraphInstanceProtocol::QUERY_START) == 0) {
             query_start_command(connFd, instanceHandler, incrementalLocalStoreMap, &loop_exit);
         } else {
             instance_logger.error("Invalid command");
@@ -4191,7 +4191,7 @@ string JasmineGraphInstanceService::aggregateStreamingCentralStoreTriangles(
 }
 
 static void query_start_command(int connFd, InstanceHandler &instanceHandler, std::map<std::string,
-                                JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap, bool *loop_exit_p){
+                                JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap, bool *loop_exit_p) {
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::QUERY_START_ACK)) {
         *loop_exit_p = true;
         return;

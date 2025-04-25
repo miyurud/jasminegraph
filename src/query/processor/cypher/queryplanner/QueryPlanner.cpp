@@ -617,7 +617,7 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
                 filterCases.clear();
                 auto analyzedRel = getRelationshipDetails(patternElements[left]->elements[0]->elements[1]);
                 pair<vector<bool>, vector<ASTNode*>> analyzedNode;
-                if (left>0) {
+                if (left > 0) {
                     analyzedNode = getNodeDetails(patternElements[left-1]->elements[1]);
                 } else {
                     analyzedNode = getNodeDetails(startNode);
@@ -674,7 +674,7 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
                     filterCases.clear();
                     auto analyzedRel = getRelationshipDetails(patternElements[left]->elements[0]->elements[1]);
                     pair<vector<bool>, vector<ASTNode*>> analyzedNode;
-                    if (left>0) {
+                    if (left > 0) {
                         analyzedNode = getNodeDetails(patternElements[left-1]->elements[1]);
                     } else {
                         analyzedNode = getNodeDetails(startNode);
@@ -723,7 +723,7 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
 
                 prevRel = rel;
                 startVar = variable;
-                for (int right = index; right<patternElements.size(); right++) {
+                for (int right = index; right < patternElements.size(); right++) {
                     filterCases.clear();
                     auto analyzedRel = getRelationshipDetails(patternElements[right]->elements[0]->elements[1]);
                     auto analyzedNode = getNodeDetails(patternElements[right]->elements[1]);
@@ -773,7 +773,7 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
                 string prevRel = "null";
                 string rel;
                 startVar = variable;
-                for (int right = index; right<patternElements.size(); right++) {
+                for (int right = index; right < patternElements.size(); right++) {
                     filterCases.clear();
                     auto analyzedRel = getRelationshipDetails(patternElements[right]->elements[0]->elements[1]);
                     auto analyzedNode = getNodeDetails(patternElements[right]->elements[1]);
@@ -825,8 +825,8 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
                 for (int left = index - 1; left >= 0; left--) {
                     filterCases.clear();
                     auto analyzedRel = getRelationshipDetails(patternElements[left]->elements[0]->elements[1]);
-                    pair<vector<bool>,vector<ASTNode*>> analyzedNode;
-                    if (left>0) {
+                    pair<vector<bool>, vector<ASTNode*>> analyzedNode;
+                    if (left > 0) {
                         analyzedNode = getNodeDetails(patternElements[left-1]->elements[1]);
                     } else {
                         analyzedNode = getNodeDetails(startNode);
@@ -1012,7 +1012,7 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
             for (int left = index - 1; left >= 0; left--) {
                 filterCases.clear();
                 auto analyzedRel = getRelationshipDetails(patternElements[left]->elements[0]->elements[1]);
-                pair<vector<bool>,vector<ASTNode*>> analyzedNode;
+                pair<vector<bool>, vector<ASTNode*>> analyzedNode;
                 if (left > 0) {
                     analyzedNode = getNodeDetails(patternElements[left-1]->elements[1]);
                 } else {
@@ -1036,7 +1036,7 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
                                                   newRelVar, newRelType, direction);
                 }
 
-                auto* whereClause = prepareWhereClause(newRelVar,prevRel);
+                auto* whereClause = prepareWhereClause(newRelVar, prevRel);
                 filterCases.push_back(pair<string, ASTNode*>("null", whereClause));
 
 
@@ -1061,7 +1061,7 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
             for (int left = index - 1; left >= 0; left--) {
                 filterCases.clear();
                 auto analyzedRel = getRelationshipDetails(patternElements[left]->elements[0]->elements[1]);
-                pair<vector<bool>,vector<ASTNode*>> analyzedNode;
+                pair<vector<bool>, vector<ASTNode*>> analyzedNode;
                 if (left > 0) {
                     analyzedNode = getNodeDetails(patternElements[left-1]->elements[1]);
                 } else {
@@ -1086,7 +1086,7 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
                 }
 
 
-                auto* whereClause = prepareWhereClause(newRelVar,prevRel);
+                auto* whereClause = prepareWhereClause(newRelVar, prevRel);
                 filterCases.push_back(pair<string, ASTNode*>("null", whereClause));
 
 
@@ -1131,7 +1131,7 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
                 }
 
 
-                auto* whereClause = prepareWhereClause(newRelVar,prevRel);
+                auto* whereClause = prepareWhereClause(newRelVar, prevRel);
                 filterCases.push_back(pair<string, ASTNode*>("null", whereClause));
 
 
@@ -1306,7 +1306,7 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
         for (int left = directionIndex - 1; left >= 0; left--) {
             filterCases.clear();
             auto analyzedRel = getRelationshipDetails(patternElements[left]->elements[0]->elements[1]);
-            pair<vector<bool>,vector<ASTNode*>> analyzedNode;
+            pair<vector<bool>, vector<ASTNode*>> analyzedNode;
             if (left > 0) {
                 analyzedNode = getNodeDetails(patternElements[left-1]->elements[1]);
             } else {
@@ -1329,7 +1329,7 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
             }
 
 
-            auto* whereClause = prepareWhereClause(newRelVar,prevRel);
+            auto* whereClause = prepareWhereClause(newRelVar, prevRel);
             filterCases.push_back(pair<string, ASTNode*>("null", whereClause));
             inputOperator = new Filter(inputOperator, filterCases);
             prevRel = newRelVar;
@@ -1357,7 +1357,7 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
                                               newRelVar, newRelType, direction);
             }
 
-            auto* whereClause = prepareWhereClause(newRelVar,prevRel);
+            auto* whereClause = prepareWhereClause(newRelVar, prevRel);
             filterCases.push_back(pair<string, ASTNode*>("null", whereClause));
             inputOperator = new Filter(inputOperator, filterCases);
 
@@ -1391,10 +1391,10 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
 
         inputOperator = new UndirectedAllRelationshipScan(startVar, destVar, relVar);
         string prevRel = relVar;
-        for (int left = endIndex-1;left >= 0;left--) {
+        for (int left = endIndex-1; left >= 0;left--) {
             filterCases.clear();
             auto analyzedRel = getRelationshipDetails(patternElements[left]->elements[0]->elements[1]);
-            pair<vector<bool>,vector<ASTNode*>> analyzedNode;
+            pair<vector<bool>, vector<ASTNode*>> analyzedNode;
             if (left > 0) {
                 analyzedNode = getNodeDetails(patternElements[left-1]->elements[1]);
             } else {
@@ -1408,7 +1408,7 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
             inputOperator = new ExpandAll(inputOperator, newStartVar, newDestvar,
                                           newRelVar, newRelType);
 
-            auto* whereClause = prepareWhereClause(newRelVar,prevRel);
+            auto* whereClause = prepareWhereClause(newRelVar, prevRel);
             filterCases.push_back(pair<string, ASTNode*>("null", whereClause));
             inputOperator = new Filter(inputOperator, filterCases);
             prevRel = newRelVar;
