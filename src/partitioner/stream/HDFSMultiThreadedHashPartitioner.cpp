@@ -292,13 +292,14 @@ void HDFSMultiThreadedHashPartitioner::updatePartitionTable() {
     std::mutex dbLock;
     for (int i = 0; i < numberOfPartitions; i++) {
         string sqlStatement =
-                "INSERT INTO partition (idpartition,graph_idgraph,vertexcount,central_vertexcount,edgecount,central_edgecount) VALUES(\"" +
-                std::to_string(i) + "\", \"" +
-                std::to_string(this->graphId) + "\", \"" +
-                std::to_string(partitions.at(i).getLocalVertexCount()) + "\",\"" +
-                std::to_string(partitions.at(i).getCentralVertexCount(i)) + "\",\"" +
-                std::to_string(partitions.at(i).getEdgesCount(isDirected)) + "\", \"" +
-                std::to_string(partitions.at(i).edgeCutsCount())+ "\")";
+            "INSERT INTO partition (idpartition,graph_idgraph,vertexcount,central_vertexcount,"
+            "edgecount,central_edgecount) VALUES(\"" +
+            std::to_string(i) + "\", \"" +
+            std::to_string(this->graphId) + "\", \"" +
+            std::to_string(partitions.at(i).getLocalVertexCount()) + "\",\"" +
+            std::to_string(partitions.at(i).getCentralVertexCount(i)) + "\",\"" +
+            std::to_string(partitions.at(i).getEdgesCount(isDirected)) + "\", \"" +
+            std::to_string(partitions.at(i).edgeCutsCount())+ "\")";
 
         dbLock.lock();
         sqlite->runUpdate(sqlStatement);
