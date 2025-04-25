@@ -1346,7 +1346,7 @@ void Utils::assignPartitionToWorker(int graphId, int partitionIndex, string  hos
     auto *sqlite = new SQLiteDBInterface();
     sqlite->init();
 
-    string workerHost;
+    string workerHost = hostname;
     if (hostname.find('@') != std::string::npos) {
         workerHost = Utils::split(hostname, '@')[1];
     }
