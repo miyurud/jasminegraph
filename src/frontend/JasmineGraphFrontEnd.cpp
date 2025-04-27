@@ -485,53 +485,161 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
         QueryPlanner query_planner;
         Operator *opr = query_planner.createExecutionPlan(ast);
         obj = opr->execute();
+        write(connFd, obj.c_str(), obj.length());
     } else {
         frontend_logger.error("query isn't semantically correct: "+user_res_s);
     }
-    SharedBuffer sharedBuffer(3);
-    JasmineGraphServer *server = JasmineGraphServer::getInstance();
-    server->sendQueryPlan(stoi(user_res_1), workerClients.size(), obj, std::ref(sharedBuffer));
 
-//    std::ostringstream header;
-//    header << "| " << std::left << std::setw(10) << "ID"
-//           << "| " << std::setw(30) << "Name"
-//           << "| " << std::setw(30) << "Occupation/Category"
-//           << "| " << std::setw(10) << "Type" << "|";
-//    result_wr = write(connFd, header.str().c_str(), header.str().length());
-//    result_wr = write(connFd, "\r\n", 2);
-//    result_wr = write(connFd, std::string(90, '-').c_str(), std::string(90, '-').length());
-//    result_wr = write(connFd, "\r\n", 2);
+    // print query plan
+    frontend_logger.info((obj.c_str()));
+
+    // Create buffer pool
+    std::vector<std::unique_ptr<SharedBuffer>> bufferPool;
+    bufferPool.reserve(numberOfPartitions); // Pre-allocate space for pointers
+    for (size_t i = 0; i < numberOfPartitions; ++i) {
+        bufferPool.emplace_back(std::make_unique<SharedBuffer>(5));
+    }
+
+    // send query plan
+    JasmineGraphServer *server = JasmineGraphServer::getInstance();
+    server->sendQueryPlan(stoi(user_res_1), workerClients.size(), obj, std::ref(bufferPool));
 
     int closeFlag = 0;
     if (Operator::isAggregate) {
-        Aggregation* aggregation = AggregationFactory::getAggregationMethod(AggregationFactory::AVERAGE);
-        while(true){
-            if (closeFlag == numberOfPartitions) {
-                break;
+        if (Operator::aggregateType == AggregationFactory::AVERAGE){
+            Aggregation* aggregation = AggregationFactory::getAggregationMethod(AggregationFactory::AVERAGE);
+            while (true) {
+                if (closeFlag == numberOfPartitions) {
+                    break;
+                }
+                for (size_t i = 0; i < bufferPool.size(); ++i) {
+                    std::string data;
+                    if (bufferPool[i]->tryGet(data)){
+                        if (data == "-1") {
+                            closeFlag++;
+                        } else {
+                            aggregation->insert(data);
+                        }
+                    }
+                }
             }
-            std::string data = sharedBuffer.get();
-            if (data == "-1") {
-                closeFlag++;
-            } else {
-                aggregation->insert(data);
+            aggregation->getResult(connFd);
+        } else if (Operator::aggregateType == AggregationFactory::ASC || Operator::aggregateType == AggregationFactory::DESC)
+        {
+            struct BufferEntry {
+                std::string value;
+                size_t bufferIndex;
+                json data;
+                bool isAsc;
+                BufferEntry(const std::string& v, size_t idx, const json& parsed, bool asc)
+                    : value(v), bufferIndex(idx), data(parsed), isAsc(asc) {}
+                bool operator<(const BufferEntry& other) const {
+                    const auto& val1 = data[Operator::aggregateKey];
+                    const auto& val2 = other.data[Operator::aggregateKey];
+                    bool result;
+                    if (val1.is_number_integer() && val2.is_number_integer()) {
+                        result = val1.get<int>() > val2.get<int>();
+                    } else if (val1.is_string() && val2.is_string()) {
+                        result = val1.get<std::string>() > val2.get<std::string>();
+                    } else {
+                        result = val1.dump() > val2.dump();
+                    }
+                    return isAsc ? result : !result; // Flip for DESC
+                }
+            };
+
+            // Initialize with first value from each buffer
+            bool isAsc = (Operator::aggregateType == AggregationFactory::ASC);
+            std::priority_queue<BufferEntry> mergeQueue; // Min-heap
+            for (size_t i = 0; i < numberOfPartitions; ++i) {
+                std::string value = bufferPool[i]->get();
+                if (value != "-1") {
+                    try {
+                        json parsed = json::parse(value);
+                        if (!parsed.contains(Operator::aggregateKey)) {
+                            frontend_logger.error("Missing key '" + Operator::aggregateKey + "' in JSON: " + value);
+                            continue;
+                        }
+                        BufferEntry entry{value, i, parsed, isAsc};
+                        mergeQueue.push(entry);
+                    } catch (const json::exception& e) {
+                        frontend_logger.error("JSON parse error: " + std::string(e.what()));
+                        continue;
+                    }
+                } else {
+                    closeFlag++;
+                }
             }
-        }
-        aggregation->getResult(connFd);
-    } else {
-        while(true){
-            if (closeFlag == numberOfPartitions) {
-                break;
-            }
-            std::string data = sharedBuffer.get();
-            if (data == "-1") {
-                closeFlag++;
-            } else {
-                result_wr = write(connFd, data.c_str(), data.length());
+
+            frontend_logger.info("START MASTER SORTING");
+            frontend_logger.info(std::to_string(mergeQueue.size()));
+
+            // Merge loop
+            while (!mergeQueue.empty()) {
+                frontend_logger.info(":::::::FRONTEND:::::::");
+
+                // Pick smallest value
+                BufferEntry smallest = mergeQueue.top();
+                frontend_logger.info(smallest.value);
+                size_t queueSize = mergeQueue.size();
+                frontend_logger.info(std::to_string(queueSize));
+                mergeQueue.pop();
+                result_wr = write(connFd, smallest.value.c_str(), smallest.value.length());
+                if (result_wr < 0) {
+                    frontend_logger.error("Error writing to socket");
+                    return;
+                }
                 result_wr = write(connFd, "\r\n", 2);
+                if (result_wr < 0) {
+                    frontend_logger.error("Error writing to socket");
+                    return;
+                }
+
+                // Only fetch next value if the buffer isn't exhausted
+                if (closeFlag < numberOfPartitions) {
+                    std::string nextValue = bufferPool[smallest.bufferIndex]->get();
+                    if (nextValue == "-1") {
+                        closeFlag++;
+                        frontend_logger.info("closeflag" + std::to_string(closeFlag));
+                    } else {
+                        try {
+                            json parsed = json::parse(nextValue);
+                            if (!parsed.contains(Operator::aggregateKey)) {
+                                frontend_logger.error("Missing key '" + Operator::aggregateKey + "' in JSON: " + nextValue);
+                                continue;
+                            }
+                            BufferEntry entry{nextValue, smallest.bufferIndex, parsed, isAsc};
+                            mergeQueue.push(entry);
+                        } catch (const json::exception& e) {
+                            frontend_logger.error("JSON parse error: " + std::string(e.what()));
+                        }
+                    }
+                }
+            }
+        }else {
+            std::string log = "Query is recongnized as Aggreagation, but method doesnot have implemented yet";
+            result_wr = write(connFd, log.c_str(), log.length());
+            result_wr = write(connFd, "\r\n", 2);
+        }
+    } else {
+        while (true) {
+            if (closeFlag == numberOfPartitions) {
+                break;
+            }
+
+            for (size_t i = 0; i < bufferPool.size(); ++i) {
+                std::string data;
+                if (bufferPool[i]->tryGet(data)){
+                    if (data == "-1") {
+                        closeFlag++;
+                    } else {
+                        result_wr = write(connFd, data.c_str(), data.length());
+                        result_wr = write(connFd, "\r\n", 2);
+                    }
+                }
             }
         }
     }
-
 }
 
 static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {

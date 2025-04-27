@@ -41,6 +41,22 @@ limitations under the License.
 #include "JasmineGraphFrontEndUIProtocol.h"
 #include "../core/common/JasmineGraphFrontendCommon.h"
 #include "../core/scheduler/JobScheduler.h"
+#include "../../partitioner/local/RDFParser.h"
+#include "../../util/kafka/StreamHandler.h"
+#include "../JasmineGraphFrontEndProtocol.h"
+#include "antlr4-runtime.h"
+#include "/home/ubuntu/software/antlr/CypherLexer.h"
+#include "/home/ubuntu/software/antlr/CypherParser.h"
+#include "../../query/processor/cypher/astbuilder/ASTBuilder.h"
+#include "../../query/processor/cypher/astbuilder/ASTNode.h"
+#include "../../query/processor/cypher/semanticanalyzer/SemanticAnalyzer.h"
+#include "../../query/processor/cypher/queryplanner/Operators.h"
+#include "../../query/processor/cypher/queryplanner/QueryPlanner.h"
+#include "../../localstore/incremental/JasmineGraphIncrementalLocalStore.h"
+#include "../../server/JasmineGraphInstanceService.h"
+#include "../../query/processor/cypher/util/SharedBuffer.h"
+#include "../../query/processor/cypher/runtime/AggregationFactory.h"
+#include "../../query/processor/cypher/runtime/Aggregation.h"
 
 #define MAX_PENDING_CONNECTIONS 10
 #define DATA_BUFFER_SIZE (FRONTEND_DATA_LENGTH + 1)
@@ -65,7 +81,22 @@ static void remove_graph_command(std::string masterIP,
 static void triangles_command(std::string masterIP,
     int connFd, SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfSqlite,
     JobScheduler *jobScheduler, bool *loop_exit_p, std::string command);
+static void get_degree_command(int connFd, std::string command, int numberOfPartition, std::string type, bool *loop_exit_p);
+static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClients,
+                               int numberOfPartitions, bool *loop_exit, std::string command);
 
+static vector<DataPublisher *> getWorkerClients(SQLiteDBInterface *sqlite) {
+    const vector<Utils::worker> &workerList = Utils::getWorkerList(sqlite);
+    vector<DataPublisher *> workerClients;
+    for (int i = 0; i < workerList.size(); i++) {
+        Utils::worker currentWorker = workerList.at(i);
+        string workerHost = currentWorker.hostname;
+        int workerPort = atoi(string(currentWorker.port).c_str());
+        DataPublisher *workerClient = new DataPublisher(workerPort, workerHost);
+        workerClients.push_back(workerClient);
+    }
+    return workerClients;
+}
 void *uifrontendservicesesion(void *dummyPt) {
     frontendservicesessionargs *sessionargs = (frontendservicesessionargs *)dummyPt;
     std::string masterIP = sessionargs->masterIP;
@@ -83,6 +114,15 @@ void *uifrontendservicesesion(void *dummyPt) {
     char data[FRONTEND_DATA_LENGTH + 1];
     //  Initiate Thread
     thread input_stream_handler;
+    std::string partitionCount = Utils::getJasmineGraphProperty("org.jasminegraph.server.npartitions");
+    int numberOfPartitions = std::stoi(partitionCount);
+    std::string kafka_server_IP;
+    cppkafka::Configuration configs;
+    KafkaConnector *kstream;
+    Partitioner graphPartitioner(numberOfPartitions, 1, spt::Algorithms::HASH, sqlite);
+
+    vector<DataPublisher *> workerClients;
+    bool workerClientsInitialized = false;
 
     bool loop_exit = false;
     int failCnt = 0;
@@ -119,6 +159,14 @@ void *uifrontendservicesesion(void *dummyPt) {
             triangles_command(masterIP, connFd, sqlite, perfSqlite, jobScheduler, &loop_exit, line);
         } else if (token.compare(RMGR) == 0) {
             remove_graph_command(masterIP, connFd, sqlite, &loop_exit, line);
+        } else if (token.compare(IN_DEGREE) == 0) {
+            get_degree_command(connFd, line, numberOfPartitions, "_idd_",  &loop_exit);
+        } else if (token.compare(OUT_DEGREE) == 0) {
+            get_degree_command(connFd, line, numberOfPartitions, "_odd_",  &loop_exit);
+        }else if (token.compare(CYPHER) == 0){
+            workerClients = getWorkerClients(sqlite);
+            workerClientsInitialized = true;
+            cypher_ast_command(connFd, workerClients, numberOfPartitions, &loop_exit, line);
         } else {
             ui_frontend_logger.error("Message format not recognized " + line);
             int result_wr = write(connFd, INVALID_FORMAT.c_str(), INVALID_FORMAT.size());
@@ -215,52 +263,115 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
     json result_json = json::array();  // Create a JSON array to hold the result
 
     // Fetch data from the database
-    std::vector<vector<pair<string, string>>> data = JasmineGraphFrontEndCommon::getGraphData(sqlite);
+    std::vector<vector<pair<string, string>>> graphData = JasmineGraphFrontEndCommon::getGraphData(sqlite);
 
-    // Iterate through the result set and construct the JSON array
-    for (auto &row : data) {
-        json entry;  // JSON object for a single row
-        int counter = 0;
+    // Fetch partition data
+    std::vector<std::vector<std::pair<std::string, std::string>>> partitionData =
+        JasmineGraphFrontEndCommon::getPartitionData(sqlite);
 
-        for (auto &column : row) {
-            switch (counter) {
-                case 0:
-                    entry["idgraph"] = column.second;
-                    break;
-                case 1:
-                    entry["name"] = column.second;
-                    break;
-                case 2:
-                    entry["upload_path"] = column.second;
-                    break;
-                case 3:
-                    if (std::stoi(column.second) == Conts::GRAPH_STATUS::LOADING) {
-                        entry["status"] = "loading";
-                    } else if (std::stoi(column.second) == Conts::GRAPH_STATUS::DELETING) {
-                        entry["status"] = "deleting";
-                    } else if (std::stoi(column.second) == Conts::GRAPH_STATUS::NONOPERATIONAL) {
-                        entry["status"] = "nop";
-                    } else if (std::stoi(column.second) == Conts::GRAPH_STATUS::OPERATIONAL) {
-                        entry["status"] = "op";
-                    }
-                    break;
-                case 4:
-                    entry["vertexcount"] = column.second;
-                    break;
-                case 5:
-                    entry["edgecount"] = column.second;
-                    break;
-                case 6:
-                    entry["centralpartitioncount"] = column.second;
-                    break;
-                default:
-                    break;
-            }
-            counter++;
+    // Create a map to group partitions by graph_idgraph for efficient lookup
+    std::unordered_map<int, std::vector<json>> partition_map;
+    for (const auto& row : partitionData) {
+        if (row.size() != 7) {
+            // Log error or skip malformed partition row
+            continue;
         }
 
-        // Add the entry to the JSON array
-        result_json.push_back(entry);
+        json partition_entry;
+        int graph_idgraph = -1;
+
+        for (const auto& column : row) {
+            const std::string& col_name = column.first;
+            const std::string& col_value = column.second;
+
+            try {
+                if (col_name == "idpartition") {
+                    partition_entry["idpartition"] = std::stoi(col_value);
+                } else if (col_name == "graph_idgraph") {
+                    graph_idgraph = std::stoi(col_value); // Store for grouping
+                } else if (col_name == "vertexcount") {
+                    partition_entry["vertexcount"] = std::stoi(col_value);
+                } else if (col_name == "central_vertexcount") {
+                    partition_entry["central_vertexcount"] = std::stoi(col_value);
+                } else if (col_name == "edgecount") {
+                    partition_entry["edgecount"] = std::stoi(col_value);
+                } else if (col_name == "central_edgecount") {
+                    partition_entry["central_edgecount"] = std::stoi(col_value);
+                } else if (col_name == "central_edgecount_with_dups") {
+                    partition_entry["central_edgecount_with_dups"] = std::stoi(col_value);
+                }
+            } catch (const std::exception& e) {
+                // Log error and skip this partition
+                partition_entry.clear();
+                break;
+            }
+        }
+
+        if (!partition_entry.empty() && graph_idgraph != -1) {
+            partition_map[graph_idgraph].push_back(partition_entry);
+        }
+    }
+
+    // Process graph data
+    for (const auto& row : graphData) {
+        if (row.size() != 7) {
+            // Log error or skip malformed graph row
+            continue;
+        }
+
+        json entry; // JSON object for a single graph
+        int idgraph = -1;
+
+        // Map graph columns to JSON
+        for (const auto& column : row) {
+            const std::string& col_name = column.first;
+            const std::string& col_value = column.second;
+
+            try {
+                if (col_name == "idgraph") {
+                    idgraph = std::stoi(col_value);
+                    entry["idgraph"] = idgraph;
+                } else if (col_name == "name") {
+                    entry["name"] = col_value;
+                } else if (col_name == "upload_path") {
+                    entry["upload_path"] = col_value;
+                } else if (col_name == "graph_status_idgraph_status") {
+                    try {
+                        if (std::stoi(column.second) == Conts::GRAPH_STATUS::LOADING) {
+                            entry["status"] = "loading";
+                        } else if (std::stoi(column.second) == Conts::GRAPH_STATUS::DELETING) {
+                            entry["status"] = "deleting";
+                        } else if (std::stoi(column.second) == Conts::GRAPH_STATUS::NONOPERATIONAL) {
+                            entry["status"] = "nop";
+                        } else if (std::stoi(column.second) == Conts::GRAPH_STATUS::OPERATIONAL) {
+                            entry["status"] = "op";
+                        }
+                    } catch (const std::exception& e) {
+                        entry["status"] = "unknown"; // Handle invalid status
+                    }
+                } else if (col_name == "vertexcount") {
+                    entry["vertexcount"] = std::stoi(col_value);
+                } else if (col_name == "edgecount") {
+                    entry["edgecount"] = std::stoi(col_value);
+                } else if (col_name == "centralpartitioncount") {
+                    entry["centralpartitioncount"] = std::stoi(col_value);
+                }
+            } catch (const std::exception& e) {
+                // Log error and skip this graph
+                entry.clear();
+                break;
+            }
+        }
+
+        // Add partitions array for this graph
+        if (!entry.empty() && idgraph != -1) {
+            entry["partitions"] = json::array();
+            auto it = partition_map.find(idgraph);
+            if (it != partition_map.end()) {
+                entry["partitions"] = it->second; // Add all partitions for this graph
+            }
+            result_json.push_back(entry);
+        }
     }
 
     // Convert JSON object to string
@@ -581,6 +692,285 @@ static void triangles_command(std::string masterIP, int connFd,
         if (result_wr < 0) {
             ui_frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
+        }
+    }
+}
+
+
+static void get_degree_command(int connFd, std::string command, int numberOfPartition, std::string type, bool *loop_exit_p)
+{
+    char delimiter = '|';
+    std::stringstream ss(command);
+    std::string token;
+    std::string graph_id;
+
+    std::getline(ss, token, delimiter);
+    std::getline(ss, graph_id, delimiter);
+
+    string graphID(graph_id);
+
+    graphID = Utils::trim_copy(graphID);
+    ui_frontend_logger.info("Graph ID received: " + graphID);
+
+    JasmineGraphServer::inDegreeDistribution(graphID);
+    string instanceDataFolderLocation = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+
+    ui_frontend_logger.info("instance data folder location" + instanceDataFolderLocation);
+    for (int partitionId=0; partitionId<numberOfPartition; partitionId++)
+    {
+        string attributeFilePath = instanceDataFolderLocation + "/" + graphID + type + std::to_string(partitionId);
+
+        // Create an input file stream object
+        std::ifstream inputFile(attributeFilePath);
+
+        // Check if the file was opened successfully
+        if (!inputFile.is_open()) {
+            ui_frontend_logger.error("Error: Could not open the file '" + attributeFilePath + "'");
+            continue;
+        }
+
+        // Read the file line by line and print to the console
+        std::string line;
+        while (std::getline(inputFile, line)) {
+            std::istringstream iss(line);
+            std::string num1, num2;
+
+            // Split the line by tab
+            if (std::getline(iss, num1, '\t') && std::getline(iss, num2, '\t')) {
+                json point;
+                point["node"] = num1;
+                point["value"] = num2;
+
+                // Convert JSON object to string and log it
+                string result = point.dump();
+                // Write the result to the socket
+                if (result.size() > 0) {
+                    int result_wr = write(connFd, result.c_str(), result.length());
+                    if (result_wr < 0) {
+                        ui_frontend_logger.error("Error writing to socket");
+                        *loop_exit_p = true;
+                    }
+                    result_wr = write(connFd, "\r\n", 2);
+                    if (result_wr < 0) {
+                        ui_frontend_logger.error("Error writing to socket");
+                        *loop_exit_p = true;
+                    }
+                }
+            } else {
+                ui_frontend_logger.error("Error: Malformed line: " + line);
+            }
+        }
+
+        // Close the file
+        inputFile.close();
+    }
+
+    int result_wr = write(connFd, "-1", 2);
+    if (result_wr < 0) {
+        ui_frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    result_wr = write(connFd, "\r\n", 2);
+    if (result_wr < 0) {
+        ui_frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+    }
+}
+
+static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClients,
+                               int numberOfPartitions, bool *loop_exit, std::string command)
+{
+    char delimiter = '|';
+    std::stringstream ss(command);
+    std::string token;
+    std::string graph_id;
+    std::string query;
+
+    std::getline(ss, token, delimiter);
+    std::getline(ss, graph_id, delimiter);
+    std::getline(ss, query, delimiter);
+
+    ui_frontend_logger.info("recieved graph id: " + graph_id);
+    ui_frontend_logger.info("query: " + query);
+
+    string user_res_1(graph_id);
+    string user_res_s(query);
+
+    antlr4::ANTLRInputStream input(user_res_s);
+    // Create a lexer from the input
+    CypherLexer lexer(&input);
+
+    // Create a token stream from the lexer
+    antlr4::CommonTokenStream tokens(&lexer);
+
+    // Create a parser from the token stream
+    CypherParser parser(&tokens);
+
+    ASTBuilder ast_builder;
+    auto* ast = any_cast<ASTNode*>(ast_builder.visitOC_Cypher(parser.oC_Cypher()));
+
+    SemanticAnalyzer semantic_analyzer;
+    string obj;
+    if (semantic_analyzer.analyze(ast)) {
+        ui_frontend_logger.log("AST is successfully analyzed", "log");
+        QueryPlanner query_planner;
+        Operator *opr = query_planner.createExecutionPlan(ast);
+        obj = opr->execute();
+    } else {
+        ui_frontend_logger.error("query isn't semantically correct: "+user_res_s);
+    }
+
+    // print query plan
+    ui_frontend_logger.info((obj.c_str()));
+
+    // Create buffer pool
+    std::vector<std::unique_ptr<SharedBuffer>> bufferPool;
+    bufferPool.reserve(numberOfPartitions); // Pre-allocate space for pointers
+    for (size_t i = 0; i < numberOfPartitions; ++i) {
+        bufferPool.emplace_back(std::make_unique<SharedBuffer>(5));
+    }
+
+    // send query plan
+    JasmineGraphServer *server = JasmineGraphServer::getInstance();
+    server->sendQueryPlan(stoi(user_res_1), workerClients.size(), obj, std::ref(bufferPool));
+
+    int closeFlag = 0;
+    if (Operator::isAggregate) {
+        if (Operator::aggregateType == AggregationFactory::AVERAGE){
+            Aggregation* aggregation = AggregationFactory::getAggregationMethod(AggregationFactory::AVERAGE);
+            while (true) {
+                if (closeFlag == numberOfPartitions) {
+                    write(connFd, "-1", 2);
+                    break;
+                }
+                for (size_t i = 0; i < bufferPool.size(); ++i) {
+                    std::string data;
+                    if (bufferPool[i]->tryGet(data)){
+                        if (data == "-1") {
+                            closeFlag++;
+                        } else {
+                            aggregation->insert(data);
+                        }
+                    }
+                }
+            }
+            aggregation->getResult(connFd);
+        } else if (Operator::aggregateType == AggregationFactory::ASC || Operator::aggregateType == AggregationFactory::DESC)
+        {
+            struct BufferEntry {
+                std::string value;
+                size_t bufferIndex;
+                json data;
+                bool isAsc;
+                BufferEntry(const std::string& v, size_t idx, const json& parsed, bool asc)
+                    : value(v), bufferIndex(idx), data(parsed), isAsc(asc) {}
+                bool operator<(const BufferEntry& other) const {
+                    const auto& val1 = data[Operator::aggregateKey];
+                    const auto& val2 = other.data[Operator::aggregateKey];
+                    bool result;
+                    if (val1.is_number_integer() && val2.is_number_integer()) {
+                        result = val1.get<int>() > val2.get<int>();
+                    } else if (val1.is_string() && val2.is_string()) {
+                        result = val1.get<std::string>() > val2.get<std::string>();
+                    } else {
+                        result = val1.dump() > val2.dump();
+                    }
+                    return isAsc ? result : !result; // Flip for DESC
+                }
+            };
+
+            // Initialize with first value from each buffer
+            bool isAsc = (Operator::aggregateType == AggregationFactory::ASC);
+            std::priority_queue<BufferEntry> mergeQueue; // Min-heap
+            for (size_t i = 0; i < numberOfPartitions; ++i) {
+                std::string value = bufferPool[i]->get();
+                if (value != "-1") {
+                    try {
+                        json parsed = json::parse(value);
+                        if (!parsed.contains(Operator::aggregateKey)) {
+                            ui_frontend_logger.error("Missing key '" + Operator::aggregateKey + "' in JSON: " + value);
+                            continue;
+                        }
+                        BufferEntry entry{value, i, parsed, isAsc};
+                        mergeQueue.push(entry);
+                    } catch (const json::exception& e) {
+                        ui_frontend_logger.error("JSON parse error: " + std::string(e.what()));
+                        continue;
+                    }
+                } else {
+                    closeFlag++;
+                }
+            }
+
+            ui_frontend_logger.info("START MASTER SORTING");
+            ui_frontend_logger.info(std::to_string(mergeQueue.size()));
+
+            // Merge loop
+            while (!mergeQueue.empty()) {
+                ui_frontend_logger.info(":::::::FRONTEND:::::::");
+
+                // Pick smallest value
+                BufferEntry smallest = mergeQueue.top();
+                ui_frontend_logger.info(smallest.value);
+                size_t queueSize = mergeQueue.size();
+                ui_frontend_logger.info(std::to_string(queueSize));
+                mergeQueue.pop();
+                int result_wr = write(connFd, smallest.value.c_str(), smallest.value.length());
+                if (result_wr < 0) {
+                    ui_frontend_logger.error("Error writing to socket");
+                    return;
+                }
+                result_wr = write(connFd, "\r\n", 2);
+                if (result_wr < 0) {
+                    ui_frontend_logger.error("Error writing to socket");
+                    return;
+                }
+
+                // Only fetch next value if the buffer isn't exhausted
+                if (closeFlag < numberOfPartitions) {
+                    std::string nextValue = bufferPool[smallest.bufferIndex]->get();
+                    if (nextValue == "-1") {
+                        closeFlag++;
+                        ui_frontend_logger.info("closeflag" + std::to_string(closeFlag));
+                    } else {
+                        try {
+                            json parsed = json::parse(nextValue);
+                            if (!parsed.contains(Operator::aggregateKey)) {
+                                ui_frontend_logger.error("Missing key '" + Operator::aggregateKey + "' in JSON: " + nextValue);
+                                continue;
+                            }
+                            BufferEntry entry{nextValue, smallest.bufferIndex, parsed, isAsc};
+                            mergeQueue.push(entry);
+                        } catch (const json::exception& e) {
+                            ui_frontend_logger.error("JSON parse error: " + std::string(e.what()));
+                        }
+                    }
+                }
+            }
+        }else {
+            std::string log = "Query is recongnized as Aggreagation, but method doesnot have implemented yet";
+            int result_wr = write(connFd, log.c_str(), log.length());
+            result_wr = write(connFd, "\r\n", 2);
+        }
+    } else {
+        while (true) {
+            if (closeFlag == numberOfPartitions) {
+                write(connFd, "-1", 2);
+                break;
+            }
+
+            for (size_t i = 0; i < bufferPool.size(); ++i) {
+                std::string data;
+                if (bufferPool[i]->tryGet(data)){
+                    if (data == "-1") {
+                        closeFlag++;
+                    } else {
+                        int result_wr = write(connFd, data.c_str(), data.length());
+                        result_wr = write(connFd, "\r\n", 2);
+                    }
+                }
+            }
         }
     }
 }

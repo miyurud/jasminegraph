@@ -26,6 +26,7 @@ public:
     virtual ~Operator() = default;
     static bool isAggregate;
     static string aggregateType;
+    static string aggregateKey;
     virtual string execute() = 0; // Pure virtual function to be implemented by derived classes
 };
 
@@ -79,6 +80,8 @@ class ProduceResults : public Operator {
 public:
     ProduceResults(Operator* op, vector<ASTNode*> item);
     string execute() override;
+    Operator* getOperator();
+    void setOperator(Operator* op);
 
 private:
     vector<ASTNode*> item;
@@ -138,12 +141,24 @@ private:
 
 // Limit Operator
 class Limit : public Operator {
-    Operator* input;
-    int limit;
 public:
-    Limit(Operator* input, int limit);
+    Limit(Operator* input, ASTNode* limit);
     string execute() override;
+private:
+    Operator* input;
+    ASTNode* limit;
 };
+
+// Skip Operator
+class Skip : public Operator {
+public:
+    Skip(Operator* input, ASTNode* skip);
+    string execute() override;
+private:
+    Operator* input;
+    ASTNode* skip;
+};
+
 
 // Sort Operator
 class Sort : public Operator {
@@ -166,10 +181,23 @@ public:
 
 // Distinct Operator
 class Distinct : public Operator {
-    Operator* input;
 public:
-    Distinct(Operator* input);
+    Distinct(Operator* input, const vector<ASTNode*> columns);
     string execute() override;
+
+private:
+    Operator* input;
+    vector<ASTNode*> columns;
+};
+
+// OrderBy Operator
+class OrderBy : public Operator {
+public:
+    OrderBy(Operator* input, ASTNode* orderByClause);
+    string execute() override;
+private:
+    Operator* input;
+    ASTNode* orderByClause;
 };
 
 // Union Operator
