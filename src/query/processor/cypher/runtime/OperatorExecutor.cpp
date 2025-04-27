@@ -256,7 +256,7 @@ void OperatorExecutor::UndirectedAllRelationshipScan(SharedBuffer &buffer, std::
         std::string startPid(startNode->getMetaPropertyHead()->value);
         startNodeData["partitionID"] = startPid;
         std::map<std::string, char*> startProperties = startNode->getAllProperties();
-        for (auto property: startProperties){
+        for (auto property : startProperties){
             startNodeData[property.first] = property.second;
         }
         for (auto& [key, value] : startProperties) {

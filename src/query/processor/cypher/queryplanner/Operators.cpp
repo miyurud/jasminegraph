@@ -530,8 +530,10 @@ string Create::execute() {
                             property.insert(pair<string, string>(prop->elements[0]->value, prop->elements[1]->value));
                         }
                     }
-                    data["properties"] = property;
                 }
+            }
+            if (!property.empty()) {
+                data["properties"] = property;
             }
             list.push_back(data);
         } else if (e->nodeType == Const::PATTERN_ELEMENTS) {
@@ -544,8 +546,8 @@ string Create::execute() {
             json dest;
             for (auto* patternElement: e->elements) {
                 if (patternElement->nodeType == Const::NODE_PATTERN){
+                    map<string, string> property;
                     for (auto* element: patternElement->elements) {
-                        map<string, string> property;
                         if (element->nodeType == Const::NODE_LABEL) {
                             property.insert(pair<string, string>("label", element->elements[0]->value));
                         } else if (element->nodeType == Const::VARIABLE) {
@@ -557,51 +559,45 @@ string Create::execute() {
                                 }
                             }
                         }
-
-                        if (!property.empty()) {
-                            source["properties"] = property;
-                        }
+                    }
+                    if (!property.empty()) {
+                        source["properties"] = property;
                     }
                 } else if (patternElement->nodeType == Const::PATTERN_ELEMENT_CHAIN) {
+                    map<string, string> property;
                     for (auto* element: patternElement->elements[0]->elements[1]->elements) {
-                        map<string, string> property;
                         if (element->nodeType == Const::RELATIONSHIP_TYPE) {
                             property.insert(pair<string, string>("type", element->elements[0]->value));
                         } else if (element->nodeType == Const::VARIABLE) {
                             rel["variable"] = element->value;
                         } else if (element->nodeType == Const::PROPERTIES_MAP) {
-                            map<string, string> property;
                             for (auto* prop: element->elements) {
                                 if (prop->elements[0]->nodeType != Const::RESERVED_WORD){
                                     property.insert(pair<string, string>(prop->elements[0]->value, prop->elements[1]->value));
                                 }
                             }
                         }
-                        if (!property.empty()) {
-                            rel["properties"] = property;
-                        }
                     }
-
+                    if (!property.empty()) {
+                        rel["properties"] = property;
+                    }
+                    property.clear();
                     for (auto* element: patternElement->elements[1]->elements) {
-                        map<string, string> property;
                         if (element->nodeType == Const::NODE_LABEL) {
                             property.insert(pair<string, string>("label", element->elements[0]->value));
                         } else if (element->nodeType == Const::VARIABLE) {
                             dest["variable"] = element->value;
                         } else if (element->nodeType == Const::PROPERTIES_MAP) {
-                            map<string, string> property;
                             for (auto* prop: element->elements) {
                                 if (prop->elements[0]->nodeType != Const::RESERVED_WORD){
                                     property.insert(pair<string, string>(prop->elements[0]->value, prop->elements[1]->value));
                                 }
                             }
                         }
-
-                        if (!property.empty()) {
-                            dest["properties"] = property;
-                        }
                     }
-
+                    if (!property.empty()) {
+                        dest["properties"] = property;
+                    }
                     if (patternElement->elements[0]->elements[0]->nodeType == Const::RIGHT_ARROW) {
                         relationship["source"] = source;
                         relationship["dest"] = dest;

@@ -423,6 +423,7 @@ void CreateHelper::insertFromData(std::string data, SharedBuffer &buffer) {
                 if (relation.contains("properties")) {
                     edgeProps = relation["properties"];
                 }
+                edgeProps["graphId"] = to_string(gc.graphID);
 
                 json sourceProps;
                 if (sourceFromData) {
@@ -459,13 +460,14 @@ void CreateHelper::insertFromData(std::string data, SharedBuffer &buffer) {
                 }
 
                 sourceJson["properties"] = sourceProps;
+                sourceJson["id"] = sourceId;
                 destJson["properties"] = destProps;
+                destJson["id"] = destId;
                 sourceJson["pid"] = partitionedEdge[0].second;
                 destJson["pid"] = partitionedEdge[1].second;
                 edge["source"] = sourceJson;
                 edge["destination"] = destJson;
                 edge["properties"] = edgeProps;
-
                 RelationBlock* newRelation;
 
                 if (partitionedEdge[0].second == partitionedEdge[1].second &&
@@ -475,27 +477,32 @@ void CreateHelper::insertFromData(std::string data, SharedBuffer &buffer) {
                     newRelation = nodeManager.addCentralEdge({sourceId, destId});
                     auto destWorker = Utils::getWorker(to_string(partitionedEdge[1].second), masterIP,
                                                        Conts::JASMINEGRAPH_BACKEND_PORT);
+                    edge["PID"] = partitionedEdge[1].second;
                     auto dataPublisher = new DataPublisher(destWorker->second, destWorker->first);
                     dataPublisher->publish(edge.dump());
                 } else if (partitionedEdge[1].second == gc.partitionID) {
                     newRelation = nodeManager.addCentralEdge({sourceId, destId});
                     auto sourceWorker = Utils::getWorker(to_string(partitionedEdge[0].second), masterIP,
                                                          Conts::JASMINEGRAPH_BACKEND_PORT);
+                    edge["PID"] = partitionedEdge[0].second;
                     auto dataPublisher = new DataPublisher(sourceWorker->second, sourceWorker->first);
                     dataPublisher->publish(edge.dump());
                 } else if (partitionedEdge[0].second == partitionedEdge[1].second){
                     auto worker = Utils::getWorker(to_string(partitionedEdge[0].second), masterIP,
                                                            Conts::JASMINEGRAPH_BACKEND_PORT);
+                    edge["PID"] = partitionedEdge[1].second;
                     auto dataPublisher = new DataPublisher(worker->second, worker->first);
                     dataPublisher->publish(edge.dump());
                     continue;
                 } else {
                     auto sourceWorker = Utils::getWorker(to_string(partitionedEdge[0].second), masterIP,
                                                    Conts::JASMINEGRAPH_BACKEND_PORT);
+                    edge["PID"] = partitionedEdge[0].second;
                     auto sourceDataPublisher = new DataPublisher(sourceWorker->second, sourceWorker->first);
                     sourceDataPublisher->publish(edge.dump());
                     auto destWorker = Utils::getWorker(to_string(partitionedEdge[1].second), masterIP,
                                                        Conts::JASMINEGRAPH_BACKEND_PORT);
+                    edge["PID"] = partitionedEdge[1].second;
                     auto destDataPublisher = new DataPublisher(destWorker->second, destWorker->first);
                     destDataPublisher->publish(edge.dump());
                     continue;
@@ -530,12 +537,12 @@ void CreateHelper::insertFromData(std::string data, SharedBuffer &buffer) {
 
                 for (auto it = destProps.begin(); it != destProps.end(); it++) {
                     strcpy(value, it.value().get<std::string>().c_str());
-                    newRelation->getSource()->addProperty(std::string(it.key()), &value[0]);
+                    newRelation->getDestination()->addProperty(std::string(it.key()), &value[0]);
                 }
 
                 std::string destPid = to_string(partitionedEdge[1].second);;
                 strcpy(meta, destPid.c_str());
-                newRelation->getSource()->addMetaProperty(MetaPropertyLink::PARTITION_ID, &meta[0]);
+                newRelation->getDestination()->addMetaProperty(MetaPropertyLink::PARTITION_ID, &meta[0]);
 
                 if (source.contains("variable")) {
                     string variable = source["variable"];
@@ -551,7 +558,6 @@ void CreateHelper::insertFromData(std::string data, SharedBuffer &buffer) {
                     string variable = relation["variable"];
                     rawObj[variable] = edgeProps;
                 }
-
                 buffer.add(rawObj.dump());
             }
         } else if (insert["type"] == "Node") {
@@ -638,14 +644,16 @@ void CreateHelper::insertWithoutData(SharedBuffer &buffer) {
                 }
                 json sourceProps = source["properties"];
                 json destProps = dest["properties"];
-
                 partitionedEdge partitionedEdge = graphPartitioner->addEdge({sourceId, destId});
                 RelationBlock* newRelation;
 
                 if (partitionedEdge[0].second == partitionedEdge[1].second) {
                     newRelation = nodeManager.addLocalEdge({sourceId, destId});
-                } else {
+                } else if (partitionedEdge[0].second == gc.partitionID ||
+                           partitionedEdge[1].second == gc.partitionID) {
                     newRelation = nodeManager.addCentralEdge({sourceId, destId});
+                } else {
+                    return;
                 }
 
                 char value[PropertyLink::MAX_VALUE_SIZE] = {0};
@@ -677,12 +685,12 @@ void CreateHelper::insertWithoutData(SharedBuffer &buffer) {
 
                 for (auto it = destProps.begin(); it != destProps.end(); it++) {
                     strcpy(value, it.value().get<std::string>().c_str());
-                    newRelation->getSource()->addProperty(std::string(it.key()), &value[0]);
+                    newRelation->getDestination()->addProperty(std::string(it.key()), &value[0]);
                 }
 
                 std::string destPid = to_string(partitionedEdge[1].second);;
                 strcpy(meta, destPid.c_str());
-                newRelation->getSource()->addMetaProperty(MetaPropertyLink::PARTITION_ID, &meta[0]);
+                newRelation->getDestination()->addMetaProperty(MetaPropertyLink::PARTITION_ID, &meta[0]);
 
                 if (source.contains("variable")) {
                     string variable = source["variable"];
@@ -737,6 +745,5 @@ void CreateHelper::insertWithoutData(SharedBuffer &buffer) {
             }
             return;
         }
-
     }
 }

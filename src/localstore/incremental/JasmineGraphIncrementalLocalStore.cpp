@@ -52,7 +52,7 @@ std::pair<std::string, unsigned int> JasmineGraphIncrementalLocalStore::getIDs(s
 void JasmineGraphIncrementalLocalStore::addEdgeFromString(std::string edgeString) {
     try {
         auto edgeJson = json::parse(edgeString);
-
+        incremental_localstore_logger.info(edgeString);
         if (edgeJson.contains("isNode")) {
             std::string nodeId = edgeJson["id"];
             NodeBlock* newNode = this->nm->addNode(nodeId);
@@ -96,6 +96,7 @@ void JasmineGraphIncrementalLocalStore::addEdgeFromString(std::string edgeString
         if (edgeJson.contains("properties")) {
             auto edgeProperties = edgeJson["properties"];
             for (auto it = edgeProperties.begin(); it != edgeProperties.end(); it++) {
+                incremental_localstore_logger.info(it.key());
                 strcpy(value, it.value().get<std::string>().c_str());
                 if (edgeJson["EdgeType"] == "Central") {
                     newRelation->addCentralProperty(std::string(it.key()), &value[0]);

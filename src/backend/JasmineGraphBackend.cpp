@@ -172,7 +172,7 @@ void *backendservicesesion(void *dummyPt) {
             std::string graphID(content_length, 0);
             return_status = recv(connFd, &graphID[0], content_length, 0);
             if (return_status > 0) {
-                backend_logger.info("Received partition id: "+graphID);
+                backend_logger.info("Received graph id: "+graphID);
             } else {
                 backend_logger.info("Error while reading content length");
                 loop = true;

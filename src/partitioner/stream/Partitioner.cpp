@@ -28,7 +28,6 @@ Logger streaming_partitioner_logger;
 partitionedEdge Partitioner::addEdge(std::pair<std::string, std::string> edge) {
     switch (this->algorithmInUse) {
         case spt::Algorithms::HASH:
-            streaming_partitioner_logger.info("$$$$$$");
             return this->hashPartitioning(edge);
             break;
         case spt::Algorithms::FENNEL:
@@ -113,7 +112,7 @@ partitionedEdge Partitioner::hashPartitioning(std::pair<std::string, std::string
     int secondIndex = stoi(edge.second) % this->numberOfPartitions;  // Hash partitioning
 
     if (firstIndex == secondIndex) {
-        this->partitions[firstIndex].addEdge(edge, this->getIsDirected());
+        this->partitions[firstIndex].addEdge(edge, this->isDirect);
     } else {
         this->partitions[firstIndex].addToEdgeCuts(edge.first, edge.second, secondIndex);
         this->partitions[secondIndex].addToEdgeCuts(edge.second, edge.first, firstIndex);

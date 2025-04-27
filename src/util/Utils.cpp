@@ -1360,7 +1360,7 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
     }
 
     auto startTime = std::chrono::high_resolution_clock::now();
-    std::chrono::seconds max_duration(3);
+    std::chrono::seconds max_duration(1000);
     while(true){
         char start[ACK_MESSAGE_SIZE] = {0};
         recv(sockfd, &start, sizeof(start), 0);
