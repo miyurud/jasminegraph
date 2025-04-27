@@ -124,8 +124,6 @@ unsigned int PropertyEdgeLink::insert(std::string name, char* value) {
             return -1;
         }
 
-        this->edgePropertiesDB->flush();
-
         this->nextPropAddress = newAddress;
         this->edgePropertiesDB->seekp(this->blockAddress + PropertyEdgeLink::MAX_NAME_SIZE +
                                       PropertyEdgeLink::MAX_VALUE_SIZE);  // seek to current property next address
@@ -134,6 +132,7 @@ unsigned int PropertyEdgeLink::insert(std::string name, char* value) {
                                             " into block address " + std::to_string(this->blockAddress));
             return -1;
         }
+        this->edgePropertiesDB->flush();
         //        property_edge_link_logger.info("nextPropertyIndex = " +
         //        std::to_string(PropertyEdgeLink::nextPropertyIndex));
         PropertyEdgeLink::nextPropertyIndex++;  // Increment the shared property index value

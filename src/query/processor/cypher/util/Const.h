@@ -138,6 +138,7 @@ class Const {
     static string NODE;
     static string RELATIONSHIP;
     static string LOOKUP;
+    static string DUMMY_ID;
 };
 
 #endif  // CONST_H

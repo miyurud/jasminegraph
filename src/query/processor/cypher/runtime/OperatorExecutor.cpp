@@ -58,6 +58,16 @@ void OperatorExecutor::initializeMethodMap() {
         executor.EargarAggregation(buffer, jsonPlan, gc); // Ignore the unused string parameter
     };
 
+    methodMap["Create"] = [](OperatorExecutor &executor, SharedBuffer &buffer,
+                                    std::string jsonPlan, GraphConfig gc) {
+        executor.Create(buffer, jsonPlan, gc); // Ignore the unused string parameter
+    };
+
+    methodMap["CartesianProduct"] = [](OperatorExecutor &executor, SharedBuffer &buffer,
+                                     std::string jsonPlan, GraphConfig gc) {
+        executor.CartesianProduct(buffer, jsonPlan, gc); // Ignore the unused string parameter
+    };
+
     methodMap["Distinct"] = [](OperatorExecutor &executor, SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc){
         executor.Distinct(buffer, jsonPlan, gc);
     };
@@ -258,7 +268,7 @@ void OperatorExecutor::UndirectedAllRelationshipScan(SharedBuffer &buffer, std::
         std::string startPid(startNode->getMetaPropertyHead()->value);
         startNodeData["partitionID"] = startPid;
         std::map<std::string, char*> startProperties = startNode->getAllProperties();
-        for (auto property: startProperties){
+        for (auto property : startProperties){
             startNodeData[property.first] = property.second;
         }
         for (auto& [key, value] : startProperties) {
@@ -714,6 +724,101 @@ void OperatorExecutor::Projection(SharedBuffer &buffer, std::string jsonPlan, Gr
     }
 }
 
+void OperatorExecutor::Create(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
+    json query = json::parse(jsonPlan);
+    SharedBuffer sharedBuffer(5);
+    string partitionAlgo = Utils::getPartitionAlgorithm(to_string(gc.graphID), masterIP);
+    CreateHelper createHelper(query["elements"], partitionAlgo, gc, masterIP);
+    if (query.contains("NextOperator")) {
+        std::string nextOpt = query["NextOperator"];
+        json next = json::parse(nextOpt);
+        auto method = OperatorExecutor::methodMap[next["Operator"]];
+        // Launch the method in a new thread
+        std::thread result(method, std::ref(*this), std::ref(sharedBuffer), query["NextOperator"], gc);
+        while(true) {
+            string raw = sharedBuffer.get();
+            if(raw == "-1"){
+                buffer.add(raw);
+                result.join();
+                break;
+            }
+            createHelper.insertFromData(raw, std::ref(buffer));
+        }
+    } else {
+        createHelper.insertWithoutData(std::ref(buffer));
+        buffer.add("-1");
+    }
+}
+
+void OperatorExecutor::CartesianProduct(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
+    json query = json::parse(jsonPlan);
+    SharedBuffer left(5);
+    SharedBuffer right(5);
+    std::string leftOpt = query["left"];
+    std::string rightOpt = query["right"];
+    json leftJson = json::parse(leftOpt);
+    json rightJson = json::parse(rightOpt);
+    auto leftMethod = OperatorExecutor::methodMap[leftJson["Operator"]];
+    auto rightMethod = OperatorExecutor::methodMap[rightJson["Operator"]];
+    // Launch the method in a new thread
+    std::thread leftThread(leftMethod, std::ref(*this), std::ref(left), query["left"], gc);
+    while(true) {
+        string leftRaw = left.get();
+        if(leftRaw == "-1"){
+            buffer.add(leftRaw);
+            leftThread.join();
+            break;
+        }
+
+        string partitionCount = Utils::getJasmineGraphProperty("org.jasminegraph.server.npartitions");
+        int numberOfPartitions = std::stoi(partitionCount);
+        std::vector<std::thread> workerThreads;
+
+        for (int i = 0; i < numberOfPartitions; i++) {
+            if (i == gc.partitionID) {
+                continue;
+            }
+            workerThreads.emplace_back(
+                    Utils::sendDataFromWorkerToWorker,
+                    masterIP,
+                    gc.graphID,
+                    to_string(i),
+                    query["right"],
+                    std::ref(right)
+            );
+        }
+
+        std::thread rightThread(rightMethod, std::ref(*this), std::ref(right), query["right"], gc);
+        int count = 0;
+        while(true) {
+            string rightRaw = right.get();
+            if(rightRaw == "-1"){
+                count++;
+                if (count == numberOfPartitions) {
+                    buffer.add("-1");
+                    rightThread.join();
+                    for (auto& t : workerThreads) {
+                        if (t.joinable()) {
+                            t.join();
+                        }
+                    }
+                }
+                continue;
+            }
+
+
+
+            json leftData = json::parse(leftRaw);
+            json rightData = json::parse(rightRaw);
+
+            for (auto& [key, value] : rightData.items()) {
+                leftData[key] = value;
+            }
+            buffer.add(leftData.dump());
+        }
+    }
+}
+
 void OperatorExecutor::Distinct(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc){
     json query = json::parse(jsonPlan);
     SharedBuffer sharedBuffer(5);
@@ -830,3 +935,4 @@ void OperatorExecutor::OrderBy(SharedBuffer &buffer, std::string jsonPlan, Graph
         }
     }
 }
+

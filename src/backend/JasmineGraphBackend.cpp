@@ -143,7 +143,80 @@ void *backendservicesesion(void *dummyPt) {
                 break;
             }
 
-        } else {
+        } else if (line.compare(PARTITION_ALGORITHM_DETAILS) == 0) {
+
+            if (!Utils::send_str_wrapper(connFd, PARTITION_ALGORITHM_DETAILS_ACK)) {
+                loop = true;
+                break;
+            }
+
+            int content_length = 0;
+            backend_logger.info("Waiting for content length");
+            int return_status = recv(connFd, &content_length, sizeof(int), 0);
+            if (return_status > 0) {
+                content_length = ntohl(content_length);
+                backend_logger.info("Received content_length of graph ID = " + std::to_string(content_length));
+            } else {
+                backend_logger.info("Error while reading content length");
+                loop= true;
+                break;
+            }
+
+
+            if (!Utils::send_str_wrapper(connFd, CONTENT_LENGTH_ACK)) {
+                loop = true;
+                break;
+            }
+
+
+            std::string graphID(content_length, 0);
+            return_status = recv(connFd, &graphID[0], content_length, 0);
+            if (return_status > 0) {
+                backend_logger.info("Received graph id: "+graphID);
+            } else {
+                backend_logger.info("Error while reading content length");
+                loop = true;
+                break;
+            }
+
+            std::string selectQuery = "select id_algorithm from graph where idgraph='" + graphID + "';";
+
+            if (!sqLiteDbInterface) {
+                backend_logger.error("Database interface is null!");
+                break;
+            }
+
+            auto partitionAlgorithm = sqLiteDbInterface->runSelect(selectQuery);
+
+            if (partitionAlgorithm.empty() || partitionAlgorithm[0].empty()) {
+                backend_logger.error("Query returned no results.");
+                break;
+            }
+
+            std::string partitionAlgorithmName = partitionAlgorithm[0][0].second;
+            int message_length = partitionAlgorithmName.length();
+            int converted_number = htonl(message_length);
+            backend_logger.info("Sending worker info length: "+to_string(converted_number));
+            if(!Utils::send_int_wrapper(connFd, &converted_number, sizeof(converted_number))){
+                loop = true;
+                break;
+            }
+
+            std::string length_ack(CONTENT_LENGTH_ACK.length(), 0);
+            return_status = recv(connFd, &length_ack[0], CONTENT_LENGTH_ACK.length(), 0);
+            if (return_status > 0) {
+                backend_logger.info("Received content length ack: "+length_ack);
+            } else {
+                backend_logger.info("Error while reading content length ack");
+                loop = true;
+                break;
+            }
+
+            if (!Utils::send_str_wrapper(connFd, partitionAlgorithmName)) {
+                loop = true;
+                break;
+            }
+        }  else {
             backend_logger.error("Message format not recognized");
             sleep(1);
         }

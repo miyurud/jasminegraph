@@ -43,6 +43,8 @@ extern const string HOST_OK;
 extern const string UPDATE_DONE;
 extern const string WORKER_DETAILS;
 extern const string WORKER_DETAILS_ACK;
+extern const string PARTITION_ALGORITHM_DETAILS;
+extern const string PARTITION_ALGORITHM_DETAILS_ACK;
 extern const string CONTENT_LENGTH_ACK;
 
 class JasmineGraphBackendProtocol {};

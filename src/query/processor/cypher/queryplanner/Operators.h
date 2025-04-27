@@ -92,7 +92,8 @@ private:
 class Filter : public Operator {
 public:
     Filter(Operator* input, vector<pair<string,ASTNode*>> filterCases);
-    string analyze(ASTNode* ast);
+    string analyzeWhere(ASTNode* ast);
+    string analyzePropertiesMap(pair<string,ASTNode*> item);
     string comparisonOperand(ASTNode* ast);
     string execute() override;
 
@@ -311,5 +312,26 @@ private:
     string functionName;
 };
 
+class Create : public Operator {
+public:
+    // Constructor
+    Create(Operator* input, ASTNode* ast);
+    string execute() override;
+
+private:
+    Operator* input;
+    ASTNode* ast;
+};
+
+class CartesianProduct : public Operator {
+public:
+    // Constructor
+    CartesianProduct(Operator* left, Operator* right);
+    string execute() override;
+
+private:
+    Operator* left;
+    Operator* right;
+};
 string printDownArrow(int width);
 #endif // OPERATORS_H
