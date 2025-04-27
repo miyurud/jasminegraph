@@ -47,6 +47,8 @@ class JasmineGraphFrontEndCommon {
 
     static std::vector<std::vector<std::pair<std::string, std::string>>> getGraphData(SQLiteDBInterface *sqlite);
 
+    static std::vector<std::vector<std::pair<std::string, std::string>>> getPartitionData(SQLiteDBInterface *sqlite);
+
     static bool checkServerBusy(std::atomic<int> *currentFESession, int connFd);
 
     static std::string readAndProcessInput(int connFd, char* data, int &failCnt);

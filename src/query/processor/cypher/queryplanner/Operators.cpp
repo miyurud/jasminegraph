@@ -22,6 +22,7 @@ using json = nlohmann::json;
 
 bool Operator::isAggregate = false;
 std::string Operator::aggregateType = "";
+std::string Operator::aggregateKey = "";
 
 // NodeScan Implementation
 NodeScanByLabel::NodeScanByLabel(string label, string var) : label(label), var(var) {}
@@ -98,6 +99,14 @@ string ProduceResults::execute() {
         }
     }
     return produceResult.dump();
+}
+
+Operator *ProduceResults::getOperator() {
+    return this->op;
+}
+
+void ProduceResults::setOperator(Operator *op) {
+    this->op = op;
 }
 
 // Filter Implementation
@@ -316,13 +325,21 @@ string Join::execute() {
     return "";
 }
 
-
 // Limit Implementation
-Limit::Limit(Operator* input, int limit) : input(input), limit(limit) {}
+Limit::Limit(Operator* input, ASTNode* limit) : input(input), limit(limit) {}
 
 string Limit::execute() {
     input->execute();
-    cout << "Limiting result to " << limit << " rows." << endl;
+    cout << "Limiting result to " << limit->print() << " rows." << endl;
+    return "";
+}
+
+// Skip Implementation
+Skip::Skip(Operator* input, ASTNode* skip) : input(input), skip(skip) {}
+
+string Skip::execute() {
+    input->execute();
+    cout << "Skipping first" << skip->print() << " rows." << endl;
     return "";
 }
 
@@ -349,12 +366,68 @@ string GroupBy::execute() {
 }
 
 // Distinct Implementation
-Distinct::Distinct(Operator* input) : input(input) {}
+Distinct::Distinct(Operator* input, const vector<ASTNode*> columns) : input(input), columns(columns) {}
 
 string Distinct::execute() {
-    input->execute();
-    cout << "Applying Distinct to remove duplicates." << endl;
-    return "";
+    json distinct;
+    if (input) {
+        distinct["NextOperator"] = input->execute();
+    }
+    distinct["Operator"] = "Distinct";
+    distinct["project"] = json::array(); // Initialize as an empty array
+
+    for (auto* ast : columns) {
+        cout << ast->print() << endl;
+        json operand;
+
+        if (ast->nodeType == Const::NON_ARITHMETIC_OPERATOR) {
+            string variable = ast->elements[0]->value;
+            string property = ast->elements[1]->elements[0]->value;
+            operand["Type"] = Const::PROPERTY_LOOKUP;
+            operand["variable"] = variable;
+            operand["property"] = property;
+            operand["assign"] = variable + "." + property;
+        } else if (ast->nodeType == Const::AS) {
+
+            auto lookupOpr = ast->elements[0];
+            operand["Type"] = Const::PROPERTY_LOOKUP;
+            operand["variable"] = lookupOpr->elements[0]->value;
+            operand["property"] = lookupOpr->elements[1]->elements[0]->value;
+            operand["assign"] = ast->elements[1]->value;
+        } if (ast->nodeType == Const::VARIABLE)
+        {
+            continue;
+        }
+
+        distinct["project"].push_back(operand);
+    }
+
+    return distinct.dump();
+}
+
+OrderBy::OrderBy(Operator* input, ASTNode* orderByClause) : input(input), orderByClause(orderByClause){}
+
+string OrderBy::execute() {
+    json orderBy;
+    if (input) {
+        orderBy["NextOperator"] = input->execute();
+    }
+    orderBy["Operator"] = "OrderBy";
+    if (this->orderByClause->nodeType == Const::ASC) {
+        orderBy["order"] = "ASC";
+    } else {
+        orderBy["order"] = "DESC";
+    }
+    if (this->orderByClause->elements[0]->nodeType == Const::VARIABLE) {
+        orderBy["variable"] = this->orderByClause->elements[0]->value;
+    } else if (this->orderByClause->elements[0]->nodeType == Const::NON_ARITHMETIC_OPERATOR) {
+        auto nonArithmeticOperator = this->orderByClause->elements[0];
+        orderBy["variable"] = nonArithmeticOperator->elements[0]->value + "." + nonArithmeticOperator->elements[1]->elements[0]->value;
+    }
+    Operator::isAggregate = true;
+    Operator::aggregateType = orderBy["order"];
+    Operator::aggregateKey = orderBy["variable"];
+    return orderBy.dump();
 }
 
 // Union Implementation

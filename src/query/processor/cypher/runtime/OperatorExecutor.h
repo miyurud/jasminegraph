@@ -26,6 +26,8 @@ class OperatorExecutor {
     void Create(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
     void CartesianProduct(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
     void Projection(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
+    void Distinct(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
+    void OrderBy(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
     string masterIP;
     string  queryPlan;
     GraphConfig gc;

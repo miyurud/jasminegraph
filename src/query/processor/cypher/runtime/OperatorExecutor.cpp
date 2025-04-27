@@ -8,6 +8,7 @@
 #include "../../../../util/logger/Logger.h"
 #include "Helpers.h"
 #include <thread>
+#include <queue>
 
 Logger execution_logger;
 std::unordered_map<std::string, std::function<void(OperatorExecutor&, SharedBuffer&, std::string, GraphConfig)>> OperatorExecutor::methodMap;
@@ -66,10 +67,18 @@ void OperatorExecutor::initializeMethodMap() {
                                      std::string jsonPlan, GraphConfig gc) {
         executor.CartesianProduct(buffer, jsonPlan, gc); // Ignore the unused string parameter
     };
+
+    methodMap["Distinct"] = [](OperatorExecutor &executor, SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc){
+        executor.Distinct(buffer, jsonPlan, gc);
+    };
+
+    methodMap["OrderBy"] = [](OperatorExecutor &executor, SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc){
+        executor.OrderBy(buffer, jsonPlan, gc);
+    };
 }
 
-
 void OperatorExecutor::AllNodeScan(SharedBuffer &buffer,std::string jsonPlan, GraphConfig gc) {
+    execution_logger.info(":::::::::ALl Node:::::::::::");
     json query = json::parse(jsonPlan);
     NodeManager nodeManager(gc);
     for (auto it : nodeManager.nodeIndex) {
@@ -98,6 +107,7 @@ void OperatorExecutor::AllNodeScan(SharedBuffer &buffer,std::string jsonPlan, Gr
 }
 
 void OperatorExecutor::ProduceResult(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
+    execution_logger.info("::::::::Produce Result::::::::::::");
     json query = json::parse(jsonPlan);
     SharedBuffer sharedBuffer(5);
     std::string nextOpt = query["NextOperator"];
@@ -125,6 +135,7 @@ void OperatorExecutor::ProduceResult(SharedBuffer &buffer, std::string jsonPlan,
 }
 
 void OperatorExecutor::Filter(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
+    execution_logger.info(":::::::::Filter:::::::::::");
     json query = json::parse(jsonPlan);
     SharedBuffer sharedBuffer(5);
     std::string nextOpt = query["NextOperator"];
@@ -149,6 +160,7 @@ void OperatorExecutor::Filter(SharedBuffer &buffer, std::string jsonPlan, GraphC
 }
 
 void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
+
     json query = json::parse(jsonPlan);
     NodeManager nodeManager(gc);
     for (auto it : nodeManager.nodeIndex) {
@@ -667,6 +679,7 @@ void OperatorExecutor::EargarAggregation(SharedBuffer &buffer, std::string jsonP
 }
 
 void OperatorExecutor::Projection(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc){
+    execution_logger.info("::::::::::Project::::::::::");
     json query = json::parse(jsonPlan);
     SharedBuffer sharedBuffer(5);
     std::string nextOpt = query["NextOperator"];
@@ -805,3 +818,121 @@ void OperatorExecutor::CartesianProduct(SharedBuffer &buffer, std::string jsonPl
         }
     }
 }
+
+void OperatorExecutor::Distinct(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc){
+    json query = json::parse(jsonPlan);
+    SharedBuffer sharedBuffer(5);
+    std::string nextOpt = query["NextOperator"];
+    json next = json::parse(nextOpt);
+    auto method = OperatorExecutor::methodMap[next["Operator"]];
+
+    // Launch the method in a new thread
+    std::thread result(method, std::ref(*this), std::ref(sharedBuffer), query["NextOperator"], gc);
+    if (!query.contains("project") || !query["project"].is_array()) {
+        while(true) {
+            string raw = sharedBuffer.get();
+            buffer.add(raw);
+            if(raw == "-1"){
+                result.join();
+                break;
+            }
+        }
+    } else {
+        while(true) {
+            string raw = sharedBuffer.get();
+            if(raw == "-1"){
+                buffer.add(raw);
+                result.join();
+                break;
+            }
+            auto data = json::parse(raw);
+            for (const auto& operand : query["project"]) {
+                for (auto& [key, value] : data.items()) {
+                    if (operand.contains("variable") && key == operand["variable"]) {
+                        string assign = operand["assign"];
+                        string property = operand["property"];
+                        data[assign] = value[property];
+                    } else if (operand.contains("functionName") && key == operand["functionName"]) {
+                        string assign = operand["assign"];
+                        data["variable"] = assign;
+                        data[assign] = value;
+                    }
+                }
+            }
+            buffer.add(data.dump());
+        }
+    }
+}
+
+struct Row {
+    json data;
+    std::string jsonStr;
+    std::string sortKey;
+    bool isAsc;
+
+    Row(const std::string& str, const std::string& key, bool asc)
+        : jsonStr(str), sortKey(key), isAsc(asc) {
+        data = json::parse(str);
+    }
+
+    bool operator<(const Row& other) const {
+        const auto& val1 = data[sortKey];
+        const auto& val2 = other.data[sortKey];
+
+        bool result;
+        if (val1.is_number_integer() && val2.is_number_integer()) {
+            result = val1.get<int>() > val2.get<int>();
+        } else if (val1.is_string() && val2.is_string()) {
+            result = val1.get<std::string>() > val2.get<std::string>();
+        } else {
+            result = val1.dump() > val2.dump();
+        }
+        return isAsc ? result : !result; // Flip for DESC
+    }
+};
+
+void OperatorExecutor::OrderBy(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc){
+    execution_logger.info("::::::::::::Order By::::::::");
+
+    json query = json::parse(jsonPlan);
+    SharedBuffer sharedBuffer(5);
+    std::string nextOpt = query["NextOperator"];
+    json next = json::parse(nextOpt);
+    auto method = OperatorExecutor::methodMap[next["Operator"]];
+
+    // Launch the method in a new thread
+    std::thread result(method, std::ref(*this), std::ref(sharedBuffer), query["NextOperator"], gc);
+
+    std::string sortKey = query["variable"];
+    std::string order = query["order"];
+    const size_t maxSize = 5000;
+    bool isAsc = (order == "ASC");
+
+    std::priority_queue<Row> heap;
+    while (true) {
+        std::string jsonStr = sharedBuffer.get();
+        if (jsonStr == "-1") {
+            while (!heap.empty()) {
+                buffer.add(heap.top().jsonStr);
+                heap.pop();
+            }
+            buffer.add(jsonStr); // -1 close flag
+            result.join();
+            break;
+        }
+
+        try {
+            Row row(jsonStr, sortKey, isAsc);
+            execution_logger.info(row.jsonStr);
+            if (row.data.contains(sortKey)) { // Ensure field exists
+                heap.push(row);
+                if (heap.size() > maxSize) {
+                    heap.pop(); // Remove smallest (ASC) or largest (DESC)
+                }
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "Error parsing JSON: " << e.what() << "\n";
+        }
+    }
+}
+

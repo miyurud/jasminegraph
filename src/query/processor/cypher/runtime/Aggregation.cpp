@@ -37,3 +37,26 @@ void AverageAggregation::insert(std::string data) {
     workerData[variable] = average;
     this->data = workerData.dump();
 }
+
+void AscAggregation::insert(string data){
+    this->resultBuffer.add(data);
+}
+
+
+void AscAggregation::getResult(int connFd){
+    while (true) {
+        std::string data;
+        if (this->resultBuffer.tryGet(data)){
+            if (data == "-1") {
+                break;
+            }
+            int result_wr = write(connFd, data.c_str(), data.length());
+            result_wr = write(connFd, "\r\n", 2);
+            if (result_wr < 0) {
+                aggregateLogger.error("Error writing to socket");
+                return;
+            }
+        }
+    }
+}
+
