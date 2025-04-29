@@ -91,7 +91,7 @@ void OperatorExecutor::AllNodeScan(SharedBuffer &buffer, std::string jsonPlan, G
 
 void OperatorExecutor::ProduceResult(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
     json query = json::parse(jsonPlan);
-    SharedBuffer sharedBuffer(5);
+    SharedBuffer sharedBuffer(INTER_OPERATOR_BUFFER_SIZE);
     std::string nextOpt = query["NextOperator"];
     json next = json::parse(nextOpt);
     auto method = OperatorExecutor::methodMap[next["Operator"]];
@@ -117,7 +117,7 @@ void OperatorExecutor::ProduceResult(SharedBuffer &buffer, std::string jsonPlan,
 
 void OperatorExecutor::Filter(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
     json query = json::parse(jsonPlan);
-    SharedBuffer sharedBuffer(5);
+    SharedBuffer sharedBuffer(INTER_OPERATOR_BUFFER_SIZE);
     std::string nextOpt = query["NextOperator"];
     json next = json::parse(nextOpt);
     auto method = OperatorExecutor::methodMap[next["Operator"]];
@@ -293,7 +293,7 @@ void OperatorExecutor::NodeByIdSeek(SharedBuffer &buffer, std::string jsonPlan, 
 
 void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
     json query = json::parse(jsonPlan);
-    SharedBuffer sharedBuffer(5);
+    SharedBuffer sharedBuffer(INTER_OPERATOR_BUFFER_SIZE);
     std::string nextOpt = query["NextOperator"];
     json next = json::parse(nextOpt);
     auto method = OperatorExecutor::methodMap[next["Operator"]];
