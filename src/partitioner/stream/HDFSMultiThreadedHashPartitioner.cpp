@@ -49,7 +49,7 @@ HDFSMultiThreadedHashPartitioner::~HDFSMultiThreadedHashPartitioner() {
     stopConsumerThreads();
 }
 
-void HDFSMultiThreadedHashPartitioner::addLocalEdge(const std::pair<std::string, std::string> &edge, int index) {
+void HDFSMultiThreadedHashPartitioner::addLocalEdge(const std::string &edge, int index) {
     if (index < numberOfPartitions) {
         std::lock_guard<std::mutex> lock(localEdgeMutexes[index]);
         localEdgeArrays[index].push_back(edge);
@@ -62,7 +62,7 @@ void HDFSMultiThreadedHashPartitioner::addLocalEdge(const std::pair<std::string,
     }
 }
 
-void HDFSMultiThreadedHashPartitioner::addEdgeCut(const std::pair<std::string, std::string> &edge, int index) {
+void HDFSMultiThreadedHashPartitioner::addEdgeCut(const std::string &edge, int index) {
     if (index < numberOfPartitions) {
         std::lock_guard<std::mutex> lock(edgeCutsMutexes[index]);
         edgeCutsArrays[index].push_back(edge);
@@ -140,11 +140,11 @@ void HDFSMultiThreadedHashPartitioner::consumeLocalEdges(int partitionIndex, Jas
 
         // Process the edges from the local array
         while (!localEdgeArrays[partitionIndex].empty()) {
-            std::pair<std::string, std::string> edge = localEdgeArrays[partitionIndex].back();
+            std::string edge = localEdgeArrays[partitionIndex].back();
             localEdgeArrays[partitionIndex].pop_back();
 
             // Write the edge to the current partition file
-            partitionFile << edge.first << " " << edge.second << std::endl;
+            partitionFile << edge << std::endl;
             threadEdgeCount++;
 
             // Check if the edge count has reached the threshold
@@ -174,8 +174,12 @@ void HDFSMultiThreadedHashPartitioner::consumeLocalEdges(int partitionIndex, Jas
                 }
             }
 
+            auto jsonEdge = json::parse(edge);
+            string sourceId = std::string(jsonEdge["source"]["id"]);
+            string destinationId = std::string(jsonEdge["destination"]["id"]);
+
             std::lock_guard<std::mutex> partitionLock(partitionLocks[partitionIndex]);
-            partitions[partitionIndex].addEdge(edge, isDirected);
+            partitions[partitionIndex].addEdge({sourceId, destinationId}, isDirected);
         }
 
         // Reset the flag after processing the current batch of edges
@@ -228,11 +232,11 @@ void HDFSMultiThreadedHashPartitioner::consumeEdgeCuts(int partitionIndex, Jasmi
 
         // Process edges from edgeCutsArrays
         while (!edgeCutsArrays[partitionIndex].empty()) {
-            std::pair<std::string, std::string> edge = edgeCutsArrays[partitionIndex].back();
+            std::string edge = edgeCutsArrays[partitionIndex].back();
             edgeCutsArrays[partitionIndex].pop_back();
 
             // Write the edge to the file
-            edgeCutsFile << edge.first << " " << edge.second << std::endl;
+            edgeCutsFile << edge << std::endl;
             threadEdgeCount++;
 
             // If threshold reached, close current file and open a new one
@@ -262,10 +266,13 @@ void HDFSMultiThreadedHashPartitioner::consumeEdgeCuts(int partitionIndex, Jasmi
                     break;
                 }
             }
+            auto jsonEdge = json::parse(edge);
+            string sourceId = std::string(jsonEdge["source"]["id"]);
+            string destinationId = std::string(jsonEdge["destination"]["id"]);
 
             // Add edge cuts to the partition
             std::lock_guard<std::mutex> partitionLock(partitionLocks[partitionIndex]);
-            partitions[partitionIndex].addToEdgeCuts(edge.first, edge.second, partitionIndex);
+            partitions[partitionIndex].addToEdgeCuts(sourceId, destinationId, partitionIndex);
         }
 
         edgeCutsReady[partitionIndex] = false;  // Reset the flag after processing
@@ -285,11 +292,14 @@ void HDFSMultiThreadedHashPartitioner::updatePartitionTable() {
     std::mutex dbLock;
     for (int i = 0; i < numberOfPartitions; i++) {
         string sqlStatement =
-                "INSERT INTO partition (idpartition,graph_idgraph,vertexcount,central_vertexcount,edgecount) VALUES(\""
-                + std::to_string(i) + "\", \"" + std::to_string(this->graphId) + "\", \"" +
-                std::to_string(partitions.at(i).getVertextCount()) +
-                "\",\"" + std::to_string(partitions.at(i).getVertextCount()) + "\",\"" +
-                std::to_string(partitions.at(i).getEdgesCount(isDirected)) + "\")";
+            "INSERT INTO partition (idpartition,graph_idgraph,vertexcount,central_vertexcount,"
+            "edgecount,central_edgecount) VALUES(\"" +
+            std::to_string(i) + "\", \"" +
+            std::to_string(this->graphId) + "\", \"" +
+            std::to_string(partitions.at(i).getLocalVertexCount()) + "\",\"" +
+            std::to_string(partitions.at(i).getCentralVertexCount(i)) + "\",\"" +
+            std::to_string(partitions.at(i).getEdgesCount(isDirected)) + "\", \"" +
+            std::to_string(partitions.at(i).edgeCutsCount())+ "\")";
 
         dbLock.lock();
         sqlite->runUpdate(sqlStatement);

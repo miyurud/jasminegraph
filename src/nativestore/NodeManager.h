@@ -35,7 +35,7 @@ class NodeManager {
     unsigned int graphID = 0;
     unsigned int partitionID = 0;
     std::string dbPrefix;
-    static const std::string FILE_MODE;
+    // static const std::string FILE_MODE;
     unsigned long INDEX_KEY_SIZE = 6;  // Size of an index key entry in bytes
     std::string indexDBPath;
     std::unordered_map<std::string, unsigned int> nodeIndex;
@@ -52,6 +52,7 @@ class NodeManager {
 
     void setIndexKeySize(unsigned long);
     static int dbSize(std::string path);
+    static const std::string FILE_MODE;
     int getGraphID();
     int getPartitionID();
     std::string getDbPrefix();
