@@ -1427,15 +1427,6 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
 
     HDFSConnector *hdfsConnector = new HDFSConnector(hdfsServerIp, hdfsPort);
 
-    if (!hdfsConnector->getFileSystem()) {
-        std::string error_message = "The provided HDFS server configuration is invalid";
-        write(connFd, error_message.c_str(), error_message.length());
-        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-        delete hdfsConnector;
-        *loop_exit_p = true;
-        return;
-    }
-
     if (!hdfsConnector->isPathValid(hdfsFilePathS)) {
         frontend_logger.error("Invalid HDFS file path: " + hdfsFilePathS);
         std::string error_message = "The provided HDFS path is invalid.";
@@ -1444,6 +1435,33 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
         delete hdfsConnector;
         *loop_exit_p = true;
         return;
+    }
+
+    // get graph type
+    bool isEdgeListType = false;
+    std::string graphType = "Is this an edge list type graph(y/n)?";
+    resultWr = write(connFd, graphType.c_str(), graphType.length());
+    if (resultWr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+
+    resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+    if (resultWr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+
+    char isEdgeListTypeRes[FRONTEND_DATA_LENGTH+1];
+    bzero(isEdgeListTypeRes, FRONTEND_DATA_LENGTH + 1);
+    read(connFd, isEdgeListTypeRes, FRONTEND_DATA_LENGTH);
+    std::string isEdgeListTypeGraph(isEdgeListTypeRes);
+    isEdgeListTypeGraph = Utils::trim_copy(isEdgeListTypeGraph);
+
+    if (isEdgeListTypeGraph == "y") {
+        isEdgeListType = true;
     }
 
     /*get directionality*/
@@ -1487,7 +1505,7 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
     frontend_logger.info("Created graph ID: " + std::to_string(newGraphID));
     HDFSStreamHandler *streamHandler = new HDFSStreamHandler(hdfsConnector->getFileSystem(),
                                                              hdfsFilePathS, numberOfPartitions,
-                                                             newGraphID, sqlite, masterIP, directed);
+                                                             newGraphID, sqlite, masterIP, directed, isEdgeListType);
     frontend_logger.info("Started listening to " + hdfsFilePathS);
     inputStreamHandlerThread = std::thread(&HDFSStreamHandler::startStreamingFromBufferToPartitions, streamHandler);
     inputStreamHandlerThread.join();
