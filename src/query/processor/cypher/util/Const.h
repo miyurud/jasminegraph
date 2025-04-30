@@ -51,6 +51,7 @@ class Const {
     static string UNIDIRECTION_ARROW;
     static string RELATIONSHIP_DETAILS;
     static string RELATIONSHIP_TYPES;
+    static string RELATIONSHIP_TYPE;
     static string NODE_LABELS;
     static string NODE_LABEL;
     static string RANGE;
@@ -137,6 +138,8 @@ class Const {
     static string NODE;
     static string RELATIONSHIP;
     static string LOOKUP;
+    static int TYPE_NAME_SIZE;
+    static int THREE;
 };
 
 #endif  // CONST_H

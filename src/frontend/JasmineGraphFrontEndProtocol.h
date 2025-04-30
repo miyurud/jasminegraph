@@ -88,7 +88,7 @@ extern const string STOP_STRIAN;
 extern const string ADMDL;
 extern const string MERGE;
 extern const string INVALID_FORMAT;
-extern const string CYPHER_AST;
+extern const string CYPHER;
 
 class JasminGraphFrontEndProtocol {
     // Note that this protocol do not need a handshake session since the communication in most of the time is conducted
@@ -102,5 +102,6 @@ const int FRONTEND_GRAPH_TYPE_LENGTH = 20;
 
 const double PAGE_RANK_ALPHA = 0.85;
 const int PAGE_RANK_ITERATIONS = 10;
+const int MASTER_BUFFER_SIZE = 3;
 
 #endif  // JASMINGRAPH_JASMINGRAPHFRONTENDPROTOCOL_H

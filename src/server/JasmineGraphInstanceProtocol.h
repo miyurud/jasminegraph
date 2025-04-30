@@ -113,6 +113,11 @@ class JasmineGraphInstanceProtocol {
     static const string INITIATE_STREAMING_SERVER;
     static const string INITIATE_STREAMING_CLIENT;
     static const string INITIATE_STREAMING_TRIAN;
+    static const string QUERY_START;
+    static const string QUERY_START_ACK;
+    static const string QUERY_DATA_START;
+    static const string QUERY_DATA_ACK;
+    static const string GRAPH_DATA_SUCCESS;
     static const string SEND_WORKER_LOCAL_FILE_CHUNK;
     static const string SEND_WORKER_FILE_CHUNK_CHK;
     static const string SEND_WORKER_FILE_CHUNK_WAIT;

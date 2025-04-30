@@ -23,7 +23,12 @@ limitations under the License.
 #include <string>
 
 #include "../query/algorithms/triangles/StreamingTriangles.h"
+#include "../query/processor/cypher/runtime/InstanceHandler.h"
 #include "../server/JasmineGraphServer.h"
+#include "../util/kafka/InstanceStreamHandler.h"
+#include "../util/logger/Logger.h"
+#include "JasmineGraphInstance.h"
+#include <thread>
 
 using namespace std;
 
@@ -121,6 +126,8 @@ static void degree_distribution_common(int connFd, int serverPort,
                                        bool *loop_exit_p, bool in);
 static void push_partition_command(int connFd, bool *loop_exit_p);
 static void push_file_command(int connFd, bool *loop_exit_p);
+static void query_start_command(int connFd, InstanceHandler &instanceHandler, std::map<std::string,
+                                JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap, bool *loop_exit_p);
 
 static void hdfs_start_stream_command(int connFd, bool *loop_exit_p, bool isLocalStream,
                                       InstanceStreamHandler &instanceStreamHandler);
@@ -152,6 +159,7 @@ void *instanceservicesession(void *dummyPt) {
     std::map<std::string, JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap =
         *(sessionargs.incrementalLocalStore);
     InstanceStreamHandler streamHandler(incrementalLocalStoreMap);
+    InstanceHandler instanceHandler(incrementalLocalStoreMap);
 
     string serverName = sessionargs.host;
     string masterHost = sessionargs.masterHost;
@@ -268,6 +276,8 @@ void *instanceservicesession(void *dummyPt) {
             hdfs_start_stream_command(connFd, &loop_exit, true, streamHandler);
         } else if (line.compare(JasmineGraphInstanceProtocol::HDFS_CENTRAL_STREAM_START) == 0) {
             hdfs_start_stream_command(connFd, &loop_exit, false, streamHandler);
+        } else if (line.compare(JasmineGraphInstanceProtocol::QUERY_START) == 0) {
+            query_start_command(connFd, instanceHandler, incrementalLocalStoreMap, &loop_exit);
         } else {
             instance_logger.error("Invalid command");
             loop_exit = true;
@@ -4180,6 +4190,110 @@ string JasmineGraphInstanceService::aggregateStreamingCentralStoreTriangles(
     return triangles;
 }
 
+static void query_start_command(int connFd, InstanceHandler &instanceHandler, std::map<std::string,
+                                JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap, bool *loop_exit_p) {
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::QUERY_START_ACK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::QUERY_START_ACK);
+
+    int content_length;
+    instance_logger.info("Waiting for content length");
+    ssize_t return_status = recv(connFd, &content_length, sizeof(int), 0);
+    if (return_status > 0) {
+        content_length = ntohl(content_length);
+        instance_logger.info("Received content_length = " + std::to_string(content_length));
+    } else {
+        instance_logger.info("Error while reading content length");
+        *loop_exit_p = true;
+        return;
+    }
+
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    std::string graphId(content_length, 0);
+    return_status = recv(connFd, &graphId[0], content_length, 0);
+    if (return_status > 0) {
+        instance_logger.info("Received graph id: "+graphId);
+    } else {
+        instance_logger.info("Error while reading content length");
+        *loop_exit_p = true;
+        return;
+    }
+
+    content_length = 0;
+    instance_logger.info("Waiting for content length");
+    return_status = recv(connFd, &content_length, sizeof(int), 0);
+    if (return_status > 0) {
+        content_length = ntohl(content_length);
+        instance_logger.info("Received content_length = " + std::to_string(content_length));
+    } else {
+        instance_logger.info("Error while reading content length");
+        *loop_exit_p = true;
+        return;
+    }
+
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    std::string partition(content_length, 0);
+    return_status = recv(connFd, &partition[0], content_length, 0);
+    if (return_status > 0) {
+        instance_logger.info("Received partition id: "+partition);
+    } else {
+        instance_logger.info("Error while reading content length");
+        *loop_exit_p = true;
+        return;
+    }
+
+    JasmineGraphIncrementalLocalStore * incrementalLocalStoreInstance;
+    string graphIdentifier = "g"+graphId+"_p"+partition;
+    if (incrementalLocalStoreMap.find(graphIdentifier) == incrementalLocalStoreMap.end()) {
+        incrementalLocalStoreInstance =
+                JasmineGraphInstanceService::loadStreamingStore(graphId, partition, incrementalLocalStoreMap, "app");
+    } else {
+        incrementalLocalStoreInstance = incrementalLocalStoreMap[graphIdentifier];
+    }
+
+    content_length = 0;
+    instance_logger.info("Waiting for content length");
+    return_status = recv(connFd, &content_length, sizeof(int), 0);
+    if (return_status > 0) {
+        content_length = ntohl(content_length);
+        instance_logger.info("Received content_length = " + std::to_string(content_length));
+    } else {
+        instance_logger.info("Error while reading content length");
+        *loop_exit_p = true;
+        return;
+    }
+
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    std::string message(content_length, 0);
+    return_status = recv(connFd, &message[0], content_length, 0);
+    if (return_status > 0) {
+        instance_logger.info("Received query.");
+    } else {
+        instance_logger.info("Error while reading content length");
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.info("Received full query: " + message);
+    instanceHandler.handleRequest(connFd, loop_exit_p, incrementalLocalStoreInstance->gc, message);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_END_OF_EDGE)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.debug("Sent CRLF string to mark the end");
+}
 static void hdfs_start_stream_command(int connFd, bool *loop_exit_p, bool isLocalStream,
                                       InstanceStreamHandler &instanceStreamHandler) {
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::HDFS_STREAM_START_ACK)) {

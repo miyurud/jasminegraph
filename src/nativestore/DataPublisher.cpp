@@ -18,7 +18,7 @@
 #include "../server/JasmineGraphInstanceProtocol.h"
 #include "../util/Utils.h"
 #include "../util/logger/Logger.h"
-
+# include <thread>
 Logger data_publisher_logger;
 
 DataPublisher::DataPublisher(int worker_port, std::string worker_address, int worker_data_port) {
@@ -91,6 +91,89 @@ void DataPublisher::publish(std::string message) {
                 return;
             }
             if (CRLF == '\n') {
+                break;
+            }
+        }
+    } while (true);
+}
+
+
+void DataPublisher::queryPublish(std::string graphId, std::string partitionId, std::string message) {
+    char receiver_buffer[MAX_STREAMING_DATA_LENGTH] = {0};
+
+    send(this->sock, JasmineGraphInstanceProtocol::QUERY_START.c_str(),
+         JasmineGraphInstanceProtocol::QUERY_START.length(), 0);
+
+    char start_ack[ACK_MESSAGE_SIZE] = {0};
+    auto ack_return_status = recv(this->sock, &start_ack, sizeof(start_ack), 0);
+    std::string ack(start_ack);
+    if (JasmineGraphInstanceProtocol::QUERY_START_ACK != ack) {
+        data_publisher_logger.error("Error while receiving start command ack");
+    }
+
+    int message_length = graphId.length();
+    int converted_number = htonl(message_length);
+    data_publisher_logger.info("Sending content length: " + to_string(converted_number));
+    send(this->sock, &converted_number, sizeof(converted_number), 0);
+
+    int received_int = 0;
+    data_publisher_logger.info("Waiting for content length ack");
+    auto return_status = recv(this->sock, &received_int, sizeof(received_int), 0);
+
+    if (return_status > 0) {
+        data_publisher_logger.info("Received int = " + std::to_string(ntohl(received_int)));
+    } else {
+        data_publisher_logger.error("Error while receiving content length ack");
+    }
+
+    send(this->sock, graphId.c_str(), graphId.length(), 0);
+
+    message_length = partitionId.length();
+    converted_number = htonl(message_length);
+    data_publisher_logger.info("Sending content length : " + to_string(converted_number));
+    send(this->sock, &converted_number, sizeof(converted_number), 0);
+
+    received_int = 0;
+    data_publisher_logger.info("Waiting for content length ack");
+    return_status = recv(this->sock, &received_int, sizeof(received_int), 0);
+
+    if (return_status > 0) {
+        data_publisher_logger.info("Received int = " + std::to_string(ntohl(received_int)));
+    } else {
+        data_publisher_logger.error("Error while receiving content length ack");
+    }
+    send(this->sock, partitionId.c_str(), partitionId.length(), 0);
+
+    message_length = message.length();
+    converted_number = htonl(message_length);
+    data_publisher_logger.info("Sending content length : " + to_string(converted_number));
+    send(this->sock, &converted_number, sizeof(converted_number), 0);
+
+    received_int = 0;
+    data_publisher_logger.info("Waiting for content length ack");
+    return_status = recv(this->sock, &received_int, sizeof(received_int), 0);
+
+    if (return_status > 0) {
+        data_publisher_logger.info("Received int = " + std::to_string(ntohl(received_int)));
+    } else {
+        data_publisher_logger.error("Error while receiving content length ack");
+    }
+
+    send(this->sock, message.c_str(), message.length(), 0);
+    data_publisher_logger.info("Query sent successfully: " + message);
+
+    char returnCharResult;
+    do {
+        auto returnStatus = recv(this->sock, &returnCharResult, sizeof(returnCharResult), 0);
+        if (return_status < 1) {
+            return;
+        }
+        if (returnCharResult == '\r') {
+            returnStatus = recv(this->sock, &returnCharResult, sizeof(returnCharResult), 0);
+            if (return_status < 1) {
+                return;
+            }
+            if (returnCharResult == '\n') {
                 break;
             }
         }
