@@ -50,6 +50,10 @@ void *startScheduler(void *dummyPt) {
                     pendingHPJobList.push_back(request);
                     highPriorityGraphList.push_back(request.getParameter(Conts::PARAM_KEYS::GRAPH_ID));
                     jobQueue.pop();
+                } else if (request.getPriority() == Conts::HIGH_PRIORITY_DEFAULT_VALUE && request.getJobType() == CYPHER) {
+                    pendingHPJobList.push_back(request);
+                    highPriorityGraphList.push_back(request.getParameter(Conts::PARAM_KEYS::GRAPH_ID));
+                    jobQueue.pop();
                 } else {
                     jobQueue.pop();
                     JobScheduler::processJob(request, refToScheduler->sqlite, refToScheduler->perfSqlite);

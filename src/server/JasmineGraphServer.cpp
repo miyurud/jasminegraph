@@ -842,7 +842,7 @@ static map<string, float> scaleK8s(size_t npart) {
     return cpu_loads;
 }
 
-static std::vector<JasmineGraphServer::worker> getWorkers(size_t npart) {
+std::vector<JasmineGraphServer::worker> JasmineGraphServer::getWorkers(size_t npart) {
     // TODO: get the workers with lowest load from workerList
     std::vector<JasmineGraphServer::worker> *workerListAll;
     map<string, float> cpu_loads;
