@@ -18,6 +18,8 @@ limitations under the License.
 #include "ASTLeafNoValue.h"
 #include "ASTLeafValue.h"
 #include "/home/ubuntu/software/antlr/CypherBaseVisitor.h"
+#include "/home/ubuntu/software/antlr/CypherParser.h"
+#include "/home/ubuntu/software/antlr/CypherBaseVisitor.h"
 #include "../util/Const.h"
 
 any visitOC_Cypher(CypherParser::OC_CypherContext *ctx);
@@ -286,22 +288,22 @@ any ASTBuilder::visitOC_SinglePartQuery(CypherParser::OC_SinglePartQueryContext 
 }
 
 any ASTBuilder::visitOC_MultiPartQuery(CypherParser::OC_MultiPartQueryContext *ctx) {
-  auto *node = new ASTInternalNode(Const::MULTI_PART_QUERY);
-  auto *newNode = new ASTInternalNode(Const::SINGLE_QUERY);
+    auto *node = new ASTInternalNode(Const::MULTI_PART_QUERY);
+    auto *newNode = new ASTInternalNode(Const::SINGLE_QUERY);
 
-  int withIndex = 0;
-  int readIndex = 0;
-  int updateIndex = 0;
+    int withIndex = 0;
+    int readIndex = 0;
+    int updateIndex = 0;
 
-  for (int i = 0; i < ctx->children.size(); i++) {
-    auto *child = ctx->children[i];
-    string typeName = typeid(*child).name();
-    string grammarName = typeName.substr(17);
+    for (int i = 0; i < ctx->children.size(); i++) {
+        auto *child = ctx->children[i];
+        string typeName = typeid(*child).name();
+        string grammarName = typeName.substr(Const::TYPE_NAME_SIZE);
 
-    if (i + 1 < ctx->children.size()) {
-      auto *nextChild = ctx->children[i + 1];
-      string nextTypeName = typeid(*nextChild).name();
-      string nextGrammarName = nextTypeName.substr(17);
+        if (i + 1 < ctx->children.size()) {
+            auto *nextChild = ctx->children[i + 1];
+            string nextTypeName = typeid(*nextChild).name();
+            string nextGrammarName = nextTypeName.substr(Const::TYPE_NAME_SIZE);
 
       if (grammarName == "OC_WithContextE" && nextGrammarName == "OC_SinglePartQueryContextE") {
         newNode->addElements(any_cast<ASTNode*>(visitOC_With(ctx->oC_With(withIndex++))));
@@ -373,7 +375,7 @@ any ASTBuilder::visitOC_Merge(CypherParser::OC_MergeContext *ctx) {
     node->addElements(any_cast<ASTNode*>(visitOC_MergeAction(element)));
   }
 
-  return static_cast<ASTNode*>(node);
+    return static_cast<ASTNode*>(node);
 }
 
 any ASTBuilder::visitOC_MergeAction(CypherParser::OC_MergeActionContext *ctx) {
@@ -451,7 +453,7 @@ any ASTBuilder::visitOC_Remove(CypherParser::OC_RemoveContext *ctx) {
     return static_cast<ASTNode*>(node);
   }
 
-  return visitOC_RemoveItem(ctx->oC_RemoveItem()[0]);
+    return visitOC_RemoveItem(ctx->oC_RemoveItem()[0]);
 }
 
 any ASTBuilder::visitOC_RemoveItem(CypherParser::OC_RemoveItemContext *ctx) {
@@ -628,12 +630,12 @@ any ASTBuilder::visitOC_PatternPart(CypherParser::OC_PatternPartContext *ctx) {
   if (ctx->oC_Variable()) {
     auto *node = new ASTInternalNode(Const::EQUAL);
 
-    node->addElements(any_cast<ASTNode*>(visitOC_Variable(ctx->oC_Variable())));
-    node->addElements(any_cast<ASTNode*>(visitOC_AnonymousPatternPart(ctx->oC_AnonymousPatternPart())));
+        node->addElements(any_cast<ASTNode*>(visitOC_Variable(ctx->oC_Variable())));
+        node->addElements(any_cast<ASTNode*>(visitOC_AnonymousPatternPart(ctx->oC_AnonymousPatternPart())));
 
-    return static_cast<ASTNode*>(node);
-  }
-  return visitOC_AnonymousPatternPart(ctx->oC_AnonymousPatternPart());
+        return static_cast<ASTNode*>(node);
+    }
+    return visitOC_AnonymousPatternPart(ctx->oC_AnonymousPatternPart());
 }
 
 any ASTBuilder::visitOC_AnonymousPatternPart(CypherParser::OC_AnonymousPatternPartContext *ctx) {
@@ -768,7 +770,9 @@ any ASTBuilder::visitOC_LabelName(CypherParser::OC_LabelNameContext *ctx) {
 }
 
 any ASTBuilder::visitOC_RelTypeName(CypherParser::OC_RelTypeNameContext *ctx) {
-  return visitOC_SchemaName(ctx->oC_SchemaName());
+    auto *node = new ASTInternalNode(Const::RELATIONSHIP_TYPE);
+    node->addElements(any_cast<ASTNode*>(visitOC_SchemaName(ctx->oC_SchemaName())));
+    return static_cast<ASTNode*>(node);
 }
 
 any ASTBuilder::visitOC_PropertyExpression(CypherParser::OC_PropertyExpressionContext *ctx) {
@@ -801,6 +805,7 @@ any ASTBuilder::visitOC_XorExpression(CypherParser::OC_XorExpressionContext *ctx
     for (CypherParser::OC_AndExpressionContext* element : ctx->oC_AndExpression()) {
       node->addElements(any_cast<ASTNode*>(visitOC_AndExpression(element)));
     }
+    return static_cast<ASTNode*>(node);
   }
   return visitOC_AndExpression(ctx->oC_AndExpression()[0]);
 }
@@ -982,7 +987,7 @@ any ASTBuilder::visitOC_MultiplyDivideModuloExpression(CypherParser::OC_Multiply
     return static_cast<ASTNode*>(node);
   }
 
-  return visitOC_PowerOfExpression(ctx->oC_PowerOfExpression(0));
+    return visitOC_PowerOfExpression(ctx->oC_PowerOfExpression(0));
 }
 
 any ASTBuilder::visitOC_PowerOfExpression(CypherParser::OC_PowerOfExpressionContext *ctx) {
@@ -1028,11 +1033,11 @@ any ASTBuilder::visitOC_NonArithmeticOperatorExpression(CypherParser::OC_NonArit
     int j = 0;
     for (auto *child : ctx->children) {
       std::string typeName = typeid(*child).name();
-      if (typeName.substr(17) == "OC_AtomContextE") {
+      if (typeName.substr(Const::TYPE_NAME_SIZE) == "OC_AtomContextE") {
         node->addElements(any_cast<ASTNode*>(visitOC_Atom(ctx->oC_Atom())));
-      } else if (typeName.substr(17) == "OC_PropertyLookupContextE") {
+      } else if (typeName.substr(Const::TYPE_NAME_SIZE) == "OC_PropertyLookupContextE") {
         node->addElements(any_cast<ASTNode*>(visitOC_PropertyLookup(ctx->oC_PropertyLookup(i++))));
-      } else if (typeName.substr(17) == "OC_ListOperatorExpressionContextE") {
+      } else if (typeName.substr(Const::TYPE_NAME_SIZE) == "OC_ListOperatorExpressionContextE") {
         node->addElements(any_cast<ASTNode*>(visitOC_ListOperatorExpression(ctx->oC_ListOperatorExpression(j++))));
       } else {
         node->addElements(any_cast<ASTNode*>(visitOC_NodeLabels(ctx->oC_NodeLabels())));
@@ -1104,7 +1109,7 @@ any ASTBuilder::visitOC_CaseExpression(CypherParser::OC_CaseExpressionContext *c
     if (i+2 < ctx->children.size()) {
       type = typeid(*ctx->children[i+2]).name();
     }
-    if (text == "CASE" && type.substr(17) == "OC_ExpressionContextE") {
+    if (text == "CASE" && type.substr(Const::TYPE_NAME_SIZE) == "OC_ExpressionContextE") {
       auto *node = new ASTInternalNode(Const::CASE_EXPRESSION);
       node->addElements(any_cast<ASTNode*>(visitOC_Expression(ctx->oC_Expression(0))));
       caseNode->addElements(node);
@@ -1126,15 +1131,15 @@ any ASTBuilder::visitOC_CaseExpression(CypherParser::OC_CaseExpressionContext *c
 any ASTBuilder::visitOC_CaseAlternative(CypherParser::OC_CaseAlternativeContext *ctx) {
   auto *node = new ASTInternalNode(Const::CASE);
 
-  auto *when = new ASTInternalNode(Const::WHEN);
-  when->addElements(any_cast<ASTNode*>(visitOC_Expression(ctx->oC_Expression(0))));
+    auto *when = new ASTInternalNode(Const::WHEN);
+    when->addElements(any_cast<ASTNode*>(visitOC_Expression(ctx->oC_Expression(0))));
 
-  auto *then = new ASTInternalNode(Const::THEN);
-  then->addElements(any_cast<ASTNode*>(visitOC_Expression(ctx->oC_Expression(1))));
+    auto *then = new ASTInternalNode(Const::THEN);
+    then->addElements(any_cast<ASTNode*>(visitOC_Expression(ctx->oC_Expression(1))));
 
-  node->addElements(when);
-  node->addElements(then);
-  return static_cast<ASTNode*>(node);
+    node->addElements(when);
+    node->addElements(then);
+    return static_cast<ASTNode*>(node);
 }
 
 any ASTBuilder::visitOC_ListComprehension(CypherParser::OC_ListComprehensionContext *ctx) {
@@ -1380,7 +1385,7 @@ any ASTBuilder::visitOC_MapLiteral(CypherParser::OC_MapLiteralContext *ctx) {
     node->addElements(propNode);
   }
 
-  return static_cast<ASTNode*>(node);
+    return static_cast<ASTNode*>(node);
 }
 
 any ASTBuilder::visitOC_PropertyKeyName(CypherParser::OC_PropertyKeyNameContext *ctx) {

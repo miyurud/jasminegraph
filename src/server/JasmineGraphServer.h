@@ -31,6 +31,7 @@ limitations under the License.
 #include "../performancedb/PerformanceSQLiteDBInterface.h"
 #include "../util/Conts.h"
 #include "../util/Utils.h"
+#include "../query/processor/cypher/util/SharedBuffer.h"
 
 class K8sWorkerController;
 
@@ -88,6 +89,10 @@ class JasmineGraphServer {
 
     void uploadGraphLocally(int graphID, const std::string graphType,
                             std::vector<std::map<int, std::string>> fullFileList, std::string masterIP);
+    void sendQueryPlan(int graphID, int numberOfPartitions, string queryPlan, SharedBuffer &sharedBuffer);
+    static bool queryDataCommunicator(std::string host, int port, std::string masterIP,
+                                      int graphID, int PartitionId, std::string message, SharedBuffer &sharedBuffer);
+
 
     static void removeGraph(std::vector<std::pair<std::string, std::string>> hostHasPartition, std::string graphID,
                             std::string masterIP);
@@ -127,6 +132,8 @@ class JasmineGraphServer {
         string partitionID;  // Deprecated (07-08-2023) : This should be a vector of partition IDs instead of a single
                              // partiton ID.
     };
+
+    std::vector<JasmineGraphServer::worker> workers(size_t npart);
 
     static std::map<std::string, workerPartitions> getGraphPartitionedHosts(std::string graphID);
 

@@ -79,9 +79,20 @@ set(HEADERS globals.h
         src/streamingdb/StreamingSQLiteDBInterface.h
         src/frontend/core/executor/impl/PageRankExecutor.h
         src/util/dbinterface/DBInterface.h
+        src/util/hdfs/HDFSConnector.h
+        src/util/hdfs/HDFSStreamHandler.h
+        src/partitioner/stream/HDFSMultiThreadedHashPartitioner.h
         src/query/processor/cypher/util/Const.h
         src/nativestore/MetaPropertyLink.h
         src/nativestore/MetaPropertyEdgeLink.h
+        src/query/processor/cypher/queryplanner/Operators.h
+        src/query/processor/cypher/queryplanner/QueryPlanner.h
+        src/query/processor/cypher/runtime/InstanceHandler.h
+        src/query/processor/cypher/runtime/OperatorExecutor.h
+        src/query/processor/cypher/util/SharedBuffer.h
+        src/nativestore/MetaPropertyLink.h
+        src/nativestore/MetaPropertyEdgeLink.h
+        src/query/processor/cypher/runtime/Helpers.h
 )
 
 set(SOURCES src/backend/JasmineGraphBackend.cpp
@@ -150,6 +161,9 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/streamingdb/StreamingSQLiteDBInterface.cpp
         src/frontend/core/executor/impl/PageRankExecutor.cpp
         src/util/dbinterface/DBInterface.cpp
+        src/util/hdfs/HDFSConnector.cpp
+        src/util/hdfs/HDFSStreamHandler.cpp
+        src/partitioner/stream/HDFSMultiThreadedHashPartitioner.cpp
         src/query/processor/cypher/semanticanalyzer/SemanticAnalyzer.cpp
         src/query/processor/cypher/util/Const.cpp
         src/frontend/ui/JasmineGraphFrontEndUIProtocol.h
@@ -158,8 +172,17 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/frontend/ui/JasmineGraphFrontEndUI.h
         src/frontend/core/common/JasmineGraphFrontendCommon.cpp
         src/frontend/core/common/JasmineGraphFrontendCommon.h
+        src/query/processor/cypher/queryplanner/Operators.cpp
+        src/query/processor/cypher/queryplanner/QueryPlanner.cpp
+        src/query/processor/cypher/runtime/InstanceHandler.cpp
+        src/query/processor/cypher/runtime/OperatorExecutor.cpp
+        src/query/processor/cypher/util/SharedBuffer.cpp
         src/nativestore/MetaPropertyLink.cpp
         src/nativestore/MetaPropertyEdgeLink.cpp
+
+        src/nativestore/MetaPropertyLink.cpp
+        src/nativestore/MetaPropertyEdgeLink.cpp
+        src/query/processor/cypher/runtime/Helpers.cpp
 
 )
 
@@ -190,9 +213,14 @@ target_link_libraries(JasmineGraphLib PRIVATE /usr/lib/x86_64-linux-gnu/libxerce
 target_link_libraries(JasmineGraphLib PRIVATE /usr/lib/x86_64-linux-gnu/libflatbuffers.a)
 target_link_libraries(JasmineGraphLib PRIVATE /usr/lib/x86_64-linux-gnu/libjsoncpp.so)
 target_link_libraries(JasmineGraphLib PRIVATE /usr/local/lib/libcppkafka.so)
+target_link_libraries(JasmineGraphLib PRIVATE /usr/local/libhdfs3/lib/libhdfs3.so)
 target_link_libraries(JasmineGraph JasmineGraphLib)
 target_link_libraries(JasmineGraph curl)
 
+include_directories(/usr/local/libhdfs3/include/hdfs/)
+include_directories(/usr/include/oneapi/)
+include_directories(/usr/local/parmetis/include/)
+include_directories(/usr/lib/x86_64-linux-gnu/openmpi/include/)
 include_directories(/usr/local/include/antlr4-runtime)
 link_directories(/usr/local/lib)
 include_directories(/usr/local/include/yaml-cpp)
