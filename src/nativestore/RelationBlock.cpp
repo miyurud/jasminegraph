@@ -31,7 +31,6 @@ RelationBlock* RelationBlock::addLocalRelation(NodeBlock source, NodeBlock desti
 
     sourceData.address = source.addr;
     destinationData.address = destination.addr;
-    
     long relationBlockAddress = RelationBlock::nextLocalRelationIndex *
             RelationBlock::BLOCK_SIZE;  // Block size is 4 * 13 + 18
 
@@ -768,7 +767,8 @@ void RelationBlock::addCentralRelationshipType(char *value) {
 
 std::string RelationBlock::getLocalRelationshipType() {
     int address = this->addr;
-    RelationBlock::relationsDB->seekg(address + RelationBlock::LOCAL_RELATIONSHIP_TYPE_OFFSET*RelationBlock::RECORD_SIZE);
+    RelationBlock::relationsDB->seekg(address +
+        RelationBlock::LOCAL_RELATIONSHIP_TYPE_OFFSET * RelationBlock::RECORD_SIZE);
     char type[RelationBlock::MAX_TYPE_SIZE] = {0};
     if (!RelationBlock::relationsDB->read(reinterpret_cast<char*>(&type), RelationBlock::MAX_TYPE_SIZE)) {
         relation_block_logger.error("Error while reading local relation type from " +
@@ -781,7 +781,8 @@ std::string RelationBlock::getLocalRelationshipType() {
 
 std::string RelationBlock::getCentralRelationshipType() {
     int address = this->addr;
-    RelationBlock::centralRelationsDB->seekg(address + RelationBlock::CENTRAL_RELATIONSHIP_TYPE_OFFSET*RelationBlock::RECORD_SIZE);
+    RelationBlock::centralRelationsDB->seekg(address +
+        RelationBlock::CENTRAL_RELATIONSHIP_TYPE_OFFSET * RelationBlock::RECORD_SIZE);
     char type[RelationBlock::MAX_TYPE_SIZE] = {0};
     if (!RelationBlock::centralRelationsDB->read(reinterpret_cast<char*>(&type), RelationBlock::MAX_TYPE_SIZE)) {
         relation_block_logger.error("Error while reading local relation type from " +

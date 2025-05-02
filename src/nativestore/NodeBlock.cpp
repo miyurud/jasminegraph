@@ -56,7 +56,6 @@ void NodeBlock::addLabel(char *label) {
         NodeBlock::nodesDB->write(this->label, sizeof(this->label));
         NodeBlock::nodesDB->flush();
     }
-
 }
 
 void NodeBlock::save() {
