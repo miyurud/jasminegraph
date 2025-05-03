@@ -50,7 +50,7 @@ void NodeBlock::setLabel(const char *_label) {
 void NodeBlock::addLabel(char *label) {
     if (this->label == this->id && strlen(label) != 0) {
         std::strcpy(this->label, label);
-        NodeBlock::nodesDB->seekp(this->addr +sizeof(this->usage) +sizeof(this->nodeId) + sizeof(this->edgeRef) +
+        NodeBlock::nodesDB->seekp(this->addr + sizeof(this->usage) + sizeof(this->nodeId) + sizeof(this->edgeRef) +
                                   sizeof(this->centralEdgeRef) + sizeof(this->edgeRefPID) + sizeof(this->propRef) +
                                   sizeof(this->metaPropRef));
         NodeBlock::nodesDB->write(this->label, sizeof(this->label));
