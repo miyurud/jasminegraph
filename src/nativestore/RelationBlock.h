@@ -63,6 +63,9 @@ class RelationBlock {
     std::string id;
     bool updateLocalRelationRecords(RelationOffsets, unsigned int);
     bool updateCentralRelationRecords(RelationOffsets recordOffset, unsigned int data);
+    bool updateLocalRelationshipType(int offset, std::string type);
+    bool updateCentralRelationshipType(int offset, std::string type);
+
     NodeBlock *sourceBlock;
     NodeBlock *destinationBlock;
 
@@ -72,8 +75,9 @@ class RelationBlock {
         this->destinationBlock = &destination;
     }
 
-    RelationBlock(unsigned int addr, NodeRelation source, NodeRelation destination, unsigned int propertyAddress)
-        : addr(addr), source(source), destination(destination), propertyAddress(propertyAddress){
+    RelationBlock(unsigned int addr, NodeRelation source, NodeRelation destination, unsigned int propertyAddress,
+                  std::string type) : addr(addr), source(source), destination(destination),
+                  propertyAddress(propertyAddress), type(type){
         this->sourceBlock = NodeBlock::get(source.address);
         this->destinationBlock = NodeBlock::get(destination.address);
         this->source = source;
@@ -81,8 +85,9 @@ class RelationBlock {
     };
 
     RelationBlock(unsigned int address, NodeRelation source, NodeRelation destination, unsigned int propertyAddress,
-                  unsigned int metaPropertyAddress) : addr(address), source(source), destination(destination),
-                  propertyAddress(propertyAddress), metaPropertyAddress(metaPropertyAddress){
+                  unsigned int metaPropertyAddress, std::string type) : addr(address), source(source),
+                  destination(destination), propertyAddress(propertyAddress), metaPropertyAddress(metaPropertyAddress),
+                  type(type){
         this->sourceBlock = NodeBlock::get(source.address);
         this->destinationBlock = NodeBlock::get(destination.address);
         this->source = source;
@@ -95,6 +100,7 @@ class RelationBlock {
     NodeRelation destination;
     unsigned int propertyAddress = 0;
     unsigned int metaPropertyAddress = 0;
+    std::string type = DEFAULT_TYPE;
     PropertyEdgeLink *propertyHead = NULL;
     static thread_local unsigned int nextLocalRelationIndex;
     static thread_local unsigned int nextCentralRelationIndex;
@@ -104,8 +110,13 @@ class RelationBlock {
     static thread_local std::fstream *relationsDB;
     static thread_local std::fstream *centralRelationsDB;
     static const int RECORD_SIZE = sizeof(unsigned int);
+    static const int MAX_TYPE_SIZE = 18;
+    static const std::string DEFAULT_TYPE;
     static const int NUMBER_OF_CENTRAL_RELATION_RECORDS = 14;
+    static const int CENTRAL_RELATIONSHIP_TYPE_OFFSET = 14;
     static const int NUMBER_OF_LOCAL_RELATION_RECORDS = 13;
+    static const int LOCAL_RELATIONSHIP_TYPE_OFFSET = 13;
+
 
 
     void save(std::fstream *cursor);
@@ -151,7 +162,11 @@ class RelationBlock {
     void addLocalProperty(std::string, char *);
     void addCentralProperty(std::string name, char *value);
     void addMetaProperty(std::string name, char *value);
+    void addLocalRelationshipType(char *value);
+    void addCentralRelationshipType(char *value);
 
+    std::string getLocalRelationshipType();
+    std::string getCentralRelationshipType();
     PropertyEdgeLink *getPropertyHead();
     MetaPropertyEdgeLink *getMetaPropertyHead();
     std::map<std::string, char *> getAllProperties();

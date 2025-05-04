@@ -33,3 +33,4 @@ class SharedBuffer {
 };
 
 #endif //JASMINEGRAPH_SHAREDBUFFER_H
+#endif  // JASMINEGRAPH_SHAREDBUFFER_H

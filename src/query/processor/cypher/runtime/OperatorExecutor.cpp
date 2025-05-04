@@ -1,6 +1,15 @@
-//
-// Created by kumarawansha on 1/2/25.
-//
+/**
+Copyright 2025 JasmineGraph Team
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+ */
 
 #include "OperatorExecutor.h"
 #include "InstanceHandler.h"
@@ -18,35 +27,39 @@ OperatorExecutor::OperatorExecutor(GraphConfig gc, std::string queryPlan, std::s
 };
 
 void OperatorExecutor::initializeMethodMap() {
-    methodMap["AllNodeScan"] = [](OperatorExecutor &executor, SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
+    methodMap["AllNodeScan"] = [](OperatorExecutor &executor, SharedBuffer &buffer,
+            std::string jsonPlan, GraphConfig gc) {
         executor.AllNodeScan(buffer, jsonPlan, gc);
     };
 
-    methodMap["ProduceResult"] = [](OperatorExecutor &executor, SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
-        executor.ProduceResult(buffer, jsonPlan, gc); // Ignore the unused string parameter
+    methodMap["ProduceResult"] = [](OperatorExecutor &executor, SharedBuffer &buffer,
+            std::string jsonPlan, GraphConfig gc) {
+        executor.ProduceResult(buffer, jsonPlan, gc);
     };
 
-    methodMap["Filter"] = [](OperatorExecutor &executor, SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
-        executor.Filter(buffer, jsonPlan, gc); // Ignore the unused string parameter
+    methodMap["Filter"] = [](OperatorExecutor &executor, SharedBuffer &buffer,
+            std::string jsonPlan, GraphConfig gc) {
+        executor.Filter(buffer, jsonPlan, gc);
     };
 
-    methodMap["ExpandAll"] = [](OperatorExecutor &executor, SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
-        executor.ExpandAll(buffer, jsonPlan, gc); // Ignore the unused string parameter
+    methodMap["ExpandAll"] = [](OperatorExecutor &executor, SharedBuffer &buffer,
+            std::string jsonPlan, GraphConfig gc) {
+        executor.ExpandAll(buffer, jsonPlan, gc);
     };
 
     methodMap["UndirectedRelationshipTypeScan"] = [](OperatorExecutor &executor, SharedBuffer &buffer,
             std::string jsonPlan, GraphConfig gc) {
-        executor.UndirectedRelationshipTypeScan(buffer, jsonPlan, gc); // Ignore the unused string parameter
+        executor.UndirectedRelationshipTypeScan(buffer, jsonPlan, gc);
     };
 
     methodMap["UndirectedAllRelationshipScan"] = [](OperatorExecutor &executor, SharedBuffer &buffer,
             std::string jsonPlan, GraphConfig gc) {
-        executor.UndirectedAllRelationshipScan(buffer, jsonPlan, gc); // Ignore the unused string parameter
+        executor.UndirectedAllRelationshipScan(buffer, jsonPlan, gc);
     };
 
     methodMap["NodeByIdSeek"] = [](OperatorExecutor &executor, SharedBuffer &buffer,
                                                     std::string jsonPlan, GraphConfig gc) {
-        executor.NodeByIdSeek(buffer, jsonPlan, gc); // Ignore the unused string parameter
+        executor.NodeByIdSeek(buffer, jsonPlan, gc);
     };
 
     methodMap["Projection"] = [](OperatorExecutor &executor, SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc){
@@ -77,8 +90,7 @@ void OperatorExecutor::initializeMethodMap() {
     };
 }
 
-void OperatorExecutor::AllNodeScan(SharedBuffer &buffer,std::string jsonPlan, GraphConfig gc) {
-    execution_logger.info(":::::::::ALl Node:::::::::::");
+void OperatorExecutor::AllNodeScan(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
     json query = json::parse(jsonPlan);
     NodeManager nodeManager(gc);
     for (auto it : nodeManager.nodeIndex) {
@@ -86,10 +98,10 @@ void OperatorExecutor::AllNodeScan(SharedBuffer &buffer,std::string jsonPlan, Gr
         auto nodeId = it.first;
         NodeBlock *node = nodeManager.get(nodeId);
         std::string value(node->getMetaPropertyHead()->value);
-        if(value == to_string(gc.partitionID)){
+        if (value == to_string(gc.partitionID)) {
             nodeData["partitionID"] = value;
             std::map<std::string, char*> properties = node->getAllProperties();
-            for (auto property: properties){
+            for (auto property : properties) {
                 nodeData[property.first] = property.second;
             }
             for (auto& [key, value] : properties) {
@@ -107,27 +119,25 @@ void OperatorExecutor::AllNodeScan(SharedBuffer &buffer,std::string jsonPlan, Gr
 }
 
 void OperatorExecutor::ProduceResult(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
-    execution_logger.info("::::::::Produce Result::::::::::::");
     json query = json::parse(jsonPlan);
-    SharedBuffer sharedBuffer(5);
+    SharedBuffer sharedBuffer(INTER_OPERATOR_BUFFER_SIZE);
     std::string nextOpt = query["NextOperator"];
     json next = json::parse(nextOpt);
     auto method = OperatorExecutor::methodMap[next["Operator"]];
     // Launch the method in a new thread
     std::thread result(method, std::ref(*this), std::ref(sharedBuffer), query["NextOperator"], gc);
 
-    while(true) {
+    while (true) {
         string raw = sharedBuffer.get();
-        if(raw == "-1"){
+        if (raw == "-1") {
             buffer.add(raw);
             result.join();
             break;
         }
-
         std::vector<std::string> values = query["variable"].get<std::vector<std::string>>();
         json data;
         json rawObj = json::parse(raw);
-        for (auto value: values){
+        for (auto value : values) {
             data[value] = rawObj[value];
         }
         buffer.add(data.dump());
@@ -135,9 +145,8 @@ void OperatorExecutor::ProduceResult(SharedBuffer &buffer, std::string jsonPlan,
 }
 
 void OperatorExecutor::Filter(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
-    execution_logger.info(":::::::::Filter:::::::::::");
     json query = json::parse(jsonPlan);
-    SharedBuffer sharedBuffer(5);
+    SharedBuffer sharedBuffer(INTER_OPERATOR_BUFFER_SIZE);
     std::string nextOpt = query["NextOperator"];
     json next = json::parse(nextOpt);
     auto method = OperatorExecutor::methodMap[next["Operator"]];
@@ -146,7 +155,7 @@ void OperatorExecutor::Filter(SharedBuffer &buffer, std::string jsonPlan, GraphC
 
     auto condition = query["condition"];
     FilterHelper FilterHelper(condition.dump());
-    while(true) {
+    while (true) {
         string raw = sharedBuffer.get();
         if(raw == "-1"){
             buffer.add(raw);
@@ -160,7 +169,6 @@ void OperatorExecutor::Filter(SharedBuffer &buffer, std::string jsonPlan, GraphC
 }
 
 void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
-
     json query = json::parse(jsonPlan);
     NodeManager nodeManager(gc);
     for (auto it : nodeManager.nodeIndex) {
@@ -168,9 +176,9 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
         auto nodeId = it.first;
         NodeBlock *node = nodeManager.get(nodeId);
         std::string value(node->getMetaPropertyHead()->value);
-        if(value == to_string(gc.partitionID)){
+        if (value == to_string(gc.partitionID)) {
             std::map<std::string, char*> properties = node->getAllProperties();
-            for (auto property: properties){
+            for (auto property : properties) {
                 nodeData[property.first] = property.second;
             }
             json data;
@@ -190,8 +198,6 @@ void OperatorExecutor::UndirectedAllRelationshipScan(SharedBuffer &buffer, std::
     long localRelationCount = nodeManager.dbSize(dbPrefix + "_relations.db") / RelationBlock::BLOCK_SIZE;
     long centralRelationCount = nodeManager.dbSize(dbPrefix +
                                                     "_central_relations.db") / RelationBlock::CENTRAL_BLOCK_SIZE;
-
-
     int count = 1;
     for (long i = 1; i < localRelationCount; i++) {
         json startNodeData;
@@ -204,7 +210,7 @@ void OperatorExecutor::UndirectedAllRelationshipScan(SharedBuffer &buffer, std::
         std::string startPid(startNode->getMetaPropertyHead()->value);
         startNodeData["partitionID"] = startPid;
         std::map<std::string, char*> startProperties = startNode->getAllProperties();
-        for (auto property: startProperties){
+        for (auto property : startProperties) {
             startNodeData[property.first] = property.second;
         }
         for (auto& [key, value] : startProperties) {
@@ -215,7 +221,7 @@ void OperatorExecutor::UndirectedAllRelationshipScan(SharedBuffer &buffer, std::
         std::string destPid(destNode->getMetaPropertyHead()->value);
         destNodeData["partitionID"] = destPid;
         std::map<std::string, char*> destProperties = destNode->getAllProperties();
-        for (auto property: destProperties){
+        for (auto property : destProperties) {
             destNodeData[property.first] = property.second;
         }
         for (auto& [key, value] : destProperties) {
@@ -224,7 +230,7 @@ void OperatorExecutor::UndirectedAllRelationshipScan(SharedBuffer &buffer, std::
         destProperties.clear();
 
         std::map<std::string, char*> relProperties = relation->getAllProperties();
-        for (auto property: relProperties){
+        for (auto property : relProperties) {
             relationData[property.first] = property.second;
         }
         for (auto& [key, value] : relProperties) {
@@ -252,13 +258,12 @@ void OperatorExecutor::UndirectedAllRelationshipScan(SharedBuffer &buffer, std::
 
     int central = 1;
     for (long i = 1; i < centralRelationCount; i++) {
-
         json startNodeData;
         json destNodeData;
         json relationData;
         RelationBlock* relation = RelationBlock::getCentralRelation(i*RelationBlock::CENTRAL_BLOCK_SIZE);
         std::string pid(relation->getMetaPropertyHead()->value);
-        if(pid != to_string(gc.partitionID)){
+        if (pid != to_string(gc.partitionID)) {
             continue;
         }
 
@@ -268,7 +273,7 @@ void OperatorExecutor::UndirectedAllRelationshipScan(SharedBuffer &buffer, std::
         std::string startPid(startNode->getMetaPropertyHead()->value);
         startNodeData["partitionID"] = startPid;
         std::map<std::string, char*> startProperties = startNode->getAllProperties();
-        for (auto property : startProperties){
+        for (auto property : startProperties) {
             startNodeData[property.first] = property.second;
         }
         for (auto& [key, value] : startProperties) {
@@ -279,7 +284,7 @@ void OperatorExecutor::UndirectedAllRelationshipScan(SharedBuffer &buffer, std::
         std::string destPid(destNode->getMetaPropertyHead()->value);
         destNodeData["partitionID"] = destPid;
         std::map<std::string, char*> destProperties = destNode->getAllProperties();
-        for (auto property: destProperties){
+        for (auto property : destProperties) {
             destNodeData[property.first] = property.second;
         }
         for (auto& [key, value] : destProperties) {
@@ -288,7 +293,7 @@ void OperatorExecutor::UndirectedAllRelationshipScan(SharedBuffer &buffer, std::
         destProperties.clear();
 
         std::map<std::string, char*> relProperties = relation->getAllProperties();
-        for (auto property: relProperties){
+        for (auto property : relProperties) {
             relationData[property.first] = property.second;
         }
         for (auto& [key, value] : relProperties) {
@@ -323,10 +328,10 @@ void OperatorExecutor::NodeByIdSeek(SharedBuffer &buffer, std::string jsonPlan, 
     if (node) {
         json nodeData;
         std::string value(node->getMetaPropertyHead()->value);
-        if(value == to_string(gc.partitionID)) {
+        if (value == to_string(gc.partitionID)) {
             std::map<std::string, char*> properties = node->getAllProperties();
             nodeData["partitionID"] = value;
-            for (auto property: properties){
+            for (auto property : properties) {
                 nodeData[property.first] = property.second;
             }
             json data;
@@ -340,7 +345,7 @@ void OperatorExecutor::NodeByIdSeek(SharedBuffer &buffer, std::string jsonPlan, 
 
 void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
     json query = json::parse(jsonPlan);
-    SharedBuffer sharedBuffer(5);
+    SharedBuffer sharedBuffer(INTER_OPERATOR_BUFFER_SIZE);
     std::string nextOpt = query["NextOperator"];
     json next = json::parse(nextOpt);
     auto method = OperatorExecutor::methodMap[next["Operator"]];

@@ -268,6 +268,17 @@ int Utils::deleteDirectory(const std::string dirName) {
     return status;
 }
 
+int Utils::deleteFile(const std::string fileName) {
+    std::string command = "rm -f " + fileName;  // Use -f to force deletion
+    int status = system(command.c_str());
+    if (status == 0) {
+        util_logger.info("File: " + fileName + " deleted successfully");
+    } else {
+        util_logger.warn("Deleting file: " + fileName + " failed with exit code " + std::to_string(status));
+    }
+    return status;
+}
+
 int Utils::deleteAllMatchingFiles(const std::string fileNamePattern) {
     std::string command = "rm -f " + fileNamePattern + "*";
     int status = system(command.c_str());
@@ -1067,6 +1078,123 @@ bool Utils::uploadFileToWorker(std::string host, int port, int dataPort, int gra
     return true;
 }
 
+bool Utils::sendFileChunkToWorker(std::string host, int port, int dataPort, std::string filePath, std::string masterIP,
+                                  std::string uploadType) {
+    util_logger.info("Host:" + host + " Port:" + to_string(port) + " DPort:" + to_string(dataPort));
+    bool result = true;
+    int sockfd;
+    char data[FED_DATA_LENGTH + 1];
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sockfd < 0) {
+        util_logger.error("Cannot create socket");
+        return false;
+    }
+
+    if (host.find('@') != std::string::npos) {
+        host = Utils::split(host, '@')[1];
+    }
+
+    server = gethostbyname(host.c_str());
+    if (server == NULL) {
+        util_logger.error("ERROR, no host named " + host);
+        return false;
+    }
+
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *) server->h_addr, (char *) &serv_addr.sin_addr.s_addr, server->h_length);
+    serv_addr.sin_port = htons(port);
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+        return false;
+    }
+
+    if (!Utils::performHandshake(sockfd, data, FED_DATA_LENGTH, masterIP)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return false;
+    }
+
+    if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, uploadType,
+                                   JasmineGraphInstanceProtocol::HDFS_STREAM_START_ACK)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return false;
+    }
+
+    std::string fileName = Utils::getFileName(filePath);
+    int fileSize = Utils::getFileSize(filePath);
+
+    if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, fileName,
+                                   JasmineGraphInstanceProtocol::HDFS_STREAM_FILE_NAME_ACK)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return false;
+    }
+
+    if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, to_string(fileSize),
+                                   JasmineGraphInstanceProtocol::HDFS_STREAM_FILE_SIZE_ACK)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return false;
+    }
+
+    util_logger.debug("Going to send file " + filePath + " through file transfer service to worker");
+    Utils::sendFileThroughService(host, dataPort, fileName, filePath);
+
+    string response;
+    int count = 0;
+    while (true) {
+        if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::FILE_RECV_CHK)) {
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+            close(sockfd);
+            return false;
+        }
+        util_logger.debug("Sent: " + JasmineGraphInstanceProtocol::FILE_RECV_CHK);
+
+        util_logger.debug("Checking if file is received");
+        response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
+        if (response.compare(JasmineGraphInstanceProtocol::FILE_RECV_WAIT) == 0) {
+            util_logger.debug("Received: " + JasmineGraphInstanceProtocol::FILE_RECV_WAIT);
+            util_logger.debug("Checking file status : " + to_string(count));
+            count++;
+            sleep(1);
+            continue;
+        } else if (response.compare(JasmineGraphInstanceProtocol::FILE_ACK) == 0) {
+            util_logger.debug("Received: " + JasmineGraphInstanceProtocol::FILE_ACK);
+            util_logger.debug("File transfer completed for file : " + filePath);
+            break;
+        }
+    }
+
+    while (true) {
+        if (!Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::HDFS_STREAM_END_CHK)) {
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+            close(sockfd);
+            return false;
+        }
+        util_logger.debug("Sent: " + JasmineGraphInstanceProtocol::HDFS_STREAM_END_CHK);
+
+        response = Utils::read_str_trim_wrapper(sockfd, data, FED_DATA_LENGTH);
+        if (response.compare(JasmineGraphInstanceProtocol::HDFS_STREAM_END_WAIT) == 0) {
+            util_logger.debug("Received: " + JasmineGraphInstanceProtocol::HDFS_STREAM_END_WAIT);
+            sleep(1);
+            continue;
+        } else if (response.compare(JasmineGraphInstanceProtocol::HDFS_STREAM_END_ACK) == 0) {
+            util_logger.debug("Received: " + JasmineGraphInstanceProtocol::HDFS_STREAM_END_ACK);
+            util_logger.info("File chunk upload completed: " + fileName);
+            break;
+        }
+    }
+    Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+    close(sockfd);
+    Utils::deleteFile(filePath);
+    return true;
+}
+
 bool Utils::sendFileThroughService(std::string host, int dataPort, std::string fileName, std::string filePath) {
     int sockfd;
     char data[FED_DATA_LENGTH + 1];
@@ -1218,7 +1346,7 @@ void Utils::assignPartitionToWorker(int graphId, int partitionIndex, string  hos
     auto *sqlite = new SQLiteDBInterface();
     sqlite->init();
 
-    string workerHost;
+    string workerHost = hostname;
     if (hostname.find('@') != std::string::npos) {
         workerHost = Utils::split(hostname, '@')[1];
     }
@@ -1256,7 +1384,7 @@ void Utils::assignPartitionToWorker(int graphId, int partitionIndex, string  hos
 }
 
 bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string masterIP,
-                                  int graphID, int partitionId, std::string message, SharedBuffer &sharedBuffer){
+                                  int graphID, int partitionId, std::string message, SharedBuffer &sharedBuffer) {
     util_logger.info("Host:" + host + " Port:" + to_string(port));
     bool result = true;
     int sockfd;
@@ -1316,7 +1444,7 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
         return false;
     }
 
-    if(!Utils::send_str_wrapper(sockfd, to_string(graphID))) {
+    if (!Utils::send_str_wrapper(sockfd, to_string(graphID))) {
         close(sockfd);
         return false;
     }
@@ -1335,7 +1463,7 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
         return false;
     }
 
-    if(!Utils::send_str_wrapper(sockfd, to_string(partitionId))) {
+    if (!Utils::send_str_wrapper(sockfd, to_string(partitionId))) {
         close(sockfd);
         return false;
     }
@@ -1354,14 +1482,14 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
         return false;
     }
 
-    if(!Utils::send_str_wrapper(sockfd, message)) {
+    if (!Utils::send_str_wrapper(sockfd, message)) {
         close(sockfd);
         return false;
     }
 
     auto startTime = std::chrono::high_resolution_clock::now();
-    std::chrono::seconds max_duration(1000);
-    while(true){
+    std::chrono::seconds max_duration(3);
+    while (true) {
         char start[ACK_MESSAGE_SIZE] = {0};
         recv(sockfd, &start, sizeof(start), 0);
         std::string start_msg(start);
@@ -1387,14 +1515,13 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
         std::string data(content_length, 0);
         return_status = recv(sockfd, &data[0], content_length, 0);
         if (return_status > 0) {
-            util_logger.info("Received graph data: ");
             send(sockfd, JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS.c_str(),
                  JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS.length(), 0);
         } else {
             util_logger.info("Error while reading graph data");
             return false;
         }
-        if(data == "-1"){
+        if (data == "-1") {
             sharedBuffer.add(data);
             break;
         }

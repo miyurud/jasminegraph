@@ -35,7 +35,13 @@ void Partition::addEdge(std::pair<std::string, std::string> edge, bool isDirecte
         }
     }
 
-    if (!isDirected) {
+    if (isDirected) {
+        auto existSecondVertex = this->edgeList.find(edge.second);
+        if (existSecondVertex == this->edgeList.end() && !isExistInEdgeCuts(edge.second)) {
+            this->vertexCount += 1;
+            this->edgeList[edge.second] = std::set<std::string>();
+        }
+    } else {
         auto existSecondVertex = this->edgeList.find(edge.second);
         if (existSecondVertex != this->edgeList.end()) {
             this->edgeList[edge.second].insert(edge.first);
@@ -190,3 +196,21 @@ bool Partition::isExistInEdgeCuts(std::string vertext) {
     }
     return inEdgeCuts;
 }
+
+long Partition::getCentralVertexCount(int partitionIndex) {
+    long edgeCutVertices = 0;
+    for (auto edge : this->edgeCuts[partitionIndex]) {
+        bool isExistInEdgeList = this->edgeList.find(edge.first) != this->edgeList.end();
+        if (!isExistInEdgeList) {
+            edgeCutVertices += 1;
+        }
+    }
+    return edgeCutVertices;
+}
+
+long Partition::getLocalVertexCount() {
+    return static_cast<long>(edgeList.size());
+}
+
+
+

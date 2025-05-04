@@ -135,3 +135,5 @@ string Const::NODE = "NODE";
 string Const::RELATIONSHIP = "RELATIONSHIP";
 string Const::LOOKUP = "LOOKUP";
 string Const::DUMMY_ID = "0";
+int Const::TYPE_NAME_SIZE = 17;
+int Const::THREE = 3;

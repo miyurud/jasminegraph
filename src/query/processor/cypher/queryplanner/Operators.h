@@ -18,12 +18,14 @@ limitations under the License.
 #include <string>
 #include <iostream>
 #include <vector>
+#include "../../../../util/logger/Logger.h"
 class ASTNode;
 using namespace std;
 // Base Operator Class
 class Operator {
-public:
+ public:
     virtual ~Operator() = default;
+    virtual string execute() = 0;  // Pure virtual function to be implemented by derived classes
     static bool isAggregate;
     static string aggregateType;
     static string aggregateKey;
@@ -32,94 +34,95 @@ public:
 
 // NodeScanByLabel Operator
 class NodeScanByLabel : public Operator {
-public:
+ public:
     NodeScanByLabel(string label, string var = "var_0");
     string execute() override;
 
-private:
+ private:
     string label;
     string var;
 };
 
 // MultipleNodeScanByLabel Operator
 class MultipleNodeScanByLabel : public Operator {
-public:
+ public:
     MultipleNodeScanByLabel(vector<string> label, const string& var = "var_0");
     string execute() override;
 
-private:
+ private:
     vector<string> label;
     string var;
 };
 
 // NodeByIdSeek Operator
 class NodeByIdSeek : public Operator {
-public:
+ public:
     NodeByIdSeek(string id, string var);
     string execute() override;
     string getId() {return this->id;};
     string getVariable() {return this->var;};
 
-private:
+ private:
     string id;
     string var;
 };
 
 // AllNodeScan Operator
 class AllNodeScan : public Operator {
-public:
+ public:
     AllNodeScan(const string& var = "var_0");
     string execute() override;
 
-private:
+ private:
     string var;
 };
 
 // ProduceResults Operator
 class ProduceResults : public Operator {
-public:
+ public:
     ProduceResults(Operator* op, vector<ASTNode*> item);
     string execute() override;
     Operator* getOperator();
     void setOperator(Operator* op);
 
-private:
+ private:
     vector<ASTNode*> item;
     Operator* op;
 };
 
 // Filter Operator
 class Filter : public Operator {
-public:
+ public:
     Filter(Operator* input, vector<pair<string,ASTNode*>> filterCases);
     string analyzeWhere(ASTNode* ast);
     string analyzePropertiesMap(pair<string,ASTNode*> item);
     string comparisonOperand(ASTNode* ast);
     string execute() override;
 
-private:
+ private:
     Operator* input;
-    vector<pair<string,ASTNode*>> filterCases;
+    vector<pair<string, ASTNode*>> filterCases;
 };
 
 // Projection Operator
 class Projection : public Operator {
-public:
+ public:
     Projection(Operator* input, const vector<ASTNode*> columns);
     string execute() override;
 
-private:
+ private:
     Operator* input;
     vector<ASTNode*> columns;
 };
 
-//ExpandAll Operator
+// ExpandAll Operator
 class ExpandAll : public Operator {
-public:
-    ExpandAll(Operator* input, string startVar, string destVar, string relVar, string relType = "null", string direction = "");
+ public:
+    ExpandAll(Operator* input, string startVar, string destVar, string relVar,
+                string relType = "null", string direction = "");
     string execute() override;
 
-private:
+ private:
     Operator* input;
     string startVar;
     string destVar;
@@ -128,24 +131,13 @@ private:
     string direction;
 };
 
-// Join Operator
-class Join : public Operator {
-public:
-    Join(Operator* left, Operator* right, const string& joinCondition);
-    string execute() override;
-
-private:
-    Operator* left;
-    Operator* right;
-    string joinCondition;
-};
 
 // Limit Operator
 class Limit : public Operator {
-public:
+ public:
     Limit(Operator* input, ASTNode* limit);
     string execute() override;
-private:
+ private:
     Operator* input;
     ASTNode* limit;
 };
@@ -154,39 +146,18 @@ private:
 class Skip : public Operator {
 public:
     Skip(Operator* input, ASTNode* skip);
-    string execute() override;
 private:
     Operator* input;
     ASTNode* skip;
-};
 
-
-// Sort Operator
-class Sort : public Operator {
-    Operator* input;
-    string sortByColumn;
-    bool ascending;
-public:
-    Sort(Operator* input, const string& sortByColumn, bool ascending);
-    string execute() override;
-};
-
-// GroupBy Operator
-class GroupBy : public Operator {
-    Operator* input;
-    vector<std::string> groupByColumns;
-public:
-    GroupBy(Operator* input, const vector<std::string>& groupByColumns);
-    string execute() override;
-};
 
 // Distinct Operator
 class Distinct : public Operator {
-public:
+ public:
     Distinct(Operator* input, const vector<ASTNode*> columns);
     string execute() override;
 
-private:
+ private:
     Operator* input;
     vector<ASTNode*> columns;
 };
@@ -205,7 +176,7 @@ private:
 class Union : public Operator {
     Operator* left;
     Operator* right;
-public:
+ public:
     Union(Operator* left, Operator* right);
     string execute() override;
 };
@@ -214,90 +185,89 @@ public:
 class Intersection : public Operator {
     Operator* left;
     Operator* right;
-public:
+ public:
     Intersection(Operator* left, Operator* right);
     string execute() override;
 };
 
-//CacheProperty
+// CacheProperty
 class CacheProperty : public Operator {
-public:
+ public:
     CacheProperty(Operator* input, vector<ASTNode*> property);
     string execute() override;
 
-private:
+ private:
     Operator* input;
     vector<ASTNode*> property;
 };
 
 class UndirectedRelationshipTypeScan : public Operator {
-public:
+ public:
     // Constructor
-    UndirectedRelationshipTypeScan(string relType, string relvar = "rel_var", string startVar = "var_0", string endVar = "var_1");
+    UndirectedRelationshipTypeScan(string relType, string relvar = "rel_var",
+                                   string startVar = "var_0", string endVar = "var_1");
 
     // Execute method to perform the scan
     string execute() override;
 
-private:
+ private:
     string relType;  // The relationship type to scan for
-    string startVar; // Variable name for the start node
+    string startVar;  // Variable name for the start node
     string endVar;   // Variable name for the end node
     string relvar;
 };
 
 class UndirectedAllRelationshipScan : public Operator {
-public:
-
-    UndirectedAllRelationshipScan( string startVar = "var_0", string endVar = "var_1", string relVar = "edge_var_0");
+ public:
+    UndirectedAllRelationshipScan(string startVar = "var_0", string endVar = "var_1", string relVar = "edge_var_0");
     string execute() override;
 
-private:
-    string startVar; // Variable name for the start node
+ private:
+    string startVar;  // Variable name for the start node
     string endVar;   // Variable name for the end node
     string relVar;
 };
 
 class DirectedAllRelationshipScan : public Operator {
-public:
-
-    DirectedAllRelationshipScan( string direction, string startVar = "var_0", string endVar = "var_1", string relVar = "edge_var_0");
+ public:
+    DirectedAllRelationshipScan(string direction, string startVar = "var_0",
+                                 string endVar = "var_1", string relVar = "edge_var_0");
     string execute() override;
 
-private:
-    string startVar; // Variable name for the start node
+ private:
+    string startVar;  // Variable name for the start node
     string endVar;   // Variable name for the end node
     string relVar;
     string direction;
 };
 
 class DirectedRelationshipTypeScan : public Operator {
-public:
-    // Constructor
-    DirectedRelationshipTypeScan(string direction, string relType, string relvar = "rel_var", string startVar = "var_0", string endVar = "var_1");
+ public:
+    DirectedRelationshipTypeScan(string direction, string relType, string relvar = "rel_var",
+                                 string startVar = "var_0", string endVar = "var_1");
 
     // Execute method to perform the scan
     string execute() override;
 
-private:
+ private:
     string direction;
     string relType;  // The relationship type to scan for
-    string startVar; // Variable name for the start node
+    string startVar;  // Variable name for the start node
     string endVar;   // Variable name for the end node
     string relvar;
 };
 
 class Apply : public Operator {
-public:
-    // Constructor
-    Apply(Operator* opr);
-    void addOperator(Operator* opr);
+ public:
+    Apply(Operator* operator1);
+    void addOperator(Operator* operator2);
 
     // Execute method to perform the scan
     string execute() override;
 
-private:
-    Operator* opr1;
-    Operator* opr2;
+ private:
+    Operator* operator1;
+    Operator* operator2;
 };
 
 class EagerFunction : public Operator {
@@ -334,4 +304,4 @@ private:
     Operator* right;
 };
 string printDownArrow(int width);
-#endif // OPERATORS_H
+#endif  // OPERATORS_H

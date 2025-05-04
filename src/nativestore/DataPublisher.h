@@ -31,14 +31,12 @@ class DataPublisher {
     struct sockaddr_in serv_addr;
     std::string worker_address, message;
     char buffer[1024] = {0};
+    int data_port;
 
  public:
-    DataPublisher(int, std::string);
+    DataPublisher(int, std::string, int);
     void publish(std::string);
-    void publish_relation(std::string);
-    void publish_edge(std::string);
     void queryPublish(std::string, std::string, std::string);
-    void queryDataReciev();
 
     ~DataPublisher();
 

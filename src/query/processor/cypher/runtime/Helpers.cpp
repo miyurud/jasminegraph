@@ -1,6 +1,15 @@
-//
-// Created by kumarawansha on 2/8/25.
-//
+/**
+Copyright 2025 JasmineGraph Team
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+ */
 
 #include "Helpers.h"
 
@@ -50,9 +59,8 @@ bool FilterHelper::evaluateComparison(std::string condition, std::string raw) {
         leftValue = evaluateFunction(predicate["left"].dump(),
                                      data.dump(), predicate["right"]["type"]);
     } else {
-        // only evaluating string, decimal, boolean, null for now
+        //  only evaluating string, decimal, boolean, null for now
         leftValue = evaluateOtherTypes(predicate["left"].dump());
-
     }
 
     if (predicate["right"]["type"] == "PROPERTY_LOOKUP") {
@@ -64,11 +72,9 @@ bool FilterHelper::evaluateComparison(std::string condition, std::string raw) {
         rightValue = evaluateFunction(predicate["right"].dump(),
                                       data.dump(), predicate["left"]["type"]);
     } else {
-        // only evaluating string, decimal, boolean, null for now
+        //  only evaluating string, decimal, boolean, null for now
         rightValue = evaluateOtherTypes(predicate["right"].dump());
-
     }
-
     string op = predicate["operator"];
 
     return std::visit([&op](auto&& lhs, auto&& rhs) -> bool {
@@ -85,8 +91,7 @@ bool FilterHelper::evaluateComparison(std::string condition, std::string raw) {
                 if (op == ">=") return lhs >= rhs;
             }
         }
-
-        return false; // Default if types are incompatible
+        return false;  // Default if types are incompatible
     }, leftValue, rightValue);
     return false;
 }
@@ -208,9 +213,9 @@ ValueType FilterHelper::evaluatePropertyLookup(std::string property, std::string
     json raw = json::parse(data);
     vector<string> properties = prop["property"];
     string value;
-    // should be implemented to lookup nexted properties after persisting that kind of properties
+    // should be implemented to lookup nested properties after persisting that kind of properties
     // for now only one level of properties are supported (size of properties vector should be 1)
-    for (auto p: properties) {
+    for (auto p : properties) {
         if (!raw.contains(p)) {
             value = "null";
         } else {
@@ -280,13 +285,12 @@ ValueType FilterHelper::evaluateFunction(std::string function, std::string data,
     return "null";
 }
 
-// {"Type":"DECIMAL","value":"10"}
 ValueType FilterHelper::evaluateOtherTypes(std::string data) {
     json val = json::parse(data);
     if (val["type"] == "STRING") {
         string str = val["value"];
         if (str.size() >= 2 && str.front() == '\'' && str.back() == '\'') {
-            return str.substr(1, str.size() - 2); // Remove first and last character ' '
+            return str.substr(1, str.size() - 2);  // Remove first and last character ' '
         }
         return val["value"];
     } else if (val["type"] == "DECIMAL") {

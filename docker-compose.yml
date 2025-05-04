@@ -11,6 +11,8 @@ services:
       - './env/data:/var/tmp/data'
       - '/tmp/jasminegraph:/tmp/jasminegraph'
       - '/var/tmp/jasminegraph:/var/tmp/jasminegraph'
+      - '/var/tmp/hdfs/filechunks:/var/tmp/hdfs/filechunks'
+
     networks:
       - jasminenet
     command: --MODE 1 --MASTERIP 172.28.5.1 --WORKERS 2 --WORKERIP 172.28.5.1 --ENABLE_NMON false

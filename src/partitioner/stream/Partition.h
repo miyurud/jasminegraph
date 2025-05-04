@@ -65,6 +65,8 @@ class Partition {
     static void _split(const std::string &s, char delim, Out result);
     static std::vector<std::string> _split(const std::string &s, char delim);
     long edgeCutsCount();
+    long getCentralVertexCount(int partitionIndex);
+    long getLocalVertexCount();
     void printEdgeCuts();
     void printEdges();
     bool isExist(std::string);

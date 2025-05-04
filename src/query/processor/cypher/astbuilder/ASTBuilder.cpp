@@ -298,12 +298,12 @@ any ASTBuilder::visitOC_MultiPartQuery(CypherParser::OC_MultiPartQueryContext *c
     for (int i = 0; i < ctx->children.size(); i++) {
         auto *child = ctx->children[i];
         string typeName = typeid(*child).name();
-        string grammarName = typeName.substr(17);
+        string grammarName = typeName.substr(Const::TYPE_NAME_SIZE);
 
         if (i + 1 < ctx->children.size()) {
             auto *nextChild = ctx->children[i + 1];
             string nextTypeName = typeid(*nextChild).name();
-            string nextGrammarName = nextTypeName.substr(17);
+            string nextGrammarName = nextTypeName.substr(Const::TYPE_NAME_SIZE);
 
       if (grammarName == "OC_WithContextE" && nextGrammarName == "OC_SinglePartQueryContextE") {
         newNode->addElements(any_cast<ASTNode*>(visitOC_With(ctx->oC_With(withIndex++))));
@@ -1033,11 +1033,11 @@ any ASTBuilder::visitOC_NonArithmeticOperatorExpression(CypherParser::OC_NonArit
     int j = 0;
     for (auto *child : ctx->children) {
       std::string typeName = typeid(*child).name();
-      if (typeName.substr(17) == "OC_AtomContextE") {
+      if (typeName.substr(Const::TYPE_NAME_SIZE) == "OC_AtomContextE") {
         node->addElements(any_cast<ASTNode*>(visitOC_Atom(ctx->oC_Atom())));
-      } else if (typeName.substr(17) == "OC_PropertyLookupContextE") {
+      } else if (typeName.substr(Const::TYPE_NAME_SIZE) == "OC_PropertyLookupContextE") {
         node->addElements(any_cast<ASTNode*>(visitOC_PropertyLookup(ctx->oC_PropertyLookup(i++))));
-      } else if (typeName.substr(17) == "OC_ListOperatorExpressionContextE") {
+      } else if (typeName.substr(Const::TYPE_NAME_SIZE) == "OC_ListOperatorExpressionContextE") {
         node->addElements(any_cast<ASTNode*>(visitOC_ListOperatorExpression(ctx->oC_ListOperatorExpression(j++))));
       } else {
         node->addElements(any_cast<ASTNode*>(visitOC_NodeLabels(ctx->oC_NodeLabels())));
@@ -1109,7 +1109,7 @@ any ASTBuilder::visitOC_CaseExpression(CypherParser::OC_CaseExpressionContext *c
     if (i+2 < ctx->children.size()) {
       type = typeid(*ctx->children[i+2]).name();
     }
-    if (text == "CASE" && type.substr(17) == "OC_ExpressionContextE") {
+    if (text == "CASE" && type.substr(Const::TYPE_NAME_SIZE) == "OC_ExpressionContextE") {
       auto *node = new ASTInternalNode(Const::CASE_EXPRESSION);
       node->addElements(any_cast<ASTNode*>(visitOC_Expression(ctx->oC_Expression(0))));
       caseNode->addElements(node);

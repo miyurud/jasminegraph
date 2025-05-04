@@ -62,6 +62,7 @@ extern const string OUTPUT_FILE_NAME;
 extern const string OUTPUT_FILE_PATH;
 extern const string ADD_STREAM;
 extern const string ADD_STREAM_KAFKA;
+extern const string ADD_STREAM_HDFS;
 extern const string STRM_ACK;
 extern const string ADD_STREAM_KAFKA;
 extern const string STREAM_TOPIC_NAME;
@@ -101,5 +102,6 @@ const int FRONTEND_GRAPH_TYPE_LENGTH = 20;
 
 const double PAGE_RANK_ALPHA = 0.85;
 const int PAGE_RANK_ITERATIONS = 10;
+const int MASTER_BUFFER_SIZE = 3;
 
 #endif  // JASMINGRAPH_JASMINGRAPHFRONTENDPROTOCOL_H

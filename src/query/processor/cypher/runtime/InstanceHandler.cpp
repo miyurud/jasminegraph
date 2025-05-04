@@ -1,6 +1,15 @@
-//
-// Created by kumarawansha on 12/13/24.
-//
+/**
+Copyright 2025 JasmineGraph Team
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+ */
 
 #include "InstanceHandler.h"
 #include "../../../../server/JasmineGraphInstanceProtocol.h"
@@ -13,7 +22,7 @@ InstanceHandler::InstanceHandler(std::map<std::string,
 
 void InstanceHandler::handleRequest(int connFd, bool *loop_exit_p,
                                     GraphConfig gc, string masterIP,
-                                    std::string queryJson){
+                                    std::string queryJson) {
     OperatorExecutor operatorExecutor(gc, queryJson, masterIP);
     operatorExecutor.initializeMethodMap();
     SharedBuffer sharedBuffer(5);
@@ -23,7 +32,7 @@ void InstanceHandler::handleRequest(int connFd, bool *loop_exit_p,
                        std::string(operatorExecutor.queryPlan), gc);
     while(true) {
         string raw = sharedBuffer.get();
-        if(raw == "-1"){
+        if (raw == "-1") {
             this->dataPublishToMaster(connFd, loop_exit_p, raw);
             result.join();
             break;
@@ -33,7 +42,6 @@ void InstanceHandler::handleRequest(int connFd, bool *loop_exit_p,
 }
 
 void InstanceHandler::dataPublishToMaster(int connFd, bool *loop_exit_p, std::string message) {
-    instance_logger.info("DATA: "+message);
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::QUERY_DATA_START)) {
         *loop_exit_p = true;
         return;
@@ -52,7 +60,7 @@ void InstanceHandler::dataPublishToMaster(int connFd, bool *loop_exit_p, std::st
     int message_length = message.length();
     int converted_number = htonl(message_length);
     instance_logger.info("Sending content length"+to_string(converted_number));
-    if(!Utils::send_int_wrapper(connFd, &converted_number, sizeof(converted_number))){
+    if (!Utils::send_int_wrapper(connFd, &converted_number, sizeof(converted_number))) {
         *loop_exit_p = true;
         return;
     }
@@ -81,5 +89,4 @@ void InstanceHandler::dataPublishToMaster(int connFd, bool *loop_exit_p, std::st
         *loop_exit_p = true;
         return;
     }
-
 }

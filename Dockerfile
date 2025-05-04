@@ -1,4 +1,4 @@
-FROM miyurud/jasminegraph-prerequisites:20241230T132919
+FROM miyurud/jasminegraph-prerequisites:20241231T070657
 
 RUN apt-get update && apt-get install -y libcurl4-openssl-dev sysstat nmon
 RUN rm -r /usr/lib/python3.8/distutils
@@ -15,6 +15,7 @@ ARG DEBUG="false"
 RUN if [ "$DEBUG" = "true" ]; then apt-get update \
 && apt-get install --no-install-recommends -y gdb gdbserver \
 && apt-get clean; fi
+
 
 WORKDIR "${JASMINEGRAPH_HOME}"
 COPY ./build.sh ./build.sh

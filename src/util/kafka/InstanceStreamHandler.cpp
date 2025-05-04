@@ -91,14 +91,35 @@ std::string InstanceStreamHandler::extractGraphIdentifier(const std::string& nod
 
 JasmineGraphIncrementalLocalStore *
 InstanceStreamHandler::loadStreamingStore(std::string graphId, std::string partitionId, map<std::string,
-                                          JasmineGraphIncrementalLocalStore *> &graphDBMapStreamingStores) {
+                                          JasmineGraphIncrementalLocalStore *> &graphDBMapStreamingStores,
+                                          std::string dbFilesOpenMode) {
     std::string graphIdentifier = graphId + "_" + partitionId;
     instance_stream_logger.info("###INSTANCE### Loading streaming Store for" + graphIdentifier
                                + " : Started");
     std::string folderLocation = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
     auto *jasmineGraphStreamingLocalStore = new JasmineGraphIncrementalLocalStore(
-                                     stoi(graphId), stoi(partitionId));
+                                     stoi(graphId), stoi(partitionId), dbFilesOpenMode);
     graphDBMapStreamingStores.insert(std::make_pair(graphIdentifier, jasmineGraphStreamingLocalStore));
     instance_stream_logger.info("###INSTANCE### Loading Local Store : Completed");
     return jasmineGraphStreamingLocalStore;
+}
+
+void InstanceStreamHandler::handleLocalEdge(std::string edge, std::string graphId,
+                                            std::string partitionId, std::string graphIdentifier) {
+    std::unique_lock<std::mutex> lock(queue_mutexes[graphIdentifier]);
+    if (incrementalLocalStoreMap.find(graphIdentifier) == incrementalLocalStoreMap.end()) {
+        loadStreamingStore(graphId, partitionId, incrementalLocalStoreMap, NodeManager::FILE_MODE);  // append mode
+    }
+    JasmineGraphIncrementalLocalStore* localStore = incrementalLocalStoreMap[graphIdentifier];
+    localStore->addLocalEdge(edge);
+}
+
+void InstanceStreamHandler::handleCentralEdge(std::string edge, std::string graphId,
+                                              std::string partitionId, std::string graphIdentifier) {
+    std::unique_lock<std::mutex> lock(queue_mutexes[graphIdentifier]);
+    if (incrementalLocalStoreMap.find(graphIdentifier) == incrementalLocalStoreMap.end()) {
+        loadStreamingStore(graphId, partitionId, incrementalLocalStoreMap, NodeManager::FILE_MODE);  // append mode
+    }
+    JasmineGraphIncrementalLocalStore* localStore = incrementalLocalStoreMap[graphIdentifier];
+    localStore->addCentralEdge(edge);
 }

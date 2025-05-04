@@ -16,14 +16,14 @@ limitations under the License.
 #define QUERY_PLANNER_H
 
 #include "../astbuilder/ASTNode.h"
-#include "Operators.h" // Include all operators
+#include "Operators.h"  // Include all operators
 #include <algorithm>
 class QueryPlanner {
-public:
+ public:
     QueryPlanner() = default;
     ~QueryPlanner() = default;
     Operator* createExecutionPlan(ASTNode* ast, Operator* op = nullptr, string var = "");
-    bool isAllChildAreGivenType(string nodeType, ASTNode* root);
+    bool isAllChildrenAreGivenType(string nodeType, ASTNode* root);
     bool isAvailable(string nodeType, ASTNode* subtree);
     vector<ASTNode*> getSubTreeListByNodeType(ASTNode* root, string nodeType);
     ASTNode* verifyTreeType(ASTNode* root, string nodeType);
@@ -33,4 +33,4 @@ public:
     ASTNode* prepareWhereClause(string var1, string var2);
 };
 
-#endif // QUERY_PLANNER_H
+#endif  // QUERY_PLANNER_H

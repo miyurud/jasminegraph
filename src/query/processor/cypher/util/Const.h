@@ -139,6 +139,8 @@ class Const {
     static string RELATIONSHIP;
     static string LOOKUP;
     static string DUMMY_ID;
+    static int TYPE_NAME_SIZE;
+    static int THREE;
 };
 
 #endif  // CONST_H

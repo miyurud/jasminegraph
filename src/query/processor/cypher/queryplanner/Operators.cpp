@@ -17,7 +17,7 @@ limitations under the License.
 #include "../util/Const.h"
 #include "../astbuilder/ASTNode.h"
 using namespace std;
-
+Logger operatorLogger;
 using json = nlohmann::json;
 
 bool Operator::isAggregate = false;
@@ -39,7 +39,6 @@ string NodeScanByLabel::execute() {
 MultipleNodeScanByLabel::MultipleNodeScanByLabel(vector<string> label, const string& var) : label(label), var(var) {}
 
 string MultipleNodeScanByLabel::execute() {
-
     json multipleNodeByLabel;
     multipleNodeByLabel["Operator"] = "MultipleNodeScanByLabel";
     multipleNodeByLabel["variables"] = var;
@@ -75,12 +74,11 @@ string ProduceResults::execute() {
     json produceResult;
     produceResult["Operator"] = "ProduceResult";
     produceResult["variable"] = json::array();
-    if(op){
+    if (op) {
         produceResult["NextOperator"] = op->execute();
     }
 
-    for(auto* result: item)
-    {
+    for (auto* result : item) {
         if (result->nodeType == Const::AS) {
             produceResult["variable"].push_back(result->elements[1]->value);
         } else if (result->nodeType == Const::NON_ARITHMETIC_OPERATOR) {
@@ -110,7 +108,7 @@ void ProduceResults::setOperator(Operator *op) {
 }
 
 // Filter Implementation
-Filter::Filter(Operator* input, vector<pair<string,ASTNode*>> filterCases) : input(input), filterCases(filterCases) {}
+Filter::Filter(Operator* input, vector<pair<string, ASTNode*>> filterCases) : input(input), filterCases(filterCases) {}
 
 string Filter::comparisonOperand(ASTNode *ast) {
     json operand;
@@ -119,7 +117,7 @@ string Filter::comparisonOperand(ASTNode *ast) {
         operand["variable"] = ast->elements[0]->value;
         operand["type"] = Const::PROPERTY_LOOKUP;
         vector<string> property;
-        for (auto* prop: ast->elements) {
+        for (auto* prop : ast->elements) {
             if (prop->nodeType == Const::PROPERTY_LOOKUP && prop->elements[0]->nodeType != Const::RESERVED_WORD) {
                 property.push_back(prop->elements[0]->value);
             }
@@ -128,8 +126,8 @@ string Filter::comparisonOperand(ASTNode *ast) {
     } else if (ast->nodeType == Const::PROPERTIES_MAP) {
         operand["type"] = Const::PROPERTIES_MAP;
         map<string, string> property;
-        for (auto* prop: ast->elements) {
-            if (prop->elements[0]->nodeType != Const::RESERVED_WORD){
+        for (auto* prop : ast->elements) {
+            if (prop->elements[0]->nodeType != Const::RESERVED_WORD) {
                 property.insert(pair<string, string>(prop->elements[0]->value, prop->elements[1]->value));
             }
         }
@@ -137,7 +135,7 @@ string Filter::comparisonOperand(ASTNode *ast) {
     } else if (ast->nodeType == Const::LIST) {
         operand["type"] = Const::LIST;
         vector<string> element;
-        for (auto* prop: ast->elements) {
+        for (auto* prop : ast->elements) {
             element.push_back(prop->value);
         }
         operand["element"] = element;
@@ -145,7 +143,7 @@ string Filter::comparisonOperand(ASTNode *ast) {
         operand["type"] = Const::FUNCTION;
         operand["functionName"] = ast->elements[0]->elements[1]->value;
         vector<string> arguments;
-        for (auto *arg: ast->elements[1]->elements) {
+        for (auto *arg : ast->elements[1]->elements) {
             arguments.push_back(arg->value);
         }
         operand["arguments"] = arguments;
@@ -163,32 +161,32 @@ string Filter::analyzeWhere(ASTNode* ast) {
     if (ast->nodeType == Const::OR) {
         where["type"] = Const::OR;
         vector<json> comparisons;
-        for (auto* element: ast->elements) {
+        for (auto* element : ast->elements) {
             comparisons.push_back(json::parse(analyzeWhere(element)));
         }
         where["comparisons"] = comparisons;
-    } else if(ast->nodeType == Const::AND) {
+    } else if (ast->nodeType == Const::AND) {
         where["type"] = Const::AND;
         vector<json> comparisons;
-        for (auto* element: ast->elements) {
+        for (auto* element : ast->elements) {
             comparisons.push_back(json::parse(analyzeWhere(element)));
         }
         where["comparisons"] = comparisons;
-    } else if(ast->nodeType == Const::XOR) {
+    } else if (ast->nodeType == Const::XOR) {
         where["type"] = Const::XOR;
         vector<string> comparisons;
-        for (auto* element: ast->elements) {
+        for (auto* element : ast->elements) {
             comparisons.push_back(json::parse(analyzeWhere(element)));
         }
         where["comparisons"] = comparisons;
-    } else if(ast->nodeType == Const::NOT) {
+    } else if (ast->nodeType == Const::NOT) {
         where["type"] = Const::NOT;
         vector<json> comparisons;
-        for (auto* element: ast->elements) {
+        for (auto* element : ast->elements) {
             comparisons.push_back(json::parse(analyzeWhere(element)));
         }
         where["comparisons"] = comparisons;
-    } else if(ast->nodeType == Const::COMPARISON) {
+    } else if (ast->nodeType == Const::COMPARISON) {
         where["type"] = Const::COMPARISON;
         auto* left = ast->elements[0];
         auto* oparator = ast->elements[1];
@@ -315,15 +313,6 @@ string Projection::execute() {
     return projection.dump(); // Print the final projection JSON with indentation
 }
 
-// Join Implementation
-Join::Join(Operator* left, Operator* right, const string& joinCondition) : left(left), right(right), joinCondition(joinCondition) {}
-
-string Join::execute() {
-    left->execute();
-    right->execute();
-    cout << "Joining on condition: " << joinCondition << endl;
-    return "";
-}
 
 // Limit Implementation
 Limit::Limit(Operator* input, ASTNode* limit) : input(input), limit(limit) {}
@@ -340,30 +329,10 @@ Skip::Skip(Operator* input, ASTNode* skip) : input(input), skip(skip) {}
 string Skip::execute() {
     input->execute();
     cout << "Skipping first" << skip->print() << " rows." << endl;
+    operatorLogger.debug("Limit: " + to_string(limit));
     return "";
 }
 
-// Sort Implementation
-Sort::Sort(Operator* input, const string& sortByColumn, bool ascending) : input(input), sortByColumn(sortByColumn), ascending(ascending) {}
-
-string Sort::execute() {
-    input->execute();
-    cout << "Sorting by column: " << sortByColumn << " in " << (ascending ? "ascending" : "descending") << " order." << endl;
-    return "";
-}
-
-// GroupBy Implementation
-GroupBy::GroupBy(Operator* input, const vector<  string>& groupByColumns) : input(input), groupByColumns(groupByColumns) {}
-
-string GroupBy::execute() {
-    input->execute();
-    cout << "Grouping by columns: ";
-    for (const auto& col : groupByColumns) {
-        cout << col << " ";
-    }
-    cout << endl;
-    return "";
-}
 
 // Distinct Implementation
 Distinct::Distinct(Operator* input, const vector<ASTNode*> columns) : input(input), columns(columns) {}
@@ -436,7 +405,7 @@ Union::Union(Operator* left, Operator* right) : left(left), right(right) {}
 string Union::execute() {
     left->execute();
     right->execute();
-    cout << "Performing Union of results." << endl;
+    operatorLogger.debug("Performing Union of results.");
     return "";
 }
 
@@ -446,18 +415,19 @@ Intersection::Intersection(Operator* left, Operator* right) : left(left), right(
 string Intersection::execute() {
     left->execute();
     right->execute();
-    cout << "Performing Intersection of results." << endl;
+    operatorLogger.debug("Performing Intersection of results.");
     return "";
 }
 
-CacheProperty::CacheProperty(Operator* input, vector<ASTNode*> property) : property(property), input(input){}
+CacheProperty::CacheProperty(Operator* input, vector<ASTNode*> property) : property(property), input(input) {}
 
 string CacheProperty::execute()
 {
     return input->execute();;
 }
 
-UndirectedRelationshipTypeScan::UndirectedRelationshipTypeScan(string relType, string relvar, string startVar, string endVar)
+UndirectedRelationshipTypeScan::UndirectedRelationshipTypeScan(string relType, string relvar, string startVar,
+                                                               string endVar)
         : relType(relType), relvar(relvar), startVar(startVar), endVar(endVar) {}
 
 // Execute method
@@ -484,41 +454,40 @@ string UndirectedAllRelationshipScan::execute() {
     return undirected.dump();
 }
 
-DirectedRelationshipTypeScan::DirectedRelationshipTypeScan(string direction, string relType, string relvar, string startVar, string endVar)
+DirectedRelationshipTypeScan::DirectedRelationshipTypeScan(string direction, string relType,
+                                                           string relvar, string startVar, string endVar)
         : relType(relType), relvar(relvar), startVar(startVar), endVar(endVar), direction(direction) {}
 
 
 // Execute method
 string DirectedRelationshipTypeScan::execute() {
-    cout<<"DirectedRelationshipTypeScan: \n"<<endl;
-
-    if(direction == "right"){
-        cout << "("<<startVar<<") -[" << relvar<<" :"<< relType << "]-> (" << endVar << ")" << endl;
-    }else{
-        cout << "("<<startVar<<") <-[" << relvar<<" :"<< relType << "]- (" << endVar << ")" << endl;
+    if (direction == "right") {
+        operatorLogger.debug("(" + startVar + ") -[" + relvar + " :" + relType + "]-> (" + endVar + ")");
+    } else {
+        operatorLogger.debug("(" + startVar + ") <-[" + relvar + " :" + relType + "]- (" + endVar + ")");
     }
     return "";
 }
 
-DirectedAllRelationshipScan::DirectedAllRelationshipScan(std::string direction, std::string startVar, std::string endVar, std::string relVar)
+DirectedAllRelationshipScan::DirectedAllRelationshipScan(std::string direction, std::string startVar,
+                                                         std::string endVar, std::string relVar)
         : startVar(startVar), endVar(endVar), relVar(relVar), direction(direction) {}
 
 string DirectedAllRelationshipScan::execute() {
-    cout<<"DirectedAllRelationshipScan: \n"<<endl;
-
-    if(direction == "right"){
-        cout << "("<<startVar<<") -[" << relVar<<"]-> (" << endVar << ")" << endl;
-    }else{
-        cout << "("<<startVar<<") <-[" << relVar<<"]- (" << endVar << ")" << endl;
+    if (direction == "right") {
+        operatorLogger.debug("(" + startVar + ") -[" + relVar + "]-> (" + endVar + ")");
+    } else {
+        operatorLogger.debug("(" + startVar + ") <-[" + relVar + "]- (" + endVar + ")");
     }
     return "";
 }
 
 ExpandAll::ExpandAll(Operator *input, std::string startVar, std::string destVar, std::string relVar,
-                     std::string relType, std::string direction): input(input), relType(relType), relVar(relVar), startVar(startVar), destVar(destVar), direction(direction){}
+                     std::string relType, std::string direction)
+                     : input(input), relType(relType), relVar(relVar), startVar(startVar),
+                     destVar(destVar), direction(direction) {}
 
 string ExpandAll::execute() {
-
     json expandAll;
     expandAll["Operator"] = "ExpandAll";
     expandAll["NextOperator"] = input->execute();
@@ -534,32 +503,32 @@ string ExpandAll::execute() {
         expandAll["direction"] = direction;
     } else if (relType == "null" && direction == "left") {
         expandAll["direction"] = direction;
-    } else if (relType != "null" && direction == "left"){
+    } else if (relType != "null" && direction == "left") {
         expandAll["relType"] = relType;
         expandAll["direction"] = direction;
     }
     return expandAll.dump();
 }
 
-Apply::Apply(Operator* opr): opr1(opr){}
+Apply::Apply(Operator* operator1) : operator1(operator1) {}
 
-void Apply::addOperator(Operator *opr) {
-    this->opr2 = opr;
+void Apply::addOperator(Operator *operator2) {
+    this->operator2 = operator2;
 }
 
 
 // Execute method
 string Apply::execute() {
-    if (opr1 != nullptr){
-        cout<<"     left of Apply"<<endl;
-        opr1->execute();
+    if (operator1 != nullptr) {
+        operatorLogger.debug("left of Apply");
+        operator1->execute();
     }
-    if (opr2 != nullptr){
-        cout<<"     right of Apply"<<endl;
-        opr2->execute();
+    if (operator2 != nullptr) {
+        operatorLogger.debug("right of Apply");
+        operator2->execute();
     }
 
-    cout<<"Apply: result merged"<<endl;
+    operatorLogger.debug("Merged left and right of Apply");
     return "";
 }
 
