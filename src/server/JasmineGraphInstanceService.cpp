@@ -4396,6 +4396,20 @@ static void hdfs_start_stream_command(int connFd, bool *loop_exit_p, bool isLoca
 
     // delete file chunk after adding to the store
     Utils::deleteFile(fullFilePath);
+
+    line = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
+    if (line.compare(JasmineGraphInstanceProtocol::HDFS_FILE_CHUNK_END_CHK) != 0) {
+        instance_logger.error("Incorrect response. Expected: " + JasmineGraphInstanceProtocol::HDFS_FILE_CHUNK_END_CHK +
+                              " ; Received: " + line);
+        close(connFd);
+        return;
+    }
+    instance_logger.debug("Received : " + line);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::HDFS_FILE_CHUNK_END_ACK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.debug("Sent : " + JasmineGraphInstanceProtocol::HDFS_FILE_CHUNK_END_ACK);
 }
 
 static void processFile(string fileName, bool isLocal,

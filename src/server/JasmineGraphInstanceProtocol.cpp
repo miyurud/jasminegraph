@@ -112,3 +112,5 @@ const string JasmineGraphInstanceProtocol::HDFS_STREAM_END_CHK = "hdfs-stream-en
 const string JasmineGraphInstanceProtocol::HDFS_STREAM_FILE_NAME_ACK = "hdfs-file-name-ack";
 const string JasmineGraphInstanceProtocol::HDFS_STREAM_FILE_NAME_LENGTH_ACK = "hdfs-file-name-length-ack";
 const string JasmineGraphInstanceProtocol::HDFS_STREAM_FILE_SIZE_ACK = "hdfs-file-size-ack";
+const string JasmineGraphInstanceProtocol::HDFS_FILE_CHUNK_END_CHK = "hdfs-file-chunk-end-chk";
+const string JasmineGraphInstanceProtocol::HDFS_FILE_CHUNK_END_ACK = "hdfs-file-chunk-end-ack";
