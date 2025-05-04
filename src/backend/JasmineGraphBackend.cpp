@@ -105,7 +105,8 @@ void *backendservicesesion(void *dummyPt) {
                 break;
             }
 
-            std::string selectQuery = "select server_port, ip from worker where idworker='" + partition + "';";
+            std::string selectQuery = "select server_port, ip, server_data_port from worker where idworker='" +
+                    partition + "';";
 
             if (!sqLiteDbInterface) {
                 backend_logger.error("Database interface is null!");
@@ -119,7 +120,7 @@ void *backendservicesesion(void *dummyPt) {
                 break;
             }
 
-            std::string workerInfo = worker[0][1].second + "|" + worker[0][0].second;
+            std::string workerInfo = worker[0][1].second + "|" + worker[0][0].second + "|" + worker[0][2].second;
             int message_length = workerInfo.length();
             int converted_number = htonl(message_length);
             backend_logger.info("Sending worker info length: "+to_string(converted_number));

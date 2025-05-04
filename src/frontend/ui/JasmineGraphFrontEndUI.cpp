@@ -92,7 +92,8 @@ static vector<DataPublisher *> getWorkerClients(SQLiteDBInterface *sqlite) {
         Utils::worker currentWorker = workerList.at(i);
         string workerHost = currentWorker.hostname;
         int workerPort = atoi(string(currentWorker.port).c_str());
-        DataPublisher *workerClient = new DataPublisher(workerPort, workerHost);
+        int dataPort = atoi(string(currentWorker.dataPort).c_str());
+        DataPublisher *workerClient = new DataPublisher(workerPort, workerHost, dataPort);
         workerClients.push_back(workerClient);
     }
     return workerClients;
@@ -119,7 +120,6 @@ void *uifrontendservicesesion(void *dummyPt) {
     std::string kafka_server_IP;
     cppkafka::Configuration configs;
     KafkaConnector *kstream;
-    Partitioner graphPartitioner(numberOfPartitions, 1, spt::Algorithms::HASH, sqlite);
 
     vector<DataPublisher *> workerClients;
     bool workerClientsInitialized = false;

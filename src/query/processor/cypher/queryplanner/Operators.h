@@ -29,7 +29,6 @@ class Operator {
     static bool isAggregate;
     static string aggregateType;
     static string aggregateKey;
-    virtual string execute() = 0; // Pure virtual function to be implemented by derived classes
 };
 
 // NodeScanByLabel Operator
@@ -145,11 +144,12 @@ class Limit : public Operator {
 // Skip Operator
 class Skip : public Operator {
 public:
-    Skip(Operator* input, ASTNode* skip);
+    Skip(Operator *input, ASTNode *skip);
+    string execute() override;
 private:
-    Operator* input;
-    ASTNode* skip;
-
+    Operator *input;
+    ASTNode *skip;
+};
 
 // Distinct Operator
 class Distinct : public Operator {

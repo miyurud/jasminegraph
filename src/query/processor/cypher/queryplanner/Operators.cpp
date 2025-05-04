@@ -328,8 +328,7 @@ Skip::Skip(Operator* input, ASTNode* skip) : input(input), skip(skip) {}
 
 string Skip::execute() {
     input->execute();
-    cout << "Skipping first" << skip->print() << " rows." << endl;
-    operatorLogger.debug("Limit: " + to_string(limit));
+    operatorLogger.debug("Skipping first" + skip->print());
     return "";
 }
 

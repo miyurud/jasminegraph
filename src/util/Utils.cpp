@@ -1488,7 +1488,6 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
     }
 
     auto startTime = std::chrono::high_resolution_clock::now();
-    std::chrono::seconds max_duration(3);
     while (true) {
         char start[ACK_MESSAGE_SIZE] = {0};
         recv(sockfd, &start, sizeof(start), 0);
@@ -1525,19 +1524,15 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
             sharedBuffer.add(data);
             break;
         }
-        auto now = std::chrono::high_resolution_clock::now();
-        auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - startTime);
-        if (elapsed >= max_duration) {
-            std::cout << "Time limit reached!" << std::endl;
-            break;
-        }
         sharedBuffer.add(data);
     }
-
+    auto now = std::chrono::high_resolution_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - startTime);
+    util_logger.info(" Time Taken: " + std::to_string(elapsed.count()) + " seconds");
     return true;
 }
 
-std::optional<pair<string, int>> Utils::getWorker(string partitionId, std::string host, int port) {
+std::optional<std::tuple<std::string, int, int>> Utils::getWorker(string partitionId, std::string host, int port) {
 
     util_logger.info("Host:" + host + " Port:" + to_string(port));
     bool result = true;
@@ -1619,12 +1614,16 @@ std::optional<pair<string, int>> Utils::getWorker(string partitionId, std::strin
         return nullopt;
     }
 
-    size_t pos = workerData.find('|');
+    size_t pos1 = workerData.find('|');
+    string ip = workerData.substr(0, pos1);
 
-    string ip = workerData.substr(0, pos);
-    string portNumber = workerData.substr(pos + 1);
-    util_logger.info("IP and Port received: " + ip + " " + portNumber);
-    return pair<string, int>(ip, stoi(portNumber));
+    size_t pos2 = workerData.find('|', pos1 + 1);
+    string portNumber = workerData.substr(pos1 + 1, pos2 - pos1 - 1);
+
+    string dataPort = workerData.substr(pos2 + 1);
+    util_logger.info("IP, Port, and Data Port received: " + ip + " " + portNumber + " " + dataPort);
+
+    return make_tuple(ip, stoi(portNumber), stoi(dataPort));
 }
 
 string Utils::getPartitionAlgorithm(std::string graphID, std::string host) {
@@ -1722,11 +1721,20 @@ string Utils::getFrontendInput(int connFd) {
 
 bool Utils::sendDataFromWorkerToWorker(string masterIP, int graphID, string partitionId,
                                        std::string message, SharedBuffer &sharedBuffer) {
-    auto worker = getWorker(partitionId, masterIP, Conts::JASMINEGRAPH_BACKEND_PORT);
-    auto host = worker->first;
-    auto port = worker->second;
+
+    auto workerDetails = getWorker(partitionId, masterIP, Conts::JASMINEGRAPH_BACKEND_PORT);
+    std::string host;
+    int port;
+    int dataPort;
+
+    if (workerDetails) {
+        std::tie(host, port, dataPort) = *workerDetails;
+    } else {
+        util_logger.error("Invalid format or conversion error in workerData");
+        return false;
+    }
+
     util_logger.info("Host:" + host + " Port:" + to_string(port));
-    bool result = true;
     int sockfd;
     char data[FED_DATA_LENGTH + 1];
     static const int ACK_MESSAGE_SIZE = 1024;
@@ -1849,7 +1857,6 @@ bool Utils::sendDataFromWorkerToWorker(string masterIP, int graphID, string part
         std::string subData(content_length, 0);
         return_status = recv(sockfd, &subData[0], content_length, 0);
         if (return_status > 0) {
-            util_logger.info("Received graph sub data: "+subData);
             send(sockfd, JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS.c_str(),
                  JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS.length(), 0);
         } else {

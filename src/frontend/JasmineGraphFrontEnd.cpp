@@ -500,7 +500,7 @@ static void cypherCommand(int connFd, vector<DataPublisher *> &workerClients,
         Operator *executionPlan = queryPlanner.createExecutionPlan(ast);
         executionPlanString = executionPlan->execute();
     } else {
-        frontend_logger.error("Query isn't semantically correct: "+queryString);
+        frontend_logger.error("Query isn't semantically correct: " + queryString);
     }
     // Create buffer pool
     std::vector<std::unique_ptr<SharedBuffer>> bufferPool;

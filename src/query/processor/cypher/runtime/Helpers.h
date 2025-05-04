@@ -88,4 +88,3 @@ class CreateHelper {
 };
 
 #endif //JASMINEGRAPH_HELPERS_H
-#endif  // JASMINEGRAPH_HELPERS_H

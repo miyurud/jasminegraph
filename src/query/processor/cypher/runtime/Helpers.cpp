@@ -474,6 +474,10 @@ void CreateHelper::insertFromData(std::string data, SharedBuffer &buffer) {
                 edge["properties"] = edgeProps;
                 RelationBlock* newRelation;
 
+                std::string host;
+                int port;
+                int dataPort;
+
                 if (partitionedEdge[0].second == partitionedEdge[1].second &&
                 partitionedEdge[0].second == gc.partitionID) {
                     newRelation = nodeManager.addLocalEdge({sourceId, destId});
@@ -482,32 +486,57 @@ void CreateHelper::insertFromData(std::string data, SharedBuffer &buffer) {
                     auto destWorker = Utils::getWorker(to_string(partitionedEdge[1].second), masterIP,
                                                        Conts::JASMINEGRAPH_BACKEND_PORT);
                     edge["PID"] = partitionedEdge[1].second;
-                    auto dataPublisher = new DataPublisher(destWorker->second, destWorker->first);
+                    if (destWorker) {
+                        std::tie(host, port, dataPort) = *destWorker;
+                    } else {
+                        return;
+                    }
+                    auto dataPublisher = new DataPublisher(port, host, dataPort);
                     dataPublisher->publish(edge.dump());
                 } else if (partitionedEdge[1].second == gc.partitionID) {
                     newRelation = nodeManager.addCentralEdge({sourceId, destId});
                     auto sourceWorker = Utils::getWorker(to_string(partitionedEdge[0].second), masterIP,
                                                          Conts::JASMINEGRAPH_BACKEND_PORT);
                     edge["PID"] = partitionedEdge[0].second;
-                    auto dataPublisher = new DataPublisher(sourceWorker->second, sourceWorker->first);
+                    if (sourceWorker) {
+                        std::tie(host, port, dataPort) = *sourceWorker;
+                    } else {
+                        return;
+                    }
+                    auto dataPublisher = new DataPublisher(port, host, dataPort);
                     dataPublisher->publish(edge.dump());
                 } else if (partitionedEdge[0].second == partitionedEdge[1].second){
                     auto worker = Utils::getWorker(to_string(partitionedEdge[0].second), masterIP,
                                                            Conts::JASMINEGRAPH_BACKEND_PORT);
                     edge["PID"] = partitionedEdge[1].second;
-                    auto dataPublisher = new DataPublisher(worker->second, worker->first);
+                    if (worker) {
+                        std::tie(host, port, dataPort) = *worker;
+                    } else {
+                        return;
+                    }
+                    auto dataPublisher = new DataPublisher(port, host, dataPort);
                     dataPublisher->publish(edge.dump());
                     continue;
                 } else {
                     auto sourceWorker = Utils::getWorker(to_string(partitionedEdge[0].second), masterIP,
                                                    Conts::JASMINEGRAPH_BACKEND_PORT);
                     edge["PID"] = partitionedEdge[0].second;
-                    auto sourceDataPublisher = new DataPublisher(sourceWorker->second, sourceWorker->first);
+                    if (sourceWorker) {
+                        std::tie(host, port, dataPort) = *sourceWorker;
+                    } else {
+                        return;
+                    }
+                    auto sourceDataPublisher = new DataPublisher(port, host, dataPort);
                     sourceDataPublisher->publish(edge.dump());
                     auto destWorker = Utils::getWorker(to_string(partitionedEdge[1].second), masterIP,
                                                        Conts::JASMINEGRAPH_BACKEND_PORT);
                     edge["PID"] = partitionedEdge[1].second;
-                    auto destDataPublisher = new DataPublisher(destWorker->second, destWorker->first);
+                    if (destWorker) {
+                        std::tie(host, port, dataPort) = *destWorker;
+                    } else {
+                        return;
+                    }
+                    auto destDataPublisher = new DataPublisher(port, host, dataPort);
                     destDataPublisher->publish(edge.dump());
                     continue;
                 }
@@ -566,6 +595,9 @@ void CreateHelper::insertFromData(std::string data, SharedBuffer &buffer) {
             }
         } else if (insert["type"] == "Node") {
             auto rawObj = rawData;
+            std::string host;
+            int port;
+            int dataPort;
             if (insert.contains("properties") && insert["properties"].contains("id")) {
                 string sourceId = insert["properties"]["id"];
                 string destId = Const::DUMMY_ID;
@@ -576,7 +608,12 @@ void CreateHelper::insertFromData(std::string data, SharedBuffer &buffer) {
                 } else {
                     auto worker = Utils::getWorker(to_string(partitionedEdge[0].second), masterIP,
                                                    Conts::JASMINEGRAPH_BACKEND_PORT);
-                    auto dataPublisher = new DataPublisher(worker->second, worker->first);
+                    if (worker) {
+                        std::tie(host, port, dataPort) = *worker;
+                    } else {
+                        return;
+                    }
+                    auto dataPublisher = new DataPublisher(port, host, dataPort);
                     json node;
                     node["id"] = insert["properties"]["id"];
                     node["properties"] = insert["properties"];

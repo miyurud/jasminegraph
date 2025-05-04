@@ -105,8 +105,6 @@ const string JasmineGraphInstanceProtocol::SUB_QUERY_START_ACK = "sub-query-star
 const string JasmineGraphInstanceProtocol::QUERY_DATA_START = "query-data-start";
 const string JasmineGraphInstanceProtocol::QUERY_DATA_ACK = "query-data-ack";
 const string JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS = "graph-data-success";
-
-const string JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS = "graph_data_success";
 const string JasmineGraphInstanceProtocol::HDFS_LOCAL_STREAM_START = "hdfs-local-stream-start";
 const string JasmineGraphInstanceProtocol::HDFS_CENTRAL_STREAM_START = "hdfs-central-stream-start";
 const string JasmineGraphInstanceProtocol::HDFS_STREAM_END_WAIT = "hdfs-stream-end-wait";
