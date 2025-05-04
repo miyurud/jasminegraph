@@ -1190,7 +1190,8 @@ bool Utils::sendFileChunkToWorker(std::string host, int port, int dataPort, std:
         }
     }
 
-    if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, JasmineGraphInstanceProtocol::HDFS_FILE_CHUNK_END_CHK,
+    if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH,
+        JasmineGraphInstanceProtocol::HDFS_FILE_CHUNK_END_CHK,
                                    JasmineGraphInstanceProtocol::HDFS_FILE_CHUNK_END_ACK)) {
         Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
         close(sockfd);

@@ -4410,7 +4410,6 @@ static void hdfs_start_stream_command(int connFd, bool *loop_exit_p, bool isLoca
         return;
     }
     instance_logger.debug("Sent : " + JasmineGraphInstanceProtocol::HDFS_FILE_CHUNK_END_ACK);
-
 }
 
 static void processFile(string fileName, bool isLocal,
