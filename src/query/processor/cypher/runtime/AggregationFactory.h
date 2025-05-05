@@ -26,4 +26,4 @@ class AggregationFactory {
 };
 
 
-#endif //JASMINEGRAPH_AGGREGATIONFACTORY_H
+#endif  // JASMINEGRAPH_AGGREGATIONFACTORY_H

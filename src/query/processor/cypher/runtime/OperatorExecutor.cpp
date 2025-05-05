@@ -20,7 +20,8 @@ limitations under the License.
 #include <queue>
 
 Logger execution_logger;
-std::unordered_map<std::string, std::function<void(OperatorExecutor&, SharedBuffer&, std::string, GraphConfig)>> OperatorExecutor::methodMap;
+std::unordered_map<std::string,
+    std::function<void(OperatorExecutor&, SharedBuffer&, std::string, GraphConfig)>> OperatorExecutor::methodMap;
 OperatorExecutor::OperatorExecutor(GraphConfig gc, std::string queryPlan, std::string masterIP):
     queryPlan(queryPlan), gc(gc), masterIP(masterIP) {
     this->query = json::parse(queryPlan);
@@ -62,30 +63,31 @@ void OperatorExecutor::initializeMethodMap() {
         executor.NodeByIdSeek(buffer, jsonPlan, gc);
     };
 
-    methodMap["Projection"] = [](OperatorExecutor &executor, SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc){
+    methodMap["Projection"] = [](OperatorExecutor &executor, SharedBuffer &buffer,
+            std::string jsonPlan, GraphConfig gc) {
         executor.Projection(buffer, jsonPlan, gc);
     };
 
     methodMap["EagerFunction"] = [](OperatorExecutor &executor, SharedBuffer &buffer,
                                    std::string jsonPlan, GraphConfig gc) {
-        executor.EargarAggregation(buffer, jsonPlan, gc); // Ignore the unused string parameter
+        executor.EargarAggregation(buffer, jsonPlan, gc);
     };
 
     methodMap["Create"] = [](OperatorExecutor &executor, SharedBuffer &buffer,
                                     std::string jsonPlan, GraphConfig gc) {
-        executor.Create(buffer, jsonPlan, gc); // Ignore the unused string parameter
+        executor.Create(buffer, jsonPlan, gc);
     };
 
     methodMap["CartesianProduct"] = [](OperatorExecutor &executor, SharedBuffer &buffer,
                                      std::string jsonPlan, GraphConfig gc) {
-        executor.CartesianProduct(buffer, jsonPlan, gc); // Ignore the unused string parameter
+        executor.CartesianProduct(buffer, jsonPlan, gc);
     };
 
-    methodMap["Distinct"] = [](OperatorExecutor &executor, SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc){
+    methodMap["Distinct"] = [](OperatorExecutor &executor, SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
         executor.Distinct(buffer, jsonPlan, gc);
     };
 
-    methodMap["OrderBy"] = [](OperatorExecutor &executor, SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc){
+    methodMap["OrderBy"] = [](OperatorExecutor &executor, SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
         executor.OrderBy(buffer, jsonPlan, gc);
     };
 }
@@ -157,7 +159,7 @@ void OperatorExecutor::Filter(SharedBuffer &buffer, std::string jsonPlan, GraphC
     FilterHelper FilterHelper(condition.dump());
     while (true) {
         string raw = sharedBuffer.get();
-        if(raw == "-1"){
+        if (raw == "-1") {
             buffer.add(raw);
             result.join();
             break;
@@ -364,10 +366,10 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
 
     NodeManager nodeManager(gc);
 
-    while(true) {
+    while (true) {
         string raw = sharedBuffer.get();          // Get raw JSON string
 
-        if(raw == "-1"){
+        if (raw == "-1") {
             buffer.add(raw);
             result.join();
             break;
@@ -400,7 +402,7 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
                         json relationData;
                         json destNodeData;
                         std::map<std::string, char*> relProperties = nextRelation->getAllProperties();
-                        for (auto property: relProperties){
+                        for (auto property : relProperties) {
                             relationData[property.first] = property.second;
                         }
 
@@ -426,7 +428,7 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
                         std::string value(destNode->getMetaPropertyHead()->value);
                         destNodeData["partitionID"] = value;
                         std::map<std::string, char*> destProperties = destNode->getAllProperties();
-                        for (auto property: destProperties){
+                        for (auto property : destProperties) {
                             destNodeData[property.first] = property.second;
                         }
                         for (auto& [key, value] : destProperties) {
@@ -454,7 +456,7 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
                         json relationData;
                         json destNodeData;
                         std::map<std::string, char*> relProperties = prevRelation->getAllProperties();
-                        for (auto property: relProperties){
+                        for (auto property : relProperties) {
                             relationData[property.first] = property.second;
                         }
 
@@ -480,7 +482,7 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
                         std::string value(destNode->getMetaPropertyHead()->value);
                         destNodeData["partitionID"] = value;
                         std::map<std::string, char*> destProperties = destNode->getAllProperties();
-                        for (auto property: destProperties){
+                        for (auto property : destProperties) {
                             destNodeData[property.first] = property.second;
                         }
                         for (auto& [key, value] : destProperties) {
@@ -511,10 +513,8 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
                     } else {
                         prevRelation =  relation->previousCentralDestination();
                     }
-
                     int s = 1;
                     while (nextRelation) {
-
                         if (to_string(nextRelation->source.nodeId) == nodeId) {
                             isSource = true;
                         } else {
@@ -524,7 +524,7 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
                         json relationData;
                         json destNodeData;
                         std::map<std::string, char*> relProperties = nextRelation->getAllProperties();
-                        for (auto property: relProperties){
+                        for (auto property : relProperties) {
                             relationData[property.first] = property.second;
                         }
 
@@ -550,7 +550,7 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
                         std::string value(destNode->getMetaPropertyHead()->value);
                         destNodeData["partitionID"] = value;
                         std::map<std::string, char*> destProperties = destNode->getAllProperties();
-                        for (auto property: destProperties){
+                        for (auto property : destProperties) {
                             destNodeData[property.first] = property.second;
                         }
                         for (auto& [key, value] : destProperties) {
@@ -568,9 +568,8 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
                         }
                     }
 
-                    int r=1;
+                    int r = 1;
                     while (prevRelation) {
-
                         if (to_string(prevRelation->source.nodeId) == nodeId) {
                             isSource = true;
                         } else {
@@ -580,7 +579,7 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
                         json relationData;
                         json destNodeData;
                         std::map<std::string, char*> relProperties = prevRelation->getAllProperties();
-                        for (auto property: relProperties){
+                        for (auto property : relProperties) {
                             relationData[property.first] = property.second;
                         }
                         if (relType != "" && relationData["relationship"] != relType) {
@@ -604,7 +603,7 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
                         std::string value(destNode->getMetaPropertyHead()->value);
                         destNodeData["partitionID"] = value;
                         std::map<std::string, char*> destProperties = destNode->getAllProperties();
-                        for (auto property: destProperties){
+                        for (auto property : destProperties) {
                             destNodeData[property.first] = property.second;
                         }
                         for (auto& [key, value] : destProperties) {
@@ -621,9 +620,7 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
                             prevRelation = prevRelation->previousCentralDestination();
                         }
                     }
-                } else {
                 }
-
             }
         } else {
             if (query.contains("relType")) {
@@ -631,7 +628,7 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
                                                                 query["destVariable"],
                                                                 query["relVariable"],
                                                                 rawObj[sourceVariable]["id"],
-                                                                query["relType"] );
+                                                                query["relType"]);
             } else {
                 queryString = ExpandAllHelper::generateSubQuery(query["sourceVariable"],
                                                                 query["destVariable"],
@@ -671,9 +668,9 @@ void OperatorExecutor::EargarAggregation(SharedBuffer &buffer, std::string jsonP
     std::thread result(method, std::ref(*this), std::ref(sharedBuffer), query["NextOperator"], gc);
     AverageAggregationHelper* averageAggregationHelper =
             new AverageAggregationHelper(query["variable"], query["property"]);
-    while(true) {
+    while (true) {
         string raw = sharedBuffer.get();
-        if(raw == "-1"){
+        if (raw == "-1") {
             buffer.add(averageAggregationHelper->getFinalResult());
             buffer.add(raw);
             result.join();
@@ -683,8 +680,7 @@ void OperatorExecutor::EargarAggregation(SharedBuffer &buffer, std::string jsonP
     }
 }
 
-void OperatorExecutor::Projection(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc){
-    execution_logger.info("::::::::::Project::::::::::");
+void OperatorExecutor::Projection(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
     json query = json::parse(jsonPlan);
     SharedBuffer sharedBuffer(5);
     std::string nextOpt = query["NextOperator"];
@@ -694,18 +690,18 @@ void OperatorExecutor::Projection(SharedBuffer &buffer, std::string jsonPlan, Gr
     // Launch the method in a new thread
     std::thread result(method, std::ref(*this), std::ref(sharedBuffer), query["NextOperator"], gc);
     if (!query.contains("project") || !query["project"].is_array()) {
-        while(true) {
+        while (true) {
             string raw = sharedBuffer.get();
             buffer.add(raw);
-            if(raw == "-1"){
+            if (raw == "-1") {
                 result.join();
                 break;
             }
         }
     } else {
-        while(true) {
+        while (true) {
             string raw = sharedBuffer.get();
-            if(raw == "-1"){
+            if (raw == "-1") {
                 buffer.add(raw);
                 result.join();
                 break;
@@ -740,9 +736,9 @@ void OperatorExecutor::Create(SharedBuffer &buffer, std::string jsonPlan, GraphC
         auto method = OperatorExecutor::methodMap[next["Operator"]];
         // Launch the method in a new thread
         std::thread result(method, std::ref(*this), std::ref(sharedBuffer), query["NextOperator"], gc);
-        while(true) {
+        while (true) {
             string raw = sharedBuffer.get();
-            if(raw == "-1"){
+            if (raw == "-1") {
                 buffer.add(raw);
                 result.join();
                 break;
@@ -767,9 +763,9 @@ void OperatorExecutor::CartesianProduct(SharedBuffer &buffer, std::string jsonPl
     auto rightMethod = OperatorExecutor::methodMap[rightJson["Operator"]];
     // Launch the method in a new thread
     std::thread leftThread(leftMethod, std::ref(*this), std::ref(left), query["left"], gc);
-    while(true) {
+    while (true) {
         string leftRaw = left.get();
-        if(leftRaw == "-1"){
+        if (leftRaw == "-1") {
             buffer.add(leftRaw);
             leftThread.join();
             break;
@@ -789,15 +785,14 @@ void OperatorExecutor::CartesianProduct(SharedBuffer &buffer, std::string jsonPl
                     gc.graphID,
                     to_string(i),
                     query["right"],
-                    std::ref(right)
-            );
+                    std::ref(right));
         }
 
         std::thread rightThread(rightMethod, std::ref(*this), std::ref(right), query["right"], gc);
         int count = 0;
-        while(true) {
+        while (true) {
             string rightRaw = right.get();
-            if(rightRaw == "-1"){
+            if (rightRaw == "-1") {
                 count++;
                 if (count == numberOfPartitions) {
                     buffer.add("-1");
@@ -824,7 +819,7 @@ void OperatorExecutor::CartesianProduct(SharedBuffer &buffer, std::string jsonPl
     }
 }
 
-void OperatorExecutor::Distinct(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc){
+void OperatorExecutor::Distinct(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
     json query = json::parse(jsonPlan);
     SharedBuffer sharedBuffer(5);
     std::string nextOpt = query["NextOperator"];
@@ -834,18 +829,18 @@ void OperatorExecutor::Distinct(SharedBuffer &buffer, std::string jsonPlan, Grap
     // Launch the method in a new thread
     std::thread result(method, std::ref(*this), std::ref(sharedBuffer), query["NextOperator"], gc);
     if (!query.contains("project") || !query["project"].is_array()) {
-        while(true) {
+        while (true) {
             string raw = sharedBuffer.get();
             buffer.add(raw);
-            if(raw == "-1"){
+            if (raw == "-1") {
                 result.join();
                 break;
             }
         }
     } else {
-        while(true) {
+        while (true) {
             string raw = sharedBuffer.get();
-            if(raw == "-1"){
+            if (raw == "-1") {
                 buffer.add(raw);
                 result.join();
                 break;
@@ -892,13 +887,11 @@ struct Row {
         } else {
             result = val1.dump() > val2.dump();
         }
-        return isAsc ? result : !result; // Flip for DESC
+        return isAsc ? result : !result;  // Flip for DESC
     }
 };
 
-void OperatorExecutor::OrderBy(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc){
-    execution_logger.info("::::::::::::Order By::::::::");
-
+void OperatorExecutor::OrderBy(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
     json query = json::parse(jsonPlan);
     SharedBuffer sharedBuffer(5);
     std::string nextOpt = query["NextOperator"];
@@ -921,7 +914,7 @@ void OperatorExecutor::OrderBy(SharedBuffer &buffer, std::string jsonPlan, Graph
                 buffer.add(heap.top().jsonStr);
                 heap.pop();
             }
-            buffer.add(jsonStr); // -1 close flag
+            buffer.add(jsonStr);  // -1 close flag
             result.join();
             break;
         }
@@ -929,10 +922,10 @@ void OperatorExecutor::OrderBy(SharedBuffer &buffer, std::string jsonPlan, Graph
         try {
             Row row(jsonStr, sortKey, isAsc);
             execution_logger.info(row.jsonStr);
-            if (row.data.contains(sortKey)) { // Ensure field exists
+            if (row.data.contains(sortKey)) {  // Ensure field exists
                 heap.push(row);
                 if (heap.size() > maxSize) {
-                    heap.pop(); // Remove smallest (ASC) or largest (DESC)
+                    heap.pop();  // Remove smallest (ASC) or largest (DESC)
                 }
             }
         } catch (const std::exception& e) {
@@ -940,4 +933,3 @@ void OperatorExecutor::OrderBy(SharedBuffer &buffer, std::string jsonPlan, Graph
         }
     }
 }
-

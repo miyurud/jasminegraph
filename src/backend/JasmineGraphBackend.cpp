@@ -70,7 +70,6 @@ void *backendservicesesion(void *dummyPt) {
             break;
 
         } else if (line.compare(WORKER_DETAILS) == 0) {
-
             if (!Utils::send_str_wrapper(connFd, WORKER_DETAILS_ACK)) {
                 loop = true;
                 break;
@@ -84,7 +83,7 @@ void *backendservicesesion(void *dummyPt) {
                 backend_logger.info("Received content_length of partition ID = " + std::to_string(content_length));
             } else {
                 backend_logger.info("Error while reading content length");
-                loop= true;
+                loop = true;
                 break;
             }
 
@@ -124,7 +123,7 @@ void *backendservicesesion(void *dummyPt) {
             int message_length = workerInfo.length();
             int converted_number = htonl(message_length);
             backend_logger.info("Sending worker info length: "+to_string(converted_number));
-            if(!Utils::send_int_wrapper(connFd, &converted_number, sizeof(converted_number))){
+            if (!Utils::send_int_wrapper(connFd, &converted_number, sizeof(converted_number))) {
                 loop = true;
                 break;
             }
@@ -145,7 +144,6 @@ void *backendservicesesion(void *dummyPt) {
             }
 
         } else if (line.compare(PARTITION_ALGORITHM_DETAILS) == 0) {
-
             if (!Utils::send_str_wrapper(connFd, PARTITION_ALGORITHM_DETAILS_ACK)) {
                 loop = true;
                 break;
@@ -159,10 +157,9 @@ void *backendservicesesion(void *dummyPt) {
                 backend_logger.info("Received content_length of graph ID = " + std::to_string(content_length));
             } else {
                 backend_logger.info("Error while reading content length");
-                loop= true;
+                loop = true;
                 break;
             }
-
 
             if (!Utils::send_str_wrapper(connFd, CONTENT_LENGTH_ACK)) {
                 loop = true;
@@ -198,7 +195,7 @@ void *backendservicesesion(void *dummyPt) {
             int message_length = partitionAlgorithmName.length();
             int converted_number = htonl(message_length);
             backend_logger.info("Sending worker info length: "+to_string(converted_number));
-            if(!Utils::send_int_wrapper(connFd, &converted_number, sizeof(converted_number))){
+            if (!Utils::send_int_wrapper(connFd, &converted_number, sizeof(converted_number))) {
                 loop = true;
                 break;
             }

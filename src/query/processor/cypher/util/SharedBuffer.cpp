@@ -26,11 +26,11 @@ std::string SharedBuffer::get() {
 bool SharedBuffer::tryGet(std::string& data) {
     std::unique_lock<std::mutex> lock(mtx);
     if (buffer.empty()) {
-        return false; // No data available
+        return false;  // No data available
     }
     data = buffer.front();
     buffer.pop_front();
-    cv.notify_one(); // Notify waiting threads
+    cv.notify_one();  // Notify waiting threads
     return true;
 }
 

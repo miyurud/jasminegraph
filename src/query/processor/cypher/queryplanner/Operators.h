@@ -92,9 +92,9 @@ class ProduceResults : public Operator {
 // Filter Operator
 class Filter : public Operator {
  public:
-    Filter(Operator* input, vector<pair<string,ASTNode*>> filterCases);
+    Filter(Operator* input, vector<pair<string, ASTNode*>> filterCases);
     string analyzeWhere(ASTNode* ast);
-    string analyzePropertiesMap(pair<string,ASTNode*> item);
+    string analyzePropertiesMap(pair<string, ASTNode*> item);
     string comparisonOperand(ASTNode* ast);
     string execute() override;
 
@@ -143,10 +143,10 @@ class Limit : public Operator {
 
 // Skip Operator
 class Skip : public Operator {
-public:
+ public:
     Skip(Operator *input, ASTNode *skip);
     string execute() override;
-private:
+ private:
     Operator *input;
     ASTNode *skip;
 };
@@ -164,10 +164,10 @@ class Distinct : public Operator {
 
 // OrderBy Operator
 class OrderBy : public Operator {
-public:
+ public:
     OrderBy(Operator* input, ASTNode* orderByClause);
     string execute() override;
-private:
+ private:
     Operator* input;
     ASTNode* orderByClause;
 };
@@ -271,35 +271,35 @@ class Apply : public Operator {
 };
 
 class EagerFunction : public Operator {
-public:
+ public:
     // Constructor
     EagerFunction(Operator* input, ASTNode* ast, string functionName);
     string execute() override;
 
-private:
+ private:
     Operator* input;
     ASTNode* ast;
     string functionName;
 };
 
 class Create : public Operator {
-public:
+ public:
     // Constructor
     Create(Operator* input, ASTNode* ast);
     string execute() override;
 
-private:
+ private:
     Operator* input;
     ASTNode* ast;
 };
 
 class CartesianProduct : public Operator {
-public:
+ public:
     // Constructor
     CartesianProduct(Operator* left, Operator* right);
     string execute() override;
 
-private:
+ private:
     Operator* left;
     Operator* right;
 };

@@ -37,13 +37,13 @@ class AverageAggregation : public Aggregation {
 };
 
 class AscAggregation : public Aggregation {
-private:
+ private:
     SharedBuffer resultBuffer;
-public:
+ public:
     explicit AscAggregation(size_t bufferSize = 1000) : resultBuffer(bufferSize) {};
     void getResult(int connFd) override;
     void insert(string data) override;
 };
 
 
-#endif //JASMINEGRAPH_AGGREGATION_H
+#endif  // JASMINEGRAPH_AGGREGATION_H

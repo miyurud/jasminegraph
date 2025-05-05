@@ -30,7 +30,7 @@ void InstanceHandler::handleRequest(int connFd, bool *loop_exit_p,
     // Launch the method in a new thread
     std::thread result(method, std::ref(operatorExecutor), std::ref(sharedBuffer),
                        std::string(operatorExecutor.queryPlan), gc);
-    while(true) {
+    while (true) {
         string raw = sharedBuffer.get();
         if (raw == "-1") {
             this->dataPublishToMaster(connFd, loop_exit_p, raw);

@@ -46,15 +46,15 @@ void AverageAggregation::insert(std::string data) {
     this->data = workerData.dump();
 }
 
-void AscAggregation::insert(string data){
+void AscAggregation::insert(string data) {
     this->resultBuffer.add(data);
 }
 
 
-void AscAggregation::getResult(int connFd){
+void AscAggregation::getResult(int connFd) {
     while (true) {
         std::string data;
-        if (this->resultBuffer.tryGet(data)){
+        if (this->resultBuffer.tryGet(data)) {
             if (data == "-1") {
                 break;
             }

@@ -81,7 +81,8 @@ static void remove_graph_command(std::string masterIP,
 static void triangles_command(std::string masterIP,
     int connFd, SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfSqlite,
     JobScheduler *jobScheduler, bool *loop_exit_p, std::string command);
-static void get_degree_command(int connFd, std::string command, int numberOfPartition, std::string type, bool *loop_exit_p);
+static void get_degree_command(int connFd, std::string command, int numberOfPartition,
+                               std::string type, bool *loop_exit_p);
 static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClients,
                                int numberOfPartitions, bool *loop_exit, std::string command);
 
@@ -163,7 +164,7 @@ void *uifrontendservicesesion(void *dummyPt) {
             get_degree_command(connFd, line, numberOfPartitions, "_idd_",  &loop_exit);
         } else if (token.compare(OUT_DEGREE) == 0) {
             get_degree_command(connFd, line, numberOfPartitions, "_odd_",  &loop_exit);
-        }else if (token.compare(CYPHER) == 0){
+        } else if (token.compare(CYPHER) == 0) {
             workerClients = getWorkerClients(sqlite);
             workerClientsInitialized = true;
             cypher_ast_command(connFd, workerClients, numberOfPartitions, &loop_exit, line);
@@ -288,7 +289,7 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
                 if (col_name == "idpartition") {
                     partition_entry["idpartition"] = std::stoi(col_value);
                 } else if (col_name == "graph_idgraph") {
-                    graph_idgraph = std::stoi(col_value); // Store for grouping
+                    graph_idgraph = std::stoi(col_value);  // Store for grouping
                 } else if (col_name == "vertexcount") {
                     partition_entry["vertexcount"] = std::stoi(col_value);
                 } else if (col_name == "central_vertexcount") {
@@ -319,7 +320,7 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
             continue;
         }
 
-        json entry; // JSON object for a single graph
+        json entry;  // JSON object for a single graph
         int idgraph = -1;
 
         // Map graph columns to JSON
@@ -347,7 +348,7 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
                             entry["status"] = "op";
                         }
                     } catch (const std::exception& e) {
-                        entry["status"] = "unknown"; // Handle invalid status
+                        entry["status"] = "unknown";  // Handle invalid status
                     }
                 } else if (col_name == "vertexcount") {
                     entry["vertexcount"] = std::stoi(col_value);
@@ -368,7 +369,7 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
             entry["partitions"] = json::array();
             auto it = partition_map.find(idgraph);
             if (it != partition_map.end()) {
-                entry["partitions"] = it->second; // Add all partitions for this graph
+                entry["partitions"] = it->second;  // Add all partitions for this graph
             }
             result_json.push_back(entry);
         }
@@ -696,9 +697,8 @@ static void triangles_command(std::string masterIP, int connFd,
     }
 }
 
-
-static void get_degree_command(int connFd, std::string command, int numberOfPartition, std::string type, bool *loop_exit_p)
-{
+static void get_degree_command(int connFd, std::string command, int numberOfPartition,
+                               std::string type, bool *loop_exit_p) {
     char delimiter = '|';
     std::stringstream ss(command);
     std::string token;
@@ -716,8 +716,7 @@ static void get_degree_command(int connFd, std::string command, int numberOfPart
     string instanceDataFolderLocation = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
 
     ui_frontend_logger.info("instance data folder location" + instanceDataFolderLocation);
-    for (int partitionId=0; partitionId<numberOfPartition; partitionId++)
-    {
+    for (int partitionId = 0; partitionId < numberOfPartition; partitionId++) {
         string attributeFilePath = instanceDataFolderLocation + "/" + graphID + type + std::to_string(partitionId);
 
         // Create an input file stream object
@@ -779,8 +778,7 @@ static void get_degree_command(int connFd, std::string command, int numberOfPart
 }
 
 static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClients,
-                               int numberOfPartitions, bool *loop_exit, std::string command)
-{
+                               int numberOfPartitions, bool *loop_exit, std::string command) {
     char delimiter = '|';
     std::stringstream ss(command);
     std::string token;
@@ -826,7 +824,7 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
 
     // Create buffer pool
     std::vector<std::unique_ptr<SharedBuffer>> bufferPool;
-    bufferPool.reserve(numberOfPartitions); // Pre-allocate space for pointers
+    bufferPool.reserve(numberOfPartitions);  // Pre-allocate space for pointers
     for (size_t i = 0; i < numberOfPartitions; ++i) {
         bufferPool.emplace_back(std::make_unique<SharedBuffer>(5));
     }
@@ -837,7 +835,7 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
 
     int closeFlag = 0;
     if (Operator::isAggregate) {
-        if (Operator::aggregateType == AggregationFactory::AVERAGE){
+        if (Operator::aggregateType == AggregationFactory::AVERAGE) {
             Aggregation* aggregation = AggregationFactory::getAggregationMethod(AggregationFactory::AVERAGE);
             while (true) {
                 if (closeFlag == numberOfPartitions) {
@@ -846,7 +844,7 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
                 }
                 for (size_t i = 0; i < bufferPool.size(); ++i) {
                     std::string data;
-                    if (bufferPool[i]->tryGet(data)){
+                    if (bufferPool[i]->tryGet(data)) {
                         if (data == "-1") {
                             closeFlag++;
                         } else {
@@ -856,8 +854,8 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
                 }
             }
             aggregation->getResult(connFd);
-        } else if (Operator::aggregateType == AggregationFactory::ASC || Operator::aggregateType == AggregationFactory::DESC)
-        {
+        } else if (Operator::aggregateType == AggregationFactory::ASC ||
+            Operator::aggregateType == AggregationFactory::DESC) {
             struct BufferEntry {
                 std::string value;
                 size_t bufferIndex;
@@ -876,13 +874,13 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
                     } else {
                         result = val1.dump() > val2.dump();
                     }
-                    return isAsc ? result : !result; // Flip for DESC
+                    return isAsc ? result : !result;  // Flip for DESC
                 }
             };
 
             // Initialize with first value from each buffer
             bool isAsc = (Operator::aggregateType == AggregationFactory::ASC);
-            std::priority_queue<BufferEntry> mergeQueue; // Min-heap
+            std::priority_queue<BufferEntry> mergeQueue;  // Min-heap
             for (size_t i = 0; i < numberOfPartitions; ++i) {
                 std::string value = bufferPool[i]->get();
                 if (value != "-1") {
@@ -937,7 +935,8 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
                         try {
                             json parsed = json::parse(nextValue);
                             if (!parsed.contains(Operator::aggregateKey)) {
-                                ui_frontend_logger.error("Missing key '" + Operator::aggregateKey + "' in JSON: " + nextValue);
+                                ui_frontend_logger.error("Missing key '" + Operator::aggregateKey +
+                                    "' in JSON: " + nextValue);
                                 continue;
                             }
                             BufferEntry entry{nextValue, smallest.bufferIndex, parsed, isAsc};
@@ -948,7 +947,7 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
                     }
                 }
             }
-        }else {
+        } else {
             std::string log = "Query is recongnized as Aggreagation, but method doesnot have implemented yet";
             int result_wr = write(connFd, log.c_str(), log.length());
             result_wr = write(connFd, "\r\n", 2);
@@ -962,7 +961,7 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
 
             for (size_t i = 0; i < bufferPool.size(); ++i) {
                 std::string data;
-                if (bufferPool[i]->tryGet(data)){
+                if (bufferPool[i]->tryGet(data)) {
                     if (data == "-1") {
                         closeFlag++;
                     } else {

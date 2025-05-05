@@ -82,7 +82,8 @@ string ProduceResults::execute() {
         if (result->nodeType == Const::AS) {
             produceResult["variable"].push_back(result->elements[1]->value);
         } else if (result->nodeType == Const::NON_ARITHMETIC_OPERATOR) {
-            produceResult["variable"].push_back(result->elements[0]->value + "." + result->elements[1]->elements[0]->value);
+            produceResult["variable"].push_back(result->elements[0]->value + "." +
+            result->elements[1]->elements[0]->value);
         } else if (result->nodeType == Const::VARIABLE) {
             produceResult["variable"].push_back(result->value);
         } else if (result->nodeType == Const::FUNCTION_BODY) {
@@ -93,7 +94,6 @@ string ProduceResults::execute() {
                     + "(" + variable + "." + property + ")");
             produceResult["variable"].push_back("variable");
             produceResult["variable"].push_back("numberOfData");
-
         }
     }
     return produceResult.dump();
@@ -206,7 +206,6 @@ string Filter::analyzeWhere(ASTNode* ast) {
             where["operator"] = Const::DOUBLE_EQUAL;
         }
         where["right"] = json::parse(comparisonOperand(right));
-
     }
     return where.dump();
 }
@@ -216,7 +215,7 @@ string Filter::analyzePropertiesMap(pair<std::string, ASTNode *> item) {
     if (item.second->elements.size() > 1) {
         condition["type"] = Const::AND;
         vector<json> comparisons;
-        for(auto* prop: item.second->elements){
+        for (auto* prop : item.second->elements) {
             json comparison;
             json left;
             json right;
@@ -255,10 +254,10 @@ string Filter::execute() {
         filter["NextOperator"] = input->execute();
     }
     filter["Operator"] = "Filter";
-    for(auto item: filterCases){
-        if(item.second->nodeType==Const::WHERE){
+    for (auto item: filterCases) {
+        if (item.second->nodeType == Const::WHERE) {
             filter["condition"] = json::parse(analyzeWhere(item.second->elements[0]));
-        }else if(item.second->nodeType==Const::PROPERTIES_MAP){
+        } else if (item.second->nodeType == Const::PROPERTIES_MAP) {
             filter["condition"] = json::parse(analyzePropertiesMap(item));
         }
     }
@@ -274,7 +273,7 @@ string Projection::execute() {
         projection["NextOperator"] = input->execute();
     }
     projection["Operator"] = "Projection";
-    projection["project"] = json::array(); // Initialize as an empty array
+    projection["project"] = json::array();  // Initialize as an empty array
 
     for (auto* ast : columns) {
         json operand;
@@ -297,7 +296,7 @@ string Projection::execute() {
                 operand["property"] = lookupOpr->elements[1]->elements[0]->value;
             }
             operand["assign"] = ast->elements[1]->value;
-        } else if (ast->nodeType == Const::VARIABLE){
+        } else if (ast->nodeType == Const::VARIABLE) {
             continue;
         } else if (ast->nodeType == Const::FUNCTION_BODY) {
             auto nonArithmetic = ast->elements[1]->elements[0];
@@ -307,10 +306,10 @@ string Projection::execute() {
             operand["assign"] = ast->elements[0]->elements[1]->value + "(" + variable + "." + property + ")";
         }
 
-        projection["project"].push_back(operand); // Append operand to the array
+        projection["project"].push_back(operand);  // Append operand to the array
     }
 
-    return projection.dump(); // Print the final projection JSON with indentation
+    return projection.dump();  // Print the final projection JSON with indentation
 }
 
 
@@ -342,7 +341,7 @@ string Distinct::execute() {
         distinct["NextOperator"] = input->execute();
     }
     distinct["Operator"] = "Distinct";
-    distinct["project"] = json::array(); // Initialize as an empty array
+    distinct["project"] = json::array();  // Initialize as an empty array
 
     for (auto* ast : columns) {
         cout << ast->print() << endl;
@@ -356,24 +355,20 @@ string Distinct::execute() {
             operand["property"] = property;
             operand["assign"] = variable + "." + property;
         } else if (ast->nodeType == Const::AS) {
-
             auto lookupOpr = ast->elements[0];
             operand["Type"] = Const::PROPERTY_LOOKUP;
             operand["variable"] = lookupOpr->elements[0]->value;
             operand["property"] = lookupOpr->elements[1]->elements[0]->value;
             operand["assign"] = ast->elements[1]->value;
-        } if (ast->nodeType == Const::VARIABLE)
-        {
+        } if (ast->nodeType == Const::VARIABLE) {
             continue;
         }
-
         distinct["project"].push_back(operand);
     }
-
     return distinct.dump();
 }
 
-OrderBy::OrderBy(Operator* input, ASTNode* orderByClause) : input(input), orderByClause(orderByClause){}
+OrderBy::OrderBy(Operator* input, ASTNode* orderByClause) : input(input), orderByClause(orderByClause) {}
 
 string OrderBy::execute() {
     json orderBy;
@@ -390,7 +385,8 @@ string OrderBy::execute() {
         orderBy["variable"] = this->orderByClause->elements[0]->value;
     } else if (this->orderByClause->elements[0]->nodeType == Const::NON_ARITHMETIC_OPERATOR) {
         auto nonArithmeticOperator = this->orderByClause->elements[0];
-        orderBy["variable"] = nonArithmeticOperator->elements[0]->value + "." + nonArithmeticOperator->elements[1]->elements[0]->value;
+        orderBy["variable"] = nonArithmeticOperator->elements[0]->value + "." +
+                nonArithmeticOperator->elements[1]->elements[0]->value;
     }
     Operator::isAggregate = true;
     Operator::aggregateType = orderBy["order"];
@@ -420,8 +416,7 @@ string Intersection::execute() {
 
 CacheProperty::CacheProperty(Operator* input, vector<ASTNode*> property) : property(property), input(input) {}
 
-string CacheProperty::execute()
-{
+string CacheProperty::execute() {
     return input->execute();;
 }
 
@@ -532,7 +527,7 @@ string Apply::execute() {
 }
 
 EagerFunction::EagerFunction(Operator *input, ASTNode *ast, std::string functionName):
-    input(input), ast(ast), functionName(functionName){}
+    input(input), ast(ast), functionName(functionName) {}
 
 string EagerFunction::execute() {
     json eagerFunction;
@@ -546,7 +541,7 @@ string EagerFunction::execute() {
     return eagerFunction.dump();
 }
 
-Create::Create(Operator *input, ASTNode *ast) : ast(ast), input(input){}
+Create::Create(Operator *input, ASTNode *ast) : ast(ast), input(input) {}
 
 string Create::execute() {
     json create;
@@ -555,20 +550,21 @@ string Create::execute() {
     }
     create["Operator"] = "Create";
     vector<json> list;
-    for (auto* e: ast->elements[0]->elements) {
+    for (auto* e : ast->elements[0]->elements) {
         if (e->nodeType == Const::NODE_PATTERN) {
             json data;
             data["type"] = "Node";
             map<string, string> property;
-            for (auto* element: e->elements) {
+            for (auto* element : e->elements) {
                 if (element->nodeType == Const::NODE_LABEL) {
                     property.insert(pair<string, string>("label", element->elements[0]->value));
                 } else if (element->nodeType == Const::VARIABLE) {
                     data["variable"] = element->value;
                 } else if (element->nodeType == Const::PROPERTIES_MAP) {
-                    for (auto* prop: element->elements) {
-                        if (prop->elements[0]->nodeType != Const::RESERVED_WORD){
-                            property.insert(pair<string, string>(prop->elements[0]->value, prop->elements[1]->value));
+                    for (auto* prop : element->elements) {
+                        if (prop->elements[0]->nodeType != Const::RESERVED_WORD) {
+                            property.insert(pair<string, string>(prop->elements[0]->value,
+                                                                 prop->elements[1]->value));
                         }
                     }
                 }
@@ -585,18 +581,19 @@ string Create::execute() {
             json source;
             json rel;
             json dest;
-            for (auto* patternElement: e->elements) {
-                if (patternElement->nodeType == Const::NODE_PATTERN){
+            for (auto* patternElement : e->elements) {
+                if (patternElement->nodeType == Const::NODE_PATTERN) {
                     map<string, string> property;
-                    for (auto* element: patternElement->elements) {
+                    for (auto* element : patternElement->elements) {
                         if (element->nodeType == Const::NODE_LABEL) {
                             property.insert(pair<string, string>("label", element->elements[0]->value));
                         } else if (element->nodeType == Const::VARIABLE) {
                             source["variable"] = element->value;
                         } else if (element->nodeType == Const::PROPERTIES_MAP) {
-                            for (auto* prop: element->elements) {
-                                if (prop->elements[0]->nodeType != Const::RESERVED_WORD){
-                                    property.insert(pair<string, string>(prop->elements[0]->value, prop->elements[1]->value));
+                            for (auto* prop : element->elements) {
+                                if (prop->elements[0]->nodeType != Const::RESERVED_WORD) {
+                                    property.insert(pair<string, string>(prop->elements[0]->value,
+                                                                         prop->elements[1]->value));
                                 }
                             }
                         }
@@ -606,15 +603,16 @@ string Create::execute() {
                     }
                 } else if (patternElement->nodeType == Const::PATTERN_ELEMENT_CHAIN) {
                     map<string, string> property;
-                    for (auto* element: patternElement->elements[0]->elements[1]->elements) {
+                    for (auto* element : patternElement->elements[0]->elements[1]->elements) {
                         if (element->nodeType == Const::RELATIONSHIP_TYPE) {
                             property.insert(pair<string, string>("type", element->elements[0]->value));
                         } else if (element->nodeType == Const::VARIABLE) {
                             rel["variable"] = element->value;
                         } else if (element->nodeType == Const::PROPERTIES_MAP) {
-                            for (auto* prop: element->elements) {
-                                if (prop->elements[0]->nodeType != Const::RESERVED_WORD){
-                                    property.insert(pair<string, string>(prop->elements[0]->value, prop->elements[1]->value));
+                            for (auto* prop : element->elements) {
+                                if (prop->elements[0]->nodeType != Const::RESERVED_WORD) {
+                                    property.insert(pair<string, string>(prop->elements[0]->value,
+                                                                         prop->elements[1]->value));
                                 }
                             }
                         }
@@ -623,15 +621,16 @@ string Create::execute() {
                         rel["properties"] = property;
                     }
                     property.clear();
-                    for (auto* element: patternElement->elements[1]->elements) {
+                    for (auto* element : patternElement->elements[1]->elements) {
                         if (element->nodeType == Const::NODE_LABEL) {
                             property.insert(pair<string, string>("label", element->elements[0]->value));
                         } else if (element->nodeType == Const::VARIABLE) {
                             dest["variable"] = element->value;
                         } else if (element->nodeType == Const::PROPERTIES_MAP) {
-                            for (auto* prop: element->elements) {
-                                if (prop->elements[0]->nodeType != Const::RESERVED_WORD){
-                                    property.insert(pair<string, string>(prop->elements[0]->value, prop->elements[1]->value));
+                            for (auto* prop : element->elements) {
+                                if (prop->elements[0]->nodeType != Const::RESERVED_WORD) {
+                                    property.insert(pair<string, string>(prop->elements[0]->value,
+                                                                         prop->elements[1]->value));
                                 }
                             }
                         }

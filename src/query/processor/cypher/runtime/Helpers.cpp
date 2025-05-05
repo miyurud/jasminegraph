@@ -123,7 +123,6 @@ bool FilterHelper::evaluatePredicateExpression(std::string condition, std::strin
     } else {
         // only evaluating string, decimal, boolean, null for now
         leftValue = evaluateOtherTypes(predicate["left"].dump());
-
     }
     rightValue = evaluateOtherTypes(predicate["right"].dump());
 
@@ -144,7 +143,7 @@ bool FilterHelper::evaluatePredicateExpression(std::string condition, std::strin
             }
         }
 
-        return false; // Default if types are incompatible
+        return false;  // Default if types are incompatible
     }, leftValue, rightValue);
     return false;
 }
@@ -351,7 +350,7 @@ string AverageAggregationHelper::getFinalResult() {
 }
 
 CreateHelper::CreateHelper(vector<json> elements, std::string partitionAlgo, GraphConfig gc, string masterIP) :
-    elements(elements), gc(gc), masterIP(masterIP){
+    elements(elements), gc(gc), masterIP(masterIP) {
     std::string partitionCount = Utils::getJasmineGraphProperty("org.jasminegraph.server.npartitions");
     int numberOfPartitions = std::stoi(partitionCount);
     this->graphPartitioner = new Partitioner(stoi(partitionCount), gc.graphID,
@@ -395,7 +394,7 @@ void CreateHelper::insertFromData(std::string data, SharedBuffer &buffer) {
                     return;
                 } else if (!source.contains("variable")
                            && source.contains("properties")
-                           && !source["properties"].contains("id")){
+                           && !source["properties"].contains("id")) {
                     sourceId = source["properties"]["id"];
                 }
 
@@ -419,7 +418,7 @@ void CreateHelper::insertFromData(std::string data, SharedBuffer &buffer) {
                     return;
                 } else if (!dest.contains("variable")
                             && dest.contains("properties")
-                            && !dest["properties"].contains("id")){
+                            && !dest["properties"].contains("id")) {
                     destId = dest["properties"]["id"];
                 }
 
@@ -505,7 +504,7 @@ void CreateHelper::insertFromData(std::string data, SharedBuffer &buffer) {
                     }
                     auto dataPublisher = new DataPublisher(port, host, dataPort);
                     dataPublisher->publish(edge.dump());
-                } else if (partitionedEdge[0].second == partitionedEdge[1].second){
+                } else if (partitionedEdge[0].second == partitionedEdge[1].second) {
                     auto worker = Utils::getWorker(to_string(partitionedEdge[0].second), masterIP,
                                                            Conts::JASMINEGRAPH_BACKEND_PORT);
                     edge["PID"] = partitionedEdge[1].second;
@@ -648,7 +647,6 @@ void CreateHelper::insertFromData(std::string data, SharedBuffer &buffer) {
             }
             return;
         }
-
     }
 }
 

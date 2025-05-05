@@ -87,4 +87,4 @@ class CreateHelper {
     string masterIP;
 };
 
-#endif //JASMINEGRAPH_HELPERS_H
+#endif  // JASMINEGRAPH_HELPERS_H

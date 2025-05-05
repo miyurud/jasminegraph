@@ -846,35 +846,35 @@ any ASTBuilder::visitOC_ComparisonExpression(CypherParser::OC_ComparisonExpressi
 }
 
 any ASTBuilder::visitOC_PartialComparisonExpression(CypherParser::OC_PartialComparisonExpressionContext *ctx)  {
-  if(ctx->getText().find("<>") != string::npos)
-  {
+  if (ctx->getText().find("<>") != string::npos) {
     auto *node = new ASTInternalNode(Const::GREATER_THAN_LOWER_THAN);
-    node->addElements(any_cast<ASTNode*>(visitOC_StringListNullPredicateExpression(ctx->oC_StringListNullPredicateExpression())));
+    node->addElements(any_cast<ASTNode*>(visitOC_StringListNullPredicateExpression(
+            ctx->oC_StringListNullPredicateExpression())));
     return static_cast<ASTNode*>(node);
-  }else if(ctx->getText().find(">") != string::npos)
-  {
+  } else if (ctx->getText().find(">") != string::npos) {
     auto *node = new ASTInternalNode(Const::GREATER_THAN);
-    node->addElements(any_cast<ASTNode*>(visitOC_StringListNullPredicateExpression(ctx->oC_StringListNullPredicateExpression())));
+    node->addElements(any_cast<ASTNode*>(visitOC_StringListNullPredicateExpression(
+            ctx->oC_StringListNullPredicateExpression())));
     return static_cast<ASTNode*>(node);
-  }else if(ctx->getText().find("=") != string::npos)
-  {
+  } else if (ctx->getText().find("=") != string::npos) {
     auto *node = new ASTInternalNode(Const::DOUBLE_EQUAL);
-    node->addElements(any_cast<ASTNode*>(visitOC_StringListNullPredicateExpression(ctx->oC_StringListNullPredicateExpression())));
+    node->addElements(any_cast<ASTNode*>(visitOC_StringListNullPredicateExpression(
+            ctx->oC_StringListNullPredicateExpression())));
     return static_cast<ASTNode*>(node);
-  }else if(ctx->getText().find("<") != string::npos)
-  {
+  } else if (ctx->getText().find("<") != string::npos) {
     auto *node = new ASTInternalNode(Const::LOWER_THAN);
-    node->addElements(any_cast<ASTNode*>(visitOC_StringListNullPredicateExpression(ctx->oC_StringListNullPredicateExpression())));
+    node->addElements(any_cast<ASTNode*>(visitOC_StringListNullPredicateExpression(
+            ctx->oC_StringListNullPredicateExpression())));
     return static_cast<ASTNode*>(node);
-  }else if(ctx->getText().find(">=") != string::npos)
-  {
+  } else if (ctx->getText().find(">=") != string::npos) {
     auto *node = new ASTInternalNode(Const::GREATER_THAN_OR_EQUAL);
-    node->addElements(any_cast<ASTNode*>(visitOC_StringListNullPredicateExpression(ctx->oC_StringListNullPredicateExpression())));
+    node->addElements(any_cast<ASTNode*>(visitOC_StringListNullPredicateExpression(
+            ctx->oC_StringListNullPredicateExpression())));
     return static_cast<ASTNode*>(node);
-  }else
-  {
+  } else {
     auto *node = new ASTInternalNode(Const::LOWER_THAN_OR_EQUAL);
-    node->addElements(any_cast<ASTNode*>(visitOC_StringListNullPredicateExpression(ctx->oC_StringListNullPredicateExpression())));
+    node->addElements(any_cast<ASTNode*>(visitOC_StringListNullPredicateExpression(
+            ctx->oC_StringListNullPredicateExpression())));
     return static_cast<ASTNode*>(node);
   }
 }

@@ -103,7 +103,7 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
     } else if (ast->nodeType == Const::WITH) {
         currentOperator = createExecutionPlan(ast->elements[0], currentOperator);
     } else if (ast->nodeType == Const::RETURN) {
-        for (auto * node: ast->elements) {
+        for (auto * node : ast->elements) {
             if (node->nodeType == Const::DISTINCT) {
                 currentOperator = createExecutionPlan(node->elements[0], currentOperator, "distinct");
             } else if (node->nodeType == Const::ORDERED_BY) {
@@ -159,7 +159,7 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
             }
         }
 
-        if (temp_opt!=nullptr) {
+        if (temp_opt! = nullptr) {
             if (var == "distinct") {
                 temp_opt = new Distinct(temp_opt, ast->elements);
             } else {
@@ -197,7 +197,7 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
     } else if (ast->nodeType == Const::PATTERN_ELEMENTS) {
         return pathPatternHandler(ast, currentOperator);
     } else if (ast->nodeType == Const::NODE_PATTERN) {
-        if( ast->elements.empty()) {
+        if (ast->elements.empty()) {
             return new AllNodeScan();
         }
 

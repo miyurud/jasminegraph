@@ -292,7 +292,7 @@ int Utils::deleteAllMatchingFiles(const std::string fileNamePattern) {
 }
 
 bool Utils::is_number(const std::string &compareString) {
-    return !compareString.empty() && std::find_if(compareString.begin(), compareString.end(),
+    return !compareString.empty() && std::find_if (compareString.begin(), compareString.end(),
                                                   [](char c) { return !std::isdigit(c); }) == compareString.end();
 }
 
@@ -1533,7 +1533,6 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
 }
 
 std::optional<std::tuple<std::string, int, int>> Utils::getWorker(string partitionId, std::string host, int port) {
-
     util_logger.info("Host:" + host + " Port:" + to_string(port));
     bool result = true;
     int sockfd;
@@ -1589,7 +1588,7 @@ std::optional<std::tuple<std::string, int, int>> Utils::getWorker(string partiti
         return std::nullopt;
     }
 
-    if(!Utils::send_str_wrapper(sockfd, partitionId)) {
+    if (!Utils::send_str_wrapper(sockfd, partitionId)) {
         close(sockfd);
         return std::nullopt;
     }
@@ -1682,7 +1681,7 @@ string Utils::getPartitionAlgorithm(std::string graphID, std::string host) {
         return "";
     }
 
-    if(!Utils::send_str_wrapper(sockfd, graphID)) {
+    if (!Utils::send_str_wrapper(sockfd, graphID)) {
         close(sockfd);
         return "";
     }
@@ -1721,7 +1720,6 @@ string Utils::getFrontendInput(int connFd) {
 
 bool Utils::sendDataFromWorkerToWorker(string masterIP, int graphID, string partitionId,
                                        std::string message, SharedBuffer &sharedBuffer) {
-
     auto workerDetails = getWorker(partitionId, masterIP, Conts::JASMINEGRAPH_BACKEND_PORT);
     std::string host;
     int port;
@@ -1786,7 +1784,7 @@ bool Utils::sendDataFromWorkerToWorker(string masterIP, int graphID, string part
         return false;
     }
 
-    if(!Utils::send_str_wrapper(sockfd, to_string(graphID))) {
+    if (!Utils::send_str_wrapper(sockfd, to_string(graphID))) {
         close(sockfd);
         return false;
     }
@@ -1805,7 +1803,7 @@ bool Utils::sendDataFromWorkerToWorker(string masterIP, int graphID, string part
         return false;
     }
 
-    if(!Utils::send_str_wrapper(sockfd, partitionId)) {
+    if (!Utils::send_str_wrapper(sockfd, partitionId)) {
         close(sockfd);
         return false;
     }
@@ -1823,14 +1821,14 @@ bool Utils::sendDataFromWorkerToWorker(string masterIP, int graphID, string part
         close(sockfd);
         return false;
     }
-    if(!Utils::send_str_wrapper(sockfd, message)) {
+    if (!Utils::send_str_wrapper(sockfd, message)) {
         close(sockfd);
         return false;
     }
 
     auto startTime = std::chrono::high_resolution_clock::now();
     std::chrono::seconds max_duration(3);
-    while(true){
+    while (true) {
         char start[ACK_MESSAGE_SIZE] = {0};
         recv(sockfd, &start, sizeof(start), 0);
         std::string start_msg(start);
@@ -1864,7 +1862,7 @@ bool Utils::sendDataFromWorkerToWorker(string masterIP, int graphID, string part
             return false;
         }
 
-        if(subData == "-1"){
+        if (subData == "-1") {
             sharedBuffer.add(subData);
             break;
         }

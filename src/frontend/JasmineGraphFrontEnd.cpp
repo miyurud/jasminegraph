@@ -504,7 +504,7 @@ static void cypherCommand(int connFd, vector<DataPublisher *> &workerClients,
     }
     // Create buffer pool
     std::vector<std::unique_ptr<SharedBuffer>> bufferPool;
-    bufferPool.reserve(numberOfPartitions); // Pre-allocate space for pointers
+    bufferPool.reserve(numberOfPartitions);  // Pre-allocate space for pointers
     for (size_t i = 0; i < numberOfPartitions; ++i) {
         bufferPool.emplace_back(std::make_unique<SharedBuffer>(MASTER_BUFFER_SIZE));
     }
@@ -516,7 +516,7 @@ static void cypherCommand(int connFd, vector<DataPublisher *> &workerClients,
 
     int closeFlag = 0;
     if (Operator::isAggregate) {
-        if (Operator::aggregateType == AggregationFactory::AVERAGE){
+        if (Operator::aggregateType == AggregationFactory::AVERAGE) {
             Aggregation* aggregation = AggregationFactory::getAggregationMethod(AggregationFactory::AVERAGE);
             while (true) {
                 if (closeFlag == numberOfPartitions) {
@@ -524,7 +524,7 @@ static void cypherCommand(int connFd, vector<DataPublisher *> &workerClients,
                 }
                 for (size_t i = 0; i < bufferPool.size(); ++i) {
                     std::string data;
-                    if (bufferPool[i]->tryGet(data)){
+                    if (bufferPool[i]->tryGet(data)) {
                         if (data == "-1") {
                             closeFlag++;
                         } else {
@@ -534,8 +534,8 @@ static void cypherCommand(int connFd, vector<DataPublisher *> &workerClients,
                 }
             }
             aggregation->getResult(connFd);
-        } else if (Operator::aggregateType == AggregationFactory::ASC || Operator::aggregateType == AggregationFactory::DESC)
-        {
+        } else if (Operator::aggregateType == AggregationFactory::ASC ||
+            Operator::aggregateType == AggregationFactory::DESC) {
             struct BufferEntry {
                 std::string value;
                 size_t bufferIndex;
@@ -554,13 +554,13 @@ static void cypherCommand(int connFd, vector<DataPublisher *> &workerClients,
                     } else {
                         result = val1.dump() > val2.dump();
                     }
-                    return isAsc ? result : !result; // Flip for DESC
+                    return isAsc ? result : !result;  // Flip for DESC
                 }
             };
 
             // Initialize with first value from each buffer
             bool isAsc = (Operator::aggregateType == AggregationFactory::ASC);
-            std::priority_queue<BufferEntry> mergeQueue; // Min-heap
+            std::priority_queue<BufferEntry> mergeQueue;  // Min-heap
             for (size_t i = 0; i < numberOfPartitions; ++i) {
                 std::string value = bufferPool[i]->get();
                 if (value != "-1") {
@@ -615,7 +615,8 @@ static void cypherCommand(int connFd, vector<DataPublisher *> &workerClients,
                         try {
                             json parsed = json::parse(nextValue);
                             if (!parsed.contains(Operator::aggregateKey)) {
-                                frontend_logger.error("Missing key '" + Operator::aggregateKey + "' in JSON: " + nextValue);
+                                frontend_logger.error("Missing key '" + Operator::aggregateKey +
+                                    "' in JSON: " + nextValue);
                                 continue;
                             }
                             BufferEntry entry{nextValue, smallest.bufferIndex, parsed, isAsc};
@@ -626,7 +627,7 @@ static void cypherCommand(int connFd, vector<DataPublisher *> &workerClients,
                     }
                 }
             }
-        }else {
+        } else {
             std::string log = "Query is recongnized as Aggreagation, but method doesnot have implemented yet";
             result_wr = write(connFd, log.c_str(), log.length());
             result_wr = write(connFd, "\r\n", 2);
@@ -639,7 +640,7 @@ static void cypherCommand(int connFd, vector<DataPublisher *> &workerClients,
 
             for (size_t i = 0; i < bufferPool.size(); ++i) {
                 std::string data;
-                if (bufferPool[i]->tryGet(data)){
+                if (bufferPool[i]->tryGet(data)) {
                     if (data == "-1") {
                         closeFlag++;
                     } else {
@@ -1432,7 +1433,8 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     // Subscribe to the Kafka topic.
     kstream->Subscribe(topic_name_s);
     // Create the StreamHandler object.
-    StreamHandler *stream_handler = new StreamHandler(kstream, numberOfPartitions, workerClients, sqlite,stoi(graphId), direction == Conts::DIRECTED,
+    StreamHandler *stream_handler = new StreamHandler(kstream, numberOfPartitions, workerClients, sqlite,
+                                                      stoi(graphId), direction == Conts::DIRECTED,
                                                       spt::getPartitioner(partitionAlgo));
 
     if (existingGraph != "y") {
