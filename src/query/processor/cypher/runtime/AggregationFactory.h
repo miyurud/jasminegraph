@@ -25,5 +25,4 @@ class AggregationFactory {
     static Aggregation* getAggregationMethod(string type);
 };
 
-
 #endif  // JASMINEGRAPH_AGGREGATIONFACTORY_H

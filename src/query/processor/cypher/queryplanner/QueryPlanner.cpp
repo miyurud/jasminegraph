@@ -159,7 +159,7 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
             }
         }
 
-        if (temp_opt! = nullptr) {
+        if (temp_opt != nullptr) {
             if (var == "distinct") {
                 temp_opt = new Distinct(temp_opt, ast->elements);
             } else {

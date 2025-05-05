@@ -254,7 +254,7 @@ string Filter::execute() {
         filter["NextOperator"] = input->execute();
     }
     filter["Operator"] = "Filter";
-    for (auto item: filterCases) {
+    for (auto item : filterCases) {
         if (item.second->nodeType == Const::WHERE) {
             filter["condition"] = json::parse(analyzeWhere(item.second->elements[0]));
         } else if (item.second->nodeType == Const::PROPERTIES_MAP) {
