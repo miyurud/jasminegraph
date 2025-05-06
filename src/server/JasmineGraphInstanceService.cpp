@@ -2191,8 +2191,7 @@ static void delete_graph_command(int connFd, bool *loop_exit_p) {
         *loop_exit_p = true;
         return;
     }
-    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
-}
+    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK
 
 static void delete_graph_fragment_command(int connFd, bool *loop_exit_p) {
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {

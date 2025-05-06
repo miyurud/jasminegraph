@@ -599,9 +599,11 @@ static void cypherCommand(int connFd, vector<DataPublisher *> &workerClients,
                     frontend_logger.error("Error writing to socket");
                     return;
                 }
-                result_wr = write(connFd, "\r\n", 2);
+                result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+                                  Conts::CARRIAGE_RETURN_NEW_LINE.size());
                 if (result_wr < 0) {
                     frontend_logger.error("Error writing to socket");
+                    *loop_exit = true;
                     return;
                 }
 
@@ -630,7 +632,13 @@ static void cypherCommand(int connFd, vector<DataPublisher *> &workerClients,
         } else {
             std::string log = "Query is recongnized as Aggreagation, but method doesnot have implemented yet";
             result_wr = write(connFd, log.c_str(), log.length());
-            result_wr = write(connFd, "\r\n", 2);
+            result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+                              Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            if (result_wr < 0) {
+                frontend_logger.error("Error writing to socket");
+                *loop_exit = true;
+                return;
+            }
         }
     } else {
         while (true) {
@@ -645,7 +653,13 @@ static void cypherCommand(int connFd, vector<DataPublisher *> &workerClients,
                         closeFlag++;
                     } else {
                         result_wr = write(connFd, data.c_str(), data.length());
-                        result_wr = write(connFd, "\r\n", 2);
+                        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+                                          Conts::CARRIAGE_RETURN_NEW_LINE.size());
+                        if (result_wr < 0) {
+                            frontend_logger.error("Error writing to socket");
+                            *loop_exit = true;
+                            return;
+                        }
                     }
                 }
             }

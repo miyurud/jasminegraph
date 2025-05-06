@@ -80,7 +80,7 @@ void *backendservicesesion(void *dummyPt) {
             int return_status = recv(connFd, &content_length, sizeof(int), 0);
             if (return_status > 0) {
                 content_length = ntohl(content_length);
-                backend_logger.info("Received content_length of partition ID = " + std::to_string(content_length));
+                backend_logger.info("Received content_length for partition ID = " + std::to_string(content_length));
             } else {
                 backend_logger.info("Error while reading content length");
                 loop = true;
@@ -97,14 +97,14 @@ void *backendservicesesion(void *dummyPt) {
             std::string partition(content_length, 0);
             return_status = recv(connFd, &partition[0], content_length, 0);
             if (return_status > 0) {
-                backend_logger.info("Received partition id: "+partition);
+                backend_logger.info("Received partition id: " + partition);
             } else {
                 backend_logger.info("Error while reading content length");
                 loop = true;
                 break;
             }
 
-            std::string selectQuery = "select server_port, ip, server_data_port from worker where idworker='" +
+            std::string selectQuery = "select server_port, ip, server_data_port from worker where idworker = '" +
                     partition + "';";
 
             if (!sqLiteDbInterface) {
@@ -122,7 +122,7 @@ void *backendservicesesion(void *dummyPt) {
             std::string workerInfo = worker[0][1].second + "|" + worker[0][0].second + "|" + worker[0][2].second;
             int message_length = workerInfo.length();
             int converted_number = htonl(message_length);
-            backend_logger.info("Sending worker info length: "+to_string(converted_number));
+            backend_logger.info("Sending worker info length: " + to_string(converted_number));
             if (!Utils::send_int_wrapper(connFd, &converted_number, sizeof(converted_number))) {
                 loop = true;
                 break;
@@ -131,7 +131,7 @@ void *backendservicesesion(void *dummyPt) {
             std::string length_ack(CONTENT_LENGTH_ACK.length(), 0);
             return_status = recv(connFd, &length_ack[0], CONTENT_LENGTH_ACK.length(), 0);
             if (return_status > 0) {
-                backend_logger.info("Received content length ack: "+length_ack);
+                backend_logger.info("Received content length ack: " + length_ack);
             } else {
                 backend_logger.info("Error while reading content length ack");
                 loop = true;
@@ -170,7 +170,7 @@ void *backendservicesesion(void *dummyPt) {
             std::string graphID(content_length, 0);
             return_status = recv(connFd, &graphID[0], content_length, 0);
             if (return_status > 0) {
-                backend_logger.info("Received graph id: "+graphID);
+                backend_logger.info("Received graph id: " + graphID);
             } else {
                 backend_logger.info("Error while reading content length");
                 loop = true;
@@ -194,7 +194,7 @@ void *backendservicesesion(void *dummyPt) {
             std::string partitionAlgorithmName = partitionAlgorithm[0][0].second;
             int message_length = partitionAlgorithmName.length();
             int converted_number = htonl(message_length);
-            backend_logger.info("Sending worker info length: "+to_string(converted_number));
+            backend_logger.info("Sending worker info length: " + to_string(converted_number));
             if (!Utils::send_int_wrapper(connFd, &converted_number, sizeof(converted_number))) {
                 loop = true;
                 break;
@@ -203,7 +203,7 @@ void *backendservicesesion(void *dummyPt) {
             std::string length_ack(CONTENT_LENGTH_ACK.length(), 0);
             return_status = recv(connFd, &length_ack[0], CONTENT_LENGTH_ACK.length(), 0);
             if (return_status > 0) {
-                backend_logger.info("Received content length ack: "+length_ack);
+                backend_logger.info("Received content length ack: " + length_ack);
             } else {
                 backend_logger.info("Error while reading content length ack");
                 loop = true;
