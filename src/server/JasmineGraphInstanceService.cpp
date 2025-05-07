@@ -4329,7 +4329,7 @@ static void sub_query_start_command(int connFd, InstanceHandler &instanceHandler
     std::string graphId(content_length, 0);
     return_status = recv(connFd, &graphId[0], content_length, 0);
     if (return_status > 0) {
-        instance_logger.info("Received graph id: "+graphId);
+        instance_logger.info("Received graph id: " + graphId);
     } else {
         instance_logger.info("Error while reading content length");
         *loop_exit_p = true;
@@ -4355,7 +4355,7 @@ static void sub_query_start_command(int connFd, InstanceHandler &instanceHandler
     std::string partition(content_length, 0);
     return_status = recv(connFd, &partition[0], content_length, 0);
     if (return_status > 0) {
-        instance_logger.info("Received partition id: "+partition);
+        instance_logger.info("Received partition id: " + partition);
     } else {
         instance_logger.info("Error while reading content length");
         *loop_exit_p = true;
@@ -4363,7 +4363,7 @@ static void sub_query_start_command(int connFd, InstanceHandler &instanceHandler
     }
 
     JasmineGraphIncrementalLocalStore * incrementalLocalStoreInstance;
-    string graphIdentifier = "g"+graphId+"_p"+partition;
+    string graphIdentifier = "g"+graphId+"_p" + partition;
     if (incrementalLocalStoreMap.find(graphIdentifier) == incrementalLocalStoreMap.end()) {
         incrementalLocalStoreInstance =
                 JasmineGraphInstanceService::loadStreamingStore(graphId, partition, incrementalLocalStoreMap, "app");

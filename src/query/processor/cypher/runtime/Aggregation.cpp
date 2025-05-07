@@ -23,7 +23,7 @@ void AverageAggregation::getResult(int connFd) {
         aggregateLogger.error("Error writing to socket");
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         aggregateLogger.error("Error writing to socket");
         return;
@@ -59,7 +59,7 @@ void AscAggregation::getResult(int connFd) {
                 break;
             }
             int result_wr = write(connFd, data.c_str(), data.length());
-            result_wr = write(connFd, "\r\n", 2);
+            result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
             if (result_wr < 0) {
                 aggregateLogger.error("Error writing to socket");
                 return;

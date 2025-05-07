@@ -636,7 +636,7 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
                                                                 rawObj[sourceVariable]["id"]);
             }
             string queryPlan = ExpandAllHelper::generateSubQueryPlan(queryString);
-            SharedBuffer temp(5);
+            SharedBuffer temp(INTER_OPERATOR_BUFFER_SIZE);
             std::thread t(Utils::sendDataFromWorkerToWorker,
                           masterIP,
                           gc.graphID,
@@ -660,7 +660,7 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
 
 void OperatorExecutor::EargarAggregation(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
     json query = json::parse(jsonPlan);
-    SharedBuffer sharedBuffer(5);
+    SharedBuffer sharedBuffer(INTER_OPERATOR_BUFFER_SIZE);
     std::string nextOpt = query["NextOperator"];
     json next = json::parse(nextOpt);
     auto method = OperatorExecutor::methodMap[next["Operator"]];
@@ -682,7 +682,7 @@ void OperatorExecutor::EargarAggregation(SharedBuffer &buffer, std::string jsonP
 
 void OperatorExecutor::Projection(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
     json query = json::parse(jsonPlan);
-    SharedBuffer sharedBuffer(5);
+    SharedBuffer sharedBuffer(INTER_OPERATOR_BUFFER_SIZE);
     std::string nextOpt = query["NextOperator"];
     json next = json::parse(nextOpt);
     auto method = OperatorExecutor::methodMap[next["Operator"]];
@@ -727,7 +727,7 @@ void OperatorExecutor::Projection(SharedBuffer &buffer, std::string jsonPlan, Gr
 
 void OperatorExecutor::Create(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
     json query = json::parse(jsonPlan);
-    SharedBuffer sharedBuffer(5);
+    SharedBuffer sharedBuffer(INTER_OPERATOR_BUFFER_SIZE);
     string partitionAlgo = Utils::getPartitionAlgorithm(to_string(gc.graphID), masterIP);
     CreateHelper createHelper(query["elements"], partitionAlgo, gc, masterIP);
     if (query.contains("NextOperator")) {
@@ -753,8 +753,8 @@ void OperatorExecutor::Create(SharedBuffer &buffer, std::string jsonPlan, GraphC
 
 void OperatorExecutor::CartesianProduct(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
     json query = json::parse(jsonPlan);
-    SharedBuffer left(5);
-    SharedBuffer right(5);
+    SharedBuffer left(INTER_OPERATOR_BUFFER_SIZE);
+    SharedBuffer right(INTER_OPERATOR_BUFFER_SIZE);
     std::string leftOpt = query["left"];
     std::string rightOpt = query["right"];
     json leftJson = json::parse(leftOpt);
@@ -821,7 +821,7 @@ void OperatorExecutor::CartesianProduct(SharedBuffer &buffer, std::string jsonPl
 
 void OperatorExecutor::Distinct(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
     json query = json::parse(jsonPlan);
-    SharedBuffer sharedBuffer(5);
+    SharedBuffer sharedBuffer(INTER_OPERATOR_BUFFER_SIZE);
     std::string nextOpt = query["NextOperator"];
     json next = json::parse(nextOpt);
     auto method = OperatorExecutor::methodMap[next["Operator"]];
@@ -893,7 +893,7 @@ struct Row {
 
 void OperatorExecutor::OrderBy(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
     json query = json::parse(jsonPlan);
-    SharedBuffer sharedBuffer(5);
+    SharedBuffer sharedBuffer(INTER_OPERATOR_BUFFER_SIZE);
     std::string nextOpt = query["NextOperator"];
     json next = json::parse(nextOpt);
     auto method = OperatorExecutor::methodMap[next["Operator"]];

@@ -327,11 +327,11 @@ string ExpandAllHelper::generateSubQueryPlan(std::string query) {
 string ExpandAllHelper::generateSubQuery(std::string startVar, std::string destVar, std::string relVar,
                                          std::string id, std::string relType) {
     if (relType == "") {
-        return "match ("+startVar+")-["+relVar+"]-("+destVar+") where id("
-                +startVar+") = "+id+" return "+relVar+","+destVar;
+        return "match (" + startVar + ")-[" + relVar + "]-(" + destVar + ") where id("
+                + startVar + ") = " + id + " return " + relVar + "," + destVar;
     }
-    return "match ("+startVar+")-["+relVar+":"+relType+"]-("+destVar+") where id("
-            +startVar+") = "+id+" return "+relVar+","+destVar;
+    return "match (" + startVar + ")-[" + relVar + ":" + relType + "]-(" + destVar + ") where id("
+            + startVar + ") = " + id + " return " + relVar + "," + destVar;
 }
 
 void AverageAggregationHelper::insertData(std::string data) {
