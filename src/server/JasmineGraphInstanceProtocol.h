@@ -137,6 +137,8 @@ class JasmineGraphInstanceProtocol {
     static const string HDFS_STREAM_FILE_NAME_ACK;
     static const string HDFS_STREAM_FILE_NAME_LENGTH_ACK;
     static const string HDFS_STREAM_FILE_SIZE_ACK;
+    static const string HDFS_FILE_CHUNK_END_CHK;
+    static const string HDFS_FILE_CHUNK_END_ACK;
 };
 
 const int INSTANCE_DATA_LENGTH = 300;

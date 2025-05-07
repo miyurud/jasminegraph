@@ -99,3 +99,4 @@ const std::string Conts::PARAM_KEYS::AUTO_CALIBRATION = "autoCalibration";
 const std::string Conts::FLAGS::MODEL_ID = "model_id";
 
 const int Conts::HDFS::EDGE_SEPARATION_LAYER_THREAD_COUNT = 20;
+const int Conts::NUMBER_OF_PARTITION_DATA = 7;

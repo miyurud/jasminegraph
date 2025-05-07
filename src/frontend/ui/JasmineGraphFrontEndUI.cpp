@@ -273,7 +273,7 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
     // Create a map to group partitions by graph_idgraph for efficient lookup
     std::unordered_map<int, std::vector<json>> partition_map;
     for (const auto& row : partitionData) {
-        if (row.size() != 7) {
+        if (row.size() != Conts::NUMBER_OF_PARTITION_DATA) {
             // Log error or skip malformed partition row
             continue;
         }
@@ -315,7 +315,7 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
 
     // Process graph data
     for (const auto& row : graphData) {
-        if (row.size() != 7) {
+        if (row.size() != Conts::NUMBER_OF_PARTITION_DATA) {
             // Log error or skip malformed graph row
             continue;
         }
@@ -715,7 +715,7 @@ static void get_degree_command(int connFd, std::string command, int numberOfPart
     JasmineGraphServer::inDegreeDistribution(graphID);
     string instanceDataFolderLocation = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
 
-    ui_frontend_logger.info("instance data folder location" + instanceDataFolderLocation);
+    ui_frontend_logger.info("Instance data folder location : " + instanceDataFolderLocation);
     for (int partitionId = 0; partitionId < numberOfPartition; partitionId++) {
         string attributeFilePath = instanceDataFolderLocation + "/" + graphID + type + std::to_string(partitionId);
 
