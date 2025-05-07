@@ -2191,6 +2191,7 @@ static void delete_graph_command(int connFd, bool *loop_exit_p) {
         *loop_exit_p = true;
         return;
     }
+
     instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
 }
 
