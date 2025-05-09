@@ -387,7 +387,7 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
             return;
         }
 
-        result_wr = write(connFd, "\r\n", 2);
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             ui_frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -445,7 +445,7 @@ static void add_graph_command(std::string masterIP,
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         ui_frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -503,7 +503,7 @@ static void add_graph_command(std::string masterIP,
             *loop_exit_p = true;
             return;
         }
-        result_wr = write(connFd, "\r\n", 2);
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             ui_frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -534,7 +534,7 @@ static void remove_graph_command(std::string masterIP,
             *loop_exit_p = true;
             return;
         }
-        result_wr = write(connFd, "\r\n", 2);
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             ui_frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -548,7 +548,7 @@ static void remove_graph_command(std::string masterIP,
             *loop_exit_p = true;
             return;
         }
-        result_wr = write(connFd, "\r\n", 2);
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             ui_frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -586,7 +586,7 @@ static void triangles_command(std::string masterIP, int connFd,
             return;
         }
 
-        result_wr = write(connFd, "\r\n", 2);
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             ui_frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -602,7 +602,7 @@ static void triangles_command(std::string masterIP, int connFd,
                 return;
             }
 
-            result_wr = write(connFd, "\r\n", 2);
+            result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
             if (result_wr < 0) {
                 ui_frontend_logger.error("Error writing to socket");
             }
@@ -665,7 +665,7 @@ static void triangles_command(std::string masterIP, int connFd,
                 ui_frontend_logger.error("Error writing to socket");
                 return;
             }
-            result_wr = write(connFd, "\r\n", 2);
+            result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
             if (result_wr < 0) {
                 ui_frontend_logger.error("Error writing to socket");
             }
@@ -689,7 +689,7 @@ static void triangles_command(std::string masterIP, int connFd,
             *loop_exit_p = true;
             return;
         }
-        result_wr = write(connFd, "\r\n", 2);
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             ui_frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -749,7 +749,7 @@ static void get_degree_command(int connFd, std::string command, int numberOfPart
                         ui_frontend_logger.error("Error writing to socket");
                         *loop_exit_p = true;
                     }
-                    result_wr = write(connFd, "\r\n", 2);
+                    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
                     if (result_wr < 0) {
                         ui_frontend_logger.error("Error writing to socket");
                         *loop_exit_p = true;
@@ -770,7 +770,7 @@ static void get_degree_command(int connFd, std::string command, int numberOfPart
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         ui_frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -816,7 +816,7 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
         Operator *opr = query_planner.createExecutionPlan(ast);
         obj = opr->execute();
     } else {
-        ui_frontend_logger.error("query isn't semantically correct: "+user_res_s);
+        ui_frontend_logger.error("query isn't semantically correct: " + user_res_s);
     }
 
     // print query plan
@@ -906,11 +906,8 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
 
             // Merge loop
             while (!mergeQueue.empty()) {
-                ui_frontend_logger.info(":::::::FRONTEND:::::::");
-
                 // Pick smallest value
                 BufferEntry smallest = mergeQueue.top();
-                ui_frontend_logger.info(smallest.value);
                 size_t queueSize = mergeQueue.size();
                 ui_frontend_logger.info(std::to_string(queueSize));
                 mergeQueue.pop();
@@ -919,7 +916,7 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
                     ui_frontend_logger.error("Error writing to socket");
                     return;
                 }
-                result_wr = write(connFd, "\r\n", 2);
+                result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
                 if (result_wr < 0) {
                     ui_frontend_logger.error("Error writing to socket");
                     return;
@@ -930,7 +927,7 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
                     std::string nextValue = bufferPool[smallest.bufferIndex]->get();
                     if (nextValue == "-1") {
                         closeFlag++;
-                        ui_frontend_logger.info("closeflag" + std::to_string(closeFlag));
+                        ui_frontend_logger.info("Value of closeflag : " + std::to_string(closeFlag));
                     } else {
                         try {
                             json parsed = json::parse(nextValue);
@@ -948,9 +945,9 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
                 }
             }
         } else {
-            std::string log = "Query is recongnized as Aggreagation, but method doesnot have implemented yet";
+            std::string log = "Query is recognized as aggregation, but the aggregation logic has not been implemented yet";
             int result_wr = write(connFd, log.c_str(), log.length());
-            result_wr = write(connFd, "\r\n", 2);
+            result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         }
     } else {
         while (true) {
@@ -966,7 +963,7 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
                         closeFlag++;
                     } else {
                         int result_wr = write(connFd, data.c_str(), data.length());
-                        result_wr = write(connFd, "\r\n", 2);
+                        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
                     }
                 }
             }
