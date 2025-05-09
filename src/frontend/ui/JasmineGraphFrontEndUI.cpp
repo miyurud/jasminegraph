@@ -948,7 +948,8 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
                 }
             }
         } else {
-            std::string log = "Query is recognized as aggregation, but the aggregation logic has not been implemented yet";
+            std::string log = "Query is recognized as aggregation, but the aggregation "
+                              "logic has not been implemented yet";
             int result_wr = write(connFd, log.c_str(), log.length());
             result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
                     Conts::CARRIAGE_RETURN_NEW_LINE.size());
