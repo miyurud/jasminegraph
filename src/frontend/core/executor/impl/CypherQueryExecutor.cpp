@@ -10,6 +10,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
  */
+#include <fstream>
 
 #include "CypherQueryExecutor.h"
 #include "antlr4-runtime.h"
@@ -86,18 +87,17 @@ void CypherQueryExecutor::execute() {
     auto begin = chrono::high_resolution_clock::now();
 
     const auto &workerList = JasmineGraphServer::getWorkers(numberOfPartitions);
-    int count = 0;
-    for(auto worker: workerList){
-        intermRes.push_back(std::async(std::launch::async,CypherQueryExecutor::doCypherQuery, worker.hostname, worker.port,
-                                             masterIP, std::stoi(graphId), count++, queryPlan, std::ref(sharedBuffer)));
-    }
 
-    // std::thread *workerThreads = new std::thread[numberOfPartitions];
-    // int count = 0;
-    // for(auto worker: workerList){
-    //     workerThreads[count++] = std::thread(doCypherQuery, worker.hostname, worker.port,
-    //                                          masterIP, std::stoi(graphId) , count, queryPlan, std::ref(sharedBuffer));
-    // }
+    std::vector<std::thread> workerThreads;
+    int count = 0;
+    for (auto worker : workerList) {
+        workerThreads.emplace_back(
+            doCypherQuery,
+            worker.hostname, worker.port,
+            masterIP, std::stoi(graphId), count++,
+            queryPlan, std::ref(sharedBuffer)
+        );
+    }
 
     PerformanceUtil::init();
 
@@ -126,10 +126,6 @@ void CypherQueryExecutor::execute() {
         isStatCollect = true;
     }
 
-    for (auto &&futureCall : intermRes) {
-        futureCall.get();
-    }
-
     // int result_wr;
     int closeFlag = 0;
     while(true){
@@ -142,6 +138,12 @@ void CypherQueryExecutor::execute() {
         } else {
             write(connFd, data.c_str(), data.length());
             write(connFd, "\r\n", 2);
+        }
+    }
+
+    for (auto &thread : workerThreads) {
+        if (thread.joinable()) {
+            thread.join();
         }
     }
 
@@ -160,7 +162,7 @@ void CypherQueryExecutor::execute() {
     auto dur = end - begin;
     auto msDuration = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
 
-    // std::string durationString = std::to_string(msDuration);
+    std::string durationString = std::to_string(msDuration);
 
     if (canCalibrate || autoCalibrate) {
         Utils::updateSLAInformation(perfDB, graphId, numberOfPartitions, msDuration, CYPHER,

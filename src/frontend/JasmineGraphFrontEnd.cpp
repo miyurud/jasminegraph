@@ -514,7 +514,7 @@ static void cypherCommand(std::string masterIP, int connFd, vector<DataPublisher
     jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_ID, graphIdResponse);
     jobDetails.addParameter(Conts::PARAM_KEYS::CATEGORY, Conts::SLA_CATEGORY::LATENCY);
     jobDetails.addParameter(Conts::PARAM_KEYS::NO_OF_PARTITIONS, std::to_string(numberOfPartitions));
-    jobDetails.addParameter(Conts::PARAM_KEYS::CONN_FILE_DESCRIPTOR, std::to_string(numberOfPartitions));
+    jobDetails.addParameter(Conts::PARAM_KEYS::CONN_FILE_DESCRIPTOR, std::to_string(connFd));
 
     if (canCalibrate) {
         jobDetails.addParameter(Conts::PARAM_KEYS::CAN_CALIBRATE, "true");
