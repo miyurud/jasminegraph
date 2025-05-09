@@ -924,7 +924,7 @@ void OperatorExecutor::OrderBy(SharedBuffer &buffer, std::string jsonPlan, Graph
             execution_logger.info(row.jsonStr);
             if (row.data.contains(sortKey)) {  // Ensure field exists
                 heap.push(row);
-                if (heap.size() > maxSize) {
+                if (heap.size() > MAX_SIZE) {
                     heap.pop();  // Remove smallest (ASC) or largest (DESC)
                 }
             }

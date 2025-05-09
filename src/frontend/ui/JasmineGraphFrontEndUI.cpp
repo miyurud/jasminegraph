@@ -749,7 +749,8 @@ static void get_degree_command(int connFd, std::string command, int numberOfPart
                         ui_frontend_logger.error("Error writing to socket");
                         *loop_exit_p = true;
                     }
-                    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+                    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+                            Conts::CARRIAGE_RETURN_NEW_LINE.size());
                     if (result_wr < 0) {
                         ui_frontend_logger.error("Error writing to socket");
                         *loop_exit_p = true;
@@ -917,7 +918,8 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
                     ui_frontend_logger.error("Error writing to socket");
                     return;
                 }
-                result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+                result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+                        Conts::CARRIAGE_RETURN_NEW_LINE.size());
                 if (result_wr < 0) {
                     ui_frontend_logger.error("Error writing to socket");
                     return;
@@ -948,7 +950,8 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
         } else {
             std::string log = "Query is recognized as aggregation, but the aggregation logic has not been implemented yet";
             int result_wr = write(connFd, log.c_str(), log.length());
-            result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+            result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+                    Conts::CARRIAGE_RETURN_NEW_LINE.size());
         }
     } else {
         while (true) {
@@ -964,7 +967,8 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
                         closeFlag++;
                     } else {
                         int result_wr = write(connFd, data.c_str(), data.length());
-                        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+                        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+                            Conts::CARRIAGE_RETURN_NEW_LINE.size());
                     }
                 }
             }
