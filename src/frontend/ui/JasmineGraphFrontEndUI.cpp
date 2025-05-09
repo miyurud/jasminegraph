@@ -822,11 +822,12 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
     // print query plan
     ui_frontend_logger.info((obj.c_str()));
 
+    int bufferSize = 5;
     // Create buffer pool
     std::vector<std::unique_ptr<SharedBuffer>> bufferPool;
     bufferPool.reserve(numberOfPartitions);  // Pre-allocate space for pointers
     for (size_t i = 0; i < numberOfPartitions; ++i) {
-        bufferPool.emplace_back(std::make_unique<SharedBuffer>(5));
+        bufferPool.emplace_back(std::make_unique<SharedBuffer>(bufferSize));
     }
 
     // send query plan
