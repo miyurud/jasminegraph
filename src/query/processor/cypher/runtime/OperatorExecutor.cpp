@@ -903,7 +903,7 @@ void OperatorExecutor::OrderBy(SharedBuffer &buffer, std::string jsonPlan, Graph
 
     std::string sortKey = query["variable"];
     std::string order = query["order"];
-    const size_t maxSize = 5000;
+    const size_t MAX_SIZE = 5000;
     bool isAsc = (order == "ASC");
 
     std::priority_queue<Row> heap;
