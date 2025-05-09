@@ -38,13 +38,14 @@ class Partitioner {
     long totalVertices = 0;
     long totalEdges = 0;
     int graphID;
+    bool isDirect;
     spt::Algorithms algorithmInUse;
     SQLiteDBInterface *sqlite;
     // perPartitionCap is : Number of vertices that can be store in this partition, This is a dynamic shared pointer
     // containing a value depending on the whole graph size and # of partitions
 
  public:
-    Partitioner(int numberOfPartitions, int graphID, spt::Algorithms alog, SQLiteDBInterface* sqlite)
+    Partitioner(int numberOfPartitions, int graphID, spt::Algorithms alog, SQLiteDBInterface* sqlite, bool isDirect)
             : numberOfPartitions(numberOfPartitions), graphID(graphID), algorithmInUse(alog), sqlite(sqlite) {
         for (size_t i = 0; i < numberOfPartitions; i++) {
             this->partitions.push_back(Partition(i, numberOfPartitions));
@@ -59,7 +60,6 @@ class Partitioner {
     partitionedEdge ldgPartitioning(std::pair<std::string, std::string> edge);
     static std::pair<long, long> deserialize(std::string data);
     void updateMetaDB();
-    bool getIsDirected();
     void setGraphID(int graphId){this->graphID = graphId;};
 };
 

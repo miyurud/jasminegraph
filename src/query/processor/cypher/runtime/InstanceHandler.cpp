@@ -21,20 +21,20 @@ InstanceHandler::InstanceHandler(std::map<std::string,
 
 
 void InstanceHandler::handleRequest(int connFd, bool *loop_exit_p,
-                                    GraphConfig gc,
+                                    GraphConfig gc, string masterIP,
                                     std::string queryJson) {
-    OperatorExecutor operatorExecutor(gc, queryJson);
+    OperatorExecutor operatorExecutor(gc, queryJson, masterIP);
     operatorExecutor.initializeMethodMap();
     SharedBuffer sharedBuffer(5);
     auto method = OperatorExecutor::methodMap[operatorExecutor.query["Operator"]];
     // Launch the method in a new thread
     std::thread result(method, std::ref(operatorExecutor), std::ref(sharedBuffer),
                        std::string(operatorExecutor.queryPlan), gc);
-    result.detach();  // Detach the thread to let it run independently
     while (true) {
         string raw = sharedBuffer.get();
         if (raw == "-1") {
             this->dataPublishToMaster(connFd, loop_exit_p, raw);
+            result.join();
             break;
         }
         this->dataPublishToMaster(connFd, loop_exit_p, raw);

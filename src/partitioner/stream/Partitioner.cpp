@@ -112,7 +112,7 @@ partitionedEdge Partitioner::hashPartitioning(std::pair<std::string, std::string
     int secondIndex = stoi(edge.second) % this->numberOfPartitions;  // Hash partitioning
 
     if (firstIndex == secondIndex) {
-        this->partitions[firstIndex].addEdge(edge, this->getIsDirected());
+        this->partitions[firstIndex].addEdge(edge, this->isDirect);
     } else {
         this->partitions[firstIndex].addToEdgeCuts(edge.first, edge.second, secondIndex);
         this->partitions[secondIndex].addToEdgeCuts(edge.second, edge.first, firstIndex);
@@ -124,7 +124,7 @@ void Partitioner::printStats() {
     int id = 0;
     for (auto partition : this->partitions) {
         double vertexCount = partition.getVertextCount();
-        double edgesCount = partition.getEdgesCount(this->getIsDirected());
+        double edgesCount = partition.getEdgesCount(this->isDirect);
         double edgeCutsCount = partition.edgeCutsCount();
         double edgeCutRatio = partition.edgeCutsRatio();
         streaming_partitioner_logger.info(std::to_string(id) + " => Vertex count = " + std::to_string(vertexCount));
@@ -143,7 +143,7 @@ void Partitioner::updateMetaDB() {
     double edgeCutsCount = 0;
     for (auto partition : this->partitions) {
         vertexCount += partition.getVertextCount();
-        edgesCount += partition.getEdgesCount(this->getIsDirected());
+        edgesCount += partition.getEdgesCount(this->isDirect);
         edgeCutsCount += partition.edgeCutsCount();
     }
     double numberOfEdges = edgesCount + edgeCutsCount/2;
@@ -157,15 +157,6 @@ void Partitioner::updateMetaDB() {
             " WHERE idgraph = " + std::to_string(this->graphID);
     this->sqlite->runUpdate(sqlStatement);
     streaming_partitioner_logger.info("Successfully updated metaDB");
-}
-
-bool Partitioner::getIsDirected() {
-    std::string sqlStatement = "SELECT is_directed FROM graph WHERE idgraph = " + std::to_string(this->graphID);
-    auto result = this->sqlite->runSelect(sqlStatement);
-    if (result[0][0].second == "0") {
-        return false;
-    }
-    return true;
 }
 
 /**

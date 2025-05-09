@@ -26,6 +26,9 @@ class Operator {
  public:
     virtual ~Operator() = default;
     virtual string execute() = 0;  // Pure virtual function to be implemented by derived classes
+    static bool isAggregate;
+    static string aggregateType;
+    static string aggregateKey;
 };
 
 // NodeScanByLabel Operator
@@ -78,6 +81,8 @@ class ProduceResults : public Operator {
  public:
     ProduceResults(Operator* op, vector<ASTNode*> item);
     string execute() override;
+    Operator* getOperator();
+    void setOperator(Operator* op);
 
  private:
     vector<ASTNode*> item;
@@ -88,7 +93,8 @@ class ProduceResults : public Operator {
 class Filter : public Operator {
  public:
     Filter(Operator* input, vector<pair<string, ASTNode*>> filterCases);
-    string analyze(ASTNode* ast);
+    string analyzeWhere(ASTNode* ast);
+    string analyzePropertiesMap(pair<string, ASTNode*> item);
     string comparisonOperand(ASTNode* ast);
     string execute() override;
 
@@ -124,64 +130,46 @@ class ExpandAll : public Operator {
     string direction;
 };
 
-// Join Operator
-class Join : public Operator {
- public:
-    Join(Operator* left, Operator* right, const string& joinCondition);
-    string execute() override;
-
- private:
-    Operator* left;
-    Operator* right;
-    string joinCondition;
-};
-
-// Aggregation Operator
-class Aggregation : public Operator {
- public:
-    Aggregation(Operator* input, const string& aggFunction, const string& column);
-    string execute() override;
-
- private:
-    Operator* input;
-    string aggFunction;
-    string column;
-};
 
 // Limit Operator
 class Limit : public Operator {
-    Operator* input;
-    int limit;
  public:
-    Limit(Operator* input, int limit);
+    Limit(Operator* input, ASTNode* limit);
     string execute() override;
+ private:
+    Operator* input;
+    ASTNode* limit;
 };
 
-// Sort Operator
-class Sort : public Operator {
-    Operator* input;
-    string sortByColumn;
-    bool ascending;
+// Skip Operator
+class Skip : public Operator {
  public:
-    Sort(Operator* input, const string& sortByColumn, bool ascending);
+    Skip(Operator *input, ASTNode *skip);
     string execute() override;
-};
-
-// GroupBy Operator
-class GroupBy : public Operator {
-    Operator* input;
-    vector<std::string> groupByColumns;
- public:
-    GroupBy(Operator* input, const vector<std::string>& groupByColumns);
-    string execute() override;
+ private:
+    Operator *input;
+    ASTNode *skip;
 };
 
 // Distinct Operator
 class Distinct : public Operator {
-    Operator* input;
  public:
-    Distinct(Operator* input);
+    Distinct(Operator* input, const vector<ASTNode*> columns);
     string execute() override;
+
+ private:
+    Operator* input;
+    vector<ASTNode*> columns;
+};
+
+// OrderBy Operator
+class OrderBy : public Operator {
+ public:
+    OrderBy(Operator* input, ASTNode* orderByClause);
+    string execute() override;
+ private:
+    Operator* input;
+    ASTNode* orderByClause;
 };
 
 // Union Operator
@@ -282,5 +270,38 @@ class Apply : public Operator {
     Operator* operator2;
 };
 
+class EagerFunction : public Operator {
+ public:
+    // Constructor
+    EagerFunction(Operator* input, ASTNode* ast, string functionName);
+    string execute() override;
+
+ private:
+    Operator* input;
+    ASTNode* ast;
+    string functionName;
+};
+
+class Create : public Operator {
+ public:
+    // Constructor
+    Create(Operator* input, ASTNode* ast);
+    string execute() override;
+
+ private:
+    Operator* input;
+    ASTNode* ast;
+};
+
+class CartesianProduct : public Operator {
+ public:
+    // Constructor
+    CartesianProduct(Operator* left, Operator* right);
+    string execute() override;
+
+ private:
+    Operator* left;
+    Operator* right;
+};
 string printDownArrow(int width);
 #endif  // OPERATORS_H

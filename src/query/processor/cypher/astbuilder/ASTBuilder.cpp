@@ -845,14 +845,14 @@ any ASTBuilder::visitOC_ComparisonExpression(CypherParser::OC_ComparisonExpressi
   return visitOC_StringListNullPredicateExpression(ctx->oC_StringListNullPredicateExpression());
 }
 
-any ASTBuilder::visitOC_PartialComparisonExpression(CypherParser::OC_PartialComparisonExpressionContext *ctx) {
-  if (ctx->getText().find(">") != string::npos) {
-    auto *node = new ASTInternalNode(Const::GREATER_THAN);
+any ASTBuilder::visitOC_PartialComparisonExpression(CypherParser::OC_PartialComparisonExpressionContext *ctx)  {
+  if (ctx->getText().find("<>") != string::npos) {
+    auto *node = new ASTInternalNode(Const::GREATER_THAN_LOWER_THAN);
     node->addElements(any_cast<ASTNode*>(visitOC_StringListNullPredicateExpression(
             ctx->oC_StringListNullPredicateExpression())));
     return static_cast<ASTNode*>(node);
-  } else if (ctx->getText().find("<>") != string::npos) {
-    auto *node = new ASTInternalNode(Const::GREATER_THAN_LOWER_THAN);
+  } else if (ctx->getText().find(">") != string::npos) {
+    auto *node = new ASTInternalNode(Const::GREATER_THAN);
     node->addElements(any_cast<ASTNode*>(visitOC_StringListNullPredicateExpression(
             ctx->oC_StringListNullPredicateExpression())));
     return static_cast<ASTNode*>(node);
