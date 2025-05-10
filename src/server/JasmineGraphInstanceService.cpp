@@ -4251,6 +4251,9 @@ static void query_start_command(int connFd, InstanceHandler &instanceHandler, st
         return;
     }
 
+    std::thread perfThread = std::thread(&PerformanceUtil::collectPerformanceStatistics);
+    perfThread.detach();
+
     JasmineGraphIncrementalLocalStore * incrementalLocalStoreInstance;
     string graphIdentifier = "g"+graphId+"_p"+partition;
     if (incrementalLocalStoreMap.find(graphIdentifier) == incrementalLocalStoreMap.end()) {

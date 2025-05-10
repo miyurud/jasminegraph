@@ -16,6 +16,7 @@ limitations under the License.
 #include "../executor/impl/TriangleCountExecutor.h"
 #include "../executor/impl/StreamingTriangleCountExecutor.h"
 #include "../executor/impl/PageRankExecutor.h"
+#include "../executor/impl/CypherQueryExecutor.h"
 
 ExecutorFactory::ExecutorFactory(SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb) {
     this->sqliteDB = db;
@@ -29,6 +30,8 @@ AbstractExecutor* ExecutorFactory::getExecutor(JobRequest jobRequest) {
         return new StreamingTriangleCountExecutor(this->sqliteDB, jobRequest);
     } else if (PAGE_RANK == jobRequest.getJobType()) {
         return new PageRankExecutor(this->sqliteDB, this->perfDB, jobRequest);
+    } else if (CYPHER == jobRequest.getJobType()) {
+        return new CypherQueryExecutor(this->sqliteDB, this->perfDB, jobRequest);
     }
     return nullptr;
 }
