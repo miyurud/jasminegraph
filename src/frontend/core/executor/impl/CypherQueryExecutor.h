@@ -28,7 +28,6 @@ class CypherQueryExecutor : public AbstractExecutor{
  private:
     SQLiteDBInterface *sqlite;
     PerformanceSQLiteDBInterface *perfDB;
-
 };
 
-#endif //CYPHERQUERYEXECUTOR_H
+#endif  // CYPHERQUERYEXECUTOR_H
