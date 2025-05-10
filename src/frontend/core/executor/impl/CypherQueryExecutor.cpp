@@ -30,7 +30,8 @@ Logger cypher_logger;
 
 CypherQueryExecutor::CypherQueryExecutor() {}
 
-CypherQueryExecutor::CypherQueryExecutor(SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb, JobRequest jobRequest) {
+CypherQueryExecutor::CypherQueryExecutor(SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb,
+    JobRequest jobRequest) {
     this->sqlite = db;
     this->perfDB = perfDb;
     this->request = jobRequest;
@@ -95,8 +96,7 @@ void CypherQueryExecutor::execute() {
             doCypherQuery,
             worker.hostname, worker.port,
             masterIP, std::stoi(graphId), count++,
-            queryPlan, std::ref(sharedBuffer)
-        );
+            queryPlan, std::ref(sharedBuffer));
     }
 
     PerformanceUtil::init();
@@ -128,7 +128,7 @@ void CypherQueryExecutor::execute() {
 
     // int result_wr;
     int closeFlag = 0;
-    while(true){
+    while (true) {
         if (closeFlag == numberOfPartitions) {
             break;
         }

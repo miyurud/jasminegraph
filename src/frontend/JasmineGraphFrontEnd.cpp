@@ -187,7 +187,8 @@ void *frontendservicesesion(void *dummyPt) {
         } else if (line.compare(CYPHER) == 0) {
             workerClients = getWorkerClients(sqlite);
             workerClientsInitialized = true;
-            cypherCommand(masterIP, connFd, workerClients, numberOfPartitions, &loop_exit, sqlite, perfSqlite, jobScheduler);
+            cypherCommand(masterIP, connFd, workerClients, numberOfPartitions, &loop_exit, sqlite,
+                perfSqlite, jobScheduler);
         } else if (line.compare(SHTDN) == 0) {
             JasmineGraphServer::shutdown_workers();
             close(connFd);
