@@ -29,8 +29,8 @@ NodeScanByLabel::NodeScanByLabel(string label, string var) : label(label), var(v
 
 string NodeScanByLabel::execute() {
     json nodeByLabel;
-    nodeByLabel["Operator"] = "NodeByLabel";
-    nodeByLabel["variables"] = var;
+    nodeByLabel["Operator"] = "NodeScanByLabel";
+    nodeByLabel["variable"] = var;
     nodeByLabel["Label"] = label;
     return nodeByLabel.dump();
 }
@@ -258,7 +258,9 @@ string Filter::execute() {
         if (item.second->nodeType == Const::WHERE) {
             filter["condition"] = json::parse(analyzeWhere(item.second->elements[0]));
         } else if (item.second->nodeType == Const::PROPERTIES_MAP) {
+            cout<<"Properties Map" << endl;
             filter["condition"] = json::parse(analyzePropertiesMap(item));
+            cout<<filter["condition"].dump() << endl;
         }
     }
     return filter.dump();
@@ -455,12 +457,14 @@ DirectedRelationshipTypeScan::DirectedRelationshipTypeScan(string direction, str
 
 // Execute method
 string DirectedRelationshipTypeScan::execute() {
-    if (direction == "right") {
-        operatorLogger.debug("(" + startVar + ") -[" + relvar + " :" + relType + "]-> (" + endVar + ")");
-    } else {
-        operatorLogger.debug("(" + startVar + ") <-[" + relvar + " :" + relType + "]- (" + endVar + ")");
-    }
-    return "";
+    json directed;
+    directed["Operator"] = "DirectedRelationshipTypeScan";
+    directed["sourceVariable"] = startVar;
+    directed["destVariable"] = endVar;
+    directed["relVariable"] = relvar;
+    directed["relType"] = relType;
+    directed["direction"] = direction;
+    return directed.dump();
 }
 
 DirectedAllRelationshipScan::DirectedAllRelationshipScan(std::string direction, std::string startVar,
@@ -468,12 +472,13 @@ DirectedAllRelationshipScan::DirectedAllRelationshipScan(std::string direction, 
         : startVar(startVar), endVar(endVar), relVar(relVar), direction(direction) {}
 
 string DirectedAllRelationshipScan::execute() {
-    if (direction == "right") {
-        operatorLogger.debug("(" + startVar + ") -[" + relVar + "]-> (" + endVar + ")");
-    } else {
-        operatorLogger.debug("(" + startVar + ") <-[" + relVar + "]- (" + endVar + ")");
-    }
-    return "";
+    json directed;
+    directed["Operator"] = "DirectedRelationshipTypeScan";
+    directed["sourceVariable"] = startVar;
+    directed["destVariable"] = endVar;
+    directed["relVariable"] = relVar;
+    directed["direction"] = direction;
+    return directed.dump();
 }
 
 ExpandAll::ExpandAll(Operator *input, std::string startVar, std::string destVar, std::string relVar,
@@ -526,12 +531,12 @@ string Apply::execute() {
     return "";
 }
 
-EagerFunction::EagerFunction(Operator *input, ASTNode *ast, std::string functionName):
+AggregationFunction::AggregationFunction(Operator *input, ASTNode *ast, std::string functionName):
     input(input), ast(ast), functionName(functionName) {}
 
-string EagerFunction::execute() {
+string AggregationFunction::execute() {
     json eagerFunction;
-    eagerFunction["Operator"] = "EagerFunction";
+    eagerFunction["Operator"] = "AggregationFunction";
     eagerFunction["NextOperator"] = input->execute();
     eagerFunction["FunctionName"] = functionName;
     eagerFunction["variable"] = ast->elements[0]->value;

@@ -154,7 +154,7 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
             for (auto func : functions) {
                 string name = func->elements[0]->elements[1]->value;
                 if (name == "avg" || name == "AVG") {
-                    temp_opt = new EagerFunction(temp_opt, func->elements[1]->elements[0], name);
+                    temp_opt = new AggregationFunction(temp_opt, func->elements[1]->elements[0], name);
                 }
             }
         }
@@ -204,7 +204,7 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
         if (isAvailable(Const::PROPERTIES_MAP, ast)) {
             if (isAvailable(Const::NODE_LABEL, ast) && isAvailable(Const::VARIABLE, ast)) {
                 if (!currentOperator) {
-                    currentOperator = new NodeScanByLabel(ast->elements[1]->value, ast->elements[0]->value);
+                    currentOperator = new NodeScanByLabel(ast->elements[1]->elements[0]->value, ast->elements[0]->value);
                 }
                 auto filterCase = pair<string, ASTNode*>(ast->elements[0]->value, ast->elements[2]);
                 vector<pair<string, ASTNode*>> vec = {filterCase};
@@ -221,7 +221,7 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
             } else if (isAvailable(Const::NODE_LABEL, ast) &&
                         !isAvailable(Const::VARIABLE, ast)) {
                 if (!currentOperator) {
-                    currentOperator = new NodeScanByLabel(ast->elements[0]->value);
+                    currentOperator = new NodeScanByLabel(ast->elements[0]->elements[0]->value);
                 }
                 auto filterCase = pair<string, ASTNode*>("node_0", ast->elements[1]);
                 vector<pair<string, ASTNode*>> vec = {filterCase};
@@ -254,13 +254,13 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
                 if (currentOperator) {
                     return currentOperator;
                 }
-                return new NodeScanByLabel(ast->elements[1]->value, ast->elements[0]->value);
+                return new NodeScanByLabel(ast->elements[1]->elements[0]->value, ast->elements[0]->value);
             } else if (!isAvailable(Const::VARIABLE, ast) &&
                 ast->elements[0]->nodeType == Const::NODE_LABEL) {
                 if (currentOperator) {
                     return currentOperator;
                 }
-                return new NodeScanByLabel(ast->elements[0]->value);
+                return new NodeScanByLabel(ast->elements[0]->elements[0]->value);
             } else if (isAvailable(Const::NODE_LABELS, ast) &&
                     isAvailable(Const::VARIABLE, ast)) {
                 return createExecutionPlan(ast->elements[1], currentOperator);
@@ -297,7 +297,7 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
 
     } else if (ast->nodeType == Const::NODE_LABEL) {
         string var_0 = var != "" ? var : "var_0";
-        return new NodeScanByLabel(ast->elements[0]->value, var_0);
+        return new NodeScanByLabel(ast->elements[0]->elements[0]->value, var_0);
     } else if (ast->nodeType == Const::RANGE) {
         // TODO(thamindumk): Implement RANGE
     } else if (ast->nodeType == Const::PROPERTY) {
@@ -546,25 +546,24 @@ pair<vector<bool>, vector<ASTNode *>> QueryPlanner::getRelationshipDetails(ASTNo
 
 pair<vector<bool>, vector<ASTNode *>> QueryPlanner::getNodeDetails(ASTNode *node) {
     vector<bool> availability = {false, false, false};
-    vector<ASTNode*> nodes;
-    for (int i = 0; i < Const::THREE; i++) {
-        if (i < node->elements.size()) {
+    vector<ASTNode*> nodes = {nullptr, nullptr, nullptr};
+    for (int i = 0; i<3;i++) {
+        if (i<node->elements.size()) {
             auto* e = node->elements[i];
             if (e->nodeType == Const::VARIABLE) {
                 availability[0] = true;
-                nodes.push_back(e);
+                nodes[0] = e;
             } else if (e->nodeType == Const::NODE_LABEL || e->nodeType == Const::NODE_LABELS) {
                 availability[1] = true;
-                nodes.push_back(e);
+                nodes[1] = e;
             } else if (e->nodeType == Const::PROPERTIES_MAP) {
                 availability[2] = true;
-                nodes.push_back(e);
+                nodes[2] = e;
             }
-        } else {
-            nodes.push_back(nullptr);
         }
     }
-    auto outputPair = pair<vector<bool>, vector<ASTNode *>>(availability, nodes);
+    auto outputPair = pair<vector<bool>, vector<ASTNode*>>(availability, nodes);
+
     return outputPair;
 }
 
@@ -1433,6 +1432,26 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
         string destVar = analyzedDest.first[0]? analyzedDest.second[0]->value : "node_var_"+ to_string(endIndex+1);
 
         inputOperator = new UndirectedAllRelationshipScan(startVar, destVar, relVar);
+
+        if (analyzedDetails.first[2]) {
+            filterCases.push_back(pair<string, ASTNode*>(relVar, analyzedDetails.second[2]));
+        }
+        if (analyzedSource.first[1]) {
+            filterCases.push_back(pair<string, ASTNode*>(startVar, analyzedSource.second[1]));
+        }
+        if (analyzedSource.first[2]) {
+            filterCases.push_back(pair<string, ASTNode*>(startVar, analyzedSource.second[2]));
+        }
+        if (analyzedDest.first[1]) {
+            filterCases.push_back(pair<string, ASTNode*>(destVar, analyzedDest.second[1]));
+        }
+        if (analyzedDest.first[2]) {
+            filterCases.push_back(pair<string, ASTNode*>(destVar, analyzedDest.second[2]));
+        }
+        if (!filterCases.empty()) {
+            inputOperator = new Filter(inputOperator, filterCases);
+        }
+
         string prevRel = relVar;
         for (int left = endIndex-1; left >= 0; left--) {
             filterCases.clear();
@@ -1453,9 +1472,22 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
 
             auto* whereClause = prepareWhereClause(newRelVar, prevRel);
             filterCases.push_back(pair<string, ASTNode*>("null", whereClause));
-            inputOperator = new Filter(inputOperator, filterCases);
+
             prevRel = newRelVar;
             startVar = newDestvar;
+
+            if (analyzedRel.first[2]) {
+                filterCases.push_back(pair<string, ASTNode*>(newRelVar, analyzedRel.second[2]));
+            }
+            if (analyzedNode.first[1]) {
+                filterCases.push_back(pair<string, ASTNode*>(newDestvar, analyzedNode.second[1]));
+            }
+            if (analyzedNode.first[2]) {
+                filterCases.push_back(pair<string, ASTNode*>(newDestvar, analyzedNode.second[2]));
+            }
+            if (!filterCases.empty()) {
+                inputOperator = new Filter(inputOperator, filterCases);
+            }
         }
     }
     return inputOperator;

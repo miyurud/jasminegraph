@@ -270,10 +270,10 @@ class Apply : public Operator {
     Operator* operator2;
 };
 
-class EagerFunction : public Operator {
+class AggregationFunction : public Operator {
  public:
     // Constructor
-    EagerFunction(Operator* input, ASTNode* ast, string functionName);
+    AggregationFunction(Operator* input, ASTNode* ast, string functionName);
     string execute() override;
 
  private:
