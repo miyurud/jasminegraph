@@ -103,6 +103,38 @@ spec:
 apiVersion: v1
 kind: PersistentVolume
 metadata:
+  name: common-config
+  labels:
+    application: jasminegraph
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "${config_directory_path}"
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: common-config-claim
+  labels:
+      application: jasminegraph
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
   name: jasminegraph-logs
   labels:
     application: jasminegraph

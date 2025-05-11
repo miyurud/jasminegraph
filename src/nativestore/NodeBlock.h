@@ -30,8 +30,8 @@ class NodeBlock {
     bool isDirected = false;
 
  public:
-    static const unsigned long BLOCK_SIZE = 28;  // Size of a node block in bytes
-    static const unsigned int LABEL_SIZE = 6;    // Size of a node label in bytes
+    static const unsigned long BLOCK_SIZE = 40;  // Size of a node block in bytes
+    static const unsigned int LABEL_SIZE = 18;    // Size of a node label in bytes
     unsigned int addr = 0;
     std::string id = "";  // Node ID for this block ie: citation paper ID, Facebook accout ID, Twitter account ID etc
 
@@ -67,6 +67,7 @@ class NodeBlock {
     void save();
     std::string getLabel();
     void setLabel(const char *_label);
+    void addLabel(char *label);
     bool isInUse();
     int getFlags();
     static NodeBlock *get(unsigned int);
