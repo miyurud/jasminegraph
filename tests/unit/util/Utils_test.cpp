@@ -26,7 +26,7 @@ std::string testSample =
     "    - name: <name>";
 
 TEST(UtilsTest, TestGetJasmineGraphProperty) {
-    ASSERT_EQ(Utils::getJasmineGraphProperty("org.jasminegraph.server.host"), "localhost");
+    ASSERT_EQ(Utils::getJasmineGraphProperty("org.jasminegraph.server.host"), "172.28.5.1");
 }
 
 TEST(UtilsTest, TestGetFileContentAsString) {
