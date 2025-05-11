@@ -95,6 +95,7 @@ class Filter : public Operator {
     Filter(Operator* input, vector<pair<string, ASTNode*>> filterCases);
     string analyzeWhere(ASTNode* ast);
     string analyzePropertiesMap(pair<string, ASTNode*> item);
+    string analyzeNodeLabels(pair<std::string, ASTNode *> item);
     string comparisonOperand(ASTNode* ast);
     string execute() override;
 

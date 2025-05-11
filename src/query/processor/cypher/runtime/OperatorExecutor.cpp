@@ -155,7 +155,7 @@ void OperatorExecutor::NodeScanByLabel(SharedBuffer &buffer, std::string jsonPla
             properties.clear();
 
             json data;
-            string variable = query["variables"];
+            string variable = query["variable"];
             data[variable] = nodeData;
             buffer.add(data.dump());
         }

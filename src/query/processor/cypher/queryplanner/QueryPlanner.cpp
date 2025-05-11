@@ -514,16 +514,16 @@ ASTNode* QueryPlanner::verifyTreeType(ASTNode* root, string nodeType ) {
 
 pair<vector<bool>, vector<ASTNode *>> QueryPlanner::getRelationshipDetails(ASTNode *node) {
     vector<bool> availability = {false, false, false};
-    vector<ASTNode*> nodes;
+    vector<ASTNode*> nodes = {nullptr, nullptr, nullptr};
     for (int i = 0; i < Const::THREE; i++) {
         if (i < node->elements.size()) {
             auto* e = node->elements[i];
             if (e->nodeType == Const::VARIABLE) {
                 availability[0] = true;
-                nodes.push_back(e);
+                nodes[0] = e;
             } else if (e->nodeType == Const::RELATIONSHIP_TYPE) {
                 availability[1] = true;
-                nodes.push_back(e);
+                nodes[1] = e;
             } else if (e->nodeType == Const::RELATIONSHIP_TYPES) {
                 availability[1] = true;
                 auto* types = e;
@@ -531,10 +531,10 @@ pair<vector<bool>, vector<ASTNode *>> QueryPlanner::getRelationshipDetails(ASTNo
                 for (auto* type : e->elements) {
                     types->elements.push_back(type->elements[0]);
                 }
-                nodes.push_back(types);
+                nodes[0] = types;
             } else if (e->nodeType == Const::PROPERTIES_MAP) {
                 availability[2] = true;
-                nodes.push_back(e);
+                nodes[2] = e;
             }
         } else {
             nodes.push_back(nullptr);
@@ -963,26 +963,14 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
         string destVar = analyzedDest.first[0]? analyzedDest.second[0]->value : "node_var_"+ to_string(index+1);
 
         if (e->elements[0]->elements[0]->nodeType == Const::UNIDIRECTION_ARROW) {
-            if (analyzedDetails.first[0]) {
-                inputOperator = new UndirectedRelationshipTypeScan(analyzedDetails.second[1]->elements[0]->value,
+            inputOperator = new UndirectedRelationshipTypeScan(analyzedDetails.second[1]->elements[0]->value,
                                                                    relVar, startVar, destVar);
-
-            } else {
-                inputOperator = new UndirectedRelationshipTypeScan(analyzedDetails.second[0]->elements[0]->value,
-                                                                   relVar, startVar, destVar);
-            }
 
         } else {
             auto direction = e->elements[0]->elements[0]->nodeType == Const::LEFT_ARRROW ? "left" : "right";
-            if (analyzedDetails.first[0]) {
-                inputOperator = new DirectedRelationshipTypeScan(direction,
-                                                                 analyzedDetails.second[1]->elements[0]->value,
-                                                                 relVar, startVar, destVar);
-            } else {
-                inputOperator = new DirectedRelationshipTypeScan(direction,
+            inputOperator = new DirectedRelationshipTypeScan(direction,
                                                                  analyzedDetails.second[0]->elements[0]->value,
                                                                  relVar, startVar, destVar);
-            }
         }
 
         if (analyzedDetails.first[2]) {

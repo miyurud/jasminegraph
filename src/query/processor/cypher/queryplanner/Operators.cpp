@@ -210,6 +210,22 @@ string Filter::analyzeWhere(ASTNode* ast) {
     return where.dump();
 }
 
+string Filter::analyzeNodeLabels(pair<std::string, ASTNode *> item) {
+    json condition;
+    json left;
+    json right;
+    left["type"] = Const::PROPERTY_LOOKUP;
+    left["property"] = json::array({"label"});
+    left["variable"] = item.first;
+    right["type"] = Const::STRING;
+    right["value"] = item.second->elements[0]->value;
+    condition["left"] = left;
+    condition["operator"] = Const::DOUBLE_EQUAL;
+    condition["right"] = right;
+    condition["type"] = Const::COMPARISON;
+    return condition.dump();
+}
+
 string Filter::analyzePropertiesMap(pair<std::string, ASTNode *> item) {
     json condition;
     if (item.second->elements.size() > 1) {
@@ -258,9 +274,9 @@ string Filter::execute() {
         if (item.second->nodeType == Const::WHERE) {
             filter["condition"] = json::parse(analyzeWhere(item.second->elements[0]));
         } else if (item.second->nodeType == Const::PROPERTIES_MAP) {
-            cout<<"Properties Map" << endl;
             filter["condition"] = json::parse(analyzePropertiesMap(item));
-            cout<<filter["condition"].dump() << endl;
+        } else if (item.second->nodeType == Const::NODE_LABEL) {
+            filter["condition"] = json::parse(analyzeNodeLabels(item));
         }
     }
     return filter.dump();
