@@ -27,6 +27,7 @@ limitations under the License.
 #include <string>
 #include <curl/curl.h>
 #include <regex>
+#include <boost/multi_index/detail/serialization_version.hpp>
 
 #include "../../metadb/SQLiteDBInterface.h"
 #include "../../nativestore/DataPublisher.h"
@@ -85,6 +86,7 @@ static void get_degree_command(int connFd, std::string command, int numberOfPart
                                std::string type, bool *loop_exit_p);
 static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClients,
                                int numberOfPartitions, bool *loop_exit, std::string command);
+static void get_properties_command(int connFd, bool *loop_exit_p);
 
 static vector<DataPublisher *> getWorkerClients(SQLiteDBInterface *sqlite) {
     const vector<Utils::worker> &workerList = Utils::getWorkerList(sqlite);
@@ -168,6 +170,8 @@ void *uifrontendservicesesion(void *dummyPt) {
             workerClients = getWorkerClients(sqlite);
             workerClientsInitialized = true;
             cypher_ast_command(connFd, workerClients, numberOfPartitions, &loop_exit, line);
+        } else if (line.compare(PROPERTIES) == 0) {
+            get_properties_command(connFd,  &loop_exit);
         } else {
             ui_frontend_logger.error("Message format not recognized " + line);
             int result_wr = write(connFd, INVALID_FORMAT.c_str(), INVALID_FORMAT.size());
@@ -974,5 +978,34 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
                 }
             }
         }
+    }
+}
+
+static void get_properties_command(int connFd, bool *loop_exit_p){
+    std::string partitionCount = Utils::getJasmineGraphProperty("org.jasminegraph.server.npartitions");
+    int numberOfPartitions = std::stoi(partitionCount);
+
+    std::string version = Utils::getJasmineGraphProperty("org.jasminegraph.server.version");
+
+    std::string workerCount = Utils::getJasmineGraphProperty("org.jasminegraph.server.npartitions");
+    int numberOfWorkers = std::stoi(partitionCount);
+
+    json properties;
+    properties["partitionCount"] = numberOfPartitions;
+    properties["workersCount"] = numberOfWorkers;
+    properties["version"] = version;
+
+    // Convert JSON object to string
+    string result = properties.dump();
+    int result_wr = write(connFd, result.c_str(), result.length());
+    if (result_wr < 0) {
+        ui_frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+    }
+
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+    if (result_wr < 0) {
+        ui_frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
     }
 }
