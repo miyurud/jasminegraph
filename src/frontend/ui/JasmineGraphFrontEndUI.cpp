@@ -27,7 +27,6 @@ limitations under the License.
 #include <string>
 #include <curl/curl.h>
 #include <regex>
-#include <boost/multi_index/detail/serialization_version.hpp>
 
 #include "../../metadb/SQLiteDBInterface.h"
 #include "../../nativestore/DataPublisher.h"
