@@ -275,7 +275,7 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
             return;
         }
 
-        result_wr = write(connFd, "\r\n", 2);
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             ui_frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -333,7 +333,7 @@ static void add_graph_command(std::string masterIP,
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         ui_frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -391,7 +391,7 @@ static void add_graph_command(std::string masterIP,
             *loop_exit_p = true;
             return;
         }
-        result_wr = write(connFd, "\r\n", 2);
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             ui_frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -422,7 +422,7 @@ static void remove_graph_command(std::string masterIP,
             *loop_exit_p = true;
             return;
         }
-        result_wr = write(connFd, "\r\n", 2);
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             ui_frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -436,7 +436,7 @@ static void remove_graph_command(std::string masterIP,
             *loop_exit_p = true;
             return;
         }
-        result_wr = write(connFd, "\r\n", 2);
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             ui_frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -474,7 +474,7 @@ static void triangles_command(std::string masterIP, int connFd,
             return;
         }
 
-        result_wr = write(connFd, "\r\n", 2);
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             ui_frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -490,7 +490,7 @@ static void triangles_command(std::string masterIP, int connFd,
                 return;
             }
 
-            result_wr = write(connFd, "\r\n", 2);
+            result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
             if (result_wr < 0) {
                 ui_frontend_logger.error("Error writing to socket");
             }
@@ -553,7 +553,7 @@ static void triangles_command(std::string masterIP, int connFd,
                 ui_frontend_logger.error("Error writing to socket");
                 return;
             }
-            result_wr = write(connFd, "\r\n", 2);
+            result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
             if (result_wr < 0) {
                 ui_frontend_logger.error("Error writing to socket");
             }
@@ -577,7 +577,7 @@ static void triangles_command(std::string masterIP, int connFd,
             *loop_exit_p = true;
             return;
         }
-        result_wr = write(connFd, "\r\n", 2);
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             ui_frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
