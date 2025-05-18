@@ -80,7 +80,9 @@ create table sla_category
     command  TEXT    not null,
     category TEXT    not null
 );
-
+/* When updating sla_category table with new records
+   Please update tests/unit/performancedb/PerformanceSQLiteDBInterface_test.cpp,
+   test case: TestRunSelect */
 insert into sla_category (id, command, category)
 values (1, 'trian', 'latency');
 
