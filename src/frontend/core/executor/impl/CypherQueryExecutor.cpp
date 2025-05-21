@@ -78,7 +78,7 @@ void CypherQueryExecutor::execute() {
         Operator *executionPlan = queryPlanner.createExecutionPlan(ast);
         queryPlan = executionPlan->execute();
     } else {
-        cypher_logger.error("query isn't semantically correct: "+queryString);
+        cypher_logger.error("Query isn't semantically correct: "+queryString);
     }
 
     SharedBuffer sharedBuffer(3);
