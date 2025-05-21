@@ -47,7 +47,7 @@ TEST_F(PerformanceSQLiteDBInterfaceTest, TestRunSelect) {
     }
 
     auto result = perfdbInterface->runSelect("SELECT * FROM sla_category");
-    ASSERT_EQ(result.size(), 2);
+    ASSERT_EQ(result.size(), 3);
 }
 
 TEST_F(PerformanceSQLiteDBInterfaceTest, TestRunInsertAndUpdate) {
