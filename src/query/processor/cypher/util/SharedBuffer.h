@@ -26,6 +26,10 @@ class SharedBuffer {
 
     // Retrieve data from the buffer
     std::string get();
+
+    bool tryGet(std::string& data);
+
+    bool empty();
 };
 
 #endif  // JASMINEGRAPH_SHAREDBUFFER_H
