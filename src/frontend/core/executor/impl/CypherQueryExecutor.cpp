@@ -137,7 +137,7 @@ void CypherQueryExecutor::execute() {
             closeFlag++;
         } else {
             write(connFd, data.c_str(), data.length());
-            write(connFd, "\r\n", 2);
+            write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         }
     }
 
