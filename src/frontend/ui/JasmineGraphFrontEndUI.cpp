@@ -823,9 +823,6 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
         ui_frontend_logger.error("query isn't semantically correct: " + user_res_s);
     }
 
-    // print query plan
-    ui_frontend_logger.info((obj.c_str()));
-
     int bufferSize = 5;
     // Create buffer pool
     std::vector<std::unique_ptr<SharedBuffer>> bufferPool;
@@ -906,15 +903,11 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
                 }
             }
 
-            ui_frontend_logger.info("START MASTER SORTING");
-            ui_frontend_logger.info(std::to_string(mergeQueue.size()));
-
             // Merge loop
             while (!mergeQueue.empty()) {
                 // Pick smallest value
                 BufferEntry smallest = mergeQueue.top();
                 size_t queueSize = mergeQueue.size();
-                ui_frontend_logger.info(std::to_string(queueSize));
                 mergeQueue.pop();
                 int result_wr = write(connFd, smallest.value.c_str(), smallest.value.length());
                 if (result_wr < 0) {
