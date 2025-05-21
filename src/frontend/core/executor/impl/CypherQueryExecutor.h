@@ -21,7 +21,7 @@ class CypherQueryExecutor : public AbstractExecutor{
 
     CypherQueryExecutor(SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb, JobRequest jobRequest);
     static void doCypherQuery(std::string host, int port, std::string masterIP, int graphID,
-                                               int PartitionId, std::string message, SharedBuffer &sharedBuffer);
+                                               int partitionId, std::string message, SharedBuffer &sharedBuffer);
     void execute() override;
     static int getUid();
 
