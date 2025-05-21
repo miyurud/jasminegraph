@@ -25,9 +25,6 @@ limitations under the License.
 
 Logger cypher_logger;
 
-// std::mutex processStatusMutex;
-// std::mutex responseVectorMutex;
-
 CypherQueryExecutor::CypherQueryExecutor() {}
 
 CypherQueryExecutor::CypherQueryExecutor(SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb,
