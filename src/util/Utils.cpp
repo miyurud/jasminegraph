@@ -1495,9 +1495,10 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
         close(sockfd);
         return false;
     }
-
+    int count = 0;
+    bool end = false;
     auto startTime = std::chrono::high_resolution_clock::now();
-    while (true) {
+    while (count != 1) {
         char start[ACK_MESSAGE_SIZE] = {0};
         recv(sockfd, &start, sizeof(start), 0);
         std::string start_msg(start);
@@ -1512,7 +1513,7 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
         ssize_t return_status = recv(sockfd, &content_length, sizeof(int), 0);
         if (return_status > 0) {
             content_length = ntohl(content_length);
-            util_logger.info("Received int =" + std::to_string(content_length));
+            util_logger.debug("Received int =" + std::to_string(content_length));
         } else {
             util_logger.error("Error while receiving content length");
             return false;
@@ -1529,15 +1530,18 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
             util_logger.info("Error while reading graph data");
             return false;
         }
+
+        if (end) {
+            count = 1;
+        }
+
         if (data == "-1") {
             sharedBuffer.add(data);
-            break;
+            end = true;
         }
+
         sharedBuffer.add(data);
     }
-    auto now = std::chrono::high_resolution_clock::now();
-    auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - startTime);
-    util_logger.info(" Time Taken: " + std::to_string(elapsed.count()) + " seconds");
     return true;
 }
 

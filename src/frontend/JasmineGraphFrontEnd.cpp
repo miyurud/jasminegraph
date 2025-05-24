@@ -516,6 +516,7 @@ static void cypherCommand(int connFd, vector<DataPublisher *> &workerClients,
 
     int closeFlag = 0;
     if (Operator::isAggregate) {
+        auto startTime = std::chrono::high_resolution_clock::now();
         if (Operator::aggregateType == AggregationFactory::AVERAGE) {
             Aggregation* aggregation = AggregationFactory::getAggregationMethod(AggregationFactory::AVERAGE);
             while (true) {
@@ -586,8 +587,6 @@ static void cypherCommand(int connFd, vector<DataPublisher *> &workerClients,
 
             // Merge loop
             while (!mergeQueue.empty()) {
-                frontend_logger.info(":::::::FRONTEND:::::::");
-
                 // Pick smallest value
                 BufferEntry smallest = mergeQueue.top();
                 frontend_logger.info(smallest.value);
@@ -640,18 +639,24 @@ static void cypherCommand(int connFd, vector<DataPublisher *> &workerClients,
                 return;
             }
         }
+        auto endTime = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+        int totalTime = duration.count();
+        string finalMessage = "Time taken to process query: " + std::to_string(totalTime / 1000) + " seconds";
+        result_wr = write(connFd, finalMessage.c_str(), finalMessage.length());
     } else {
+        int count = 0;
         while (true) {
             if (closeFlag == numberOfPartitions) {
                 break;
             }
-
             for (size_t i = 0; i < bufferPool.size(); ++i) {
                 std::string data;
                 if (bufferPool[i]->tryGet(data)) {
                     if (data == "-1") {
                         closeFlag++;
                     } else {
+                        count++;
                         result_wr = write(connFd, data.c_str(), data.length());
                         result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
                                           Conts::CARRIAGE_RETURN_NEW_LINE.size());
@@ -664,6 +669,19 @@ static void cypherCommand(int connFd, vector<DataPublisher *> &workerClients,
                 }
             }
         }
+        int totalTime = 0;
+        int time;
+        for (const auto & buffer : bufferPool) {
+            cout<<"LL"<<endl;
+            cout<<buffer->get()<<endl;
+            cout<<"KK"<<endl;
+            time = json::parse(buffer->get())["time"].get<int>();
+            totalTime += time;
+        }
+
+        string finalMessage = "Time taken to process query: " + std::to_string(totalTime/1000) + " seconds for " +
+                              std::to_string(count) + " records";
+        result_wr = write(connFd, finalMessage.c_str(), finalMessage.length());
     }
 }
 

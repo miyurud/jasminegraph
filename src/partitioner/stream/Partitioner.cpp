@@ -142,7 +142,7 @@ void Partitioner::updateMetaDB() {
     double edgesCount = 0;
     double edgeCutsCount = 0;
     for (auto partition : this->partitions) {
-        vertexCount += partition.getVertextCount();
+        vertexCount += partition.getVertextCountQuick();
         edgesCount += partition.getEdgesCount(this->isDirect);
         edgeCutsCount += partition.edgeCutsCount();
     }
