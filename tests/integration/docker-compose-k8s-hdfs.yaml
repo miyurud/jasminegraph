@@ -1,6 +1,7 @@
 version: '3.0'
 services:
   namenode:
+    hostname: namenode
     image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
     container_name: hdfs-namenode
     restart: always
@@ -18,6 +19,7 @@ services:
         ipv4_address: 172.28.5.10 # this IP is referred at tests/integration/env_init/config/hdfs/hdfs_config.txt
 
   datanode:
+    hostname: datanode
     image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
     container_name: hdfs-datanode
     restart: always
@@ -36,6 +38,7 @@ services:
       - jasminegraph_net
 
   resourcemanager:
+    hostname: resourcemanager
     image: bde2020/hadoop-resourcemanager:2.0.0-hadoop3.2.1-java8
     container_name: hdfs-resourcemanager
     restart: always

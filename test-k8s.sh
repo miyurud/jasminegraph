@@ -1,12 +1,11 @@
 #!/bin/bash
 
 set -e
-
 export TERM=xterm-256color
 
 PROJECT_ROOT="$(pwd)"
 TEST_ROOT="${PROJECT_ROOT}/tests/integration"
-TIMEOUT_SECONDS=180
+TIMEOUT_SECONDS=300
 RUN_ID="$(date +%y%m%d_%H%M%S)"
 LOG_DIR="${PROJECT_ROOT}/logs/${RUN_ID}"
 while [ -d "$LOG_DIR" ]; do
@@ -21,10 +20,36 @@ mkdir "$LOG_DIR"
 
 BUILD_LOG="${LOG_DIR}/build.log"
 RUN_LOG="${LOG_DIR}/run_master.log"
+MASTER_LOG="${LOG_DIR}/master.log"
 TEST_LOG="${LOG_DIR}/test.log"
 WORKER_LOG_DIR="/tmp/jasminegraph"
 rm -rf "${WORKER_LOG_DIR}"
 mkdir -p "${WORKER_LOG_DIR}"
+
+MASTER_LOG_PID=""
+
+# Function to start capturing master logs
+start_master_logs() {
+    echo "Starting to capture JasmineGraph master logs..."
+    MASTER_POD=$(kubectl get pods | grep jasminegraph-master | awk '{print $1}')
+    if [[ -z ${MASTER_POD} ]]; then
+        echo "Error: JasmineGraph Master pod not found."
+        return 1
+    fi
+    kubectl logs -f "$MASTER_POD" >"$MASTER_LOG" 2>&1 &
+    MASTER_LOG_PID=$!
+    echo "Master log capture started with PID $MASTER_LOG_PID"
+}
+
+# Function to stop master log capture
+stop_master_logs() {
+    if [[ -n $MASTER_LOG_PID ]]; then
+        echo "Stopping master log capture..."
+        kill "$MASTER_LOG_PID" >/dev/null 2>&1 || true
+        wait "$MASTER_LOG_PID" 2>/dev/null || true
+        MASTER_LOG_PID=""
+    fi
+}
 
 force_remove() {
     local files=("$@")
@@ -62,7 +87,6 @@ build_and_run_on_k8s() {
 clear_resources() {
     ./start-k8s.sh clean
 
-    # Clean hdfs related docker containers
     if [ ! -z "$(docker ps -a -q)" ]; then
         docker ps -a -q | xargs docker rm -f &>/dev/null
     else
@@ -72,11 +96,20 @@ clear_resources() {
     if [ ! -z "$(docker ps -a -q)" ]; then
         docker ps -a -q | xargs docker rm -f &>/dev/null
     fi
-
 }
-
 ready_hdfs() {
+    export HOST_IP=$(hostname -I | awk '{print $1}')
+    echo "Detected Host IP: $HOST_IP"
+    HDFS_CONF_FILE="${TEST_ROOT}/env_init/config/hdfs/hdfs_config.txt"
 
+    # Replace the IP in the file
+    sed -i "s/^hdfs\.host=.*/hdfs.host=${HOST_IP}/" $HDFS_CONF_FILE
+
+    echo "Updated hdfs_cnf.txt:"
+    cat $HDFS_CONF_FILE
+    MASTER_POD=$(kubectl get pods | grep jasminegraph-master | awk '{print $1}')
+
+    kubectl cp "${TEST_ROOT}/env_init/config/hdfs/hdfs_config.txt" ${MASTER_POD}:/var/tmp/data/hdfs_config.txt
     echo "Starting HDFS using Docker Compose..."
     docker compose -f "${TEST_ROOT}/docker-compose-k8s-hdfs.yaml" up >"$RUN_LOG" 2>&1 &
 
@@ -152,7 +185,6 @@ ready_hdfs() {
 
     echo "File successfully uploaded to HDFS at ${HDFS_FILE_PATH}"
 }
-
 cd "$TEST_ROOT"
 force_remove env
 cp -r env_init env
@@ -160,6 +192,7 @@ cp -r env_init env
 cd "$PROJECT_ROOT"
 build_and_run_on_k8s
 ready_hdfs
+start_master_logs
 
 # Wait till JasmineGraph server start listening
 cur_timestamp="$(date +%s)"
@@ -173,6 +206,7 @@ while ! nc -zvn -w 1 "$masterIP" 7777 &>/dev/null; do
         cat "$BUILD_LOG"
         echo "Run log:"
         cat "$RUN_LOG"
+        stop_master_logs
         force_remove "${TEST_ROOT}/env"
         clear_resources
         exit 1
@@ -190,13 +224,14 @@ echo
 
 timeout "$TIMEOUT_SECONDS" python3 -u "${TEST_ROOT}/test-k8s.py" "$masterIP" |& tee "$TEST_LOG"
 exit_code="${PIPESTATUS[0]}"
+
 set +ex
 if [ "$exit_code" = '124' ]; then
     echo
     kubectl get pods -o wide
 
-    echo -e '\n\e[33;1mMASTER LOG:\e[0m' |& tee -a "$RUN_LOG"
-    kubectl logs --previous deployment/jasminegraph-master-deployment |& tee -a "$RUN_LOG"
+    echo -e '\n\e[34;1mCaptured JasmineGraph Master Logs:\e[0m'
+    cat "$MASTER_LOG"
 
     echo -e '\n\e[33;1mWORKER-0 LOG:\e[0m' |& tee -a "$RUN_LOG"
     kubectl logs deployment/jasminegraph-worker0-deployment |& tee -a "$RUN_LOG"
@@ -210,9 +245,11 @@ if [ "$exit_code" = '124' ]; then
     clear_resources
 fi
 
+stop_master_logs
 set +e
 clear_resources >/dev/null 2>&1
 set -e
 
 force_remove "${TEST_ROOT}/env" "${WORKER_LOG_DIR}"
+
 exit "$exit_code"
