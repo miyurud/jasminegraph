@@ -973,7 +973,7 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
     }
 }
 
-static void get_properties_command(int connFd, bool *loop_exit_p){
+static void get_properties_command(int connFd, bool *loop_exit_p) {
     std::string partitionCount = Utils::getJasmineGraphProperty("org.jasminegraph.server.npartitions");
     int numberOfPartitions = std::stoi(partitionCount);
 
