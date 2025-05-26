@@ -109,7 +109,7 @@ ready_hdfs() {
     cat $HDFS_CONF_FILE
     MASTER_POD=$(kubectl get pods | grep jasminegraph-master | awk '{print $1}')
 
-    kubectl cp "${TEST_ROOT}/env_init/config/hdfs/hdfs_config.txt" ${MASTER_POD}:/var/tmp/data/hdfs_config.txt
+    kubectl cp "${TEST_ROOT}/env_init/config/hdfs/hdfs_config.txt" ${MASTER_POD}:/var/tmp/config/hdfs_config.txt
     echo "Starting HDFS using Docker Compose..."
     docker compose -f "${TEST_ROOT}/docker-compose-k8s-hdfs.yaml" up >"$RUN_LOG" 2>&1 &
 

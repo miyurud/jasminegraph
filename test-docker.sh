@@ -113,9 +113,9 @@ wait_for_hadoop() {
 
         
     # # cp the hdfs config file to the jasminegraph container
-    docker cp "${HDFS_CONF_FILE}" integration-jasminegraph-1:/var/tmp/data/hdfs_config.txt
+    docker cp "${HDFS_CONF_FILE}" integration-jasminegraph-1:/var/tmp/config/hdfs_config.txt
 
-    docker exec -i integration-jasminegraph-1 cat /var/tmp/data/hdfs_config.txt
+    docker exec -i integration-jasminegraph-1 cat /var/tmp/config/hdfs_config.txt
 
 
     # Upload the file to HDFS
