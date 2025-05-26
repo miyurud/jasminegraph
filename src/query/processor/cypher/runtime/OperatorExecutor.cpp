@@ -223,7 +223,7 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
                                                    "_central_relations.db") / RelationBlock::CENTRAL_BLOCK_SIZE;
     string direction = Utils::getGraphDirection(to_string(gc.graphID), masterIP);
     bool isDirected = false;
-    if (direction == "1") {
+    if (direction == "TRUE") {
         isDirected = true;
     }
     int count = 1;
@@ -370,7 +370,7 @@ void OperatorExecutor::UndirectedAllRelationshipScan(SharedBuffer &buffer, std::
                                                     "_central_relations.db") / RelationBlock::CENTRAL_BLOCK_SIZE;
     string direction = Utils::getGraphDirection(to_string(gc.graphID), masterIP);
     bool isDirected = false;
-    if (direction == "1") {
+    if (direction == "TRUE") {
         isDirected = true;
     }
     int count = 1;
@@ -510,7 +510,7 @@ void OperatorExecutor::DirectedRelationshipTypeScan(SharedBuffer &buffer, std::s
                                                    "_central_relations.db") / RelationBlock::CENTRAL_BLOCK_SIZE;
     string graphDirection = Utils::getGraphDirection(to_string(gc.graphID), masterIP);
     bool isDirected = false;
-    if (graphDirection == "1") {
+    if (graphDirection == "TRUE") {
         isDirected = true;
     }
     bool isDirectionRight = query["direction"] == "right";
@@ -653,7 +653,7 @@ void OperatorExecutor::DirectedAllRelationshipScan(SharedBuffer &buffer, std::st
                                                    "_central_relations.db") / RelationBlock::CENTRAL_BLOCK_SIZE;
     string graphDirection = Utils::getGraphDirection(to_string(gc.graphID), masterIP);
     bool isDirected = false;
-    if (graphDirection == "1") {
+    if (graphDirection == "TRUE") {
         isDirected = true;
     }
     bool isDirectionRight = query["direction"] == "right";
@@ -818,13 +818,23 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
     if (query.contains("relType")) {
         relType = query["relType"];
     }
+    string graphDirection = Utils::getGraphDirection(to_string(gc.graphID), masterIP);
+    bool isDirected = false;
+    if (graphDirection == "TRUE") {
+        isDirected = true;
+    }
+    bool isDirectionRight = false;
+    if (query.contains("direction")) {
+        isDirectionRight = query["direction"] == "right";
+    }
+
     string queryString;
 
     NodeManager nodeManager(gc);
 
     while (true) {
         string raw = sharedBuffer.get();          // Get raw JSON string
-
+        cout<<raw<<" : "<<gc.partitionID<<" : "<<sourceVariable<<endl;
         if (raw == "-1") {
             buffer.add(raw);
             result.join();
@@ -847,7 +857,6 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
                         prevRelation =  relation->previousLocalDestination();
                     }
 
-                    int t = 1;
                     while (nextRelation) {
                         if (to_string(nextRelation->source.nodeId) == nodeId) {
                             isSource = true;
@@ -870,6 +879,10 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
                             }
                             continue;
                         }
+                        if (isDirected && !isSource) {
+                            nextRelation = nextRelation->nextLocalDestination();
+                            continue;
+                        }
                         for (auto& [key, value] : relProperties) {
                             delete[] value;  // Free each allocated char* array
                         }
@@ -880,7 +893,6 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
                         } else {
                             destNode = nextRelation->getSource();
                         }
-
                         std::string value(destNode->getMetaPropertyHead()->value);
                         destNodeData["partitionID"] = value;
                         std::map<std::string, char*> destProperties = destNode->getAllProperties();
@@ -893,7 +905,7 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
                         destProperties.clear();
                         rawObj[relVariable] = relationData;
                         rawObj[destVariable] = destNodeData;
-                        t++;
+
                         buffer.add(rawObj.dump());
                         if (isSource) {
                             nextRelation = nextRelation->nextLocalSource();
@@ -901,7 +913,7 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
                             nextRelation = nextRelation->nextLocalDestination();
                         }
                     }
-                    int p = 1;
+
                     while (prevRelation) {
                         if (to_string(prevRelation->source.nodeId) == nodeId) {
                             isSource = true;
@@ -925,6 +937,10 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
                             continue;
                         }
 
+                        if (isDirected && !isSource) {
+                            nextRelation = nextRelation->previousLocalDestination();
+                            continue;
+                        }
                         for (auto& [key, value] : relProperties) {
                             delete[] value;  // Free each allocated char* array
                         }
@@ -948,7 +964,7 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
 
                         rawObj[relVariable] = relationData;
                         rawObj[destVariable] = destNodeData;
-                        p++;
+
                         buffer.add(rawObj.dump());
                         if (isSource) {
                             prevRelation = prevRelation->previousLocalSource();
@@ -956,8 +972,8 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
                             prevRelation = prevRelation->previousLocalDestination();
                         }
                     }
-                } else {
                 }
+
                 relation = RelationBlock::getCentralRelation(node->centralEdgeRef);
                 if (relation) {
                     RelationBlock *nextRelation = relation;
@@ -969,7 +985,7 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
                     } else {
                         prevRelation =  relation->previousCentralDestination();
                     }
-                    int s = 1;
+
                     while (nextRelation) {
                         if (to_string(nextRelation->source.nodeId) == nodeId) {
                             isSource = true;
@@ -990,6 +1006,11 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
                             } else {
                                 nextRelation = nextRelation->nextCentralDestination();
                             }
+                            continue;
+                        }
+
+                        if (isDirected && !isSource) {
+                            nextRelation = nextRelation->nextCentralDestination();
                             continue;
                         }
 
@@ -1015,7 +1036,6 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
                         destProperties.clear();
                         rawObj[relVariable] = relationData;
                         rawObj[destVariable] = destNodeData;
-                        s++;
                         buffer.add(rawObj.dump());
                         if (isSource) {
                             nextRelation = nextRelation->nextCentralSource();
@@ -1024,7 +1044,6 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
                         }
                     }
 
-                    int r = 1;
                     while (prevRelation) {
                         if (to_string(prevRelation->source.nodeId) == nodeId) {
                             isSource = true;
@@ -1046,6 +1065,12 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
                             }
                             continue;
                         }
+
+                        if (isDirected && !isSource) {
+                            nextRelation = nextRelation->previousCentralDestination();
+                            continue;
+                        }
+
                         for (auto& [key, value] : relProperties) {
                             delete[] value;  // Free each allocated char* array
                         }
@@ -1068,7 +1093,6 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
                         destProperties.clear();
                         rawObj[relVariable] = relationData;
                         rawObj[destVariable] = destNodeData;
-                        r++;
                         buffer.add(rawObj.dump());
                         if (isSource) {
                             prevRelation = prevRelation->previousCentralSource();
@@ -1079,16 +1103,19 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
                 }
             }
         } else {
+            cout<< "ExpandAll: Node not found in partition: " << gc.partitionID << endl;
             if (query.contains("relType")) {
                 queryString = ExpandAllHelper::generateSubQuery(query["sourceVariable"],
                                                                 query["destVariable"],
                                                                 query["relVariable"],
+                                                                isDirected,
                                                                 rawObj[sourceVariable]["id"],
                                                                 query["relType"]);
             } else {
                 queryString = ExpandAllHelper::generateSubQuery(query["sourceVariable"],
                                                                 query["destVariable"],
                                                                 query["relVariable"],
+                                                                isDirected,
                                                                 rawObj[sourceVariable]["id"]);
             }
             string queryPlan = ExpandAllHelper::generateSubQueryPlan(queryString);
@@ -1359,7 +1386,7 @@ void OperatorExecutor::OrderBy(SharedBuffer &buffer, std::string jsonPlan, Graph
 
     std::string sortKey = query["variable"];
     std::string order = query["order"];
-    const size_t maxSize = 5000;
+    const size_t maxSize = 1000000;
     bool isAsc = (order == "ASC");
 
     std::priority_queue<Row> heap;
@@ -1377,7 +1404,6 @@ void OperatorExecutor::OrderBy(SharedBuffer &buffer, std::string jsonPlan, Graph
 
         try {
             Row row(jsonStr, sortKey, isAsc);
-            execution_logger.info(row.jsonStr);
             if (row.data.contains(sortKey)) {  // Ensure field exists
                 heap.push(row);
                 if (heap.size() > maxSize) {

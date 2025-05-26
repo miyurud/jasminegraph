@@ -115,7 +115,7 @@ void *backendservicesesion(void *dummyPt) {
             auto worker = sqLiteDbInterface->runSelect(selectQuery);
 
             if (worker.empty() || worker[0].empty()) {
-                backend_logger.error("Query returned no results.");
+                backend_logger.error("sql query returned no results.");
                 break;
             }
 
@@ -255,17 +255,17 @@ void *backendservicesesion(void *dummyPt) {
                 break;
             }
 
-            auto partitionAlgorithm = sqLiteDbInterface->runSelect(selectQuery);
+            auto direction = sqLiteDbInterface->runSelect(selectQuery);
 
-            if (partitionAlgorithm.empty() || partitionAlgorithm[0].empty()) {
+            if (direction.empty() || direction[0].empty()) {
                 backend_logger.error("Query returned no results.");
                 break;
             }
 
-            std::string partitionAlgorithmName = partitionAlgorithm[0][0].second;
-            int message_length = partitionAlgorithmName.length();
+            std::string graphDirection = direction[0][0].second;
+            int message_length = graphDirection.length();
             int converted_number = htonl(message_length);
-            backend_logger.info("Sending worker info length: " + to_string(converted_number));
+            backend_logger.info("Sending graph direction length: " + to_string(converted_number));
             if (!Utils::send_int_wrapper(connFd, &converted_number, sizeof(converted_number))) {
                 loop = true;
                 break;
@@ -281,7 +281,7 @@ void *backendservicesesion(void *dummyPt) {
                 break;
             }
 
-            if (!Utils::send_str_wrapper(connFd, partitionAlgorithmName)) {
+            if (!Utils::send_str_wrapper(connFd, graphDirection)) {
                 loop = true;
                 break;
             }

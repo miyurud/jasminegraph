@@ -31,21 +31,20 @@ void InstanceHandler::handleRequest(int connFd, bool *loop_exit_p,
     std::thread result(method, std::ref(operatorExecutor), std::ref(sharedBuffer),
                        std::string(operatorExecutor.queryPlan), gc);
     auto startTime = std::chrono::high_resolution_clock::now();
+    int time = 0;
     while (true) {
         string raw = sharedBuffer.get();
         if (raw == "-1") {
             this->dataPublishToMaster(connFd, loop_exit_p, raw);
-            auto endTime = std::chrono::high_resolution_clock::now();
-            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
-            int totalTime = duration.count();
-            json timeJson = {
-                    {"time", totalTime},
-            };
-            this->dataPublishToMaster(connFd, loop_exit_p, timeJson.dump());
+            instance_logger.info("Total time taken for query execution: " + std::to_string(time) + " ms");
             result.join();
             break;
         }
+        auto endTime = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+        time += duration.count();
         this->dataPublishToMaster(connFd, loop_exit_p, raw);
+        startTime = std::chrono::high_resolution_clock::now();
     }
 }
 

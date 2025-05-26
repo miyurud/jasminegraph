@@ -188,6 +188,10 @@ bool FilterHelper::evaluateLogical(std::string condition, std::string data) {
 bool FilterHelper::evaluateNodes(std::string left, std::string right) {
     json leftNode = json::parse(left);
     json rightNode = json::parse(right);
+    if (left == "null" || right == "null") {
+        return true;
+    }
+
     if (leftNode["id"] != rightNode["id"]) {
         return true;
     }
@@ -324,11 +328,19 @@ string ExpandAllHelper::generateSubQueryPlan(std::string query) {
     return obj;
 }
 
-string ExpandAllHelper::generateSubQuery(std::string startVar, std::string destVar, std::string relVar,
+string ExpandAllHelper::generateSubQuery(std::string startVar, std::string destVar, string relVar,bool isDirected,
                                          std::string id, std::string relType) {
     if (relType == "") {
+        if (isDirected) {
+            return "match (" + startVar + ")-[" + relVar + "]->(" + destVar + ") where id("
+                   + startVar + ") = " + id + " return " + relVar + "," + destVar;
+        }
         return "match (" + startVar + ")-[" + relVar + "]-(" + destVar + ") where id("
                 + startVar + ") = " + id + " return " + relVar + "," + destVar;
+    }
+    if (isDirected) {
+        return "match (" + startVar + ")-[" + relVar + ":" + relType + "]->(" + destVar + ") where id("
+               + startVar + ") = " + id + " return " + relVar + "," + destVar;
     }
     return "match (" + startVar + ")-[" + relVar + ":" + relType + "]-(" + destVar + ") where id("
             + startVar + ") = " + id + " return " + relVar + "," + destVar;

@@ -591,7 +591,7 @@ static void cypherCommand(int connFd, vector<DataPublisher *> &workerClients,
                 BufferEntry smallest = mergeQueue.top();
                 frontend_logger.info(smallest.value);
                 size_t queueSize = mergeQueue.size();
-                frontend_logger.info(std::to_string(queueSize));
+                frontend_logger.debug(std::to_string(queueSize));
                 mergeQueue.pop();
                 result_wr = write(connFd, smallest.value.c_str(), smallest.value.length());
                 if (result_wr < 0) {
@@ -642,8 +642,10 @@ static void cypherCommand(int connFd, vector<DataPublisher *> &workerClients,
         auto endTime = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
         int totalTime = duration.count();
-        string finalMessage = "Time taken to process query: " + std::to_string(totalTime / 1000) + " seconds";
+        string finalMessage = "Time taken to process aggregate query: " +
+                std::to_string(totalTime) + " ms";
         result_wr = write(connFd, finalMessage.c_str(), finalMessage.length());
+        Operator::isAggregate = false;
     } else {
         int count = 0;
         while (true) {
@@ -669,19 +671,14 @@ static void cypherCommand(int connFd, vector<DataPublisher *> &workerClients,
                 }
             }
         }
-        int totalTime = 0;
-        int time;
-        for (const auto & buffer : bufferPool) {
-            cout<<"LL"<<endl;
-            cout<<buffer->get()<<endl;
-            cout<<"KK"<<endl;
-            time = json::parse(buffer->get())["time"].get<int>();
-            totalTime += time;
+        result_wr = write(connFd, to_string(count).c_str(), to_string(count).length());
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+                          Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit = true;
+            return;
         }
-
-        string finalMessage = "Time taken to process query: " + std::to_string(totalTime/1000) + " seconds for " +
-                              std::to_string(count) + " records";
-        result_wr = write(connFd, finalMessage.c_str(), finalMessage.length());
     }
 }
 
