@@ -70,8 +70,6 @@ build_and_run_docker() {
 
     docker compose -f "${TEST_ROOT}/docker-compose.yml" up >"$RUN_LOG" 2>&1 &
 
-  
-
 }
 
 wait_for_hadoop() {
@@ -101,8 +99,6 @@ wait_for_hadoop() {
     echo "Updated hdfs_cnf.txt:"
     cat $HDFS_CONF_FILE
 
-  
-
     # Define file paths
     FILE_NAME="powergrid.dl"
     LOCAL_DIRECTORY="/var/tmp/data/"
@@ -111,12 +107,10 @@ wait_for_hadoop() {
     HDFS_DIRECTORY="/home/"
     HDFS_FILE_PATH="${HDFS_DIRECTORY}${FILE_NAME}"
 
-        
     # # cp the hdfs config file to the jasminegraph container
     docker cp "${HDFS_CONF_FILE}" integration-jasminegraph-1:/var/tmp/config/hdfs_config.txt
 
     docker exec -i integration-jasminegraph-1 cat /var/tmp/config/hdfs_config.txt
-
 
     # Upload the file to HDFS
     # Ensure local directory exists
