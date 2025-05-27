@@ -129,7 +129,7 @@ def test(host, port):
         print()
         logging.info('Testing trian')
         send_and_expect_response(sock, 'trian', TRIAN,
-                                 b'grap', exit_on_failure=True)
+                                 b'graphid-send', exit_on_failure=True)
         send_and_expect_response(
             sock, 'trian', b'1', b'priority(>=1)', exit_on_failure=True)
         send_and_expect_response(sock, 'trian', b'1', b'651')
