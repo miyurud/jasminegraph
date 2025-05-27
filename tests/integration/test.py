@@ -208,7 +208,7 @@ def test(host, port):
                                  b' This file needs to be in some directory location ' +
                                  b'that is accessible for JasmineGraph master',
                                  exit_on_failure=True)
-        send_and_expect_response(sock, 'adhdfs', b'/var/tmp/config/hdfs/hdfs_config.txt',
+        send_and_expect_response(sock, 'adhdfs', b'/var/tmp/config/hdfs_config.txt',
                                  b'HDFS file path: ',
                                  exit_on_failure=True)
         send_and_expect_response(sock, 'adhdfs', b'/home/powergrid.dl',
