@@ -1746,7 +1746,7 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
                               PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler, bool *loop_exit_p) {
     // add RDF graph
     int uniqueId = JasmineGraphFrontEndCommon::getUid();
-    int result_wr = write(connFd, GRAPHID_SEND.c_str(), FRONTEND_COMMAND_LENGTH);
+    int result_wr = write(connFd, GRAPHID_SEND.c_str(), GRAPHID_SEND.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
