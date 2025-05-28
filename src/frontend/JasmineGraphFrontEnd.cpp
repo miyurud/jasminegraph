@@ -412,7 +412,7 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
             }
             counter++;
         }
-        ss << "\r\n";
+        ss << Conts::CARRIAGE_RETURN_NEW_LINE.c_str();
     }
     string result = ss.str();
     if (result.size() == 0) {
@@ -423,7 +423,7 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
             return;
         }
 
-        result_wr = write(connFd, "\r\n", 2);
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -576,7 +576,7 @@ static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface 
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -655,7 +655,7 @@ static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface 
             *loop_exit_p = true;
             return;
         }
-        result_wr = write(connFd, "\r\n", 2);
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -672,7 +672,7 @@ static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterfac
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -749,7 +749,7 @@ static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterfac
                 true;
             return;
         }
-        result_wr = write(connFd, "\r\n", 2);
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -773,7 +773,7 @@ static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInt
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -785,7 +785,7 @@ static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInt
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -797,7 +797,7 @@ static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInt
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
 
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
@@ -920,7 +920,7 @@ static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInt
             *loop_exit_p = true;
             return;
         }
-        result_wr = write(connFd, "\r\n", 2);
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -938,7 +938,7 @@ static void remove_graph_command(std::string masterIP, int connFd, SQLiteDBInter
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -967,7 +967,7 @@ static void remove_graph_command(std::string masterIP, int connFd, SQLiteDBInter
             *loop_exit_p = true;
             return;
         }
-        result_wr = write(connFd, "\r\n", 2);
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -981,7 +981,7 @@ static void remove_graph_command(std::string masterIP, int connFd, SQLiteDBInter
             *loop_exit_p = true;
             return;
         }
-        result_wr = write(connFd, "\r\n", 2);
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -997,7 +997,7 @@ static void add_model_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -1055,7 +1055,7 @@ static void add_model_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_
             *loop_exit_p = true;
             return;
         }
-        result_wr = write(connFd, "\r\n", 2);
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -1273,7 +1273,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
             *loop_exit_p = true;
             return;
         }
-        result_wr = write(connFd, "\r\n", 2);
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -1314,7 +1314,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -1590,7 +1590,7 @@ static void stop_stream_kafka_command(int connFd, KafkaConnector *kstream, bool 
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
 
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
@@ -1605,7 +1605,7 @@ static void process_dataset_command(int connFd, bool *loop_exit_p) {
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -1647,13 +1647,13 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
                               PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler, bool *loop_exit_p) {
     // add RDF graph
     int uniqueId = JasmineGraphFrontEndCommon::getUid();
-    int result_wr = write(connFd, GRAPHID_SEND.c_str(), FRONTEND_COMMAND_LENGTH);
+    int result_wr = write(connFd, GRAPHID_SEND.c_str(), GRAPHID_SEND.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -1680,7 +1680,7 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
             return;
         }
 
-        result_wr = write(connFd, "\r\n", 2);
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -1692,7 +1692,7 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
             *loop_exit_p = true;
             return;
         }
-        result_wr = write(connFd, "\r\n", 2);
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -1719,7 +1719,7 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
                 return;
             }
 
-            result_wr = write(connFd, "\r\n", 2);
+            result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
             if (result_wr < 0) {
                 frontend_logger.error("Error writing to socket");
             }
@@ -1782,7 +1782,7 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
                 frontend_logger.error("Error writing to socket");
                 return;
             }
-            result_wr = write(connFd, "\r\n", 2);
+            result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
             if (result_wr < 0) {
                 frontend_logger.error("Error writing to socket");
             }
@@ -1806,7 +1806,7 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
             *loop_exit_p = true;
             return;
         }
-        result_wr = write(connFd, "\r\n", 2);
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -1953,7 +1953,7 @@ static void vertex_count_command(int connFd, SQLiteDBInterface *sqlite, bool *lo
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -1979,7 +1979,7 @@ static void vertex_count_command(int connFd, SQLiteDBInterface *sqlite, bool *lo
             *loop_exit_p = true;
             return;
         }
-        result_wr = write(connFd, "\r\n", 2);
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -1997,7 +1997,7 @@ static void vertex_count_command(int connFd, SQLiteDBInterface *sqlite, bool *lo
             *loop_exit_p = true;
             return;
         }
-        result_wr = write(connFd, "\r\n", 2);
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -2012,7 +2012,7 @@ static void edge_count_command(int connFd, SQLiteDBInterface *sqlite, bool *loop
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -2038,7 +2038,7 @@ static void edge_count_command(int connFd, SQLiteDBInterface *sqlite, bool *loop
             *loop_exit_p = true;
             return;
         }
-        result_wr = write(connFd, "\r\n", 2);
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -2056,7 +2056,7 @@ static void edge_count_command(int connFd, SQLiteDBInterface *sqlite, bool *loop
             *loop_exit_p = true;
             return;
         }
-        result_wr = write(connFd, "\r\n", 2);
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -2079,7 +2079,7 @@ static void merge_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -2139,7 +2139,7 @@ static void merge_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -2162,7 +2162,7 @@ static void train_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -2220,7 +2220,7 @@ static void train_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit
             *loop_exit_p = true;
             return;
         }
-        result_wr = write(connFd, "\r\n", 2);
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -2242,7 +2242,7 @@ static void train_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -2259,7 +2259,7 @@ static void in_degree_command(int connFd, bool *loop_exit_p) {
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -2284,7 +2284,7 @@ static void in_degree_command(int connFd, bool *loop_exit_p) {
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -2300,7 +2300,7 @@ static void out_degree_command(int connFd, bool *loop_exit_p) {
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -2325,7 +2325,7 @@ static void out_degree_command(int connFd, bool *loop_exit_p) {
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -2342,7 +2342,7 @@ static void page_rank_command(std::string masterIP, int connFd, SQLiteDBInterfac
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -2398,7 +2398,7 @@ static void page_rank_command(std::string masterIP, int connFd, SQLiteDBInterfac
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -2422,7 +2422,7 @@ static void page_rank_command(std::string masterIP, int connFd, SQLiteDBInterfac
             return;
         }
 
-        result_wr = write(connFd, "\r\n", 2);
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
         }
@@ -2486,7 +2486,7 @@ static void page_rank_command(std::string masterIP, int connFd, SQLiteDBInterfac
             frontend_logger.error("Error writing to socket");
             return;
         }
-        result_wr = write(connFd, "\r\n", 2);
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
         }
@@ -2508,7 +2508,7 @@ static void page_rank_command(std::string masterIP, int connFd, SQLiteDBInterfac
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -2524,7 +2524,7 @@ static void egonet_command(int connFd, bool *loop_exit_p) {
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -2549,7 +2549,7 @@ static void egonet_command(int connFd, bool *loop_exit_p) {
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -2565,7 +2565,7 @@ static void duplicate_centralstore_command(int connFd, bool *loop_exit_p) {
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -2590,7 +2590,7 @@ static void duplicate_centralstore_command(int connFd, bool *loop_exit_p) {
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -2609,7 +2609,7 @@ static void predict_command(std::string masterIP, int connFd, SQLiteDBInterface 
             *loop_exit_p = true;
             return;
         }
-        result_wr = write(connFd, "\r\n", 3);
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -2651,7 +2651,7 @@ static void predict_command(std::string masterIP, int connFd, SQLiteDBInterface 
             *loop_exit_p = true;
             return;
         }
-        result_wr = write(connFd, "\r\n", 2);
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -2701,7 +2701,7 @@ static void start_remote_worker_command(int connFd, bool *loop_exit_p) {
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -2750,7 +2750,7 @@ static void sla_command(int connFd, SQLiteDBInterface *sqlite, PerformanceSQLite
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -2816,7 +2816,7 @@ static void sla_command(int connFd, SQLiteDBInterface *sqlite, PerformanceSQLite
             *loop_exit_p = true;
             return;
         }
-        result_wr = write(connFd, "\r\n", 2);
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
 
         if (result_wr < 0) {
             frontend_logger.error("Error writing to socket");

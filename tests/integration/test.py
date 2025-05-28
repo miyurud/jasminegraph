@@ -129,7 +129,7 @@ def test(host, port):
         print()
         logging.info('Testing trian')
         send_and_expect_response(sock, 'trian', TRIAN,
-                                 b'grap', exit_on_failure=True)
+                                 b'graphid-send', exit_on_failure=True)
         send_and_expect_response(
             sock, 'trian', b'1', b'priority(>=1)', exit_on_failure=True)
         send_and_expect_response(sock, 'trian', b'1', b'651')
@@ -208,7 +208,7 @@ def test(host, port):
                                  b' This file needs to be in some directory location ' +
                                  b'that is accessible for JasmineGraph master',
                                  exit_on_failure=True)
-        send_and_expect_response(sock, 'adhdfs', b'/var/tmp/config/hdfs/hdfs_config.txt',
+        send_and_expect_response(sock, 'adhdfs', b'/var/tmp/config/hdfs_config.txt',
                                  b'HDFS file path: ',
                                  exit_on_failure=True)
         send_and_expect_response(sock, 'adhdfs', b'/home/powergrid.dl',
