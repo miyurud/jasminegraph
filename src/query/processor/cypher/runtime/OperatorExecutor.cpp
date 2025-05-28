@@ -833,14 +833,13 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
     NodeManager nodeManager(gc);
 
     while (true) {
-        string raw = sharedBuffer.get();          // Get raw JSON string
-        cout<<raw<<" : "<<gc.partitionID<<" : "<<sourceVariable<<endl;
+        string raw = sharedBuffer.get();
         if (raw == "-1") {
             buffer.add(raw);
             result.join();
             break;
         }
-        json rawObj = json::parse(raw);           // Parse it into a json object
+        json rawObj = json::parse(raw);
         string nodeId = rawObj[sourceVariable]["id"];
         if (rawObj[sourceVariable]["partitionID"] == to_string(gc.partitionID)) {
             NodeBlock* node = nodeManager.get(nodeId);
@@ -848,15 +847,7 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
                 RelationBlock *relation = RelationBlock::getLocalRelation(node->edgeRef);
                 if (relation) {
                     RelationBlock *nextRelation = relation;
-                    RelationBlock *prevRelation;
                     bool isSource;
-
-                    if (to_string(relation->source.nodeId) == nodeId) {
-                        prevRelation =  relation->previousLocalSource();
-                    } else {
-                        prevRelation =  relation->previousLocalDestination();
-                    }
-
                     while (nextRelation) {
                         if (to_string(nextRelation->source.nodeId) == nodeId) {
                             isSource = true;
@@ -913,78 +904,12 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
                             nextRelation = nextRelation->nextLocalDestination();
                         }
                     }
-
-                    while (prevRelation) {
-                        if (to_string(prevRelation->source.nodeId) == nodeId) {
-                            isSource = true;
-                        } else {
-                            isSource = false;
-                        }
-
-                        json relationData;
-                        json destNodeData;
-                        std::map<std::string, char*> relProperties = prevRelation->getAllProperties();
-                        for (auto property : relProperties) {
-                            relationData[property.first] = property.second;
-                        }
-
-                        if (relType != "" && relationData["relationship"] != relType) {
-                            if (isSource) {
-                                prevRelation = prevRelation->previousLocalSource();
-                            } else {
-                                prevRelation = prevRelation->previousLocalDestination();
-                            }
-                            continue;
-                        }
-
-                        if (isDirected && !isSource) {
-                            nextRelation = nextRelation->previousLocalDestination();
-                            continue;
-                        }
-                        for (auto& [key, value] : relProperties) {
-                            delete[] value;  // Free each allocated char* array
-                        }
-                        relProperties.clear();
-                        NodeBlock *destNode;
-                        if (isSource) {
-                            destNode = prevRelation->getDestination();
-                        } else {
-                            destNode = prevRelation->getSource();
-                        }
-                        std::string value(destNode->getMetaPropertyHead()->value);
-                        destNodeData["partitionID"] = value;
-                        std::map<std::string, char*> destProperties = destNode->getAllProperties();
-                        for (auto property : destProperties) {
-                            destNodeData[property.first] = property.second;
-                        }
-                        for (auto& [key, value] : destProperties) {
-                            delete[] value;  // Free each allocated char* array
-                        }
-                        destProperties.clear();
-
-                        rawObj[relVariable] = relationData;
-                        rawObj[destVariable] = destNodeData;
-
-                        buffer.add(rawObj.dump());
-                        if (isSource) {
-                            prevRelation = prevRelation->previousLocalSource();
-                        } else {
-                            prevRelation = prevRelation->previousLocalDestination();
-                        }
-                    }
                 }
 
                 relation = RelationBlock::getCentralRelation(node->centralEdgeRef);
                 if (relation) {
                     RelationBlock *nextRelation = relation;
-                    RelationBlock *prevRelation;
                     bool isSource;
-
-                    if (to_string(relation->source.nodeId) == nodeId) {
-                        prevRelation =  relation->previousCentralSource();
-                    } else {
-                        prevRelation =  relation->previousCentralDestination();
-                    }
 
                     while (nextRelation) {
                         if (to_string(nextRelation->source.nodeId) == nodeId) {
@@ -1043,67 +968,9 @@ void OperatorExecutor::ExpandAll(SharedBuffer &buffer, std::string jsonPlan, Gra
                             nextRelation = nextRelation->nextCentralDestination();
                         }
                     }
-
-                    while (prevRelation) {
-                        if (to_string(prevRelation->source.nodeId) == nodeId) {
-                            isSource = true;
-                        } else {
-                            isSource = false;
-                        }
-
-                        json relationData;
-                        json destNodeData;
-                        std::map<std::string, char*> relProperties = prevRelation->getAllProperties();
-                        for (auto property : relProperties) {
-                            relationData[property.first] = property.second;
-                        }
-                        if (relType != "" && relationData["relationship"] != relType) {
-                            if (isSource) {
-                                prevRelation = prevRelation->previousCentralSource();
-                            } else {
-                                prevRelation = prevRelation->previousCentralDestination();
-                            }
-                            continue;
-                        }
-
-                        if (isDirected && !isSource) {
-                            nextRelation = nextRelation->previousCentralDestination();
-                            continue;
-                        }
-
-                        for (auto& [key, value] : relProperties) {
-                            delete[] value;  // Free each allocated char* array
-                        }
-                        relProperties.clear();
-                        NodeBlock *destNode;
-                        if (isSource) {
-                            destNode = prevRelation->getDestination();
-                        } else {
-                            destNode = prevRelation->getSource();
-                        }
-                        std::string value(destNode->getMetaPropertyHead()->value);
-                        destNodeData["partitionID"] = value;
-                        std::map<std::string, char*> destProperties = destNode->getAllProperties();
-                        for (auto property : destProperties) {
-                            destNodeData[property.first] = property.second;
-                        }
-                        for (auto& [key, value] : destProperties) {
-                            delete[] value;  // Free each allocated char* array
-                        }
-                        destProperties.clear();
-                        rawObj[relVariable] = relationData;
-                        rawObj[destVariable] = destNodeData;
-                        buffer.add(rawObj.dump());
-                        if (isSource) {
-                            prevRelation = prevRelation->previousCentralSource();
-                        } else {
-                            prevRelation = prevRelation->previousCentralDestination();
-                        }
-                    }
                 }
             }
         } else {
-            cout<< "ExpandAll: Node not found in partition: " << gc.partitionID << endl;
             if (query.contains("relType")) {
                 queryString = ExpandAllHelper::generateSubQuery(query["sourceVariable"],
                                                                 query["destVariable"],

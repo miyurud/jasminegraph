@@ -1854,6 +1854,12 @@ bool Utils::sendDataFromWorkerToWorker(string masterIP, int graphID, string part
         return false;
     }
 
+    if (!Utils::performHandshake(sockfd, data, FED_DATA_LENGTH, masterIP)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return false;
+    }
+
     if (!Utils::sendExpectResponse(sockfd, data, JasmineGraphInstanceProtocol::SUB_QUERY_START_ACK.length(),
                                    JasmineGraphInstanceProtocol::SUB_QUERY_START,
                                    JasmineGraphInstanceProtocol::SUB_QUERY_START_ACK)) {
