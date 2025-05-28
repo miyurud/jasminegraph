@@ -89,7 +89,8 @@ class JasmineGraphServer {
 
     void uploadGraphLocally(int graphID, const std::string graphType,
                             std::vector<std::map<int, std::string>> fullFileList, std::string masterIP);
-    void sendQueryPlan(int graphID, int numberOfPartitions, string queryPlan, SharedBuffer &sharedBuffer);
+    void sendQueryPlan(int graphID, int numberOfPartitions, string queryPlan,
+                       std::vector<std::unique_ptr<SharedBuffer>>& bufferPool);
     static bool queryDataCommunicator(std::string host, int port, std::string masterIP,
                                       int graphID, int PartitionId, std::string message, SharedBuffer &sharedBuffer);
 

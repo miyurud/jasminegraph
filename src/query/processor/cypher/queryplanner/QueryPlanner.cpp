@@ -75,7 +75,7 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
     } else if (ast->nodeType == Const::ON_MATCH) {
         // TODO(thamindumk): Implement ON_MATCH
     } else if (ast->nodeType == Const::CREATE) {
-        // TODO(thamindumk): Implement CREATE
+        return new Create(currentOperator, ast);
     } else if (ast->nodeType == Const::MULTIPLE_SET) {
         // TODO(thamindumk): Implement MULTIPLE_SET
     } else if (ast->nodeType == Const::SET) {
@@ -103,14 +103,35 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
     } else if (ast->nodeType == Const::WITH) {
         currentOperator = createExecutionPlan(ast->elements[0], currentOperator);
     } else if (ast->nodeType == Const::RETURN) {
-        currentOperator = createExecutionPlan(ast->elements[0], currentOperator);
+        for (auto * node : ast->elements) {
+            if (node->nodeType == Const::DISTINCT) {
+                currentOperator = createExecutionPlan(node->elements[0], currentOperator, "distinct");
+            } else if (node->nodeType == Const::ORDERED_BY) {
+                auto temp = static_cast<ProduceResults*>(currentOperator);
+                currentOperator = new OrderBy(temp->getOperator(), node->elements[0]);
+                temp->setOperator(currentOperator);
+                currentOperator = temp;
+            } else if (node->nodeType == Const::LIMIT) {
+                auto temp = static_cast<ProduceResults*>(currentOperator);
+                currentOperator = new Limit(temp->getOperator(), node->elements[0]);
+                temp->setOperator(currentOperator);
+                currentOperator = temp;
+            } else if (node->nodeType == Const::SKIP) {
+                auto temp = static_cast<ProduceResults*>(currentOperator);
+                currentOperator = new Skip(temp->getOperator(), node->elements[0]);
+                temp->setOperator(currentOperator);
+                currentOperator = temp;
+            } else if (node->nodeType == Const::RETURN_BODY) {
+                currentOperator = createExecutionPlan(node, currentOperator);
+            }
+        }
     } else if (ast->nodeType == Const::DISTINCT) {
         // TODO(thamindumk): Implement DISTINCT
     } else if (ast->nodeType == Const::RETURN_BODY) {
-        vector<ASTNode*> var;
+        vector<ASTNode*> variables;
         if (isAllChildrenAreGivenType(Const::VARIABLE, ast)) {
-            var = ast->elements;
-            return new ProduceResults(currentOperator, var);
+            variables = ast->elements;
+            return new ProduceResults(currentOperator, variables);
         }
 
         vector<ASTNode*> nonArith = getSubTreeListByNodeType(ast, Const::NON_ARITHMETIC_OPERATOR);
@@ -128,10 +149,28 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
             }
         }
 
+        if (isAvailable(Const::FUNCTION_BODY, ast)) {
+            auto functions = getSubTreeListByNodeType(ast, Const::FUNCTION_BODY);
+            for (auto func : functions) {
+                string name = func->elements[0]->elements[1]->value;
+                if (name == "avg" || name == "AVG") {
+                    temp_opt = new EagerFunction(temp_opt, func->elements[1]->elements[0], name);
+                }
+            }
+        }
+
         if (temp_opt != nullptr) {
-            temp_opt = new Projection(temp_opt, ast->elements);
+            if (var == "distinct") {
+                temp_opt = new Distinct(temp_opt, ast->elements);
+            } else {
+                temp_opt = new Projection(temp_opt, ast->elements);
+            }
         } else {
-            temp_opt = new Projection(currentOperator, ast->elements);
+            if (var == "distinct") {
+                temp_opt = new Distinct(currentOperator, ast->elements);
+            } else {
+                temp_opt = new Projection(currentOperator, ast->elements);
+            }
         }
         return new ProduceResults(temp_opt, vector<ASTNode*>(ast->elements));
     } else if (ast->nodeType == Const::ORDERED_BY) {
@@ -149,7 +188,12 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
         vector<pair<string, ASTNode*>> vec = {filterCase};
         return new Filter(op, vec);
     } else if (ast->nodeType == Const::PATTERN) {
-        return createExecutionPlan(ast->elements[0], currentOperator);
+        auto* leftOperator = createExecutionPlan(ast->elements[0], currentOperator);
+        for (int i = 1; i < ast->elements.size(); i++) {
+            auto* rightOperator = createExecutionPlan(ast->elements[i], currentOperator);
+            leftOperator = new CartesianProduct(leftOperator, rightOperator);
+        }
+        return leftOperator;
     } else if (ast->nodeType == Const::PATTERN_ELEMENTS) {
         return pathPatternHandler(ast, currentOperator);
     } else if (ast->nodeType == Const::NODE_PATTERN) {
@@ -467,7 +511,6 @@ ASTNode* QueryPlanner::verifyTreeType(ASTNode* root, string nodeType ) {
         return nullptr;
     }
 }
-
 
 pair<vector<bool>, vector<ASTNode *>> QueryPlanner::getRelationshipDetails(ASTNode *node) {
     vector<bool> availability = {false, false, false};

@@ -15,7 +15,7 @@ limitations under the License.
 
 #include <arpa/inet.h>
 #include <yaml-cpp/yaml.h>
-
+#include <optional>
 #include <algorithm>
 #include <fstream>
 #include <iostream>
@@ -28,6 +28,7 @@ limitations under the License.
 #include "../metadb/SQLiteDBInterface.h"
 #include "../performancedb/PerformanceSQLiteDBInterface.h"
 #include "../frontend/JasmineGraphFrontEndProtocol.h"
+#include "../backend/JasmineGraphBackendProtocol.h"
 #include "Conts.h"
 #include "../query/processor/cypher/util/SharedBuffer.h"
 
@@ -194,6 +195,9 @@ class Utils {
                                   std::string workerID, SQLiteDBInterface *sqlite);
     static bool sendQueryPlanToWorker(std::string host, int port, std::string masterIP,
                                       int graphID, int PartitionId, std::string message, SharedBuffer &sharedBuffer);
+    static std::optional<std::tuple<std::string, int, int>> getWorker(string partitionID, std::string host, int port);
+    static bool sendDataFromWorkerToWorker(string masterIP, int graphID, string partitionId, std::string message,
+                                           SharedBuffer &sharedBuffer);
     static bool sendIntExpectResponse(int sockfd, char *data, size_t data_length,
                                       int value, std::string expectMsg);
 
@@ -203,6 +207,7 @@ class Utils {
     static void assignPartitionToWorker(int graphId, int partitionIndex, string  hostname, int port);
 
     static string getFrontendInput(int connFd);
+    static string getPartitionAlgorithm(string graphID, std::string host);
 };
 
 #endif  // JASMINEGRAPH_UTILS_H

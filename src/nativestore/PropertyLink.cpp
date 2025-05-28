@@ -141,8 +141,6 @@ unsigned int PropertyLink::insert(std::string name, const char* value) {
             return -1;
         }
 
-        this->propertiesDB->flush();
-
         this->nextPropAddress = newAddress;
         this->propertiesDB->seekp(this->blockAddress + PropertyLink::MAX_NAME_SIZE +
                                   PropertyLink::MAX_VALUE_SIZE);  // seek to current property next address
@@ -151,6 +149,8 @@ unsigned int PropertyLink::insert(std::string name, const char* value) {
                                        " into block address " + std::to_string(this->blockAddress));
             return -1;
         }
+        this->propertiesDB->flush();
+
         //        property_link_logger.info("nextPropertyIndex = " + std::to_string(PropertyLink::nextPropertyIndex));
         PropertyLink::nextPropertyIndex++;  // Increment the shared property index value
         pthread_mutex_unlock(&lockInsertPropertyLink);

@@ -109,7 +109,7 @@ class Conts {
 
     static int SCHEDULER_SLEEP_TIME;
     static int STREAMING_STRAIN_GAP;
-
+    static const int NUMBER_OF_PARTITION_DATA;
     struct GRAPH_STATUS {
         static const int LOADING;  // Graph partitions are being uploaded
         static const int STREAMING;

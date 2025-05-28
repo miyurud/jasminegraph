@@ -270,16 +270,41 @@ RelationBlock* RelationBlock::getLocalRelation(unsigned int address) {
         relation_block_logger.error("Exception: Invalid relation block address !!\n received address = " + address);
         return NULL;
     }
-    RelationBlock::relationsDB->seekg(address + RECORD_SIZE * 2);  // Address is relation ID
+    RelationBlock::relationsDB->seekg(address);  // Address is relation ID
     NodeRelation source;
     NodeRelation destination;
     unsigned int propertyReference;
     char type[RelationBlock::MAX_TYPE_SIZE] = {0};
 
-    RelationBlock::relationsDB->read(reinterpret_cast<char*>(&source.address),
-                                     RECORD_SIZE);  // < ------ relation data offset ID = 0
-    if (!RelationBlock::relationsDB->read(reinterpret_cast<char*>(&destination.address),
+    if (!RelationBlock::relationsDB->read(reinterpret_cast<char*>(&source.nodeId),
+                                          RECORD_SIZE)) {  // < ------ relation data offset ID = 0
+        relation_block_logger.error(
+                "Error while reading local relation source node address offset ID = 0 from "
+                "relation block address " +
+                std::to_string(address));
+        return NULL;
+    }
+
+    if (!RelationBlock::relationsDB->read(reinterpret_cast<char*>(&destination.nodeId),
                                           RECORD_SIZE)) {  // < ------ relation data offset ID = 1
+        relation_block_logger.error(
+                "Error while reading local relation source node address offset ID = 0 from "
+                "relation block address " +
+                std::to_string(address));
+        return NULL;
+    }
+
+    if (!RelationBlock::relationsDB->read(reinterpret_cast<char*>(&source.address),
+                                          RECORD_SIZE)) {  // < ------ relation data offset ID = 2
+        relation_block_logger.error(
+                "Error while reading local relation source node address offset ID = 0 from "
+                "relation block address " +
+                std::to_string(address));
+        return NULL;
+    }
+
+    if (!RelationBlock::relationsDB->read(reinterpret_cast<char*>(&destination.address),
+                                          RECORD_SIZE)) {  // < ------ relation data offset ID = 3
         relation_block_logger.error(
             "Error while reading local relation source node address offset ID = 1 from "
             "relation block address " +
@@ -288,7 +313,7 @@ RelationBlock* RelationBlock::getLocalRelation(unsigned int address) {
     }
 
     if (!RelationBlock::relationsDB->read(reinterpret_cast<char*>(&source.nextRelationId),
-                                          RECORD_SIZE)) {  // < ------ relation data offset ID = 2
+                                          RECORD_SIZE)) {  // < ------ relation data offset ID = 4
         relation_block_logger.error(
             "Error while reading local relation source next relation address offset ID = 2 from "
             "relation block address " +
@@ -297,7 +322,7 @@ RelationBlock* RelationBlock::getLocalRelation(unsigned int address) {
     }
 
     if (!RelationBlock::relationsDB->read(reinterpret_cast<char*>(&source.nextPid),
-                                          RECORD_SIZE)) {  // < ------ relation data offset ID = 3
+                                          RECORD_SIZE)) {  // < ------ relation data offset ID = 5
         relation_block_logger.error(
             "Error while reading local relation source next relation partition id offset ID = 3 from "
             "relation block address " +
@@ -306,7 +331,7 @@ RelationBlock* RelationBlock::getLocalRelation(unsigned int address) {
     }
 
     if (!RelationBlock::relationsDB->read(reinterpret_cast<char*>(&source.preRelationId),
-                                          RECORD_SIZE)) {  // < ------ relation data offset ID = 4
+                                          RECORD_SIZE)) {  // < ------ relation data offset ID = 6
         relation_block_logger.error(
             "Error while reading local relation source previous relation address offset ID = 4 from "
             "relation block address " +
@@ -315,7 +340,7 @@ RelationBlock* RelationBlock::getLocalRelation(unsigned int address) {
     }
 
     if (!RelationBlock::relationsDB->read(reinterpret_cast<char*>(&source.prePid),
-                                          RECORD_SIZE)) {  // < ------ relation data offset ID = 5
+                                          RECORD_SIZE)) {  // < ------ relation data offset ID = 7
         relation_block_logger.error(
             "Error while reading local relation source previous relation partition id offset ID = 5 from "
             "relation block address " +
@@ -324,7 +349,7 @@ RelationBlock* RelationBlock::getLocalRelation(unsigned int address) {
     }
 
     if (!RelationBlock::relationsDB->read(reinterpret_cast<char*>(&destination.nextRelationId),
-                                          RECORD_SIZE)) {  // < ------ relation data offset ID = 6
+                                          RECORD_SIZE)) {  // < ------ relation data offset ID = 8
         relation_block_logger.error(
             "Error while reading local relation destination next relation address offset ID = 6 from "
             "relation block address " +
@@ -333,7 +358,7 @@ RelationBlock* RelationBlock::getLocalRelation(unsigned int address) {
     }
 
     if (!RelationBlock::relationsDB->read(reinterpret_cast<char*>(&destination.nextPid),
-                                          RECORD_SIZE)) {  // < ------ relation data offset ID = 7
+                                          RECORD_SIZE)) {  // < ------ relation data offset ID = 9
         relation_block_logger.error(
             "ERROR: Error while reading local relation destination next relation partition id offset ID = 7 from "
             "relation block address " +
@@ -342,7 +367,7 @@ RelationBlock* RelationBlock::getLocalRelation(unsigned int address) {
     }
 
     if (!RelationBlock::relationsDB->read(reinterpret_cast<char*>(&destination.preRelationId),
-                                          RECORD_SIZE)) {  // < ------ relation data offset ID = 8
+                                          RECORD_SIZE)) {  // < ------ relation data offset ID = 10
         relation_block_logger.error(
             "ERROR: Error while reading local relation destination previous relation address data offset ID = 8 from "
             "relation block address " +
@@ -351,7 +376,7 @@ RelationBlock* RelationBlock::getLocalRelation(unsigned int address) {
     }
 
     if (!RelationBlock::relationsDB->read(reinterpret_cast<char*>(&destination.prePid),
-                                          RECORD_SIZE)) {  // < ------ relation data offset ID = 9
+                                          RECORD_SIZE)) {  // < ------ relation data offset ID = 11
         relation_block_logger.error(
             "ERROR: Error while reading local relation destination previous "
             "relation partition id data offset ID = 9 from "
@@ -360,7 +385,7 @@ RelationBlock* RelationBlock::getLocalRelation(unsigned int address) {
     }
 
     if (!RelationBlock::relationsDB->read(reinterpret_cast<char*>(&propertyReference),
-                                          RECORD_SIZE)) {  // < ------ relation data offset ID = 10
+                                          RECORD_SIZE)) {  // < ------ relation data offset ID = 12
         relation_block_logger.error(
             "ERROR: Error while reading local relation property address data "
             "offset ID = 10 from relation block address " + std::to_string(address));
@@ -387,17 +412,41 @@ RelationBlock* RelationBlock::getCentralRelation(unsigned int address) {
         return NULL;
     }
 
-    RelationBlock::centralRelationsDB->seekg(address + RECORD_SIZE * 2);
+    RelationBlock::centralRelationsDB->seekg(address);
     NodeRelation source;
     NodeRelation destination;
     unsigned int propertyReference;
     unsigned int metaPropertyReference;
     char type[RelationBlock::MAX_TYPE_SIZE] = {0};
 
-    RelationBlock::centralRelationsDB->read(reinterpret_cast<char*>(&source.address),
-                                            RECORD_SIZE);  // < ------ relation data offset ID = 0
+    if (!RelationBlock::centralRelationsDB->read(reinterpret_cast<char*>(&source.nodeId),
+                                          RECORD_SIZE)) {  // < ------ relation data offset ID = 0
+        relation_block_logger.error(
+                "Error while reading local relation source node address offset ID = 0 from "
+                "relation block address " +
+                std::to_string(address));
+        return NULL;
+    }
+
+    if (!RelationBlock::centralRelationsDB->read(reinterpret_cast<char*>(&destination.nodeId),
+                                          RECORD_SIZE)) {  // < ------ relation data offset ID = 1
+        relation_block_logger.error(
+                "Error while reading local relation source node address offset ID = 0 from "
+                "relation block address " +
+                std::to_string(address));
+        return NULL;
+    }
+
+    if (!RelationBlock::centralRelationsDB->read(reinterpret_cast<char*>(&source.address),
+                                          RECORD_SIZE)) {  // < ------ relation data offset ID = 2
+        relation_block_logger.error(
+                "Error while reading local relation source node address offset ID = 0 from "
+                "relation block address " +
+                std::to_string(address));
+        return NULL;
+    }
     if (!RelationBlock::centralRelationsDB->read(reinterpret_cast<char*>(&destination.address),
-                                                 RECORD_SIZE)) {  // < ------ relation data offset ID = 1
+                                                 RECORD_SIZE)) {  // < ------ relation data offset ID = 3
         relation_block_logger.error(
             "Error while reading central relation source node address offset ID = 1 from "
             "relation block address " +
@@ -406,7 +455,7 @@ RelationBlock* RelationBlock::getCentralRelation(unsigned int address) {
     }
 
     if (!RelationBlock::centralRelationsDB->read(reinterpret_cast<char*>(&source.nextRelationId),
-                                                 RECORD_SIZE)) {  // < ------ relation data offset ID = 2
+                                                 RECORD_SIZE)) {  // < ------ relation data offset ID = 4
         relation_block_logger.error(
             "Error while reading central relation source next relation address offset ID = 2 from "
             "relation block address " +
@@ -415,7 +464,7 @@ RelationBlock* RelationBlock::getCentralRelation(unsigned int address) {
     }
 
     if (!RelationBlock::centralRelationsDB->read(reinterpret_cast<char*>(&source.nextPid),
-                                                 RECORD_SIZE)) {  // < ------ relation data offset ID = 3
+                                                 RECORD_SIZE)) {  // < ------ relation data offset ID = 5
         relation_block_logger.error(
             "Error while reading central relation source next relation partition id offset ID = 3 from "
             "relation block address " +
@@ -424,7 +473,7 @@ RelationBlock* RelationBlock::getCentralRelation(unsigned int address) {
     }
 
     if (!RelationBlock::centralRelationsDB->read(reinterpret_cast<char*>(&source.preRelationId),
-                                                 RECORD_SIZE)) {  // < ------ relation data offset ID = 4
+                                                 RECORD_SIZE)) {  // < ------ relation data offset ID = 6
         relation_block_logger.error(
             "Error while reading central relation source previous relation address offset ID = 4 from "
             "relation block address " +
@@ -433,7 +482,7 @@ RelationBlock* RelationBlock::getCentralRelation(unsigned int address) {
     }
 
     if (!RelationBlock::centralRelationsDB->read(reinterpret_cast<char*>(&source.prePid),
-                                                 RECORD_SIZE)) {  // < ------ relation data offset ID = 5
+                                                 RECORD_SIZE)) {  // < ------ relation data offset ID = 7
         relation_block_logger.error(
             "Error while reading central relation source previous relation partition id offset ID = 5 from "
             "relation block address " +
@@ -442,7 +491,7 @@ RelationBlock* RelationBlock::getCentralRelation(unsigned int address) {
     }
 
     if (!RelationBlock::centralRelationsDB->read(reinterpret_cast<char*>(&destination.nextRelationId),
-                                                 RECORD_SIZE)) {  // < ------ relation data offset ID = 6
+                                                 RECORD_SIZE)) {  // < ------ relation data offset ID = 8
         relation_block_logger.error(
             "Error while reading central relation destination next relation address offset ID = 6 from "
             "relation block address " +
@@ -451,7 +500,7 @@ RelationBlock* RelationBlock::getCentralRelation(unsigned int address) {
     }
 
     if (!RelationBlock::centralRelationsDB->read(reinterpret_cast<char*>(&destination.nextPid),
-                                                 RECORD_SIZE)) {  // < ------ relation data offset ID = 7
+                                                 RECORD_SIZE)) {  // < ------ relation data offset ID = 9
         relation_block_logger.error(
             "ERROR: Error while reading central relation destination next relation partition id offset ID = 7 from "
             "relation block address " +
@@ -460,7 +509,7 @@ RelationBlock* RelationBlock::getCentralRelation(unsigned int address) {
     }
 
     if (!RelationBlock::centralRelationsDB->read(reinterpret_cast<char*>(&destination.preRelationId),
-                                                 RECORD_SIZE)) {  // < ------ relation data offset ID = 8
+                                                 RECORD_SIZE)) {  // < ------ relation data offset ID = 10
         relation_block_logger.error(
             "ERROR: Error while reading central relation destination previous relation address "
             "data offset ID = 8 from "
@@ -469,7 +518,7 @@ RelationBlock* RelationBlock::getCentralRelation(unsigned int address) {
     }
 
     if (!RelationBlock::centralRelationsDB->read(reinterpret_cast<char*>(&destination.prePid),
-                                                 RECORD_SIZE)) {  // < ------ relation data offset ID = 9
+                                                 RECORD_SIZE)) {  // < ------ relation data offset ID = 11
         relation_block_logger.error(
             "ERROR: Error while reading central relation destination previous relation partition "
             "id data offset ID = 9 from "
@@ -478,7 +527,7 @@ RelationBlock* RelationBlock::getCentralRelation(unsigned int address) {
     }
 
     if (!RelationBlock::centralRelationsDB->read(reinterpret_cast<char*>(&propertyReference),
-                                                 RECORD_SIZE)) {  // < ------ relation data offset ID = 10
+                                                 RECORD_SIZE)) {  // < ------ relation data offset ID = 12
         relation_block_logger.error(
             "ERROR: Error while reading central relation property address data offset ID = 10 from "
             "relation block address " + std::to_string(address));
@@ -486,7 +535,7 @@ RelationBlock* RelationBlock::getCentralRelation(unsigned int address) {
     }
 
     if (!RelationBlock::centralRelationsDB->read(reinterpret_cast<char*>(&metaPropertyReference),
-                                                 RECORD_SIZE)) {  // < ------ relation data offset ID = 10
+                                                 RECORD_SIZE)) {  // < ------ relation data offset ID = 13
         relation_block_logger.error(
                 "ERROR: Error while reading central relation meta property address data offset ID = 10 from "
                 "relation block address " + std::to_string(address));
