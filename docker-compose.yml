@@ -11,13 +11,12 @@ services:
       - './env/data:/var/tmp/data'
       - '/tmp/jasminegraph:/tmp/jasminegraph'
       - '/var/tmp/jasminegraph:/var/tmp/jasminegraph'
-      - '/var/tmp/hdfs/filechunks:/var/tmp/hdfs/filechunks'
-
     networks:
       - jasminenet
     command: --MODE 1 --MASTERIP 172.28.5.1 --WORKERS 2 --WORKERIP 172.28.5.1 --ENABLE_NMON false
     depends_on:
       - prometheus
+      - kafka
   prometheus:
     image: prom/prometheus:latest
     ports:
@@ -36,6 +35,13 @@ services:
     networks:
       jasminenet:
         ipv4_address: 172.28.5.3
+  kafka:
+    image: apache/kafka:3.9.0
+    ports:
+      - 9092:9092
+    networks:
+      jasminenet:
+        ipv4_address: 172.28.5.4
 networks:
   jasminenet:
     external: false
