@@ -95,6 +95,10 @@ const std::string Conts::PARAM_KEYS::CATEGORY = "category";
 const std::string Conts::PARAM_KEYS::QUEUE_TIME = "queueTime";
 const std::string Conts::PARAM_KEYS::GRAPH_SLA = "graphSLA";
 const std::string Conts::PARAM_KEYS::AUTO_CALIBRATION = "autoCalibration";
+const std::string Conts::PARAM_KEYS::NO_OF_PARTITIONS = "numberOfPartitions";
+const std::string Conts::PARAM_KEYS::CONN_FILE_DESCRIPTOR = "connFD";
+const std::string Conts::PARAM_KEYS::LOOP_EXIT_POINTER = "loopExitPointer";
+const std::string Conts::PARAM_KEYS::CYPHER_QUERY::QUERY_STRING = "queryString";
 
 const std::string Conts::FLAGS::MODEL_ID = "model_id";
 
