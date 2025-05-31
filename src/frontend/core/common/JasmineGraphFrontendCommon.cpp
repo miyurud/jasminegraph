@@ -191,6 +191,12 @@ std::vector<std::vector<std::pair<std::string, std::string>>>
                              "vertexcount, edgecount, centralpartitioncount FROM graph;");
 }
 
+std::vector<std::vector<std::pair<std::string, std::string>>>
+    JasmineGraphFrontEndCommon::getPartitionData(SQLiteDBInterface *sqlite) {
+    return sqlite->runSelect("SELECT idpartition, graph_idgraph, vertexcount, central_vertexcount, "
+                             "edgecount, central_edgecount, central_edgecount_with_dups FROM partition;");
+}
+
 bool JasmineGraphFrontEndCommon::checkServerBusy(std::atomic<int> *currentFESession, int connFd) {
     if (*currentFESession >= Conts::MAX_FE_SESSIONS) {
         if (!Utils::send_str_wrapper(connFd, "JasmineGraph server is busy. Please try again later.")) {

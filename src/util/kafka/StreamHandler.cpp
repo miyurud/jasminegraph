@@ -29,11 +29,11 @@ Logger stream_handler_logger;
 
 StreamHandler::StreamHandler(KafkaConnector *kstream, int numberOfPartitions,
                              vector<DataPublisher *> &workerClients, SQLiteDBInterface* sqlite,
-                             int graphId, spt::Algorithms algorithms)
+                             int graphId, bool isDirected, spt::Algorithms algorithms)
         : kstream(kstream),
           graphId(graphId),
           workerClients(workerClients),
-          graphPartitioner(numberOfPartitions, graphId, algorithms, sqlite),
+          graphPartitioner(numberOfPartitions, graphId, algorithms, sqlite, isDirected),
           stream_topic_name("stream_topic_name") { }
 
 

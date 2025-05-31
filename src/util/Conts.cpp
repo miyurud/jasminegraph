@@ -102,3 +102,4 @@ const std::string Conts::PARAM_KEYS::CYPHER_QUERY::QUERY_STRING = "queryString";
 const std::string Conts::FLAGS::MODEL_ID = "model_id";
 
 const int Conts::HDFS::EDGE_SEPARATION_LAYER_THREAD_COUNT = 20;
+const int Conts::NUMBER_OF_PARTITION_DATA = 7;

@@ -1349,7 +1349,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     kstream->Subscribe(topic_name_s);
     // Create the StreamHandler object.
     StreamHandler *stream_handler = new StreamHandler(kstream, numberOfPartitions, workerClients, sqlite,
-                                                      stoi(graphId),
+                                                      stoi(graphId), direction == Conts::DIRECTED,
                                                       spt::getPartitioner(partitionAlgo));
 
     if (existingGraph != "y") {

@@ -21,3 +21,21 @@ std::string SharedBuffer::get() {
     cv.notify_one();  // Notify waiting threads
     return data;
 }
+
+// Non-blocking method to try getting data
+bool SharedBuffer::tryGet(std::string& data) {
+    std::unique_lock<std::mutex> lock(mtx);
+    if (buffer.empty()) {
+        return false;  // No data available
+    }
+    data = buffer.front();
+    buffer.pop_front();
+    cv.notify_one();  // Notify waiting threads
+    return true;
+}
+
+bool SharedBuffer::empty() {
+    std::lock_guard<std::mutex> lock(mtx);
+    return buffer.empty();
+}
+
