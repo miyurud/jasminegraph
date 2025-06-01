@@ -45,6 +45,7 @@ SEND = b'send'
 DONE = b'done'
 ADHDFS = b'adhdfs'
 LINE_END = b'\r\n'
+CYPHER = b'cypher'
 
 
 def expect_response(conn: socket.socket, expected: bytes):

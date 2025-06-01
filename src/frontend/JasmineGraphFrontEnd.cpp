@@ -642,9 +642,7 @@ static void cypherCommand(int connFd, vector<DataPublisher *> &workerClients,
         auto endTime = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
         int totalTime = duration.count();
-        string finalMessage = "Time taken to process aggregate query: " +
-                std::to_string(totalTime) + " ms";
-        result_wr = write(connFd, finalMessage.c_str(), finalMessage.length());
+        frontend_logger.info("Total time taken for aggregation: " + std::to_string(totalTime) + " ms");
         Operator::isAggregate = false;
     } else {
         int count = 0;
@@ -671,14 +669,7 @@ static void cypherCommand(int connFd, vector<DataPublisher *> &workerClients,
                 }
             }
         }
-        result_wr = write(connFd, to_string(count).c_str(), to_string(count).length());
-        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
-                          Conts::CARRIAGE_RETURN_NEW_LINE.size());
-        if (result_wr < 0) {
-            frontend_logger.error("Error writing to socket");
-            *loop_exit = true;
-            return;
-        }
+        frontend_logger.info("Total records returned: " + std::to_string(count));
     }
 }
 
