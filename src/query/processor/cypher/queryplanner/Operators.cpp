@@ -336,7 +336,7 @@ Limit::Limit(Operator* input, ASTNode* limit) : input(input), limit(limit) {}
 
 string Limit::execute() {
     input->execute();
-    cout << "Limiting result to " << limit->print() << " rows." << endl;
+    operatorLogger.debug("Skipping first" + limit->print());
     return "";
 }
 
@@ -362,7 +362,6 @@ string Distinct::execute() {
     distinct["project"] = json::array();  // Initialize as an empty array
 
     for (auto* ast : columns) {
-        cout << ast->print() << endl;
         json operand;
 
         if (ast->nodeType == Const::NON_ARITHMETIC_OPERATOR) {

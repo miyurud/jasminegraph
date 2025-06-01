@@ -36,11 +36,11 @@ void *backendservicesesion(void *dummyPt) {
 
         if (line.compare(EXIT_BACKEND) == 0) {
             write(connFd, EXIT_ACK.c_str(), EXIT_ACK.size());
-            write(connFd, "\r\n", 2);
+            write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
             break;
         } else if (line.compare(HANDSHAKE) == 0) {
             write(connFd, HANDSHAKE_OK.c_str(), HANDSHAKE_OK.size());
-            write(connFd, "\r\n", 2);
+            write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
 
             string hostname = Utils::read_str_trim_wrapper(connFd, data, BACKEND_DATA_LENGTH);
             write(connFd, HOST_OK.c_str(), HOST_OK.size());
@@ -51,7 +51,7 @@ void *backendservicesesion(void *dummyPt) {
             if (result_wr < 0) {
                 backend_logger.error("Error writing to socket");
             }
-            result_wr = write(connFd, "\r\n", 2);
+            result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
             if (result_wr < 0) {
                 backend_logger.error("Error writing to socket");
             }

@@ -1253,7 +1253,7 @@ void OperatorExecutor::OrderBy(SharedBuffer &buffer, std::string jsonPlan, Graph
 
     std::string sortKey = query["variable"];
     std::string order = query["order"];
-    const size_t maxSize = 1000000;
+    const size_t MAX_SIZE = 5000;
     bool isAsc = (order == "ASC");
 
     std::priority_queue<Row> heap;
@@ -1273,7 +1273,7 @@ void OperatorExecutor::OrderBy(SharedBuffer &buffer, std::string jsonPlan, Graph
             Row row(jsonStr, sortKey, isAsc);
             if (row.data.contains(sortKey)) {  // Ensure field exists
                 heap.push(row);
-                if (heap.size() > maxSize) {
+                if (heap.size() > MAX_SIZE) {
                     heap.pop();  // Remove smallest (ASC) or largest (DESC)
                 }
             }

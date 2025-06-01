@@ -85,6 +85,7 @@ static void get_degree_command(int connFd, std::string command, int numberOfPart
                                std::string type, bool *loop_exit_p);
 static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClients,
                                int numberOfPartitions, bool *loop_exit, std::string command);
+static void get_properties_command(int connFd, bool *loop_exit_p);
 
 static vector<DataPublisher *> getWorkerClients(SQLiteDBInterface *sqlite) {
     const vector<Utils::worker> &workerList = Utils::getWorkerList(sqlite);
@@ -168,6 +169,8 @@ void *uifrontendservicesesion(void *dummyPt) {
             workerClients = getWorkerClients(sqlite);
             workerClientsInitialized = true;
             cypher_ast_command(connFd, workerClients, numberOfPartitions, &loop_exit, line);
+        } else if (line.compare(PROPERTIES) == 0) {
+            get_properties_command(connFd,  &loop_exit);
         } else {
             ui_frontend_logger.error("Message format not recognized " + line);
             int result_wr = write(connFd, INVALID_FORMAT.c_str(), INVALID_FORMAT.size());
@@ -387,7 +390,7 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
             return;
         }
 
-        result_wr = write(connFd, "\r\n", 2);
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             ui_frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -445,7 +448,7 @@ static void add_graph_command(std::string masterIP,
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         ui_frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -503,7 +506,7 @@ static void add_graph_command(std::string masterIP,
             *loop_exit_p = true;
             return;
         }
-        result_wr = write(connFd, "\r\n", 2);
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             ui_frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -534,7 +537,7 @@ static void remove_graph_command(std::string masterIP,
             *loop_exit_p = true;
             return;
         }
-        result_wr = write(connFd, "\r\n", 2);
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             ui_frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -548,7 +551,7 @@ static void remove_graph_command(std::string masterIP,
             *loop_exit_p = true;
             return;
         }
-        result_wr = write(connFd, "\r\n", 2);
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             ui_frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -586,7 +589,7 @@ static void triangles_command(std::string masterIP, int connFd,
             return;
         }
 
-        result_wr = write(connFd, "\r\n", 2);
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             ui_frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -602,7 +605,7 @@ static void triangles_command(std::string masterIP, int connFd,
                 return;
             }
 
-            result_wr = write(connFd, "\r\n", 2);
+            result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
             if (result_wr < 0) {
                 ui_frontend_logger.error("Error writing to socket");
             }
@@ -665,7 +668,7 @@ static void triangles_command(std::string masterIP, int connFd,
                 ui_frontend_logger.error("Error writing to socket");
                 return;
             }
-            result_wr = write(connFd, "\r\n", 2);
+            result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
             if (result_wr < 0) {
                 ui_frontend_logger.error("Error writing to socket");
             }
@@ -689,7 +692,7 @@ static void triangles_command(std::string masterIP, int connFd,
             *loop_exit_p = true;
             return;
         }
-        result_wr = write(connFd, "\r\n", 2);
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             ui_frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
@@ -749,7 +752,8 @@ static void get_degree_command(int connFd, std::string command, int numberOfPart
                         ui_frontend_logger.error("Error writing to socket");
                         *loop_exit_p = true;
                     }
-                    result_wr = write(connFd, "\r\n", 2);
+                    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+                            Conts::CARRIAGE_RETURN_NEW_LINE.size());
                     if (result_wr < 0) {
                         ui_frontend_logger.error("Error writing to socket");
                         *loop_exit_p = true;
@@ -770,7 +774,7 @@ static void get_degree_command(int connFd, std::string command, int numberOfPart
         *loop_exit_p = true;
         return;
     }
-    result_wr = write(connFd, "\r\n", 2);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     if (result_wr < 0) {
         ui_frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -816,17 +820,15 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
         Operator *opr = query_planner.createExecutionPlan(ast);
         obj = opr->execute();
     } else {
-        ui_frontend_logger.error("query isn't semantically correct: "+user_res_s);
+        ui_frontend_logger.error("query isn't semantically correct: " + user_res_s);
     }
 
-    // print query plan
-    ui_frontend_logger.info((obj.c_str()));
-
+    int bufferSize = 5;
     // Create buffer pool
     std::vector<std::unique_ptr<SharedBuffer>> bufferPool;
     bufferPool.reserve(numberOfPartitions);  // Pre-allocate space for pointers
     for (size_t i = 0; i < numberOfPartitions; ++i) {
-        bufferPool.emplace_back(std::make_unique<SharedBuffer>(5));
+        bufferPool.emplace_back(std::make_unique<SharedBuffer>(bufferSize));
     }
 
     // send query plan
@@ -901,25 +903,19 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
                 }
             }
 
-            ui_frontend_logger.info("START MASTER SORTING");
-            ui_frontend_logger.info(std::to_string(mergeQueue.size()));
-
             // Merge loop
             while (!mergeQueue.empty()) {
-                ui_frontend_logger.info(":::::::FRONTEND:::::::");
-
                 // Pick smallest value
                 BufferEntry smallest = mergeQueue.top();
-                ui_frontend_logger.info(smallest.value);
                 size_t queueSize = mergeQueue.size();
-                ui_frontend_logger.info(std::to_string(queueSize));
                 mergeQueue.pop();
                 int result_wr = write(connFd, smallest.value.c_str(), smallest.value.length());
                 if (result_wr < 0) {
                     ui_frontend_logger.error("Error writing to socket");
                     return;
                 }
-                result_wr = write(connFd, "\r\n", 2);
+                result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+                        Conts::CARRIAGE_RETURN_NEW_LINE.size());
                 if (result_wr < 0) {
                     ui_frontend_logger.error("Error writing to socket");
                     return;
@@ -930,7 +926,7 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
                     std::string nextValue = bufferPool[smallest.bufferIndex]->get();
                     if (nextValue == "-1") {
                         closeFlag++;
-                        ui_frontend_logger.info("closeflag" + std::to_string(closeFlag));
+                        ui_frontend_logger.info("Value of closeflag : " + std::to_string(closeFlag));
                     } else {
                         try {
                             json parsed = json::parse(nextValue);
@@ -948,9 +944,11 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
                 }
             }
         } else {
-            std::string log = "Query is recongnized as Aggreagation, but method doesnot have implemented yet";
+            std::string log = "Query is recognized as aggregation, but the aggregation "
+                              "logic has not been implemented yet";
             int result_wr = write(connFd, log.c_str(), log.length());
-            result_wr = write(connFd, "\r\n", 2);
+            result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+                    Conts::CARRIAGE_RETURN_NEW_LINE.size());
         }
     } else {
         while (true) {
@@ -966,10 +964,40 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
                         closeFlag++;
                     } else {
                         int result_wr = write(connFd, data.c_str(), data.length());
-                        result_wr = write(connFd, "\r\n", 2);
+                        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+                            Conts::CARRIAGE_RETURN_NEW_LINE.size());
                     }
                 }
             }
         }
+    }
+}
+
+static void get_properties_command(int connFd, bool *loop_exit_p) {
+    std::string partitionCount = Utils::getJasmineGraphProperty("org.jasminegraph.server.npartitions");
+    int numberOfPartitions = std::stoi(partitionCount);
+
+    std::string version = Utils::getJasmineGraphProperty("org.jasminegraph.server.version");
+
+    std::string workerCount = Utils::getJasmineGraphProperty("org.jasminegraph.server.npartitions");
+    int numberOfWorkers = std::stoi(partitionCount);
+
+    json properties;
+    properties["partitionCount"] = numberOfPartitions;
+    properties["workersCount"] = numberOfWorkers;
+    properties["version"] = version;
+
+    // Convert JSON object to string
+    string result = properties.dump();
+    int result_wr = write(connFd, result.c_str(), result.length());
+    if (result_wr < 0) {
+        ui_frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+    }
+
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+    if (result_wr < 0) {
+        ui_frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
     }
 }
