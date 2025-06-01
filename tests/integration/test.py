@@ -241,6 +241,7 @@ def test(host, port):
         send_and_expect_response(sock, 'cypher', b'1', b'Input query :', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'match (n) where id(n)=1 return n',
                                  b'{"n":{"id":"1","partitionID":"1"}}', exit_on_failure=True)
+        expect_response(sock, b'done')
 
         print()
         logging.info('2. Testing cypher aggregate query after adding the graph')
