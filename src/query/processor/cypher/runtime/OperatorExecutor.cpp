@@ -101,7 +101,8 @@ void OperatorExecutor::initializeMethodMap() {
         executor.OrderBy(buffer, jsonPlan, gc);
     };
 
-    methodMap["NodeScanByLabel"] = [](OperatorExecutor &executor, SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
+    methodMap["NodeScanByLabel"] = [](OperatorExecutor &executor, SharedBuffer &buffer, std::string jsonPlan,
+            GraphConfig gc) {
         executor.NodeScanByLabel(buffer, jsonPlan, gc);
     };
 }
@@ -565,7 +566,7 @@ void OperatorExecutor::DirectedRelationshipTypeScan(SharedBuffer &buffer, std::s
         if (isDirectionRight) {
             directionData[start] = startNodeData;
             directionData[dest] = destNodeData;
-        } else if (!isDirected){
+        } else if (!isDirected) {
             directionData[start] = destNodeData;
             directionData[dest] = startNodeData;
         }
@@ -631,7 +632,7 @@ void OperatorExecutor::DirectedRelationshipTypeScan(SharedBuffer &buffer, std::s
         if (isDirectionRight) {
             directionData[start] = startNodeData;
             directionData[dest] = destNodeData;
-        } else if (!isDirected){
+        } else if (!isDirected) {
             directionData[start] = destNodeData;
             directionData[dest] = startNodeData;
         }

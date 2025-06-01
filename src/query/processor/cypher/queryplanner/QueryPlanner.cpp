@@ -204,7 +204,8 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
         if (isAvailable(Const::PROPERTIES_MAP, ast)) {
             if (isAvailable(Const::NODE_LABEL, ast) && isAvailable(Const::VARIABLE, ast)) {
                 if (!currentOperator) {
-                    currentOperator = new NodeScanByLabel(ast->elements[1]->elements[0]->value, ast->elements[0]->value);
+                    currentOperator = new NodeScanByLabel(ast->elements[1]->elements[0]->value,
+                                                          ast->elements[0]->value);
                 }
                 auto filterCase = pair<string, ASTNode*>(ast->elements[0]->value, ast->elements[2]);
                 vector<pair<string, ASTNode*>> vec = {filterCase};
@@ -547,8 +548,8 @@ pair<vector<bool>, vector<ASTNode *>> QueryPlanner::getRelationshipDetails(ASTNo
 pair<vector<bool>, vector<ASTNode *>> QueryPlanner::getNodeDetails(ASTNode *node) {
     vector<bool> availability = {false, false, false};
     vector<ASTNode*> nodes = {nullptr, nullptr, nullptr};
-    for (int i = 0; i<3;i++) {
-        if (i<node->elements.size()) {
+    for (int i = 0; i < 3; i++) {
+        if (i < node->elements.size()) {
             auto* e = node->elements[i];
             if (e->nodeType == Const::VARIABLE) {
                 availability[0] = true;

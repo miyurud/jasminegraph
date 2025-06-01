@@ -328,7 +328,7 @@ string ExpandAllHelper::generateSubQueryPlan(std::string query) {
     return obj;
 }
 
-string ExpandAllHelper::generateSubQuery(std::string startVar, std::string destVar, string relVar,bool isDirected,
+string ExpandAllHelper::generateSubQuery(std::string startVar, std::string destVar, string relVar, bool isDirected,
                                          std::string id, std::string relType) {
     if (relType == "") {
         if (isDirected) {
