@@ -80,8 +80,9 @@ std::string stream_topic_name;
 bool JasmineGraphFrontEnd::strian_exit;
 
 static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
-static void cypherCommand(int connFd, vector<DataPublisher *> &workerClients, int numberOfPartitions,
-                          bool *loop_exit_p);
+static void cypherCommand(std::string masterIP, int connFd, vector<DataPublisher *> &workerClients,
+int numberOfPartitions, bool *loop_exit,  SQLiteDBInterface *sqlite,
+PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler);
 static void add_rdf_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void add_graph_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
 static void add_graph_cust_command(std::string masterIP, int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p);
@@ -188,7 +189,8 @@ void *frontendservicesesion(void *dummyPt) {
         } else if (line.compare(CYPHER) == 0) {
             workerClients = getWorkerClients(sqlite);
             workerClientsInitialized = true;
-            cypherCommand(connFd, workerClients, numberOfPartitions, &loop_exit);
+            cypherCommand(masterIP, connFd, workerClients, numberOfPartitions, &loop_exit, sqlite,
+                perfSqlite, jobScheduler);
         } else if (line.compare(SHTDN) == 0) {
             JasmineGraphServer::shutdown_workers();
             close(connFd);
@@ -437,8 +439,10 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
     }
 }
 
-static void cypherCommand(int connFd, vector<DataPublisher *> &workerClients,
-                               int numberOfPartitions, bool *loop_exit) {
+static void cypherCommand(std::string masterIP, int connFd, vector<DataPublisher *> &workerClients,
+    int numberOfPartitions, bool *loop_exit,  SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfSqlite,
+    JobScheduler *jobScheduler) {
+
     string graphId = "Graph ID:";
     int result_wr = write(connFd, graphId.c_str(), graphId.length());
     if (result_wr < 0) {
@@ -479,197 +483,92 @@ static void cypherCommand(int connFd, vector<DataPublisher *> &workerClients,
     read(connFd, query, FRONTEND_DATA_LENGTH);
     string queryString(query);
 
-    antlr4::ANTLRInputStream input(queryString);
-    // Create a lexer from the input
-    CypherLexer lexer(&input);
+    auto begin = chrono::high_resolution_clock::now();
 
-    // Create a token stream from the lexer
-    antlr4::CommonTokenStream tokens(&lexer);
+    JobRequest jobDetails;
+    int uid = JasmineGraphFrontEndCommon::getUid();
+    jobDetails.setJobId(std::to_string(uid));
+    jobDetails.setJobType(CYPHER);
+    jobDetails.addParameter(Conts::PARAM_KEYS::CYPHER_QUERY::QUERY_STRING, queryString);
 
-    // Create a parser from the token stream
-    CypherParser parser(&tokens);
+    long graphSLA = -1;
+    int threadPriority = Conts::HIGH_PRIORITY_DEFAULT_VALUE;
+    graphSLA = JasmineGraphFrontEndCommon::getSLAForGraphId(sqlite, perfSqlite, graphIdResponse, CYPHER,
+                                                          Conts::SLA_CATEGORY::LATENCY);
 
-    ASTBuilder astBuilder;
-    auto* ast = any_cast<ASTNode*>(astBuilder.visitOC_Cypher(parser.oC_Cypher()));
+    jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_SLA, std::to_string(graphSLA));
 
-    SemanticAnalyzer semanticAnalyzer;
-    string executionPlanString;
-    if (semanticAnalyzer.analyze(ast)) {
-        frontend_logger.log("AST is successfully analyzed", "log");
-        QueryPlanner queryPlanner;
-        Operator *executionPlan = queryPlanner.createExecutionPlan(ast);
-        executionPlanString = executionPlan->execute();
-    } else {
-        frontend_logger.error("Query isn't semantically correct: " + queryString);
-    }
-    // Create buffer pool
-    std::vector<std::unique_ptr<SharedBuffer>> bufferPool;
-    bufferPool.reserve(numberOfPartitions);  // Pre-allocate space for pointers
-    for (size_t i = 0; i < numberOfPartitions; ++i) {
-        bufferPool.emplace_back(std::make_unique<SharedBuffer>(MASTER_BUFFER_SIZE));
-    }
-
-    // send query plan
-    JasmineGraphServer *server = JasmineGraphServer::getInstance();
-    server->sendQueryPlan(stoi(graphIdResponse), workerClients.size(),
-                          executionPlanString, std::ref(bufferPool));
-
-    int closeFlag = 0;
-    if (Operator::isAggregate) {
-        auto startTime = std::chrono::high_resolution_clock::now();
-        if (Operator::aggregateType == AggregationFactory::AVERAGE) {
-            Aggregation* aggregation = AggregationFactory::getAggregationMethod(AggregationFactory::AVERAGE);
-            while (true) {
-                if (closeFlag == numberOfPartitions) {
-                    break;
-                }
-                for (size_t i = 0; i < bufferPool.size(); ++i) {
-                    std::string data;
-                    if (bufferPool[i]->tryGet(data)) {
-                        if (data == "-1") {
-                            closeFlag++;
-                        } else {
-                            aggregation->insert(data);
-                        }
-                    }
-                }
-            }
-            aggregation->getResult(connFd);
-        } else if (Operator::aggregateType == AggregationFactory::ASC ||
-            Operator::aggregateType == AggregationFactory::DESC) {
-            struct BufferEntry {
-                std::string value;
-                size_t bufferIndex;
-                json data;
-                bool isAsc;
-                BufferEntry(const std::string& v, size_t idx, const json& parsed, bool asc)
-                    : value(v), bufferIndex(idx), data(parsed), isAsc(asc) {}
-                bool operator<(const BufferEntry& other) const {
-                    const auto& val1 = data[Operator::aggregateKey];
-                    const auto& val2 = other.data[Operator::aggregateKey];
-                    bool result;
-                    if (val1.is_number_integer() && val2.is_number_integer()) {
-                        result = val1.get<int>() > val2.get<int>();
-                    } else if (val1.is_string() && val2.is_string()) {
-                        result = val1.get<std::string>() > val2.get<std::string>();
-                    } else {
-                        result = val1.dump() > val2.dump();
-                    }
-                    return isAsc ? result : !result;  // Flip for DESC
-                }
-            };
-
-            // Initialize with first value from each buffer
-            bool isAsc = (Operator::aggregateType == AggregationFactory::ASC);
-            std::priority_queue<BufferEntry> mergeQueue;  // Min-heap
-            for (size_t i = 0; i < numberOfPartitions; ++i) {
-                std::string value = bufferPool[i]->get();
-                if (value != "-1") {
-                    try {
-                        json parsed = json::parse(value);
-                        if (!parsed.contains(Operator::aggregateKey)) {
-                            frontend_logger.error("Missing key '" + Operator::aggregateKey + "' in JSON: " + value);
-                            continue;
-                        }
-                        BufferEntry entry{value, i, parsed, isAsc};
-                        mergeQueue.push(entry);
-                    } catch (const json::exception& e) {
-                        frontend_logger.error("JSON parse error: " + std::string(e.what()));
-                        continue;
-                    }
-                } else {
-                    closeFlag++;
-                }
-            }
-
-            frontend_logger.info("START MASTER SORTING");
-            frontend_logger.info(std::to_string(mergeQueue.size()));
-
-            // Merge loop
-            while (!mergeQueue.empty()) {
-                // Pick smallest value
-                BufferEntry smallest = mergeQueue.top();
-                frontend_logger.info(smallest.value);
-                size_t queueSize = mergeQueue.size();
-                frontend_logger.debug(std::to_string(queueSize));
-                mergeQueue.pop();
-                result_wr = write(connFd, smallest.value.c_str(), smallest.value.length());
-                if (result_wr < 0) {
-                    frontend_logger.error("Error writing to socket");
-                    return;
-                }
-                result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
-                                  Conts::CARRIAGE_RETURN_NEW_LINE.size());
-                if (result_wr < 0) {
-                    frontend_logger.error("Error writing to socket");
-                    *loop_exit = true;
-                    return;
-                }
-
-                // Only fetch next value if the buffer isn't exhausted
-                if (closeFlag < numberOfPartitions) {
-                    std::string nextValue = bufferPool[smallest.bufferIndex]->get();
-                    if (nextValue == "-1") {
-                        closeFlag++;
-                        frontend_logger.info("closeflag" + std::to_string(closeFlag));
-                    } else {
-                        try {
-                            json parsed = json::parse(nextValue);
-                            if (!parsed.contains(Operator::aggregateKey)) {
-                                frontend_logger.error("Missing key '" + Operator::aggregateKey +
-                                    "' in JSON: " + nextValue);
-                                continue;
-                            }
-                            BufferEntry entry{nextValue, smallest.bufferIndex, parsed, isAsc};
-                            mergeQueue.push(entry);
-                        } catch (const json::exception& e) {
-                            frontend_logger.error("JSON parse error: " + std::string(e.what()));
-                        }
-                    }
-                }
+    if (graphSLA == 0) {
+        if (JasmineGraphFrontEnd::areRunningJobsForSameGraph()) {
+            if (canCalibrate) {
+                // initial calibration
+                jobDetails.addParameter(Conts::PARAM_KEYS::AUTO_CALIBRATION, "false");
+            } else {
+                // auto calibration
+                jobDetails.addParameter(Conts::PARAM_KEYS::AUTO_CALIBRATION, "true");
             }
         } else {
-            std::string log = "Query is recongnized as Aggreagation, but method doesnot have implemented yet";
-            result_wr = write(connFd, log.c_str(), log.length());
-            result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
-                              Conts::CARRIAGE_RETURN_NEW_LINE.size());
-            if (result_wr < 0) {
-                frontend_logger.error("Error writing to socket");
-                *loop_exit = true;
-                return;
-            }
+            frontend_logger.error("Can't calibrate the graph now");
         }
-        auto endTime = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
-        int totalTime = duration.count();
-        frontend_logger.info("Total time taken for aggregation: " + std::to_string(totalTime) + " ms");
-        Operator::isAggregate = false;
+    }
+
+    jobDetails.setPriority(threadPriority);
+    jobDetails.setMasterIP(masterIP);
+    jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_ID, graphIdResponse);
+    jobDetails.addParameter(Conts::PARAM_KEYS::CATEGORY, Conts::SLA_CATEGORY::LATENCY);
+    jobDetails.addParameter(Conts::PARAM_KEYS::NO_OF_PARTITIONS, std::to_string(numberOfPartitions));
+    jobDetails.addParameter(Conts::PARAM_KEYS::CONN_FILE_DESCRIPTOR, std::to_string(connFd));
+    jobDetails.addParameter(Conts::PARAM_KEYS::LOOP_EXIT_POINTER,
+                        std::to_string(reinterpret_cast<std::uintptr_t>(loop_exit)));
+
+    if (canCalibrate) {
+        jobDetails.addParameter(Conts::PARAM_KEYS::CAN_CALIBRATE, "true");
     } else {
-        int count = 0;
-        while (true) {
-            if (closeFlag == numberOfPartitions) {
-                break;
-            }
-            for (size_t i = 0; i < bufferPool.size(); ++i) {
-                std::string data;
-                if (bufferPool[i]->tryGet(data)) {
-                    if (data == "-1") {
-                        closeFlag++;
-                    } else {
-                        count++;
-                        result_wr = write(connFd, data.c_str(), data.length());
-                        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
-                                          Conts::CARRIAGE_RETURN_NEW_LINE.size());
-                        if (result_wr < 0) {
-                            frontend_logger.error("Error writing to socket");
-                            *loop_exit = true;
-                            return;
-                        }
-                    }
-                }
-            }
+        jobDetails.addParameter(Conts::PARAM_KEYS::CAN_CALIBRATE, "false");
+    }
+
+    jobScheduler->pushJob(jobDetails);
+    frontend_logger.info("Job pushed");
+
+    JobResponse jobResponse = jobScheduler->getResult(jobDetails);
+    std::string errorMessage = jobResponse.getParameter(Conts::PARAM_KEYS::ERROR_MESSAGE);
+
+    if (!errorMessage.empty()) {
+        *loop_exit = true;
+        result_wr = write(connFd, errorMessage.c_str(), errorMessage.length());
+
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            return;
         }
-        frontend_logger.info("Total records returned: " + std::to_string(count));
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+                      Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+        }
+        return;
+    }
+
+    if (threadPriority == Conts::HIGH_PRIORITY_DEFAULT_VALUE) {
+        highPriorityTaskCount--;
+    }
+
+    auto end = chrono::high_resolution_clock::now();
+    auto dur = end - begin;
+    auto msDuration = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
+    frontend_logger.info("Time Taken for query execution: " + to_string(msDuration) + " milliseconds");
+
+    result_wr = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit = true;
+        return;
+    }
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+                      Conts::CARRIAGE_RETURN_NEW_LINE.size());
+    if (result_wr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit = true;
     }
 }
 
