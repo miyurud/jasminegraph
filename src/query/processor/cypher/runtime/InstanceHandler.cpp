@@ -25,7 +25,7 @@ void InstanceHandler::handleRequest(int connFd, bool *loop_exit_p,
                                     std::string queryJson) {
     OperatorExecutor operatorExecutor(gc, queryJson, masterIP);
     operatorExecutor.initializeMethodMap();
-    SharedBuffer sharedBuffer(5);
+    SharedBuffer sharedBuffer(operatorExecutor.INTER_OPERATOR_BUFFER_SIZE);
     auto method = OperatorExecutor::methodMap[operatorExecutor.query["Operator"]];
     // Launch the method in a new thread
     std::thread result(method, std::ref(operatorExecutor), std::ref(sharedBuffer),

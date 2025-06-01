@@ -234,6 +234,19 @@ def test(host, port):
         logging.info('1. Testing vcnt after adhdfs')
         send_and_expect_response(sock, 'vcnt', VCNT, b'graphid-send', exit_on_failure=True)
         send_and_expect_response(sock, 'vcnt', b'1', b'4941', exit_on_failure=True)
+        print()
+        logging.info('1. Testing cypher query after adding the graph')
+        send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher', b'1', b'Input query :', exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher', b'match (n) where id(n)=1 return n',
+                                 b'{"n":{"id":"1","partitionID":"1"}}', exit_on_failure=True)
+
+        print()
+        logging.info('2. Testing cypher aggregate query after adding the graph')
+        send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher', b'1', b'Input query :', exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher', b'match (n) where n.id < 10 return avg(n.id)',
+                                 b'{"avg(n.id)":4.5}', exit_on_failure=True)
 
         print()
         logging.info('1. Testing rmgr after adhdfs')
