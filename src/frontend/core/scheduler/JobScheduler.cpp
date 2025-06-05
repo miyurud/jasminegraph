@@ -131,9 +131,12 @@ JobResponse JobScheduler::getResult(JobRequest jobRequest) {
         if (responseMap.find(jobRequest.getJobId()) != responseMap.end()) {
             jobResponse = responseMap[jobRequest.getJobId()];
             responseFound = true;
+            jobScheduler_Logger.debug("Job response found for job ID: " + jobRequest.getJobId());
+
         }
         responseVectorMutex.unlock();
         if (!responseFound) {
+            jobScheduler_Logger.debug("Waiting for job response for job ID: " + jobRequest.getJobId());
             usleep(50000);
         }
     }

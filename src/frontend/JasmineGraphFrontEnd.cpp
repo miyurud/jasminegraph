@@ -533,6 +533,8 @@ static void cypherCommand(std::string masterIP, int connFd, vector<DataPublisher
     JobResponse jobResponse = jobScheduler->getResult(jobDetails);
     std::string errorMessage = jobResponse.getParameter(Conts::PARAM_KEYS::ERROR_MESSAGE);
 
+    frontend_logger.error("Job failed: " + errorMessage);
+
     if (!errorMessage.empty()) {
         *loop_exit = true;
         result_wr = write(connFd, errorMessage.c_str(), errorMessage.length());
