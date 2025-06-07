@@ -233,7 +233,6 @@ def test(host, port):
         logging.info('1. Testing vcnt after adhdfs')
         send_and_expect_response(sock, 'vcnt', VCNT, b'graphid-send', exit_on_failure=True)
         send_and_expect_response(sock, 'vcnt', b'1', b'4941', exit_on_failure=True)
-        
         print()
         logging.info('1. Testing cypher query after adding the graph')
         # sock.sendall(CYPHER + LINE_END)
