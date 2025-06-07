@@ -317,13 +317,12 @@ void CypherQueryExecutor::execute() {
     processStatusMutex.lock();
     for (auto processCompleteIterator = processData.begin(); processCompleteIterator != processData.end();
          ++processCompleteIterator) {
-        ProcessInfo processInformation = *processCompleteIterator;
-    
+        ProcessInfo processInformation = *processCompleteIterator;    
         if (processInformation.id == uniqueId) {
             processData.erase(processInformation);
             break;
         }
-         }
+    }
     processStatusMutex.unlock();
 }
 
