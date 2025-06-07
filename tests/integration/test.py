@@ -248,19 +248,11 @@ def test(host, port):
         logging.info('2. Testing cypher aggregate query after adding the graph')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         # send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
-<<<<<<< HEAD
-        send_and_expect_response(sock, 'cypher', b'6', b'Input query :', exit_on_failure=True)
-=======
         send_and_expect_response(sock, 'cypher', b'1', b'Input query :', exit_on_failure=True)
->>>>>>> a0524ff71ad7861197b73891bc57abbc628bd167
         send_and_expect_response(sock, 'cypher', b'match (n) where n.id < 10 return avg(n.id)',
                                  b'{"avg(n.id)":4.5}', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'',
                                  b'done', exit_on_failure=True)
-<<<<<<< HEAD
-
-=======
->>>>>>> a0524ff71ad7861197b73891bc57abbc628bd167
         print()
         logging.info('1. Testing rmgr after adhdfs')
         send_and_expect_response(sock, 'rmgr', RMGR, SEND, exit_on_failure=True)
