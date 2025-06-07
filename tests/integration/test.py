@@ -251,7 +251,6 @@ def test(host, port):
                                  b'{"avg(n.id)":4.5}', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'',
                                  b'done', exit_on_failure=True)
-
         print()
         logging.info('1. Testing rmgr after adhdfs')
         send_and_expect_response(sock, 'rmgr', RMGR, SEND, exit_on_failure=True)
