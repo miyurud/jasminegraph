@@ -57,7 +57,7 @@ void InstanceHandler::dataPublishToMaster(int connFd, bool *loop_exit_p, std::st
     std::string start_ack(JasmineGraphInstanceProtocol::QUERY_DATA_ACK.length(), 0);
     int return_status = recv(connFd, &start_ack[0], JasmineGraphInstanceProtocol::QUERY_DATA_ACK.length(), 0);
     if (return_status > 0) {
-        instance_logger.debug("Received data start ack: "+start_ack);
+        instance_logger.debug("Received data start ack: " + start_ack);
     } else {
         instance_logger.error("Error while reading start ack");
         *loop_exit_p = true;
@@ -66,7 +66,7 @@ void InstanceHandler::dataPublishToMaster(int connFd, bool *loop_exit_p, std::st
 
     int message_length = message.length();
     int converted_number = htonl(message_length);
-    instance_logger.debug("Sending content length"+to_string(converted_number));
+    instance_logger.debug("Sending content length" + to_string(converted_number));
     if (!Utils::send_int_wrapper(connFd, &converted_number, sizeof(converted_number))) {
         *loop_exit_p = true;
         return;
@@ -90,7 +90,7 @@ void InstanceHandler::dataPublishToMaster(int connFd, bool *loop_exit_p, std::st
     std::string success_ack(JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS.length(), 0);
     return_status = recv(connFd, &success_ack[0], JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS.length(), 0);
     if (return_status > 0) {
-        instance_logger.debug("Received success ack: "+ success_ack);
+        instance_logger.debug("Received success ack: " + success_ack);
     } else {
         instance_logger.error("Error while reading content length ack");
         *loop_exit_p = true;

@@ -295,7 +295,7 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
         json startNodeData;
         json destNodeData;
         json relationData;
-        RelationBlock* relation = RelationBlock::getCentralRelation(i*RelationBlock::CENTRAL_BLOCK_SIZE);
+        RelationBlock* relation = RelationBlock::getCentralRelation(i * RelationBlock::CENTRAL_BLOCK_SIZE);
         if (relation->getCentralRelationshipType() != query["relType"]) {
             continue;
         }
@@ -663,7 +663,7 @@ void OperatorExecutor::DirectedAllRelationshipScan(SharedBuffer &buffer, std::st
         json startNodeData;
         json destNodeData;
         json relationData;
-        RelationBlock* relation = RelationBlock::getLocalRelation(i*RelationBlock::BLOCK_SIZE);
+        RelationBlock* relation = RelationBlock::getLocalRelation(i * RelationBlock::BLOCK_SIZE);
         NodeBlock* startNode = relation->getSource();
         NodeBlock* destNode = relation->getDestination();
 
@@ -720,7 +720,7 @@ void OperatorExecutor::DirectedAllRelationshipScan(SharedBuffer &buffer, std::st
         json startNodeData;
         json destNodeData;
         json relationData;
-        RelationBlock* relation = RelationBlock::getCentralRelation(i*RelationBlock::CENTRAL_BLOCK_SIZE);
+        RelationBlock* relation = RelationBlock::getCentralRelation(i * RelationBlock::CENTRAL_BLOCK_SIZE);
         std::string pid(relation->getMetaPropertyHead()->value);
         if (pid != to_string(gc.partitionID)) {
             continue;

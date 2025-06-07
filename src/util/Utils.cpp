@@ -1584,7 +1584,7 @@ std::optional<std::tuple<std::string, int, int>> Utils::getWorker(string partiti
     char ack[ACK_MESSAGE_SIZE] = {0};
     int message_length = partitionId.length();
     int converted_number = htonl(message_length);
-    util_logger.debug("Sending content length: "+to_string(converted_number));
+    util_logger.debug("Sending content length: " + to_string(converted_number));
 
     if (!Utils::sendIntExpectResponse(sockfd, ack,
                                       CONTENT_LENGTH_ACK.length(),
@@ -1907,7 +1907,7 @@ bool Utils::sendDataFromWorkerToWorker(string masterIP, int graphID, string part
     char ack3[ACK_MESSAGE_SIZE] = {0};
     message_length = message.length();
     converted_number = htonl(message_length);
-    util_logger.debug("Sending content length of sub query plan: "+to_string(converted_number));
+    util_logger.debug("Sending content length of sub query plan: " + to_string(converted_number));
 
     if (!Utils::sendIntExpectResponse(sockfd, ack3,
                                       JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.length(),

@@ -548,7 +548,7 @@ pair<vector<bool>, vector<ASTNode *>> QueryPlanner::getRelationshipDetails(ASTNo
 pair<vector<bool>, vector<ASTNode *>> QueryPlanner::getNodeDetails(ASTNode *node) {
     vector<bool> availability = {false, false, false};
     vector<ASTNode*> nodes = {nullptr, nullptr, nullptr};
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < Const::THREE; i++) {
         if (i < node->elements.size()) {
             auto* e = node->elements[i];
             if (e->nodeType == Const::VARIABLE) {

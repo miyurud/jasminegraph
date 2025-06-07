@@ -115,7 +115,7 @@ void *backendservicesesion(void *dummyPt) {
             auto worker = sqLiteDbInterface->runSelect(selectQuery);
 
             if (worker.empty() || worker[0].empty()) {
-                backend_logger.error("sql query returned no results.");
+                backend_logger.error("SQL query returned no results.");
                 break;
             }
 
@@ -154,7 +154,7 @@ void *backendservicesesion(void *dummyPt) {
             int return_status = recv(connFd, &content_length, sizeof(int), 0);
             if (return_status > 0) {
                 content_length = ntohl(content_length);
-                backend_logger.info("Received content_length of graph ID = " + std::to_string(content_length));
+                backend_logger.info("Received content length of graph ID = " + std::to_string(content_length));
             } else {
                 backend_logger.info("Error while reading content length");
                 loop = true;
@@ -225,7 +225,7 @@ void *backendservicesesion(void *dummyPt) {
             int return_status = recv(connFd, &content_length, sizeof(int), 0);
             if (return_status > 0) {
                 content_length = ntohl(content_length);
-                backend_logger.info("Received content_length of graph ID = " + std::to_string(content_length));
+                backend_logger.info("Received content length of graph ID = " + std::to_string(content_length));
             } else {
                 backend_logger.info("Error while reading content length");
                 loop = true;
@@ -251,7 +251,7 @@ void *backendservicesesion(void *dummyPt) {
             std::string selectQuery = "select is_directed from graph where idgraph='" + graphID + "';";
 
             if (!sqLiteDbInterface) {
-                backend_logger.error("Database interface is null!");
+                backend_logger.error("Error connecting to the database: Database interface is null!");
                 break;
             }
 
