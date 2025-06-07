@@ -92,10 +92,8 @@ def send_and_expect_response(conn, test_name, send, expected, exit_on_failure=Fa
             print(*failed_tests, sep='\n', file=sys.stderr)
             sys.exit(1)
 
-
 passed_all = True
 failed_tests = []
-
 
 def test(host, port):
     """Test the JasmineGraph server by sending a series of commands and checking the responses."""
@@ -235,7 +233,6 @@ def test(host, port):
         logging.info('1. Testing vcnt after adhdfs')
         send_and_expect_response(sock, 'vcnt', VCNT, b'graphid-send', exit_on_failure=True)
         send_and_expect_response(sock, 'vcnt', b'1', b'4941', exit_on_failure=True)
-        
         print()
         logging.info('1. Testing cypher query after adding the graph')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
@@ -269,7 +266,6 @@ def test(host, port):
         print()
         logging.info('Shutting down')
         sock.sendall(SHDN + LINE_END)
-
         if passed_all:
             print()
             logging.info('Passed all tests')
