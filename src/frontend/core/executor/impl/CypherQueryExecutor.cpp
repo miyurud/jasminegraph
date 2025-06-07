@@ -286,7 +286,12 @@ void CypherQueryExecutor::execute() {
         cypher_logger.info("Total records returned: " + std::to_string(count));
     }
 
-    cypher_logger.info("###CYPHER-QUERY-EXECUTOR  changing ### Executing Query : Completed");
+    for (auto& thread : workerThreads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+    cypher_logger.info("###CYPHER-QUERY-EXECUTOR### Executing Query : Completed");
 
     workerResponded = true;
     JobResponse jobResponse;
