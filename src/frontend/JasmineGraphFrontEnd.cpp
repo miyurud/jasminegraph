@@ -59,6 +59,8 @@ limitations under the License.
 #include "../localstore/incremental/JasmineGraphIncrementalLocalStore.h"
 #include "../server/JasmineGraphInstanceService.h"
 #include "../query/processor/cypher/util/SharedBuffer.h"
+#include "../query/processor/cypher/runtime/AggregationFactory.h"
+#include "../query/processor/cypher/runtime/Aggregation.h"
 #include "../partitioner/stream/Partitioner.h"
 
 #define MAX_PENDING_CONNECTIONS 10

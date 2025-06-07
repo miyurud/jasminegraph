@@ -1443,7 +1443,7 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
     char ack1[ACK_MESSAGE_SIZE] = {0};
     int message_length = std::to_string(graphID).length();
     int converted_number = htonl(message_length);
-    util_logger.info("Sending content length: "+ to_string(converted_number));
+    util_logger.debug("Sending content length: "+ to_string(converted_number));
     if (!Utils::sendIntExpectResponse(sockfd, ack1,
                                       JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.length(),
                                    converted_number,
@@ -1461,7 +1461,7 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
     char ack2[ACK_MESSAGE_SIZE] = {0};
     message_length = std::to_string(partitionId).length();
     converted_number = htonl(message_length);
-    util_logger.info("Sending content length: "+to_string(converted_number));
+    util_logger.debug("Sending content length: "+to_string(converted_number));
 
     if (!Utils::sendIntExpectResponse(sockfd, ack2,
                                       JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.length(),
@@ -1480,7 +1480,7 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
     char ack3[ACK_MESSAGE_SIZE] = {0};
     message_length = message.length();
     converted_number = htonl(message_length);
-    util_logger.info("Sending content length: "+to_string(converted_number));
+    util_logger.debug("Sending content length: "+to_string(converted_number));
 
     if (!Utils::sendIntExpectResponse(sockfd, ack3,
                                       JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.length(),
@@ -1495,7 +1495,7 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
         close(sockfd);
         return false;
     }
-
+    bool end = false;
     auto startTime = std::chrono::high_resolution_clock::now();
     while (true) {
         char start[ACK_MESSAGE_SIZE] = {0};
@@ -1512,7 +1512,7 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
         ssize_t return_status = recv(sockfd, &content_length, sizeof(int), 0);
         if (return_status > 0) {
             content_length = ntohl(content_length);
-            util_logger.info("Received int =" + std::to_string(content_length));
+            util_logger.debug("Received int =" + std::to_string(content_length));
         } else {
             util_logger.error("Error while receiving content length");
             return false;
@@ -1529,15 +1529,13 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
             util_logger.info("Error while reading graph data");
             return false;
         }
+
         if (data == "-1") {
             sharedBuffer.add(data);
             break;
         }
         sharedBuffer.add(data);
     }
-    auto now = std::chrono::high_resolution_clock::now();
-    auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - startTime);
-    util_logger.info(" Time Taken: " + std::to_string(elapsed.count()) + " seconds");
     return true;
 }
 
@@ -1586,7 +1584,7 @@ std::optional<std::tuple<std::string, int, int>> Utils::getWorker(string partiti
     char ack[ACK_MESSAGE_SIZE] = {0};
     int message_length = partitionId.length();
     int converted_number = htonl(message_length);
-    util_logger.info("Sending content length: "+to_string(converted_number));
+    util_logger.debug("Sending content length: " + to_string(converted_number));
 
     if (!Utils::sendIntExpectResponse(sockfd, ack,
                                       CONTENT_LENGTH_ACK.length(),
@@ -1606,7 +1604,7 @@ std::optional<std::tuple<std::string, int, int>> Utils::getWorker(string partiti
     ssize_t return_status = recv(sockfd, &content_length, sizeof(int), 0);
     if (return_status > 0) {
         content_length = ntohl(content_length);
-        util_logger.info("Received int = " + std::to_string(content_length));
+        util_logger.debug("Received int = " + std::to_string(content_length));
     } else {
         util_logger.error("Error while receiving content length");
         return nullopt;
@@ -1616,7 +1614,7 @@ std::optional<std::tuple<std::string, int, int>> Utils::getWorker(string partiti
     std::string workerData(content_length, 0);
     return_status = recv(sockfd, &workerData[0], content_length, 0);
     if (return_status > 0) {
-        util_logger.info("Received worker data: " + workerData);
+        util_logger.debug("Received worker data: " + workerData);
     } else {
         util_logger.info("Error while reading graph data");
         return nullopt;
@@ -1629,7 +1627,7 @@ std::optional<std::tuple<std::string, int, int>> Utils::getWorker(string partiti
     string portNumber = workerData.substr(pos1 + 1, pos2 - pos1 - 1);
 
     string dataPort = workerData.substr(pos2 + 1);
-    util_logger.info("IP, Port, and Data Port received: " + ip + " " + portNumber + " " + dataPort);
+    util_logger.debug("IP, Port, and Data Port received: " + ip + " " + portNumber + " " + dataPort);
 
     return make_tuple(ip, stoi(portNumber), stoi(dataPort));
 }
@@ -1679,7 +1677,7 @@ string Utils::getPartitionAlgorithm(std::string graphID, std::string host) {
     char ack[ACK_MESSAGE_SIZE] = {0};
     int message_length = graphID.length();
     int converted_number = htonl(message_length);
-    util_logger.info("Sending content length: " + to_string(converted_number));
+    util_logger.debug("Sending content length: " + to_string(converted_number));
 
     if (!Utils::sendIntExpectResponse(sockfd, ack,
                                       CONTENT_LENGTH_ACK.length(),
@@ -1699,7 +1697,7 @@ string Utils::getPartitionAlgorithm(std::string graphID, std::string host) {
     ssize_t return_status = recv(sockfd, &content_length, sizeof(int), 0);
     if (return_status > 0) {
         content_length = ntohl(content_length);
-        util_logger.info("Received int = " + std::to_string(content_length));
+        util_logger.debug("Received int = " + std::to_string(content_length));
     } else {
         util_logger.error("Error while receiving content length");
         return "";
@@ -1709,8 +1707,91 @@ string Utils::getPartitionAlgorithm(std::string graphID, std::string host) {
     std::string partitionAlgorithm(content_length, 0);
     return_status = recv(sockfd, &partitionAlgorithm[0], content_length, 0);
     if (return_status > 0) {
-        util_logger.info("Received worker data: " + partitionAlgorithm);
+        util_logger.debug("Received worker data: " + partitionAlgorithm);
         return partitionAlgorithm;
+    } else {
+        util_logger.info("Error while reading graph data");
+        return "";
+    }
+}
+
+string Utils::getGraphDirection(std::string graphID, std::string host) {
+    util_logger.info("Host:" + host + " Port:" + to_string(Conts::JASMINEGRAPH_BACKEND_PORT));
+    bool result = true;
+    int sockfd;
+    char data[FED_DATA_LENGTH + 1];
+    static const int ACK_MESSAGE_SIZE = 1024;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sockfd < 0) {
+        util_logger.error("Cannot create socket");
+        return "";
+    }
+
+    if (host.find('@') != std::string::npos) {
+        host = Utils::split(host, '@')[1];
+    }
+
+    server = gethostbyname(host.c_str());
+    if (server == NULL) {
+        util_logger.error("ERROR, no host named " + host);
+        return "";
+    }
+
+    bzero((char *)&serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    serv_addr.sin_port = htons(Conts::JASMINEGRAPH_BACKEND_PORT);
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+        return "";
+    }
+
+    if (!Utils::sendExpectResponse(sockfd, data, DIRECTION_DETAIL_ACK.length(),
+                                   DIRECTION_DETAIL,
+                                   DIRECTION_DETAIL_ACK)) {
+        Utils::send_str_wrapper(sockfd, UPDATE_DONE);
+        close(sockfd);
+        return "";
+    }
+
+    char ack[ACK_MESSAGE_SIZE] = {0};
+    int message_length = graphID.length();
+    int converted_number = htonl(message_length);
+    util_logger.debug("Sending content length: " + to_string(converted_number));
+
+    if (!Utils::sendIntExpectResponse(sockfd, ack,
+                                      CONTENT_LENGTH_ACK.length(),
+                                      converted_number,
+                                      CONTENT_LENGTH_ACK)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return "";
+    }
+
+    if (!Utils::send_str_wrapper(sockfd, graphID)) {
+        close(sockfd);
+        return "";
+    }
+
+    int content_length;
+    ssize_t return_status = recv(sockfd, &content_length, sizeof(int), 0);
+    if (return_status > 0) {
+        content_length = ntohl(content_length);
+        util_logger.debug("Received int = " + std::to_string(content_length));
+    } else {
+        util_logger.error("Error while receiving content length");
+        return "";
+    }
+    Utils::send_str_wrapper(sockfd, CONTENT_LENGTH_ACK);
+
+    std::string direction(content_length, 0);
+    return_status = recv(sockfd, &direction[0], content_length, 0);
+    if (return_status > 0) {
+        util_logger.info("Received direction (Directed 1/ undirected 0): " + direction);
+        return direction;
     } else {
         util_logger.info("Error while reading graph data");
         return "";
@@ -1773,6 +1854,12 @@ bool Utils::sendDataFromWorkerToWorker(string masterIP, int graphID, string part
         return false;
     }
 
+    if (!Utils::performHandshake(sockfd, data, FED_DATA_LENGTH, masterIP)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return false;
+    }
+
     if (!Utils::sendExpectResponse(sockfd, data, JasmineGraphInstanceProtocol::SUB_QUERY_START_ACK.length(),
                                    JasmineGraphInstanceProtocol::SUB_QUERY_START,
                                    JasmineGraphInstanceProtocol::SUB_QUERY_START_ACK)) {
@@ -1783,7 +1870,7 @@ bool Utils::sendDataFromWorkerToWorker(string masterIP, int graphID, string part
     char ack1[ACK_MESSAGE_SIZE] = {0};
     int message_length = std::to_string(graphID).length();
     int converted_number = htonl(message_length);
-    util_logger.info("Sending content length: " + to_string(converted_number));
+    util_logger.debug("Sending content length: " + to_string(converted_number));
     if (!Utils::sendIntExpectResponse(sockfd, ack1,
                                       JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.length(),
                                       converted_number,
@@ -1801,7 +1888,7 @@ bool Utils::sendDataFromWorkerToWorker(string masterIP, int graphID, string part
     char ack2[ACK_MESSAGE_SIZE] = {0};
     message_length = partitionId.length();
     converted_number = htonl(message_length);
-    util_logger.info("Sending content length: " + to_string(converted_number));
+    util_logger.debug("Sending content length: " + to_string(converted_number));
 
     if (!Utils::sendIntExpectResponse(sockfd, ack2,
                                       JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.length(),
@@ -1820,7 +1907,7 @@ bool Utils::sendDataFromWorkerToWorker(string masterIP, int graphID, string part
     char ack3[ACK_MESSAGE_SIZE] = {0};
     message_length = message.length();
     converted_number = htonl(message_length);
-    util_logger.info("Sending content length of sub query plan: "+to_string(converted_number));
+    util_logger.debug("Sending content length of sub query plan: " + to_string(converted_number));
 
     if (!Utils::sendIntExpectResponse(sockfd, ack3,
                                       JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.length(),
@@ -1845,7 +1932,7 @@ bool Utils::sendDataFromWorkerToWorker(string masterIP, int graphID, string part
             util_logger.error("Error while receiving sub query data start : " + start_msg+" : ");
             continue;
         }
-        util_logger.info(start);
+
         send(sockfd, JasmineGraphInstanceProtocol::QUERY_DATA_ACK.c_str(),
              JasmineGraphInstanceProtocol::QUERY_DATA_ACK.length(), 0);
 
@@ -1853,7 +1940,7 @@ bool Utils::sendDataFromWorkerToWorker(string masterIP, int graphID, string part
         ssize_t return_status = recv(sockfd, &content_length, sizeof(int), 0);
         if (return_status > 0) {
             content_length = ntohl(content_length);
-            util_logger.info("Received int =" + std::to_string(content_length));
+            util_logger.debug("Received int =" + std::to_string(content_length));
         } else {
             util_logger.error("Error while receiving content length");
             return false;
