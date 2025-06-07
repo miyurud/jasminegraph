@@ -302,7 +302,6 @@ void CypherQueryExecutor::execute() {
     responseMap[request.getJobId()] = jobResponse;
     responseVectorMutex.unlock();
 
-    cypher_logger.info("###CYPHER-QUERY-EXECUTOR### Query execution completed for job ID: " + request.getJobId());
     auto end = chrono::high_resolution_clock::now();
     auto dur = end - begin;
     auto msDuration = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
@@ -313,19 +312,13 @@ void CypherQueryExecutor::execute() {
         Utils::updateSLAInformation(perfDB, graphId, numberOfPartitions, msDuration, CYPHER,
                                     Conts::SLA_CATEGORY::LATENCY);
         isStatCollect = false;
-        cypher_logger.info("SLA information updated for job ID: " + request.getJobId());
     }
 
     processStatusMutex.lock();
     for (auto processCompleteIterator = processData.begin(); processCompleteIterator != processData.end();
          ++processCompleteIterator) {
         ProcessInfo processInformation = *processCompleteIterator;
-       cypher_logger.info("Process ID: " + std::to_string(processInformation.id) +
-                          ", Graph ID: " + processInformation.graphId +
-                          ", Process Name: " + processInformation.processName +
-                          ", Start Timestamp: " + std::to_string(processInformation.startTimestamp) +
-                          ", Sleep Time: " + std::to_string(processInformation.sleepTime) +
-                          ", Priority: " + std::to_string(processInformation.priority));
+    
         if (processInformation.id == uniqueId) {
             processData.erase(processInformation);
             break;
