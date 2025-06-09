@@ -46,7 +46,7 @@ stop_and_remove_containers() {
 }
 
 build_and_run_docker() {
-    stop_and_remove_containers
+#    stop_and_remove_containers
     cd "$PROJECT_ROOT"
     docker build -t jasminegraph:test . |& tee "$BUILD_LOG"
     build_status="${PIPESTATUS[0]}"
@@ -132,6 +132,21 @@ wait_for_hadoop() {
     else
         echo "File already exists in HDFS at ${HDFS_FILE_PATH}. Skipping upload."
     fi
+
+    # uploading custom_graph_with_properties.txt
+    CUSTOM_GRAPH_FILE="custom_graph_with_properties.txt"
+    CUSTOM_GRAPH_LOCAL_PATH="${LOCAL_DIRECTORY}${CUSTOM_GRAPH_FILE}"
+    CUSTOM_GRAPH_HDFS_PATH="${HDFS_DIRECTORY}${CUSTOM_GRAPH_FILE}"
+    docker cp integration-jasminegraph-1:"${CUSTOM_GRAPH_LOCAL_PATH}" "${LOCAL_DIRECTORY}"
+    docker exec -i hdfs-namenode hadoop fs -mkdir -p "${HDFS_DIRECTORY}"
+    docker cp "${CUSTOM_GRAPH_LOCAL_PATH}" hdfs-namenode:"${CUSTOM_GRAPH_HDFS_PATH}"
+    if ! docker exec -i hdfs-namenode hadoop fs -test -e "${CUSTOM_GRAPH_HDFS_PATH}"; then
+        docker exec -i hdfs-namenode hadoop fs -put "${CUSTOM_GRAPH_HDFS_PATH}" "${HDFS_DIRECTORY}"
+        echo "File: ${CUSTOM_GRAPH_LOCAL_PATH} successfully uploaded to HDFS."
+    else
+        echo "File already exists in HDFS at ${CUSTOM_GRAPH_HDFS_PATH}. Skipping upload."
+    fi
+
 }
 
 stop_tests_on_failure() {
@@ -177,7 +192,7 @@ while ! nc -zvn 127.0.0.1 7777 &>/dev/null; do
         echo -e '\n\e[33;1mMASTER LOG:\e[0m'
         cat "$RUN_LOG"
         force_remove "${TEST_ROOT}/env"
-        stop_and_remove_containers
+#        stop_and_remove_containers
         exit 1
     fi
     sleep .5
@@ -244,7 +259,7 @@ if [ "$exit_code" != '0' ]; then
     done
 fi
 
-stop_and_remove_containers
+#stop_and_remove_containers
 force_remove "${TEST_ROOT}/env" "${WORKER_LOG_DIR}"
 if [ "$exit_code" = '0' ]; then
     docker tag jasminegraph:test jasminegraph:latest
