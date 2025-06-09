@@ -95,6 +95,7 @@ class Filter : public Operator {
     Filter(Operator* input, vector<pair<string, ASTNode*>> filterCases);
     string analyzeWhere(ASTNode* ast);
     string analyzePropertiesMap(pair<string, ASTNode*> item);
+    string analyzeNodeLabels(pair<std::string, ASTNode *> item);
     string comparisonOperand(ASTNode* ast);
     string execute() override;
 
@@ -270,10 +271,10 @@ class Apply : public Operator {
     Operator* operator2;
 };
 
-class EagerFunction : public Operator {
+class AggregationFunction : public Operator {
  public:
     // Constructor
-    EagerFunction(Operator* input, ASTNode* ast, string functionName);
+    AggregationFunction(Operator* input, ASTNode* ast, string functionName);
     string execute() override;
 
  private:

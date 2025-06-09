@@ -45,6 +45,7 @@ SEND = b'send'
 DONE = b'done'
 ADHDFS = b'adhdfs'
 LINE_END = b'\r\n'
+CYPHER = b'cypher'
 
 
 def expect_response(conn: socket.socket, expected: bytes):
@@ -91,10 +92,8 @@ def send_and_expect_response(conn, test_name, send, expected, exit_on_failure=Fa
             print(*failed_tests, sep='\n', file=sys.stderr)
             sys.exit(1)
 
-
 passed_all = True
 failed_tests = []
-
 
 def test(host, port):
     """Test the JasmineGraph server by sending a series of commands and checking the responses."""
@@ -234,7 +233,25 @@ def test(host, port):
         logging.info('1. Testing vcnt after adhdfs')
         send_and_expect_response(sock, 'vcnt', VCNT, b'graphid-send', exit_on_failure=True)
         send_and_expect_response(sock, 'vcnt', b'1', b'4941', exit_on_failure=True)
+        print()
+        logging.info('1. Testing cypher query after adding the graph')
+        # sock.sendall(CYPHER + LINE_END)
+        send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher', b'1', b'Input query :', exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher', b'match (n) where id(n)=1 return n',
+                                 b'{"n":{"id":"1","partitionID":"1"}}', exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher', b'',
+                                 b'done', exit_on_failure=True)
 
+        print()
+        logging.info('2. Testing cypher aggregate query after adding the graph')
+        send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
+        # send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher', b'1', b'Input query :', exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher', b'match (n) where n.id < 10 return avg(n.id)',
+                                 b'{"avg(n.id)":4.5}', exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher', b'',
+                                 b'done', exit_on_failure=True)
         print()
         logging.info('1. Testing rmgr after adhdfs')
         send_and_expect_response(sock, 'rmgr', RMGR, SEND, exit_on_failure=True)
@@ -249,7 +266,6 @@ def test(host, port):
         print()
         logging.info('Shutting down')
         sock.sendall(SHDN + LINE_END)
-
         if passed_all:
             print()
             logging.info('Passed all tests')
