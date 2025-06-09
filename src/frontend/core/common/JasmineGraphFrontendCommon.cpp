@@ -179,7 +179,7 @@ long JasmineGraphFrontEndCommon::getSLAForGraphId(SQLiteDBInterface *sqlite, Per
 
     if (slaResults.size() > 0) {
         string currentSlaString = slaResults[0][0].second;
-        long graphSLAValue = atol(currentSlaString.c_str());
+        graphSLAValue = atol(currentSlaString.c_str());
     }
 
     return graphSLAValue;

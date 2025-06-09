@@ -59,7 +59,8 @@ class FilterHelper {
 class ExpandAllHelper {
  public:
     static string generateSubQueryPlan(string query);
-    static string generateSubQuery(string startVar, string destVar, string relVar, string id, string relType = "");
+    static string generateSubQuery(string startVar, string destVar, string relVar, bool isDirected,
+                                   string id, string relType = "");
 };
 
 class AverageAggregationHelper {
