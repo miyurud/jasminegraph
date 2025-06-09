@@ -137,6 +137,7 @@ void CypherQueryExecutor::execute() {
     int result_wr;
     int closeFlag = 0;
     if (Operator::isAggregate) {
+        auto startTime = std::chrono::high_resolution_clock::now();
         if (Operator::aggregateType == AggregationFactory::AVERAGE) {
             Aggregation* aggregation = AggregationFactory::getAggregationMethod(AggregationFactory::AVERAGE);
             while (true) {
@@ -156,14 +157,14 @@ void CypherQueryExecutor::execute() {
             }
             aggregation->getResult(connFd);
         } else if (Operator::aggregateType == AggregationFactory::ASC ||
-            Operator::aggregateType == AggregationFactory::DESC) {
+                   Operator::aggregateType == AggregationFactory::DESC) {
             struct BufferEntry {
                 std::string value;
                 size_t bufferIndex;
                 json data;
                 bool isAsc;
                 BufferEntry(const std::string& v, size_t idx, const json& parsed, bool asc)
-                    : value(v), bufferIndex(idx), data(parsed), isAsc(asc) {}
+                        : value(v), bufferIndex(idx), data(parsed), isAsc(asc) {}
                 bool operator<(const BufferEntry& other) const {
                     const auto& val1 = data[Operator::aggregateKey];
                     const auto& val2 = other.data[Operator::aggregateKey];
@@ -178,8 +179,6 @@ void CypherQueryExecutor::execute() {
                     return isAsc ? result : !result;  // Flip for DESC
                 }
             };
-
-            // Initialize with first value from each buffer
             bool isAsc = (Operator::aggregateType == AggregationFactory::ASC);
             std::priority_queue<BufferEntry> mergeQueue;  // Min-heap
             for (size_t i = 0; i < numberOfPartitions; ++i) {
@@ -204,16 +203,11 @@ void CypherQueryExecutor::execute() {
 
             cypher_logger.info("START MASTER SORTING");
             cypher_logger.info(std::to_string(mergeQueue.size()));
-
-            // Merge loop
             while (!mergeQueue.empty()) {
-                cypher_logger.info(":::::::FRONTEND:::::::");
-
-                // Pick smallest value
                 BufferEntry smallest = mergeQueue.top();
                 cypher_logger.info(smallest.value);
                 size_t queueSize = mergeQueue.size();
-                cypher_logger.info(std::to_string(queueSize));
+                cypher_logger.debug(std::to_string(queueSize));
                 mergeQueue.pop();
                 result_wr = write(connFd, smallest.value.c_str(), smallest.value.length());
                 if (result_wr < 0) {
@@ -227,8 +221,6 @@ void CypherQueryExecutor::execute() {
                     *loop_exit = true;
                     return;
                 }
-
-                // Only fetch next value if the buffer isn't exhausted
                 if (closeFlag < numberOfPartitions) {
                     std::string nextValue = bufferPool[smallest.bufferIndex]->get();
                     if (nextValue == "-1") {
@@ -239,7 +231,7 @@ void CypherQueryExecutor::execute() {
                             json parsed = json::parse(nextValue);
                             if (!parsed.contains(Operator::aggregateKey)) {
                                 cypher_logger.error("Missing key '" + Operator::aggregateKey +
-                                    "' in JSON: " + nextValue);
+                                                      "' in JSON: " + nextValue);
                                 continue;
                             }
                             BufferEntry entry{nextValue, smallest.bufferIndex, parsed, isAsc};
@@ -261,18 +253,24 @@ void CypherQueryExecutor::execute() {
                 return;
             }
         }
+        auto endTime = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+        int totalTime = duration.count();
+        cypher_logger.info("Total time taken for aggregation: " + std::to_string(totalTime) + " ms");
+        Operator::isAggregate = false;
     } else {
+        int count = 0;
         while (true) {
             if (closeFlag == numberOfPartitions) {
                 break;
             }
-
             for (size_t i = 0; i < bufferPool.size(); ++i) {
                 std::string data;
                 if (bufferPool[i]->tryGet(data)) {
                     if (data == "-1") {
                         closeFlag++;
                     } else {
+                        count++;
                         result_wr = write(connFd, data.c_str(), data.length());
                         result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
                                           Conts::CARRIAGE_RETURN_NEW_LINE.size());
@@ -285,8 +283,14 @@ void CypherQueryExecutor::execute() {
                 }
             }
         }
+        cypher_logger.info("Total records returned: " + std::to_string(count));
     }
 
+    for (auto& thread : workerThreads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
     cypher_logger.info("###CYPHER-QUERY-EXECUTOR### Executing Query : Completed");
 
     workerResponded = true;
@@ -314,12 +318,11 @@ void CypherQueryExecutor::execute() {
     for (auto processCompleteIterator = processData.begin(); processCompleteIterator != processData.end();
          ++processCompleteIterator) {
         ProcessInfo processInformation = *processCompleteIterator;
-
         if (processInformation.id == uniqueId) {
             processData.erase(processInformation);
             break;
         }
-         }
+    }
     processStatusMutex.unlock();
 }
 
@@ -333,6 +336,4 @@ int CypherQueryExecutor::getUid() {
     static std::atomic<std::uint32_t> uid{0};
     return ++uid;
 }
-
-
 

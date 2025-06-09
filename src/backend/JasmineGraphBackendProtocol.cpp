@@ -24,5 +24,7 @@ const string UPDATE_DONE = "done";
 const string WORKER_DETAILS = "worker-details";
 const string WORKER_DETAILS_ACK = "worker-details-ack";
 const string PARTITION_ALGORITHM_DETAILS = "partition-algo-details";
+const string DIRECTION_DETAIL = "direction-detail";
+const string DIRECTION_DETAIL_ACK = "direction-detail-ack";
 const string PARTITION_ALGORITHM_DETAILS_ACK = "partition-algo-details-ack";
 const string CONTENT_LENGTH_ACK = "content-length-ack";
