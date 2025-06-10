@@ -266,8 +266,7 @@ def test(host, port):
                                  b'done', exit_on_failure=True)
 
         print()
-        logging.info('1. Testing cypher query after adding the graph')
-        # sock.sendall(CYPHER + LINE_END)
+        logging.info('Testing cypher query after adding the graph')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'1', b'Input query :', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'match (n) where id(n)=1 return n',
@@ -291,7 +290,7 @@ def test(host, port):
         send_and_expect_response(sock, 'rmgr', RMGR, SEND, exit_on_failure=True)
         send_and_expect_response(sock, 'rmgr', b'1', DONE, exit_on_failure=True)
         print()
-        logging.info('1. Testing rmgr after adhdfs')
+        logging.info('Testing rmgr after adhdfs')
         send_and_expect_response(sock, 'rmgr', RMGR, SEND, exit_on_failure=True)
         send_and_expect_response(sock, 'rmgr', b'2', DONE, exit_on_failure=True)
 
