@@ -41,6 +41,13 @@ extern const string ACKNOWLEGE_MASTER;   // Command to acknowledge the master st
 extern const string WORKER_INFO_SEND;
 extern const string HOST_OK;
 extern const string UPDATE_DONE;
+extern const string WORKER_DETAILS;
+extern const string WORKER_DETAILS_ACK;
+extern const string PARTITION_ALGORITHM_DETAILS;
+extern const string PARTITION_ALGORITHM_DETAILS_ACK;
+extern const string DIRECTION_DETAIL;
+extern const string DIRECTION_DETAIL_ACK;
+extern const string CONTENT_LENGTH_ACK;
 
 class JasmineGraphBackendProtocol {};
 

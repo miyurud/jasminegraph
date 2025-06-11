@@ -36,11 +36,11 @@ void *backendservicesesion(void *dummyPt) {
 
         if (line.compare(EXIT_BACKEND) == 0) {
             write(connFd, EXIT_ACK.c_str(), EXIT_ACK.size());
-            write(connFd, "\r\n", 2);
+            write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
             break;
         } else if (line.compare(HANDSHAKE) == 0) {
             write(connFd, HANDSHAKE_OK.c_str(), HANDSHAKE_OK.size());
-            write(connFd, "\r\n", 2);
+            write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
 
             string hostname = Utils::read_str_trim_wrapper(connFd, data, BACKEND_DATA_LENGTH);
             write(connFd, HOST_OK.c_str(), HOST_OK.size());
@@ -51,7 +51,7 @@ void *backendservicesesion(void *dummyPt) {
             if (result_wr < 0) {
                 backend_logger.error("Error writing to socket");
             }
-            result_wr = write(connFd, "\r\n", 2);
+            result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
             if (result_wr < 0) {
                 backend_logger.error("Error writing to socket");
             }
@@ -69,6 +69,222 @@ void *backendservicesesion(void *dummyPt) {
             sqLiteDbInterface->runUpdate(updateQuery);
             break;
 
+        } else if (line.compare(WORKER_DETAILS) == 0) {
+            if (!Utils::send_str_wrapper(connFd, WORKER_DETAILS_ACK)) {
+                loop = true;
+                break;
+            }
+
+            int content_length = 0;
+            backend_logger.info("Waiting for content length");
+            int return_status = recv(connFd, &content_length, sizeof(int), 0);
+            if (return_status > 0) {
+                content_length = ntohl(content_length);
+                backend_logger.info("Received content_length for partition ID = " + std::to_string(content_length));
+            } else {
+                backend_logger.info("Error while reading content length");
+                loop = true;
+                break;
+            }
+
+
+            if (!Utils::send_str_wrapper(connFd, CONTENT_LENGTH_ACK)) {
+                loop = true;
+                break;
+            }
+
+
+            std::string partition(content_length, 0);
+            return_status = recv(connFd, &partition[0], content_length, 0);
+            if (return_status > 0) {
+                backend_logger.info("Received partition id: " + partition);
+            } else {
+                backend_logger.info("Error while reading content length");
+                loop = true;
+                break;
+            }
+
+            std::string selectQuery = "select server_port, ip, server_data_port from worker where idworker = '" +
+                    partition + "';";
+
+            if (!sqLiteDbInterface) {
+                backend_logger.error("Database interface is null!");
+                break;
+            }
+
+            auto worker = sqLiteDbInterface->runSelect(selectQuery);
+
+            if (worker.empty() || worker[0].empty()) {
+                backend_logger.error("SQL query returned no results.");
+                break;
+            }
+
+            std::string workerInfo = worker[0][1].second + "|" + worker[0][0].second + "|" + worker[0][2].second;
+            int message_length = workerInfo.length();
+            int converted_number = htonl(message_length);
+            backend_logger.info("Sending worker info length: " + to_string(converted_number));
+            if (!Utils::send_int_wrapper(connFd, &converted_number, sizeof(converted_number))) {
+                loop = true;
+                break;
+            }
+
+            std::string length_ack(CONTENT_LENGTH_ACK.length(), 0);
+            return_status = recv(connFd, &length_ack[0], CONTENT_LENGTH_ACK.length(), 0);
+            if (return_status > 0) {
+                backend_logger.info("Received content length ack: " + length_ack);
+            } else {
+                backend_logger.info("Error while reading content length ack");
+                loop = true;
+                break;
+            }
+
+            if (!Utils::send_str_wrapper(connFd, workerInfo)) {
+                loop = true;
+                break;
+            }
+
+        } else if (line.compare(PARTITION_ALGORITHM_DETAILS) == 0) {
+            if (!Utils::send_str_wrapper(connFd, PARTITION_ALGORITHM_DETAILS_ACK)) {
+                loop = true;
+                break;
+            }
+
+            int content_length = 0;
+            backend_logger.info("Waiting for content length");
+            int return_status = recv(connFd, &content_length, sizeof(int), 0);
+            if (return_status > 0) {
+                content_length = ntohl(content_length);
+                backend_logger.info("Received content length of graph ID = " + std::to_string(content_length));
+            } else {
+                backend_logger.info("Error while reading content length");
+                loop = true;
+                break;
+            }
+
+            if (!Utils::send_str_wrapper(connFd, CONTENT_LENGTH_ACK)) {
+                loop = true;
+                break;
+            }
+
+
+            std::string graphID(content_length, 0);
+            return_status = recv(connFd, &graphID[0], content_length, 0);
+            if (return_status > 0) {
+                backend_logger.info("Received graph id: " + graphID);
+            } else {
+                backend_logger.info("Error while reading content length");
+                loop = true;
+                break;
+            }
+
+            std::string selectQuery = "select id_algorithm from graph where idgraph='" + graphID + "';";
+
+            if (!sqLiteDbInterface) {
+                backend_logger.error("Database interface is null!");
+                break;
+            }
+
+            auto partitionAlgorithm = sqLiteDbInterface->runSelect(selectQuery);
+
+            if (partitionAlgorithm.empty() || partitionAlgorithm[0].empty()) {
+                backend_logger.error("Query returned no results.");
+                break;
+            }
+
+            std::string partitionAlgorithmName = partitionAlgorithm[0][0].second;
+            int message_length = partitionAlgorithmName.length();
+            int converted_number = htonl(message_length);
+            backend_logger.info("Sending worker info length: " + to_string(converted_number));
+            if (!Utils::send_int_wrapper(connFd, &converted_number, sizeof(converted_number))) {
+                loop = true;
+                break;
+            }
+
+            std::string length_ack(CONTENT_LENGTH_ACK.length(), 0);
+            return_status = recv(connFd, &length_ack[0], CONTENT_LENGTH_ACK.length(), 0);
+            if (return_status > 0) {
+                backend_logger.info("Received content length ack: " + length_ack);
+            } else {
+                backend_logger.info("Error while reading content length ack");
+                loop = true;
+                break;
+            }
+
+            if (!Utils::send_str_wrapper(connFd, partitionAlgorithmName)) {
+                loop = true;
+                break;
+            }
+        } else if (line.compare(DIRECTION_DETAIL) == 0) {
+            if (!Utils::send_str_wrapper(connFd, DIRECTION_DETAIL_ACK)) {
+                loop = true;
+                break;
+            }
+
+            int content_length = 0;
+            backend_logger.info("Waiting for content length");
+            int return_status = recv(connFd, &content_length, sizeof(int), 0);
+            if (return_status > 0) {
+                content_length = ntohl(content_length);
+                backend_logger.info("Received content length of graph ID = " + std::to_string(content_length));
+            } else {
+                backend_logger.info("Error while reading content length");
+                loop = true;
+                break;
+            }
+
+            if (!Utils::send_str_wrapper(connFd, CONTENT_LENGTH_ACK)) {
+                loop = true;
+                break;
+            }
+
+
+            std::string graphID(content_length, 0);
+            return_status = recv(connFd, &graphID[0], content_length, 0);
+            if (return_status > 0) {
+                backend_logger.info("Received graph id: " + graphID);
+            } else {
+                backend_logger.info("Error while reading content length");
+                loop = true;
+                break;
+            }
+
+            std::string selectQuery = "select is_directed from graph where idgraph='" + graphID + "';";
+
+            if (!sqLiteDbInterface) {
+                backend_logger.error("Error connecting to the database: Database interface is null!");
+                break;
+            }
+
+            auto direction = sqLiteDbInterface->runSelect(selectQuery);
+
+            if (direction.empty() || direction[0].empty()) {
+                backend_logger.error("Query returned no results.");
+                break;
+            }
+
+            std::string graphDirection = direction[0][0].second;
+            int message_length = graphDirection.length();
+            int converted_number = htonl(message_length);
+            backend_logger.info("Sending graph direction length: " + to_string(converted_number));
+            if (!Utils::send_int_wrapper(connFd, &converted_number, sizeof(converted_number))) {
+                loop = true;
+                break;
+            }
+
+            std::string length_ack(CONTENT_LENGTH_ACK.length(), 0);
+            return_status = recv(connFd, &length_ack[0], CONTENT_LENGTH_ACK.length(), 0);
+            if (return_status > 0) {
+                backend_logger.info("Received content length ack: " + length_ack);
+            } else {
+                backend_logger.info("Error while reading content length ack");
+                loop = true;
+                break;
+            }
+
+            if (!Utils::send_str_wrapper(connFd, graphDirection)) {
+                loop = true;
+                break;
+            }
         } else {
             backend_logger.error("Message format not recognized");
             sleep(1);

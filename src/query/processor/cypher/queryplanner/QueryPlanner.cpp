@@ -75,7 +75,7 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
     } else if (ast->nodeType == Const::ON_MATCH) {
         // TODO(thamindumk): Implement ON_MATCH
     } else if (ast->nodeType == Const::CREATE) {
-        // TODO(thamindumk): Implement CREATE
+        return new Create(currentOperator, ast);
     } else if (ast->nodeType == Const::MULTIPLE_SET) {
         // TODO(thamindumk): Implement MULTIPLE_SET
     } else if (ast->nodeType == Const::SET) {
@@ -103,14 +103,35 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
     } else if (ast->nodeType == Const::WITH) {
         currentOperator = createExecutionPlan(ast->elements[0], currentOperator);
     } else if (ast->nodeType == Const::RETURN) {
-        currentOperator = createExecutionPlan(ast->elements[0], currentOperator);
+        for (auto * node : ast->elements) {
+            if (node->nodeType == Const::DISTINCT) {
+                currentOperator = createExecutionPlan(node->elements[0], currentOperator, "distinct");
+            } else if (node->nodeType == Const::ORDERED_BY) {
+                auto temp = static_cast<ProduceResults*>(currentOperator);
+                currentOperator = new OrderBy(temp->getOperator(), node->elements[0]);
+                temp->setOperator(currentOperator);
+                currentOperator = temp;
+            } else if (node->nodeType == Const::LIMIT) {
+                auto temp = static_cast<ProduceResults*>(currentOperator);
+                currentOperator = new Limit(temp->getOperator(), node->elements[0]);
+                temp->setOperator(currentOperator);
+                currentOperator = temp;
+            } else if (node->nodeType == Const::SKIP) {
+                auto temp = static_cast<ProduceResults*>(currentOperator);
+                currentOperator = new Skip(temp->getOperator(), node->elements[0]);
+                temp->setOperator(currentOperator);
+                currentOperator = temp;
+            } else if (node->nodeType == Const::RETURN_BODY) {
+                currentOperator = createExecutionPlan(node, currentOperator);
+            }
+        }
     } else if (ast->nodeType == Const::DISTINCT) {
         // TODO(thamindumk): Implement DISTINCT
     } else if (ast->nodeType == Const::RETURN_BODY) {
-        vector<ASTNode*> var;
+        vector<ASTNode*> variables;
         if (isAllChildrenAreGivenType(Const::VARIABLE, ast)) {
-            var = ast->elements;
-            return new ProduceResults(currentOperator, var);
+            variables = ast->elements;
+            return new ProduceResults(currentOperator, variables);
         }
 
         vector<ASTNode*> nonArith = getSubTreeListByNodeType(ast, Const::NON_ARITHMETIC_OPERATOR);
@@ -128,10 +149,28 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
             }
         }
 
+        if (isAvailable(Const::FUNCTION_BODY, ast)) {
+            auto functions = getSubTreeListByNodeType(ast, Const::FUNCTION_BODY);
+            for (auto func : functions) {
+                string name = func->elements[0]->elements[1]->value;
+                if (name == "avg" || name == "AVG") {
+                    temp_opt = new AggregationFunction(temp_opt, func->elements[1]->elements[0], name);
+                }
+            }
+        }
+
         if (temp_opt != nullptr) {
-            temp_opt = new Projection(temp_opt, ast->elements);
+            if (var == "distinct") {
+                temp_opt = new Distinct(temp_opt, ast->elements);
+            } else {
+                temp_opt = new Projection(temp_opt, ast->elements);
+            }
         } else {
-            temp_opt = new Projection(currentOperator, ast->elements);
+            if (var == "distinct") {
+                temp_opt = new Distinct(currentOperator, ast->elements);
+            } else {
+                temp_opt = new Projection(currentOperator, ast->elements);
+            }
         }
         return new ProduceResults(temp_opt, vector<ASTNode*>(ast->elements));
     } else if (ast->nodeType == Const::ORDERED_BY) {
@@ -149,7 +188,12 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
         vector<pair<string, ASTNode*>> vec = {filterCase};
         return new Filter(op, vec);
     } else if (ast->nodeType == Const::PATTERN) {
-        return createExecutionPlan(ast->elements[0], currentOperator);
+        auto* leftOperator = createExecutionPlan(ast->elements[0], currentOperator);
+        for (int i = 1; i < ast->elements.size(); i++) {
+            auto* rightOperator = createExecutionPlan(ast->elements[i], currentOperator);
+            leftOperator = new CartesianProduct(leftOperator, rightOperator);
+        }
+        return leftOperator;
     } else if (ast->nodeType == Const::PATTERN_ELEMENTS) {
         return pathPatternHandler(ast, currentOperator);
     } else if (ast->nodeType == Const::NODE_PATTERN) {
@@ -160,7 +204,8 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
         if (isAvailable(Const::PROPERTIES_MAP, ast)) {
             if (isAvailable(Const::NODE_LABEL, ast) && isAvailable(Const::VARIABLE, ast)) {
                 if (!currentOperator) {
-                    currentOperator = new NodeScanByLabel(ast->elements[1]->value, ast->elements[0]->value);
+                    currentOperator = new NodeScanByLabel(ast->elements[1]->elements[0]->value,
+                                                          ast->elements[0]->value);
                 }
                 auto filterCase = pair<string, ASTNode*>(ast->elements[0]->value, ast->elements[2]);
                 vector<pair<string, ASTNode*>> vec = {filterCase};
@@ -177,7 +222,7 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
             } else if (isAvailable(Const::NODE_LABEL, ast) &&
                         !isAvailable(Const::VARIABLE, ast)) {
                 if (!currentOperator) {
-                    currentOperator = new NodeScanByLabel(ast->elements[0]->value);
+                    currentOperator = new NodeScanByLabel(ast->elements[0]->elements[0]->value);
                 }
                 auto filterCase = pair<string, ASTNode*>("node_0", ast->elements[1]);
                 vector<pair<string, ASTNode*>> vec = {filterCase};
@@ -210,13 +255,13 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
                 if (currentOperator) {
                     return currentOperator;
                 }
-                return new NodeScanByLabel(ast->elements[1]->value, ast->elements[0]->value);
+                return new NodeScanByLabel(ast->elements[1]->elements[0]->value, ast->elements[0]->value);
             } else if (!isAvailable(Const::VARIABLE, ast) &&
                 ast->elements[0]->nodeType == Const::NODE_LABEL) {
                 if (currentOperator) {
                     return currentOperator;
                 }
-                return new NodeScanByLabel(ast->elements[0]->value);
+                return new NodeScanByLabel(ast->elements[0]->elements[0]->value);
             } else if (isAvailable(Const::NODE_LABELS, ast) &&
                     isAvailable(Const::VARIABLE, ast)) {
                 return createExecutionPlan(ast->elements[1], currentOperator);
@@ -253,7 +298,7 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
 
     } else if (ast->nodeType == Const::NODE_LABEL) {
         string var_0 = var != "" ? var : "var_0";
-        return new NodeScanByLabel(ast->elements[0]->value, var_0);
+        return new NodeScanByLabel(ast->elements[0]->elements[0]->value, var_0);
     } else if (ast->nodeType == Const::RANGE) {
         // TODO(thamindumk): Implement RANGE
     } else if (ast->nodeType == Const::PROPERTY) {
@@ -468,19 +513,18 @@ ASTNode* QueryPlanner::verifyTreeType(ASTNode* root, string nodeType ) {
     }
 }
 
-
 pair<vector<bool>, vector<ASTNode *>> QueryPlanner::getRelationshipDetails(ASTNode *node) {
     vector<bool> availability = {false, false, false};
-    vector<ASTNode*> nodes;
+    vector<ASTNode*> nodes = {nullptr, nullptr, nullptr};
     for (int i = 0; i < Const::THREE; i++) {
         if (i < node->elements.size()) {
             auto* e = node->elements[i];
             if (e->nodeType == Const::VARIABLE) {
                 availability[0] = true;
-                nodes.push_back(e);
+                nodes[0] = e;
             } else if (e->nodeType == Const::RELATIONSHIP_TYPE) {
                 availability[1] = true;
-                nodes.push_back(e);
+                nodes[1] = e;
             } else if (e->nodeType == Const::RELATIONSHIP_TYPES) {
                 availability[1] = true;
                 auto* types = e;
@@ -488,10 +532,10 @@ pair<vector<bool>, vector<ASTNode *>> QueryPlanner::getRelationshipDetails(ASTNo
                 for (auto* type : e->elements) {
                     types->elements.push_back(type->elements[0]);
                 }
-                nodes.push_back(types);
+                nodes[0] = types;
             } else if (e->nodeType == Const::PROPERTIES_MAP) {
                 availability[2] = true;
-                nodes.push_back(e);
+                nodes[2] = e;
             }
         } else {
             nodes.push_back(nullptr);
@@ -503,25 +547,24 @@ pair<vector<bool>, vector<ASTNode *>> QueryPlanner::getRelationshipDetails(ASTNo
 
 pair<vector<bool>, vector<ASTNode *>> QueryPlanner::getNodeDetails(ASTNode *node) {
     vector<bool> availability = {false, false, false};
-    vector<ASTNode*> nodes;
+    vector<ASTNode*> nodes = {nullptr, nullptr, nullptr};
     for (int i = 0; i < Const::THREE; i++) {
         if (i < node->elements.size()) {
             auto* e = node->elements[i];
             if (e->nodeType == Const::VARIABLE) {
                 availability[0] = true;
-                nodes.push_back(e);
+                nodes[0] = e;
             } else if (e->nodeType == Const::NODE_LABEL || e->nodeType == Const::NODE_LABELS) {
                 availability[1] = true;
-                nodes.push_back(e);
+                nodes[1] = e;
             } else if (e->nodeType == Const::PROPERTIES_MAP) {
                 availability[2] = true;
-                nodes.push_back(e);
+                nodes[2] = e;
             }
-        } else {
-            nodes.push_back(nullptr);
         }
     }
-    auto outputPair = pair<vector<bool>, vector<ASTNode *>>(availability, nodes);
+    auto outputPair = pair<vector<bool>, vector<ASTNode*>>(availability, nodes);
+
     return outputPair;
 }
 
@@ -921,26 +964,14 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
         string destVar = analyzedDest.first[0]? analyzedDest.second[0]->value : "node_var_"+ to_string(index+1);
 
         if (e->elements[0]->elements[0]->nodeType == Const::UNIDIRECTION_ARROW) {
-            if (analyzedDetails.first[0]) {
-                inputOperator = new UndirectedRelationshipTypeScan(analyzedDetails.second[1]->elements[0]->value,
+            inputOperator = new UndirectedRelationshipTypeScan(analyzedDetails.second[1]->elements[0]->value,
                                                                    relVar, startVar, destVar);
-
-            } else {
-                inputOperator = new UndirectedRelationshipTypeScan(analyzedDetails.second[0]->elements[0]->value,
-                                                                   relVar, startVar, destVar);
-            }
 
         } else {
             auto direction = e->elements[0]->elements[0]->nodeType == Const::LEFT_ARRROW ? "left" : "right";
-            if (analyzedDetails.first[0]) {
-                inputOperator = new DirectedRelationshipTypeScan(direction,
-                                                                 analyzedDetails.second[1]->elements[0]->value,
-                                                                 relVar, startVar, destVar);
-            } else {
-                inputOperator = new DirectedRelationshipTypeScan(direction,
+            inputOperator = new DirectedRelationshipTypeScan(direction,
                                                                  analyzedDetails.second[0]->elements[0]->value,
                                                                  relVar, startVar, destVar);
-            }
         }
 
         if (analyzedDetails.first[2]) {
@@ -1390,6 +1421,26 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
         string destVar = analyzedDest.first[0]? analyzedDest.second[0]->value : "node_var_"+ to_string(endIndex+1);
 
         inputOperator = new UndirectedAllRelationshipScan(startVar, destVar, relVar);
+
+        if (analyzedDetails.first[2]) {
+            filterCases.push_back(pair<string, ASTNode*>(relVar, analyzedDetails.second[2]));
+        }
+        if (analyzedSource.first[1]) {
+            filterCases.push_back(pair<string, ASTNode*>(startVar, analyzedSource.second[1]));
+        }
+        if (analyzedSource.first[2]) {
+            filterCases.push_back(pair<string, ASTNode*>(startVar, analyzedSource.second[2]));
+        }
+        if (analyzedDest.first[1]) {
+            filterCases.push_back(pair<string, ASTNode*>(destVar, analyzedDest.second[1]));
+        }
+        if (analyzedDest.first[2]) {
+            filterCases.push_back(pair<string, ASTNode*>(destVar, analyzedDest.second[2]));
+        }
+        if (!filterCases.empty()) {
+            inputOperator = new Filter(inputOperator, filterCases);
+        }
+
         string prevRel = relVar;
         for (int left = endIndex-1; left >= 0; left--) {
             filterCases.clear();
@@ -1410,9 +1461,22 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
 
             auto* whereClause = prepareWhereClause(newRelVar, prevRel);
             filterCases.push_back(pair<string, ASTNode*>("null", whereClause));
-            inputOperator = new Filter(inputOperator, filterCases);
+
             prevRel = newRelVar;
             startVar = newDestvar;
+
+            if (analyzedRel.first[2]) {
+                filterCases.push_back(pair<string, ASTNode*>(newRelVar, analyzedRel.second[2]));
+            }
+            if (analyzedNode.first[1]) {
+                filterCases.push_back(pair<string, ASTNode*>(newDestvar, analyzedNode.second[1]));
+            }
+            if (analyzedNode.first[2]) {
+                filterCases.push_back(pair<string, ASTNode*>(newDestvar, analyzedNode.second[2]));
+            }
+            if (!filterCases.empty()) {
+                inputOperator = new Filter(inputOperator, filterCases);
+            }
         }
     }
     return inputOperator;

@@ -57,7 +57,19 @@ build_and_run_docker() {
         rm -rf "${TEST_ROOT}/env"
         exit "$build_status"
     fi
+
+    export HOST_IP=$(hostname -I | awk '{print $1}')
+    echo "Detected Host IP: $HOST_IP"
+    HDFS_CONF_FILE="${TEST_ROOT}/env_init/config/hdfs/hdfs_config.txt"
+
+    # Replace the IP in the file
+    sed -i "s/^hdfs\.host=.*/hdfs.host=${HOST_IP}/" $HDFS_CONF_FILE
+
+    echo "Updated hdfs_cnf.txt:"
+    cat $HDFS_CONF_FILE
+
     docker compose -f "${TEST_ROOT}/docker-compose.yml" up >"$RUN_LOG" 2>&1 &
+
 }
 
 wait_for_hadoop() {
@@ -77,6 +89,16 @@ wait_for_hadoop() {
         echo "Namenode is not in safe mode."
     fi
 
+    export HOST_IP=$(hostname -I | awk '{print $1}')
+    echo "Detected Host IP: $HOST_IP"
+    HDFS_CONF_FILE="${TEST_ROOT}/env_init/config/hdfs/hdfs_config.txt"
+
+    # Replace the IP in the file
+    sed -i "s/^hdfs\.host=.*/hdfs.host=${HOST_IP}/" $HDFS_CONF_FILE
+
+    echo "Updated hdfs_cnf.txt:"
+    cat $HDFS_CONF_FILE
+
     # Define file paths
     FILE_NAME="powergrid.dl"
     LOCAL_DIRECTORY="/var/tmp/data/"
@@ -84,6 +106,11 @@ wait_for_hadoop() {
 
     HDFS_DIRECTORY="/home/"
     HDFS_FILE_PATH="${HDFS_DIRECTORY}${FILE_NAME}"
+
+    # # cp the hdfs config file to the jasminegraph container
+    docker cp "${HDFS_CONF_FILE}" integration-jasminegraph-1:/var/tmp/config/hdfs_config.txt
+
+    docker exec -i integration-jasminegraph-1 cat /var/tmp/config/hdfs_config.txt
 
     # Upload the file to HDFS
     # Ensure local directory exists
@@ -105,6 +132,21 @@ wait_for_hadoop() {
     else
         echo "File already exists in HDFS at ${HDFS_FILE_PATH}. Skipping upload."
     fi
+
+    # uploading custom_graph_with_properties.txt
+    CUSTOM_GRAPH_FILE="custom_graph_with_properties.txt"
+    CUSTOM_GRAPH_LOCAL_PATH="${LOCAL_DIRECTORY}${CUSTOM_GRAPH_FILE}"
+    CUSTOM_GRAPH_HDFS_PATH="${HDFS_DIRECTORY}${CUSTOM_GRAPH_FILE}"
+    docker cp integration-jasminegraph-1:"${CUSTOM_GRAPH_LOCAL_PATH}" "${LOCAL_DIRECTORY}"
+    docker exec -i hdfs-namenode hadoop fs -mkdir -p "${HDFS_DIRECTORY}"
+    docker cp "${CUSTOM_GRAPH_LOCAL_PATH}" hdfs-namenode:"${CUSTOM_GRAPH_HDFS_PATH}"
+    if ! docker exec -i hdfs-namenode hadoop fs -test -e "${CUSTOM_GRAPH_HDFS_PATH}"; then
+        docker exec -i hdfs-namenode hadoop fs -put "${CUSTOM_GRAPH_HDFS_PATH}" "${HDFS_DIRECTORY}"
+        echo "File: ${CUSTOM_GRAPH_LOCAL_PATH} successfully uploaded to HDFS."
+    else
+        echo "File already exists in HDFS at ${CUSTOM_GRAPH_HDFS_PATH}. Skipping upload."
+    fi
+
 }
 
 stop_tests_on_failure() {

@@ -842,7 +842,7 @@ static map<string, float> scaleK8s(size_t npart) {
     return cpu_loads;
 }
 
-static std::vector<JasmineGraphServer::worker> getWorkers(size_t npart) {
+std::vector<JasmineGraphServer::worker> JasmineGraphServer::getWorkers(size_t npart) {
     // TODO: get the workers with lowest load from workerList
     std::vector<JasmineGraphServer::worker> *workerListAll;
     map<string, float> cpu_loads;
@@ -964,13 +964,13 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
 }
 
 void JasmineGraphServer::sendQueryPlan(int graphID, int numberOfPartitions, string queryPlan,
-                                       SharedBuffer &sharedBuffer) {
+                                       std::vector<std::unique_ptr<SharedBuffer>>& bufferPool) {
     const auto &workerList = getWorkers(numberOfPartitions);
     std::thread *workerThreads = new std::thread[numberOfPartitions];
     int count = 0;
     for (auto worker : workerList) {
         workerThreads[count++] = std::thread(queryDataCommunicator, worker.hostname, worker.port,
-                                             masterHost, graphID, count, queryPlan, std::ref(sharedBuffer));
+                                             masterHost, graphID, count, queryPlan, std::ref(*bufferPool[count]));
     }
 }
 

@@ -179,7 +179,7 @@ long JasmineGraphFrontEndCommon::getSLAForGraphId(SQLiteDBInterface *sqlite, Per
 
     if (slaResults.size() > 0) {
         string currentSlaString = slaResults[0][0].second;
-        long graphSLAValue = atol(currentSlaString.c_str());
+        graphSLAValue = atol(currentSlaString.c_str());
     }
 
     return graphSLAValue;
@@ -189,6 +189,12 @@ std::vector<std::vector<std::pair<std::string, std::string>>>
     JasmineGraphFrontEndCommon::getGraphData(SQLiteDBInterface *sqlite) {
     return sqlite->runSelect("SELECT idgraph, name, upload_path, graph_status_idgraph_status, "
                              "vertexcount, edgecount, centralpartitioncount FROM graph;");
+}
+
+std::vector<std::vector<std::pair<std::string, std::string>>>
+    JasmineGraphFrontEndCommon::getPartitionData(SQLiteDBInterface *sqlite) {
+    return sqlite->runSelect("SELECT idpartition, graph_idgraph, vertexcount, central_vertexcount, "
+                             "edgecount, central_edgecount, central_edgecount_with_dups FROM partition;");
 }
 
 bool JasmineGraphFrontEndCommon::checkServerBusy(std::atomic<int> *currentFESession, int connFd) {

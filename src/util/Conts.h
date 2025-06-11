@@ -109,7 +109,7 @@ class Conts {
 
     static int SCHEDULER_SLEEP_TIME;
     static int STREAMING_STRAIN_GAP;
-
+    static const int NUMBER_OF_PARTITION_DATA;
     struct GRAPH_STATUS {
         static const int LOADING;  // Graph partitions are being uploaded
         static const int STREAMING;
@@ -156,6 +156,13 @@ class Conts {
         static const std::string GRAPH_SLA;
         static const std::string IS_CALIBRATING;
         static const std::string AUTO_CALIBRATION;
+        static const std::string NO_OF_PARTITIONS;
+        static const std::string CONN_FILE_DESCRIPTOR;
+        static const std::string LOOP_EXIT_POINTER;
+
+        struct CYPHER_QUERY {
+            static const std::string QUERY_STRING;
+        };
     };
 
     struct HDFS {

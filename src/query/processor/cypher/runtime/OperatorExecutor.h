@@ -23,15 +23,24 @@ using namespace  std;
 
 class OperatorExecutor {
  public:
-    OperatorExecutor(GraphConfig gc, string queryPlan);
+    OperatorExecutor(GraphConfig gc, string queryPlan, string masterIP);
     void AllNodeScan(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
+    void NodeScanByLabel(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
     void ProduceResult(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
     void Filter(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
     void ExpandAll(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
     void UndirectedRelationshipTypeScan(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
     void UndirectedAllRelationshipScan(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
+    void DirectedRelationshipTypeScan(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
+    void DirectedAllRelationshipScan(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
     void NodeByIdSeek(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
-
+    void AggregationFunction(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
+    void Create(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
+    void CartesianProduct(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
+    void Projection(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
+    void Distinct(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
+    void OrderBy(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
+    string masterIP;
     string  queryPlan;
     GraphConfig gc;
     json query;
