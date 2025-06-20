@@ -619,7 +619,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "deckbytes"
         },
         "overrides": []
       },
@@ -832,7 +833,7 @@
             "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
-            "axisLabel": "",
+            "axisLabel": "kB",
             "axisPlacement": "auto",
             "barAlignment": 0,
             "barWidthFactor": 0.6,
@@ -1378,7 +1379,9 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "deckbytes"
+
         },
         "overrides": []
       },
@@ -1633,7 +1636,9 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "deckbytes"
+
         },
         "overrides": []
       },
@@ -1888,7 +1893,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "deckbytes"
         },
         "overrides": []
       },
@@ -2143,7 +2149,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit":"decbytes"
         },
         "overrides": []
       },
@@ -2398,7 +2405,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit":"decbytes"
         },
         "overrides": []
       },
