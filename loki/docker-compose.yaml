@@ -1,0 +1,63 @@
+version: '3'
+services:
+  alloy:
+    image: grafana/alloy:v1.7.5
+    ports:
+      - 12345:12345
+      - 4317:4317
+      - 4318:4318
+    volumes:
+      - ./config.alloy:/etc/alloy/config.alloy
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: run --server.http.listen-addr=0.0.0.0:12345 --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy
+    depends_on:
+      - loki
+    networks:
+      - loki
+  loki:
+    image: grafana/loki:3.4.2
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki-config.yaml:/etc/loki/local-config.yaml
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - loki
+  grafana:
+    image: grafana/grafana:11.6.0
+    environment:
+      - GF_FEATURE_TOGGLES_ENABLE=grafanaManagedRecordingRules
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_BASIC_ENABLED=false
+    ports:
+      - 3000:3000/tcp
+    entrypoint:
+      - sh
+      - -euc
+      - |
+        mkdir -p /etc/grafana/provisioning/datasources
+        cat <<EOF > /etc/grafana/provisioning/datasources/ds.yaml
+        apiVersion: 1
+        datasources:
+        - name: Loki
+          type: loki
+          access: proxy
+          orgId: 1
+          url: 'http://loki:3100'
+          basicAuth: false
+          isDefault: true
+          version: 1
+          editable: true 
+        EOF
+        /run.sh
+    networks:
+      - loki
+
+networks:
+  loki:
+
+
+
+
+
