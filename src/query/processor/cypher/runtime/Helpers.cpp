@@ -773,7 +773,7 @@ void CreateHelper::insertWithoutData(SharedBuffer &buffer) {
                 }
 
                 if (!newNode) {
-                    return;
+                    continue;
                 }
 
                 char value[PropertyLink::MAX_VALUE_SIZE] = {0};
@@ -794,7 +794,7 @@ void CreateHelper::insertWithoutData(SharedBuffer &buffer) {
                 }
                 buffer.add(rawObj.dump());
             }
-            return;
+
         }
     }
 }
