@@ -271,7 +271,7 @@ def test(host, port):
         send_and_expect_response(sock, 'adhdfs', b'/home/graph_with_properties.txt',
                                  b'Is this an edge list type graph(y/n)?',
                                  exit_on_failure=True)
-        send_and_expect_response(sock, 'adhdfs', b'y',
+        send_and_expect_response(sock, 'adhdfs', b'n',
                                  b'Is this a directed graph(y/n)?',
                                  exit_on_failure=True)
         send_and_expect_response(sock, 'adhdfs', b'y', DONE, exit_on_failure=True)
