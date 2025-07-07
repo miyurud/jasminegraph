@@ -1,14 +1,4 @@
-{"source":
- {"id": "10", "properties":
-  {
-  "id": "10", "type": "Person", "name": "Fiona", "occupation": "Artist", "age":"25"
-  }
- },
- "destination":
- {"id": "13", "properties": {"id": "13", "type": "Person", "name": "Ian", "occupation": "Pilot"}},
- "properties": {"id": "0", "relationship_type": "NEIGHBORS", "description": "Fiona lives close to Ian."}
- }
-
+{"source": {"id": "10", "properties": { "id": "10", "type": "Person", "name": "Fiona", "occupation": "Artist", "age":"25" } }, "destination": {"id": "13", "properties": {"id": "13", "type": "Person", "name": "Ian", "occupation": "Pilot"}}, "properties": {"id": "0", "relationship_type": "NEIGHBORS", "description": "Fiona lives close to Ian."} }
 {"source": {"id": "15", "properties": {"id": "15", "type": "Location", "name": "Art Studio", "category": "Studio"}}, "destination": {"id": "19", "properties": {"id": "19", "type": "Location", "name": "Innovation Hub", "category": "Coworking Space"}}, "properties": {"id": "1", "relationship_type": "WORKS_AT", "description": "Art Studio works at Innovation Hub as a ."}}
 {"source": {"id": "2", "properties": {"id": "2", "type": "Person", "name": "Charlie", "occupation": "IT Engineer"}}, "destination": {"id": "14", "properties": {"id": "14", "type": "Person", "name": "Julia", "occupation": "Entrepreneur"}}, "properties": {"id": "2", "relationship_type": "WORKS_AT", "description": "Charlie works at Julia as a IT Engineer."}}
 {"source": {"id": "19", "properties": {"id": "19", "type": "Location", "name": "Innovation Hub", "category": "Coworking Space"}}, "destination": {"id": "8", "properties": {"id": "8", "type": "Location", "name": "Tech Solutions Inc.", "category": "Office"}}, "properties": {"id": "3", "relationship_type": "NEIGHBORS", "description": "Innovation Hub lives close to Tech Solutions Inc.."}}
