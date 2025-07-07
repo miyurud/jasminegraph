@@ -215,6 +215,7 @@ void OperatorExecutor::Filter(SharedBuffer &buffer, std::string jsonPlan, GraphC
 }
 
 void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
+    execution_logger.debug("UndirectedRelationshipTypeScan: Start");
     json query = json::parse(jsonPlan);
     NodeManager nodeManager(gc);
 
@@ -229,11 +230,31 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
     }
     int count = 1;
     for (long i = 1; i < localRelationCount; i++) {
+        execution_logger.debug("UndirectedRelationshipTypeScan: Processing local relation " + std::to_string(i));
         json startNodeData;
         json destNodeData;
         json relationData;
         RelationBlock* relation = RelationBlock::getLocalRelation(i*RelationBlock::BLOCK_SIZE);
-        if (relation->getLocalRelationshipType() != query["relType"]) {
+
+        std::map<std::string, char*> relProperties = relation->getAllProperties();
+        std::string relTypeValue;
+
+        auto typeIt = relProperties.find("relationship_type");
+
+        if (typeIt != relProperties.end() && typeIt->second != nullptr) {
+            relTypeValue = std::string(typeIt->second);
+        } else {
+            auto altTypeIt = relProperties.find("type");
+            if (altTypeIt != relProperties.end() && altTypeIt->second != nullptr) {
+                relTypeValue = std::string(altTypeIt->second);
+            }
+        }
+        execution_logger.debug("relType "+relTypeValue);
+        execution_logger.debug("query['relType'] "+query["relType"].dump());
+        execution_logger.debug("defult "+relation->getLocalRelationshipType());
+
+     if (relTypeValue != query["relType"].get<std::string>()) {
+            execution_logger.debug("UndirectedRelationshipTypeScan: Skipping local relation " + std::to_string(i) + " due to relType mismatch");
             continue;
         }
         NodeBlock* startNode = relation->getSource();
@@ -261,7 +282,6 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
         }
         destProperties.clear();
 
-        std::map<std::string, char*> relProperties = relation->getAllProperties();
         for (auto property : relProperties) {
             relationData[property.first] = property.second;
         }
@@ -278,6 +298,7 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
         rightDirectionData[start] = startNodeData;
         rightDirectionData[dest] = destNodeData;
         rightDirectionData[rel] = relationData;
+        execution_logger.debug("UndirectedRelationshipTypeScan: Adding right direction data: " + rightDirectionData.dump());
         buffer.add(rightDirectionData.dump());
 
         if (!isDirected) {
@@ -285,6 +306,7 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
             leftDirectionData[start] = destNodeData;
             leftDirectionData[dest] = startNodeData;
             leftDirectionData[rel] = relationData;
+            execution_logger.debug("UndirectedRelationshipTypeScan: Adding left direction data: " + leftDirectionData.dump());
             buffer.add(leftDirectionData.dump());
         }
         count++;
@@ -292,16 +314,44 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
 
     int central = 1;
     for (long i = 1; i < centralRelationCount; i++) {
+        execution_logger.debug("UndirectedRelationshipTypeScan: Processing central relation " + std::to_string(i));
         json startNodeData;
         json destNodeData;
         json relationData;
         RelationBlock* relation = RelationBlock::getCentralRelation(i * RelationBlock::CENTRAL_BLOCK_SIZE);
-        if (relation->getCentralRelationshipType() != query["relType"]) {
+
+        std::map<std::string, char*> relProperties = relation->getAllProperties();
+        std::string relTypeValue;
+
+        auto typeIt = relProperties.find("relationship_type");
+
+        if (typeIt != relProperties.end() && typeIt->second != nullptr) {
+            relTypeValue = std::string(typeIt->second);
+        } else {
+            auto altTypeIt = relProperties.find("type");
+            if (altTypeIt != relProperties.end() && altTypeIt->second != nullptr) {
+                relTypeValue = std::string(altTypeIt->second);
+            }
+        }
+        execution_logger.debug("relType "+relTypeValue);
+        execution_logger.debug("query['relType'] "+query["relType"].dump());
+        if (relTypeValue != query["relType"].get<std::string>()) {
+
+            execution_logger.debug("UndirectedRelationshipTypeScan: Skipping central relation " + std::to_string(i) + " due to relType mismatch");
+            for (auto& [key, value] : relProperties) {
+                delete[] value;
+            }
+            relProperties.clear();
             continue;
         }
 
         std::string pid(relation->getMetaPropertyHead()->value);
         if (pid != to_string(gc.partitionID)) {
+            execution_logger.debug("UndirectedRelationshipTypeScan: Skipping central relation " + std::to_string(i) + " due to partitionID mismatch");
+            for (auto& [key, value] : relProperties) {
+                delete[] value;
+            }
+            relProperties.clear();
             continue;
         }
 
@@ -330,14 +380,14 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
         }
         destProperties.clear();
 
-        std::map<std::string, char*> relProperties = relation->getAllProperties();
-        for (auto property : relProperties) {
+        std::map<std::string, char*> relProperties2 = relation->getAllProperties();
+        for (auto property : relProperties2) {
             relationData[property.first] = property.second;
         }
-        for (auto& [key, value] : relProperties) {
+        for (auto& [key, value] : relProperties2) {
             delete[] value;  // Free each allocated char* array
         }
-        relProperties.clear();
+        relProperties2.clear();
 
         json rightDirectionData;
         string start = query["sourceVariable"];
@@ -347,6 +397,7 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
         rightDirectionData[start] = startNodeData;
         rightDirectionData[dest] = destNodeData;
         rightDirectionData[rel] = relationData;
+        execution_logger.debug("UndirectedRelationshipTypeScan: Adding right direction central data: " + rightDirectionData.dump());
         buffer.add(rightDirectionData.dump());
 
         if (!isDirected) {
@@ -354,10 +405,12 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
             leftDirectionData[start] = destNodeData;
             leftDirectionData[dest] = startNodeData;
             leftDirectionData[rel] = relationData;
+            execution_logger.debug("UndirectedRelationshipTypeScan: Adding left direction central data: " + leftDirectionData.dump());
             buffer.add(leftDirectionData.dump());
         }
         central++;
     }
+    execution_logger.debug("UndirectedRelationshipTypeScan: End");
     buffer.add("-1");
 }
 
