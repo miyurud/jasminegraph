@@ -416,7 +416,7 @@ def test(host, port):
                                  b' been friends since college.","id":"11",'
                                  b'"relationship_type":"FRIENDS"}}',
                                  exit_on_failure=True)
-            send_and_expect_response(sock, 'cypher', b'',
+        send_and_expect_response(sock, 'cypher', b'',
                                  b'done', exit_on_failure=True)
 
 

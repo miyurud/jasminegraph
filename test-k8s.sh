@@ -184,6 +184,29 @@ ready_hdfs() {
     }
 
     echo "File successfully uploaded to HDFS at ${HDFS_FILE_PATH}"
+
+    # upload graph with properties
+    FILE_NAME="graph_with_properties.txt"
+    LOCAL_FILE_PATH="${LOCAL_DIRECTORY}${FILE_NAME}"
+    HDFS_FILE_PATH="${HDFS_DIRECTORY}${FILE_NAME}"
+    kubectl cp "${MASTER_POD}:${LOCAL_FILE_PATH}" "${LOCAL_FILE_PATH}" || {
+        echo "Error copying graph file from JasmineGraph Master pod."
+        return 1
+    }
+    docker cp "${LOCAL_FILE_PATH}" "${NAMENODE_CONTAINER}:${LOCAL_FILE_PATH}" || {
+        echo "Error copying graph file to Namenode container."
+        return 1
+    }
+    docker exec -i "${NAMENODE_CONTAINER}" hdfs dfs -mkdir -p "${HDFS_DIRECTORY}" || {
+        echo "Error creating HDFS directory for graph file."
+        return 1
+    }
+    docker exec -i "${NAMENODE_CONTAINER}" hdfs dfs -put -f "${LOCAL_FILE_PATH}" "${HDFS_FILE_PATH}" || {
+        echo "Error uploading graph file to HDFS."
+        return 1
+    }
+    echo "Graph file successfully uploaded to HDFS at ${HDFS_FILE_PATH}"
+
 }
 cd "$TEST_ROOT"
 force_remove env
