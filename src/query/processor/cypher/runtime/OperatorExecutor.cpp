@@ -251,7 +251,6 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
         }
 
      if (relTypeValue != query["relType"].get<std::string>()) {
-
             continue;
         }
         NodeBlock* startNode = relation->getSource();
@@ -329,7 +328,6 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
         }
 
         if (relTypeValue != query["relType"].get<std::string>()) {
-
             for (auto& [key, value] : relProperties) {
                 delete[] value;
             }
