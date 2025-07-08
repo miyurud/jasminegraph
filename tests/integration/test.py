@@ -256,7 +256,7 @@ def test(host, port):
 
 
         print()
-        logging.info("[Cypher] Uploading graph for cypher testing")
+        logging.info('[Cypher] Uploading graph for cypher testing')
         send_and_expect_response(sock, 'adhdfs', ADHDFS,
                                  b'Do you want to use the default HDFS server(y/n)?',
                                  exit_on_failure=True)
@@ -278,16 +278,17 @@ def test(host, port):
 
         print()
 
-        logging.info("[Cypher] Testing AllNodeScan ")
+        logging.info('[Cypher] Testing AllNodeScan ')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'MATCH (n) WHERE n.id=2 RETURN n ',
-                                 b'{"n":{"id":"2","name":"Charlie","occupation":"IT Engineer","partitionID":"0","type":"Person"}}', exit_on_failure=True)
+                                 b'{"n":{"id":"2","name":"Charlie","occupation":"IT Engineer",'
+                                 b'"partitionID":"0","type":"Person"}}', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'',
                                  b'done', exit_on_failure=True)
 
         print()
-        logging.info("[Cypher] Testing ProduceResults ")
+        logging.info('[Cypher] Testing ProduceResults ')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'MATCH (n) WHERE n.id = 18 RETURN n.age, n.name ',
@@ -297,7 +298,7 @@ def test(host, port):
                                  b'done', exit_on_failure=True)
 
         print()
-        logging.info("[Cypher] Testing ProduceResults ")
+        logging.info('[Cypher] Testing ProduceResults')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'MATCH (n) WHERE n.id = 18 RETURN n.age, n.name ',
@@ -307,28 +308,30 @@ def test(host, port):
                                  b'done', exit_on_failure=True)
 
         print()
-        logging.info("[Cypher] Testing Filter 1 ")
+        logging.info('[Cypher] Testing Filter 1 ')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b"MATCH (n) WHERE n.name = 'Fiona' RETURN n",
-                                 b'{"n":{"age":"25","id":"10","name":"Fiona","occupation":"Artist","partitionID":"0","type":"Person"}}',
+                                 b'{"n":{"age":"25","id":"10","name":"Fiona","occupation":"Artist",'
+                                 b'"partitionID":"0","type":"Person"}}',
                                  exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'',
                                  b'done', exit_on_failure=True)
 
         print()
-        logging.info("[Cypher] Testing Filter 2 ")
+        logging.info('[Cypher] Testing Filter 2 ')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b"MATCH (n) WHERE n.age < 30 return n",
-                                 b'{"n":{"age":"25","id":"10","name":"Fiona","occupation":"Artist","partitionID":"0","type":"Person"}}',
+                                 b'{"n":{"age":"25","id":"10","name":"Fiona","occupation":"Artist",'
+                                 b'"partitionID":"0","type":"Person"}}',
                                  exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'',
                                  b'done', exit_on_failure=True)
 
 
         print()
-        logging.info("[Cypher] Expand All: Test 1 ")
+        logging.info('[Cypher] Expand All: Test 1 ')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher',b'MATCH (a)-[r]-(b)-[d]-(s)'
@@ -345,7 +348,7 @@ def test(host, port):
 
 
         print()
-        logging.info("[Cypher] UndirectedRelationshipTypeScan: Test 1 ")
+        logging.info('[Cypher] UndirectedRelationshipTypeScan: Test 1 ')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher',b"MATCH (n {name:'Eva'})-[:NEIGHBORS]-(x ) RETURN x",
@@ -357,10 +360,11 @@ def test(host, port):
 
 
         print()
-        logging.info("[Cypher] UndirectedAllRelationshipScan: Test 1 ")
+        logging.info('[Cypher] UndirectedAllRelationshipScan: Test 1')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
-        send_and_expect_response(sock, 'cypher',b"MATCH (n)-[r]-(m {id:6} ) WHERE n.age = 25 RETURN n, r, m",
+        send_and_expect_response(sock, 'cypher',b"MATCH (n)-[r]-(m {id:6} ) WHERE n.age = 25"
+                                                b" RETURN n, r, m",
                                                 b'{"m":{"category":"Park","id":"6","name":"Central Park",'
                                                 b'"partitionID":"0","type":"Location"},"n":{"age":"25","id":"10",'
                                                 b'"name":"Fiona","occupation":"Artist","partitionID":"0",'
@@ -373,10 +377,11 @@ def test(host, port):
 
 
         print()
-        logging.info("[Cypher] DirectedRelationshipTypeScan: Test 1 ")
+        logging.info('[Cypher] DirectedRelationshipTypeScan: Test 1 ')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
-        send_and_expect_response(sock, 'cypher',b"MATCH (n)-[r]-(m {id:6} ) WHERE n.age = 25 RETURN n, r, m",
+        send_and_expect_response(sock, 'cypher',b"MATCH (n)-[r]-(m {id:6} ) WHERE n.age = 25"
+                                                b" RETURN n, r, m",
                                  b'{"m":{"category":"Park","id":"6","name":"Central Park",'
                                  b'"partitionID":"0","type":"Location"},"n":{"age":"25","id":"10",'
                                  b'"name":"Fiona","occupation":"Artist","partitionID":"0",'
