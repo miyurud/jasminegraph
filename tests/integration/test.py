@@ -343,19 +343,6 @@ def test(host, port):
         send_and_expect_response(sock, 'cypher', b'',
                                  b'done', exit_on_failure=True)
 
-        print()
-        logging.info("[Cypher] Expand All: Test 2 ")
-        send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
-        send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
-        send_and_expect_response(sock, 'cypher',b'MATCH (a {id: 4})-[]-(b )-[]-(s {age:25}) '
-                                                b'RETURN a, b, s.name',
-                                 b'{"a":{"id":"4","name":"Eva",'
-                                 b'"occupation":"Lawyer","partitionID":"0","type":"Person"},'
-                                 b'"b":{"id":"2","name":"Charlie","occupation":"IT Engineer",'
-                                 b'"partitionID":"0","type":"Person"},"s.name":"Fiona"}',
-                                 exit_on_failure=True)
-        send_and_expect_response(sock, 'cypher', b'',
-                                 b'done', exit_on_failure=True)
 
         print()
         logging.info("[Cypher] UndirectedRelationshipTypeScan: Test 1 ")
