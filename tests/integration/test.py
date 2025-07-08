@@ -322,7 +322,7 @@ def test(host, port):
         logging.info('[Cypher] Testing Filter 2 ')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
-        send_and_expect_response(sock, 'cypher', b"MATCH (n) WHERE n.age < 30 return n",
+        send_and_expect_response(sock, 'cypher', b'MATCH (n) WHERE n.age < 30 return n',
                                  b'{"n":{"age":"25","id":"10","name":"Fiona","occupation":"Artist",'
                                  b'"partitionID":"0","type":"Person"}}',
                                  exit_on_failure=True)
@@ -363,8 +363,8 @@ def test(host, port):
         logging.info('[Cypher] UndirectedAllRelationshipScan: Test 1')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
-        send_and_expect_response(sock, 'cypher',b"MATCH (n)-[r]-(m {id:6} ) WHERE n.age = 25"
-                                                b" RETURN n, r, m",
+        send_and_expect_response(sock, 'cypher',b'MATCH (n)-[r]-(m {id:6} ) WHERE n.age = 25'
+                                                b' RETURN n, r, m',
                                                 b'{"m":{"category":"Park","id":"6","name":"Central Park",'
                                                 b'"partitionID":"0","type":"Location"},"n":{"age":"25","id":"10",'
                                                 b'"name":"Fiona","occupation":"Artist","partitionID":"0",'
@@ -380,8 +380,8 @@ def test(host, port):
         logging.info('[Cypher] DirectedRelationshipTypeScan: Test 1 ')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
-        send_and_expect_response(sock, 'cypher',b"MATCH (n)-[r]-(m {id:6} ) WHERE n.age = 25"
-                                                b" RETURN n, r, m",
+        send_and_expect_response(sock, 'cypher',b'MATCH (n)-[r]-(m {id:6} ) WHERE n.age = 25'
+                                                b' RETURN n, r, m',
                                  b'{"m":{"category":"Park","id":"6","name":"Central Park",'
                                  b'"partitionID":"0","type":"Location"},"n":{"age":"25","id":"10",'
                                  b'"name":"Fiona","occupation":"Artist","partitionID":"0",'
