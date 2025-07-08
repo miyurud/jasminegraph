@@ -138,13 +138,21 @@ void OperatorExecutor::AllNodeScan(SharedBuffer &buffer, std::string jsonPlan, G
 void OperatorExecutor::NodeScanByLabel(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
     json query = json::parse(jsonPlan);
     NodeManager nodeManager(gc);
+
     for (auto it : nodeManager.nodeIndex) {
         json nodeData;
         auto nodeId = it.first;
         NodeBlock *node = nodeManager.get(nodeId);
         string label = node->getLabel();
         std::string value(node->getMetaPropertyHead()->value);
-        if (value == to_string(gc.partitionID) && label == query["Label"]) {
+
+        std::map<std::string, char*> properties = node->getAllProperties();
+        auto labelIt = properties.find("label");
+        std::string nodeLabel = (labelIt != properties.end() && labelIt->second != nullptr) ? std::string(labelIt->second) : "";
+
+        execution_logger.debug(value + " " + nodeLabel + " " + to_string(gc.partitionID) + " " + query["Label"].get<std::string>());
+
+        if (value == to_string(gc.partitionID) && nodeLabel == std::string(query["Label"])) {
             nodeData["partitionID"] = value;
             std::map<std::string, char*> properties = node->getAllProperties();
             for (auto property : properties) {
@@ -163,6 +171,7 @@ void OperatorExecutor::NodeScanByLabel(SharedBuffer &buffer, std::string jsonPla
     }
     buffer.add("-1");
 }
+
 
 void OperatorExecutor::ProduceResult(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
     json query = json::parse(jsonPlan);
