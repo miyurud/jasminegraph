@@ -133,7 +133,6 @@ wait_for_hadoop() {
         echo "File already exists in HDFS at ${HDFS_FILE_PATH}. Skipping upload."
     fi
 
-
     # upload graph with properties
     FILE_NAME="graph_with_properties.txt"
     LOCAL_FILE_PATH="${LOCAL_DIRECTORY}${FILE_NAME}"
@@ -193,7 +192,7 @@ while ! nc -zvn 127.0.0.1 7777 &>/dev/null; do
         echo -e '\n\e[33;1mMASTER LOG:\e[0m'
         cat "$RUN_LOG"
         force_remove "${TEST_ROOT}/env"
-#        stop_and_remove_containers
+        stop_and_remove_containers
         exit 1
     fi
     sleep .5

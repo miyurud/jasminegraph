@@ -249,12 +249,8 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
                 relTypeValue = std::string(altTypeIt->second);
             }
         }
-        execution_logger.debug("relType "+relTypeValue);
-        execution_logger.debug("query['relType'] "+query["relType"].dump());
-        execution_logger.debug("defult "+relation->getLocalRelationshipType());
 
      if (relTypeValue != query["relType"].get<std::string>()) {
-            execution_logger.debug("UndirectedRelationshipTypeScan: Skipping local relation " + std::to_string(i) + " due to relType mismatch");
             continue;
         }
         NodeBlock* startNode = relation->getSource();
@@ -298,7 +294,6 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
         rightDirectionData[start] = startNodeData;
         rightDirectionData[dest] = destNodeData;
         rightDirectionData[rel] = relationData;
-        execution_logger.debug("UndirectedRelationshipTypeScan: Adding right direction data: " + rightDirectionData.dump());
         buffer.add(rightDirectionData.dump());
 
         if (!isDirected) {
@@ -306,7 +301,6 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
             leftDirectionData[start] = destNodeData;
             leftDirectionData[dest] = startNodeData;
             leftDirectionData[rel] = relationData;
-            execution_logger.debug("UndirectedRelationshipTypeScan: Adding left direction data: " + leftDirectionData.dump());
             buffer.add(leftDirectionData.dump());
         }
         count++;
@@ -314,7 +308,6 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
 
     int central = 1;
     for (long i = 1; i < centralRelationCount; i++) {
-        execution_logger.debug("UndirectedRelationshipTypeScan: Processing central relation " + std::to_string(i));
         json startNodeData;
         json destNodeData;
         json relationData;
@@ -333,11 +326,8 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
                 relTypeValue = std::string(altTypeIt->second);
             }
         }
-        execution_logger.debug("relType "+relTypeValue);
-        execution_logger.debug("query['relType'] "+query["relType"].dump());
-        if (relTypeValue != query["relType"].get<std::string>()) {
 
-            execution_logger.debug("UndirectedRelationshipTypeScan: Skipping central relation " + std::to_string(i) + " due to relType mismatch");
+        if (relTypeValue != query["relType"].get<std::string>()) {
             for (auto& [key, value] : relProperties) {
                 delete[] value;
             }
@@ -347,7 +337,6 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
 
         std::string pid(relation->getMetaPropertyHead()->value);
         if (pid != to_string(gc.partitionID)) {
-            execution_logger.debug("UndirectedRelationshipTypeScan: Skipping central relation " + std::to_string(i) + " due to partitionID mismatch");
             for (auto& [key, value] : relProperties) {
                 delete[] value;
             }
@@ -397,7 +386,6 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
         rightDirectionData[start] = startNodeData;
         rightDirectionData[dest] = destNodeData;
         rightDirectionData[rel] = relationData;
-        execution_logger.debug("UndirectedRelationshipTypeScan: Adding right direction central data: " + rightDirectionData.dump());
         buffer.add(rightDirectionData.dump());
 
         if (!isDirected) {
@@ -405,12 +393,10 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
             leftDirectionData[start] = destNodeData;
             leftDirectionData[dest] = startNodeData;
             leftDirectionData[rel] = relationData;
-            execution_logger.debug("UndirectedRelationshipTypeScan: Adding left direction central data: " + leftDirectionData.dump());
             buffer.add(leftDirectionData.dump());
         }
         central++;
     }
-    execution_logger.debug("UndirectedRelationshipTypeScan: End");
     buffer.add("-1");
 }
 
