@@ -40,9 +40,9 @@ PropertyLink::PropertyLink(unsigned int propertyBlockAddress) : blockAddress(pro
             property_link_logger.error("Error while reading node property name from block " +
                                        std::to_string(blockAddress));
         }
-        property_link_logger.debug(
-            "Current file descriptor curser position = " + std::to_string(this->propertiesDB->tellg()) +
-            " when reading = " + std::to_string(blockAddress));
+        // property_link_logger.debug(
+        //     "Current file descriptor curser position = " + std::to_string(this->propertiesDB->tellg()) +
+        //     " when reading = " + std::to_string(blockAddress));
         if (!this->propertiesDB->read(reinterpret_cast<char*>(&this->value), PropertyLink::MAX_VALUE_SIZE)) {
             property_link_logger.error("Error while reading node property value from block " +
                                        std::to_string(blockAddress));

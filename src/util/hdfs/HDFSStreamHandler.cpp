@@ -192,6 +192,7 @@ void HDFSStreamHandler::streamFromBufferToProcessingQueueEdgeListGraph(HDFSMulti
 
 void HDFSStreamHandler::streamFromBufferToProcessingQueuePropertyGraph(HDFSMultiThreadedHashPartitioner &partitioner) {
     auto startTime = high_resolution_clock::now();
+    hdfs_stream_handler_logger.debug("Started processing buffer to property graph queue.");
 
     while (isProcessing) {
         std::unique_lock<std::mutex> lock(dataBufferMutex);
@@ -201,6 +202,8 @@ void HDFSStreamHandler::streamFromBufferToProcessingQueuePropertyGraph(HDFSMulti
             std::string line = dataBuffer.front();
             dataBuffer.pop();
             lock.unlock();
+
+            hdfs_stream_handler_logger.debug("Processing line from buffer: " + line);
 
             // Check for end-of-stream marker
             if (line == END_OF_STREAM_MARKER) {
@@ -217,9 +220,13 @@ void HDFSStreamHandler::streamFromBufferToProcessingQueuePropertyGraph(HDFSMulti
                 std::string sourceId = source["id"];
                 std::string destinationId = destination["id"];
 
+                hdfs_stream_handler_logger.debug("Parsed JSON edge. Source ID: " + sourceId + ", Destination ID: " + destinationId);
+
                 if (!sourceId.empty() && !destinationId.empty()) {
                     int sourceIndex = std::stoi(sourceId) % this->numberOfPartitions;
                     int destIndex = std::stoi(destinationId) % this->numberOfPartitions;
+
+                    hdfs_stream_handler_logger.debug("Calculated sourceIndex: " + std::to_string(sourceIndex) + ", destIndex: " + std::to_string(destIndex));
 
                     source["pid"] = sourceIndex;
                     destination["pid"] = destIndex;
@@ -231,8 +238,10 @@ void HDFSStreamHandler::streamFromBufferToProcessingQueuePropertyGraph(HDFSMulti
                     };
 
                     if (sourceIndex == destIndex) {
+                        hdfs_stream_handler_logger.debug("Adding local edge to partition: " + std::to_string(sourceIndex));
                         partitioner.addLocalEdge(obj.dump(), sourceIndex);
                     } else {
+                        hdfs_stream_handler_logger.debug("Adding edge cut to partitions: " + std::to_string(sourceIndex) + " and " + std::to_string(destIndex));
                         partitioner.addEdgeCut(obj.dump(), sourceIndex);
 
                         json reversedObj = {
@@ -257,35 +266,51 @@ void HDFSStreamHandler::streamFromBufferToProcessingQueuePropertyGraph(HDFSMulti
             break;
         }
     }
+    auto endTime = high_resolution_clock::now();
+    std::chrono::duration<double> duration = endTime - startTime;
+    hdfs_stream_handler_logger.debug("Finished processing buffer to property graph queue. Duration: " + std::to_string(duration.count()) + " seconds");
 }
 
 
 void HDFSStreamHandler::startStreamingFromBufferToPartitions() {
     auto startTime = high_resolution_clock::now();
+    hdfs_stream_handler_logger.debug("Initializing HDFSMultiThreadedHashPartitioner with " + std::to_string(numberOfPartitions) + " partitions, graphId: " + std::to_string(graphId));
     HDFSMultiThreadedHashPartitioner partitioner(numberOfPartitions, graphId, masterIP, isDirected);
 
+    hdfs_stream_handler_logger.debug("Starting reader thread for streaming from HDFS into buffer.");
     std::thread readerThread(&HDFSStreamHandler::streamFromHDFSIntoBuffer, this);
     std::vector<std::thread> bufferProcessorThreads;
 
     if (isEdgeListType) {
+        hdfs_stream_handler_logger.debug("Graph is edge list type. Launching buffer processor threads for edge list graph.");
         for (int i = 0; i < Conts::HDFS::EDGE_SEPARATION_LAYER_THREAD_COUNT; ++i) {
+            hdfs_stream_handler_logger.debug("Starting buffer processor thread " + std::to_string(i) + " for edge list graph.");
             bufferProcessorThreads.emplace_back(&HDFSStreamHandler::streamFromBufferToProcessingQueueEdgeListGraph,
                 this, std::ref(partitioner));
         }
     } else {
+        hdfs_stream_handler_logger.debug("Graph is property graph type. Launching buffer processor threads for property graph.");
         for (int i = 0; i < Conts::HDFS::EDGE_SEPARATION_LAYER_THREAD_COUNT; ++i) {
+            hdfs_stream_handler_logger.debug("Starting buffer processor thread " + std::to_string(i) + " for property graph.");
             bufferProcessorThreads.emplace_back(&HDFSStreamHandler::streamFromBufferToProcessingQueuePropertyGraph,
                 this, std::ref(partitioner));
         }
     }
 
+    hdfs_stream_handler_logger.debug("Waiting for reader thread to finish.");
     readerThread.join();
-    for (auto &thread : bufferProcessorThreads) {
-        thread.join();
+    hdfs_stream_handler_logger.debug("Reader thread finished.");
+
+    for (size_t i = 0; i < bufferProcessorThreads.size(); ++i) {
+        hdfs_stream_handler_logger.debug("Waiting for buffer processor thread " + std::to_string(i) + " to finish.");
+        bufferProcessorThreads[i].join();
+        hdfs_stream_handler_logger.debug("Buffer processor thread " + std::to_string(i) + " finished.");
     }
 
     long vertices = partitioner.getVertexCount();
     long edges = partitioner.getEdgeCount();
+
+    hdfs_stream_handler_logger.debug("Vertices: " + std::to_string(vertices) + ", Edges: " + std::to_string(edges));
 
     std::string sqlStatement = "UPDATE graph SET vertexcount = '" + std::to_string(vertices) +
                                "', centralpartitioncount = '" + std::to_string(this->numberOfPartitions) +
@@ -293,10 +318,13 @@ void HDFSStreamHandler::startStreamingFromBufferToPartitions() {
                                "', graph_status_idgraph_status = '" + std::to_string(Conts::GRAPH_STATUS::OPERATIONAL) +
                                "' WHERE idgraph = '" + std::to_string(this->graphId) + "'";
 
+    hdfs_stream_handler_logger.debug("Updating graph metadata in SQLite with statement: " + sqlStatement);
+
     dbLock.lock();
     this->sqlite->runUpdate(sqlStatement);
     dbLock.unlock();
 
+    hdfs_stream_handler_logger.debug("Updating partition table.");
     partitioner.updatePartitionTable();
 
     auto endTime = high_resolution_clock::now();

@@ -456,10 +456,10 @@ NodeBlock* NodeBlock::get(unsigned int blockAddress) {
         node_block_logger.error("Error while reading label data from block " + std::to_string(blockAddress));
     }
     bool usage = usageBlock == '\1';
-    node_block_logger.debug("Label = " + std::string(label));
-    node_block_logger.debug("Label = " + std::string(label));
-    node_block_logger.debug("Length of label = " + std::to_string(strlen(label)));
-    node_block_logger.debug("edgeRef = " + std::to_string(edgeRef));
+    // node_block_logger.debug("Label = " + std::string(label));
+    // node_block_logger.debug("Label = " + std::string(label));
+    // node_block_logger.debug("Length of label = " + std::to_string(strlen(label)));
+    // node_block_logger.debug("edgeRef = " + std::to_string(edgeRef));
     if (strlen(label) != 0) {
         id = std::to_string(nodeId);
     }
@@ -475,7 +475,7 @@ NodeBlock* NodeBlock::get(unsigned int blockAddress) {
                 std::to_string(nodeBlockPointer->addr));
         }
     }
-    node_block_logger.debug("Edge ref = " + std::to_string(nodeBlockPointer->edgeRef));
+    // node_block_logger.debug("Edge ref = " + std::to_string(nodeBlockPointer->edgeRef));
     if (nodeBlockPointer->edgeRef % RelationBlock::BLOCK_SIZE != 0) {
         node_block_logger.error("Exception: Invalid edge reference address = " + nodeBlockPointer->edgeRef);
     }
