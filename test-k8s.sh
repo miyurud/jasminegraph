@@ -185,6 +185,7 @@ ready_hdfs() {
 
     echo "File successfully uploaded to HDFS at ${HDFS_FILE_PATH}"
 
+
     # upload graph with properties
     FILE_NAME="graph_with_properties.txt"
     LOCAL_FILE_PATH="${LOCAL_DIRECTORY}${FILE_NAME}"
@@ -206,6 +207,7 @@ ready_hdfs() {
         return 1
     }
     echo "Graph file successfully uploaded to HDFS at ${HDFS_FILE_PATH}"
+
 
 }
 cd "$TEST_ROOT"
