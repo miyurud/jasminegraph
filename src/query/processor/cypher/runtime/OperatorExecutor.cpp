@@ -148,9 +148,11 @@ void OperatorExecutor::NodeScanByLabel(SharedBuffer &buffer, std::string jsonPla
 
         std::map<std::string, char*> properties = node->getAllProperties();
         auto labelIt = properties.find("label");
-        std::string nodeLabel = (labelIt != properties.end() && labelIt->second != nullptr) ? std::string(labelIt->second) : "";
+        std::string nodeLabel = (labelIt != properties.end() && labelIt->second != nullptr) ?
+        std::string(labelIt->second) : "";
 
-        execution_logger.debug(value + " " + nodeLabel + " " + to_string(gc.partitionID) + " " + query["Label"].get<std::string>());
+        execution_logger.debug(value + " " + nodeLabel + " " + to_string(gc.partitionID) + " " +
+            query["Label"].get<std::string>());
 
         if (value == to_string(gc.partitionID) && nodeLabel == std::string(query["Label"])) {
             nodeData["partitionID"] = value;
