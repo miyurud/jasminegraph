@@ -22,8 +22,6 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
     Operator* currentOperator = op;
     // Example: Create a simple execution plan based on the AST
     if (ast->nodeType == Const::UNION) {
-
-
         // TODO(thamindumk): Implement UNION
     } else if (ast->nodeType == Const::ALL) {
         // TODO(thamindumk): Implement ALL
@@ -128,8 +126,6 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
             }
         }
     } else if (ast->nodeType == Const::DISTINCT) {
-
-
 
         // TODO(thamindumk): Implement DISTINCT
     } else if (ast->nodeType == Const::RETURN_BODY) {
