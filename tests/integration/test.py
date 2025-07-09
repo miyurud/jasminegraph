@@ -414,10 +414,6 @@ def test(host, port):
         send_and_expect_response(sock, 'rmgr', RMGR, SEND, exit_on_failure=True)
         send_and_expect_response(sock, 'rmgr', b'2', DONE, exit_on_failure=True)
 
-        print()
-        logging.info('[Cypher] Testing rmgr after adhdfs')
-        send_and_expect_response(sock, 'rmgr', RMGR, SEND, exit_on_failure=True)
-        send_and_expect_response(sock, 'rmgr', b'2', DONE, exit_on_failure=True)
         # shutting down workers after testing
         print()
         logging.info('Shutting down')
