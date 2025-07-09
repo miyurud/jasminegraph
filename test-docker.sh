@@ -132,8 +132,6 @@ wait_for_hadoop() {
     else
         echo "File already exists in HDFS at ${HDFS_FILE_PATH}. Skipping upload."
     fi
-
-
     # upload graph with properties
     FILE_NAME="graph_with_properties.txt"
     LOCAL_FILE_PATH="${LOCAL_DIRECTORY}${FILE_NAME}"
