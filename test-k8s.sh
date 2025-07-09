@@ -207,7 +207,6 @@ ready_hdfs() {
     }
     echo "Graph file successfully uploaded to HDFS at ${HDFS_FILE_PATH}"
 
-
 }
 cd "$TEST_ROOT"
 force_remove env
