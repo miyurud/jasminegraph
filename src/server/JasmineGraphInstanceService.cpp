@@ -4546,7 +4546,18 @@ static void processFile(string fileName, bool isLocal,
 
     instance_logger.debug("Processing file: " + filePath);
 
+    // Count total lines for progress bar
+    std::ifstream countFile(filePath);
+    size_t totalLines = 0;
+    std::string tmpLine;
+    while (std::getline(countFile, tmpLine)) {
+        ++totalLines;
+    }
+    countFile.close();
+
     std::string line;
+    size_t currentLine = 0;
+    const int barWidth = 50;
     while (std::getline(file, line)) {
         if (isLocal) {
             handler.handleLocalEdge(
@@ -4561,7 +4572,21 @@ static void processFile(string fileName, bool isLocal,
                     std::to_string(partitionIndex),
                     std::to_string(graphId) + "_" + std::to_string(partitionIndex));
         }
+        ++currentLine;
+        if (totalLines > 0 && (currentLine % (totalLines / 100 == 0 ? 1 : totalLines / 100) == 0 || currentLine == totalLines)) {
+            float progress = (float)currentLine / totalLines;
+            int pos = barWidth * progress;
+            std::cout << "\r[";
+            for (int i = 0; i < barWidth; ++i) {
+                if (i < pos) std::cout << "=";
+                else if (i == pos) std::cout << ">";
+                else std::cout << " ";
+            }
+            std::cout << "] " << int(progress * 100.0) << " %";
+            std::cout.flush();
+        }
     }
+    std::cout << std::endl;
 
     file.close();
     instance_logger.info("Finished processing file: " + filePath);

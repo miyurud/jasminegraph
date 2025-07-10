@@ -753,12 +753,15 @@ void RelationBlock::addLocalProperty(std::string name, char* value) {
             // If it was an empty prop link before inserting, Then update the property reference of this node
             // block
             this->updateLocalRelationRecords(RelationOffsets::RELATION_PROPS, this->propertyAddress);
+            delete newLink; // Free the allocated PropertyEdgeLink to prevent memory leak
         } else {
             relation_block_logger.error("Error occurred while adding a new property link to " +
                     std::to_string(this->addr) + " node block");
         }
     } else {
-        this->propertyAddress = this->getPropertyHead()->insert(name, value);
+    PropertyEdgeLink* propHead = this->getPropertyHead();
+    this->propertyAddress = propHead->insert(name, value);
+    delete propHead; // Free the allocated PropertyEdgeLink to prevent memory leak
     }
 }
 void RelationBlock::addCentralProperty(std::string name, char* value) {
@@ -769,12 +772,16 @@ void RelationBlock::addCentralProperty(std::string name, char* value) {
             // If it was an empty prop link before inserting, Then update the property reference of this node
             // block
             this->updateCentralRelationRecords(RelationOffsets::RELATION_PROPS, this->propertyAddress);
+            delete newLink;
         } else {
             relation_block_logger.error("Error occurred while adding a new property link to " +
                     std::to_string(this->addr) + " node block");
         }
     } else {
-        this->propertyAddress = this->getPropertyHead()->insert(name, value);
+       PropertyEdgeLink* propHead = this->getPropertyHead();
+       unsigned int newPropAddr = propHead->insert(name, value);
+       delete propHead; // Free the allocated PropertyEdgeLink
+       this->propertyAddress = newPropAddr;;
     }
 }
 
@@ -787,12 +794,15 @@ void RelationBlock::addMetaProperty(std::string name, char *value) {
             // block
             this->updateCentralRelationRecords(RelationOffsets::RELATION_PROPS_META,
                                                this->metaPropertyAddress);
+            delete newLink; // Free the allocated MetaPropertyEdgeLink
         } else {
             relation_block_logger.error("Error occurred while adding a new property link to " +
                                         std::to_string(this->addr) + " node block");
         }
     } else {
-        this->metaPropertyAddress = this->getMetaPropertyHead()->insert(name, value);
+      MetaPropertyEdgeLink* metaPropHead = this->getMetaPropertyHead();
+      this->metaPropertyAddress = metaPropHead->insert(name, value);
+      delete metaPropHead; // Free the allocated MetaPropertyEdgeLink
     }
 }
 

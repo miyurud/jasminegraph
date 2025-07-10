@@ -133,6 +133,9 @@ void JasmineGraphIncrementalLocalStore::addLocalEdge(std::string edge) {
     addLocalEdgeProperties(newRelation, jsonEdge);
     addSourceProperties(newRelation, jsonSource);
     addDestinationProperties(newRelation, jsonDestination);
+    delete newRelation->getSource();
+    delete newRelation->getDestination();
+    delete newRelation;
 
     incremental_localstore_logger.debug("Local edge (" + sId + "-> " + dId + " ) added successfully");
 }
@@ -155,7 +158,9 @@ void JasmineGraphIncrementalLocalStore::addCentralEdge(std::string edge) {
     addCentralEdgeProperties(newRelation, jsonEdge);
     addSourceProperties(newRelation, jsonSource);
     addDestinationProperties(newRelation, jsonDestination);
-
+    delete newRelation->getSource();
+    delete newRelation->getDestination();
+    delete newRelation;
     incremental_localstore_logger.debug("Central edge (" + sId + "-> " + dId + " ) added successfully");
 }
 

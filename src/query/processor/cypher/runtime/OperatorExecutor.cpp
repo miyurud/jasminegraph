@@ -114,7 +114,9 @@ void OperatorExecutor::AllNodeScan(SharedBuffer &buffer, std::string jsonPlan, G
         json nodeData;
         auto nodeId = it.first;
         NodeBlock *node = nodeManager.get(nodeId);
-        std::string value(node->getMetaPropertyHead()->value);
+        MetaPropertyLink* metaProperty = node->getMetaPropertyHead();
+        std::string value(metaProperty->value);
+        delete metaProperty;  // Free the allocated MetaPropertyLink
         if (value == to_string(gc.partitionID)) {
             nodeData["partitionID"] = value;
             std::map<std::string, char*> properties = node->getAllProperties();
@@ -159,6 +161,7 @@ void OperatorExecutor::NodeScanByLabel(SharedBuffer &buffer, std::string jsonPla
             string variable = query["variable"];
             data[variable] = nodeData;
             buffer.add(data.dump());
+            data.clear();
         }
     }
     buffer.add("-1");
@@ -206,6 +209,7 @@ void OperatorExecutor::Filter(SharedBuffer &buffer, std::string jsonPlan, GraphC
         if (raw == "-1") {
             buffer.add(raw);
             result.join();
+
             break;
         }
         if (FilterHelper.evaluate(raw)) {
@@ -239,7 +243,9 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
         NodeBlock* startNode = relation->getSource();
         NodeBlock* destNode = relation->getDestination();
 
-        std::string startPid(startNode->getMetaPropertyHead()->value);
+        MetaPropertyLink* startMetaProperty = startNode->getMetaPropertyHead();
+        std::string startPid(startMetaProperty->value);
+        delete startMetaProperty;
         startNodeData["partitionID"] = startPid;
         std::map<std::string, char*> startProperties = startNode->getAllProperties();
         for (auto property : startProperties) {
@@ -250,7 +256,9 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
         }
         startProperties.clear();
 
-        std::string destPid(destNode->getMetaPropertyHead()->value);
+        MetaPropertyLink *destMetaProperty = destNode->getMetaPropertyHead();
+        std::string destPid(destMetaProperty->value);
+        delete destMetaProperty;
         destNodeData["partitionID"] = destPid;
         std::map<std::string, char*> destProperties = destNode->getAllProperties();
         for (auto property : destProperties) {
@@ -308,7 +316,9 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
         NodeBlock* startNode = relation->getSource();
         NodeBlock* destNode = relation->getDestination();
 
-        std::string startPid(startNode->getMetaPropertyHead()->value);
+        MetaPropertyLink* startMetaProperty = startNode->getMetaPropertyHead();
+        std::string startPid(startMetaProperty->value);
+        delete startMetaProperty;
         startNodeData["partitionID"] = startPid;
         std::map<std::string, char*> startProperties = startNode->getAllProperties();
         for (auto property : startProperties) {
@@ -319,7 +329,9 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
         }
         startProperties.clear();
 
-        std::string destPid(destNode->getMetaPropertyHead()->value);
+        MetaPropertyLink* destMetaProperty = destNode->getMetaPropertyHead();
+        std::string destPid(destMetaProperty->value);
+        delete destMetaProperty;
         destNodeData["partitionID"] = destPid;
         std::map<std::string, char*> destProperties = destNode->getAllProperties();
         for (auto property : destProperties) {
@@ -383,7 +395,9 @@ void OperatorExecutor::UndirectedAllRelationshipScan(SharedBuffer &buffer, std::
         NodeBlock* startNode = relation->getSource();
         NodeBlock* destNode = relation->getDestination();
 
-        std::string startPid(startNode->getMetaPropertyHead()->value);
+        MetaPropertyLink* startMetaProperty = startNode->getMetaPropertyHead();
+        std::string startPid(startMetaProperty->value);
+        delete startMetaProperty;
         startNodeData["partitionID"] = startPid;
         std::map<std::string, char*> startProperties = startNode->getAllProperties();
         for (auto property : startProperties) {
@@ -394,7 +408,9 @@ void OperatorExecutor::UndirectedAllRelationshipScan(SharedBuffer &buffer, std::
         }
         startProperties.clear();
 
-        std::string destPid(destNode->getMetaPropertyHead()->value);
+        MetaPropertyLink* destMetaProperty = destNode->getMetaPropertyHead();
+        std::string destPid(destMetaProperty->value);
+        delete destMetaProperty;
         destNodeData["partitionID"] = destPid;
         std::map<std::string, char*> destProperties = destNode->getAllProperties();
         for (auto property : destProperties) {
@@ -424,6 +440,8 @@ void OperatorExecutor::UndirectedAllRelationshipScan(SharedBuffer &buffer, std::
         rightDirectionData[rel] = relationData;
         buffer.add(rightDirectionData.dump());
 
+
+
         if (!isDirected) {
             json leftDirectionData;
             leftDirectionData[start] = destNodeData;
@@ -432,6 +450,10 @@ void OperatorExecutor::UndirectedAllRelationshipScan(SharedBuffer &buffer, std::
             buffer.add(leftDirectionData.dump());
         }
         count++;
+        // free memory for relation
+        delete relation->getSource();
+        delete relation->getDestination();
+        delete relation;
     }
 
     int central = 1;
@@ -440,7 +462,10 @@ void OperatorExecutor::UndirectedAllRelationshipScan(SharedBuffer &buffer, std::
         json destNodeData;
         json relationData;
         RelationBlock* relation = RelationBlock::getCentralRelation(i*RelationBlock::CENTRAL_BLOCK_SIZE);
-        std::string pid(relation->getMetaPropertyHead()->value);
+
+        MetaPropertyEdgeLink* relationMetaProperty = relation->getMetaPropertyHead();
+        std::string pid(relationMetaProperty->value);
+        delete relationMetaProperty;
         if (pid != to_string(gc.partitionID)) {
             continue;
         }
@@ -448,7 +473,9 @@ void OperatorExecutor::UndirectedAllRelationshipScan(SharedBuffer &buffer, std::
         NodeBlock* startNode = relation->getSource();
         NodeBlock* destNode = relation->getDestination();
 
-        std::string startPid(startNode->getMetaPropertyHead()->value);
+        MetaPropertyLink* startNodeMetaProperty = startNode->getMetaPropertyHead();
+        std::string startPid(startNodeMetaProperty->value);
+        delete startNodeMetaProperty;  // Free the allocated MetaPropertyLink
         startNodeData["partitionID"] = startPid;
         std::map<std::string, char*> startProperties = startNode->getAllProperties();
         for (auto property : startProperties) {
@@ -459,7 +486,9 @@ void OperatorExecutor::UndirectedAllRelationshipScan(SharedBuffer &buffer, std::
         }
         startProperties.clear();
 
-        std::string destPid(destNode->getMetaPropertyHead()->value);
+        MetaPropertyLink* meta_property_link = destNode->getMetaPropertyHead();
+        std::string destPid = meta_property_link->value;
+        delete meta_property_link;  // Free the allocated MetaPropertyLink
         destNodeData["partitionID"] = destPid;
         std::map<std::string, char*> destProperties = destNode->getAllProperties();
         for (auto property : destProperties) {
@@ -497,6 +526,10 @@ void OperatorExecutor::UndirectedAllRelationshipScan(SharedBuffer &buffer, std::
             buffer.add(leftDirectionData.dump());
         }
         central++;
+        // free memory for relation
+        delete relation->getSource();
+        delete relation->getDestination();
+        delete relation;
     }
     buffer.add("-1");
 }

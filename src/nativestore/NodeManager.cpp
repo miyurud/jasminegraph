@@ -204,10 +204,17 @@ std::unordered_map<std::string, unsigned int> NodeManager::readNodeIndex() {
 
 RelationBlock *NodeManager::addLocalRelation(NodeBlock source, NodeBlock destination) {
     RelationBlock *newRelation = NULL;
+    RelationBlock* existingDestinationRelation = source.searchLocalRelation(destination);
     if (source.edgeRef == 0 || destination.edgeRef == 0 ||
-        !source.searchLocalRelation(destination)) {  // certainly a new relation block needed
+        !existingDestinationRelation) {  // certainly a new relation block needed
+       if (existingDestinationRelation != nullptr) {
+           delete existingDestinationRelation->getSource();
+           delete existingDestinationRelation->getDestination(); // certainly a new relation block needed
+           delete existingDestinationRelation; // Delete the existing relation if it exists to avoid memory leaks
+       } // Delete the existing relation if it exists to avoid memory leaks
         RelationBlock *relationBlock = new RelationBlock(source, destination);
         newRelation = relationBlock->addLocalRelation(source, destination);
+        delete relationBlock;
         if (newRelation) {
             source.updateLocalRelation(newRelation, true);
             destination.updateLocalRelation(newRelation, true);
@@ -227,13 +234,25 @@ RelationBlock *NodeManager::addLocalRelation(NodeBlock source, NodeBlock destina
 
 RelationBlock *NodeManager::addCentralRelation(NodeBlock source, NodeBlock destination) {
     RelationBlock *newRelation = NULL;
+
+    RelationBlock* existingDestinationRelation = source.searchCentralRelation(destination);
+
     if (source.centralEdgeRef == 0 || destination.centralEdgeRef == 0 ||
-        !source.searchCentralRelation(destination)) {  // certainly a new relation block needed
+        !existingDestinationRelation) {
+       if (existingDestinationRelation != nullptr) {
+           delete existingDestinationRelation->getSource();
+           delete existingDestinationRelation->getDestination(); // certainly a new relation block needed
+           delete existingDestinationRelation; // Delete the existing relation if it exists to avoid memory leaks
+       }
+
         RelationBlock *relationBlock = new RelationBlock(source, destination);
         newRelation = relationBlock->addCentralRelation(source, destination);
+        delete relationBlock;
+
         if (newRelation) {
             source.updateCentralRelation(newRelation, true);
             destination.updateCentralRelation(newRelation, true);
+
         } else {
             node_manager_logger.error("Error while adding the new edge/relation for source = " +
                                       std::string(source.id) + " destination = " + std::string(destination.id));
@@ -273,6 +292,8 @@ RelationBlock *NodeManager::addLocalEdge(std::pair<std::string, std::string> edg
     NodeBlock *destNode = this->addNode(edge.second);
     RelationBlock *newRelation = this->addLocalRelation(*sourceNode, *destNode);
     if (newRelation) {
+        delete newRelation->getSource();
+        delete newRelation->getDestination();
         newRelation->setDestination(destNode);
         newRelation->setSource(sourceNode);
     }
@@ -293,6 +314,8 @@ RelationBlock *NodeManager::addCentralEdge(std::pair<std::string, std::string> e
     NodeBlock *destNode = this->addNode(edge.second);
     RelationBlock *newRelation = this->addCentralRelation(*sourceNode, *destNode);
     if (newRelation) {
+        delete newRelation->getSource();
+        delete newRelation->getDestination();
         newRelation->setDestination(destNode);
         newRelation->setSource(sourceNode);
     }
