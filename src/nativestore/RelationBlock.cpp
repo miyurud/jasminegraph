@@ -797,9 +797,11 @@ void RelationBlock::addMetaProperty(std::string name, char *value) {
 }
 
 void RelationBlock::addLocalRelationshipType(char *value) {
+    relation_block_logger.debug("Attempting to add local relationship type: " + std::string(value) +
+                               " at address " + std::to_string(this->addr));
     if (this->type == DEFAULT_TYPE) {
-        this->updateLocalRelationshipType(RelationBlock::LOCAL_RELATIONSHIP_TYPE_OFFSET,
-                                               value);
+        relation_block_logger.debug("Current type is DEFAULT_TYPE, updating to: " + std::string(value));
+        this->updateLocalRelationshipType(RelationBlock::LOCAL_RELATIONSHIP_TYPE_OFFSET, value);
     } else {
         relation_block_logger.info("Relation type is already set to " + this->type);
     }

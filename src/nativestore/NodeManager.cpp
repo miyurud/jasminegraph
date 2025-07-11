@@ -275,6 +275,7 @@ RelationBlock *NodeManager::addLocalEdge(std::pair<std::string, std::string> edg
     if (newRelation) {
         newRelation->setDestination(destNode);
         newRelation->setSource(sourceNode);
+
     }
     pthread_mutex_unlock(&lockEdgeAdd);
 
