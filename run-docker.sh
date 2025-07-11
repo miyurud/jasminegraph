@@ -81,13 +81,13 @@ if [ -n "$DEBUG" ]; then
     if [ $MODE -eq 1 ]; then
         gdbserver 0.0.0.0:$DEBUG ./JasmineGraph $PROFILE $MODE $MASTERIP $WORKERS $WORKERIP $ENABLE_NMON
     else
-        gdbserver 0.0.0.0:$DEBUG valgrind --leak-check=full --show-leak-kinds=all ./JasmineGraph $PROFILE $MODE $HOST_NAME $MASTERIP $SERVER_PORT $SERVER_DATA_PORT $ENABLE_NMON
+        gdbserver 0.0.0.0:$DEBUG  ./JasmineGraph $PROFILE $MODE $HOST_NAME $MASTERIP $SERVER_PORT $SERVER_DATA_PORT $ENABLE_NMON
     fi
 else
     if [ $MODE -eq 1 ]; then
         ./JasmineGraph $PROFILE $MODE $MASTERIP $WORKERS $WORKERIP $ENABLE_NMON
     else
-        valgrind --leak-check=full --show-leak-kinds=all ./JasmineGraph  $PROFILE $MODE $HOST_NAME $MASTERIP $SERVER_PORT $SERVER_DATA_PORT $ENABLE_NMON
+         ./JasmineGraph  $PROFILE $MODE $HOST_NAME $MASTERIP $SERVER_PORT $SERVER_DATA_PORT $ENABLE_NMON
     fi
 fi
 

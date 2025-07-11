@@ -698,7 +698,8 @@ void CreateHelper::insertWithoutData(SharedBuffer &buffer) {
                 partitionedEdge partitionedEdge = graphPartitioner->addEdge({sourceId, destId});
                 RelationBlock* newRelation;
 
-                if (partitionedEdge[0].second == partitionedEdge[1].second) {
+                if (partitionedEdge[0].second == partitionedEdge[1].second &&
+                    partitionedEdge[0].second == gc.partitionID) {
                     newRelation = nodeManager.addLocalEdge({sourceId, destId});
                 } else if (partitionedEdge[0].second == gc.partitionID ||
                            partitionedEdge[1].second == gc.partitionID) {
@@ -770,10 +771,11 @@ void CreateHelper::insertWithoutData(SharedBuffer &buffer) {
                 NodeBlock* newNode = nullptr;
                 if (partitionedEdge[0].second == gc.partitionID) {
                     newNode = nodeManager.addNode(sourceId);
+
                 }
 
                 if (!newNode) {
-                    return;
+                    continue;
                 }
 
                 char value[PropertyLink::MAX_VALUE_SIZE] = {0};
@@ -782,6 +784,7 @@ void CreateHelper::insertWithoutData(SharedBuffer &buffer) {
                 for (auto it = sourceProps.begin(); it != sourceProps.end(); it++) {
                     strcpy(value, it.value().get<std::string>().c_str());
                     newNode->addProperty(std::string(it.key()), &value[0]);
+
                 }
 
                 std::string sourcePid = to_string(partitionedEdge[0].second);;
@@ -794,7 +797,6 @@ void CreateHelper::insertWithoutData(SharedBuffer &buffer) {
                 }
                 buffer.add(rawObj.dump());
             }
-            return;
         }
     }
 }

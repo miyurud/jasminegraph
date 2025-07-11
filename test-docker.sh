@@ -132,6 +132,21 @@ wait_for_hadoop() {
     else
         echo "File already exists in HDFS at ${HDFS_FILE_PATH}. Skipping upload."
     fi
+    # upload graph with properties
+    FILE_NAME="graph_with_properties.txt"
+    LOCAL_FILE_PATH="${LOCAL_DIRECTORY}${FILE_NAME}"
+    HDFS_FILE_PATH="${HDFS_DIRECTORY}${FILE_NAME}"
+    docker cp integration-jasminegraph-1:"${LOCAL_FILE_PATH}" "${LOCAL_DIRECTORY}"
+    docker exec -i hdfs-namenode hadoop fs -mkdir -p "${HDFS_DIRECTORY}"
+    docker cp "${LOCAL_FILE_PATH}" hdfs-namenode:"${HDFS_FILE_PATH}"
+    if ! docker exec -i hdfs-namenode hadoop fs -test -e "${HDFS_FILE_PATH}"; then
+        docker exec -i hdfs-namenode hadoop fs -put "${HDFS_FILE_PATH}" "${HDFS_DIRECTORY}"
+        echo "File: ${LOCAL_FILE_PATH} successfully uploaded to HDFS."
+    else
+        echo "File already exists in HDFS at ${HDFS_FILE_PATH}. Skipping upload."
+
+    fi
+
 }
 
 stop_tests_on_failure() {

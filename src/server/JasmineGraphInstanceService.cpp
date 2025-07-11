@@ -4509,6 +4509,7 @@ static void hdfs_start_stream_command(int connFd, bool *loop_exit_p, bool isLoca
 
     processFile(fileName, isLocalStream, instanceStreamHandler);
 
+
     // delete file chunk after adding to the store
     Utils::deleteFile(fullFilePath);
 }

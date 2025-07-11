@@ -188,6 +188,8 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/frontend/core/executor/impl/CypherQueryExecutor.cpp
         src/query/processor/cypher/runtime/Aggregation.cpp
         src/query/processor/cypher/runtime/AggregationFactory.cpp
+        src/nativestore/LabelndexManger.cpp
+        src/nativestore/LabelIndexManager.h
 
 )
 
