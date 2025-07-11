@@ -2,9 +2,9 @@ import json
 import random
 import string
 import os
-target_size_gb = 0.5
+target_size_gb = 0.0001
 # File settings
-output_file = "/home/ubuntu/software/jasminegraph/tests/integration/env_init/data/graph_data_0.4GB.txt"
+output_file = "/home/ubuntu/software/jasminegraph/tests/integration/env_init/data/graph_data_0.0001GB.txt"
 
 target_size_bytes = target_size_gb * 1024**3
 
@@ -22,7 +22,7 @@ def random_id():
 def random_person():
     return {
         "id": random_id(),
-        "type": "Person",
+        "label": "Person",
         "name": random.choice(person_names),
         "occupation": random.choice(occupations),
         "age": str(random.randint(20, 65))
@@ -31,7 +31,7 @@ def random_person():
 def random_location():
     return {
         "id": random_id(),
-        "type": "Location",
+        "label": "Location",
         "name": random.choice(location_names),
         "category": random.choice(categories)
     }
@@ -46,7 +46,7 @@ def random_relationship(id_num, src, dst):
     desc = f"{src_name} {rel_type.lower()} {dst_name}."
     return {
         "id": str(id_num),
-        "relationship_type": rel_type,
+        "type": rel_type,
         "description": desc
     }
 
