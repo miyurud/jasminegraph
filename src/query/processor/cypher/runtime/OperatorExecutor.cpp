@@ -147,7 +147,7 @@ void OperatorExecutor::NodeScanByLabel(SharedBuffer &buffer, std::string jsonPla
         std::string value(node->getMetaPropertyHead()->value);
 
         std::map<std::string, char*> properties = node->getAllProperties();
-        auto labelIt = properties.find("label");
+        auto labelIt = properties.find("type");
         std::string nodeLabel = (labelIt != properties.end() && labelIt->second != nullptr) ?
         std::string(labelIt->second) : "";
 
