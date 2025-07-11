@@ -202,18 +202,43 @@ void OperatorExecutor::Filter(SharedBuffer &buffer, std::string jsonPlan, GraphC
     // Launch the method in a new thread
     std::thread result(method, std::ref(*this), std::ref(sharedBuffer), query["NextOperator"], gc);
 
+    const size_t BATCH_SIZE = 100;
     auto condition = query["condition"];
     FilterHelper FilterHelper(condition.dump());
+    std::vector<std::string> batch;
     while (true) {
         string raw = sharedBuffer.get();
         if (raw == "-1") {
+            // Process remaining batch
+            std::vector<std::future<bool>> futures;
+            for (const auto& item : batch) {
+                futures.push_back(std::async(std::launch::async, [&FilterHelper, &item]() {
+                    return FilterHelper.evaluate(item);
+                }));
+            }
+            for (size_t i = 0; i < batch.size(); ++i) {
+                if (futures[i].get()) {
+                    buffer.add(batch[i]);
+                }
+            }
             buffer.add(raw);
             result.join();
-
             break;
         }
-        if (FilterHelper.evaluate(raw)) {
-            buffer.add(raw);
+        batch.push_back(raw);
+        if (batch.size() >= BATCH_SIZE) {
+            std::vector<std::future<bool>> futures;
+            for (const auto& item : batch) {
+                futures.push_back(std::async(std::launch::async, [&FilterHelper, &item]() {
+                    return FilterHelper.evaluate(item);
+                }));
+            }
+            for (size_t i = 0; i < batch.size(); ++i) {
+                if (futures[i].get()) {
+                    buffer.add(batch[i]);
+                }
+            }
+            batch.clear();
         }
     }
 }
