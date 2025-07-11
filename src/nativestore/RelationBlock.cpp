@@ -796,21 +796,24 @@ void RelationBlock::addMetaProperty(std::string name, char *value) {
     }
 }
 
-void RelationBlock::addLocalRelationshipType(char *value) {
+void RelationBlock::addLocalRelationshipType(char *value, LabelIndexManager* labelIndexManager, size_t edgeIndex) {
     relation_block_logger.debug("Attempting to add local relationship type: " + std::string(value) +
                                " at address " + std::to_string(this->addr));
     if (this->type == DEFAULT_TYPE) {
         relation_block_logger.debug("Current type is DEFAULT_TYPE, updating to: " + std::string(value));
         this->updateLocalRelationshipType(RelationBlock::LOCAL_RELATIONSHIP_TYPE_OFFSET, value);
+        labelIndexManager->setLabel(labelIndexManager->getOrCreateLabelID(value),  edgeIndex);
+
     } else {
         relation_block_logger.info("Relation type is already set to " + this->type);
     }
 }
 
-void RelationBlock::addCentralRelationshipType(char *value) {
+void RelationBlock::addCentralRelationshipType(char *value , LabelIndexManager* labelIndexManager, size_t edgeIndex) {
     if (this->type == DEFAULT_TYPE) {
         this->updateCentralRelationshipType(RelationBlock::CENTRAL_RELATIONSHIP_TYPE_OFFSET,
                                           value);
+        labelIndexManager->setLabel(labelIndexManager->getOrCreateLabelID(value),  edgeIndex);
     } else {
         relation_block_logger.info("Relation type is already set to " + this->type);
     }

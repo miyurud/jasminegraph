@@ -66,6 +66,7 @@ class NodeManager {
 
     NodeBlock* addNode(std::string);  // will return DB block address
     NodeBlock* get(std::string);
+    NodeBlock* getByNodeIndex(size_t nodeIndex);
 
     std::list<NodeBlock*> getCentralGraph();
     std::list<NodeBlock> getLimitedGraph(int limit = 10);

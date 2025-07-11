@@ -357,11 +357,18 @@ int NodeManager::dbSize(std::string path) {
  * @Deprecated use NodeBlock.get() instead
  **/
 NodeBlock *NodeManager::get(std::string nodeId) {
-    NodeBlock *nodeBlockPointer = NULL;
+
     if (this->nodeIndex.find(nodeId) == this->nodeIndex.end()) {  // Not found
-        return nodeBlockPointer;
+        return NULL;
     }
+
     unsigned int nodeIndex = this->nodeIndex[nodeId];
+   return getByNodeIndex(nodeIndex);
+}
+
+
+NodeBlock* NodeManager::getByNodeIndex (size_t nodeIndex){
+    NodeBlock *nodeBlockPointer = NULL;
     const unsigned int blockAddress = nodeIndex * NodeBlock::BLOCK_SIZE;
     NodeBlock::nodesDB->seekg(blockAddress);
     unsigned int vertexId;
@@ -408,7 +415,7 @@ NodeBlock *NodeManager::get(std::string nodeId) {
     node_manager_logger.debug("Length of label = " + std::to_string(strlen(label)));
     node_manager_logger.debug("DEBUG: raw edgeRef from DB (disk) " + std::to_string(edgeRef));
 
-    nodeBlockPointer = new NodeBlock(nodeId, vertexId, blockAddress, propRef, metaPropRef, edgeRef,
+    nodeBlockPointer = new NodeBlock(std::to_string(vertexId), vertexId, blockAddress, propRef, metaPropRef, edgeRef,
                                      centralEdgeRef, edgeRefPID, label, usage);
 
     node_manager_logger.debug("DEBUG: nodeBlockPointer after creating the object edgeRef " +
@@ -418,7 +425,7 @@ NodeBlock *NodeManager::get(std::string nodeId) {
         node_manager_logger.error("Exception: Invalid edge reference address = " + nodeBlockPointer->edgeRef);
     }
     return nodeBlockPointer;
-}
+    }
 
 void NodeManager::persistNodeIndex() {
     std::ofstream index_db(indexDBPath, std::ios::trunc | std::ios::binary);

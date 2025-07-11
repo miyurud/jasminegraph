@@ -13,6 +13,8 @@ limitations under the License.
 
 #include <nlohmann/json.hpp>
 #include <string>
+
+#include "../../nativestore/LabelIndexManager.h"
 using json = nlohmann::json;
 
 #include "../../nativestore/NodeManager.h"
@@ -23,6 +25,11 @@ class JasmineGraphIncrementalLocalStore {
  public:
     GraphConfig gc;
     NodeManager *nm;
+    LabelIndexManager *nodeLabelIndexManager;
+    LabelIndexManager *centralRelationLabelIndexManager;
+    LabelIndexManager *localRelationLabelIndexManager;
+
+
     void addEdgeFromString(std::string edgeString);
     static std::pair<std::string, unsigned int> getIDs(std::string edgeString);
     JasmineGraphIncrementalLocalStore(unsigned int graphID = 0,

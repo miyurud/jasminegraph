@@ -162,8 +162,8 @@ class RelationBlock {
     void addLocalProperty(std::string, char *);
     void addCentralProperty(std::string name, char *value);
     void addMetaProperty(std::string name, char *value);
-    void addLocalRelationshipType(char *value);
-    void addCentralRelationshipType(char *value);
+    void addLocalRelationshipType(char* value, LabelIndexManager* labelIndexManager, size_t edgeIndex);
+    void addCentralRelationshipType(char* value, LabelIndexManager* labelIndexManager, size_t edgeIndex);
 
     std::string getLocalRelationshipType();
     std::string getCentralRelationshipType();

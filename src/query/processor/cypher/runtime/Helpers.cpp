@@ -771,6 +771,7 @@ void CreateHelper::insertWithoutData(SharedBuffer &buffer) {
                 NodeBlock* newNode = nullptr;
                 if (partitionedEdge[0].second == gc.partitionID) {
                     newNode = nodeManager.addNode(sourceId);
+
                 }
 
                 if (!newNode) {
@@ -783,6 +784,7 @@ void CreateHelper::insertWithoutData(SharedBuffer &buffer) {
                 for (auto it = sourceProps.begin(); it != sourceProps.end(); it++) {
                     strcpy(value, it.value().get<std::string>().c_str());
                     newNode->addProperty(std::string(it.key()), &value[0]);
+
                 }
 
                 std::string sourcePid = to_string(partitionedEdge[0].second);;

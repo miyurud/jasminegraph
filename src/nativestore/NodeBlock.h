@@ -17,6 +17,7 @@ limitations under the License.
 #include <map>
 #include <string>
 
+#include "LabelIndexManager.h"
 #include "PropertyLink.h"
 #include "MetaPropertyLink.h"
 
@@ -67,7 +68,7 @@ class NodeBlock {
     void save();
     std::string getLabel();
     void setLabel(const char *_label);
-    void addLabel(char *label);
+    void addLabel(char *label , LabelIndexManager *nodeLabelIndexManager, size_t nodeIndex);
     bool isInUse();
     int getFlags();
     static NodeBlock *get(unsigned int);
