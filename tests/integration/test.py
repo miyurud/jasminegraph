@@ -349,12 +349,11 @@ def test(host, port):
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher',b'MATCH (a)-[r]-(b)-[d]-(s)'
                                                 b' WHERE (a.id = 10 AND s.id=14) RETURN a, b, s',
-                                 b'{"a":{"age":"25","id":"10","label":"Person","name":"Fiona",'
-                                 b'"occupation":"Artist","partitionID":"0"},'
-                                 b'"b":{"id":"2","label":"Person","name":"Charlie","occupation":"IT Engineer",'
-                                 b'"partitionID":"0"},"s":{"id":"14","label":"Person'
-                                 b'"name":"Julia","occupation":"Entrepreneur","partitionID":"0"'
-                                 b'"}}',
+                                 b'{"a":{"age":"25","id":"10","label":"Person",'
+                                 b'"name":"Fiona","occupation":"Artist","partitionID":"0"},'
+                                 b'"b":{"id":"2","label":"Person","name":"Charlie",'
+                                 b'"occupation":"IT Engineer","partitionID":"0"},"s":{"id":"14","label":"Person",'
+                                 b'"name":"Julia","occupation":"Entrepreneur","partitionID":"0"}}',
                                  exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'',
                                  b'done', exit_on_failure=True)
@@ -380,8 +379,8 @@ def test(host, port):
         send_and_expect_response(sock, 'cypher',b'MATCH (n)-[r]-(m {id:6} ) WHERE n.age = 25'
                                                 b' RETURN n, r, m',
                                  b'{"m":{"category":"Park","id":"6","label":"Location","name":"Central Park",'
-                                 b'"partitionID":"0"},"n":{"age":"25","id":"10","label":"Person"'
-                                 b'"name":"Fiona","occupation":"Artist","partitionID":"0",'
+                                 b'"partitionID":"0"},"n":{"age":"25","id":"10","label":"Person",'
+                                 b'"name":"Fiona","occupation":"Artist","partitionID":"0"'
                                  b'},"r":{"description":"Fiona and Central Park have'
                                  b' been friends since college.","id":"11",'
                                  b'"type":"FRIENDS"}}',
@@ -397,7 +396,7 @@ def test(host, port):
         send_and_expect_response(sock, 'cypher',b'MATCH (n)-[r]-(m {id:6} ) WHERE n.age = 25'
                                                 b' RETURN n, r, m',
                                  b'{"m":{"category":"Park","id":"6","label":"Location""name":"Central Park",'
-                                 b'"partitionID":"0"},"n":{"age":"25","id":"10","label":"Person"'
+                                 b'"partitionID":"0"},"n":{"age":"25","id":"10","label":"Person",'
                                  b'"name":"Fiona","occupation":"Artist","partitionID":"0",'
                                  b'},"r":{"description":"Fiona and Central Park have'
                                  b' been friends since college.","id":"11",'
