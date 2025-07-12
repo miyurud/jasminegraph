@@ -698,7 +698,8 @@ void CreateHelper::insertWithoutData(SharedBuffer &buffer) {
                 partitionedEdge partitionedEdge = graphPartitioner->addEdge({sourceId, destId});
                 RelationBlock* newRelation;
 
-                if (partitionedEdge[0].second == partitionedEdge[1].second) {
+                if (partitionedEdge[0].second == partitionedEdge[1].second &&
+                    partitionedEdge[0].second == gc.partitionID) {
                     newRelation = nodeManager.addLocalEdge({sourceId, destId});
                 } else if (partitionedEdge[0].second == gc.partitionID ||
                            partitionedEdge[1].second == gc.partitionID) {
@@ -773,7 +774,7 @@ void CreateHelper::insertWithoutData(SharedBuffer &buffer) {
                 }
 
                 if (!newNode) {
-                    return;
+                    continue;
                 }
 
                 char value[PropertyLink::MAX_VALUE_SIZE] = {0};
@@ -794,7 +795,6 @@ void CreateHelper::insertWithoutData(SharedBuffer &buffer) {
                 }
                 buffer.add(rawObj.dump());
             }
-            return;
         }
     }
 }

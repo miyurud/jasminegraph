@@ -138,13 +138,23 @@ void OperatorExecutor::AllNodeScan(SharedBuffer &buffer, std::string jsonPlan, G
 void OperatorExecutor::NodeScanByLabel(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
     json query = json::parse(jsonPlan);
     NodeManager nodeManager(gc);
+
     for (auto it : nodeManager.nodeIndex) {
         json nodeData;
         auto nodeId = it.first;
         NodeBlock *node = nodeManager.get(nodeId);
         string label = node->getLabel();
         std::string value(node->getMetaPropertyHead()->value);
-        if (value == to_string(gc.partitionID) && label == query["Label"]) {
+
+        std::map<std::string, char*> properties = node->getAllProperties();
+        auto labelIt = properties.find("type");
+        std::string nodeLabel = (labelIt != properties.end() && labelIt->second != nullptr) ?
+        std::string(labelIt->second) : "";
+
+        execution_logger.debug(value + " " + nodeLabel + " " + to_string(gc.partitionID) + " " +
+            query["Label"].get<std::string>());
+
+        if (value == to_string(gc.partitionID) && nodeLabel == std::string(query["Label"])) {
             nodeData["partitionID"] = value;
             std::map<std::string, char*> properties = node->getAllProperties();
             for (auto property : properties) {
@@ -163,6 +173,7 @@ void OperatorExecutor::NodeScanByLabel(SharedBuffer &buffer, std::string jsonPla
     }
     buffer.add("-1");
 }
+
 
 void OperatorExecutor::ProduceResult(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
     json query = json::parse(jsonPlan);
@@ -215,6 +226,7 @@ void OperatorExecutor::Filter(SharedBuffer &buffer, std::string jsonPlan, GraphC
 }
 
 void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
+    execution_logger.debug("UndirectedRelationshipTypeScan: Start");
     json query = json::parse(jsonPlan);
     NodeManager nodeManager(gc);
 
@@ -229,11 +241,27 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
     }
     int count = 1;
     for (long i = 1; i < localRelationCount; i++) {
+        execution_logger.debug("UndirectedRelationshipTypeScan: Processing local relation " + std::to_string(i));
         json startNodeData;
         json destNodeData;
         json relationData;
         RelationBlock* relation = RelationBlock::getLocalRelation(i*RelationBlock::BLOCK_SIZE);
-        if (relation->getLocalRelationshipType() != query["relType"]) {
+
+        std::map<std::string, char*> relProperties = relation->getAllProperties();
+        std::string relTypeValue;
+
+        auto typeIt = relProperties.find("relationship_type");
+
+        if (typeIt != relProperties.end() && typeIt->second != nullptr) {
+            relTypeValue = std::string(typeIt->second);
+        } else {
+            auto altTypeIt = relProperties.find("type");
+            if (altTypeIt != relProperties.end() && altTypeIt->second != nullptr) {
+                relTypeValue = std::string(altTypeIt->second);
+            }
+        }
+
+     if (relTypeValue != query["relType"].get<std::string>()) {
             continue;
         }
         NodeBlock* startNode = relation->getSource();
@@ -261,7 +289,6 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
         }
         destProperties.clear();
 
-        std::map<std::string, char*> relProperties = relation->getAllProperties();
         for (auto property : relProperties) {
             relationData[property.first] = property.second;
         }
@@ -296,12 +323,35 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
         json destNodeData;
         json relationData;
         RelationBlock* relation = RelationBlock::getCentralRelation(i * RelationBlock::CENTRAL_BLOCK_SIZE);
-        if (relation->getCentralRelationshipType() != query["relType"]) {
+
+        std::map<std::string, char*> relProperties = relation->getAllProperties();
+        std::string relTypeValue;
+
+        auto typeIt = relProperties.find("relationship_type");
+
+        if (typeIt != relProperties.end() && typeIt->second != nullptr) {
+            relTypeValue = std::string(typeIt->second);
+        } else {
+            auto altTypeIt = relProperties.find("type");
+            if (altTypeIt != relProperties.end() && altTypeIt->second != nullptr) {
+                relTypeValue = std::string(altTypeIt->second);
+            }
+        }
+
+        if (relTypeValue != query["relType"].get<std::string>()) {
+            for (auto& [key, value] : relProperties) {
+                delete[] value;
+            }
+            relProperties.clear();
             continue;
         }
 
         std::string pid(relation->getMetaPropertyHead()->value);
         if (pid != to_string(gc.partitionID)) {
+            for (auto& [key, value] : relProperties) {
+                delete[] value;
+            }
+            relProperties.clear();
             continue;
         }
 
@@ -330,14 +380,14 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
         }
         destProperties.clear();
 
-        std::map<std::string, char*> relProperties = relation->getAllProperties();
-        for (auto property : relProperties) {
+        std::map<std::string, char*> relProperties2 = relation->getAllProperties();
+        for (auto property : relProperties2) {
             relationData[property.first] = property.second;
         }
-        for (auto& [key, value] : relProperties) {
+        for (auto& [key, value] : relProperties2) {
             delete[] value;  // Free each allocated char* array
         }
-        relProperties.clear();
+        relProperties2.clear();
 
         json rightDirectionData;
         string start = query["sourceVariable"];

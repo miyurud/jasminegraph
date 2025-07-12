@@ -126,6 +126,7 @@ Operator* QueryPlanner::createExecutionPlan(ASTNode* ast, Operator* op, string v
             }
         }
     } else if (ast->nodeType == Const::DISTINCT) {
+
         // TODO(thamindumk): Implement DISTINCT
     } else if (ast->nodeType == Const::RETURN_BODY) {
         vector<ASTNode*> variables;
