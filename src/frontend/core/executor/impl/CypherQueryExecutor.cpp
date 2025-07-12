@@ -27,6 +27,28 @@ limitations under the License.
 
 Logger cypher_logger;
 
+inline const json* getNestedValuePtr(const json& obj, const std::string& dottedKey) {
+    const json* current = &obj;
+    size_t start = 0;
+    while (start < dottedKey.size()) {
+        size_t dot = dottedKey.find('.', start);
+        std::string key = dottedKey.substr(start, dot - start);
+        if (!current->is_object()) {
+            cypher_logger.error("Current JSON is not an object at key: '" + key + "'");
+            return nullptr;
+        }
+        auto it = current->find(key);
+        if (it == current->end()) {
+            cypher_logger.error("Key '" + key + "' not found");
+            return nullptr;
+        }
+        current = &(*it);
+        if (dot == std::string::npos) break;
+        start = dot + 1;
+    }
+    return current;
+}
+
 CypherQueryExecutor::CypherQueryExecutor() {}
 
 CypherQueryExecutor::CypherQueryExecutor(SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb,
@@ -166,38 +188,54 @@ void CypherQueryExecutor::execute() {
                 BufferEntry(const std::string& v, size_t idx, const json& parsed, bool asc)
                         : value(v), bufferIndex(idx), data(parsed), isAsc(asc) {}
                 bool operator<(const BufferEntry& other) const {
-                    const auto& val1 = data[Operator::aggregateKey];
-                    const auto& val2 = other.data[Operator::aggregateKey];
+                    const json* val1 = getNestedValuePtr(data, Operator::aggregateKey);
+                    if (!val1) {
+                        cypher_logger.error("Missing key in val1 for comparison: " + Operator::aggregateKey);
+                        return false; // or decide what fallback you want
+                    }
+                    const json* val2 = getNestedValuePtr(other.data, Operator::aggregateKey);
+                    if (!val2) {
+                        cypher_logger.error("Missing key in val2 for comparison: " + Operator::aggregateKey);
+                        return false;
+                    }
                     bool result;
-                    if (val1.is_number_integer() && val2.is_number_integer()) {
-                        result = val1.get<int>() > val2.get<int>();
-                    } else if (val1.is_string() && val2.is_string()) {
-                        result = val1.get<std::string>() > val2.get<std::string>();
+                    if (val1->is_number_integer() && val2->is_number_integer()) {
+                        result = val1->get<int>() > val2->get<int>();
+                    } else if (val1->is_string() && val2->is_string()) {
+                        result = val1->get<std::string>() > val2->get<std::string>();
                     } else {
-                        result = val1.dump() > val2.dump();
+                        result = val1->dump() > val2->dump();  // fallback comparison
                     }
                     return isAsc ? result : !result;  // Flip for DESC
                 }
             };
             bool isAsc = (Operator::aggregateType == AggregationFactory::ASC);
             std::priority_queue<BufferEntry> mergeQueue;  // Min-heap
-            for (size_t i = 0; i < numberOfPartitions; ++i) {
-                std::string value = bufferPool[i]->get();
-                if (value != "-1") {
-                    try {
-                        json parsed = json::parse(value);
-                        if (!parsed.contains(Operator::aggregateKey)) {
-                            cypher_logger.error("Missing key '" + Operator::aggregateKey + "' in JSON: " + value);
-                            continue;
+            while(true) {
+                if (closeFlag == numberOfPartitions) {
+                    break;
+                }
+                for (size_t i = 0; i < bufferPool.size(); ++i) {
+                    std::string value;
+                    if (bufferPool[i]->tryGet(value)) {
+                        if (value != "-1") {
+                            try {
+                                json parsed = json::parse(value);
+                                const json *aggVal = getNestedValuePtr(parsed, Operator::aggregateKey);
+                                if (!aggVal) {
+                                    cypher_logger.error("Missing key '" + Operator::aggregateKey + "' in JSON: " + value);
+                                    continue;
+                                }
+                                BufferEntry entry{value, i, parsed, isAsc};
+                                mergeQueue.push(entry);
+                            } catch (const json::exception &e) {
+                                cypher_logger.error("JSON parse error: " + std::string(e.what()));
+                                continue;
+                            }
+                        } else {
+                            closeFlag++;
                         }
-                        BufferEntry entry{value, i, parsed, isAsc};
-                        mergeQueue.push(entry);
-                    } catch (const json::exception& e) {
-                        cypher_logger.error("JSON parse error: " + std::string(e.what()));
-                        continue;
                     }
-                } else {
-                    closeFlag++;
                 }
             }
 
