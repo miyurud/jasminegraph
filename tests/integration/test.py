@@ -397,7 +397,7 @@ def test(host, port):
                                                 b' RETURN n, r, m',
                                  b'{"m":{"category":"Park","id":"6","label":"Location""name":"Central Park",'
                                  b'"partitionID":"0"},"n":{"age":"25","id":"10","label":"Person",'
-                                 b'"name":"Fiona","occupation":"Artist","partitionID":"0",'
+                                 b'"name":"Fiona","occupation":"Artist","partitionID":"0"'
                                  b'},"r":{"description":"Fiona and Central Park have'
                                  b' been friends since college.","id":"11",'
                                  b'"type":"FRIENDS"}}',
