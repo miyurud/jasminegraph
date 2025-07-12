@@ -395,7 +395,7 @@ def test(host, port):
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher',b'MATCH (n)-[r]-(m {id:6} ) WHERE n.age = 25'
                                                 b' RETURN n, r, m',
-                                 b'{"m":{"category":"Park","id":"6","label":"Location""name":"Central Park",'
+                                 b'{"m":{"category":"Park","id":"6","label":"Location","name":"Central Park",'
                                  b'"partitionID":"0"},"n":{"age":"25","id":"10","label":"Person",'
                                  b'"name":"Fiona","occupation":"Artist","partitionID":"0"'
                                  b'},"r":{"description":"Fiona and Central Park have'
