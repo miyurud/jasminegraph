@@ -293,8 +293,8 @@ def test(host, port):
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'MATCH (n) WHERE n.id=2 RETURN n ',
-                                 b'{"n":{"id":"2","name":"Charlie","occupation":"IT Engineer",'
-                                 b'"partitionID":"0","type":"Person"}}', exit_on_failure=True)
+                                 b'{"n":{"id":"2","label":"Person","name":"Charlie","occupation":"IT Engineer",'
+                                 b'"partitionID":"0"}}', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'',
                                  b'done', exit_on_failure=True)
 
@@ -323,8 +323,9 @@ def test(host, port):
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b"MATCH (n) WHERE n.name = 'Fiona' RETURN n",
-                                 b'{"n":{"age":"25","id":"10","name":"Fiona","occupation":"Artist",'
-                                 b'"partitionID":"0","type":"Person"}}',
+                                 b'{"n":{"age":"25","id":"10","label":"Person",'
+                                 b'"name":"Fiona","occupation":"Artist",'
+                                 b'"partitionID":"0"}}',
                                  exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'',
                                  b'done', exit_on_failure=True)
@@ -334,8 +335,9 @@ def test(host, port):
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'MATCH (n) WHERE n.age < 30 return n',
-                                 b'{"n":{"age":"25","id":"10","name":"Fiona","occupation":"Artist",'
-                                 b'"partitionID":"0","type":"Person"}}',
+                                 b'{"n":{"age":"25","id":"10","label":"Person",'
+                                 b'"name":"Fiona","occupation":"Artist",'
+                                 b'"partitionID":"0"}}',
                                  exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'',
                                  b'done', exit_on_failure=True)
@@ -347,12 +349,12 @@ def test(host, port):
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher',b'MATCH (a)-[r]-(b)-[d]-(s)'
                                                 b' WHERE (a.id = 10 AND s.id=14) RETURN a, b, s',
-                                 b'{"a":{"age":"25","id":"10","name":"Fiona",'
-                                 b'"occupation":"Artist","partitionID":"0","type":"Person"},'
-                                 b'"b":{"id":"2","name":"Charlie","occupation":"IT Engineer",'
-                                 b'"partitionID":"0","type":"Person"},"s":{"id":"14",'
-                                 b'"name":"Julia","occupation":"Entrepreneur","partitionID":"0",'
-                                 b'"type":"Person"}}',
+                                 b'{"a":{"age":"25","id":"10","label":"Person","name":"Fiona",'
+                                 b'"occupation":"Artist","partitionID":"0"},'
+                                 b'"b":{"id":"2","label":"Person","name":"Charlie","occupation":"IT Engineer",'
+                                 b'"partitionID":"0"},"s":{"id":"14","label":"Person'
+                                 b'"name":"Julia","occupation":"Entrepreneur","partitionID":"0"'
+                                 b'"}}',
                                  exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'',
                                  b'done', exit_on_failure=True)
@@ -364,8 +366,8 @@ def test(host, port):
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher',b"MATCH (n {name:'Eva'})-[:NEIGHBORS]-(x ) RETURN x",
-                                 b'{"x":{"id":"0","name":"Alice",'
-                                 b'"occupation":"Teacher","partitionID":"0","type":"Person"}}',
+                                 b'{"x":{"id":"0","label":"Person","name":"Alice",'
+                                 b'"occupation":"Teacher","partitionID":"0"}}',
                                  exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'',
                                  b'done', exit_on_failure=True)
@@ -377,12 +379,12 @@ def test(host, port):
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher',b'MATCH (n)-[r]-(m {id:6} ) WHERE n.age = 25'
                                                 b' RETURN n, r, m',
-                                 b'{"m":{"category":"Park","id":"6","name":"Central Park",'
-                                 b'"partitionID":"0","type":"Location"},"n":{"age":"25","id":"10",'
+                                 b'{"m":{"category":"Park","id":"6","label":"Location","name":"Central Park",'
+                                 b'"partitionID":"0"},"n":{"age":"25","id":"10","label":"Person"'
                                  b'"name":"Fiona","occupation":"Artist","partitionID":"0",'
-                                 b'"type":"Person"},"r":{"description":"Fiona and Central Park have'
+                                 b'},"r":{"description":"Fiona and Central Park have'
                                  b' been friends since college.","id":"11",'
-                                 b'"relationship_type":"FRIENDS"}}',
+                                 b'"type":"FRIENDS"}}',
                                  exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'',
                                  b'done', exit_on_failure=True)
@@ -394,12 +396,26 @@ def test(host, port):
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher',b'MATCH (n)-[r]-(m {id:6} ) WHERE n.age = 25'
                                                 b' RETURN n, r, m',
-                                 b'{"m":{"category":"Park","id":"6","name":"Central Park",'
-                                 b'"partitionID":"0","type":"Location"},"n":{"age":"25","id":"10",'
+                                 b'{"m":{"category":"Park","id":"6","label":"Location""name":"Central Park",'
+                                 b'"partitionID":"0"},"n":{"age":"25","id":"10","label":"Person"'
                                  b'"name":"Fiona","occupation":"Artist","partitionID":"0",'
-                                 b'"type":"Person"},"r":{"description":"Fiona and Central Park have'
+                                 b'},"r":{"description":"Fiona and Central Park have'
                                  b' been friends since college.","id":"11",'
-                                 b'"relationship_type":"FRIENDS"}}',
+                                 b'"type":"FRIENDS"}}',
+                                 exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher', b'',
+                                 b'done', exit_on_failure=True)
+
+
+
+        print()
+        logging.info('[Cypher] NodeScanByLabel: Test 1 ')
+        send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher',b'match(n:Person) where n.id=2643 return n'
+                                                b' RETURN n',
+                                 b'{"n":{"id":"2","label":"Person","name":"Charlie","occupation":"IT Engineer",'
+                                     b'"partitionID":"0"}}',
                                  exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'',
                                  b'done', exit_on_failure=True)
