@@ -432,15 +432,15 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
         }
         destProperties.clear();
 
-        std::map<std::string, char*> relProperties2 = relation->getAllProperties();
-        execution_logger.debug("UndirectedRelationshipTypeScan: Central relation properties count: " + std::to_string(relProperties2.size()));
-        for (auto property : relProperties2) {
+
+        execution_logger.debug("UndirectedRelationshipTypeScan: Central relation properties count: " + std::to_string(relProperties.size()));
+        for (auto property : relProperties) {
             relationData[property.first] = property.second;
         }
-        for (auto& [key, value] : relProperties2) {
+        for (auto& [key, value] : relProperties) {
             delete[] value;  // Free each allocated char* array
         }
-        relProperties2.clear();
+        relProperties.clear();
 
         json rightDirectionData;
         string start = query["sourceVariable"];

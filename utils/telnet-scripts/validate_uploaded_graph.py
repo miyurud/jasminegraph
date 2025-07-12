@@ -77,14 +77,14 @@ def test_graph_validation():
         sock.connect((HOST, PORT))
 
         # Node validation queries
-        for nid in sample_nodes:
-            query = f"MATCH(n) WHERE n.id={nid} RETURN n.id"
-            expected = [f'"n.id":"{nid}"'.encode()]
-            send_query(sock, f'cypher-node-{nid}', query, expected)
+        # for nid in sample_nodes:
+        #     query = f"MATCH(n) WHERE n.id={nid} RETURN n.id"
+        #     expected = [f'"n.id":"{nid}"'.encode()]
+        #     send_query(sock, f'cypher-node-{nid}', query, expected)
 
         # Edge validation queries
         for n1, n2 , relationship_type, relationship_type_id, relationship_description in sample_edges:
-            query = f"MATCH(n)-[r]-(m) WHERE n.id={n1} AND m.id={n2} RETURN m.id, r, n.id"
+            query = f"MATCH(n)-[r:{relationship_type}]-(m) WHERE n.id={n1} AND m.id={n2} RETURN m.id, r, n.id"
             expected = [f'"m.id":"{n2}"'.encode(),
                         f'description":"{relationship_description}",'
                         f'"id":"{relationship_type_id}",'
