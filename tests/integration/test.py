@@ -233,15 +233,27 @@ def test(host, port):
         logging.info('1. Testing vcnt after adhdfs')
         send_and_expect_response(sock, 'vcnt', VCNT, b'graphid-send', exit_on_failure=True)
         send_and_expect_response(sock, 'vcnt', b'1', b'4941', exit_on_failure=True)
+
         print()
-        logging.info('1. Testing cypher query after adding the graph')
-        # sock.sendall(CYPHER + LINE_END)
-        send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
-        send_and_expect_response(sock, 'cypher', b'1', b'Input query :', exit_on_failure=True)
-        send_and_expect_response(sock, 'cypher', b'match (n) where id(n)=1 return n',
-                                 b'{"n":{"id":"1","partitionID":"1"}}', exit_on_failure=True)
-        send_and_expect_response(sock, 'cypher', b'',
-                                 b'done', exit_on_failure=True)
+        logging.info('Testing adhdfs for custom graph with properties')
+        send_and_expect_response(sock, 'adhdfs', ADHDFS,
+                                    b'Do you want to use the default HDFS server(y/n)?',
+                                    exit_on_failure=True)
+        send_and_expect_response(sock, 'adhdfs', b'n',
+                                    b'Send the file path to the HDFS configuration file.' +
+                                    b' This file needs to be in some directory location ' +
+                                    b'that is accessible for JasmineGraph master',
+                                    exit_on_failure=True)
+        send_and_expect_response(sock, 'adhdfs', b'/var/tmp/config/hdfs_config.txt',
+                                    b'HDFS file path: ',
+                                    exit_on_failure=True)
+        send_and_expect_response(sock, 'adhdfs', b'/home/custom_graph_with_properties.txt',
+                                    b'Is this an edge list type graph(y/n)?',
+                                    exit_on_failure=True)
+        send_and_expect_response(sock, 'adhdfs', b'n',
+                                    b'Is this a directed graph(y/n)?',
+                                    exit_on_failure=True)
+        send_and_expect_response(sock, 'adhdfs', b'y', DONE, exit_on_failure=True)
 
         print()
         logging.info('2. Testing cypher aggregate query after adding the graph')
@@ -252,10 +264,35 @@ def test(host, port):
                                  b'{"avg(n.id)":4.5}', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'',
                                  b'done', exit_on_failure=True)
+
+        print()
+        logging.info('Testing cypher query after adding the graph')
+        send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher', b'1', b'Input query :', exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher', b'match (n) where id(n)=1 return n',
+                             b'{"n":{"id":"1","partitionID":"1"}}', exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher', b'',
+                             b'done', exit_on_failure=True)
+
+        print()
+        logging.info('Testing cypher query with custom graph with properties')
+        send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher', b'match (n) where id(n)=1 return n',
+                                    b'{"n":{"id":"1","name":"Bob",'
+                                    b'"occupation":"Banker","partitionID":"1",'
+                                    b'"type":"Person"}}', exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher', b'',
+                                    b'done', exit_on_failure=True)
+
         print()
         logging.info('1. Testing rmgr after adhdfs')
         send_and_expect_response(sock, 'rmgr', RMGR, SEND, exit_on_failure=True)
         send_and_expect_response(sock, 'rmgr', b'1', DONE, exit_on_failure=True)
+        print()
+        logging.info('Testing rmgr after adhdfs')
+        send_and_expect_response(sock, 'rmgr', RMGR, SEND, exit_on_failure=True)
+        send_and_expect_response(sock, 'rmgr', b'2', DONE, exit_on_failure=True)
 
         print()
         logging.info('Testing lst after adhdfs')
