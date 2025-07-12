@@ -488,7 +488,7 @@ DirectedAllRelationshipScan::DirectedAllRelationshipScan(std::string direction, 
 
 string DirectedAllRelationshipScan::execute() {
     json directed;
-    directed["Operator"] = "DirectedAllRelationshipScan";
+    directed["Operator"] = "DirectedRelationshipTypeScan";
     directed["sourceVariable"] = startVar;
     directed["destVariable"] = endVar;
     directed["relVariable"] = relVar;

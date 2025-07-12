@@ -185,27 +185,29 @@ ready_hdfs() {
 
     echo "File successfully uploaded to HDFS at ${HDFS_FILE_PATH}"
 
-    # upload graph with properties
-    FILE_NAME="graph_with_properties.txt"
-    LOCAL_FILE_PATH="${LOCAL_DIRECTORY}${FILE_NAME}"
-    HDFS_FILE_PATH="${HDFS_DIRECTORY}${FILE_NAME}"
-    kubectl cp "${MASTER_POD}:${LOCAL_FILE_PATH}" "${LOCAL_FILE_PATH}" || {
-        echo "Error copying graph file from JasmineGraph Master pod."
+    CUSTOM_GRAPH_FILE="custom_graph_with_properties.txt"
+    CUSTOM_GRAPH_LOCAL_PATH="${LOCAL_DIRECTORY}${CUSTOM_GRAPH_FILE}"
+    CUSTOM_GRAPH_HDFS_PATH="${HDFS_DIRECTORY}${CUSTOM_GRAPH_FILE}"
+    echo "Copying custom graph file from JasmineGraph Master pod..."
+    kubectl cp "${MASTER_POD}:${CUSTOM_GRAPH_LOCAL_PATH}" "${CUSTOM_GRAPH_LOCAL_PATH}" || {
+        echo "Error copying custom graph file from JasmineGraph Master pod."
         return 1
     }
-    docker cp "${LOCAL_FILE_PATH}" "${NAMENODE_CONTAINER}:${LOCAL_FILE_PATH}" || {
-        echo "Error copying graph file to Namenode container."
+    echo "Copying custom graph file to HDFS Namenode container..."
+    docker cp "${CUSTOM_GRAPH_LOCAL_PATH}" "${NAMENODE_CONTAINER}:${CUSTOM_GRAPH_LOCAL_PATH}" || {
+        echo "Error copying custom graph file to Namenode container."
         return 1
     }
+    echo "Uploading custom graph file to HDFS..."
     docker exec -i "${NAMENODE_CONTAINER}" hdfs dfs -mkdir -p "${HDFS_DIRECTORY}" || {
-        echo "Error creating HDFS directory for graph file."
+        echo "Error creating HDFS directory for custom graph file."
         return 1
     }
-    docker exec -i "${NAMENODE_CONTAINER}" hdfs dfs -put -f "${LOCAL_FILE_PATH}" "${HDFS_FILE_PATH}" || {
-        echo "Error uploading graph file to HDFS."
+    docker exec -i "${NAMENODE_CONTAINER}" hdfs dfs -put -f "${CUSTOM_GRAPH_LOCAL_PATH}" "${CUSTOM_GRAPH_HDFS_PATH}" || {
+        echo "Error uploading custom graph file to HDFS."
         return 1
     }
-    echo "Graph file successfully uploaded to HDFS at ${HDFS_FILE_PATH}"
+    echo "Custom graph file successfully uploaded to HDFS at ${CUSTOM_GRAPH_HDFS_PATH}"
 
 }
 cd "$TEST_ROOT"
