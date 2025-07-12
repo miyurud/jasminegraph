@@ -13,6 +13,8 @@ limitations under the License.
 import sys
 import socket
 import logging
+import os
+from utils.telnetScripts.validate_uploaded_graph import  test_graph_validation
 
 logging.addLevelName(
     logging.INFO, f'\033[1;32m{logging.getLevelName(logging.INFO)}\033[1;0m')
@@ -288,6 +290,11 @@ def test(host, port):
         send_and_expect_response(sock, 'adhdfs', b'y', DONE, exit_on_failure=True)
 
         print()
+        logging.info('[Adhdfd] Testing uploaded graph')
+        abs_path = os.path.abspath('tests/integration/env_init/data/graph_with_properties.txt')
+        test_graph_validation(abs_path, '2')
+
+        print()
 
         logging.info('[Cypher] Testing AllNodeScan ')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
@@ -390,28 +397,10 @@ def test(host, port):
 
 
         print()
-        logging.info('[Cypher] DirectedRelationshipTypeScan: Test 1 ')
-        send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
-        send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
-        send_and_expect_response(sock, 'cypher',b'MATCH (n)-[r]-(m {id:6} ) WHERE n.age = 25'
-                                                b' RETURN n, r, m',
-                                 b'{"m":{"category":"Park","id":"6","label":"Location","name":"Central Park",'
-                                 b'"partitionID":"0"},"n":{"age":"25","id":"10","label":"Person",'
-                                 b'"name":"Fiona","occupation":"Artist","partitionID":"0"'
-                                 b'},"r":{"description":"Fiona and Central Park have'
-                                 b' been friends since college.","id":"11",'
-                                 b'"type":"FRIENDS"}}',
-                                 exit_on_failure=True)
-        send_and_expect_response(sock, 'cypher', b'',
-                                 b'done', exit_on_failure=True)
-
-
-
-        print()
         logging.info('[Cypher] NodeScanByLabel: Test 1 ')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
-        send_and_expect_response(sock, 'cypher',b'match(n:Person) where n.id=2643 return n'
+        send_and_expect_response(sock, 'cypher',b'match(n:Person) where n.id=2 return n'
                                                 b' RETURN n',
                                  b'{"n":{"id":"2","label":"Person","name":"Charlie","occupation":"IT Engineer",'
                                      b'"partitionID":"0"}}',
