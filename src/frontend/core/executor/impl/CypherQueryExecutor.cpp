@@ -216,23 +216,25 @@ void CypherQueryExecutor::execute() {
                     break;
                 }
                 for (size_t i = 0; i < bufferPool.size(); ++i) {
-                    std::string value = bufferPool[i]->get();
-                    if (value != "-1") {
-                        try {
-                            json parsed = json::parse(value);
-                            const json *aggVal = getNestedValuePtr(parsed, Operator::aggregateKey);
-                            if (!aggVal) {
-                                cypher_logger.error("Missing key '" + Operator::aggregateKey + "' in JSON: " + value);
+                    std::string value;
+                    if (bufferPool[i]->tryGet(value)) {
+                        if (value != "-1") {
+                            try {
+                                json parsed = json::parse(value);
+                                const json *aggVal = getNestedValuePtr(parsed, Operator::aggregateKey);
+                                if (!aggVal) {
+                                    cypher_logger.error("Missing key '" + Operator::aggregateKey + "' in JSON: " + value);
+                                    continue;
+                                }
+                                BufferEntry entry{value, i, parsed, isAsc};
+                                mergeQueue.push(entry);
+                            } catch (const json::exception &e) {
+                                cypher_logger.error("JSON parse error: " + std::string(e.what()));
                                 continue;
                             }
-                            BufferEntry entry{value, i, parsed, isAsc};
-                            mergeQueue.push(entry);
-                        } catch (const json::exception &e) {
-                            cypher_logger.error("JSON parse error: " + std::string(e.what()));
-                            continue;
+                        } else {
+                            closeFlag++;
                         }
-                    } else {
-                        closeFlag++;
                     }
                 }
             }
