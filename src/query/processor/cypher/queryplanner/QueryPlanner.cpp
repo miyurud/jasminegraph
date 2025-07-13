@@ -970,7 +970,7 @@ Operator* QueryPlanner::pathPatternHandler(ASTNode *pattern, Operator* inputOper
         } else {
             auto direction = e->elements[0]->elements[0]->nodeType == Const::LEFT_ARRROW ? "left" : "right";
             inputOperator = new DirectedRelationshipTypeScan(direction,
-                                                                 analyzedDetails.second[0]->elements[0]->value,
+                                                                 analyzedDetails.second[1]->elements[0]->value,
                                                                  relVar, startVar, destVar);
         }
 
