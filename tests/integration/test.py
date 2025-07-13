@@ -395,6 +395,16 @@ def test(host, port):
         send_and_expect_response(sock, 'cypher', b'',
                                  b'done', exit_on_failure=True)
 
+        print()
+        logging.info('[Cypher] UndirectedRelationshipTypeScan: Test 1 ')
+        send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher',b"MATCH (n {name:'Eva'})-[:NEIGHBORS]->(x ) RETURN x",
+                                 b'{"x":{"id":"0","label":"Person","name":"Alice",'
+                                 b'"occupation":"Teacher","partitionID":"0"}}',
+                                 exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher', b'',
+                                 b'done', exit_on_failure=True)
 
         print()
         logging.info('[Cypher] NodeScanByLabel: Test 1 ')
