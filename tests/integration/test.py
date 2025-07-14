@@ -408,7 +408,7 @@ def test(host, port):
         print()
         logging.info('[Cypher] OrderBy: Test 1 ')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
-        send_and_expect_response(sock, 'cypher', b'1', b'Input query :', exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher',b"match (n) where n.partitionID = '1' return n order by"
                                                 b' n.name ASC',
                                  b'''{"n":{"category":"Studio","id":"15","label":"Location",'''
