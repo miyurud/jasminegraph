@@ -371,7 +371,7 @@ def test(host, port):
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher',b"MATCH (n {name:'Eva'})-[:NEIGHBORS]-(x ) "
-                                                b"RETURN x",
+                                                b'RETURN x',
                                  b'{"x":{"id":"0","label":"Person","name":"Alice",'
                                  b'"occupation":"Teacher","partitionID":"0"}}',
                                  exit_on_failure=True)
@@ -399,7 +399,7 @@ def test(host, port):
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher',b"MATCH (n {name:'Eva'})-[:NEIGHBORS]->(x ) "
-                                                b"RETURN x",
+                                                b'RETURN x',
                                  b'{"x":{"id":"0","label":"Person","name":"Alice",'
                                  b'"occupation":"Teacher","partitionID":"0"}}',
                                  exit_on_failure=True)
@@ -411,7 +411,7 @@ def test(host, port):
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher',b"match (n) where n.partitionID = '1' return n "
-                                                b"order by n.name ASC",
+                                                b'order by n.name ASC',
                                  b'''{"n":{"category":"Studio","id":"15","label":"Location",'''
                                  b'''"name":"Art Studio","partitionID":"1"}}''',
                                  exit_on_failure=True)
