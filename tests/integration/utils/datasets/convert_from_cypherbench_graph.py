@@ -12,6 +12,7 @@ relations = nba_kg.get("relations", [])
 id_map = {}
 id_counter = 0
 
+
 def get_numeric_id(eid):
     global id_counter
     if eid not in id_map:
@@ -19,11 +20,15 @@ def get_numeric_id(eid):
         id_counter += 1
     return id_map[eid]
 
+
 def filter_string_props(props):
     return {k: str(v) for k, v in props.items() if isinstance(v, str)}
 
+
 # Write converted graph with properties
-with open("data/output/terrorist_attack_simplekg1.txt", "w", encoding="utf-8") as outfile:
+with open(
+    "data/output/terrorist_attack_simplekg1.txt", "w", encoding="utf-8"
+) as outfile:
     for rel in relations:
         src_id = get_numeric_id(rel["subj_id"])
         dst_id = get_numeric_id(rel["obj_id"])
@@ -37,28 +42,28 @@ with open("data/output/terrorist_attack_simplekg1.txt", "w", encoding="utf-8") a
         src_data = {
             "id": src_id,
             "label": src_entity["label"],
-            "name": src_entity["name"]
+            "name": src_entity["name"],
         }
         src_data.update(filter_string_props(src_entity.get("properties", {})))
 
         dst_data = {
             "id": dst_id,
             "label": dst_entity["label"],
-            "name": dst_entity["name"]
+            "name": dst_entity["name"],
         }
         dst_data.update(filter_string_props(dst_entity.get("properties", {})))
 
         edge_properties = {
             "id": str(uuid.uuid4().int)[:8],
             "type": rel["label"],
-            "description": f"{src_entity['name']} -> {rel['label']} -> {dst_entity['name']}"
+            "description": f"{src_entity['name']} -> {rel['label']} -> {dst_entity['name']}",
         }
         edge_properties.update(filter_string_props(rel.get("properties", {})))
 
         line = {
             "source": {"id": src_id, "properties": src_data},
             "destination": {"id": dst_id, "properties": dst_data},
-            "properties": edge_properties
+            "properties": edge_properties,
         }
 
         outfile.write(json.dumps(line, ensure_ascii=False) + "\n")

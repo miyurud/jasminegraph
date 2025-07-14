@@ -7,17 +7,18 @@ from time import sleep
 
 
 # Configuration
-HOST = '127.0.0.1'
+HOST = "127.0.0.1"
 PORT = 7777
-GRAPH_ID = '47'
-LINE_END = b'\r\n'
-CYPHER = b'cypher'
+GRAPH_ID = "47"
+LINE_END = b"\r\n"
+CYPHER = b"cypher"
 
 # Logging setup
-logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
+logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 failed_tests = []
 
-def send_query(sock, test_name, query, expected_keywords , graph_id):
+
+def send_query(sock, test_name, query, expected_keywords, graph_id):
     try:
         # Start CYPHER session for this query
         sock.sendall(CYPHER + LINE_END)
@@ -35,7 +36,7 @@ def send_query(sock, test_name, query, expected_keywords , graph_id):
             if not chunk:
                 break
             response += chunk
-            if b'done' in response.lower():
+            if b"done" in response.lower():
                 break
 
         logging.info(f"\n[{test_name}] Query: {query}\nResponse:{response.strip()}\n")
@@ -49,29 +50,39 @@ def send_query(sock, test_name, query, expected_keywords , graph_id):
         logging.error(f"Exception during [{test_name}]: {e}")
         failed_tests.append(test_name)
 
+
 def extract_graph_ids(path):
     node_ids = set()
     edge_pairs = []
-    with open(path, 'r') as f:
+    with open(path, "r") as f:
         for line in f:
             try:
                 entry = json.loads(line.strip())
-                src = int(entry['source']['id'])
-                dst = int(entry['destination']['id'])
-                src_label = entry['source']['properties']['label']
-                dst_label = entry['destination']['properties']['label']
-                relationship_type = entry['properties']['type']
-                relationship_type_id = entry['properties']['id']
-                relationship_description = entry['properties']['description']
+                src = int(entry["source"]["id"])
+                dst = int(entry["destination"]["id"])
+                src_label = entry["source"]["properties"]["label"]
+                dst_label = entry["destination"]["properties"]["label"]
+                relationship_type = entry["properties"]["type"]
+                relationship_type_id = entry["properties"]["id"]
+                relationship_description = entry["properties"]["description"]
 
                 node_ids.update([(src, src_label)])
                 node_ids.update([(dst, dst_label)])
-                edge_pairs.append(((src, src_label), (dst, dst_label), relationship_type, relationship_type_id, relationship_description))
+                edge_pairs.append(
+                    (
+                        (src, src_label),
+                        (dst, dst_label),
+                        relationship_type,
+                        relationship_type_id,
+                        relationship_description,
+                    )
+                )
             except Exception as e:
                 logging.error(f"Parsing error: {e}")
     return list(node_ids), edge_pairs
 
-def test_graph_validation( graph_source, graph_id):
+
+def test_graph_validation(graph_source, graph_id):
     node_ids, edge_pairs = extract_graph_ids(graph_source)
     sample_nodes = random.sample(node_ids, min(10, len(node_ids)))
     sample_edges = random.sample(edge_pairs, min(10, len(edge_pairs)))
@@ -83,17 +94,25 @@ def test_graph_validation( graph_source, graph_id):
         for nid, label in sample_nodes:
             query = f"MATCH(n:{label}) WHERE n.id={nid} RETURN n.id"
             expected = [f'"n.id":"{nid}"'.encode()]
-            send_query(sock, f'cypher-node-{nid}', query, expected, graph_id)
+            send_query(sock, f"cypher-node-{nid}", query, expected, graph_id)
 
         # Edge validation queries
-        for n1, n2 , relationship_type, relationship_type_id, relationship_description in sample_edges:
+        for (
+            n1,
+            n2,
+            relationship_type,
+            relationship_type_id,
+            relationship_description,
+        ) in sample_edges:
             query = f"MATCH(n:{n1[1]})-[r:{relationship_type}]-(m:{n2[1]}) WHERE n.id={n1[0]} AND m.id={n2[0]} RETURN m.id, r, n.id"
-            expected = [f'"m.id":"{n2[0]}"'.encode(),
-                        f'description":"{relationship_description}",'
-                        f'"id":"{relationship_type_id}",'
-                        f'"type":"{relationship_type}"'.encode() ,
-                        f'"n.id":"{n1[0]}"'.encode()]
-            send_query(sock, f'cypher-edge-{n1}-{n2}', query, expected, graph_id)
+            expected = [
+                f'"m.id":"{n2[0]}"'.encode(),
+                f'description":"{relationship_description}",'
+                f'"id":"{relationship_type_id}",'
+                f'"type":"{relationship_type}"'.encode(),
+                f'"n.id":"{n1[0]}"'.encode(),
+            ]
+            send_query(sock, f"cypher-edge-{n1}-{n2}", query, expected, graph_id)
 
     # Final summary
     print("\n======= Test Summary =======")
@@ -104,11 +123,12 @@ def test_graph_validation( graph_source, graph_id):
         for test in failed_tests:
             print(" -", test)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     if len(sys.argv) > 1:
         graph_source = sys.argv[1]
         graph_id = sys.argv[2] if len(sys.argv) > 2 else GRAPH_ID
     else:
-        graph_source = '../../env_init/data/graph_data_0.3GB.txt'
+        graph_source = "../../env_init/data/graph_data_0.3GB.txt"
         graph_id = GRAPH_ID
     test_graph_validation(graph_source, graph_id)
