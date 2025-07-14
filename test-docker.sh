@@ -134,7 +134,7 @@ wait_for_hadoop() {
     fi
 
     # uploading custom_graph_with_properties.txt
-    CUSTOM_GRAPH_FILE="custom_graph_with_properties.txt"
+    CUSTOM_GRAPH_FILE="graph_with_properties.txt"
     CUSTOM_GRAPH_LOCAL_PATH="${LOCAL_DIRECTORY}${CUSTOM_GRAPH_FILE}"
     CUSTOM_GRAPH_HDFS_PATH="${HDFS_DIRECTORY}${CUSTOM_GRAPH_FILE}"
     docker cp integration-jasminegraph-1:"${CUSTOM_GRAPH_LOCAL_PATH}" "${LOCAL_DIRECTORY}"
