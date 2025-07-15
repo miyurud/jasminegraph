@@ -1503,7 +1503,7 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
         std::string start_msg(start);
         if (JasmineGraphInstanceProtocol::QUERY_DATA_START != start_msg) {
             util_logger.error("Error while receiving start command: " + start_msg);
-            continue;
+            break;
         }
         send(sockfd, JasmineGraphInstanceProtocol::QUERY_DATA_ACK.c_str(),
              JasmineGraphInstanceProtocol::QUERY_DATA_ACK.length(), 0);

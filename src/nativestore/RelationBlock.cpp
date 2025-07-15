@@ -422,7 +422,7 @@ RelationBlock* RelationBlock::getCentralRelation(unsigned int address) {
     if (!RelationBlock::centralRelationsDB->read(reinterpret_cast<char*>(&source.nodeId),
                                           RECORD_SIZE)) {  // < ------ relation data offset ID = 0
         relation_block_logger.error(
-                "Error while reading local relation source node address offset ID = 0 from "
+                "Error while reading central relation source node address offset ID = 0 from "
                 "relation block address " +
                 std::to_string(address));
         return NULL;
@@ -431,7 +431,7 @@ RelationBlock* RelationBlock::getCentralRelation(unsigned int address) {
     if (!RelationBlock::centralRelationsDB->read(reinterpret_cast<char*>(&destination.nodeId),
                                           RECORD_SIZE)) {  // < ------ relation data offset ID = 1
         relation_block_logger.error(
-                "Error while reading local relation source node address offset ID = 0 from "
+                "Error while reading central relation source node address offset ID = 0 from "
                 "relation block address " +
                 std::to_string(address));
         return NULL;
@@ -440,7 +440,7 @@ RelationBlock* RelationBlock::getCentralRelation(unsigned int address) {
     if (!RelationBlock::centralRelationsDB->read(reinterpret_cast<char*>(&source.address),
                                           RECORD_SIZE)) {  // < ------ relation data offset ID = 2
         relation_block_logger.error(
-                "Error while reading local relation source node address offset ID = 0 from "
+                "Error while reading central relation source node address offset ID = 0 from "
                 "relation block address " +
                 std::to_string(address));
         return NULL;

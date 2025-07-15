@@ -169,24 +169,27 @@ void JasmineGraphIncrementalLocalStore::addCentralEdge(std::string edge) {
 }
 
 void JasmineGraphIncrementalLocalStore::addCentralEdgeProperties(RelationBlock* relationBlock, const json& edgeJson) {
+    incremental_localstore_logger.debug("Entering addCentralEdgeProperties");
     char value[PropertyLink::MAX_VALUE_SIZE] = {};
     char type[RelationBlock::MAX_TYPE_SIZE] = {0};
     if (edgeJson.contains("properties")) {
         auto edgeProperties = edgeJson["properties"];
         for (auto it = edgeProperties.begin(); it != edgeProperties.end(); it++) {
             strcpy(value, it.value().get<std::string>().c_str());
+            incremental_localstore_logger.debug("Processing property key: " + std::string(it.key()) + ", value: " + std::string(value));
             if (std::string(it.key()) == "type") {
                 strcpy(type, it.value().get<std::string>().c_str());
-                // extract the index by dividing the address by the block size
-                size_t edgeIndex = relationBlock->addr / RelationBlock::BLOCK_SIZE;
-
+                size_t edgeIndex = relationBlock->addr / RelationBlock::CENTRAL_BLOCK_SIZE;
+                incremental_localstore_logger.debug("Setting central relationship type: " + std::string(type) + " at edgeIndex: " + std::to_string(edgeIndex));
                 relationBlock->addCentralRelationshipType(&type[0], centralRelationLabelIndexManager, edgeIndex);
             }
             relationBlock->addCentralProperty(std::string(it.key()), &value[0]);
         }
     }
     std::string edgePid = std::to_string(edgeJson["source"]["pid"].get<int>());
+    incremental_localstore_logger.debug("Adding relation meta property PARTITION_ID: " + edgePid);
     addRelationMetaProperty(relationBlock, MetaPropertyEdgeLink::PARTITION_ID, edgePid);
+    incremental_localstore_logger.debug("Exiting addCentralEdgeProperties");
 }
 
 void JasmineGraphIncrementalLocalStore::addLocalEdgeProperties(RelationBlock* relationBlock, const json& edgeJson) {

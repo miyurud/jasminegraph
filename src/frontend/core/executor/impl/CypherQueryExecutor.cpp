@@ -90,23 +90,26 @@ void CypherQueryExecutor::execute() {
 
     const auto &workerList = JasmineGraphServer::getWorkers(numberOfPartitions);
 
-    std::vector<std::unique_ptr<SharedBuffer>> bufferPool;
-    bufferPool.reserve(numberOfPartitions);  // Pre-allocate space for pointers
-    for (size_t i = 0; i < numberOfPartitions; ++i) {
-        bufferPool.emplace_back(std::make_unique<SharedBuffer>(MASTER_BUFFER_SIZE));
-    }
+  std::vector<std::unique_ptr<SharedBuffer>> bufferPool;
+  bufferPool.reserve(numberOfPartitions);  // Pre-allocate space for pointers
+  for (size_t i = 0; i < numberOfPartitions; ++i) {
+      bufferPool.emplace_back(std::make_unique<SharedBuffer>(MASTER_BUFFER_SIZE));
+  }
 
-    std::vector<std::thread> workerThreads;
-    int count = 0;
-    for (auto worker : workerList) {
-        workerThreads.emplace_back(
-            doCypherQuery,
-            worker.hostname, worker.port,
-            masterIP, std::stoi(graphId), count,
-            queryPlan, std::ref(*bufferPool[count]));
-        count++;
-    }
+  cypher_logger.debug("Initialized bufferPool with " + std::to_string(numberOfPartitions) + " SharedBuffer objects");
 
+  std::vector<std::thread> workerThreads;
+  int count = 0;
+  for (auto worker : workerList) {
+      cypher_logger.debug("Spawning worker thread for host: " + worker.hostname + ", port: " + std::to_string(worker.port) +
+                          ", partition: " + std::to_string(count));
+      workerThreads.emplace_back(
+          doCypherQuery,
+          worker.hostname, worker.port,
+          masterIP, std::stoi(graphId), count,
+          queryPlan, std::ref(*bufferPool[count]));
+      count++;
+  }
     PerformanceUtil::init();
 
     std::string query =

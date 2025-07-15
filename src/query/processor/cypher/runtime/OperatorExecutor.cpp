@@ -464,9 +464,7 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
     }
     execution_logger.debug("UndirectedRelationshipTypeScan: Finished, adding -1 to buffer");
     buffer.add("-1");
-    delete &localLabelIndexManager;
-    delete &centralLabelIndexManager;
-    delete &nodeManager;
+
 }
 void OperatorExecutor::UndirectedAllRelationshipScan(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
     json query = json::parse(jsonPlan);
