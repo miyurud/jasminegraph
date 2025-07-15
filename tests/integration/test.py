@@ -360,7 +360,8 @@ def test(host, port):
                                  b'{"a":{"age":"25","id":"10","label":"Person",'
                                  b'"name":"Fiona","occupation":"Artist","partitionID":"0"},'
                                  b'"b":{"id":"2","label":"Person","name":"Charlie",'
-                                 b'"occupation":"IT Engineer","partitionID":"0"},"s":{"id":"14","label":"Person",'
+                                 b'"occupation":"IT Engineer","partitionID":"0"},'
+                                 b'"s":{"id":"14","label":"Person",'
                                  b'"name":"Julia","occupation":"Entrepreneur","partitionID":"0"}}',
                                  exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'',
@@ -372,7 +373,8 @@ def test(host, port):
         logging.info('[Cypher] UndirectedRelationshipTypeScan: Test 1 ')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
-        send_and_expect_response(sock, 'cypher',b"MATCH (n {name:'Eva'})-[:NEIGHBORS]-(x ) RETURN x",
+        send_and_expect_response(sock, 'cypher',b"MATCH "
+                                                b"(n {name:'Eva'})-[:NEIGHBORS]-(x ) RETURN x",
                                  b'{"x":{"id":"0","label":"Person","name":"Alice",'
                                  b'"occupation":"Teacher","partitionID":"0"}}',
                                  exit_on_failure=True)
@@ -400,7 +402,8 @@ def test(host, port):
         print()
         logging.info('[Cypher] UndirectedRelationshipTypeScan: Test 1 ')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
-        send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher', b'2', b'Input query :',
+                                 exit_on_failure=True)
         send_and_expect_response(sock, 'cypher',b"MATCH (n {name:'Eva'})-[:NEIGHBORS]->(x ) RETURN x",
                                  b'{"x":{"id":"0","label":"Person","name":"Alice",'
                                  b'"occupation":"Teacher","partitionID":"0"}}',
