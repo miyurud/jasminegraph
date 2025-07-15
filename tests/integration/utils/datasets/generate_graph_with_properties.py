@@ -5,7 +5,8 @@ import random
 
 target_size_gb = 0.0001
 # File settings
-output_file = "/home/ubuntu/software/jasminegraph/tests/integration/env_init/data/graph_data_0.0001GB.txt"
+output_file = ("/home/ubuntu/software/jasminegraph/tests"
+               "/integration/env_init/data/graph_data_0.0001GB.txt")
 
 target_size_bytes = target_size_gb * 1024**3
 

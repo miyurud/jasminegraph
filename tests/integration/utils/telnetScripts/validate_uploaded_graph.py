@@ -1,3 +1,4 @@
+"""This script connects to a server to validate an uploaded graph by sending Cypher queries."""
 import socket
 import logging
 import json
@@ -18,7 +19,7 @@ failed_tests = []
 
 
 def send_query(sock, test_name, query, expected_keywords, graph_id):
-    '''Send a query to the server and validate the response against expected keywords.'''
+    """Send a query to the server and validate the response against expected keywords."""
     try:
         # Start CYPHER session for this query
         sock.sendall(CYPHER + LINE_END)
@@ -57,10 +58,10 @@ def send_query(sock, test_name, query, expected_keywords, graph_id):
 
 
 def extract_graph_ids(path):
-    '''Extract node IDs and edge pairs from the graph data file.'''
+    """Extract node IDs and edge pairs from the graph data file."""
     node_ids = set()
     edge_pairs = []
-    with open(path, "r") as f:
+    with open(path, "r",  encoding="utf-8") as f:
         for line in f:
             try:
                 entry = json.loads(line.strip())
@@ -89,7 +90,7 @@ def extract_graph_ids(path):
 
 
 def test_graph_validation(graph_source, graph_id):
-    '''Validate the uploaded graph by sending queries and checking responses.'''
+    """Validate the uploaded graph by sending queries and checking responses."""
     node_ids, edge_pairs = extract_graph_ids(graph_source)
     sample_nodes = random.sample(node_ids, min(10, len(node_ids)))
     sample_edges = random.sample(edge_pairs, min(10, len(edge_pairs)))
@@ -101,7 +102,7 @@ def test_graph_validation(graph_source, graph_id):
         for nid, label in sample_nodes:
             query = f"MATCH(n:{label}) WHERE n.id={nid} RETURN n.id"
             expected = [f'"n.id":"{nid}"'.encode()]
-            send_query(sock, "cypher-node-%s" % nid, query, expected, graph_id)
+            send_query(sock, f'cypher-node-%{nid}'  , query, expected, graph_id)
 
         # Edge validation queries
         for (
@@ -124,7 +125,7 @@ def test_graph_validation(graph_source, graph_id):
                 ).encode(),
                 f'"n.id":"{n1[0]}"'.encode(),
             ]
-            send_query(sock, "cypher-edge-%s-%s" % (n1, n2), query, expected, graph_id)
+            send_query(sock, f'cypher-edge-{n1}-{n2}', query, expected, graph_id)
 
     # Final summary
     print("\n======= Test Summary =======")
