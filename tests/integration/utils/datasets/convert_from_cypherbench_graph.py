@@ -58,7 +58,7 @@ with open("data/output/terrorist_attack_simplekg1.txt", "w", encoding="utf-8") a
         edge_properties = {
             "id": str(uuid.uuid4().int)[:8],
             "type": rel["label"],
-            "description": f"{src_entity['name']} -> {rel['label']} -> {dst_entity['name']}",
+            "description": f'{src_entity["name"]} -> {rel["label"]} -> {dst_entity["name"]}',
         }
         edge_properties.update(filter_string_props(rel.get("properties", {})))
 
