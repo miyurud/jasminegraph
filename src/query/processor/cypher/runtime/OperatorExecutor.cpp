@@ -1226,9 +1226,23 @@ struct Row {
         data = json::parse(str);
     }
 
+    json getNestedValue(const json& obj, const std::string& key) const {
+        json current = obj;
+        std::stringstream ss(key);
+        std::string token;
+
+        while (std::getline(ss, token, '.')) {
+            if (!current.contains(token)) {
+                return nullptr;
+            }
+            current = current[token];
+        }
+        return current;
+    }
+
     bool operator<(const Row& other) const {
-        const auto& val1 = data[sortKey];
-        const auto& val2 = other.data[sortKey];
+        json val1 = getNestedValue(data, sortKey);
+        json val2 = getNestedValue(other.data, sortKey);
 
         bool result;
         if (val1.is_number_integer() && val2.is_number_integer()) {
@@ -1272,11 +1286,16 @@ void OperatorExecutor::OrderBy(SharedBuffer &buffer, std::string jsonPlan, Graph
 
         try {
             Row row(jsonStr, sortKey, isAsc);
-            if (row.data.contains(sortKey)) {  // Ensure field exists
-                heap.push(row);
-                if (heap.size() > MAX_SIZE) {
-                    heap.pop();  // Remove smallest (ASC) or largest (DESC)
-                }
+            json nestedVal = row.getNestedValue(row.data, sortKey);
+
+            if (nestedVal.is_null()) {
+                execution_logger.warn("OrderBy: Sort key '" + sortKey + "' not found in row: " + jsonStr);
+                continue;
+            }
+            heap.push(row);
+            if (heap.size() > MAX_SIZE) {
+                execution_logger.info("OrderBy: Heap size exceeded MAX_SIZE, popping");
+                heap.pop();
             }
         } catch (const std::exception& e) {
             std::cerr << "Error parsing JSON: " << e.what() << "\n";
