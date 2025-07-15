@@ -5,7 +5,6 @@ import random
 import sys
 from time import sleep
 
-
 # Configuration
 HOST = "127.0.0.1"
 PORT = 7777
@@ -40,15 +39,20 @@ def send_query(sock, test_name, query, expected_keywords, graph_id):
             if b"done" in response.lower():
                 break
 
-        logging.info(f"\n[{test_name}] Query: {query}\nResponse:{response.strip()}\n")
+        logging.info(
+            "\n[%s] Query: %s\nResponse:%s\n",
+            test_name,
+            query,
+            response.strip(),
+        )
 
         if all(keyword in response for keyword in expected_keywords):
-            logging.info(f"✅ {test_name} passed")
+            logging.info("✅ %s passed", test_name)
         else:
-            logging.warning(f"❌ {test_name} failed. Expected keywords not found.")
+            logging.warning("❌ %s failed. Expected keywords not found.", test_name)
             failed_tests.append(test_name)
     except Exception as e:
-        logging.error(f"Exception during [{test_name}]: {e}")
+        logging.error("Exception during [%s]: %s", test_name, e)
         failed_tests.append(test_name)
 
 
@@ -80,7 +84,7 @@ def extract_graph_ids(path):
                     )
                 )
             except Exception as e:
-                logging.error(f"Parsing error: {e}")
+                logging.error("Parsing error: %s", e)
     return list(node_ids), edge_pairs
 
 
@@ -97,25 +101,30 @@ def test_graph_validation(graph_source, graph_id):
         for nid, label in sample_nodes:
             query = f"MATCH(n:{label}) WHERE n.id={nid} RETURN n.id"
             expected = [f'"n.id":"{nid}"'.encode()]
-            send_query(sock, f"cypher-node-{nid}", query, expected, graph_id)
+            send_query(sock, "cypher-node-%s" % nid, query, expected, graph_id)
 
         # Edge validation queries
         for (
-            n1,
-            n2,
-            relationship_type,
-            relationship_type_id,
-            relationship_description,
+                n1,
+                n2,
+                relationship_type,
+                relationship_type_id,
+                relationship_description,
         ) in sample_edges:
-            query = f"MATCH(n:{n1[1]})-[r:{relationship_type}]-(m:{n2[1]}) WHERE n.id={n1[0]} AND m.id={n2[0]} RETURN m.id, r, n.id"
+            query = (
+                f"MATCH(n:{n1[1]})-[r:{relationship_type}]-(m:{n2[1]}) "
+                f"WHERE n.id={n1[0]} AND m.id={n2[0]} RETURN m.id, r, n.id"
+            )
             expected = [
                 f'"m.id":"{n2[0]}"'.encode(),
-                f'description":"{relationship_description}",'
-                f'"id":"{relationship_type_id}",'
-                f'"type":"{relationship_type}"'.encode(),
+                (
+                    f'description":"{relationship_description}",'
+                    f'"id":"{relationship_type_id}",'
+                    f'"type":"{relationship_type}"'
+                ).encode(),
                 f'"n.id":"{n1[0]}"'.encode(),
             ]
-            send_query(sock, f"cypher-edge-{n1}-{n2}", query, expected, graph_id)
+            send_query(sock, "cypher-edge-%s-%s" % (n1, n2), query, expected, graph_id)
 
     # Final summary
     print("\n======= Test Summary =======")
