@@ -9,7 +9,7 @@ from time import sleep
 # Configuration
 HOST = "127.0.0.1"
 PORT = 7777
-GRAPH_ID = "47"
+GRAPH_ID = "8"
 LINE_END = b"\r\n"
 CYPHER = b"cypher"
 
@@ -92,8 +92,8 @@ def extract_graph_ids(path):
 def test_graph_validation(graph_source, graph_id):
     """Validate the uploaded graph by sending queries and checking responses."""
     node_ids, edge_pairs = extract_graph_ids(graph_source)
-    sample_nodes = random.sample(node_ids, min(10, len(node_ids)))
-    sample_edges = random.sample(edge_pairs, min(10, len(edge_pairs)))
+    sample_nodes = random.sample(node_ids, min(100, len(node_ids)))
+    sample_edges = random.sample(edge_pairs, min(100, len(edge_pairs)))
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((HOST, PORT))
@@ -142,6 +142,6 @@ if __name__ == "__main__":
         graph_source = sys.argv[1]
         graph_id = sys.argv[2] if len(sys.argv) > 2 else GRAPH_ID
     else:
-        graph_source = "../../env_init/data/graph_data_0.3GB.txt"
+        graph_source = "../../env_init/data/graph_with_properties_test2.txt"
         graph_id = GRAPH_ID
     test_graph_validation(graph_source, graph_id)
