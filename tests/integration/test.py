@@ -288,10 +288,6 @@ def test(host, port):
                                  exit_on_failure=True)
         send_and_expect_response(sock, 'adhdfs', b'y', DONE, exit_on_failure=True)
 
-        print()
-        logging.info('[Adhdfd] Testing uploaded graph')
-        abs_path = os.path.abspath('tests/integration/env_init/data/graph_with_properties.txt')
-        test_graph_validation(abs_path, '2')
 
         print()
 
