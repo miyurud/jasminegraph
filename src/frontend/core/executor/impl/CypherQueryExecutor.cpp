@@ -191,7 +191,7 @@ void CypherQueryExecutor::execute() {
                     const json* val1 = getNestedValuePtr(data, Operator::aggregateKey);
                     if (!val1) {
                         cypher_logger.error("Missing key in val1 for comparison: " + Operator::aggregateKey);
-                        return false; // or decide what fallback you want
+                        return false;  // or decide what fallback you want
                     }
                     const json* val2 = getNestedValuePtr(other.data, Operator::aggregateKey);
                     if (!val2) {
@@ -211,7 +211,7 @@ void CypherQueryExecutor::execute() {
             };
             bool isAsc = (Operator::aggregateType == AggregationFactory::ASC);
             std::priority_queue<BufferEntry> mergeQueue;  // Min-heap
-            while(true) {
+            while (true) {
                 if (closeFlag == numberOfPartitions) {
                     break;
                 }
@@ -223,7 +223,8 @@ void CypherQueryExecutor::execute() {
                                 json parsed = json::parse(value);
                                 const json *aggVal = getNestedValuePtr(parsed, Operator::aggregateKey);
                                 if (!aggVal) {
-                                    cypher_logger.error("Missing key '" + Operator::aggregateKey + "' in JSON: " + value);
+                                    cypher_logger.error("Missing key '" + Operator::aggregateKey
+                                        + "' in JSON: " + value);
                                     continue;
                                 }
                                 BufferEntry entry{value, i, parsed, isAsc};
