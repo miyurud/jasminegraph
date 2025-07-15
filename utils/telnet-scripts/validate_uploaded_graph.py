@@ -9,7 +9,7 @@ from time import sleep
 # Configuration
 HOST = '127.0.0.1'
 PORT = 7777
-GRAPH_ID = '36'
+GRAPH_ID = '9'
 LINE_END = b'\r\n'
 CYPHER = b'cypher'
 
@@ -58,7 +58,7 @@ def extract_graph_ids(path):
                 entry = json.loads(line.strip())
                 src = int(entry['source']['id'])
                 dst = int(entry['destination']['id'])
-                relationship_type = entry['properties']['relationship_type']
+                relationship_type = entry['properties']['type']
                 relationship_type_id = entry['properties']['id']
                 relationship_description = entry['properties']['description']
 
@@ -69,7 +69,7 @@ def extract_graph_ids(path):
     return list(node_ids), edge_pairs
 
 def test_graph_validation():
-    node_ids, edge_pairs = extract_graph_ids('/home/ubuntu/software/jasminegraph/tests/integration/env_init/data/graph_data_0.4GB.txt')
+    node_ids, edge_pairs = extract_graph_ids('/home/ubuntu/software/jasminegraph/tests/integration/env_init/data/graph_data_0.3GB.txt')
     sample_nodes = random.sample(node_ids, min(10, len(node_ids)))
     sample_edges = random.sample(edge_pairs, min(10, len(edge_pairs)))
 
