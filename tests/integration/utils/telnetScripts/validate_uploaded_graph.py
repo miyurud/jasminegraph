@@ -19,6 +19,7 @@ failed_tests = []
 
 
 def send_query(sock, test_name, query, expected_keywords, graph_id):
+    '''Send a query to the server and validate the response against expected keywords.'''
     try:
         # Start CYPHER session for this query
         sock.sendall(CYPHER + LINE_END)
@@ -52,6 +53,7 @@ def send_query(sock, test_name, query, expected_keywords, graph_id):
 
 
 def extract_graph_ids(path):
+    '''Extract node IDs and edge pairs from the graph data file.'''
     node_ids = set()
     edge_pairs = []
     with open(path, "r") as f:
@@ -83,6 +85,7 @@ def extract_graph_ids(path):
 
 
 def test_graph_validation(graph_source, graph_id):
+    '''Validate the uploaded graph by sending queries and checking responses.'''
     node_ids, edge_pairs = extract_graph_ids(graph_source)
     sample_nodes = random.sample(node_ids, min(10, len(node_ids)))
     sample_edges = random.sample(edge_pairs, min(10, len(edge_pairs)))

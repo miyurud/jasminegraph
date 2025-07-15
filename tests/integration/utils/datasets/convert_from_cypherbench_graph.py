@@ -14,6 +14,7 @@ id_counter = 0
 
 
 def get_numeric_id(eid):
+    ''' get numerical value '''
     global id_counter
     if eid not in id_map:
         id_map[eid] = str(id_counter)
@@ -22,6 +23,7 @@ def get_numeric_id(eid):
 
 
 def filter_string_props(props):
+    ''' filter props'''
     return {k: str(v) for k, v in props.items() if isinstance(v, str)}
 
 
