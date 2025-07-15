@@ -300,7 +300,8 @@ def test(host, port):
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'MATCH (n) WHERE n.id=2 RETURN n ',
-                                 b'{"n":{"id":"2","label":"Person","name":"Charlie","occupation":"IT Engineer",'
+                                 b'{"n":{"id":"2","label":"Person","name":"Charlie",'
+                                 b'"occupation":"IT Engineer",'
                                  b'"partitionID":"0"}}', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'',
                                  b'done', exit_on_failure=True)

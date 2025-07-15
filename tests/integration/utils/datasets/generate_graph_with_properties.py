@@ -1,10 +1,11 @@
+"""Module to generate a graph with properties for integration testing."""
+
 import json
 import random
 
 target_size_gb = 0.0001
 # File settings
-output_file = \
-    "/home/ubuntu/software/jasminegraph/tests/integration/env_init/data/graph_data_0.0001GB.txt"
+output_file = "/home/ubuntu/software/jasminegraph/tests/integration/env_init/data/graph_data_0.0001GB.txt"
 
 target_size_bytes = target_size_gb * 1024**3
 
@@ -55,12 +56,12 @@ relationship_types = ["FRIENDS", "NEIGHBORS", "WORKS_AT", "VISITS", "MANAGES"]
 
 
 def random_id():
-    '''Generate a random ID for entities and relationships.'''
+    """Generate a random ID for entities and relationships."""
     return str(random.randint(1000, 9999))
 
 
 def random_person():
-    '''Generate person'''
+    """Generate person."""
     return {
         "id": random_id(),
         "label": "Person",
@@ -71,7 +72,7 @@ def random_person():
 
 
 def random_location():
-    '''Generate a random location entity.'''
+    """Generate a random location entity."""
     return {
         "id": random_id(),
         "label": "Location",
@@ -81,12 +82,12 @@ def random_location():
 
 
 def random_entity():
-    '''Randomly choose between a person or a location entity.'''
+    """Randomly choose between a person or a location entity."""
     return random_person() if random.random() < 0.5 else random_location()
 
 
 def random_relationship(id_num, src, dst):
-    '''Generate a random relationship between two entities.'''
+    """Generate a random relationship between two entities."""
     rel_type = random.choice(relationship_types)
     src_name = src.get("name", "Unknown")
     dst_name = dst.get("name", "Unknown")
@@ -95,7 +96,7 @@ def random_relationship(id_num, src, dst):
 
 
 # Generate data
-with open(output_file, "w") as f:
+with open(output_file, "w", encoding="utf-8") as f:
     total_bytes = 0
     entry_id = 0
 
