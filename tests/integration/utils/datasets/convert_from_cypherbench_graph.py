@@ -1,3 +1,5 @@
+"""Convert CypherBench-style JSON graph to JasmineGraph-compatible format."""
+
 import json
 import uuid
 
@@ -14,6 +16,7 @@ id_counter = 0
 
 
 def get_numeric_id(eid):
+    """Get a numeric string ID for an entity."""
     global id_counter
     if eid not in id_map:
         id_map[eid] = str(id_counter)
@@ -22,13 +25,12 @@ def get_numeric_id(eid):
 
 
 def filter_string_props(props):
+    """Filter and convert properties to string if they are string-typed."""
     return {k: str(v) for k, v in props.items() if isinstance(v, str)}
 
 
 # Write converted graph with properties
-with open(
-    "data/output/terrorist_attack_simplekg1.txt", "w", encoding="utf-8"
-) as outfile:
+with open("data/output/terrorist_attack_simplekg1.txt", "w", encoding="utf-8") as outfile:
     for rel in relations:
         src_id = get_numeric_id(rel["subj_id"])
         dst_id = get_numeric_id(rel["obj_id"])
@@ -56,7 +58,7 @@ with open(
         edge_properties = {
             "id": str(uuid.uuid4().int)[:8],
             "type": rel["label"],
-            "description": f"{src_entity['name']} -> {rel['label']} -> {dst_entity['name']}",
+            "description": f'{src_entity["name"]} -> {rel["label"]} -> {dst_entity["name"]}',
         }
         edge_properties.update(filter_string_props(rel.get("properties", {})))
 

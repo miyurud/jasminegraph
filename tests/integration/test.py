@@ -299,8 +299,9 @@ def test(host, port):
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'MATCH (n) WHERE n.id=2 RETURN n ',
-                                 b'{"n":{"id":"2","label":"Person","name":"Charlie","occupation":'
-                                 b'"IT Engineer","partitionID":"0"}}', exit_on_failure=True)
+                                 b'{"n":{"id":"2","label":"Person","name":"Charlie",'
+                                 b'"occupation":"IT Engineer",'
+                                 b'"partitionID":"0"}}', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'',
                                  b'done', exit_on_failure=True)
 
@@ -358,9 +359,11 @@ def test(host, port):
                                  b'{"a":{"age":"25","id":"10","label":"Person",'
                                  b'"name":"Fiona","occupation":"Artist","partitionID":"0"},'
                                  b'"b":{"id":"2","label":"Person","name":"Charlie",'
-                                 b'"occupation":"IT Engineer","partitionID":"0"},"s":{"id":"14",'
-                                 b'"label":"Person","name":"Julia","occupation":"Entrepreneur",'
-                                 b'"partitionID":"0"}}',exit_on_failure=True)
+                                 b'"occupation":"IT Engineer","partitionID":"0"},'
+                                 b'"s":{"id":"14","label":"Person",'
+                                 b'"name":"Julia","occupation":"Entrepreneur","partitionID":"0"}}',
+                                 exit_on_failure=True)
+
         send_and_expect_response(sock, 'cypher', b'',
                                  b'done', exit_on_failure=True)
 
@@ -370,8 +373,9 @@ def test(host, port):
         logging.info('[Cypher] UndirectedRelationshipTypeScan: Test 1 ')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
-        send_and_expect_response(sock, 'cypher',b"MATCH (n {name:'Eva'})-[:NEIGHBORS]-(x ) "
-                                                b'RETURN x',
+        send_and_expect_response(sock, 'cypher',b'MATCH '
+                                                b"(n {name:'Eva'})-[:NEIGHBORS]-(x ) RETURN x",
+
                                  b'{"x":{"id":"0","label":"Person","name":"Alice",'
                                  b'"occupation":"Teacher","partitionID":"0"}}',
                                  exit_on_failure=True)
@@ -385,11 +389,14 @@ def test(host, port):
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher',b'MATCH (n)-[r]-(m {id:6} ) WHERE n.age = 25'
                                                 b' RETURN n, r, m',
-                                 b'{"m":{"category":"Park","id":"6","label":"Location","name":'
-                                 b'"Central Park","partitionID":"0"},"n":{"age":"25","id":"10",'
-                                 b'"label":"Person","name":"Fiona","occupation":"Artist",'
-                                 b'"partitionID":"0"},"r":{"description":"Fiona and Central Park '
-                                 b'have been friends since college.","id":"11","type":"FRIENDS"}}',
+                                 b'{"m":{"category":"Park","id":"6","label":"Location",'
+                                 b'"name":"Central Park",'
+                                 b'"partitionID":"0"},"n":{"age":"25","id":"10","label":"Person",'
+                                 b'"name":"Fiona","occupation":"Artist","partitionID":"0"'
+                                 b'},"r":{"description":"Fiona and Central Park have'
+                                 b' been friends since college.","id":"11",'
+                                 b'"type":"FRIENDS"}}',
+
                                  exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'',
                                  b'done', exit_on_failure=True)
@@ -397,9 +404,11 @@ def test(host, port):
         print()
         logging.info('[Cypher] UndirectedRelationshipTypeScan: Test 1 ')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
-        send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
-        send_and_expect_response(sock, 'cypher',b"MATCH (n {name:'Eva'})-[:NEIGHBORS]->(x ) "
-                                                b'RETURN x',
+        send_and_expect_response(sock, 'cypher', b'2', b'Input query :',
+                                 exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher',b'MATCH'
+                                                b" (n {name:'Eva'})-[:NEIGHBORS]->(x ) RETURN x",
+
                                  b'{"x":{"id":"0","label":"Person","name":"Alice",'
                                  b'"occupation":"Teacher","partitionID":"0"}}',
                                  exit_on_failure=True)
@@ -462,9 +471,9 @@ def test(host, port):
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher',b'match(n:Person) where n.id=2 return n'
-                                                b' RETURN n',
-                                 b'{"n":{"id":"2","label":"Person","name":"Charlie","occupation":'
-                                 b'"IT Engineer","partitionID":"0"}}',
+                                                b' RETURN n',b'{"n":{"id":"2","label":"Person",'
+                                 b'"name":"Charlie","occupation":"IT Engineer","partitionID":"0"}}',
+
                                  exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'',
                                  b'done', exit_on_failure=True)

@@ -110,7 +110,6 @@ def test(host, port):
 
         # start measuring time taken to upload
         logging.info("Connected to JasmineGraph server at %s:%d", host, port)
-        print("Connected to JasmineGraph server at {}:{}".format(host, port))
         print()
 
         # Test cases for hdfs implementation for custom hdfs server
