@@ -188,8 +188,8 @@ void validateRelationshipLabel(const string &graphId, const string &label) {
 }
 
 int main(int argc, char *argv[]) {
-    string graphPath = "/home/ubuntu/software/jasminegraph/tests/integration/env_init/data/graph_with_properties_test2.txt";
-    string graphId = "9";
+    string graphPath = "/home/ubuntu/software/jasminegraph/tests/integration/env_init/data/graph_data_0.3GB.txt";
+    string graphId = "1";
 
     if (argc > 1) {
         graphPath = argv[1];

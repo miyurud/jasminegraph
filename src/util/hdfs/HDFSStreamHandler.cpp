@@ -244,13 +244,13 @@ void HDFSStreamHandler::streamFromBufferToProcessingQueuePropertyGraph(HDFSMulti
                         hdfs_stream_handler_logger.debug("Adding edge cut to partitions: " + std::to_string(sourceIndex) + " and " + std::to_string(destIndex));
                         partitioner.addEdgeCut(obj.dump(), sourceIndex);
 
-                        json reversedObj = {
-                            {"source", destination},
-                            {"destination", source},
-                            {"properties", jsonEdge["properties"]}
-                        };
-
-                        partitioner.addEdgeCut(reversedObj.dump(), destIndex);
+                        // json reversedObj = {
+                        //     {"source", destination},
+                        //     {"destination", source},
+                        //     {"properties", jsonEdge["properties"]}
+                        // };
+                        //
+                        // partitioner.addEdgeCut(reversedObj.dump(), destIndex);
                     }
                 } else {
                     hdfs_stream_handler_logger.error("Malformed line: missing source/destination ID: " + line);
