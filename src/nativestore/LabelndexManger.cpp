@@ -1,6 +1,7 @@
 #include "LabelIndexManager.h"
 #include <algorithm>
 #include <iostream>
+#include <limits>
 
 LabelIndexManager::LabelIndexManager(const std::string& labelMapFile,
                                      const std::string& bitmapFile)
@@ -160,6 +161,12 @@ inline bool LabelIndexManager::getBit(const std::vector<uint8_t>& bitmap, size_t
 #include "LabelIndexManager.h"
 #include <iostream>
 
+
+// int main()
+// {
+//     static constexpr size_t MAX_NODES = std::numeric_limits<size_t>::max();
+//     std::cout<< "Max nodes: " << MAX_NODES << std::endl;
+// }
 // int main() {
 //     LabelIndexManager* labelIndex =  new LabelIndexManager("/var/tmp/jasminegraph-localstore/label-mapping.db", "/var/tmp/jasminegraph-localstore/label-scan-store.db");
 //
