@@ -68,7 +68,7 @@ class NodeBlock {
     void save();
     std::string getLabel();
     void setLabel(const char *_label);
-    void addLabel(char *label , LabelIndexManager *nodeLabelIndexManager, size_t nodeIndex);
+    void addLabel(char* label, LabelIndexManager* nodeLabelIndexManager, size_t nodeIndex, bool isCentralEdgeDestinationNode);
     bool isInUse();
     int getFlags();
     static NodeBlock *get(unsigned int);

@@ -20,6 +20,9 @@ const int PORT = 7777;
 const string LINE_END = "\r\n";
 const string CYPHER = "cypher";
 
+map<string, int> nodeLabelCounts;
+map<string, int> relLabelCounts;
+
 string safeExtractId(const json &obj) {
     try {
         if (!obj.contains("id")) return "";
@@ -34,6 +37,7 @@ string safeExtractId(const json &obj) {
 set<string> extractAllLabels(const string &graphPath, set<string> &relLabels) {
     cout << "[INFO] Extracting all labels from graph: " << graphPath << endl;
     set<string> nodeLabels;
+    set<string> scannedNodeIds;
     ifstream file(graphPath);
     string line;
 
@@ -46,13 +50,27 @@ set<string> extractAllLabels(const string &graphPath, set<string> &relLabels) {
         try {
             if (line.empty()) continue;
             auto entry = json::parse(line);
+
+            string srcId = entry["source"].value("id", "");
+            string dstId = entry["destination"].value("id", "");
             string srcLabel = entry["source"]["properties"].value("label", "");
             string dstLabel = entry["destination"]["properties"].value("label", "");
             string relLabel = entry["properties"].value("type", "");
 
-            if (!srcLabel.empty()) nodeLabels.insert(srcLabel);
-            if (!dstLabel.empty()) nodeLabels.insert(dstLabel);
-            if (!relLabel.empty()) relLabels.insert(relLabel);
+            if (!srcId.empty() && scannedNodeIds.find(srcId) == scannedNodeIds.end() && !srcLabel.empty()) {
+                nodeLabels.insert(srcLabel);
+                nodeLabelCounts[srcLabel]++;
+                scannedNodeIds.insert(srcId);
+            }
+            if (!dstId.empty() && scannedNodeIds.find(dstId) == scannedNodeIds.end() && !dstLabel.empty()) {
+                nodeLabels.insert(dstLabel);
+                nodeLabelCounts[dstLabel]++;
+                scannedNodeIds.insert(dstId);
+            }
+            if (!relLabel.empty()) {
+                relLabels.insert(relLabel);
+                relLabelCounts[relLabel]++;
+            }
         } catch (const exception &e) {
             cerr << "[ERROR] Failed to parse line in label extraction: " << e.what() << endl;
             cerr << "[LINE] " << line << endl;
@@ -67,8 +85,8 @@ int connectToServer() {
     sockaddr_in serv_addr{};
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(PORT);
-
     inet_pton(AF_INET, HOST.c_str(), &serv_addr.sin_addr);
+
     if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         cerr << "[ERROR] Connection failed\n";
         return -1;
@@ -88,11 +106,11 @@ string recvUntilDone(int sock) {
     }
     return response;
 }
-void validateNodeLabel(const string &graphId, const string &label) {
-    cout << "[INFO] Validating node label: " << label << endl;
+
+void validateNodeLabel(const string &graphId, const string &label, int expectedCount) {
+    cout << "[INFO] Validating node label: " << label << " (expected: " << expectedCount << ")\n";
 
     auto start = chrono::steady_clock::now();
-
     int sock = connectToServer();
     if (sock < 0) return;
 
@@ -129,19 +147,19 @@ void validateNodeLabel(const string &graphId, const string &label) {
     auto end = chrono::steady_clock::now();
     auto elapsed_ms = chrono::duration_cast<chrono::milliseconds>(end - start).count();
 
-    if (count > 0) {
-        cout << "[SUCCESS] ✅ Found " << count << " nodes with label '" << label << "'\n";
+    if (count != expectedCount) {
+        cerr << "[MISMATCH] ❌ Node label '" << label << "' has " << count << " in graph, but " << expectedCount << " in file.\n";
     } else {
-        cerr << "[WARN] ⚠️  No nodes found for label '" << label << "'\n";
+        cout << "[MATCH] ✅ Node label '" << label << "' count matches: " << count << endl;
     }
 
     cout << "[TIME] Node label '" << label << "' query took " << elapsed_ms << " ms\n";
 }
-void validateRelationshipLabel(const string &graphId, const string &label) {
-    cout << "[INFO] Validating relationship label: " << label << endl;
+
+void validateRelationshipLabel(const string &graphId, const string &label, int expectedCount) {
+    cout << "[INFO] Validating relationship label: " << label << " (expected: " << expectedCount << ")\n";
 
     auto start = chrono::steady_clock::now();
-
     int sock = connectToServer();
     if (sock < 0) return;
 
@@ -151,7 +169,7 @@ void validateRelationshipLabel(const string &graphId, const string &label) {
     send(sock, (graphId + LINE_END).c_str(), graphId.size() + LINE_END.size(), 0);
     recv(sock, new char[1024], 1024, 0);
 
-    string query = "MATCH (n)-[r:" + label + "]-(m) RETURN r" + LINE_END;
+    string query = "MATCH(n)-[r:" + label + "]-(m) RETURN r" + LINE_END;
     send(sock, query.c_str(), query.size(), 0);
 
     string response = recvUntilDone(sock);
@@ -178,10 +196,10 @@ void validateRelationshipLabel(const string &graphId, const string &label) {
     auto end = chrono::steady_clock::now();
     auto elapsed_ms = chrono::duration_cast<chrono::milliseconds>(end - start).count();
 
-    if (count > 0) {
-        cout << "[SUCCESS] ✅ Found " << count << " relationships with label '" << label << "'\n";
+    if (count != expectedCount) {
+        cerr << "[MISMATCH] ❌ Relationship label '" << label << "' has " << count << " in graph, but " << expectedCount << " in file.\n";
     } else {
-        cerr << "[WARN] ⚠️  No relationships found for label '" << label << "'\n";
+        cout << "[MATCH] ✅ Relationship label '" << label << "' count matches: " << count << endl;
     }
 
     cout << "[TIME] Relationship label '" << label << "' query took " << elapsed_ms << " ms\n";
@@ -209,14 +227,12 @@ int main(int argc, char *argv[]) {
     for (const auto &l : relLabels) cout << l << " ";
     cout << "\n";
 
-
     for (const auto &label : nodeLabels) {
-        validateNodeLabel(graphId, label);
+        validateNodeLabel(graphId, label, nodeLabelCounts[label]);
     }
 
-
     for (const auto &label : relLabels) {
-        validateRelationshipLabel(graphId, label);
+        validateRelationshipLabel(graphId, label, relLabelCounts[label]);
     }
 
     return 0;

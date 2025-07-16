@@ -47,7 +47,8 @@ void NodeBlock::setLabel(const char *_label) {
     strcpy(this->label, _label);
 }
 
-void NodeBlock::addLabel(char *label , LabelIndexManager *nodeLabelIndexManager, size_t nodeIndex) {
+void NodeBlock::addLabel(char *label , LabelIndexManager *nodeLabelIndexManager, size_t nodeIndex,
+    bool isCentralEdgeDestinationNode) {
     if (this->label == this->id && strlen(label) != 0) {
         std::strcpy(this->label, label);
         NodeBlock::nodesDB->seekp(this->addr + sizeof(this->usage) + sizeof(this->nodeId) + sizeof(this->edgeRef) +
@@ -55,7 +56,11 @@ void NodeBlock::addLabel(char *label , LabelIndexManager *nodeLabelIndexManager,
                                   sizeof(this->metaPropRef));
         NodeBlock::nodesDB->write(this->label, sizeof(this->label));
         NodeBlock::nodesDB->flush();
-        nodeLabelIndexManager->setLabel(nodeLabelIndexManager->getOrCreateLabelID(label), nodeIndex);
+        if (!isCentralEdgeDestinationNode) {
+            // If this is not a central edge destination node, then we need to add the label to the index
+            // This is because, central edge destination nodes are not indexed in the node label index
+            nodeLabelIndexManager->setLabel(nodeLabelIndexManager->getOrCreateLabelID(label), nodeIndex);
+        }
         node_block_logger.info("Label " + std::string(label) + " added to node " + this->id);
     }
 }

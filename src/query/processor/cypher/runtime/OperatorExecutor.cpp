@@ -147,6 +147,8 @@ void OperatorExecutor::NodeScanByLabel(SharedBuffer &buffer, std::string jsonPla
     auto nodeIndices =  labelIndexManager.getNodesWithLabel(labelIndexManager.getOrCreateLabelID( query["Label"]));
 
     // get nodeIds from nodeManager
+    // log no of nodes with label
+    execution_logger.info("NodeScanByLabel: Found " + std::to_string(nodeIndices.size()) + " nodes with label " + query["Label"].get<std::string>());
 
     for (auto nodeIndex :nodeIndices ) {
         json nodeData;
@@ -168,23 +170,7 @@ void OperatorExecutor::NodeScanByLabel(SharedBuffer &buffer, std::string jsonPla
         data[variable] = nodeData;
         buffer.add(data.dump());
 
-        if (value == to_string(gc.partitionID)) {
-            nodeData["partitionID"] = value;
-            std::map<std::string, char*> properties = node->getAllProperties();
-            for (auto property : properties) {
-                nodeData[property.first] = property.second;
-            }
-            for (auto& [key, value] : properties) {
-                delete[] value;  // Free each allocated char* array
-            }
-            properties.clear();
 
-            json data;
-            string variable = query["variable"];
-            data[variable] = nodeData;
-            buffer.add(data.dump());
-            data.clear();
-        }
     }
     buffer.add("-1");
 }
