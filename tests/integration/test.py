@@ -14,8 +14,8 @@ import sys
 import socket
 import logging
 import os
-from utils.telnetScripts.validate_uploaded_graph import  test_graph_validation
-
+# from utils.telnetScripts.validate_uploaded_graph import  test_graph_validation
+#
 logging.addLevelName(
     logging.INFO, f'\033[1;32m{logging.getLevelName(logging.INFO)}\033[1;0m')
 logging.addLevelName(
