@@ -142,6 +142,6 @@ if __name__ == "__main__":
         graph_source = sys.argv[1]
         graph_id = sys.argv[2] if len(sys.argv) > 2 else GRAPH_ID
     else:
-        graph_source = "../../env_init/data/graph_data_0.3GB.txt"
+        graph_source = "../../env_init/data/graph_with_properties_test2.txt"
         graph_id = GRAPH_ID
     test_graph_validation(graph_source, graph_id)
