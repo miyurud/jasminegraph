@@ -119,7 +119,7 @@ def test(host, port):
         send_and_expect_response(sock, 'adhdfs', b'/var/tmp/config/hdfs_config.txt',
                                  b'HDFS file path: ',
                                  exit_on_failure=True)
-        send_and_expect_response(sock, 'adhdfs', b'/home/graph_data_0.3GB.txt',
+        send_and_expect_response(sock, 'adhdfs', b'/home/graph_data_0.55GB.txt',
                                  b'Is this an edge list type graph(y/n)?',
                                  exit_on_failure=True)
         send_and_expect_response(sock, 'adhdfs', b'n',

@@ -4,7 +4,8 @@ RUN apt-get update && apt-get install -y libcurl4-openssl-dev sysstat nmon
 RUN rm -r /usr/lib/python3.8/distutils
 RUN apt-get purge -y libpython3.8-dev python3.8-dev python3.8-distutils libpython3.8 python3.8
 
-RUN apt-get update && apt-get install -y valgrind g++ build-essential
+RUN apt-get update && apt-get install -y valgrind g++ build-essential libroaring-dev
+
 
 ENV HOME="/home/ubuntu"
 ENV JASMINEGRAPH_HOME="${HOME}/software/jasminegraph"

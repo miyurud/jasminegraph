@@ -1,14 +1,16 @@
 import json
 import random
-import string
 import os
-target_size_gb = 0.3
-# File settings
-output_file = "/home/ubuntu/software/jasminegraph/tests/integration/env_init/data/graph_data_0.3GB.txt"
 
+# Settings
+target_size_gb = 0.55
+output_file = "/home/ubuntu/software/jasminegraph/tests/integration/env_init/data/graph_data_0.55GB.txt"
 target_size_bytes = target_size_gb * 1024**3
 
-# Sample data pools
+NUM_NODES = 10000  # Adjust based on your size goal
+EDGES_PER_NODE = 500  # Each node will have ~5 relationships
+
+# Data pools
 person_names = ["Alice", "Bob", "Charlie", "David", "Eva", "Fiona", "George", "Hannah", "Ian", "Julia"]
 occupations = ["Engineer", "Doctor", "Artist", "Scientist", "Teacher", "Chef", "Lawyer", "Banker"]
 location_names = ["City Library", "Central Park", "Town Bank", "Skyport Airport", "Tech Solutions Inc.", "Greenfield School"]
@@ -16,62 +18,79 @@ categories = ["Library", "Park", "Bank", "Airport", "Office", "School", "Restaur
 
 relationship_types = ["FRIENDS", "NEIGHBORS", "WORKS_AT", "VISITS", "MANAGES"]
 
-def random_id():
-    return str(random.randint(1000, 9999))
+# Track used IDs
+used_ids = set()
 
-def random_person():
+def generate_unique_id():
+    while True:
+        new_id = str(random.randint(0, NUM_NODES))
+        if new_id not in used_ids:
+            used_ids.add(new_id)
+            return new_id
+
+def create_person():
     return {
-        "id": random_id(),
+        "id": generate_unique_id(),
         "label": "Person",
         "name": random.choice(person_names),
         "occupation": random.choice(occupations),
         "age": str(random.randint(20, 65))
     }
 
-def random_location():
+def create_location():
     return {
-        "id": random_id(),
+        "id": generate_unique_id(),
         "label": "Location",
         "name": random.choice(location_names),
         "category": random.choice(categories)
     }
 
-def random_entity():
-    return random_person() if random.random() < 0.5 else random_location()
-
-def random_relationship(id_num, src, dst):
+def create_relationship(rel_id, src, dst):
     rel_type = random.choice(relationship_types)
-    src_name = src.get("name", "Unknown")
-    dst_name = dst.get("name", "Unknown")
-    desc = f"{src_name} {rel_type.lower()} {dst_name}."
+    desc = f"{src['name']} {rel_type.lower()} {dst['name']}."
     return {
-        "id": str(id_num),
+        "id": str(rel_id),
         "type": rel_type,
         "description": desc
     }
 
-# Generate data
+# Step 1: Pre-generate nodes
+nodes = []
+for i in range(NUM_NODES):
+    node = create_person() if random.random() < 0.5 else create_location()
+    nodes.append(node)
+
+# Step 2: Generate relationships
 with open(output_file, "w") as f:
     total_bytes = 0
-    entry_id = 0
+    rel_id = 0
 
-    while total_bytes < target_size_bytes:
-        src = random_entity()
-        dst = random_entity()
-        rel = random_relationship(entry_id, src, dst)
+    for src in nodes:
+        for _ in range(EDGES_PER_NODE):
+            dst = random.choice(nodes)
+            while dst["id"] == src["id"]:
+                dst = random.choice(nodes)  # Avoid self-loop
+            rel = create_relationship(rel_id, src, dst)
 
-        entry = {
-            "source": {"id": src["id"], "properties": src},
-            "destination": {"id": dst["id"], "properties": dst},
-            "properties": rel
-        }
+            entry = {
+                "source": {"id": src["id"], "properties": src},
+                "destination": {"id": dst["id"], "properties": dst},
+                "properties": rel
+            }
 
-        line = json.dumps(entry) + "\n"
-        f.write(line)
-        total_bytes += len(line)
-        entry_id += 1
+            line = json.dumps(entry) + "\n"
+            f.write(line)
+            total_bytes += len(line)
+            rel_id += 1
 
-        if entry_id % 100000 == 0:
-            print(f"{entry_id} entries written, ~{total_bytes / 1024**3:.2f} GB")
+            if total_bytes >= target_size_bytes:
+                print(f"Reached target size: {total_bytes / 1024**3:.2f} GB")
+                break
 
-print(f"✅ Finished writing {entry_id} entries to {output_file}")
+        if total_bytes >= target_size_bytes:
+            break
+
+        if rel_id % 100000 == 0:
+            print(f"{rel_id} relationships written, ~{total_bytes / 1024**3:.2f} GB")
+
+print(f"✅ Finished writing {rel_id} relationships to {output_file}")

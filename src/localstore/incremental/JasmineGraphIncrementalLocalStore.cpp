@@ -31,9 +31,9 @@ JasmineGraphIncrementalLocalStore::JasmineGraphIncrementalLocalStore(unsigned in
     gc.maxLabelSize = std::stoi(Utils::getJasmineGraphProperty("org.jasminegraph.nativestore.max.label.size"));
     gc.openMode = openMode;
     this->nm = new NodeManager(gc);
-    this->nodeLabelIndexManager = new LabelIndexManager(nm->getDbPrefix() + "_node_label_index_mapping.db", nm->getDbPrefix() + "_node_label_bit_map.db");
-    this->localRelationLabelIndexManager = new LabelIndexManager(nm->getDbPrefix() + "local_relation_label_index_mapping.db",nm->getDbPrefix() + "local_relation_label_bit_map.db");
-    this->centralRelationLabelIndexManager = new LabelIndexManager(nm->getDbPrefix() + "central_relation_label_index_mapping.db", nm->getDbPrefix() + "central_relation_label_bit_map.db");
+    this->nodeLabelIndexManager = new LabelIndexManager(nm->getDbPrefix() + "_node", nm->getDbPrefix() + "_node");
+    this->localRelationLabelIndexManager = new LabelIndexManager(nm->getDbPrefix() + "_local_relation",nm->getDbPrefix() + "_local_relation");
+    this->centralRelationLabelIndexManager = new LabelIndexManager(nm->getDbPrefix() + "_central_relation", nm->getDbPrefix() + "_central_relation");
 };
 
 std::pair<std::string, unsigned int> JasmineGraphIncrementalLocalStore::getIDs(std::string edgeString) {

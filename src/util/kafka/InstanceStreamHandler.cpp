@@ -123,3 +123,10 @@ void InstanceStreamHandler::handleCentralEdge(std::string edge, std::string grap
     JasmineGraphIncrementalLocalStore* localStore = incrementalLocalStoreMap[graphIdentifier];
     localStore->addCentralEdge(edge);
 }
+
+JasmineGraphIncrementalLocalStore* InstanceStreamHandler::getLocalStore(std::string graphId,
+                                                     std::string partitionId)
+{
+    std::string graphIdentifier = graphId + "_" + partitionId;
+    return this->incrementalLocalStoreMap[graphIdentifier];
+}

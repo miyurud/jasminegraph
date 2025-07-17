@@ -4303,6 +4303,8 @@ static void query_start_command(int connFd, InstanceHandler &instanceHandler, st
         return;
     }
     instance_logger.debug("Sent CRLF string to mark the end");
+
+    incrementalLocalStoreMap.erase(graphIdentifier);
 }
 
 static void sub_query_start_command(int connFd, InstanceHandler &instanceHandler, std::map<std::string,
@@ -4587,6 +4589,12 @@ static void processFile(string fileName, bool isLocal,
             std::cout.flush();
         }
     }
+    handler.getLocalStore(std::to_string((graphId)),
+        std::to_string(partitionIndex))->nodeLabelIndexManager->saveAllBitMaps();
+    handler.getLocalStore(std::to_string((graphId)),
+       std::to_string(partitionIndex))->localRelationLabelIndexManager->saveAllBitMaps();
+    handler.getLocalStore(std::to_string((graphId)),
+       std::to_string(partitionIndex))->centralRelationLabelIndexManager->saveAllBitMaps();
     std::cout << std::endl;
 
     file.close();

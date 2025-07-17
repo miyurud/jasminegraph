@@ -13,6 +13,7 @@ limitations under the License.
 
 #include <cstring>
 #include <fstream>
+#include <memory>
 #include <set>
 #include <string>
 

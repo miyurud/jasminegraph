@@ -22,6 +22,10 @@ const string CYPHER = "cypher";
 
 map<string, int> nodeLabelCounts;
 map<string, int> relLabelCounts;
+map<string, set<string>> fileNodeIdsByLabel;
+map<string, set<string>> graphNodeIdsByLabel;
+map<string, set<string>> fileRelIdsByLabel;
+map<string, set<string>> graphRelIdsByLabel;
 
 string safeExtractId(const json &obj) {
     try {
@@ -56,20 +60,25 @@ set<string> extractAllLabels(const string &graphPath, set<string> &relLabels) {
             string srcLabel = entry["source"]["properties"].value("label", "");
             string dstLabel = entry["destination"]["properties"].value("label", "");
             string relLabel = entry["properties"].value("type", "");
+            string relId = entry.value("id", "");
 
             if (!srcId.empty() && scannedNodeIds.find(srcId) == scannedNodeIds.end() && !srcLabel.empty()) {
+
                 nodeLabels.insert(srcLabel);
                 nodeLabelCounts[srcLabel]++;
+                fileNodeIdsByLabel[srcLabel].insert(srcId);
                 scannedNodeIds.insert(srcId);
             }
             if (!dstId.empty() && scannedNodeIds.find(dstId) == scannedNodeIds.end() && !dstLabel.empty()) {
                 nodeLabels.insert(dstLabel);
                 nodeLabelCounts[dstLabel]++;
+                fileNodeIdsByLabel[dstLabel].insert(dstId);
                 scannedNodeIds.insert(dstId);
             }
             if (!relLabel.empty()) {
                 relLabels.insert(relLabel);
                 relLabelCounts[relLabel]++;
+                fileRelIdsByLabel[relLabel].insert(relId);
             }
         } catch (const exception &e) {
             cerr << "[ERROR] Failed to parse line in label extraction: " << e.what() << endl;
@@ -137,6 +146,10 @@ void validateNodeLabel(const string &graphId, const string &label, int expectedC
             json obj = json::parse(line);
             if (obj.contains("n")) {
                 count++;
+                string id = safeExtractId(obj["n"]);
+                if (!id.empty()) {
+                    graphNodeIdsByLabel[label].insert(id);
+                }
             }
         } catch (const exception &e) {
             cerr << "[ERROR] Failed to parse response line: " << e.what() << endl;
@@ -186,6 +199,10 @@ void validateRelationshipLabel(const string &graphId, const string &label, int e
             json obj = json::parse(line);
             if (obj.contains("r")) {
                 count++;
+                string id = safeExtractId(obj["r"]);
+                if (!id.empty()) {
+                    graphRelIdsByLabel[label].insert(id);
+                }
             }
         } catch (const exception &e) {
             cerr << "[ERROR] Failed to parse response line: " << e.what() << endl;
@@ -205,8 +222,46 @@ void validateRelationshipLabel(const string &graphId, const string &label, int e
     cout << "[TIME] Relationship label '" << label << "' query took " << elapsed_ms << " ms\n";
 }
 
+map<string, vector<string>> getMissingNodeIds() {
+    map<string, vector<string>> missingNodeIds;
+
+    for (const auto &entry : fileNodeIdsByLabel) {
+        const string &label = entry.first;
+        const auto &expected = entry.second;
+        const auto &retrieved = graphNodeIdsByLabel[label];
+
+        for (const auto &id : expected) {
+            if (retrieved.find(id) == retrieved.end()) {
+                cout << "[MISSING NODE] Label: " << label << ", Node ID: " << id << endl;
+                missingNodeIds[label].push_back(id);
+            }
+        }
+    }
+
+    return missingNodeIds;
+}
+
+map<string, vector<string>> getMissingRelationshipIds() {
+    map<string, vector<string>> missingRelIds;
+
+    for (const auto &entry : fileRelIdsByLabel) {
+        const string &label = entry.first;
+        const auto &expected = entry.second;
+        const auto &retrieved = graphRelIdsByLabel[label];
+
+        for (const auto &id : expected) {
+            if (retrieved.find(id) == retrieved.end()) {
+                cout << "[MISSING REL] Label: " << label << ", Relationship ID: " << id << endl;
+                missingRelIds[label].push_back(id);
+            }
+        }
+    }
+
+    return missingRelIds;
+}
+
 int main(int argc, char *argv[]) {
-    string graphPath = "/home/ubuntu/software/jasminegraph/tests/integration/env_init/data/graph_data_0.3GB.txt";
+    string graphPath = "/home/ubuntu/software/jasminegraph/tests/integration/env_init/data/graph_data_0.55GB.txt";
     string graphId = "1";
 
     if (argc > 1) {
@@ -233,6 +288,23 @@ int main(int argc, char *argv[]) {
 
     for (const auto &label : relLabels) {
         validateRelationshipLabel(graphId, label, relLabelCounts[label]);
+    }
+
+    auto missingNodeIds = getMissingNodeIds();
+    auto missingRelIds = getMissingRelationshipIds();
+
+    for (const auto &[label, ids] : missingNodeIds) {
+        cout << "[SUMMARY] Missing " << ids.size() << " node(s) under label: " << label << endl;
+        for (const auto &id : ids) {
+            cout << "  - Node ID: " << id << endl;
+        }
+    }
+
+    for (const auto &[label, ids] : missingRelIds) {
+        cout << "[SUMMARY] Missing " << ids.size() << " relationship(s) under label: " << label << endl;
+        for (const auto &id : ids) {
+            cout << "  - Relationship ID: " << id << endl;
+        }
     }
 
     return 0;

@@ -141,7 +141,7 @@ void OperatorExecutor::AllNodeScan(SharedBuffer &buffer, std::string jsonPlan, G
 void OperatorExecutor::NodeScanByLabel(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
     json query = json::parse(jsonPlan);
     NodeManager nodeManager(gc);
-    LabelIndexManager labelIndexManager(nodeManager.getDbPrefix() + "_node_label_index_mapping.db", nodeManager.getDbPrefix() + "_node_label_bit_map.db");
+    LabelIndexManager labelIndexManager(nodeManager.getDbPrefix() + "_node", nodeManager.getDbPrefix() + "_node");
 
 
     auto nodeIndices =  labelIndexManager.getNodesWithLabel(labelIndexManager.getOrCreateLabelID( query["Label"]));
@@ -267,7 +267,7 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
     int count = 1;
 
     execution_logger.debug("UndirectedRelationshipTypeScan: Initializing localLabelIndexManager");
-    LabelIndexManager localLabelIndexManager(nodeManager.getDbPrefix() + "local_relation_label_index_mapping.db",nodeManager.getDbPrefix() + "local_relation_label_bit_map.db");
+    LabelIndexManager localLabelIndexManager(nodeManager.getDbPrefix() + "_local_relation",nodeManager.getDbPrefix() + "_local_relation");
 
     execution_logger.debug("UndirectedRelationshipTypeScan: Getting edgeIndices for relType: " + std::string(query["relType"]));
     auto edgeIndices =  localLabelIndexManager.getNodesWithLabel(localLabelIndexManager.getOrCreateLabelID( query["relType"]));
@@ -353,7 +353,7 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
     }
 
     execution_logger.debug("UndirectedRelationshipTypeScan: Initializing centralLabelIndexManager");
-    LabelIndexManager centralLabelIndexManager(nodeManager.getDbPrefix() + "central_relation_label_index_mapping.db",nodeManager.getDbPrefix() + "central_relation_label_bit_map.db");
+    LabelIndexManager centralLabelIndexManager(nodeManager.getDbPrefix() + "_central_relation",nodeManager.getDbPrefix() + "_central_relation");
 
     execution_logger.debug("UndirectedRelationshipTypeScan: Getting edgeIndices for central relType: " + std::string(query["relType"]));
     edgeIndices =  centralLabelIndexManager.getNodesWithLabel(centralLabelIndexManager.getOrCreateLabelID( query["relType"]));

@@ -169,7 +169,7 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/nativestore/PropertyEdgeLink.cpp
         src/nativestore/RelationBlock.cpp
         src/nativestore/DataPublisher.cpp
-        src/nativestore/LabelndexManger.cpp
+        src/nativestore/LabelIndexManger.cpp
         src/partitioner/stream/Partition.cpp
         src/k8s/K8sWorkerController.cpp
         src/streamingdb/StreamingSQLiteDBInterface.cpp
@@ -210,7 +210,8 @@ endif ()
 file(GLOB GENERATED_SRC /home/ubuntu/software/antlr/*.cpp)
 if(NOT GENERATED_SRC)
     message(WARNING "No ANTLR generated files found in /home/ubuntu/software/antlr/")
-    set(GENERATED_SRC "")
+    set(GENERATED_SRC ""
+    )
 endif()
 
 add_library(JasmineGraphLib ${HEADERS} ${SOURCES} ${GENERATED_SRC})
@@ -301,6 +302,8 @@ include_directories(/usr/include/oneapi/)
 include_directories(/usr/local/parmetis/include/)
 include_directories(/usr/lib/x86_64-linux-gnu/openmpi/include/)
 include_directories(/usr/local/include/antlr4-runtime)
+
+
 link_directories(/usr/local/lib)
 include_directories(/usr/local/include/yaml-cpp)
 target_link_libraries(JasmineGraphLib PRIVATE m)
@@ -308,6 +311,7 @@ target_link_libraries(JasmineGraphLib PRIVATE /usr/local/lib/libkubernetes.so)
 target_link_libraries(JasmineGraphLib PRIVATE yaml-cpp)
 target_link_libraries(JasmineGraphLib PRIVATE curl)
 target_link_libraries(JasmineGraphLib PRIVATE antlr4-runtime)
+target_link_libraries(JasmineGraphLib PRIVATE roaring)
 
 
 if (CMAKE_BUILD_TYPE STREQUAL "DEBUG")
