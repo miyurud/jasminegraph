@@ -32,33 +32,27 @@ void InstanceHandler::handleRequest(int connFd, bool *loop_exit_p,
                        std::string(operatorExecutor.queryPlan), gc);
     auto startTime = std::chrono::high_resolution_clock::now();
     int time = 0;
-    const size_t BATCH_SIZE = 2048; // 1 MB; //
+    const size_t BATCH_SIZE = 5000; // 1 MB; //
     std::string outBuffer;
 
     outBuffer.reserve(BATCH_SIZE);
    while (true) {
        string raw = sharedBuffer.get();
-       instance_logger.info("Received raw data from sharedBuffer");
 
        if (raw == "-1") {
-           instance_logger.info("End of data stream detected, publishing remaining buffer to master");
            if (!outBuffer.empty()) {
-               instance_logger.info("Publishing remaining outBuffer to master");
                           this->dataPublishToMaster(connFd, loop_exit_p, outBuffer);
 
            }
            this->dataPublishToMaster(connFd, loop_exit_p, raw);
-
            instance_logger.info("Total time taken for query execution: " + std::to_string(time) + " ms");
            result.join();
            break;
        }
        raw.append(Conts::CARRIAGE_RETURN_NEW_LINE);
        outBuffer.append(raw);
-       instance_logger.info("Appended raw data to outBuffer. Current outBuffer length: " + std::to_string(outBuffer.length()));
 
        if (outBuffer.length() + raw.length() >= BATCH_SIZE) {
-           instance_logger.info("BATCH_SIZE reached, publishing buffer to master");
            this->dataPublishToMaster(connFd, loop_exit_p, outBuffer);
            outBuffer.clear();
        }
@@ -66,7 +60,6 @@ void InstanceHandler::handleRequest(int connFd, bool *loop_exit_p,
        auto endTime = std::chrono::high_resolution_clock::now();
        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
        time += duration.count();
-       instance_logger.info("Batch processing time: " + std::to_string(duration.count()) + " ms");
        // this->dataPublishToMaster(connFd, loop_exit_p, raw);
        startTime = std::chrono::high_resolution_clock::now();
    }
