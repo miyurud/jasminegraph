@@ -61,7 +61,7 @@ void NodeBlock::addLabel(char *label , LabelIndexManager *nodeLabelIndexManager,
             // This is because, central edge destination nodes are not indexed in the node label index
             nodeLabelIndexManager->setLabel(nodeLabelIndexManager->getOrCreateLabelID(label), nodeIndex);
         }
-        node_block_logger.info("Label " + std::string(label) + " added to node " + this->id);
+        node_block_logger.debug("Label " + std::string(label) + " added to node " + this->id);
     }
 }
 

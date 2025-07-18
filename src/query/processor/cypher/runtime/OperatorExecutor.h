@@ -47,7 +47,7 @@ class OperatorExecutor {
     static std::unordered_map<std::string, std::function<void(OperatorExecutor &, SharedBuffer &,
             std::string, GraphConfig)>> methodMap;
     static void initializeMethodMap();
-    static const int INTER_OPERATOR_BUFFER_SIZE = 100;
+    static const int INTER_OPERATOR_BUFFER_SIZE = 1000;
 };
 
 #endif  // JASMINEGRAPH_OPERATOREXECUTOR_H

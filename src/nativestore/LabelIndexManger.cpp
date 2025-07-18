@@ -58,15 +58,15 @@ std::string LabelIndexManager::getLabelName(uint32_t id) const {
 }
 
 void LabelIndexManager::setLabel(uint32_t labelID, size_t nodeID) {
-    if (nodeID >= MAX_NODES) {
-        std::cerr << "Invalid nodeID in setLabel\n";
-        return;
-    }
+    // if (nodeID >= MAX_NODES) {
+    //     std::cerr << "Invalid nodeID in setLabel\n";
+    //     return;
+    // }
     std::lock_guard<std::mutex> lock(mtx);
-    std::cout << "[INFO] Setting labelID " << labelID << " for nodeID " << nodeID << std::endl;
+    // std::cout << "[INFO] Setting labelID " << labelID << " for nodeID " << nodeID << std::endl;
     loadOrInitBitmap(labelID);
     roaring_bitmap_add(labelBitmaps[labelID], static_cast<uint32_t>(nodeID));
-    std::cout << "[INFO] Label set successfully for nodeID " << nodeID << std::endl;
+    // std::cout << "[INFO] Label set successfully for nodeID " << nodeID << std::endl;
 }
 
 std::vector<size_t> LabelIndexManager::getNodesWithLabel(uint32_t labelID) {
