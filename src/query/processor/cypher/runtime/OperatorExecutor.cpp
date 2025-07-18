@@ -280,7 +280,7 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
         rightDirectionData[rel] = relationData;
         buffer.add(rightDirectionData.dump());
 
-        execution_logger.info("LocalRelation: Added right direction edge: " + rightDirectionData.dump());
+        // execution_logger.info("LocalRelation: Added right direction edge: " + rightDirectionData.dump());
 
         if (!isDirected) {
             json leftDirectionData;
@@ -288,7 +288,7 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
             leftDirectionData[dest] = startNodeData;
             leftDirectionData[rel] = relationData;
             buffer.add(leftDirectionData.dump());
-            execution_logger.info("LocalRelation: Added left direction edge: " + leftDirectionData.dump());
+            // execution_logger.info("LocalRelation: Added left direction edge: " + leftDirectionData.dump());
         }
         count++;
         execution_logger.info(std::to_string(count) + " LocalRelation: " + rightDirectionData.dump());
@@ -302,13 +302,13 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
         json relationData;
         RelationBlock* relation = RelationBlock::getCentralRelation(i * RelationBlock::CENTRAL_BLOCK_SIZE);
         if (relation->getCentralRelationshipType() != query["relType"]) {
-            execution_logger.info("CentralRelation: Skipped due to relType mismatch at index " + std::to_string(i));
+            // execution_logger.info("CentralRelation: Skipped due to relType mismatch at index " + std::to_string(i));
             continue;
         }
 
         std::string pid(relation->getMetaPropertyHead()->value);
         if (pid != to_string(gc.partitionID) ) {
-            execution_logger.info("CentralRelation: Skipped due to partitionID mismatch at index " + std::to_string(i));
+            // execution_logger.info("CentralRelation: Skipped due to partitionID mismatch at index " + std::to_string(i));
             continue;
         }
 
@@ -318,7 +318,7 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
         std::string startPid(startNode->getMetaPropertyHead()->value);
 
         if (startPid != to_string(gc.partitionID)) {
-            execution_logger.info("CentralRelation: Skipped due to start partitionID mismatch at index " + std::to_string(i));
+            // execution_logger.info("CentralRelation: Skipped due to start partitionID mismatch at index " + std::to_string(i));
             continue;
         }
         startNodeData["partitionID"] = startPid;
@@ -362,7 +362,7 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
         rightDirectionData[rel] = relationData;
         buffer.add(rightDirectionData.dump());
 
-        execution_logger.info("CentralRelation: Added right direction edge: " + rightDirectionData.dump());
+        // execution_logger.info("CentralRelation: Added right direction edge: " + rightDirectionData.dump());
 
         if (!isDirected) {
             json leftDirectionData;
@@ -374,7 +374,7 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
         }
         central++;
     }
-    execution_logger.info(std::to_string(central) + " CentralRelation: Finished processing all relations.");
+    // execution_logger.info(std::to_string(central) + " CentralRelation: Finished processing all relations.");
     buffer.add("-1");
 }
 
