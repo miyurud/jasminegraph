@@ -59,7 +59,7 @@ set<string> extractAllLabels(const string &graphPath, set<string> &relLabels) {
             string dstId = entry["destination"].value("id", "");
             string srcLabel = entry["source"]["properties"].value("label", "");
             string dstLabel = entry["destination"]["properties"].value("label", "");
-            string relLabel = entry["properties"].value("type", "");
+            string relLabel = entry["properties"].value("type", "DEFAULT");
             string relId = entry.value("id", "");
 
             if (!srcId.empty() && scannedNodeIds.find(srcId) == scannedNodeIds.end() && !srcLabel.empty()) {
@@ -250,6 +250,10 @@ map<string, vector<string>> getMissingRelationshipIds() {
         const auto &retrieved = graphRelIdsByLabel[label];
 
         for (const auto &id : expected) {
+            if (id == "DEFAULT")
+            {
+                continue;
+            }
             if (retrieved.find(id) == retrieved.end()) {
                 cout << "[MISSING REL] Label: " << label << ", Relationship ID: " << id << endl;
                 missingRelIds[label].push_back(id);

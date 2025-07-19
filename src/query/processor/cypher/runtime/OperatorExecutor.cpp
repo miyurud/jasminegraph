@@ -352,6 +352,8 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
         count++;
     }
 
+    execution_logger.info("Local Edge Hits:" + std:: to_string(edgeIndices.size()));
+
     execution_logger.debug("UndirectedRelationshipTypeScan: Initializing centralLabelIndexManager");
     LabelIndexManager centralLabelIndexManager(nodeManager.getDbPrefix() + "_central_relation",nodeManager.getDbPrefix() + "_central_relation");
 
@@ -448,7 +450,8 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
             buffer.add(leftDirectionData.dump());
         }
     }
-    execution_logger.debug("UndirectedRelationshipTypeScan: Finished, adding -1 to buffer");
+    execution_logger.info("Central Edge Hits:" + std:: to_string(edgeIndices.size()));
+
     buffer.add("-1");
 
 }

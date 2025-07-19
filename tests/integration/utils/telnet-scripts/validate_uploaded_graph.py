@@ -92,8 +92,8 @@ def extract_graph_ids(path):
 def test_graph_validation(graph_source, graph_id):
     """Validate the uploaded graph by sending queries and checking responses."""
     node_ids, edge_pairs = extract_graph_ids(graph_source)
-    sample_nodes = random.sample(node_ids, min(100, len(node_ids)))
-    sample_edges = random.sample(edge_pairs, min(100, len(edge_pairs)))
+    sample_nodes = random.sample(node_ids, min(1000, len(node_ids)))
+    sample_edges = random.sample(edge_pairs, min(1000, len(edge_pairs)))
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((HOST, PORT))

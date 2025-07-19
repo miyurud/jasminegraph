@@ -263,29 +263,6 @@ void CypherQueryExecutor::execute() {
         Operator::isAggregate = false;
     } else {
         int count = 0;
-        // while (true) {
-        //     if (closeFlag == numberOfPartitions) {
-        //         break;
-        //     }
-        //     for (size_t i = 0; i < bufferPool.size(); ++i) {
-        //         std::string data;
-        //         while (bufferPool[i]->tryGet(data)) {
-        //             if (data == "-1") {
-        //                 closeFlag++;
-        //             } else {
-        //                 count++;
-        //                 result_wr = write(connFd, data.c_str(), data.length());
-        //                 result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
-        //                                   Conts::CARRIAGE_RETURN_NEW_LINE.size());
-        //                 if (result_wr < 0) {
-        //                     cypher_logger.error("Error writing to socket");
-        //                     *loop_exit = true;
-        //                     return;
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
 
 auto partitionWriter = [&](SharedBuffer* buf) {
     auto startTime = std::chrono::high_resolution_clock::now();
@@ -296,10 +273,10 @@ auto partitionWriter = [&](SharedBuffer* buf) {
         if (data == "-1") {
             break; // partition finished
         }
-        // data.append(Conts::CARRIAGE_RETURN_NEW_LINE);
+        data.append(Conts::CARRIAGE_RETURN_NEW_LINE);
         result_wr = write(connFd, data.c_str(), data.length());
-        // result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
-        //                   Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+                          Conts::CARRIAGE_RETURN_NEW_LINE.size());
         if (result_wr < 0) {
             cypher_logger.error("Error writing to socket");
             *loop_exit = true;

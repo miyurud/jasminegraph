@@ -32,37 +32,20 @@ void InstanceHandler::handleRequest(int connFd, bool *loop_exit_p,
                        std::string(operatorExecutor.queryPlan), gc);
     auto startTime = std::chrono::high_resolution_clock::now();
     int time = 0;
-    const size_t BATCH_SIZE = 5000; // 1 MB; //
-    std::string outBuffer;
-
-    outBuffer.reserve(BATCH_SIZE);
-   while (true) {
-       string raw = sharedBuffer.get();
-
-       if (raw == "-1") {
-           if (!outBuffer.empty()) {
-                          this->dataPublishToMaster(connFd, loop_exit_p, outBuffer);
-
-           }
-           this->dataPublishToMaster(connFd, loop_exit_p, raw);
-           instance_logger.info("Total time taken for query execution: " + std::to_string(time) + " ms");
-           result.join();
-           break;
-       }
-       raw.append(Conts::CARRIAGE_RETURN_NEW_LINE);
-       outBuffer.append(raw);
-
-       if (outBuffer.length() + raw.length() >= BATCH_SIZE) {
-           this->dataPublishToMaster(connFd, loop_exit_p, outBuffer);
-           outBuffer.clear();
-       }
-
-       auto endTime = std::chrono::high_resolution_clock::now();
-       auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
-       time += duration.count();
-       // this->dataPublishToMaster(connFd, loop_exit_p, raw);
-       startTime = std::chrono::high_resolution_clock::now();
-   }
+    while (true) {
+        string raw = sharedBuffer.get();
+        if (raw == "-1") {
+            this->dataPublishToMaster(connFd, loop_exit_p, raw);
+            instance_logger.info("Total time taken for query execution: " + std::to_string(time) + " ms");
+            result.join();
+            break;
+        }
+        auto endTime = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+        time += duration.count();
+        this->dataPublishToMaster(connFd, loop_exit_p, raw);
+        startTime = std::chrono::high_resolution_clock::now();
+    }
 }
 
 void InstanceHandler::dataPublishToMaster(int connFd, bool *loop_exit_p, std::string message) {
