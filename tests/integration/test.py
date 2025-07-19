@@ -14,6 +14,9 @@ import sys
 import socket
 import logging
 import os
+
+from tests.integration.utils.telnetScripts.validate_uploaded_graph import test_graph_validation
+
 # from utils.telnetScripts.validate_uploaded_graph import  test_graph_validation
 #
 logging.addLevelName(
@@ -288,9 +291,12 @@ def test(host, port):
                                  exit_on_failure=True)
         send_and_expect_response(sock, 'adhdfs', b'y', DONE, exit_on_failure=True)
 
+        print()
+        logging.info('[Adhdfd] Testing uploaded graph')
+        abs_path = os.path.abspath('tests/integration/env_init/data/graph_with_properties.txt')
+        test_graph_validation(abs_path, '2' ,host, port)
 
         print()
-
         logging.info('[Cypher] Testing AllNodeScan ')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
@@ -322,7 +328,7 @@ def test(host, port):
                                  b'done', exit_on_failure=True)
 
         print()
-        logging.info('[Cypher] Testing Filter 1 ')
+        logging.info('[Cypher] Testing filter by equality check')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b"MATCH (n) WHERE n.name = 'Fiona' RETURN n",
@@ -334,7 +340,7 @@ def test(host, port):
                                  b'done', exit_on_failure=True)
 
         print()
-        logging.info('[Cypher] Testing Filter 2 ')
+        logging.info('[Cypher] Testing filter by comparison of integer attribute')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'MATCH (n) WHERE n.age < 30 return n',
@@ -347,7 +353,7 @@ def test(host, port):
 
 
         print()
-        logging.info('[Cypher] Expand All: Test 1 ')
+        logging.info('[Cypher] Testing expand all ')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher',b'MATCH (a)-[r]-(b)-[d]-(s)'
@@ -366,7 +372,7 @@ def test(host, port):
 
 
         print()
-        logging.info('[Cypher] UndirectedRelationshipTypeScan: Test 1 ')
+        logging.info('[Cypher] Testing Undirected Relationship Type Scan')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher',b'MATCH '
@@ -380,7 +386,7 @@ def test(host, port):
 
 
         print()
-        logging.info('[Cypher] UndirectedAllRelationshipScan: Test 1')
+        logging.info('[Cypher] Testing Undirected All Relationship Scan')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher',b'MATCH (n)-[r]-(m {id:6} ) WHERE n.age = 25'
@@ -398,7 +404,7 @@ def test(host, port):
                                  b'done', exit_on_failure=True)
 
         print()
-        logging.info('[Cypher] UndirectedRelationshipTypeScan: Test 1 ')
+        logging.info('[Cypher] Testing Directed Relationship Type Scan ')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :',
                                  exit_on_failure=True)
@@ -412,7 +418,7 @@ def test(host, port):
                                  b'done', exit_on_failure=True)
 
         print()
-        logging.info('[Cypher] OrderBy: Test 1 ')
+        logging.info('[Cypher] Testing OrderBy ')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher',b"match (n) where n.partitionID = '1' return n "
@@ -463,7 +469,7 @@ def test(host, port):
                                  b'done', exit_on_failure=True)
 
         print()
-        logging.info('[Cypher] NodeScanByLabel: Test 1 ')
+        logging.info('[Cypher] Testing Node Scan By Label')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher',b'match(n:Person) where n.id=2 return n'

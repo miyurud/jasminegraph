@@ -1,4 +1,4 @@
-"""Copyright 2023 JasmineGraph Team
+"""Copyright 2025 JasmineGraph Team
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -94,7 +94,7 @@ def send_and_expect_response(conn, test_name, send, expected, exit_on_failure=Fa
         failed_tests.append(test_name)
         if exit_on_failure:
             print()
-            logging.fatal("Failed some tests,")
+            logging.fatal("Failed test :" + test_name)
             print(*failed_tests, sep="\n", file=sys.stderr)
             sys.exit(1)
 
@@ -157,7 +157,7 @@ def test(host, port):
 
 
 if __name__ == "__main__":
-    ## meanure time taken to upload
+    ## Measure time taken to upload
     import time
 
     start_time = time.time()
