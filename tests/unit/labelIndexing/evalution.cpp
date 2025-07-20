@@ -368,10 +368,10 @@ map<string, vector<string>> getMissingRelationshipIds() {
 int main(int argc, char *argv[]) {
     ios::sync_with_stdio(false);
 
-    string graphPath = "/home/ubuntu/software/jasminegraph/tests/integration/env_init/data/graph_data_0.45GB.txt";
+    string graphPath = "/home/ubuntu/software/jasminegraph/tests/integration/env_init/data/graph_data_0.55GB.txt";
     string graphId   = "4"; // default graph ID for server
 
-    if (argc > 1) {
+    if (argc > 10) {
         graphPath = argv[1];
         if (argc > 2) graphId = argv[2];
     }

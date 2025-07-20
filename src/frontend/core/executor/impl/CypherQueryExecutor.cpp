@@ -273,7 +273,6 @@ auto partitionWriter = [&](SharedBuffer* buf) {
         if (data == "-1") {
             break; // partition finished
         }
-        data.append(Conts::CARRIAGE_RETURN_NEW_LINE);
         result_wr = write(connFd, data.c_str(), data.length());
         result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
                           Conts::CARRIAGE_RETURN_NEW_LINE.size());
