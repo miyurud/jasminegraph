@@ -1,44 +1,45 @@
-//
-// Created by kumarawansha on 1/2/25.
-//
-
 #include "SharedBuffer.h"
 
-// Add data to the buffer
 void SharedBuffer::add(const std::string &data) {
-    std::unique_lock<std::mutex> lock(mtx);
-    cv.wait(lock, [this]() { return buffer.size() < max_size; });
-    buffer.push_back(data);
-    lock.unlock();
-    cv.notify_one();  // Notify waiting threads
-}
-
-// Retrieve data from the buffer
-std::string SharedBuffer::get() {
-    std::unique_lock<std::mutex> lock(mtx);
-    cv.wait(lock, [this]() { return !buffer.empty(); });
-    std::string data = buffer.front();
-    buffer.pop_front();
-    lock.unlock();
-    cv.notify_one();  // Notify waiting threads
-    return data;
-}
-
-// Non-blocking method to try getting data
-bool SharedBuffer::tryGet(std::string& data) {
-    std::unique_lock<std::mutex> lock(mtx);
-    if (buffer.empty()) {
-        return false;  // No data available
+    size_t t;
+    size_t next_t;
+    while (true) {
+        t = tail.load(std::memory_order_relaxed);
+        next_t = next(t);
+        if (next_t == head.load(std::memory_order_acquire)) {
+            // Buffer full, wait
+            if (closed.load()) return;
+            std::this_thread::sleep_for(std::chrono::microseconds(10));
+            continue;
+        }
+        buffer[t] = data;
+        tail.store(next_t, std::memory_order_release);
+        return;
     }
-    data = buffer.front();
-    buffer.pop_front();
-    cv.notify_one();  // Notify waiting threads
+}
+
+std::string SharedBuffer::get() {
+    std::string result;
+    while (!tryGet(result)) {
+        if (closed.load() && empty()) return "-1"; // Sentinel for EOF
+        std::this_thread::sleep_for(std::chrono::microseconds(10));
+    }
+    return result;
+}
+
+bool SharedBuffer::tryGet(std::string &data) {
+    size_t h = head.load(std::memory_order_relaxed);
+    if (h == tail.load(std::memory_order_acquire)) return false; // empty
+    data = std::move(buffer[h]);
+    head.store(next(h), std::memory_order_release);
     return true;
 }
 
 bool SharedBuffer::empty() {
-    std::lock_guard<std::mutex> lock(mtx);
-    return buffer.empty();
+    return head.load(std::memory_order_acquire) ==
+           tail.load(std::memory_order_acquire);
 }
 
-
+void SharedBuffer::close() {
+    closed.store(true, std::memory_order_release);
+}

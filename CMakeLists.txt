@@ -293,16 +293,17 @@ target_link_libraries(JasmineGraphLib PRIVATE /usr/lib/x86_64-linux-gnu/libxerce
 target_link_libraries(JasmineGraphLib PRIVATE /usr/lib/x86_64-linux-gnu/libflatbuffers.a)
 target_link_libraries(JasmineGraphLib PRIVATE /usr/lib/x86_64-linux-gnu/libjsoncpp.so)
 target_link_libraries(JasmineGraphLib PRIVATE /usr/local/lib/libcppkafka.so)
-target_link_libraries(JasmineGraphLib PRIVATE /usr/local/libhdfs3/lib/libhdfs3.so)
+target_link_libraries(JasmineGraphLib PRIVATE usr/include/roaring)
 target_link_libraries(JasmineGraph JasmineGraphLib)
 target_link_libraries(JasmineGraph curl)
+target_link_libraries(JasmineGraphLib PRIVATE ${ROARING_LIBRARY})
 
 include_directories(/usr/local/libhdfs3/include/hdfs/)
 include_directories(/usr/include/oneapi/)
 include_directories(/usr/local/parmetis/include/)
 include_directories(/usr/lib/x86_64-linux-gnu/openmpi/include/)
 include_directories(/usr/local/include/antlr4-runtime)
-
+include_directories(/usr/include/roaring)
 
 link_directories(/usr/local/lib)
 include_directories(/usr/local/include/yaml-cpp)

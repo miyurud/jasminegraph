@@ -180,6 +180,25 @@ void LabelIndexManager::saveBitmap(uint32_t labelID) {
     std::string filePath = getBitmapFilePath(labelID);
     std::string tmpPath = filePath + ".tmp";
 
+    // Read existing bitmap from file (if any) and accumulate
+    roaring_bitmap_t* fileBmp = nullptr;
+    std::ifstream in(filePath, std::ios::binary);
+    if (in.good()) {
+        in.seekg(0, std::ios::end);
+        size_t size = in.tellg();
+        in.seekg(0, std::ios::beg);
+        if (size > 0) {
+            std::vector<char> buffer(size);
+            in.read(buffer.data(), size);
+            fileBmp = roaring_bitmap_portable_deserialize(buffer.data());
+        }
+        in.close();
+    }
+    if (fileBmp) {
+        roaring_bitmap_or_inplace(bmp, fileBmp);
+        roaring_bitmap_free(fileBmp);
+    }
+
     size_t size = roaring_bitmap_portable_size_in_bytes(bmp);
     std::vector<char> buffer(size);
     roaring_bitmap_portable_serialize(bmp, buffer.data());

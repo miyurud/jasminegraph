@@ -5,7 +5,6 @@
 #include <mutex>
 #include <roaring/roaring.h>
 
-constexpr size_t MAX_NODES = 1'000'000;  // adjust as needed
 
 class LabelIndexManager {
 public:

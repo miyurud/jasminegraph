@@ -1,35 +1,41 @@
 //
-// Created by kumarawansha on 1/2/25.
+// SharedBuffer.h - Lock-free implementation with same API
 //
 
 #ifndef JASMINEGRAPH_SHAREDBUFFER_H
 #define JASMINEGRAPH_SHAREDBUFFER_H
 
-#include <iostream>
-#include <deque>
-#include <mutex>
-#include <condition_variable>
 #include <string>
+#include <vector>
+#include <atomic>
+#include <thread>
+#include <chrono>
 
 class SharedBuffer {
- private:
-    std::deque<std::string> buffer;
-    std::mutex mtx;
-    std::condition_variable cv;
+private:
+    std::vector<std::string> buffer;
     const size_t max_size;
+    std::atomic<size_t> head{0};
+    std::atomic<size_t> tail{0};
+    std::atomic<bool> closed{false};
 
- public:
-    explicit SharedBuffer(size_t size) : max_size(size) {}
+    inline size_t next(size_t idx) const { return (idx + 1) % max_size; }
 
-    // Add data to the buffer
+public:
+    explicit SharedBuffer(size_t size) : buffer(size), max_size(size) {}
+
+    // Add data (blocking if full)
     void add(const std::string &data);
 
-    // Retrieve data from the buffer
+    // Retrieve data (blocking if empty)
     std::string get();
 
-    bool tryGet(std::string& data);
+    // Non-blocking get
+    bool tryGet(std::string &data);
 
     bool empty();
+
+    void close();
 };
 
 #endif  // JASMINEGRAPH_SHAREDBUFFER_H
