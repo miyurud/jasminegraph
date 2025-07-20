@@ -301,7 +301,7 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
         }
 
         std::string pid(relation->getMetaPropertyHead()->value);
-        if (pid != to_string(gc.partitionID) ) {
+        if (pid != to_string(gc.partitionID)) {
             continue;
         }
 
