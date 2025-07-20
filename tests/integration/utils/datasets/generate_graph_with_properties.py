@@ -3,8 +3,8 @@ import random
 import os
 
 # Settings
-target_size_gb = 0.55
-output_file = "/home/ubuntu/software/jasminegraph/tests/integration/env_init/data/graph_data_0.55GB.txt"
+target_size_gb = 1
+output_file = "/home/ubuntu/software/jasminegraph/tests/integration/env_init/data/graph_data_1GB.txt"
 target_size_bytes = target_size_gb * 1024**3
 
 NUM_NODES = 10000  # Adjust based on your size goal

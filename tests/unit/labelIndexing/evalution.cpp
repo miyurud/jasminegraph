@@ -269,8 +269,8 @@ map<string, vector<string>> getMissingRelationshipIds() {
 }
 
 int main(int argc, char *argv[]) {
-    string graphPath = "/home/ubuntu/software/jasminegraph/tests/integration/env_init/data/graph_data_0.45GB.txt";
-    string graphId = "9";
+    string graphPath = "/home/ubuntu/software/jasminegraph/tests/integration/env_init/data/graph_data_1GB.txt";
+    string graphId = "12";
 
     if (argc > 1) {
         graphPath = argv[1];

@@ -8,8 +8,7 @@ if(NOT CMAKE_BUILD_TYPE)
     message(STATUS "Build type not specified, setting to RelWithDebInfo for VTune profiling")
 endif()
 
-# Always enable debug symbols for VTune, regardless of build type
-set(CMAKE_ENABLE_DEBUG ON)
+
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
@@ -169,7 +168,7 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/nativestore/PropertyEdgeLink.cpp
         src/nativestore/RelationBlock.cpp
         src/nativestore/DataPublisher.cpp
-        src/nativestore/LabelIndexManger.cpp
+        src/nativestore/LabelIndexManager.cpp
         src/partitioner/stream/Partition.cpp
         src/k8s/K8sWorkerController.cpp
         src/streamingdb/StreamingSQLiteDBInterface.cpp
@@ -204,59 +203,20 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
 
 if (CMAKE_BUILD_TYPE STREQUAL "DEBUG")
     add_compile_options(-DUNIT_TEST)
+    set(CMAKE_ENABLE_DEBUG ON)
 endif ()
 
 # Check for ANTLR generated files
 file(GLOB GENERATED_SRC /home/ubuntu/software/antlr/*.cpp)
 if(NOT GENERATED_SRC)
     message(WARNING "No ANTLR generated files found in /home/ubuntu/software/antlr/")
-    set(GENERATED_SRC ""
-    )
+    set(GENERATED_SRC "")
 endif()
 
 add_library(JasmineGraphLib ${HEADERS} ${SOURCES} ${GENERATED_SRC})
 add_executable(JasmineGraph main.h main.cpp)
 
-# Ensure the executable links with the library and depends on it being built first
-target_link_libraries(JasmineGraph JasmineGraphLib)
-add_dependencies(JasmineGraph JasmineGraphLib)
-
 target_compile_definitions(JasmineGraphLib PUBLIC ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}/")
-
-# Always enable debug symbols for VTune profiling (regardless of build type)
-message(STATUS "Enabling debug symbols for VTune profiling")
-
-# Add comprehensive debug symbols for VTune profiling
-target_compile_options(JasmineGraph PRIVATE -g3 -fno-omit-frame-pointer)
-target_compile_options(JasmineGraphLib PRIVATE -g3 -fno-omit-frame-pointer)
-
-# Use DWARF-4 format for better compatibility with VTune
-target_compile_options(JasmineGraph PRIVATE -gdwarf-4)
-target_compile_options(JasmineGraphLib PRIVATE -gdwarf-4)
-
-# Additional VTune profiling flags for Docker containers
-target_compile_options(JasmineGraph PRIVATE -fasynchronous-unwind-tables)
-target_compile_options(JasmineGraphLib PRIVATE -fasynchronous-unwind-tables)
-
-# Ensure debug symbols are preserved in the final binary
-target_link_options(JasmineGraph PRIVATE -g -rdynamic)
-target_link_options(JasmineGraphLib PRIVATE -g -rdynamic)
-
-# Force inclusion of all symbols in the binary
-target_link_options(JasmineGraph PRIVATE -Wl,--export-dynamic)
-target_link_options(JasmineGraphLib PRIVATE -Wl,--export-dynamic)
-
-# Disable symbol stripping for ALL build types
-set_target_properties(JasmineGraph PROPERTIES
-        LINK_FLAGS_RELEASE "-g -rdynamic"
-        LINK_FLAGS_RELWITHDEBINFO "-g -rdynamic"
-        LINK_FLAGS_MINSIZEREL "-g -rdynamic"
-)
-set_target_properties(JasmineGraphLib PROPERTIES
-        LINK_FLAGS_RELEASE "-g -rdynamic"
-        LINK_FLAGS_RELWITHDEBINFO "-g -rdynamic"
-        LINK_FLAGS_MINSIZEREL "-g -rdynamic"
-)
 
 if (CMAKE_ENABLE_DEBUG)
     message(STATUS "DEBUG mode enabled")
@@ -264,24 +224,56 @@ if (CMAKE_ENABLE_DEBUG)
     target_compile_options(JasmineGraphLib PRIVATE -g)
     target_compile_options(JasmineGraph PRIVATE -g)
 
+    # Add comprehensive debug symbols for VTune profiling
+    target_compile_options(JasmineGraph PRIVATE -g3 -fno-omit-frame-pointer)
+    target_compile_options(JasmineGraphLib PRIVATE -g3 -fno-omit-frame-pointer)
+
+    # Use DWARF-4 format for better compatibility with VTune
+    target_compile_options(JasmineGraph PRIVATE -gdwarf-4)
+    target_compile_options(JasmineGraphLib PRIVATE -gdwarf-4)
+
+    # Additional VTune profiling flags for Docker containers
+    target_compile_options(JasmineGraph PRIVATE -fasynchronous-unwind-tables)
+    target_compile_options(JasmineGraphLib PRIVATE -fasynchronous-unwind-tables)
+
+    # Ensure debug symbols are preserved in the final binary
+    target_link_options(JasmineGraph PRIVATE -g -rdynamic)
+    target_link_options(JasmineGraphLib PRIVATE -g -rdynamic)
+
+    # Force inclusion of all symbols in the binary
+    target_link_options(JasmineGraph PRIVATE -Wl,--export-dynamic)
+    target_link_options(JasmineGraphLib PRIVATE -Wl,--export-dynamic)
+
+    # Disable symbol stripping for ALL build types
+    set_target_properties(JasmineGraph PROPERTIES
+            LINK_FLAGS_RELEASE "-g -rdynamic"
+            LINK_FLAGS_RELWITHDEBINFO "-g -rdynamic"
+            LINK_FLAGS_MINSIZEREL "-g -rdynamic"
+    )
+    set_target_properties(JasmineGraphLib PROPERTIES
+            LINK_FLAGS_RELEASE "-g -rdynamic"
+            LINK_FLAGS_RELWITHDEBINFO "-g -rdynamic"
+            LINK_FLAGS_MINSIZEREL "-g -rdynamic"
+    )
+
+    # Ensure the executable links with the library and depends on it being built first
+    add_dependencies(JasmineGraph JasmineGraphLib)
+
+    # VTune profiling specific settings
+    # Export dynamic symbol table for better function name resolution
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -rdynamic")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -rdynamic")
+
+    # Disable dead code elimination to preserve all symbols
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-function-sections -fno-data-sections")
+
+    # Additional flags to ensure debug symbols are preserved
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g3 -O0")
+    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -g3")
+
+else ()
+    SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-s,--gc-sections")
 endif ()
-
-# VTune profiling specific settings
-# Export dynamic symbol table for better function name resolution
-set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -rdynamic")
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -rdynamic")
-
-# Disable dead code elimination to preserve all symbols
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-function-sections -fno-data-sections")
-
-# Additional flags to ensure debug symbols are preserved
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g3 -O0")
-set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -g3")
-
-# Note: --no-strip-debug is not supported by GNU ld, removed
-# Prevent stripping is handled by other flags above
-
-#SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--gc-sections")
 
 #TODO: Need to install the library separately
 target_link_libraries(JasmineGraphLib PRIVATE sqlite3)
@@ -293,17 +285,16 @@ target_link_libraries(JasmineGraphLib PRIVATE /usr/lib/x86_64-linux-gnu/libxerce
 target_link_libraries(JasmineGraphLib PRIVATE /usr/lib/x86_64-linux-gnu/libflatbuffers.a)
 target_link_libraries(JasmineGraphLib PRIVATE /usr/lib/x86_64-linux-gnu/libjsoncpp.so)
 target_link_libraries(JasmineGraphLib PRIVATE /usr/local/lib/libcppkafka.so)
-target_link_libraries(JasmineGraphLib PRIVATE usr/include/roaring)
+target_link_libraries(JasmineGraphLib PRIVATE /usr/local/libhdfs3/lib/libhdfs3.so)
 target_link_libraries(JasmineGraph JasmineGraphLib)
 target_link_libraries(JasmineGraph curl)
-target_link_libraries(JasmineGraphLib PRIVATE ${ROARING_LIBRARY})
 
 include_directories(/usr/local/libhdfs3/include/hdfs/)
 include_directories(/usr/include/oneapi/)
 include_directories(/usr/local/parmetis/include/)
 include_directories(/usr/lib/x86_64-linux-gnu/openmpi/include/)
 include_directories(/usr/local/include/antlr4-runtime)
-include_directories(/usr/include/roaring)
+include_directories(/usr/local/include/)
 
 link_directories(/usr/local/lib)
 include_directories(/usr/local/include/yaml-cpp)
