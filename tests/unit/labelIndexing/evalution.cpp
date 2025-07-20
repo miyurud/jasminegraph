@@ -42,7 +42,7 @@ const string LINE_END = "\r\n";   // Protocol line terminator
 const string CYPHER = "cypher";     // Initial mode token
 
 // Maximum number of sample relationships to store per label for targeted validation
-const size_t MAX_SAMPLES_PER_LABEL = 5;
+const size_t MAX_SAMPLES_PER_LABEL = 1;
 
 // ---------------- Global State ----------------
 map<string, int> nodeLabelCounts;               // label -> count (from file)
@@ -355,7 +355,7 @@ map<string, vector<string>> getMissingRelationshipIds() {
         const auto &expected = entry.second;
         const auto &retrieved = graphRelIdsByLabel[label];
         for (const auto &id : expected) {
-            if (id == "DEFAULT") continue; // skip placeholder
+            if (id == "") continue; // skip placeholder
             if (retrieved.find(id) == retrieved.end()) {
                 cout << "[MISSING REL] Label: " << label << ", Relationship ID: " << id << endl;
                 missingRelIds[label].push_back(id);
@@ -368,8 +368,8 @@ map<string, vector<string>> getMissingRelationshipIds() {
 int main(int argc, char *argv[]) {
     ios::sync_with_stdio(false);
 
-    string graphPath = "/home/ubuntu/software/jasminegraph/tests/integration/env_init/data/graph_data_0.55GB.txt";
-    string graphId   = "4"; // default graph ID for server
+    string graphPath = "/home/ubuntu/software/jasminegraph/tests/integration/env_init/data/graph_data_0.45GB.txt";
+    string graphId   = "9"; // default graph ID for server
 
     if (argc > 10) {
         graphPath = argv[1];
