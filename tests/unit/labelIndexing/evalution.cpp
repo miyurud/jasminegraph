@@ -148,7 +148,8 @@ void validateNodeLabel(const string &graphId, const string &label, int expectedC
     auto elapsed_ms = chrono::duration_cast<chrono::milliseconds>(end - start).count();
 
     if (count != expectedCount) {
-        cerr << "[MISMATCH] ❌ Node label '" << label << "' has " << count << " in graph, but " << expectedCount << " in file.\n";
+        cerr << "[MISMATCH] ❌ Node label '" << label << "' has " << count << " in graph, but " <<
+            expectedCount << " in file.\n";
     } else {
         cout << "[MATCH] ✅ Node label '" << label << "' count matches: " << count << endl;
     }
@@ -197,7 +198,8 @@ void validateRelationshipLabel(const string &graphId, const string &label, int e
     auto elapsed_ms = chrono::duration_cast<chrono::milliseconds>(end - start).count();
 
     if (count != expectedCount) {
-        cerr << "[MISMATCH] ❌ Relationship label '" << label << "' has " << count << " in graph, but " << expectedCount << " in file.\n";
+        cerr << "[MISMATCH] ❌ Relationship label '" << label << "' has " << count << " in graph, but " <<
+            expectedCount << " in file.\n";
     } else {
         cout << "[MATCH] ✅ Relationship label '" << label << "' count matches: " << count << endl;
     }
@@ -206,7 +208,8 @@ void validateRelationshipLabel(const string &graphId, const string &label, int e
 }
 
 int main(int argc, char *argv[]) {
-    string graphPath = "/home/ubuntu/software/jasminegraph/tests/integration/env_init/data/graph_with_properties_test2.txt";
+    string graphPath =
+        "/home/ubuntu/software/jasminegraph/tests/integration/env_init/data/graph_with_properties_test2.txt";
     string graphId = "11";
 
     if (argc > 1) {
