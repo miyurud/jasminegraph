@@ -95,7 +95,7 @@ def extract_graph_ids(path):
                     )
                 )
             except Exception as e:
-                logging.error("Parsing error: %s", e)
+                logging.error("Error processing line: %s\nError: %s", line.strip(), e)
     return list(node_ids), edge_pairs
 
 
@@ -152,7 +152,7 @@ if __name__ == "__main__":
         graph_source = sys.argv[1]
         graph_id = sys.argv[2] if len(sys.argv) > 2 else GRAPH_ID
         host = sys.argv[3] if len(sys.argv) > 3 else HOST
-        port = sys.agrv[4] if len(sys.argv) >4 else PORT
+        port = sys.argv[4] if len(sys.argv) >4 else PORT
 
     else:
         graph_source = "../../env_init/data/graph_with_properties_test2.txt"

@@ -94,7 +94,7 @@ def send_and_expect_response(conn, test_name, send, expected, exit_on_failure=Fa
         failed_tests.append(test_name)
         if exit_on_failure:
             print()
-            logging.fatal("Failed test :" + test_name)
+            logging.fatal("Failed test :%s" , test_name)
             print(*failed_tests, sep="\n", file=sys.stderr)
             sys.exit(1)
 
