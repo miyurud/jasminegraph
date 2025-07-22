@@ -9,7 +9,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-"""This script connects to a server to validate an uploaded graph by sending Cypher queries."""
 import socket
 import logging
 import json
