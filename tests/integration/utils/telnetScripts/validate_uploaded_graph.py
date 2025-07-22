@@ -1,4 +1,14 @@
-"""This script connects to a server to validate an uploaded graph by sending Cypher queries."""
+"""Copyright 2025 JasmineGraph Team
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+"""
 import socket
 import logging
 import json
@@ -85,18 +95,18 @@ def extract_graph_ids(path):
                     )
                 )
             except Exception as e:
-                logging.error("Parsing error: %s", e)
+                logging.error("Error processing line: %s\nError: %s", line.strip(), e)
     return list(node_ids), edge_pairs
 
 
-def test_graph_validation(graph_source, graph_id):
+def test_graph_validation(graph_source, graph_id, host ,port ):
     """Validate the uploaded graph by sending queries and checking responses."""
     node_ids, edge_pairs = extract_graph_ids(graph_source)
     sample_nodes = random.sample(node_ids, min(10, len(node_ids)))
     sample_edges = random.sample(edge_pairs, min(10, len(edge_pairs)))
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.connect((HOST, PORT))
+        sock.connect((host, port))
 
         # Node validation queries
         for nid, label in sample_nodes:
@@ -141,7 +151,12 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         graph_source = sys.argv[1]
         graph_id = sys.argv[2] if len(sys.argv) > 2 else GRAPH_ID
+        host = sys.argv[3] if len(sys.argv) > 3 else HOST
+        port = sys.argv[4] if len(sys.argv) >4 else PORT
+
     else:
-        graph_source = "../../env_init/data/graph_data_0.3GB.txt"
+        graph_source = "../../env_init/data/graph_with_properties_test2.txt"
         graph_id = GRAPH_ID
-    test_graph_validation(graph_source, graph_id)
+        host = HOST
+        port = PORT
+    test_graph_validation(graph_source, graph_id, host, port)

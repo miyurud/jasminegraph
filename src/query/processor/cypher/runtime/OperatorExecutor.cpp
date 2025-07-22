@@ -309,6 +309,10 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
         NodeBlock* destNode = relation->getDestination();
 
         std::string startPid(startNode->getMetaPropertyHead()->value);
+
+        if (startPid != to_string(gc.partitionID)) {
+            continue;
+        }
         startNodeData["partitionID"] = startPid;
         std::map<std::string, char*> startProperties = startNode->getAllProperties();
         for (auto property : startProperties) {
@@ -321,6 +325,7 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
 
         std::string destPid(destNode->getMetaPropertyHead()->value);
         destNodeData["partitionID"] = destPid;
+
         std::map<std::string, char*> destProperties = destNode->getAllProperties();
         for (auto property : destProperties) {
             destNodeData[property.first] = property.second;
@@ -382,6 +387,7 @@ void OperatorExecutor::UndirectedAllRelationshipScan(SharedBuffer &buffer, std::
         RelationBlock* relation = RelationBlock::getLocalRelation(i*RelationBlock::BLOCK_SIZE);
         NodeBlock* startNode = relation->getSource();
         NodeBlock* destNode = relation->getDestination();
+
 
         std::string startPid(startNode->getMetaPropertyHead()->value);
         startNodeData["partitionID"] = startPid;
