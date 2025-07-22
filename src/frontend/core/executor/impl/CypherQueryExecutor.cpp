@@ -212,7 +212,7 @@ void CypherQueryExecutor::execute() {
             bool isAsc = (Operator::aggregateType == AggregationFactory::ASC);
             std::priority_queue<BufferEntry> mergeQueue;  // Min-heap
             while (true) {
-                if (closeFlag == numberOfPartitions) {
+                if (closeFlag >= numberOfPartitions) {
                     break;
                 }
                 for (size_t i = 0; i < bufferPool.size(); ++i) {
