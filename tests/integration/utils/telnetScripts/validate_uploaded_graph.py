@@ -157,4 +157,6 @@ if __name__ == "__main__":
     else:
         graph_source = "../../env_init/data/graph_with_properties_test2.txt"
         graph_id = GRAPH_ID
+        host = HOST
+        port = PORT
     test_graph_validation(graph_source, graph_id, host, port)
