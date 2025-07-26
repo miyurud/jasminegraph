@@ -19,6 +19,7 @@ limitations under the License.
 
 #include <iostream>
 #include <map>
+#include <unordered_map>
 #include <string>
 #include <thread>
 
@@ -136,7 +137,7 @@ class JasmineGraphServer {
 
     std::vector<JasmineGraphServer::worker> workers(size_t npart);
 
-    static std::map<std::string, workerPartitions> getGraphPartitionedHosts(std::string graphID);
+    static std::unordered_map<std::string, workerPartitions> getGraphPartitionedHosts(std::string graphID);
 
     static void inDegreeDistribution(std::string graphID);
 

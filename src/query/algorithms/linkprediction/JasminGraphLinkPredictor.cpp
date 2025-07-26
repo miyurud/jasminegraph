@@ -20,10 +20,10 @@ Logger predictor_logger;
 
 void JasminGraphLinkPredictor::initiateLinkPrediction(std::string graphID, std::string path, std::string masterIP) {
     JasmineGraphServer *jasmineServer = JasmineGraphServer::getInstance();
-    std::map<std::string, JasmineGraphServer::workerPartitions> graphPartitionedHosts =
+    std::unordered_map<std::string, JasmineGraphServer::workerPartitions> graphPartitionedHosts =
         jasmineServer->getGraphPartitionedHosts(graphID);
 
-    std::map<std::string, JasmineGraphServer::workerPartitions> remainHostMap;
+    std::unordered_map<std::string, JasmineGraphServer::workerPartitions> remainHostMap;
     std::string selectedHostName;
     int selectedHostPort;
     int selectedHostDataPort;
@@ -35,7 +35,7 @@ void JasminGraphLinkPredictor::initiateLinkPrediction(std::string graphID, std::
     //    TODO :: Need to select the idle worker to allocate predicting task.
     //     For this time the first worker of the map is allocated
 
-    for (std::map<std::string, JasmineGraphServer::workerPartitions>::iterator it = (graphPartitionedHosts.begin());
+    for (std::unordered_map<std::string, JasmineGraphServer::workerPartitions>::iterator it = (graphPartitionedHosts.begin());
          it != graphPartitionedHosts.end(); ++it) {
         if (count == 0) {
             selectedHostName = it->first;
@@ -49,7 +49,7 @@ void JasminGraphLinkPredictor::initiateLinkPrediction(std::string graphID, std::
         count++;
     }
     std::string hostsList = "none|";
-    for (std::map<std::string, JasmineGraphServer::workerPartitions>::iterator it = (remainHostMap.begin());
+    for (std::unordered_map<std::string, JasmineGraphServer::workerPartitions>::iterator it = (remainHostMap.begin());
          it != remainHostMap.end(); ++it) {
         std::string hostDetail = it->first + "," + std::to_string((remainHostMap[it->first]).port) + "," +
                                  std::to_string((remainHostMap[it->first]).dataPort) + ",";

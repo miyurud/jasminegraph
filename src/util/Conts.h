@@ -19,6 +19,7 @@ limitations under the License.
 #include <mutex>
 #include <set>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 extern int highestPriority;
@@ -31,7 +32,7 @@ extern std::mutex responseVectorMutex;
 extern bool isStatCollect;
 extern bool isCalibrating;
 extern std::vector<std::string> loadAverageVector;
-extern std::map<int, int> aggregateWeightMap;
+extern std::unordered_map<int, int> aggregateWeightMap;
 
 struct ProcessInfo {
     int id;
