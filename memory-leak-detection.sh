@@ -48,7 +48,8 @@ else
 fi
 
 echo "=== Checking Valgrind output for memory leaks ==="
-DEFINITELY_LOST=$(grep "definitely lost:" "$LOG_FILE" | awk '{print $4}')
+DEFINITELY_LOST=$(grep "definitely lost:" "$LOG_FILE" | sed -E 's/.*definitely lost:\s+([0-9,]+) bytes.*/\1/' | tr -d ',')
+
 
 if [ "$DEFINITELY_LOST" != "0" ]; then
     echo "❌ Memory leaks detected: definitely lost = $DEFINITELY_LOST"
