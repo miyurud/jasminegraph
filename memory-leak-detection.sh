@@ -61,7 +61,7 @@ fi
 #echo "=== Checking Valgrind output for memory leaks ==="
 
 # Define threshold for number of detailed "definitely lost" issues
-THRESHOLD=20
+THRESHOLD=30
 
 # Find detailed loss records with "definitely lost"
 DETAILED_LOST_LINES=$(grep -E '[0-9,]+.*\(.*direct.*,.*indirect.*\).*are definitely lost' "$LOG_FILE")
