@@ -58,3 +58,23 @@ if [ "$DEFINITELY_LOST" != "0" ]; then
 else
     echo "✅ No memory leaks detected (definitely lost = 0)"
 fi
+echo "=== Checking Valgrind output for memory leaks ==="
+
+# Define threshold for number of detailed "definitely lost" issues
+THRESHOLD=20
+
+# Find detailed loss records with "definitely lost"
+DETAILED_LOST_LINES=$(grep -E '[0-9,]+.*\(.*direct.*,.*indirect.*\).*are definitely lost' "$LOG_FILE")
+DETAILED_LOST_COUNT=$(echo "$DETAILED_LOST_LINES" | grep -c "definitely lost")
+
+echo "Found $DETAILED_LOST_COUNT detailed definitely lost memory issues"
+
+if [ "$DETAILED_LOST_COUNT" -gt "$THRESHOLD" ]; then
+    echo "❌ Memory leak threshold exceeded! (Threshold: $THRESHOLD)"
+    echo "$DETAILED_LOST_LINES"
+    echo
+    grep -A5 "LEAK SUMMARY:" "$LOG_FILE"
+    exit 1
+else
+    echo "✅ Memory leak count within acceptable threshold (<= $THRESHOLD)"
+fi
