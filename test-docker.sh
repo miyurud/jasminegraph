@@ -46,7 +46,7 @@ stop_and_remove_containers() {
 }
 
 build_and_run_docker() {
-#    stop_and_remove_containers
+    #    stop_and_remove_containers
     cd "$PROJECT_ROOT"
     docker build -t jasminegraph:test . |& tee "$BUILD_LOG"
     build_status="${PIPESTATUS[0]}"
@@ -192,7 +192,7 @@ while ! nc -zvn 127.0.0.1 7777 &>/dev/null; do
         echo -e '\n\e[33;1mMASTER LOG:\e[0m'
         cat "$RUN_LOG"
         force_remove "${TEST_ROOT}/env"
-#        stop_and_remove_containers
+        #        stop_and_remove_containers
         exit 1
     fi
     sleep .5

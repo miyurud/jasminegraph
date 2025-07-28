@@ -20,8 +20,8 @@ chmod +x run-docker.sh
 
 # Function to restore run-docker.sh on exit (even if failed)
 restore_original() {
-  echo "=== Restoring original run-docker.sh ==="
-  mv run-docker.sh.bak run-docker.sh
+    echo "=== Restoring original run-docker.sh ==="
+    mv run-docker.sh.bak run-docker.sh
 }
 trap restore_original EXIT
 
@@ -39,21 +39,21 @@ LATEST_LOG_DIR=$(ls -td logs/*/ | head -n 1)
 LOG_FILE="${LATEST_LOG_DIR}run_master.log"
 
 if [ -f "$LOG_FILE" ]; then
-  echo "== BEGIN LOG: $LOG_FILE =="
-  cat "$LOG_FILE"
-  echo "== END LOG =="
+    echo "== BEGIN LOG: $LOG_FILE =="
+    cat "$LOG_FILE"
+    echo "== END LOG =="
 else
-  echo "❌ run_master.log not found in $LATEST_LOG_DIR"
-  exit 1
+    echo "❌ run_master.log not found in $LATEST_LOG_DIR"
+    exit 1
 fi
 
 echo "=== Checking Valgrind output for memory leaks ==="
 DEFINITELY_LOST=$(grep "definitely lost:" "$LOG_FILE" | awk '{print $4}')
 
 if [ "$DEFINITELY_LOST" != "0" ]; then
-  echo "❌ Memory leaks detected: definitely lost = $DEFINITELY_LOST"
-  grep -A5 "LEAK SUMMARY:" "$LOG_FILE"
-  exit 1
+    echo "❌ Memory leaks detected: definitely lost = $DEFINITELY_LOST"
+    grep -A5 "LEAK SUMMARY:" "$LOG_FILE"
+    exit 1
 else
-  echo "✅ No memory leaks detected (definitely lost = 0)"
+    echo "✅ No memory leaks detected (definitely lost = 0)"
 fi
