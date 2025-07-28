@@ -31,7 +31,9 @@ docker build -t jasminegraph .
 echo "=== Running integration tests ==="
 chmod +x test-docker.sh
 ./test-docker.sh
-
+## sleep for a while to ensure all logs are written
+echo "=== Waiting for logs to be written ==="
+sleep 10
 echo "=== Locating latest run_master.log ==="
 LATEST_LOG_DIR=$(ls -td logs/*/ | head -n 1)
 LOG_FILE="${LATEST_LOG_DIR}run_master.log"
