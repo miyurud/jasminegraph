@@ -1,0 +1,23 @@
+name: memory-leak-detection.yml
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  memory-leaks-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: ${{!contains(github.event.pull_request.labels.*.name, 'Skip docker integration')}}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{github.head_ref}}
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+
+      - name: Run Memory detection Script
+        run: |
+          bash memory-leak-detection.sh
+
