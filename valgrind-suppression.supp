@@ -1,7 +1,6 @@
 {
-   sql suppression
+   suppress_all_sqlite3_leaks
    Memcheck:Leak
-   fun:malloc
-   fun:sqlite3Malloc
-   fun:sqlite3Init
+   match-leak-kinds: definite
+   obj:/usr/lib/x86_64-linux-gnu/libsqlite3.so.0.8.6
 }
