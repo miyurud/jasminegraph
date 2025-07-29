@@ -1,7 +1,7 @@
 {
    sql suppression
   Memcheck:Leak
-  match-leak-kinds: direct
+  match-leak-kinds: definite
   fun:malloc
    obj:/usr/lib/x86_64-linux-gnu/libsqlite3.so.0.8.6
    fun:sqlite3Malloc
