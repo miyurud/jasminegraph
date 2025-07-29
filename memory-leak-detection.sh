@@ -17,7 +17,7 @@ sed -i '
 }
 ' run-docker.sh
 chmod +x run-docker.sh
-
+cat valgrind-suppression.supp
 # Function to restore run-docker.sh on exit (even if failed)
 restore_original() {
     echo "=== Restoring original run-docker.sh ==="
