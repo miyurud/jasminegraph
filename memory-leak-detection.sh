@@ -26,7 +26,7 @@ restore_original() {
 trap restore_original EXIT
 
 echo "=== Building Docker image jasminegraph ==="
-docker build -t jasminegraph .
+docker build --build-arg DEBUG=true -t jasminegraph .
 
 echo "=== Running integration tests ==="
 chmod +x test-docker.sh
