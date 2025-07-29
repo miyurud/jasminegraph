@@ -6,13 +6,13 @@ cp run-docker.sh run-docker.sh.bak
 
 echo "=== Patching run-docker.sh to use valgrind if DEBUG is unset ==="
 sed -i '
-/if \[ -n "\$DEBUG" \]; then/,/else/ {
-    # Do not change DEBUG block
-}
+/if \[ -n "\$DEBUG" \]; then/,/else/ b
+
 /else/,/fi/ {
-    /if \[ \$MODE -eq 1 \]; then/,/else/ {
-        /valgrind/d
-        s|./JasmineGraph|valgrind --leak-check=full --show-leak-kinds=all ./JasmineGraph|
+    /if \[ \$MODE -eq 1 \]; then/,/else/ b
+    /else/,/fi/ {
+        s|valgrind --leak-check=full --show-leak-kinds=all --gen-suppressions=all ||g
+        s|./JasmineGraph|valgrind --leak-check=full --show-leak-kinds=all --gen-suppressions=all ./JasmineGraph|
     }
 }
 ' run-docker.sh
@@ -34,16 +34,16 @@ chmod +x test-docker.sh
 ## sleep for a while to ensure all logs are written
 echo "=== Waiting for logs to be written ==="
 sleep 60
-echo "=== Locating latest run_master.log ==="
+echo "=== Locating latest worker.log ==="
 LATEST_LOG_DIR=$(ls -td logs/*/ | head -n 1)
-LOG_FILE="${LATEST_LOG_DIR}run_master.log"
+LOG_FILE="${LATEST_LOG_DIR}worker0/worker.log"
 
 if [ -f "$LOG_FILE" ]; then
     echo "== BEGIN LOG: $LOG_FILE =="
     cat "$LOG_FILE"
     echo "== END LOG =="
 else
-    echo "❌ run_master.log not found in $LATEST_LOG_DIR"
+    echo "❌ worker.log not found in $LATEST_LOG_DIR"
     exit 1
 fi
 

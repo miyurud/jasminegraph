@@ -1581,6 +1581,7 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
         *loop_exit_p = true;
         return;
     }
+
 }
 
 static void stop_stream_kafka_command(int connFd, KafkaConnector *kstream, bool *loop_exit_p) {

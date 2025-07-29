@@ -12,7 +12,7 @@ sed -i '
 /else/,/fi/ {
     /if \[ \$MODE -eq 1 \]; then/,/else/ {
         /valgrind/d
-        s|./JasmineGraph|valgrind --leak-check=full --show-leak-kinds=all --gen-suppressions=all ./JasmineGraph|
+        s|./JasmineGraph|valgrind --leak-check=full --show-leak-kinds=all --suppressions==valgrind-suppression.supp ./JasmineGraph|
     }
 }
 ' run-docker.sh

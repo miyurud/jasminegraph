@@ -27,7 +27,7 @@ COPY ./main.h ./main.h
 COPY ./main.cpp ./main.cpp
 COPY ./globals.h ./globals.h
 COPY ./src ./src
-
+COPY ./valgrind-suppression.supp ./valgrind-suppression.supp
 RUN if [ "$DEBUG" = "true" ]; then echo "building in DEBUG mode" && sh build.sh --debug; else sh build.sh; fi
 
 COPY ./run-docker.sh ./run-docker.sh

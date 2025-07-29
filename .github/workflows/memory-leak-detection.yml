@@ -17,7 +17,7 @@ jobs:
           ref: ${{github.head_ref}}
           repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
 
-      - name: Run Memory detection Script
+      - name: Run Memory Leak detection Script
         run: |
           bash memory-leak-detection.sh
 
