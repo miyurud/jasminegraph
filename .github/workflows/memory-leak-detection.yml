@@ -23,5 +23,5 @@ jobs:
 
       - name: Run Worker Memory Leak detection Script
         run: |
-          bash work-memory-leak-detection.sh
+          bash worker-memory-leak-detection.sh
 
