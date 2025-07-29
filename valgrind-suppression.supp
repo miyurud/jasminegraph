@@ -3,4 +3,5 @@
    Memcheck:Leak
    match-leak-kinds: definite
    obj:/usr/lib/x86_64-linux-gnu/libsqlite3.so.0.8.6
+   ...
 }
