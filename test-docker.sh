@@ -48,7 +48,7 @@ stop_and_remove_containers() {
 build_and_run_docker() {
     #    stop_and_remove_containers
     cd "$PROJECT_ROOT"
-    docker build -t jasminegraph:test . |& tee "$BUILD_LOG"
+    docker build --build-arg DEBUG=true  -t jasminegraph:test . |& tee "$BUILD_LOG"
     build_status="${PIPESTATUS[0]}"
     if [ "$build_status" != '0' ]; then
         set +ex
