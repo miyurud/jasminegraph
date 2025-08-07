@@ -35,7 +35,8 @@ void JasminGraphLinkPredictor::initiateLinkPrediction(std::string graphID, std::
     //    TODO :: Need to select the idle worker to allocate predicting task.
     //     For this time the first worker of the map is allocated
 
-    for (std::unordered_map<std::string, JasmineGraphServer::workerPartitions>::iterator it = (graphPartitionedHosts.begin());
+    for (std::unordered_map<std::string, JasmineGraphServer::workerPartitions>::iterator it =
+             (graphPartitionedHosts.begin());
          it != graphPartitionedHosts.end(); ++it) {
         if (count == 0) {
             selectedHostName = it->first;
