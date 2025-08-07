@@ -31,6 +31,16 @@ limitations under the License.
 
 Logger server_logger;
 
+
+enum FileListIndex {
+    PARTITION_FILES = 0,
+    CENTRAL_STORE_FILES = 1,
+    CENTRAL_STORE_DUPLICATE_FILES = 2,
+    ATTRIBUTE_FILES = 3,
+    CENTRAL_STORE_ATTRIBUTE_FILES = 4,
+    COMPOSITE_CENTRAL_STORE_FILES = 5
+};
+
 static void copyArtifactsToWorkers(const std::string &workerPath, const std::string &artifactLocation,
                                    const std::string &remoteWorker);
 static void createLogFilePath(const std::string &workerHost, const std::string &workerPath);
@@ -891,13 +901,13 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
                                             vector<std::map<int, string>> fullFileList, std::string masterIP) {
     server_logger.info("Uploading the graph locally..");
     std::unordered_map<int, string> partitionFileMap = 
-        std::unordered_map<int, string>(fullFileList[0].begin(), fullFileList[0].end());
+        std::unordered_map<int, string>(fullFileList[PARTITION_FILES].begin(), fullFileList[PARTITION_FILES].end());
     std::unordered_map<int, string> centralStoreFileMap = 
-        std::unordered_map<int, string>(fullFileList[1].begin(), fullFileList[1].end());
+        std::unordered_map<int, string>(fullFileList[CENTRAL_STORE_FILES].begin(), fullFileList[CENTRAL_STORE_FILES].end());
     std::unordered_map<int, string> centralStoreDuplFileMap = 
-        std::unordered_map<int, string>(fullFileList[2].begin(), fullFileList[2].end());
+        std::unordered_map<int, string>(fullFileList[CENTRAL_STORE_DUPLICATE_FILES].begin(), fullFileList[CENTRAL_STORE_DUPLICATE_FILES].end());
     std::unordered_map<int, string> compositeCentralStoreFileMap = 
-        std::unordered_map<int, string>(fullFileList[5].begin(), fullFileList[5].end());
+        std::unordered_map<int, string>(fullFileList[COMPOSITE_CENTRAL_STORE_FILES].begin(), fullFileList[COMPOSITE_CENTRAL_STORE_FILES].end());
     std::unordered_map<int, string> attributeFileMap;
     std::unordered_map<int, string> centralStoreAttributeFileMap;
     if (masterHost.empty()) {
@@ -906,9 +916,9 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
     int total_threads = partitionFileMap.size() + centralStoreFileMap.size() + centralStoreDuplFileMap.size() +
                         compositeCentralStoreFileMap.size();
     if (graphType == Conts::GRAPH_WITH_ATTRIBUTES) {
-        attributeFileMap = std::unordered_map<int, string>(fullFileList[3].begin(), fullFileList[3].end());
+        attributeFileMap = std::unordered_map<int, string>(fullFileList[ATTRIBUTE_FILES].begin(), fullFileList[ATTRIBUTE_FILES].end());
         total_threads += attributeFileMap.size();
-        centralStoreAttributeFileMap = std::unordered_map<int, string>(fullFileList[4].begin(), fullFileList[4].end());
+        centralStoreAttributeFileMap = std::unordered_map<int, string>(fullFileList[CENTRAL_STORE_ATTRIBUTE_FILES].begin(), fullFileList[CENTRAL_STORE_ATTRIBUTE_FILES].end());
         total_threads += centralStoreAttributeFileMap.size();
     }
     int count = 0;
