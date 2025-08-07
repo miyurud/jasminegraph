@@ -20,7 +20,6 @@ services:
       - prometheus
       - alloy
       - grafana
-      - prometheus
   prometheus:
     image: prom/prometheus:latest
     ports:
