@@ -828,7 +828,7 @@ int JasmineGraphServer::shutdown_worker(std::string workerIP, int port) {
 static unordered_map<string, float> scaleK8s(size_t npart) {
     std::vector<JasmineGraphServer::worker> &workerList = K8sWorkerController::workerList;
     const map<string, string> cpu_map = Utils::getMetricMap("cpu_usage");
-    // Convert strings to float  
+    // Convert strings to float
     unordered_map<string, float> cpu_loads;
     for (auto it = cpu_map.begin(); it != cpu_map.end(); it++) {
         cpu_loads[it->first] = std::stof(it->second);
@@ -900,14 +900,17 @@ std::vector<JasmineGraphServer::worker> JasmineGraphServer::workers(size_t npart
 void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
                                             vector<std::map<int, string>> fullFileList, std::string masterIP) {
     server_logger.info("Uploading the graph locally..");
-    std::unordered_map<int, string> partitionFileMap = 
+    std::unordered_map<int, string> partitionFileMap =
         std::unordered_map<int, string>(fullFileList[PARTITION_FILES].begin(), fullFileList[PARTITION_FILES].end());
-    std::unordered_map<int, string> centralStoreFileMap = 
-        std::unordered_map<int, string>(fullFileList[CENTRAL_STORE_FILES].begin(), fullFileList[CENTRAL_STORE_FILES].end());
-    std::unordered_map<int, string> centralStoreDuplFileMap = 
-        std::unordered_map<int, string>(fullFileList[CENTRAL_STORE_DUPLICATE_FILES].begin(), fullFileList[CENTRAL_STORE_DUPLICATE_FILES].end());
-    std::unordered_map<int, string> compositeCentralStoreFileMap = 
-        std::unordered_map<int, string>(fullFileList[COMPOSITE_CENTRAL_STORE_FILES].begin(), fullFileList[COMPOSITE_CENTRAL_STORE_FILES].end());
+    std::unordered_map<int, string> centralStoreFileMap =
+        std::unordered_map<int, string>(fullFileList[CENTRAL_STORE_FILES].begin(),
+                                        fullFileList[CENTRAL_STORE_FILES].end());
+    std::unordered_map<int, string> centralStoreDuplFileMap =
+        std::unordered_map<int, string>(fullFileList[CENTRAL_STORE_DUPLICATE_FILES].begin(),
+                                        fullFileList[CENTRAL_STORE_DUPLICATE_FILES].end());
+    std::unordered_map<int, string> compositeCentralStoreFileMap =
+        std::unordered_map<int, string>(fullFileList[COMPOSITE_CENTRAL_STORE_FILES].begin(),
+                                        fullFileList[COMPOSITE_CENTRAL_STORE_FILES].end());
     std::unordered_map<int, string> attributeFileMap;
     std::unordered_map<int, string> centralStoreAttributeFileMap;
     if (masterHost.empty()) {
@@ -916,9 +919,12 @@ void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
     int total_threads = partitionFileMap.size() + centralStoreFileMap.size() + centralStoreDuplFileMap.size() +
                         compositeCentralStoreFileMap.size();
     if (graphType == Conts::GRAPH_WITH_ATTRIBUTES) {
-        attributeFileMap = std::unordered_map<int, string>(fullFileList[ATTRIBUTE_FILES].begin(), fullFileList[ATTRIBUTE_FILES].end());
+        attributeFileMap = std::unordered_map<int, string>(fullFileList[ATTRIBUTE_FILES].begin(),
+                                                            fullFileList[ATTRIBUTE_FILES].end());
         total_threads += attributeFileMap.size();
-        centralStoreAttributeFileMap = std::unordered_map<int, string>(fullFileList[CENTRAL_STORE_ATTRIBUTE_FILES].begin(), fullFileList[CENTRAL_STORE_ATTRIBUTE_FILES].end());
+        centralStoreAttributeFileMap = std::unordered_map<int, string>(
+            fullFileList[CENTRAL_STORE_ATTRIBUTE_FILES].begin(),
+            fullFileList[CENTRAL_STORE_ATTRIBUTE_FILES].end());
         total_threads += centralStoreAttributeFileMap.size();
     }
     int count = 0;
@@ -1347,12 +1353,13 @@ void JasmineGraphServer::updateOperationalGraphList() {
     string sqlStatement2 =
         "UPDATE graph SET graph_status_idgraph_status = ("
         "CASE WHEN idgraph IN (" +
-        graphIDs + ") THEN '" + to_string(Conts::GRAPH_STATUS::OPERATIONAL) + "' ELSE '" +
-        to_string(Conts::GRAPH_STATUS::NONOPERATIONAL) + "' END )";
+        graphIDs + ") THEN '" + to_string(Conts::GRAPH_STATUS::OPERATIONAL) +
+        "' ELSE '" + to_string(Conts::GRAPH_STATUS::NONOPERATIONAL) + "' END )";
     this->sqlite->runUpdate(sqlStatement2);
 }
 
-std::unordered_map<string, JasmineGraphServer::workerPartitions> JasmineGraphServer::getGraphPartitionedHosts(string graphID) {
+std::unordered_map<string, JasmineGraphServer::workerPartitions>
+JasmineGraphServer::getGraphPartitionedHosts(string graphID) {
     vector<pair<string, string>> hostHasPartition;
     auto *refToSqlite = new SQLiteDBInterface();
     refToSqlite->init();
@@ -1378,21 +1385,21 @@ std::unordered_map<string, JasmineGraphServer::workerPartitions> JasmineGraphSer
     }
 
     unordered_map<string, vector<string>> hostPartitions;
-    hostPartitions.reserve(hostHasPartition.size()); // Pre-allocate memory
-    for (const auto& partition : hostHasPartition) { // Range-based for loop
+    hostPartitions.reserve(hostHasPartition.size());
+    for (const auto& partition : hostHasPartition) {
         const string& hostname = partition.first;
         auto it = hostPartitions.find(hostname);
         if (it != hostPartitions.end()) {
-            it->second.emplace_back(partition.second); // Use emplace_back
+            it->second.emplace_back(partition.second);
         } else {
             vector<string> vec;
-            vec.emplace_back(partition.second); // Use emplace_back
-            hostPartitions[hostname] = std::move(vec); // Use move semantics
+            vec.emplace_back(partition.second);
+            hostPartitions[hostname] = std::move(vec);
         }
     }
 
     unordered_map<string, JasmineGraphServer::workerPartitions> graphPartitionedHosts;
-    for (const auto& host : hostPartitions) { // Range-based for loop with const auto&
+    for (const auto& host : hostPartitions) {
         graphPartitionedHosts[host.first] = {getPortByHost(host.first), getDataPortByHost(host.first),
                                             host.second};
     }
