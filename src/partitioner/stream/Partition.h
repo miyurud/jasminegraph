@@ -64,7 +64,7 @@ class Partition {
     template <typename Out>
     static void _split(const std::string &s, char delim, Out result);
     static std::vector<std::string> _split(const std::string &s, char delim);
-    long edgeCutsCount();
+    long edgeCutsCount(bool isDirected = true);
     long getCentralVertexCount(int partitionIndex);
     long getLocalVertexCount();
     void printEdgeCuts();

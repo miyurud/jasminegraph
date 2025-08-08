@@ -127,14 +127,18 @@ void Partition::addToEdgeCuts(std::string resident, std::string foreign, int par
     }
 }
 
-long Partition::edgeCutsCount() {
+long Partition::edgeCutsCount(bool isDirected) {
     long total = 0;
     for (auto partition : this->edgeCuts) {
         for (auto edgeCuts : partition) {
             total += edgeCuts.second.size();
         }
     }
-    return total;
+    
+    if (isDirected) {
+        return total;
+    }
+    return total / 2;  // For undirected graphs, each edge is counted twice
 }
 
 float Partition::edgeCutsRatio() { return this->edgeCutsCount() / (this->getEdgesCount() + this->edgeCutsCount()); }

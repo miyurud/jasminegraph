@@ -323,7 +323,7 @@ long HDFSMultiThreadedHashPartitioner::getEdgeCount() {
     int edgeCuts = 0;
     for (auto & partition : this->partitions) {
         totalEdges += partition.getEdgesCount(isDirected);
-        edgeCuts += partition.edgeCutsCount();
+        edgeCuts += partition.edgeCutsCount(isDirected);
     }
-    return  totalEdges + edgeCuts / 2;
+    return  totalEdges + edgeCuts;
 }
