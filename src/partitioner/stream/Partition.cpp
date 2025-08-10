@@ -71,7 +71,8 @@ double Partition::getEdgesCount(bool isDirected) {
     for (auto edge : this->edgeList) {
         std::string vertex1 = edge.first;
         for (auto vertext : edge.second) {
-            uniqueEdges.insert(edge.first + vertext);
+            // Use a delimiter to avoid accidental merging of IDs
+            uniqueEdges.insert(vertex1 + "," + vertext);
         }
     }
     if (isDirected) {
@@ -164,14 +165,14 @@ void Partition::printEdges() {
     for (auto edgeList : this->edgeList) {
         bool isFirst = true;
         for (std::string vertext : edgeList.second) {
-            std::string compositeVertextID = edgeList.first + vertext;
+            std::string compositeVertextID = edgeList.first + "," + vertext;
             if (compositeVertextIDs.find(compositeVertextID) == compositeVertextIDs.end()) {
                 if (isFirst) {
                     streaming_partition_logger.debug("edgeList.first " + edgeList.first + " ____");
                     isFirst = false;
                 }
                 streaming_partition_logger.debug("\t| ===> " + vertext);
-                compositeVertextIDs.insert(edgeList.first + vertext);
+                compositeVertextIDs.insert(compositeVertextID);
             }
         }
         streaming_partition_logger.debug("\n");
