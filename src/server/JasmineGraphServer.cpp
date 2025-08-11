@@ -19,6 +19,7 @@ limitations under the License.
 
 #include <iostream>
 #include <map>
+#include <unordered_map>
 #include <string>
 
 #include "../../globals.h"
@@ -29,6 +30,16 @@ limitations under the License.
 #include "JasmineGraphInstanceProtocol.h"
 
 Logger server_logger;
+
+
+enum FileListIndex {
+    PARTITION_FILES = 0,
+    CENTRAL_STORE_FILES = 1,
+    CENTRAL_STORE_DUPLICATE_FILES = 2,
+    ATTRIBUTE_FILES = 3,
+    CENTRAL_STORE_ATTRIBUTE_FILES = 4,
+    COMPOSITE_CENTRAL_STORE_FILES = 5
+};
 
 static void copyArtifactsToWorkers(const std::string &workerPath, const std::string &artifactLocation,
                                    const std::string &remoteWorker);
@@ -65,7 +76,7 @@ static size_t getWorkerCount();
 
 static std::vector<JasmineGraphServer::worker> hostWorkerList;
 static unordered_map<string, pair<int, int>> hostPortMap;
-std::map<int, int> aggregateWeightMap;
+std::unordered_map<int, int> aggregateWeightMap;
 
 static int graphUploadWorkerTracker = 0;
 
@@ -554,7 +565,7 @@ void JasmineGraphServer::resolveOperationalGraphs() {
         "SELECT partition_graph_idgraph,partition_idpartition,worker_idworker FROM worker_has_partition ORDER BY "
         "worker_idworker";
     std::vector<vector<pair<string, string>>> output = this->sqlite->runSelect(sqlStatement);
-    std::map<int, vector<string>> partitionMap;
+    std::unordered_map<int, vector<string>> partitionMap;
 
     for (auto i = output.begin(); i != output.end(); ++i) {
         int workerID = -1;
@@ -573,8 +584,8 @@ void JasmineGraphServer::resolveOperationalGraphs() {
     int RECORD_AGGREGATION_FREQUENCY = 5;
     int counter = 0;
     std::stringstream ss;
-    std::map<int, vector<string>> partitionAggregatedMap;
-    for (map<int, vector<string>>::iterator it = partitionMap.begin(); it != partitionMap.end(); ++it) {
+    std::unordered_map<int, vector<string>> partitionAggregatedMap;
+    for (std::unordered_map<int, vector<string>>::iterator it = partitionMap.begin(); it != partitionMap.end(); ++it) {
         int len = (it->second).size();
         int workerID = it->first;
 
@@ -814,13 +825,13 @@ int JasmineGraphServer::shutdown_worker(std::string workerIP, int port) {
     return 0;
 }
 
-static map<string, float> scaleK8s(size_t npart) {
+static unordered_map<string, float> scaleK8s(size_t npart) {
     std::vector<JasmineGraphServer::worker> &workerList = K8sWorkerController::workerList;
-    const map<string, string> &cpu_map = Utils::getMetricMap("cpu_usage");
+    const map<string, string> cpu_map = Utils::getMetricMap("cpu_usage");
     // Convert strings to float
-    map<string, float> cpu_loads;
+    unordered_map<string, float> cpu_loads;
     for (auto it = cpu_map.begin(); it != cpu_map.end(); it++) {
-        cpu_loads[it->first] = (float)atof(it->second.c_str());
+        cpu_loads[it->first] = std::stof(it->second);
     }
 
     for (auto it = workerList.begin(); it != workerList.end(); it++) {
@@ -845,7 +856,7 @@ static map<string, float> scaleK8s(size_t npart) {
 std::vector<JasmineGraphServer::worker> JasmineGraphServer::getWorkers(size_t npart) {
     // TODO: get the workers with lowest load from workerList
     std::vector<JasmineGraphServer::worker> *workerListAll;
-    map<string, float> cpu_loads;
+    unordered_map<string, float> cpu_loads;
     if (jasminegraph_profile == PROFILE_K8S) {
         std::unique_ptr<K8sInterface> k8sInterface(new K8sInterface());
         if (k8sInterface->getJasmineGraphConfig("scale_on_adgr") != "true") {
@@ -889,21 +900,31 @@ std::vector<JasmineGraphServer::worker> JasmineGraphServer::workers(size_t npart
 void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
                                             vector<std::map<int, string>> fullFileList, std::string masterIP) {
     server_logger.info("Uploading the graph locally..");
-    std::map<int, string> partitionFileMap = fullFileList[0];
-    std::map<int, string> centralStoreFileMap = fullFileList[1];
-    std::map<int, string> centralStoreDuplFileMap = fullFileList[2];
-    std::map<int, string> compositeCentralStoreFileMap = fullFileList[5];
-    std::map<int, string> attributeFileMap;
-    std::map<int, string> centralStoreAttributeFileMap;
+    std::unordered_map<int, string> partitionFileMap =
+        std::unordered_map<int, string>(fullFileList[PARTITION_FILES].begin(), fullFileList[PARTITION_FILES].end());
+    std::unordered_map<int, string> centralStoreFileMap =
+        std::unordered_map<int, string>(fullFileList[CENTRAL_STORE_FILES].begin(),
+                                        fullFileList[CENTRAL_STORE_FILES].end());
+    std::unordered_map<int, string> centralStoreDuplFileMap =
+        std::unordered_map<int, string>(fullFileList[CENTRAL_STORE_DUPLICATE_FILES].begin(),
+                                        fullFileList[CENTRAL_STORE_DUPLICATE_FILES].end());
+    std::unordered_map<int, string> compositeCentralStoreFileMap =
+        std::unordered_map<int, string>(fullFileList[COMPOSITE_CENTRAL_STORE_FILES].begin(),
+                                        fullFileList[COMPOSITE_CENTRAL_STORE_FILES].end());
+    std::unordered_map<int, string> attributeFileMap;
+    std::unordered_map<int, string> centralStoreAttributeFileMap;
     if (masterHost.empty()) {
         masterHost = Utils::getJasmineGraphProperty("org.jasminegraph.server.host");
     }
     int total_threads = partitionFileMap.size() + centralStoreFileMap.size() + centralStoreDuplFileMap.size() +
                         compositeCentralStoreFileMap.size();
     if (graphType == Conts::GRAPH_WITH_ATTRIBUTES) {
-        attributeFileMap = fullFileList[3];
+        attributeFileMap = std::unordered_map<int, string>(fullFileList[ATTRIBUTE_FILES].begin(),
+                                                            fullFileList[ATTRIBUTE_FILES].end());
         total_threads += attributeFileMap.size();
-        centralStoreAttributeFileMap = fullFileList[4];
+        centralStoreAttributeFileMap = std::unordered_map<int, string>(
+            fullFileList[CENTRAL_STORE_ATTRIBUTE_FILES].begin(),
+            fullFileList[CENTRAL_STORE_ATTRIBUTE_FILES].end());
         total_threads += centralStoreAttributeFileMap.size();
     }
     int count = 0;
@@ -1332,12 +1353,13 @@ void JasmineGraphServer::updateOperationalGraphList() {
     string sqlStatement2 =
         "UPDATE graph SET graph_status_idgraph_status = ("
         "CASE WHEN idgraph IN (" +
-        graphIDs + ") THEN '" + to_string(Conts::GRAPH_STATUS::OPERATIONAL) + "' ELSE '" +
-        to_string(Conts::GRAPH_STATUS::NONOPERATIONAL) + "' END )";
+        graphIDs + ") THEN '" + to_string(Conts::GRAPH_STATUS::OPERATIONAL) +
+        "' ELSE '" + to_string(Conts::GRAPH_STATUS::NONOPERATIONAL) + "' END )";
     this->sqlite->runUpdate(sqlStatement2);
 }
 
-std::map<string, JasmineGraphServer::workerPartitions> JasmineGraphServer::getGraphPartitionedHosts(string graphID) {
+std::unordered_map<string, JasmineGraphServer::workerPartitions>
+JasmineGraphServer::getGraphPartitionedHosts(string graphID) {
     vector<pair<string, string>> hostHasPartition;
     auto *refToSqlite = new SQLiteDBInterface();
     refToSqlite->init();
@@ -1362,23 +1384,24 @@ std::map<string, JasmineGraphServer::workerPartitions> JasmineGraphServer::getGr
         }
     }
 
-    map<string, vector<string>> hostPartitions;
-    for (auto j = hostHasPartition.begin(); j != hostHasPartition.end(); ++j) {
-        string hostname = j->first;
+    unordered_map<string, vector<string>> hostPartitions;
+    hostPartitions.reserve(hostHasPartition.size());
+    for (const auto& partition : hostHasPartition) {
+        const string& hostname = partition.first;
         auto it = hostPartitions.find(hostname);
         if (it != hostPartitions.end()) {
-            it->second.push_back(j->second);
+            it->second.emplace_back(partition.second);
         } else {
             vector<string> vec;
-            vec.push_back(j->second);
-            hostPartitions[hostname] = vec;
+            vec.emplace_back(partition.second);
+            hostPartitions[hostname] = std::move(vec);
         }
     }
 
-    map<string, JasmineGraphServer::workerPartitions> graphPartitionedHosts;
-    for (map<string, vector<string>>::iterator it = hostPartitions.begin(); it != hostPartitions.end(); ++it) {
-        graphPartitionedHosts[it->first] = {getPortByHost(it->first), getDataPortByHost(it->first),
-                                            hostPartitions[it->first]};
+    unordered_map<string, JasmineGraphServer::workerPartitions> graphPartitionedHosts;
+    for (const auto& host : hostPartitions) {
+        graphPartitionedHosts[host.first] = {getPortByHost(host.first), getDataPortByHost(host.first),
+                                            host.second};
     }
 
     return graphPartitionedHosts;
@@ -1487,10 +1510,10 @@ void JasmineGraphServer::addInstanceDetailsToPerformanceDB(std::string host, std
 }
 
 static void degreeDistributionCommon(std::string graphID, std::string command) {
-    std::map<std::string, JasmineGraphServer::workerPartitions> graphPartitionedHosts =
+    std::unordered_map<std::string, JasmineGraphServer::workerPartitions> graphPartitionedHosts =
         JasmineGraphServer::getGraphPartitionedHosts(graphID);
     std::string workerList;
-    std::map<std::string, JasmineGraphServer::workerPartitions>::iterator workerit;
+    std::unordered_map<std::string, JasmineGraphServer::workerPartitions>::iterator workerit;
     for (workerit = graphPartitionedHosts.begin(); workerit != graphPartitionedHosts.end(); workerit++) {
         JasmineGraphServer::workerPartitions workerPartition = workerit->second;
         string host = workerit->first;
@@ -1593,10 +1616,10 @@ long JasmineGraphServer::getGraphVertexCount(std::string graphID) {
 }
 
 void JasmineGraphServer::duplicateCentralStore(std::string graphID) {
-    std::map<std::string, JasmineGraphServer::workerPartitions> graphPartitionedHosts =
+    std::unordered_map<std::string, JasmineGraphServer::workerPartitions> graphPartitionedHosts =
         JasmineGraphServer::getGraphPartitionedHosts(graphID);
     std::string workerList;
-    std::map<std::string, JasmineGraphServer::workerPartitions>::iterator workerit;
+    std::unordered_map<std::string, JasmineGraphServer::workerPartitions>::iterator workerit;
     for (workerit = graphPartitionedHosts.begin(); workerit != graphPartitionedHosts.end(); workerit++) {
         JasmineGraphServer::workerPartitions workerPartition = workerit->second;
         string host = workerit->first;
@@ -1686,10 +1709,10 @@ void JasmineGraphServer::duplicateCentralStore(std::string graphID) {
 void JasmineGraphServer::initiateFiles(std::string graphID, std::string trainingArgs) {
     int count = 0;
     map<string, map<int, int>> scheduleForAllHosts = JasmineGraphTrainingSchedular::schedulePartitionTraining(graphID);
-    std::map<std::string, JasmineGraphServer::workerPartitions> graphPartitionedHosts =
+    std::unordered_map<std::string, JasmineGraphServer::workerPartitions> graphPartitionedHosts =
         this->getGraphPartitionedHosts(graphID);
     int partition_count = 0;
-    std::map<std::string, JasmineGraphServer::workerPartitions>::iterator mapIterator;
+    std::unordered_map<std::string, JasmineGraphServer::workerPartitions>::iterator mapIterator;
     for (mapIterator = graphPartitionedHosts.begin(); mapIterator != graphPartitionedHosts.end(); mapIterator++) {
         JasmineGraphServer::workerPartitions workerPartition = mapIterator->second;
         partition_count += (int)(workerPartition.partitionID.size());
@@ -1699,7 +1722,7 @@ void JasmineGraphServer::initiateFiles(std::string graphID, std::string training
 
     string prefix = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.trainedmodelfolder");
     string attr_prefix = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
-    std::map<std::string, JasmineGraphServer::workerPartitions>::iterator j;
+    std::unordered_map<std::string, JasmineGraphServer::workerPartitions>::iterator j;
     for (j = graphPartitionedHosts.begin(); j != graphPartitionedHosts.end(); j++) {
         JasmineGraphServer::workerPartitions workerPartition = j->second;
         std::vector<std::string>::iterator k;
@@ -1826,10 +1849,10 @@ void JasmineGraphServer::initiateOrgCommunication(std::string graphID, std::stri
 
 void JasmineGraphServer::initiateMerge(std::string graphID, std::string trainingArgs, SQLiteDBInterface *sqlite) {
     map<string, map<int, int>> scheduleForAllHosts = JasmineGraphTrainingSchedular::schedulePartitionTraining(graphID);
-    std::map<std::string, JasmineGraphServer::workerPartitions> graphPartitionedHosts =
+    std::unordered_map<std::string, JasmineGraphServer::workerPartitions> graphPartitionedHosts =
         this->getGraphPartitionedHosts(graphID);
     int partition_count = 0;
-    std::map<std::string, JasmineGraphServer::workerPartitions>::iterator mapIterator;
+    std::unordered_map<std::string, JasmineGraphServer::workerPartitions>::iterator mapIterator;
     for (mapIterator = graphPartitionedHosts.begin(); mapIterator != graphPartitionedHosts.end(); mapIterator++) {
         JasmineGraphServer::workerPartitions workerPartition = mapIterator->second;
         partition_count += (int)(workerPartition.partitionID.size());
@@ -1838,7 +1861,7 @@ void JasmineGraphServer::initiateMerge(std::string graphID, std::string training
     std::thread *workerThreads = new std::thread[partition_count];
 
     int fl_clients = stoi(Utils::getJasmineGraphProperty("org.jasminegraph.fl_clients"));
-    std::map<std::string, JasmineGraphServer::workerPartitions>::iterator j;
+    std::unordered_map<std::string, JasmineGraphServer::workerPartitions>::iterator j;
     int count = 0;
     for (j = graphPartitionedHosts.begin(); j != graphPartitionedHosts.end(); j++) {
         JasmineGraphServer::workerPartitions workerPartition = j->second;
@@ -2158,7 +2181,7 @@ bool JasmineGraphServer::sendTrainCommand(std::string host, int port, std::strin
 }
 
 void JasmineGraphServer::egoNet(std::string graphID) {
-    std::map<std::string, JasmineGraphServer::workerPartitions> graphPartitionedHosts =
+    std::unordered_map<std::string, JasmineGraphServer::workerPartitions> graphPartitionedHosts =
         JasmineGraphServer::getGraphPartitionedHosts(graphID);
     std::string workerList;
 
