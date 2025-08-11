@@ -30,6 +30,9 @@ limitations under the License.
 #include "JasmineGraphInstance.h"
 #include <thread>
 
+#include "../knowledgegraph/construction/Pipeline.h"
+#include "../util/hdfs/HDFSConnector.h"
+
 using namespace std;
 
 #define PENDING_CONNECTION_QUEUE_SIZE 10
@@ -3033,6 +3036,71 @@ static void streaming_triangles_command(
 
     instance_logger.info("Streaming triangle count sent successfully");
 }
+
+
+static void streaming_kg_construction ( int connFd, int serverPort, std::map<std::string, JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap,
+    bool *loop_exit_p)
+{
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
+
+    char data[DATA_BUFFER_SIZE];
+    string graphID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    instance_logger.info("Received Graph ID: " + graphID);
+
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
+
+    int noOfPartitions = stoi(Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH));
+    instance_logger.info("Received Number of Partitions: " + to_string(noOfPartitions));
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
+
+    string hdfsServerUrl = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    instance_logger.info("Received HDFS Server URL: " + hdfsServerUrl);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    string hdfsPort = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    instance_logger.info("Received HDFS Port: " + hdfsPort);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK))
+    {
+        *loop_exit_p = true;
+        return;
+    }
+
+
+    string hdfsPath = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    instance_logger.info("Received HDFS Path: " + hdfsPath);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
+    HDFSConnector *hdfsConnector = new HDFSConnector(hdfsServerUrl, hdfsPort);
+
+    Pipeline *streamHandler = new Pipeline(hdfsConnector->getFileSystem(),
+                                                             hdfsPath, noOfPartitions,
+                                                            stoi(graphID), masterIP);
+    instance_logger.info("Started listening to " + hdfsPath);
+   streamHandler->init();
+
+
+
+
+}
+
 
 static void send_centralstore_to_aggregator_command(int connFd, bool *loop_exit_p) {
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::SEND_FILE_NAME)) {

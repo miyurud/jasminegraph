@@ -1582,6 +1582,160 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
         return;
     }
 }
+//
+// void constructKGStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsServerIp,
+//                              std::thread &inputStreamHandlerThread, int numberOfPartitions,
+//                              SQLiteDBInterface *sqlite, bool *loop_exit_p) {
+//     std::string hdfsPort;
+//     std::string message1 = "Do you want to use the default HDFS server(y/n)?";
+//     int resultWr = write(connFd, message1.c_str(), message1.length());
+//     if (resultWr < 0) {
+//         frontend_logger.error("Error writing to socket");
+//         *loop_exit_p = true;
+//         return;
+//     }
+//     resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+//     if (resultWr < 0) {
+//         frontend_logger.error("Error writing to socket");
+//         *loop_exit_p = true;
+//         return;
+//     }
+//
+//     char userRes[FRONTEND_DATA_LENGTH + 1];
+//     bzero(userRes, FRONTEND_DATA_LENGTH + 1);
+//     read(connFd, userRes, FRONTEND_DATA_LENGTH);
+//     std::string userResS(userRes);
+//     userResS = Utils::trim_copy(userResS);
+//     for (char &c : userResS) {
+//         c = tolower(c);
+//     }
+//
+//     if (userResS == "y") {
+//         hdfsServerIp = Utils::getJasmineGraphProperty("org.jasminegraph.server.streaming.hdfs.host");
+//         hdfsPort = Utils::getJasmineGraphProperty("org.jasminegraph.server.streaming.hdfs.port");
+//     } else {
+//         std::string message = "Send the file path to the HDFS configuration file. This file needs to be in some"
+//                               " directory location that is accessible for JasmineGraph master";
+//         resultWr = write(connFd, message.c_str(), message.length());
+//         if (resultWr < 0) {
+//             frontend_logger.error("Error writing to socket");
+//             *loop_exit_p = true;
+//             return;
+//         }
+//         resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+//                          Conts::CARRIAGE_RETURN_NEW_LINE.size());
+//         if (resultWr < 0) {
+//             frontend_logger.error("Error writing to socket");
+//             *loop_exit_p = true;
+//             return;
+//         }
+//
+//         char filePath[FRONTEND_DATA_LENGTH + 1];
+//         bzero(filePath, FRONTEND_DATA_LENGTH + 1);
+//         read(connFd, filePath, FRONTEND_DATA_LENGTH);
+//         std::string filePathS(filePath);
+//         filePathS = Utils::trim_copy(filePathS);
+//
+//         frontend_logger.info("Reading HDFS configuration file: " + filePathS);
+//
+//         std::vector<std::string> vec = Utils::getFileContent(filePathS);
+//         for (const auto &item : vec) {
+//             if (item.length() > 0 && !(item.rfind("#", 0) == 0)) {
+//                 std::vector<std::string> vec2 = Utils::split(item, '=');
+//                 if (vec2.size() == 2) {
+//                     if (vec2.at(0).compare("hdfs.host") == 0) {
+//                         hdfsServerIp = vec2.at(1);
+//                     } else if (vec2.at(0).compare("hdfs.port") == 0) {
+//                         hdfsPort = vec2.at(1);
+//                     }
+//                 } else {
+//                     frontend_logger.error("Invalid line in configuration file: " + item);
+//                 }
+//             }
+//         }
+//     }
+//
+//     if (hdfsServerIp.empty()) {
+//         frontend_logger.error("HDFS server IP is empty.");
+//     }
+//     if (hdfsPort.empty()) {
+//         frontend_logger.error("HDFS server port is empty.");
+//     }
+//
+//     std::string message2 = "HDFS file path: ";
+//     resultWr = write(connFd, message2.c_str(), message2.length());
+//     if (resultWr < 0) {
+//         frontend_logger.error("Error writing to socket");
+//         *loop_exit_p = true;
+//         return;
+//     }
+//     resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+//     if (resultWr < 0) {
+//         frontend_logger.error("Error writing to socket");
+//         *loop_exit_p = true;
+//         return;
+//     }
+//
+//     char hdfsFilePath[FRONTEND_DATA_LENGTH + 1];
+//     bzero(hdfsFilePath, FRONTEND_DATA_LENGTH + 1);
+//     read(connFd, hdfsFilePath, FRONTEND_DATA_LENGTH);
+//     std::string hdfsFilePathS(hdfsFilePath);
+//     hdfsFilePathS = Utils::trim_copy(hdfsFilePathS);
+//
+//     HDFSConnector *hdfsConnector = new HDFSConnector(hdfsServerIp, hdfsPort);
+//
+//     if (!hdfsConnector->isPathValid(hdfsFilePathS)) {
+//         frontend_logger.error("Invalid HDFS file path: " + hdfsFilePathS);
+//         std::string error_message = "The provided HDFS path is invalid.";
+//         write(connFd, error_message.c_str(), error_message.length());
+//         write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+//         delete hdfsConnector;
+//         *loop_exit_p = true;
+//         return;
+//     }
+//
+//
+//     std::string path = "hdfs:" + hdfsFilePathS;
+//
+//     std::time_t time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+//     std::string uploadStartTime = ctime(&time);
+//     std::string sqlStatement =
+//             "INSERT INTO graph (name, upload_path, upload_start_time, upload_end_time, graph_status_idgraph_status, "
+//             "vertexcount, centralpartitioncount, edgecount, is_directed) VALUES(\"" +
+//             hdfsFilePathS + "\", \"" + path + "\", \"" + uploadStartTime + "\", \"\", \"" +
+//             std::to_string(Conts::GRAPH_STATUS::NONOPERATIONAL) + "\", \"\", \"\", \"\", \"" +
+//             ("TRUE" ) + "\")";
+//
+//     int newGraphID = sqlite->runInsert(sqlStatement);
+//     frontend_logger.info("Created graph ID: " + std::to_string(newGraphID));
+//     Pipeline *streamHandler = new Pipeline(hdfsConnector->getFileSystem(),
+//                                                              hdfsFilePathS, numberOfPartitions,
+//                                                              newGraphID, sqlite, masterIP, true);
+//     frontend_logger.info("Started listening to " + hdfsFilePathS);
+//     inputStreamHandlerThread = std::thread(&Pipeline::startStreamingFromBufferToPartitions, streamHandler);
+//     inputStreamHandlerThread.join();
+//
+//     std::string uploadEndTime = ctime(&time);
+//     std::string sqlStatementUpdateEndTime =
+//             "UPDATE graph "
+//             "SET upload_end_time = \"" + uploadEndTime + "\" "
+//                                                          "WHERE idgraph = " + std::to_string(newGraphID);
+//     sqlite->runInsert(sqlStatementUpdateEndTime);
+//
+//
+//     int conResultWr = write(connFd, DONE.c_str(), DONE.length());
+//     if (conResultWr < 0) {
+//         frontend_logger.error("Error writing to socket");
+//         *loop_exit_p = true;
+//         return;
+//     }
+//     resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+//     if (resultWr < 0) {
+//         frontend_logger.error("Error writing to socket");
+//         *loop_exit_p = true;
+//         return;
+//     }
+// }
 
 static void stop_stream_kafka_command(int connFd, KafkaConnector *kstream, bool *loop_exit_p) {
     frontend_logger.info("Started serving `" + STOP_STREAM_KAFKA + "` command");
