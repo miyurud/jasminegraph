@@ -17,7 +17,7 @@
 
 Logger hash_partitioner_logger;
 
-int PARTITION_FILE_EDGE_COUNT_THRESHOLD = 1000000;
+int PARTITION_FILE_EDGE_COUNT_THRESHOLD = 1;
 
 HDFSMultiThreadedHashPartitioner::HDFSMultiThreadedHashPartitioner(int numberOfPartitions, int graphID,
     std::string masterIp, bool isDirected)

@@ -17,6 +17,7 @@
 #include <queue>
 #include <regex>
 #include <thread>
+#include <functional> // for std::hash
 class SQLiteDBInterface;
 
 using json = nlohmann::json;
@@ -170,12 +171,91 @@ void Pipeline::startStreamingFromBufferToWorkers()
             std::ref(dataBuffer), std::ref(*bufferPool[count]));
         count++;
     }
+    processTupleAndSaveInPartition(bufferPool);
     readerThread.join();
+
 
     auto endTime = high_resolution_clock::now();
     std::chrono::duration<double> duration = endTime - startTime;
     kg_pipeline_stream_handler_logger.info(
             "Total time taken for streaming from HDFS into partitions: " + to_string(duration.count()) + " seconds");
+}
+
+void Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<SharedBuffer>>& tupleBuffer) {
+    auto startTime = high_resolution_clock::now();
+    HDFSMultiThreadedHashPartitioner partitioner(numberOfPartitions, graphId, masterIP, isDirected);
+    std::hash<std::string> hasher;
+std::vector<std::thread> tupleThreads;
+    for (size_t i = 0; i < tupleBuffer.size(); ++i) {
+        SharedBuffer* tupleBufferRef = tupleBuffer[i].get();
+        tupleThreads.emplace_back([&, tupleBufferRef]() {
+            while (isProcessing) {
+
+                if (!tupleBufferRef->empty()) {
+                    std::string line = tupleBufferRef->get();
+                    // Check for end-of-stream marker
+                    if (line == END_OF_STREAM_MARKER) {
+                        kg_pipeline_stream_handler_logger.debug("Received end-of-stream marker in one of the threads.");
+                        isProcessing = false;
+                        break;
+                    }
+
+
+            try {
+                auto jsonEdge = json::parse(line);
+                auto source = jsonEdge["source"];
+                auto destination = jsonEdge["destination"];
+                std::string sourceId = std::to_string(hasher(source["id"])% 10000);
+                std::string destinationId = std::to_string(hasher(destination["id"])% 10000);
+
+                if (!sourceId.empty() && !destinationId.empty()) {
+                    int sourceIndex = std::stoi(sourceId) % this->numberOfPartitions;
+                    int destIndex = std::stoi(destinationId) % this->numberOfPartitions;
+
+                    source["pid"] = sourceIndex;
+                    destination["pid"] = destIndex;
+
+                    json obj = {
+                        {"source", source},
+                        {"destination", destination},
+                        {"properties", jsonEdge["properties"]}
+                    };
+
+                    if (sourceIndex == destIndex) {
+                        partitioner.addLocalEdge(obj.dump(), sourceIndex);
+                    } else {
+                        partitioner.addEdgeCut(obj.dump(), sourceIndex);
+
+                        json reversedObj = {
+                            {"source", destination},
+                            {"destination", source},
+                            {"properties", jsonEdge["properties"]}
+                        };
+
+                        partitioner.addEdgeCut(reversedObj.dump(), destIndex);
+                    }
+                } else {
+                    kg_pipeline_stream_handler_logger.error("Malformed line: missing source/destination ID: " + line);
+                }
+            } catch (const json::parse_error &e) {
+                kg_pipeline_stream_handler_logger.error("JSON parse error: " + std::string(e.what()) + " | Line: " + line);
+            } catch (const std::invalid_argument &e) {
+                kg_pipeline_stream_handler_logger.error("Invalid node ID (not an integer) in line: " + line);
+            } catch (const std::out_of_range &e) {
+                kg_pipeline_stream_handler_logger.error("Node ID out of range in line: " + line);
+            } catch (const std::exception &e)
+            {
+                kg_pipeline_stream_handler_logger.error("Unexpected exception in line: " + std::string(e.what()));
+            }
+                } else if (!isReading) {
+                    break;
+                }
+            }
+        });
+    }
+    for (auto& t : tupleThreads) {
+        t.join();
+    }
 }
 
 
