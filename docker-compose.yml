@@ -18,6 +18,8 @@ services:
     command: --MODE 1 --MASTERIP 172.28.5.1 --WORKERS 2 --WORKERIP 172.28.5.1 --ENABLE_NMON false
     depends_on:
       - prometheus
+      - alloy
+      - grafana
   prometheus:
     image: prom/prometheus:latest
     ports:
