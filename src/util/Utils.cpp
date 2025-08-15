@@ -634,7 +634,8 @@ std::string Utils::read_str_trim_wrapper(int connFd, char *buf, size_t len) {
 }
 
 bool Utils::send_wrapper(int connFd, const char *buf, size_t size) {
-    ssize_t sz = send(connFd, buf, size, 0);
+    ssize_t sz = send(connFd, buf, size, 0);\
+    // util_logger.info("Sent " + std::to_string(sz) + " bytes to socket " + std::to_string(connFd));
     if (sz < size) {
         util_logger.error("Send failed");
         return false;
@@ -683,6 +684,24 @@ bool Utils::sendExpectResponse(int sockfd, char *data, size_t data_length, std::
     }
     util_logger.info("Received: " + response);
     return true;
+}
+
+bool Utils::expect_str_wrapper(int sockfd, const std::string &expected) {
+    char buffer[1024] = {0};  // Adjust if you expect larger messages
+    ssize_t bytes_received = recv(sockfd, buffer, sizeof(buffer) - 1, 0);
+
+    if (bytes_received <= 0) {
+        // Connection closed or error
+        return false;
+    }
+
+    std::string received(buffer, bytes_received);
+
+    // Trim CR/LF if needed
+    received.erase(std::remove(received.begin(), received.end(), '\r'), received.end());
+    received.erase(std::remove(received.begin(), received.end(), '\n'), received.end());
+
+    return received == expected;
 }
 
 bool Utils::performHandshake(int sockfd, char *data, size_t data_length, std::string masterIP) {

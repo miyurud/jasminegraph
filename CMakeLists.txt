@@ -192,6 +192,8 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/query/processor/cypher/runtime/AggregationFactory.cpp
         src/knowledgegraph/construction/Pipeline.cpp
         src/knowledgegraph/construction/Pipeline.h
+        src/knowledgegraph/construction/OllamaTupleStreamer.cpp
+        src/knowledgegraph/construction/OllamaTupleStreamer.h
 
 )
 

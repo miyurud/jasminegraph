@@ -11,21 +11,30 @@
 #include <hdfs.h>
 #include <cppkafka/cppkafka.h>
 
+#include "../../server/JasmineGraphServer.h"
+
 class SQLiteDBInterface;
 
 class Pipeline {
 public:
     Pipeline(hdfsFS fileSystem, const std::string &filePath, int numberOfPartitions, int graphId,
 
-              std::string masterIP);
+              std::string masterIP , vector<JasmineGraphServer::worker> &workerList);
     void init();
     void startStreamingFromBufferToPartitions();
+
 
 private:
 
     void streamFromHDFSIntoBuffer();
     void streamChunckToWorker(const std::string& chunk, int partitionId);
     void startStreamingFromBufferToWorkers();
+     void extractTuples(std::string host, int port, std::string masterIP, int graphID, int partitionId,
+
+                              std::queue<std::string>& dataBuffer, SharedBuffer& sharedBuffer);
+
+
+
 
 
     hdfsFS fileSystem;
@@ -34,6 +43,7 @@ private:
     std::queue<std::string> dataBuffer;
 
     std::mutex dataBufferMutex;
+    std::mutex dataBufferMutexForWorker;
     std::condition_variable dataBufferCV;
 
     std::string masterIP;
@@ -45,6 +55,7 @@ private:
     bool isEdgeListType;
     int graphId;
     int numberOfPartitions;
+    vector<JasmineGraphServer::worker> &workerList;
     std::mutex dbLock;
 };
 

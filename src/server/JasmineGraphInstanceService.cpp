@@ -30,6 +30,7 @@ limitations under the License.
 #include "JasmineGraphInstance.h"
 #include <thread>
 
+#include "../knowledgegraph/construction/OllamaTupleStreamer.h"
 #include "../knowledgegraph/construction/Pipeline.h"
 #include "../util/hdfs/HDFSConnector.h"
 
@@ -96,6 +97,12 @@ static void triangles_command(
     std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores,
     bool *loop_exit_p);
 static void streaming_triangles_command(
+    int connFd, int serverPort, std::map<std::string, JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap,
+    bool *loop_exit_p);
+static void streaming_kg_construction(
+    int connFd, int serverPort, std::map<std::string, JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap,
+    bool *loop_exit_p);
+static void streaming_tuple_extraction (
     int connFd, int serverPort, std::map<std::string, JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap,
     bool *loop_exit_p);
 static void send_centralstore_to_aggregator_command(int connFd, bool *loop_exit_p);
@@ -234,6 +241,11 @@ void *instanceservicesession(void *dummyPt) {
                               *graphDBMapDuplicateCentralStores, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_STREAMING_TRIAN) == 0) {
             streaming_triangles_command(connFd, serverPort, incrementalLocalStoreMap, &loop_exit);
+        } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_STREAMING_KG_CONSTRUCTION) == 0)
+        {
+            streaming_kg_construction(connFd, serverPort, incrementalLocalStoreMap, &loop_exit);
+        } else if (line.compare(JasmineGraphInstanceProtocol::INITIATE_STREAMING_TUPLE_CONSTRUCTION) == 0) {
+            streaming_tuple_extraction(connFd, serverPort, incrementalLocalStoreMap, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::SEND_CENTRALSTORE_TO_AGGREGATOR) == 0) {
             send_centralstore_to_aggregator_command(connFd, &loop_exit);
         } else if (line.compare(JasmineGraphInstanceProtocol::SEND_COMPOSITE_CENTRALSTORE_TO_AGGREGATOR) == 0) {
@@ -3080,6 +3092,45 @@ static void streaming_kg_construction ( int connFd, int serverPort, std::map<std
         return;
     }
 
+     masterIP = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    instance_logger.info("Received MasterIP: " + hdfsPort);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK))
+    {
+        *loop_exit_p = true;
+        return;
+    }
+
+    // read workerIP:port in comma separated format
+    string workersIP = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    instance_logger.info("Received Worker IP: " + workersIP);
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK))
+    {
+        *loop_exit_p     = true;
+        return;
+
+    }
+    std::vector<string> workerSockets;
+    stringstream wl(workersIP);
+    string intermediate;
+    while (getline(wl, intermediate, ','))
+    {
+        workerSockets.push_back(intermediate);
+
+    }
+    std::vector<JasmineGraphServer::worker> workers;
+    for (const auto &workerSocket : workerSockets) {
+        JasmineGraphServer::worker worker;
+        size_t pos = workerSocket.find(":");
+        if (pos != string::npos) {
+            worker.hostname = workerSocket.substr(0, pos);
+            worker.port = stoi(workerSocket.substr(pos + 1));
+        } else {
+            instance_logger.error("Invalid worker socket format: " + workerSocket);
+            *loop_exit_p = true;
+            return;
+        }
+        workers.push_back(worker);
+    }
 
     string hdfsPath = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.info("Received HDFS Path: " + hdfsPath);
@@ -3091,8 +3142,7 @@ static void streaming_kg_construction ( int connFd, int serverPort, std::map<std
     HDFSConnector *hdfsConnector = new HDFSConnector(hdfsServerUrl, hdfsPort);
 
     Pipeline *streamHandler = new Pipeline(hdfsConnector->getFileSystem(),
-                                                             hdfsPath, noOfPartitions,
-                                                            stoi(graphID), masterIP);
+                                                             hdfsPath, noOfPartitions, std::stoi(graphID),  masterIP, workers);
     instance_logger.info("Started listening to " + hdfsPath);
    streamHandler->init();
 
@@ -3100,6 +3150,85 @@ static void streaming_kg_construction ( int connFd, int serverPort, std::map<std
 
 
 }
+
+static void streaming_tuple_extraction(int connFd, int serverPort,
+    std::map<std::string, JasmineGraphIncrementalLocalStore *> &incrementalLocalStoreMap,
+    bool *loop_exit_p) {
+
+    char data[DATA_BUFFER_SIZE];
+    OllamaTupleStreamer streamer("llama3");
+
+    instance_logger.info("in streaming_tuple_extraction");
+    Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK);
+    // instance_logger.info("in streaming_tuple_extraction");
+
+    // 2. Expect graphID
+    std::string graphID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK);
+
+    SharedBuffer sharedBuffer(5);
+    SharedBuffer tupleBuffer(5);
+    std::condition_variable dataBufferCV;
+    std::mutex dataBufferMutex;
+
+    while (true) {
+        std::string command = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+        if (command == JasmineGraphInstanceProtocol::CHUNK_STREAM_END) {
+            Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK);
+            break;
+        }
+        instance_logger.info("Received command: " + command);
+        if (command != JasmineGraphInstanceProtocol::QUERY_DATA_START) {
+            continue;
+        }
+        Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK);
+
+        int content_length;
+        recv(connFd, &content_length, sizeof(int), 0);
+        content_length = ntohl(content_length);
+        Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK);
+        instance_logger.info("Received content length: " + std::to_string(content_length));
+        std::string chunk(content_length, 0);
+        recv(connFd, &chunk[0], content_length, 0);
+        Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS);
+        instance_logger.info(chunk);
+        // Process and add to buffers
+        sharedBuffer.add(chunk);
+
+        // Consumer thread that prints tuples from buffer
+        std::thread consumer([&]() {
+            Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::QUERY_DATA_START);
+       if (!Utils::expect_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) return;
+       instance_logger.info("3200");
+            while (true) {
+                string tupleData = tupleBuffer.get();
+
+               int tuple_length = tupleData.length();
+               int converted_number = htonl(tuple_length);
+               Utils::sendIntExpectResponse(connFd, data,
+                                            JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.length(),
+                                            converted_number,
+                                            JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK);
+               instance_logger.info("3208");
+               Utils::send_str_wrapper(connFd, tupleData);
+               Utils::expect_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS);
+            }
+        });
+
+        streamer.streamChunk("chunk1", chunk, tupleBuffer);
+
+
+        // tupleBuffer.add("ProcessedTupleFor:" + sharedBuffer.get()); // Example
+        instance_logger.info("3196");
+        // Send tuple back to client
+
+
+    }
+
+    Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::CLOSE);
+    close(connFd);
+}
+
 
 
 static void send_centralstore_to_aggregator_command(int connFd, bool *loop_exit_p) {

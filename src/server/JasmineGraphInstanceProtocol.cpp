@@ -98,6 +98,11 @@ const string JasmineGraphInstanceProtocol::INITIATE_FED_PREDICT = "initiate-fed-
 const string JasmineGraphInstanceProtocol::INITIATE_STREAMING_SERVER = "initiate-streaming-server";
 const string JasmineGraphInstanceProtocol::INITIATE_STREAMING_CLIENT = "initiate-streaming-client";
 const string JasmineGraphInstanceProtocol::INITIATE_STREAMING_TRIAN = "initiate-streaming-trian";
+const string JasmineGraphInstanceProtocol::INITIATE_STREAMING_KG_CONSTRUCTION = "initiate-streaming-kg-construction";
+const string JasmineGraphInstanceProtocol::INITIATE_STREAMING_TUPLE_CONSTRUCTION = "initiate-streaming-tuple-extraction";
+ const string  JasmineGraphInstanceProtocol::CHUNK_STREAM_END = "chunk-stream-end";
+
+
 const string JasmineGraphInstanceProtocol::QUERY_START = "query-start";
 const string JasmineGraphInstanceProtocol::SUB_QUERY_START = "sub-query-start";
 const string JasmineGraphInstanceProtocol::QUERY_START_ACK = "query-start-ack";

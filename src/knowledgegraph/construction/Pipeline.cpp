@@ -27,18 +27,19 @@ Logger kg_pipeline_stream_handler_logger;
 
 const size_t MESSAGE_SIZE = 5 * 1024 * 1024;
 const size_t MAX_BUFFER_SIZE = MESSAGE_SIZE * 512;
-const size_t CHUNCK_BYTE_SIZE = 1024 * 1024; // 1 MB chunks
+const size_t CHUNCK_BYTE_SIZE = 1024; // 1 MB chunks
 const std::string END_OF_STREAM_MARKER = "-1";
 
 Pipeline::Pipeline(hdfsFS fileSystem, const std::string &filePath, int numberOfPartitions, int graphId,
-                                     std::string masterIP)
+                                     std::string masterIP , vector<JasmineGraphServer::worker> &workerList)
         : fileSystem(fileSystem),
           filePath(filePath),
           numberOfPartitions(numberOfPartitions),
           isReading(true),
           isProcessing(true),
           graphId(graphId),
-          masterIP(masterIP) {}
+          masterIP(masterIP),
+workerList(workerList) {}
 
 
 void Pipeline:: init()
@@ -59,43 +60,55 @@ void Pipeline::streamFromHDFSIntoBuffer() {
         return;
     }
 
-
+    kg_pipeline_stream_handler_logger.info("Successfully opened HDFS file: " + filePath);
 
     std::vector<char> buffer(CHUNCK_BYTE_SIZE);
     int64_t read_bytes = 0;
     int chunk_idx = 0;
     std::string leftover;
 
-    while ((read_bytes = hdfsRead(fileSystem, file, buffer.data(), CHUNCK_BYTE_SIZE)) > 0) {
-        std::string chunk_text = leftover + std::string(buffer.data(), read_bytes);
+  while ((read_bytes = hdfsRead(fileSystem, file, buffer.data(), CHUNCK_BYTE_SIZE)) > 0) {
+      kg_pipeline_stream_handler_logger.info("Starting to process chunk " + std::to_string(chunk_idx));
+      std::string chunk_text = leftover + std::string(buffer.data(), read_bytes);
 
-        // Find last newline to keep only complete lines in chunk pushed to dataBuffer
-        size_t last_newline = chunk_text.find_last_of('\n');
-        if (last_newline == std::string::npos) {
-            // No newline found: entire chunk is partial line, keep as leftover and continue
-            leftover = chunk_text;
-            continue;
-        }
+      kg_pipeline_stream_handler_logger.info("Read chunk " + std::to_string(chunk_idx) + " with " + std::to_string(read_bytes) + " bytes");
+      kg_pipeline_stream_handler_logger.info("Current leftover size: " + std::to_string(leftover.size()));
 
-        // Split into complete lines and leftover partial line
-        std::string full_lines_chunk = chunk_text.substr(0, last_newline + 1);
-        leftover = chunk_text.substr(last_newline + 1);
+      // Find last newline to keep only complete lines in chunk pushed to dataBuffer
+      size_t last_newline = chunk_text.find_last_of('\n');
+      if (last_newline == std::string::npos) {
+          kg_pipeline_stream_handler_logger.info("No newline found in chunk " + std::to_string(chunk_idx) + ", storing as leftover");
+          leftover = chunk_text;
+          kg_pipeline_stream_handler_logger.info("Updated leftover size: " + std::to_string(leftover.size()));
+          continue;
+      }
 
-        // Wait and push to dataBuffer safely
-        std::unique_lock<std::mutex> lock(dataBufferMutex);
-        dataBufferCV.wait(lock, [this] { return dataBuffer.size() < MAX_BUFFER_SIZE || !isReading; });
+      // Split into complete lines and leftover partial line
+      std::string full_lines_chunk = chunk_text.substr(0, last_newline + 1);
+      leftover = chunk_text.substr(last_newline + 1);
 
-        dataBuffer.push(std::move(full_lines_chunk));
-        lock.unlock();
-        dataBufferCV.notify_one();
+      kg_pipeline_stream_handler_logger.info("Full lines chunk size: " + std::to_string(full_lines_chunk.size()));
+      kg_pipeline_stream_handler_logger.info("Leftover after split size: " + std::to_string(leftover.size()));
+      kg_pipeline_stream_handler_logger.info("Pushing chunk " + std::to_string(chunk_idx) + " to dataBuffer");
 
-        chunk_idx++;
-    }
+      // Wait and push to dataBuffer safely
+      std::unique_lock<std::mutex> lock(dataBufferMutex);
+      kg_pipeline_stream_handler_logger.info("Waiting to acquire lock for dataBuffer push");
+      dataBufferCV.wait(lock, [this] { return dataBuffer.size() < workerList.size() || !isReading; });
+
+      dataBuffer.push(std::move(full_lines_chunk));
+      kg_pipeline_stream_handler_logger.info("Chunk " + std::to_string(chunk_idx) + " pushed to dataBuffer. Current buffer size: " + std::to_string(dataBuffer.size()));
+      lock.unlock();
+      dataBufferCV.notify_all();
+
+      chunk_idx++;
+  }
 
     // Push leftover partial line if any (last chunk)
     if (!leftover.empty()) {
+        kg_pipeline_stream_handler_logger.info("Pushing leftover data to dataBuffer");
         std::unique_lock<std::mutex> lock(dataBufferMutex);
-        dataBufferCV.wait(lock, [this] { return dataBuffer.size() < MAX_BUFFER_SIZE || !isReading; });
+        dataBufferCV.wait(lock, [this] { return dataBuffer.size() <  workerList.size()|| !isReading; });
 
         dataBuffer.push(std::move(leftover));
         lock.unlock();
@@ -103,13 +116,16 @@ void Pipeline::streamFromHDFSIntoBuffer() {
     }
 
     if (read_bytes < 0) {
+        kg_pipeline_stream_handler_logger.error("Error reading from AHDFS file");
         std::cerr << "Error reading from AHDFS file\n";
     }
 
     hdfsCloseFile(fileSystem, file);
+    kg_pipeline_stream_handler_logger.info("Closed HDFS file: " + filePath);
     isReading = false;
 
     if (!leftover.empty()) {
+        kg_pipeline_stream_handler_logger.info("Pushing leftover data again to dataBuffer after closing file");
         std::unique_lock<std::mutex> lock(dataBufferMutex);
         dataBuffer.push(leftover);
         lock.unlock();
@@ -117,6 +133,7 @@ void Pipeline::streamFromHDFSIntoBuffer() {
     }
 
     {
+        kg_pipeline_stream_handler_logger.info("Pushing END_OF_STREAM_MARKER to dataBuffer");
         std::unique_lock<std::mutex> lock(dataBufferMutex);
         dataBuffer.push(END_OF_STREAM_MARKER);
         lock.unlock();
@@ -130,31 +147,30 @@ void Pipeline::streamFromHDFSIntoBuffer() {
 }
 
 
-
-// void Pipeline:: streamChunckToWorker(const std::string &chunk, int partitionId) {
-//     // Get the worker client for the partition
-//     JasmineGraphServer *server = JasmineGraphServer::getInstance();
-//     DataPublisher *workerClient = server->getWorkerClientForPartition(graphId, partitionId);
-//
-//     if (workerClient) {
-//         workerClient->publish(chunk);
-//     } else {
-//         hdfs_stream_handler_logger.error("No worker client found for partition " + std::to_string(partitionId));
-//     }
-// }
-
-// read from buffer and send to worker in roundRobin
 void Pipeline::startStreamingFromBufferToWorkers()
 {
     auto startTime = high_resolution_clock::now();
-    HDFSMultiThreadedHashPartitioner partitioner(numberOfPartitions, graphId, masterIP, isDirected);
+    // HDFSMultiThreadedHashPartitioner partitioner(numberOfPartitions, graphId, masterIP, isDirected);
 
     std::thread readerThread(&Pipeline::streamFromHDFSIntoBuffer, this);
-    std::vector<std::thread> bufferProcessorThreads;
+    std::vector<std::unique_ptr<SharedBuffer>> bufferPool;
+    bufferPool.reserve(numberOfPartitions);  // Pre-allocate space for pointers
+    for (size_t i = 0; i < numberOfPartitions; ++i) {
+        bufferPool.emplace_back(std::make_unique<SharedBuffer>(MASTER_BUFFER_SIZE));
+    }
 
-
-
-
+    std::vector<std::thread> workerThreads;
+    int count = 0;
+    for (auto &worker : workerList) {
+        workerThreads.emplace_back(
+            &Pipeline::extractTuples,
+            this,
+            worker.hostname, worker.port,
+            masterIP, graphId, count,
+            std::ref(dataBuffer), std::ref(*bufferPool[count]));
+        count++;
+    }
+    readerThread.join();
 
     auto endTime = high_resolution_clock::now();
     std::chrono::duration<double> duration = endTime - startTime;
@@ -163,22 +179,162 @@ void Pipeline::startStreamingFromBufferToWorkers()
 }
 
 
-// ---------- split_document ----------
-std::vector<Chunk> split_document(const std::string &doc_id, const std::string &text, size_t chunk_words) {
-    std::istringstream iss(text);
-    std::vector<std::string> words;
-    std::string w;
-    while (iss >> w) words.push_back(w);
-    std::vector<Chunk> out;
-    size_t i = 0;
-    while (i < words.size()) {
-        std::ostringstream oss;
-        for (size_t j = 0; j < chunk_words && i < words.size(); ++j, ++i) {
-            if (j) oss << ' ';
-            oss << words[i];
-        }
-        out.push_back({doc_id, oss.str()});
+
+void Pipeline::extractTuples(std::string host, int port, std::string masterIP,
+                              int graphID, int partitionId,
+                              std::queue<std::string> &dataBuffer,
+                              SharedBuffer &sharedBuffer) {
+    kg_pipeline_stream_handler_logger.info("Starting extractTuples for host: " + host + ", port: " + std::to_string(port) + ", partitionId: " + std::to_string(partitionId));
+    char data[FED_DATA_LENGTH + 1];
+    static const int ACK_MESSAGE_SIZE = 1024;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+
+    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        kg_pipeline_stream_handler_logger.error("Cannot create socket");
+        return;
     }
-    if (out.empty()) out.push_back({doc_id, ""});
-    return out;
+    kg_pipeline_stream_handler_logger.info("Socket created successfully");
+
+    if (host.find('@') != std::string::npos) {
+        host = Utils::split(host, '@')[1];
+        kg_pipeline_stream_handler_logger.info("Host after split: " + host);
+    }
+
+    server = gethostbyname(host.c_str());
+    if (!server) {
+        kg_pipeline_stream_handler_logger.error("ERROR, no host named " + host);
+        return;
+    }
+    kg_pipeline_stream_handler_logger.info("Host resolved: " + host);
+
+    bzero((char *)&serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    serv_addr.sin_port = htons(port);
+
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+        kg_pipeline_stream_handler_logger.error("Failed to connect to host: " + host + " on port: " + std::to_string(port));
+        return;
+    }
+    kg_pipeline_stream_handler_logger.info("Connected to host: " + host + " on port: " + std::to_string(port));
+
+    // 1. Perform handshake
+    kg_pipeline_stream_handler_logger.info("Performing handshake with masterIP: " + masterIP);
+    if (!Utils::performHandshake(sockfd, data, FED_DATA_LENGTH, masterIP)) {
+        kg_pipeline_stream_handler_logger.error("Handshake failed");
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return;
+    }
+    kg_pipeline_stream_handler_logger.info("Handshake successful");
+
+    // 2. Send INITIATE_STREAMING_TUPLE_CONSTRUCTION
+    kg_pipeline_stream_handler_logger.info("Sending INITIATE_STREAMING_TUPLE_CONSTRUCTION");
+    if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH,
+                                   JasmineGraphInstanceProtocol::INITIATE_STREAMING_TUPLE_CONSTRUCTION,
+                                   JasmineGraphInstanceProtocol::OK)) {
+        kg_pipeline_stream_handler_logger.error("Failed to initiate streaming tuple construction");
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return;
+    }
+    kg_pipeline_stream_handler_logger.info("INITIATE_STREAMING_TUPLE_CONSTRUCTION successful");
+
+    // 3. Send graph ID
+    kg_pipeline_stream_handler_logger.info("Sending graphID: " + std::to_string(graphID));
+    if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH,
+                                   std::to_string(graphID),
+                                   JasmineGraphInstanceProtocol::OK)) {
+        kg_pipeline_stream_handler_logger.error("Failed to send graphID");
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return;
+    }
+    kg_pipeline_stream_handler_logger.info("GraphID sent successfully");
+
+    // Streaming loop
+    while (true) {
+        std::string chunk;
+
+        std::unique_lock<std::mutex> lock(this->dataBufferMutexForWorker);
+        this->dataBufferCV.wait(lock, [this, &dataBuffer] { return !dataBuffer.empty() || !this->isReading; });
+
+        chunk = std::move(dataBuffer.front());
+        dataBuffer.pop();
+
+        kg_pipeline_stream_handler_logger.info("Processing chunk for partitionId: " + std::to_string(partitionId));
+        lock.unlock();
+        dataBufferCV.notify_all();
+
+        if (chunk == END_OF_STREAM_MARKER) {
+            kg_pipeline_stream_handler_logger.info("Received END_OF_STREAM_MARKER for partitionId: " + std::to_string(partitionId));
+            if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH,
+                                           JasmineGraphInstanceProtocol::CHUNK_STREAM_END,
+                                           JasmineGraphInstanceProtocol::OK)) {
+                kg_pipeline_stream_handler_logger.error("Failed to send END_OF_STREAM");
+            }
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+            kg_pipeline_stream_handler_logger.info("Closed connection for partitionId: " + std::to_string(partitionId));
+            close(sockfd);
+            break; // Exit loop if end of stream marker is received
+        }
+        // Send chunk
+        kg_pipeline_stream_handler_logger.info("Sending QUERY_DATA_START for chunk of size: " + std::to_string(chunk.length()));
+        if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH,
+                                       JasmineGraphInstanceProtocol::QUERY_DATA_START,
+                                       JasmineGraphInstanceProtocol::OK)) {
+            kg_pipeline_stream_handler_logger.error("Failed to send QUERY_DATA_START");
+            break;
+        }
+
+        char ack3[ACK_MESSAGE_SIZE] = {0};
+        int converted_number = htonl(chunk.length());
+        kg_pipeline_stream_handler_logger.info("Sending chunk length: " + std::to_string(chunk.length()));
+        if (!Utils::sendIntExpectResponse(sockfd, ack3,
+                                          JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.length(),
+                                          converted_number,
+                                          JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK)) {
+            kg_pipeline_stream_handler_logger.error("Failed to send chunk length");
+            break;
+        }
+
+        kg_pipeline_stream_handler_logger.info("Sending chunk data");
+        if (!Utils::send_str_wrapper(sockfd, chunk)) {
+            kg_pipeline_stream_handler_logger.error("Failed to send chunk data");
+            break;
+        }
+        Utils::expect_str_wrapper(sockfd, JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS);
+
+        // Receive tuple from server
+        kg_pipeline_stream_handler_logger.info("Waiting for QUERY_DATA_START from server");
+        if (!Utils::expect_str_wrapper(sockfd, JasmineGraphInstanceProtocol::QUERY_DATA_START)) {
+            kg_pipeline_stream_handler_logger.error("Did not receive QUERY_DATA_START from server");
+            break;
+        }
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::OK);
+
+        while (true)
+        {
+            int tuple_length;
+            recv(sockfd, &tuple_length, sizeof(int), 0);
+            tuple_length = ntohl(tuple_length);
+            kg_pipeline_stream_handler_logger.info("Received tuple length: " + std::to_string(tuple_length));
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK);
+
+            std::string tuple(tuple_length, 0);
+            recv(sockfd, &tuple[0], tuple_length, 0);
+            kg_pipeline_stream_handler_logger.info("Received tuple data");
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS);
+            kg_pipeline_stream_handler_logger.info(tuple);
+            sharedBuffer.add(tuple);
+        }
+    }
+
+    kg_pipeline_stream_handler_logger.info("Closing connection for partitionId: " + std::to_string(partitionId));
+    Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+    close(sockfd);
 }
+
+

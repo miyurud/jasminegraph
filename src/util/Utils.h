@@ -170,6 +170,7 @@ class Utils {
 
     static bool sendExpectResponse(int sockfd, char *data, size_t data_length, std::string sendMsg,
                                    std::string expectMsg);
+    static bool expect_str_wrapper(int sockfd, const std::string& expected);
 
     static bool performHandshake(int sockfd, char *data, size_t data_length, std::string masterIP);
 
