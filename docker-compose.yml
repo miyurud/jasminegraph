@@ -14,11 +14,13 @@ services:
       - './conf:/home/ubuntu/software/jasminegraph/conf'
     networks:
       jasminenet:
-        ipv4_address: 172.28.5.5
+        ipv4_address: 172.28.5.7
     command: --MODE 1 --MASTERIP 172.28.5.1 --WORKERS 2 --WORKERIP 172.28.5.1 --ENABLE_NMON false
     depends_on:
       - prometheus
       - kafka
+      - alloy
+      - grafana
   prometheus:
     image: prom/prometheus:latest
     ports:
@@ -44,11 +46,11 @@ services:
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://172.28.5.4:9092,CONTROLLER://172.28.5.4:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://172.28.5.4:9092
+      KAFKA_LISTENERS: PLAINTEXT://172.28.5.8:9092,CONTROLLER://172.28.5.8:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://172.28.5.8:9092
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@172.28.5.4:9093
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@172.28.5.8:9093
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
@@ -57,7 +59,64 @@ services:
       CLUSTER_ID: ciWo7IWazngRchmPES6q5A==
     networks:
       jasminenet:
+        ipv4_address: 172.28.5.8
+  alloy:
+    image: grafana/alloy:latest
+    ports:
+      - 12345:12345
+      - 4317:4317
+      - 4318:4318
+    volumes:
+      - ./config.alloy:/etc/alloy/config.alloy
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: run --server.http.listen-addr=0.0.0.0:12345 --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy
+    depends_on:
+      - loki
+    networks:
+      jasminenet:
         ipv4_address: 172.28.5.4
+  loki:
+    image: grafana/loki:latest
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki-config.yaml:/etc/loki/local-config.yaml
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      jasminenet:
+        ipv4_address: 172.28.5.5
+  grafana:
+    image: grafana/grafana-enterprise
+    environment:
+      - GF_FEATURE_TOGGLES_ENABLE=grafanaManagedRecordingRules
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_BASIC_ENABLED=false
+    ports:
+      - 3000:3000
+    entrypoint:
+      - sh
+      - -euc
+      - |
+        mkdir -p /etc/grafana/provisioning/datasources
+        cat <<EOF > /etc/grafana/provisioning/datasources/ds.yaml
+        apiVersion: 1
+        datasources:
+        - name: Loki
+          type: loki
+          access: proxy
+          orgId: 1
+          url: 'http://loki:3100'
+          basicAuth: false
+          isDefault: true
+          version: 1
+          editable: true 
+        EOF
+        /run.sh
+    networks:
+      jasminenet:
+        ipv4_address: 172.28.5.6
+
 networks:
   jasminenet:
     external: false
