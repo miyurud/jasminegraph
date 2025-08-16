@@ -13,4 +13,4 @@ PORT="7777"
     sleep 5
 ) | telnet "$HOST" "$PORT"
 
-docker compose stop prometheus pushgateway &
+docker compose stop kafka prometheus pushgateway &
