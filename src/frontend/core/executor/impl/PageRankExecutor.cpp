@@ -79,7 +79,7 @@ void PageRankExecutor::execute() {
 
     auto begin = chrono::high_resolution_clock::now();
 
-    std::map<std::string, JasmineGraphServer::workerPartitions> graphPartitionedHosts =
+    std::unordered_map<std::string, JasmineGraphServer::workerPartitions> graphPartitionedHosts =
         JasmineGraphServer::getGraphPartitionedHosts(graphId);
     string host;
     int port;
