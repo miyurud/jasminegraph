@@ -86,6 +86,7 @@ set(HEADERS globals.h
         src/query/processor/cypher/util/Const.h
         src/nativestore/MetaPropertyLink.h
         src/nativestore/MetaPropertyEdgeLink.h
+        src/vectorStore/LlamaCPPTextEmbedder.h
         src/query/processor/cypher/queryplanner/Operators.h
         src/query/processor/cypher/queryplanner/QueryPlanner.h
         src/query/processor/cypher/runtime/InstanceHandler.h
@@ -194,6 +195,14 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/knowledgegraph/construction/Pipeline.h
         src/knowledgegraph/construction/OllamaTupleStreamer.cpp
         src/knowledgegraph/construction/OllamaTupleStreamer.h
+        src/vectorStore/LlamaCPPTextEmbedder.cpp
+        src/vectorStore/TextEmbedder.cpp
+        src/vectorStore/TextEmbedder.h
+        src/vectorStore/FaissStore.cpp
+        src/vectorStore/FaissStore.h
+        src/query/processor/semanticBeamSearch/SemanticBeamSearch.cpp
+        src/query/processor/semanticBeamSearch/SemanticBeamSearch.h
+
 
 )
 
@@ -225,14 +234,28 @@ target_link_libraries(JasmineGraphLib PRIVATE /usr/lib/x86_64-linux-gnu/libflatb
 target_link_libraries(JasmineGraphLib PRIVATE /usr/lib/x86_64-linux-gnu/libjsoncpp.so)
 target_link_libraries(JasmineGraphLib PRIVATE /usr/local/lib/libcppkafka.so)
 target_link_libraries(JasmineGraphLib PRIVATE /usr/local/libhdfs3/lib/libhdfs3.so)
+target_link_libraries(JasmineGraphLib PRIVATE   /usr/local/lib/llama.cpp/build/bin/libllama.so  )
+
 target_link_libraries(JasmineGraph JasmineGraphLib)
 target_link_libraries(JasmineGraph curl)
 
+target_link_libraries(JasmineGraphLib PRIVATE OpenMP::OpenMP_CXX faiss openblas)
+target_link_libraries(JasmineGraph  OpenMP::OpenMP_CXX faiss openblas)
+find_package(OpenMP REQUIRED)
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(JasmineGraph  OpenMP::OpenMP_CXX faiss)
+    target_link_libraries(JasmineGraphLib PRIVATE  OpenMP::OpenMP_CXX)
+endif()
 include_directories(/usr/local/libhdfs3/include/hdfs/)
 include_directories(/usr/include/oneapi/)
 include_directories(/usr/local/parmetis/include/)
 include_directories(/usr/lib/x86_64-linux-gnu/openmpi/include/)
 include_directories(/usr/local/include/antlr4-runtime)
+include_directories(/usr/local/lib/llama.cpp/include/)
+include_directories(/usr/local/lib/llama.cpp)
+include_directories(/usr/local/lib/llama.cpp/ggml/include)
+include_directories(/usr/local/lib/faiss)
+
 link_directories(/usr/local/lib)
 include_directories(/usr/local/include/yaml-cpp)
 target_link_libraries(JasmineGraphLib PRIVATE m)
@@ -240,7 +263,12 @@ target_link_libraries(JasmineGraphLib PRIVATE /usr/local/lib/libkubernetes.so)
 target_link_libraries(JasmineGraphLib PRIVATE yaml-cpp)
 target_link_libraries(JasmineGraphLib PRIVATE curl)
 target_link_libraries(JasmineGraphLib PRIVATE antlr4-runtime)
+target_link_libraries(JasmineGraphLib PRIVATE faiss)
 
+#target_link_libraries(JasmineGraphLib PRIVATE /usr/local/lib/llama.cpp/build/libllama.so)
+
+
+#target_link_libraries(llama)
 
 if (CMAKE_BUILD_TYPE STREQUAL "DEBUG")
     # Include google test

@@ -47,10 +47,10 @@ void Logger::log(std::string message, const std::string log_type) {
     long millis = tv.tv_sec * 1000 + tv.tv_usec / 1000;
     // TODO: This temporarily fixes spdlog hanging after forking. This will prevent using the actual logger and simulate
     // the behavior using cout instead. But it will not write logs to the log file.
-    if (log_type.compare("debug") != 0) {
+    // if (log_type.compare("debug") != 0) {
         cout << " [" << millis << "] [" << log_type << "] [" << worker_name << " : " << getpid() << ":" << tid << "] "
              << message << endl;
-    }
+    // }
     return;
 
     if (log_type.compare("info") == 0) {

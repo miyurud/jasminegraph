@@ -139,7 +139,7 @@ def test(host, port):
         send_and_expect_response(
             sock,
             "adhdfs",
-            b"10.10.8.89",
+            b"192.168.1.7",
             b"ok",
             exit_on_failure=True,
         )
@@ -153,14 +153,14 @@ def test(host, port):
         send_and_expect_response(
             sock,
             "adhdfs",
-            b"10.10.8.89",
+            b"192.168.1.7",
             b"ok",
             exit_on_failure=True,
         )
         send_and_expect_response(
             sock,
             "adhdfs",
-            b"10.10.8.89:7780",
+            b"192.168.1.7:7780:7781,192.168.1.7:7780:7781",
             b"ok",
             exit_on_failure=True,
         )

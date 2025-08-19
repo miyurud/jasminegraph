@@ -183,79 +183,84 @@ void Pipeline::startStreamingFromBufferToWorkers()
 
 void Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<SharedBuffer>>& tupleBuffer) {
     auto startTime = high_resolution_clock::now();
-    HDFSMultiThreadedHashPartitioner partitioner(numberOfPartitions, graphId, masterIP, isDirected);
+    kg_pipeline_stream_handler_logger.info("Starting processTupleAndSaveInPartition");
+    HDFSMultiThreadedHashPartitioner partitioner(numberOfPartitions, graphId, masterIP, true , workerList);
     std::hash<std::string> hasher;
-std::vector<std::thread> tupleThreads;
+    std::vector<std::thread> tupleThreads;
     for (size_t i = 0; i < tupleBuffer.size(); ++i) {
         SharedBuffer* tupleBufferRef = tupleBuffer[i].get();
-        tupleThreads.emplace_back([&, tupleBufferRef]() {
+        kg_pipeline_stream_handler_logger.info("Launching tuple thread for partition " + std::to_string(i));
+        tupleThreads.emplace_back([&, tupleBufferRef, i]() {
+            kg_pipeline_stream_handler_logger.info("Tuple thread started for partition " + std::to_string(i));
             while (isProcessing) {
-
                 if (!tupleBufferRef->empty()) {
                     std::string line = tupleBufferRef->get();
+                    kg_pipeline_stream_handler_logger.debug("Thread " + std::to_string(i) + " processing line: " + line);
                     // Check for end-of-stream marker
                     if (line == END_OF_STREAM_MARKER) {
-                        kg_pipeline_stream_handler_logger.debug("Received end-of-stream marker in one of the threads.");
+                        kg_pipeline_stream_handler_logger.debug("Received end-of-stream marker in thread " + std::to_string(i));
                         isProcessing = false;
                         break;
                     }
-
-
-            try {
-                auto jsonEdge = json::parse(line);
-                auto source = jsonEdge["source"];
-                auto destination = jsonEdge["destination"];
-                std::string sourceId = std::to_string(hasher(source["id"])% 10000);
-                std::string destinationId = std::to_string(hasher(destination["id"])% 10000);
-
-                if (!sourceId.empty() && !destinationId.empty()) {
-                    int sourceIndex = std::stoi(sourceId) % this->numberOfPartitions;
-                    int destIndex = std::stoi(destinationId) % this->numberOfPartitions;
-
-                    source["pid"] = sourceIndex;
-                    destination["pid"] = destIndex;
-
-                    json obj = {
-                        {"source", source},
-                        {"destination", destination},
-                        {"properties", jsonEdge["properties"]}
-                    };
-
-                    if (sourceIndex == destIndex) {
-                        partitioner.addLocalEdge(obj.dump(), sourceIndex);
-                    } else {
-                        partitioner.addEdgeCut(obj.dump(), sourceIndex);
-
-                        json reversedObj = {
-                            {"source", destination},
-                            {"destination", source},
-                            {"properties", jsonEdge["properties"]}
-                        };
-
-                        partitioner.addEdgeCut(reversedObj.dump(), destIndex);
+                    try {
+                        auto jsonEdge = json::parse(line);
+                        auto source = jsonEdge["source"];
+                        auto destination = jsonEdge["destination"];
+                        std::string sourceId = std::to_string(hasher(source["id"])% 10000);
+                        source["id"] = sourceId;
+                        std::string destinationId = std::to_string(hasher(destination["id"])% 10000);
+                        destination["id"] = destinationId;
+                        kg_pipeline_stream_handler_logger.debug("Thread " + std::to_string(i) + " sourceId: " + sourceId + ", destinationId: " + destinationId);
+                        if (!sourceId.empty() && !destinationId.empty()) {
+                            int sourceIndex = std::stoi(sourceId) % this->numberOfPartitions;
+                            int destIndex = std::stoi(destinationId) % this->numberOfPartitions;
+                            source["pid"] = sourceIndex;
+                            destination["pid"] = destIndex;
+                            json obj = {
+                                {"source", source},
+                                {"destination", destination},
+                                {"properties", jsonEdge["properties"]}
+                            };
+                            if (sourceIndex == destIndex) {
+                                kg_pipeline_stream_handler_logger.debug("Thread " + std::to_string(i) + " adding local edge to partition " + std::to_string(sourceIndex));
+                                partitioner.addLocalEdge(obj.dump(), sourceIndex);
+                            } else {
+                                kg_pipeline_stream_handler_logger.debug("Thread " + std::to_string(i) + " adding edge cut to partition " + std::to_string(sourceIndex));
+                                partitioner.addEdgeCut(obj.dump(), sourceIndex);
+                                json reversedObj = {
+                                    {"source", destination},
+                                    {"destination", source},
+                                    {"properties", jsonEdge["properties"]}
+                                };
+                                kg_pipeline_stream_handler_logger.debug("Thread " + std::to_string(i) + " adding reversed edge cut to partition " + std::to_string(destIndex));
+                                partitioner.addEdgeCut(reversedObj.dump(), destIndex);
+                            }
+                        } else {
+                            kg_pipeline_stream_handler_logger.error("Malformed line: missing source/destination ID: " + line);
+                        }
+                    } catch (const json::parse_error &e) {
+                        kg_pipeline_stream_handler_logger.error("JSON parse error: " + std::string(e.what()) + " | Line: " + line);
+                    } catch (const std::invalid_argument &e) {
+                        kg_pipeline_stream_handler_logger.error("Invalid node ID (not an integer) in line: " + line);
+                    } catch (const std::out_of_range &e) {
+                        kg_pipeline_stream_handler_logger.error("Node ID out of range in line: " + line);
+                    } catch (const std::exception &e) {
+                        kg_pipeline_stream_handler_logger.error("Unexpected exception in line: " + std::string(e.what()));
                     }
-                } else {
-                    kg_pipeline_stream_handler_logger.error("Malformed line: missing source/destination ID: " + line);
-                }
-            } catch (const json::parse_error &e) {
-                kg_pipeline_stream_handler_logger.error("JSON parse error: " + std::string(e.what()) + " | Line: " + line);
-            } catch (const std::invalid_argument &e) {
-                kg_pipeline_stream_handler_logger.error("Invalid node ID (not an integer) in line: " + line);
-            } catch (const std::out_of_range &e) {
-                kg_pipeline_stream_handler_logger.error("Node ID out of range in line: " + line);
-            } catch (const std::exception &e)
-            {
-                kg_pipeline_stream_handler_logger.error("Unexpected exception in line: " + std::string(e.what()));
-            }
                 } else if (!isReading) {
+                    kg_pipeline_stream_handler_logger.info("Thread " + std::to_string(i) + " exiting due to isReading=false");
                     break;
                 }
             }
+            kg_pipeline_stream_handler_logger.info("Tuple thread finished for partition " + std::to_string(i));
         });
     }
     for (auto& t : tupleThreads) {
         t.join();
     }
+    auto endTime = high_resolution_clock::now();
+    std::chrono::duration<double> duration = endTime - startTime;
+    kg_pipeline_stream_handler_logger.info("processTupleAndSaveInPartition completed in " + std::to_string(duration.count()) + " seconds");
 }
 
 
@@ -397,6 +402,11 @@ void Pipeline::extractTuples(std::string host, int port, std::string masterIP,
 
         while (true)
         {
+
+            // if ( Utils::expect_str_wrapper(sockfd, JasmineGraphInstanceProtocol::GRAPH_STREAM_END_OF_EDGE)) {
+            //     kg_pipeline_stream_handler_logger.error("End of tuple stream");
+            //     break;
+            // }
             int tuple_length;
             recv(sockfd, &tuple_length, sizeof(int), 0);
             tuple_length = ntohl(tuple_length);

@@ -2,7 +2,7 @@
 // Created by sajeenthiran on 2025-08-15
 //
 
-#include "TextEmbedder.h"
+#include "LlamaCPPTextEmbedder.h"
 
 #include "llama.h"  // from latest llama.cpp include folder
 #include <stdexcept>
@@ -53,7 +53,7 @@ struct LlamaCPPTextEmbedder::Impl {
         //     throw std::runtime_error("Eval failed");
         // }
 
-        int embd_size = llama_n_embd(model);
+        int embd_size = llama_model_n_embd(model);
         const float* embd_data = llama_get_embeddings(ctx);
         if (!embd_data) {
             throw std::runtime_error("No embedding data returned");

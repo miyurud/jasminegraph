@@ -86,4 +86,3 @@ __pycache__
 
 coverage.xml
 *.tmp
-tests/integration/env_init/data/kg/hotpotqa_full_corpus.txt

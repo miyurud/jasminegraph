@@ -15,21 +15,53 @@ limitations under the License.
 
 #include <memory>
 #include <stdexcept>
+#include <faiss/IndexFlat.h>
 
 #include "../../nativestore/RelationBlock.h"
 #include "../../util/logger/Logger.h"
 #include "../../util/Utils.h"
 #include "../../nativestore/MetaPropertyLink.h"
+#include "../../vectorStore/FaissStore.h"
+#include "../../vectorStore/LlamaCPPTextEmbedder.h"
+#include "../../vectorStore/TextEmbedder.h"
+#include "../../vectorStore/TextEmbedder.h"
+
 
 Logger incremental_localstore_logger;
 
 JasmineGraphIncrementalLocalStore::JasmineGraphIncrementalLocalStore(unsigned int graphID, unsigned int partitionID,
-                                                                     std::string openMode) {
+                                                                     std::string openMode, bool embedNode) {
     gc.graphID = graphID;
     gc.partitionID = partitionID;
     gc.maxLabelSize = std::stoi(Utils::getJasmineGraphProperty("org.jasminegraph.nativestore.max.label.size"));
+    this->embedNode = embedNode;
     gc.openMode = openMode;
     this->nm = new NodeManager(gc);
+    if (this->embedNode )
+    {
+        incremental_localstore_logger.info("Embedding enabled for the local store");
+
+        this->faissStore =    FaissStore::getInstance(std::stoi(Utils::getJasmineGraphProperty("org.jasminegraph.vectorstore.dimension")),
+
+
+         this->nm->getDbPrefix()+ "_faiss.index");
+        this->textEmbedder = new TextEmbedder(
+                   Utils::getJasmineGraphProperty("org.jasminegraph.vectorstore.embedding.ollama.endpoint") , // Ollama endpoint
+                   Utils::getJasmineGraphProperty("org.jasminegraph.vectorstore.embedding.model")                     // model name
+                );
+        // Provide a small sample to train
+        // std::vector<std::vector<float>> sampleVectors;
+        // for (int i = 0; i < 10; i++) {
+        //     sampleVectors.push_back(std::vector<float>(768, i * 0.01f));
+        // }
+        // faissStore->addBatch(sampleVectors); // trains automatically and adds vectors
+
+
+    }
+
+
+
+
 };
 
 std::pair<std::string, unsigned int> JasmineGraphIncrementalLocalStore::getIDs(std::string edgeString) {
@@ -120,6 +152,25 @@ void JasmineGraphIncrementalLocalStore::addLocalEdge(std::string edge) {
     auto jsonSource = jsonEdge["source"];
     auto jsonDestination = jsonEdge["destination"];
 
+    // log the edge information
+    incremental_localstore_logger.info("Adding local edge: " + edge);
+    if (!jsonSource.contains("id") || !jsonDestination.contains("id")) {
+        incremental_localstore_logger.error("Source or destination ID missing in edge data: " + edge);
+        return;
+    }
+    if (!jsonEdge.contains("source") || !jsonEdge.contains("destination")) {
+        incremental_localstore_logger.error("Source or destination missing in edge data: " + edge);
+        return;
+    }
+    if (!jsonEdge.contains("properties")) {
+        incremental_localstore_logger.error("Properties missing in edge data: " + edge);
+        return;
+    }
+    if (!jsonSource.contains("pid") || !jsonDestination.contains("pid")) {
+        incremental_localstore_logger.error("Partition ID missing in source or destination: " + edge);
+        return;
+    }
+
     std::string sId = std::string(jsonSource["id"]);
     std::string dId = std::string(jsonDestination["id"]);
 
@@ -196,6 +247,7 @@ void JasmineGraphIncrementalLocalStore::addLocalEdgeProperties(RelationBlock* re
 void JasmineGraphIncrementalLocalStore::addSourceProperties(RelationBlock* relationBlock, const json& sourceJson) {
     char value[PropertyLink::MAX_VALUE_SIZE] = {};
     char label[NodeBlock::LABEL_SIZE] = {0};
+    std::ostringstream textForEmbedding;
     if (sourceJson.contains("properties")) {
         auto sourceProps = sourceJson["properties"];
         for (auto it = sourceProps.begin(); it != sourceProps.end(); it++) {
@@ -203,13 +255,45 @@ void JasmineGraphIncrementalLocalStore::addSourceProperties(RelationBlock* relat
             if (std::string(it.key()) == "label") {
                 strcpy(label, it.value().get<std::string>().c_str());
                 relationBlock->getSource()->addLabel(&label[0]);
+
             }
+            textForEmbedding << it.key() << ":" << value << " ";
+
             relationBlock->getSource()->addProperty(std::string(it.key()), &value[0]);
         }
     }
     std::string sourcePid = std::to_string(sourceJson["pid"].get<int>());
     addNodeMetaProperty(relationBlock->getSource(), MetaPropertyLink::PARTITION_ID,
                         sourcePid);
+if (this->embedNode )
+{
+    std::string nodeText = textForEmbedding.str();
+    if (!nodeText.empty()) {
+        // static LlamaCPPTextEmbedder embedder("/models/nomic-embed-text-v1.5.Q4_K_S.gguf");
+        // std::vector<float> embedding = embedder.embed(nodeText);
+        incremental_localstore_logger.info("Embedding: ");
+
+        // TextEmbedder te(
+        //             "http://192.168.1.7:11434/api/embeddings", // Ollama endpoint
+        //             "nomic-embed-text"                        // model name
+        //         );
+
+        auto emb = textEmbedder->embed(nodeText);
+
+
+        faissStore->add(emb);
+
+        auto results = faissStore->search(emb, 5);
+        for (auto& [id, dist] : results) {
+            std::cout << "ID: " << id << ", Distance: " << dist << "\n";
+        }
+        // Store embedding into the node (option A: directly attach as property)
+        incremental_localstore_logger.info("Embedding: " + std::to_string(emb[0]) + " ...");
+
+        // OR (option B: save into external vector DB / file)
+        // embeddingStore.save(relationBlock->getSource()->getId(), embedding);
+    }
+}
 }
 
 void JasmineGraphIncrementalLocalStore::addDestinationProperties(RelationBlock* relationBlock,

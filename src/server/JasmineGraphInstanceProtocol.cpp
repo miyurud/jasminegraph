@@ -100,6 +100,7 @@ const string JasmineGraphInstanceProtocol::INITIATE_STREAMING_CLIENT = "initiate
 const string JasmineGraphInstanceProtocol::INITIATE_STREAMING_TRIAN = "initiate-streaming-trian";
 const string JasmineGraphInstanceProtocol::INITIATE_STREAMING_KG_CONSTRUCTION = "initiate-streaming-kg-construction";
 const string JasmineGraphInstanceProtocol::INITIATE_STREAMING_TUPLE_CONSTRUCTION = "initiate-streaming-tuple-extraction";
+const string JasmineGraphInstanceProtocol:: SEMANTIC_BEAM_SEARCH = "initiate-semantic-beam-search";
  const string  JasmineGraphInstanceProtocol::CHUNK_STREAM_END = "chunk-stream-end";
 
 

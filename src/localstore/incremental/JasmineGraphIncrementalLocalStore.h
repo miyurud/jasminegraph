@@ -13,6 +13,9 @@ limitations under the License.
 
 #include <nlohmann/json.hpp>
 #include <string>
+
+#include "../../vectorStore/FaissStore.h"
+#include "../../vectorStore/TextEmbedder.h"
 using json = nlohmann::json;
 
 #include "../../nativestore/NodeManager.h"
@@ -23,10 +26,15 @@ class JasmineGraphIncrementalLocalStore {
  public:
     GraphConfig gc;
     NodeManager *nm;
+    FaissStore *faissStore;
+    TextEmbedder *textEmbedder;
+    bool embedNode;
     void addEdgeFromString(std::string edgeString);
+    // JasmineGraphIncrementalLocalStore(unsigned int graphID, unsigned int partitionID, std::string openMode,
+    //                                   bool embedNode);
     static std::pair<std::string, unsigned int> getIDs(std::string edgeString);
     JasmineGraphIncrementalLocalStore(unsigned int graphID = 0,
-                                      unsigned int partitionID = 0, std::string openMode = "trunk");
+                                      unsigned int partitionID = 0, std::string openMode = "trunk",bool embedNode = false);
     void addLocalEdge(std::string edge);
     void addCentralEdge(std::string edge);
     void addNodeMetaProperty(NodeBlock* nodeBlock, std::string propertyKey, std::string propertyValue);
