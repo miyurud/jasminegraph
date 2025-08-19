@@ -1291,7 +1291,7 @@ struct RowDescComparator {
 struct DynamicComparator {
     bool isAsc;
     bool operator()(const Row& a, const Row& b) const {
-        return isAsc ? RowAscComparator {}(a, b) : RowDescComparator{}(a, b);
+        return isAsc ? RowAscComparator {}(a, b) : RowDescComparator {}(a, b);
     }
 };
 
