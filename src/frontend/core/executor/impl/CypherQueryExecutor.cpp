@@ -227,7 +227,7 @@ void CypherQueryExecutor::execute() {
                 }
             }
 
-            //Streaming merge loop
+            // Streaming merge loop
             while (!mergeQueue.empty()) {
                 BufferEntry top = mergeQueue.top();
                 mergeQueue.pop();
