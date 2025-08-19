@@ -1,0 +1,14 @@
+//
+// Created by sajeenthiran on 2025-08-18.
+//
+
+#ifndef JASMINEGRAPH_SEMANTICBEAMSEARCH_H
+#define JASMINEGRAPH_SEMANTICBEAMSEARCH_H
+
+
+class SemanticBeamSearch
+{
+};
+
+
+#endif //JASMINEGRAPH_SEMANTICBEAMSEARCH_H
