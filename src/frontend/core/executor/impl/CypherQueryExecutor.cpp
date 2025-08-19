@@ -217,12 +217,16 @@ void CypherQueryExecutor::execute() {
             for (size_t i = 0; i < bufferPool.size(); ++i) {
                 std::string value = bufferPool[i]->get();
                 if (!value.empty()) {
-                    try {
-                        json parsed = json::parse(value);
-                        BufferEntry entry{value, i, parsed, isAsc};
-                        mergeQueue.push(entry);
-                    } catch (const json::exception& e) {
-                        cypher_logger.error("JSON parse error in init: " + std::string(e.what()));
+                    if (value == "-1") {
+                        closeFlag++;
+                    } else {
+                        try {
+                            json parsed = json::parse(value);
+                            BufferEntry entry{value, i, parsed, isAsc};
+                            mergeQueue.push(entry);
+                        } catch (const json::exception &e) {
+                            cypher_logger.error("JSON parse error in init: " + std::string(e.what()));
+                        }
                     }
                 }
             }
