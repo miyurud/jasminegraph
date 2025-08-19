@@ -206,81 +206,51 @@ void CypherQueryExecutor::execute() {
                     } else {
                         result = val1->dump() > val2->dump();  // fallback comparison
                     }
-                    return isAsc ? result : !result;  // Flip for DESC
+                    return isAsc ? result : !result;
                 }
             };
             bool isAsc = (Operator::aggregateType == AggregationFactory::ASC);
-            std::priority_queue<BufferEntry> mergeQueue;  // Min-heap
-            while (true) {
-                if (closeFlag >= numberOfPartitions) {
-                    break;
-                }
-                for (size_t i = 0; i < bufferPool.size(); ++i) {
-                    std::string value;
-                    if (bufferPool[i]->tryGet(value)) {
-                        if (value != "-1") {
-                            try {
-                                json parsed = json::parse(value);
-                                const json *aggVal = getNestedValuePtr(parsed, Operator::aggregateKey);
-                                if (!aggVal) {
-                                    cypher_logger.error("Missing key '" + Operator::aggregateKey
-                                        + "' in JSON: " + value);
-                                    continue;
-                                }
-                                BufferEntry entry{value, i, parsed, isAsc};
-                                mergeQueue.push(entry);
-                            } catch (const json::exception &e) {
-                                cypher_logger.error("JSON parse error: " + std::string(e.what()));
-                                continue;
-                            }
-                        } else {
-                            closeFlag++;
-                        }
+            auto cmp = [](const BufferEntry& a, const BufferEntry& b) { return a < b; };
+            std::priority_queue<BufferEntry, std::vector<BufferEntry>, decltype(cmp)> mergeQueue(cmp);
+
+            cypher_logger.info("START MASTER STREAMING MERGE");
+            for (size_t i = 0; i < bufferPool.size(); ++i) {
+                std::string value = bufferPool[i]->get();
+                if (!value.empty()) {
+                    try {
+                        json parsed = json::parse(value);
+                        BufferEntry entry{value, i, parsed, isAsc};
+                        mergeQueue.push(entry);
+                    } catch (const json::exception& e) {
+                        cypher_logger.error("JSON parse error in init: " + std::string(e.what()));
                     }
                 }
             }
 
-            cypher_logger.info("START MASTER SORTING");
-            cypher_logger.info(std::to_string(mergeQueue.size()));
+            //Streaming merge loop
             while (!mergeQueue.empty()) {
-                BufferEntry smallest = mergeQueue.top();
-                cypher_logger.info(smallest.value);
-                size_t queueSize = mergeQueue.size();
-                cypher_logger.debug(std::to_string(queueSize));
+                BufferEntry top = mergeQueue.top();
                 mergeQueue.pop();
-                result_wr = write(connFd, smallest.value.c_str(), smallest.value.length());
-                if (result_wr < 0) {
-                    cypher_logger.error("Error writing to socket");
-                    return;
-                }
-                result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
-                                  Conts::CARRIAGE_RETURN_NEW_LINE.size());
-                if (result_wr < 0) {
-                    cypher_logger.error("Error writing to socket");
-                    *loop_exit = true;
-                    return;
-                }
-                if (closeFlag < numberOfPartitions) {
-                    std::string nextValue = bufferPool[smallest.bufferIndex]->get();
-                    if (nextValue == "-1") {
-                        closeFlag++;
-                        cypher_logger.info("closeflag" + std::to_string(closeFlag));
-                    } else {
-                        try {
-                            json parsed = json::parse(nextValue);
-                            if (!parsed.contains(Operator::aggregateKey)) {
-                                cypher_logger.error("Missing key '" + Operator::aggregateKey +
-                                                      "' in JSON: " + nextValue);
-                                continue;
-                            }
-                            BufferEntry entry{nextValue, smallest.bufferIndex, parsed, isAsc};
-                            mergeQueue.push(entry);
-                        } catch (const json::exception& e) {
-                            cypher_logger.error("JSON parse error: " + std::string(e.what()));
-                        }
+                result_wr = write(connFd, top.value.c_str(), top.value.length());
+                write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+
+                // Try to get next element from the same worker buffer
+                std::string nextValue = bufferPool[top.bufferIndex]->get();
+                if (nextValue == "-1") {
+                    closeFlag++;
+                } else {
+                    try {
+                        json parsed = json::parse(nextValue);
+                        BufferEntry nextEntry{nextValue, top.bufferIndex, parsed, isAsc};
+                        mergeQueue.push(nextEntry);
+                    } catch (const json::exception& e) {
+                        cypher_logger.error("JSON parse error: " + std::string(e.what()));
                     }
                 }
+                if (closeFlag >= bufferPool.size()) break;
             }
+            cypher_logger.info("MASTER STREAMING MERGE COMPLETED");
+
         } else {
             std::string log = "Query is recongnized as Aggreagation, but method doesnot have implemented yet";
             result_wr = write(connFd, log.c_str(), log.length());

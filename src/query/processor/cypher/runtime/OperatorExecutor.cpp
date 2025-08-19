@@ -18,6 +18,8 @@ limitations under the License.
 #include "Helpers.h"
 #include <thread>
 #include <queue>
+#include <chrono>
+#include <random>
 
 Logger execution_logger;
 std::unordered_map<std::string,
@@ -1226,10 +1228,20 @@ struct Row {
     std::string jsonStr;
     std::string sortKey;
     bool isAsc;
+    size_t sourceFileIndex;
 
-    Row(const std::string& str, const std::string& key, bool asc)
-        : jsonStr(str), sortKey(key), isAsc(asc) {
+    Row(const std::string& str, const std::string& key, bool asc, size_t srcIdx = 0)
+            : jsonStr(str), sortKey(key), isAsc(asc), sourceFileIndex(srcIdx) {
         data = json::parse(str);
+    }
+
+    size_t memoryUsage() const {
+        // Rough estimate: strings + json overhead
+        return sizeof(Row)
+               + jsonStr.size()
+               + sortKey.size()
+               + sizeof(bool)
+               + sizeof(size_t);
     }
 
     json getNestedValue(const json& obj, const std::string& key) const {
@@ -1262,6 +1274,74 @@ struct Row {
     }
 };
 
+// Define comparator for ASC
+struct RowAscComparator {
+    bool operator()(const Row& a, const Row& b) const {
+        return a < b; // Uses your Row::operator<
+    }
+};
+
+// Define comparator for DESC
+struct RowDescComparator {
+    bool operator()(const Row& a, const Row& b) const {
+        return b < a; // Reverses your Row::operator<
+    }
+};
+
+struct DynamicComparator {
+    bool isAsc;
+    bool operator()(const Row& a, const Row& b) const {
+        return isAsc ? RowAscComparator{}(a, b) : RowDescComparator{}(a, b);
+    }
+};
+
+std::string generateUniqueFilename() {
+    auto now = std::chrono::system_clock::now();
+    auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(
+            now.time_since_epoch()).count();
+
+    std::stringstream uuid;
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(0, 15);
+
+    for (int i = 0; i < 8; i++) {
+        uuid << std::hex << dis(gen);
+    }
+
+    std::ostringstream filename;
+    filename << "run_" << millis << "_" << uuid.str() << ".dat";
+    return filename.str();
+}
+
+// Flush heap into a run file
+void flushHeapToRunFile(
+        std::priority_queue<Row, std::vector<Row>, DynamicComparator> &pq,
+        std::vector<std::string> &runFiles
+) {
+    if (pq.empty()) return;
+
+    std::string filename = generateUniqueFilename();
+    std::ofstream outFile(filename, std::ios::out | std::ios::binary);
+
+    if (!outFile) {
+        execution_logger.error("OrderBy: Failed to create run file: " + filename);
+        return;
+    }
+
+    execution_logger.info("OrderBy: Flushing heap to run file: " + filename);
+
+    while (!pq.empty()) {
+        const Row &row = pq.top();
+        outFile << row.jsonStr << "\n";
+        pq.pop();
+    }
+
+    outFile.close();
+    runFiles.push_back(filename);
+    execution_logger.info("OrderBy: Finished flushing heap to run file: " + filename);
+}
+
 void OperatorExecutor::OrderBy(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
     json query = json::parse(jsonPlan);
     SharedBuffer sharedBuffer(INTER_OPERATOR_BUFFER_SIZE);
@@ -1274,20 +1354,90 @@ void OperatorExecutor::OrderBy(SharedBuffer &buffer, std::string jsonPlan, Graph
 
     std::string sortKey = query["variable"];
     std::string order = query["order"];
-    const size_t MAX_SIZE = 5000;
+    const size_t MAX_MEMORY_BYTES = 1024 * 1024; // 1 MB
+    size_t heapMemoryUsage = 0;
     bool isAsc = (order == "ASC");
 
-    std::priority_queue<Row> heap;
+    auto heap = std::priority_queue<Row, std::vector<Row>, DynamicComparator>(
+            DynamicComparator{isAsc}
+    );
+    std::vector<std::string> runFiles;  // store generated run file paths
+    size_t runCounter = 0;
+
+    auto localKWayMergeToBuffer = [&](
+            const std::vector<std::string> &runFiles,
+                                      SharedBuffer &buffer,
+                                      bool isAsc,
+                                      const std::string &sortKey) {
+        // Comparator for heap
+        auto cmp = [&](const Row &a, const Row &b) {
+            json val1 = a.getNestedValue(a.data, sortKey);
+            json val2 = b.getNestedValue(b.data, sortKey);
+
+            bool result;
+            if (val1.is_number_integer() && val2.is_number_integer()) {
+                result = val1.get<int>() > val2.get<int>();
+            } else if (val1.is_string() && val2.is_string()) {
+                result = val1.get<std::string>() > val2.get<std::string>();
+            } else {
+                result = val1.dump() > val2.dump();
+            }
+            return isAsc ? result : !result;
+        };
+
+        std::priority_queue<Row, std::vector<Row>, decltype(cmp)> pq(cmp);
+        std::vector<std::ifstream> files(runFiles.size());
+
+        // push first row from each run
+        for (size_t i = 0; i < runFiles.size(); ++i) {
+            files[i].open(runFiles[i]);
+            std::string line;
+            if (std::getline(files[i], line)) {
+                pq.emplace(line, sortKey, isAsc, i);
+            }
+        }
+
+        // Merge directly to buffer
+        while (!pq.empty()) {
+            Row top = pq.top();
+            pq.pop();
+            buffer.add(top.jsonStr);
+
+            size_t fileIndex = top.sourceFileIndex;
+            std::string line;
+            if (std::getline(files[fileIndex], line)) {
+                pq.emplace(line, sortKey, isAsc, fileIndex);
+            }
+        }
+        buffer.add("-1"); // close flag
+        for (auto &f : files) {
+            f.close();
+        }
+        for (const auto &file : runFiles) {
+            if (std::remove(file.c_str()) != 0) {
+                execution_logger.warn("OrderBy: Failed to delete temporary run file: " + file);
+            } else {
+                execution_logger.info("OrderBy: Deleted temporary run file: " + file);
+            }
+        }
+    };
+
     while (true) {
         std::string jsonStr = sharedBuffer.get();
         if (jsonStr == "-1") {
-            while (!heap.empty()) {
-                buffer.add(heap.top().jsonStr);
-                heap.pop();
+            // Final flush: If heap still has data, either to run file (if other runs exist) or directly to buffer
+            if (!runFiles.empty()) {
+                flushHeapToRunFile(heap, runFiles);
+                localKWayMergeToBuffer(runFiles, buffer, isAsc, sortKey);
+            } else {
+                while (!heap.empty()) {
+                    buffer.add(heap.top().jsonStr);
+                    heap.pop();
+                }
+                buffer.add(jsonStr);  // -1 close flag
+                result.join();
+                break;
             }
-            buffer.add(jsonStr);  // -1 close flag
-            result.join();
-            break;
         }
 
         try {
@@ -1298,13 +1448,15 @@ void OperatorExecutor::OrderBy(SharedBuffer &buffer, std::string jsonPlan, Graph
                 execution_logger.warn("OrderBy: Sort key '" + sortKey + "' not found in row: " + jsonStr);
                 continue;
             }
+            heapMemoryUsage += row.memoryUsage();
             heap.push(row);
-            if (heap.size() > MAX_SIZE) {
-                execution_logger.info("OrderBy: Heap size exceeded MAX_SIZE, popping");
-                heap.pop();
+            if (heapMemoryUsage > MAX_MEMORY_BYTES) {
+                execution_logger.info("OrderBy: Heap memory exceeded limit (" + std::to_string(heapMemoryUsage) + " bytes), flushing to runfile");
+                flushHeapToRunFile(heap, runFiles);
+                heapMemoryUsage = 0; // reset after flush
             }
         } catch (const std::exception& e) {
-            std::cerr << "Error parsing JSON: " << e.what() << "\n";
+            execution_logger.error("OrderBy: Error parsing row: " + std::string(e.what()));
         }
     }
 }
