@@ -1277,21 +1277,21 @@ struct Row {
 // Define comparator for ASC
 struct RowAscComparator {
     bool operator()(const Row& a, const Row& b) const {
-        return a < b; // Uses your Row::operator<
+        return a < b;  // Uses your Row::operator<
     }
 };
 
 // Define comparator for DESC
 struct RowDescComparator {
     bool operator()(const Row& a, const Row& b) const {
-        return b < a; // Reverses your Row::operator<
+        return b < a;  // Reverses your Row::operator<
     }
 };
 
 struct DynamicComparator {
     bool isAsc;
     bool operator()(const Row& a, const Row& b) const {
-        return isAsc ? RowAscComparator{}(a, b) : RowDescComparator{}(a, b);
+        return isAsc ? RowAscComparator {}(a, b) : RowDescComparator{}(a, b);
     }
 };
 
@@ -1354,13 +1354,12 @@ void OperatorExecutor::OrderBy(SharedBuffer &buffer, std::string jsonPlan, Graph
 
     std::string sortKey = query["variable"];
     std::string order = query["order"];
-    const size_t MAX_MEMORY_BYTES = 1024 * 1024; // 1 MB
+    const size_t MAX_MEMORY_BYTES = 1024 * 1024;  // 1 MB
     size_t heapMemoryUsage = 0;
     bool isAsc = (order == "ASC");
 
     auto heap = std::priority_queue<Row, std::vector<Row>, DynamicComparator>(
-            DynamicComparator{isAsc}
-    );
+            DynamicComparator{isAsc});
     std::vector<std::string> runFiles;  // store generated run file paths
     size_t runCounter = 0;
 
@@ -1409,7 +1408,7 @@ void OperatorExecutor::OrderBy(SharedBuffer &buffer, std::string jsonPlan, Graph
                 pq.emplace(line, sortKey, isAsc, fileIndex);
             }
         }
-        buffer.add("-1"); // close flag
+        buffer.add("-1");  // close flag
         for (auto &f : files) {
             f.close();
         }
@@ -1451,9 +1450,10 @@ void OperatorExecutor::OrderBy(SharedBuffer &buffer, std::string jsonPlan, Graph
             heapMemoryUsage += row.memoryUsage();
             heap.push(row);
             if (heapMemoryUsage > MAX_MEMORY_BYTES) {
-                execution_logger.info("OrderBy: Heap memory exceeded limit (" + std::to_string(heapMemoryUsage) + " bytes), flushing to runfile");
+                execution_logger.info("OrderBy: Heap memory exceeded limit (" + std::to_string(heapMemoryUsage)
+                + " bytes), flushing to runfile");
                 flushHeapToRunFile(heap, runFiles);
-                heapMemoryUsage = 0; // reset after flush
+                heapMemoryUsage = 0;  // reset after flush
             }
         } catch (const std::exception& e) {
             execution_logger.error("OrderBy: Error parsing row: " + std::string(e.what()));
