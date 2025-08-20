@@ -108,6 +108,7 @@ void OperatorExecutor::initializeMethodMap() {
 }
 
 void OperatorExecutor::AllNodeScan(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
+    execution_logger.debug("AllNodeScan started with partitionID: " + to_string(gc.partitionID));
     json query = json::parse(jsonPlan);
     NodeManager nodeManager(gc);
     for (auto it : nodeManager.nodeIndex) {
@@ -115,6 +116,7 @@ void OperatorExecutor::AllNodeScan(SharedBuffer &buffer, std::string jsonPlan, G
         auto nodeId = it.first;
         NodeBlock *node = nodeManager.get(nodeId);
         std::string value(node->getMetaPropertyHead()->value);
+        execution_logger.debug("Processing nodeId: " + nodeId + ", partitionID: " + value);
         if (value == to_string(gc.partitionID)) {
             nodeData["partitionID"] = value;
             std::map<std::string, char*> properties = node->getAllProperties();
@@ -129,9 +131,11 @@ void OperatorExecutor::AllNodeScan(SharedBuffer &buffer, std::string jsonPlan, G
             json data;
             string variable = query["variables"];
             data[variable] = nodeData;
+            execution_logger.debug("Adding node data for variable: " + variable + ", data: " + data.dump());
             buffer.add(data.dump());
         }
     }
+    execution_logger.debug("AllNodeScan finished, sending end-of-stream marker");
     buffer.add("-1");
 }
 

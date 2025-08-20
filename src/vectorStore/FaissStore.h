@@ -1,4 +1,5 @@
 #pragma once
+#include <faiss/IndexIDMap.h>
 #include <faiss/IndexFlat.h>
 #include <mutex>
 #include <string>
@@ -12,7 +13,13 @@ public:
 
     ~FaissStore();
 
+    // Add with a custom ID
+    void add(const std::vector<float>& embedding, faiss::idx_t custom_id);
+
+    // (Optional) Add without ID → will use sequential IDs
     void add(const std::vector<float>& embedding);
+
+    // Search returns (id, distance)
     std::vector<std::pair<faiss::idx_t, float>> search(const std::vector<float>& query, int k);
 
     void save(const std::string& filepath);
@@ -23,10 +30,10 @@ private:
     FaissStore(int embeddingDim, const std::string& filepath);
 
     int dim;
-    faiss::IndexFlatL2* index;
+    faiss::IndexIDMap* index;     // <-- now supports custom IDs
     std::mutex mtx;
-    std::string filePath;   // keep track of save location
+    std::string filePath;
 
-    static std::unique_ptr<FaissStore> instance;  // singleton instance
-    static std::once_flag initFlag;               // for thread-safe initialization
+    static std::unique_ptr<FaissStore> instance;
+    static std::once_flag initFlag;
 };

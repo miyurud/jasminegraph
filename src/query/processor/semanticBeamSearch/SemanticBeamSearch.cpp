@@ -35,26 +35,27 @@ std::vector<int> SemanticBeamSearch::getSeedNodes()
         std::cout << "Top " << results.size() << " nodes found:\n";
         for (auto& [id, dist] : results) {
         std::cout << "ID: " << id << ", Distance: " << dist << "\n";
-        //     NodeBlock* node = nodeManager.get( std::to_string(id));
+        NodeBlock* node = nodeManager.get( std::to_string(id));
         //
-        //     json nodeData;
+        json nodeData;
         //
-        //     std::string value(node->getMetaPropertyHead()->value);
-        //     if (value == to_string(gc.partitionID)) {
-        //         nodeData["partitionID"] = value;
-        //         std::map<std::string, char*> properties = node->getAllProperties();
-        //         for (auto property : properties) {
-        //             nodeData[property.first] = property.second;
-        //         }
-        //         for (auto& [key, value] : properties) {
-        //             delete[] value;  // Free each allocated char* array
-        //         }
-        //         properties.clear();
-        //
-        //         std::cout << "Node ID: " << node->id << ", Properties: " << nodeData.dump() << "\n";
-        //
-        //     }
-        //
+        std::string value(node->getMetaPropertyHead()->value);
+            std::cout<< value;
+            if (value == to_string(gc.partitionID)) {
+        nodeData["partitionID"] = value;
+        std::map<std::string, char*> properties = node->getAllProperties();
+                for (auto property : properties) {
+                    nodeData[property.first] = property.second;
+                }
+                for (auto& [key, value] : properties) {
+                    delete[] value;  // Free each allocated char* array
+                }
+                properties.clear();
+
+                std::cout << "Node ID: " << node->id << ", Properties: " << nodeData.dump() << "\n";
+
+            }
+
         }
     } catch ( std::exception& e )
     {

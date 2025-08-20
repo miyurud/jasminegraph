@@ -88,7 +88,7 @@ def test_semantic_beam_search(sock: socket.socket):
         return
 
     # Step 4: send query
-    query = " Radio City Found?"
+    query = " when was Echosmith formed"
     send_with_length(sock, query)
     if not expect_response(sock, GRAPH_STREAM_END_OF_EDGE):
         logging.error("Did not receive end-of-stream marker from server")

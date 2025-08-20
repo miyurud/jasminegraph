@@ -280,8 +280,9 @@ if (this->embedNode )
 
         auto emb = textEmbedder->embed(nodeText);
 
+        faiss::idx_t docId = std::stoll(sourceJson["id"].get<std::string>());
+        faissStore->add(emb, docId);
 
-        faissStore->add(emb);
 
         auto results = faissStore->search(emb, 5);
         for (auto& [id, dist] : results) {
