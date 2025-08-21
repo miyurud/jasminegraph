@@ -10,6 +10,8 @@ Licensed under the Apache License, Version 2.0
 import socket
 import logging
 
+from tests.integration.utils.telnetScripts.upload_adhdfs_kg_graph import send_and_expect_response
+
 # --- Logging setup with colors ---
 logging.addLevelName(
     logging.INFO, f"\033[1;32m{logging.getLevelName(logging.INFO)}\033[1;0m"
@@ -90,11 +92,19 @@ def test_semantic_beam_search(sock: socket.socket):
     # Step 4: send query
     query = " when was Echosmith formed"
     send_with_length(sock, query)
-    if not expect_response(sock, GRAPH_STREAM_END_OF_EDGE):
+    if not expect_response(sock, GRAPH_STREAM_C_LENGTH_ACK):
         logging.error("Did not receive end-of-stream marker from server")
         return
 
     logging.info("Semantic Beam Search test completed successfully")
+
+    send_and_expect_response(
+        sock,
+        "adhdfs",
+        b"192.168.1.7:7780:7781,192.168.1.7:7782:7783",
+        b"ok",
+        exit_on_failure=True,
+    )
 
 def main():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:

@@ -336,16 +336,18 @@ bool NodeBlock::searchRelation(NodeBlock withNode) {
     return found;
 }
 
-std::list<NodeBlock*> NodeBlock::getLocalEdgeNodes() {
-    std::list<NodeBlock*> edges;
+std::list<std::pair<NodeBlock*, RelationBlock*>> NodeBlock::getLocalEdgeNodes() {
+    std::list<std::pair<NodeBlock*, RelationBlock*>> edges;
     RelationBlock* currentRelation = this->getLocalRelationHead();
     while (currentRelation != nullptr) {
         NodeBlock* node = NULL;
         if (currentRelation->source.address == this->addr) {
             node = NodeBlock::get(currentRelation->destination.address);
+            edges.push_back(std::make_pair(node, currentRelation));
             currentRelation = currentRelation->nextLocalSource();
         } else if (currentRelation->destination.address == this->addr) {
             node = NodeBlock::get(currentRelation->source.address);
+            edges.push_back(std::make_pair(node, currentRelation));
             currentRelation = currentRelation->nextLocalDestination();
         } else {
             node_block_logger.error("Error: Unrecognized relation for " + std::to_string(this->addr) +
@@ -356,40 +358,40 @@ std::list<NodeBlock*> NodeBlock::getLocalEdgeNodes() {
             node_block_logger.error("Error creating node in the relation");
             break;
         }
-        edges.push_back(node);
     }
     return edges;
 }
-
-std::list<NodeBlock*> NodeBlock::getCentralEdgeNodes() {
-    std::list<NodeBlock*> edges;
+std::list<std::pair<NodeBlock*, RelationBlock*>> NodeBlock::getCentralEdgeNodes() {
+    std::list<std::pair<NodeBlock*, RelationBlock*>> edges;
     RelationBlock* currentRelation = this->getCentralRelationHead();
     while (currentRelation != NULL) {
         NodeBlock* node = NULL;
         if (currentRelation->source.address == this->addr) {
             node = NodeBlock::get(currentRelation->destination.address);
+            edges.push_back(std::make_pair(node, currentRelation));
             currentRelation = currentRelation->nextCentralSource();
         } else if (currentRelation->destination.address == this->addr) {
             node = NodeBlock::get(currentRelation->source.address);
+            edges.push_back(std::make_pair(node, currentRelation));
             currentRelation = currentRelation->nextCentralDestination();
         } else {
             node_block_logger.error("Error: Unrecognized central relation for " +
                                     std::to_string(this->addr) + " in relation block " +
                                     std::to_string(currentRelation->addr));
+            break;
         }
         if (!node) {
             node_block_logger.error("Error creating node in the central relation");
+            break;
         }
-        edges.push_back(node);
     }
     return edges;
 }
-
-std::list<NodeBlock*> NodeBlock::getAllEdgeNodes() {
+std::list<std::pair<NodeBlock*, RelationBlock*>>NodeBlock::getAllEdgeNodes() {
     // Get local and central edges
-    std::list<NodeBlock*> allEdges;
-    std::list<NodeBlock*> localEdges = getLocalEdgeNodes();
-    std::list<NodeBlock*> centralEdges = getCentralEdgeNodes();
+    std::list<std::pair<NodeBlock*, RelationBlock*>> allEdges;
+    std::list<std::pair<NodeBlock*, RelationBlock*>> localEdges = getLocalEdgeNodes();
+    std::list<std::pair<NodeBlock*, RelationBlock*>> centralEdges = getCentralEdgeNodes();
     allEdges.insert(allEdges.end(), localEdges.begin(), localEdges.end());
     allEdges.insert(allEdges.end(), centralEdges.begin(), centralEdges.end());
     return allEdges;

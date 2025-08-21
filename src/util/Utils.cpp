@@ -1988,3 +1988,14 @@ bool Utils::sendDataFromWorkerToWorker(string masterIP, int graphID, string part
     util_logger.info(" Time Taken: " + std::to_string(elapsed.count()) + " seconds");
     return true;
 }
+
+float  Utils::cosineSimilarity(const std::vector<float>& a, const std::vector<float>& b) {
+    float dot = 0.0f, normA = 0.0f, normB = 0.0f;
+    for (size_t i = 0; i < a.size(); ++i) {
+        dot += a[i] * b[i];
+        normA += a[i] * a[i];
+        normB += b[i] * b[i];
+    }
+    if (normA == 0 || normB == 0) return 0.0f;
+    return dot / (std::sqrt(normA) * std::sqrt(normB));
+}

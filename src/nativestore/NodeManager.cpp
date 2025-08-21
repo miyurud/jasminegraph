@@ -499,10 +499,10 @@ std::map<long, std::unordered_set<long>> NodeManager::getAdjacencyList() {
         auto nodeId = it.first;
         NodeBlock *node = this->get(nodeId);
         std::unordered_set<long> neighbors;
-        std::list<NodeBlock*> neighborNodes = node->getAllEdgeNodes();
+        std::list<std::pair<NodeBlock*, RelationBlock*>> neighborNodes = node->getAllEdgeNodes();
 
         for (auto neighborNode : neighborNodes) {
-            neighbors.insert(neighborNode->nodeId);
+            neighbors.insert(neighborNode.first->nodeId);
         }
         adjacencyList.emplace((long)node->nodeId, neighbors);
     }

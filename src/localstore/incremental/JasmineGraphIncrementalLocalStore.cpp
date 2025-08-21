@@ -281,7 +281,14 @@ if (this->embedNode )
         auto emb = textEmbedder->embed(nodeText);
 
         faiss::idx_t docId = std::stoll(sourceJson["id"].get<std::string>());
-        faissStore->add(emb, docId);
+        // long id = faissStore->add(emb);
+        if (faissStore->getEmbeddingById(std::to_string(docId)).size() == 0) {
+            incremental_localstore_logger.error("Node with ID " + sourceJson["id"].get<std::string>() + " found . Skipping ");
+            return;
+        }
+
+        relationBlock->getSource()->addProperty(std::string("embedding"),std::to_string(faissStore->add(emb,sourceJson["id"].get<std::string>() )).c_str());
+
 
 
         auto results = faissStore->search(emb, 5);

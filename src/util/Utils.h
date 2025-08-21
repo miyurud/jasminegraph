@@ -199,6 +199,7 @@ class Utils {
     static std::optional<std::tuple<std::string, int, int>> getWorker(string partitionID, std::string host, int port);
     static bool sendDataFromWorkerToWorker(string masterIP, int graphID, string partitionId, std::string message,
                                            SharedBuffer &sharedBuffer);
+    static float cosineSimilarity(const std::vector<float>& a, const std::vector<float>& b);
     static bool sendIntExpectResponse(int sockfd, char *data, size_t data_length,
                                       int value, std::string expectMsg);
 
