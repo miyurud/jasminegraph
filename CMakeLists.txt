@@ -83,6 +83,9 @@ set(HEADERS globals.h
         src/util/hdfs/HDFSStreamHandler.h
         src/partitioner/stream/HDFSMultiThreadedHashPartitioner.h
         src/query/processor/cypher/util/Const.h
+        src/util/telemetry/TelemetryUtil.h
+        src/util/telemetry/MetricMetadata.h
+        src/util/telemetry/TraceContext.h
         src/nativestore/MetaPropertyLink.h
         src/nativestore/MetaPropertyEdgeLink.h
         src/query/processor/cypher/queryplanner/Operators.h
@@ -152,6 +155,7 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/util/kafka/InstanceStreamHandler.cpp
         src/util/logger/Logger.cpp
         src/util/scheduler/SchedulerService.cpp
+        src/util/telemetry/TelemetryUtil.cpp
         src/k8s/K8sInterface.cpp
         src/nativestore/NodeManager.cpp
         src/nativestore/NodeBlock.cpp
@@ -167,6 +171,7 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/util/hdfs/HDFSConnector.cpp
         src/util/hdfs/HDFSStreamHandler.cpp
         src/partitioner/stream/HDFSMultiThreadedHashPartitioner.cpp
+        src/util/telemetry/TelemetryUtil.cpp
         src/query/processor/cypher/semanticanalyzer/SemanticAnalyzer.cpp
         src/query/processor/cypher/util/Const.cpp
         src/frontend/ui/JasmineGraphFrontEndUIProtocol.h

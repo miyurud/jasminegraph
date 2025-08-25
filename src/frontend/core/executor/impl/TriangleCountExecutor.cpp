@@ -19,6 +19,7 @@ limitations under the License.
 #include "../../../../../globals.h"
 #include "../../../../k8s/K8sWorkerController.h"
 #include "../../../../scale/scaler.h"
+#include "../../../../util/telemetry/TelemetryUtil.h"
 
 using namespace std::chrono;
 
@@ -426,6 +427,10 @@ static void filter_partitions(std::map<string, std::vector<string>> &partitionMa
 }
 
 void TriangleCountExecutor::execute() {
+    // Start main execution trace with rich metadata
+    std::string graphId = request.getParameter(Conts::PARAM_KEYS::GRAPH_ID);
+    TELEMETRY_TRACE_FUNCTION(graphId);
+    
     schedulerMutex.lock();
     time_t curr_time = time(NULL);
     // 8 seconds = upper bound to the time to send performance metrics after allocating trian task to a worker
@@ -434,7 +439,6 @@ void TriangleCountExecutor::execute() {
     }
     int uniqueId = getUid();
     std::string masterIP = request.getMasterIP();
-    std::string graphId = request.getParameter(Conts::PARAM_KEYS::GRAPH_ID);
     std::string canCalibrateString = request.getParameter(Conts::PARAM_KEYS::CAN_CALIBRATE);
     std::string queueTime = request.getParameter(Conts::PARAM_KEYS::QUEUE_TIME);
 
@@ -571,6 +575,16 @@ void TriangleCountExecutor::execute() {
             partitionCount++;
             partitionId = *partitionIterator;
             triangleCount_logger.info("> partition" + partitionId);
+            
+            // Create child trace for worker task distribution
+            {
+                TelemetryUtil::TracedTimer child_tracer("distribute_to_worker", tracer.getTrace(), graphId);
+                
+                // Record worker distribution metrics with metadata
+                TelemetryUtil::recordWorkerMetric("jasminegraph_worker_task_distributed", "1",
+                                                 graphId, workerID, partitionId, host, "executor");
+            }
+            
             intermRes.push_back(std::async(
                 std::launch::async, TriangleCountExecutor::getTriangleCount, atoi(graphId.c_str()), host, workerPort,
                 workerDataPort, atoi(partitionId.c_str()), masterIP, uniqueId, isCompositeAggregation, threadPriority,
@@ -608,20 +622,43 @@ void TriangleCountExecutor::execute() {
     last_exec_time = time(NULL);
     schedulerMutex.unlock();
 
-    for (auto &&futureCall : intermRes) {
-        triangleCount_logger.info("Waiting for result. uuid=" + to_string(uniqueId));
-        result += futureCall.get();
+    // Child trace for collecting worker results
+    {
+        TelemetryUtil::TracedTimer child_tracer("collect_worker_results", tracer.getTrace(), graphId);
+        
+        for (auto &&futureCall : intermRes) {
+            triangleCount_logger.info("Waiting for result. uuid=" + to_string(uniqueId));
+            long worker_result = futureCall.get();
+            result += worker_result;
+            
+            // Record individual worker results with metadata
+            TelemetryUtil::recordWorkerMetric("jasminegraph_worker_triangle_count", std::to_string(worker_result),
+                                             graphId, "", "", "", "partition_local");
+        }
     }
     triangleTree.clear();
     combinationWorkerMap.clear();
 
     if (!isCompositeAggregation) {
+        // Child trace for central store aggregation
+        TelemetryUtil::TracedTimer child_tracer("aggregate_central_store", tracer.getTrace(), graphId);
+        
         long aggregatedTriangleCount =
             aggregateCentralStoreTriangles(sqlite, graphId, masterIP, threadPriority, partitionMap);
         result += aggregatedTriangleCount;
+        
+        // Record central store aggregation result
+        TelemetryUtil::recordComponentMetric("jasminegraph_central_store_triangles", std::to_string(aggregatedTriangleCount),
+                                           graphId, "central_store", "aggregation");
         workerResponded = true;
         triangleCount_logger.log(
             "###TRIANGLE-COUNT-EXECUTOR### Getting Triangle Count : Completed: Triangles " + to_string(result), "info");
+            
+        // Record telemetry metrics with rich metadata
+        TelemetryUtil::recordTriangleCountWithMetadata(static_cast<uint64_t>(result), graphId, "distributed_executor");
+        
+        // Record execution status with metadata
+        TelemetryUtil::recordExecutionMetric("triangle_counting", "success", graphId, "frontend", "distributed");
     }
 
     schedulerMutex.lock();
@@ -680,6 +717,10 @@ long TriangleCountExecutor::getTriangleCount(
     std::map<std::string, std::string> *combinationWorkerMap_p,
     std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> *triangleTree_p,
     std::mutex *triangleTreeMutex_p) {
+    
+    // Trace for worker communication
+    TelemetryUtil::TracedTimer worker_tracer("get_triangle_count_worker_" + host, std::to_string(graphId));
+    
     int sockfd;
     char data[INSTANCE_DATA_LENGTH + 1];
     bool loop = false;
@@ -692,6 +733,9 @@ long TriangleCountExecutor::getTriangleCount(
 
     if (sockfd < 0) {
         triangleCount_logger.error("Cannot create socket");
+        
+        // Record error metrics with trace context
+        TelemetryUtil::recordErrorMetric("socket_creation_failed", std::to_string(graphId), "worker_communication", host);
         return 0;
     }
 

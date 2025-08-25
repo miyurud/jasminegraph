@@ -21,6 +21,7 @@ limitations under the License.
 
 #include "../../../localstore/JasmineGraphHashMapLocalStore.h"
 #include "../../../util/logger/Logger.h"
+#include "../../../util/telemetry/TelemetryUtil.h"
 
 Logger triangle_logger;
 
@@ -32,6 +33,8 @@ long Triangles::run(JasmineGraphHashMapLocalStore &graphDB, JasmineGraphHashMapC
 long Triangles::run(JasmineGraphHashMapLocalStore &graphDB, JasmineGraphHashMapCentralStore &centralStore,
                     JasmineGraphHashMapDuplicateCentralStore &duplicateCentralStore, std::string graphId,
                     std::string partitionId, int threadPriority) {
+    TELEMETRY_TIME_FUNCTION_NAMED("triangle_count_algorithm", graphId);
+    
     triangle_logger.info("###TRIANGLE### Triangle Counting: Started");
     map<long, unordered_set<long>> localSubGraphMap = graphDB.getUnderlyingHashMap();
     map<long, unordered_set<long>> centralDBSubGraphMap = centralStore.getUnderlyingHashMap();
@@ -80,11 +83,18 @@ long Triangles::run(JasmineGraphHashMapLocalStore &graphDB, JasmineGraphHashMapC
     triangle_logger.info(" Merge time Taken: " + std::to_string(mergeMsDuration) + " milliseconds");
 
     const TriangleResult &triangleResult = countTriangles(localSubGraphMap, degreeDistribution, false);
+    
+    // Record telemetry for triangle count result
+    TelemetryUtil::recordTriangleCount(static_cast<uint64_t>(triangleResult.count), graphId);
+    TelemetryUtil::recordExecutionTime("merge_operation", static_cast<double>(mergeMsDuration), graphId);
+    
     return triangleResult.count;
 }
 
 TriangleResult Triangles::countTriangles(map<long, unordered_set<long>> &centralStore, map<long, long> &distributionMap,
                                          bool returnTriangles) {
+    TELEMETRY_TIME_FUNCTION_NAMED("count_triangles_core", "");
+    
     std::map<long, std::set<long>> degreeMap;
     std::basic_ostringstream<char> triangleStream;
 

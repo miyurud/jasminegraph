@@ -23,6 +23,7 @@ limitations under the License.
 #include "../../../../performancedb/PerformanceSQLiteDBInterface.h"
 #include "../../../../server/JasmineGraphInstanceProtocol.h"
 #include "../../../../server/JasmineGraphServer.h"
+#include "../../../../util/telemetry/TelemetryUtil.h"
 #include "../../../JasmineGraphFrontEndProtocol.h"
 #include "../../CoreConstants.h"
 #include "../AbstractExecutor.h"
