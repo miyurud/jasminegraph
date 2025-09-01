@@ -1321,7 +1321,8 @@ void flushHeapToRunFile(
 ) {
     if (pq.empty()) return;
 
-    std::string filename = generateUniqueFilename();
+    std::string workerPath = Utils::getJasmineGraphProperty("org.jasminegraph.worker.path");
+    std::string filename = workerPath + generateUniqueFilename();
     std::ofstream outFile(filename, std::ios::out | std::ios::binary);
 
     if (!outFile) {
