@@ -202,6 +202,8 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/vectorStore/FaissStore.h
         src/query/processor/semanticBeamSearch/SemanticBeamSearch.cpp
         src/query/processor/semanticBeamSearch/SemanticBeamSearch.h
+        src/frontend/core/executor/impl/SemanticBeamSearchExecutor.cpp
+        src/frontend/core/executor/impl/SemanticBeamSearchExecutor.h
 
 
 )

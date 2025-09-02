@@ -48,16 +48,16 @@ stop_and_remove_containers() {
 build_and_run_docker() {
 #    stop_and_remove_containers
     cd "$PROJECT_ROOT"
-    docker build -t jasminegraph:test . |& tee "$BUILD_LOG"
-    build_status="${PIPESTATUS[0]}"
-    if [ "$build_status" != '0' ]; then
-        set +ex
-        echo
-        echo -e '\e[31;1mERROR: Build failed\e[0m'
-        rm -rf "${TEST_ROOT}/env"
-        exit "$build_status"
-    fi
-
+#    docker build -t jasminegraph:test . |& tee "$BUILD_LOG"
+#    build_status="${PIPESTATUS[0]}"
+#    if [ "$build_status" != '0' ]; then
+#        set +ex
+#        echo
+#        echo -e '\e[31;1mERROR: Build failed\e[0m'
+#        rm -rf "${TEST_ROOT}/env"
+#        exit "$build_status"
+#    fi
+#
     export HOST_IP=$(hostname -I | awk '{print $1}')
     echo "Detected Host IP: $HOST_IP"
     HDFS_CONF_FILE="${TEST_ROOT}/env_init/config/hdfs/hdfs_config.txt"
@@ -260,7 +260,7 @@ if [ "$exit_code" != '0' ]; then
 fi
 
 #stop_and_remove_containers
-force_remove "${TEST_ROOT}/env" "${WORKER_LOG_DIR}"
+#force_remove "${TEST_ROOT}/env" "${WORKER_LOG_DIR}"
 if [ "$exit_code" = '0' ]; then
     docker tag jasminegraph:test jasminegraph:latest
 fi

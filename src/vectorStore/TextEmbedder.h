@@ -22,6 +22,7 @@ public:
 class TextEmbedder {
 public:
     TextEmbedder(const std::string& endpoint, const std::string& model_name);
+    std::vector<std::vector<float>> batch_embed(const std::vector<std::string>& texts);
 
     // Get embedding vector for given text
     std::vector<float> embed(const std::string& text);

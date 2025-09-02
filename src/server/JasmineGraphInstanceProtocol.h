@@ -142,7 +142,6 @@ class JasmineGraphInstanceProtocol {
     static const string INITIATE_STREAMING_KG_CONSTRUCTION;
     static  const string INITIATE_STREAMING_TUPLE_CONSTRUCTION;
     static  const string  CHUNK_STREAM_END;
-    static const string SEMENTIC_BEAM_SEARCH;
     static const string SEMANTIC_BEAM_SEARCH;
     static const string EXPAND_NODE_BATCH;
 };

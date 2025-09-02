@@ -3123,7 +3123,7 @@ static void streaming_kg_construction ( int connFd, int serverPort, std::map<std
     }
 
      masterIP = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
-    instance_logger.info("Received MasterIP: " + hdfsPort);
+    instance_logger.info("Received MasterIP: " + masterIP);
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK))
     {
         *loop_exit_p = true;
@@ -3210,7 +3210,7 @@ static void streaming_tuple_extraction(int connFd, int serverPort,
         }
         instance_logger.info("Received command: " + command);
         if (command != JasmineGraphInstanceProtocol::QUERY_DATA_START) {
-            continue;
+            break;
         }
         Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK);
 
@@ -3234,11 +3234,7 @@ static void streaming_tuple_extraction(int connFd, int serverPort,
             while (true) {
                 string tupleData = tupleBuffer.get();
 
-                // if (tupleData == "-1") {
-                //     instance_logger.info("Received end signal from producer");
-                //     Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_END_OF_EDGE);
-                //     break;
-                // }
+
 
                int tuple_length = tupleData.length();
                int converted_number = htonl(tuple_length);
@@ -3249,6 +3245,10 @@ static void streaming_tuple_extraction(int connFd, int serverPort,
                instance_logger.info("3208");
                Utils::send_str_wrapper(connFd, tupleData);
                Utils::expect_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS);
+                if (tupleData == "-1") {
+                    instance_logger.info("Received end signal from producer");
+                    break;
+                }
             }
         });
         streamer.streamChunk("chunk1", chunk, tupleBuffer);
@@ -4647,10 +4647,26 @@ static void semantic_beam_search(int connFd, InstanceHandler &instanceHandler, s
     instance_logger.info("connect partition id: " + partition + " with connection id: " + std::to_string(connFd));
     char data[DATA_BUFFER_SIZE];
 
+        content_length = 0;
+    instance_logger.info("Waiting for content length");
+    return_status = recv(connFd, &content_length, sizeof(int), 0);
+    if (return_status > 0) {
+        content_length = ntohl(content_length);
+        instance_logger.info("Received content_length = " + std::to_string(content_length));
+    } else {
+        instance_logger.info("Error while reading content length");
+        *loop_exit_p = true;
+        return;
+    }
+
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK)) {
+        *loop_exit_p = true;
+        return;
+    }
     // read workerIP:port in comma separated format
     string workersIP = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.info("Received Worker IP: " + workersIP);
-    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK))
+    if (!Utils::send_str_wrapper(connFd, "HI"))
     {
         *loop_exit_p     = true;
         return;
@@ -4680,6 +4696,7 @@ static void semantic_beam_search(int connFd, InstanceHandler &instanceHandler, s
         workers.push_back(worker);
     }
 
+
     // instanceHandler.handleRequest(connFd, loop_exit_p, incrementalLocalStoreInstance->gc, masterIP, message);
     unsigned long maxLabel = std::stol(Utils::getJasmineGraphProperty("org.jasminegraph.nativestore.max.label.size"));
     GraphConfig gc{maxLabel, static_cast<unsigned int>(std::stoi(graphId)), static_cast<unsigned int>(std::stoi(partition)), "app"};
@@ -4700,15 +4717,36 @@ static void semantic_beam_search(int connFd, InstanceHandler &instanceHandler, s
         instance_logger.info("Worker Hostname: " + worker.hostname + ", Port: " + std::to_string(worker.port) +
                              ", Data Port: " + std::to_string(worker.dataPort));
     }
-    SemanticBeamSearch* semanticBeamSearch = new SemanticBeamSearch ( faissStore, textEmbedder->embed(message), 7, gc, workers);
+    SemanticBeamSearch* semanticBeamSearch = new SemanticBeamSearch ( faissStore,textEmbedder, textEmbedder->embed(message), 7, gc, workers);
     semanticBeamSearch->getSeedNodes();
-    SharedBuffer shared(4);
-    semanticBeamSearch->semanticMultiHopBeamSearch(shared,3,10);
-    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_END_OF_EDGE)) {
-        *loop_exit_p = true;
-        return;
+    SharedBuffer shared(50);
+    semanticBeamSearch->semanticMultiHopBeamSearch(shared,3,10 );
+    auto startTime = std::chrono::high_resolution_clock::now();
+    int time = 0;
+
+    while (true) {
+        string raw = shared.get();
+        if (raw == "-1") {
+            instanceHandler.dataPublishToMaster(connFd, loop_exit_p, raw);
+            instance_logger.info("Total time taken for query execution: " + std::to_string(time) + " ms");
+            // result.join();
+            break;
+        }
+        auto endTime = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+        time += duration.count();
+        instanceHandler.dataPublishToMaster(connFd, loop_exit_p, raw);
+        startTime = std::chrono::high_resolution_clock::now();
     }
+    // if (!Utils::send_str_wrapper(connFd,fF JasmineGrapfhInstanceProtocol::GRAPH_STREAM_END_OF_EDGE)) {
+    //     *loop_exit_p = true;
+    //     return;
+    // }
     instance_logger.debug("Sent CRLF string to mark the end");
+    *loop_exit_p = true;
+
+    close(connFd);
+
 }
 
 static void semantic_search_expand_node_remote_batch(
@@ -4784,8 +4822,10 @@ size_t received = 0;
     FaissStore* faissStore = FaissStore::getInstance(std::stoi(Utils::getJasmineGraphProperty("org.jasminegraph.vectorstore.dimension")),nodeManager.getDbPrefix() + "_faiss.index");
 
         for (const auto currentPath : currentPaths) {
+            float score = currentPath["score"];
             json newPath;
-            json lastNodeJson = currentPath["pathNodes"].back();
+            json lastNodeJson = currentPath["pathObj"]["pathNodes"].back();
+
             string lastNodeId = lastNodeJson["id"].get<std::string>();
             instance_logger.debug("Last node ID: " + lastNodeId);
             NodeBlock* nodeBlock = nodeManager.get(lastNodeId);
@@ -4793,16 +4833,20 @@ size_t received = 0;
             json expanded;
             expanded["nodeId"] = lastNodeId;
             json neighborsJson = json::array();
+            vector<float> emb_ = faissStore->getEmbeddingById(lastNodeId);
+
 
             for (const auto &neighbor : neighbors) {
-                json newPath = currentPath;
-                float score = 0.0f;
+
+                json newPath = currentPath["pathObj"];
+
 
                 json nodeData;
                 auto nodeProps = neighbor.first->getAllProperties();
                 nodeData["partitionID"] = std::string(neighbor.first->getMetaPropertyHead()->value);
                 for (auto& [k, v] : nodeProps) nodeData[k] = v;
                 nodeData["id"] = std::to_string(neighbor.first->nodeId);
+
 
                 vector<float> emb_ = faissStore->getEmbeddingById(std::to_string(neighbor.first->nodeId));
                 instance_logger.debug("Scoring node ID: " + std::to_string(neighbor.first->nodeId));
@@ -4816,7 +4860,6 @@ size_t received = 0;
                     instance_logger.error("No query embedding provided.");
                     continue;
                 }
-                score += Utils::cosineSimilarity(queryEmbedding, emb_);
                 newPath["pathNodes"].push_back(nodeData);
 
 
@@ -4826,7 +4869,7 @@ size_t received = 0;
                 newPath["pathRels"].push_back(relData);
                 json expandedPath;
                 expandedPath["pathObj"] = newPath;
-                expandedPath["score"] = score;
+                expandedPath["score"] =  score + Utils::cosineSimilarity(queryEmbedding, emb_);
                 response["expandedPaths"].push_back(expandedPath);
                 instance_logger.info("Expanded node ID: " + std::to_string(neighbor.first->nodeId) +
                                         " with score: " + std::to_string(score));
@@ -4844,10 +4887,11 @@ size_t received = 0;
     int respLen = htonl(responseStr.size());
     send(connFd, &respLen, sizeof(int), 0);
     send(connFd, responseStr.c_str(), responseStr.size(), 0);
-
+    *loop_exit_p = true;
+    close(connFd);
     // 6. Close connection
     Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::CLOSE);
-    close(connFd);
+
 }
 
 

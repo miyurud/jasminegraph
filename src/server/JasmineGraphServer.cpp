@@ -897,6 +897,13 @@ std::vector<JasmineGraphServer::worker> JasmineGraphServer::workers(size_t npart
     return getWorkers(npart);
 }
 
+JasmineGraphServer::worker JasmineGraphServer::getDesignatedWorker()
+{
+    //TODO (sajeenthiran): handle designated worker
+    return hostWorkerList[0];
+
+}
+
 void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
                                             vector<std::map<int, string>> fullFileList, std::string masterIP) {
     server_logger.info("Uploading the graph locally..");

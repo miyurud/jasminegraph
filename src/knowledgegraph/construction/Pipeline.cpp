@@ -28,7 +28,8 @@ Logger kg_pipeline_stream_handler_logger;
 
 const size_t MESSAGE_SIZE = 5 * 1024 * 1024;
 const size_t MAX_BUFFER_SIZE = MESSAGE_SIZE * 512;
-const size_t CHUNCK_BYTE_SIZE = 1024; // 1 MB chunks
+const size_t CHUNCK_BYTE_SIZE = 1024*2; // 1 MB chunks
+const size_t OVERLAP_BYTES = 100; // bytes to overlap between chunks to avoid splitting lines
 const std::string END_OF_STREAM_MARKER = "-1";
 
 Pipeline::Pipeline(hdfsFS fileSystem, const std::string &filePath, int numberOfPartitions, int graphId,
@@ -86,6 +87,8 @@ void Pipeline::streamFromHDFSIntoBuffer() {
 
       // Split into complete lines and leftover partial line
       std::string full_lines_chunk = chunk_text.substr(0, last_newline + 1);
+      // size_t overlap_start = (full_lines_chunk.size() > OVERLAP_BYTES) ? full_lines_chunk.size() - OVERLAP_BYTES : 0;
+      // leftover = full_lines_chunk.substr(overlap_start);
       leftover = chunk_text.substr(last_newline + 1);
 
       kg_pipeline_stream_handler_logger.info("Full lines chunk size: " + std::to_string(full_lines_chunk.size()));
@@ -343,8 +346,8 @@ void Pipeline::extractTuples(std::string host, int port, std::string masterIP,
     while (true) {
         std::string chunk;
 
-        std::unique_lock<std::mutex> lock(this->dataBufferMutexForWorker);
-        this->dataBufferCV.wait(lock, [this, &dataBuffer] { return !dataBuffer.empty() || !this->isReading; });
+        std::unique_lock<std::mutex> lock(dataBufferMutex);
+        dataBufferCV.wait(lock, [this, &dataBuffer] { return !dataBuffer.empty() || !this->isReading; });
 
         chunk = std::move(dataBuffer.front());
         dataBuffer.pop();
@@ -416,7 +419,12 @@ void Pipeline::extractTuples(std::string host, int port, std::string masterIP,
             std::string tuple(tuple_length, 0);
             recv(sockfd, &tuple[0], tuple_length, 0);
             kg_pipeline_stream_handler_logger.info("Received tuple data");
+
             Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS);
+            if (tuple == END_OF_STREAM_MARKER) {
+                kg_pipeline_stream_handler_logger.info("Received end of tuple stream marker");
+                break;
+            }
             kg_pipeline_stream_handler_logger.info(tuple);
             sharedBuffer.add(tuple);
         }
@@ -426,5 +434,116 @@ void Pipeline::extractTuples(std::string host, int port, std::string masterIP,
     Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
     close(sockfd);
 }
+bool Pipeline::streamGraphToDesignatedWorker(std::string host, int port,
+                                          std::string masterIP,
+                                          std::string graphId,
+                                          int numberOfPartitions,
+                                          std::string hdfsServerIp,
+                                          std::string hdfsPort,
+                                          std::string hdfsFilePath
+                                         ) {
+    kg_pipeline_stream_handler_logger.info("Connecting to worker Host:" + host + " Port:" + std::to_string(port));
+
+    int sockfd;
+    char data[FED_DATA_LENGTH + 1];
+    static const int ACK_MESSAGE_SIZE = 1024;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        kg_pipeline_stream_handler_logger.error("Cannot create socket");
+        return false;
+    }
+
+    if (host.find('@') != std::string::npos) {
+        host = Utils::split(host, '@')[1];
+    }
+
+    server = gethostbyname(host.c_str());
+    if (server == NULL) {
+        kg_pipeline_stream_handler_logger.error("ERROR, no host named " + host);
+        return false;
+    }
+
+    bzero((char *)&serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    serv_addr.sin_port = htons(port);
+
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+        return false;
+    }
+
+    // Perform handshake
+    if (!Utils::performHandshake(sockfd, data, FED_DATA_LENGTH, masterIP)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return false;
+    }
+
+    auto sendAndExpect = [&](const std::string &msg, const std::string &expected) -> bool {
+        if (!Utils::send_str_wrapper(sockfd, msg)) {
+            kg_pipeline_stream_handler_logger.error("Failed to send message: " + msg);
+            return false;
+        }
+        char buffer[ACK_MESSAGE_SIZE] = {0};
+        int bytes = recv(sockfd, buffer, sizeof(buffer), 0);
+        if (bytes <= 0) {
+            kg_pipeline_stream_handler_logger.error("No response from worker for message: " + msg);
+            return false;
+        }
+        std::string resp(buffer, bytes);
+        resp = Utils::trim_copy(resp);
+        if (resp != expected) {
+            kg_pipeline_stream_handler_logger.error("Unexpected worker response. Sent: " + msg +
+                              " Expected: " + expected + " Got: " + resp);
+            return false;
+        }
+        kg_pipeline_stream_handler_logger.info("Worker responded '" + resp + "' for '" + msg + "'");
+        return true;
+    };
+
+    string workers="";
+    int counter = 0;
+    for (JasmineGraphServer::worker worker : JasmineGraphServer::getWorkers(numberOfPartitions))
+    {
+                counter++;
+        kg_pipeline_stream_handler_logger.info("count " + std::to_string(counter));
+        workers+=worker.hostname+":"+std::to_string(worker.port)+":"+std::to_string(worker.dataPort) ;
+        // append , only if not last
+        if (counter < numberOfPartitions)
+        {
+            workers+=",";
+        }
+
+
+
+    }
+
+    // === Send messages like in Python test client ===
+    if (!sendAndExpect("initiate-streaming-kg-construction", "ok")) { close(sockfd); return false; }
+    if (!sendAndExpect(graphId, "ok"))   { close(sockfd); return false; }
+
+    if (!sendAndExpect(std::to_string(numberOfPartitions), "ok"))   { close(sockfd); return false; }
+    if (!sendAndExpect(hdfsServerIp, "ok"))                         { close(sockfd); return false; }
+    if (!sendAndExpect(hdfsPort, "ok"))                             { close(sockfd); return false; }
+    if (!sendAndExpect(masterIP, "ok"))                        { close(sockfd); return false; }
+    if (!sendAndExpect(workers, "ok"))                        { close(sockfd); return false; }
+    if (!sendAndExpect(hdfsFilePath, "ok"))                        { close(sockfd); return false; }
+
+    // Final ack "done"
+    if (!sendAndExpect("y", "done")) {
+        close(sockfd);
+        return false;
+    }
+
+    close(sockfd);
+    kg_pipeline_stream_handler_logger.info("Worker completed streaming upload for graph " + (graphId));
+    return true;
+}
+
+
+
 
 

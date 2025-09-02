@@ -22,6 +22,9 @@ public:
               std::string masterIP , vector<JasmineGraphServer::worker> &workerList);
     void init();
     void startStreamingFromBufferToPartitions();
+    static bool streamGraphToDesignatedWorker(std::string host, int port, std::string masterIP, std::string graphId, int numberOfPartitions, std::string hdfsServerIp,
+                                              std::string hdfsPort,
+                                              std::string hdfsFilePath);
 
 
 private:
@@ -33,8 +36,6 @@ private:
     void extractTuples(std::string host, int port, std::string masterIP, int graphID, int partitionId,
 
                        std::queue<std::string>& dataBuffer, SharedBuffer& sharedBuffer);
-
-
 
 
 

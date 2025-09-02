@@ -136,6 +136,7 @@ class JasmineGraphServer {
     };
 
     std::vector<JasmineGraphServer::worker> workers(size_t npart);
+    static worker getDesignatedWorker();
 
     static std::unordered_map<std::string, workerPartitions> getGraphPartitionedHosts(std::string graphID);
 
