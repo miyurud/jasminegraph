@@ -289,6 +289,27 @@ def test(host, port):
         send_and_expect_response(sock, 'adhdfs', b'y', DONE, exit_on_failure=True)
 
         print()
+        logging.info('[Cypher] Uploading large graph for cypher testing')
+        send_and_expect_response(sock, 'adhdfs', ADHDFS,
+                                 b'Do you want to use the default HDFS server(y/n)?',
+                                 exit_on_failure=True)
+        send_and_expect_response(sock, 'adhdfs', b'n',
+                                 b'Send the file path to the HDFS configuration file.' +
+                                 b' This file needs to be in some directory location ' +
+                                 b'that is accessible for JasmineGraph master',
+                                 exit_on_failure=True)
+        send_and_expect_response(sock, 'adhdfs', b'/var/tmp/config/hdfs_config.txt',
+                                 b'HDFS file path: ',
+                                 exit_on_failure=True)
+        send_and_expect_response(sock, 'adhdfs', b'/home/graph_with_properties_large.txt',
+                                 b'Is this an edge list type graph(y/n)?',
+                                 exit_on_failure=True)
+        send_and_expect_response(sock, 'adhdfs', b'n',
+                                 b'Is this a directed graph(y/n)?',
+                                 exit_on_failure=True)
+        send_and_expect_response(sock, 'adhdfs', b'y', DONE, exit_on_failure=True)
+
+        print()
         logging.info('[Adhdfd] Testing uploaded graph')
         abs_path = os.path.abspath('tests/integration/env_init/data/graph_with_properties.txt')
         test_graph_validation(abs_path, '2' ,host, port)
