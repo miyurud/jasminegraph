@@ -1,3 +1,15 @@
+/**
+Copyright 2024 JasmineGraph Team
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+ */
 #include <iostream>
 #include <fstream>
 #include <set>
@@ -12,13 +24,19 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 
+#include "../../../src/util/logger/Logger.h"
+
 using json = nlohmann::json;
 using namespace std;
 
+Logger evaluation_logger;
+
 const string HOST = "127.0.0.1";
 const int PORT = 7777;
-const string LINE_END = "\r\n";
+const int BUFFER_SIZE = 4096;
+const string CARRIAGE_RETURN_NEWLINE = "\r\n";
 const string CYPHER = "cypher";
+
 
 map<string, int> nodeLabelCounts;
 map<string, int> relLabelCounts;
@@ -29,20 +47,20 @@ string safeExtractId(const json &obj) {
         if (obj["id"].is_string()) return obj["id"].get<string>();
         if (obj["id"].is_number_integer()) return to_string(obj["id"].get<int>());
     } catch (const exception &e) {
-        cerr << "[ERROR] Failed to extract ID: " << e.what() << endl;
+        evaluation_logger.error("[ERROR] Failed to extract ID: " + string(e.what()));
     }
     return "";
 }
 
 set<string> extractAllLabels(const string &graphPath, set<string> &relLabels) {
-    cout << "[INFO] Extracting all labels from graph: " << graphPath << endl;
+    evaluation_logger.info("[INFO] Extracting all labels from graph: " + graphPath);
     set<string> nodeLabels;
     set<string> scannedNodeIds;
     ifstream file(graphPath);
     string line;
 
     if (!file.is_open()) {
-        cerr << "[ERROR] Failed to open file: " << graphPath << endl;
+        evaluation_logger.error("[ERROR] Failed to open file: " + graphPath);
         return {};
     }
 
@@ -72,8 +90,8 @@ set<string> extractAllLabels(const string &graphPath, set<string> &relLabels) {
                 relLabelCounts[relLabel]++;
             }
         } catch (const exception &e) {
-            cerr << "[ERROR] Failed to parse line in label extraction: " << e.what() << endl;
-            cerr << "[LINE] " << line << endl;
+            evaluation_logger.error("[ERROR] Failed to parse line in label extraction: " + string(e.what()));
+            evaluation_logger.error("[LINE] " + line);
         }
     }
 
@@ -88,7 +106,7 @@ int connectToServer() {
     inet_pton(AF_INET, HOST.c_str(), &serv_addr.sin_addr);
 
     if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-        cerr << "[ERROR] Connection failed\n";
+        evaluation_logger.error("[ERROR] Connection failed");
         return -1;
     }
 
@@ -97,7 +115,7 @@ int connectToServer() {
 
 string recvUntilDone(int sock) {
     string response;
-    char buffer[4096];
+    char buffer[BUFFER_SIZE];
     while (true) {
         int bytes = recv(sock, buffer, sizeof(buffer), 0);
         if (bytes <= 0) break;
@@ -108,19 +126,19 @@ string recvUntilDone(int sock) {
 }
 
 void validateNodeLabel(const string &graphId, const string &label, int expectedCount) {
-    cout << "[INFO] Validating node label: " << label << " (expected: " << expectedCount << ")\n";
+    evaluation_logger.info("[INFO] Validating node label: " + label +
+                             " (expected: " + to_string(expectedCount) + ")");
 
     auto start = chrono::steady_clock::now();
     int sock = connectToServer();
     if (sock < 0) return;
 
-    send(sock, (CYPHER + LINE_END).c_str(), CYPHER.size() + LINE_END.size(), 0);
-    this_thread::sleep_for(chrono::milliseconds(100));
+    send(sock, (CYPHER + CARRIAGE_RETURN_NEWLINE).c_str(), CYPHER.size() + CARRIAGE_RETURN_NEWLINE.size(), 0);
     recv(sock, new char[1024], 1024, 0);
-    send(sock, (graphId + LINE_END).c_str(), graphId.size() + LINE_END.size(), 0);
+    send(sock, (graphId + CARRIAGE_RETURN_NEWLINE).c_str(), graphId.size() + CARRIAGE_RETURN_NEWLINE.size(), 0);
     recv(sock, new char[1024], 1024, 0);
 
-    string query = "MATCH(n:" + label + ") RETURN n" + LINE_END;
+    string query = "MATCH(n:" + label + ") RETURN n" + CARRIAGE_RETURN_NEWLINE;
     send(sock, query.c_str(), query.size(), 0);
 
     string response = recvUntilDone(sock);
@@ -139,8 +157,8 @@ void validateNodeLabel(const string &graphId, const string &label, int expectedC
                 count++;
             }
         } catch (const exception &e) {
-            cerr << "[ERROR] Failed to parse response line: " << e.what() << endl;
-            cerr << "[LINE] " << line << endl;
+            evaluation_logger.error("[ERROR] Failed to parse response line: " + string(e.what()));
+            evaluation_logger.error("[LINE] " + line);
         }
     }
 
@@ -148,29 +166,30 @@ void validateNodeLabel(const string &graphId, const string &label, int expectedC
     auto elapsed_ms = chrono::duration_cast<chrono::milliseconds>(end - start).count();
 
     if (count != expectedCount) {
-        cerr << "[MISMATCH] ❌ Node label '" << label << "' has " << count << " in graph, but " <<
-            expectedCount << " in file.\n";
+        evaluation_logger.error("[MISMATCH] ❌ Node label '" + label + "' has " + to_string(count) +
+                                 " in graph, but " + to_string(expectedCount) + " in file.");
     } else {
-        cout << "[MATCH] ✅ Node label '" << label << "' count matches: " << count << endl;
+        evaluation_logger.info("[MATCH] ✅ Node label '" + label + "' count matches: " + to_string(count));
     }
 
-    cout << "[TIME] Node label '" << label << "' query took " << elapsed_ms << " ms\n";
+    evaluation_logger.info("[TIME] Node label '" + label + "' query took " + to_string(elapsed_ms) + " ms");
 }
 
 void validateRelationshipLabel(const string &graphId, const string &label, int expectedCount) {
-    cout << "[INFO] Validating relationship label: " << label << " (expected: " << expectedCount << ")\n";
+    evaluation_logger.info("[INFO] Validating relationship label: " + label +
+                            " (expected: " + to_string(expectedCount) + ")");
 
     auto start = chrono::steady_clock::now();
     int sock = connectToServer();
     if (sock < 0) return;
 
-    send(sock, (CYPHER + LINE_END).c_str(), CYPHER.size() + LINE_END.size(), 0);
+    send(sock, (CYPHER + CARRIAGE_RETURN_NEWLINE).c_str(), CYPHER.size() + CARRIAGE_RETURN_NEWLINE.size(), 0);
     this_thread::sleep_for(chrono::milliseconds(100));
     recv(sock, new char[1024], 1024, 0);
-    send(sock, (graphId + LINE_END).c_str(), graphId.size() + LINE_END.size(), 0);
+    send(sock, (graphId + CARRIAGE_RETURN_NEWLINE).c_str(), graphId.size() + CARRIAGE_RETURN_NEWLINE.size(), 0);
     recv(sock, new char[1024], 1024, 0);
 
-    string query = "MATCH(n)-[r:" + label + "]-(m) RETURN r" + LINE_END;
+    string query = "MATCH(n)-[r:" + label + "]-(m) RETURN r" + CARRIAGE_RETURN_NEWLINE;
     send(sock, query.c_str(), query.size(), 0);
 
     string response = recvUntilDone(sock);
@@ -189,8 +208,8 @@ void validateRelationshipLabel(const string &graphId, const string &label, int e
                 count++;
             }
         } catch (const exception &e) {
-            cerr << "[ERROR] Failed to parse response line: " << e.what() << endl;
-            cerr << "[LINE] " << line << endl;
+            evaluation_logger.error("[ERROR] Failed to parse response line: " + string(e.what()));
+            evaluation_logger.error("[LINE] " + line);
         }
     }
 
@@ -198,37 +217,35 @@ void validateRelationshipLabel(const string &graphId, const string &label, int e
     auto elapsed_ms = chrono::duration_cast<chrono::milliseconds>(end - start).count();
 
     if (count != expectedCount) {
-        cerr << "[MISMATCH] ❌ Relationship label '" << label << "' has " << count << " in graph, but " <<
-            expectedCount << " in file.\n";
+        evaluation_logger.error("[MISMATCH] ❌ Relationship label '" + label + "' has " +
+                                    to_string(count) + " in graph, but " + to_string(expectedCount) + " in file.");
     } else {
-        cout << "[MATCH] ✅ Relationship label '" << label << "' count matches: " << count << endl;
+        evaluation_logger.info("[MATCH] ✅ Relationship label '" + label + "' count matches: " + to_string(count));
     }
 
-    cout << "[TIME] Relationship label '" << label << "' query took " << elapsed_ms << " ms\n";
-}
+    evaluation_logger.info("[TIME] Relationship label '" + label + "' query took " +
+                             to_string(elapsed_ms) + " ms");}
 
 int main(int argc, char *argv[]) {
-    string graphPath =
-        "/home/ubuntu/software/jasminegraph/tests/integration/env_init/data/graph_with_properties_test2.txt";
-    string graphId = "11";
+    string graphPath = "../tests/integration/env_init/data/graph_with_properties_test2.txt";
+    string graphId;
 
     if (argc > 1) {
         graphPath = argv[1];
         if (argc > 2) {
             graphId = argv[2];
+
+        } else {
+            evaluation_logger.error("[USAGE] ./label_evaluation <graph_data_file_path> <graph_id>");
+            return 1;
         }
+    } else {
+       evaluation_logger.error("[USAGE] ./label_evaluation <graph_data_file_path> <graph_id>");
+       return 1;
     }
 
     set<string> relLabels;
     auto nodeLabels = extractAllLabels(graphPath, relLabels);
-
-    cout << "[INFO] Found node labels: ";
-    for (const auto &l : nodeLabels) cout << l << " ";
-    cout << "\n";
-
-    cout << "[INFO] Found relationship labels: ";
-    for (const auto &l : relLabels) cout << l << " ";
-    cout << "\n";
 
     for (const auto &label : nodeLabels) {
         validateNodeLabel(graphId, label, nodeLabelCounts[label]);

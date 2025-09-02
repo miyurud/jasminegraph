@@ -162,7 +162,7 @@ if __name__ == "__main__":
 
     start_time = time.time()
 
-    test("localhost", 7777)
+    test("localhost", PORT)
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Time taken to upload: {elapsed_time:.2f} seconds")
