@@ -72,7 +72,7 @@ class Partition {
     bool isExist(std::string);
     bool isExistInEdgeCuts(std::string);
     void incrementVertexCount();
-    void addToEdgeList(std::string vertex) 
+    void addToEdgeList(std::string vertex);
 };
 
 #endif
