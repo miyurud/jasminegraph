@@ -273,6 +273,16 @@ void HDFSMultiThreadedHashPartitioner::consumeEdgeCuts(int partitionIndex, Jasmi
             // Add edge cuts to the partition
             std::lock_guard<std::mutex> partitionLock(partitionLocks[partitionIndex]);
             partitions[partitionIndex].addToEdgeCuts(sourceId, destinationId, partitionIndex);
+
+            int destinationIndex = std::hash<std::string>{}(destinationId) % numberOfPartitions;
+            
+            if (!partitions[destinationIndex].isExist(destinationId) && destinationIndex != partitionIndex) {
+                // Increment vertex count by 1 if the foreign vertex is not already present in the destination partition
+                partitions[destinationIndex].incrementVertexCount();
+
+                // Add a new key for the foreign vertex in edge list with an empty set if it doesn't exist
+                partitions[destinationIndex].edgeList[destinationId] = std::set<std::string>();
+            }            
         }
 
         edgeCutsReady[partitionIndex] = false;  // Reset the flag after processing

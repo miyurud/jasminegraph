@@ -217,5 +217,7 @@ long Partition::getLocalVertexCount() {
     return static_cast<long>(edgeList.size());
 }
 
-
+void Partition::incrementVertexCount() {
+    this->vertexCount += 1;
+}
 
