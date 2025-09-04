@@ -221,3 +221,10 @@ void Partition::incrementVertexCount() {
     this->vertexCount += 1;
 }
 
+void Partition::addToEdgeList(std::string vertex) {
+    auto existVertex = this->edgeList.find(vertex);
+    if (existVertex == this->edgeList.end()) {
+        this->edgeList[vertex] = std::set<std::string>();
+    }
+}
+

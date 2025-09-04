@@ -281,7 +281,7 @@ void HDFSMultiThreadedHashPartitioner::consumeEdgeCuts(int partitionIndex, Jasmi
                 partitions[destinationIndex].incrementVertexCount();
 
                 // Add a new key for the foreign vertex in edge list with an empty set if it doesn't exist
-                partitions[destinationIndex].edgeList[destinationId] = std::set<std::string>();
+                partitions[destinationIndex].addToEdgeList(destinationId);
             }            
         }
 
