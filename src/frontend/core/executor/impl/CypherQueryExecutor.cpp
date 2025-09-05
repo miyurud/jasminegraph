@@ -28,6 +28,13 @@ limitations under the License.
 Logger cypher_logger;
 
 inline const json* getNestedValuePtr(const json& obj, const std::string& dottedKey) {
+    // Direct lookup first
+    auto it = obj.find(dottedKey);
+    if (it != obj.end()) {
+        return &(*it);
+    }
+
+    // Nested resolution
     const json* current = &obj;
     size_t start = 0;
     while (start < dottedKey.size()) {
@@ -37,12 +44,12 @@ inline const json* getNestedValuePtr(const json& obj, const std::string& dottedK
             cypher_logger.error("Current JSON is not an object at key: '" + key + "'");
             return nullptr;
         }
-        auto it = current->find(key);
-        if (it == current->end()) {
+        auto nested = current->find(key);
+        if (nested == current->end()) {
             cypher_logger.error("Key '" + key + "' not found");
             return nullptr;
         }
-        current = &(*it);
+        current = &(*nested);
         if (dot == std::string::npos) break;
         start = dot + 1;
     }
