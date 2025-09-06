@@ -547,6 +547,14 @@ def test(host, port):
                                  b'done', exit_on_failure=True)
 
         print()
+        logging.info('[Cypher] Testing OrderBy for Large Graph')
+        send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher', b'4', b'Input query :', exit_on_failure=True)
+        send_and_expect_response_file(sock,'cypher', b"MATCH (n) RETURN n.id, n.name, n.code ORDER BY n.code ASC",
+                                      'tests/integration/utils/expected_output/'
+                                      'orderby_expected_output_file.txt',exit_on_failure=True)
+
+        print()
         logging.info('[Cypher] Testing Node Scan By Label')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
