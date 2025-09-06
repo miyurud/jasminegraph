@@ -91,7 +91,7 @@ def expect_response_file(conn: socket.socket, expected: bytes, timeout=5):
             if received:
                 buffer.extend(received)
                 start = time.time()
-                if b"done" in buffer:
+                if b'done' in buffer:
                     break
             else:
                 time.sleep(0.01)
@@ -101,27 +101,33 @@ def expect_response_file(conn: socket.socket, expected: bytes, timeout=5):
     conn.setblocking(True)
     data = bytes(buffer)
 
-    received_lines = data.decode(errors="replace").splitlines()
-    expected_lines = expected.decode(errors="replace").splitlines()
+    received_lines = data.decode(errors='replace').splitlines()
+    expected_lines = expected.decode(errors='replace').splitlines()
 
     mismatches = []
     for i, (exp_line, rec_line) in enumerate(zip(expected_lines, received_lines), start=1):
         if exp_line != rec_line:
-            mismatches.append(f"Line {i}:\n  expected: {exp_line}\n  received: {rec_line}")
+            mismatches.append(f'Line {i}:\n  expected: {exp_line}\n  received: {rec_line}')
 
     # Handle extra lines if lengths differ
     if len(received_lines) > len(expected_lines):
         for i in range(len(expected_lines) + 1, len(received_lines) + 1):
-            mismatches.append(f"Line {i}:\n  expected: <no line>\n  received: {received_lines[i-1]}")
-    elif len(expected_lines) > len(received_lines):
-        for i in range(len(received_lines) + 1, len(expected_lines) + 1):
-            mismatches.append(f"Line {i}:\n  expected: {expected_lines[i-1]}\n  received: <no line>")
-    if mismatches:
-        logging.warning("Output mismatch! Showing first 10 differences:\n" + "\n".join(mismatches[:100]))
+            mismatches.append(f'Line {i}:\n  expected: <no line>\n  '
+                              f'received: {received_lines[i-1]}')
+        logging.warning("Output mismatch! Showing first 10 differences:\n%s",
+            "\n".join(mismatches[:10]))
         passed_all = False
         return False
-    else:
-        return True
+    elif len(expected_lines) > len(received_lines):
+        for i in range(len(received_lines) + 1, len(expected_lines) + 1):
+            mismatches.append(f'Line {i}:\n  expected: {expected_lines[i-1]}\n'
+                              f'  received: <no line>')
+        logging.warning("Output mismatch! Showing first 10 differences:\n%s",
+            "\n".join(mismatches[:10]))
+        passed_all = False
+        return False
+
+    return True
 
 def send_and_expect_response(conn, test_name, send, expected, exit_on_failure=False):
     """Send a message to server and check if the response is equal to the expected response
@@ -140,7 +146,8 @@ def send_and_expect_response(conn, test_name, send, expected, exit_on_failure=Fa
             sys.exit(1)
 
 def send_and_expect_response_file(conn, test_name, send, expected_file, exit_on_failure=False):
-    """Send a message to server and check the response on-the-fly against a large expected response file."""
+    """Send a message to server and check the response on-the-fly against a large expected
+    response file."""
     conn.sendall(send + LINE_END)
     print(send.decode('utf-8'))
     with open(expected_file, "rb") as f:
@@ -550,7 +557,8 @@ def test(host, port):
         logging.info('[Cypher] Testing OrderBy for Large Graph')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'4', b'Input query :', exit_on_failure=True)
-        send_and_expect_response_file(sock,'cypher', b"MATCH (n) RETURN n.id, n.name, n.code ORDER BY n.code ASC",
+        send_and_expect_response_file(sock,'cypher', b'MATCH (n) RETURN n.id, n.name, n.code '
+                                                     b'ORDER BY n.code ASC',
                                       'tests/integration/utils/expected_output/'
                                       'orderby_expected_output_file.txt',exit_on_failure=True)
 
@@ -560,8 +568,8 @@ def test(host, port):
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher',b'match(n:Person) where n.id=2 return n'
                                                 b' RETURN n',b'{"n":{"id":"2","label":"Person",'
-                                                             b'"name":"Charlie","occupation":"IT Engineer",'
-                                                             b'"partitionID":"0"}}',
+                                                b'"name":"Charlie","occupation":"IT Engineer",'
+                                                b'"partitionID":"0"}}',
 
                                  exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'',
