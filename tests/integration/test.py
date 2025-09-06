@@ -14,6 +14,7 @@ import sys
 import socket
 import logging
 import os
+import time
 from utils.telnetScripts.validate_uploaded_graph import  test_graph_validation
 
 logging.addLevelName(
@@ -77,6 +78,56 @@ def expect_response(conn: socket.socket, expected: bytes):
     assert data == expected
     return True
 
+def expect_response_file(conn: socket.socket, expected: bytes, timeout=5):
+    """Check if the response matches expected file."""
+    global passed_all
+    buffer = bytearray()
+    conn.setblocking(False)
+    start = time.time()
+
+    while time.time() - start < timeout:
+        try:
+            received = conn.recv(4096)
+            if received:
+                buffer.extend(received)
+                start = time.time()
+                if b'done' in buffer:
+                    break
+            else:
+                time.sleep(0.01)
+        except BlockingIOError:
+            time.sleep(0.01)
+
+    conn.setblocking(True)
+    data = bytes(buffer)
+
+    received_lines = data.decode(errors='replace').splitlines()
+    expected_lines = expected.decode(errors='replace').splitlines()
+
+    mismatches = []
+    for i, (exp_line, rec_line) in enumerate(zip(expected_lines, received_lines), start=1):
+        if exp_line != rec_line:
+            mismatches.append(f'Line {i}:\n  expected: {exp_line}\n  received: {rec_line}')
+
+    # Handle extra lines if lengths differ
+    if len(received_lines) > len(expected_lines):
+        for i in range(len(expected_lines) + 1, len(received_lines) + 1):
+            mismatches.append(f'Line {i}:\n  expected: <no line>\n  '
+                              f'received: {received_lines[i-1]}')
+        logging.warning('Output mismatch! Showing first 10 differences:\n%s',
+            '\n'.join(mismatches[:10]))
+        passed_all = False
+        return False
+    if len(expected_lines) > len(received_lines):
+        for i in range(len(received_lines) + 1, len(expected_lines) + 1):
+            mismatches.append(f'Line {i}:\n  expected: {expected_lines[i-1]}\n'
+                              f'  received: <no line>')
+        logging.warning('Output mismatch! Showing first 10 differences:\n%s',
+            '\n'.join(mismatches[:10]))
+        passed_all = False
+        return False
+
+    return True
 
 def send_and_expect_response(conn, test_name, send, expected, exit_on_failure=False):
     """Send a message to server and check if the response is equal to the expected response
@@ -87,6 +138,22 @@ def send_and_expect_response(conn, test_name, send, expected, exit_on_failure=Fa
     conn.sendall(send + LINE_END)
     print(send.decode('utf-8'))
     if not expect_response(conn, expected + LINE_END):
+        failed_tests.append(test_name)
+        if exit_on_failure:
+            print()
+            logging.fatal('Failed some tests,')
+            print(*failed_tests, sep='\n', file=sys.stderr)
+            sys.exit(1)
+
+def send_and_expect_response_file(conn, test_name, send, expected_file, exit_on_failure=False):
+    """Send a message to server and check the response on-the-fly against a large expected
+    response file."""
+    conn.sendall(send + LINE_END)
+    print(send.decode('utf-8'))
+    with open(expected_file, 'rb') as f:
+        expected_bytes = f.read()
+
+    if not expect_response_file(conn, expected_bytes):
         failed_tests.append(test_name)
         if exit_on_failure:
             print()
@@ -289,6 +356,27 @@ def test(host, port):
         send_and_expect_response(sock, 'adhdfs', b'y', DONE, exit_on_failure=True)
 
         print()
+        logging.info('[Cypher] Uploading large graph for cypher testing')
+        send_and_expect_response(sock, 'adhdfs', ADHDFS,
+                                 b'Do you want to use the default HDFS server(y/n)?',
+                                 exit_on_failure=True)
+        send_and_expect_response(sock, 'adhdfs', b'n',
+                                 b'Send the file path to the HDFS configuration file.' +
+                                 b' This file needs to be in some directory location ' +
+                                 b'that is accessible for JasmineGraph master',
+                                 exit_on_failure=True)
+        send_and_expect_response(sock, 'adhdfs', b'/var/tmp/config/hdfs_config.txt',
+                                 b'HDFS file path: ',
+                                 exit_on_failure=True)
+        send_and_expect_response(sock, 'adhdfs', b'/home/graph_with_properties_large.txt',
+                                 b'Is this an edge list type graph(y/n)?',
+                                 exit_on_failure=True)
+        send_and_expect_response(sock, 'adhdfs', b'n',
+                                 b'Is this a directed graph(y/n)?',
+                                 exit_on_failure=True)
+        send_and_expect_response(sock, 'adhdfs', b'y', DONE, exit_on_failure=True)
+
+        print()
         logging.info('[Adhdfd] Testing uploaded graph')
         abs_path = os.path.abspath('tests/integration/env_init/data/graph_with_properties.txt')
         test_graph_validation(abs_path, '2' ,host, port)
@@ -466,17 +554,26 @@ def test(host, port):
                                  b'done', exit_on_failure=True)
 
         print()
+        logging.info('[Cypher] Testing OrderBy for Large Graph')
+        send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher', b'4', b'Input query :', exit_on_failure=True)
+        send_and_expect_response_file(sock,'cypher', b'MATCH (n) RETURN n.id, n.name, n.code '
+                                                     b'ORDER BY n.code ASC',
+                                      'tests/integration/utils/expected_output/'
+                                      'orderby_expected_output_file.txt',exit_on_failure=True)
+
+        print()
         logging.info('[Cypher] Testing Node Scan By Label')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher',b'match(n:Person) where n.id=2 return n'
                                                 b' RETURN n',b'{"n":{"id":"2","label":"Person",'
-                                 b'"name":"Charlie","occupation":"IT Engineer","partitionID":"0"}}',
+                                                b'"name":"Charlie","occupation":"IT Engineer",'
+                                                b'"partitionID":"0"}}',
 
                                  exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'',
                                  b'done', exit_on_failure=True)
-
 
         print()
         logging.info('[Cypher] Testing rmgr after adhdfs')
