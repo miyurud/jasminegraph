@@ -14,6 +14,7 @@ import sys
 import socket
 import logging
 import os
+import time
 from utils.telnetScripts.validate_uploaded_graph import  test_graph_validation
 
 logging.addLevelName(
@@ -77,6 +78,50 @@ def expect_response(conn: socket.socket, expected: bytes):
     assert data == expected
     return True
 
+def expect_response_file(conn: socket.socket, expected: bytes, timeout=5):
+    """Check if the response matches expected file."""
+    global passed_all
+    buffer = bytearray()
+    conn.setblocking(False)
+    start = time.time()
+
+    while time.time() - start < timeout:
+        try:
+            received = conn.recv(4096)
+            if received:
+                buffer.extend(received)
+                start = time.time()
+                if b"done" in buffer:
+                    break
+            else:
+                time.sleep(0.01)
+        except BlockingIOError:
+            time.sleep(0.01)
+
+    conn.setblocking(True)
+    data = bytes(buffer)
+
+    received_lines = data.decode(errors="replace").splitlines()
+    expected_lines = expected.decode(errors="replace").splitlines()
+
+    mismatches = []
+    for i, (exp_line, rec_line) in enumerate(zip(expected_lines, received_lines), start=1):
+        if exp_line != rec_line:
+            mismatches.append(f"Line {i}:\n  expected: {exp_line}\n  received: {rec_line}")
+
+    # Handle extra lines if lengths differ
+    if len(received_lines) > len(expected_lines):
+        for i in range(len(expected_lines) + 1, len(received_lines) + 1):
+            mismatches.append(f"Line {i}:\n  expected: <no line>\n  received: {received_lines[i-1]}")
+    elif len(expected_lines) > len(received_lines):
+        for i in range(len(received_lines) + 1, len(expected_lines) + 1):
+            mismatches.append(f"Line {i}:\n  expected: {expected_lines[i-1]}\n  received: <no line>")
+    if mismatches:
+        logging.warning("Output mismatch! Showing first 10 differences:\n" + "\n".join(mismatches[:100]))
+        passed_all = False
+        return False
+    else:
+        return True
 
 def send_and_expect_response(conn, test_name, send, expected, exit_on_failure=False):
     """Send a message to server and check if the response is equal to the expected response
@@ -87,6 +132,21 @@ def send_and_expect_response(conn, test_name, send, expected, exit_on_failure=Fa
     conn.sendall(send + LINE_END)
     print(send.decode('utf-8'))
     if not expect_response(conn, expected + LINE_END):
+        failed_tests.append(test_name)
+        if exit_on_failure:
+            print()
+            logging.fatal('Failed some tests,')
+            print(*failed_tests, sep='\n', file=sys.stderr)
+            sys.exit(1)
+
+def send_and_expect_response_file(conn, test_name, send, expected_file, exit_on_failure=False):
+    """Send a message to server and check the response on-the-fly against a large expected response file."""
+    conn.sendall(send + LINE_END)
+    print(send.decode('utf-8'))
+    with open(expected_file, "rb") as f:
+        expected_bytes = f.read()
+
+    if not expect_response_file(conn, expected_bytes):
         failed_tests.append(test_name)
         if exit_on_failure:
             print()
@@ -492,12 +552,12 @@ def test(host, port):
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher',b'match(n:Person) where n.id=2 return n'
                                                 b' RETURN n',b'{"n":{"id":"2","label":"Person",'
-                                 b'"name":"Charlie","occupation":"IT Engineer","partitionID":"0"}}',
+                                                             b'"name":"Charlie","occupation":"IT Engineer",'
+                                                             b'"partitionID":"0"}}',
 
                                  exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'',
                                  b'done', exit_on_failure=True)
-
 
         print()
         logging.info('[Cypher] Testing rmgr after adhdfs')
