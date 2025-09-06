@@ -879,6 +879,7 @@ JasmineGraphServer::worker JasmineGraphServer::getDesignatedWorker(
             best_score = score;
         }
     }
+
     return best_worker;
 }
 

@@ -3165,11 +3165,11 @@ static void streaming_kg_construction ( int connFd, int serverPort, std::map<std
 
     string hdfsPath = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.info("Received HDFS Path: " + hdfsPath);
-    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
-        *loop_exit_p = true;
-        return;
-    }
-    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
+    // if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+    //     *loop_exit_p = true;
+    //     return;
+    // }
+    // instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
     HDFSConnector *hdfsConnector = new HDFSConnector(hdfsServerUrl, hdfsPort);
 
     Pipeline *streamHandler = new Pipeline(hdfsConnector->getFileSystem(),
@@ -3177,6 +3177,7 @@ static void streaming_kg_construction ( int connFd, int serverPort, std::map<std
     instance_logger.info("Started listening to " + hdfsPath);
    streamHandler->init();
 
+    int conResultWr = write(connFd, DONE.c_str(), DONE.length());
 
 
 

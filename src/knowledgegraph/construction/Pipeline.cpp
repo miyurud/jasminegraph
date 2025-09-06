@@ -530,13 +530,13 @@ bool Pipeline::streamGraphToDesignatedWorker(std::string host, int port,
     if (!sendAndExpect(hdfsPort, "ok"))                             { close(sockfd); return false; }
     if (!sendAndExpect(masterIP, "ok"))                        { close(sockfd); return false; }
     if (!sendAndExpect(workers, "ok"))                        { close(sockfd); return false; }
-    if (!sendAndExpect(hdfsFilePath, "ok"))                        { close(sockfd); return false; }
+    if (!sendAndExpect(hdfsFilePath, "done"))                        { close(sockfd); return false; }
 
     // Final ack "done"
-    if (!sendAndExpect("y", "done")) {
-        close(sockfd);
-        return false;
-    }
+    // if (!sendAndExpect("done", "done")) {
+    //     close(sockfd);
+    //     return false;
+    // }
 
     close(sockfd);
     kg_pipeline_stream_handler_logger.info("Worker completed streaming upload for graph " + (graphId));
