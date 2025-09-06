@@ -114,16 +114,16 @@ def expect_response_file(conn: socket.socket, expected: bytes, timeout=5):
         for i in range(len(expected_lines) + 1, len(received_lines) + 1):
             mismatches.append(f'Line {i}:\n  expected: <no line>\n  '
                               f'received: {received_lines[i-1]}')
-        logging.warning("Output mismatch! Showing first 10 differences:\n%s",
-            "\n".join(mismatches[:10]))
+        logging.warning('Output mismatch! Showing first 10 differences:\n%s',
+            '\n''.join(mismatches[:10]))
         passed_all = False
         return False
-    elif len(expected_lines) > len(received_lines):
+    if len(expected_lines) > len(received_lines):
         for i in range(len(received_lines) + 1, len(expected_lines) + 1):
             mismatches.append(f'Line {i}:\n  expected: {expected_lines[i-1]}\n'
                               f'  received: <no line>')
-        logging.warning("Output mismatch! Showing first 10 differences:\n%s",
-            "\n".join(mismatches[:10]))
+        logging.warning('Output mismatch! Showing first 10 differences:\n%s',
+            '\n''.join(mismatches[:10]))
         passed_all = False
         return False
 
@@ -150,7 +150,7 @@ def send_and_expect_response_file(conn, test_name, send, expected_file, exit_on_
     response file."""
     conn.sendall(send + LINE_END)
     print(send.decode('utf-8'))
-    with open(expected_file, "rb") as f:
+    with open(expected_file, 'rb') as f:
         expected_bytes = f.read()
 
     if not expect_response_file(conn, expected_bytes):
