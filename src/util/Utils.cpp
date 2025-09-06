@@ -618,7 +618,6 @@ std::string Utils::read_str_wrapper(int connFd, char *buf, size_t len, bool allo
     if (result < 0) {
         util_logger.error("Read failed: recv returned " + std::to_string((int)result));
         return "";
-    } else if (!allowEmpty && result == 0) {
         util_logger.error("Read failed: recv empty string");
         return "";
     }
@@ -961,6 +960,32 @@ std::map<std::string, std::string> Utils::getMetricMap(std::string metricName) {
 
     return map;
 }
+
+double Utils:: exponentialWeightedMovingAverage(const std::deque<double>& vals, double alpha ) {
+    if (vals.empty()) return 0.0;
+    double ewma = vals[0];
+    for (size_t i = 1; i < vals.size(); i++) {
+        ewma = alpha * vals[i] + (1 - alpha) * ewma;
+    }
+    return ewma;
+}
+
+double Utils:: computeSlope(const std::deque<double>& vals) {
+    int n = vals.size();
+    if (n < 2) return 0.0;
+
+    double sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+    for (int i = 0; i < n; i++) {
+        sumX += i;
+        sumY += vals[i];
+        sumXY += i * vals[i];
+        sumXX += i * i;
+    }
+    double denom = n * sumXX - sumX * sumX;
+    if (denom == 0) return 0.0;
+    return (n * sumXY - sumX * sumY) / denom;
+}
+
 
 bool Utils::fileExistsWithReadPermission(const string &path) { return access(path.c_str(), R_OK) == 0; }
 

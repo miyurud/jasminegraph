@@ -186,6 +186,8 @@ class Utils {
 
     static map<string, string> getMetricMap(string metricName);
 
+    static double exponentialWeightedMovingAverage(const std::deque<double>& vals, double alpha = 0.3);
+    static  double  computeSlope(const std::deque<double>& vals);
     static bool uploadFileToWorker(std::string host, int port, int dataPort, int graphID, std::string filePath,
                                    std::string masterIP, std::string uploadType);
 

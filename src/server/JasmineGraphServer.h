@@ -160,6 +160,7 @@ class JasmineGraphServer {
 
     void initiateMerge(std::string graphID, std::string trainingArgs, SQLiteDBInterface *sqlite);
 
+    worker getDesignatedWorker(const std::vector<JasmineGraphServer::worker>& workers);
     static std::vector<worker> getWorkers(size_t npart);
 
     static bool mergeFiles(std::string host, int port, std::string trainingArgs, int iteration,
