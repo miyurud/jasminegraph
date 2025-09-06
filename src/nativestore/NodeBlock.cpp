@@ -336,6 +336,7 @@ bool NodeBlock::searchRelation(NodeBlock withNode) {
     return found;
 }
 
+
 std::list<std::pair<NodeBlock*, RelationBlock*>> NodeBlock::getLocalEdgeNodes() {
     std::list<std::pair<NodeBlock*, RelationBlock*>> edges;
     RelationBlock* currentRelation = this->getLocalRelationHead();
