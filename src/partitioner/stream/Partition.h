@@ -16,6 +16,8 @@
 #include <string>
 #include <unordered_set>
 #include <vector>
+#include <atomic>
+#include <mutex>
 
 #ifndef JASMINE_PARTITION
 #define JASMINE_PARTITION
@@ -42,7 +44,8 @@ class Partition {
     int id;
     int numberOfPartitions;  // Size of the cluster TODO: can be removed
 
-    int vertexCount;
+    std::atomic<int> vertexCount;
+    mutable std::mutex partitionMutex;  // Mutex for thread-safe operations
 
  public:
     Partition(int id, int numberOfPartitions) {
@@ -73,6 +76,11 @@ class Partition {
     bool isExistInEdgeCuts(std::string);
     void incrementVertexCount();
     void addToEdgeList(std::string vertex);
+    std::mutex& getPartitionMutex() const { return partitionMutex; }  // Getter for mutex
+    
+private:
+    bool isExistUnsafe(std::string vertext);  // Unsafe version - assumes caller holds lock
+    bool isExistInEdgeCutsUnsafe(std::string vertext);  // Unsafe version - assumes caller holds lock
 };
 
 #endif
