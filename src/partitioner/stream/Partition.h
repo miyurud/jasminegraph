@@ -56,6 +56,48 @@ class Partition {
         }
         this->vertexCount = 0;
     };
+    
+    // Copy constructor - needed for compatibility
+    Partition(const Partition& other) 
+        : edgeList(other.edgeList),
+          edgeCuts(other.edgeCuts),
+          id(other.id),
+          numberOfPartitions(other.numberOfPartitions),
+          vertexCount(other.vertexCount.load()) {
+    }
+    
+    // Copy assignment operator
+    Partition& operator=(const Partition& other) {
+        if (this != &other) {
+            edgeList = other.edgeList;
+            edgeCuts = other.edgeCuts;
+            id = other.id;
+            numberOfPartitions = other.numberOfPartitions;
+            vertexCount = other.vertexCount.load();
+        }
+        return *this;
+    }
+    
+    // Move constructor
+    Partition(Partition&& other) noexcept 
+        : edgeList(std::move(other.edgeList)),
+          edgeCuts(std::move(other.edgeCuts)),
+          id(other.id),
+          numberOfPartitions(other.numberOfPartitions),
+          vertexCount(other.vertexCount.load()) {
+    }
+    
+    // Move assignment operator
+    Partition& operator=(Partition&& other) noexcept {
+        if (this != &other) {
+            edgeList = std::move(other.edgeList);
+            edgeCuts = std::move(other.edgeCuts);
+            id = other.id;
+            numberOfPartitions = other.numberOfPartitions;
+            vertexCount = other.vertexCount.load();
+        }
+        return *this;
+    }
     void addEdge(std::pair<std::string, std::string> edge, bool isDirected = false);
     std::set<std::string> getNeighbors(std::string);
     double partitionScore(std::string vertex);

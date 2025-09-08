@@ -28,9 +28,10 @@
 #include <thread>
 #include <atomic>
 #include <shared_mutex>
+#include <memory>
 
 class HDFSMultiThreadedHashPartitioner {
-    std::vector<Partition> partitions;
+    std::vector<std::unique_ptr<Partition>> partitions;
 
     std::atomic<bool> terminateConsumers;
     std::vector<std::thread> localEdgeThreads;
