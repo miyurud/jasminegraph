@@ -7,7 +7,8 @@
 #include <curl/curl.h>
 #include <iostream>
 #include <nlohmann/json.hpp>
-
+#include <thread>
+#include <chrono>
 using json = nlohmann::json;
 // ---------------- HTTP Client ----------------
 static size_t WriteToString(void* contents, size_t size, size_t nmemb, void* userp) {
@@ -110,39 +111,60 @@ std::vector<std::vector<float>> TextEmbedder:: batch_embed(const std::vector<std
     throw std::runtime_error("Unexpected embedding response: " + j.dump());
 }
 
+
+
 std::vector<float> TextEmbedder::embed(const std::string& text) {
     json req = {
         {"model",  model_name},
         {"prompt", text}
     };
+
     // log the request
     std::cout << "Embedding request: " << req.dump() << std::endl;
 
-    std::string res = http.post(endpoint+"/api/embeddings", req.dump(),
-                                {"Content-Type: application/json"});
-    auto j = json::parse(res);
+    int max_retries = 3;
+    int delay_ms = 1000; // 1 second gap between retries
 
-    // log j
+    for (int attempt = 1; attempt <= max_retries; ++attempt) {
+        try {
+            std::string res = http.post(endpoint + "/api/embeddings", req.dump(),
+                                        {"Content-Type: application/json"});
+            auto j = json::parse(res);
 
-    std::cout << res << std::endl;
+            // log response
+            std::cout << "Response (attempt " << attempt << "): " << res << std::endl;
 
-    // Ollama format: { "embedding": [ ... ] }
-    if (j.contains("embedding")) {
-        const auto& arr = j["embedding"];
-        std::vector<float> out;
-        out.reserve(arr.size());
-        for (auto& x : arr) out.push_back((float)x.get<double>());
-        return out;
+            // Ollama format: { "embedding": [ ... ] }
+            if (j.contains("embedding")) {
+                const auto& arr = j["embedding"];
+                std::vector<float> out;
+                out.reserve(arr.size());
+                for (auto& x : arr) out.push_back((float)x.get<double>());
+                return out;
+            }
+
+            // OpenAI format: { "data": [ { "embedding": [ ... ] } ] }
+            if (j.contains("data")) {
+                const auto& arr = j["data"][0]["embedding"];
+                std::vector<float> out;
+                out.reserve(arr.size());
+                for (auto& x : arr) out.push_back((float)x.get<double>());
+                return out;
+            }
+
+            throw std::runtime_error("Unexpected embedding response: " + j.dump());
+        } catch (const std::exception& ex) {
+            std::cerr << "Embedding request failed (attempt " << attempt << "): " 
+                      << ex.what() << std::endl;
+
+            if (attempt < max_retries) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms));
+                delay_ms *= 2; // exponential backoff (optional)
+            } else {
+                throw; // rethrow last error after max retries
+            }
+        }
     }
 
-    // OpenAI format: { "data": [ { "embedding": [ ... ] } ] }
-    if (j.contains("data")) {
-        const auto& arr = j["data"][0]["embedding"];
-        std::vector<float> out;
-        out.reserve(arr.size());
-        for (auto& x : arr) out.push_back((float)x.get<double>());
-        return out;
-    }
-
-    throw std::runtime_error("Unexpected embedding response: " + j.dump());
+    throw std::runtime_error("All embedding attempts failed unexpectedly.");
 }

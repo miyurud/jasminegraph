@@ -2,7 +2,8 @@
 #include <curl/curl.h>
 #include <nlohmann/json.hpp>
 #include <iostream>
-
+#include <thread>   // for std::this_thread::sleep_for
+#include <chrono>   // for std::chrono::seconds
 #include "../../util/logger/Logger.h"
 
 using json = nlohmann::json;
@@ -79,6 +80,8 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
             }
         } catch (...) {
             ollama_tuple_streamer_logger.info("Malformed/partial JSON ignored: " + line);
+                ctx->buffer->add("-1");
+                ctx->current_tuple.clear();
         }
     }
 
@@ -89,6 +92,15 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
 void OllamaTupleStreamer::streamChunk(const std::string& chunkKey,
                                       const std::string& chunkText,
                                       SharedBuffer& tupleBuffer) {
+
+
+             const int maxRetries = 5;                 // number of retries before giving up
+    const int baseDelaySeconds = 2;           // wait time between retries (exponential backoff)
+
+    int attempt = 0;
+    CURLcode res;
+
+    do {
     CURL* curl = curl_easy_init();
     if (!curl) {
         std::cerr << "Failed to initialize CURL\n";
@@ -98,7 +110,7 @@ void OllamaTupleStreamer::streamChunk(const std::string& chunkKey,
     StreamContext ctx{chunkKey, &tupleBuffer};
 
     // Use 127.0.0.1 explicitly to avoid IPv6 localhost issues
-    curl_easy_setopt(curl, CURLOPT_URL, "http://192.168.1.7:11434/api/generate");
+    curl_easy_setopt(curl, CURLOPT_URL, "http://10.8.100.248:11434/api/generate");
     curl_easy_setopt(curl, CURLOPT_POST, 1L);
 
     json j;
@@ -261,4 +273,17 @@ void OllamaTupleStreamer::streamChunk(const std::string& chunkKey,
 
     curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
+
+       if (res != CURLE_OK && attempt < maxRetries - 1) {
+            int waitTime = baseDelaySeconds * (1 << attempt);  // exponential backoff
+            std::cerr << "Retrying in " << waitTime << " seconds...\n";
+            std::this_thread::sleep_for(std::chrono::seconds(waitTime));
+        }
+
+        attempt++;
+    } while (res != CURLE_OK && attempt < maxRetries);
+
+    if (res != CURLE_OK) {
+        std::cerr << "Failed after " << maxRetries << " attempts.\n";
+    }
 }

@@ -1632,17 +1632,17 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
     std::string hdfsFilePathS(hdfsFilePath);
     hdfsFilePathS = Utils::trim_copy(hdfsFilePathS);
 
-    // HDFSConnector *hdfsConnector = new HDFSConnector(hdfsServerIp, hdfsPort);
-    //
-    // if (!hdfsConnector->isPathValid(hdfsFilePathS)) {
-    //     frontend_logger.error("Invalid HDFS file path: " + hdfsFilePathS);
-    //     std::string error_message = "The provided HDFS path is invalid.";
-    //     write(connFd, error_message.c_str(), error_message.length());
-    //     write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-    //     delete hdfsConnector;
-    //     *loop_exit_p = true;
-    //     return;
-    // }
+    HDFSConnector *hdfsConnector = new HDFSConnector(hdfsServerIp, hdfsPort);
+    
+    if (!hdfsConnector->isPathValid(hdfsFilePathS)) {
+        frontend_logger.error("Invalid HDFS file path: " + hdfsFilePathS);
+        std::string error_message = "The provided HDFS path is invalid.";
+        write(connFd, error_message.c_str(), error_message.length());
+        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        delete hdfsConnector;
+        *loop_exit_p = true;
+        return;
+    }
 
     // get graph type
     bool isEdgeListType = false;
@@ -1710,19 +1710,19 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
 
     int newGraphID = sqlite->runInsert(sqlStatement);
     frontend_logger.info("Created graph ID: " + std::to_string(newGraphID));
-    // HDFSStreamHandler *streamHandler = new HDFSStreamHandler(hdfsConnector->getFileSystem(),
-    //                                                          hdfsFilePathS, numberOfPartitions,
-    //                                                          newGraphID, sqlite, masterIP, directed, isEdgeListType);
-    // frontend_logger.info("Started listening to " + hdfsFilePathS);
-    // inputStreamHandlerThread = std::thread(&HDFSStreamHandler::startStreamingFromBufferToPartitions, streamHandler);
-    // inputStreamHandlerThread.join();
-    //
-    // std::string uploadEndTime = ctime(&time);
-    // std::string sqlStatementUpdateEndTime =
-    //         "UPDATE graph "
-    //         "SET upload_end_time = \"" + uploadEndTime + "\" "
-    //                                                      "WHERE idgraph = " + std::to_string(newGraphID);
-    // sqlite->runInsert(sqlStatementUpdateEndTime);
+    HDFSStreamHandler *streamHandler = new HDFSStreamHandler(hdfsConnector->getFileSystem(),
+                                                             hdfsFilePathS, numberOfPartitions,
+                                                             newGraphID, sqlite, masterIP, directed, isEdgeListType);
+    frontend_logger.info("Started listening to " + hdfsFilePathS);
+    inputStreamHandlerThread = std::thread(&HDFSStreamHandler::startStreamingFromBufferToPartitions, streamHandler);
+    inputStreamHandlerThread.join();
+    
+    std::string uploadEndTime = ctime(&time);
+    std::string sqlStatementUpdateEndTime =
+            "UPDATE graph "
+            "SET upload_end_time = \"" + uploadEndTime + "\" "
+                                                         "WHERE idgraph = " + std::to_string(newGraphID);
+    sqlite->runInsert(sqlStatementUpdateEndTime);
 
 
     int conResultWr = write(connFd, DONE.c_str(), DONE.length());

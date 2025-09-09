@@ -28,8 +28,8 @@ Logger kg_pipeline_stream_handler_logger;
 
 const size_t MESSAGE_SIZE = 5 * 1024 * 1024;
 const size_t MAX_BUFFER_SIZE = MESSAGE_SIZE * 512;
-const size_t CHUNCK_BYTE_SIZE = 1024*2; // 1 MB chunks
-const size_t OVERLAP_BYTES = 100; // bytes to overlap between chunks to avoid splitting lines
+const size_t CHUNCK_BYTE_SIZE = 1024*5; // 1 MB chunks
+const size_t OVERLAP_BYTES = 1000; // bytes to overlap between chunks to avoid splitting lines
 const std::string END_OF_STREAM_MARKER = "-1";
 
 Pipeline::Pipeline(hdfsFS fileSystem, const std::string &filePath, int numberOfPartitions, int graphId,
@@ -87,9 +87,9 @@ void Pipeline::streamFromHDFSIntoBuffer() {
 
       // Split into complete lines and leftover partial line
       std::string full_lines_chunk = chunk_text.substr(0, last_newline + 1);
-      // size_t overlap_start = (full_lines_chunk.size() > OVERLAP_BYTES) ? full_lines_chunk.size() - OVERLAP_BYTES : 0;
-      // leftover = full_lines_chunk.substr(overlap_start);
-      leftover = chunk_text.substr(last_newline + 1);
+      size_t overlap_start = (full_lines_chunk.size() > OVERLAP_BYTES) ? full_lines_chunk.size() - OVERLAP_BYTES : 0;
+      leftover = full_lines_chunk.substr(overlap_start);
+      // leftover = chunk_text.substr(last_newline + 1);
 
       kg_pipeline_stream_handler_logger.info("Full lines chunk size: " + std::to_string(full_lines_chunk.size()));
       kg_pipeline_stream_handler_logger.info("Leftover after split size: " + std::to_string(leftover.size()));

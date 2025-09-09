@@ -17,7 +17,7 @@
 
 Logger hash_partitioner_logger;
 
-int PARTITION_FILE_EDGE_COUNT_THRESHOLD = 2;
+int PARTITION_FILE_EDGE_COUNT_THRESHOLD = 5;
 
 HDFSMultiThreadedHashPartitioner::HDFSMultiThreadedHashPartitioner(int numberOfPartitions, int graphID,
     std::string masterIp, bool isDirected ,  std::vector<JasmineGraphServer::worker> workers )
