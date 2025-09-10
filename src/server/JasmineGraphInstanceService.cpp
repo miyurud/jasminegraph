@@ -27,10 +27,13 @@ limitations under the License.
 #include "../server/JasmineGraphServer.h"
 #include "../util/kafka/InstanceStreamHandler.h"
 #include "../util/logger/Logger.h"
+#include "../util/telemetry/OpenTelemetryUtil.h"
 #include "JasmineGraphInstance.h"
 #include <thread>
 
 using namespace std;
+namespace trace_api = opentelemetry::trace;
+namespace nostd = opentelemetry::nostd;
 
 #define PENDING_CONNECTION_QUEUE_SIZE 10
 #define DATA_BUFFER_SIZE (INSTANCE_DATA_LENGTH + 1)
@@ -433,6 +436,8 @@ long countLocalTriangles(
     std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
     std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores,
     int threadPriority) {
+    OTEL_TRACE_FUNCTION();
+    
     long result;
 
     instance_logger.info("###INSTANCE### Local Triangle Count : Started");
@@ -444,27 +449,43 @@ long countLocalTriangles(
     auto centralStoreIterator = graphDBMapCentralStores.find(graphIdentifier);
     auto duplicateCentralStoreIterator = graphDBMapDuplicateCentralStores.find(graphIdentifier);
 
-    if (localMapIterator == graphDBMapLocalStores.end() &&
-        JasmineGraphInstanceService::isGraphDBExists(graphId, partitionId)) {
-        JasmineGraphInstanceService::loadLocalStore(graphId, partitionId, graphDBMapLocalStores);
+    // Trace data loading operations
+    JasmineGraphHashMapLocalStore graphDB;
+    {
+        OTEL_TRACE_OPERATION("load_local_store_partition_" + partitionId);
+        if (localMapIterator == graphDBMapLocalStores.end() &&
+            JasmineGraphInstanceService::isGraphDBExists(graphId, partitionId)) {
+            JasmineGraphInstanceService::loadLocalStore(graphId, partitionId, graphDBMapLocalStores);
+        }
+        graphDB = graphDBMapLocalStores[graphIdentifier];
     }
-    JasmineGraphHashMapLocalStore graphDB = graphDBMapLocalStores[graphIdentifier];
 
-    if (centralStoreIterator == graphDBMapCentralStores.end() &&
-        JasmineGraphInstanceService::isInstanceCentralStoreExists(graphId, partitionId)) {
-        JasmineGraphInstanceService::loadInstanceCentralStore(graphId, partitionId, graphDBMapCentralStores);
+    JasmineGraphHashMapCentralStore centralGraphDB;
+    {
+        OTEL_TRACE_OPERATION("load_central_store_partition_" + partitionId);
+        if (centralStoreIterator == graphDBMapCentralStores.end() &&
+            JasmineGraphInstanceService::isInstanceCentralStoreExists(graphId, partitionId)) {
+            JasmineGraphInstanceService::loadInstanceCentralStore(graphId, partitionId, graphDBMapCentralStores);
+        }
+        centralGraphDB = graphDBMapCentralStores[centralGraphIdentifier];
     }
-    JasmineGraphHashMapCentralStore centralGraphDB = graphDBMapCentralStores[centralGraphIdentifier];
 
-    if (duplicateCentralStoreIterator == graphDBMapDuplicateCentralStores.end() &&
-        JasmineGraphInstanceService::isInstanceDuplicateCentralStoreExists(graphId, partitionId)) {
-        JasmineGraphInstanceService::loadInstanceDuplicateCentralStore(graphId, partitionId,
-                                                                       graphDBMapDuplicateCentralStores);
+    JasmineGraphHashMapDuplicateCentralStore duplicateCentralGraphDB;
+    {
+        OTEL_TRACE_OPERATION("load_duplicate_central_store_partition_" + partitionId);
+        if (duplicateCentralStoreIterator == graphDBMapDuplicateCentralStores.end() &&
+            JasmineGraphInstanceService::isInstanceDuplicateCentralStoreExists(graphId, partitionId)) {
+            JasmineGraphInstanceService::loadInstanceDuplicateCentralStore(graphId, partitionId,
+                                                                           graphDBMapDuplicateCentralStores);
+        }
+        duplicateCentralGraphDB = graphDBMapDuplicateCentralStores[duplicateCentralGraphIdentifier];
     }
-    JasmineGraphHashMapDuplicateCentralStore duplicateCentralGraphDB =
-        graphDBMapDuplicateCentralStores[duplicateCentralGraphIdentifier];
 
-    result = Triangles::run(graphDB, centralGraphDB, duplicateCentralGraphDB, graphId, partitionId, threadPriority);
+    // Trace the core triangle algorithm
+    {
+        OTEL_TRACE_OPERATION("triangles_algorithm_partition_" + partitionId);
+        result = Triangles::run(graphDB, centralGraphDB, duplicateCentralGraphDB, graphId, partitionId, threadPriority);
+    }
 
     instance_logger.info("###INSTANCE### Local Triangle Count : Completed: Triangles: " + to_string(result));
 
@@ -2873,6 +2894,7 @@ static void triangles_command(
     std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
     std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores,
     bool *loop_exit_p) {
+    OTEL_TRACE_FUNCTION();
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
@@ -2900,6 +2922,11 @@ static void triangles_command(
     instance_logger.info("Received Priority : " + priority);
 
     int threadPriority = stoi(priority);
+    
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
 
     if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
         threadPriorityMutex.lock();
@@ -2910,8 +2937,14 @@ static void triangles_command(
 
     std::thread perfThread = std::thread(&PerformanceUtil::collectPerformanceStatistics);
     perfThread.detach();
-    long localCount = countLocalTriangles(graphID, partitionId, graphDBMapLocalStores, graphDBMapCentralStores,
-                                          graphDBMapDuplicateCentralStores, threadPriority);
+    
+    // Trace the main triangle counting operation
+    long localCount;
+    {
+        OTEL_TRACE_OPERATION("worker_triangle_counting_partition_" + partitionId);
+        localCount = countLocalTriangles(graphID, partitionId, graphDBMapLocalStores, graphDBMapCentralStores,
+                                              graphDBMapDuplicateCentralStores, threadPriority);
+    }
 
     if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
         threadPriorityMutex.lock();

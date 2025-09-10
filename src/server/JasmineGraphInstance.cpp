@@ -15,6 +15,8 @@ limitations under the License.
 
 #include "../util/Utils.h"
 #include "../util/logger/Logger.h"
+#include "../util/telemetry/TelemetryInitializer.h"
+#include "../util/telemetry/OpenTelemetryUtil.h"
 
 Logger graphInstance_logger;
 
@@ -35,7 +37,21 @@ void *runFileTransferService(void *dummyPt) {
 
 int JasmineGraphInstance::start_running(string hostName, string masterHost, int serverPort, int serverDataPort,
                                         string enableNmon) {
-    graphInstance_logger.info("Worker started");
+    graphInstance_logger.info("Worker started on port " + std::to_string(serverPort));
+    
+    // Initialize OpenTelemetry for this worker process with worker-specific service name
+    try {
+        std::string workerServiceName = "jasminegraph-worker-" + std::to_string(serverPort);
+        OpenTelemetryUtil::initialize(
+            workerServiceName,                   // Worker-specific service name (e.g., jasminegraph-worker-7780)
+            "http://pushgateway:9091",          // Pushgateway for metrics
+            "http://tempo:4318/v1/traces"       // Tempo OTLP HTTP endpoint for traces
+        );
+        graphInstance_logger.info("OpenTelemetry initialized successfully for worker " + workerServiceName);
+    } catch (const std::exception& e) {
+        graphInstance_logger.error("Failed to initialize OpenTelemetry for worker: " + std::string(e.what()));
+        graphInstance_logger.info("Worker will continue without telemetry...");
+    }
 
     this->hostName = hostName;
     this->masterHostName = masterHost;
@@ -64,6 +80,15 @@ int JasmineGraphInstance::start_running(string hostName, string masterHost, int 
 
     pthread_join(instanceCommunicatorThread, NULL);
     pthread_join(instanceFileTransferThread, NULL);
+    
+    // Shutdown OpenTelemetry gracefully
+    try {
+        OpenTelemetryUtil::shutdown();
+        graphInstance_logger.info("OpenTelemetry shutdown completed for worker on port " + std::to_string(serverPort));
+    } catch (const std::exception& e) {
+        graphInstance_logger.error("Error during OpenTelemetry shutdown: " + std::string(e.what()));
+    }
+    
     return 0;
 }
 

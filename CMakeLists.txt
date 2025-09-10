@@ -83,7 +83,8 @@ set(HEADERS globals.h
         src/util/hdfs/HDFSStreamHandler.h
         src/partitioner/stream/HDFSMultiThreadedHashPartitioner.h
         src/query/processor/cypher/util/Const.h
-        src/util/telemetry/TelemetryUtil.h
+        src/util/telemetry/OpenTelemetryUtil.h
+        src/util/telemetry/PushgatewayUtil.h
         src/util/telemetry/MetricMetadata.h
         src/util/telemetry/TraceContext.h
         src/nativestore/MetaPropertyLink.h
@@ -155,7 +156,9 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/util/kafka/InstanceStreamHandler.cpp
         src/util/logger/Logger.cpp
         src/util/scheduler/SchedulerService.cpp
-        src/util/telemetry/TelemetryUtil.cpp
+        src/util/telemetry/OpenTelemetryUtil.cpp
+        src/util/telemetry/PushgatewayUtil.cpp
+        src/util/telemetry/TelemetryInitializer.cpp
         src/k8s/K8sInterface.cpp
         src/nativestore/NodeManager.cpp
         src/nativestore/NodeBlock.cpp
@@ -171,7 +174,6 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/util/hdfs/HDFSConnector.cpp
         src/util/hdfs/HDFSStreamHandler.cpp
         src/partitioner/stream/HDFSMultiThreadedHashPartitioner.cpp
-        src/util/telemetry/TelemetryUtil.cpp
         src/query/processor/cypher/semanticanalyzer/SemanticAnalyzer.cpp
         src/query/processor/cypher/util/Const.cpp
         src/frontend/ui/JasmineGraphFrontEndUIProtocol.h
@@ -224,8 +226,8 @@ target_link_libraries(JasmineGraphLib PRIVATE /usr/lib/x86_64-linux-gnu/libflatb
 target_link_libraries(JasmineGraphLib PRIVATE /usr/lib/x86_64-linux-gnu/libjsoncpp.so)
 target_link_libraries(JasmineGraphLib PRIVATE /usr/local/lib/libcppkafka.so)
 target_link_libraries(JasmineGraphLib PRIVATE /usr/local/libhdfs3/lib/libhdfs3.so)
-target_link_libraries(JasmineGraph JasmineGraphLib)
-target_link_libraries(JasmineGraph curl)
+target_link_libraries(JasmineGraph PRIVATE JasmineGraphLib)
+target_link_libraries(JasmineGraph PRIVATE curl)
 
 include_directories(/usr/local/libhdfs3/include/hdfs/)
 include_directories(/usr/include/oneapi/)
@@ -239,6 +241,29 @@ target_link_libraries(JasmineGraphLib PRIVATE /usr/local/lib/libkubernetes.so)
 target_link_libraries(JasmineGraphLib PRIVATE yaml-cpp)
 target_link_libraries(JasmineGraphLib PRIVATE curl)
 target_link_libraries(JasmineGraphLib PRIVATE antlr4-runtime)
+
+# Find OpenTelemetry packages
+find_package(opentelemetry-cpp REQUIRED)
+find_package(PkgConfig REQUIRED)
+
+# OpenTelemetry libraries for native tracing support
+target_link_libraries(JasmineGraphLib PRIVATE opentelemetry-cpp::api)
+target_link_libraries(JasmineGraphLib PRIVATE opentelemetry-cpp::sdk)
+target_link_libraries(JasmineGraphLib PRIVATE opentelemetry-cpp::trace)
+target_link_libraries(JasmineGraphLib PRIVATE opentelemetry-cpp::metrics)
+target_link_libraries(JasmineGraphLib PRIVATE opentelemetry-cpp::ostream_span_exporter)
+target_link_libraries(JasmineGraphLib PRIVATE opentelemetry-cpp::otlp_http_exporter)
+
+# Link main executable with OpenTelemetry libraries
+target_link_libraries(JasmineGraph PRIVATE opentelemetry-cpp::api)
+target_link_libraries(JasmineGraph PRIVATE opentelemetry-cpp::sdk)
+target_link_libraries(JasmineGraph PRIVATE opentelemetry-cpp::trace)
+target_link_libraries(JasmineGraph PRIVATE opentelemetry-cpp::metrics)
+target_link_libraries(JasmineGraph PRIVATE opentelemetry-cpp::ostream_span_exporter)
+target_link_libraries(JasmineGraph PRIVATE opentelemetry-cpp::otlp_http_exporter)
+
+# Include OpenTelemetry headers
+target_include_directories(JasmineGraphLib PRIVATE /usr/local/include)
 
 
 if (CMAKE_BUILD_TYPE STREQUAL "DEBUG")

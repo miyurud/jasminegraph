@@ -23,7 +23,7 @@ limitations under the License.
 #include "src/server/JasmineGraphInstance.h"
 #include "src/util/logger/Logger.h"
 #include "src/util/scheduler/SchedulerService.h"
-#include "src/util/telemetry/TelemetryUtil.h"
+#include "src/util/telemetry/TelemetryInitializer.h"
 
 unsigned int microseconds = 10000000;
 JasmineGraphServer *server;
@@ -56,15 +56,15 @@ enum worker_mode_args {
 };
 
 void fnExit3(void) { 
-    TelemetryUtil::shutdown();
+    shutdownOpenTelemetry();
     delete (server); 
 }
 
 int main(int argc, char *argv[]) {
     atexit(fnExit3);
     
-    // Initialize Telemetry with automatic push every 20 seconds
-    TelemetryUtil::initialize("", "jasminegraph-telemetry", 20);
+    // Initialize native OpenTelemetry
+    initializeOpenTelemetry();
 
     if (argc <= 1) {
         main_logger.error(
