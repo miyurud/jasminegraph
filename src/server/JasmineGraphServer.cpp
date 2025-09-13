@@ -154,7 +154,7 @@ int JasmineGraphServer::run(std::string masterIp, int numberofWorkers, std::stri
     if (jasminegraph_profile == PROFILE_K8S) {
         // Create K8s worker controller
         (void)K8sWorkerController::getInstance(masterIp, numberofWorkers, sqlite);
-        start_scale_down(this->sqlite);
+        // start_scale_down(this->sqlite);
         hostWorkerList = K8sWorkerController::workerList;
     } else {
         start_workers();
