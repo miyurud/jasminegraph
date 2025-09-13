@@ -10,31 +10,22 @@ static bool g_telemetry_enabled = false;
  * This should be called once during application startup in main.cpp
  */
 void initializeOpenTelemetry() {
-    // Check environment variable to enable/disable telemetry
-    const char* enable_telemetry = std::getenv("ENABLE_TELEMETRY");
-    
-    if (enable_telemetry && std::string(enable_telemetry) == "true") {
-        try {
-            std::cout << "Initializing OpenTelemetry..." << std::endl;
-            
-            // Initialize with proper endpoints when telemetry is enabled
-            OpenTelemetryUtil::initialize(
-                "jasminegraph-master",
-                "http://172.17.0.2:9091",         // Pushgateway IP
-                "http://172.17.0.3:4318/v1/traces" // Tempo IP
-            );
-            
-            g_telemetry_enabled = true;
-            std::cout << "OpenTelemetry initialized successfully" << std::endl;
-            
-        } catch (const std::exception& e) {
-            std::cerr << "Failed to initialize OpenTelemetry: " << e.what() << std::endl;
-            std::cerr << "Continuing without telemetry..." << std::endl;
-            g_telemetry_enabled = false;
-        }
-    } else {
-        std::cout << "OpenTelemetry disabled - skipping initialization" << std::endl;
-        std::cout << "To enable: docker run -e ENABLE_TELEMETRY=true ..." << std::endl;
+    try {
+        std::cout << "Initializing OpenTelemetry..." << std::endl;
+        
+        // Initialize with proper endpoints when telemetry is enabled
+        OpenTelemetryUtil::initialize(
+            "jasminegraph-master",
+            "http://pushgateway:9091",         // Pushgateway hostname
+            "http://tempo:4318/v1/traces"      // Tempo hostname
+        );
+        
+        g_telemetry_enabled = true;
+        std::cout << "OpenTelemetry initialized successfully" << std::endl;
+        
+    } catch (const std::exception& e) {
+        std::cerr << "Failed to initialize OpenTelemetry: " << e.what() << std::endl;
+        std::cerr << "Continuing without telemetry..." << std::endl;
         g_telemetry_enabled = false;
     }
 }

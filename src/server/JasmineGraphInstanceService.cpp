@@ -436,8 +436,6 @@ long countLocalTriangles(
     std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
     std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores,
     int threadPriority) {
-    OTEL_TRACE_FUNCTION();
-    
     long result;
 
     instance_logger.info("###INSTANCE### Local Triangle Count : Started");
@@ -449,43 +447,26 @@ long countLocalTriangles(
     auto centralStoreIterator = graphDBMapCentralStores.find(graphIdentifier);
     auto duplicateCentralStoreIterator = graphDBMapDuplicateCentralStores.find(graphIdentifier);
 
-    // Trace data loading operations
-    JasmineGraphHashMapLocalStore graphDB;
-    {
-        OTEL_TRACE_OPERATION("load_local_store_partition_" + partitionId);
-        if (localMapIterator == graphDBMapLocalStores.end() &&
-            JasmineGraphInstanceService::isGraphDBExists(graphId, partitionId)) {
-            JasmineGraphInstanceService::loadLocalStore(graphId, partitionId, graphDBMapLocalStores);
-        }
-        graphDB = graphDBMapLocalStores[graphIdentifier];
+    if (localMapIterator == graphDBMapLocalStores.end() &&
+        JasmineGraphInstanceService::isGraphDBExists(graphId, partitionId)) {
+        JasmineGraphInstanceService::loadLocalStore(graphId, partitionId, graphDBMapLocalStores);
     }
+    JasmineGraphHashMapLocalStore graphDB = graphDBMapLocalStores[graphIdentifier];
 
-    JasmineGraphHashMapCentralStore centralGraphDB;
-    {
-        OTEL_TRACE_OPERATION("load_central_store_partition_" + partitionId);
-        if (centralStoreIterator == graphDBMapCentralStores.end() &&
-            JasmineGraphInstanceService::isInstanceCentralStoreExists(graphId, partitionId)) {
-            JasmineGraphInstanceService::loadInstanceCentralStore(graphId, partitionId, graphDBMapCentralStores);
-        }
-        centralGraphDB = graphDBMapCentralStores[centralGraphIdentifier];
+    if (centralStoreIterator == graphDBMapCentralStores.end() &&
+        JasmineGraphInstanceService::isInstanceCentralStoreExists(graphId, partitionId)) {
+        JasmineGraphInstanceService::loadInstanceCentralStore(graphId, partitionId, graphDBMapCentralStores);
     }
+    JasmineGraphHashMapCentralStore centralGraphDB = graphDBMapCentralStores[centralGraphIdentifier];
 
-    JasmineGraphHashMapDuplicateCentralStore duplicateCentralGraphDB;
-    {
-        OTEL_TRACE_OPERATION("load_duplicate_central_store_partition_" + partitionId);
-        if (duplicateCentralStoreIterator == graphDBMapDuplicateCentralStores.end() &&
-            JasmineGraphInstanceService::isInstanceDuplicateCentralStoreExists(graphId, partitionId)) {
-            JasmineGraphInstanceService::loadInstanceDuplicateCentralStore(graphId, partitionId,
-                                                                           graphDBMapDuplicateCentralStores);
-        }
-        duplicateCentralGraphDB = graphDBMapDuplicateCentralStores[duplicateCentralGraphIdentifier];
+    if (duplicateCentralStoreIterator == graphDBMapDuplicateCentralStores.end() &&
+        JasmineGraphInstanceService::isInstanceDuplicateCentralStoreExists(graphId, partitionId)) {
+        JasmineGraphInstanceService::loadInstanceDuplicateCentralStore(graphId, partitionId,
+                                                                       graphDBMapDuplicateCentralStores);
     }
+    JasmineGraphHashMapDuplicateCentralStore duplicateCentralGraphDB = graphDBMapDuplicateCentralStores[duplicateCentralGraphIdentifier];
 
-    // Trace the core triangle algorithm
-    {
-        OTEL_TRACE_OPERATION("triangles_algorithm_partition_" + partitionId);
-        result = Triangles::run(graphDB, centralGraphDB, duplicateCentralGraphDB, graphId, partitionId, threadPriority);
-    }
+    result = Triangles::run(graphDB, centralGraphDB, duplicateCentralGraphDB, graphId, partitionId, threadPriority);
 
     instance_logger.info("###INSTANCE### Local Triangle Count : Completed: Triangles: " + to_string(result));
 
@@ -2922,11 +2903,6 @@ static void triangles_command(
     instance_logger.info("Received Priority : " + priority);
 
     int threadPriority = stoi(priority);
-    
-    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
-        *loop_exit_p = true;
-        return;
-    }
 
     if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
         threadPriorityMutex.lock();
@@ -2938,13 +2914,8 @@ static void triangles_command(
     std::thread perfThread = std::thread(&PerformanceUtil::collectPerformanceStatistics);
     perfThread.detach();
     
-    // Trace the main triangle counting operation
-    long localCount;
-    {
-        OTEL_TRACE_OPERATION("worker_triangle_counting_partition_" + partitionId);
-        localCount = countLocalTriangles(graphID, partitionId, graphDBMapLocalStores, graphDBMapCentralStores,
-                                              graphDBMapDuplicateCentralStores, threadPriority);
-    }
+    long localCount = countLocalTriangles(graphID, partitionId, graphDBMapLocalStores, graphDBMapCentralStores,
+                                          graphDBMapDuplicateCentralStores, threadPriority);
 
     if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
         threadPriorityMutex.lock();

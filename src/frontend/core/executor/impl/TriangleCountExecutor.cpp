@@ -744,15 +744,12 @@ long TriangleCountExecutor::getTriangleCount(
     int result_wr;
     string response;
 
-    // Trace socket creation
-    {
-        OTEL_TRACE_OPERATION("create_socket_" + host + "_p" + std::to_string(partitionId));
-        sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    // Create socket
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
-        if (sockfd < 0) {
-            triangleCount_logger.error("Cannot create socket");
-            return 0;
-        }
+    if (sockfd < 0) {
+        triangleCount_logger.error("Cannot create socket");
+        return 0;
     }
 
     if (host.find('@') != std::string::npos) {
@@ -761,42 +758,32 @@ long TriangleCountExecutor::getTriangleCount(
 
     triangleCount_logger.log("###TRIANGLE-COUNT-EXECUTOR### Get Host By Name : " + host, "info");
 
-    // Trace DNS resolution
-    {
-        OTEL_TRACE_OPERATION("dns_resolve_" + host + "_p" + std::to_string(partitionId));
-        server = gethostbyname(host.c_str());
-        if (server == NULL) {
-            triangleCount_logger.error("ERROR, no host named " + host);
-            return 0;
-        }
+    // DNS resolution
+    server = gethostbyname(host.c_str());
+    if (server == NULL) {
+        triangleCount_logger.error("ERROR, no host named " + host);
+        return 0;
     }
 
-    // Trace connection establishment
-    {
-        OTEL_TRACE_OPERATION("establish_connection_" + host + "_p" + std::to_string(partitionId));
-        bzero((char *)&serv_addr, sizeof(serv_addr));
-        serv_addr.sin_family = AF_INET;
-        bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
-        serv_addr.sin_port = htons(port);
-        if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-            triangleCount_logger.error("ERROR connecting");
-            return 0;
-        }
+    // Connection establishment
+    bzero((char *)&serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    serv_addr.sin_port = htons(port);
+    if (Utils::connect_wrapper(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+        triangleCount_logger.error("ERROR connecting");
+        return 0;
     }
 
-    // Trace protocol handshake
-    {
-        OTEL_TRACE_OPERATION("protocol_handshake_" + host + "_p" + std::to_string(partitionId));
-        
-        result_wr = write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+    // Protocol handshake
+    result_wr = write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
 
-        if (result_wr < 0) {
-            triangleCount_logger.log("Error writing to socket", "error");
-        }
-
-        triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
-        response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+    if (result_wr < 0) {
+        triangleCount_logger.log("Error writing to socket", "error");
     }
+
+    triangleCount_logger.log("Sent : " + JasmineGraphInstanceProtocol::HANDSHAKE, "info");
+    response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
 
     if (response.compare(JasmineGraphInstanceProtocol::HANDSHAKE_OK) == 0) {
         triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::HANDSHAKE_OK, "info");
@@ -856,17 +843,12 @@ long TriangleCountExecutor::getTriangleCount(
             }
             triangleCount_logger.log("Sent : Thread Priority " + std::to_string(threadPriority), "info");
 
-            // Trace the actual triangle computation on worker
-            {
-                OTEL_TRACE_OPERATION("worker_triangle_computation_" + host + "_p" + std::to_string(partitionId));
-                response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
-                triangleCount_logger.log("Got response : |" + response + "|", "info");
-                triangleCount = atol(response.c_str());
-            }
+            response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+            triangleCount_logger.log("Got response : |" + response + "|", "info");
+            triangleCount = atol(response.c_str());
         }
 
         if (isCompositeAggregation) {
-            OTEL_TRACE_OPERATION("composite_aggregation_" + host + "_p" + std::to_string(partitionId));
             triangleCount_logger.log("###COMPOSITE### Started Composite aggregation ", "info");
             for (int combinationIndex = 0; combinationIndex < fileCombinations.size(); ++combinationIndex) {
                 const std::vector<string> &fileList = fileCombinations.at(combinationIndex);

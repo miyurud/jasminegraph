@@ -33,27 +33,14 @@ long Triangles::run(JasmineGraphHashMapLocalStore &graphDB, JasmineGraphHashMapC
 long Triangles::run(JasmineGraphHashMapLocalStore &graphDB, JasmineGraphHashMapCentralStore &centralStore,
                     JasmineGraphHashMapDuplicateCentralStore &duplicateCentralStore, std::string graphId,
                     std::string partitionId, int threadPriority) {
-    OTEL_TRACE_FUNCTION(); 
-    
     triangle_logger.info("###TRIANGLE### Triangle Counting: Started");
     
-    // Trace data extraction from stores
-    map<long, unordered_set<long>> localSubGraphMap;
-    map<long, unordered_set<long>> centralDBSubGraphMap;
-    map<long, unordered_set<long>> duplicateCentralDBSubGraphMap;
-    map<long, long> degreeDistribution;
-    map<long, long> centralDBDegreeDistribution;
-    map<long, long> centralDuplicateDBDegreeDistribution;
-    
-    {
-        OTEL_TRACE_OPERATION("extract_data_from_stores");
-        localSubGraphMap = graphDB.getUnderlyingHashMap();
-        centralDBSubGraphMap = centralStore.getUnderlyingHashMap();
-        duplicateCentralDBSubGraphMap = duplicateCentralStore.getUnderlyingHashMap();
-        degreeDistribution = graphDB.getOutDegreeDistributionHashMap();
-        centralDBDegreeDistribution = centralStore.getOutDegreeDistributionHashMap();
-        centralDuplicateDBDegreeDistribution = duplicateCentralStore.getOutDegreeDistributionHashMap();
-    }
+    map<long, unordered_set<long>> localSubGraphMap = graphDB.getUnderlyingHashMap();
+    map<long, unordered_set<long>> centralDBSubGraphMap = centralStore.getUnderlyingHashMap();
+    map<long, unordered_set<long>> duplicateCentralDBSubGraphMap = duplicateCentralStore.getUnderlyingHashMap();
+    map<long, long> degreeDistribution = graphDB.getOutDegreeDistributionHashMap();
+    map<long, long> centralDBDegreeDistribution = centralStore.getOutDegreeDistributionHashMap();
+    map<long, long> centralDuplicateDBDegreeDistribution = duplicateCentralStore.getOutDegreeDistributionHashMap();
 
     auto mergeBbegin = std::chrono::high_resolution_clock::now();
 
@@ -77,18 +64,15 @@ long Triangles::run(JasmineGraphHashMapLocalStore &graphDB, JasmineGraphHashMapC
     }
 
     // Merging Local Store and Workers central stores before starting triangle count
-    {
-        OTEL_TRACE_OPERATION("merge_stores_data");
-        for (auto centralDBDegreeDistributionIterator = centralDBDegreeDistribution.begin();
-             centralDBDegreeDistributionIterator != centralDBDegreeDistribution.end();
-             ++centralDBDegreeDistributionIterator) {
-            long centralDBStartVid = centralDBDegreeDistributionIterator->first;
-            long centralDBDegree = centralDBDegreeDistributionIterator->second;
+    for (auto centralDBDegreeDistributionIterator = centralDBDegreeDistribution.begin();
+         centralDBDegreeDistributionIterator != centralDBDegreeDistribution.end();
+         ++centralDBDegreeDistributionIterator) {
+        long centralDBStartVid = centralDBDegreeDistributionIterator->first;
+        long centralDBDegree = centralDBDegreeDistributionIterator->second;
 
-            degreeDistribution[centralDBStartVid] += centralDBDegree;
-            localSubGraphMap[centralDBStartVid].insert(centralDBSubGraphMap[centralDBStartVid].begin(),
-                                                       centralDBSubGraphMap[centralDBStartVid].end());
-        }
+        degreeDistribution[centralDBStartVid] += centralDBDegree;
+        localSubGraphMap[centralDBStartVid].insert(centralDBSubGraphMap[centralDBStartVid].begin(),
+                                                   centralDBSubGraphMap[centralDBStartVid].end());
     }
 
     auto mergeEnd = std::chrono::high_resolution_clock::now();
@@ -97,46 +81,31 @@ long Triangles::run(JasmineGraphHashMapLocalStore &graphDB, JasmineGraphHashMapC
 
     triangle_logger.info(" Merge time Taken: " + std::to_string(mergeMsDuration) + " milliseconds");
 
-    // Trace the core triangle counting algorithm
-    TriangleResult triangleResult;
-    {
-        OTEL_TRACE_OPERATION("core_triangle_counting_algorithm");
-        triangleResult = countTriangles(localSubGraphMap, degreeDistribution, false);
-    }
+    TriangleResult triangleResult = countTriangles(localSubGraphMap, degreeDistribution, false);
     return triangleResult.count;
 }
 
 TriangleResult Triangles::countTriangles(map<long, unordered_set<long>> &centralStore, map<long, long> &distributionMap,
                                          bool returnTriangles) {
-    OTEL_TRACE_FUNCTION();
-    
     std::map<long, std::set<long>> degreeMap;
     std::basic_ostringstream<char> triangleStream;
 
     long startVertexId;
     long degree;
 
-    // Trace degree map creation
-    {
-        OTEL_TRACE_OPERATION("build_degree_map");
-        for (auto it = distributionMap.begin(); it != distributionMap.end(); ++it) {
-            degree = it->second;
-            if (degree == 1) continue;
-            startVertexId = it->first;
-            degreeMap[degree].insert(startVertexId);
-        }
+    for (auto it = distributionMap.begin(); it != distributionMap.end(); ++it) {
+        degree = it->second;
+        if (degree == 1) continue;
+        startVertexId = it->first;
+        degreeMap[degree].insert(startVertexId);
     }
 
     long triangleCount = 0;
     std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> triangleTree;
     // TODO(thevindu-w): Make centralstore undirected and prevent saving triangles in-memory
 
-    // Trace the main triangle detection loop
-    {
-        OTEL_TRACE_OPERATION("triangle_detection_loop");
-        
-        for (auto iterator = degreeMap.begin(); iterator != degreeMap.end(); ++iterator) {
-            auto &vertices = iterator->second;
+    for (auto iterator = degreeMap.begin(); iterator != degreeMap.end(); ++iterator) {
+        auto &vertices = iterator->second;
 
             for (auto verticesIterator = vertices.begin(); verticesIterator != vertices.end(); ++verticesIterator) {
             long temp = *verticesIterator;
@@ -196,14 +165,10 @@ TriangleResult Triangles::countTriangles(map<long, unordered_set<long>> &central
                     }
                 }
             }
-            }
         }
-    } // End of triangle_detection_loop trace scope
-    
-    {
-        OTEL_TRACE_OPERATION("cleanup_and_result_preparation");
-        triangleTree.clear();
     }
+
+    triangleTree.clear();
 
     TriangleResult result;
     if (returnTriangles) {
