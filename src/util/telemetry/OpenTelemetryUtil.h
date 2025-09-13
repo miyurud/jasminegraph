@@ -106,18 +106,20 @@ private:
  * Creates a scoped tracer that automatically traces the entire function
  * When telemetry is disabled, this becomes a no-op
  */
-// Temporarily disabled for segfault debugging - all macros are no-ops
-#define OTEL_TRACE_FUNCTION() do {} while(0)
+#define OTEL_TRACE_FUNCTION() \
+    ScopedTracer __function_tracer(__FUNCTION__)
 
 /**
  * Convenience macro for automatic operation tracing
  * @param op_name Name of the operation to trace
  */
-#define OTEL_TRACE_OPERATION(op_name) do {} while(0)
+#define OTEL_TRACE_OPERATION(op_name) \
+    ScopedTracer __operation_tracer(op_name)
 
 /**
  * Convenience macro for tracing with attributes
  * @param op_name Name of the operation
  * @param attrs Map of attributes
  */
-#define OTEL_TRACE_WITH_ATTRS(op_name, attrs) do {} while(0)
+#define OTEL_TRACE_WITH_ATTRS(op_name, attrs) \
+    ScopedTracer __operation_tracer(op_name, attrs)
