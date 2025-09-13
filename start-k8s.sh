@@ -5,10 +5,19 @@ set -e
 TIMEOUT_SECONDS=60
 
 if [ $1 == "clean" ]; then
+    echo "Cleaning JasmineGraph resources..."
     kubectl delete deployments -l application=jasminegraph
     kubectl delete services -l application=jasminegraph
     kubectl delete pvc -l application=jasminegraph
     kubectl delete pv -l application=jasminegraph
+
+     echo "Deleting Loki, Grafana, and Alloy Helm releases..."
+     helm uninstall loki -n loki || true
+     helm uninstall grafana-alloy -n loki || true
+     helm uninstall grafana -n grafana || true
+
+     kubectl delete namespace loki || true
+     kubectl delete namespace grafana || true
     exit 0
 fi
 
@@ -69,6 +78,24 @@ fi
 if [ -z "$MAX_COUNT" ]; then
     MAX_COUNT="4"
 fi
+
+if ! command -v helm &> /dev/null; then
+    echo "Helm not found. Install Helm from https://helm.sh/docs/intro/install/ "
+    echo "Please re-run the script."
+    exit 0
+fi
+
+helm install loki grafana/loki -n loki --create-namespace -f ./k8s/helm/loki.yaml
+kubectl wait --for=condition=Ready pod --all -n loki --timeout=180s
+sleep .2
+
+helm install grafana-alloy grafana/alloy -n loki -f ./k8s/helm/alloy.yaml
+kubectl wait --for=condition=Ready pod -l app.kubernetes.io/name=alloy -n loki --timeout=180s
+sleep .2
+
+helm install grafana grafana/grafana -n grafana --create-namespace -f ./k8s/helm/grafana.yaml
+kubectl wait --for=condition=Ready pod --all -n grafana --timeout=300s
+sleep .2
 
 kubectl apply -f ./k8s/rbac.yaml
 kubectl apply -f ./k8s/pushgateway.yaml
