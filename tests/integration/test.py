@@ -565,7 +565,7 @@ def test(host, port):
         print()
         logging.info('[Cypher] Testing Node Scan By Label')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
-        send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher', b'2', b'put query :', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher',b'match(n:Person) where n.id=2 return n'
                                                 b' RETURN n',b'{"n":{"id":"2","label":"Person",'
                                                 b'"name":"Charlie","occupation":"IT Engineer",'
