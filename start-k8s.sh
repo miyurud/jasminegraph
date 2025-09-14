@@ -2,7 +2,7 @@
 
 set -e
 
-TIMEOUT_SECONDS=60
+TIMEOUT_SECONDS=90
 
 if [ $1 == "clean" ]; then
     echo "Cleaning JasmineGraph resources..."
