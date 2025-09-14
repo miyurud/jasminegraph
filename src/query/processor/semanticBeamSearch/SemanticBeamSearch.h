@@ -43,6 +43,8 @@ private:
     GraphConfig gc;
     NodeManager* nodeManager;
     std::vector<JasmineGraphServer::worker> workerList; // List of workers for remote expansion
+    std::unordered_map<std::string, std::vector<float>> typeEmbeddingCache;
+
 
 
 public:

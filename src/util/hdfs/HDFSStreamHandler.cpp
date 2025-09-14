@@ -240,7 +240,7 @@ void HDFSStreamHandler::streamFromBufferToProcessingQueuePropertyGraph(HDFSMulti
                         //     {"destination", source},
                         //     {"properties", jsonEdge["properties"]}
                         // };
-
+                        //
                         // partitioner.addEdgeCut(reversedObj.dump(), destIndex);
                     }
                 } else {

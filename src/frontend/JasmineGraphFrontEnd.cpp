@@ -1633,7 +1633,7 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
     hdfsFilePathS = Utils::trim_copy(hdfsFilePathS);
 
     HDFSConnector *hdfsConnector = new HDFSConnector(hdfsServerIp, hdfsPort);
-    
+
     if (!hdfsConnector->isPathValid(hdfsFilePathS)) {
         frontend_logger.error("Invalid HDFS file path: " + hdfsFilePathS);
         std::string error_message = "The provided HDFS path is invalid.";
@@ -1716,7 +1716,7 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
     frontend_logger.info("Started listening to " + hdfsFilePathS);
     inputStreamHandlerThread = std::thread(&HDFSStreamHandler::startStreamingFromBufferToPartitions, streamHandler);
     inputStreamHandlerThread.join();
-    
+
     std::string uploadEndTime = ctime(&time);
     std::string sqlStatementUpdateEndTime =
             "UPDATE graph "
@@ -1864,7 +1864,12 @@ void constructKGStreamHDFSCommand(std::string masterIP, int connFd, std::string 
 
     int newGraphID = sqlite->runInsert(sqlStatement);
     frontend_logger.info("Created graph ID: " + std::to_string(newGraphID));
-    JasmineGraphServer::worker designatedWorker = JasmineGraphServer::getDesignatedWorker();
+    // JasmineGraphServer::worker designatedWorker = JasmineGraphServer::getDesignatedWorker();
+    JasmineGraphServer::worker designatedWorker ;
+    designatedWorker.hostname = "192.168.1.7";
+    designatedWorker.port = 7790;
+    designatedWorker.dataPort = 7791;
+
 
     if (!Pipeline::streamGraphToDesignatedWorker(designatedWorker.hostname,
                                                  designatedWorker.port,
