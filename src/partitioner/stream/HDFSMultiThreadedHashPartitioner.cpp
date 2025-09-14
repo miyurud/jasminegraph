@@ -278,7 +278,7 @@ void HDFSMultiThreadedHashPartitioner::consumeEdgeCuts(int partitionIndex, Jasmi
 
             int destinationIndex = std::stoi(destinationId) % this->numberOfPartitions;
             hash_partitioner_logger.info("Edge cut from " + sourceId + " to " + destinationId +
-                                          " assigned to partition " + std::to_string(destinationIndex)); // TODO = remove this later
+                                          " assigned to partition " + std::to_string(partitionIndex));
             
             // Handle cross-partition vertex synchronization safely
             if (destinationIndex != partitionIndex) {
