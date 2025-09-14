@@ -11,13 +11,13 @@ if [ $1 == "clean" ]; then
     kubectl delete pvc -l application=jasminegraph
     kubectl delete pv -l application=jasminegraph
 
-     echo "Deleting Loki, Grafana, and Alloy Helm releases..."
-     helm uninstall loki -n loki || true
-     helm uninstall grafana-alloy -n loki || true
-     helm uninstall grafana -n grafana || true
+    echo "Deleting Loki, Grafana, and Alloy Helm releases..."
+    helm uninstall loki -n loki || true
+    helm uninstall grafana-alloy -n loki || true
+    helm uninstall grafana -n grafana || true
 
-     kubectl delete namespace loki || true
-     kubectl delete namespace grafana || true
+    kubectl delete namespace loki || true
+    kubectl delete namespace grafana || true
     exit 0
 fi
 
@@ -79,7 +79,7 @@ if [ -z "$MAX_COUNT" ]; then
     MAX_COUNT="4"
 fi
 
-if ! command -v helm &> /dev/null; then
+if ! command -v helm &>/dev/null; then
     echo "Helm not found. Install Helm from https://helm.sh/docs/intro/install/ "
     echo "Please re-run the script."
     exit 0
