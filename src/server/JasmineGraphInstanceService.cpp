@@ -3177,9 +3177,15 @@ static void streaming_kg_construction ( int connFd, int serverPort, std::map<std
     instance_logger.info("Started listening to " + hdfsPath);
    streamHandler->init();
 
-    int conResultWr = write(connFd, DONE.c_str(), DONE.length());
+    // int conResultWr = write(connFd, DONE.c_str(), DONE.length());
+    if (!Utils::send_str_wrapper(connFd, DONE.c_str()))
+    {
+        *loop_exit_p     = true;
+        return;
 
+    }
 
+    close(connFd);
 
 }
 
@@ -3230,20 +3236,28 @@ static void streaming_tuple_extraction(int connFd, int serverPort,
         // Consumer thread that prints tuples from buffer
         std::thread consumer([&]() {
             Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::QUERY_DATA_START);
-       if (!Utils::expect_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) return;
+       if (!Utils::expect_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK))
+       {
+           instance_logger.error("Error in receving query-start-ack");
+           *loop_exit_p = true;
+           close(connFd);
+
+       };
        instance_logger.info("3200");
             while (true) {
                 string tupleData = tupleBuffer.get();
-
-
-
                int tuple_length = tupleData.length();
                int converted_number = htonl(tuple_length);
-               Utils::sendIntExpectResponse(connFd, data,
+              if (! Utils::sendIntExpectResponse(connFd, data,
                                             JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.length(),
                                             converted_number,
-                                            JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK);
-               instance_logger.info("3208");
+                                            JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK))
+              {
+                  instance_logger.error("Error in receving GRAPH_STREAM_C_length_ACK");
+          *loop_exit_p = true;
+          close(connFd);
+              };
+               instance_logger.info("3208 : " + tupleData);
                Utils::send_str_wrapper(connFd, tupleData);
                Utils::expect_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS);
                 if (tupleData == "-1") {
@@ -4727,6 +4741,7 @@ static void semantic_beam_search(int connFd, InstanceHandler &instanceHandler, s
 
     while (true) {
         string raw = shared.get();
+        instance_logger.debug("raw: "+ raw);
         if (raw == "-1") {
             instanceHandler.dataPublishToMaster(connFd, loop_exit_p, raw);
             instance_logger.info("Total time taken for query execution: " + std::to_string(time) + " ms");
@@ -4830,16 +4845,23 @@ size_t received = 0;
             string lastNodeId = lastNodeJson["id"].get<std::string>();
             instance_logger.debug("Last node ID: " + lastNodeId);
             NodeBlock* nodeBlock = nodeManager.get(lastNodeId);
+            if (!nodeBlock)
+            {
+                continue;
+            }
             std::list<std::pair<NodeBlock*, RelationBlock*>> neighbors = nodeBlock->getAllEdgeNodes();
             json expanded;
             expanded["nodeId"] = lastNodeId;
             json neighborsJson = json::array();
             vector<float> emb_ = faissStore->getEmbeddingById(lastNodeId);
+            instance_logger.debug(" emb_" + std::to_string(emb_.at(0)));
+
 
 
             for (const auto &neighbor : neighbors) {
 
                 json newPath = currentPath["pathObj"];
+                instance_logger.debug("newPath" + newPath.dump());
 
 
                 json nodeData;
@@ -4850,7 +4872,7 @@ size_t received = 0;
 
 
                 vector<float> emb_ = faissStore->getEmbeddingById(std::to_string(neighbor.first->nodeId));
-                instance_logger.debug("Scoring node ID: " + std::to_string(neighbor.first->nodeId));
+                instance_logger.debug("Exapnd Scoring node ID: " + std::to_string(neighbor.first->nodeId));
                 // check queryembedding and emb_
                 if (emb_.empty()) {
                     instance_logger.error("No embedding found for node ID: " + std::to_string(neighbor.first->nodeId));
@@ -4883,8 +4905,16 @@ size_t received = 0;
         }
 
 
-    // 5. Send back response JSON
+
+    // if (!Utils::sendExpectResponse(connFd, data, INSTANCE_DATA_LENGTH,
+    // JasmineGraphInstanceProtocol::QUERY_DATA_START,
+    // JasmineGraphInstanceProtocol::OK)) {
+    //     instance_logger.error("Failed to send QUERY_DATA_START");
+    //
+    // }
+
     std::string responseStr = response.dump();
+    instance_logger.info( "Expanded Response: " + responseStr);
     int respLen = htonl(responseStr.size());
     send(connFd, &respLen, sizeof(int), 0);
     send(connFd, responseStr.c_str(), responseStr.size(), 0);

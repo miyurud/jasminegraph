@@ -92,6 +92,7 @@ int main(int argc, char *argv[]) {
         enableNmon = argv[master_mode_args::ENABLE_NMON];
         server = JasmineGraphServer::getInstance();
 
+
         if (jasminegraph_profile == PROFILE_K8S) {
             std::unique_ptr<K8sInterface> k8sInterface(new K8sInterface());
             masterIp = k8sInterface->getMasterIp();

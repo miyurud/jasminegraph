@@ -376,15 +376,30 @@ void SemanticBeamSearchExecutor::doSemanticBeamSearch(std::string host, int port
         send(sockfd, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.c_str(),
              JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.length(), 0);
 
+
         std::string data(content_length, 0);
-        return_status = recv(sockfd, &data[0], content_length, 0);
-        if (return_status > 0) {
-            send(sockfd, JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS.c_str(),
-                 JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS.length(), 0);
-        } else {
-            semantic_beam_search_logger_executor.info("Error while reading graph data");
-            return ;
+        size_t received = 0;
+        while (received < content_length) {
+            ssize_t ret = recv(sockfd, &data[received], content_length - received, 0);
+            if (ret <= 0) {
+                semantic_beam_search_logger_executor.error("Error receiving request string");
+                break;
+            }
+            received += ret;
         }
+        send(sockfd, JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS.c_str(),
+       JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS.length(), 0);
+
+
+        // std::string data(content_length, 0);
+        // return_status = recv(sockfd, &data[0], content_length, 0);
+        // if (return_status > 0) {
+        //     send(sockfd, JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS.c_str(),
+        //          JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS.length(), 0);
+        // } else {
+        //     semantic_beam_search_logger_executor.info("Error while reading graph data");
+        //     return ;
+        // }
         semantic_beam_search_logger_executor.info("patition " + std::to_string(partitionId)+ "Received graph data: " + data);
         if (data == "-1") {
             sharedBuffer.add(data);

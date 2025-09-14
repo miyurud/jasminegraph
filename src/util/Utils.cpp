@@ -961,6 +961,10 @@ std::map<std::string, std::string> Utils::getMetricMap(std::string metricName) {
     return map;
 }
 
+// collect history of metrics
+
+
+
 double Utils:: exponentialWeightedMovingAverage(const std::deque<double>& vals, double alpha ) {
     if (vals.empty()) return 0.0;
     double ewma = vals[0];
@@ -1565,7 +1569,17 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
              JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.length(), 0);
 
         std::string data(content_length, 0);
-        return_status = recv(sockfd, &data[0], content_length, 0);
+
+        size_t received = 0;
+        while (received < content_length) {
+            ssize_t ret = recv(sockfd, &data[received], content_length - received, 0);
+            if (ret <= 0) {
+                util_logger.error("Error receiving request string");
+                break;
+            }
+            received += ret;
+        }
+
         if (return_status > 0) {
             send(sockfd, JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS.c_str(),
                  JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS.length(), 0);

@@ -28,7 +28,7 @@ Logger kg_pipeline_stream_handler_logger;
 
 const size_t MESSAGE_SIZE = 5 * 1024 * 1024;
 const size_t MAX_BUFFER_SIZE = MESSAGE_SIZE * 512;
-const size_t CHUNCK_BYTE_SIZE = 1024*2; // 1 MB chunks
+const size_t CHUNCK_BYTE_SIZE = 1024*1; // 1 MB chunks
 const size_t OVERLAP_BYTES = 100; // bytes to overlap between chunks to avoid splitting lines
 const std::string END_OF_STREAM_MARKER = "-1";
 
@@ -53,7 +53,14 @@ void Pipeline:: init()
 void Pipeline::streamFromHDFSIntoBuffer() {
     auto startTime = chrono::high_resolution_clock::now();
     kg_pipeline_stream_handler_logger.info("Started streaming data from HDFS into data buffer...");
-
+    hdfsFileInfo* fileInfo = hdfsGetPathInfo(fileSystem, filePath.c_str());
+    if (!fileInfo) {
+        kg_pipeline_stream_handler_logger.error("Failed to get HDFS file info.");
+        return;
+    }
+    int64_t total_file_size = fileInfo->mSize;
+    hdfsFreeFileInfo(fileInfo, 1);
+    kg_pipeline_stream_handler_logger.info("Total file size: " + std::to_string(total_file_size) + " bytes");
     hdfsFile file = hdfsOpenFile(fileSystem, filePath.c_str(), O_RDONLY, 0, 0, 0);
     if (!file) {
         kg_pipeline_stream_handler_logger.error("Failed to open HDFS file.");
@@ -68,8 +75,18 @@ void Pipeline::streamFromHDFSIntoBuffer() {
     int64_t read_bytes = 0;
     int chunk_idx = 0;
     std::string leftover;
+    int64_t bytes_read_so_far = 0;
 
   while ((read_bytes = hdfsRead(fileSystem, file, buffer.data(), CHUNCK_BYTE_SIZE)) > 0) {
+
+      bytes_read_so_far += read_bytes;
+      int64_t remaining_bytes = total_file_size - bytes_read_so_far;
+
+      kg_pipeline_stream_handler_logger.info(
+          "Chunk " + std::to_string(chunk_idx) +
+          " read: " + std::to_string(read_bytes) + " bytes, " +
+          "remaining bytes: " + std::to_string(remaining_bytes)
+      );
       kg_pipeline_stream_handler_logger.info("Starting to process chunk " + std::to_string(chunk_idx));
       std::string chunk_text = leftover + std::string(buffer.data(), read_bytes);
 
@@ -87,9 +104,9 @@ void Pipeline::streamFromHDFSIntoBuffer() {
 
       // Split into complete lines and leftover partial line
       std::string full_lines_chunk = chunk_text.substr(0, last_newline + 1);
-      // size_t overlap_start = (full_lines_chunk.size() > OVERLAP_BYTES) ? full_lines_chunk.size() - OVERLAP_BYTES : 0;
-      // leftover = full_lines_chunk.substr(overlap_start);
-      leftover = chunk_text.substr(last_newline + 1);
+      size_t overlap_start = (full_lines_chunk.size() > OVERLAP_BYTES) ? full_lines_chunk.size() - OVERLAP_BYTES : 0;
+      leftover = full_lines_chunk.substr(overlap_start);
+      // leftover = chunk_text.substr(last_newline + 1);
 
       kg_pipeline_stream_handler_logger.info("Full lines chunk size: " + std::to_string(full_lines_chunk.size()));
       kg_pipeline_stream_handler_logger.info("Leftover after split size: " + std::to_string(leftover.size()));

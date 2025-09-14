@@ -204,8 +204,8 @@ std::unordered_map<std::string, unsigned int> NodeManager::readNodeIndex() {
 
 RelationBlock *NodeManager::addLocalRelation(NodeBlock source, NodeBlock destination) {
     RelationBlock *newRelation = NULL;
-    if (source.edgeRef == 0 || destination.edgeRef == 0 ||
-        !source.searchLocalRelation(destination)) {  // certainly a new relation block needed
+    // if (source.edgeRef == 0 || destination.edgeRef == 0 ||
+    //     !source.searchLocalRelation(destination)) {  // certainly a new relation block needed
         RelationBlock *relationBlock = new RelationBlock(source, destination);
         newRelation = relationBlock->addLocalRelation(source, destination);
         if (newRelation) {
@@ -215,7 +215,7 @@ RelationBlock *NodeManager::addLocalRelation(NodeBlock source, NodeBlock destina
             node_manager_logger.error("Error while adding the new edge/relation for source = " +
                                       std::string(source.id) + " destination = " + std::string(destination.id));
         }
-    }
+    // }
     //    else {
     //        // TODO[tmkasun]: implement get edge support and return existing edge/relation if already exist
     //        node_manager_logger.warn("Relation/Edge already exist for source = " + std::string(source.id) +
@@ -227,8 +227,8 @@ RelationBlock *NodeManager::addLocalRelation(NodeBlock source, NodeBlock destina
 
 RelationBlock *NodeManager::addCentralRelation(NodeBlock source, NodeBlock destination) {
     RelationBlock *newRelation = NULL;
-    if (source.centralEdgeRef == 0 || destination.centralEdgeRef == 0 ||
-        !source.searchCentralRelation(destination)) {  // certainly a new relation block needed
+    // if (source.centralEdgeRef == 0 || destination.centralEdgeRef == 0 ||
+    //     !source.searchCentralRelation(destination)) {  // certainly a new relation block needed
         RelationBlock *relationBlock = new RelationBlock(source, destination);
         newRelation = relationBlock->addCentralRelation(source, destination);
         if (newRelation) {
@@ -238,7 +238,7 @@ RelationBlock *NodeManager::addCentralRelation(NodeBlock source, NodeBlock desti
             node_manager_logger.error("Error while adding the new edge/relation for source = " +
                                       std::string(source.id) + " destination = " + std::string(destination.id));
         }
-    }
+    // }
     //    else {
     //        // TODO[tmkasun]: implement get edge support and return existing edge/relation if already exist
     //        node_manager_logger.warn("Central Relation/Edge already exist for source = " + std::string(source.id) +
@@ -406,6 +406,7 @@ NodeBlock *NodeManager::get(std::string nodeId) {
     node_manager_logger.debug("Label = " + std::string(label));
     node_manager_logger.debug("Length of label = " + std::to_string(strlen(label)));
     node_manager_logger.debug("DEBUG: raw edgeRef from DB (disk) " + std::to_string(edgeRef));
+    node_manager_logger.debug("DEBUG: meta propoarty ref " + std::to_string(metaPropRef));
 
     nodeBlockPointer = new NodeBlock(nodeId, vertexId, blockAddress, propRef, metaPropRef, edgeRef,
                                      centralEdgeRef, edgeRefPID, label, usage);

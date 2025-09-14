@@ -252,117 +252,137 @@ void JasmineGraphIncrementalLocalStore::addSourceProperties(RelationBlock* relat
     char value[PropertyLink::MAX_VALUE_SIZE] = {};
     char label[NodeBlock::LABEL_SIZE] = {0};
     std::ostringstream textForEmbedding;
+
+    incremental_localstore_logger.info("Adding source properties");
+    incremental_localstore_logger.info(sourceJson["properties"].dump());
     if (sourceJson.contains("properties")) {
-        auto sourceProps = sourceJson["properties"];
-        for (auto it = sourceProps.begin(); it != sourceProps.end(); it++) {
-            strcpy(value, it.value().get<std::string>().c_str());
-            if (std::string(it.key()) == "label") {
-                strcpy(label, it.value().get<std::string>().c_str());
-                relationBlock->getSource()->addLabel(&label[0]);
+        incremental_localstore_logger.info("inside if ");
+        auto sourceProps = json(sourceJson["properties"]);
 
+        if (!sourceProps.empty())
+        {
+            for (auto it = sourceProps.begin(); it != sourceProps.end(); it++) {
+                strcpy(value, it.value().get<std::string>().c_str());
+                if (std::string(it.key()) == "label") {
+                    strcpy(label, it.value().get<std::string>().c_str());
+                    relationBlock->getSource()->addLabel(&label[0]);
+
+                }
+                incremental_localstore_logger.info("canctenated string "+ textForEmbedding.str());
+                textForEmbedding << it.key() << ":" << value << " ";
+
+                relationBlock->getSource()->addProperty(std::string(it.key()), &value[0]);
             }
-            textForEmbedding << it.key() << ":" << value << " ";
 
-            relationBlock->getSource()->addProperty(std::string(it.key()), &value[0]);
+
+            if (this->embedNode )
+            {
+                std::string nodeText = textForEmbedding.str();
+                if (!nodeText.empty()) {
+                    // static LlamaCPPTextEmbedder embedder("/models/nomic-embed-text-v1.5.Q4_K_S.gguf");
+                    // std::vector<float> embedding = embedder.embed(nodeText);
+                    incremental_localstore_logger.info("Embedding: ");
+
+                    // TextEmbedder te(
+                    //             "http://192.168.1.7:11434/api/embeddings", // Ollama endpoint
+                    //             "nomic-embed-text"                        // model name
+                    //         );
+
+                    auto emb = textEmbedder->embed(nodeText);
+
+                    faiss::idx_t docId = std::stoll(sourceJson["id"].get<std::string>());
+                    // long id = faissStore->add(emb);
+                    if (faissStore->getEmbeddingById(std::to_string(docId)).size() == 0) {
+                        incremental_localstore_logger.error("Node with ID " + sourceJson["id"].get<std::string>() + " found . Skipping ");
+                        return;
+                    }
+
+                    faissStore->add(emb,sourceJson["id"].get<std::string>() );
+
+
+
+                    auto results = faissStore->search(emb, 5);
+                    for (auto& [id, dist] : results) {
+                        std::cout << "ID: " << id << ", Distance: " << dist << "\n";
+                    }
+                    // Store embedding into the node (option A: directly attach as property)
+                    incremental_localstore_logger.info("Embedding: " + std::to_string(emb[0]) + " ...");
+
+                    // OR (option B: save into external vector DB / file)
+                    // embeddingStore.save(relationBlock->getSource()->getId(), embedding);
+                }
+            }
         }
-    }
+}
+
     std::string sourcePid = std::to_string(sourceJson["pid"].get<int>());
     addNodeMetaProperty(relationBlock->getSource(), MetaPropertyLink::PARTITION_ID,
                         sourcePid);
-if (this->embedNode )
-{
-    std::string nodeText = textForEmbedding.str();
-    if (!nodeText.empty()) {
-        // static LlamaCPPTextEmbedder embedder("/models/nomic-embed-text-v1.5.Q4_K_S.gguf");
-        // std::vector<float> embedding = embedder.embed(nodeText);
-        incremental_localstore_logger.info("Embedding: ");
-
-        // TextEmbedder te(
-        //             "http://192.168.1.7:11434/api/embeddings", // Ollama endpoint
-        //             "nomic-embed-text"                        // model name
-        //         );
-
-        auto emb = textEmbedder->embed(nodeText);
-
-        faiss::idx_t docId = std::stoll(sourceJson["id"].get<std::string>());
-        // long id = faissStore->add(emb);
-        if (faissStore->getEmbeddingById(std::to_string(docId)).size() == 0) {
-            incremental_localstore_logger.error("Node with ID " + sourceJson["id"].get<std::string>() + " found . Skipping ");
-            return;
-        }
-
-        relationBlock->getSource()->addProperty(std::string("embedding"),std::to_string(faissStore->add(emb,sourceJson["id"].get<std::string>() )).c_str());
-
-
-
-        auto results = faissStore->search(emb, 5);
-        for (auto& [id, dist] : results) {
-            std::cout << "ID: " << id << ", Distance: " << dist << "\n";
-        }
-        // Store embedding into the node (option A: directly attach as property)
-        incremental_localstore_logger.info("Embedding: " + std::to_string(emb[0]) + " ...");
-
-        // OR (option B: save into external vector DB / file)
-        // embeddingStore.save(relationBlock->getSource()->getId(), embedding);
-    }
-}
 }
 
 void JasmineGraphIncrementalLocalStore::addDestinationProperties(RelationBlock* relationBlock,
-    const json& destinationJson) {
+    const json& destinationJson)
+{
     char value[PropertyLink::MAX_VALUE_SIZE] = {};
     char label[NodeBlock::LABEL_SIZE] = {0};
     std::ostringstream textForEmbedding;
 
-    if (destinationJson.contains("properties")) {
-        auto destinationProps = destinationJson["properties"];
-        for (auto it = destinationProps.begin(); it != destinationProps.end(); it++) {
-            strcpy(value, it.value().get<std::string>().c_str());
-            if (std::string(it.key()) == "label") {
-                strcpy(label, it.value().get<std::string>().c_str());
-                relationBlock->getDestination()->addLabel(&label[0]);
-            }
-            textForEmbedding << it.key() << ":" << value << " ";
-
-            relationBlock->getDestination()->addProperty(std::string(it.key()), &value[0]);
-        }
-    }
-
-    if (this->embedNode )
+    if (destinationJson.contains("properties"))
     {
-        std::string nodeText = textForEmbedding.str();
-        if (!nodeText.empty()) {
-            // static LlamaCPPTextEmbedder embedder("/models/nomic-embed-text-v1.5.Q4_K_S.gguf");
-            // std::vector<float> embedding = embedder.embed(nodeText);
-            incremental_localstore_logger.info("Embedding: ");
+        auto destinationProps = destinationJson["properties"];
+        if (!destinationProps.empty())
+        {
+            for (auto it = destinationProps.begin(); it != destinationProps.end(); it++) {
+                strcpy(value, it.value().get<std::string>().c_str());
+                if (std::string(it.key()) == "label") {
+                    strcpy(label, it.value().get<std::string>().c_str());
+                    relationBlock->getDestination()->addLabel(&label[0]);
+                }
+                textForEmbedding << it.key() << ":" << value << " ";
 
-            // TextEmbedder te(
-            //             "http://192.168.1.7:11434/api/embeddings", // Ollama endpoint
-            //             "nomic-embed-text"                        // model name
-            //         );
-
-            auto emb = textEmbedder->embed(nodeText);
-
-            faiss::idx_t docId = std::stoll(destinationJson["id"].get<std::string>());
-            // long id = faissStore->add(emb);
-            if (faissStore->getEmbeddingById(std::to_string(docId)).size() == 0) {
-                incremental_localstore_logger.error("Node with ID " + destinationJson["id"].get<std::string>() + " found . Skipping ");
-                return;
+                relationBlock->getDestination()->addProperty(std::string(it.key()), &value[0]);
             }
 
-            relationBlock->getSource()->addProperty(std::string("embedding"),std::to_string(faissStore->add(emb,destinationJson["id"].get<std::string>() )).c_str());
+            // std::string destPId = std::to_string(destinationJson["pid"].get<int>());
+            // addNodeMetaProperty(relationBlock->getDestination(), MetaPropertyLink::PARTITION_ID,
+            //                     destPId);
+            if (this->embedNode )
+            {
+                std::string nodeText = textForEmbedding.str();
+                if (!nodeText.empty()) {
+                    // static LlamaCPPTextEmbedder embedder("/models/nomic-embed-text-v1.5.Q4_K_S.gguf");
+                    // std::vector<float> embedding = embedder.embed(nodeText);
+                    incremental_localstore_logger.info("Embedding: ");
+
+                    // TextEmbedder te(
+                    //             "http://192.168.1.7:11434/api/embeddings", // Ollama endpoint
+                    //             "nomic-embed-text"                        // model name
+                    //         );
+
+                    auto emb = textEmbedder->embed(nodeText);
+
+                    faiss::idx_t docId = std::stoll(destinationJson["id"].get<std::string>());
+                    // long id = faissStore->add(emb);
+                    if (faissStore->getEmbeddingById(std::to_string(docId)).size() == 0) {
+                        incremental_localstore_logger.error("Node with ID " + destinationJson["id"].get<std::string>() + " found . Skipping ");
+                        return;
+                    }
+
+                    faissStore->add(emb,destinationJson["id"].get<std::string>() );
 
 
+                    auto results = faissStore->search(emb, 5);
+                    for (auto& [id, dist] : results) {
+                        std::cout << "ID: " << id << ", Distance: " << dist << "\n";
+                    }
+                    // Store embedding into the node (option A: directly attach as property)
+                    incremental_localstore_logger.info("Embedding: " + std::to_string(emb[0]) + " ...");
 
-            auto results = faissStore->search(emb, 5);
-            for (auto& [id, dist] : results) {
-                std::cout << "ID: " << id << ", Distance: " << dist << "\n";
+                    // OR (option B: save into external vector DB / file)
+                    // embeddingStore.save(relationBlock->getSource()->getId(), embedding);
+                }
             }
-            // Store embedding into the node (option A: directly attach as property)
-            incremental_localstore_logger.info("Embedding: " + std::to_string(emb[0]) + " ...");
 
-            // OR (option B: save into external vector DB / file)
-            // embeddingStore.save(relationBlock->getSource()->getId(), embedding);
         }
     }
     std::string destPId = std::to_string(destinationJson["pid"].get<int>());
@@ -372,6 +392,7 @@ void JasmineGraphIncrementalLocalStore::addDestinationProperties(RelationBlock* 
 
 void JasmineGraphIncrementalLocalStore::addNodeMetaProperty(NodeBlock* nodeBlock,
                                                         std::string propertyKey, std::string propertyValue) {
+    incremental_localstore_logger.debug( "meta property: " + propertyKey + " " + propertyValue );
     char meta[MetaPropertyLink::MAX_VALUE_SIZE] = {};
     strcpy(meta, propertyValue.c_str());
     nodeBlock->addMetaProperty(propertyKey, &meta[0]);

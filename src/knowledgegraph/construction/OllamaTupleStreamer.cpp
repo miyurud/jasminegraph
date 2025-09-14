@@ -2,7 +2,8 @@
 #include <curl/curl.h>
 #include <nlohmann/json.hpp>
 #include <iostream>
-
+#include <thread>   // for std::this_thread::sleep_for
+#include <chrono>   // for std::chrono::seconds
 #include "../../util/logger/Logger.h"
 
 using json = nlohmann::json;
@@ -68,17 +69,38 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
                         ctx->current_tuple += partial.substr(0, e); // append up to the #
 
                             // ctx->current_tuple += partial;
-                            // ollama_tuple_streamer_logger.info("65: " + ctx->current_tuple);
-                            std::string tupleStr = ctx->current_tuple;
+                            ollama_tuple_streamer_logger.info("65: " + ctx->current_tuple);
+                        std::string tupleStr;
+                        try
+                        {
+                            // validate
+                            json::parse(ctx->current_tuple);
+                            tupleStr = ctx->current_tuple;
                             ctx->buffer->add(tupleStr);
                             ctx->current_tuple.clear();
                             s = e + 1;
+                        }
+                        catch (const std::exception& exception )
+                        {
+                            ollama_tuple_streamer_logger.error( exception.what() );
+                            ollama_tuple_streamer_logger.info("Malformed/partial JSON ignored: " + ctx->current_tuple);
+
+                            ctx->current_tuple.clear();
+                            s = e + 1;
+
+                        }
+
+
                         }
 
 
             }
         } catch (...) {
             ollama_tuple_streamer_logger.info("Malformed/partial JSON ignored: " + line);
+                // ctx->buffer->add("-1");
+
+                ctx->current_tuple.clear();
+            continue;
         }
     }
 
@@ -89,13 +111,24 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
 void OllamaTupleStreamer::streamChunk(const std::string& chunkKey,
                                       const std::string& chunkText,
                                       SharedBuffer& tupleBuffer) {
+
+
+             const int maxRetries = 10;                 // number of retries before giving up
+    const int baseDelaySeconds = 50;           // wait time between retries (exponential backoff)
+
+    int attempt = 0;
+    CURLcode res;
+    StreamContext ctx{chunkKey, &tupleBuffer};
+
+    do {
     CURL* curl = curl_easy_init();
     if (!curl) {
         std::cerr << "Failed to initialize CURL\n";
         return;
     }
 
-    StreamContext ctx{chunkKey, &tupleBuffer};
+        ollama_tuple_streamer_logger.debug("attempt: "+attempt);
+        ollama_tuple_streamer_logger.debug("Chunk : "+ chunkText);
 
     // Use 127.0.0.1 explicitly to avoid IPv6 localhost issues
     curl_easy_setopt(curl, CURLOPT_URL, "http://192.168.1.7:11434/api/generate");
@@ -250,15 +283,41 @@ void OllamaTupleStreamer::streamChunk(const std::string& chunkKey,
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, StreamCallback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &ctx);
 
-    // Optional: increase timeout in case the server is slow
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 0L); // 0 = no timeout
-    curl_easy_setopt(curl, CURLOPT_TCP_KEEPALIVE, 1L); // keep the connection alive
 
-    CURLcode res = curl_easy_perform(curl);
+
+
+        curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 50L); // fail fast if server not reachable
+        curl_easy_setopt(curl, CURLOPT_TIMEOUT, 600L);       // max time for entire request
+        curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 1L);
+        curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, 120L); // abort if <10 B/s for 30s
+
+        // TCP keepalive to detect dead peers
+        curl_easy_setopt(curl, CURLOPT_TCP_KEEPALIVE, 1L);
+        curl_easy_setopt(curl, CURLOPT_TCP_KEEPIDLE, 60L);
+        curl_easy_setopt(curl, CURLOPT_TCP_KEEPINTVL, 30L);
+        res = curl_easy_perform(curl);
+
+
+        // ctx.buffer->add("-1");
     if (res != CURLE_OK) {
         std::cerr << "Curl error: " << curl_easy_strerror(res) << "\n";
     }
 
     curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
+
+       if (res != CURLE_OK && attempt < maxRetries - 1) {
+            int waitTime = baseDelaySeconds *  attempt;  // exponential backoff
+            std::cerr << "Retrying in " << waitTime << " seconds...\n";
+            std::this_thread::sleep_for(std::chrono::seconds(waitTime));
+        }
+
+        attempt++;
+    } while (res != CURLE_OK && attempt < maxRetries);
+
+    if (res != CURLE_OK) {
+        std::cerr << "Failed after " << maxRetries << " attempts.\n";
+        ctx.buffer->add("-1");
+
+    }
 }

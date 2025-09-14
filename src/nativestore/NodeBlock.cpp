@@ -85,11 +85,13 @@ void NodeBlock::save() {
 }
 
 void NodeBlock::addProperty(std::string name, const char* value) {
+    node_block_logger.debug("Attempting to add property: " + name + " to node at address: " + std::to_string(this->addr));
     if (this->propRef == 0) {
         PropertyLink* newLink = PropertyLink::create(name, value);
         //        pthread_mutex_lock(&lockAddNodeProperty);
         if (newLink) {
             this->propRef = newLink->blockAddress;
+            node_block_logger.debug("Created new PropertyLink at address: " + std::to_string(newLink->blockAddress));
             // If it was an empty prop link before inserting, Then update the property reference of this node
             // block
             //            node_block_logger.info("propRef = " + std::to_string(this->propRef));
@@ -97,32 +99,40 @@ void NodeBlock::addProperty(std::string name, const char* value) {
                                       sizeof(this->centralEdgeRef) + sizeof(this->edgeRefPID));
             NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(this->propRef)), sizeof(this->propRef));
             NodeBlock::nodesDB->flush();
+            node_block_logger.debug("Updated propRef in DB for node at address: " + std::to_string(this->addr));
         } else {
             node_block_logger.error("Error occurred while adding a new property link to " +
                         std::to_string(this->addr) + " node block");
         }
     } else {
+        node_block_logger.debug("Property head exists. Inserting property: " + name + " to existing PropertyLink chain.");
         this->propRef = this->getPropertyHead()->insert(name, value);
+        node_block_logger.debug("Updated propRef after insert: " + std::to_string(this->propRef));
     }
 }
 
 void NodeBlock::addMetaProperty(std::string name, const char* value) {
+    node_block_logger.debug("Attempting to add meta property: " + name + " to node at address: " + std::to_string(this->addr));
     if (this->metaPropRef == 0) {
         MetaPropertyLink* newLink = MetaPropertyLink::create(name, value);
 
         if (newLink) {
             this->metaPropRef = newLink->blockAddress;
 
-            NodeBlock::nodesDB->seekp(this->addr +sizeof(this->usage) +sizeof(this->nodeId) + sizeof(this->edgeRef) +
-                                      sizeof(this->centralEdgeRef) + sizeof(this->edgeRefPID)+ sizeof(this->propRef));
+            node_block_logger.debug("Created new MetaPropertyLink at address: " + std::to_string(newLink->blockAddress));
+            NodeBlock::nodesDB->seekp(this->addr + sizeof(this->usage) + sizeof(this->nodeId) + sizeof(this->edgeRef) +
+                                      sizeof(this->centralEdgeRef) + sizeof(this->edgeRefPID) + sizeof(this->propRef));
             NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(this->metaPropRef)), sizeof(this->metaPropRef));
             NodeBlock::nodesDB->flush();
+            node_block_logger.debug("Updated metaPropRef in DB for node at address: " + std::to_string(this->addr));
         } else {
-            node_block_logger.error("Error occurred while adding a new property link to " +
+            node_block_logger.error("Error occurred while adding a new meta property link to " +
                                     std::to_string(this->addr) + " node block");
         }
     } else {
+        node_block_logger.debug("Meta property head exists. Inserting meta property: " + name + " to existing MetaPropertyLink chain.");
         this->metaPropRef = this->getMetaPropertyHead()->insert(name, value);
+        node_block_logger.debug("Updated metaPropRef after insert: " + std::to_string(this->metaPropRef));
     }
 }
 

@@ -50,25 +50,26 @@ faiss::idx_t FaissStore::add(const std::vector<float>& embedding, std::string no
     if (embedding.size() != dim) {
         throw std::runtime_error("Embedding dimension mismatch!");
     }
+    std::lock_guard<std::mutex> lock(mtx);
+
    faiss::idx_t new_id = index->ntotal;
    std::cout << "[FaissStore] Adding new embedding with nodeId: " << nodeId << ", assigned id: " << new_id << std::endl;
 
-   std::lock_guard<std::mutex> lock(mtx);
    index->add(1, embedding.data());
 
-    // iterate over the nodeIdToEmbeddingIdMap to check if the nodeId already exists
-    for (auto & entry : nodeIdToEmbeddingIdMap) {
-        // if (entry.first == nodeId) {
-            std::cout << "[FaissStore] Node ID already exists in the map. Returning existing ID: " << entry.second << std::endl;
-            // return entry.second; // Return existing ID if nodeId already exists
-        // }
-    }
-    for (auto & entry : embeddingIdToNodeIdMap) {
-        // if (entry.first == nodeId) {
-        std::cout << "[FaissStore] Node ID already exists in the map. Returning existing ID: " << entry.second << std::endl;
-        // return entry.second; // Return existing ID if nodeId already exists
-        // }
-    }
+    // // iterate over the nodeIdToEmbeddingIdMap to check if the nodeId already exists
+    // for (auto & entry : nodeIdToEmbeddingIdMap) {
+    //     // if (entry.first == nodeId) {
+    //         std::cout << "[FaissStore] Node ID already exists in the map. Returning existing ID: " << entry.second << std::endl;
+    //         // return entry.second; // Return existing ID if nodeId already exists
+    //     // }
+    // }
+    // for (auto & entry : embeddingIdToNodeIdMap) {
+    //     // if (entry.first == nodeId) {
+    //     std::cout << "[FaissStore] Node ID already exists in the map. Returning existing ID: " << entry.second << std::endl;
+    //     // return entry.second; // Return existing ID if nodeId already exists
+    //     // }
+    // }
    std::cout << "[FaissStore] Embedding added to index. Updating nodeEmbeddingMap." << std::endl;
     nodeIdToEmbeddingIdMap.insert({nodeId, new_id});
     embeddingIdToNodeIdMap.insert({new_id, nodeId});
@@ -129,8 +130,10 @@ void FaissStore::save(const std::string& filepath) {
 void FaissStore::load(const std::string& filepath) {
     std::lock_guard<std::mutex> lock(mtx);
 
-    std::ifstream f(filepath);
-    std::cout<< "Loading FAISS index from: " << filepath << std::endl;
+    // Load FAISS index
+    std::ifstream f(filepath, std::ios::binary);
+    std::cout << "Loading FAISS index from: " << filepath << std::endl;
+
     if (f.good()) {
         std::cout << "File exists, loading index..." << std::endl;
         faiss::Index* loaded = faiss::read_index(filepath.c_str());
@@ -139,40 +142,72 @@ void FaissStore::load(const std::string& filepath) {
             throw std::runtime_error("Loaded FAISS index is not L2 Flat index.");
         }
     } else {
-        // Otherwise create new index
+        // Create a new index if file not found
         index = new faiss::IndexFlatL2(dim);
     }
 
     std::cout << "[FaissStore::load] FAISS index loaded successfully." << std::endl;
 
+    // Load mapping file
     std::ifstream mapFile(filepath + ".map", std::ios::binary);
     if (!mapFile.is_open()) {
         std::cerr << "[FaissStore::load] [Warning] Mapping file not found, nodeEmbeddingMap will be empty." << std::endl;
         return;
     }
 
-    size_t size;
-    mapFile.read(reinterpret_cast<char*>(&size), sizeof(size));
+    size_t size = 0;
+    if (!mapFile.read(reinterpret_cast<char*>(&size), sizeof(size))) {
+        std::cerr << "[FaissStore::load] Failed to read mapping size." << std::endl;
+        return;
+    }
+
     std::cout << "[FaissStore::load] Mapping file opened. Entries to read: " << size << std::endl;
 
     for (size_t i = 0; i < size; i++) {
-        size_t keyLen;
-        mapFile.read(reinterpret_cast<char*>(&keyLen), sizeof(keyLen));
+        size_t keyLen = 0;
+
+        if (!mapFile.read(reinterpret_cast<char*>(&keyLen), sizeof(keyLen))) {
+            std::cerr << "[FaissStore::load] Unexpected EOF while reading key length." << std::endl;
+            break;
+        }
+
+        // Sanity check key length
+        if (keyLen == 0 || keyLen > 1024) {
+            std::cerr << "[FaissStore::load] Invalid key length " << keyLen << ", skipping entry." << std::endl;
+            // Skip the value if key length is invalid
+            faiss::idx_t dummy;
+            if (!mapFile.read(reinterpret_cast<char*>(&dummy), sizeof(dummy))) {
+                std::cerr << "[FaissStore::load] Unexpected EOF while skipping value." << std::endl;
+            }
+            continue;
+        }
 
         std::string key(keyLen, '\0');
-        mapFile.read(&key[0], keyLen);
+        if (!mapFile.read(&key[0], keyLen)) {
+            std::cerr << "[FaissStore::load] Unexpected EOF while reading key." << std::endl;
+            break;
+        }
 
-        faiss::idx_t value;
-        mapFile.read(reinterpret_cast<char*>(&value), sizeof(value));
+        // Remove trailing null bytes if present
+        size_t realLen = strnlen(key.c_str(), keyLen);
+        key.resize(realLen);
 
-        nodeIdToEmbeddingIdMap.insert({key, value});
-        embeddingIdToNodeIdMap.insert({value, key});
-        std::cout << "[FaissStore::load] Mapping loaded: " << key << " -> " << value << std::endl;
+        faiss::idx_t value = 0;
+        if (!mapFile.read(reinterpret_cast<char*>(&value), sizeof(value))) {
+            std::cerr << "[FaissStore::load] Unexpected EOF while reading value." << std::endl;
+            break;
+        }
+
+        nodeIdToEmbeddingIdMap[key] = value;
+        embeddingIdToNodeIdMap[value] = key;
+
+        // std::cout << "[FaissStore::load] Mapping loaded: " << key << " -> " << value << std::endl;
     }
 
     mapFile.close();
     std::cout << "[FaissStore::load] Mapping file closed." << std::endl;
 }
+
 
 std::vector<float> FaissStore::getEmbeddingById(std::string  nodeId) {
     std::lock_guard<std::mutex> lock(mtx);
