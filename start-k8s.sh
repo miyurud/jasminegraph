@@ -2,7 +2,7 @@
 
 set -e
 
-TIMEOUT_SECONDS=90
+TIMEOUT_SECONDS=150
 
 if [ $1 == "clean" ]; then
     echo "Cleaning JasmineGraph resources..."
@@ -85,10 +85,13 @@ if ! command -v helm &>/dev/null; then
     exit 0
 fi
 
+export STORAGE_CLASS_NAME=$(kubectl get storageclass | grep "(default)" | awk '{print $1}')
+echo "Detected default storage class: $STORAGE_CLASS_NAME"
+
 helm repo add grafana https://grafana.github.io/helm-charts
 helm repo update
 
-helm install loki grafana/loki -n loki --create-namespace -f ./k8s/helm/loki.yaml
+helm install loki grafana/loki -n loki --create-namespace --set singleBinary.persistence.storageClass=$STORAGE_CLASS_NAME -f ./k8s/helm/loki.yaml
 kubectl wait --for=condition=Ready pod --all -n loki --timeout=180s
 sleep .2
 
