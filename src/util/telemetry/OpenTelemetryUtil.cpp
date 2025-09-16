@@ -45,8 +45,11 @@ void OpenTelemetryUtil::initialize(const std::string& service_name,
         };
         auto resource = opentelemetry::sdk::resource::Resource::Create(resource_attributes);
         
-        // Create batch span processor with default settings for optimal performance and lower overhead
+        // Create batch span processor with optimized settings for lower overhead
         trace_sdk::BatchSpanProcessorOptions batch_options{};
+        batch_options.max_queue_size = 512;        // Reduced from default 2048
+        batch_options.schedule_delay_millis = std::chrono::milliseconds(5000);  // Increased from 5s to reduce frequency
+        batch_options.max_export_batch_size = 128;  // Reduced from default 512
         auto processor = trace_sdk::BatchSpanProcessorFactory::Create(std::move(otlp_http_exporter), batch_options);
         
         // Create tracer provider with the processor and resource
@@ -122,13 +125,6 @@ ScopedTracer::ScopedTracer(const std::string& operation_name,
                           const std::map<std::string, std::string>& attributes)
     : operation_name_(operation_name), start_time_(std::chrono::steady_clock::now()) {
     
-    // Check if telemetry is enabled - if not, this becomes a no-op
-    if (!isTelemetryEnabled()) {
-        span_ = nullptr;
-        scope_ = nullptr;
-        return;
-    }
-    
     // Get tracer
     auto tracer = OpenTelemetryUtil::getTracer();
     
@@ -154,13 +150,12 @@ ScopedTracer::ScopedTracer(const std::string& operation_name,
 
 ScopedTracer::~ScopedTracer() {
     if (span_ && span_->IsRecording()) {
-        // Calculate duration
+        // Calculate duration and add only essential timing info
         auto end_time = std::chrono::steady_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time_);
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time_);
         
-        // Add duration as attribute
-        span_->SetAttribute("duration_microseconds", static_cast<double>(duration.count()));
-        span_->SetAttribute("duration_milliseconds", static_cast<double>(duration.count()) / 1000.0);
+        // Add only milliseconds duration to reduce trace size
+        span_->SetAttribute("duration_ms", static_cast<double>(duration.count()));
         
         // Set success status if not already set
         span_->SetStatus(trace_api::StatusCode::kOk);

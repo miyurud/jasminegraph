@@ -39,19 +39,9 @@ int JasmineGraphInstance::start_running(string hostName, string masterHost, int 
                                         string enableNmon) {
     graphInstance_logger.info("Worker started on port " + std::to_string(serverPort));
     
-    // Initialize OpenTelemetry for this worker process with worker-specific service name
-    try {
-        std::string workerServiceName = "jasminegraph-worker-" + std::to_string(serverPort);
-        OpenTelemetryUtil::initialize(
-            workerServiceName,                   // Worker-specific service name (e.g., jasminegraph-worker-7780)
-            "http://pushgateway:9091",          // Pushgateway for metrics
-            "http://tempo:4318/v1/traces"       // Tempo OTLP HTTP endpoint for traces
-        );
-        graphInstance_logger.info("OpenTelemetry initialized successfully for worker " + workerServiceName);
-    } catch (const std::exception& e) {
-        graphInstance_logger.error("Failed to initialize OpenTelemetry for worker: " + std::string(e.what()));
-        graphInstance_logger.info("Worker will continue without telemetry...");
-    }
+    // OpenTelemetry is already initialized globally in main.cpp
+    // No need to initialize again per worker to avoid duplicate traces
+    graphInstance_logger.info("Using global OpenTelemetry configuration for worker on port " + std::to_string(serverPort));
 
     this->hostName = hostName;
     this->masterHostName = masterHost;
