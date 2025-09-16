@@ -275,7 +275,7 @@ timeout "$TIMEOUT_SECONDS" python3 -u "${TEST_ROOT}/test-k8s.py" "$masterIP" |& 
 exit_code="${PIPESTATUS[0]}"
 
 set +ex
-if [ "$exit_code" = '124' ]; then
+if [ "$exit_code" != '0' ]; then
     echo
     kubectl get pods -o wide
 
