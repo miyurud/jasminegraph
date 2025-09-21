@@ -56,16 +56,16 @@ class Partition {
         }
         this->vertexCount = 0;
     };
-    
+
     // Copy constructor - needed for compatibility
-    Partition(const Partition& other) 
+    Partition(const Partition& other)
         : edgeList(other.edgeList),
           edgeCuts(other.edgeCuts),
           id(other.id),
           numberOfPartitions(other.numberOfPartitions),
           vertexCount(other.vertexCount.load()) {
     }
-    
+
     // Copy assignment operator
     Partition& operator=(const Partition& other) {
         if (this != &other) {
@@ -77,16 +77,16 @@ class Partition {
         }
         return *this;
     }
-    
+
     // Move constructor
-    Partition(Partition&& other) noexcept 
+    Partition(Partition&& other) noexcept
         : edgeList(std::move(other.edgeList)),
           edgeCuts(std::move(other.edgeCuts)),
           id(other.id),
           numberOfPartitions(other.numberOfPartitions),
           vertexCount(other.vertexCount.load()) {
     }
-    
+
     // Move assignment operator
     Partition& operator=(Partition&& other) noexcept {
         if (this != &other) {
@@ -119,8 +119,8 @@ class Partition {
     void incrementVertexCount();
     void addToEdgeList(std::string vertex);
     std::mutex& getPartitionMutex() const { return partitionMutex; }  // Getter for mutex
-    
-private:
+
+ private:
     bool isExistUnsafe(std::string vertext);  // Unsafe version - assumes caller holds lock
     bool isExistInEdgeCutsUnsafe(std::string vertext);  // Unsafe version - assumes caller holds lock
 };

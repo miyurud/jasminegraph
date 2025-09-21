@@ -25,7 +25,6 @@ Logger streaming_partition_logger;
 // This addition is unidirectional , Add both items of the pair as keys
 void Partition::addEdge(std::pair<std::string, std::string> edge, bool isDirected) {
     std::lock_guard<std::mutex> lock(partitionMutex);
-    
     auto existFirstVertex = this->edgeList.find(edge.first);
     if (existFirstVertex != this->edgeList.end()) {
         this->edgeList[edge.first].insert(edge.second);
@@ -142,7 +141,7 @@ long Partition::edgeCutsCount(bool isDirected) {
             total += edgeCuts.second.size();
         }
     }
-    
+
     if (isDirected) {
         return total;
     }
