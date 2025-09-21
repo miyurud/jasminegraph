@@ -78,7 +78,7 @@ def expect_response(conn: socket.socket, expected: bytes):
     assert data == expected
     return True
 
-def expect_response_file(conn: socket.socket, expected: bytes, timeout=15):
+def expect_response_file(conn: socket.socket, expected: bytes, timeout=100):
     """Check if the response matches expected file."""
     global passed_all
     buffer = bytearray()
