@@ -108,6 +108,8 @@ def expect_response_file(conn: socket.socket, expected: bytes, timeout=15):
     for i, (exp_line, rec_line) in enumerate(zip(expected_lines, received_lines), start=1):
         if exp_line != rec_line:
             mismatches.append(f'Line {i}:\n  expected: {exp_line}\n  received: {rec_line}')
+        else:
+            print(rec_line)
 
     # Handle extra lines if lengths differ
     if len(received_lines) > len(expected_lines):
