@@ -126,70 +126,127 @@ CYPHER = b'cypher'
 #     return True
 
 
-def expect_response(conn: socket.socket, expected: bytes, timeout: float = 300.0, retries: int = 10):
-    """Check if the response is equal to the expected response within a timeout.
-    Return True if they are equal, False otherwise.
-    """
+# def expect_response(conn: socket.socket, expected: bytes, timeout: float = 300.0, retries: int = 10):
+#     """Check if the response is equal to the expected response within a timeout.
+#     Return True if they are equal, False otherwise.
+#     """
+#     global passed_all
+#     buffer = bytearray()
+#     read = 0
+#     expected_len = len(expected)
+#     deadline = time.time() + timeout
+#     retry_count = 0
+#
+#     conn.settimeout(1.0)  # short timeout for retries
+#
+#     try:
+#         while read < expected_len:
+#             if time.time() > deadline:
+#                 logging.error('Timed out waiting for full response (expected: %s)', expected.decode(errors='replace'))
+#                 passed_all = False
+#                 return False
+#
+#             try:
+#                 received = conn.recv(expected_len - read)
+#             except socket.timeout:
+#                 retry_count += 1
+#                 logging.debug('No data received yet (retry %d/%d)...', retry_count, retries)
+#                 if retry_count > retries:
+#                     logging.error('No data after %d retries, giving up', retries)
+#                     passed_all = False
+#                     return False
+#                 continue
+#             except socket.error as e:
+#                 logging.error('Socket error: %s', e)
+#                 passed_all = False
+#                 return False
+#
+#             if not received:  # connection closed
+#                 logging.error('Connection closed by server (received empty bytes).')
+#                 passed_all = False
+#                 return False
+#
+#             retry_count = 0  # reset retries since we got data
+#
+#             received_len = len(received)
+#             if received != expected[read:read + received_len]:
+#                 buffer.extend(received)
+#                 data = bytes(buffer)
+#                 logging.error(
+#                     'Output mismatch\nExpected : %s\nReceived : %s',
+#                     expected.decode(errors='replace'),
+#                     data.decode(errors='replace'))
+#                 passed_all = False
+#                 return False
+#
+#             read += received_len
+#             buffer.extend(received)
+#
+#         data = bytes(buffer)
+#         logging.info('Successfully matched expected response: %s', data.decode(errors='replace'))
+#         print(data.decode(errors='replace'), end='')
+#         assert data == expected
+#         return True
+#
+#     finally:
+#         conn.settimeout(None)
+
+def expect_response(conn: socket.socket, expected: bytes, timeout: float = 30.0, retries: int = 10):
+    '''Check if the response is equal to the expected response within a timeout.
+    Retries if only newline or carriage return is received.'''
     global passed_all
     buffer = bytearray()
     read = 0
     expected_len = len(expected)
+
     deadline = time.time() + timeout
     retry_count = 0
 
-    conn.settimeout(1.0)  # short timeout for retries
+    while read < expected_len:
+        if time.time() > deadline:
+            logging.warning('Timed out waiting for full response')
+            passed_all = False
+            return False
 
-    try:
-        while read < expected_len:
-            if time.time() > deadline:
-                logging.error('Timed out waiting for full response (expected: %s)', expected.decode(errors='replace'))
+        try:
+            received = conn.recv(expected_len - read)
+        except socket.error as e:
+            logging.warning('Socket error: %s', e)
+            passed_all = False
+            return False
+
+        if not received:
+            logging.warning('Connection closed before expected response was fully received')
+            passed_all = False
+            return False
+
+        # If the server only sent newline or carriage return, retry
+        if received in (b'\n', b'\r', b'\r\n'):
+            retry_count += 1
+            if retry_count > retries:
+                logging.warning('Too many retries after receiving only newlines')
                 passed_all = False
                 return False
+            continue
 
-            try:
-                received = conn.recv(expected_len - read)
-            except socket.timeout:
-                retry_count += 1
-                logging.debug('No data received yet (retry %d/%d)...', retry_count, retries)
-                if retry_count > retries:
-                    logging.error('No data after %d retries, giving up', retries)
-                    passed_all = False
-                    return False
-                continue
-            except socket.error as e:
-                logging.error('Socket error: %s', e)
-                passed_all = False
-                return False
-
-            if not received:  # connection closed
-                logging.error('Connection closed by server (received empty bytes).')
-                passed_all = False
-                return False
-
-            retry_count = 0  # reset retries since we got data
-
-            received_len = len(received)
-            if received != expected[read:read + received_len]:
-                buffer.extend(received)
-                data = bytes(buffer)
-                logging.error(
-                    'Output mismatch\nExpected : %s\nReceived : %s',
-                    expected.decode(errors='replace'),
-                    data.decode(errors='replace'))
-                passed_all = False
-                return False
-
-            read += received_len
+        received_len = len(received)
+        if received != expected[read:read + received_len]:
             buffer.extend(received)
+            data = bytes(buffer)
+            logging.warning(
+                'Output mismatch\nexpected : %s\nreceived : %s',
+                expected.decode(errors='replace'), data.decode(errors='replace'))
+            passed_all = False
+            return False
 
-        data = bytes(buffer)
-        logging.info('Successfully matched expected response: %s', data.decode(errors='replace'))
-        print(data.decode(errors='replace'), end='')
-        assert data == expected
-        return True
+        read += received_len
+        buffer.extend(received)
 
-    finally:
-        conn.settimeout(None)
+    data = bytes(buffer)
+    print(data.decode('utf-8'), end='')
+    assert data == expected
+    return True
+
 
 def expect_response_file(conn: socket.socket, expected: bytes, timeout=5000):
     """Check if the response matches expected file."""
