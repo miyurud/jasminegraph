@@ -51,7 +51,33 @@ LINE_END = b'\r\n'
 CYPHER = b'cypher'
 
 
-def expect_response(conn: socket.socket, expected: bytes):
+# def expect_response(conn: socket.socket, expected: bytes):
+#     """Check if the response is equal to the expected response
+#     Return True if they are equal or False otherwise.
+#     """
+#     global passed_all
+#     buffer = bytearray()
+#     read = 0
+#     expected_len = len(expected)
+#     while read < expected_len:
+#         received = conn.recv(expected_len - read)
+#         received_len = len(received)
+#         if received:
+#             if received != expected[read:read + received_len]:
+#                 buffer.extend(received)
+#                 data = bytes(buffer)
+#                 logging.warning(
+#                     'Output mismatch\nexpected : %s\nreceived : %s', expected.decode(),
+#                     data.decode())
+#                 passed_all = False
+#                 return False
+#             read += received_len
+#             buffer.extend(received)
+#     data = bytes(buffer)
+#     print(data.decode('utf-8'), end='')
+#     assert data == expected
+#     return True
+def expect_response(conn: socket.socket, expected: bytes, timeout: float = 10.0):
     """Check if the response is equal to the expected response
     Return True if they are equal or False otherwise.
     """
@@ -59,20 +85,36 @@ def expect_response(conn: socket.socket, expected: bytes):
     buffer = bytearray()
     read = 0
     expected_len = len(expected)
-    while read < expected_len:
-        received = conn.recv(expected_len - read)
-        received_len = len(received)
-        if received:
+
+    # apply timeout
+    conn.settimeout(timeout)
+
+    try:
+        while read < expected_len:
+            received = conn.recv(expected_len - read)
+            if not received:
+                logging.warning("Connection closed before expected response was fully received")
+                passed_all = False
+                return False
+
+            received_len = len(received)
             if received != expected[read:read + received_len]:
                 buffer.extend(received)
                 data = bytes(buffer)
                 logging.warning(
-                    'Output mismatch\nexpected : %s\nreceived : %s', expected.decode(),
-                    data.decode())
+                    'Output mismatch\nexpected : %s\nreceived : %s',
+                    expected.decode(), data.decode())
                 passed_all = False
                 return False
+
             read += received_len
             buffer.extend(received)
+
+    except socket.timeout:
+        logging.warning("Timed out while waiting for response")
+        passed_all = False
+        return False
+
     data = bytes(buffer)
     print(data.decode('utf-8'), end='')
     assert data == expected
