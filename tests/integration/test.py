@@ -125,84 +125,27 @@ def expect_response(conn: socket.socket, expected: bytes, timeout: float = 30000
     assert data == expected
     return True
 
-# def expect_response_file(conn: socket.socket, expected: bytes, timeout=5000):
-#     """Check if the response matches expected file."""
-#     global passed_all
-#     buffer = bytearray()
-#     conn.setblocking(False)
-#     start = time.time()
-#
-#     while time.time() - start < timeout:
-#         try:
-#             received = conn.recv(4096)
-#             if received:
-#                 buffer.extend(received)
-#                 start = time.time()
-#                 if b'done' in buffer:
-#                     break
-#             else:
-#                 time.sleep(0.01)
-#         except BlockingIOError:
-#             time.sleep(0.01)
-#
-#     conn.setblocking(True)
-#     data = bytes(buffer)
-#
-#     received_lines = data.decode(errors='replace').splitlines()
-#     expected_lines = expected.decode(errors='replace').splitlines()
-#
-#     mismatches = []
-#     for i, (exp_line, rec_line) in enumerate(zip(expected_lines, received_lines), start=1):
-#         if exp_line != rec_line:
-#             mismatches.append(f'Line {i}:\n  expected: {exp_line}\n  received: {rec_line}')
-#
-#     # Handle extra lines if lengths differ
-#     if len(received_lines) > len(expected_lines):
-#         for i in range(len(expected_lines) + 1, len(received_lines) + 1):
-#             mismatches.append(f'Line {i}:\n  expected: <no line>\n  '
-#                               f'received: {received_lines[i-1]}')
-#         logging.warning('Output mismatch! Showing first 10 differences:\n%s',
-#             '\n'.join(mismatches[:10]))
-#         passed_all = False
-#         return False
-#     if len(expected_lines) > len(received_lines):
-#         for i in range(len(received_lines) + 1, len(expected_lines) + 1):
-#             mismatches.append(f'Line {i}:\n  expected: {expected_lines[i-1]}\n'
-#                               f'  received: <no line>')
-#         logging.warning('Output mismatch! Showing first 10 differences:\n%s',
-#             '\n'.join(mismatches[:10]))
-#         passed_all = False
-#         return False
-#
-#     print('All the records match')
-#     return True
-
-def expect_response_file(conn: socket.socket, expected: bytes, timeout=5.0):
-    """Check if the response matches expected file and consume until 'done'."""
+def expect_response_file(conn: socket.socket, expected: bytes, timeout=5000):
+    """Check if the response matches expected file."""
     global passed_all
     buffer = bytearray()
-    deadline = time.time() + timeout
+    conn.setblocking(False)
+    start = time.time()
+
+    while time.time() - start < timeout:
+        try:
+            received = conn.recv(4096)
+            if received:
+                buffer.extend(received)
+                start = time.time()
+                if b'done' in buffer:
+                    break
+            else:
+                time.sleep(0.01)
+        except BlockingIOError:
+            time.sleep(0.01)
 
     conn.setblocking(True)
-    conn.settimeout(1.0)
-
-    try:
-        while time.time() < deadline:
-            try:
-                received = conn.recv(4096)
-                if not received:
-                    break
-                buffer.extend(received)
-                if b'done\n' in buffer:  # look for full terminator
-                    # cut buffer at 'done\n' so leftovers don't leak
-                    end = buffer.find(b'done\n') + len(b'done\n')
-                    buffer = buffer[:end]
-                    break
-            except socket.timeout:
-                continue
-    finally:
-        conn.settimeout(None)
-
     data = bytes(buffer)
 
     received_lines = data.decode(errors='replace').splitlines()
@@ -213,25 +156,26 @@ def expect_response_file(conn: socket.socket, expected: bytes, timeout=5.0):
         if exp_line != rec_line:
             mismatches.append(f'Line {i}:\n  expected: {exp_line}\n  received: {rec_line}')
 
+    # Handle extra lines if lengths differ
     if len(received_lines) > len(expected_lines):
         for i in range(len(expected_lines) + 1, len(received_lines) + 1):
             mismatches.append(f'Line {i}:\n  expected: <no line>\n  '
                               f'received: {received_lines[i-1]}')
-
+        logging.warning('Output mismatch! Showing first 10 differences:\n%s',
+            '\n'.join(mismatches[:10]))
+        passed_all = False
+        return False
     if len(expected_lines) > len(received_lines):
         for i in range(len(received_lines) + 1, len(expected_lines) + 1):
             mismatches.append(f'Line {i}:\n  expected: {expected_lines[i-1]}\n'
                               f'  received: <no line>')
-
-    if mismatches:
         logging.warning('Output mismatch! Showing first 10 differences:\n%s',
-                        '\n'.join(mismatches[:10]))
+            '\n'.join(mismatches[:10]))
         passed_all = False
         return False
 
     print('All the records match')
     return True
-
 
 def send_and_expect_response(conn, test_name, send, expected, exit_on_failure=False):
     """Send a message to server and check if the response is equal to the expected response
