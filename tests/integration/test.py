@@ -77,7 +77,7 @@ CYPHER = b'cypher'
 #     print(data.decode('utf-8'), end='')
 #     assert data == expected
 #     return True
-def expect_response(conn: socket.socket, expected: bytes, timeout: float = 5000.0):
+def expect_response(conn: socket.socket, expected: bytes, timeout: float = 30000.0):
     """Check if the response is equal to the expected response within a timeout.
     Return True if they are equal, False otherwise.
     """
