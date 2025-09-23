@@ -1863,12 +1863,35 @@ void constructKGStreamHDFSCommand(std::string masterIP, int connFd, std::string 
             ("TRUE" ) + "\")";
 
     int newGraphID = sqlite->runInsert(sqlStatement);
+
+  std::string message3 = "LLM runner hostname:port: ";
+    resultWr = write(connFd, message3.c_str(), message3.length());
+    if (resultWr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+    if (resultWr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+
+    char hostnamePort[FRONTEND_DATA_LENGTH + 1];
+    bzero(hostnamePort, FRONTEND_DATA_LENGTH + 1);
+    read(connFd, hostnamePort, FRONTEND_DATA_LENGTH);
+    std::string hostnamePortS(hostnamePort);
+    hostnamePortS = Utils::trim_copy(hostnamePortS);
+
+
+
     frontend_logger.info("Created graph ID: " + std::to_string(newGraphID));
     // JasmineGraphServer::worker designatedWorker = JasmineGraphServer::getDesignatedWorker();
     JasmineGraphServer::worker designatedWorker ;
-    designatedWorker.hostname = "192.168.1.7";
-    designatedWorker.port = 7790;
-    designatedWorker.dataPort = 7791;
+    designatedWorker.hostname = "10.8.100.245";
+    designatedWorker.port =  7806;  
+    designatedWorker.dataPort = 7807;
 
 
     if (!Pipeline::streamGraphToDesignatedWorker(designatedWorker.hostname,
@@ -1878,7 +1901,7 @@ void constructKGStreamHDFSCommand(std::string masterIP, int connFd, std::string 
                                            numberOfPartitions,
                                                  hdfsServerIp,
                                                  hdfsPort,
-
+                                                 hostnamePortS,
                                                hdfsFilePathS ))
     {
         frontend_logger.error("Streaming to worker failed");

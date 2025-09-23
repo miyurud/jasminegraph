@@ -124,10 +124,6 @@ std::vector<std::vector<float>> TextEmbedder::batch_embed(const std::vector<std:
 }
 
 
-<<<<<<< HEAD
-
-=======
->>>>>>> 877f6bfe3b1e2c66755461d903cd0d74a0e724e7
 std::vector<float> TextEmbedder::embed(const std::string& text) {
     json req = {
         {"model",  model_name},
@@ -169,11 +165,7 @@ std::vector<float> TextEmbedder::embed(const std::string& text) {
 
             throw std::runtime_error("Unexpected embedding response: " + j.dump());
         } catch (const std::exception& ex) {
-<<<<<<< HEAD
-            std::cerr << "Embedding request failed (attempt " << attempt << "): " 
-=======
             std::cerr << "Embedding request failed (attempt " << attempt << "): "
->>>>>>> 877f6bfe3b1e2c66755461d903cd0d74a0e724e7
                       << ex.what() << std::endl;
 
             if (attempt < max_retries) {
@@ -186,8 +178,4 @@ std::vector<float> TextEmbedder::embed(const std::string& text) {
     }
 
     throw std::runtime_error("All embedding attempts failed unexpectedly.");
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 877f6bfe3b1e2c66755461d903cd0d74a0e724e7

@@ -19,11 +19,11 @@ class Pipeline {
 public:
     Pipeline(hdfsFS fileSystem, const std::string &filePath, int numberOfPartitions, int graphId,
 
-              std::string masterIP , vector<JasmineGraphServer::worker> &workerList);
+              std::string masterIP , vector<JasmineGraphServer::worker> &workerList, std::vector<std::string> llmRunners);
     void init();
     void startStreamingFromBufferToPartitions();
     static bool streamGraphToDesignatedWorker(std::string host, int port, std::string masterIP, std::string graphId, int numberOfPartitions, std::string hdfsServerIp,
-                                              std::string hdfsPort,
+                                              std::string hdfsPort, std::string hostnamePort,
                                               std::string hdfsFilePath);
 
 
@@ -58,6 +58,7 @@ private:
     int graphId;
     int numberOfPartitions;
     vector<JasmineGraphServer::worker> &workerList;
+    std::vector<std::string> llmRunners;
     std::mutex dbLock;
 };
 

@@ -9,8 +9,12 @@
 using json = nlohmann::json;
 Logger ollama_tuple_streamer_logger;
 
-OllamaTupleStreamer::OllamaTupleStreamer(const std::string& modelName)
-    : model(modelName) {}
+OllamaTupleStreamer::OllamaTupleStreamer(const std::string& modelName,  const std::string& host)
+    : model(modelName), host(host) {
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+    // ollama_tuple_streamer_logger.init("OllamaTupleStreamer");
+    ollama_tuple_streamer_logger.info("Initialized OllamaTupleStreamer with model: " + modelName + ", host: " + host);
+}
 
 size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb, void* userdata) {
     size_t totalSize = size * nmemb;
@@ -23,6 +27,7 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
     while (true) {
         size_t pos = incoming.find("\n", start);
         if (pos == std::string::npos) {
+            // ollama_tuple_streamer_logger.info("No more complete lines in tuple stream");
             break;
         }
 
@@ -83,7 +88,7 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
                         catch (const std::exception& exception )
                         {
                             ollama_tuple_streamer_logger.error( exception.what() );
-                            ollama_tuple_streamer_logger.info("Malformed/partial JSON ignored: " + ctx->current_tuple);
+                            ollama_tuple_streamer_logger.info("86 Malformed/partial JSON ignored: " + ctx->current_tuple);
 
                             ctx->current_tuple.clear();
                             s = e + 1;
@@ -96,13 +101,18 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
 
             }
         } catch (...) {
-            ollama_tuple_streamer_logger.info("Malformed/partial JSON ignored: " + line);
-                // ctx->buffer->add("-1");
+            ollama_tuple_streamer_logger.info("99 Malformed/partial JSON ignored: " + line);
+                ctx->buffer->add("-1");
+                // ollama_tuple_streamer_logger.info("setting is success fallse: " + ctx->isSuccess);
+                // // ctx->isSuccess = false;
+                // ollama_tuple_streamer_logger.info("set is suces flase: "+ ctx->isSuccess);
 
-                ctx->current_tuple.clear();
+                // ctx->current_tuple.clear();
             continue;
         }
     }
+                    // ctx->buffer->add("-1");
+                    // ctx->current_tuple.clear();
 
     return totalSize;
 }
@@ -118,7 +128,7 @@ void OllamaTupleStreamer::streamChunk(const std::string& chunkKey,
 
     int attempt = 0;
     CURLcode res;
-    StreamContext ctx{chunkKey, &tupleBuffer};
+    StreamContext ctx{chunkKey, &tupleBuffer,  "", true };
 
     do {
     CURL* curl = curl_easy_init();
@@ -129,9 +139,11 @@ void OllamaTupleStreamer::streamChunk(const std::string& chunkKey,
 
         ollama_tuple_streamer_logger.debug("attempt: "+attempt);
         ollama_tuple_streamer_logger.debug("Chunk : "+ chunkText);
+std::string url = host + "/api/generate";
 
     // Use 127.0.0.1 explicitly to avoid IPv6 localhost issues
-    curl_easy_setopt(curl, CURLOPT_URL, "http://10.8.100.248:11434/api/generate");
+    ollama_tuple_streamer_logger.info("Connecting to Ollama server at: " + host);
+curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
     curl_easy_setopt(curl, CURLOPT_POST, 1L);
 
     json j;
@@ -271,7 +283,16 @@ void OllamaTupleStreamer::streamChunk(const std::string& chunkKey,
     "}\n\n"
     "Now process the following text:\n" + chunkText + ".\n\nJSON objects:\n";
     j["stream"] = true;
-    std::string postFields = j.dump();
+    std::string postFields;
+    try{
+    postFields = j.dump();
+    ollama_tuple_streamer_logger.debug("Post fields: " + postFields);
+    }
+    catch (const std::exception& e) {
+        ollama_tuple_streamer_logger.error("JSON dump error: " + std::string(e.what()));
+         ctx.buffer->add("-1");
+        return ;
+    }
 
     struct curl_slist* headers = nullptr;
     headers = curl_slist_append(headers, "Content-Type: application/json");
@@ -312,12 +333,16 @@ void OllamaTupleStreamer::streamChunk(const std::string& chunkKey,
             std::this_thread::sleep_for(std::chrono::seconds(waitTime));
         }
 
+
         attempt++;
-    } while (res != CURLE_OK && attempt < maxRetries);
+    } while (((res != CURLE_OK && attempt < maxRetries) || !ctx.isSuccess) );
 
     if (res != CURLE_OK) {
         std::cerr << "Failed after " << maxRetries << " attempts.\n";
         ctx.buffer->add("-1");
 
+
     }
+        // ctx.buffer->add("-1");
+
 }

@@ -47,6 +47,14 @@ def main():
         # Send the HDFS dataset path
         sock.sendall(b"/home/hotpotqa_full_corpus.txt" + LINE_END)
 
+        msg4 = recv_until(sock, b"\n")
+        logging.info("Master: " + msg4.strip())
+
+        # Send the LLM runner address
+        sock.sendall(b"http://10.8.100.245:11436,http://10.8.100.245:11436,http://10.8.100.245:11436,http://10.8.100.245:11436,http://10.8.100.245:11437,http://10.8.100.245:11437,http://10.8.100.245:11437,http://10.8.100.245:11437, http://10.8.100.245:11439, http://10.8.100.245:11439, http://10.8.100.245:11440,http://10.8.100.245:11440,http://10.8.100.245:11441,http://10.8.100.245:11441,http://10.8.100.245:11442,http://10.8.100.245:11442" + LINE_END)
+
+    
+
         # --- Step 4: wait for final "done"
         final = recv_until(sock, b"\n")
         logging.info("Master: " + final.strip())
