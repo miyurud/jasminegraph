@@ -148,55 +148,6 @@ curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 
     json j;
     j["model"] = model;
-//     j["prompt"] = R"(ChatPromptTemplate.from_messages([
-//     ("system",
-//      "You are an expert information extractor specialized in knowledge graph construction. "
-//      "Your task is to extract all possible subject-predicate-object triples from the given text and return them strictly as JSON objects seperated with a # symbol. "
-//      "Each triple must be represented as a JSON object containing 'source', 'destination', and 'properties', following the schema provided. "
-//      "Output each triple as a JSON object in the schema below and separate each JSON object with a # symbol. Do not include any explanation, prefix, suffix, or formatting outside the array."),
-//     ("human",
-//      """
-// Extract all subject-predicate-object triples from the following text.
-//
-// Format:
-// [
-//   {{
-//     "source": {{
-//       "id": "<unique_node_id>",
-//       "properties": {{
-//         "id": "<unique_node_id>",
-//         "label": "<EntityType>",
-//         "name": "<EntityName>"
-//       }}
-//     }},
-//     "destination": {{
-//       "id": "<unique_node_id>",
-//       "properties": {{
-//         "id": "<unique_node_id>",
-//         "label": "<EntityType>",
-//         "name": "<EntityName>"
-//       }}
-//     }},
-//     "properties": {{
-//       "id": "<unique_relationship_id>",
-//       "type": "<Predicate>",
-//       "description": "<Human-readable description of the triple>"
-//     }}
-//   }}
-// ]
-//
-// Instructions:
-// - Output must be pure JSON objects seperated by # . Do not include any comments, headers, or text.
-// - Use consistent and unique IDs across nodes and relationships. unique Ids should be the concatenation between the label and name with all small caps with a underscore
-// - Populate all fields accurately, including labels and descriptions.
-// - Extract as many meaningful triples as possible.
-//
-// Text:
-// \"\"\" )" + chunkText + R"( \"\"\"
-//
-// JSON objects:
-// """)
-// ]) )";
 
   j["prompt"]  =
     "You are an expert information extractor specialized in knowledge graph construction.\n"

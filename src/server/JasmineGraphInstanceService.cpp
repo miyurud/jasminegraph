@@ -31,6 +31,8 @@ limitations under the License.
 #include <thread>
 
 #include "../knowledgegraph/construction/OllamaTupleStreamer.h"
+#include "../knowledgegraph/construction/VLLMTupleStreamer.h"
+
 #include "../knowledgegraph/construction/Pipeline.h"
 #include "../query/processor/semanticBeamSearch/SemanticBeamSearch.h"
 #include "../util/hdfs/HDFSConnector.h"
@@ -3242,8 +3244,8 @@ static void streaming_tuple_extraction(int connFd, int serverPort,
     // std::string llmHost = llmHostPort.substr(0, pos);
     // int llmPort = std::stoi(llmHostPort.substr(pos + 1));
     instance_logger.info("LLM Host: " + llmHost );
-        OllamaTupleStreamer streamer("llama3", llmHost);
-
+        // OllamaTupleStreamer streamer("llama3", llmHost);
+  VLLMTupleStreamer streamer("meta-llama/Llama-3.2-3B-Instruct", llmHost);
 
     SharedBuffer sharedBuffer(5);
     SharedBuffer tupleBuffer(5);
