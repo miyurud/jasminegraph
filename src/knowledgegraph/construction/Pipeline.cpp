@@ -28,12 +28,16 @@ Logger kg_pipeline_stream_handler_logger;
 
 const size_t MESSAGE_SIZE = 5 * 1024 * 1024;
 const size_t MAX_BUFFER_SIZE = MESSAGE_SIZE * 512;
-const size_t CHUNCK_BYTE_SIZE = 1024*1; // 1 MB chunks
+const size_t CHUNCK_BYTE_SIZE = 1024*2; // 1 MB chunks
 const size_t OVERLAP_BYTES = 100; // bytes to overlap between chunks to avoid splitting lines
+
+// const size_t CHUNCK_BYTE_SIZE = 100;
+// const size_t OVERLAP_BYTES = 10; // bytes to overlap between chunks to avoid splitting lines
+
 const std::string END_OF_STREAM_MARKER = "-1";
 
 Pipeline::Pipeline(hdfsFS fileSystem, const std::string &filePath, int numberOfPartitions, int graphId,
-                                     std::string masterIP , vector<JasmineGraphServer::worker> &workerList)
+                                     std::string masterIP , vector<JasmineGraphServer::worker> &workerList , std::vector<std::string> llmRunners)
         : fileSystem(fileSystem),
           filePath(filePath),
           numberOfPartitions(numberOfPartitions),
@@ -41,7 +45,7 @@ Pipeline::Pipeline(hdfsFS fileSystem, const std::string &filePath, int numberOfP
           isProcessing(true),
           graphId(graphId),
           masterIP(masterIP),
-workerList(workerList) {}
+          workerList(workerList), llmRunners(llmRunners) {}
 
 
 void Pipeline:: init()
@@ -104,8 +108,17 @@ void Pipeline::streamFromHDFSIntoBuffer() {
 
       // Split into complete lines and leftover partial line
       std::string full_lines_chunk = chunk_text.substr(0, last_newline + 1);
-      size_t overlap_start = (full_lines_chunk.size() > OVERLAP_BYTES) ? full_lines_chunk.size() - OVERLAP_BYTES : 0;
-      leftover = full_lines_chunk.substr(overlap_start);
+     size_t overlap_start = (full_lines_chunk.size() > OVERLAP_BYTES) 
+                           ? full_lines_chunk.size() - OVERLAP_BYTES 
+                           : 0;
+
+// make sure leftover starts at a newline
+    size_t newline_pos = full_lines_chunk.find('\n', overlap_start);
+    if (newline_pos != std::string::npos && newline_pos + 1 < full_lines_chunk.size()) {
+        leftover = full_lines_chunk.substr(newline_pos + 1);
+    } else {
+        leftover.clear();
+    }
       // leftover = chunk_text.substr(last_newline + 1);
 
       kg_pipeline_stream_handler_logger.info("Full lines chunk size: " + std::to_string(full_lines_chunk.size()));
@@ -247,13 +260,13 @@ void Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
                             } else {
                                 kg_pipeline_stream_handler_logger.debug("Thread " + std::to_string(i) + " adding edge cut to partition " + std::to_string(sourceIndex));
                                 partitioner.addEdgeCut(obj.dump(), sourceIndex);
-                                json reversedObj = {
-                                    {"source", destination},
-                                    {"destination", source},
-                                    {"properties", jsonEdge["properties"]}
-                                };
+                                // json reversedObj = {
+                                //     {"source", destination},
+                                //     {"destination", source},
+                                //     {"properties", jsonEdge["properties"]}
+                                // };
                                 kg_pipeline_stream_handler_logger.debug("Thread " + std::to_string(i) + " adding reversed edge cut to partition " + std::to_string(destIndex));
-                                partitioner.addEdgeCut(reversedObj.dump(), destIndex);
+                                // partitioner.addEdgeCut(reversedObj.dump(), destIndex);
                             }
                         } else {
                             kg_pipeline_stream_handler_logger.error("Malformed line: missing source/destination ID: " + line);
@@ -359,6 +372,17 @@ void Pipeline::extractTuples(std::string host, int port, std::string masterIP,
     }
     kg_pipeline_stream_handler_logger.info("GraphID sent successfully");
 
+      // 3. Send LLM runner info
+    if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH,
+                                   llmRunners[partitionId],
+                                   JasmineGraphInstanceProtocol::OK)) {
+        kg_pipeline_stream_handler_logger.error("Failed to send LLM runner info");
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return;
+    }
+    kg_pipeline_stream_handler_logger.info("GraphID sent successfully");
+
     // Streaming loop
     while (true) {
         std::string chunk;
@@ -448,8 +472,8 @@ void Pipeline::extractTuples(std::string host, int port, std::string masterIP,
     }
 
     kg_pipeline_stream_handler_logger.info("Closing connection for partitionId: " + std::to_string(partitionId));
-    Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
-    close(sockfd);
+    // Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+    // close(sockfd);
 }
 bool Pipeline::streamGraphToDesignatedWorker(std::string host, int port,
                                           std::string masterIP,
@@ -457,6 +481,7 @@ bool Pipeline::streamGraphToDesignatedWorker(std::string host, int port,
                                           int numberOfPartitions,
                                           std::string hdfsServerIp,
                                           std::string hdfsPort,
+                                          std::string hostnamePort,
                                           std::string hdfsFilePath
                                          ) {
     kg_pipeline_stream_handler_logger.info("Connecting to worker Host:" + host + " Port:" + std::to_string(port));
@@ -541,12 +566,14 @@ bool Pipeline::streamGraphToDesignatedWorker(std::string host, int port,
     // === Send messages like in Python test client ===
     if (!sendAndExpect("initiate-streaming-kg-construction", "ok")) { close(sockfd); return false; }
     if (!sendAndExpect(graphId, "ok"))   { close(sockfd); return false; }
+    if (!sendAndExpect(hostnamePort, "ok"))                        { close(sockfd); return false; }
 
     if (!sendAndExpect(std::to_string(numberOfPartitions), "ok"))   { close(sockfd); return false; }
     if (!sendAndExpect(hdfsServerIp, "ok"))                         { close(sockfd); return false; }
     if (!sendAndExpect(hdfsPort, "ok"))                             { close(sockfd); return false; }
     if (!sendAndExpect(masterIP, "ok"))                        { close(sockfd); return false; }
     if (!sendAndExpect(workers, "ok"))                        { close(sockfd); return false; }
+
     if (!sendAndExpect(hdfsFilePath, "done"))                        { close(sockfd); return false; }
 
     // Final ack "done"

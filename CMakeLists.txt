@@ -196,7 +196,11 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/knowledgegraph/construction/VLLMTupleStreamer.cpp
         src/knowledgegraph/construction/VLLMTupleStreamer.h
         src/knowledgegraph/construction/OllamaTupleStreamer.cpp
+                src/knowledgegraph/construction/VLLMTupleStreamer.cpp
+
         src/knowledgegraph/construction/OllamaTupleStreamer.h
+                src/knowledgegraph/construction/VLLMTupleStreamer.h
+
         src/vectorStore/LlamaCPPTextEmbedder.cpp
         src/vectorStore/TextEmbedder.cpp
         src/vectorStore/TextEmbedder.h

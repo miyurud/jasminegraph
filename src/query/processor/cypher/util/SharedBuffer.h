@@ -11,6 +11,8 @@
 #include <condition_variable>
 #include <optional>
 #include <string>
+#include <optional>
+
 
 class SharedBuffer {
 private:

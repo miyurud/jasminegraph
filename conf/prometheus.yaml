@@ -8,8 +8,8 @@ scrape_configs:
     static_configs:
       - targets: ["10.10.21.26:9090"]
 
-
   - job_name: "pushgateway"
     scrape_interval: 2s
     static_configs:
       - targets: ["10.10.21.26:9091"]
+

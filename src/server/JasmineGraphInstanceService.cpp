@@ -3245,7 +3245,11 @@ static void streaming_tuple_extraction(int connFd, int serverPort,
     // int llmPort = std::stoi(llmHostPort.substr(pos + 1));
     instance_logger.info("LLM Host: " + llmHost );
         // OllamaTupleStreamer streamer("llama3", llmHost);
-  VLLMTupleStreamer streamer("meta-llama/Llama-3.2-3B-Instruct", llmHost);
+  // VLLMTupleStreamer streamer("meta-llama/Llama-3.2-3B-Instruct", llmHost);\
+
+    VLLMTupleStreamer streamer("numind/NuExtract-2.0-4B", llmHost);\
+
+
 
     SharedBuffer sharedBuffer(5);
     SharedBuffer tupleBuffer(5);
