@@ -1,90 +1,127 @@
 version: '3.0'
 services:
-  # jasminegraph:
-  #   image: jasminegraph:test
-  #   ports:
-  #     - '7776:7776'
-  #     - '7777:7777'
-  #     - '7778:7778'
-  #   volumes:
-  #     - '/var/run/docker.sock:/var/run/docker.sock:rw'
-  #     - './env/databases/metadb:/home/ubuntu/software/jasminegraph/metadb'
-  #     - './env/databases/performancedb:/home/ubuntu/software/jasminegraph/performancedb'
-  #     - './env/data:/var/tmp/data'
-  #     - './env/config:/var/tmp/config'
-  #     - '/tmp/jasminegraph:/tmp/jasminegraph'
-  #   environment:
-  #     - TESTING=true
-  #   networks:
-  #     - jasminegraph_net
-  #   command: --MODE 1 --MASTERIP 172.28.5.1 --WORKERS 2 --WORKERIP 172.28.5.1 --ENABLE_NMON false
-
-  namenode:
-    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
-    hostname: namenode
-    network_mode: host
-    restart: always
-    ports:
-      - 9870:9870
-      - 9000:9000
-    volumes:
-      - hadoop_namenode:/hadoop/dfs/name
-    environment:
-      - CLUSTER_NAME=test
-    env_file:
-      - env_init/config/hdfs/hadoop.env
+ jasminegraph:
+   image: jasminegraph:test
+   ports:
+     - '7776:7776'
+     - '7777:7777'
+     - '7778:7778'
+   volumes:
+     - '/var/run/docker.sock:/var/run/docker.sock:rw'
+     - './env/databases/metadb:/home/ubuntu/software/jasminegraph/metadb'
+     - './env/databases/performancedb:/home/ubuntu/software/jasminegraph/performancedb'
+     - './env/data:/var/tmp/data'
+     - './env/config:/var/tmp/config'
+     - '/tmp/jasminegraph:/tmp/jasminegraph'
+   environment:
+     - TESTING=true
+   networks:
+     - jasminegraph_net
+   command: --MODE 1 --MASTERIP 172.30.5.1 --WORKERS 2 --WORKERIP 172.30.5.1 --ENABLE_NMON false
 
 
-  datanode:
-    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
-    hostname: datanode
-
-    network_mode: host
-    restart: always
-    volumes:
-      - hadoop_datanode:/hadoop/dfs/data
-    environment:
-      - SERVICE_PRECONDITION=namenode:9870
-    env_file:
-      - env_init/config/hdfs/hadoop.env
+ namenode:
+   hostname: namenode
+   image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+   container_name: hdfs-namenode
+   restart: always
+   ports:
+     - 9870:9870
+     - 9000:9000
 
 
-  resourcemanager:
-    hostname: resourcemanager
-    image: bde2020/hadoop-resourcemanager:2.0.0-hadoop3.2.1-java8
-    network_mode: host
-    restart: always
-    environment:
-      - SERVICE_PRECONDITION=namenode:9000 namenode:9870 datanode:9864
-    env_file:
-      - env_init/config/hdfs/hadoop.env
-    extra_hosts:
-      - "namenode:127.0.0.1"
 
 
-  nodemanager1:
-    hostname: nodemanager1
-    image: bde2020/hadoop-nodemanager:2.0.0-hadoop3.2.1-java8
-    restart: always
-    environment:
-      - SERVICE_PRECONDITION=namenode:9000 namenode:9870 datanode:9864 resourcemanager:8088
-    env_file:
-      - env_init/config/hdfs/hadoop.env
-    extra_hosts:
-      - "namenode:127.0.0.1"
-      - "resourcemanager:127.0.0.1"
+   volumes:
+     - hadoop_namenode:/hadoop/dfs/name
+   environment:
+     - CLUSTER_NAME=test
+   env_file:
+     - env_init/config/hdfs/hadoop.env
+   extra_hosts:
+     - "namenode:10.8.100.245"
+     - "datanode:10.8.100.245"
+     - "resourcemanager:10.8.100.245"
+   network_mode: "host"
+
+
+
+
+ datanode:
+   hostname: datanode
+   image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+   container_name: hdfs-datanode
+   restart: always
+   ports:
+     - "9864:9864"    # Datanode Web UI
+     - "50010:50010"  # DataNode Data Transfer
+     - "50020:50020"  # DataNode IPC Server
+     - "50075:50075"  # DataNode Web UI
+   volumes:
+     - hadoop_datanode:/hadoop/dfs/data
+   environment:
+     - SERVICE_PRECONDITION=namenode:9870
+   env_file:
+     - env_init/config/hdfs/hadoop.env
+   extra_hosts:
+     - "namenode:10.8.100.245"
+     - "datanode:10.8.100.245"
+     - "resourcemanager:10.8.100.245"
+   network_mode: "host"
+
+
+
+
+ resourcemanager:
+   hostname: resourcemanager
+   image: bde2020/hadoop-resourcemanager:2.0.0-hadoop3.2.1-java8
+   container_name: hdfs-resourcemanager
+   restart: always
+   ports:
+     - "8088:8088"   # YARN Web UI
+     - "8032:8032"   # ResourceManager IPC
+     - "8031:8031"   # ResourceManager sheduler
+   environment:
+     - SERVICE_PRECONDITION=namenode:9000 namenode:9870 datanode:50010
+   env_file:
+     - env_init/config/hdfs/hadoop.env
+   extra_hosts:
+     - "namenode:10.8.100.245"
+     - "datanode:10.8.100.245"
+     - "resourcemanager:10.8.100.245"
+   network_mode: "host"
+
+
+
+
+ nodemanager1:
+   image: bde2020/hadoop-nodemanager:2.0.0-hadoop3.2.1-java8
+   container_name: hdfs-nodemanager
+   restart: always
+   environment:
+     - SERVICE_PRECONDITION=namenode:9000 namenode:9870 datanode:9864 resourcemanager:8088
+   env_file:
+     - env_init/config/hdfs/hadoop.env
+   extra_hosts:
+     - "namenode:10.8.100.245"
+     - "datanode:10.8.100.245"
+     - "resourcemanager:10.8.100.245"
+   network_mode: "host"
+
+
 
 
 volumes:
-  hadoop_namenode:
-  hadoop_datanode:
+ hadoop_namenode:
+ hadoop_datanode:
 
-# networks:
-#   jasminegraph_net:
-#     name: jasminegraph_net
-#     driver: bridge
-#     ipam:
-#       config:
-#         - subnet: 172.28.5.0/24
-#           ip_range: 172.28.5.0/24
-#           gateway: 172.28.5.1
+
+networks:
+ jasminegraph_net:
+   name: jasminegraph_net
+   driver: bridge
+   ipam:
+     config:
+       - subnet: 172.30.5.0/24
+         ip_range: 172.30.5.0/24
+         gateway: 172.30.5.1

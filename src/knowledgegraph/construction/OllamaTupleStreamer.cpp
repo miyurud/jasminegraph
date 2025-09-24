@@ -148,6 +148,7 @@ curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 
     json j;
     j["model"] = model;
+    j["max_tokens"] = 3000;
 
   j["prompt"]  =
     "You are an expert information extractor specialized in knowledge graph construction.\n"
