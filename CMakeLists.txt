@@ -193,6 +193,8 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/query/processor/cypher/runtime/AggregationFactory.cpp
         src/knowledgegraph/construction/Pipeline.cpp
         src/knowledgegraph/construction/Pipeline.h
+        src/knowledgegraph/construction/VLLMTupleStreamer.cpp
+        src/knowledgegraph/construction/VLLMTupleStreamer.h
         src/knowledgegraph/construction/OllamaTupleStreamer.cpp
         src/knowledgegraph/construction/OllamaTupleStreamer.h
         src/vectorStore/LlamaCPPTextEmbedder.cpp
@@ -204,6 +206,8 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/query/processor/semanticBeamSearch/SemanticBeamSearch.h
         src/frontend/core/executor/impl/SemanticBeamSearchExecutor.cpp
         src/frontend/core/executor/impl/SemanticBeamSearchExecutor.h
+        src/knowledgegraph/construction/VLLMTupleStreamer.cpp
+        src/knowledgegraph/construction/VLLMTupleStreamer.h
 
 
 )

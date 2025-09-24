@@ -21,6 +21,7 @@ private:
         std::string chunkKey;
         SharedBuffer* buffer;
         std::string current_tuple; // persist partial tuple here
+        bool isSuccess;
 
     };
 

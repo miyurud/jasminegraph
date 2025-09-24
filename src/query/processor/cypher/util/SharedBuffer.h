@@ -9,16 +9,17 @@
 #include <deque>
 #include <mutex>
 #include <condition_variable>
+#include <optional>
 #include <string>
 
 class SharedBuffer {
- private:
+private:
     std::deque<std::string> buffer;
     std::mutex mtx;
     std::condition_variable cv;
     const size_t max_size;
 
- public:
+public:
     explicit SharedBuffer(size_t size) : max_size(size) {}
 
     // Add data to the buffer
@@ -30,6 +31,8 @@ class SharedBuffer {
     bool tryGet(std::string& data);
 
     bool empty();
+    void clear();
+    std::optional<std::string> getWithTimeout(int timeoutSeconds);
 };
 
 #endif  // JASMINEGRAPH_SHAREDBUFFER_H

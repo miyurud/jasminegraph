@@ -31,6 +31,8 @@ limitations under the License.
 #include <thread>
 
 #include "../knowledgegraph/construction/OllamaTupleStreamer.h"
+#include "../knowledgegraph/construction/VLLMTupleStreamer.h"
+
 #include "../knowledgegraph/construction/Pipeline.h"
 #include "../query/processor/semanticBeamSearch/SemanticBeamSearch.h"
 #include "../util/hdfs/HDFSConnector.h"
@@ -3099,6 +3101,17 @@ static void streaming_kg_construction ( int connFd, int serverPort, std::map<std
     }
     instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
 
+
+
+    string llm_runner = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_LONG_DATA_LENGTH);
+    instance_logger.info("Received LLM Runner: " + llm_runner);
+
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
+
     int noOfPartitions = stoi(Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH));
     instance_logger.info("Received Number of Partitions: " + to_string(noOfPartitions));
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
@@ -3131,7 +3144,7 @@ static void streaming_kg_construction ( int connFd, int serverPort, std::map<std
     }
 
     // read workerIP:port in comma separated format
-    string workersIP = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    string workersIP = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_LONG_DATA_LENGTH);
     instance_logger.info("Received Worker IP: " + workersIP);
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK))
     {
@@ -3163,6 +3176,20 @@ static void streaming_kg_construction ( int connFd, int serverPort, std::map<std
         workers.push_back(worker);
     }
 
+
+
+
+
+     std::vector<string> llmRunnerSockets;
+    stringstream llm(llm_runner);
+    string intermediate_llm;
+    while (getline(llm, intermediate_llm, ','))
+    {
+        llmRunnerSockets.push_back(intermediate_llm);
+
+    }
+
+
     string hdfsPath = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.info("Received HDFS Path: " + hdfsPath);
     // if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
@@ -3173,7 +3200,7 @@ static void streaming_kg_construction ( int connFd, int serverPort, std::map<std
     HDFSConnector *hdfsConnector = new HDFSConnector(hdfsServerUrl, hdfsPort);
 
     Pipeline *streamHandler = new Pipeline(hdfsConnector->getFileSystem(),
-                                                             hdfsPath, noOfPartitions, std::stoi(graphID),  masterIP, workers);
+                                                             hdfsPath, noOfPartitions, std::stoi(graphID),  masterIP, workers ,llmRunnerSockets);
     instance_logger.info("Started listening to " + hdfsPath);
    streamHandler->init();
 
@@ -3194,7 +3221,6 @@ static void streaming_tuple_extraction(int connFd, int serverPort,
     bool *loop_exit_p) {
 
     char data[DATA_BUFFER_SIZE];
-    OllamaTupleStreamer streamer("llama3");
 
     instance_logger.info("in streaming_tuple_extraction");
     Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK);
@@ -3203,6 +3229,23 @@ static void streaming_tuple_extraction(int connFd, int serverPort,
     // 2. Expect graphID
     std::string graphID = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK);
+
+    // 3. Expect LLM runner hostname and port
+    std::string llmHost = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK);
+    // instance_logger.info("LLM Host and Port: " + llmHostPort);
+    // split llmHostPort into hostname and port
+    // size_t pos = llmHostPort.find(":");
+    // if (pos == std::string::npos) {
+    //     instance_logger.error("Invalid LLM host and port format");
+    //     *loop_exit_p = true;
+    //     return;
+    // // }
+    // std::string llmHost = llmHostPort.substr(0, pos);
+    // int llmPort = std::stoi(llmHostPort.substr(pos + 1));
+    instance_logger.info("LLM Host: " + llmHost );
+        // OllamaTupleStreamer streamer("llama3", llmHost);
+  VLLMTupleStreamer streamer("meta-llama/Llama-3.2-3B-Instruct", llmHost);
 
     SharedBuffer sharedBuffer(5);
     SharedBuffer tupleBuffer(5);
@@ -3231,7 +3274,7 @@ static void streaming_tuple_extraction(int connFd, int serverPort,
         Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS);
         instance_logger.info(chunk);
         // Process and add to buffers
-        sharedBuffer.add(chunk);
+        // sharedBuffer.add(chunk);
 
         // Consumer thread that prints tuples from buffer
         std::thread consumer([&]() {
@@ -3244,27 +3287,43 @@ static void streaming_tuple_extraction(int connFd, int serverPort,
 
        };
        instance_logger.info("3200");
-            while (true) {
-                string tupleData = tupleBuffer.get();
-               int tuple_length = tupleData.length();
-               int converted_number = htonl(tuple_length);
-              if (! Utils::sendIntExpectResponse(connFd, data,
+         int idleTimeoutSec = 60; // e.g., break if no tuple for 30s
+
+        while (true) {
+            auto optTupleData = tupleBuffer.getWithTimeout(idleTimeoutSec);
+            std::string tupleData;
+            if (!optTupleData.has_value()) {
+                instance_logger.error("No tuple received for " + std::to_string(idleTimeoutSec) + "s. Exiting...");
+                tupleData = "-1"; // End signal
+            }
+            else{
+                tupleData = *optTupleData;
+            }
+
+
+            int tuple_length = tupleData.length();
+            int converted_number = htonl(tuple_length);
+
+            if (!Utils::sendIntExpectResponse(connFd, data,
                                             JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.length(),
                                             converted_number,
-                                            JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK))
-              {
-                  instance_logger.error("Error in receving GRAPH_STREAM_C_length_ACK");
-          *loop_exit_p = true;
-          close(connFd);
-              };
-               instance_logger.info("3208 : " + tupleData);
-               Utils::send_str_wrapper(connFd, tupleData);
-               Utils::expect_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS);
-                if (tupleData == "-1") {
-                    instance_logger.info("Received end signal from producer");
-                    break;
-                }
+                                            JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK)) {
+                instance_logger.error("Error in receiving GRAPH_STREAM_C_length_ACK");
+                *loop_exit_p = true;
+                close(connFd);
+                break;
             }
+
+            instance_logger.info("3208 : " + tupleData);
+            Utils::send_str_wrapper(connFd, tupleData);
+            Utils::expect_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS);
+
+            if (tupleData == "-1") {
+                instance_logger.info("Received end signal from producer");
+                tupleBuffer.clear();
+                break;
+            }
+        }
         });
         streamer.streamChunk("chunk1", chunk, tupleBuffer);
 
@@ -3277,8 +3336,8 @@ static void streaming_tuple_extraction(int connFd, int serverPort,
 
     }
 
-    Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::CLOSE);
-    close(connFd);
+    // Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::CLOSE);
+    // close(connFd);
 }
 
 

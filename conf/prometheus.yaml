@@ -6,10 +6,10 @@ scrape_configs:
   - job_name: "prometheus"
     scrape_interval: 5s
     static_configs:
-      - targets: ["172.28.5.2:9090"]
+      - targets: ["10.10.21.26:9090"]
 
 
   - job_name: "pushgateway"
     scrape_interval: 2s
     static_configs:
-      - targets: ["172.28.5.3:9091"]
+      - targets: ["10.10.21.26:9091"]
