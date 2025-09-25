@@ -288,6 +288,12 @@ if [ "$exit_code" != '0' ]; then
         kubectl describe pod "$pod"
     done
 
+    echo -e '\n\e[33;1m=== Worker Logs ===\e[0m'
+    for pod in $(kubectl get pods | grep jasminegraph-worker | awk '{print $1}'); do
+        echo "--- Logs for $pod ---"
+        kubectl logs "$pod" || echo "No logs for $pod"
+    done
+
     echo
     kubectl get pods -o wide
 
@@ -299,6 +305,11 @@ if [ "$exit_code" != '0' ]; then
 
     echo -e '\n\e[33;1mWORKER-1 LOG:\e[0m' |& tee -a "$RUN_LOG"
     kubectl logs deployment/jasminegraph-worker1-deployment |& tee -a "$RUN_LOG"
+
+    echo -e '\n\e[34;1m=== Node Resources (if available) ===\e[0m'
+    kubectl top pods || echo "kubectl top not available"
+    free -h
+    df -h
 
     echo
     echo -e '\e[31;1mERROR: Test Timeout\e[0m'
