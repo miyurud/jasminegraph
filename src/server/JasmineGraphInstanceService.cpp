@@ -3112,6 +3112,17 @@ static void streaming_kg_construction ( int connFd, int serverPort, std::map<std
     }
     instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
 
+
+    string llm = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_LONG_DATA_LENGTH);
+    instance_logger.info("Received LLM : " + llm_runner);
+
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
+
+
     int noOfPartitions = stoi(Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH));
     instance_logger.info("Received Number of Partitions: " + to_string(noOfPartitions));
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
@@ -3181,9 +3192,9 @@ static void streaming_kg_construction ( int connFd, int serverPort, std::map<std
 
 
      std::vector<string> llmRunnerSockets;
-    stringstream llm(llm_runner);
+    stringstream llm_(llm_runner);
     string intermediate_llm;
-    while (getline(llm, intermediate_llm, ','))
+    while (getline(llm_, intermediate_llm, ','))
     {
         llmRunnerSockets.push_back(intermediate_llm);
 
@@ -3200,7 +3211,7 @@ static void streaming_kg_construction ( int connFd, int serverPort, std::map<std
     HDFSConnector *hdfsConnector = new HDFSConnector(hdfsServerUrl, hdfsPort);
 
     Pipeline *streamHandler = new Pipeline(hdfsConnector->getFileSystem(),
-                                                             hdfsPath, noOfPartitions, std::stoi(graphID),  masterIP, workers ,llmRunnerSockets);
+                                                             hdfsPath, noOfPartitions, std::stoi(graphID),  masterIP, workers ,llmRunnerSockets, llm);
     instance_logger.info("Started listening to " + hdfsPath);
    streamHandler->init();
 
@@ -3233,6 +3244,9 @@ static void streaming_tuple_extraction(int connFd, int serverPort,
     // 3. Expect LLM runner hostname and port
     std::string llmHost = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK);
+
+    std::string llm = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK);
     // instance_logger.info("LLM Host and Port: " + llmHostPort);
     // split llmHostPort into hostname and port
     // size_t pos = llmHostPort.find(":");
@@ -3245,9 +3259,12 @@ static void streaming_tuple_extraction(int connFd, int serverPort,
     // int llmPort = std::stoi(llmHostPort.substr(pos + 1));
     instance_logger.info("LLM Host: " + llmHost );
         // OllamaTupleStreamer streamer("llama3", llmHost);
-  // VLLMTupleStreamer streamer("meta-llama/Llama-3.2-3B-Instruct", llmHost);\
+  // VLLMTupleStreamer streamer("meta-llama/Llama-3.2-3B-Instruct", llmHost);
 
-    VLLMTupleStreamer streamer("numind/NuExtract-2.0-4B", llmHost);\
+    // // VLLMTupleStreamer streamer("numind/NuExtract-2.0-4B", llmHost);
+    // VLLMTupleStreamer streamer("meta-llama/Meta-Llama-3-8B", llmHost);
+    // VLLMTupleStreamer streamer("SciPhi/Triplex", llmHost);
+    VLLMTupleStreamer streamer(llm, llmHost);
 
 
 
@@ -3330,6 +3347,8 @@ static void streaming_tuple_extraction(int connFd, int serverPort,
         }
         });
         streamer.streamChunk("chunk1", chunk, tupleBuffer);
+        // streamer.processChunk("chunk1", chunk, tupleBuffer);
+
 
         consumer.join();
 

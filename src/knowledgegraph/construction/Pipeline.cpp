@@ -37,7 +37,7 @@ const size_t OVERLAP_BYTES = 100; // bytes to overlap between chunks to avoid sp
 const std::string END_OF_STREAM_MARKER = "-1";
 
 Pipeline::Pipeline(hdfsFS fileSystem, const std::string &filePath, int numberOfPartitions, int graphId,
-                                     std::string masterIP , vector<JasmineGraphServer::worker> &workerList , std::vector<std::string> llmRunners)
+                                     std::string masterIP , vector<JasmineGraphServer::worker> &workerList , std::vector<std::string> llmRunners , std::string llm)
         : fileSystem(fileSystem),
           filePath(filePath),
           numberOfPartitions(numberOfPartitions),
@@ -45,7 +45,8 @@ Pipeline::Pipeline(hdfsFS fileSystem, const std::string &filePath, int numberOfP
           isProcessing(true),
           graphId(graphId),
           masterIP(masterIP),
-          workerList(workerList), llmRunners(llmRunners) {}
+          workerList(workerList), llmRunners(llmRunners),
+llm(llm){}
 
 
 void Pipeline:: init()
@@ -381,8 +382,19 @@ void Pipeline::extractTuples(std::string host, int port, std::string masterIP,
         close(sockfd);
         return;
     }
-    kg_pipeline_stream_handler_logger.info("GraphID sent successfully");
+    kg_pipeline_stream_handler_logger.info("LLM runner sent successfully");
 
+
+    // 3. Send LLM  info
+    if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH,
+                                   llm,
+                                   JasmineGraphInstanceProtocol::OK)) {
+        kg_pipeline_stream_handler_logger.error("Failed to send LLM runner info");
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return;
+                                   }
+    kg_pipeline_stream_handler_logger.info("LLM  sent successfully");
     // Streaming loop
     while (true) {
         std::string chunk;
@@ -454,12 +466,23 @@ void Pipeline::extractTuples(std::string host, int port, std::string masterIP,
             int tuple_length;
             recv(sockfd, &tuple_length, sizeof(int), 0);
             tuple_length = ntohl(tuple_length);
-            kg_pipeline_stream_handler_logger.info("Received tuple length: " + std::to_string(tuple_length));
+            kg_pipeline_stream_handler_logger.info("Received tuple length: " + std::to_string(tuple_length) +"from: "+ std::to_string(partitionId));
             Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK);
 
+            // std::string tuple(tuple_length, 0);
+            // recv(sockfd, &tuple[0], tuple_length, 0);
+            // kg_pipeline_stream_handler_logger.info("Received tuple data");
+
             std::string tuple(tuple_length, 0);
-            recv(sockfd, &tuple[0], tuple_length, 0);
-            kg_pipeline_stream_handler_logger.info("Received tuple data");
+            size_t received = 0;
+            while (received < tuple_length) {
+                ssize_t ret = recv(sockfd, &tuple[received], tuple_length - received, 0);
+                if (ret <= 0) {
+                    kg_pipeline_stream_handler_logger.error("Error receiving request string");
+                    break;
+                }
+                received += ret;
+            }
 
             Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS);
             if (tuple == END_OF_STREAM_MARKER) {
@@ -482,6 +505,7 @@ bool Pipeline::streamGraphToDesignatedWorker(std::string host, int port,
                                           std::string hdfsServerIp,
                                           std::string hdfsPort,
                                           std::string hostnamePort,
+                                          std::string llm,
                                           std::string hdfsFilePath
                                          ) {
     kg_pipeline_stream_handler_logger.info("Connecting to worker Host:" + host + " Port:" + std::to_string(port));
@@ -567,7 +591,7 @@ bool Pipeline::streamGraphToDesignatedWorker(std::string host, int port,
     if (!sendAndExpect("initiate-streaming-kg-construction", "ok")) { close(sockfd); return false; }
     if (!sendAndExpect(graphId, "ok"))   { close(sockfd); return false; }
     if (!sendAndExpect(hostnamePort, "ok"))                        { close(sockfd); return false; }
-
+if (!sendAndExpect(llm, "ok" )) { close(sockfd); return false; }
     if (!sendAndExpect(std::to_string(numberOfPartitions), "ok"))   { close(sockfd); return false; }
     if (!sendAndExpect(hdfsServerIp, "ok"))                         { close(sockfd); return false; }
     if (!sendAndExpect(hdfsPort, "ok"))                             { close(sockfd); return false; }

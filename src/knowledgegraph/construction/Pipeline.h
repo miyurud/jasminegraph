@@ -20,11 +20,13 @@ public:
     Pipeline(hdfsFS fileSystem, const std::string &filePath, int numberOfPartitions, int graphId,
 
               std::string masterIP , vector<JasmineGraphServer::worker> &workerList, std::vector<std::string> llmRunners);
+    Pipeline(hdfsFS fileSystem, const std::string& filePath, int numberOfPartitions, int graphId, std::string masterIP,
+             vector<JasmineGraphServer::worker>& workerList, std::vector<std::string> llmRunners, std::string llm);
     void init();
     void startStreamingFromBufferToPartitions();
     static bool streamGraphToDesignatedWorker(std::string host, int port, std::string masterIP, std::string graphId, int numberOfPartitions, std::string hdfsServerIp,
                                               std::string hdfsPort, std::string hostnamePort,
-                                              std::string hdfsFilePath);
+                                              std::string llm, std::string hdfsFilePath);
 
 
 private:
@@ -59,6 +61,7 @@ private:
     int numberOfPartitions;
     vector<JasmineGraphServer::worker> &workerList;
     std::vector<std::string> llmRunners;
+    std::string llm;
     std::mutex dbLock;
 };
 

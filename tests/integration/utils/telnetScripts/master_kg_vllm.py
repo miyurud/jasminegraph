@@ -53,9 +53,15 @@ def main():
         # Send the LLM runner address
         sock.sendall(b"http://192.168.1.7:6578,http://192.168.1.7:6578,http://192.168.1.7:6578,http://192.168.1.7:6578")
 
-    
+        msg5 = recv_until(sock, b"\n")
+        logging.info("Master: " + msg5.strip())
 
-        # --- Step 4: wait for final "done"
+        # Send the LLM runner address
+        sock.sendall(b"RedHatAI/Meta-Llama-3.1-8B-Instruct-FP8")
+        # sock.sendall(b"https://sajeenthiranp-21--example-vllm-inference-serve.modal.run,https://sajeenthiranp-21--example-vllm-inference-serve.modal.run,https://sajeenthiranp-21--example-vllm-inference-serve.modal.run,https://sajeenthiranp-21--example-vllm-inference-serve.modal.run")
+
+
+    # --- Step 4: wait for final "done"
         final = recv_until(sock, b"\n")
         logging.info("Master: " + final.strip())
 
