@@ -276,6 +276,18 @@ exit_code="${PIPESTATUS[0]}"
 
 set +ex
 if [ "$exit_code" != '0' ]; then
+    echo -e '\n\e[34;1m=== Pods Status ===\e[0m'
+    kubectl get pods -o wide
+
+    echo -e '\n\e[34;1m=== Describe Master Pod ===\e[0m'
+    kubectl describe pod $(kubectl get pods | grep jasminegraph-master | awk '{print $1}')
+
+    echo -e '\n\e[34;1m=== Describe Worker Pods ===\e[0m'
+    for pod in $(kubectl get pods | grep jasminegraph-worker | awk '{print $1}'); do
+        echo "--- $pod ---"
+        kubectl describe pod "$pod"
+    done
+
     echo
     kubectl get pods -o wide
 
