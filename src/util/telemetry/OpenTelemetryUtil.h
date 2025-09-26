@@ -52,6 +52,16 @@ public:
                           const std::string& otlp_endpoint = "");
 
     /**
+     * Initialize OpenTelemetry with simple processor for immediate export (for workers)
+     * @param service_name Name of the service for tracing
+     * @param prometheus_endpoint Prometheus push gateway endpoint
+     * @param otlp_endpoint OTLP collector endpoint (optional)
+     */
+    static void initializeWithSimpleProcessor(const std::string& service_name, 
+                                            const std::string& prometheus_endpoint = "http://localhost:9091",
+                                            const std::string& otlp_endpoint = "");
+
+    /**
      * Get the global tracer instance
      * @param tracer_name Name for the tracer (typically component name)
      * @return Shared pointer to tracer
@@ -70,10 +80,44 @@ public:
      * Should be called before application exit
      */
     static void shutdown();
+
+    /**
+     * Get current trace context as string for propagation
+     * @return Serialized trace context
+     */
+    static std::string getCurrentTraceContext();
+
+    /**
+     * Get current trace ID for debugging
+     * @return Current trace ID as string
+     */
+    static std::string getCurrentTraceId();
+
+    /**
+     * Set trace context from serialized string
+     * @param context_str Serialized trace context
+     */
+    static void setTraceContext(const std::string& context_str);
+    
+    /**
+     * Debug current span information
+     * @return Current span debug info
+     */
+    static std::string getCurrentSpanInfo();
+
+    /**
+     * Flush all pending traces
+     */
+    static void flushTraces();
 private:
     static std::string service_name_;
     static nostd::shared_ptr<trace_api::TracerProvider> tracer_provider_;
     static nostd::shared_ptr<metrics_api::MeterProvider> meter_provider_;
+    
+    // Thread-local storage for worker context management
+    // Each worker thread gets its own context token and parent span
+    static thread_local std::unique_ptr<context::Token> context_token_;
+    static thread_local nostd::shared_ptr<trace_api::Span> parent_span_;
 };
 
 /**

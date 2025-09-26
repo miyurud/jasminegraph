@@ -43,7 +43,7 @@ class TriangleCountExecutor : public AbstractExecutor {
         bool isCompositeAggregation, int threadPriority, std::vector<std::vector<string>> fileCombinations,
         std::map<std::string, std::string> *combinationWorkerMap_p,
         std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> *triangleTree_p,
-        std::mutex *triangleTreeMutex_p);
+        std::mutex *triangleTreeMutex_p, const std::string& masterTraceContext = "");
 
     static std::string copyCompositeCentralStoreToAggregator(std::string aggregatorHostName, std::string aggregatorPort,
                                                              std::string aggregatorDataPort, std::string fileName,
@@ -61,7 +61,7 @@ class TriangleCountExecutor : public AbstractExecutor {
 
     static string countCentralStoreTriangles(std::string aggregatorPort, std::string host, std::string partitionId,
                                              std::string partitionIdList, std::string graphId, std::string masterIP,
-                                             int threadPriority);
+                                             int threadPriority, std::string traceContext);
 
     static bool proceedOrNot(std::set<string> partitionSet, int partitionId);
 

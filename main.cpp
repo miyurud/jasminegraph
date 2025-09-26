@@ -104,6 +104,9 @@ int main(int argc, char *argv[]) {
     } else if (mode == Conts::JASMINEGRAPH_RUNTIME_PROFILE_WORKER) {
         main_logger.info(to_string(argc));
 
+        // Initialize OpenTelemetry for worker process
+        initializeWorkerTelemetry();
+
         if (argc < 8) {
             main_logger.info(
                 "Need 7 arguments. Use <mode> 2 <hostName> <masterIP> <serverPort> <serverDataPort> <enable-nmon> to "

@@ -562,6 +562,11 @@ void TriangleCountExecutor::execute() {
     // Track worker information for better tracing
     std::vector<std::tuple<string, string, string>> workerTaskInfo; // {workerID, partitionId, host}
     
+    // Capture the master trace context BEFORE creating worker tasks
+    // This ensures all workers inherit from the same parent trace
+    std::string masterTraceContext = OpenTelemetryUtil::getCurrentTraceContext();
+    std::cout << "DEBUG: Master captured shared trace context for all workers: " << masterTraceContext << std::endl;
+    
     vector<Utils::worker> workerList = Utils::getWorkerList(sqlite);
     int workerListSize = workerList.size();
     for (int i = 0; i < workerListSize; i++) {
@@ -590,7 +595,7 @@ void TriangleCountExecutor::execute() {
                 intermRes.push_back(std::async(
                     std::launch::async, TriangleCountExecutor::getTriangleCount, atoi(graphId.c_str()), host, workerPort,
                     workerDataPort, atoi(partitionId.c_str()), masterIP, uniqueId, isCompositeAggregation, threadPriority,
-                    fileCombinations, &combinationWorkerMap, &triangleTree, &triangleTreeMutex));
+                    fileCombinations, &combinationWorkerMap, &triangleTree, &triangleTreeMutex, masterTraceContext));
             }
         }
     }
@@ -665,6 +670,18 @@ void TriangleCountExecutor::execute() {
     }
 
     if (!isCompositeAggregation) {
+        std::cout << "DEBUG-AGGREGATION: Before aggregation - trace context: " << OpenTelemetryUtil::getCurrentTraceContext() << std::endl;
+        
+        // Restore the master trace context before aggregation
+        std::cout << "DEBUG-AGGREGATION: Restoring master trace context: " << masterTraceContext << std::endl;
+        if (!masterTraceContext.empty() && masterTraceContext != "NO_TRACE_CONTEXT") {
+            OpenTelemetryUtil::setTraceContext(masterTraceContext);
+            std::cout << "DEBUG-AGGREGATION: Master trace context restored successfully" << std::endl;
+        }
+        
+        // Ensure we maintain the master trace context for aggregation
+        OTEL_TRACE_OPERATION("central_store_aggregation");
+        std::cout << "DEBUG-AGGREGATION: Inside aggregation span - trace context: " << OpenTelemetryUtil::getCurrentTraceContext() << std::endl;
         
         long aggregatedTriangleCount =
             aggregateCentralStoreTriangles(sqlite, graphId, masterIP, threadPriority, partitionMap);
@@ -730,7 +747,7 @@ long TriangleCountExecutor::getTriangleCount(
     bool isCompositeAggregation, int threadPriority, std::vector<std::vector<string>> fileCombinations,
     std::map<std::string, std::string> *combinationWorkerMap_p,
     std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> *triangleTree_p,
-    std::mutex *triangleTreeMutex_p) {
+    std::mutex *triangleTreeMutex_p, const std::string& masterTraceContext) {
     
     OTEL_TRACE_OPERATION("worker_communication_" + host + "_partition_" + std::to_string(partitionId));
     
@@ -844,6 +861,28 @@ long TriangleCountExecutor::getTriangleCount(
             triangleCount_logger.log("Sent : Thread Priority " + std::to_string(threadPriority), "info");
 
             response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+            
+            // Send trace context to worker for trace propagation
+            if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+                triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
+                
+                // Use the master trace context passed as parameter to ensure all workers inherit from same parent
+                std::string traceContext = masterTraceContext;
+                if (traceContext.empty()) {
+                    traceContext = "NO_TRACE_CONTEXT";
+                }
+                
+                triangleCount_logger.log("###TRIANGLE### Sending trace context to worker: " + traceContext, "info");
+                result_wr = write(sockfd, traceContext.c_str(), traceContext.size());
+                
+                if (result_wr < 0) {
+                    triangleCount_logger.log("Error writing trace context to socket", "error");
+                }
+                
+                triangleCount_logger.log("Sent : Trace Context " + traceContext, "info");
+                response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+            }
+            
             triangleCount_logger.log("Got response : |" + response + "|", "info");
             triangleCount = atol(response.c_str());
         }
@@ -1151,10 +1190,14 @@ static long aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, std::strin
         }
 
         std::string adjustedPartitionIdList = partitionIdList.substr(0, partitionIdList.size() - 1);
+        
+        // Capture current trace context before async call
+        std::string currentTraceContext = OpenTelemetryUtil::getCurrentTraceContext();
+        std::cout << "###AGGREGATION-ASYNC### Captured trace context for async: " << currentTraceContext << std::endl;
 
         triangleCountResponse.push_back(std::async(
             std::launch::async, TriangleCountExecutor::countCentralStoreTriangles, aggregatorPort, aggregatorIp,
-            aggregatorPartitionId, adjustedPartitionIdList, graphId, masterIP, threadPriority));
+            aggregatorPartitionId, adjustedPartitionIdList, graphId, masterIP, threadPriority, currentTraceContext));
     }
 
     for (auto &&futureCall : triangleCountResponse) {
@@ -1763,7 +1806,12 @@ std::string TriangleCountExecutor::copyCentralStoreToAggregator(std::string aggr
 string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorPort, std::string host,
                                                          std::string partitionId, std::string partitionIdList,
                                                          std::string graphId, std::string masterIP,
-                                                         int threadPriority) {
+                                                         int threadPriority, std::string traceContext) {
+    // Set the trace context in this async thread
+    if (!traceContext.empty() && traceContext != "NO_TRACE_CONTEXT") {
+        OpenTelemetryUtil::setTraceContext(traceContext);
+        std::cout << "###AGGREGATION-ASYNC### Set trace context in async thread: " << traceContext << std::endl;
+    }
     int sockfd;
     char data[INSTANCE_DATA_LENGTH + 1];
     bool loop = false;
@@ -1839,6 +1887,9 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorP
         }
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+            triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::OK + " (after graph ID)", "info");
+
+        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
             triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
             result_wr = write(sockfd, partitionId.c_str(), partitionId.size());
 
@@ -1873,6 +1924,22 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorP
             triangleCount_logger.log("Sent : Thread Priority " + std::to_string(threadPriority), "info");
 
             response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
+        }
+
+        if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
+            triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::OK + " (after thread priority)", "info");
+            
+            // Get current trace context and send it to worker for aggregation tracing
+            std::string traceContext = OpenTelemetryUtil::getCurrentTraceContext();
+            std::cout << "###AGGREGATE### Sending trace context to worker: " << traceContext << std::endl;
+            
+            result_wr = write(sockfd, traceContext.c_str(), traceContext.size());
+            if (result_wr < 0) {
+                triangleCount_logger.log("Error writing trace context to socket", "error");
+            }
+            triangleCount_logger.log("Sent trace context: " + traceContext, "info");
+
+            response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
             string status = response.substr(response.size() - 5);
             std::basic_ostringstream<char> resultStream;
             resultStream << response.substr(0, response.size() - 5);
@@ -1888,8 +1955,8 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorP
                 resultStream << response.substr(0, response.size() - 5);
             }
             response = resultStream.str();
+            }
         }
-
     } else {
         triangleCount_logger.log("There was an error in the upload process and the response is :: " + response,
                                  "error");

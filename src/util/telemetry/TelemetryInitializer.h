@@ -10,6 +10,12 @@
 void initializeOpenTelemetry();
 
 /**
+ * Initialize OpenTelemetry for worker processes
+ * This should be called once during worker startup
+ */
+void initializeWorkerTelemetry();
+
+/**
  * Shutdown OpenTelemetry gracefully  
  * This should be called before application exit in main.cpp
  */

@@ -436,9 +436,17 @@ long countLocalTriangles(
     std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
     std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores,
     int threadPriority) {
+    
+    OTEL_TRACE_FUNCTION();
+    
     long result;
 
-    instance_logger.info("###INSTANCE### Local Triangle Count : Started");
+    instance_logger.info("###INSTANCE### Local Triangle Count : Started: Graph ID " + graphId + " Partition " + partitionId);
+    
+    // Log current trace context for debugging
+    std::string currentTraceId = OpenTelemetryUtil::getCurrentTraceId();
+    instance_logger.info("###INSTANCE### Current Trace ID in worker: " + currentTraceId);
+    
     std::string graphIdentifier = graphId + "_" + partitionId;
     std::string centralGraphIdentifier = graphId + "_centralstore_" + partitionId;
     std::string duplicateCentralGraphIdentifier = graphId + "_centralstore_dp_" + partitionId;
@@ -466,9 +474,16 @@ long countLocalTriangles(
     }
     JasmineGraphHashMapDuplicateCentralStore duplicateCentralGraphDB = graphDBMapDuplicateCentralStores[duplicateCentralGraphIdentifier];
 
+    // Execute triangle counting - removed OTEL_TRACE_OPERATION wrapper to allow direct inheritance from master trace context
+    instance_logger.info("###INSTANCE### Calling Triangles::run for graph " + graphId + " partition " + partitionId);
     result = Triangles::run(graphDB, centralGraphDB, duplicateCentralGraphDB, graphId, partitionId, threadPriority);
+    instance_logger.info("###INSTANCE### Triangles::run completed with result: " + to_string(result));
 
     instance_logger.info("###INSTANCE### Local Triangle Count : Completed: Triangles: " + to_string(result));
+
+    // Force flush traces before returning
+    OpenTelemetryUtil::flushTraces();
+    instance_logger.info("###INSTANCE### Worker traces flushed for local triangle count");
 
     return result;
 }
@@ -2902,6 +2917,23 @@ static void triangles_command(
     string priority = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.info("Received Priority : " + priority);
 
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    // Receive trace context from master
+    string traceContext = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    instance_logger.info("###TRIANGLE### Received Trace Context: " + traceContext);
+
+    // Set trace context for this worker operation if it's valid
+    if (traceContext != "NO_TRACE_CONTEXT" && !traceContext.empty()) {
+        OpenTelemetryUtil::setTraceContext(traceContext);
+        instance_logger.info("###TRIANGLE### Set trace context in worker: " + traceContext);
+    } else {
+        instance_logger.info("###TRIANGLE### No valid trace context received from master");
+    }
+
     int threadPriority = stoi(priority);
 
     if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
@@ -2914,9 +2946,14 @@ static void triangles_command(
     std::thread perfThread = std::thread(&PerformanceUtil::collectPerformanceStatistics);
     perfThread.detach();
     
+    // Worker operation with inherited trace context from master
+    instance_logger.info("###TRIANGLE### Worker starting triangle computation for partition " + partitionId);
+    
     long localCount = countLocalTriangles(graphID, partitionId, graphDBMapLocalStores, graphDBMapCentralStores,
                                           graphDBMapDuplicateCentralStores, threadPriority);
 
+    instance_logger.info("###TRIANGLE### Worker completed triangle computation for partition " + partitionId + " with result: " + std::to_string(localCount));
+    
     if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
         threadPriorityMutex.lock();
         workerHighPriorityTaskCount--;
@@ -2931,6 +2968,10 @@ static void triangles_command(
     if (!Utils::send_str_wrapper(connFd, result)) {
         *loop_exit_p = true;
     }
+    
+    // Flush traces before completing
+    OpenTelemetryUtil::flushTraces();
+    instance_logger.info("###TRIANGLE### Worker traces flushed for partition " + partitionId);
 }
 
 static void streaming_triangles_command(
@@ -3238,6 +3279,22 @@ static void aggregate_centralstore_triangles_command(int connFd, bool *loop_exit
         workerHighPriorityTaskCount++;
         highestPriority = threadPriority;
         threadPriorityMutex.unlock();
+    }
+
+    // Send OK to indicate ready for trace context
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    // Receive and set trace context for distributed tracing
+    string traceContext = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    instance_logger.info("Received trace context for aggregation: " + traceContext);
+    std::cout << "###AGGREGATE### Worker received trace context: " << traceContext << std::endl;
+    
+    if (!traceContext.empty()) {
+        OpenTelemetryUtil::setTraceContext(traceContext);
+        std::cout << "###AGGREGATE### Worker set trace context for aggregation operations" << std::endl;
     }
 
     const std::string &aggregatedTriangles =

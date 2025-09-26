@@ -13,13 +13,12 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     git cmake build-essential libcurl4-openssl-dev libssl-dev \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install OpenTelemetry C++ SDK v1.18.0 (compatible version without gRPC dependency)
+# Install OpenTelemetry C++ SDK v1.16.1 (stable version with full trace context propagation support)
 WORKDIR /tmp
-RUN git clone --branch v1.18.0 --recurse-submodules https://github.com/open-telemetry/opentelemetry-cpp.git
+RUN git clone --branch v1.16.1 --recurse-submodules https://github.com/open-telemetry/opentelemetry-cpp.git
 WORKDIR /tmp/opentelemetry-cpp
 RUN mkdir build && cd build && \
     cmake -DWITH_PROMETHEUS=ON \
-          -DWITH_OTLP=ON \
           -DWITH_OTLP_GRPC=OFF \
           -DWITH_OTLP_HTTP=ON \
           -DBUILD_TESTING=OFF \

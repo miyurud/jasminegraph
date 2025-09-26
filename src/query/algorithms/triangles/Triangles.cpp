@@ -33,79 +33,162 @@ long Triangles::run(JasmineGraphHashMapLocalStore &graphDB, JasmineGraphHashMapC
 long Triangles::run(JasmineGraphHashMapLocalStore &graphDB, JasmineGraphHashMapCentralStore &centralStore,
                     JasmineGraphHashMapDuplicateCentralStore &duplicateCentralStore, std::string graphId,
                     std::string partitionId, int threadPriority) {
-    triangle_logger.info("###TRIANGLE### Triangle Counting: Started");
+    std::cout << "###WORKER-DEBUG### About to call OTEL_TRACE_FUNCTION() for run" << std::endl;
+    OTEL_TRACE_FUNCTION(); 
+    std::cout << "###WORKER-DEBUG### OTEL_TRACE_FUNCTION() called for run" << std::endl;
     
-    map<long, unordered_set<long>> localSubGraphMap = graphDB.getUnderlyingHashMap();
-    map<long, unordered_set<long>> centralDBSubGraphMap = centralStore.getUnderlyingHashMap();
-    map<long, unordered_set<long>> duplicateCentralDBSubGraphMap = duplicateCentralStore.getUnderlyingHashMap();
-    map<long, long> degreeDistribution = graphDB.getOutDegreeDistributionHashMap();
-    map<long, long> centralDBDegreeDistribution = centralStore.getOutDegreeDistributionHashMap();
-    map<long, long> centralDuplicateDBDegreeDistribution = duplicateCentralStore.getOutDegreeDistributionHashMap();
+    // Debug: Check what trace context is active when this function starts
+    std::string currentContext = OpenTelemetryUtil::getCurrentTraceContext();
+    std::string spanInfo = OpenTelemetryUtil::getCurrentSpanInfo();
+    std::cout << "###TRIANGLE-DEBUG### run active trace context: " << currentContext << std::endl;
+    std::cout << "###TRIANGLE-DEBUG### run span info: " << spanInfo << std::endl;
+    
+    // Add worker identification for better tracing
+    std::string workerInfo = "worker_" + graphId + "_partition_" + partitionId;
+    triangle_logger.info("###TRIANGLE### " + workerInfo + " Triangle Counting: Started");
+    
+    // Log current trace context for debugging
+    triangle_logger.info("###TRIANGLE### " + workerInfo + " Worker starting triangle computation");
+    
+    // Declare variables outside of trace scopes so they remain accessible
+    map<long, unordered_set<long>> localSubGraphMap;
+    map<long, unordered_set<long>> centralDBSubGraphMap;
+    map<long, unordered_set<long>> duplicateCentralDBSubGraphMap;
+    map<long, long> degreeDistribution;
+    map<long, long> centralDBDegreeDistribution;
+    map<long, long> centralDuplicateDBDegreeDistribution;
+    
+    // Trace data extraction from stores
+    {
+        ScopedTracer data_extraction("extract_graph_data_" + workerInfo);
+        triangle_logger.info("###TRIANGLE### " + workerInfo + " Starting data extraction");
+        localSubGraphMap = graphDB.getUnderlyingHashMap();
+        centralDBSubGraphMap = centralStore.getUnderlyingHashMap();
+        duplicateCentralDBSubGraphMap = duplicateCentralStore.getUnderlyingHashMap();
+        degreeDistribution = graphDB.getOutDegreeDistributionHashMap();
+        centralDBDegreeDistribution = centralStore.getOutDegreeDistributionHashMap();
+        centralDuplicateDBDegreeDistribution = duplicateCentralStore.getOutDegreeDistributionHashMap();
+        triangle_logger.info("###TRIANGLE### " + workerInfo + " Data extraction completed");
+    }
 
     auto mergeBbegin = std::chrono::high_resolution_clock::now();
 
-    for (auto centralDuplicateDBDegreeDistributionIterator = centralDuplicateDBDegreeDistribution.begin();
-         centralDuplicateDBDegreeDistributionIterator != centralDuplicateDBDegreeDistribution.end();
-         ++centralDuplicateDBDegreeDistributionIterator) {
-        long centralDuplicateDBStartVid = centralDuplicateDBDegreeDistributionIterator->first;
+    // Trace duplicate central store merge
+    {
+        ScopedTracer merge_duplicates("merge_duplicate_central_store_" + workerInfo);
+        triangle_logger.info("###TRIANGLE### " + workerInfo + " Starting duplicate store merge");
+        for (auto centralDuplicateDBDegreeDistributionIterator = centralDuplicateDBDegreeDistribution.begin();
+             centralDuplicateDBDegreeDistributionIterator != centralDuplicateDBDegreeDistribution.end();
+             ++centralDuplicateDBDegreeDistributionIterator) {
+            long centralDuplicateDBStartVid = centralDuplicateDBDegreeDistributionIterator->first;
 
-        unordered_set<long> &centralDBSecondVertexSet = centralDBSubGraphMap[centralDuplicateDBStartVid];
-        const unordered_set<long> &duplicateSecondVertexSet = duplicateCentralDBSubGraphMap[centralDuplicateDBStartVid];
-        unordered_set<long> result;
+            unordered_set<long> &centralDBSecondVertexSet = centralDBSubGraphMap[centralDuplicateDBStartVid];
+            const unordered_set<long> &duplicateSecondVertexSet = duplicateCentralDBSubGraphMap[centralDuplicateDBStartVid];
+            unordered_set<long> result;
 
-        std::set_difference(duplicateSecondVertexSet.begin(), duplicateSecondVertexSet.end(),
-                            centralDBSecondVertexSet.begin(), centralDBSecondVertexSet.end(),
-                            std::inserter(result, result.end()));
+            std::set_difference(duplicateSecondVertexSet.begin(), duplicateSecondVertexSet.end(),
+                                centralDBSecondVertexSet.begin(), centralDBSecondVertexSet.end(),
+                                std::inserter(result, result.end()));
 
-        if (result.size() > 0) {
-            centralDBDegreeDistribution[centralDuplicateDBStartVid] += result.size();
-            centralDBSecondVertexSet.insert(result.begin(), result.end());
+            if (result.size() > 0) {
+                centralDBDegreeDistribution[centralDuplicateDBStartVid] += result.size();
+                centralDBSecondVertexSet.insert(result.begin(), result.end());
+            }
         }
+        triangle_logger.info("###TRIANGLE### " + workerInfo + " Duplicate store merge completed");
     }
 
     // Merging Local Store and Workers central stores before starting triangle count
-    for (auto centralDBDegreeDistributionIterator = centralDBDegreeDistribution.begin();
-         centralDBDegreeDistributionIterator != centralDBDegreeDistribution.end();
-         ++centralDBDegreeDistributionIterator) {
-        long centralDBStartVid = centralDBDegreeDistributionIterator->first;
-        long centralDBDegree = centralDBDegreeDistributionIterator->second;
+    {
+        OTEL_TRACE_OPERATION("merge_stores_data_" + workerInfo);
+        triangle_logger.info("###TRIANGLE### " + workerInfo + " Starting store merge");
+        for (auto centralDBDegreeDistributionIterator = centralDBDegreeDistribution.begin();
+             centralDBDegreeDistributionIterator != centralDBDegreeDistribution.end();
+             ++centralDBDegreeDistributionIterator) {
+            long centralDBStartVid = centralDBDegreeDistributionIterator->first;
+            long centralDBDegree = centralDBDegreeDistributionIterator->second;
 
-        degreeDistribution[centralDBStartVid] += centralDBDegree;
-        localSubGraphMap[centralDBStartVid].insert(centralDBSubGraphMap[centralDBStartVid].begin(),
-                                                   centralDBSubGraphMap[centralDBStartVid].end());
+            degreeDistribution[centralDBStartVid] += centralDBDegree;
+            localSubGraphMap[centralDBStartVid].insert(centralDBSubGraphMap[centralDBStartVid].begin(),
+                                                       centralDBSubGraphMap[centralDBStartVid].end());
+        }
+        triangle_logger.info("###TRIANGLE### " + workerInfo + " Store merge completed");
     }
 
     auto mergeEnd = std::chrono::high_resolution_clock::now();
     auto mergeDur = mergeEnd - mergeBbegin;
     auto mergeMsDuration = std::chrono::duration_cast<std::chrono::milliseconds>(mergeDur).count();
 
-    triangle_logger.info(" Merge time Taken: " + std::to_string(mergeMsDuration) + " milliseconds");
+    triangle_logger.info("###TRIANGLE### " + workerInfo + " Merge time Taken: " + std::to_string(mergeMsDuration) + " milliseconds");
 
-    TriangleResult triangleResult = countTriangles(localSubGraphMap, degreeDistribution, false);
+    // Trace the core triangle counting algorithm
+    TriangleResult triangleResult;
+    {
+        OTEL_TRACE_OPERATION("core_triangle_counting_algorithm_" + workerInfo);
+        triangle_logger.info("###TRIANGLE### " + workerInfo + " Starting countTriangles");
+        triangleResult = countTriangles(localSubGraphMap, degreeDistribution, false);
+        triangle_logger.info("###TRIANGLE### " + workerInfo + " Finished countTriangles with result: " + std::to_string(triangleResult.count));
+    }
+    
+    triangle_logger.info("###TRIANGLE### " + workerInfo + " Triangle Counting: Completed with " + std::to_string(triangleResult.count) + " triangles");
+    
+    // Force flush traces before returning
+    OpenTelemetryUtil::flushTraces();
+    triangle_logger.info("###TRIANGLE### " + workerInfo + " Traces flushed");
+    
     return triangleResult.count;
 }
 
 TriangleResult Triangles::countTriangles(map<long, unordered_set<long>> &centralStore, map<long, long> &distributionMap,
                                          bool returnTriangles) {
+    std::cout << "###WORKER-DEBUG### About to call OTEL_TRACE_FUNCTION() for countTriangles" << std::endl;
+    OTEL_TRACE_FUNCTION();
+    std::cout << "###WORKER-DEBUG### OTEL_TRACE_FUNCTION() called for countTriangles" << std::endl;
+    
+    // Debug: Check what trace context is active when this function starts
+    std::string currentContext = OpenTelemetryUtil::getCurrentTraceContext();
+    std::string spanInfo = OpenTelemetryUtil::getCurrentSpanInfo();
+    std::cout << "###TRIANGLE-DEBUG### countTriangles active trace context: " << currentContext << std::endl;
+    std::cout << "###TRIANGLE-DEBUG### countTriangles span info: " << spanInfo << std::endl;
+    
+    auto start_time = std::chrono::high_resolution_clock::now();
+    triangle_logger.info("###TRIANGLE### countTriangles: Started with " + std::to_string(centralStore.size()) + " vertices and " + std::to_string(distributionMap.size()) + " degree entries");
+    
     std::map<long, std::set<long>> degreeMap;
     std::basic_ostringstream<char> triangleStream;
 
     long startVertexId;
     long degree;
 
-    for (auto it = distributionMap.begin(); it != distributionMap.end(); ++it) {
-        degree = it->second;
-        if (degree == 1) continue;
-        startVertexId = it->first;
-        degreeMap[degree].insert(startVertexId);
+    // Trace degree map creation
+    {
+        OTEL_TRACE_OPERATION("build_degree_map");
+        triangle_logger.info("###TRIANGLE### Building degree map");
+        for (auto it = distributionMap.begin(); it != distributionMap.end(); ++it) {
+            degree = it->second;
+            if (degree == 1) continue;
+            startVertexId = it->first;
+            degreeMap[degree].insert(startVertexId);
+        }
+        triangle_logger.info("###TRIANGLE### Degree map built with " + std::to_string(degreeMap.size()) + " degree levels");
     }
 
     long triangleCount = 0;
     std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> triangleTree;
     // TODO(thevindu-w): Make centralstore undirected and prevent saving triangles in-memory
 
-    for (auto iterator = degreeMap.begin(); iterator != degreeMap.end(); ++iterator) {
-        auto &vertices = iterator->second;
+    // Trace the main triangle detection loop
+    {
+        OTEL_TRACE_OPERATION("triangle_detection_loop");
+        triangle_logger.info("###TRIANGLE### Starting triangle detection loop");
+        
+        for (auto iterator = degreeMap.begin(); iterator != degreeMap.end(); ++iterator) {
+            // Log progress for large degree maps
+            if (degreeMap.size() > 1000 && (iterator->first % 1000 == 0)) {
+                triangle_logger.info("###TRIANGLE### Processing degree level: " + std::to_string(iterator->first));
+            }
+            
+            auto &vertices = iterator->second;
 
             for (auto verticesIterator = vertices.begin(); verticesIterator != vertices.end(); ++verticesIterator) {
             long temp = *verticesIterator;
@@ -165,10 +248,20 @@ TriangleResult Triangles::countTriangles(map<long, unordered_set<long>> &central
                     }
                 }
             }
+            }
         }
+        triangle_logger.info("###TRIANGLE### Triangle detection loop completed. Found " + std::to_string(triangleCount) + " triangles");
+    } // End of triangle_detection_loop trace scope
+    
+    {
+        OTEL_TRACE_OPERATION("cleanup_and_result_preparation");
+        triangle_logger.info("###TRIANGLE### Cleaning up data structures");
+        triangleTree.clear();
     }
 
-    triangleTree.clear();
+    auto end_time = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+    triangle_logger.info("###TRIANGLE### countTriangles: Completed in " + std::to_string(duration) + " ms with " + std::to_string(triangleCount) + " triangles");
 
     TriangleResult result;
     if (returnTriangles) {
@@ -184,3 +277,6 @@ TriangleResult Triangles::countTriangles(map<long, unordered_set<long>> &central
     }
     return result;
 }
+
+
+

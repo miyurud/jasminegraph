@@ -3,7 +3,10 @@ project(JasmineGraph)
 set(CMAKE_CXX_STANDARD 17)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
+# Find packages
 find_package(Threads REQUIRED)
+find_package(Protobuf REQUIRED)
+find_package(CURL REQUIRED)
 
 set(HEADERS globals.h
         src/backend/JasmineGraphBackend.h
