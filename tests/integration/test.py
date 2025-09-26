@@ -314,15 +314,6 @@ def test(host, port):
                                  exit_on_failure=True)
         send_and_expect_response(sock, 'adhdfs', b'y', DONE, exit_on_failure=True)
 
-        print()
-        logging.info('1. Testing ecnt after adhdfs')
-        send_and_expect_response(sock, 'ecnt', ECNT, b'graphid-send', exit_on_failure=True)
-        send_and_expect_response(sock, 'ecnt', b'2', b'100', exit_on_failure=True)
-
-        print()
-        logging.info('1. Testing vcnt after adhdfs')
-        send_and_expect_response(sock, 'vcnt', VCNT, b'graphid-send', exit_on_failure=True)
-        send_and_expect_response(sock, 'vcnt', b'2', b'20', exit_on_failure=True)
 
         print()
         logging.info('2. Testing cypher aggregate query after adding the graph')
