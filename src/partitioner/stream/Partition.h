@@ -16,8 +16,6 @@
 #include <string>
 #include <unordered_set>
 #include <vector>
-#include <atomic>
-#include <mutex>
 
 #ifndef JASMINE_PARTITION
 #define JASMINE_PARTITION
@@ -44,8 +42,7 @@ class Partition {
     int id;
     int numberOfPartitions;  // Size of the cluster TODO: can be removed
 
-    std::atomic<int> vertexCount;
-    mutable std::mutex partitionMutex;  // Mutex for thread-safe operations
+    int vertexCount;
 
  public:
     Partition(int id, int numberOfPartitions) {
@@ -56,48 +53,6 @@ class Partition {
         }
         this->vertexCount = 0;
     };
-
-    // Copy constructor - needed for compatibility
-    Partition(const Partition& other)
-        : edgeList(other.edgeList),
-          edgeCuts(other.edgeCuts),
-          id(other.id),
-          numberOfPartitions(other.numberOfPartitions),
-          vertexCount(other.vertexCount.load()) {
-    }
-
-    // Copy assignment operator
-    Partition& operator=(const Partition& other) {
-        if (this != &other) {
-            edgeList = other.edgeList;
-            edgeCuts = other.edgeCuts;
-            id = other.id;
-            numberOfPartitions = other.numberOfPartitions;
-            vertexCount = other.vertexCount.load();
-        }
-        return *this;
-    }
-
-    // Move constructor
-    Partition(Partition&& other) noexcept
-        : edgeList(std::move(other.edgeList)),
-          edgeCuts(std::move(other.edgeCuts)),
-          id(other.id),
-          numberOfPartitions(other.numberOfPartitions),
-          vertexCount(other.vertexCount.load()) {
-    }
-
-    // Move assignment operator
-    Partition& operator=(Partition&& other) noexcept {
-        if (this != &other) {
-            edgeList = std::move(other.edgeList);
-            edgeCuts = std::move(other.edgeCuts);
-            id = other.id;
-            numberOfPartitions = other.numberOfPartitions;
-            vertexCount = other.vertexCount.load();
-        }
-        return *this;
-    }
     void addEdge(std::pair<std::string, std::string> edge, bool isDirected = false);
     std::set<std::string> getNeighbors(std::string);
     double partitionScore(std::string vertex);
@@ -109,20 +64,13 @@ class Partition {
     template <typename Out>
     static void _split(const std::string &s, char delim, Out result);
     static std::vector<std::string> _split(const std::string &s, char delim);
-    long edgeCutsCount(bool isDirected = true);
+    long edgeCutsCount();
     long getCentralVertexCount(int partitionIndex);
     long getLocalVertexCount();
     void printEdgeCuts();
     void printEdges();
     bool isExist(std::string);
     bool isExistInEdgeCuts(std::string);
-    void incrementVertexCount();
-    void addToEdgeList(std::string vertex);
-    std::mutex& getPartitionMutex() const { return partitionMutex; }  // Getter for mutex
-
- private:
-    bool isExistUnsafe(std::string vertext);  // Unsafe version - assumes caller holds lock
-    bool isExistInEdgeCutsUnsafe(std::string vertext);  // Unsafe version - assumes caller holds lock
 };
 
 #endif

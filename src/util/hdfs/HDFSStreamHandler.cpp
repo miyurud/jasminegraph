@@ -165,18 +165,15 @@ void HDFSStreamHandler::streamFromBufferToProcessingQueueEdgeListGraph(HDFSMulti
                     if (sourceIndex == destIndex) {
                         partitioner.addLocalEdge(edgeObj.dump(), sourceIndex);
                     } else {
-                        // Add edge cut to source partition
+                        // Add both directions for edge cut
                         partitioner.addEdgeCut(edgeObj.dump(), sourceIndex);
 
-                        // For undirected graphs, also add the reverse direction
-                        if (!isDirected) {
                         json reversedObj = {
                             {"source", destination},
                             {"destination", source},
                             {"properties", edgeObj["properties"]}
                         };
                         partitioner.addEdgeCut(reversedObj.dump(), destIndex);
-                        }
                     }
                 } catch (const std::invalid_argument &e) {
                     hdfs_stream_handler_logger.error("Invalid numeric node ID in line: " + line);
@@ -237,17 +234,6 @@ void HDFSStreamHandler::streamFromBufferToProcessingQueuePropertyGraph(HDFSMulti
                         partitioner.addLocalEdge(obj.dump(), sourceIndex);
                     } else {
                         partitioner.addEdgeCut(obj.dump(), sourceIndex);
-
-                        // For undirected graphs, also add the reverse direction
-                        if (!isDirected) {
-                        json reversedObj = {
-                            {"source", destination},
-                            {"destination", source},
-                            {"properties", jsonEdge["properties"]}
-                        };
-
-                        partitioner.addEdgeCut(reversedObj.dump(), destIndex);
-                        }
                     }
                 } else {
                     hdfs_stream_handler_logger.error("Malformed line: missing source/destination ID: " + line);

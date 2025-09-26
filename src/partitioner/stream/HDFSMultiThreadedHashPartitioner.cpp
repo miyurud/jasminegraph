@@ -38,7 +38,7 @@ HDFSMultiThreadedHashPartitioner::HDFSMultiThreadedHashPartitioner(int numberOfP
 
     // Start consumer threads and store them
     for (int i = 0; i < numberOfPartitions; i++) {
-        this->partitions.push_back(std::make_unique<Partition>(i, numberOfPartitions));
+        this->partitions.push_back(Partition(i, numberOfPartitions));
         localEdgeThreads.emplace_back(&HDFSMultiThreadedHashPartitioner::consumeLocalEdges, this, i, workers[i]);
         edgeCutThreads.emplace_back(&HDFSMultiThreadedHashPartitioner::consumeEdgeCuts, this, i, workers[i]);
         Utils::assignPartitionToWorker(graphId, i, workers.at(i).hostname, workers.at(i).port);
@@ -179,7 +179,7 @@ void HDFSMultiThreadedHashPartitioner::consumeLocalEdges(int partitionIndex, Jas
             string destinationId = std::string(jsonEdge["destination"]["id"]);
 
             std::lock_guard<std::mutex> partitionLock(partitionLocks[partitionIndex]);
-            partitions[partitionIndex]->addEdge({sourceId, destinationId}, isDirected);
+            partitions[partitionIndex].addEdge({sourceId, destinationId}, isDirected);
         }
 
         // Reset the flag after processing the current batch of edges
@@ -270,26 +270,9 @@ void HDFSMultiThreadedHashPartitioner::consumeEdgeCuts(int partitionIndex, Jasmi
             string sourceId = std::string(jsonEdge["source"]["id"]);
             string destinationId = std::string(jsonEdge["destination"]["id"]);
 
-            // First, add edge cuts to the current partition
-            {
-                std::lock_guard<std::mutex> partitionLock(partitionLocks[partitionIndex]);
-                partitions[partitionIndex]->addToEdgeCuts(sourceId, destinationId, partitionIndex);
-            }
-
-            int destinationIndex = std::stoi(destinationId) % this->numberOfPartitions;
-            hash_partitioner_logger.debug("Edge cut from " + sourceId + " to " + destinationId +
-                                          " assigned to partition " + std::to_string(partitionIndex));
-
-            // Handle cross-partition vertex synchronization safely
-            if (destinationIndex != partitionIndex) {
-                // Lock only the destination partition for checking and adding vertex
-                std::lock_guard<std::mutex> destPartitionLock(partitionLocks[destinationIndex]);
-                if (!partitions[destinationIndex]->isExist(destinationId)) {
-                    partitions[destinationIndex]->incrementVertexCount();
-                    // Atomically check and add the vertex to avoid race conditions
-                    partitions[destinationIndex]->addToEdgeList(destinationId);
-                }
-            }
+            // Add edge cuts to the partition
+            std::lock_guard<std::mutex> partitionLock(partitionLocks[partitionIndex]);
+            partitions[partitionIndex].addToEdgeCuts(sourceId, destinationId, partitionIndex);
         }
 
         edgeCutsReady[partitionIndex] = false;  // Reset the flag after processing
@@ -303,7 +286,6 @@ void HDFSMultiThreadedHashPartitioner::consumeEdgeCuts(int partitionIndex, Jasmi
 }
 
 void HDFSMultiThreadedHashPartitioner::updatePartitionTable() {
-    std::shared_lock<std::shared_mutex> lock(globalCountMutex);
     auto *sqlite = new SQLiteDBInterface();
     sqlite->init();
 
@@ -314,13 +296,14 @@ void HDFSMultiThreadedHashPartitioner::updatePartitionTable() {
             "edgecount,central_edgecount) VALUES(\"" +
             std::to_string(i) + "\", \"" +
             std::to_string(this->graphId) + "\", \"" +
-            std::to_string(partitions.at(i)->getLocalVertexCount()) + "\",\"" +
-            std::to_string(partitions.at(i)->getCentralVertexCount(i)) + "\",\"" +
-            std::to_string(partitions.at(i)->getEdgesCount(isDirected)) + "\", \"" +
-            std::to_string(partitions.at(i)->edgeCutsCount())+ "\")";
+            std::to_string(partitions.at(i).getLocalVertexCount()) + "\",\"" +
+            std::to_string(partitions.at(i).getCentralVertexCount(i)) + "\",\"" +
+            std::to_string(partitions.at(i).getEdgesCount(isDirected)) + "\", \"" +
+            std::to_string(partitions.at(i).edgeCutsCount())+ "\")";
 
-        std::lock_guard<std::mutex> dbGuard(dbLock);
+        dbLock.lock();
         sqlite->runUpdate(sqlStatement);
+        dbLock.unlock();
     }
 
     sqlite->finalize();
@@ -328,21 +311,19 @@ void HDFSMultiThreadedHashPartitioner::updatePartitionTable() {
 }
 
 long HDFSMultiThreadedHashPartitioner::getVertexCount() {
-    std::shared_lock<std::shared_mutex> lock(globalCountMutex);
     int totalVertices = 0;
     for (auto & partition : this->partitions) {
-        totalVertices += partition->getVertextCount();
+        totalVertices += partition.getVertextCount();
     }
     return totalVertices;
 }
 
 long HDFSMultiThreadedHashPartitioner::getEdgeCount() {
-    std::shared_lock<std::shared_mutex> lock(globalCountMutex);
     int totalEdges = 0;
     int edgeCuts = 0;
     for (auto & partition : this->partitions) {
-        totalEdges += partition->getEdgesCount(isDirected);
-        edgeCuts += partition->edgeCutsCount(isDirected);
+        totalEdges += partition.getEdgesCount(isDirected);
+        edgeCuts += partition.edgeCutsCount();
     }
-    return  totalEdges + edgeCuts;
+    return  totalEdges + edgeCuts / 2;
 }

@@ -24,22 +24,21 @@ Logger streaming_partition_logger;
 
 // This addition is unidirectional , Add both items of the pair as keys
 void Partition::addEdge(std::pair<std::string, std::string> edge, bool isDirected) {
-    std::lock_guard<std::mutex> lock(partitionMutex);
     auto existFirstVertex = this->edgeList.find(edge.first);
     if (existFirstVertex != this->edgeList.end()) {
         this->edgeList[edge.first].insert(edge.second);
     } else {
         this->edgeList[edge.first] = std::set<std::string>({edge.second});
 
-        if (!isExistInEdgeCutsUnsafe(edge.first)) {
-            this->vertexCount.fetch_add(1);
+        if (!isExistInEdgeCuts(edge.first)) {
+            this->vertexCount += 1;
         }
     }
 
     if (isDirected) {
         auto existSecondVertex = this->edgeList.find(edge.second);
-        if (existSecondVertex == this->edgeList.end() && !isExistInEdgeCutsUnsafe(edge.second)) {
-            this->vertexCount.fetch_add(1);
+        if (existSecondVertex == this->edgeList.end() && !isExistInEdgeCuts(edge.second)) {
+            this->vertexCount += 1;
             this->edgeList[edge.second] = std::set<std::string>();
         }
     } else {
@@ -49,15 +48,14 @@ void Partition::addEdge(std::pair<std::string, std::string> edge, bool isDirecte
         } else {
             this->edgeList[edge.second] = std::set<std::string>({edge.first});
 
-            if (!isExistInEdgeCutsUnsafe(edge.second)) {
-                this->vertexCount.fetch_add(1);
+            if (!isExistInEdgeCuts(edge.second)) {
+                this->vertexCount += 1;
             }
         }
     }
 }
 
 std::set<std::string> Partition::getNeighbors(std::string vertex) {
-    std::lock_guard<std::mutex> lock(partitionMutex);
     auto exsist = this->edgeList.find(vertex);
     if (exsist != this->edgeList.end()) {
         return this->edgeList[vertex];
@@ -68,14 +66,12 @@ std::set<std::string> Partition::getNeighbors(std::string vertex) {
 // The number of edges, the cardinality of E, is called the size of graph and denoted by |E|. We usually use m to denote
 // the size of G.
 double Partition::getEdgesCount(bool isDirected) {
-    std::lock_guard<std::mutex> lock(partitionMutex);
     double total = 0;
     std::set<std::string> uniqueEdges;
     for (auto edge : this->edgeList) {
         std::string vertex1 = edge.first;
         for (auto vertext : edge.second) {
-            // Use a delimiter to avoid accidental merging of IDs
-            uniqueEdges.insert(vertex1 + "," + vertext);
+            uniqueEdges.insert(edge.first + vertext);
         }
     }
     if (isDirected) {
@@ -87,7 +83,6 @@ double Partition::getEdgesCount(bool isDirected) {
 // The number of vertices, the cardinality of V, is called the order of graph and devoted by |V|. We usually use n to
 // denote the order of G.
 double Partition::getVertextCount() {
-    std::lock_guard<std::mutex> lock(partitionMutex);
     double edgeListVetices = this->edgeList.size();
     double edgeCutVertices = 0;
     for (size_t i = 0; i < this->numberOfPartitions; i++) {
@@ -101,7 +96,7 @@ double Partition::getVertextCount() {
     return edgeListVetices + edgeCutVertices;
 }
 
-double Partition::getVertextCountQuick() { return this->vertexCount.load(); }
+double Partition::getVertextCountQuick() { return this->vertexCount; }
 
 template <typename Out>
 void Partition::_split(const std::string &s, char delim, Out result) {
@@ -119,10 +114,9 @@ std::vector<std::string> Partition::_split(const std::string &s, char delim) {
 }
 
 void Partition::addToEdgeCuts(std::string resident, std::string foreign, int partitionId) {
-    std::lock_guard<std::mutex> lock(partitionMutex);
     if (partitionId < this->numberOfPartitions) {
-        if (!isExistUnsafe(resident)) {
-            this->vertexCount.fetch_add(1);
+        if (!isExist(resident)) {
+            this->vertexCount += 1;
         }
         auto exsistResidentVertex = this->edgeCuts[partitionId].find(resident);
         if (exsistResidentVertex != this->edgeCuts[partitionId].end()) {
@@ -133,19 +127,14 @@ void Partition::addToEdgeCuts(std::string resident, std::string foreign, int par
     }
 }
 
-long Partition::edgeCutsCount(bool isDirected) {
-    std::lock_guard<std::mutex> lock(partitionMutex);
+long Partition::edgeCutsCount() {
     long total = 0;
     for (auto partition : this->edgeCuts) {
         for (auto edgeCuts : partition) {
             total += edgeCuts.second.size();
         }
     }
-
-    if (isDirected) {
-        return total;
-    }
-    return total / 2;  // For undirected graphs, each edge is counted twice
+    return total;
 }
 
 float Partition::edgeCutsRatio() { return this->edgeCutsCount() / (this->getEdgesCount() + this->edgeCutsCount()); }
@@ -171,14 +160,14 @@ void Partition::printEdges() {
     for (auto edgeList : this->edgeList) {
         bool isFirst = true;
         for (std::string vertext : edgeList.second) {
-            std::string compositeVertextID = edgeList.first + "," + vertext;
+            std::string compositeVertextID = edgeList.first + vertext;
             if (compositeVertextIDs.find(compositeVertextID) == compositeVertextIDs.end()) {
                 if (isFirst) {
                     streaming_partition_logger.debug("edgeList.first " + edgeList.first + " ____");
                     isFirst = false;
                 }
                 streaming_partition_logger.debug("\t| ===> " + vertext);
-                compositeVertextIDs.insert(compositeVertextID);
+                compositeVertextIDs.insert(edgeList.first + vertext);
             }
         }
         streaming_partition_logger.debug("\n");
@@ -186,11 +175,6 @@ void Partition::printEdges() {
 }
 
 bool Partition::isExist(std::string vertext) {
-    std::lock_guard<std::mutex> lock(partitionMutex);
-    return isExistUnsafe(vertext);
-}
-
-bool Partition::isExistUnsafe(std::string vertext) {
     bool inEdgeList = this->edgeList.find(vertext) != this->edgeList.end();
     bool inEdgeCuts = false;
     for (size_t i = 0; i < this->numberOfPartitions; i++) {
@@ -203,11 +187,6 @@ bool Partition::isExistUnsafe(std::string vertext) {
 }
 
 bool Partition::isExistInEdgeCuts(std::string vertext) {
-    std::lock_guard<std::mutex> lock(partitionMutex);
-    return isExistInEdgeCutsUnsafe(vertext);
-}
-
-bool Partition::isExistInEdgeCutsUnsafe(std::string vertext) {
     bool inEdgeCuts = false;
     for (size_t i = 0; i < this->numberOfPartitions; i++) {
         if (this->edgeCuts[i].find(vertext) != this->edgeCuts[i].end()) {
@@ -219,7 +198,6 @@ bool Partition::isExistInEdgeCutsUnsafe(std::string vertext) {
 }
 
 long Partition::getCentralVertexCount(int partitionIndex) {
-    std::lock_guard<std::mutex> lock(partitionMutex);
     long edgeCutVertices = 0;
     for (auto edge : this->edgeCuts[partitionIndex]) {
         bool isExistInEdgeList = this->edgeList.find(edge.first) != this->edgeList.end();
@@ -231,19 +209,8 @@ long Partition::getCentralVertexCount(int partitionIndex) {
 }
 
 long Partition::getLocalVertexCount() {
-    std::lock_guard<std::mutex> lock(partitionMutex);
     return static_cast<long>(edgeList.size());
 }
 
-void Partition::incrementVertexCount() {
-    this->vertexCount.fetch_add(1);
-}
 
-void Partition::addToEdgeList(std::string vertex) {
-    std::lock_guard<std::mutex> lock(partitionMutex);
-    auto existVertex = this->edgeList.find(vertex);
-    if (existVertex == this->edgeList.end()) {
-        this->edgeList[vertex] = std::set<std::string>();
-    }
-}
 
