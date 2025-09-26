@@ -294,16 +294,6 @@ def test(host, port):
                                  exit_on_failure=True)
 
         print()
-        logging.info('1. Testing ecnt after adhdfs')
-        send_and_expect_response(sock, 'ecnt', ECNT, b'graphid-send', exit_on_failure=True)
-        send_and_expect_response(sock, 'ecnt', b'1', b'6594', exit_on_failure=True)
-
-        print()
-        logging.info('1. Testing vcnt after adhdfs')
-        send_and_expect_response(sock, 'vcnt', VCNT, b'graphid-send', exit_on_failure=True)
-        send_and_expect_response(sock, 'vcnt', b'1', b'4941', exit_on_failure=True)
-
-        print()
         logging.info('Testing adhdfs for custom graph with properties')
         send_and_expect_response(sock, 'adhdfs', ADHDFS,
                                  b'Do you want to use the default HDFS server(y/n)?',
@@ -323,6 +313,16 @@ def test(host, port):
                                  b'Is this a directed graph(y/n)?',
                                  exit_on_failure=True)
         send_and_expect_response(sock, 'adhdfs', b'y', DONE, exit_on_failure=True)
+
+        print()
+        logging.info('1. Testing ecnt after adhdfs')
+        send_and_expect_response(sock, 'ecnt', ECNT, b'graphid-send', exit_on_failure=True)
+        send_and_expect_response(sock, 'ecnt', b'2', b'100', exit_on_failure=True)
+
+        print()
+        logging.info('1. Testing vcnt after adhdfs')
+        send_and_expect_response(sock, 'vcnt', VCNT, b'graphid-send', exit_on_failure=True)
+        send_and_expect_response(sock, 'vcnt', b'2', b'20', exit_on_failure=True)
 
         print()
         logging.info('2. Testing cypher aggregate query after adding the graph')
@@ -583,6 +583,10 @@ def test(host, port):
         logging.info('Testing rmgr after adhdfs')
         send_and_expect_response(sock, 'rmgr', RMGR, SEND, exit_on_failure=True)
         send_and_expect_response(sock, 'rmgr', b'2', DONE, exit_on_failure=True)
+        send_and_expect_response(sock, 'rmgr', RMGR, SEND, exit_on_failure=True)
+        send_and_expect_response(sock, 'rmgr', b'3', DONE, exit_on_failure=True)
+        send_and_expect_response(sock, 'rmgr', RMGR, SEND, exit_on_failure=True)
+        send_and_expect_response(sock, 'rmgr', b'4', DONE, exit_on_failure=True)
 
         # shutting down workers after testing
         print()
