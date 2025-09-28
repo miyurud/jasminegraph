@@ -24,6 +24,9 @@ private:
         SharedBuffer* buffer;
         std::string current_tuple; // persist partial tuple here
         bool isSuccess;
+        int braceDepth =0 ;
+        int bracketDepth =0 ;
+
 
 
     };

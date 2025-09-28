@@ -3222,6 +3222,7 @@ static void streaming_kg_construction ( int connFd, int serverPort, std::map<std
         return;
 
     }
+    *loop_exit_p =true;
 
     close(connFd);
 
@@ -3242,7 +3243,7 @@ static void streaming_tuple_extraction(int connFd, int serverPort,
     Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK);
 
     // 3. Expect LLM runner hostname and port
-    std::string llmHost = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    std::string llmHost = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_LONG_DATA_LENGTH);
     Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK);
 
     std::string llm = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
@@ -3258,13 +3259,14 @@ static void streaming_tuple_extraction(int connFd, int serverPort,
     // std::string llmHost = llmHostPort.substr(0, pos);
     // int llmPort = std::stoi(llmHostPort.substr(pos + 1));
     instance_logger.info("LLM Host: " + llmHost );
-        // OllamaTupleStreamer streamer("llama3", llmHost);
+    instance_logger.info("LLM : " + llm );
+        OllamaTupleStreamer streamer(llm, llmHost);
   // VLLMTupleStreamer streamer("meta-llama/Llama-3.2-3B-Instruct", llmHost);
 
     // // VLLMTupleStreamer streamer("numind/NuExtract-2.0-4B", llmHost);
     // VLLMTupleStreamer streamer("meta-llama/Meta-Llama-3-8B", llmHost);
     // VLLMTupleStreamer streamer("SciPhi/Triplex", llmHost);
-    VLLMTupleStreamer streamer(llm, llmHost);
+    // VLLMTupleStreamer streamer(llm, llmHost);
 
 
 
@@ -3308,7 +3310,7 @@ static void streaming_tuple_extraction(int connFd, int serverPort,
 
        };
        instance_logger.info("3200");
-         int idleTimeoutSec = 60; // e.g., break if no tuple for 30s
+         int idleTimeoutSec = 240; // e.g., break if no tuple for 30s
 
         while (true) {
             auto optTupleData = tupleBuffer.getWithTimeout(idleTimeoutSec);
@@ -3335,7 +3337,7 @@ static void streaming_tuple_extraction(int connFd, int serverPort,
                 break;
             }
 
-            instance_logger.info("3208 : " + tupleData);
+            // instance_logger.debug("3208 : " + tupleData);
             Utils::send_str_wrapper(connFd, tupleData);
             Utils::expect_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS);
 

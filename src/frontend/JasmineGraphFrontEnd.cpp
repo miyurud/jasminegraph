@@ -460,11 +460,19 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
             *loop_exit_p = true;
         }
     }
+    int result_wr = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
+    result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+                        Conts::CARRIAGE_RETURN_NEW_LINE.size());
+}
+
+void* frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface* sqlite,
+    PerformanceSQLiteDBInterface* perfSqlite, JobScheduler* jobScheduler)
+{
 }
 
 static void cypherCommand(std::string masterIP, int connFd, vector<DataPublisher *> &workerClients,
-    int numberOfPartitions, bool *loop_exit,  SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfSqlite,
-    JobScheduler *jobScheduler) {
+                          int numberOfPartitions, bool *loop_exit,  SQLiteDBInterface *sqlite, PerformanceSQLiteDBInterface *perfSqlite,
+                          JobScheduler *jobScheduler) {
 
     string graphId = "Graph ID:";
     int result_wr = write(connFd, graphId.c_str(), graphId.length());
@@ -1890,8 +1898,8 @@ void constructKGStreamHDFSCommand(std::string masterIP, int connFd, std::string 
     hostnamePortS = Utils::trim_copy(hostnamePortS);
 
     std::string LLM;
-    std::string llm_msg = "What is the LLM you want to use?";
-    resultWr = write(connFd, llm_msg.c_str(), message1.length());
+    std::string llm_msg = "What is the LLM you want to use?:";
+    resultWr = write(connFd, llm_msg.c_str(), llm_msg.length());
     if (resultWr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -1904,19 +1912,21 @@ void constructKGStreamHDFSCommand(std::string masterIP, int connFd, std::string 
         return;
     }
 
+
     char llm[FRONTEND_DATA_LENGTH + 1];
-    bzero(userRes, FRONTEND_DATA_LENGTH + 1);
+    bzero(llm, FRONTEND_DATA_LENGTH + 1);
     read(connFd, llm, FRONTEND_DATA_LENGTH);
-    std::string llmS(userRes);
-    userResS = Utils::trim_copy(userResS);
+    std::string llmS(llm);
+    llmS = Utils::trim_copy(llmS);
 
     frontend_logger.info("Created graph ID: " + std::to_string(newGraphID));
-    JasmineGraphServer::worker designatedWorker = JasmineGraphServer::getDesignatedWorker();
-    // JasmineGraphServer::worker designatedWorker ;
-    // designatedWorker.hostname = "192.168.1.7";
-    // designatedWorker.port =  7790;
-    // designatedWorker.dataPort = 7791;
-
+    // JasmineGraphServer::worker designatedWorker = JasmineGraphServer::getDesignatedWorker();
+    JasmineGraphServer::worker designatedWorker ;
+    designatedWorker.hostname = "192.168.1.7";
+    // designatedWorker.port =  7818; // 20 workers
+    // designatedWorker.dataPort = 7819;
+    designatedWorker.port =  7780;
+    designatedWorker.dataPort = 7781;
 
     if (!Pipeline::streamGraphToDesignatedWorker(designatedWorker.hostname,
                                                  designatedWorker.port,
@@ -1937,7 +1947,11 @@ void constructKGStreamHDFSCommand(std::string masterIP, int connFd, std::string 
     //                                                          newGraphID, sqlite, masterIP, true);
     // frontend_logger.info("Started listening to " + hdfsFilePathS);
     // inputStreamHandlerThread = std::thread(&Pipeline::startStreamingFromBufferToPartitions, streamHandler);
-    inputStreamHandlerThread.join();
+    // if (inputStreamHandlerThread.joinable())
+    // {
+    //     inputStreamHandlerThread.join();
+    // }
+    //
 
     std::string uploadEndTime = ctime(&time);
     std::string sqlStatementUpdateEndTime =

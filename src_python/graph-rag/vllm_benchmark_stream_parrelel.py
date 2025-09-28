@@ -4,7 +4,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 VLLM_URL = "http://192.168.1.7:6578/v1/completions"
-MODEL = "numind/NuExtract-2.0-4B"  # Adjust as needed
+MODEL = "RedHatAI/Meta-Llama-3.1-8B-Instruct-FP8"  # Adjust as needed
 
 def run_request(prompt, max_tokens=3000):
     start = time.time()
@@ -128,27 +128,20 @@ It was launched in Hyderabad in March 2006, in Chennai on 7 July 2006 and in Vis
 Radio City recently forayed into New Media in May 2008 with the launch of a music portal - PlanetRadiocity.com that offers music related news, videos, songs, and other music-related features.
 The Radio station currently plays a mix of Hindi and Regional music.
 Abraham Thomas is the CEO of the company.
-Football in Albania existed before the Albanian Football Federation (FSHF) was created.
-This was evidenced by the team's registration at the Balkan Cup tournament during 1929-1931, which started in 1929.
-Albanian National Team was founded on June 6, 1930, but Albania had to wait 16 years to play its first international match and then defeated Yugoslavia in 1946.
-In 1932, Albania joined FIFA (during the 12–16 June convention ) and in 1954 it was one of the founding members of UEFA.
-Echosmith is an American corporate indie pop band formed in February 2009 in Chino, California.
-Originally formed as a quartet of siblings, the band currently consists of Sydney, Noah and Graham Sierota, following the departure of eldest sibling Jamie in late 2016.
-Echosmith started first as "Ready Set Go!" until they signed to Warner Bros. Records in May 2012.
-They are best known for their hit song "Cool Kids", which reached number 13 on the Billboard Hot 100 and was certified double platinum by the RIAA in the United States and by ARIA in Australia.
+
 \n\nJSON objects:\n
 """
-    prompts = [prompt] * 16  # Example: run 3 concurrent requests
+    prompts = [prompt] * 4  # Example: run 3 concurrent requests
 
     start_all = time.time()
-    with ThreadPoolExecutor(max_workers=16) as executor:
+    with ThreadPoolExecutor(max_workers=4) as executor:
         futures = [executor.submit(run_request, p) for p in prompts]
 
         for i, f in enumerate(as_completed(futures), 1):
             result = f.result()
-            print(f"\n--- Response {i} ---")
-            for chunk in result["outputs"]:
-                print(chunk)
-            print(f"\nElapsed: {result['elapsed']:.2f}s, Tokens≈{result['tokens']}")
+            # print(f"\n--- Response {i} ---")
+            # for chunk in result["outputs"]:
+            #     # print(chunk)
+            # print(f"\nElapsed: {result['elapsed']:.2f}s, Tokens≈{result['tokens']}")
 
     print(f"\nTotal elapsed (all concurrent): {time.time() - start_all:.2f}s")

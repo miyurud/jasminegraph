@@ -28,7 +28,7 @@ Logger kg_pipeline_stream_handler_logger;
 
 const size_t MESSAGE_SIZE = 5 * 1024 * 1024;
 const size_t MAX_BUFFER_SIZE = MESSAGE_SIZE * 512;
-const size_t CHUNCK_BYTE_SIZE = 1024*2; // 1 MB chunks
+const size_t CHUNCK_BYTE_SIZE = 1024*5; // 1 kB chunks
 const size_t OVERLAP_BYTES = 100; // bytes to overlap between chunks to avoid splitting lines
 
 // const size_t CHUNCK_BYTE_SIZE = 100;
@@ -170,7 +170,12 @@ void Pipeline::streamFromHDFSIntoBuffer() {
     {
         kg_pipeline_stream_handler_logger.info("Pushing END_OF_STREAM_MARKER to dataBuffer");
         std::unique_lock<std::mutex> lock(dataBufferMutex);
-        dataBuffer.push(END_OF_STREAM_MARKER);
+// close all workers
+        for (  auto worker : workerList)
+        {
+            dataBuffer.push(END_OF_STREAM_MARKER);
+
+        }
         lock.unlock();
     }
 
@@ -205,8 +210,20 @@ void Pipeline::startStreamingFromBufferToWorkers()
             std::ref(dataBuffer), std::ref(*bufferPool[count]));
         count++;
     }
+
+
+
     processTupleAndSaveInPartition(bufferPool);
+
+
+
     readerThread.join();
+
+    for (auto &worker : workerThreads)
+    {
+        worker.join();
+    }
+    isProcessing= false;
 
 
     auto endTime = high_resolution_clock::now();
@@ -233,7 +250,7 @@ void Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
                     // Check for end-of-stream marker
                     if (line == END_OF_STREAM_MARKER) {
                         kg_pipeline_stream_handler_logger.debug("Received end-of-stream marker in thread " + std::to_string(i));
-                        isProcessing = false;
+                        // isProcessing = false;
                         break;
                     }
                     try {
@@ -266,7 +283,7 @@ void Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
                                 //     {"destination", source},
                                 //     {"properties", jsonEdge["properties"]}
                                 // };
-                                kg_pipeline_stream_handler_logger.debug("Thread " + std::to_string(i) + " adding reversed edge cut to partition " + std::to_string(destIndex));
+                                // kg_pipeline_stream_handler_logger.debug("Thread " + std::to_string(i) + " adding reversed edge cut to partition " + std::to_string(destIndex));
                                 // partitioner.addEdgeCut(reversedObj.dump(), destIndex);
                             }
                         } else {
@@ -281,10 +298,11 @@ void Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
                     } catch (const std::exception &e) {
                         kg_pipeline_stream_handler_logger.error("Unexpected exception in line: " + std::string(e.what()));
                     }
-                } else if (!isReading) {
-                    kg_pipeline_stream_handler_logger.info("Thread " + std::to_string(i) + " exiting due to isReading=false");
-                    break;
                 }
+                // else if (!isReading) {
+                //     kg_pipeline_stream_handler_logger.info("Thread " + std::to_string(i) + " exiting due to isReading=false");
+                //     break;
+                // }
             }
             kg_pipeline_stream_handler_logger.info("Tuple thread finished for partition " + std::to_string(i));
         });
@@ -418,6 +436,7 @@ void Pipeline::extractTuples(std::string host, int port, std::string masterIP,
             }
             Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
             kg_pipeline_stream_handler_logger.info("Closed connection for partitionId: " + std::to_string(partitionId));
+            sharedBuffer.add(END_OF_STREAM_MARKER);
             close(sockfd);
             break; // Exit loop if end of stream marker is received
         }
@@ -456,42 +475,69 @@ void Pipeline::extractTuples(std::string host, int port, std::string masterIP,
         }
         Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::OK);
 
-        while (true)
-        {
+        while (true) {
+            int tuple_length_net;
+            ssize_t ret = recv(sockfd, &tuple_length_net, sizeof(int), 0);
+            if (ret <= 0) {
+                kg_pipeline_stream_handler_logger.error("Failed to receive tuple length, closing stream");
+                break;
+            }
 
-            // if ( Utils::expect_str_wrapper(sockfd, JasmineGraphInstanceProtocol::GRAPH_STREAM_END_OF_EDGE)) {
-            //     kg_pipeline_stream_handler_logger.error("End of tuple stream");
-            //     break;
-            // }
-            int tuple_length;
-            recv(sockfd, &tuple_length, sizeof(int), 0);
-            tuple_length = ntohl(tuple_length);
-            kg_pipeline_stream_handler_logger.info("Received tuple length: " + std::to_string(tuple_length) +"from: "+ std::to_string(partitionId));
+            int tuple_length = ntohl(tuple_length_net);
+
+            // ✅ Sanity checks
+            if (tuple_length <= 0 || tuple_length > 10 * 1024 * 1024) { // limit to 10MB
+                kg_pipeline_stream_handler_logger.error("Invalid tuple length: " + std::to_string(tuple_length));
+                break;
+            }
+
+            kg_pipeline_stream_handler_logger.info("Received tuple length: " +
+                                                   std::to_string(tuple_length) +
+                                                   " from: " + std::to_string(partitionId));
             Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK);
-
-            // std::string tuple(tuple_length, 0);
-            // recv(sockfd, &tuple[0], tuple_length, 0);
-            // kg_pipeline_stream_handler_logger.info("Received tuple data");
 
             std::string tuple(tuple_length, 0);
             size_t received = 0;
-            while (received < tuple_length) {
-                ssize_t ret = recv(sockfd, &tuple[received], tuple_length - received, 0);
+            while (received < static_cast<size_t>(tuple_length)) {
+                ret = recv(sockfd, &tuple[received], tuple_length - received, 0);
                 if (ret <= 0) {
-                    kg_pipeline_stream_handler_logger.error("Error receiving request string");
+                    kg_pipeline_stream_handler_logger.error("Error receiving tuple data");
                     break;
                 }
                 received += ret;
             }
 
+            if (received != static_cast<size_t>(tuple_length)) {
+                kg_pipeline_stream_handler_logger.error("Incomplete tuple received, expected " +
+                                                        std::to_string(tuple_length) + " but got " +
+                                                        std::to_string(received));
+                break;
+            }
+
             Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS);
+
             if (tuple == END_OF_STREAM_MARKER) {
                 kg_pipeline_stream_handler_logger.info("Received end of tuple stream marker");
                 break;
             }
-            kg_pipeline_stream_handler_logger.info(tuple);
+
+            // ✅ Check for non-UTF8 safely
+            if (!std::regex_search(tuple, std::regex(R"([^\x20-\x7E])"))) {
+                // Log only if it looks printable ASCII
+                kg_pipeline_stream_handler_logger.info("Tuple: " + tuple);
+            } else {
+                // Hex dump instead of logging raw binary
+                std::ostringstream hexStream;
+                for (unsigned char c : tuple) {
+                    hexStream << std::hex << std::setw(2) << std::setfill('0') << (int)c;
+                }
+                kg_pipeline_stream_handler_logger.error("Tuple contains non-printable data (hex): " +
+                                                        hexStream.str());
+            }
+
             sharedBuffer.add(tuple);
         }
+
     }
 
     kg_pipeline_stream_handler_logger.info("Closing connection for partitionId: " + std::to_string(partitionId));

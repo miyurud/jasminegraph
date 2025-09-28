@@ -152,7 +152,7 @@ size_t VLLMTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb, v
                         if (ctx->braceDepth == 0) {
                             try {
                                 ctx->buffer->add(ctx->current_tuple);
-                                vllm_tuple_streamer_logger.info("✅ Adding complete tuple: " + ctx->current_tuple);
+                                // vllm_tuple_streamer_logger.info("✅ Adding complete tuple: " + ctx->current_tuple);
                             } catch (const std::exception& ex) {
                                 vllm_tuple_streamer_logger.error("❌ JSON parse failed: " + std::string(ex.what()));
                             }
@@ -203,93 +203,114 @@ void VLLMTupleStreamer::streamChunk(const std::string& chunkKey,
         json j;
         j["model"] = model;
 
-        j["prompt"]  =
-    "You are an expert information extractor specialized in knowledge graph construction.\n"
-    "Extract all subject-predicate-object triples from the following text.\n"
-    "Output each triple as a JSON object separated by #.\n"
-    "Use this format:\n"
-     "  {\n"
-     "    \"source\": {\n"
-     "      \"id\": \"<unique_node_id>\",\n"
-     "      \"properties\": {\n"
-     "        \"id\": \"<unique_node_id>\",\n"
-     "        \"label\": \"<EntityType>\",\n"
-     "        \"name\": \"<EntityName>\"\n"
-     "      }\n"
-     "    },\n"
-     "    \"destination\": {\n"
-     "      \"id\": \"<unique_node_id>\",\n"
-     "      \"properties\": {\n"
-     "        \"id\": \"<unique_node_id>\",\n"
-     "        \"label\": \"<EntityType>\",\n"
-     "        \"name\": \"<EntityName>\"\n"
-     "      }\n"
-     "    },\n"
-     "    \"properties\": {\n"
-     "      \"id\": \"<unique_relationship_id>\",\n"
-     "      \"type\": \"<Predicate>\",\n"
-     "      \"description\": \"<Human-readable description of the triple>\"\n"
-     "    }\n"
-     "  }\n"
-    "Instructions:\n"
-     "- Output must be pure JSON objects separated by #.\n"
-     "- Use consistent and unique IDs (concatenate label + name in lowercase with underscores).\n"
-     "- Populate all fields accurately, including labels and descriptions.\n"
-     "- Extract as many meaningful triples as possible.\n\n"
-    "Example:\n"
-    "Text: 'Barack Obama was born in Honolulu on August 4, 1961. He served as the 44th President of the United States.'\n\n"
-    "JSON objects:\n"
-    "{\n"
-    "  \"source\": {\n"
-    "    \"id\": \"person_barack_obama\",\n"
-    "    \"properties\": {\n"
-    "      \"id\": \"person_barack_obama\",\n"
-    "      \"label\": \"Person\",\n"
-    "      \"name\": \"Barack Obama\"\n"
-    "    }\n"
-    "  },\n"
-    "  \"destination\": {\n"
-    "    \"id\": \"location_honolulu\",\n"
-    "    \"properties\": {\n"
-    "      \"id\": \"location_honolulu\",\n"
-    "      \"label\": \"Location\",\n"
-    "      \"name\": \"Honolulu\"\n"
-    "    }\n"
-    "  },\n"
-    "  \"properties\": {\n"
-    "    \"id\": \"relationship_barack_obama_born_in_honolulu\",\n"
-    "    \"type\": \"born_in\",\n"
-    "    \"description\": \"Barack Obama was born in Honolulu on August 4, 1961\"\n"
-    "  }\n"
-    "}\n"
-    "#\n"
-    "{\n"
-    "  \"source\": {\n"
-    "    \"id\": \"person_barack_obama\",\n"
-    "    \"properties\": {\n"
-    "      \"id\": \"person_barack_obama\",\n"
-    "      \"label\": \"Person\",\n"
-    "      \"name\": \"Barack Obama\"\n"
-    "    }\n"
-    "  },\n"
-    "  \"destination\": {\n"
-    "    \"id\": \"organization_united_states\",\n"
-    "    \"properties\": {\n"
-    "      \"id\": \"organization_united_states\",\n"
-    "      \"label\": \"Organization\",\n"
-    "      \"name\": \"United States\"\n"
-    "    }\n"
-    "  },\n"
-    "  \"properties\": {\n"
-    "    \"id\": \"relationship_barack_obama_president_of_united_states\",\n"
-    "    \"type\": \"president_of\",\n"
-    "    \"description\": \"Barack Obama served as the 44th President of the United States\"\n"
-    "  }\n"
-    "}\n\n"
-    "Now process the following text:\n" + chunkText + ".\n\nJSON objects:\n";
+    //     j["prompt"]  =
+    // "You are an expert information extractor specialized in knowledge graph construction.\n"
+    // "Extract all subject-predicate-object triples from the following text.\n"
+    // "Output each triple as a JSON object separated by #.\n"
+    // "Instructions:\n"
+    //  "- Output must be pure JSON objects separated by #.\n"
+    //  "- Use consistent and unique IDs (concatenate label + name in lowercase with underscores).\n"
+    //  "- Populate all fields accurately, including labels and descriptions.\n"
+    //     "- Omit extracting tuples for sentences containing pronouns whose references cannot be found.\n"
+    //  "- Extract as many meaningful triples as possible.\n\n"
+    // "Example:\n"
+    // "Text: 'Barack Obama was born in Honolulu on August 4, 1961. He served as the 44th President of the United States.'\n\n"
+    // "JSON objects:\n"
+    // "{\n"
+    // "  \"source\": {\n"
+    // "    \"id\": \"person_barack_obama\",\n"
+    // "    \"properties\": {\n"
+    // "      \"id\": \"person_barack_obama\",\n"
+    // "      \"label\": \"Person\",\n"
+    // "      \"name\": \"Barack Obama\"\n"
+    // "    }\n"
+    // "  },\n"
+    // "  \"destination\": {\n"
+    // "    \"id\": \"location_honolulu\",\n"
+    // "    \"properties\": {\n"
+    // "      \"id\": \"location_honolulu\",\n"
+    // "      \"label\": \"Location\",\n"
+    // "      \"name\": \"Honolulu\"\n"
+    // "    }\n"
+    // "  },\n"
+    // "  \"properties\": {\n"
+    // "    \"id\": \"relationship_barack_obama_born_in_honolulu\",\n"
+    // "    \"type\": \"born_in\",\n"
+    // "    \"description\": \"Barack Obama was born in Honolulu on August 4, 1961\"\n"
+    // "  }\n"
+    // "}\n"
+    // "#\n"
+    // "{\n"
+    // "  \"source\": {\n"
+    // "    \"id\": \"person_barack_obama\",\n"
+    // "    \"properties\": {\n"
+    // "      \"id\": \"person_barack_obama\",\n"
+    // "      \"label\": \"Person\",\n"
+    // "      \"name\": \"Barack Obama\"\n"
+    // "    }\n"
+    // "  },\n"
+    // "  \"destination\": {\n"
+    // "    \"id\": \"organization_united_states\",\n"
+    // "    \"properties\": {\n"
+    // "      \"id\": \"organization_united_states\",\n"
+    // "      \"label\": \"Organization\",\n"
+    // "      \"name\": \"United States\"\n"
+    // "    }\n"
+    // "  },\n"
+    // "  \"properties\": {\n"
+    // "    \"id\": \"relationship_barack_obama_president_of_united_states\",\n"
+    // "    \"type\": \"president_of\",\n"
+    // "    \"description\": \"Barack Obama served as the 44th President of the United States\"\n"
+    // "  }\n"
+    // "}\n\n"
+    // "Now process the following text:\n" + chunkText + ".\n\nJSON objects:\n";
+    j["prompt"]  =
+              R"(You are an expert information extractor specialized in knowledge graph construction.
+        Your task is to extract all subject–predicate–object triples from the given text and output them in a strict JSON format.
 
+        Instructions:
+
+        - Each JSON object must have exactly three sections: "source", "destination", and "properties".
+        - Use consistent and unique IDs: concatenate entity type + entity name in lowercase with underscores (e.g., person_barack_obama).
+        - Use Wikidata-style entity labels for "label" fields (e.g., Person, Location, Organization, Event).
+        - Use Wikidata relation types for "type" (e.g., born_in, educated_at, member_of, spouse, president_of).
+        - "description" must be a faithful short sentence or phrase directly derived from the text.
+        - Omit extracting triples if the subject or object is an ambiguous pronoun (he, she, it, they) with no clear reference.
+        - Extract as many meaningful, non-duplicate triples as possible.
+        - Ensure that every triple is factual and derived explicitly from the text.
+
+        Use this format:
+        {
+          "source": {
+            "id": "<unique_node_id>",
+            "properties": {
+              "id": "<unique_node_id>",
+              "label": "<EntityType>",
+              "name": "<EntityName>"
+            }
+          },
+          "destination": {
+            "id": "<unique_node_id>",
+            "properties": {
+              "id": "<unique_node_id>",
+              "label": "<EntityType>",
+              "name": "<EntityName>"
+            }
+          },
+          "properties": {
+            "id": "<unique_relationship_id>",
+            "type": "<Predicate>",
+            "description": "<Human-readable description of the triple>"
+          }
+        }
+
+        Now process the following text:
+        )" + chunkText + R"(
+
+        JSON objects:
+        )";
         j["stream"] = true;
-        j["max_tokens"] = 3000;
+        j["max_tokens"] = 10000;
 
         std::string postFields = j.dump();
         curl_easy_setopt(curl, CURLOPT_POSTFIELDS, postFields.c_str());
@@ -442,7 +463,7 @@ void VLLMTupleStreamer::processChunk(
     "}\n\n"
     "Now process the following text:\n" + chunkText + ".\n\nJSON objects:\n";
         j["stream"] = false; // non-streaming
-        j["max_tokens"] = 3000;
+        j["max_tokens"] = 24000;
 
         std::string postFields = j.dump();
         curl_easy_setopt(curl, CURLOPT_POSTFIELDS, postFields.c_str());

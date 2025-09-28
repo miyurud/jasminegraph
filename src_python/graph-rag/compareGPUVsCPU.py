@@ -5,7 +5,10 @@ import json
 # ---------------------------------------------------
 # Configuration
 # ---------------------------------------------------
-model_name = "llama3"  # Change to your model
+# model_name = "llama3"  # Change to your model
+model_name = "gemma3:12b"  # Change to your model
+
+
 prompt = """You are an expert information extractor specialized in knowledge graph construction. 
 Extract all subject-predicate-object triples from the following text. 
 
@@ -97,25 +100,11 @@ JSON objects:
 
 Now process the following text:
 
-Radio City is India's first private FM radio station and was started on 3 July 2001.
-It broadcasts on 91.1 (earlier 91.0 in most cities) megahertz from Mumbai (where it was started in 2004), Bengaluru (started first in 2001), Lucknow and New Delhi (since 2003).
-It plays Hindi, English and regional songs.
-It was launched in Hyderabad in March 2006, in Chennai on 7 July 2006 and in Visakhapatnam October 2007.
-Radio City recently forayed into New Media in May 2008 with the launch of a music portal - PlanetRadiocity.com that offers music related news, videos, songs, and other music-related features.
-The Radio station currently plays a mix of Hindi and Regional music.
-Abraham Thomas is the CEO of the company.
-Football in Albania existed before the Albanian Football Federation (FSHF) was created.
-This was evidenced by the team's registration at the Balkan Cup tournament during 1929-1931, which started in 1929.
-Albanian National Team was founded on June 6, 1930, but Albania had to wait 16 years to play its first international match and then defeated Yugoslavia in 1946.
-In 1932, Albania joined FIFA (during the 12–16 June convention ) and in 1954 it was one of the founding members of UEFA.
-Echosmith is an American corporate indie pop band formed in February 2009 in Chino, California.
-Originally formed as a quartet of siblings, the band currently consists of Sydney, Noah and Graham Sierota, following the departure of eldest sibling Jamie in late 2016.
-Echosmith started first as "Ready Set Go!" until they signed to Warner Bros. Records in May 2012.
-They are best known for their hit song "Cool Kids", which reached number 13 on the Billboard Hot 100 and was certified double platinum by the RIAA in the United States and by ARIA in Australia.
+The Ellerbusch Site ( 12-W-56 ) is a small but significant archaeological site in the southwestern part of the U.S. state of Indiana .\nUnlike many sites created by people of the same culture , it occupies an upland site near a major river floodplain .\nIts existence appears to have been the result of the coincidence of periods of peace and growth in the related Angel Site , which led some townspeople to leave their homes for new villages that were more convenient for resource gathering .\nResearched partly because of its small size , Ellerbusch has produced information that greatly increases present awareness of other small sites and of its culture 's overall patterns of settlement in the region 
 """
 
 # Ollama endpoints
-OLLAMA_URL = "http://10.10.14.108:11448/api/generate"
+OLLAMA_URL = "http://192.168.1.7:11440/api/generate"
 
 # ---------------------------------------------------
 # Helper function to run inference
@@ -151,14 +140,17 @@ def run_inference(use_gpu=True):
 # Benchmark GPU
 # ---------------------------------------------------
 print("\nRunning on GPU...")
+run_inference(use_gpu=True)
+# print(f"GPU Latency: {gpu_latency:.2f} seconds")
+print("\nRunning on GPU...")
 gpu_output, gpu_latency = run_inference(use_gpu=True)
 print(f"GPU Latency: {gpu_latency:.2f} seconds")
-
 # -----------------------------
 # ---------------------------------------------------
 # Benchmark CPU
 # ---------------------------------------------------
 print("Running on CPU...")
+run_inference(use_gpu=False)
 cpu_output, cpu_latency = run_inference(use_gpu=False)
 print(f"CPU Latency: {cpu_latency:.2f} seconds")
 
@@ -166,6 +158,6 @@ print(f"CPU Latency: {cpu_latency:.2f} seconds")
 # Results
 # ---------------------------------------------------
 print("\n--- Comparison ---")
-print(f"CPU: {cpu_latency:.2f} s")
+# print(f"CPU: {cpu_latency:.2f} s")
 print(f"GPU: {gpu_latency:.2f} s")
 print("\nSample Output (GPU):", gpu_output, "...")

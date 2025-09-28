@@ -59,8 +59,12 @@ vllm_image = (
 # A single H100 GPU has enough VRAM to store a 8,000,000 parameter model,
 # like Llama 3.1, in eight bit precision, along with a very large KV cache.
 
-MODEL_NAME = "RedHatAI/Meta-Llama-3.1-8B-Instruct-FP8"
-MODEL_REVISION = "12fd6884d2585dd4d020373e7f39f74507b31866"  # avoid nasty surprises when repos update!
+# MODEL_NAME = "RedHatAI/Meta-Llama-3.1-8B-Instruct-FP8"
+
+# MODEL_NAME = "RedHatAI/Meta-Llama-3-70B-Instruct-FP8"
+MODEL_NAME = "meta-llama/Meta-Llama-3.3-70B-Instruct"
+
+# MODEL_REVISION = "048a5ccf3b132339d2e0d2426010e2d8c61f4041"  # avoid nasty surprises when repos update!
 
 # Although vLLM will download weights from Hugging Face on-demand,
 # we want to cache them so we don't do it every time our server starts.
@@ -119,9 +123,9 @@ FAST_BOOT = True
 # once the model is spun up and the `serve` function returns.
 
 
-app = modal.App("example-vllm-inference")
+app = modal.App("H100-gpu-node-4-llama3-70b-instruct-no-FP-32k-vllm")
 
-N_GPU = 1
+N_GPU = 4
 MINUTES = 60  # seconds
 VLLM_PORT = 8000
 
@@ -129,8 +133,9 @@ VLLM_PORT = 8000
 @app.function(
     image=vllm_image,
     gpu=f"H100:{N_GPU}",
-    scaledown_window=15 * MINUTES,  # how long should we stay up with no requests?
-    timeout=10 * MINUTES,  # how long should we wait for container start?
+secrets=[modal.Secret.from_name("huggingface-token")],
+    scaledown_window=5 * MINUTES,  # how long should we stay up with no requests?
+    timeout=30 * MINUTES,  # how long should we wait for container start?
     volumes={
         "/root/.cache/huggingface": hf_cache_vol,
         "/root/.cache/vllm": vllm_cache_vol,
@@ -142,14 +147,18 @@ VLLM_PORT = 8000
 @modal.web_server(port=VLLM_PORT, startup_timeout=10 * MINUTES)
 def serve():
     import subprocess
+    import os
+    hf_token = os.environ.get("HF_TOKEN")
+    env = os.environ.copy()
+    env["HUGGINGFACE_HUB_TOKEN"] = hf_token
+    env["HF_TOKEN"] = hf_token
+    env["HUGGINGFACE_TOKEN"] = hf_token
 
     cmd = [
         "vllm",
         "serve",
         "--uvicorn-log-level=info",
         MODEL_NAME,
-        "--revision",
-        MODEL_REVISION,
         "--served-model-name",
         MODEL_NAME,
         "llm",
@@ -157,6 +166,7 @@ def serve():
         "0.0.0.0",
         "--port",
         str(VLLM_PORT),
+    "--max-model-len", "32000",  # context length
     ]
 
     # enforce-eager disables both Torch compilation and CUDA graph capture
