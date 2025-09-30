@@ -284,7 +284,7 @@ void JasmineGraphIncrementalLocalStore::addSourceProperties(RelationBlock* relat
                     incremental_localstore_logger.info("Embedding: ");
 
                     // TextEmbedder te(
-                    //             "http://192.168.1.7:11434/api/embeddings", // Ollama endpoint
+                    //             "http://10.10.21.26:11434/api/embeddings", // Ollama endpoint
                     //             "nomic-embed-text"                        // model name
                     //         );
 
@@ -355,7 +355,7 @@ void JasmineGraphIncrementalLocalStore::addDestinationProperties(RelationBlock* 
                     incremental_localstore_logger.info("Embedding: ");
 
                     // TextEmbedder te(
-                    //             "http://192.168.1.7:11434/api/embeddings", // Ollama endpoint
+                    //             "http://10.10.21.26:11434/api/embeddings", // Ollama endpoint
                     //             "nomic-embed-text"                        // model name
                     //         );
 

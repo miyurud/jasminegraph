@@ -196,7 +196,7 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
             else if (j.contains("response")) {
                 std::string partial = j["response"];
                 size_t s = 0;
-                ollama_tuple_streamer_logger.info("partial: "+ partial );
+                // ollama_tuple_streamer_logger.info("partial: "+ partial );
 
 
                 size_t i = 0;
@@ -360,7 +360,8 @@ curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 
     json j;
     j["model"] = model;
-    // j["max_tokens"] = 3000;
+    j["max_tokens"] = 8000;
+        // j["num_predict"] = 8000;
 
 //   j["prompt"]  =
 //               R"(You are an expert information extractor specialized in knowledge graph construction.
@@ -458,16 +459,15 @@ curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 Respond with a JSON list of triples, with each triple representing a relationship in the RDF graph.
 
 Pay attention to the following requirements:
-- Each triple should contain at least one, but preferably two, of the named entities in the list for each passage.
-- Clearly resolve pronouns to their specific names to maintain clarity.
-        - Omit extracting triples only for the subject or object which have ambiguous pronoun (he, she, it, they) with no clear reference.
-          - For each subject and object in the triple, include the entity type (e.g., Person, Location, Organization, Event) in the output.
-        - Output the triples in the format of JSON arrays: [subject, predicate, object, subject_type, object_type].
+- Extract as many meaningful, non-duplicate triples (facts) as possible. You should not miss any facts.
+- Omit extracting triples only for the subject or object which have ambiguous pronoun (he, she, it, they) with no clear reference.
+- For each subject and object in the triple, include the entity type (e.g., Person, Location, Organization, Event) in the output.
+- Output the triples in the format of JSON arrays: [subject, predicate, object, subject_type, object_type].
 
 Example:
     Text: Radio City is India's first private FM radio station and was started on 3 July 2001. It plays Hindi, English and regional songs. Radio City recently forayed into New Media in May 2008 with the launch of a music portal - PlanetRadiocity.com that offers music related news, videos, songs, and other music-related features.
     JSON Array: ["Radio City", "located in", "India", "Organization", "Location"], ["Radio City", "is", "private FM radio station", "Organization", "Other"], ["Radio City", "started on", "3 July 2001", "Organization", "Date"], ["Radio City", "plays songs in", "Hindi", "Organization", "Other"], ["Radio City", "plays songs in", "English", "Organization", "Other"], ["Radio City", "forayed into", "New Media", "Organization", "Event"], ["Radio City", "launched", "PlanetRadiocity.com", "Organization", "Organization"], ["PlanetRadiocity.com", "launched in", "May 2008", "Organization", "Date"], ["PlanetRadiocity.com", "is", "music portal", "Organization", "Type"], ["PlanetRadiocity.com", "offers", "news", "Organization", "News"], ["PlanetRadiocity.com", "offers", "videos", "Organization", "Video"], ["PlanetRadiocity.com", "offers", "songs", "Organization", "Song"]
-        Now process the following text:
+Now process the following text:
          )" + chunkText + R"(
 
        JSON objects:

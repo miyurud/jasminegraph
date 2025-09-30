@@ -1860,18 +1860,51 @@ void constructKGStreamHDFSCommand(std::string masterIP, int connFd, std::string 
 
 
     std::string path = "hdfs:" + hdfsFilePathS;
-
+    //
     std::time_t time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
     std::string uploadStartTime = ctime(&time);
-    std::string sqlStatement =
-            "INSERT INTO graph (name, upload_path, upload_start_time, upload_end_time, graph_status_idgraph_status, "
-            "vertexcount, centralpartitioncount, edgecount, is_directed) VALUES(\"" +
-            hdfsFilePathS + "\", \"" + path + "\", \"" + uploadStartTime + "\", \"\", \"" +
-            std::to_string(Conts::GRAPH_STATUS::NONOPERATIONAL) + "\", \"\", \"\", \"\", \"" +
-            ("TRUE" ) + "\")";
+    // std::string sqlStatement =
+    //         "INSERT INTO graph (name, upload_path, upload_start_time, upload_end_time, graph_status_idgraph_status, "
+    //         "vertexcount, centralpartitioncount, edgecount, is_directed) VALUES(\"" +
+    //         hdfsFilePathS + "\", \"" + path + "\", \"" + uploadStartTime + "\", \"\", \"" +
+    //         std::to_string(Conts::GRAPH_STATUS::NONOPERATIONAL) + "\", \"\", \"\", \"\", \"" +
+    //         ("TRUE" ) + "\")";
+    //
+    // int newGraphID = sqlite->runInsert(sqlStatement);
+    //
 
-    int newGraphID = sqlite->runInsert(sqlStatement);
+    int newGraphID ;
+    bool graphExits = false;
+    std::string checkQuery = "SELECT idgraph FROM graph WHERE upload_path = \"" + path + "\";";
+    auto result = sqlite->runSelect(checkQuery);
 
+    if (!result.empty() && !result[0].empty()) {
+        int existingId = std::stoi(result[0][0].second);
+        frontend_logger.info("Graph already exists with ID: " + std::to_string(existingId));
+        newGraphID = existingId;
+        graphExits = true;
+    }else
+    {
+        std::string insertQuery =
+    "INSERT INTO graph (name, upload_path, upload_start_time, upload_end_time, graph_status_idgraph_status, "
+    "vertexcount, centralpartitioncount, edgecount, is_directed) VALUES(\"" +
+    hdfsFilePathS + "\", \"" + path + "\", \"" + uploadStartTime + "\", \"\", \"" +
+    std::to_string(Conts::GRAPH_STATUS::NONOPERATIONAL) + "\", \"\", \"\", \"\", \"TRUE\");";
+
+        newGraphID =  sqlite->runInsert(insertQuery);
+    }
+
+    // 2. Prepare new graph insertion
+    std::time_t now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    // std::string uploadStartTime = ctime(&now);
+    uploadStartTime.erase(uploadStartTime.find_last_not_of("\n\r") + 1); // remove newline
+
+
+    if (newGraphID == -1) {
+        frontend_logger.error("Failed to insert new graph for path: " + path);
+    } else {
+        frontend_logger.info("Inserted new graph with ID: " + std::to_string(newGraphID));
+    }
 
 
 
@@ -1922,22 +1955,22 @@ void constructKGStreamHDFSCommand(std::string masterIP, int connFd, std::string 
     frontend_logger.info("Created graph ID: " + std::to_string(newGraphID));
     // JasmineGraphServer::worker designatedWorker = JasmineGraphServer::getDesignatedWorker();
     JasmineGraphServer::worker designatedWorker ;
-    designatedWorker.hostname = "192.168.1.7";
+    designatedWorker.hostname = "10.10.21.26";
     // designatedWorker.port =  7818; // 20 workers
     // designatedWorker.dataPort = 7819;
-    designatedWorker.port =  7780;
-    designatedWorker.dataPort = 7781;
+    designatedWorker.port =  7784;
+    designatedWorker.dataPort = 7785;
 
     if (!Pipeline::streamGraphToDesignatedWorker(designatedWorker.hostname,
                                                  designatedWorker.port,
                                                  masterIP,
                                                  std::to_string(newGraphID),
-                                           numberOfPartitions,
+                                                 numberOfPartitions,
                                                  hdfsServerIp,
                                                  hdfsPort,
                                                  hostnamePortS,
                                                  llm,
-                                               hdfsFilePathS ))
+                                                 hdfsFilePathS , graphExits, sqlite))
     {
         frontend_logger.error("Streaming to worker failed");
     }

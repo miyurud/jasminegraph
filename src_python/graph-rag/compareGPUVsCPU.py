@@ -104,7 +104,7 @@ The Ellerbusch Site ( 12-W-56 ) is a small but significant archaeological site i
 """
 
 # Ollama endpoints
-OLLAMA_URL = "http://192.168.1.7:11440/api/generate"
+OLLAMA_URL = "http://10.10.21.26:11440/api/generate"
 
 # ---------------------------------------------------
 # Helper function to run inference

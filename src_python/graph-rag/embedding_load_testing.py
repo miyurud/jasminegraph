@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 # ----------------------------
 # CONFIGURATION
 # ----------------------------
-URL = "http://192.168.1.7:11434/v1/embeddings"
+URL = "http://10.10.21.26:11434/v1/embeddings"
 MODEL = "nomic-embed-text"
 
 # Example texts (can expand for more edges)

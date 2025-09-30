@@ -6,6 +6,8 @@ import logging
 import os
 import subprocess
 import random
+import requests
+from rapidfuzz import fuzz
 from tests.integration.graphRAG.fetch_pred import run_cypher_query, parse_results, OUTPUT_FILE
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -16,30 +18,16 @@ PORT = 7777
 LINE_END = b"\r\n"
 
 # Folder containing text files
-TEXT_FOLDER = "pred_gemma3_12b"
+TEXT_FOLDER = "hotpot_qa_records"
 
 # LLM runner addresses (comma-separated)
-# LLM_RUNNERS = (
-#     "http://192.168.1.7:6578,http://192.168.1.7:6578,"
-#     "http://192.168.1.7:6578,http://192.168.1.7:6578"
-# )
-
-
 LLM_RUNNERS = (
-    "http://192.168.1.7:11439,http://192.168.1.7:11439,"
-    "http://192.168.1.7:11439,http://192.168.1.7:11439"
+    "http://10.10.21.26:11439,http://10.10.21.26:11439,"
+    "http://10.10.21.26:11439,http://10.10.21.26:11439"
 )
-# LLM_RUNNERS = (
-#     "https://sajeenthiranp-21--h100-gpu-node-4-llama3-70b-instruct-no-f1a8c3.modal.run,"
-#     "https://sajeenthiranp-21--h100-gpu-node-4-llama3-70b-instruct-no-f1a8c3.modal.run"
-# )
-# https://sajeenthiranp-21--h100-gpu-node-4-llama3-70b-instruct-vl-9f6148.modal.run
 
 # LLM model to use
-# LLM_MODEL = "llama3"
-LLM_MODEL  = "gemma3:12b"
-# LLM_MODEL  = "meta-llama/Meta-Llama-3-70B-Instruct"
-# LLM_MODEL  = "RedHatAI/Meta-Llama-3.1-8B-Instruct-FP8"
+LLM_MODEL = "gemma3:12b"
 
 # HDFS target folder
 HDFS_BASE = "/home/"
@@ -59,116 +47,105 @@ def recv_until(sock, stop=b"\n"):
     return buffer.decode("utf-8")
 
 def upload_to_hdfs(local_file):
-    """Uploads a local file to HDFS using your bash script, renaming it to match the doc folder name"""
-    # Get the parent folder name (doc folder)
+    """Uploads a local file to HDFS using your bash script"""
     folder_name = os.path.basename(os.path.dirname(local_file))
-    # Add .txt extension
     hdfs_filename = os.path.basename(local_file)
-    hdfs_path = folder_name+"/"+hdfs_filename
+    hdfs_path = folder_name + "/" + hdfs_filename
 
     logging.info(f"Uploading {local_file} → HDFS:{hdfs_path}")
-    # Use bash to run the upload script
     subprocess.run(["bash", UPLOAD_SCRIPT, local_file, folder_name], check=True)
     return hdfs_path
+
 def send_file_to_master(hdfs_file_path):
     logging.info(f"Sending {hdfs_file_path} to JasmineGraph master")
-
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((HOST, PORT))
         logging.info(f"Connected to JasmineGraph master at {HOST}:{PORT}")
 
-        # Start KG construction
         sock.sendall(b"constructkg" + LINE_END)
-
-        # Step 1: Default HDFS
         msg = recv_until(sock, b"\n")
         logging.info("Master: " + msg.strip())
-        sock.sendall(b"n" + LINE_END)  # Using custom HDFS config
+        sock.sendall(b"n" + LINE_END)
 
-        # Step 2: HDFS config path
         msg = recv_until(sock, b"\n")
         logging.info("Master: " + msg.strip())
         sock.sendall(b"/var/tmp/config/hdfs_config.txt" + LINE_END)
 
-        # Step 3: HDFS dataset path
         msg = recv_until(sock, b"\n")
         logging.info("Master: " + msg.strip())
         sock.sendall(hdfs_file_path.encode("utf-8") + LINE_END)
 
-        # Step 4: LLM runner addresses
         msg = recv_until(sock, b"\n")
         logging.info("Master: " + msg.strip())
         sock.sendall(LLM_RUNNERS.encode("utf-8") + LINE_END)
 
-        # Step 5: LLM model
         msg = recv_until(sock, b"\n")
         logging.info("Master: " + msg.strip())
         sock.sendall(LLM_MODEL.encode("utf-8") + LINE_END)
 
-        # Step 6: Wait for final confirmation
         final = recv_until(sock, b"\n")
         logging.info("Master: " + final.strip())
-
         if final.strip().lower() == "done":
             logging.info("✅ KG extraction completed successfully!")
         else:
             logging.error("❌ Unexpected response from master: " + final)
 
 def get_last_graph_id():
-    """Connect to JasmineGraph master, run 'lst', and return the last graph ID"""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((HOST, PORT))
-        logging.info(f"Connected to JasmineGraph master at {HOST}:{PORT}")
-
-        # Send 'lst' command
         sock.sendall(b"lst" + b"\n")
-        # sock.settimeout(1.0)
-        print("test")
-
-        # Receive all lines until no more data
 
         data = []
         while True:
             line = recv_until(sock, b"\r\n")
-            if not line or "done" in line :   # EOF reached
+            if not line or "done" in line:
                 break
-            print("LINE:", line.strip())  # <-- debug
             data.append(line.strip())
 
-
-# Extract the last graph ID from the received lines
     graph_ids = []
     for line in data:
-        # Expecting format: |1|American_Theocracy/text.txt|...
         parts = line.split("|")
         if len(parts) > 1 and parts[1].isdigit():
             graph_ids.append(int(parts[1]))
 
     if graph_ids:
         return max(graph_ids)
-    return 0  # no graphs yet
+    return 0
+
+def call_llm_ollama(prompt):
+    """Call Ollama API and return model response"""
+    url = LLM_RUNNERS.split(",")[0] + "/api/generate"
+    payload = {
+        "model": LLM_MODEL,
+        "prompt": prompt,
+        "stream": False
+    }
+    try:
+        resp = requests.post(url, json=payload, timeout=120)
+        resp.raise_for_status()
+        data = resp.json()
+        return data.get("response", "").strip()
+    except Exception as e:
+        logging.error(f"❌ LLM call failed: {e}")
+        return ""
+
 def main():
     query = "MATCH (n)-[r]-(m) RETURN n,r,m"
-
-    # Get last graph ID dynamically
     last_graph_id = get_last_graph_id()
     graph_id = last_graph_id + 1
     logging.info(f"Starting processing from graph ID {graph_id}")
 
-    # Collect all .txt files from all subfolders
     all_txt_files = []
     for root, _, files in os.walk(TEXT_FOLDER):
         for file in files:
             if file.endswith(".txt"):
                 all_txt_files.append(os.path.join(root, file))
 
-    # Shuffle all files globally
     random.shuffle(all_txt_files)
+    print(all_txt_files)
 
-    # Process each file
     for local_path in all_txt_files:
         folder_name = os.path.basename(os.path.dirname(local_path))
-
         try:
             hdfs_path = upload_to_hdfs(local_path)
             send_file_to_master(hdfs_path)
@@ -179,24 +156,94 @@ def main():
         raw = run_cypher_query(str(graph_id), query)
         triples = parse_results(raw)
 
-        # Pretty-print triples to console
         print(json.dumps(triples, indent=2, ensure_ascii=False))
 
-        # Prepare prediction output folder
         output_dir = os.path.join("pred", folder_name)
         os.makedirs(output_dir, exist_ok=True)
 
-        # Save system predictions
         with open(os.path.join(output_dir, "pred.json"), "w", encoding="utf-8") as f:
             json.dump(triples, f, indent=2, ensure_ascii=False)
 
-        # Copy gold files (entities.json, relations.json, text.txt)
+        # Copy gold files
         for gold_file in ["entities.json", "relations.json", "text.txt"]:
             src = os.path.join(TEXT_FOLDER, folder_name, gold_file)
             dst = os.path.join(output_dir, gold_file)
             if os.path.exists(src):
                 shutil.copy(src, dst)
 
+        # QA prediction
+        qa_file = os.path.join(TEXT_FOLDER, folder_name, "qa_pairs.json")
+        if os.path.exists(qa_file):
+            with open(qa_file, "r", encoding="utf-8") as f:
+                qa_data = json.load(f)
+
+            question = qa_data["question"]
+            answer = qa_data["answer"]
+
+            prompt = f"""You are a QA assistant. 
+Given the extracted triples:
+{json.dumps(triples, indent=2, ensure_ascii=False)}
+
+Question: {question}
+Answer in a short phrase."""
+
+            predicted_answer = call_llm_ollama(prompt)
+
+            pred_out = {
+                "id": qa_data["id"],
+                "question": question,
+                "gold_answer": answer,
+                "predicted_answer": predicted_answer
+            }
+            with open(os.path.join(output_dir, "pred_answer.json"), "w", encoding="utf-8") as f:
+                json.dump(pred_out, f, indent=2, ensure_ascii=False)
+
         graph_id += 1
+
+def evaluate_predictions_fuzzy(pred_base="pred", threshold=90):
+    """
+    Evaluate QA predictions with fuzzy matching.
+    threshold: percentage similarity to count as correct
+    """
+    total = 0
+    correct = 0
+    mismatches = []
+
+    for root, _, files in os.walk(pred_base):
+        for file in files:
+            if file == "pred_answer.json":
+                pred_file = os.path.join(root, file)
+                with open(pred_file, "r", encoding="utf-8") as f:
+                    pred_data = json.load(f)
+
+                gold = pred_data["gold_answer"].strip().lower()
+                pred = pred_data["predicted_answer"].strip().lower()
+
+                total += 1
+                score = fuzz.ratio(pred, gold)
+                if score >= threshold:
+                    correct += 1
+                else:
+                    mismatches.append({
+                        "id": pred_data["id"],
+                        "question": pred_data["question"],
+                        "gold_answer": pred_data["gold_answer"],
+                        "predicted_answer": pred_data["predicted_answer"],
+                        "similarity": score
+                    })
+
+    accuracy = correct / total if total > 0 else 0
+    print("\n=== Fuzzy Evaluation ===")
+    print(f"Total QA pairs: {total}")
+    print(f"Correct predictions (>= {threshold}% similarity): {correct}")
+    print(f"Accuracy: {accuracy:.2%}")
+
+    if mismatches:
+        print("\nMismatched predictions (below threshold):")
+        for m in mismatches:
+            print(f"ID: {m['id']}, Q: {m['question']}")
+            print(f"  Gold: {m['gold_answer']}, Pred: {m['predicted_answer']}, Similarity: {m['similarity']:.1f}%\n")
+
 if __name__ == "__main__":
     main()
+    evaluate_predictions_fuzzy(pred_base="pred", threshold=90)

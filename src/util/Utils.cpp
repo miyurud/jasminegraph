@@ -654,6 +654,14 @@ bool Utils::send_int_wrapper(int connFd, int *value, size_t datalength) {
     }
     return true;
 }
+bool Utils::send_long_wrapper(int connFd, long  *value, size_t datalength) {
+    ssize_t sz = send(connFd, value, datalength, 0);
+    if (sz < datalength) {
+        util_logger.error("Send failed");
+        return false;
+    }
+    return true;
+}
 
 bool Utils::sendIntExpectResponse(int sockfd, char *data, size_t data_length,
                                   int value, std::string expectMsg) {

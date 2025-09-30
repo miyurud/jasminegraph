@@ -3103,6 +3103,32 @@ static void streaming_kg_construction ( int connFd, int serverPort, std::map<std
 
 
 
+    string isResume = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+    instance_logger.info("Received isResume: " + isResume);
+
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
+
+long startFromBytes;
+    if (isResume =="y")
+    {
+        startFromBytes = std::stol(Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH));
+        instance_logger.info("Received uploadedBytes: " + std::to_string(startFromBytes));
+
+        if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+            *loop_exit_p = true;
+            return;
+        }
+        instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
+    }else
+    {
+        startFromBytes =0 ;
+    }
+
+
     string llm_runner = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_LONG_DATA_LENGTH);
     instance_logger.info("Received LLM Runner: " + llm_runner);
 
@@ -3114,7 +3140,7 @@ static void streaming_kg_construction ( int connFd, int serverPort, std::map<std
 
 
     string llm = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_LONG_DATA_LENGTH);
-    instance_logger.info("Received LLM : " + llm_runner);
+    instance_logger.info("Received LLM : " + llm);
 
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
@@ -3203,19 +3229,20 @@ static void streaming_kg_construction ( int connFd, int serverPort, std::map<std
 
     string hdfsPath = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.info("Received HDFS Path: " + hdfsPath);
-    // if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
-    //     *loop_exit_p = true;
-    //     return;
-    // }
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
     // instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
     HDFSConnector *hdfsConnector = new HDFSConnector(hdfsServerUrl, hdfsPort);
 
-    Pipeline *streamHandler = new Pipeline(hdfsConnector->getFileSystem(),
-                                                             hdfsPath, noOfPartitions, std::stoi(graphID),  masterIP, workers ,llmRunnerSockets, llm);
+    Pipeline *streamHandler = new Pipeline(connFd, hdfsConnector->getFileSystem(),
+                                                             hdfsPath, noOfPartitions, std::stoi(graphID),  masterIP, workers ,llmRunnerSockets, llm , startFromBytes);
     instance_logger.info("Started listening to " + hdfsPath);
+
    streamHandler->init();
 
-    // int conResultWr = write(connFd, DONE.c_str(), DONE.length());
+    // int conResultWr = write( , DONE.c_str(), DONE.length());
     if (!Utils::send_str_wrapper(connFd, DONE.c_str()))
     {
         *loop_exit_p     = true;
