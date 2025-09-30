@@ -13,11 +13,12 @@ void initializeOpenTelemetry() {
     try {
         std::cout << "Initializing OpenTelemetry..." << std::endl;
         
-        // Initialize with proper endpoints when telemetry is enabled
+        // Initialize with OTLP endpoint for master (uses BatchProcessor)
         OpenTelemetryUtil::initialize(
             "jasminegraph-master",
-            "http://pushgateway:9091",         // Pushgateway hostname
-            "http://tempo:4318/v1/traces"      // Tempo hostname
+            "http://tempo:4318/v1/traces",     // OTLP endpoint
+            "http://pushgateway:9091",         // Prometheus endpoint (optional)
+            false                               // Use BatchProcessor for master
         );
         
         g_telemetry_enabled = true;
@@ -38,12 +39,13 @@ void initializeWorkerTelemetry() {
     try {
         std::cout << "Initializing OpenTelemetry for worker..." << std::endl;
         
-        // Initialize with worker service name and force simple processor for immediate export
+        // Initialize with worker service name and use simple processor for immediate export
         // Use host IP for Tempo since worker containers are not in docker-compose network
-        OpenTelemetryUtil::initializeWithSimpleProcessor(
+        OpenTelemetryUtil::initialize(
             "jasminegraph-worker",
-            "http://pushgateway:9091",         // Pushgateway hostname
-            "http://172.28.5.1:4318/v1/traces" // Tempo via host IP
+            "http://172.28.5.1:4318/v1/traces", // OTLP endpoint via host IP
+            "http://pushgateway:9091",          // Prometheus endpoint (optional)
+            true                                // Use SimpleProcessor for workers
         );
         
         g_telemetry_enabled = true;

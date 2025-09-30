@@ -562,10 +562,8 @@ void TriangleCountExecutor::execute() {
     // Track worker information for better tracing
     std::vector<std::tuple<string, string, string>> workerTaskInfo; // {workerID, partitionId, host}
     
-    // Capture the master trace context BEFORE creating worker tasks
-    // This ensures all workers inherit from the same parent trace
+    // Capture the master trace context for all workers
     std::string masterTraceContext = OpenTelemetryUtil::getCurrentTraceContext();
-    std::cout << "DEBUG: Master captured shared trace context for all workers: " << masterTraceContext << std::endl;
     
     vector<Utils::worker> workerList = Utils::getWorkerList(sqlite);
     int workerListSize = workerList.size();
@@ -588,7 +586,6 @@ void TriangleCountExecutor::execute() {
             // Store worker task information for tracing
             workerTaskInfo.push_back(std::make_tuple(workerID, partitionId, host));
             
-            // Create child trace for worker task distribution with worker and partition details
             {
                 OTEL_TRACE_OPERATION("distribute_to_worker_" + workerID + "_partition_" + partitionId);
                 
@@ -670,18 +667,12 @@ void TriangleCountExecutor::execute() {
     }
 
     if (!isCompositeAggregation) {
-        std::cout << "DEBUG-AGGREGATION: Before aggregation - trace context: " << OpenTelemetryUtil::getCurrentTraceContext() << std::endl;
-        
         // Restore the master trace context before aggregation
-        std::cout << "DEBUG-AGGREGATION: Restoring master trace context: " << masterTraceContext << std::endl;
         if (!masterTraceContext.empty() && masterTraceContext != "NO_TRACE_CONTEXT") {
             OpenTelemetryUtil::setTraceContext(masterTraceContext);
-            std::cout << "DEBUG-AGGREGATION: Master trace context restored successfully" << std::endl;
         }
         
-        // Ensure we maintain the master trace context for aggregation
         OTEL_TRACE_OPERATION("central_store_aggregation");
-        std::cout << "DEBUG-AGGREGATION: Inside aggregation span - trace context: " << OpenTelemetryUtil::getCurrentTraceContext() << std::endl;
         
         long aggregatedTriangleCount =
             aggregateCentralStoreTriangles(sqlite, graphId, masterIP, threadPriority, partitionMap);
@@ -1193,7 +1184,6 @@ static long aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, std::strin
         
         // Capture current trace context before async call
         std::string currentTraceContext = OpenTelemetryUtil::getCurrentTraceContext();
-        std::cout << "###AGGREGATION-ASYNC### Captured trace context for async: " << currentTraceContext << std::endl;
 
         triangleCountResponse.push_back(std::async(
             std::launch::async, TriangleCountExecutor::countCentralStoreTriangles, aggregatorPort, aggregatorIp,
@@ -1810,7 +1800,6 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorP
     // Set the trace context in this async thread
     if (!traceContext.empty() && traceContext != "NO_TRACE_CONTEXT") {
         OpenTelemetryUtil::setTraceContext(traceContext);
-        std::cout << "###AGGREGATION-ASYNC### Set trace context in async thread: " << traceContext << std::endl;
     }
     int sockfd;
     char data[INSTANCE_DATA_LENGTH + 1];
@@ -1931,7 +1920,6 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorP
             
             // Get current trace context and send it to worker for aggregation tracing
             std::string traceContext = OpenTelemetryUtil::getCurrentTraceContext();
-            std::cout << "###AGGREGATE### Sending trace context to worker: " << traceContext << std::endl;
             
             result_wr = write(sockfd, traceContext.c_str(), traceContext.size());
             if (result_wr < 0) {

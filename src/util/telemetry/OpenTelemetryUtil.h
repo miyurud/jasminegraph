@@ -42,24 +42,16 @@ namespace context = telemetry::context;
 class OpenTelemetryUtil {
 public:
     /**
-     * Initialize OpenTelemetry with Prometheus and OTLP exporters
+     * Initialize OpenTelemetry with OTLP exporters
      * @param service_name Name of the service for tracing
-     * @param prometheus_endpoint Prometheus push gateway endpoint
-     * @param otlp_endpoint OTLP collector endpoint (optional)
+     * @param otlp_endpoint OTLP collector endpoint
+     * @param prometheus_endpoint Prometheus push gateway endpoint (optional)
+     * @param useSimpleProcessor If true, uses SimpleProcessor for immediate export (workers), else BatchProcessor (master)
      */
-    static void initialize(const std::string& service_name, 
-                          const std::string& prometheus_endpoint = "http://localhost:9091",
-                          const std::string& otlp_endpoint = "");
-
-    /**
-     * Initialize OpenTelemetry with simple processor for immediate export (for workers)
-     * @param service_name Name of the service for tracing
-     * @param prometheus_endpoint Prometheus push gateway endpoint
-     * @param otlp_endpoint OTLP collector endpoint (optional)
-     */
-    static void initializeWithSimpleProcessor(const std::string& service_name, 
-                                            const std::string& prometheus_endpoint = "http://localhost:9091",
-                                            const std::string& otlp_endpoint = "");
+    static void initialize(const std::string& service_name,
+                          const std::string& otlp_endpoint,
+                          const std::string& prometheus_endpoint = "",
+                          bool useSimpleProcessor = false);
 
     /**
      * Get the global tracer instance
@@ -87,11 +79,7 @@ public:
      */
     static std::string getCurrentTraceContext();
 
-    /**
-     * Get current trace ID for debugging
-     * @return Current trace ID as string
-     */
-    static std::string getCurrentTraceId();
+
 
     /**
      * Set trace context from serialized string
@@ -99,11 +87,7 @@ public:
      */
     static void setTraceContext(const std::string& context_str);
     
-    /**
-     * Debug current span information
-     * @return Current span debug info
-     */
-    static std::string getCurrentSpanInfo();
+
 
     /**
      * Flush all pending traces

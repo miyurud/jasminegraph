@@ -443,10 +443,6 @@ long countLocalTriangles(
 
     instance_logger.info("###INSTANCE### Local Triangle Count : Started: Graph ID " + graphId + " Partition " + partitionId);
     
-    // Log current trace context for debugging
-    std::string currentTraceId = OpenTelemetryUtil::getCurrentTraceId();
-    instance_logger.info("###INSTANCE### Current Trace ID in worker: " + currentTraceId);
-    
     std::string graphIdentifier = graphId + "_" + partitionId;
     std::string centralGraphIdentifier = graphId + "_centralstore_" + partitionId;
     std::string duplicateCentralGraphIdentifier = graphId + "_centralstore_dp_" + partitionId;
@@ -3290,11 +3286,9 @@ static void aggregate_centralstore_triangles_command(int connFd, bool *loop_exit
     // Receive and set trace context for distributed tracing
     string traceContext = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.info("Received trace context for aggregation: " + traceContext);
-    std::cout << "###AGGREGATE### Worker received trace context: " << traceContext << std::endl;
     
     if (!traceContext.empty()) {
         OpenTelemetryUtil::setTraceContext(traceContext);
-        std::cout << "###AGGREGATE### Worker set trace context for aggregation operations" << std::endl;
     }
 
     const std::string &aggregatedTriangles =

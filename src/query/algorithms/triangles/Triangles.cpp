@@ -33,21 +33,11 @@ long Triangles::run(JasmineGraphHashMapLocalStore &graphDB, JasmineGraphHashMapC
 long Triangles::run(JasmineGraphHashMapLocalStore &graphDB, JasmineGraphHashMapCentralStore &centralStore,
                     JasmineGraphHashMapDuplicateCentralStore &duplicateCentralStore, std::string graphId,
                     std::string partitionId, int threadPriority) {
-    std::cout << "###WORKER-DEBUG### About to call OTEL_TRACE_FUNCTION() for run" << std::endl;
     OTEL_TRACE_FUNCTION(); 
-    std::cout << "###WORKER-DEBUG### OTEL_TRACE_FUNCTION() called for run" << std::endl;
-    
-    // Debug: Check what trace context is active when this function starts
-    std::string currentContext = OpenTelemetryUtil::getCurrentTraceContext();
-    std::string spanInfo = OpenTelemetryUtil::getCurrentSpanInfo();
-    std::cout << "###TRIANGLE-DEBUG### run active trace context: " << currentContext << std::endl;
-    std::cout << "###TRIANGLE-DEBUG### run span info: " << spanInfo << std::endl;
     
     // Add worker identification for better tracing
     std::string workerInfo = "worker_" + graphId + "_partition_" + partitionId;
     triangle_logger.info("###TRIANGLE### " + workerInfo + " Triangle Counting: Started");
-    
-    // Log current trace context for debugging
     triangle_logger.info("###TRIANGLE### " + workerInfo + " Worker starting triangle computation");
     
     // Declare variables outside of trace scopes so they remain accessible
@@ -141,15 +131,7 @@ long Triangles::run(JasmineGraphHashMapLocalStore &graphDB, JasmineGraphHashMapC
 
 TriangleResult Triangles::countTriangles(map<long, unordered_set<long>> &centralStore, map<long, long> &distributionMap,
                                          bool returnTriangles) {
-    std::cout << "###WORKER-DEBUG### About to call OTEL_TRACE_FUNCTION() for countTriangles" << std::endl;
     OTEL_TRACE_FUNCTION();
-    std::cout << "###WORKER-DEBUG### OTEL_TRACE_FUNCTION() called for countTriangles" << std::endl;
-    
-    // Debug: Check what trace context is active when this function starts
-    std::string currentContext = OpenTelemetryUtil::getCurrentTraceContext();
-    std::string spanInfo = OpenTelemetryUtil::getCurrentSpanInfo();
-    std::cout << "###TRIANGLE-DEBUG### countTriangles active trace context: " << currentContext << std::endl;
-    std::cout << "###TRIANGLE-DEBUG### countTriangles span info: " << spanInfo << std::endl;
     
     auto start_time = std::chrono::high_resolution_clock::now();
     triangle_logger.info("###TRIANGLE### countTriangles: Started with " + std::to_string(centralStore.size()) + " vertices and " + std::to_string(distributionMap.size()) + " degree entries");
