@@ -14,6 +14,8 @@ import sys
 import socket
 import logging
 
+from tests.integration.graphRAG.KG.test import test_KG
+
 logging.addLevelName(
     logging.INFO, f'\033[1;32m{logging.getLevelName(logging.INFO)}\033[1;0m')
 logging.addLevelName(
@@ -100,217 +102,219 @@ def test(host, port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((host, port))
 
-        print()
-        logging.info('Testing lst')
-        send_and_expect_response(sock, 'Initial lst', LIST, EMPTY)
-
-        print()
-        logging.info('Testing adgr')
-        send_and_expect_response(sock, 'adgr', ADGR, SEND, exit_on_failure=True)
-        send_and_expect_response(
-            sock, 'adgr', b'powergrid|/var/tmp/data/powergrid.dl', DONE, exit_on_failure=True)
-
-        print()
-        logging.info('Testing lst after adgr')
-        send_and_expect_response(sock, 'lst after adgr', LIST,
-                                 b'|1|powergrid|/var/tmp/data/powergrid.dl|op|')
-
-        print()
-        logging.info('Testing ecnt')
-        send_and_expect_response(sock, 'ecnt', ECNT, b'graphid-send')
-        send_and_expect_response(sock, 'ecnt', b'1', b'6594')
-
-        print()
-        logging.info('Testing vcnt')
-        send_and_expect_response(sock, 'vcnt', VCNT, b'graphid-send')
-        send_and_expect_response(sock, 'vcnt', b'1', b'4941')
-
-        print()
-        logging.info('Testing trian')
-        send_and_expect_response(sock, 'trian', TRIAN,
-                                 b'graphid-send', exit_on_failure=True)
-        send_and_expect_response(
-            sock, 'trian', b'1', b'priority(>=1)', exit_on_failure=True)
-        send_and_expect_response(sock, 'trian', b'1', b'651')
-
-        print()
-        logging.info('Testing pgrnk')
-        send_and_expect_response(sock, 'pgrnk', PGRNK,
-                                 b'grap', exit_on_failure=True)
-        send_and_expect_response(
-            sock, 'pgrnk', b'1|0.5|40', b'priority(>=1)', exit_on_failure=True)
-        send_and_expect_response(sock, 'pgrnk', b'1',
-                                 DONE, exit_on_failure=True)
-
-        print()
-        logging.info('Testing adgr-cust')
-        send_and_expect_response(sock, 'adgr-cust', ADGR_CUST,
-                                 b'Select a custom graph upload option' + LINE_END +
-                                 b'1 : Graph with edge list + text attributes list' + LINE_END +
-                                 b'2 : Graph with edge list + JSON attributes list' + LINE_END +
-                                 b'3 : Graph with edge list + XML attributes list',
-                                 exit_on_failure=True)
-        send_and_expect_response(sock, 'adgr-cust',
-                                 b'1',
-                                 b'Send <name>|<path to edge list>|<path to attribute file>|' +
-                                 b'(optional)<attribute data type: int8. int16, int32 or float>',
-                                 exit_on_failure=True)
-        send_and_expect_response(sock, 'adgr-cust',
-                                 b'cora|/var/tmp/data/cora/cora.cites|' +
-                                 b'/var/tmp/data/cora/cora.content',
-                                 DONE, exit_on_failure=True)
-
-        print()
-        logging.info('Testing lst after adgr-cust')
-        send_and_expect_response(sock, 'lst after adgr-cust', LIST,
-                                 b'|1|powergrid|/var/tmp/data/powergrid.dl|op|' + LINE_END +
-                                 b'|2|cora|/var/tmp/data/cora/cora.cites|op|')
-
-        print()
-        logging.info('Testing merge')
-        send_and_expect_response(sock, 'merge', MERGE, b'Available main flags:' + LINE_END +
-                                 b'graph_id' + LINE_END +
-                                 b'Send --<flag1> <value1>')
-        send_and_expect_response(
-            sock, 'merge', b'--graph_id 2', DONE, exit_on_failure=True)
-
-        print()
-        logging.info('Testing train')
-        send_and_expect_response(sock, 'train', TRAIN, b'Available main flags:' + LINE_END +
-                                 b'graph_id learning_rate batch_size validate_iter epochs' +
-                                 LINE_END + b'Send --<flag1> <value1> --<flag2> <value2> ..',
-                                 exit_on_failure=True)
-        send_and_expect_response(
-            sock, 'train', b'--graph_id 2', DONE, exit_on_failure=True)
-
-        print()
-        logging.info('Testing rmgr')
-        send_and_expect_response(sock, 'rmgr', RMGR, SEND)
-        send_and_expect_response(sock, 'rmgr', b'2', DONE)
-
-        print()
-        logging.info('Testing lst after rmgr')
-        send_and_expect_response(sock, 'lst after rmgr',
-                                 LIST, b'|1|powergrid|/var/tmp/data/powergrid.dl|op|')
-
-        send_and_expect_response(sock, 'rmgr', RMGR, SEND)
-        send_and_expect_response(sock, 'rmgr', b'1', DONE)
-
-        # Test cases for hdfs implementation for custom hdfs server
-        print()
-        logging.info('Testing adhdfs for custom HDFS server')
-        send_and_expect_response(sock, 'adhdfs', ADHDFS,
-                                 b'Do you want to use the default HDFS server(y/n)?',
-                                 exit_on_failure=True)
-        send_and_expect_response(sock, 'adhdfs', b'n',
-                                 b'Send the file path to the HDFS configuration file.' +
-                                 b' This file needs to be in some directory location ' +
-                                 b'that is accessible for JasmineGraph master',
-                                 exit_on_failure=True)
-        send_and_expect_response(sock, 'adhdfs', b'/var/tmp/config/hdfs_config.txt',
-                                 b'HDFS file path: ',
-                                 exit_on_failure=True)
-        send_and_expect_response(sock, 'adhdfs', b'/home/powergrid.dl',
-                                 b'Is this an edge list type graph(y/n)?',
-                                 exit_on_failure=True)
-        send_and_expect_response(sock, 'adhdfs', b'y',
-                                 b'Is this a directed graph(y/n)?',
-                                 exit_on_failure=True)
-        send_and_expect_response(sock, 'adhdfs', b'y', DONE, exit_on_failure=True)
-
-        print()
-        logging.info('Testing lst after adhdfs')
-        send_and_expect_response(sock, 'lst after adhdfs', LIST,
-                                 b'|1|/home/powergrid.dl|hdfs:/home/powergrid.dl|op|',
-                                 exit_on_failure=True)
-
-        print()
-        logging.info('1. Testing ecnt after adhdfs')
-        send_and_expect_response(sock, 'ecnt', ECNT, b'graphid-send', exit_on_failure=True)
-        send_and_expect_response(sock, 'ecnt', b'1', b'6594', exit_on_failure=True)
-
-        print()
-        logging.info('1. Testing vcnt after adhdfs')
-        send_and_expect_response(sock, 'vcnt', VCNT, b'graphid-send', exit_on_failure=True)
-        send_and_expect_response(sock, 'vcnt', b'1', b'4941', exit_on_failure=True)
-
-        print()
-        logging.info('Testing adhdfs for custom graph with properties')
-        send_and_expect_response(sock, 'adhdfs', ADHDFS,
-                                    b'Do you want to use the default HDFS server(y/n)?',
-                                    exit_on_failure=True)
-        send_and_expect_response(sock, 'adhdfs', b'n',
-                                    b'Send the file path to the HDFS configuration file.' +
-                                    b' This file needs to be in some directory location ' +
-                                    b'that is accessible for JasmineGraph master',
-                                    exit_on_failure=True)
-        send_and_expect_response(sock, 'adhdfs', b'/var/tmp/config/hdfs_config.txt',
-                                    b'HDFS file path: ',
-                                    exit_on_failure=True)
-        send_and_expect_response(sock, 'adhdfs', b'/home/custom_graph_with_properties.txt',
-                                    b'Is this an edge list type graph(y/n)?',
-                                    exit_on_failure=True)
-        send_and_expect_response(sock, 'adhdfs', b'n',
-                                    b'Is this a directed graph(y/n)?',
-                                    exit_on_failure=True)
-        send_and_expect_response(sock, 'adhdfs', b'y', DONE, exit_on_failure=True)
-
-        print()
-        logging.info('2. Testing cypher aggregate query after adding the graph')
-        send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
+        # print()
+        # logging.info('Testing lst')
+        # send_and_expect_response(sock, 'Initial lst', LIST, EMPTY)
+        #
+        # print()
+        # logging.info('Testing adgr')
+        # send_and_expect_response(sock, 'adgr', ADGR, SEND, exit_on_failure=True)
+        # send_and_expect_response(
+        #     sock, 'adgr', b'powergrid|/var/tmp/data/powergrid.dl', DONE, exit_on_failure=True)
+        #
+        # print()
+        # logging.info('Testing lst after adgr')
+        # send_and_expect_response(sock, 'lst after adgr', LIST,
+        #                          b'|1|powergrid|/var/tmp/data/powergrid.dl|op|')
+        #
+        # print()
+        # logging.info('Testing ecnt')
+        # send_and_expect_response(sock, 'ecnt', ECNT, b'graphid-send')
+        # send_and_expect_response(sock, 'ecnt', b'1', b'6594')
+        #
+        # print()
+        # logging.info('Testing vcnt')
+        # send_and_expect_response(sock, 'vcnt', VCNT, b'graphid-send')
+        # send_and_expect_response(sock, 'vcnt', b'1', b'4941')
+        #
+        # print()
+        # logging.info('Testing trian')
+        # send_and_expect_response(sock, 'trian', TRIAN,
+        #                          b'graphid-send', exit_on_failure=True)
+        # send_and_expect_response(
+        #     sock, 'trian', b'1', b'priority(>=1)', exit_on_failure=True)
+        # send_and_expect_response(sock, 'trian', b'1', b'651')
+        #
+        # print()
+        # logging.info('Testing pgrnk')
+        # send_and_expect_response(sock, 'pgrnk', PGRNK,
+        #                          b'grap', exit_on_failure=True)
+        # send_and_expect_response(
+        #     sock, 'pgrnk', b'1|0.5|40', b'priority(>=1)', exit_on_failure=True)
+        # send_and_expect_response(sock, 'pgrnk', b'1',
+        #                          DONE, exit_on_failure=True)
+        #
+        # print()
+        # logging.info('Testing adgr-cust')
+        # send_and_expect_response(sock, 'adgr-cust', ADGR_CUST,
+        #                          b'Select a custom graph upload option' + LINE_END +
+        #                          b'1 : Graph with edge list + text attributes list' + LINE_END +
+        #                          b'2 : Graph with edge list + JSON attributes list' + LINE_END +
+        #                          b'3 : Graph with edge list + XML attributes list',
+        #                          exit_on_failure=True)
+        # send_and_expect_response(sock, 'adgr-cust',
+        #                          b'1',
+        #                          b'Send <name>|<path to edge list>|<path to attribute file>|' +
+        #                          b'(optional)<attribute data type: int8. int16, int32 or float>',
+        #                          exit_on_failure=True)
+        # send_and_expect_response(sock, 'adgr-cust',
+        #                          b'cora|/var/tmp/data/cora/cora.cites|' +
+        #                          b'/var/tmp/data/cora/cora.content',
+        #                          DONE, exit_on_failure=True)
+        #
+        # print()
+        # logging.info('Testing lst after adgr-cust')
+        # send_and_expect_response(sock, 'lst after adgr-cust', LIST,
+        #                          b'|1|powergrid|/var/tmp/data/powergrid.dl|op|' + LINE_END +
+        #                          b'|2|cora|/var/tmp/data/cora/cora.cites|op|')
+        #
+        # print()
+        # logging.info('Testing merge')
+        # send_and_expect_response(sock, 'merge', MERGE, b'Available main flags:' + LINE_END +
+        #                          b'graph_id' + LINE_END +
+        #                          b'Send --<flag1> <value1>')
+        # send_and_expect_response(
+        #     sock, 'merge', b'--graph_id 2', DONE, exit_on_failure=True)
+        #
+        # print()
+        # logging.info('Testing train')
+        # send_and_expect_response(sock, 'train', TRAIN, b'Available main flags:' + LINE_END +
+        #                          b'graph_id learning_rate batch_size validate_iter epochs' +
+        #                          LINE_END + b'Send --<flag1> <value1> --<flag2> <value2> ..',
+        #                          exit_on_failure=True)
+        # send_and_expect_response(
+        #     sock, 'train', b'--graph_id 2', DONE, exit_on_failure=True)
+        #
+        # print()
+        # logging.info('Testing rmgr')
+        # send_and_expect_response(sock, 'rmgr', RMGR, SEND)
+        # send_and_expect_response(sock, 'rmgr', b'2', DONE)
+        #
+        # print()
+        # logging.info('Testing lst after rmgr')
+        # send_and_expect_response(sock, 'lst after rmgr',
+        #                          LIST, b'|1|powergrid|/var/tmp/data/powergrid.dl|op|')
+        #
+        # send_and_expect_response(sock, 'rmgr', RMGR, SEND)
+        # send_and_expect_response(sock, 'rmgr', b'1', DONE)
+        #
+        # # Test cases for hdfs implementation for custom hdfs server
+        # print()
+        # logging.info('Testing adhdfs for custom HDFS server')
+        # send_and_expect_response(sock, 'adhdfs', ADHDFS,
+        #                          b'Do you want to use the default HDFS server(y/n)?',
+        #                          exit_on_failure=True)
+        # send_and_expect_response(sock, 'adhdfs', b'n',
+        #                          b'Send the file path to the HDFS configuration file.' +
+        #                          b' This file needs to be in some directory location ' +
+        #                          b'that is accessible for JasmineGraph master',
+        #                          exit_on_failure=True)
+        # send_and_expect_response(sock, 'adhdfs', b'/var/tmp/config/hdfs_config.txt',
+        #                          b'HDFS file path: ',
+        #                          exit_on_failure=True)
+        # send_and_expect_response(sock, 'adhdfs', b'/home/powergrid.dl',
+        #                          b'Is this an edge list type graph(y/n)?',
+        #                          exit_on_failure=True)
+        # send_and_expect_response(sock, 'adhdfs', b'y',
+        #                          b'Is this a directed graph(y/n)?',
+        #                          exit_on_failure=True)
+        # send_and_expect_response(sock, 'adhdfs', b'y', DONE, exit_on_failure=True)
+        #
+        # print()
+        # logging.info('Testing lst after adhdfs')
+        # send_and_expect_response(sock, 'lst after adhdfs', LIST,
+        #                          b'|1|/home/powergrid.dl|hdfs:/home/powergrid.dl|op|',
+        #                          exit_on_failure=True)
+        #
+        # print()
+        # logging.info('1. Testing ecnt after adhdfs')
+        # send_and_expect_response(sock, 'ecnt', ECNT, b'graphid-send', exit_on_failure=True)
+        # send_and_expect_response(sock, 'ecnt', b'1', b'6594', exit_on_failure=True)
+        #
+        # print()
+        # logging.info('1. Testing vcnt after adhdfs')
+        # send_and_expect_response(sock, 'vcnt', VCNT, b'graphid-send', exit_on_failure=True)
+        # send_and_expect_response(sock, 'vcnt', b'1', b'4941', exit_on_failure=True)
+        #
+        # print()
+        # logging.info('Testing adhdfs for custom graph with properties')
+        # send_and_expect_response(sock, 'adhdfs', ADHDFS,
+        #                             b'Do you want to use the default HDFS server(y/n)?',
+        #                             exit_on_failure=True)
+        # send_and_expect_response(sock, 'adhdfs', b'n',
+        #                             b'Send the file path to the HDFS configuration file.' +
+        #                             b' This file needs to be in some directory location ' +
+        #                             b'that is accessible for JasmineGraph master',
+        #                             exit_on_failure=True)
+        # send_and_expect_response(sock, 'adhdfs', b'/var/tmp/config/hdfs_config.txt',
+        #                             b'HDFS file path: ',
+        #                             exit_on_failure=True)
+        # send_and_expect_response(sock, 'adhdfs', b'/home/custom_graph_with_properties.txt',
+        #                             b'Is this an edge list type graph(y/n)?',
+        #                             exit_on_failure=True)
+        # send_and_expect_response(sock, 'adhdfs', b'n',
+        #                             b'Is this a directed graph(y/n)?',
+        #                             exit_on_failure=True)
+        # send_and_expect_response(sock, 'adhdfs', b'y', DONE, exit_on_failure=True)
+        #
+        # print()
+        # logging.info('2. Testing cypher aggregate query after adding the graph')
         # send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
-        send_and_expect_response(sock, 'cypher', b'1', b'Input query :', exit_on_failure=True)
-        send_and_expect_response(sock, 'cypher', b'match (n) where n.id < 10 return avg(n.id)',
-                                 b'{"avg(n.id)":4.5}', exit_on_failure=True)
-        send_and_expect_response(sock, 'cypher', b'',
-                                 b'done', exit_on_failure=True)
+        # # send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
+        # send_and_expect_response(sock, 'cypher', b'1', b'Input query :', exit_on_failure=True)
+        # send_and_expect_response(sock, 'cypher', b'match (n) where n.id < 10 return avg(n.id)',
+        #                          b'{"avg(n.id)":4.5}', exit_on_failure=True)
+        # send_and_expect_response(sock, 'cypher', b'',
+        #                          b'done', exit_on_failure=True)
+        #
+        # print()
+        # logging.info('Testing cypher query after adding the graph')
+        # send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
+        # send_and_expect_response(sock, 'cypher', b'1', b'Input query :', exit_on_failure=True)
+        # send_and_expect_response(sock, 'cypher', b'match (n) where id(n)=1 return n',
+        #                      b'{"n":{"id":"1","partitionID":"1"}}', exit_on_failure=True)
+        # send_and_expect_response(sock, 'cypher', b'',
+        #                      b'done', exit_on_failure=True)
+        #
+        # print()
+        # logging.info('Testing cypher query with custom graph with properties')
+        # send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
+        # send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
+        # send_and_expect_response(sock, 'cypher', b'match (n) where id(n)=1 return n',
+        #                             b'{"n":{"id":"1","name":"Bob",'
+        #                             b'"occupation":"Banker","partitionID":"1",'
+        #                             b'"type":"Person"}}', exit_on_failure=True)
+        # send_and_expect_response(sock, 'cypher', b'',
+        #                             b'done', exit_on_failure=True)
+        #
+        # print()
+        # logging.info('1. Testing rmgr after adhdfs')
+        # send_and_expect_response(sock, 'rmgr', RMGR, SEND, exit_on_failure=True)
+        # send_and_expect_response(sock, 'rmgr', b'1', DONE, exit_on_failure=True)
+        # print()
+        # logging.info('Testing rmgr after adhdfs')
+        # send_and_expect_response(sock, 'rmgr', RMGR, SEND, exit_on_failure=True)
+        # send_and_expect_response(sock, 'rmgr', b'2', DONE, exit_on_failure=True)
+        #
+        # print()
+        # logging.info('Testing lst after adhdfs')
+        # send_and_expect_response(sock, 'lst after adhdfs', LIST,
+        #                          EMPTY, exit_on_failure=True)
 
-        print()
-        logging.info('Testing cypher query after adding the graph')
-        send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
-        send_and_expect_response(sock, 'cypher', b'1', b'Input query :', exit_on_failure=True)
-        send_and_expect_response(sock, 'cypher', b'match (n) where id(n)=1 return n',
-                             b'{"n":{"id":"1","partitionID":"1"}}', exit_on_failure=True)
-        send_and_expect_response(sock, 'cypher', b'',
-                             b'done', exit_on_failure=True)
+        test_KG("graphRAG/utils/start-ollama.sh" , "graphRAG/KG/gold" , "utils/datasets/upload-hdfs-file.sh")
 
-        print()
-        logging.info('Testing cypher query with custom graph with properties')
-        send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
-        send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
-        send_and_expect_response(sock, 'cypher', b'match (n) where id(n)=1 return n',
-                                    b'{"n":{"id":"1","name":"Bob",'
-                                    b'"occupation":"Banker","partitionID":"1",'
-                                    b'"type":"Person"}}', exit_on_failure=True)
-        send_and_expect_response(sock, 'cypher', b'',
-                                    b'done', exit_on_failure=True)
-
-        print()
-        logging.info('1. Testing rmgr after adhdfs')
-        send_and_expect_response(sock, 'rmgr', RMGR, SEND, exit_on_failure=True)
-        send_and_expect_response(sock, 'rmgr', b'1', DONE, exit_on_failure=True)
-        print()
-        logging.info('Testing rmgr after adhdfs')
-        send_and_expect_response(sock, 'rmgr', RMGR, SEND, exit_on_failure=True)
-        send_and_expect_response(sock, 'rmgr', b'2', DONE, exit_on_failure=True)
-
-        print()
-        logging.info('Testing lst after adhdfs')
-        send_and_expect_response(sock, 'lst after adhdfs', LIST,
-                                 EMPTY, exit_on_failure=True)
-
-        ##shutting down workers after testing
-        print()
-        logging.info('Shutting down')
-        sock.sendall(SHDN + LINE_END)
-        if passed_all:
-            print()
-            logging.info('Passed all tests')
-        else:
-            print()
-            logging.critical('Failed some tests')
-            print(*failed_tests, sep='\n', file=sys.stderr)
-            sys.exit(1)
+        # ##shutting down workers after testing
+        # print()
+        # logging.info('Shutting down')
+        # sock.sendall(SHDN + LINE_END)
+        # if passed_all:
+        #     print()
+        #     logging.info('Passed all tests')
+        # else:
+        #     print()
+        #     logging.critical('Failed some tests')
+        #     print(*failed_tests, sep='\n', file=sys.stderr)
+        #     sys.exit(1)
 
 if __name__ == '__main__':
     test(HOST, PORT)

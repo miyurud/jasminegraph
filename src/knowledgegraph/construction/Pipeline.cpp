@@ -34,7 +34,7 @@ const size_t OVERLAP_BYTES = 1024; // bytes to overlap between chunks to avoid s
 const std::string END_OF_STREAM_MARKER = "-1";
 
 Pipeline::Pipeline(int connFd,hdfsFS fileSystem, const std::string &filePath, int numberOfPartitions, int graphId,
-                                     std::string masterIP , vector<JasmineGraphServer::worker> &workerList , std::vector<std::string> llmRunners , std::string llmInferenceEngine, std::string llm,std::string chunkSize, long startFromBytes)
+                                     std::string masterIP , vector<JasmineGraphServer::worker> &workerList , std::vector<std::string> llmRunners , std::string llmInferenceEngine, std::string llm,std::string chunkSize, std::string chunksPerBatch, long startFromBytes)
         : connFd(connFd), fileSystem(fileSystem),
           filePath(filePath),
           numberOfPartitions(numberOfPartitions),
@@ -45,6 +45,7 @@ Pipeline::Pipeline(int connFd,hdfsFS fileSystem, const std::string &filePath, in
           workerList(workerList), llmRunners(llmRunners),llmInferenceEngine(llmInferenceEngine),
 llm(llm),
 chunkSize(chunkSize),
+chunksPerBatch(chunksPerBatch),
 startFromBytes(startFromBytes)
 {}
 
@@ -222,14 +223,16 @@ void Pipeline::startStreamingFromBufferToWorkers()
 
     std::thread readerThread(&Pipeline::streamFromHDFSIntoBuffer, this);
     std::vector<std::unique_ptr<SharedBuffer>> bufferPool;
-    bufferPool.reserve(workerList.size());  // Pre-allocate space for pointers
-    for (size_t i = 0; i < workerList.size(); ++i) {
+
+    bufferPool.reserve(stoi(chunksPerBatch));  // Pre-allocate space for pointers
+    for (size_t i = 0; i < stoi(chunksPerBatch); ++i) {
         bufferPool.emplace_back(std::make_unique<SharedBuffer>(MASTER_BUFFER_SIZE));
     }
 
     std::vector<std::thread> workerThreads;
     int count = 0;
     for (auto &worker : workerList) {
+        if (count >= stoi(chunksPerBatch)) break;
         workerThreads.emplace_back(
             &Pipeline::extractTuples,
             this,
@@ -665,9 +668,11 @@ bool Pipeline::streamGraphToDesignatedWorker(std::string host, int port,
         llmRunnerSockets.push_back(intermediate_llm);
 
     }
+    const std::string chunksPerBatch = std::to_string(llmRunnerSockets.size());
     string workers="";
     int counter = 0;
     int workerCount;
+
     if (llmRunnerSockets.size()<numberOfPartitions)
     {
         workerCount = numberOfPartitions;
@@ -731,6 +736,9 @@ bool Pipeline::streamGraphToDesignatedWorker(std::string host, int port,
     if (!sendAndExpect(llmInferenceEngine, "ok"))                        { close(sockfd); return false; }
     if (!sendAndExpect(llm, "ok" )) { close(sockfd); return false; }
     if (!sendAndExpect(chunkSize, "ok" )) { close(sockfd); return false; }
+    if (!sendAndExpect(chunksPerBatch, "ok" )) { close(sockfd); return false; }
+
+
     if (!sendAndExpect(std::to_string(numberOfPartitions), "ok"))   { close(sockfd); return false; }
     if (!sendAndExpect(hdfsServerIp, "ok"))                         { close(sockfd); return false; }
     if (!sendAndExpect(hdfsPort, "ok"))                             { close(sockfd); return false; }

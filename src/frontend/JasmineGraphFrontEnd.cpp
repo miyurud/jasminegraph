@@ -1877,7 +1877,7 @@ void constructKGStreamHDFSCommand(std::string masterIP, int connFd, std::string 
 
 
 
-        std::string resume_msg = "There exists a graph with file path would you  like to resume?";
+        std::string resume_msg = "There exists a graph with the file path, would you like to resume?";
         resultWr = write(connFd, resume_msg.c_str(), resume_msg.length());
         if (resultWr < 0) {
             frontend_logger.error("Error writing to socket");
@@ -1932,11 +1932,6 @@ void constructKGStreamHDFSCommand(std::string masterIP, int connFd, std::string 
     uploadStartTime.erase(uploadStartTime.find_last_not_of("\n\r") + 1); // remove newline
 
 
-    if (newGraphID == -1) {
-        frontend_logger.error("Failed to insert new graph for path: " + path);
-    } else {
-        frontend_logger.info("Inserted new graph with ID: " + std::to_string(newGraphID));
-    }
 
 
 
@@ -1983,7 +1978,7 @@ void constructKGStreamHDFSCommand(std::string masterIP, int connFd, std::string 
     std::string llmInferenceEngineS(llmInferenceEngine);
     llmInferenceEngineS = Utils::trim_copy(llmInferenceEngineS);
 
-    frontend_logger.info("recieved Infercne engine: " + llmInferenceEngineS);
+    frontend_logger.info("received Inference Engine: " + llmInferenceEngineS);
 
 
     std::string LLM_MSG = "What is the LLM you want to use?:";
@@ -2006,6 +2001,7 @@ void constructKGStreamHDFSCommand(std::string masterIP, int connFd, std::string 
     read(connFd, llm, FRONTEND_DATA_LENGTH);
     std::string llmS(llm);
     llmS = Utils::trim_copy(llmS);
+    frontend_logger.info("Received LLM " + llmS);
 
 
     std::string chunk_size_msg = "chunk size (Bytes):";
@@ -2028,7 +2024,7 @@ void constructKGStreamHDFSCommand(std::string masterIP, int connFd, std::string 
     read(connFd, chunkSize, FRONTEND_DATA_LENGTH);
     std::string chunkSizeS(chunkSize);
     chunkSizeS = Utils::trim_copy(chunkSizeS);
-    frontend_logger.info("recieved chunk Size engine: " + chunkSizeS);
+    frontend_logger.info("received chunk Size engine: " + chunkSizeS);
 
     JasmineGraphServer::worker designatedWorker = JasmineGraphServer::getDesignatedWorker();
     if (!Pipeline::streamGraphToDesignatedWorker(designatedWorker.hostname,

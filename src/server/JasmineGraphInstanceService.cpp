@@ -3173,6 +3173,16 @@ long startFromBytes;
     instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
 
 
+    string chunksPerBatch = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_LONG_DATA_LENGTH);
+    instance_logger.info("Received chunksPerBatch : " + chunksPerBatch);
+
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
+
+
     int noOfPartitions = stoi(Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH));
     instance_logger.info("Received Number of Partitions: " + to_string(noOfPartitions));
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
@@ -3261,7 +3271,7 @@ long startFromBytes;
     HDFSConnector *hdfsConnector = new HDFSConnector(hdfsServerUrl, hdfsPort);
 
     Pipeline *streamHandler = new Pipeline(connFd, hdfsConnector->getFileSystem(),
-                                                             hdfsPath, noOfPartitions, std::stoi(graphID),  masterIP, workers ,llmRunnerSockets, llm_inference_engine, llm ,chunkSize, startFromBytes);
+                                                             hdfsPath, noOfPartitions, std::stoi(graphID),  masterIP, workers ,llmRunnerSockets, llm_inference_engine, llm ,chunkSize,chunksPerBatch, startFromBytes);
     instance_logger.info("Started listening to " + hdfsPath);
 
    streamHandler->init();
@@ -3370,7 +3380,7 @@ static void streaming_tuple_extraction(int connFd, int serverPort,
 
        };
        instance_logger.info("3200");
-         int idleTimeoutSec = 240; // e.g., break if no tuple for 30s
+         int idleTimeoutSec = 24000; // e.g., break if no tuple for 30s
 
         while (true) {
             auto optTupleData = tupleBuffer.getWithTimeout(idleTimeoutSec);

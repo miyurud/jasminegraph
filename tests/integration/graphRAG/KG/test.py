@@ -8,39 +8,55 @@ import subprocess
 import random
 import requests
 from rapidfuzz import fuzz
-from tests.integration.graphRAG.fetch_pred import run_cypher_query, parse_results, OUTPUT_FILE
+
+# from tests.integration.graphRAG.fetch_pred import run_cypher_query, parse_results
+
+# from tests.integration.graphRAG.fetch_pred import run_cypher_query, parse_results, OUTPUT_FILE
+
+
+
+# Run hostname -I
+result = subprocess.check_output(["hostname", "-I"]).decode().strip()
+
+# Split by spaces and take the first IP
+first_ip = result.split()[0]
+
+print("First IP:", first_ip)
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
-SERVER_IP = "192.168.1.7"
+SERVER_IP = first_ip
 # JasmineGraph master config
-HOST = SERVER_IP
+HOST = '127.0.0.1'
 
 
 PORT = 7777
 LINE_END = b"\r\n"
 
 # Folder containing text files
-TEXT_FOLDER = "hotpot_qa_records"
+TEXT_FOLDER = "gold"
 
 # LLM runner addresses (comma-separated)
 LLM_RUNNERS = (
-    f"http://{SERVER_IP}:6578," * 8
+        f"http://{SERVER_IP}:11441," * 1
 )
 RUNNER_URLS = [u.strip() for u in LLM_RUNNERS.split(",") if u.strip()]
 REASONING_MODEL_URI = RUNNER_URLS[0] if RUNNER_URLS else None
-REASONING_MODEL_URI = f"http://{SERVER_IP}:11450"
+REASONING_MODEL_URI = f"http://{SERVER_IP}:11441"
 # LLM model to use
-LLM_MODEL = "google/gemma-3-4b-it"
-LLM_INFERENCE_ENGINE="vllm"
+# LLM_MODEL = "google/gemma-3-4b-it"
+LLM_MODEL = "gemma3:4b-it-qat"
+
+# LLM_INFERENCE_ENGINE="vllm"
+LLM_INFERENCE_ENGINE="ollama"
 
 CHUNK_SIZE = "2048"
 # HDFS target folder
 HDFS_BASE = "/home/"
 
 # Path to your bash script
-UPLOAD_SCRIPT = "../utils/datasets/upload-hdfs-file.sh"
-
+UPLOAD_SCRIPT = "../../utils/datasets/upload-hdfs-file.sh"
+OLLAMA_SETUP_SCRIPT = "../utils/start-ollama.sh"
 def recv_until(sock, stop=b"\n"):
     buffer = bytearray()
     while True:
@@ -52,14 +68,14 @@ def recv_until(sock, stop=b"\n"):
             break
     return buffer.decode("utf-8")
 
-def upload_to_hdfs(local_file):
+def upload_to_hdfs(local_file, upload_file_script):
     """Uploads a local file to HDFS using your bash script"""
     folder_name = os.path.basename(os.path.dirname(local_file))
     hdfs_filename = os.path.basename(local_file)
     hdfs_path = folder_name + "/" + hdfs_filename
 
     logging.info(f"Uploading {local_file} → HDFS:{hdfs_path}")
-    subprocess.run(["bash", UPLOAD_SCRIPT, local_file, folder_name], check=True)
+    subprocess.run(["bash", upload_file_script, local_file, folder_name], check=True)
     return hdfs_path
 
 def send_file_to_master(hdfs_file_path):
@@ -80,20 +96,22 @@ def send_file_to_master(hdfs_file_path):
         msg = recv_until(sock, b"\n")
         logging.info("Master: " + msg.strip())
         sock.sendall(hdfs_file_path.encode("utf-8") + LINE_END)
-
+        #
         msg = recv_until(sock, b"\n")
-        logging.info("Master: " + msg.strip())
+        logging.info("Master 101: " + msg.strip())
 
-        if msg == "There exists a graph with file path would you  like to resume?":
+        if msg.strip() == "There exists a graph with the file path, would you like to resume?":
             sock.sendall(b"n" + LINE_END)
             msg = recv_until(sock, b"\n")
-            logging.info("Master: " + msg.strip())
+            logging.info("Master 106: " + msg.strip())
+            print("LLM_RUNNERS "+ CHUNK_SIZE)
+
             sock.sendall(LLM_RUNNERS.encode("utf-8") + LINE_END)
 
 
             msg5 = recv_until(sock, b"\n")
-            logging.info("Master: " + msg5.strip())
-            sock.sendall(LLM_INFERENCE_ENGINE.encode("utf-8"))
+            logging.info("Master1133 : " + msg5.strip())
+            sock.sendall(LLM_INFERENCE_ENGINE.encode("utf-8") + LINE_END)
 
             msg = recv_until(sock, b"\n")
             logging.info("Master: " + msg.strip())
@@ -112,15 +130,14 @@ def send_file_to_master(hdfs_file_path):
 
 
         else:
+            print("LLM_RUNNERS 133 "+ LLM_RUNNERS)
+            msg = recv_until(sock, b"\n")
+            logging.info("Master 135: " + msg.strip())
             sock.sendall(LLM_RUNNERS.encode("utf-8") + LINE_END)
+
             msg = recv_until(sock, b"\n")
             logging.info("Master: " + msg.strip())
-            sock.sendall(LLM_RUNNERS.encode("utf-8") + LINE_END)
-
-
-            msg5 = recv_until(sock, b"\n")
-            logging.info("Master: " + msg5.strip())
-            sock.sendall(LLM_INFERENCE_ENGINE.encode("utf-8"))
+            sock.sendall(LLM_INFERENCE_ENGINE.encode("utf-8")+ LINE_END)
 
             msg = recv_until(sock, b"\n")
             logging.info("Master: " + msg.strip())
@@ -239,14 +256,69 @@ def extract_final_answer(text: str) -> str:
         text = text.split("</think>")[-1].strip()
     # Take only the first line / short phrase
     return text
-def main():
+
+
+def run_cypher_query(graph_id: str, query: str):
+    """Run a Cypher query and return raw rows"""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.connect((HOST, PORT))
+        logging.info(f"Connected to JasmineGraph at {HOST}:{PORT}")
+
+        # Step 1: Send 'cypher'
+        sock.sendall(b"cypher" + LINE_END)
+        recv_until(sock, b"\n")  # "Graph ID:"
+
+        # Step 2: Send graph id
+        sock.sendall(graph_id.encode("utf-8") + LINE_END)
+        recv_until(sock, b"\n")  # "Input query :"
+
+        # Step 3: Send query
+        sock.sendall(query.encode("utf-8") + LINE_END)
+
+        rows = []
+        while True:
+            print("why")
+            line = recv_until(sock, b"\n").strip()
+            print(line)
+            if not line or "done" in line:
+                break
+            rows.append(line)
+
+        # Close Cypher session
+        # sock.sendall(b"" + LINE_END)
+        # recv_until(sock, b"\n")
+
+        return rows
+
+def parse_results(raw_rows):
+    """Convert raw JSON rows from JasmineGraph to head-tail-relation triples"""
+    triples = []
+    for row in raw_rows:
+        try:
+            data = json.loads(row)
+            head = data["n"].get("name", data["n"].get("id"))
+            tail = data["m"].get("name", data["m"].get("id"))
+            rel  = data["r"].get("type", "related_to")
+            triples.append({
+                "head_entity": head,
+                "tail_entity": tail,
+                "relation": rel
+            })
+        except Exception as e:
+            logging.warning(f"Could not parse row: {row} ({e})")
+    return triples
+
+def test_KG(llm_inference_engine_startup_script, text_folder , upload_file_script):
+    subprocess.run(["bash", llm_inference_engine_startup_script], check=True)
+
     query = "MATCH (n)-[r]-(m) RETURN n,r,m"
     last_graph_id = get_last_graph_id()
     graph_id = last_graph_id + 1
-    logging.info(f"Starting processing from graph ID {graph_id}")
+    # logging.info(f"Starting processing from graph ID {graph_id}")
 
     all_txt_files = []
-    for root, _, files in os.walk(TEXT_FOLDER):
+    for root, _, files in os.walk(text_folder):
+        print(files)
         for file in files:
             if file.endswith(".txt"):
                 all_txt_files.append(os.path.join(root, file))
@@ -257,7 +329,7 @@ def main():
     for local_path in all_txt_files:
         folder_name = os.path.basename(os.path.dirname(local_path))
         try:
-            hdfs_path = upload_to_hdfs(local_path)
+            hdfs_path = upload_to_hdfs(local_path , upload_file_script)
             send_file_to_master(hdfs_path)
         except subprocess.CalledProcessError as e:
             logging.error(f"Failed to upload {local_path} to HDFS: {e}")
@@ -276,13 +348,13 @@ def main():
 
         # Copy gold files
         for gold_file in ["entities.json", "relations.json", "text.txt"]:
-            src = os.path.join(TEXT_FOLDER, folder_name, gold_file)
+            src = os.path.join(text_folder, folder_name, gold_file)
             dst = os.path.join(output_dir, gold_file)
             if os.path.exists(src):
                 shutil.copy(src, dst)
 
         # QA prediction
-        qa_file = os.path.join(TEXT_FOLDER, folder_name, "qa_pairs.json")
+        qa_file = os.path.join(text_folder, folder_name, "qa_pairs.json")
         if os.path.exists(qa_file):
             with open(qa_file, "r", encoding="utf-8") as f:
                 qa_data = json.load(f)
@@ -443,5 +515,5 @@ def evaluate_predictions_fuzzy(pred_base="pred", threshold=90):
 #                 logging.error(f"Error processing {path}: {e}")
 
 if __name__ == "__main__":
-    main()
-    evaluate_predictions_fuzzy(pred_base="pred", threshold=90)
+    test_KG(OLLAMA_SETUP_SCRIPT , TEXT_FOLDER)
+    # evaluate_predictions_fuzzy(pred_base="pred", threshold=90)
