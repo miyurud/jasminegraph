@@ -3139,8 +3139,32 @@ long startFromBytes;
     instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
 
 
+
+
+    string llm_inference_engine = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_LONG_DATA_LENGTH);
+    instance_logger.info("Received LLM Inference Engine: " + llm_inference_engine);
+
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
+
+
+
     string llm = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_LONG_DATA_LENGTH);
     instance_logger.info("Received LLM : " + llm);
+
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.info("Sent : " + JasmineGraphInstanceProtocol::OK);
+
+
+
+    string chunkSize = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_LONG_DATA_LENGTH);
+    instance_logger.info("Received Chunk Size : " + chunkSize);
 
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
@@ -3237,7 +3261,7 @@ long startFromBytes;
     HDFSConnector *hdfsConnector = new HDFSConnector(hdfsServerUrl, hdfsPort);
 
     Pipeline *streamHandler = new Pipeline(connFd, hdfsConnector->getFileSystem(),
-                                                             hdfsPath, noOfPartitions, std::stoi(graphID),  masterIP, workers ,llmRunnerSockets, llm , startFromBytes);
+                                                             hdfsPath, noOfPartitions, std::stoi(graphID),  masterIP, workers ,llmRunnerSockets, llm_inference_engine, llm ,chunkSize, startFromBytes);
     instance_logger.info("Started listening to " + hdfsPath);
 
    streamHandler->init();
@@ -3273,6 +3297,9 @@ static void streaming_tuple_extraction(int connFd, int serverPort,
     std::string llmHost = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_LONG_DATA_LENGTH);
     Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK);
 
+    std::string llmInferenceEngine = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_LONG_DATA_LENGTH);
+    Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK);
+
     std::string llm = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK);
     // instance_logger.info("LLM Host and Port: " + llmHostPort);
@@ -3287,7 +3314,13 @@ static void streaming_tuple_extraction(int connFd, int serverPort,
     // int llmPort = std::stoi(llmHostPort.substr(pos + 1));
     instance_logger.info("LLM Host: " + llmHost );
     instance_logger.info("LLM : " + llm );
-        OllamaTupleStreamer streamer(llm, llmHost);
+    std::unique_ptr<TupleStreamer> streamer;
+
+    if (llmInferenceEngine == "ollama") {
+        streamer = std::make_unique<OllamaTupleStreamer>(llm, llmHost);
+    } else {
+        streamer = std::make_unique<VLLMTupleStreamer>(llm, llmHost);
+    }
   // VLLMTupleStreamer streamer("meta-llama/Llama-3.2-3B-Instruct", llmHost);
 
     // // VLLMTupleStreamer streamer("numind/NuExtract-2.0-4B", llmHost);
@@ -3375,7 +3408,7 @@ static void streaming_tuple_extraction(int connFd, int serverPort,
             }
         }
         });
-        streamer.streamChunk("chunk1", chunk, tupleBuffer);
+        streamer->streamChunk("chunk1", chunk, tupleBuffer);
         // streamer.processChunk("chunk1", chunk, tupleBuffer);
 
 
@@ -5303,6 +5336,8 @@ static void processFile(string fileName, bool isLocal,
                     std::to_string(graphId) + "_" + std::to_string(partitionIndex));
         }
     }
+    JasmineGraphIncrementalLocalStore* localStore = handler.incrementalLocalStoreMap[std::to_string(graphId) + "_" + std::to_string(partitionIndex)];
+    localStore->getAndStoreEmbeddings();
     // std::string instanceDataFolderLocation =
     //   Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
     // std::string graphPrefix = instanceDataFolderLocation + "/g" + std::to_string(graphId);

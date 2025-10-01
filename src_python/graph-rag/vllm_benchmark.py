@@ -1,7 +1,7 @@
 import time
 import requests
 
-VLLM_URL = "http://10.10.21.26:6578/v1/completions"
+VLLM_URL = "http://192.168.1.7:6578/v1/completions"
 MODEL = "numind/NuExtract-2.0-4B"  # Adjust as needed
 
 prompt = """You are an expert information extractor specialized in knowledge graph construction. 

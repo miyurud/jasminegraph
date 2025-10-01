@@ -1863,15 +1863,6 @@ void constructKGStreamHDFSCommand(std::string masterIP, int connFd, std::string 
     //
     std::time_t time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
     std::string uploadStartTime = ctime(&time);
-    // std::string sqlStatement =
-    //         "INSERT INTO graph (name, upload_path, upload_start_time, upload_end_time, graph_status_idgraph_status, "
-    //         "vertexcount, centralpartitioncount, edgecount, is_directed) VALUES(\"" +
-    //         hdfsFilePathS + "\", \"" + path + "\", \"" + uploadStartTime + "\", \"\", \"" +
-    //         std::to_string(Conts::GRAPH_STATUS::NONOPERATIONAL) + "\", \"\", \"\", \"\", \"" +
-    //         ("TRUE" ) + "\")";
-    //
-    // int newGraphID = sqlite->runInsert(sqlStatement);
-    //
 
     int newGraphID ;
     bool graphExits = false;
@@ -1881,9 +1872,50 @@ void constructKGStreamHDFSCommand(std::string masterIP, int connFd, std::string 
     if (!result.empty() && !result[0].empty()) {
         int existingId = std::stoi(result[0][0].second);
         frontend_logger.info("Graph already exists with ID: " + std::to_string(existingId));
-        newGraphID = existingId;
-        graphExits = true;
-    }else
+
+
+
+
+
+        std::string resume_msg = "There exists a graph with file path would you  like to resume?";
+        resultWr = write(connFd, resume_msg.c_str(), resume_msg.length());
+        if (resultWr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        if (resultWr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+
+        char resume[FRONTEND_DATA_LENGTH + 1];
+        bzero(resume, FRONTEND_DATA_LENGTH + 1);
+        read(connFd, resume, FRONTEND_DATA_LENGTH);
+        std::string resumeS(resume);
+        resumeS = Utils::trim_copy(resumeS);
+
+        if (resumeS == "y")
+        {
+            newGraphID = existingId;
+            graphExits = true;
+        }
+        else
+        {
+                    std::string insertQuery =
+         "INSERT INTO graph (name, upload_path, upload_start_time, upload_end_time, graph_status_idgraph_status, "
+         "vertexcount, centralpartitioncount, edgecount, is_directed) VALUES(\"" +
+         hdfsFilePathS + "\", \"" + path + "\", \"" + uploadStartTime + "\", \"\", \"" +
+         std::to_string(Conts::GRAPH_STATUS::NONOPERATIONAL) + "\", \"\", \"\", \"\", \"TRUE\");";
+
+                    newGraphID =  sqlite->runInsert(insertQuery);
+        }
+
+        }
+
+        else
     {
         std::string insertQuery =
     "INSERT INTO graph (name, upload_path, upload_start_time, upload_end_time, graph_status_idgraph_status, "
@@ -1908,10 +1940,8 @@ void constructKGStreamHDFSCommand(std::string masterIP, int connFd, std::string 
 
 
 
-
-
-  std::string message3 = "LLM runner hostname:port: ";
-    resultWr = write(connFd, message3.c_str(), message3.length());
+  std::string llmRunnerMSG = "LLM runner hostname:port: ";
+    resultWr = write(connFd, llmRunnerMSG.c_str(), llmRunnerMSG.length());
     if (resultWr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -1930,9 +1960,34 @@ void constructKGStreamHDFSCommand(std::string masterIP, int connFd, std::string 
     std::string hostnamePortS(hostnamePort);
     hostnamePortS = Utils::trim_copy(hostnamePortS);
 
-    std::string LLM;
-    std::string llm_msg = "What is the LLM you want to use?:";
-    resultWr = write(connFd, llm_msg.c_str(), llm_msg.length());
+
+    frontend_logger.info("Recieved LLM runnners: "+ hostnamePortS);
+
+    std::string llmInferenceMSG = "LLM inference engine? ollama/vllm? ";
+    resultWr = write(connFd, llmInferenceMSG.c_str(), llmInferenceMSG.length());
+    if (resultWr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+    if (resultWr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+
+    char llmInferenceEngine[FRONTEND_DATA_LENGTH + 1];
+    bzero(llmInferenceEngine, FRONTEND_DATA_LENGTH + 1);
+    read(connFd, llmInferenceEngine, FRONTEND_DATA_LENGTH);
+    std::string llmInferenceEngineS(llmInferenceEngine);
+    llmInferenceEngineS = Utils::trim_copy(llmInferenceEngineS);
+
+    frontend_logger.info("recieved Infercne engine: " + llmInferenceEngineS);
+
+
+    std::string LLM_MSG = "What is the LLM you want to use?:";
+    resultWr = write(connFd, LLM_MSG.c_str(), LLM_MSG.length());
     if (resultWr < 0) {
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
@@ -1952,15 +2007,30 @@ void constructKGStreamHDFSCommand(std::string masterIP, int connFd, std::string 
     std::string llmS(llm);
     llmS = Utils::trim_copy(llmS);
 
-    frontend_logger.info("Created graph ID: " + std::to_string(newGraphID));
-    // JasmineGraphServer::worker designatedWorker = JasmineGraphServer::getDesignatedWorker();
-    JasmineGraphServer::worker designatedWorker ;
-    designatedWorker.hostname = "10.10.21.26";
-    // designatedWorker.port =  7818; // 20 workers
-    // designatedWorker.dataPort = 7819;
-    designatedWorker.port =  7784;
-    designatedWorker.dataPort = 7785;
 
+    std::string chunk_size_msg = "chunk size (Bytes):";
+    resultWr = write(connFd, chunk_size_msg.c_str(), chunk_size_msg.length());
+    if (resultWr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+    resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+    if (resultWr < 0) {
+        frontend_logger.error("Error writing to socket");
+        *loop_exit_p = true;
+        return;
+    }
+
+
+    char chunkSize[FRONTEND_DATA_LENGTH + 1];
+    bzero(chunkSize, FRONTEND_DATA_LENGTH + 1);
+    read(connFd, chunkSize, FRONTEND_DATA_LENGTH);
+    std::string chunkSizeS(chunkSize);
+    chunkSizeS = Utils::trim_copy(chunkSizeS);
+    frontend_logger.info("recieved chunk Size engine: " + chunkSizeS);
+
+    JasmineGraphServer::worker designatedWorker = JasmineGraphServer::getDesignatedWorker();
     if (!Pipeline::streamGraphToDesignatedWorker(designatedWorker.hostname,
                                                  designatedWorker.port,
                                                  masterIP,
@@ -1969,22 +2039,14 @@ void constructKGStreamHDFSCommand(std::string masterIP, int connFd, std::string 
                                                  hdfsServerIp,
                                                  hdfsPort,
                                                  hostnamePortS,
+                                                 llmInferenceEngineS,
                                                  llm,
+                                                 chunkSizeS,
                                                  hdfsFilePathS , graphExits, sqlite))
     {
         frontend_logger.error("Streaming to worker failed");
     }
 
-    // Pipeline *streamHandler = new Pipeline(hdfsConnector->getFileSystem(),
-    //                                                          hdfsFilePathS, numberOfPartitions,
-    //                                                          newGraphID, sqlite, masterIP, true);
-    // frontend_logger.info("Started listening to " + hdfsFilePathS);
-    // inputStreamHandlerThread = std::thread(&Pipeline::startStreamingFromBufferToPartitions, streamHandler);
-    // if (inputStreamHandlerThread.joinable())
-    // {
-    //     inputStreamHandlerThread.join();
-    // }
-    //
 
     std::string uploadEndTime = ctime(&time);
     std::string sqlStatementUpdateEndTime =

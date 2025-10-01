@@ -40,7 +40,7 @@ using std::map;
 class JasmineGraphServer {
  private:
     map<std::string, long> hostPlaceMap;
-    std::string workerHosts;
+
     std::string enableNmon;
     static const int BUFFER_SIZE = 128;
     int serverPort;
@@ -62,6 +62,7 @@ class JasmineGraphServer {
     void deleteNonOperationalGraphFragment(int graphID);
 
  public:
+    std::string workerHosts;
     static JasmineGraphServer *getInstance();
 
     ~JasmineGraphServer();

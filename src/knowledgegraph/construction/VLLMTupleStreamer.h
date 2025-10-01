@@ -4,6 +4,7 @@
 #include <mutex>
 #include <stack>
 
+#include "TupleStreamer.cpp"
 #include "../../query/processor/cypher/util/SharedBuffer.h"
 
 // ---------------- Stream Context ----------------
@@ -18,7 +19,7 @@ struct StreamContext {
 };
 
 // ---------------- VLLMTupleStreamer ----------------
-class VLLMTupleStreamer {
+class VLLMTupleStreamer : public TupleStreamer  {
 public:
     // Constructor
     VLLMTupleStreamer(const std::string& modelName, const std::string& host);

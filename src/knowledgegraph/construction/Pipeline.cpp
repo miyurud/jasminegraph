@@ -28,16 +28,13 @@ Logger kg_pipeline_stream_handler_logger;
 
 const size_t MESSAGE_SIZE = 5 * 1024 * 1024;
 const size_t MAX_BUFFER_SIZE = MESSAGE_SIZE * 512;
-const size_t CHUNCK_BYTE_SIZE = 1024*2; // 1 kB chunks
 const size_t OVERLAP_BYTES = 1024; // bytes to overlap between chunks to avoid splitting lines
 
-// const size_t CHUNCK_BYTE_SIZE = 100;
-// const size_t OVERLAP_BYTES = 10; // bytes to overlap between chunks to avoid splitting lines
 
 const std::string END_OF_STREAM_MARKER = "-1";
 
 Pipeline::Pipeline(int connFd,hdfsFS fileSystem, const std::string &filePath, int numberOfPartitions, int graphId,
-                                     std::string masterIP , vector<JasmineGraphServer::worker> &workerList , std::vector<std::string> llmRunners , std::string llm, long startFromBytes)
+                                     std::string masterIP , vector<JasmineGraphServer::worker> &workerList , std::vector<std::string> llmRunners , std::string llmInferenceEngine, std::string llm,std::string chunkSize, long startFromBytes)
         : connFd(connFd), fileSystem(fileSystem),
           filePath(filePath),
           numberOfPartitions(numberOfPartitions),
@@ -45,8 +42,9 @@ Pipeline::Pipeline(int connFd,hdfsFS fileSystem, const std::string &filePath, in
           isProcessing(true),
           graphId(graphId),
           masterIP(masterIP),
-          workerList(workerList), llmRunners(llmRunners),
+          workerList(workerList), llmRunners(llmRunners),llmInferenceEngine(llmInferenceEngine),
 llm(llm),
+chunkSize(chunkSize),
 startFromBytes(startFromBytes)
 {}
 
@@ -78,7 +76,7 @@ void Pipeline::streamFromHDFSIntoBuffer() {
 
     kg_pipeline_stream_handler_logger.info("Successfully opened HDFS file: " + filePath);
 
-    std::vector<char> buffer(CHUNCK_BYTE_SIZE);
+    std::vector<char> buffer(std::stol(chunkSize));
     int64_t read_bytes = 0;
     int chunk_idx = 0;
     std::string leftover;
@@ -100,7 +98,7 @@ void Pipeline::streamFromHDFSIntoBuffer() {
 
         kg_pipeline_stream_handler_logger.info("Starting read from byte offset: " + std::to_string(startFromBytes));
     }
-  while ((read_bytes = hdfsRead(fileSystem, file, buffer.data(), CHUNCK_BYTE_SIZE)) > 0) {
+  while ((read_bytes = hdfsRead(fileSystem, file, buffer.data(), std::stol(chunkSize))) > 0) {
 
 
    bytes_read_so_far += read_bytes;
@@ -162,7 +160,7 @@ void Pipeline::streamFromHDFSIntoBuffer() {
       // Utils::sendExpectResponse( connFd, std::to_string(read_bytes).c_str());
       char data[FED_DATA_LENGTH + 1];
       Utils::sendExpectResponse(connFd, data, INSTANCE_DATA_LENGTH,
-                          std::to_string(read_bytes), JasmineGraphInstanceProtocol ::OK);
+                          std::to_string(bytes_read_so_far), JasmineGraphInstanceProtocol ::OK);
       // Utils::send_long_wrapper( connFd, &read_bytes, sizeof(read_bytes));
 
       // Utils::send_str_wrapper( connFd, "test");
@@ -433,6 +431,17 @@ void Pipeline::extractTuples(std::string host, int port, std::string masterIP,
     kg_pipeline_stream_handler_logger.info("LLM runner sent successfully");
 
 
+    if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH,
+                                 llmInferenceEngine,
+                                 JasmineGraphInstanceProtocol::OK)) {
+        kg_pipeline_stream_handler_logger.error("Failed to send LLM runner info");
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return;
+                                 }
+    kg_pipeline_stream_handler_logger.info("LLM runner sent successfully");
+
+
     // 3. Send LLM  info
     if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH,
                                    llm,
@@ -571,8 +580,7 @@ void Pipeline::extractTuples(std::string host, int port, std::string masterIP,
     }
 
     kg_pipeline_stream_handler_logger.info("Closing connection for partitionId: " + std::to_string(partitionId));
-    // Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
-    // close(sockfd);
+
 }
 bool Pipeline::streamGraphToDesignatedWorker(std::string host, int port,
                                           std::string masterIP,
@@ -581,7 +589,9 @@ bool Pipeline::streamGraphToDesignatedWorker(std::string host, int port,
                                           std::string hdfsServerIp,
                                           std::string hdfsPort,
                                           std::string hostnamePort,
+                                          std::string llmInferenceEngine,
                                           std::string llm,
+                                          std::string chunkSize,
                                           std::string hdfsFilePath,
                                           bool continueKGConstruction,
                                           SQLiteDBInterface *sqlite
@@ -680,12 +690,7 @@ bool Pipeline::streamGraphToDesignatedWorker(std::string host, int port,
 
     }
 
-    // if (continueKGConstruction)
-    // {
-    //
-    // }
 
-    // === Send messages like in Python test client ===
     if (!sendAndExpect("initiate-streaming-kg-construction", "ok")) { close(sockfd); return false; }
     if (!sendAndExpect(graphId, "ok"))   { close(sockfd); return false; }
     if (continueKGConstruction)
@@ -707,7 +712,6 @@ bool Pipeline::streamGraphToDesignatedWorker(std::string host, int port,
             kg_pipeline_stream_handler_logger.info("uploaded bytes: " + std::to_string(upload_bytes));
 
         } catch (std::exception& e) {
-            // Handle invalid number
             kg_pipeline_stream_handler_logger.debug(e.what());
 
         }
@@ -724,13 +728,14 @@ bool Pipeline::streamGraphToDesignatedWorker(std::string host, int port,
     }
 
     if (!sendAndExpect(hostnamePort, "ok"))                        { close(sockfd); return false; }
-if (!sendAndExpect(llm, "ok" )) { close(sockfd); return false; }
+    if (!sendAndExpect(llmInferenceEngine, "ok"))                        { close(sockfd); return false; }
+    if (!sendAndExpect(llm, "ok" )) { close(sockfd); return false; }
+    if (!sendAndExpect(chunkSize, "ok" )) { close(sockfd); return false; }
     if (!sendAndExpect(std::to_string(numberOfPartitions), "ok"))   { close(sockfd); return false; }
     if (!sendAndExpect(hdfsServerIp, "ok"))                         { close(sockfd); return false; }
     if (!sendAndExpect(hdfsPort, "ok"))                             { close(sockfd); return false; }
     if (!sendAndExpect(masterIP, "ok"))                        { close(sockfd); return false; }
     if (!sendAndExpect(workers, "ok"))                        { close(sockfd); return false; }
-
     if (!sendAndExpect(hdfsFilePath, "ok"))                        { close(sockfd); return false; }
     char buffer[1024];
     int totalReceivedBytes = 0;
@@ -756,18 +761,11 @@ if (!sendAndExpect(llm, "ok" )) { close(sockfd); return false; }
                                                 " WHERE idgraph = " + graphId + ";";
             sqlite->runUpdate(updateQuery);
 
-            // Optional: send ack for this chunk
 
         } catch (std::exception &e) {
             kg_pipeline_stream_handler_logger.error("Invalid progress message from worker: " + msg);
         }
     }
-    // Final ack "done"
-    // if (!sendAndExpect("done", "done")) {
-    //     close(sockfd);
-    //     return false;
-    // }
-
     close(sockfd);
     kg_pipeline_stream_handler_logger.info("Worker completed streaming upload for graph " + (graphId));
     return true;

@@ -51,7 +51,7 @@ def main():
         logging.info("Master: " + msg4.strip())
 
         # Send the LLM runner address
-        # sock.sendall(b"http://10.10.21.26:6578,http://10.10.21.26:6578,http://10.10.21.26:6578,http://10.10.21.26:6578,http://10.10.21.26:6578,http://10.10.21.26:6578,http://10.10.21.26:6578,http://10.10.21.26:6578,http://10.10.21.26:6578,http://10.10.21.26:6578,http://10.10.21.26:6578,http://10.10.21.26:6578,http://10.10.21.26:6578,http://10.10.21.26:6578,http://10.10.21.26:6578,http://10.10.21.26:6578,http://10.10.21.26:6578,http://10.10.21.26:6578,http://10.10.21.26:6578,http://10.10.21.26:6578")
+        # sock.sendall(b"http://192.168.1.7:6578,http://192.168.1.7:6578,http://192.168.1.7:6578,http://192.168.1.7:6578,http://192.168.1.7:6578,http://192.168.1.7:6578,http://192.168.1.7:6578,http://192.168.1.7:6578,http://192.168.1.7:6578,http://192.168.1.7:6578,http://192.168.1.7:6578,http://192.168.1.7:6578,http://192.168.1.7:6578,http://192.168.1.7:6578,http://192.168.1.7:6578,http://192.168.1.7:6578,http://192.168.1.7:6578,http://192.168.1.7:6578,http://192.168.1.7:6578,http://192.168.1.7:6578")
         # sock.sendall(b"https://sajeenthiranp-21--example-vllm-inference-serve.modal.run,https://sajeenthiranp-21--example-vllm-inference-serve.modal.run,https://sajeenthiranp-21--example-vllm-inference-serve.modal.run,https://sajeenthiranp-21--example-vllm-inference-serve.modal.run,https://sajeenthiranp-21--example-vllm-inference-serve.modal.run,https://sajeenthiranp-21--example-vllm-inference-serve.modal.run,https://sajeenthiranp-21--example-vllm-inference-serve.modal.run,https://sajeenthiranp-21--example-vllm-inference-serve.modal.run,https://sajeenthiranp-21--example-vllm-inference-serve.modal.run,https://sajeenthiranp-21--example-vllm-inference-serve.modal.run,https://sajeenthiranp-21--example-vllm-inference-serve.modal.run,https://sajeenthiranp-21--example-vllm-inference-serve.modal.run,https://sajeenthiranp-21--example-vllm-inference-serve.modal.run,https://sajeenthiranp-21--example-vllm-inference-serve.modal.run,https://sajeenthiranp-21--example-vllm-inference-serve.modal.run,https://sajeenthiranp-21--example-vllm-inference-serve.modal.run,https://sajeenthiranp-21--example-vllm-inference-serve.modal.run,https://sajeenthiranp-21--example-vllm-inference-serve.modal.run,https://sajeenthiranp-21--example-vllm-inference-serve.modal.run,https://sajeenthiranp-21--example-vllm-inference-serve.modal.run")
         # sock.sendall(
         #     b"https://sajeenthiranp-21--l40s-gpu-node-1-serve.modal.run,"
@@ -77,10 +77,18 @@ def main():
         # )
 
 
-        # sock.sendall(b"http://10.10.21.26:11346,http://10.10.21.26:11346,http://10.10.21.26:11346,http://10.10.21.26:11346,"
-        #      b"http://10.10.21.26:11347,http://10.10.21.26:11347,http://10.10.21.26:11347,http://10.10.21.26:11347")
+        # sock.sendall(b"http://192.168.1.7:11346,http://192.168.1.7:11346,http://192.168.1.7:11346,http://192.168.1.7:11346,"
+        #      b"http://192.168.1.7:11347,http://192.168.1.7:11347,http://192.168.1.7:11347,http://192.168.1.7:11347")
 
-        sock.sendall(b"http://10.10.21.26:11439")
+        sock.sendall(b"http://192.168.1.7:11436,http://192.168.1.7:11436")
+
+        msg5 = recv_until(sock, b"\n")
+        logging.info("Master: " + msg5.strip())
+
+        # Send the LLM runner address
+        # sock.sendall(b"RedHatAI/Meta-Llama-3.1-8B-Instruct-FP8")
+        sock.sendall(b"ollama")
+
         msg5 = recv_until(sock, b"\n")
         logging.info("Master: " + msg5.strip())
 

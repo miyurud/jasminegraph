@@ -3,7 +3,7 @@ import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
-VLLM_URL = "http://10.10.21.26:6578/v1/completions"
+VLLM_URL = "http://192.168.1.7:6578/v1/completions"
 MODEL = "RedHatAI/Meta-Llama-3.1-8B-Instruct-FP8"  # Adjust as needed
 
 def run_request(prompt, max_tokens=3000):

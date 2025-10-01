@@ -39,9 +39,9 @@ services:
     env_file:
       - env_init/config/hdfs/hadoop.env
     extra_hosts:
-      - "namenode:10.10.21.26"
-      - "datanode:10.10.21.26"
-      - "resourcemanager:10.10.21.26"
+      - "namenode:192.168.1.7"
+      - "datanode:192.168.1.7"
+      - "resourcemanager:192.168.1.7"
     network_mode: "host"
 
 
@@ -64,9 +64,9 @@ services:
     env_file:
       - env_init/config/hdfs/hadoop.env
     extra_hosts:
-      - "namenode:10.10.21.26"
-      - "datanode:10.10.21.26"
-      - "resourcemanager:10.10.21.26"
+      - "namenode:192.168.1.7"
+      - "datanode:192.168.1.7"
+      - "resourcemanager:192.168.1.7"
     network_mode: "host"
 
 
@@ -86,9 +86,9 @@ services:
     env_file:
       - env_init/config/hdfs/hadoop.env
     extra_hosts:
-      - "namenode:10.10.21.26"
-      - "datanode:10.10.21.26"
-      - "resourcemanager:10.10.21.26"
+      - "namenode:192.168.1.7"
+      - "datanode:192.168.1.7"
+      - "resourcemanager:192.168.1.7"
     network_mode: "host"
 
 
@@ -103,9 +103,9 @@ services:
     env_file:
       - env_init/config/hdfs/hadoop.env
     extra_hosts:
-      - "namenode:10.10.21.26"
-      - "datanode:10.10.21.26"
-      - "resourcemanager:10.10.21.26"
+      - "namenode:192.168.1.7"
+      - "datanode:192.168.1.7"
+      - "resourcemanager:192.168.1.7"
     network_mode: "host"
 
 

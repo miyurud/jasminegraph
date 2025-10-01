@@ -21,12 +21,13 @@ public:
 
               std::string masterIP , vector<JasmineGraphServer::worker> &workerList, std::vector<std::string> llmRunners );
     Pipeline(int connFd, hdfsFS fileSystem, const std::string& filePath, int numberOfPartitions, int graphId, std::string masterIP,
-             vector<JasmineGraphServer::worker>& workerList, std::vector<std::string> llmRunners, std::string llm , long startFromBytes);
+             vector<JasmineGraphServer::worker>& workerList, std::vector<std::string> llmRunners,std::string llmInferenceEngine, std::string llm ,string chunkSize, long startFromBytes);
     void init();
     void startStreamingFromBufferToPartitions();
     static bool streamGraphToDesignatedWorker(std::string host, int port, std::string masterIP, std::string graphId, int numberOfPartitions, std::string hdfsServerIp,
-                                              std::string hdfsPort, std::string hostnamePort,
-                                              std::string llm, std::string hdfsFilePath, bool continueKGConstruction, SQLiteDBInterface* sqlite);
+                                              std::string hdfsPort, std::string hostnamePort, std::string llmInferenceEngine,
+                                              std::string llm, std::string chunkSize, std::string hdfsFilePath, bool continueKGConstruction, SQLiteDBInterface*
+                                              sqlite);
 
 
 private:
@@ -61,10 +62,13 @@ private:
     int numberOfPartitions;
     vector<JasmineGraphServer::worker> &workerList;
     std::vector<std::string> llmRunners;
+    std::string llmInferenceEngine;
     std::string llm;
     int connFd;
     std::mutex dbLock;
     long startFromBytes;
+    std:: string chunkSize;
+
 };
 
 

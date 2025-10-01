@@ -79,6 +79,7 @@ void InstanceStreamHandler::threadFunction(const std::string& nodeString) {
         }
         localStore->addEdgeFromString(nodeString);
     }
+
 }
 
 std::string InstanceStreamHandler::extractGraphIdentifier(const std::string& nodeString) {

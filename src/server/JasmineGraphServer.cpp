@@ -492,6 +492,8 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
             const char *serverStartCmd = serverStartScript.c_str();
             pid_t child = fork();
             if (child == 0) {
+                server_logger.info("###MASTER#### pulling image");
+
                 execl("/bin/sh", "sh", "-c", serverStartCmd, nullptr);
                 _exit(1);
             }
@@ -882,6 +884,9 @@ server_logger.debug("designated worker");
             best_score = score;
         }
     }
+
+    // TODO :: wrong logic
+    best_worker = hostWorkerList.back();
 
     return best_worker;
 }

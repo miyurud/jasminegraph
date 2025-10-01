@@ -3,10 +3,14 @@
 
 #include <string>
 
+#include "TupleStreamer.cpp"
+
+
 #include "../../query/processor/cypher/util/SharedBuffer.h"
 
 
-class OllamaTupleStreamer {
+
+class OllamaTupleStreamer : public TupleStreamer  {
 public:
     OllamaTupleStreamer(const std::string& modelName,   const std::string& host);
 

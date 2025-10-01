@@ -212,7 +212,7 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/frontend/core/executor/impl/SemanticBeamSearchExecutor.h
         src/knowledgegraph/construction/VLLMTupleStreamer.cpp
         src/knowledgegraph/construction/VLLMTupleStreamer.h
-
+        src/knowledgegraph/construction/TupleStreamer.cpp
 
 
 )

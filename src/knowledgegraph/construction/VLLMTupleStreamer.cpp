@@ -52,50 +52,11 @@ size_t VLLMTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb, v
         std::string jsonPart = line.substr(prefix.size());
         try {
             auto j = json::parse(jsonPart);
-
+            // choices[0].delta.content
             if (j.contains("choices") && !j["choices"].empty()) {
                 // std::string text = j["choices"][0].value("text", "");
-                 std::string partial = j["choices"][0].value("text", "");
+                 std::string partial = j["choices"][0]["delta"].value("content", "");
                 size_t s = 0;
-                // vllm_tuple_streamer_logger.info("partial: "+ partial );
-
-                // while (true) {
-                    // size_t e = partial.find("#", s);
-                    // if (e == std::string::npos)
-                    // {
-                    //     ctx->current_tuple += partial; // append remaining
-                    //     vllm_tuple_streamer_logger.info("Current tuple: " + ctx-> current_tuple);
-                    //     vllm_tuple_streamer_logger.info("Appending remaining partial: " + partial);
-                    //
-                    //
-                    // } else
-                    //     {
-                    //     ctx->current_tuple += partial.substr(0, e); // append up to the #
-                    //
-                    //         // ctx->current_tuple += partial;
-                    //         vllm_tuple_streamer_logger.info("65: " + ctx->current_tuple);
-                    //     std::string tupleStr;
-                    //     try
-                    //     {
-                    //         // validate
-                    //         json::parse(ctx->current_tuple);
-                    //         tupleStr = ctx->current_tuple;
-                    //         ctx->buffer->add(tupleStr);
-                    //         ctx->current_tuple.clear();
-                    //         s = e + 1;
-                    //     }
-                    //     catch (const std::exception& exception )
-                    //     {
-                    //         vllm_tuple_streamer_logger.error( exception.what() );
-                    //         vllm_tuple_streamer_logger.info("86 Malformed/partial JSON ignored: " + ctx->current_tuple);
-                    //
-                    //         ctx->current_tuple.clear();
-                    //         s = e + 1;
-                    //
-                    //     }
-                    //
-                    //
-                    //     }
 
 
                 // for (char c : partial) {
@@ -125,11 +86,48 @@ size_t VLLMTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb, v
                 //     }
                 // }
 
-                size_t i = 0;
+                // size_t i = 0;
+                // // int braceDepth = 0;
+                //
+                // while (i < partial.size()) {
+                //     size_t bpos = partial.find_first_of("{}", i);
+                //     if (bpos == std::string::npos) {
+                //         if (ctx->braceDepth > 0) {
+                //             ctx->current_tuple.append(partial, i, std::string::npos);
+                //         }
+                //         break;
+                //     }
+                //
+                //     if (ctx->braceDepth > 0) {
+                //         ctx->current_tuple.append(partial, i, bpos - i);
+                //     }
+                //
+                //     char c = partial[bpos];
+                //     if (c == '{') {
+                //         ctx->braceDepth++;
+                //         ctx->current_tuple.push_back(c);
+                //     } else { // '}'
+                //         ctx->braceDepth--;
+                //         ctx->current_tuple.push_back(c);
+                //
+                //         if (ctx->braceDepth == 0) {
+                //             try {
+                //                 ctx->buffer->add(ctx->current_tuple);
+                //                 // vllm_tuple_streamer_logger.info("✅ Adding complete tuple: " + ctx->current_tuple);
+                //             } catch (const std::exception& ex) {
+                //                 vllm_tuple_streamer_logger.error("❌ JSON parse failed: " + std::string(ex.what()));
+                //             }
+                //             ctx->current_tuple.clear();
+                //         }
+                //     }
+                //     i = bpos + 1;
+                // }
+
+                  size_t i = 0;
                 // int braceDepth = 0;
 
                 while (i < partial.size()) {
-                    size_t bpos = partial.find_first_of("{}", i);
+                    size_t bpos = partial.find_first_of("[]", i);
                     if (bpos == std::string::npos) {
                         if (ctx->braceDepth > 0) {
                             ctx->current_tuple.append(partial, i, std::string::npos);
@@ -142,22 +140,62 @@ size_t VLLMTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb, v
                     }
 
                     char c = partial[bpos];
-                    if (c == '{') {
+                    if (c == '[') {
                         ctx->braceDepth++;
                         ctx->current_tuple.push_back(c);
                     } else { // '}'
                         ctx->braceDepth--;
                         ctx->current_tuple.push_back(c);
 
-                        if (ctx->braceDepth == 0) {
-                            try {
-                                ctx->buffer->add(ctx->current_tuple);
-                                // vllm_tuple_streamer_logger.info("✅ Adding complete tuple: " + ctx->current_tuple);
-                            } catch (const std::exception& ex) {
-                                vllm_tuple_streamer_logger.error("❌ JSON parse failed: " + std::string(ex.what()));
-                            }
-                            ctx->current_tuple.clear();
-                        }
+                     if (ctx->braceDepth == 0) {
+                         vllm_tuple_streamer_logger.info("Received '" + ctx->current_tuple + "'");
+    try {
+        auto arr = json::parse(ctx->current_tuple);
+        if (arr.is_array()) {
+            for (auto& triple : arr) {
+                if (triple.is_array() && triple.size() == 5) {
+                    std::string subject = triple[0].get<std::string>();
+                    std::string predicate = triple[1].get<std::string>();
+                    std::string object = triple[2].get<std::string>();
+                    std::string subject_type = triple[3].get<std::string>();
+                    std::string object_type = triple[4].get<std::string>();
+
+                    json formattedTriple = {
+                        {"source", {
+                {"id", subject},
+                {"properties", {
+                    {"id", subject},
+                    {"label", subject_type},
+                    {"name", subject}
+                }}
+                        }},
+                        {"destination", {
+                {"id", object},
+                {"properties", {
+                    {"id", object},
+                    {"label", object_type},
+                    {"name", object}
+                }}
+                        }},
+                        {"properties", {
+                {"id", subject + "_" + predicate + "_" + object},
+                {"type", predicate},
+                {"description", subject + " " + predicate + " " + object}
+                        }}
+                    };
+
+                    // Add the formatted triple to the buffer
+                    ctx->buffer->add(formattedTriple.dump());
+                    vllm_tuple_streamer_logger.debug("✅ Added formatted triple: " + formattedTriple.dump());
+                }
+            }
+        }
+    } catch (const std::exception& ex) {
+        vllm_tuple_streamer_logger.error("❌ JSON array parse failed: " + std::string(ex.what()));
+    }
+    ctx->current_tuple.clear();
+}
+
                     }
                     i = bpos + 1;
                 }
@@ -191,9 +229,9 @@ void VLLMTupleStreamer::streamChunk(const std::string& chunkKey,
             return;
         }
 
-        std::string url = host + "/v1/completions";
+        // std::string url = host + "/v1/completions";
         // std::string url = host + "/v1/chat/completions";
-
+        std::string url = host + "/v1/chat/completions";
         vllm_tuple_streamer_logger.info("Connecting to VLLM server at: " + host);
 
         curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
@@ -264,55 +302,101 @@ void VLLMTupleStreamer::streamChunk(const std::string& chunkKey,
     // "  }\n"
     // "}\n\n"
     // "Now process the following text:\n" + chunkText + ".\n\nJSON objects:\n";
-    j["prompt"]  =
-              R"(You are an expert information extractor specialized in knowledge graph construction.
-        Your task is to extract all subject–predicate–object triples from the given text and output them in a strict JSON format.
+//     j["prompt"]  =
+//               R"(You are an expert information extractor specialized in knowledge graph construction.
+//         Your task is to extract all subject–predicate–object triples from the given text and output them in a strict JSON format.
+//
+//         Instructions:
+//
+//         - Each JSON object must have exactly three sections: "source", "destination", and "properties".
+//         - Use consistent and unique IDs: concatenate entity type + entity name in lowercase with underscores (e.g., person_barack_obama).
+//         - Use Wikidata-style entity labels for "label" fields (e.g., Person, Location, Organization, Event).
+//         - Use Wikidata relation types for "type" (e.g., born_in, educated_at, member_of, spouse, president_of).
+//         - "description" must be a faithful short sentence or phrase directly derived from the text.
+//         - Omit extracting triples if the subject or object is an ambiguous pronoun (he, she, it, they) with no clear reference.
+//         - Extract as many meaningful, non-duplicate triples as possible.
+//         - Ensure that every triple is factual and derived explicitly from the text.
+//
+//         Use this format:
+//         {
+//           "source": {
+//             "id": "<unique_node_id>",
+//             "properties": {
+//               "id": "<unique_node_id>",
+//               "label": "<EntityType>",
+//               "name": "<EntityName>"
+//             }
+//           },
+//           "destination": {
+//             "id": "<unique_node_id>",
+//             "properties": {
+//               "id": "<unique_node_id>",
+//               "label": "<EntityType>",
+//               "name": "<EntityName>"
+//             }
+//           },
+//           "properties": {
+//             "id": "<unique_relationship_id>",
+//             "type": "<Predicate>",
+//             "description": "<Human-readable description of the triple>"
+//           }
+//         }
+//
+//         Now process the following text:
+//         )" + chunkText + R"(
+//
+//         JSON objects:
+//         )";
+//
+//         j["prompt"]  = R"(
+// - Extract as many meaningful, non-duplicate triples (facts) as possible. You should not miss any facts.
+// - Omit extracting triples only for the subject or object which have ambiguous pronoun (he, she, it, they) with no clear reference.
+// - Return only a JSON array of arrays in the form:
+//     [subject, predicate, object, subject_type, object_type].
+//
+// Example:
+//     Text: Radio City is India's first private FM radio station and was started on 3 July 2001. It plays Hindi, English and regional songs. Radio City recently forayed into New Media in May 2008 with the launch of a music portal - PlanetRadiocity.com that offers music related news, videos, songs, and other music-related features.
+//     Array: [["Radio City", "located in", "India", "Organization", "Location"], ["Radio City", "is", "private FM radio station", "Organization", "Other"], ["Radio City", "started on", "3 July 2001", "Organization", "Date"], ["Radio City", "plays songs in", "Hindi", "Organization", "Other"], ["Radio City", "plays songs in", "English", "Organization", "Other"], ["Radio City", "forayed into", "New Media", "Organization", "Event"], ["Radio City", "launched", "PlanetRadiocity.com", "Organization", "Organization"], ["PlanetRadiocity.com", "launched in", "May 2008", "Organization", "Date"], ["PlanetRadiocity.com", "is", "music portal", "Organization", "Type"], ["PlanetRadiocity.com", "offers", "news", "Organization", "News"], ["PlanetRadiocity.com", "offers", "videos", "Organization", "Video"], ["PlanetRadiocity.com", "offers", "songs", "Organization", "Song"]]
+// Now process the following text:
+//          )" + chunkText + R"(
+//
+//        Array:
+//        )";
 
-        Instructions:
+        j["messages"] = {
+            {
+                {"role", "system"},
+                {"content", "You are an expert information extractor specialized in knowledge graph construction."}
+            },
+            {
+            {"role", "user"},
+            {"content",
+                R"(
+- Extract as many meaningful, non-duplicate triples (facts) as possible. You should not miss any facts.
+- Omit extracting triples only for the subject or object which have ambiguous pronoun (he, she, it, they) with no clear reference.
+- Return only a JSON array of arrays in the form:
+    [subject, predicate, object, subject_type, object_type].
 
-        - Each JSON object must have exactly three sections: "source", "destination", and "properties".
-        - Use consistent and unique IDs: concatenate entity type + entity name in lowercase with underscores (e.g., person_barack_obama).
-        - Use Wikidata-style entity labels for "label" fields (e.g., Person, Location, Organization, Event).
-        - Use Wikidata relation types for "type" (e.g., born_in, educated_at, member_of, spouse, president_of).
-        - "description" must be a faithful short sentence or phrase directly derived from the text.
-        - Omit extracting triples if the subject or object is an ambiguous pronoun (he, she, it, they) with no clear reference.
-        - Extract as many meaningful, non-duplicate triples as possible.
-        - Ensure that every triple is factual and derived explicitly from the text.
+Example:
+    Text: Radio City is India's first private FM radio station and was started on 3 July 2001. It plays Hindi, English and regional songs. Radio City recently forayed into New Media in May 2008 with the launch of a music portal - PlanetRadiocity.com that offers music related news, videos, songs, and other music-related features.
+    Array: [["Radio City", "located in", "India", "Organization", "Location"], ["Radio City", "is", "private FM radio station", "Organization", "Other"], ["Radio City", "started on", "3 July 2001", "Organization", "Date"], ["Radio City", "plays songs in", "Hindi", "Organization", "Other"], ["Radio City", "plays songs in", "English", "Organization", "Other"], ["Radio City", "forayed into", "New Media", "Organization", "Event"], ["Radio City", "launched", "PlanetRadiocity.com", "Organization", "Organization"], ["PlanetRadiocity.com", "launched in", "May 2008", "Organization", "Date"], ["PlanetRadiocity.com", "is", "music portal", "Organization", "Type"], ["PlanetRadiocity.com", "offers", "news", "Organization", "News"], ["PlanetRadiocity.com", "offers", "videos", "Organization", "Video"], ["PlanetRadiocity.com", "offers", "songs", "Organization", "Song"]]
 
-        Use this format:
-        {
-          "source": {
-            "id": "<unique_node_id>",
-            "properties": {
-              "id": "<unique_node_id>",
-              "label": "<EntityType>",
-              "name": "<EntityName>"
-            }
-          },
-          "destination": {
-            "id": "<unique_node_id>",
-            "properties": {
-              "id": "<unique_node_id>",
-              "label": "<EntityType>",
-              "name": "<EntityName>"
-            }
-          },
-          "properties": {
-            "id": "<unique_relationship_id>",
-            "type": "<Predicate>",
-            "description": "<Human-readable description of the triple>"
-          }
-        }
-
-        Now process the following text:
+Now process the following text:
         )" + chunkText + R"(
 
-        JSON objects:
-        )";
+Array:
+        )"
+            }
+            }
+        };
+
+
         j["stream"] = true;
         j["max_tokens"] = 10000;
 
         std::string postFields = j.dump();
+        postFields = j.dump();
+        vllm_tuple_streamer_logger.info("Post fields: " + postFields);
         curl_easy_setopt(curl, CURLOPT_POSTFIELDS, postFields.c_str());
         curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, postFields.size());
 
@@ -336,11 +420,14 @@ void VLLMTupleStreamer::streamChunk(const std::string& chunkKey,
         curl_slist_free_all(headers);
         curl_easy_cleanup(curl);
 
-        if (res != CURLE_OK && attempt < maxRetries - 1) {
-            int waitTime = baseDelaySeconds * attempt;
-            std::cerr << "Retrying in " << waitTime << " seconds...\n";
-            std::this_thread::sleep_for(std::chrono::seconds(waitTime));
-        }
+
+
+      if (res != CURLE_OK && attempt < maxRetries - 1) {
+          std::cerr << "CURL response code: " << res << std::endl;
+          int waitTime = baseDelaySeconds * attempt;
+          std::cerr << "Retrying in " << waitTime << " seconds...\n";
+          std::this_thread::sleep_for(std::chrono::seconds(waitTime));
+      }
 
         attempt++;
     } while ((res != CURLE_OK && attempt < maxRetries) || !ctx.isSuccess);

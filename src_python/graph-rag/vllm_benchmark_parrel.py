@@ -2,7 +2,7 @@ import time
 import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-VLLM_URL = "http://10.10.21.26:6578/v1/completions"
+VLLM_URL = "http://192.168.1.7:6578/v1/completions"
 MODEL = "meta-llama/Llama-3.2-3B-Instruct"  # Adjust as needed
 
 prompt ="""You are an expert information extractor specialized in knowledge graph construction. 

@@ -43,7 +43,7 @@ print(f"Total records: {len(data)}")
 os.makedirs(output_dir, exist_ok=True)
 
 # Process each record
-for item in data[:5]:
+for item in data[:20]:
     record_id = item["_id"]
     record_folder = os.path.join(output_dir, record_id)
     os.makedirs(record_folder, exist_ok=True)

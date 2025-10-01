@@ -9,11 +9,14 @@ import random
 import requests
 from rapidfuzz import fuzz
 from tests.integration.graphRAG.fetch_pred import run_cypher_query, parse_results, OUTPUT_FILE
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
-
+SERVER_IP = "192.168.1.7"
 # JasmineGraph master config
-HOST = "127.0.0.1"
+HOST = SERVER_IP
+
+
 PORT = 7777
 LINE_END = b"\r\n"
 
@@ -22,13 +25,16 @@ TEXT_FOLDER = "hotpot_qa_records"
 
 # LLM runner addresses (comma-separated)
 LLM_RUNNERS = (
-    "http://10.10.21.26:11439,http://10.10.21.26:11439,"
-    "http://10.10.21.26:11439,http://10.10.21.26:11439"
+    f"http://{SERVER_IP}:6578," * 8
 )
-
+RUNNER_URLS = [u.strip() for u in LLM_RUNNERS.split(",") if u.strip()]
+REASONING_MODEL_URI = RUNNER_URLS[0] if RUNNER_URLS else None
+REASONING_MODEL_URI = f"http://{SERVER_IP}:11450"
 # LLM model to use
-LLM_MODEL = "gemma3:12b"
+LLM_MODEL = "google/gemma-3-4b-it"
+LLM_INFERENCE_ENGINE="vllm"
 
+CHUNK_SIZE = "2048"
 # HDFS target folder
 HDFS_BASE = "/home/"
 
@@ -77,18 +83,64 @@ def send_file_to_master(hdfs_file_path):
 
         msg = recv_until(sock, b"\n")
         logging.info("Master: " + msg.strip())
-        sock.sendall(LLM_RUNNERS.encode("utf-8") + LINE_END)
 
-        msg = recv_until(sock, b"\n")
-        logging.info("Master: " + msg.strip())
-        sock.sendall(LLM_MODEL.encode("utf-8") + LINE_END)
+        if msg == "There exists a graph with file path would you  like to resume?":
+            sock.sendall(b"n" + LINE_END)
+            msg = recv_until(sock, b"\n")
+            logging.info("Master: " + msg.strip())
+            sock.sendall(LLM_RUNNERS.encode("utf-8") + LINE_END)
 
-        final = recv_until(sock, b"\n")
-        logging.info("Master: " + final.strip())
-        if final.strip().lower() == "done":
-            logging.info("✅ KG extraction completed successfully!")
+
+            msg5 = recv_until(sock, b"\n")
+            logging.info("Master: " + msg5.strip())
+            sock.sendall(LLM_INFERENCE_ENGINE.encode("utf-8"))
+
+            msg = recv_until(sock, b"\n")
+            logging.info("Master: " + msg.strip())
+            sock.sendall(LLM_MODEL.encode("utf-8") + LINE_END)
+
+            msg = recv_until(sock, b"\n")
+            logging.info("Master: " + msg.strip())
+            sock.sendall(CHUNK_SIZE.encode("utf-8") + LINE_END)
+
+            final = recv_until(sock, b"\n")
+            logging.info("Master: " + final.strip())
+            if final.strip().lower() == "done":
+                logging.info("✅ KG extraction completed successfully!")
+            else:
+                logging.error("❌ Unexpected response from master: " + final)
+
+
         else:
-            logging.error("❌ Unexpected response from master: " + final)
+            sock.sendall(LLM_RUNNERS.encode("utf-8") + LINE_END)
+            msg = recv_until(sock, b"\n")
+            logging.info("Master: " + msg.strip())
+            sock.sendall(LLM_RUNNERS.encode("utf-8") + LINE_END)
+
+
+            msg5 = recv_until(sock, b"\n")
+            logging.info("Master: " + msg5.strip())
+            sock.sendall(LLM_INFERENCE_ENGINE.encode("utf-8"))
+
+            msg = recv_until(sock, b"\n")
+            logging.info("Master: " + msg.strip())
+            sock.sendall(LLM_MODEL.encode("utf-8") + LINE_END)
+
+            msg = recv_until(sock, b"\n")
+            logging.info("Master: " + msg.strip())
+            sock.sendall(CHUNK_SIZE.encode("utf-8") + LINE_END)
+            final = recv_until(sock, b"\n")
+            logging.info("Master: " + final.strip())
+            if final.strip().lower() == "done":
+                logging.info("✅ KG extraction completed successfully!")
+            else:
+                logging.error("❌ Unexpected response from master: " + final)
+
+
+
+
+
+
 
 def get_last_graph_id():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
@@ -111,12 +163,64 @@ def get_last_graph_id():
     if graph_ids:
         return max(graph_ids)
     return 0
+def call_reasoning_model(prompt):
+    """
+    Call reasoning model (Ollama or vLLM) using the first runner URL.
+    Uses LLM_INFERENCE_ENGINE ('ollama' | 'vllm') and LLM_MODEL.
+    """
+    if not REASONING_MODEL_URI:
+        logging.error("❌ No valid runner URL found in LLM_RUNNERS")
+        return ""
 
+    try:
+        if LLM_INFERENCE_ENGINE.lower() == "ollama":
+            url = f"{REASONING_MODEL_URI}/api/generate"
+            payload = {
+                "model": LLM_MODEL,
+                "prompt": prompt,
+                "stream": False
+            }
+            resp = requests.post(url, json=payload, timeout=120)
+            resp.raise_for_status()
+            data = resp.json()
+            return data.get("response", "").strip()
+
+        elif LLM_INFERENCE_ENGINE.lower() == "vllm":
+            url = f"{REASONING_MODEL_URI}/v1/chat/completions"
+            payload = {
+                "model": LLM_MODEL,
+                "messages": [
+                    {"role": "system", "content": "You are a reasoning assistant."},
+                    {"role": "user", "content": prompt}
+                ],
+                "temperature": 0.2,
+                "max_tokens": 512
+            }
+            resp = requests.post(url, json=payload, timeout=120)
+            resp.raise_for_status()
+            data = resp.json()
+            return data["choices"][0]["message"]["content"].strip()
+
+        else:
+            raise ValueError(f"Unsupported engine: {LLM_INFERENCE_ENGINE}")
+
+    except Exception as e:
+        logging.error(f"❌ Reasoning model call failed: {e}")
+        return ""
+def compress_triples(triples):
+    """
+    Compress triples to short string representation:
+    [{"head_entity":"A","relation":"is","tail_entity":"B"}] -> ["A|is|B"]
+    """
+    compressed = [f"{t['head_entity']}|{t['relation']}|{t['tail_entity']}" for t in triples]
+    return compressed
 def call_llm_ollama(prompt):
     """Call Ollama API and return model response"""
-    url = LLM_RUNNERS.split(",")[0] + "/api/generate"
+
+    endpoint= "/api/generate"
+    url = REASONING_MODEL_URI + endpoint
     payload = {
-        "model": LLM_MODEL,
+        "model": "deepseek-r1",
         "prompt": prompt,
         "stream": False
     }
@@ -124,11 +228,17 @@ def call_llm_ollama(prompt):
         resp = requests.post(url, json=payload, timeout=120)
         resp.raise_for_status()
         data = resp.json()
+        print("LLM response:"+str(data))
         return data.get("response", "").strip()
     except Exception as e:
         logging.error(f"❌ LLM call failed: {e}")
         return ""
-
+def extract_final_answer(text: str) -> str:
+    # Remove <think>...</think> reasoning if present
+    if "<think>" in text and "</think>" in text:
+        text = text.split("</think>")[-1].strip()
+    # Take only the first line / short phrase
+    return text
 def main():
     query = "MATCH (n)-[r]-(m) RETURN n,r,m"
     last_graph_id = get_last_graph_id()
@@ -177,17 +287,21 @@ def main():
             with open(qa_file, "r", encoding="utf-8") as f:
                 qa_data = json.load(f)
 
+
+
             question = qa_data["question"]
             answer = qa_data["answer"]
-
-            prompt = f"""You are a QA assistant. 
+            compressed_triples_ = compress_triples(triples)
+            prompt = f"""You are a QA assistant.
 Given the extracted triples:
-{json.dumps(triples, indent=2, ensure_ascii=False)}
+{json.dumps(compressed_triples_, indent=2, ensure_ascii=False)}
 
 Question: {question}
-Answer in a short phrase."""
+ Answer in a short phrase. Do not include reasoning, explanations, or extra text."""
 
-            predicted_answer = call_llm_ollama(prompt)
+
+
+            predicted_answer = extract_final_answer(call_llm_ollama(prompt))
 
             pred_out = {
                 "id": qa_data["id"],
@@ -243,6 +357,90 @@ def evaluate_predictions_fuzzy(pred_base="pred", threshold=90):
         for m in mismatches:
             print(f"ID: {m['id']}, Q: {m['question']}")
             print(f"  Gold: {m['gold_answer']}, Pred: {m['predicted_answer']}, Similarity: {m['similarity']:.1f}%\n")
+
+
+# def process_file(local_path, graph_id):
+#     folder_name = os.path.basename(os.path.dirname(local_path))
+#     try:
+#         hdfs_path = upload_to_hdfs(local_path)
+#         send_file_to_master(hdfs_path)
+#     except subprocess.CalledProcessError as e:
+#         logging.error(f"Failed to upload {local_path} to HDFS: {e}")
+#         return None
+#
+#     query = "MATCH (n)-[r]-(m) RETURN n,r,m"
+#     raw = run_cypher_query(str(graph_id), query)
+#     triples = parse_results(raw)
+#
+#     output_dir = os.path.join("pred", folder_name)
+#     os.makedirs(output_dir, exist_ok=True)
+#
+#     with open(os.path.join(output_dir, "pred.json"), "w", encoding="utf-8") as f:
+#         json.dump(triples, f, indent=2, ensure_ascii=False)
+#
+#     # Copy gold files
+#     for gold_file in ["entities.json", "relations.json", "text.txt"]:
+#         src = os.path.join(TEXT_FOLDER, folder_name, gold_file)
+#         dst = os.path.join(output_dir, gold_file)
+#         if os.path.exists(src):
+#             shutil.copy(src, dst)
+#
+#     # QA prediction
+#     qa_file = os.path.join(TEXT_FOLDER, folder_name, "qa_pairs.json")
+#     if os.path.exists(qa_file):
+#         with open(qa_file, "r", encoding="utf-8") as f:
+#             qa_data = json.load(f)
+#
+#         question = qa_data["question"]
+#         answer = qa_data["answer"]
+#
+#         prompt = f"""You are a QA assistant.
+# Given the extracted triples:
+# {json.dumps(triples, indent=2, ensure_ascii=False)}
+#
+# Question: {question}
+# Answer in a short phrase."""
+#
+#         predicted_answer = call_llm_ollama(prompt)
+#
+#         pred_out = {
+#             "id": qa_data["id"],
+#             "question": question,
+#             "gold_answer": answer,
+#             "predicted_answer": predicted_answer
+#         }
+#         with open(os.path.join(output_dir, "pred_answer.json"), "w", encoding="utf-8") as f:
+#             json.dump(pred_out, f, indent=2, ensure_ascii=False)
+#
+#     return graph_id
+# def main():
+#     last_graph_id = get_last_graph_id()
+#     graph_id = last_graph_id + 1
+#     logging.info(f"Starting processing from graph ID {graph_id}")
+#
+#     all_txt_files = []
+#     for root, _, files in os.walk(TEXT_FOLDER):
+#         for file in files:
+#             if file.endswith(".txt"):
+#                 all_txt_files.append(os.path.join(root, file))
+#
+#     random.shuffle(all_txt_files)
+#     print(all_txt_files)
+#
+#     # Run max 5 files in parallel
+#     with ProcessPoolExecutor(max_workers=5) as executor:
+#         future_to_file = {
+#             executor.submit(process_file, path, gid): (path, gid)
+#             for gid, path in enumerate(all_txt_files, start=graph_id)
+#         }
+#
+#         for future in as_completed(future_to_file):
+#             path, gid = future_to_file[future]
+#             try:
+#                 res = future.result()
+#                 logging.info(f"Finished {path} with graph ID {res}")
+#             except Exception as e:
+#                 logging.error(f"Error processing {path}: {e}")
 
 if __name__ == "__main__":
     main()
