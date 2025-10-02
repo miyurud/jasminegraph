@@ -62,9 +62,6 @@ void fnExit3(void) {
 
 int main(int argc, char *argv[]) {
     atexit(fnExit3);
-    
-    // Initialize native OpenTelemetry
-    initializeOpenTelemetry();
 
     if (argc <= 1) {
         main_logger.error(
@@ -84,6 +81,9 @@ int main(int argc, char *argv[]) {
     thread schedulerThread(SchedulerService::startScheduler);
 
     if (mode == Conts::JASMINEGRAPH_RUNTIME_PROFILE_MASTER) {
+        // Initialize OpenTelemetry for master process
+        initializeOpenTelemetry();
+        
         std::string masterIp = argv[master_mode_args::MASTER_IP];
         int numberOfWorkers = atoi(argv[master_mode_args::NUMBER_OF_WORKERS]);
         std::string workerIps = argv[master_mode_args::WORKER_IPS];

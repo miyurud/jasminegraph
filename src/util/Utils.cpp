@@ -862,10 +862,7 @@ std::string Utils::send_job(std::string job_group_name, std::string metric_name,
         const char *port = getenv("PORT");
 
         std::string uniqueWorkerID;
-        if (!job_group_name.empty()) {
-            // Use the provided job_group_name for unique job names (e.g., trace spans)
-            uniqueWorkerID = job_group_name;
-        } else if (hostAddress) {
+        if (hostAddress) {
             uniqueWorkerID = std::string(hostAddress) + ":" + std::string(port);
         } else {
             uniqueWorkerID = "Master";

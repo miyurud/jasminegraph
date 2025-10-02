@@ -8,10 +8,7 @@ if(NOT CMAKE_BUILD_TYPE)
     message(STATUS "Build type not specified, setting to RelWithDebInfo for VTune profiling")
 endif()
 
-
-
 set(THREADS_PREFER_PTHREAD_FLAG ON)
-# Find packages
 find_package(Threads REQUIRED)
 find_package(Protobuf REQUIRED)
 find_package(CURL REQUIRED)
@@ -96,8 +93,6 @@ set(HEADERS globals.h
         src/query/processor/cypher/util/Const.h
         src/util/telemetry/OpenTelemetryUtil.h
         src/util/telemetry/PushgatewayUtil.h
-        src/util/telemetry/MetricMetadata.h
-        src/util/telemetry/TraceContext.h
         src/nativestore/MetaPropertyLink.h
         src/nativestore/MetaPropertyEdgeLink.h
         src/query/processor/cypher/queryplanner/Operators.h

@@ -33,6 +33,10 @@ nostd::shared_ptr<metrics_api::MeterProvider> OpenTelemetryUtil::meter_provider_
 thread_local std::unique_ptr<context::Token> OpenTelemetryUtil::context_token_;
 thread_local nostd::shared_ptr<trace_api::Span> OpenTelemetryUtil::parent_span_;
 
+// Thread-local storage for remote span context from master
+thread_local trace_api::SpanContext OpenTelemetryUtil::remote_span_context_ = trace_api::SpanContext::GetInvalid();
+thread_local bool OpenTelemetryUtil::has_remote_context_ = false;
+
 void OpenTelemetryUtil::initialize(const std::string& service_name,
                                   const std::string& otlp_endpoint,
                                   const std::string& prometheus_endpoint,
@@ -155,16 +159,25 @@ ScopedTracer::ScopedTracer(const std::string& operation_name,
     // Create span with proper parent context inheritance
     trace_api::StartSpanOptions options;
     
-    // Get the current active context and use it as parent
-    auto current_context = context_api::RuntimeContext::GetCurrent();
-    auto current_span = trace_api::GetSpan(current_context);
-    
-    if (current_span && current_span->GetContext().IsValid()) {
-        // Explicitly set the current span as parent
-        options.parent = current_span->GetContext();
+    // Check if we have a remote parent context from setTraceContext()
+    if (OpenTelemetryUtil::has_remote_context_ && 
+        OpenTelemetryUtil::remote_span_context_.IsValid()) {
+        // Use the remote span context as parent (for distributed tracing)
+        options.parent = OpenTelemetryUtil::remote_span_context_;
+        // Clear the remote context after using it
+        OpenTelemetryUtil::has_remote_context_ = false;
+    } else {
+        // Get the current active context and use it as parent
+        auto current_context = context_api::RuntimeContext::GetCurrent();
+        auto current_span = trace_api::GetSpan(current_context);
+        
+        if (current_span && current_span->GetContext().IsValid()) {
+            // Use the current active span as parent (allows proper nesting)
+            options.parent = current_span->GetContext();
+        }
     }
     
-    // This will now inherit from the explicitly set parent context
+    // This will now inherit from the appropriate parent context
     span_ = tracer->StartSpan(operation_name, options);
     
     // Span created successfully
@@ -330,38 +343,9 @@ void OpenTelemetryUtil::setTraceContext(const std::string& context_str) {
             auto span_context = trace_api::SpanContext(trace_id, parent_span_id, trace_flags, true);
             
             if (span_context.IsValid()) {
-                // Successfully parsed trace context
-                
-                // Set the remote span context as the active parent for all subsequent spans
-                // This ensures that all spans created in this worker will be children of the master span
-                auto tracer = getTracer("JasmineGraph");
-                if (tracer) {
-                    // Create span options with the remote parent context
-                    trace_api::StartSpanOptions span_options;
-                    span_options.parent = span_context;
-                    
-                    // Create a long-lived span that represents the remote parent
-                    // This span will serve as the parent for all subsequent spans in this worker
-                    // IMPORTANT: Do NOT end this span - it needs to stay alive for child spans
-                    parent_span_ = tracer->StartSpan("worker_remote_parent", span_options);
-                    
-                    if (parent_span_) {
-                        // Get current context and set the parent span in it
-                        auto current_context = context_api::RuntimeContext::GetCurrent();
-                        auto new_context = trace_api::SetSpan(current_context, parent_span_);
-                        
-                        // Store the token to keep the context active for the worker lifetime
-                        // The token will be stored as a static member to persist across the worker's operation
-                        context_token_ = context_api::RuntimeContext::Attach(new_context);
-                        
-                        // Context set successfully for worker
-                        
-                        // Context set successfully
-                        
-                        // DO NOT end the parent span here - it needs to stay alive for child spans
-                        // parent_span->End(); // REMOVED - this was breaking the context chain
-                    }
-                }
+                // Store the remote span context for use in ScopedTracer
+                remote_span_context_ = span_context;
+                has_remote_context_ = true;
             } else {
                 // Invalid span context created from trace context
             }
@@ -371,7 +355,34 @@ void OpenTelemetryUtil::setTraceContext(const std::string& context_str) {
     }
 }
 
+bool OpenTelemetryUtil::receiveAndSetTraceContext(const std::string& trace_context, const std::string& operation_name) {
+    // Log the received trace context
+    std::cout << "Received trace context for " << operation_name << ": " << trace_context << std::endl;
+    
+    // Validate and set trace context if it's valid
+    if (trace_context != "NO_TRACE_CONTEXT" && !trace_context.empty()) {
+        setTraceContext(trace_context);
+        // Trace context set successfully for distributed tracing
+        return true;
+    } else {
+        std::cout << "###" << operation_name.substr(0, 8) << "### No valid trace context received from master" << std::endl;
+        return false;
+    }
+}
 
+void OpenTelemetryUtil::addSpanAttribute(const std::string& key, const std::string& value) {
+    try {
+        // Get current context and span
+        auto current_context = context::RuntimeContext::GetCurrent();
+        auto current_span = trace_api::GetSpan(current_context);
+        
+        if (current_span && current_span->GetContext().IsValid()) {
+            current_span->SetAttribute(key, value);
+        }
+    } catch (const std::exception& e) {
+        // Attribute setting failed - continue execution
+    }
+}
 
 void OpenTelemetryUtil::flushTraces() {
     try {

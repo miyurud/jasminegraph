@@ -470,10 +470,7 @@ long countLocalTriangles(
     }
     JasmineGraphHashMapDuplicateCentralStore duplicateCentralGraphDB = graphDBMapDuplicateCentralStores[duplicateCentralGraphIdentifier];
 
-    // Execute triangle counting - removed OTEL_TRACE_OPERATION wrapper to allow direct inheritance from master trace context
-    instance_logger.info("###INSTANCE### Calling Triangles::run for graph " + graphId + " partition " + partitionId);
     result = Triangles::run(graphDB, centralGraphDB, duplicateCentralGraphDB, graphId, partitionId, threadPriority);
-    instance_logger.info("###INSTANCE### Triangles::run completed with result: " + to_string(result));
 
     instance_logger.info("###INSTANCE### Local Triangle Count : Completed: Triangles: " + to_string(result));
 
@@ -2886,7 +2883,6 @@ static void triangles_command(
     std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
     std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores,
     bool *loop_exit_p) {
-    OTEL_TRACE_FUNCTION();
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
         *loop_exit_p = true;
         return;
@@ -2920,15 +2916,19 @@ static void triangles_command(
 
     // Receive trace context from master
     string traceContext = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
-    instance_logger.info("###TRIANGLE### Received Trace Context: " + traceContext);
+    
+    // Use utility function to validate and set trace context
+    OpenTelemetryUtil::receiveAndSetTraceContext(traceContext, "triangle counting");
 
-    // Set trace context for this worker operation if it's valid
-    if (traceContext != "NO_TRACE_CONTEXT" && !traceContext.empty()) {
-        OpenTelemetryUtil::setTraceContext(traceContext);
-        instance_logger.info("###TRIANGLE### Set trace context in worker: " + traceContext);
-    } else {
-        instance_logger.info("###TRIANGLE### No valid trace context received from master");
-    }
+    // Start tracing AFTER trace context is set to ensure proper parent-child relationship
+    OTEL_TRACE_FUNCTION();
+
+    // Add worker identification attributes to distinguish workers in traces
+    OpenTelemetryUtil::addSpanAttribute("worker.id", "worker_" + std::to_string(serverPort));
+    OpenTelemetryUtil::addSpanAttribute("worker.port", std::to_string(serverPort));
+    OpenTelemetryUtil::addSpanAttribute("partition.id", partitionId);
+    OpenTelemetryUtil::addSpanAttribute("graph.id", graphID);
+    OpenTelemetryUtil::addSpanAttribute("operation.type", "triangle_counting");
 
     int threadPriority = stoi(priority);
 
@@ -2942,13 +2942,10 @@ static void triangles_command(
     std::thread perfThread = std::thread(&PerformanceUtil::collectPerformanceStatistics);
     perfThread.detach();
     
-    // Worker operation with inherited trace context from master
-    instance_logger.info("###TRIANGLE### Worker starting triangle computation for partition " + partitionId);
-    
     long localCount = countLocalTriangles(graphID, partitionId, graphDBMapLocalStores, graphDBMapCentralStores,
                                           graphDBMapDuplicateCentralStores, threadPriority);
 
-    instance_logger.info("###TRIANGLE### Worker completed triangle computation for partition " + partitionId + " with result: " + std::to_string(localCount));
+
     
     if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
         threadPriorityMutex.lock();
@@ -2967,7 +2964,7 @@ static void triangles_command(
     
     // Flush traces before completing
     OpenTelemetryUtil::flushTraces();
-    instance_logger.info("###TRIANGLE### Worker traces flushed for partition " + partitionId);
+
 }
 
 static void streaming_triangles_command(
@@ -3285,11 +3282,12 @@ static void aggregate_centralstore_triangles_command(int connFd, bool *loop_exit
 
     // Receive and set trace context for distributed tracing
     string traceContext = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
-    instance_logger.info("Received trace context for aggregation: " + traceContext);
     
-    if (!traceContext.empty()) {
-        OpenTelemetryUtil::setTraceContext(traceContext);
-    }
+    // Use utility function to validate and set trace context
+    OpenTelemetryUtil::receiveAndSetTraceContext(traceContext, "aggregation");
+
+    // Start tracing AFTER trace context is set to ensure proper parent-child relationship
+    OTEL_TRACE_FUNCTION();
 
     const std::string &aggregatedTriangles =
         aggregateCentralStoreTriangles(graphId, partitionId, partitionIdList, threadPriority);

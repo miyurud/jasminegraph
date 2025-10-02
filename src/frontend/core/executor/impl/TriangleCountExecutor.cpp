@@ -668,9 +668,7 @@ void TriangleCountExecutor::execute() {
 
     if (!isCompositeAggregation) {
         // Restore the master trace context before aggregation
-        if (!masterTraceContext.empty() && masterTraceContext != "NO_TRACE_CONTEXT") {
-            OpenTelemetryUtil::setTraceContext(masterTraceContext);
-        }
+        OpenTelemetryUtil::receiveAndSetTraceContext(masterTraceContext, "central store aggregation");
         
         OTEL_TRACE_OPERATION("central_store_aggregation");
         
@@ -863,7 +861,7 @@ long TriangleCountExecutor::getTriangleCount(
                     traceContext = "NO_TRACE_CONTEXT";
                 }
                 
-                triangleCount_logger.log("###TRIANGLE### Sending trace context to worker: " + traceContext, "info");
+                // Send trace context for distributed tracing
                 result_wr = write(sockfd, traceContext.c_str(), traceContext.size());
                 
                 if (result_wr < 0) {
@@ -1798,9 +1796,7 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorP
                                                          std::string graphId, std::string masterIP,
                                                          int threadPriority, std::string traceContext) {
     // Set the trace context in this async thread
-    if (!traceContext.empty() && traceContext != "NO_TRACE_CONTEXT") {
-        OpenTelemetryUtil::setTraceContext(traceContext);
-    }
+    OpenTelemetryUtil::receiveAndSetTraceContext(traceContext, "async worker communication");
     int sockfd;
     char data[INSTANCE_DATA_LENGTH + 1];
     bool loop = false;

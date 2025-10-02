@@ -87,12 +87,30 @@ public:
      */
     static void setTraceContext(const std::string& context_str);
     
-
+    /**
+     * Receive and set trace context with validation and logging
+     * @param trace_context The trace context string received from master
+     * @param operation_name Name of the operation for logging (e.g., "triangle counting", "aggregation")
+     * @return true if trace context was valid and set, false otherwise
+     */
+    static bool receiveAndSetTraceContext(const std::string& trace_context, const std::string& operation_name = "operation");
+    
+    /**
+     * Add attribute to current active span
+     * @param key Attribute key
+     * @param value Attribute value
+     */
+    static void addSpanAttribute(const std::string& key, const std::string& value);
 
     /**
      * Flush all pending traces
      */
     static void flushTraces();
+
+    // Thread-local storage for remote span context from master (public for ScopedTracer access)
+    static thread_local trace_api::SpanContext remote_span_context_;
+    static thread_local bool has_remote_context_;
+
 private:
     static std::string service_name_;
     static nostd::shared_ptr<trace_api::TracerProvider> tracer_provider_;
