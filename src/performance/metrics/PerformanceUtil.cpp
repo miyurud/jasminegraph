@@ -55,6 +55,9 @@ int PerformanceUtil::collectPerformanceStatistics() {
     double currentLoadAverage = StatisticCollector::getLoadAverage();
     Utils::send_job("", "load_average", std::to_string(currentLoadAverage));
 
+    long runQueue = StatisticCollector::getRunQueue();
+    Utils::send_job("", "run_queue", std::to_string(runQueue));
+
     long totalSwapSpace = StatisticCollector::getTotalSwapSpace();
     Utils::send_job("", "total_swap_space", std::to_string(totalSwapSpace));
 
@@ -439,6 +442,10 @@ void PerformanceUtil::adjustAggregateLoadMap(std::map<std::string, std::vector<d
 
 void PerformanceUtil::logLoadAverage() {
     double currentLoadAverage = StatisticCollector::getLoadAverage();
+}
+
+void PerformanceUtil::logRunQueue() {
+    long currentRunQueue = StatisticCollector::getRunQueue();
 }
 
 void PerformanceUtil::updateResourceConsumption(PerformanceSQLiteDBInterface *performanceDb, std::string graphId,

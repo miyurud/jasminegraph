@@ -317,6 +317,36 @@ double StatisticCollector::getLoadAverage() {
     return loadAvg;
 }
 
+long StatisticCollector::getRunQueue() {
+    FILE *file = fopen("/proc/stat", "r");
+    if (!file) {
+        stat_logger.error("Cannot open /proc/stat");
+        return -1;
+    }
+    
+    char line[LINE_BUF_SIZE];
+    long runQueue = -1;
+    
+    // Read lines until we find procs_running
+    while (fgets(line, LINE_BUF_SIZE, file) != NULL) {
+        if (strncmp(line, "procs_running", 13) == 0) {
+            // Parse the number after "procs_running "
+            char *p = line;
+            while (*p && (*p < '0' || *p > '9')) p++;  // Skip to first digit
+            if (*p) {
+                runQueue = strtol(p, NULL, 10);
+                if (runQueue < 0 || runQueue > 0xfffffffffffffffL) {
+                    runQueue = -1;  // Invalid value
+                }
+            }
+            break;
+        }
+    }
+    
+    fclose(file);
+    return runQueue;
+}
+
 void StatisticCollector::logLoadAverage(std::string name) {
     PerformanceUtil::logLoadAverage();
 

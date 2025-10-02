@@ -54,6 +54,7 @@ class StatisticCollector {
     static long getTotalMemoryUsage();
     static double getTotalCpuUsage();
     static double getLoadAverage();
+    static long getRunQueue();
     static void logLoadAverage(std::string name);
 };
 

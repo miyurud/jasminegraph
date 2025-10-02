@@ -64,6 +64,7 @@ class PerformanceUtil {
                                                       std::vector<JobRequest>& pendingHPJobList);
 
     static void logLoadAverage();
+    static void logRunQueue();
     static std::vector<Place> getHostReporterList();
     static void updateResourceConsumption(PerformanceSQLiteDBInterface* performanceDb, std::string graphId,
                                           int partitionCount, std::vector<Place> placeList, std::string slaCategoryId);
