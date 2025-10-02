@@ -25,10 +25,10 @@ RUN wget https://github.com/Kitware/CMake/releases/download/v3.29.6/cmake-3.29.6
  && cd .. \
  && rm -rf cmake-3.29.6 cmake-3.29.6.tar.gz
 
-WORKDIR /usr/local/lib
-RUN git clone --depth=1 https://github.com/ggml-org/llama.cpp.git
-WORKDIR /usr/local/lib/llama.cpp
-RUN cmake -B build -DGGML_NATIVE=ON && cmake --build build -j
+#WORKDIR /usr/local/lib
+#RUN git clone --depth=1 https://github.com/ggml-org/llama.cpp.git
+#WORKDIR /usr/local/lib/llama.cpp
+#RUN cmake -B build -DGGML_NATIVE=ON && cmake --build build -j
 
 
 

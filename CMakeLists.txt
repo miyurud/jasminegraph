@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.29.6)
 project(JasmineGraph)
 set(CMAKE_CXX_STANDARD 17)
 
@@ -86,7 +86,6 @@ set(HEADERS globals.h
         src/query/processor/cypher/util/Const.h
         src/nativestore/MetaPropertyLink.h
         src/nativestore/MetaPropertyEdgeLink.h
-        src/vectorStore/LlamaCPPTextEmbedder.h
         src/query/processor/cypher/queryplanner/Operators.h
         src/query/processor/cypher/queryplanner/QueryPlanner.h
         src/query/processor/cypher/runtime/InstanceHandler.h
@@ -201,11 +200,10 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/knowledgegraph/construction/OllamaTupleStreamer.h
                 src/knowledgegraph/construction/VLLMTupleStreamer.h
 
-        src/vectorStore/LlamaCPPTextEmbedder.cpp
         src/vectorStore/TextEmbedder.cpp
         src/vectorStore/TextEmbedder.h
-        src/vectorStore/FaissStore.cpp
-        src/vectorStore/FaissStore.h
+        src/vectorStore/FaissIndex.cpp
+        src/vectorStore/FaissIndex.h
         src/query/processor/semanticBeamSearch/SemanticBeamSearch.cpp
         src/query/processor/semanticBeamSearch/SemanticBeamSearch.h
         src/frontend/core/executor/impl/SemanticBeamSearchExecutor.cpp
@@ -245,7 +243,7 @@ target_link_libraries(JasmineGraphLib PRIVATE /usr/lib/x86_64-linux-gnu/libflatb
 target_link_libraries(JasmineGraphLib PRIVATE /usr/lib/x86_64-linux-gnu/libjsoncpp.so)
 target_link_libraries(JasmineGraphLib PRIVATE /usr/local/lib/libcppkafka.so)
 target_link_libraries(JasmineGraphLib PRIVATE /usr/local/libhdfs3/lib/libhdfs3.so)
-target_link_libraries(JasmineGraphLib PRIVATE   /usr/local/lib/llama.cpp/build/bin/libllama.so  )
+#target_link_libraries(JasmineGraphLib PRIVATE   /usr/local/lib/llama.cpp/build/bin/libllama.so  )
 
 target_link_libraries(JasmineGraph JasmineGraphLib)
 target_link_libraries(JasmineGraph curl)

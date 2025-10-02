@@ -1,4 +1,4 @@
-#include "FaissStore.h"
+#include "FaissIndex.h"
 #include <faiss/index_io.h>
 #include <faiss/IndexFlat.h>
 #include <faiss/IndexIDMap.h>
@@ -7,18 +7,18 @@
 #include <stdexcept>
 
 // Static members
-std::unique_ptr<FaissStore> FaissStore::instance = nullptr;
-std::once_flag FaissStore::initFlag;
+std::unique_ptr<FaissIndex> FaissIndex::instance = nullptr;
+std::once_flag FaissIndex::initFlag;
 
-FaissStore* FaissStore::getInstance(int embeddingDim, const std::string& filepath) {
+FaissIndex* FaissIndex::getInstance(int embeddingDim, const std::string& filepath) {
     std::call_once(initFlag, [&]() {
-        instance.reset(new FaissStore(embeddingDim, filepath));
+        instance.reset(new FaissIndex(embeddingDim, filepath));
 
     });
     return instance.get();
 }
 
-FaissStore::FaissStore(int embeddingDim, const std::string& filepath)
+FaissIndex::FaissIndex(int embeddingDim, const std::string& filepath)
     : dim(embeddingDim), filePath(filepath)
 {
     load(filepath);
@@ -27,7 +27,7 @@ FaissStore::FaissStore(int embeddingDim, const std::string& filepath)
     // if (f.good()) {
     //     std::cout << "File exists, loading index..." << std::endl;
     //     faiss::Index* loaded = faiss::read_index(filepath.c_str());
-    //     index = dynamic_cast<faiss::IndexFlatL2*>(loaded);
+    //     index = dynamic_cast<faiss::IndexFlatL2*>(loaded);FA
     //     if (!index) {
     //         throw std::runtime_error("Loaded FAISS index is not L2 Flat index.");
     //     }
@@ -37,48 +37,48 @@ FaissStore::FaissStore(int embeddingDim, const std::string& filepath)
     // }
 }
 
-FaissStore::~FaissStore() {
+FaissIndex::~FaissIndex() {
     try {
         save(filePath);
     } catch (const std::exception& e) {
-        fprintf(stderr, "[FaissStore] Failed to auto-save index: %s\n", e.what());
+        fprintf(stderr, "[FaissIndex] Failed to auto-save index: %s\n", e.what());
     }
     delete index;
 }
 
-faiss::idx_t FaissStore::add(const std::vector<float>& embedding, std::string nodeId) {
+faiss::idx_t FaissIndex::add(const std::vector<float>& embedding, std::string nodeId) {
     if (embedding.size() != dim) {
         throw std::runtime_error("Embedding dimension mismatch!");
     }
     std::lock_guard<std::mutex> lock(mtx);
 
    faiss::idx_t new_id = index->ntotal;
-   std::cout << "[FaissStore] Adding new embedding with nodeId: " << nodeId << ", assigned id: " << new_id << std::endl;
+   std::cout << "[FaissIndex] Adding new embedding with nodeId: " << nodeId << ", assigned id: " << new_id << std::endl;
 
    index->add(1, embedding.data());
 
     // // iterate over the nodeIdToEmbeddingIdMap to check if the nodeId already exists
     // for (auto & entry : nodeIdToEmbeddingIdMap) {
     //     // if (entry.first == nodeId) {
-    //         std::cout << "[FaissStore] Node ID already exists in the map. Returning existing ID: " << entry.second << std::endl;
+    //         std::cout << "[FaissIndex] Node ID already exists in the map. Returning existing ID: " << entry.second << std::endl;
     //         // return entry.second; // Return existing ID if nodeId already exists
     //     // }
     // }
     // for (auto & entry : embeddingIdToNodeIdMap) {
     //     // if (entry.first == nodeId) {
-    //     std::cout << "[FaissStore] Node ID already exists in the map. Returning existing ID: " << entry.second << std::endl;
+    //     std::cout << "[FaissIndex] Node ID already exists in the map. Returning existing ID: " << entry.second << std::endl;
     //     // return entry.second; // Return existing ID if nodeId already exists
     //     // }
     // }
-   std::cout << "[FaissStore] Embedding added to index. Updating nodeEmbeddingMap." << std::endl;
+   std::cout << "[FaissIndex] Embedding added to index. Updating nodeEmbeddingMap." << std::endl;
     nodeIdToEmbeddingIdMap.insert({nodeId, new_id});
     embeddingIdToNodeIdMap.insert({new_id, nodeId});
    // nodeEmbeddingMap.insert( value_type(nodeId, new_id));
-   std::cout << "[FaissStore] nodeEmbeddingMap updated for nodeId: " << nodeId << std::endl;
+   std::cout << "[FaissIndex] nodeEmbeddingMap updated for nodeId: " << nodeId << std::endl;
     return new_id;
 }
 
-std::vector<std::pair<faiss::idx_t, float>> FaissStore::search(const std::vector<float>& query, int k) {
+std::vector<std::pair<faiss::idx_t, float>> FaissIndex::search(const std::vector<float>& query, int k) {
 
     if (query.size() != dim) {
         throw std::runtime_error("Query dimension mismatch!");
@@ -103,7 +103,7 @@ std::vector<std::pair<faiss::idx_t, float>> FaissStore::search(const std::vector
     return results;
 }
 
-void FaissStore::save(const std::string& filepath) {
+void FaissIndex::save(const std::string& filepath) {
     std::lock_guard<std::mutex> lock(mtx);
 
     // Save FAISS index
@@ -127,7 +127,7 @@ void FaissStore::save(const std::string& filepath) {
 
     mapFile.close();
 }
-void FaissStore::load(const std::string& filepath) {
+void FaissIndex::load(const std::string& filepath) {
     std::lock_guard<std::mutex> lock(mtx);
 
     // Load FAISS index
@@ -146,45 +146,45 @@ void FaissStore::load(const std::string& filepath) {
         index = new faiss::IndexFlatL2(dim);
     }
 
-    std::cout << "[FaissStore::load] FAISS index loaded successfully." << std::endl;
+    std::cout << "[FaissIndex::load] FAISS index loaded successfully." << std::endl;
 
     // Load mapping file
     std::ifstream mapFile(filepath + ".map", std::ios::binary);
     if (!mapFile.is_open()) {
-        std::cerr << "[FaissStore::load] [Warning] Mapping file not found, nodeEmbeddingMap will be empty." << std::endl;
+        std::cerr << "[FaissIndex::load] [Warning] Mapping file not found, nodeEmbeddingMap will be empty." << std::endl;
         return;
     }
 
     size_t size = 0;
     if (!mapFile.read(reinterpret_cast<char*>(&size), sizeof(size))) {
-        std::cerr << "[FaissStore::load] Failed to read mapping size." << std::endl;
+        std::cerr << "[FaissIndex::load] Failed to read mapping size." << std::endl;
         return;
     }
 
-    std::cout << "[FaissStore::load] Mapping file opened. Entries to read: " << size << std::endl;
+    std::cout << "[FaissIndex::load] Mapping file opened. Entries to read: " << size << std::endl;
 
     for (size_t i = 0; i < size; i++) {
         size_t keyLen = 0;
 
         if (!mapFile.read(reinterpret_cast<char*>(&keyLen), sizeof(keyLen))) {
-            std::cerr << "[FaissStore::load] Unexpected EOF while reading key length." << std::endl;
+            std::cerr << "[FaissIndex::load] Unexpected EOF while reading key length." << std::endl;
             break;
         }
 
         // Sanity check key length
         if (keyLen == 0 || keyLen > 1024) {
-            std::cerr << "[FaissStore::load] Invalid key length " << keyLen << ", skipping entry." << std::endl;
+            std::cerr << "[FaissIndex::load] Invalid key length " << keyLen << ", skipping entry." << std::endl;
             // Skip the value if key length is invalid
             faiss::idx_t dummy;
             if (!mapFile.read(reinterpret_cast<char*>(&dummy), sizeof(dummy))) {
-                std::cerr << "[FaissStore::load] Unexpected EOF while skipping value." << std::endl;
+                std::cerr << "[FaissIndex::load] Unexpected EOF while skipping value." << std::endl;
             }
             continue;
         }
 
         std::string key(keyLen, '\0');
         if (!mapFile.read(&key[0], keyLen)) {
-            std::cerr << "[FaissStore::load] Unexpected EOF while reading key." << std::endl;
+            std::cerr << "[FaissIndex::load] Unexpected EOF while reading key." << std::endl;
             break;
         }
 
@@ -194,22 +194,22 @@ void FaissStore::load(const std::string& filepath) {
 
         faiss::idx_t value = 0;
         if (!mapFile.read(reinterpret_cast<char*>(&value), sizeof(value))) {
-            std::cerr << "[FaissStore::load] Unexpected EOF while reading value." << std::endl;
+            std::cerr << "[FaissIndex::load] Unexpected EOF while reading value." << std::endl;
             break;
         }
 
         nodeIdToEmbeddingIdMap[key] = value;
         embeddingIdToNodeIdMap[value] = key;
 
-        // std::cout << "[FaissStore::load] Mapping loaded: " << key << " -> " << value << std::endl;
+        // std::cout << "[FaissIndex::load] Mapping loaded: " << key << " -> " << value << std::endl;
     }
 
     mapFile.close();
-    std::cout << "[FaissStore::load] Mapping file closed." << std::endl;
+    std::cout << "[FaissIndex::load] Mapping file closed." << std::endl;
 }
 
 
-std::vector<float> FaissStore::getEmbeddingById(std::string  nodeId) {
+std::vector<float> FaissIndex::getEmbeddingById(std::string  nodeId) {
     std::lock_guard<std::mutex> lock(mtx);
 
     if (!index) {
@@ -238,7 +238,7 @@ std::vector<float> FaissStore::getEmbeddingById(std::string  nodeId) {
     return embedding;
 }
 
-std::string FaissStore::getNodeIdFromEmbeddingId(faiss::idx_t embeddingId)
+std::string FaissIndex::getNodeIdFromEmbeddingId(faiss::idx_t embeddingId)
 {
     // std::lock_guard<std::mutex> lock(mtx);
 

@@ -1,4 +1,4 @@
-#include "FaissStore.h"
+#include "FaissIndex.h"
 #include <fstream>
 #include <stdexcept>
 #include <cstdio>
@@ -8,28 +8,28 @@
 #include <faiss/IndexIVFPQ.h>
 #include <faiss/IndexFlat.h>
 
-FaissStore::FaissStore(int embeddingDim, const std::string& filepath,
+FaissIndex::FaissIndex(int embeddingDim, const std::string& filepath,
                        size_t nlist_, size_t m_, size_t nbits_)
     : dim(embeddingDim), filePath(filepath), nlist(nlist_), m(m_), nbits(nbits_)
 {
     loadOrCreate();
 }
 
-FaissStore::~FaissStore() {
+FaissIndex::~FaissIndex() {
     try {
         save(); // auto-save on destruction
     } catch (const std::exception& e) {
-        fprintf(stderr, "[FaissStore] Auto-save failed: %s\n", e.what());
+        fprintf(stderr, "[FaissIndex] Auto-save failed: %s\n", e.what());
     }
 }
-FaissStore* FaissStore::getInstance(int embeddingDim, const std::string& filepath,
+FaissIndex* FaissIndex::getInstance(int embeddingDim, const std::string& filepath,
                                     size_t nlist_, size_t m_, size_t nbits_)
 {
     // Thread-safe lazy initialization (C++11 and later)
-    static FaissStore instance(embeddingDim, filepath, nlist_, m_, nbits_);
+    static FaissIndex instance(embeddingDim, filepath, nlist_, m_, nbits_);
     return &instance;
 }
-void FaissStore::loadOrCreate() {
+void FaissIndex::loadOrCreate() {
     std::ifstream f(filePath);
     if (f.good()) {
         // Load index from disk using memory-mapped read
@@ -45,7 +45,7 @@ void FaissStore::loadOrCreate() {
 }
 
 // Train index if not already trained
-void FaissStore::trainIfNeeded(const std::vector<std::vector<float>>& sampleVectors) {
+void FaissIndex::trainIfNeeded(const std::vector<std::vector<float>>& sampleVectors) {
     std::lock_guard<std::mutex> lock(writeMtx);
     if (!index->is_trained) {
         size_t numTrain = sampleVectors.size();
@@ -58,7 +58,7 @@ void FaissStore::trainIfNeeded(const std::vector<std::vector<float>>& sampleVect
     }
 }
 
-void FaissStore::add(const std::vector<float>& embedding) {
+void FaissIndex::add(const std::vector<float>& embedding) {
     if (embedding.size() != dim) throw std::runtime_error("Embedding dimension mismatch");
 
     std::lock_guard<std::mutex> lock(writeMtx);
@@ -69,17 +69,17 @@ void FaissStore::add(const std::vector<float>& embedding) {
     index->add(1, embedding.data());
 }
 
-void FaissStore::addBatch(const std::vector<std::vector<float>>& embeddings) {
+void FaissIndex::addBatch(const std::vector<std::vector<float>>& embeddings) {
     if (embeddings.empty()) return;
 
     std::lock_guard<std::mutex> lock(writeMtx);
 
 
-    std::cout<< "[FaissStore] Adding batch of " << embeddings.size() << " embeddings with dimension " << dim << std::endl;
+    std::cout<< "[FaissIndex] Adding batch of " << embeddings.size() << " embeddings with dimension " << dim << std::endl;
     // If index not trained yet, train using first batch
     if (!index->is_trained) trainIfNeeded(embeddings);
 
-    std::cout<< "[FaissStore] Index is trained, proceeding to add batch" << std::endl;
+    std::cout<< "[FaissIndex] Index is trained, proceeding to add batch" << std::endl;
     // Flatten data
     size_t num = embeddings.size();
     std::vector<float> flatData(num * dim);
@@ -92,7 +92,7 @@ void FaissStore::addBatch(const std::vector<std::vector<float>>& embeddings) {
     index->add(num, flatData.data());
 }
 
-std::vector<std::pair<faiss::idx_t, float>> FaissStore::search(const std::vector<float>& query, int k) {
+std::vector<std::pair<faiss::idx_t, float>> FaissIndex::search(const std::vector<float>& query, int k) {
     if (query.size() != dim) throw std::runtime_error("Query dimension mismatch");
 
     std::vector<faiss::idx_t> indices(k);
@@ -106,7 +106,7 @@ std::vector<std::pair<faiss::idx_t, float>> FaissStore::search(const std::vector
     return results;
 }
 
-void FaissStore::save() {
+void FaissIndex::save() {
     std::lock_guard<std::mutex> lock(writeMtx);
     faiss::write_index(index.get(), filePath.c_str());
 }

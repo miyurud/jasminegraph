@@ -5,16 +5,16 @@
 #include <mutex>
 #include <faiss/IndexIVFPQ.h>
 
-class FaissStore {
+class FaissIndex {
 public:
     // Delete copy/move to enforce singleton
-    FaissStore(const FaissStore&) = delete;
-    FaissStore& operator=(const FaissStore&) = delete;
-    FaissStore(FaissStore&&) = delete;
-    FaissStore& operator=(FaissStore&&) = delete;
+    FaissIndex(const FaissIndex&) = delete;
+    FaissIndex& operator=(const FaissIndex&) = delete;
+    FaissIndex(FaissIndex&&) = delete;
+    FaissIndex& operator=(FaissIndex&&) = delete;
 
     // Access the singleton instance
-    static FaissStore* getInstance(int embeddingDim = 128,
+    static FaissIndex* getInstance(int embeddingDim = 128,
                                    const std::string& filepath = "faiss.index",
                                    size_t nlist_ = 4096,
                                    size_t m_ = 64,
@@ -27,9 +27,9 @@ public:
     void save();
 
 private:
-    FaissStore(int embeddingDim, const std::string& filepath,
+    FaissIndex(int embeddingDim, const std::string& filepath,
                size_t nlist_, size_t m_, size_t nbits_);
-    ~FaissStore();
+    ~FaissIndex();
     void loadOrCreate();
 
     int dim;

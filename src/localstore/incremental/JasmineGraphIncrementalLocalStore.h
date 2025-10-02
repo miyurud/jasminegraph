@@ -14,7 +14,7 @@ limitations under the License.
 #include <nlohmann/json.hpp>
 #include <string>
 
-#include "../../vectorStore/FaissStore.h"
+#include "../../vectorStore/FaissIndex.h"
 #include "../../vectorStore/TextEmbedder.h"
 using json = nlohmann::json;
 
@@ -32,7 +32,7 @@ class JasmineGraphIncrementalLocalStore {
  public:
     GraphConfig gc;
     NodeManager *nm;
-    FaissStore *faissStore;
+    FaissIndex *faissStore;
     TextEmbedder *textEmbedder;
     std::vector<EmbeddingRequest> *embedding_requests;
     // batch texts to embed

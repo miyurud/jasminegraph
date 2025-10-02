@@ -372,7 +372,7 @@ void JasmineGraphInstanceService::run(string masterHost, string host, int server
     std::map<std::string, JasmineGraphHashMapCentralStore> graphDBMapCentralStores;
     std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> graphDBMapDuplicateCentralStores;
     std::map<std::string, JasmineGraphIncrementalLocalStore *> incrementalLocalStore;
-    // FaissStore *faissStore =    FaissStore::getInstance(std::stoi(Utils::getJasmineGraphProperty("org.jasminegraph.vectorstore.dimension")),"faiss.index");
+    // FaissIndex *faissStore =    FaissIndex::getInstance(std::stoi(Utils::getJasmineGraphProperty("org.jasminegraph.vectorstore.dimension")),"faiss.index");
     // std::thread faissThread([faissStore]() {
     //     std::vector<std::vector<float>> sampleVectors;
     //     for (int i = 0; i < 10; i++) {
@@ -4874,7 +4874,7 @@ static void semantic_beam_search(int connFd, InstanceHandler &instanceHandler, s
      Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
     std::string graphPrefix = instanceDataFolderLocation + "/g" + graphId;
     string dbPrefix = graphPrefix + "_p" + partition;
-    FaissStore* faissStore = FaissStore::getInstance(std::stoi(Utils::getJasmineGraphProperty("org.jasminegraph.vectorstore.dimension")),dbPrefix + "_faiss.index");
+    FaissIndex* faissStore = FaissIndex::getInstance(std::stoi(Utils::getJasmineGraphProperty("org.jasminegraph.vectorstore.dimension")),dbPrefix + "_faiss.index");
 
     TextEmbedder *textEmbedder =  new TextEmbedder(
                    Utils::getJasmineGraphProperty("org.jasminegraph.vectorstore.embedding.ollama.endpoint") , // Ollama endpoint
@@ -4989,7 +4989,7 @@ size_t received = 0;
     GraphConfig gc{maxLabel, static_cast<unsigned int>(std::stoi(graphID)), static_cast<unsigned int>(partitionId), "app"};
 
     NodeManager nodeManager(gc);
-    FaissStore* faissStore = FaissStore::getInstance(std::stoi(Utils::getJasmineGraphProperty("org.jasminegraph.vectorstore.dimension")),nodeManager.getDbPrefix() + "_faiss.index");
+    FaissIndex* faissStore = FaissIndex::getInstance(std::stoi(Utils::getJasmineGraphProperty("org.jasminegraph.vectorstore.dimension")),nodeManager.getDbPrefix() + "_faiss.index");
 
         for (const auto currentPath : currentPaths) {
             float score = currentPath["score"];
@@ -5352,7 +5352,7 @@ static void processFile(string fileName, bool isLocal,
     //   Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
     // std::string graphPrefix = instanceDataFolderLocation + "/g" + std::to_string(graphId);
     // string dbPrefix = graphPrefix + "_p" + std::to_string(partitionIndex);
-    // FaissStore::getInstance(std::stoi(Utils::getJasmineGraphProperty("org.jasminegraph.vectorstore.dimension")),
+    // FaissIndex::getInstance(std::stoi(Utils::getJasmineGraphProperty("org.jasminegraph.vectorstore.dimension")),
     //
     //
     //     dbPrefix+ "_faiss.index")->save(dbPrefix+ "_faiss.index");

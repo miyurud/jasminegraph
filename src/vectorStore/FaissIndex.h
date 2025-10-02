@@ -8,12 +8,12 @@
 #include <boost/bimap.hpp>
 #include <boost/bimap/set_of.hpp>
 #include <boost/bimap/multiset_of.hpp>
-class FaissStore {
+class FaissIndex {
 public:
     // Get singleton instance
-    static FaissStore* getInstance(int embeddingDim, const std::string& filepath);
+    static FaissIndex* getInstance(int embeddingDim, const std::string& filepath);
 
-    ~FaissStore();
+    ~FaissIndex();
     faiss::idx_t add(const std::vector<float>& embedding, std::string nodeId);
 
     faiss::idx_t add(const std::vector<float>& embedding);
@@ -29,7 +29,7 @@ public:
 
 private:
     // Private constructor (Singleton)
-    FaissStore(int embeddingDim, const std::string& filepath);
+    FaissIndex(int embeddingDim, const std::string& filepath);
 
     int dim;
     faiss::IndexFlatL2* index;
@@ -43,6 +43,6 @@ private:
     std::unordered_map<faiss::idx_t,std::string> embeddingIdToNodeIdMap;
 
 
-    static std::unique_ptr<FaissStore> instance;
+    static std::unique_ptr<FaissIndex> instance;
     static std::once_flag initFlag;
 };

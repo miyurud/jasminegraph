@@ -13,13 +13,13 @@
 #include "../../../nativestore/NodeManager.h"
 #include "../../../server/JasmineGraphInstanceProtocol.h"
 #include "../../../server/JasmineGraphServer.h"
-#include "../../../vectorStore/FaissStore.h"
+#include "../../../vectorStore/FaissIndex.h"
 #include "../cypher/runtime/Helpers.h"
 
 Logger semantic_beam_search_logger;
 
 
-SemanticBeamSearch::SemanticBeamSearch( FaissStore* faissStore, TextEmbedder* textEmbedder,
+SemanticBeamSearch::SemanticBeamSearch( FaissIndex* faissStore, TextEmbedder* textEmbedder,
                                         std::vector<float> emb, int k ,GraphConfig gc , vector<JasmineGraphServer::worker> workerList)
     : faissStore(faissStore), textEmbedder(textEmbedder), emb(std::move(emb)), k(k) , gc(gc), workerList(workerList)
 {
