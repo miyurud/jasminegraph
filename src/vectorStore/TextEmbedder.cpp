@@ -34,7 +34,7 @@ std::string HttpClient::post(const std::string& url,
     CURL* curl = curl_easy_init();
     if (!curl) throw std::runtime_error("curl_easy_init failed");
 
-    curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
+    curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_MAX_DEFAULT);
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
 

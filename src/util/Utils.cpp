@@ -1561,7 +1561,7 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
         std::string start_msg(start);
         if (JasmineGraphInstanceProtocol::QUERY_DATA_START != start_msg) {
             util_logger.error("Error while receiving start command: " + start_msg);
-            break;
+            continue;
         }
         send(sockfd, JasmineGraphInstanceProtocol::QUERY_DATA_ACK.c_str(),
              JasmineGraphInstanceProtocol::QUERY_DATA_ACK.length(), 0);
@@ -1579,17 +1579,7 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
              JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.length(), 0);
 
         std::string data(content_length, 0);
-
-        size_t received = 0;
-        while (received < content_length) {
-            ssize_t ret = recv(sockfd, &data[received], content_length - received, 0);
-            if (ret <= 0) {
-                util_logger.error("Error receiving request string");
-                break;
-            }
-            received += ret;
-        }
-
+        return_status = recv(sockfd, &data[0], content_length, 0);
         if (return_status > 0) {
             send(sockfd, JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS.c_str(),
                  JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS.length(), 0);
