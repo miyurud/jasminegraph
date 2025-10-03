@@ -5,7 +5,9 @@ export TERM=xterm-256color
 
 PROJECT_ROOT="$(pwd)"
 TEST_ROOT="${PROJECT_ROOT}/tests/integration"
+
 TIMEOUT_SECONDS=500
+
 RUN_ID="$(date +%y%m%d_%H%M%S)"
 LOG_DIR="${PROJECT_ROOT}/logs/${RUN_ID}"
 while [ -d "$LOG_DIR" ]; do
