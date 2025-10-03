@@ -57,6 +57,9 @@ class JasmineGraphFrontEnd {
 
     static int getRunningHighPriorityTaskCount();
     static bool areRunningJobsForSameGraph();
+    static bool constructKGStreamHDFSCommand(std::string masterIP, int connFd,
+                                             int numberOfPartitions,
+                                             SQLiteDBInterface* sqlite, bool* loop_exit_p);
 
     static bool strian_exit;
     std::map<std::string, std::atomic<bool>> *streamsState;

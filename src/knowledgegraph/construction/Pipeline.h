@@ -35,7 +35,7 @@ private:
     void streamFromHDFSIntoBuffer();
     void streamChunckToWorker(const std::string& chunk, int partitionId);
     void startStreamingFromBufferToWorkers();
-    void processTupleAndSaveInPartition(const std::vector<std::unique_ptr<SharedBuffer>>& tupleBuffer);
+    json processTupleAndSaveInPartition(const std::vector<std::unique_ptr<SharedBuffer>>& tupleBuffer);
     void extractTuples(std::string host, int port, std::string masterIP, int graphID, int partitionId,
 
                        std::queue<std::string>& dataBuffer, SharedBuffer& sharedBuffer);

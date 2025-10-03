@@ -17,7 +17,7 @@
 
 Logger hash_partitioner_logger;
 
-int PARTITION_FILE_EDGE_COUNT_THRESHOLD = 20;
+int PARTITION_FILE_EDGE_COUNT_THRESHOLD = 5;
 
 HDFSMultiThreadedHashPartitioner::HDFSMultiThreadedHashPartitioner(int numberOfPartitions, int graphID,
     std::string masterIp, bool isDirected ,  std::vector<JasmineGraphServer::worker> workers )
@@ -42,7 +42,7 @@ HDFSMultiThreadedHashPartitioner::HDFSMultiThreadedHashPartitioner(int numberOfP
         this->partitions.push_back(Partition(i, numberOfPartitions));
         localEdgeThreads.emplace_back(&HDFSMultiThreadedHashPartitioner::consumeLocalEdges, this, i, workers[i]);
         edgeCutThreads.emplace_back(&HDFSMultiThreadedHashPartitioner::consumeEdgeCuts, this, i, workers[i]);
-        Utils::assignPartitionToWorker(graphId, i, workers.at(i).hostname, workers.at(i).port);
+        // Utils::assignPartitionToWorker(graphId, i, workers.at(i).hostname, workers.at(i).port);
     }
 }
 
@@ -312,6 +312,27 @@ void HDFSMultiThreadedHashPartitioner::updatePartitionTable() {
     delete sqlite;
 }
 
+
+ json HDFSMultiThreadedHashPartitioner::getPartitionsMeta()
+{
+
+    json partitionsMeta = json::array( );
+    for (int i = 0; i < numberOfPartitions; i++) {
+
+        json partition = {
+            {"idpartition", i},
+            {"graph_idgraph", this->graphId},
+            {"vertexcount",  std::to_string(partitions.at(i).getLocalVertexCount())},
+            {"central_vertexcount",  std::to_string(partitions.at(i).getCentralVertexCount(i))},
+            {"edgecount",  std::to_string(partitions.at(i).getEdgesCount(isDirected)) },
+{"central_edgecount_with_dups",  std::to_string(0) },
+            {"central_edgecount",   std::to_string(partitions.at(i).edgeCutsCount())}
+        };
+
+        partitionsMeta.push_back(partition);
+    }
+    return  partitionsMeta;
+}
 long HDFSMultiThreadedHashPartitioner::getVertexCount() {
     int totalVertices = 0;
     for (auto & partition : this->partitions) {

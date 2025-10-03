@@ -62,8 +62,9 @@ class HDFSMultiThreadedHashPartitioner {
     void addEdgeCut(const std::string &edge, int index);
     void addLocalEdge(const std::string &edge, int index);
     void updatePartitionTable();
+    json getPartitionsMeta();
 
- private:
+private:
     long vertexCount;
     long edgeCount;
     bool isDirected;

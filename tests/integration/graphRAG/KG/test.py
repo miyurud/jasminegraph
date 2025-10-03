@@ -28,7 +28,7 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 SERVER_IP = first_ip
 # JasmineGraph master config
 HOST = '127.0.0.1'
-
+HDFS_PORT ='9000'
 
 PORT = 7777
 LINE_END = b"\r\n"
@@ -38,11 +38,11 @@ TEXT_FOLDER = "gold"
 
 # LLM runner addresses (comma-separated)
 LLM_RUNNERS = (
-        f"http://{SERVER_IP}:11441," * 1
+        f"http://{SERVER_IP}:11450," * 2
 )
 RUNNER_URLS = [u.strip() for u in LLM_RUNNERS.split(",") if u.strip()]
 REASONING_MODEL_URI = RUNNER_URLS[0] if RUNNER_URLS else None
-REASONING_MODEL_URI = f"http://{SERVER_IP}:11441"
+REASONING_MODEL_URI = f"http://{SERVER_IP}:11450"
 # LLM model to use
 # LLM_MODEL = "google/gemma-3-4b-it"
 LLM_MODEL = "gemma3:4b-it-qat"
@@ -89,10 +89,16 @@ def send_file_to_master(hdfs_file_path):
         logging.info("Master: " + msg.strip())
         sock.sendall(b"n" + LINE_END)
 
+        # msg = recv_until(sock, b"\n")
+        # logging.info("Master: " + msg.strip())
+        # sock.sendall(b"/var/tmp/config/hdfs_config.txt" + LINE_END)
         msg = recv_until(sock, b"\n")
         logging.info("Master: " + msg.strip())
-        sock.sendall(b"/var/tmp/config/hdfs_config.txt" + LINE_END)
+        sock.sendall(SERVER_IP.encode("utf-8") + LINE_END)
 
+        msg = recv_until(sock, b"\n")
+        logging.info("Master: " + msg.strip())
+        sock.sendall(HDFS_PORT.encode("utf-8")+ LINE_END)
         msg = recv_until(sock, b"\n")
         logging.info("Master: " + msg.strip())
         sock.sendall(hdfs_file_path.encode("utf-8") + LINE_END)
@@ -104,7 +110,7 @@ def send_file_to_master(hdfs_file_path):
             sock.sendall(b"n" + LINE_END)
             msg = recv_until(sock, b"\n")
             logging.info("Master 106: " + msg.strip())
-            print("LLM_RUNNERS "+ CHUNK_SIZE)
+
 
             sock.sendall(LLM_RUNNERS.encode("utf-8") + LINE_END)
 
@@ -131,7 +137,7 @@ def send_file_to_master(hdfs_file_path):
 
         else:
             print("LLM_RUNNERS 133 "+ LLM_RUNNERS)
-            msg = recv_until(sock, b"\n")
+            # msg = recv_until(sock, b"\n")
             logging.info("Master 135: " + msg.strip())
             sock.sendall(LLM_RUNNERS.encode("utf-8") + LINE_END)
 
@@ -309,7 +315,7 @@ def parse_results(raw_rows):
     return triples
 
 def test_KG(llm_inference_engine_startup_script, text_folder , upload_file_script):
-    subprocess.run(["bash", llm_inference_engine_startup_script], check=True)
+    # subprocess.run(["bash", llm_inference_engine_startup_script], check=True)
 
     query = "MATCH (n)-[r]-(m) RETURN n,r,m"
     last_graph_id = get_last_graph_id()
@@ -373,7 +379,7 @@ Question: {question}
 
 
 
-            predicted_answer = extract_final_answer(call_llm_ollama(prompt))
+            predicted_answer = extract_final_answer(call_reasoning_model(prompt))
 
             pred_out = {
                 "id": qa_data["id"],
@@ -515,5 +521,5 @@ def evaluate_predictions_fuzzy(pred_base="pred", threshold=90):
 #                 logging.error(f"Error processing {path}: {e}")
 
 if __name__ == "__main__":
-    test_KG(OLLAMA_SETUP_SCRIPT , TEXT_FOLDER)
+    test_KG(OLLAMA_SETUP_SCRIPT , TEXT_FOLDER ,UPLOAD_SCRIPT)
     # evaluate_predictions_fuzzy(pred_base="pred", threshold=90)

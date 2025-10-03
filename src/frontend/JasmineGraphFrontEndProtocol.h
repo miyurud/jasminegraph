@@ -92,6 +92,8 @@ extern const string INVALID_FORMAT;
 extern const string CYPHER;
 extern const string SEMANTIC_BEAM_SEARCH;
 extern const string PROPERTIES;
+extern const string  UPDATE_PARTITION_META;
+extern const string  META;
 
 class JasminGraphFrontEndProtocol {
     // Note that this protocol do not need a handshake session since the communication in most of the time is conducted

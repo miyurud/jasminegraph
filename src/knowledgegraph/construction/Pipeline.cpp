@@ -244,12 +244,10 @@ void Pipeline::startStreamingFromBufferToWorkers()
 
 
 
-    processTupleAndSaveInPartition(bufferPool);
-
 
 
     readerThread.join();
-
+    string meta = processTupleAndSaveInPartition(bufferPool).dump();
     for (auto &worker : workerThreads)
     {
         worker.join();
@@ -259,11 +257,41 @@ void Pipeline::startStreamingFromBufferToWorkers()
 
     auto endTime = high_resolution_clock::now();
     std::chrono::duration<double> duration = endTime - startTime;
+
+
+    kg_pipeline_stream_handler_logger.info(meta);
+    char data[FED_DATA_LENGTH + 1];
+
+
+    Utils::sendExpectResponse(connFd, data, INSTANCE_DATA_LENGTH,
+                       META.c_str(), JasmineGraphInstanceProtocol ::OK);
+
+
+    char ack3[ACK_MESSAGE_SIZE] = {0};
+   int message_length = meta.length();
+   int converted_number = htonl(message_length);
+    kg_pipeline_stream_handler_logger.debug("Sending content length: "+to_string(converted_number));
+
+
+    if (!Utils::sendIntExpectResponse(connFd, ack3,
+                                     JasmineGraphInstanceProtocol::OK.length(),
+                                     converted_number,
+                                     JasmineGraphInstanceProtocol::OK)) {
+        Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::CLOSE);
+        close(connFd);
+        return ;
+                                     }
+
+    if (!Utils::send_str_wrapper(connFd, meta)) {
+        close(connFd);
+        return ;
+    }
+
     kg_pipeline_stream_handler_logger.info(
             "Total time taken for streaming from HDFS into partitions: " + to_string(duration.count()) + " seconds");
 }
 
-void Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<SharedBuffer>>& tupleBuffer) {
+json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<SharedBuffer>>& tupleBuffer) {
     auto startTime = high_resolution_clock::now();
     kg_pipeline_stream_handler_logger.info("Starting processTupleAndSaveInPartition");
     HDFSMultiThreadedHashPartitioner partitioner(numberOfPartitions, graphId, masterIP, true , workerList);
@@ -341,9 +369,41 @@ void Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
     for (auto& t : tupleThreads) {
         t.join();
     }
+
+    //
+    // long vertices = partitioner.getVertexCount();
+    // long edges = partitioner.getEdgeCount();
+    //
+    // std::string sqlStatement = "UPDATE graph SET vertexcount = '" + std::to_string(vertices) +
+    //                            "', centralpartitioncount = '" + std::to_string(this->numberOfPartitions) +
+    //                            "', edgecount = '" + std::to_string(edges) +
+    //                            "', graph_status_idgraph_status = '" + std::to_string(Conts::GRAPH_STATUS::OPERATIONAL) +
+    //                            "' WHERE idgraph = '" + std::to_string(this->graphId) + "'";
+    //
+    // dbLock.lock();
+    // this->sqlite->runUpdate(sqlStatement);
+    // dbLock.unlock();
+
+
+
+
+
+
     auto endTime = high_resolution_clock::now();
     std::chrono::duration<double> duration = endTime - startTime;
     kg_pipeline_stream_handler_logger.info("processTupleAndSaveInPartition completed in " + std::to_string(duration.count()) + " seconds");
+
+    json meta;
+
+    json graph ;
+    graph["vertexcount"]=partitioner.getVertexCount();
+    graph["edgecount"]= partitioner.getEdgeCount();
+    graph["centralpartitioncount"] = this->numberOfPartitions;
+    graph ["graph_status_idgraph_status"] = Conts::GRAPH_STATUS::OPERATIONAL;
+
+    meta["graph"] = graph;
+    meta["partitions"] = partitioner.getPartitionsMeta();
+    return meta;
 }
 
 
@@ -601,6 +661,7 @@ bool Pipeline::streamGraphToDesignatedWorker(std::string host, int port,
                                          ) {
     kg_pipeline_stream_handler_logger.info("Connecting to worker Host:" + host + " Port:" + std::to_string(port));
 
+    std::mutex dbLock;
     int sockfd;
     char data[FED_DATA_LENGTH + 1];
     static const int ACK_MESSAGE_SIZE = 1024;
@@ -756,10 +817,77 @@ bool Pipeline::streamGraphToDesignatedWorker(std::string host, int port,
         std::string msg(buffer, bytes);
         msg = Utils::trim_copy(msg);
 
-        if (msg == "done") {
+        if (msg == "meta") {
             kg_pipeline_stream_handler_logger.info("Worker completed streaming for graph " + graphId);
+
+            int content_length;
+            recv(sockfd, &content_length, sizeof(int), 0);
+            content_length = ntohl(content_length);
+            Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::OK);
+            kg_pipeline_stream_handler_logger.info("Received content length: " + std::to_string(content_length));
+
+
+            std::string meta(content_length, 0);
+            recv(sockfd, &meta[0], content_length, 0);
+            // Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::OK);
+
+            kg_pipeline_stream_handler_logger.info("Received meta: " + meta);
+
+
+
+            json metaJSON = json::parse(meta);
+            json graph  = metaJSON["graph"];
+
+
+            std::string sqlStatement = "UPDATE graph SET vertexcount = '" + graph["vertexcount"].dump() +
+                                        "', centralpartitioncount = '" + graph["centralpartitioncount"].dump()  +
+                                        "', edgecount = '" + graph["edgecount"].dump() +
+                                        "', graph_status_idgraph_status = '" + graph["graph_status_idgraph_status"].dump() +
+                                        "' WHERE idgraph = '" + graphId+ "'";
+
+            dbLock.lock();
+            sqlite->runUpdate(sqlStatement);
+            dbLock.unlock();
+
+            json partitions = metaJSON["partitions"];
+
+
+        for (auto partition : partitions)
+        {
+            kg_pipeline_stream_handler_logger.info(partition.dump());
+            // json partition = json::parse(partitionS.dump());
+            // int idpartition       = partition["idpartition"];
+            // int graph_idgraph     = partition["graph_idgraph"];
+            // int vertexcount       = partition["vertexcount"];
+            // int central_vertexcnt = partition["central_vertexcount"];
+            // int edgecount         = partition["edgecount"];
+            // int central_edgecount = partition["central_edgecount"];
+
+            std::string sqlStatement =
+                "INSERT INTO partition (idpartition, graph_idgraph, vertexcount, central_vertexcount, "
+                "edgecount, central_edgecount_with_dups, central_edgecount) VALUES (" +
+                partition["idpartition"].dump() + ", " +
+               partition["graph_idgraph"].dump() + ", " +
+             partition["vertexcount"].dump()+ ", " +
+             partition["central_vertexcount"].dump()+ ", " +
+               partition["edgecount"].dump() + ", " +
+                   partition["central_edgecount_with_dups"].dump() + ", " +
+               partition["central_edgecount"].dump() + ")";
+
+            int result = sqlite->runInsert(sqlStatement);
+            //
+            // if (result != SQLITE_OK) {
+            //     kg_pipeline_stream_handler_logger.error("Failed to insert partition stats" + result);
+            //     return false;
+            // }
+        }
+
+
+
             break;
         }
+
+
         try {
             int completedBytes = std::stoi(msg);
             // totalReceivedBytes += completedBytes;

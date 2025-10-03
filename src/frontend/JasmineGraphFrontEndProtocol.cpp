@@ -59,3 +59,5 @@ const string INVALID_FORMAT = "Invalid message format";
 const string CYPHER = "cypher";
 const string SEMANTIC_BEAM_SEARCH = "sbs";
 const string PROPERTIES = "prp";
+const string UPDATE_PARTITION_META = "update-partition-meta";
+const string META = "meta";

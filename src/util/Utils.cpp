@@ -1448,6 +1448,8 @@ void Utils::assignPartitionToWorker(int graphId, int partitionIndex, string  hos
     delete sqlite;
 }
 
+
+
 bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string masterIP,
                                   int graphID, int partitionId, std::string message, SharedBuffer &sharedBuffer) {
     util_logger.info("Host:" + host + " Port:" + to_string(port));
@@ -2035,6 +2037,7 @@ bool Utils::sendDataFromWorkerToWorker(string masterIP, int graphID, string part
     util_logger.info(" Time Taken: " + std::to_string(elapsed.count()) + " seconds");
     return true;
 }
+
 
 float  Utils::cosineSimilarity(const std::vector<float>& a, const std::vector<float>& b) {
     float dot = 0.0f, normA = 0.0f, normB = 0.0f;

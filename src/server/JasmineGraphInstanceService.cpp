@@ -3277,12 +3277,12 @@ long startFromBytes;
    streamHandler->init();
 
     // int conResultWr = write( , DONE.c_str(), DONE.length());
-    if (!Utils::send_str_wrapper(connFd, DONE.c_str()))
-    {
-        *loop_exit_p     = true;
-        return;
-
-    }
+    // if (!Utils::send_str_wrapper(connFd, DONE.c_str()))
+    // {
+    //     *loop_exit_p     = true;
+    //     return;
+    //
+    // }
     *loop_exit_p =true;
 
     close(connFd);
