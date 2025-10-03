@@ -214,6 +214,7 @@ RelationBlock *NodeManager::addLocalRelation(NodeBlock source, NodeBlock destina
             node_manager_logger.error("Error while adding the new edge/relation for source = " +
                                       std::string(source.id) + " destination = " + std::string(destination.id));
         }
+
     //    else {
     //        // TODO[tmkasun]: implement get edge support and return existing edge/relation if already exist
     //        node_manager_logger.warn("Relation/Edge already exist for source = " + std::string(source.id) +

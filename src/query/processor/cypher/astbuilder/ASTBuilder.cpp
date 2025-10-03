@@ -726,7 +726,9 @@ any ASTBuilder::visitOC_Properties(CypherParser::OC_PropertiesContext *ctx) {
     return visitOC_Parameter(ctx->oC_Parameter());
   }
   return visitOC_MapLiteral(ctx->oC_MapLiteral());
-}any ASTBuilder::visitOC_RelationshipTypes(CypherParser::OC_RelationshipTypesContext *ctx) {
+}
+
+any ASTBuilder::visitOC_RelationshipTypes(CypherParser::OC_RelationshipTypesContext *ctx) {
   if (ctx->oC_RelTypeName().size() > 1) {
     auto *node = new ASTInternalNode(Const::RELATIONSHIP_TYPES);
     for (CypherParser::OC_RelTypeNameContext* element : ctx->oC_RelTypeName()) {
