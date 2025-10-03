@@ -115,7 +115,7 @@ def expect_response_file(conn: socket.socket, expected: bytes, timeout=5):
             mismatches.append(f'Line {i}:\n  expected: <no line>\n  '
                               f'received: {received_lines[i-1]}')
         logging.warning('Output mismatch! Showing first 10 differences:\n%s',
-                        '\n'.join(mismatches[:10]))
+            '\n'.join(mismatches[:10]))
         passed_all = False
         return False
     if len(expected_lines) > len(received_lines):
@@ -123,7 +123,7 @@ def expect_response_file(conn: socket.socket, expected: bytes, timeout=5):
             mismatches.append(f'Line {i}:\n  expected: {expected_lines[i-1]}\n'
                               f'  received: <no line>')
         logging.warning('Output mismatch! Showing first 10 differences:\n%s',
-                        '\n'.join(mismatches[:10]))
+            '\n'.join(mismatches[:10]))
         passed_all = False
         return False
 
@@ -569,8 +569,8 @@ def test(host, port):
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher',b'match(n:Person) where n.id=2 return n'
                                                 b' RETURN n',b'{"n":{"id":"2","label":"Person",'
-                                                             b'"name":"Charlie","occupation":"IT Engineer",'
-                                                             b'"partitionID":"0"}}',
+                                                b'"name":"Charlie","occupation":"IT Engineer",'
+                                                b'"partitionID":"0"}}',
 
                                  exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'',

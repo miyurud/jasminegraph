@@ -94,7 +94,7 @@ def send_and_expect_response(conn, test_name, send, expected, exit_on_failure=Fa
         failed_tests.append(test_name)
         if exit_on_failure:
             print()
-            logging.fatal("Failed test :" + test_name)
+            logging.fatal("Failed test :%s" , test_name)
             print(*failed_tests, sep="\n", file=sys.stderr)
             sys.exit(1)
 
@@ -141,7 +141,7 @@ def test(host, port):
         send_and_expect_response(
             sock,
             "adhdfs",
-            b"/home/graph_edges.jsonl",
+            b"/home/graph_with_properties_test2.txt",
             b"Is this an edge list type graph(y/n)?",
             exit_on_failure=True,
         )
@@ -162,7 +162,7 @@ if __name__ == "__main__":
 
     start_time = time.time()
 
-    test("localhost", 7777)
+    test("localhost", PORT)
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Time taken to upload: {elapsed_time:.2f} seconds")

@@ -204,8 +204,7 @@ std::unordered_map<std::string, unsigned int> NodeManager::readNodeIndex() {
 
 RelationBlock *NodeManager::addLocalRelation(NodeBlock source, NodeBlock destination) {
     RelationBlock *newRelation = NULL;
-    // if (source.edgeRef == 0 || destination.edgeRef == 0 ||
-    //     !source.searchLocalRelation(destination)) {  // certainly a new relation block needed
+
         RelationBlock *relationBlock = new RelationBlock(source, destination);
         newRelation = relationBlock->addLocalRelation(source, destination);
         if (newRelation) {
@@ -215,7 +214,6 @@ RelationBlock *NodeManager::addLocalRelation(NodeBlock source, NodeBlock destina
             node_manager_logger.error("Error while adding the new edge/relation for source = " +
                                       std::string(source.id) + " destination = " + std::string(destination.id));
         }
-    // }
     //    else {
     //        // TODO[tmkasun]: implement get edge support and return existing edge/relation if already exist
     //        node_manager_logger.warn("Relation/Edge already exist for source = " + std::string(source.id) +
@@ -227,8 +225,7 @@ RelationBlock *NodeManager::addLocalRelation(NodeBlock source, NodeBlock destina
 
 RelationBlock *NodeManager::addCentralRelation(NodeBlock source, NodeBlock destination) {
     RelationBlock *newRelation = NULL;
-    // if (source.centralEdgeRef == 0 || destination.centralEdgeRef == 0 ||
-    //     !source.searchCentralRelation(destination)) {  // certainly a new relation block needed
+
         RelationBlock *relationBlock = new RelationBlock(source, destination);
         newRelation = relationBlock->addCentralRelation(source, destination);
         if (newRelation) {
@@ -238,7 +235,7 @@ RelationBlock *NodeManager::addCentralRelation(NodeBlock source, NodeBlock desti
             node_manager_logger.error("Error while adding the new edge/relation for source = " +
                                       std::string(source.id) + " destination = " + std::string(destination.id));
         }
-    // }
+
     //    else {
     //        // TODO[tmkasun]: implement get edge support and return existing edge/relation if already exist
     //        node_manager_logger.warn("Central Relation/Edge already exist for source = " + std::string(source.id) +
