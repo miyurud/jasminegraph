@@ -1,4 +1,4 @@
-FROM miyurud/jasminegraph-prerequisites:20241231T070657
+FROM miyurud/jasminegraph-prerequisites:20250930T172442
 
 RUN apt-get update && apt-get install -y libcurl4-openssl-dev sysstat nmon git wget libgflags-dev libopenblas-dev libomp-dev
 RUN rm -r /usr/lib/python3.8/distutils

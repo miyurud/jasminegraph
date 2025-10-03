@@ -1428,7 +1428,9 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     string group_id = "knnect";   // TODO(sakeerthan): MOVE TO CONSTANT LATER
     if (default_kafka == "y") {
         kafka_server_IP = Utils::getJasmineGraphProperty("org.jasminegraph.server.streaming.kafka.host");
-        configs = {{"metadata.broker.list", kafka_server_IP}, {"group.id", group_id}};
+        configs = {{"metadata.broker.list", kafka_server_IP},
+                   {"group.id", group_id},
+                   {"auto.offset.reset", "earliest"}};
     } else {
         // user need to start relevant kafka cluster using relevant IP address
         // read relevant IP address from given file path
@@ -1469,7 +1471,9 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
             }
         }
         //              set the config according to given IP address
-        configs = {{"metadata.broker.list", kafka_server_IP}, {"group.id", "knnect"}};
+        configs = {{"metadata.broker.list", kafka_server_IP},
+                   {"group.id", "knnect"},
+                   {"auto.offset.reset", "earliest"}};
     }
 
     frontend_logger.info("Start serving `" + ADD_STREAM_KAFKA + "` command");

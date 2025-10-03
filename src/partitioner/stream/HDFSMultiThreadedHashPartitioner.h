@@ -26,6 +26,9 @@
 #include <mutex>
 #include <condition_variable>
 #include <thread>
+#include <atomic>
+#include <shared_mutex>
+#include <memory>
 
 class HDFSMultiThreadedHashPartitioner {
     std::vector<std::unique_ptr<Partition>> partitions;
@@ -64,11 +67,12 @@ class HDFSMultiThreadedHashPartitioner {
     void updatePartitionTable();
     json getPartitionsMeta();
 
-private:
-    long vertexCount;
-    long edgeCount;
+ private:
+    std::atomic<long> vertexCount;
+    std::atomic<long> edgeCount;
     bool isDirected;
     std::string outputFilePath;
+    mutable std::shared_mutex globalCountMutex;  // For thread-safe global count operations
 
     void consumeLocalEdges(int partitionIndex, JasmineGraphServer::worker worker);
     void consumeEdgeCuts(int partitionIndex, JasmineGraphServer::worker worker);
