@@ -29,10 +29,16 @@ HttpClient::~HttpClient() {
 std::string HttpClient::post(const std::string& url,
                              const std::string& body,
                              const std::vector<std::string>& headers) {
+    std::string response;
+
     CURL* curl = curl_easy_init();
     if (!curl) throw std::runtime_error("curl_easy_init failed");
 
-    std::string response;
+    curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
+
+
     struct curl_slist* header_list = nullptr;
     for (const auto& h : headers) {
         header_list = curl_slist_append(header_list, h.c_str());
@@ -44,6 +50,7 @@ std::string HttpClient::post(const std::string& url,
     curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (long)body.size());
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteToString);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+
 
     // Hardcoded timeouts
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 5L);   // 5s to connect

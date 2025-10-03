@@ -21,7 +21,7 @@ public:
 private:
     std::string model;
     std::string host;
-    int port;
+
 
     struct StreamContext {
         std::string chunkKey;

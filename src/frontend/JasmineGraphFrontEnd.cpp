@@ -276,6 +276,7 @@ void *frontendservicesesion(void *dummyPt) {
             int result_wr = write(connFd, INVALID_FORMAT.c_str(), INVALID_FORMAT.size());
             if (result_wr < 0) {
                 frontend_logger.error("Error writing to socket");
+                loop_exit = true;
                 break;
             }
         }
