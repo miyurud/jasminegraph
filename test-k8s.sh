@@ -5,7 +5,9 @@ export TERM=xterm-256color
 
 PROJECT_ROOT="$(pwd)"
 TEST_ROOT="${PROJECT_ROOT}/tests/integration"
-TIMEOUT_SECONDS=1200
+
+TIMEOUT_SECONDS=500
+
 RUN_ID="$(date +%y%m%d_%H%M%S)"
 LOG_DIR="${PROJECT_ROOT}/logs/${RUN_ID}"
 while [ -d "$LOG_DIR" ]; do
@@ -276,6 +278,24 @@ exit_code="${PIPESTATUS[0]}"
 
 set +ex
 if [ "$exit_code" != '0' ]; then
+    echo -e '\n\e[34;1m=== Pods Status ===\e[0m'
+    kubectl get pods -o wide
+
+    echo -e '\n\e[34;1m=== Describe Master Pod ===\e[0m'
+    kubectl describe pod $(kubectl get pods | grep jasminegraph-master | awk '{print $1}')
+
+    echo -e '\n\e[34;1m=== Describe Worker Pods ===\e[0m'
+    for pod in $(kubectl get pods | grep jasminegraph-worker | awk '{print $1}'); do
+        echo "--- $pod ---"
+        kubectl describe pod "$pod"
+    done
+
+    echo -e '\n\e[33;1m=== Worker Logs ===\e[0m'
+    for pod in $(kubectl get pods | grep jasminegraph-worker | awk '{print $1}'); do
+        echo "--- Logs for $pod ---"
+        kubectl logs "$pod" || echo "No logs for $pod"
+    done
+
     echo
     kubectl get pods -o wide
 
@@ -287,6 +307,11 @@ if [ "$exit_code" != '0' ]; then
 
     echo -e '\n\e[33;1mWORKER-1 LOG:\e[0m' |& tee -a "$RUN_LOG"
     kubectl logs deployment/jasminegraph-worker1-deployment |& tee -a "$RUN_LOG"
+
+    echo -e '\n\e[34;1m=== Node Resources (if available) ===\e[0m'
+    kubectl top pods || echo "kubectl top not available"
+    free -h
+    df -h
 
     echo
     echo -e '\e[31;1mERROR: Test Timeout\e[0m'
