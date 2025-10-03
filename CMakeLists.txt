@@ -105,6 +105,15 @@ set(HEADERS globals.h
         src/frontend/core/executor/impl/CypherQueryExecutor.h
         src/query/processor/cypher/runtime/Aggregation.h
         src/query/processor/cypher/runtime/AggregationFactory.h
+        src/knowledgegraph/construction/Pipeline.h
+        src/knowledgegraph/construction/Prompt.h
+        src/knowledgegraph/construction/VLLMTupleStreamer.h
+        src/vectorStore/TextEmbedder.h
+        src/vectorStore/FaissIndex.h
+        src/query/processor/semanticBeamSearch/SemanticBeamSearch.h
+        src/frontend/core/executor/impl/SemanticBeamSearchExecutor.h
+
+
 )
 
 set(SOURCES src/backend/JasmineGraphBackend.cpp
@@ -199,26 +208,15 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/query/processor/cypher/runtime/Aggregation.cpp
         src/query/processor/cypher/runtime/AggregationFactory.cpp
         src/knowledgegraph/construction/Pipeline.cpp
-        src/knowledgegraph/construction/Pipeline.h
-        src/knowledgegraph/construction/VLLMTupleStreamer.cpp
-        src/knowledgegraph/construction/VLLMTupleStreamer.h
         src/knowledgegraph/construction/OllamaTupleStreamer.cpp
-                src/knowledgegraph/construction/VLLMTupleStreamer.cpp
-
-        src/knowledgegraph/construction/OllamaTupleStreamer.h
-                src/knowledgegraph/construction/VLLMTupleStreamer.h
-
-        src/vectorStore/TextEmbedder.cpp
-        src/vectorStore/TextEmbedder.h
-        src/vectorStore/FaissIndex.cpp
-        src/vectorStore/FaissIndex.h
-        src/query/processor/semanticBeamSearch/SemanticBeamSearch.cpp
-        src/query/processor/semanticBeamSearch/SemanticBeamSearch.h
-        src/frontend/core/executor/impl/SemanticBeamSearchExecutor.cpp
-        src/frontend/core/executor/impl/SemanticBeamSearchExecutor.h
         src/knowledgegraph/construction/VLLMTupleStreamer.cpp
-        src/knowledgegraph/construction/VLLMTupleStreamer.h
+        src/vectorStore/TextEmbedder.cpp
+        src/vectorStore/FaissIndex.cpp
+        src/query/processor/semanticBeamSearch/SemanticBeamSearch.cpp
+        src/frontend/core/executor/impl/SemanticBeamSearchExecutor.cpp
+        src/knowledgegraph/construction/VLLMTupleStreamer.cpp
         src/knowledgegraph/construction/TupleStreamer.cpp
+
 
 
 )
@@ -232,8 +230,7 @@ endif ()
 file(GLOB GENERATED_SRC /home/ubuntu/software/antlr/*.cpp)
 if(NOT GENERATED_SRC)
     message(WARNING "No ANTLR generated files found in /home/ubuntu/software/antlr/")
-    set(GENERATED_SRC ""
-            src/knowledgegraph/construction/Prompt.h)
+    set(GENERATED_SRC "")
 endif()
 
 add_library(JasmineGraphLib ${HEADERS} ${SOURCES} ${GENERATED_SRC})
