@@ -91,7 +91,7 @@ echo "Detected default storage class: $STORAGE_CLASS_NAME"
 helm repo add grafana https://grafana.github.io/helm-charts
 helm repo update
 
-helm install loki grafana/loki -n loki --create-namespace --set singleBinary.persistence.storageClass=$STORAGE_CLASS_NAME -f ./k8s/helm/loki.yaml
+helm install loki grafana/loki -n loki --create-namespace --set singleBinary.persistence.storageClass="$STORAGE_CLASS_NAME" -f ./k8s/helm/loki.yaml
 kubectl wait --for=condition=Ready pod --all -n loki --timeout=180s
 sleep .2
 
