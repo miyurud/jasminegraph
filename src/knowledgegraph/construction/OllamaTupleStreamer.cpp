@@ -16,156 +16,16 @@ OllamaTupleStreamer::OllamaTupleStreamer(const std::string& modelName,  const st
     ollama_tuple_streamer_logger.info("Initialized OllamaTupleStreamer with model: " + modelName + ", host: " + host);
 }
 
-// size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb, void* userdata) {
-//     size_t totalSize = size * nmemb;
-//     StreamContext* ctx = static_cast<StreamContext*>(userdata);
-//
-//     std::string incoming(ptr, totalSize);
-//     // ollama_tuple_streamer_logger.info("Received stream chunk: " + incoming);
-//
-//     size_t start = 0;
-//     while (true) {
-//         size_t pos = incoming.find("\n", start);
-//         if (pos == std::string::npos) {
-//             // ollama_tuple_streamer_logger.info("No more complete lines in tuple stream");
-//             break;
-//         }
-//
-//         std::string line = incoming.substr(start, pos - start); start = pos + 1;
-//         if (line.empty())
-//         {
-//             ollama_tuple_streamer_logger.info("Skipping empty line"); continue;
-//         }
-//
-//
-//
-//         try {
-//             auto j = json::parse(line);
-//
-//             // Completed tuple
-//             if (j.value("done", false)) {
-//                 // std::string partial = j.value("response", "");
-//                 ollama_tuple_streamer_logger.info("recieved done partial: "+ ctx->current_tuple );
-//
-//                     // std::string tupleStr = ctx->current_tuple;
-//                     ctx->buffer->add("-1");
-//                     ctx->current_tuple.clear();
-//
-//                 break;
-//
-//             }
-//             // Partial tuple (may contain multiple newlines)
-//             else if (j.contains("response")) {
-//                 std::string partial = j["response"];
-//                 size_t s = 0;
-//                 // ollama_tuple_streamer_logger.info("partial: "+ partial );
-//
-//
-//                 size_t i = 0;
-//                 // int braceDepth = 0;
-//
-//                 while (i < partial.size()) {
-//                     size_t bpos = partial.find_first_of("{}", i);
-//                     if (bpos == std::string::npos) {
-//                         if (ctx->braceDepth > 0) {
-//                             ctx->current_tuple.append(partial, i, std::string::npos);
-//                         }
-//                         break;
-//                     }
-//
-//                     if (ctx->braceDepth > 0) {
-//                         ctx->current_tuple.append(partial, i, bpos - i);
-//                     }
-//
-//                     char c = partial[bpos];
-//                     if (c == '{') {
-//                         ctx->braceDepth++;
-//                         ctx->current_tuple.push_back(c);
-//                     } else { // '}'
-//                         ctx->braceDepth--;
-//                         ctx->current_tuple.push_back(c);
-//
-//                         if (ctx->braceDepth == 0) {
-//                             try {
-//                                 ctx->buffer->add(ctx->current_tuple);
-//                                 // ollama_tuple_streamer_logger.debug("✅ Adding complete tuple: " + ctx->current_tuple);
-//                             } catch (const std::exception& ex) {
-//                                 ollama_tuple_streamer_logger.error("❌ JSON parse failed: " + std::string(ex.what()));
-//                             }
-//                             ctx->current_tuple.clear();
-//                         }
-//                     }
-//                     i = bpos + 1;
-//                 }
-//                 // while (true) {
-//                     // size_t e = partial.find("#", s);
-//                     // if (e == std::string::npos)
-//                     // {
-//                     //     ctx->current_tuple += partial; // append remaining
-//                     //     // ollama_tuple_streamer_logger.info("Current tuple: " + ctx-> current_tuple);
-//                     //     // ollama_tuple_streamer_logger.info("Appending remaining partial: " + partial);
-//                     //
-//                     //
-//                     // } else
-//                     //     {
-//                     //     ctx->current_tuple += partial.substr(0, e); // append up to the #
-//                     //
-//                     //         // ctx->current_tuple += partial;
-//                     //         ollama_tuple_streamer_logger.info("65: " + ctx->current_tuple);
-//                     //     std::string tupleStr;
-//                     //     try
-//                     //     {
-//                     //         // validate
-//                     //         json::parse(ctx->current_tuple);
-//                     //         tupleStr = ctx->current_tuple;
-//                     //         ctx->buffer->add(tupleStr);
-//                     //         ctx->current_tuple.clear();
-//                     //         s = e + 1;
-//                     //     }
-//                     //     catch (const std::exception& exception )
-//                     //     {
-//                     //         ollama_tuple_streamer_logger.error( exception.what() );
-//                     //         ollama_tuple_streamer_logger.info("86 Malformed/partial JSON ignored: " + ctx->current_tuple);
-//                     //
-//                     //         ctx->current_tuple.clear();
-//                     //         s = e + 1;
-//                     //
-//                     //     }
-//                     //
-//                     //
-//                     //     }
-//
-//
-//             }
-//         } catch (...) {
-//             ollama_tuple_streamer_logger.info("99 Malformed/partial JSON ignored: " + line);
-//                 ctx->buffer->add("-1");
-//                 // ollama_tuple_streamer_logger.info("setting is success fallse: " + ctx->isSuccess);
-//                 // // ctx->isSuccess = false;
-//                 // ollama_tuple_streamer_logger.info("set is suces flase: "+ ctx->isSuccess);
-//
-//                 // ctx->current_tuple.clear();
-//             continue;
-//         }
-//     }
-//                     // ctx->buffer->add("-1");
-//                     // ctx->current_tuple.clear();
-//
-//     return totalSize;
-// }
 
 size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb, void* userdata) {
     size_t totalSize = size * nmemb;
     StreamContext* ctx = static_cast<StreamContext*>(userdata);
 
     std::string incoming(ptr, totalSize);
-    // ollama_tuple_streamer_logger.info("Received stream chunk: " + incoming);
-
     size_t start = 0;
     while (true) {
         size_t pos = incoming.find("\n", start);
         if (pos == std::string::npos) {
-            // ollama_tuple_streamer_logger.info("No more complete lines in tuple stream");
             break;
         }
 
@@ -174,8 +34,6 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
         {
             ollama_tuple_streamer_logger.info("Skipping empty line"); continue;
         }
-
-
 
         try {
             auto j = json::parse(line);
@@ -192,7 +50,6 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
                 break;
 
             }
-            // Partial tuple (may contain multiple newlines)
             else if (j.contains("response")) {
                 std::string partial = j["response"];
                 size_t s = 0;
@@ -280,59 +137,17 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
                     }
                     i = bpos + 1;
                 }
-                // while (true) {
-                    // size_t e = partial.find("#", s);
-                    // if (e == std::string::npos)
-                    // {
-                    //     ctx->current_tuple += partial; // append remaining
-                    //     // ollama_tuple_streamer_logger.info("Current tuple: " + ctx-> current_tuple);
-                    //     // ollama_tuple_streamer_logger.info("Appending remaining partial: " + partial);
-                    //
-                    //
-                    // } else
-                    //     {
-                    //     ctx->current_tuple += partial.substr(0, e); // append up to the #
-                    //
-                    //         // ctx->current_tuple += partial;
-                    //         ollama_tuple_streamer_logger.info("65: " + ctx->current_tuple);
-                    //     std::string tupleStr;
-                    //     try
-                    //     {
-                    //         // validate
-                    //         json::parse(ctx->current_tuple);
-                    //         tupleStr = ctx->current_tuple;
-                    //         ctx->buffer->add(tupleStr);
-                    //         ctx->current_tuple.clear();
-                    //         s = e + 1;
-                    //     }
-                    //     catch (const std::exception& exception )
-                    //     {
-                    //         ollama_tuple_streamer_logger.error( exception.what() );
-                    //         ollama_tuple_streamer_logger.info("86 Malformed/partial JSON ignored: " + ctx->current_tuple);
-                    //
-                    //         ctx->current_tuple.clear();
-                    //         s = e + 1;
-                    //
-                    //     }
-                    //
-                    //
-                    //     }
+
 
 
             }
         } catch (...) {
             ollama_tuple_streamer_logger.info("99 Malformed/partial JSON ignored: " + line);
                 ctx->buffer->add("-1");
-                // ollama_tuple_streamer_logger.info("setting is success fallse: " + ctx->isSuccess);
-                // // ctx->isSuccess = false;
-                // ollama_tuple_streamer_logger.info("set is suces flase: "+ ctx->isSuccess);
 
-                // ctx->current_tuple.clear();
-            continue;
         }
     }
-                    // ctx->buffer->add("-1");
-                    // ctx->current_tuple.clear();
+
 
     return totalSize;
 }
@@ -499,7 +314,14 @@ Array:
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &ctx);
 
 
+        // Enforce strong TLS
+        curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
 
+        // Verify certificate is trusted
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
+
+        // Verify hostname matches certificate
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
 
         curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 50L); // fail fast if server not reachable
         curl_easy_setopt(curl, CURLOPT_TIMEOUT, 12000L);       // max time for entire request
