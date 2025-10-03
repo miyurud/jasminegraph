@@ -24,7 +24,7 @@ pthread_mutex_t lockGetMetaPropertyLink;
 
 MetaPropertyLink::MetaPropertyLink(unsigned int propertyBlockAddress) : blockAddress(propertyBlockAddress) {
     pthread_mutex_lock(&lockMetaPropertyLink);
-    if (propertyBlockAddress > 0) {
+    if (propertyBlockAddress >= 0) {
         MetaPropertyLink::metaPropertiesDB->seekg(propertyBlockAddress);
         char rawName[MetaPropertyLink::MAX_NAME_SIZE] = {0};
 
@@ -134,34 +134,43 @@ MetaPropertyLink* MetaPropertyLink::next() {
 MetaPropertyLink* MetaPropertyLink::get(unsigned int propertyBlockAddress) {
     MetaPropertyLink* pl = nullptr;
 
+    meta_property_link_logger.debug("Entering MetaPropertyLink::get with propertyBlockAddress = " + std::to_string(propertyBlockAddress));
     pthread_mutex_lock(&lockGetMetaPropertyLink);
-    if (propertyBlockAddress > 0) {
+    if (propertyBlockAddress >= 0) {
         char propertyName[MetaPropertyLink::MAX_NAME_SIZE] = {0};
         char propertyValue[MetaPropertyLink::MAX_VALUE_SIZE] = {0};
         unsigned int nextAddress;
+        meta_property_link_logger.debug("Seeking to propertyBlockAddress = " + std::to_string(propertyBlockAddress));
         MetaPropertyLink::metaPropertiesDB->seekg(propertyBlockAddress);
-
 
         if (!MetaPropertyLink::metaPropertiesDB->read(reinterpret_cast<char*>(&propertyName),
                                                       MetaPropertyLink::MAX_NAME_SIZE)) {
             meta_property_link_logger.error("Error while reading node property name from block = " +
                                        std::to_string(propertyBlockAddress));
+        } else {
+            meta_property_link_logger.debug("Read property name: " + std::string(propertyName));
         }
         if (!MetaPropertyLink::metaPropertiesDB->read(reinterpret_cast<char*>(&propertyValue),
                                                       MetaPropertyLink::MAX_VALUE_SIZE)) {
             meta_property_link_logger.error("Error while reading node property value from block = " +
                                        std::to_string(propertyBlockAddress));
+        } else {
+            meta_property_link_logger.debug("Read property value for property name: " + std::string(propertyName));
         }
 
         if (!MetaPropertyLink::metaPropertiesDB->read(reinterpret_cast<char*>(&(nextAddress)),
                                                       sizeof(unsigned int))) {
             meta_property_link_logger.error("Error while reading node property next address from block = " +
                                        std::to_string(propertyBlockAddress));
+        } else {
+            meta_property_link_logger.debug("Read next address: " + std::to_string(nextAddress));
         }
 
         pl = new MetaPropertyLink(propertyBlockAddress, std::string(propertyName),
                                   propertyValue, nextAddress);
+        meta_property_link_logger.debug("Created MetaPropertyLink object at address: " + std::to_string(propertyBlockAddress));
     }
     pthread_mutex_unlock(&lockGetMetaPropertyLink);
+    meta_property_link_logger.debug("Exiting MetaPropertyLink::get with propertyBlockAddress = " + std::to_string(propertyBlockAddress));
     return pl;
 }

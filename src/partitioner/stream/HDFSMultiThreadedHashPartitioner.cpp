@@ -17,10 +17,10 @@
 
 Logger hash_partitioner_logger;
 
-int PARTITION_FILE_EDGE_COUNT_THRESHOLD = 1000000;
+int PARTITION_FILE_EDGE_COUNT_THRESHOLD = 5;
 
 HDFSMultiThreadedHashPartitioner::HDFSMultiThreadedHashPartitioner(int numberOfPartitions, int graphID,
-    std::string masterIp, bool isDirected)
+    std::string masterIp, bool isDirected ,  std::vector<JasmineGraphServer::worker> workers )
         : numberOfPartitions(numberOfPartitions), graphId(graphID),
           partitionLocks(numberOfPartitions), vertexCount(0), edgeCount(0),
           localEdgeArrays(numberOfPartitions), edgeCutsArrays(numberOfPartitions),
@@ -33,15 +33,13 @@ HDFSMultiThreadedHashPartitioner::HDFSMultiThreadedHashPartitioner(int numberOfP
             + "/" + std::to_string(this->graphId);
     Utils::createDirectory(this->outputFilePath);
 
-    JasmineGraphServer *server = JasmineGraphServer::getInstance();
-    std::vector<JasmineGraphServer::worker> workers = server->workers(numberOfPartitions);
 
     // Start consumer threads and store them
     for (int i = 0; i < numberOfPartitions; i++) {
         this->partitions.push_back(std::make_unique<Partition>(i, numberOfPartitions));
         localEdgeThreads.emplace_back(&HDFSMultiThreadedHashPartitioner::consumeLocalEdges, this, i, workers[i]);
         edgeCutThreads.emplace_back(&HDFSMultiThreadedHashPartitioner::consumeEdgeCuts, this, i, workers[i]);
-        Utils::assignPartitionToWorker(graphId, i, workers.at(i).hostname, workers.at(i).port);
+        // Utils::assignPartitionToWorker(graphId, i, workers.at(i).hostname, workers.at(i).port);
     }
 }
 
@@ -157,7 +155,7 @@ void HDFSMultiThreadedHashPartitioner::consumeLocalEdges(int partitionIndex, Jas
                                              JasmineGraphInstanceProtocol::HDFS_LOCAL_STREAM_START);
                 partitionMutexArray[partitionIndex].unlock();
 
-                hash_partitioner_logger.debug("Local edge consumer " + std::to_string(partitionIndex) +
+                hash_partitioner_logger.info("Local edge consumer " + std::to_string(partitionIndex) +
                                               " generated file of " +
                                               std::to_string(PARTITION_FILE_EDGE_COUNT_THRESHOLD) +
                                               " edges: " + filePath);
@@ -233,6 +231,7 @@ void HDFSMultiThreadedHashPartitioner::consumeEdgeCuts(int partitionIndex, Jasmi
         // Process edges from edgeCutsArrays
         while (!edgeCutsArrays[partitionIndex].empty()) {
             std::string edge = edgeCutsArrays[partitionIndex].back();
+            hash_partitioner_logger.info("edge: " + edge);
             edgeCutsArrays[partitionIndex].pop_back();
 
             // Write the edge to the file
@@ -327,6 +326,27 @@ void HDFSMultiThreadedHashPartitioner::updatePartitionTable() {
     delete sqlite;
 }
 
+
+ json HDFSMultiThreadedHashPartitioner::getPartitionsMeta()
+{
+
+    json partitionsMeta = json::array( );
+    for (int i = 0; i < numberOfPartitions; i++) {
+
+        json partition = {
+            {"idpartition", i},
+            {"graph_idgraph", this->graphId},
+            {"vertexcount",  std::to_string(partitions.at(i)->getLocalVertexCount())},
+            {"central_vertexcount",  std::to_string(partitions.at(i)->getCentralVertexCount(i))},
+            {"edgecount",  std::to_string(partitions.at(i)->getEdgesCount(isDirected)) },
+{"central_edgecount_with_dups",  std::to_string(0) },
+            {"central_edgecount",   std::to_string(partitions.at(i)->edgeCutsCount())}
+        };
+
+        partitionsMeta.push_back(partition);
+    }
+    return  partitionsMeta;
+}
 long HDFSMultiThreadedHashPartitioner::getVertexCount() {
     std::shared_lock<std::shared_mutex> lock(globalCountMutex);
     int totalVertices = 0;

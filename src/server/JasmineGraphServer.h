@@ -40,7 +40,7 @@ using std::map;
 class JasmineGraphServer {
  private:
     map<std::string, long> hostPlaceMap;
-    std::string workerHosts;
+
     std::string enableNmon;
     static const int BUFFER_SIZE = 128;
     int serverPort;
@@ -62,6 +62,7 @@ class JasmineGraphServer {
     void deleteNonOperationalGraphFragment(int graphID);
 
  public:
+    std::string workerHosts;
     static JasmineGraphServer *getInstance();
 
     ~JasmineGraphServer();
@@ -136,6 +137,7 @@ class JasmineGraphServer {
     };
 
     std::vector<JasmineGraphServer::worker> workers(size_t npart);
+    static worker getDesignatedWorker();
 
     static std::unordered_map<std::string, workerPartitions> getGraphPartitionedHosts(std::string graphID);
 
@@ -159,6 +161,7 @@ class JasmineGraphServer {
 
     void initiateMerge(std::string graphID, std::string trainingArgs, SQLiteDBInterface *sqlite);
 
+    worker getDesignatedWorker(const std::vector<JasmineGraphServer::worker>& workers);
     static std::vector<worker> getWorkers(size_t npart);
 
     static bool mergeFiles(std::string host, int port, std::string trainingArgs, int iteration,

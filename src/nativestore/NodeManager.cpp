@@ -404,6 +404,7 @@ NodeBlock *NodeManager::get(std::string nodeId) {
     node_manager_logger.debug("Label = " + std::string(label));
     node_manager_logger.debug("Length of label = " + std::to_string(strlen(label)));
     node_manager_logger.debug("DEBUG: raw edgeRef from DB (disk) " + std::to_string(edgeRef));
+    node_manager_logger.debug("DEBUG: meta propoarty ref " + std::to_string(metaPropRef));
 
     nodeBlockPointer = new NodeBlock(nodeId, vertexId, blockAddress, propRef, metaPropRef, edgeRef,
                                      centralEdgeRef, edgeRefPID, label, usage);
@@ -497,10 +498,10 @@ std::map<long, std::unordered_set<long>> NodeManager::getAdjacencyList() {
         auto nodeId = it.first;
         NodeBlock *node = this->get(nodeId);
         std::unordered_set<long> neighbors;
-        std::list<NodeBlock*> neighborNodes = node->getAllEdgeNodes();
+        std::list<std::pair<NodeBlock*, RelationBlock*>> neighborNodes = node->getAllEdgeNodes();
 
         for (auto neighborNode : neighborNodes) {
-            neighbors.insert(neighborNode->nodeId);
+            neighbors.insert(neighborNode.first->nodeId);
         }
         adjacencyList.emplace((long)node->nodeId, neighbors);
     }

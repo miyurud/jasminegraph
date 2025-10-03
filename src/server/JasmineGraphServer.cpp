@@ -75,6 +75,8 @@ static int getDataPortByHost(const std::string &host);
 static size_t getWorkerCount();
 
 static std::vector<JasmineGraphServer::worker> hostWorkerList;
+std::unordered_map<std::string, MetricHistory> history_store;
+
 static unordered_map<string, pair<int, int>> hostPortMap;
 std::unordered_map<int, int> aggregateWeightMap;
 
@@ -477,7 +479,7 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                 } else {
                     serverStartScript =
                         "docker -H ssh://" + host + " run -v " + instanceDataFolder + ":" + instanceDataFolder +
-                        " -v " + aggregateDataFolder + ":" + aggregateDataFolder + " -v " + nmonFileLocation + ":" +
+                        " -v " + aggregateDataFolder + ":" + aggregateDataFolder + " -v /var/tmp:/var/tmp/hdfs/filechunks" " -v " + nmonFileLocation + ":" +
                         nmonFileLocation + " -v " + instanceDataFolder + "/" + to_string(i) + "/logs" + ":" +
                         "/var/tmp/jasminegraph/logs" + " -p " + std::to_string(workerPortsVector.at(i)) + ":" +
                         std::to_string(workerPortsVector.at(i)) + " -p " + std::to_string(workerDataPortsVector.at(i)) +
@@ -490,6 +492,8 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
             const char *serverStartCmd = serverStartScript.c_str();
             pid_t child = fork();
             if (child == 0) {
+                server_logger.info("###MASTER#### pulling image");
+
                 execl("/bin/sh", "sh", "-c", serverStartCmd, nullptr);
                 _exit(1);
             }
@@ -853,6 +857,41 @@ static unordered_map<string, float> scaleK8s(size_t npart) {
     return cpu_loads;
 }
 
+JasmineGraphServer::worker JasmineGraphServer::getDesignatedWorker(
+      ) {
+    JasmineGraphServer::worker best_worker;
+    double best_score = std::numeric_limits<double>::max();
+server_logger.debug("designated worker");
+    for (auto& worker : hostWorkerList) {
+        string workerHostPort = worker.hostname + ":" + std::to_string(worker.port);
+        MetricHistory& hist = PerformanceUtil::history_store[workerHostPort];
+
+        double cpu_ewma =  Utils::exponentialWeightedMovingAverage(hist.cpu_usage);
+        double mem_ewma = Utils::exponentialWeightedMovingAverage(hist.memory_usage);
+        double load_ewma = Utils::exponentialWeightedMovingAverage(hist.load_average);
+
+        double cpu_slope =Utils:: computeSlope(hist.cpu_usage);
+        double mem_slope = Utils:: computeSlope(hist.memory_usage);
+
+        // Score function (tunable weights)
+        double score = 0.5 * cpu_ewma + 0.3 * mem_ewma + 0.2 * load_ewma;
+        score += 0.2 * std::max(0.0, cpu_slope); // penalize rising CPU
+        score += 0.1 * std::max(0.0, mem_slope); // penalize rising memory
+
+        if (score < best_score) {
+            server_logger.debug("current best s worker:  score" + to_string(worker.port)+ to_string(score));
+            best_worker = worker;
+            best_score = score;
+        }
+    }
+
+    // TODO :: wrong logic
+    best_worker = hostWorkerList.back();
+
+    return best_worker;
+}
+
+
 std::vector<JasmineGraphServer::worker> JasmineGraphServer::getWorkers(size_t npart) {
     // TODO: get the workers with lowest load from workerList
     std::vector<JasmineGraphServer::worker> *workerListAll;
@@ -866,11 +905,21 @@ std::vector<JasmineGraphServer::worker> JasmineGraphServer::getWorkers(size_t np
         cpu_loads = scaleK8s(npart);
     } else {
         workerListAll = &hostWorkerList;
-        for (auto it = hostWorkerList.begin(); it != hostWorkerList.end(); it++) {
-            auto &worker = *it;
-            string workerHostPort = worker.hostname + ":" + to_string(worker.port);
-            cpu_loads[workerHostPort] = 0.;
+
+
+        const map<string, string> cpu_map = Utils::getMetricMap("cpu_usage");
+        // Convert strings to float
+        unordered_map<string, float> cpu_loads;
+        for (auto it = cpu_map.begin(); it != cpu_map.end(); it++) {
+            cpu_loads[it->first] = std::stof(it->second);
+            server_logger.debug(std::to_string(cpu_loads[it->first]) +" : " + std::to_string(cpu_loads[it->second]));
         }
+
+        // for (auto it = hostWorkerList.begin(); it != hostWorkerList.end(); it++) {
+        //     auto &worker = *it;
+        //     string workerHostPort = worker.hostname + ":" + to_string(worker.port);
+        //     cpu_loads[workerHostPort] = 0.;
+        // }
     }
     size_t len = workerListAll->size();
     std::vector<JasmineGraphServer::worker> workerList;
@@ -896,6 +945,13 @@ std::vector<JasmineGraphServer::worker> JasmineGraphServer::getWorkers(size_t np
 std::vector<JasmineGraphServer::worker> JasmineGraphServer::workers(size_t npart) {
     return getWorkers(npart);
 }
+
+// JasmineGraphServer::worker JasmineGraphServer::getDesignatedWorker()
+// {
+//     //TODO (sajeenthiran): handle designated worker
+//     return hostWorkerList[0];
+//
+// }
 
 void JasmineGraphServer::uploadGraphLocally(int graphID, const string graphType,
                                             vector<std::map<int, string>> fullFileList, std::string masterIP) {

@@ -618,7 +618,6 @@ std::string Utils::read_str_wrapper(int connFd, char *buf, size_t len, bool allo
     if (result < 0) {
         util_logger.error("Read failed: recv returned " + std::to_string((int)result));
         return "";
-    } else if (!allowEmpty && result == 0) {
         util_logger.error("Read failed: recv empty string");
         return "";
     }
@@ -634,7 +633,8 @@ std::string Utils::read_str_trim_wrapper(int connFd, char *buf, size_t len) {
 }
 
 bool Utils::send_wrapper(int connFd, const char *buf, size_t size) {
-    ssize_t sz = send(connFd, buf, size, 0);
+    ssize_t sz = send(connFd, buf, size, 0);\
+    // util_logger.info("Sent " + std::to_string(sz) + " bytes to socket " + std::to_string(connFd));
     if (sz < size) {
         util_logger.error("Send failed");
         return false;
@@ -647,6 +647,14 @@ bool Utils::send_str_wrapper(int connFd, std::string str) {
 }
 
 bool Utils::send_int_wrapper(int connFd, int *value, size_t datalength) {
+    ssize_t sz = send(connFd, value, datalength, 0);
+    if (sz < datalength) {
+        util_logger.error("Send failed");
+        return false;
+    }
+    return true;
+}
+bool Utils::send_long_wrapper(int connFd, long  *value, size_t datalength) {
     ssize_t sz = send(connFd, value, datalength, 0);
     if (sz < datalength) {
         util_logger.error("Send failed");
@@ -683,6 +691,24 @@ bool Utils::sendExpectResponse(int sockfd, char *data, size_t data_length, std::
     }
     util_logger.info("Received: " + response);
     return true;
+}
+
+bool Utils::expect_str_wrapper(int sockfd, const std::string &expected) {
+    char buffer[1024] = {0};  // Adjust if you expect larger messages
+    ssize_t bytes_received = recv(sockfd, buffer, sizeof(buffer) - 1, 0);
+
+    if (bytes_received <= 0) {
+        // Connection closed or error
+        return false;
+    }
+
+    std::string received(buffer, bytes_received);
+
+    // Trim CR/LF if needed
+    received.erase(std::remove(received.begin(), received.end(), '\r'), received.end());
+    received.erase(std::remove(received.begin(), received.end(), '\n'), received.end());
+
+    return received == expected;
 }
 
 bool Utils::performHandshake(int sockfd, char *data, size_t data_length, std::string masterIP) {
@@ -942,6 +968,36 @@ std::map<std::string, std::string> Utils::getMetricMap(std::string metricName) {
 
     return map;
 }
+
+// collect history of metrics
+
+
+
+double Utils:: exponentialWeightedMovingAverage(const std::deque<double>& vals, double alpha ) {
+    if (vals.empty()) return 0.0;
+    double ewma = vals[0];
+    for (size_t i = 1; i < vals.size(); i++) {
+        ewma = alpha * vals[i] + (1 - alpha) * ewma;
+    }
+    return ewma;
+}
+
+double Utils:: computeSlope(const std::deque<double>& vals) {
+    int n = vals.size();
+    if (n < 2) return 0.0;
+
+    double sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+    for (int i = 0; i < n; i++) {
+        sumX += i;
+        sumY += vals[i];
+        sumXY += i * vals[i];
+        sumXX += i * i;
+    }
+    double denom = n * sumXX - sumX * sumX;
+    if (denom == 0) return 0.0;
+    return (n * sumXY - sumX * sumY) / denom;
+}
+
 
 bool Utils::fileExistsWithReadPermission(const string &path) { return access(path.c_str(), R_OK) == 0; }
 
@@ -1391,6 +1447,8 @@ void Utils::assignPartitionToWorker(int graphId, int partitionIndex, string  hos
 
     delete sqlite;
 }
+
+
 
 bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string masterIP,
                                   int graphID, int partitionId, std::string message, SharedBuffer &sharedBuffer) {
@@ -1968,4 +2026,16 @@ bool Utils::sendDataFromWorkerToWorker(string masterIP, int graphID, string part
     auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - startTime);
     util_logger.info(" Time Taken: " + std::to_string(elapsed.count()) + " seconds");
     return true;
+}
+
+
+float  Utils::cosineSimilarity(const std::vector<float>& a, const std::vector<float>& b) {
+    float dot = 0.0f, normA = 0.0f, normB = 0.0f;
+    for (size_t i = 0; i < a.size(); ++i) {
+        dot += a[i] * b[i];
+        normA += a[i] * a[i];
+        normB += b[i] * b[i];
+    }
+    if (normA == 0 || normB == 0) return 0.0f;
+    return dot / (std::sqrt(normA) * std::sqrt(normB));
 }

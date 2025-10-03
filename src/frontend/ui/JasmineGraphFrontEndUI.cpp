@@ -122,7 +122,7 @@ void *uifrontendservicesesion(void *dummyPt) {
     std::string kafka_server_IP;
     cppkafka::Configuration configs;
     KafkaConnector *kstream;
-
+    std::string hdfsServerIp;
     vector<DataPublisher *> workerClients;
     bool workerClientsInitialized = false;
 
@@ -171,7 +171,10 @@ void *uifrontendservicesesion(void *dummyPt) {
             cypher_ast_command(connFd, workerClients, numberOfPartitions, &loop_exit, line);
         } else if (line.compare(PROPERTIES) == 0) {
             get_properties_command(connFd,  &loop_exit);
-        } else {
+        }
+        else if (line.compare(CONSTRUCT_KG) == 0) {
+            JasmineGraphFrontEnd::constructKGStreamHDFSCommand( masterIP, connFd, numberOfPartitions, sqlite, &loop_exit);
+        }else {
             ui_frontend_logger.error("Message format not recognized " + line);
             int result_wr = write(connFd, INVALID_FORMAT.c_str(), INVALID_FORMAT.size());
             if (result_wr < 0) {
@@ -240,7 +243,7 @@ int JasmineGraphFrontEndUI::run() {
     int noThread = 0;
 
     while (true) {
-        ui_frontend_logger.info("Frontend Listening");
+        ui_frontend_logger.info("UI Frontend Listening");
 
         // this is where client connects. svr will hang in this mode until client conn
         connFd = accept(listenFd, (struct sockaddr *)&clntAdd, &len);
@@ -264,12 +267,16 @@ int JasmineGraphFrontEndUI::run() {
 }
 
 static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_p) {
+    ui_frontend_logger.debug("list_command: started");
+
     json result_json = json::array();  // Create a JSON array to hold the result
 
     // Fetch data from the database
+    ui_frontend_logger.debug("Fetching graph data from database");
     std::vector<vector<pair<string, string>>> graphData = JasmineGraphFrontEndCommon::getGraphData(sqlite);
 
     // Fetch partition data
+    ui_frontend_logger.debug("Fetching partition data from database");
     std::vector<std::vector<std::pair<std::string, std::string>>> partitionData =
         JasmineGraphFrontEndCommon::getPartitionData(sqlite);
 
@@ -277,7 +284,7 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
     std::unordered_map<int, std::vector<json>> partition_map;
     for (const auto& row : partitionData) {
         if (row.size() != Conts::NUMBER_OF_PARTITION_DATA) {
-            // Log error or skip malformed partition row
+            ui_frontend_logger.debug("Skipping malformed partition row");
             continue;
         }
 
@@ -287,6 +294,7 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
         for (const auto& column : row) {
             const std::string& col_name = column.first;
             const std::string& col_value = column.second;
+            ui_frontend_logger.debug("Partition row: "+  col_name+" "+ col_value);
 
             try {
                 if (col_name == "idpartition") {
@@ -305,7 +313,7 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
                     partition_entry["central_edgecount_with_dups"] = std::stoi(col_value);
                 }
             } catch (const std::exception& e) {
-                // Log error and skip this partition
+                ui_frontend_logger.debug("Exception parsing partition row: " + std::string(e.what()));
                 partition_entry.clear();
                 break;
             }
@@ -319,7 +327,7 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
     // Process graph data
     for (const auto& row : graphData) {
         if (row.size() != Conts::NUMBER_OF_PARTITION_DATA) {
-            // Log error or skip malformed graph row
+            ui_frontend_logger.debug("Skipping malformed graph row");
             continue;
         }
 
@@ -330,6 +338,7 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
         for (const auto& column : row) {
             const std::string& col_name = column.first;
             const std::string& col_value = column.second;
+            ui_frontend_logger.debug("graph row: "+  col_name+" "+ col_value);
 
             try {
                 if (col_name == "idgraph") {
@@ -351,6 +360,7 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
                             entry["status"] = "op";
                         }
                     } catch (const std::exception& e) {
+                        ui_frontend_logger.debug("Exception parsing graph status: " + std::string(e.what()));
                         entry["status"] = "unknown";  // Handle invalid status
                     }
                 } else if (col_name == "vertexcount") {
@@ -361,7 +371,7 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
                     entry["centralpartitioncount"] = std::stoi(col_value);
                 }
             } catch (const std::exception& e) {
-                // Log error and skip this graph
+                ui_frontend_logger.debug("Exception parsing graph row: " + std::string(e.what()));
                 entry.clear();
                 break;
             }
@@ -380,9 +390,11 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
 
     // Convert JSON object to string
     string result = result_json.dump();
+    ui_frontend_logger.debug("Result JSON: " + result);
 
     // Write the result to the socket
     if (result.size() == 0) {
+        ui_frontend_logger.debug("Result is empty, writing EMPTY to socket");
         int result_wr = write(connFd, EMPTY.c_str(), EMPTY.length());
         if (result_wr < 0) {
             ui_frontend_logger.error("Error writing to socket");
@@ -396,12 +408,14 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
             *loop_exit_p = true;
         }
     } else {
+        ui_frontend_logger.debug("Writing result JSON to socket");
         int result_wr = write(connFd, result.c_str(), result.length());
         if (result_wr < 0) {
             ui_frontend_logger.error("Error writing to socket");
             *loop_exit_p = true;
         }
     }
+    ui_frontend_logger.debug("list_command: finished");
 }
 
 // Function to extract the file name from the URL
