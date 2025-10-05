@@ -347,6 +347,207 @@ long StatisticCollector::getRunQueue() {
     return runQueue;
 }
 
+std::vector<double> StatisticCollector::getLogicalCpuCoreThreadUsage() {
+    std::vector<double> cpuUsages;
+    
+    // First reading
+    std::vector<std::vector<long long>> firstReading;
+    FILE *file1 = fopen("/proc/stat", "r");
+    if (!file1) {
+        stat_logger.error("Cannot open /proc/stat for first reading");
+        return cpuUsages;
+    }
+    
+    char line[1024];
+    // Skip the first line (total cpu stats)
+    fgets(line, sizeof(line), file1);
+    
+    // Read per-CPU stats
+    while (fgets(line, sizeof(line), file1) != NULL) {
+        if (strncmp(line, "cpu", 3) == 0 && line[3] >= '0' && line[3] <= '9') {
+            std::vector<long long> cpuStats;
+            char *p = line;
+            // Skip "cpu" and cpu number
+            while (*p && *p != ' ') p++;
+            while (*p == ' ') p++;
+            
+            // Parse CPU time values: user, nice, system, idle, iowait, irq, softirq, steal
+            for (int i = 0; i < 8; i++) {
+                long long value = 0;
+                if (*p && (*p >= '0' && *p <= '9')) {
+                    value = strtoll(p, &p, 10);
+                    while (*p == ' ') p++;
+                }
+                cpuStats.push_back(value);
+            }
+            firstReading.push_back(cpuStats);
+        } else {
+            break;  // No more CPU lines
+        }
+    }
+    fclose(file1);
+    
+    // Sleep for a short interval to get meaningful difference
+    usleep(100000);  // 100ms
+    
+    // Second reading
+    std::vector<std::vector<long long>> secondReading;
+    FILE *file2 = fopen("/proc/stat", "r");
+    if (!file2) {
+        stat_logger.error("Cannot open /proc/stat for second reading");
+        return cpuUsages;
+    }
+    
+    // Skip the first line (total cpu stats)
+    fgets(line, sizeof(line), file2);
+    
+    // Read per-CPU stats
+    while (fgets(line, sizeof(line), file2) != NULL) {
+        if (strncmp(line, "cpu", 3) == 0 && line[3] >= '0' && line[3] <= '9') {
+            std::vector<long long> cpuStats;
+            char *p = line;
+            // Skip "cpu" and cpu number
+            while (*p && *p != ' ') p++;
+            while (*p == ' ') p++;
+            
+            // Parse CPU time values
+            for (int i = 0; i < 8; i++) {
+                long long value = 0;
+                if (*p && (*p >= '0' && *p <= '9')) {
+                    value = strtoll(p, &p, 10);
+                    while (*p == ' ') p++;
+                }
+                cpuStats.push_back(value);
+            }
+            secondReading.push_back(cpuStats);
+        } else {
+            break;  // No more CPU lines
+        }
+    }
+    fclose(file2);
+    
+    // Calculate usage for each CPU
+    size_t numCpus = std::min(firstReading.size(), secondReading.size());
+    for (size_t i = 0; i < numCpus; i++) {
+        if (firstReading[i].size() >= 4 && secondReading[i].size() >= 4) {
+            // Calculate total time difference
+            long long totalDiff = 0;
+            long long idleDiff = 0;
+            
+            for (int j = 0; j < 8 && j < (int)firstReading[i].size() && j < (int)secondReading[i].size(); j++) {
+                long long diff = secondReading[i][j] - firstReading[i][j];
+                totalDiff += diff;
+                if (j == 3) {  // idle time is the 4th field (index 3)
+                    idleDiff = diff;
+                }
+            }
+            
+            // Calculate CPU usage percentage
+            double usage = 0.0;
+            if (totalDiff > 0) {
+                usage = ((double)(totalDiff - idleDiff) / totalDiff) * 100.0;
+                if (usage < 0.0) usage = 0.0;
+                if (usage > 100.0) usage = 100.0;
+            }
+            cpuUsages.push_back(usage);
+        }
+    }
+    
+    return cpuUsages;
+}
+
+double StatisticCollector::getProcessSwitchesPerSecond() {
+    // First reading of context switches
+    FILE *file1 = fopen("/proc/stat", "r");
+    if (!file1) {
+        stat_logger.error("Cannot open /proc/stat for first reading");
+        return -1.0;
+    }
+    
+    char line[LINE_BUF_SIZE];
+    long long firstCtxt = -1;
+    
+    // Find context switches line
+    while (fgets(line, LINE_BUF_SIZE, file1) != NULL) {
+        if (strncmp(line, "ctxt", 4) == 0) {
+            char *p = line;
+            while (*p && (*p < '0' || *p > '9')) p++;  // Skip to first digit
+            if (*p) {
+                firstCtxt = strtoll(p, NULL, 10);
+                if (firstCtxt < 0) {
+                    firstCtxt = -1;  // Invalid value
+                }
+            }
+            break;
+        }
+    }
+    fclose(file1);
+    
+    if (firstCtxt == -1) {
+        stat_logger.error("Could not read initial context switches");
+        return -1.0;
+    }
+    
+    // Record start time
+    struct timespec startTime, endTime;
+    clock_gettime(CLOCK_MONOTONIC, &startTime);
+    
+    // Sleep for measurement interval (1 second)
+    sleep(1);
+    
+    // Second reading of context switches
+    FILE *file2 = fopen("/proc/stat", "r");
+    if (!file2) {
+        stat_logger.error("Cannot open /proc/stat for second reading");
+        return -1.0;
+    }
+    
+    long long secondCtxt = -1;
+    
+    // Find context switches line
+    while (fgets(line, LINE_BUF_SIZE, file2) != NULL) {
+        if (strncmp(line, "ctxt", 4) == 0) {
+            char *p = line;
+            while (*p && (*p < '0' || *p > '9')) p++;  // Skip to first digit
+            if (*p) {
+                secondCtxt = strtoll(p, NULL, 10);
+                if (secondCtxt < 0) {
+                    secondCtxt = -1;  // Invalid value
+                }
+            }
+            break;
+        }
+    }
+    fclose(file2);
+    
+    if (secondCtxt == -1) {
+        stat_logger.error("Could not read final context switches");
+        return -1.0;
+    }
+    
+    // Record end time
+    clock_gettime(CLOCK_MONOTONIC, &endTime);
+    
+    // Calculate elapsed time in seconds
+    double elapsedTime = (endTime.tv_sec - startTime.tv_sec) + 
+                        (endTime.tv_nsec - startTime.tv_nsec) / 1000000000.0;
+    
+    if (elapsedTime <= 0.0) {
+        stat_logger.error("Invalid elapsed time for context switch calculation");
+        return -1.0;
+    }
+    
+    // Calculate context switches per second
+    long long ctxtDiff = secondCtxt - firstCtxt;
+    if (ctxtDiff < 0) {
+        stat_logger.error("Context switches counter wrapped or invalid");
+        return -1.0;
+    }
+    
+    double switchesPerSecond = (double)ctxtDiff / elapsedTime;
+    return switchesPerSecond;
+}
+
 void StatisticCollector::logLoadAverage(std::string name) {
     PerformanceUtil::logLoadAverage();
 

@@ -58,6 +58,14 @@ int PerformanceUtil::collectPerformanceStatistics() {
     long runQueue = StatisticCollector::getRunQueue();
     Utils::send_job("", "run_queue", std::to_string(runQueue));
 
+    std::vector<double> logicalCpuUsages = StatisticCollector::getLogicalCpuCoreThreadUsage();
+    for (size_t i = 0; i < logicalCpuUsages.size(); i++) {
+        Utils::send_job("", "cpu_core_" + std::to_string(i) + "_usage", std::to_string(logicalCpuUsages[i]));
+    }
+
+    double processSwitchesPerSec = StatisticCollector::getProcessSwitchesPerSecond();
+    Utils::send_job("", "process_switches_per_sec", std::to_string(processSwitchesPerSec));
+
     long totalSwapSpace = StatisticCollector::getTotalSwapSpace();
     Utils::send_job("", "total_swap_space", std::to_string(totalSwapSpace));
 
@@ -446,6 +454,22 @@ void PerformanceUtil::logLoadAverage() {
 
 void PerformanceUtil::logRunQueue() {
     long currentRunQueue = StatisticCollector::getRunQueue();
+}
+
+void PerformanceUtil::logLogicalCpuCoreThreadUsage() {
+    std::vector<double> logicalCpuUsages = StatisticCollector::getLogicalCpuCoreThreadUsage();
+    for (size_t i = 0; i < logicalCpuUsages.size(); i++) {
+        scheduler_logger.info("CPU Core " + std::to_string(i) + " usage: " + std::to_string(logicalCpuUsages[i]) + "%");
+    }
+}
+
+void PerformanceUtil::logProcessSwitchesPerSecond() {
+    double processSwitchesPerSec = StatisticCollector::getProcessSwitchesPerSecond();
+    if (processSwitchesPerSec >= 0) {
+        scheduler_logger.info("Process switches per second: " + std::to_string(processSwitchesPerSec));
+    } else {
+        scheduler_logger.error("Failed to get process switches per second");
+    }
 }
 
 void PerformanceUtil::updateResourceConsumption(PerformanceSQLiteDBInterface *performanceDb, std::string graphId,

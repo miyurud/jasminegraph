@@ -27,6 +27,7 @@ limitations under the License.
 #include <limits>
 #include <sstream>
 #include <thread>
+#include <vector>
 
 #include "../../util/Utils.h"
 #include "PerformanceUtil.h"
@@ -55,6 +56,8 @@ class StatisticCollector {
     static double getTotalCpuUsage();
     static double getLoadAverage();
     static long getRunQueue();
+    static std::vector<double> getLogicalCpuCoreThreadUsage();
+    static double getProcessSwitchesPerSecond();
     static void logLoadAverage(std::string name);
 };
 
