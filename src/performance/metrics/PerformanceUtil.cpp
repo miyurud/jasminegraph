@@ -85,6 +85,15 @@ int PerformanceUtil::collectPerformanceStatistics() {
         Utils::send_job("", "disk_" + device + "_busy_percentage", std::to_string(busyPercentage));
     }
 
+    std::map<std::string, std::pair<double, double>> diskRates = StatisticCollector::getDiskReadWriteKBPerSecond();
+    for (const auto& entry : diskRates) {
+        const std::string& device = entry.first;
+        double readKBPerSec = entry.second.first;
+        double writeKBPerSec = entry.second.second;
+        Utils::send_job("", "disk_" + device + "_read_kb_per_sec", std::to_string(readKBPerSec));
+        Utils::send_job("", "disk_" + device + "_write_kb_per_sec", std::to_string(writeKBPerSec));
+    }
+
     long totalSwapSpace = StatisticCollector::getTotalSwapSpace();
     Utils::send_job("", "total_swap_space", std::to_string(totalSwapSpace));
 
@@ -524,6 +533,20 @@ void PerformanceUtil::logDiskBusyPercentage() {
         }
     } else {
         scheduler_logger.error("Failed to get disk busy percentage");
+    }
+}
+
+void PerformanceUtil::logDiskReadWriteKBPerSecond() {
+    std::map<std::string, std::pair<double, double>> diskRates = StatisticCollector::getDiskReadWriteKBPerSecond();
+    if (!diskRates.empty()) {
+        for (const auto& entry : diskRates) {
+            const std::string& device = entry.first;
+            double readKBPerSec = entry.second.first;
+            double writeKBPerSec = entry.second.second;
+            scheduler_logger.info("Disk " + device + " - Read: " + std::to_string(readKBPerSec) + " KB/s, Write: " + std::to_string(writeKBPerSec) + " KB/s");
+        }
+    } else {
+        scheduler_logger.error("Failed to get disk read/write KB per second");
     }
 }
 

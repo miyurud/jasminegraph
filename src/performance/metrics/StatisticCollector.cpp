@@ -889,6 +889,137 @@ std::map<std::string, double> StatisticCollector::getDiskBusyPercentage() {
     return diskBusyRates;
 }
 
+std::map<std::string, std::pair<double, double>> StatisticCollector::getDiskReadWriteKBPerSecond() {
+    std::map<std::string, std::pair<double, double>> diskRates;
+    Logger stat_logger("StatisticCollector", "logs/main", "w");
+    
+    struct timespec startTime, endTime;
+    
+    // Record start time
+    clock_gettime(CLOCK_MONOTONIC, &startTime);
+    
+    // First reading - store sectors_read and sectors_written for each device
+    std::map<std::string, std::pair<unsigned long long, unsigned long long>> firstReading;
+    FILE *file1 = fopen("/proc/diskstats", "r");
+    if (!file1) {
+        stat_logger.error("Cannot open /proc/diskstats for first reading");
+        return diskRates;
+    }
+    
+    char line[256];
+    while (fgets(line, sizeof(line), file1) != NULL) {
+        int major, minor;
+        char device[32];
+        unsigned long long reads_completed, reads_merged, sectors_read, time_reading;
+        unsigned long long writes_completed, writes_merged, sectors_written, time_writing;
+        unsigned long long ios_in_progress, io_time, weighted_io_time;
+        
+        // Parse the diskstats line (14 fields)
+        int ret = sscanf(line, "%d %d %31s %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
+                        &major, &minor, device,
+                        &reads_completed, &reads_merged, &sectors_read, &time_reading,
+                        &writes_completed, &writes_merged, &sectors_written, &time_writing,
+                        &ios_in_progress, &io_time, &weighted_io_time);
+        
+        if (ret >= 14) {  // We need all 14 fields for full disk devices
+            // Skip loop devices and ram devices
+            if (strncmp(device, "loop", 4) != 0 && strncmp(device, "ram", 3) != 0) {
+                firstReading[device] = std::make_pair(sectors_read, sectors_written);
+            }
+        }
+    }
+    fclose(file1);
+    
+    if (firstReading.empty()) {
+        stat_logger.error("No valid disk devices found in first reading");
+        return diskRates;
+    }
+    
+    // Sleep for a short interval to get meaningful difference
+    usleep(1000000);  // 1 second
+    
+    // Second reading
+    std::map<std::string, std::pair<unsigned long long, unsigned long long>> secondReading;
+    FILE *file2 = fopen("/proc/diskstats", "r");
+    if (!file2) {
+        stat_logger.error("Cannot open /proc/diskstats for second reading");
+        return diskRates;
+    }
+    
+    while (fgets(line, sizeof(line), file2) != NULL) {
+        int major, minor;
+        char device[32];
+        unsigned long long reads_completed, reads_merged, sectors_read, time_reading;
+        unsigned long long writes_completed, writes_merged, sectors_written, time_writing;
+        unsigned long long ios_in_progress, io_time, weighted_io_time;
+        
+        // Parse the diskstats line (14 fields)
+        int ret = sscanf(line, "%d %d %31s %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
+                        &major, &minor, device,
+                        &reads_completed, &reads_merged, &sectors_read, &time_reading,
+                        &writes_completed, &writes_merged, &sectors_written, &time_writing,
+                        &ios_in_progress, &io_time, &weighted_io_time);
+        
+        if (ret >= 14) {  // We need all 14 fields for full disk devices
+            // Skip loop devices and ram devices
+            if (strncmp(device, "loop", 4) != 0 && strncmp(device, "ram", 3) != 0) {
+                secondReading[device] = std::make_pair(sectors_read, sectors_written);
+            }
+        }
+    }
+    fclose(file2);
+    
+    // Record end time
+    clock_gettime(CLOCK_MONOTONIC, &endTime);
+    
+    // Calculate elapsed time in seconds
+    double elapsedTime = (endTime.tv_sec - startTime.tv_sec) + 
+                        (endTime.tv_nsec - startTime.tv_nsec) / 1000000000.0;
+    
+    if (elapsedTime <= 0.0) {
+        stat_logger.error("Invalid elapsed time for disk read/write calculation");
+        return diskRates;
+    }
+    
+    // Calculate read/write KB per second for each device
+    for (const auto& entry : firstReading) {
+        const std::string& device = entry.first;
+        unsigned long long firstSectorsRead = entry.second.first;
+        unsigned long long firstSectorsWritten = entry.second.second;
+        
+        if (secondReading.find(device) != secondReading.end()) {
+            unsigned long long secondSectorsRead = secondReading[device].first;
+            unsigned long long secondSectorsWritten = secondReading[device].second;
+            
+            // Calculate the deltas (handling potential counter wraparound)
+            unsigned long long deltaSectorsRead, deltaSectorsWritten;
+            
+            if (secondSectorsRead >= firstSectorsRead) {
+                deltaSectorsRead = secondSectorsRead - firstSectorsRead;
+            } else {
+                // Counter wrapped around, assume it's a 64-bit counter
+                deltaSectorsRead = (ULLONG_MAX - firstSectorsRead) + secondSectorsRead + 1;
+            }
+            
+            if (secondSectorsWritten >= firstSectorsWritten) {
+                deltaSectorsWritten = secondSectorsWritten - firstSectorsWritten;
+            } else {
+                // Counter wrapped around, assume it's a 64-bit counter
+                deltaSectorsWritten = (ULLONG_MAX - firstSectorsWritten) + secondSectorsWritten + 1;
+            }
+            
+            // Convert sectors to KB: sectors are 512 bytes, so divide by 2 to get KB
+            // Then divide by elapsed time to get KB per second
+            double readKBPerSecond = (static_cast<double>(deltaSectorsRead) / 2.0) / elapsedTime;
+            double writeKBPerSecond = (static_cast<double>(deltaSectorsWritten) / 2.0) / elapsedTime;
+            
+            diskRates[device] = std::make_pair(readKBPerSecond, writeKBPerSecond);
+        }
+    }
+    
+    return diskRates;
+}
+
 void StatisticCollector::logLoadAverage(std::string name) {
     PerformanceUtil::logLoadAverage();
 

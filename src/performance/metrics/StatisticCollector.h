@@ -64,6 +64,7 @@ class StatisticCollector {
     static double getForkCallsPerSecond();
     static std::map<std::string, std::pair<double, double>> getNetworkPacketsPerSecond();
     static std::map<std::string, double> getDiskBusyPercentage();
+    static std::map<std::string, std::pair<double, double>> getDiskReadWriteKBPerSecond();
     static void logLoadAverage(std::string name);
 };
 
