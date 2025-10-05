@@ -24,6 +24,7 @@ limitations under the License.
 #include <chrono>
 #include <ctime>
 #include <iomanip>
+#include <regex>
 #include <sstream>
 #include <vector>
 
@@ -1561,7 +1562,7 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
         std::string start_msg(start);
         if (JasmineGraphInstanceProtocol::QUERY_DATA_START != start_msg) {
             util_logger.error("Error while receiving start command: " + start_msg);
-            continue;
+            break;
         }
         send(sockfd, JasmineGraphInstanceProtocol::QUERY_DATA_ACK.c_str(),
              JasmineGraphInstanceProtocol::QUERY_DATA_ACK.length(), 0);
@@ -1579,7 +1580,17 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
              JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.length(), 0);
 
         std::string data(content_length, 0);
-        return_status = recv(sockfd, &data[0], content_length, 0);
+
+        size_t received = 0;
+        while (received < content_length) {
+            ssize_t ret = recv(sockfd, &data[received], content_length - received, 0);
+            if (ret <= 0) {
+                util_logger.error("Error receiving request string");
+                break;
+            }
+            received += ret;
+        }
+
         if (return_status > 0) {
             send(sockfd, JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS.c_str(),
                  JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS.length(), 0);
@@ -1772,6 +1783,7 @@ string Utils::getPartitionAlgorithm(std::string graphID, std::string host) {
         return "";
     }
 }
+
 
 string Utils::getGraphDirection(std::string graphID, std::string host) {
     util_logger.info("Host:" + host + " Port:" + to_string(Conts::JASMINEGRAPH_BACKEND_PORT));
@@ -2038,4 +2050,20 @@ float  Utils::cosineSimilarity(const std::vector<float>& a, const std::vector<fl
     }
     if (normA == 0 || normB == 0) return 0.0f;
     return dot / (std::sqrt(normA) * std::sqrt(normB));
+}
+
+string Utils:: canonicalize(const std::string& input) {
+    std::string result = input;
+
+    // Convert to lowercase
+    std::transform(result.begin(), result.end(), result.begin(),
+                   [](unsigned char c){ return std::tolower(c); });
+
+    // Replace non-alphanumeric characters with underscores
+    result = std::regex_replace(result, std::regex("[^a-z0-9]+"), "_");
+
+    // Remove leading/trailing underscores
+    result = std::regex_replace(result, std::regex("^_+|_+$"), "");
+
+    return result;
 }

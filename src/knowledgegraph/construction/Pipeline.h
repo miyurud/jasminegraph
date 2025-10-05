@@ -69,6 +69,7 @@ private:
     long startFromBytes;
     std:: string chunkSize;
     std::string chunksPerBatch;
+    int64_t bytes_read_so_far = 0;
 
 };
 

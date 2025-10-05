@@ -6,6 +6,7 @@
 #include <chrono>   // for std::chrono::seconds
 
 #include "Prompt.h"
+#include "../../util/Utils.h"
 #include "../../util/logger/Logger.h"
 
 using json = nlohmann::json;
@@ -90,9 +91,13 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
                                     std::string subject_type = triple[3].get<std::string>();
                                     std::string object_type  = triple[4].get<std::string>();
 
+                                    std::string subject_id = Utils::canonicalize(subject + "_" + subject_type);
+                                    std::string object_id  = Utils::canonicalize(object + "_" + object_type);
+                                    std::string edge_id    = Utils::canonicalize(subject_id + "_" + predicate + "_" + object_id);
+
                                     json formattedTriple = {
                                         {"source", {
-                                            {"id", subject},
+                                            {"id", subject_id},
                                             {"properties", {
                                                 {"id", subject},
                                                 {"label", subject_type},
@@ -100,7 +105,7 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
                                             }}
                                         }},
                                         {"destination", {
-                                            {"id", object},
+                                            {"id", object_id},
                                             {"properties", {
                                                 {"id", object},
                                                 {"label", object_type},
@@ -108,7 +113,7 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
                                             }}
                                         }},
                                         {"properties", {
-                                            {"id", subject + "_" + predicate + "_" + object},
+                                            {"id", edge_id},
                                             {"type", predicate},
                                             {"description", subject + " " + predicate + " " + object}
                                         }}

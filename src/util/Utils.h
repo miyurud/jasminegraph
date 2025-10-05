@@ -205,6 +205,7 @@ class Utils {
     bool sendPartitionMetadata(int sockfd, int partitionId, int graphId, int localVertexCount, int centralVertexCount,
                                int edgeCount, int centralEdgeCount);
     static float cosineSimilarity(const std::vector<float>& a, const std::vector<float>& b);
+    static  string canonicalize(const std::string& input);
     static bool sendIntExpectResponse(int sockfd, char *data, size_t data_length,
                                       int value, std::string expectMsg);
 

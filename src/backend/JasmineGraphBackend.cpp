@@ -261,7 +261,7 @@ void *backendservicesesion(void *dummyPt) {
                 backend_logger.error("Query returned no results.");
                 break;
             }
-
+            // backend_logger.info("Sending direction : " + direction[0]);
             std::string graphDirection = direction[0][0].second;
             int message_length = graphDirection.length();
             int converted_number = htonl(message_length);
@@ -287,7 +287,8 @@ void *backendservicesesion(void *dummyPt) {
             }
         } else {
             backend_logger.error("Message format not recognized");
-            sleep(1);
+            loop = true;
+            // sleep(1);
         }
     }
     backend_logger.info("Closing thread " + to_string(pthread_self()) + " and connection");

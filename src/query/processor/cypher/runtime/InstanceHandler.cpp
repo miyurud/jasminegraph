@@ -85,6 +85,8 @@ void InstanceHandler::dataPublishToMaster(int connFd, bool *loop_exit_p, std::st
     }
 
     if (!Utils::send_str_wrapper(connFd, message)) {
+        instance_logger.error("Error while sending message");
+
         *loop_exit_p = true;
         return;
     }

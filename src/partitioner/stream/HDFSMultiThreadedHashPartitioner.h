@@ -31,7 +31,7 @@
 #include <memory>
 
 class HDFSMultiThreadedHashPartitioner {
-    std::vector<std::unique_ptr<Partition>> partitions;
+    std::vector<Partition> partitions;
 
     std::atomic<bool> terminateConsumers;
     std::vector<std::thread> localEdgeThreads;

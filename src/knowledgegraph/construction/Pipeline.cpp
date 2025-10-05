@@ -81,7 +81,7 @@ void Pipeline::streamFromHDFSIntoBuffer() {
     int64_t read_bytes = 0;
     int chunk_idx = 0;
     std::string leftover;
-    int64_t bytes_read_so_far = 0;
+
     if (startFromBytes > 0) {
         if (startFromBytes >= total_file_size) {
             kg_pipeline_stream_handler_logger.error("startFromBytes exceeds total file size.");
@@ -159,9 +159,7 @@ void Pipeline::streamFromHDFSIntoBuffer() {
       chunk_idx++;
       kg_pipeline_stream_handler_logger.info("Finished processing chunk " + std::to_string(chunk_idx));
       // Utils::sendExpectResponse( connFd, std::to_string(read_bytes).c_str());
-      char data[FED_DATA_LENGTH + 1];
-      Utils::sendExpectResponse(connFd, data, INSTANCE_DATA_LENGTH,
-                          std::to_string(bytes_read_so_far), JasmineGraphInstanceProtocol ::OK);
+
       // Utils::send_long_wrapper( connFd, &read_bytes, sizeof(read_bytes));
 
       // Utils::send_str_wrapper( connFd, "test");
@@ -619,6 +617,9 @@ void Pipeline::extractTuples(std::string host, int port, std::string masterIP,
             Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS);
 
             if (tuple == END_OF_STREAM_MARKER) {
+                char data[FED_DATA_LENGTH + 1];
+                Utils::sendExpectResponse(connFd, data, INSTANCE_DATA_LENGTH,
+                                    std::to_string(bytes_read_so_far), JasmineGraphInstanceProtocol ::OK);
                 kg_pipeline_stream_handler_logger.info("Received end of tuple stream marker");
                 break;
             }

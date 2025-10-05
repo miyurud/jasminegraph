@@ -276,8 +276,8 @@ void *frontendservicesesion(void *dummyPt) {
             int result_wr = write(connFd, INVALID_FORMAT.c_str(), INVALID_FORMAT.size());
             if (result_wr < 0) {
                 frontend_logger.error("Error writing to socket");
-                loop_exit = true;
-                break;
+                // loop_exit = true;
+                continue;
             }
         }
     }
@@ -1909,6 +1909,7 @@ bool  JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, i
 
     std::string path = "hdfs:" + hdfsFilePathS;
     //
+    ino64_t total_file_size =  hdfsGetPathInfo(hdfsConnector->getFileSystem(), hdfsFilePathS.c_str())->mSize;
     std::time_t time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
     std::string uploadStartTime = ctime(&time);
 
@@ -1956,9 +1957,9 @@ bool  JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, i
         {
                     std::string insertQuery =
          "INSERT INTO graph (name, upload_path, upload_start_time, upload_end_time, graph_status_idgraph_status, "
-         "vertexcount, centralpartitioncount, edgecount, is_directed) VALUES(\"" +
+         "vertexcount, centralpartitioncount, edgecount, is_directed , file_size_bytes ) VALUES(\"" +
          hdfsFilePathS + "\", \"" + path + "\", \"" + uploadStartTime + "\", \"\", \"" +
-         std::to_string(Conts::GRAPH_STATUS::NONOPERATIONAL) + "\", \"\", \"\", \"\", \"TRUE\");";
+         std::to_string(Conts::GRAPH_STATUS::NONOPERATIONAL) + "\", \"\", \"\", \"\", \"TRUE\", \"" + to_string(total_file_size) +"\");";
             frontend_logger.info( "1955 GrpahID: "+ to_string(newGraphID));
 
                     newGraphID =  sqlite->runInsert(insertQuery);
@@ -1969,11 +1970,11 @@ bool  JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, i
         else
     {
         std::string insertQuery =
-    "INSERT INTO graph (name, upload_path, upload_start_time, upload_end_time, graph_status_idgraph_status, "
-    "vertexcount, centralpartitioncount, edgecount, is_directed) VALUES(\"" +
-    hdfsFilePathS + "\", \"" + path + "\", \"" + uploadStartTime + "\", \"\", \"" +
-    std::to_string(Conts::GRAPH_STATUS::NONOPERATIONAL) + "\", \"\", \"\", \"\", \"TRUE\");";
-            frontend_logger.info( "1968 GrpahID: "+ to_string(newGraphID));
+            "INSERT INTO graph (name, upload_path, upload_start_time, upload_end_time, graph_status_idgraph_status, "
+                  "vertexcount, centralpartitioncount, edgecount, is_directed , file_size_bytes ) VALUES(\"" +
+                  hdfsFilePathS + "\", \"" + path + "\", \"" + uploadStartTime + "\", \"\", \"" +
+                  std::to_string(Conts::GRAPH_STATUS::NONOPERATIONAL) + "\", \"\", \"\", \"\", \"TRUE\", \"" + to_string(total_file_size) +"\");";
+            frontend_logger.info( "1955 GrpahID: "+ to_string(newGraphID));
 
         newGraphID =  sqlite->runInsert(insertQuery);
     }
@@ -2080,30 +2081,38 @@ bool  JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, i
     frontend_logger.info("received chunk Size engine: " + chunkSizeS);
 
     JasmineGraphServer::worker designatedWorker = JasmineGraphServer::getDesignatedWorker();
-    if (!Pipeline::streamGraphToDesignatedWorker(designatedWorker.hostname,
-                                                 designatedWorker.port,
-                                                 masterIP,
-                                                 std::to_string(newGraphID),
-                                                 numberOfPartitions,
-                                                 hdfsServerIp,
-                                                 hdfsPort,
-                                                 hostnamePortS,
-                                                 llmInferenceEngineS,
-                                                 llm,
-                                                 chunkSizeS,
-                                                 hdfsFilePathS , graphExits, sqlite))
-    {
-        frontend_logger.error("Streaming to worker failed");
-    }
 
+    // Launch streaming in a separate thread (async, fire-and-forget)
+    std::thread([=]() {
+        if (!Pipeline::streamGraphToDesignatedWorker(designatedWorker.hostname,
+                                                     designatedWorker.port,
+                                                     masterIP,
+                                                     std::to_string(newGraphID),
+                                                     numberOfPartitions,
+                                                     hdfsServerIp,
+                                                     hdfsPort,
+                                                     hostnamePortS,
+                                                     llmInferenceEngineS,
+                                                     llm,
+                                                     chunkSizeS,
+                                                     hdfsFilePathS,
+                                                     graphExits,
+                                                     sqlite)) {
+            frontend_logger.error("Streaming to worker failed");
+        }
 
-    std::string uploadEndTime = ctime(&time);
-    std::string sqlStatementUpdateEndTime =
-            "UPDATE graph "
-            "SET upload_end_time = \"" + uploadEndTime + "\" "
-                                                         "WHERE idgraph = " + std::to_string(newGraphID);
-    sqlite->runInsert(sqlStatementUpdateEndTime);
+        std::time_t time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+        std::string uploadEndTime = ctime(&time);
 
+        std::string sqlStatementUpdateEndTime =
+                "UPDATE graph "
+                "SET upload_end_time = \"" + uploadEndTime + "\" "
+                "WHERE idgraph = " + std::to_string(newGraphID);
+
+        sqlite->runInsert(sqlStatementUpdateEndTime);
+
+        frontend_logger.info("Async streaming finished for GraphID: " + std::to_string(newGraphID));
+    }).detach();  // <-- detach so frontend doesn’t block
 
     int conResultWr = write(connFd, DONE.c_str(), DONE.length());
     if (conResultWr < 0) {

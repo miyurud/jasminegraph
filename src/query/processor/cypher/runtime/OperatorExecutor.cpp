@@ -325,10 +325,6 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
         NodeBlock* destNode = relation->getDestination();
 
         std::string startPid(startNode->getMetaPropertyHead()->value);
-
-        if (startPid != to_string(gc.partitionID)) {
-            continue;
-        }
         startNodeData["partitionID"] = startPid;
         std::map<std::string, char*> startProperties = startNode->getAllProperties();
         for (auto property : startProperties) {
@@ -382,20 +378,21 @@ void OperatorExecutor::UndirectedRelationshipTypeScan(SharedBuffer &buffer, std:
     buffer.add("-1");
 }
 
-void OperatorExecutor::UndirectedAllRelationshipScan(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
+void OperatorExecutor::UndirectedAllRelationshipScan(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc)
+{
     execution_logger.debug("UndirectedAllRelationshipScan started for partitionID: " + to_string(gc.partitionID));
     json query = json::parse(jsonPlan);
     NodeManager nodeManager(gc);
-
+    try{
     const std::string& dbPrefix = nodeManager.getDbPrefix();
     long localRelationCount = nodeManager.dbSize(dbPrefix + "_relations.db") / RelationBlock::BLOCK_SIZE;
     long centralRelationCount = nodeManager.dbSize(dbPrefix +
                                                     "_central_relations.db") / RelationBlock::CENTRAL_BLOCK_SIZE;
-    string direction = Utils::getGraphDirection(to_string(gc.graphID), masterIP);
+    // string direction = Utils::getGraphDirection(to_string(gc.graphID), masterIP);
     bool isDirected = false;
-    if (direction == "TRUE") {
-        isDirected = true;
-    }
+    // if (direction == "TRUE") {
+    isDirected = true;
+    // }
     int count = 1;
     for (long i = 1; i < localRelationCount; i++) {
         execution_logger.debug("Processing local relation index: " + std::to_string(i));
@@ -467,7 +464,11 @@ void OperatorExecutor::UndirectedAllRelationshipScan(SharedBuffer &buffer, std::
         json destNodeData;
         json relationData;
         RelationBlock* relation = RelationBlock::getCentralRelation(i*RelationBlock::CENTRAL_BLOCK_SIZE);
+        execution_logger.debug("467");
+
         std::string pid(relation->getMetaPropertyHead()->value);
+        execution_logger.debug("470: " + pid);
+
         if (pid != to_string(gc.partitionID)) {
             execution_logger.debug("Skipping central relation, partitionID mismatch: " + pid);
             continue;
@@ -477,6 +478,8 @@ void OperatorExecutor::UndirectedAllRelationshipScan(SharedBuffer &buffer, std::
         NodeBlock* destNode = relation->getDestination();
 
         std::string startPid(startNode->getMetaPropertyHead()->value);
+        execution_logger.debug("481 " + pid);
+
         startNodeData["partitionID"] = startPid;
         std::map<std::string, char*> startProperties = startNode->getAllProperties();
         for (auto property : startProperties) {
@@ -530,6 +533,10 @@ void OperatorExecutor::UndirectedAllRelationshipScan(SharedBuffer &buffer, std::
     }
     execution_logger.debug("UndirectedAllRelationshipScan finished, sending end-of-stream marker");
     buffer.add("-1");
+    }catch (exception &e)
+    {
+        execution_logger.error(e.what());
+    }
 }
 
 void OperatorExecutor::DirectedRelationshipTypeScan(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {

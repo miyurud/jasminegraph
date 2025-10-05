@@ -16,7 +16,8 @@ create table graph
     feature_count               INTEGER(100),
     is_directed                 boolean default false,
     feature_type                VARCHAR(10),
-    uploaded_bytes              VARCHAR(10000)
+    uploaded_bytes              VARCHAR(10000),
+    file_size_bytes             VARCHAR(10000)
 );
 
 create index index_idgraph
