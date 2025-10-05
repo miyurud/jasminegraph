@@ -69,6 +69,15 @@ int PerformanceUtil::collectPerformanceStatistics() {
     double forkCallsPerSec = StatisticCollector::getForkCallsPerSecond();
     Utils::send_job("", "fork_calls_per_sec", std::to_string(forkCallsPerSec));
 
+    std::map<std::string, std::pair<double, double>> networkPackets = StatisticCollector::getNetworkPacketsPerSecond();
+    for (const auto& entry : networkPackets) {
+        const std::string& interface = entry.first;
+        double rxPacketsPerSec = entry.second.first;
+        double txPacketsPerSec = entry.second.second;
+        Utils::send_job("", "net_" + interface + "_rx_packets_per_sec", std::to_string(rxPacketsPerSec));
+        Utils::send_job("", "net_" + interface + "_tx_packets_per_sec", std::to_string(txPacketsPerSec));
+    }
+
     long totalSwapSpace = StatisticCollector::getTotalSwapSpace();
     Utils::send_job("", "total_swap_space", std::to_string(totalSwapSpace));
 
@@ -481,6 +490,20 @@ void PerformanceUtil::logForkCallsPerSecond() {
         scheduler_logger.info("Fork calls per second: " + std::to_string(forkCallsPerSec));
     } else {
         scheduler_logger.error("Failed to get fork calls per second");
+    }
+}
+
+void PerformanceUtil::logNetworkPacketsPerSecond() {
+    std::map<std::string, std::pair<double, double>> networkPackets = StatisticCollector::getNetworkPacketsPerSecond();
+    if (!networkPackets.empty()) {
+        for (const auto& entry : networkPackets) {
+            const std::string& interface = entry.first;
+            double rxPacketsPerSec = entry.second.first;
+            double txPacketsPerSec = entry.second.second;
+            scheduler_logger.info("Network " + interface + " - RX: " + std::to_string(rxPacketsPerSec) + " packets/sec, TX: " + std::to_string(txPacketsPerSec) + " packets/sec");
+        }
+    } else {
+        scheduler_logger.error("Failed to get network packets per second");
     }
 }
 

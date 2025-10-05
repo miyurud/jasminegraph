@@ -640,6 +640,128 @@ double StatisticCollector::getForkCallsPerSecond() {
     return forksPerSecond;
 }
 
+std::map<std::string, std::pair<double, double>> StatisticCollector::getNetworkPacketsPerSecond() {
+    std::map<std::string, std::pair<double, double>> packetRates; // <interface, <input_pps, output_pps>>
+    std::map<std::string, std::pair<unsigned long long, unsigned long long>> firstReading;
+    
+    // First reading of network statistics
+    FILE *file1 = fopen("/proc/net/dev", "r");
+    if (!file1) {
+        stat_logger.error("Cannot open /proc/net/dev for first reading");
+        return packetRates;
+    }
+    
+    char line[1024];
+    // Skip header lines
+    if (fgets(line, sizeof(line), file1) == NULL || fgets(line, sizeof(line), file1) == NULL) {
+        stat_logger.error("Cannot read header lines from /proc/net/dev");
+        fclose(file1);
+        return packetRates;
+    }
+    
+    // Read network interface statistics
+    while (fgets(line, sizeof(line), file1) != NULL) {
+        char interface[32];
+        unsigned long long rx_bytes, rx_packets, rx_errs, rx_drop, rx_fifo, rx_frame, rx_compressed, rx_multicast;
+        unsigned long long tx_bytes, tx_packets, tx_errs, tx_drop, tx_fifo, tx_colls, tx_carrier, tx_compressed;
+        
+        // Strip spaces and parse the line
+        char *p = line;
+        while (*p == ' ' || *p == '\t') p++;  // Skip leading whitespace
+        
+        int ret = sscanf(p, "%31[^:]: %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
+            interface,
+            &rx_bytes, &rx_packets, &rx_errs, &rx_drop, &rx_fifo, &rx_frame, &rx_compressed, &rx_multicast,
+            &tx_bytes, &tx_packets, &tx_errs, &tx_drop, &tx_fifo, &tx_colls, &tx_carrier, &tx_compressed);
+        
+        if (ret == 17) {
+            std::string ifName(interface);
+            firstReading[ifName] = std::make_pair(rx_packets, tx_packets);
+        }
+    }
+    fclose(file1);
+    
+    if (firstReading.empty()) {
+        stat_logger.error("No network interfaces found in first reading");
+        return packetRates;
+    }
+    
+    // Record start time
+    struct timespec startTime, endTime;
+    clock_gettime(CLOCK_MONOTONIC, &startTime);
+    
+    // Sleep for measurement interval (1 second)
+    sleep(1);
+    
+    // Second reading of network statistics
+    FILE *file2 = fopen("/proc/net/dev", "r");
+    if (!file2) {
+        stat_logger.error("Cannot open /proc/net/dev for second reading");
+        return packetRates;
+    }
+    
+    // Skip header lines
+    if (fgets(line, sizeof(line), file2) == NULL || fgets(line, sizeof(line), file2) == NULL) {
+        stat_logger.error("Cannot read header lines from /proc/net/dev in second reading");
+        fclose(file2);
+        return packetRates;
+    }
+    
+    // Read network interface statistics again
+    while (fgets(line, sizeof(line), file2) != NULL) {
+        char interface[32];
+        unsigned long long rx_bytes, rx_packets, rx_errs, rx_drop, rx_fifo, rx_frame, rx_compressed, rx_multicast;
+        unsigned long long tx_bytes, tx_packets, tx_errs, tx_drop, tx_fifo, tx_colls, tx_carrier, tx_compressed;
+        
+        // Strip spaces and parse the line
+        char *p = line;
+        while (*p == ' ' || *p == '\t') p++;  // Skip leading whitespace
+        
+        int ret = sscanf(p, "%31[^:]: %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
+            interface,
+            &rx_bytes, &rx_packets, &rx_errs, &rx_drop, &rx_fifo, &rx_frame, &rx_compressed, &rx_multicast,
+            &tx_bytes, &tx_packets, &tx_errs, &tx_drop, &tx_fifo, &tx_colls, &tx_carrier, &tx_compressed);
+        
+        if (ret == 17) {
+            std::string ifName(interface);
+            
+            // Check if we have first reading for this interface
+            if (firstReading.find(ifName) != firstReading.end()) {
+                unsigned long long firstRxPackets = firstReading[ifName].first;
+                unsigned long long firstTxPackets = firstReading[ifName].second;
+                
+                // Calculate packet differences (handle counter wraparound)
+                long long rxDiff = (rx_packets >= firstRxPackets) ? (rx_packets - firstRxPackets) : 0;
+                long long txDiff = (tx_packets >= firstTxPackets) ? (tx_packets - firstTxPackets) : 0;
+                
+                // Store the rates
+                packetRates[ifName] = std::make_pair((double)rxDiff, (double)txDiff);
+            }
+        }
+    }
+    fclose(file2);
+    
+    // Record end time
+    clock_gettime(CLOCK_MONOTONIC, &endTime);
+    
+    // Calculate elapsed time in seconds
+    double elapsedTime = (endTime.tv_sec - startTime.tv_sec) + 
+                        (endTime.tv_nsec - startTime.tv_nsec) / 1000000000.0;
+    
+    if (elapsedTime <= 0.0) {
+        stat_logger.error("Invalid elapsed time for network packet calculation");
+        return packetRates;
+    }
+    
+    // Convert to per-second rates
+    for (auto& entry : packetRates) {
+        entry.second.first /= elapsedTime;   // RX packets per second
+        entry.second.second /= elapsedTime;  // TX packets per second
+    }
+    
+    return packetRates;
+}
+
 void StatisticCollector::logLoadAverage(std::string name) {
     PerformanceUtil::logLoadAverage();
 
