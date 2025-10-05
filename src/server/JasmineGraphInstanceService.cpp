@@ -471,14 +471,8 @@ long countLocalTriangles(
     JasmineGraphHashMapDuplicateCentralStore duplicateCentralGraphDB = graphDBMapDuplicateCentralStores[duplicateCentralGraphIdentifier];
 
     result = Triangles::run(graphDB, centralGraphDB, duplicateCentralGraphDB, graphId, partitionId, threadPriority);
-
-    instance_logger.info("###INSTANCE### Local Triangle Count : Completed: Triangles: " + to_string(result));
-
-    // Force flush traces before returning
-    OpenTelemetryUtil::flushTraces();
-    instance_logger.info("###INSTANCE### Worker traces flushed for local triangle count");
-
-    return result;
+    
+    instance_logger.info("###INSTANCE### Local Triangle Count : Completed: Triangles: " + to_string(result));    return result;
 }
 
 bool JasmineGraphInstanceService::isGraphDBExists(std::string graphId, std::string partitionId) {
@@ -2961,10 +2955,6 @@ static void triangles_command(
     if (!Utils::send_str_wrapper(connFd, result)) {
         *loop_exit_p = true;
     }
-    
-    // Flush traces before completing
-    OpenTelemetryUtil::flushTraces();
-
 }
 
 static void streaming_triangles_command(

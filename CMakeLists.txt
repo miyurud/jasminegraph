@@ -92,7 +92,6 @@ set(HEADERS globals.h
         src/partitioner/stream/HDFSMultiThreadedHashPartitioner.h
         src/query/processor/cypher/util/Const.h
         src/util/telemetry/OpenTelemetryUtil.h
-        src/util/telemetry/PushgatewayUtil.h
         src/nativestore/MetaPropertyLink.h
         src/nativestore/MetaPropertyEdgeLink.h
         src/query/processor/cypher/queryplanner/Operators.h
@@ -163,7 +162,6 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/util/logger/Logger.cpp
         src/util/scheduler/SchedulerService.cpp
         src/util/telemetry/OpenTelemetryUtil.cpp
-        src/util/telemetry/PushgatewayUtil.cpp
         src/util/telemetry/TelemetryInitializer.cpp
         src/k8s/K8sInterface.cpp
         src/nativestore/NodeManager.cpp

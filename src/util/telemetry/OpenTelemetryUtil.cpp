@@ -356,16 +356,13 @@ void OpenTelemetryUtil::setTraceContext(const std::string& context_str) {
 }
 
 bool OpenTelemetryUtil::receiveAndSetTraceContext(const std::string& trace_context, const std::string& operation_name) {
-    // Log the received trace context
-    std::cout << "Received trace context for " << operation_name << ": " << trace_context << std::endl;
-    
     // Validate and set trace context if it's valid
     if (trace_context != "NO_TRACE_CONTEXT" && !trace_context.empty()) {
         setTraceContext(trace_context);
         // Trace context set successfully for distributed tracing
         return true;
     } else {
-        std::cout << "###" << operation_name.substr(0, 8) << "### No valid trace context received from master" << std::endl;
+        // No valid trace context received from master
         return false;
     }
 }
