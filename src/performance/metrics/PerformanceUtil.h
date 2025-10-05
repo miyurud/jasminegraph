@@ -71,6 +71,7 @@ class PerformanceUtil {
     static void logNetworkPacketsPerSecond();
     static void logDiskBusyPercentage();
     static void logDiskReadWriteKBPerSecond();
+    static void logDiskBlockSizeKB();
     static std::vector<Place> getHostReporterList();
     static void updateResourceConsumption(PerformanceSQLiteDBInterface* performanceDb, std::string graphId,
                                           int partitionCount, std::vector<Place> placeList, std::string slaCategoryId);

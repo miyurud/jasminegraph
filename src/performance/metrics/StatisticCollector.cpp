@@ -1020,6 +1020,64 @@ std::map<std::string, std::pair<double, double>> StatisticCollector::getDiskRead
     return diskRates;
 }
 
+std::map<std::string, double> StatisticCollector::getDiskBlockSizeKB() {
+    std::map<std::string, double> diskBlockSizes;
+    Logger stat_logger("StatisticCollector", "logs/main", "w");
+    
+    FILE *file = fopen("/proc/diskstats", "r");
+    if (!file) {
+        stat_logger.error("Cannot open /proc/diskstats for disk block size reading");
+        return diskBlockSizes;
+    }
+    
+    char line[256];
+    while (fgets(line, sizeof(line), file) != NULL) {
+        int major, minor;
+        char device[32];
+        unsigned long long reads_completed, reads_merged, sectors_read, time_reading;
+        unsigned long long writes_completed, writes_merged, sectors_written, time_writing;
+        unsigned long long ios_in_progress, io_time, weighted_io_time;
+        
+        // Parse the diskstats line (14 fields)
+        int ret = sscanf(line, "%d %d %31s %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
+                        &major, &minor, device,
+                        &reads_completed, &reads_merged, &sectors_read, &time_reading,
+                        &writes_completed, &writes_merged, &sectors_written, &time_writing,
+                        &ios_in_progress, &io_time, &weighted_io_time);
+        
+        if (ret >= 14) {  // We need all 14 fields for full disk devices
+            // Skip loop devices and ram devices
+            if (strncmp(device, "loop", 4) != 0 && strncmp(device, "ram", 3) != 0) {
+                // Calculate block size following lmon15h.c methodology:
+                // dk_bsize = ((dk_rkb + dk_wkb) / dk_xfers) * 1024
+                // where dk_rkb = sectors_read / 2, dk_wkb = sectors_written / 2
+                // and dk_xfers = reads_completed + writes_completed
+                
+                unsigned long long total_transfers = reads_completed + writes_completed;
+                if (total_transfers > 0) {
+                    // Convert sectors to KB (sectors are 512 bytes, so divide by 2)
+                    double read_kb = static_cast<double>(sectors_read) / 2.0;
+                    double write_kb = static_cast<double>(sectors_written) / 2.0;
+                    double total_kb = read_kb + write_kb;
+                    
+                    // Calculate average block size in KB following lmon15h.c formula
+                    // dk_bsize = ((dk_rkb + dk_wkb) / dk_xfers) * 1024 (but this gives bytes)
+                    // For KB, we use: ((read_kb + write_kb) / total_transfers)
+                    double block_size_kb = total_kb / static_cast<double>(total_transfers);
+                    
+                    diskBlockSizes[device] = block_size_kb;
+                } else {
+                    // No transfers recorded, block size is 0
+                    diskBlockSizes[device] = 0.0;
+                }
+            }
+        }
+    }
+    fclose(file);
+    
+    return diskBlockSizes;
+}
+
 void StatisticCollector::logLoadAverage(std::string name) {
     PerformanceUtil::logLoadAverage();
 

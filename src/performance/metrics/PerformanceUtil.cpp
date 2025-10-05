@@ -94,6 +94,13 @@ int PerformanceUtil::collectPerformanceStatistics() {
         Utils::send_job("", "disk_" + device + "_write_kb_per_sec", std::to_string(writeKBPerSec));
     }
 
+    std::map<std::string, double> diskBlockSizes = StatisticCollector::getDiskBlockSizeKB();
+    for (const auto& entry : diskBlockSizes) {
+        const std::string& device = entry.first;
+        double blockSizeKB = entry.second;
+        Utils::send_job("", "disk_" + device + "_block_size_kb", std::to_string(blockSizeKB));
+    }
+
     long totalSwapSpace = StatisticCollector::getTotalSwapSpace();
     Utils::send_job("", "total_swap_space", std::to_string(totalSwapSpace));
 
@@ -547,6 +554,19 @@ void PerformanceUtil::logDiskReadWriteKBPerSecond() {
         }
     } else {
         scheduler_logger.error("Failed to get disk read/write KB per second");
+    }
+}
+
+void PerformanceUtil::logDiskBlockSizeKB() {
+    std::map<std::string, double> diskBlockSizes = StatisticCollector::getDiskBlockSizeKB();
+    if (!diskBlockSizes.empty()) {
+        for (const auto& entry : diskBlockSizes) {
+            const std::string& device = entry.first;
+            double blockSizeKB = entry.second;
+            scheduler_logger.info("Disk " + device + " average block size: " + std::to_string(blockSizeKB) + " KB");
+        }
+    } else {
+        scheduler_logger.error("Failed to get disk block sizes");
     }
 }
 
