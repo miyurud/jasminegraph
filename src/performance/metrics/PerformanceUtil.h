@@ -67,6 +67,7 @@ class PerformanceUtil {
     static void logRunQueue();
     static void logLogicalCpuCoreThreadUsage();
     static void logProcessSwitchesPerSecond();
+    static void logForkCallsPerSecond();
     static std::vector<Place> getHostReporterList();
     static void updateResourceConsumption(PerformanceSQLiteDBInterface* performanceDb, std::string graphId,
                                           int partitionCount, std::vector<Place> placeList, std::string slaCategoryId);

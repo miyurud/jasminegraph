@@ -58,6 +58,7 @@ class StatisticCollector {
     static long getRunQueue();
     static std::vector<double> getLogicalCpuCoreThreadUsage();
     static double getProcessSwitchesPerSecond();
+    static double getForkCallsPerSecond();
     static void logLoadAverage(std::string name);
 };
 

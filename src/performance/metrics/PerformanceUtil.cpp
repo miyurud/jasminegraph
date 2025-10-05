@@ -66,6 +66,9 @@ int PerformanceUtil::collectPerformanceStatistics() {
     double processSwitchesPerSec = StatisticCollector::getProcessSwitchesPerSecond();
     Utils::send_job("", "process_switches_per_sec", std::to_string(processSwitchesPerSec));
 
+    double forkCallsPerSec = StatisticCollector::getForkCallsPerSecond();
+    Utils::send_job("", "fork_calls_per_sec", std::to_string(forkCallsPerSec));
+
     long totalSwapSpace = StatisticCollector::getTotalSwapSpace();
     Utils::send_job("", "total_swap_space", std::to_string(totalSwapSpace));
 
@@ -469,6 +472,15 @@ void PerformanceUtil::logProcessSwitchesPerSecond() {
         scheduler_logger.info("Process switches per second: " + std::to_string(processSwitchesPerSec));
     } else {
         scheduler_logger.error("Failed to get process switches per second");
+    }
+}
+
+void PerformanceUtil::logForkCallsPerSecond() {
+    double forkCallsPerSec = StatisticCollector::getForkCallsPerSecond();
+    if (forkCallsPerSec >= 0) {
+        scheduler_logger.info("Fork calls per second: " + std::to_string(forkCallsPerSec));
+    } else {
+        scheduler_logger.error("Failed to get fork calls per second");
     }
 }
 

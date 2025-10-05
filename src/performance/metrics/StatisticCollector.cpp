@@ -548,6 +548,98 @@ double StatisticCollector::getProcessSwitchesPerSecond() {
     return switchesPerSecond;
 }
 
+double StatisticCollector::getForkCallsPerSecond() {
+    // First reading of processes created
+    FILE *file1 = fopen("/proc/stat", "r");
+    if (!file1) {
+        stat_logger.error("Cannot open /proc/stat for first reading");
+        return -1.0;
+    }
+    
+    char line[LINE_BUF_SIZE];
+    long long firstProcs = -1;
+    
+    // Find processes line
+    while (fgets(line, LINE_BUF_SIZE, file1) != NULL) {
+        if (strncmp(line, "processes", 9) == 0) {
+            char *p = line;
+            while (*p && (*p < '0' || *p > '9')) p++;  // Skip to first digit
+            if (*p) {
+                firstProcs = strtoll(p, NULL, 10);
+                if (firstProcs < 0) {
+                    firstProcs = -1;  // Invalid value
+                }
+            }
+            break;
+        }
+    }
+    fclose(file1);
+    
+    if (firstProcs == -1) {
+        stat_logger.error("Could not read initial process count");
+        return -1.0;
+    }
+    
+    // Record start time
+    struct timespec startTime, endTime;
+    clock_gettime(CLOCK_MONOTONIC, &startTime);
+    
+    // Sleep for measurement interval (1 second)
+    sleep(1);
+    
+    // Second reading of processes created
+    FILE *file2 = fopen("/proc/stat", "r");
+    if (!file2) {
+        stat_logger.error("Cannot open /proc/stat for second reading");
+        return -1.0;
+    }
+    
+    long long secondProcs = -1;
+    
+    // Find processes line
+    while (fgets(line, LINE_BUF_SIZE, file2) != NULL) {
+        if (strncmp(line, "processes", 9) == 0) {
+            char *p = line;
+            while (*p && (*p < '0' || *p > '9')) p++;  // Skip to first digit
+            if (*p) {
+                secondProcs = strtoll(p, NULL, 10);
+                if (secondProcs < 0) {
+                    secondProcs = -1;  // Invalid value
+                }
+            }
+            break;
+        }
+    }
+    fclose(file2);
+    
+    if (secondProcs == -1) {
+        stat_logger.error("Could not read final process count");
+        return -1.0;
+    }
+    
+    // Record end time
+    clock_gettime(CLOCK_MONOTONIC, &endTime);
+    
+    // Calculate elapsed time in seconds
+    double elapsedTime = (endTime.tv_sec - startTime.tv_sec) + 
+                        (endTime.tv_nsec - startTime.tv_nsec) / 1000000000.0;
+    
+    if (elapsedTime <= 0.0) {
+        stat_logger.error("Invalid elapsed time for fork calculation");
+        return -1.0;
+    }
+    
+    // Calculate fork calls per second
+    long long procsDiff = secondProcs - firstProcs;
+    if (procsDiff < 0) {
+        stat_logger.error("Processes counter wrapped or invalid");
+        return -1.0;
+    }
+    
+    double forksPerSecond = (double)procsDiff / elapsedTime;
+    return forksPerSecond;
+}
+
 void StatisticCollector::logLoadAverage(std::string name) {
     PerformanceUtil::logLoadAverage();
 
