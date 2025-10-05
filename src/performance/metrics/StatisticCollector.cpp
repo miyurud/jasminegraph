@@ -12,6 +12,8 @@ limitations under the License.
  */
 
 #include "StatisticCollector.h"
+#include <time.h>
+#include <unistd.h>
 
 Logger stat_logger;
 static int numProcessors;
@@ -760,6 +762,131 @@ std::map<std::string, std::pair<double, double>> StatisticCollector::getNetworkP
     }
     
     return packetRates;
+}
+
+std::map<std::string, double> StatisticCollector::getDiskBusyPercentage() {
+    std::map<std::string, double> diskBusyRates;
+    Logger stat_logger("StatisticCollector", "logs/main", "w");
+    
+    struct timespec startTime, endTime;
+    
+    // Record start time
+    clock_gettime(CLOCK_MONOTONIC, &startTime);
+    
+    // First reading
+    std::map<std::string, unsigned long long> firstReading;
+    FILE *file1 = fopen("/proc/diskstats", "r");
+    if (!file1) {
+        stat_logger.error("Cannot open /proc/diskstats for first reading");
+        return diskBusyRates;
+    }
+    
+    char line[256];
+    while (fgets(line, sizeof(line), file1) != NULL) {
+        int major, minor;
+        char device[32];
+        unsigned long long reads_completed, reads_merged, sectors_read, time_reading;
+        unsigned long long writes_completed, writes_merged, sectors_written, time_writing;
+        unsigned long long ios_in_progress, io_time, weighted_io_time;
+        
+        // Parse the diskstats line (11 or more fields)
+        int ret = sscanf(line, "%d %d %31s %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
+                        &major, &minor, device,
+                        &reads_completed, &reads_merged, &sectors_read, &time_reading,
+                        &writes_completed, &writes_merged, &sectors_written, &time_writing,
+                        &ios_in_progress, &io_time, &weighted_io_time);
+        
+        if (ret >= 14) {  // We need at least 14 fields to get io_time
+            // Skip loop devices and ram devices
+            if (strncmp(device, "loop", 4) != 0 && strncmp(device, "ram", 3) != 0) {
+                firstReading[device] = io_time;  // io_time is in milliseconds
+            }
+        }
+    }
+    fclose(file1);
+    
+    if (firstReading.empty()) {
+        stat_logger.error("No valid disk devices found in first reading");
+        return diskBusyRates;
+    }
+    
+    // Sleep for a short interval to get meaningful difference
+    usleep(1000000);  // 1 second
+    
+    // Second reading
+    std::map<std::string, unsigned long long> secondReading;
+    FILE *file2 = fopen("/proc/diskstats", "r");
+    if (!file2) {
+        stat_logger.error("Cannot open /proc/diskstats for second reading");
+        return diskBusyRates;
+    }
+    
+    while (fgets(line, sizeof(line), file2) != NULL) {
+        int major, minor;
+        char device[32];
+        unsigned long long reads_completed, reads_merged, sectors_read, time_reading;
+        unsigned long long writes_completed, writes_merged, sectors_written, time_writing;
+        unsigned long long ios_in_progress, io_time, weighted_io_time;
+        
+        // Parse the diskstats line (11 or more fields)
+        int ret = sscanf(line, "%d %d %31s %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
+                        &major, &minor, device,
+                        &reads_completed, &reads_merged, &sectors_read, &time_reading,
+                        &writes_completed, &writes_merged, &sectors_written, &time_writing,
+                        &ios_in_progress, &io_time, &weighted_io_time);
+        
+        if (ret >= 14) {  // We need at least 14 fields to get io_time
+            // Skip loop devices and ram devices
+            if (strncmp(device, "loop", 4) != 0 && strncmp(device, "ram", 3) != 0) {
+                secondReading[device] = io_time;  // io_time is in milliseconds
+            }
+        }
+    }
+    fclose(file2);
+    
+    // Record end time
+    clock_gettime(CLOCK_MONOTONIC, &endTime);
+    
+    // Calculate elapsed time in milliseconds (to match io_time units)
+    double elapsedTimeMs = ((endTime.tv_sec - startTime.tv_sec) * 1000.0) + 
+                           ((endTime.tv_nsec - startTime.tv_nsec) / 1000000.0);
+    
+    if (elapsedTimeMs <= 0.0) {
+        stat_logger.error("Invalid elapsed time for disk busy calculation");
+        return diskBusyRates;
+    }
+    
+    // Calculate disk busy percentage for each device
+    for (const auto& entry : firstReading) {
+        const std::string& device = entry.first;
+        unsigned long long firstTime = entry.second;
+        
+        if (secondReading.find(device) != secondReading.end()) {
+            unsigned long long secondTime = secondReading[device];
+            
+            // Calculate the delta (handling potential counter wraparound)
+            unsigned long long deltaTime;
+            if (secondTime >= firstTime) {
+                deltaTime = secondTime - firstTime;
+            } else {
+                // Counter wrapped around, assume it's a 64-bit counter
+                deltaTime = (ULLONG_MAX - firstTime) + secondTime + 1;
+            }
+            
+            // Calculate busy percentage: (delta_io_time / elapsed_time) * 100
+            // Both times are in milliseconds
+            double busyPercentage = (static_cast<double>(deltaTime) / elapsedTimeMs) * 100.0;
+            
+            // Cap at 100% to handle any calculation anomalies
+            if (busyPercentage > 100.0) {
+                busyPercentage = 100.0;
+            }
+            
+            diskBusyRates[device] = busyPercentage;
+        }
+    }
+    
+    return diskBusyRates;
 }
 
 void StatisticCollector::logLoadAverage(std::string name) {

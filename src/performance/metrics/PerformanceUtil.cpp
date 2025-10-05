@@ -78,6 +78,13 @@ int PerformanceUtil::collectPerformanceStatistics() {
         Utils::send_job("", "net_" + interface + "_tx_packets_per_sec", std::to_string(txPacketsPerSec));
     }
 
+    std::map<std::string, double> diskBusy = StatisticCollector::getDiskBusyPercentage();
+    for (const auto& entry : diskBusy) {
+        const std::string& device = entry.first;
+        double busyPercentage = entry.second;
+        Utils::send_job("", "disk_" + device + "_busy_percentage", std::to_string(busyPercentage));
+    }
+
     long totalSwapSpace = StatisticCollector::getTotalSwapSpace();
     Utils::send_job("", "total_swap_space", std::to_string(totalSwapSpace));
 
@@ -504,6 +511,19 @@ void PerformanceUtil::logNetworkPacketsPerSecond() {
         }
     } else {
         scheduler_logger.error("Failed to get network packets per second");
+    }
+}
+
+void PerformanceUtil::logDiskBusyPercentage() {
+    std::map<std::string, double> diskBusy = StatisticCollector::getDiskBusyPercentage();
+    if (!diskBusy.empty()) {
+        for (const auto& entry : diskBusy) {
+            const std::string& device = entry.first;
+            double busyPercentage = entry.second;
+            scheduler_logger.info("Disk " + device + " busy: " + std::to_string(busyPercentage) + "%");
+        }
+    } else {
+        scheduler_logger.error("Failed to get disk busy percentage");
     }
 }
 

@@ -20,7 +20,9 @@ limitations under the License.
 #include <sys/types.h>
 
 #include <algorithm>
+#include <climits>
 #include <cmath>
+#include <cstring>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -61,6 +63,7 @@ class StatisticCollector {
     static double getProcessSwitchesPerSecond();
     static double getForkCallsPerSecond();
     static std::map<std::string, std::pair<double, double>> getNetworkPacketsPerSecond();
+    static std::map<std::string, double> getDiskBusyPercentage();
     static void logLoadAverage(std::string name);
 };
 
