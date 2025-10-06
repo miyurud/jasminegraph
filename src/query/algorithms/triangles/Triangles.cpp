@@ -21,7 +21,7 @@ limitations under the License.
 
 #include "../../../localstore/JasmineGraphHashMapLocalStore.h"
 #include "../../../util/logger/Logger.h"
-#include "../../../util/telemetry/OpenTelemetryUtil.h"  
+#include "../../../util/telemetry/OpenTelemetryUtil.h"
 
 Logger triangle_logger;
 
@@ -38,7 +38,7 @@ long Triangles::run(JasmineGraphHashMapLocalStore &graphDB, JasmineGraphHashMapC
     // Add worker identification for better tracing
     std::string workerInfo = "worker_" + graphId + "_partition_" + partitionId;
     triangle_logger.info("###TRIANGLE### " + workerInfo + " Triangle Counting: Started");
-    
+
     // Declare variables outside of trace scopes so they remain accessible
     map<long, unordered_set<long>> localSubGraphMap;
     map<long, unordered_set<long>> centralDBSubGraphMap;
@@ -46,7 +46,7 @@ long Triangles::run(JasmineGraphHashMapLocalStore &graphDB, JasmineGraphHashMapC
     map<long, long> degreeDistribution;
     map<long, long> centralDBDegreeDistribution;
     map<long, long> centralDuplicateDBDegreeDistribution;
-    
+
     // Trace data extraction from stores
     {
         ScopedTracer data_extraction("extract_graph_data_" + workerInfo);
@@ -139,7 +139,7 @@ TriangleResult Triangles::countTriangles(map<long, unordered_set<long>> &central
     // Trace the main triangle detection loop
     {
         ScopedTracer triangle_loop("triangle_detection_loop");
-        
+
         for (auto iterator = degreeMap.begin(); iterator != degreeMap.end(); ++iterator) {
             auto &vertices = iterator->second;
 
@@ -203,8 +203,8 @@ TriangleResult Triangles::countTriangles(map<long, unordered_set<long>> &central
             }
             }
         }
-    } // End of triangle_detection_loop trace scope
-    
+    }  // End of triangle_detection_loop trace scope
+
     {
         ScopedTracer cleanup("cleanup_and_result_preparation");
         triangleTree.clear();

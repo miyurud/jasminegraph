@@ -55,9 +55,9 @@ enum worker_mode_args {
     WORKER_ENABLE_NMON = 7
 };
 
-void fnExit3(void) { 
+void fnExit3(void) {
     shutdownOpenTelemetry();
-    delete (server); 
+    delete (server);
 }
 
 int main(int argc, char *argv[]) {
@@ -83,7 +83,7 @@ int main(int argc, char *argv[]) {
     if (mode == Conts::JASMINEGRAPH_RUNTIME_PROFILE_MASTER) {
         // Initialize OpenTelemetry for master process
         initializeOpenTelemetry();
-        
+
         std::string masterIp = argv[master_mode_args::MASTER_IP];
         int numberOfWorkers = atoi(argv[master_mode_args::NUMBER_OF_WORKERS]);
         std::string workerIps = argv[master_mode_args::WORKER_IPS];

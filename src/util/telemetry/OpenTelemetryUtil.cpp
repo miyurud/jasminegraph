@@ -42,23 +42,23 @@ void OpenTelemetryUtil::initialize(const std::string& service_name,
                                   const std::string& prometheus_endpoint,
                                   bool useSimpleProcessor) {
     service_name_ = service_name;
-    
+
     try {
         // Set up OTLP HTTP exporter with explicit options
         otlp_exporter::OtlpHttpExporterOptions otlp_options;
         otlp_options.url = otlp_endpoint;
         otlp_options.content_type = otlp_exporter::HttpRequestContentType::kJson;
-        
+
         // Create OTLP HTTP exporter
         auto otlp_http_exporter = otlp_exporter::OtlpHttpExporterFactory::Create(otlp_options);
-        
+
         // Create resource with service name
         auto resource_attributes = opentelemetry::sdk::resource::ResourceAttributes{
             {"service.name", service_name},
             {"service.version", "1.0.0"}
         };
         auto resource = opentelemetry::sdk::resource::Resource::Create(resource_attributes);
-        
+
         // Choose processor based on use case
         std::unique_ptr<trace_sdk::SpanProcessor> processor;
         if (useSimpleProcessor) {
@@ -72,31 +72,32 @@ void OpenTelemetryUtil::initialize(const std::string& service_name,
             batch_options.max_export_batch_size = 128;
             processor = trace_sdk::BatchSpanProcessorFactory::Create(std::move(otlp_http_exporter), batch_options);
         }
-        
+
         // Create tracer provider with the processor and resource
         auto provider = trace_sdk::TracerProviderFactory::Create(std::move(processor), resource);
         tracer_provider_ = nostd::shared_ptr<trace_api::TracerProvider>(provider.release());
-        
-        // Set the global trace provider
+
+                // Set the global trace provider
         trace_api::Provider::SetTracerProvider(tracer_provider_);
-        
+
     } catch (const std::exception& e) {
         std::cerr << "Failed to initialize OpenTelemetry OTLP exporter: " << e.what() << std::endl;
         std::cerr << "Falling back to console exporter..." << std::endl;
-        
+
         // Create resource with service name for fallback too
         auto fallback_resource = opentelemetry::sdk::resource::Resource::Create({
             {"service.name", service_name},
             {"service.version", "1.0.0"}
         });
-        
+
         // Fallback - create console exporter
         auto console_exporter = trace_exporter::OStreamSpanExporterFactory::Create();
         auto console_processor = trace_sdk::SimpleSpanProcessorFactory::Create(std::move(console_exporter));
-        auto fallback_provider = trace_sdk::TracerProviderFactory::Create(std::move(console_processor), fallback_resource);
+        auto fallback_provider = trace_sdk::TracerProviderFactory::Create(std::move(console_processor),
+                                                                            fallback_resource);
         tracer_provider_ = nostd::shared_ptr<trace_api::TracerProvider>(fallback_provider.release());
         trace_api::Provider::SetTracerProvider(tracer_provider_);
-        
+
         std::cout << "OpenTelemetry fallback initialization completed with console output" << std::endl;
     }
 }
@@ -113,7 +114,7 @@ nostd::shared_ptr<metrics_api::Meter> OpenTelemetryUtil::getMeter(const std::str
 void OpenTelemetryUtil::shutdown() {
     if (tracer_provider_) {
         // Flush traces before shutdown
-        
+
         // Force flush all pending traces
         // We need to get the actual SDK provider to call ForceFlush
         auto sdk_provider = dynamic_cast<trace_sdk::TracerProvider*>(tracer_provider_.get());
@@ -126,41 +127,41 @@ void OpenTelemetryUtil::shutdown() {
                 std::cerr << "Warning: OpenTelemetry flush timeout or failed" << std::endl;
             }
         }
-        
+
         // Now safely reset the provider
         tracer_provider_ = nullptr;
     }
-    
+
     // Reset context token if it exists
     if (context_token_) {
         context_token_.reset();
     }
-    
+
     // End and reset parent span if it exists
     if (parent_span_) {
         parent_span_->End();
         parent_span_ = nullptr;
     }
-    
+
     service_name_.clear();
     std::cout << "OpenTelemetry shutdown completed" << std::endl;
 }
 
 // ScopedTracer Implementation
-ScopedTracer::ScopedTracer(const std::string& operation_name, 
+ScopedTracer::ScopedTracer(const std::string& operation_name,
                           const std::map<std::string, std::string>& attributes)
     : operation_name_(operation_name), start_time_(std::chrono::steady_clock::now()) {
-    
+
     // Create span with proper parent context
-    
+
     // Get tracer
     auto tracer = OpenTelemetryUtil::getTracer();
-    
+
     // Create span with proper parent context inheritance
     trace_api::StartSpanOptions options;
-    
+
     // Check if we have a remote parent context from setTraceContext()
-    if (OpenTelemetryUtil::has_remote_context_ && 
+    if (OpenTelemetryUtil::has_remote_context_ &&
         OpenTelemetryUtil::remote_span_context_.IsValid()) {
         // Use the remote span context as parent (for distributed tracing)
         options.parent = OpenTelemetryUtil::remote_span_context_;
@@ -170,31 +171,31 @@ ScopedTracer::ScopedTracer(const std::string& operation_name,
         // Get the current active context and use it as parent
         auto current_context = context_api::RuntimeContext::GetCurrent();
         auto current_span = trace_api::GetSpan(current_context);
-        
+
         if (current_span && current_span->GetContext().IsValid()) {
             // Use the current active span as parent (allows proper nesting)
             options.parent = current_span->GetContext();
         }
     }
-    
+
     // This will now inherit from the appropriate parent context
     span_ = tracer->StartSpan(operation_name, options);
-    
+
     // Span created successfully
-    
+
     // Add attributes
     if (!attributes.empty()) {
         for (const auto& attr : attributes) {
             span_->SetAttribute(attr.first, attr.second);
         }
     }
-    
+
     // Add default component attribute
     span_->SetAttribute("component", "jasminegraph");
-    
+
     // Make this span active in the current context
     scope_ = nostd::unique_ptr<trace_api::Scope>(new trace_api::Scope(span_));
-    
+
     // Span scope set and ready for child operations
 }
 
@@ -203,16 +204,16 @@ ScopedTracer::~ScopedTracer() {
         // Calculate duration and add only essential timing info
         auto end_time = std::chrono::steady_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time_);
-        
+
         // Add only milliseconds duration to reduce trace size
         span_->SetAttribute("duration_ms", static_cast<double>(duration.count()));
-        
+
         // Set success status if not already set
         span_->SetStatus(trace_api::StatusCode::kOk);
-        
+
         span_->End();
     }
-    
+
     // Scope will be automatically destroyed and context restored
     scope_.reset();
 }
@@ -245,31 +246,31 @@ std::string OpenTelemetryUtil::getCurrentTraceContext() {
         auto current_context = context_api::RuntimeContext::GetCurrent();
         auto span = trace_api::GetSpan(current_context);
         auto span_context = span->GetContext();
-        
+
         if (span_context.IsValid()) {
             // Extract trace_id and span_id from current span
             auto trace_id = span_context.trace_id();
             auto span_id = span_context.span_id();
             auto trace_flags = span_context.trace_flags();
-            
+
             // Format as W3C trace context: version-trace_id-span_id-trace_flags
             std::ostringstream oss;
             oss << "00-";
-            
+
             // Convert trace_id to hex string
             for (int i = 0; i < 16; ++i) {
                 oss << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(trace_id.Id()[i]);
             }
-            
+
             oss << "-";
-            
-            // Convert span_id to hex string  
+
+            // Convert span_id to hex string
             for (int i = 0; i < 8; ++i) {
                 oss << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(span_id.Id()[i]);
             }
-            
+
             oss << "-" << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(trace_flags.flags());
-            
+
             std::string context_str = oss.str();
             return context_str;
         } else {
@@ -299,9 +300,9 @@ void OpenTelemetryUtil::setTraceContext(const std::string& context_str) {
         }
         
         if (parts.size() != 4) {
-            return; // Invalid trace context format
+            return;  // Invalid trace context format
         }
-        
+
         // Extract components from trace context
         const std::string& version = parts[0];
         const std::string& trace_id_str = parts[1];
@@ -310,10 +311,10 @@ void OpenTelemetryUtil::setTraceContext(const std::string& context_str) {
         
         // Validate component lengths
         if (trace_id_str.length() != 32 || span_id_str.length() != 16 || version != "00") {
-            return; // Invalid trace context format
+            return;  // Invalid trace context format
         }
-            
-            // Convert hex strings to byte arrays
+
+        // Convert hex strings to byte arrays
             std::array<uint8_t, 16> trace_id_bytes = {0};
             std::array<uint8_t, 8> span_id_bytes = {0};
             
@@ -322,26 +323,26 @@ void OpenTelemetryUtil::setTraceContext(const std::string& context_str) {
                 std::string byte_str = trace_id_str.substr(i * 2, 2);
                 trace_id_bytes[i] = static_cast<uint8_t>(std::stoul(byte_str, nullptr, 16));
             }
-            
-            // Parse span_id (16 hex chars = 8 bytes) 
+
+            // Parse span_id (16 hex chars = 8 bytes)
             for (size_t i = 0; i < 8 && i * 2 < span_id_str.length(); ++i) {
                 std::string byte_str = span_id_str.substr(i * 2, 2);
                 span_id_bytes[i] = static_cast<uint8_t>(std::stoul(byte_str, nullptr, 16));
             }
-            
+
             // Parse flags
             uint8_t flags = static_cast<uint8_t>(std::stoul(flags_str, nullptr, 16));
-            
+
             // Create trace and span IDs using nostd::span for v1.16.1 compatibility
             auto trace_id = trace_api::TraceId(nostd::span<const uint8_t, 16>(
                 reinterpret_cast<const uint8_t*>(trace_id_bytes.data()), 16));
             auto parent_span_id = trace_api::SpanId(nostd::span<const uint8_t, 8>(
                 reinterpret_cast<const uint8_t*>(span_id_bytes.data()), 8));
             auto trace_flags = trace_api::TraceFlags(flags);
-            
+
             // Create a span context with the parent information
             auto span_context = trace_api::SpanContext(trace_id, parent_span_id, trace_flags, true);
-            
+
             if (span_context.IsValid()) {
                 // Store the remote span context for use in ScopedTracer
                 remote_span_context_ = span_context;
@@ -349,7 +350,7 @@ void OpenTelemetryUtil::setTraceContext(const std::string& context_str) {
             } else {
                 // Invalid span context created from trace context
             }
-        
+
     } catch (const std::exception& e) {
         std::cerr << "Error setting trace context: " << e.what() << std::endl;
     }
@@ -372,7 +373,7 @@ void OpenTelemetryUtil::addSpanAttribute(const std::string& key, const std::stri
         // Get current context and span
         auto current_context = context::RuntimeContext::GetCurrent();
         auto current_span = trace_api::GetSpan(current_context);
-        
+
         if (current_span && current_span->GetContext().IsValid()) {
             current_span->SetAttribute(key, value);
         }

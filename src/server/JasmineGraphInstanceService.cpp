@@ -436,12 +436,13 @@ long countLocalTriangles(
     std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
     std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores,
     int threadPriority) {
-    
+
     OTEL_TRACE_FUNCTION();
-    
+
     long result;
 
-    instance_logger.info("###INSTANCE### Local Triangle Count : Started: Graph ID " + graphId + " Partition " + partitionId);
+    instance_logger.info("###INSTANCE### Local Triangle Count : Started: Graph ID " + graphId +
+                         " Partition " + partitionId);
     
     std::string graphIdentifier = graphId + "_" + partitionId;
     std::string centralGraphIdentifier = graphId + "_centralstore_" + partitionId;
@@ -468,12 +469,13 @@ long countLocalTriangles(
         JasmineGraphInstanceService::loadInstanceDuplicateCentralStore(graphId, partitionId,
                                                                        graphDBMapDuplicateCentralStores);
     }
-    JasmineGraphHashMapDuplicateCentralStore duplicateCentralGraphDB = graphDBMapDuplicateCentralStores[duplicateCentralGraphIdentifier];
+    JasmineGraphHashMapDuplicateCentralStore duplicateCentralGraphDB =
+        graphDBMapDuplicateCentralStores[duplicateCentralGraphIdentifier];
 
     result = Triangles::run(graphDB, centralGraphDB, duplicateCentralGraphDB, graphId, partitionId, threadPriority);
-    
+
     instance_logger.info("###INSTANCE### Local Triangle Count : Completed: Triangles: " + to_string(result));
-    
+
     return result;
 }
 
@@ -2912,7 +2914,7 @@ static void triangles_command(
 
     // Receive trace context from master
     string traceContext = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
-    
+
     // Use utility function to validate and set trace context
     OpenTelemetryUtil::receiveAndSetTraceContext(traceContext, "triangle counting");
 
@@ -2937,12 +2939,12 @@ static void triangles_command(
 
     std::thread perfThread = std::thread(&PerformanceUtil::collectPerformanceStatistics);
     perfThread.detach();
-    
+
     long localCount = countLocalTriangles(graphID, partitionId, graphDBMapLocalStores, graphDBMapCentralStores,
                                           graphDBMapDuplicateCentralStores, threadPriority);
 
 
-    
+
     if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
         threadPriorityMutex.lock();
         workerHighPriorityTaskCount--;
@@ -3274,7 +3276,7 @@ static void aggregate_centralstore_triangles_command(int connFd, bool *loop_exit
 
     // Receive and set trace context for distributed tracing
     string traceContext = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
-    
+
     // Use utility function to validate and set trace context
     OpenTelemetryUtil::receiveAndSetTraceContext(traceContext, "aggregation");
 

@@ -19,7 +19,7 @@ limitations under the License.
 #include "../../../../../globals.h"
 #include "../../../../k8s/K8sWorkerController.h"
 #include "../../../../scale/scaler.h"
-#include "../../../../util/telemetry/OpenTelemetryUtil.h" 
+#include "../../../../util/telemetry/OpenTelemetryUtil.h"
 
 using namespace std::chrono;
 
@@ -430,7 +430,7 @@ void TriangleCountExecutor::execute() {
     // Start automatic OpenTelemetry tracing for triangle count execution
     std::string graphId = request.getParameter(Conts::PARAM_KEYS::GRAPH_ID);
     OTEL_TRACE_FUNCTION();
-    
+
     schedulerMutex.lock();
     time_t curr_time = time(NULL);
     // 8 seconds = upper bound to the time to send performance metrics after allocating trian task to a worker
@@ -558,13 +558,13 @@ void TriangleCountExecutor::execute() {
     std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> triangleTree;
     std::mutex triangleTreeMutex;
     int partitionCount = 0;
-    
+
     // Track worker information for better tracing
-    std::vector<std::tuple<string, string, string>> workerTaskInfo; // {workerID, partitionId, host}
-    
+    std::vector<std::tuple<string, string, string>> workerTaskInfo;  // {workerID, partitionId, host}
+
     // Capture the master trace context for all workers
     std::string masterTraceContext = OpenTelemetryUtil::getCurrentTraceContext();
-    
+
     vector<Utils::worker> workerList = Utils::getWorkerList(sqlite);
     int workerListSize = workerList.size();
     for (int i = 0; i < workerListSize; i++) {
@@ -588,11 +588,12 @@ void TriangleCountExecutor::execute() {
             
             {
                 OTEL_TRACE_OPERATION("distribute_to_worker_" + workerID + "_partition_" + partitionId);
-                
+
                 intermRes.push_back(std::async(
-                    std::launch::async, TriangleCountExecutor::getTriangleCount, atoi(graphId.c_str()), host, workerPort,
-                    workerDataPort, atoi(partitionId.c_str()), masterIP, uniqueId, isCompositeAggregation, threadPriority,
-                    fileCombinations, &combinationWorkerMap, &triangleTree, &triangleTreeMutex, masterTraceContext));
+                    std::launch::async, TriangleCountExecutor::getTriangleCount, atoi(graphId.c_str()), host,
+                    workerPort, workerDataPort, atoi(partitionId.c_str()), masterIP, uniqueId,
+                    isCompositeAggregation, threadPriority, fileCombinations, &combinationWorkerMap,
+                    &triangleTree, &triangleTreeMutex, masterTraceContext));
             }
         }
     }
@@ -630,7 +631,7 @@ void TriangleCountExecutor::execute() {
     // Collect worker results with automatic tracing
     {
         OTEL_TRACE_OPERATION("collect_worker_results");
-        
+
         int taskIndex = 0;
         for (auto &&futureCall : intermRes) {
             // Get worker information for this task
@@ -638,18 +639,18 @@ void TriangleCountExecutor::execute() {
             string workerID = std::get<0>(taskInfo);
             string partitionId = std::get<1>(taskInfo);
             string host = std::get<2>(taskInfo);
-            
+
             {
                 OTEL_TRACE_OPERATION("wait_for_worker_" + workerID + "_partition_" + partitionId + "_on_" + host);
-                triangleCount_logger.info("Waiting for result from worker_" + workerID + 
-                                        " partition_" + partitionId + 
-                                        " host_" + host + 
+                triangleCount_logger.info("Waiting for result from worker_" + workerID +
+                                        " partition_" + partitionId +
+                                        " host_" + host +
                                         " uuid=" + to_string(uniqueId));
                 long worker_result = futureCall.get();
-                triangleCount_logger.info("Received result " + std::to_string(worker_result) + 
-                                        " from worker_" + workerID + 
+                triangleCount_logger.info("Received result " + std::to_string(worker_result) +
+                                        " from worker_" + workerID +
                                         " partition_" + partitionId);
-                
+
                 {
                     OTEL_TRACE_OPERATION("aggregate_result_worker_" + workerID + "_partition_" + partitionId);
                     result += worker_result;
@@ -657,7 +658,7 @@ void TriangleCountExecutor::execute() {
             }
             taskIndex++;
         }
-        
+
         // Cleanup data structures
         {
             OTEL_TRACE_OPERATION("cleanup_worker_data_structures");
@@ -669,13 +670,13 @@ void TriangleCountExecutor::execute() {
     if (!isCompositeAggregation) {
         // Restore the master trace context before aggregation
         OpenTelemetryUtil::receiveAndSetTraceContext(masterTraceContext, "central store aggregation");
-        
+
         OTEL_TRACE_OPERATION("central_store_aggregation");
-        
+
         long aggregatedTriangleCount =
             aggregateCentralStoreTriangles(sqlite, graphId, masterIP, threadPriority, partitionMap);
         result += aggregatedTriangleCount;
-        
+
         workerResponded = true;
         triangleCount_logger.log(
             "###TRIANGLE-COUNT-EXECUTOR### Getting Triangle Count : Completed: Triangles " + to_string(result), "info");
@@ -737,9 +738,9 @@ long TriangleCountExecutor::getTriangleCount(
     std::map<std::string, std::string> *combinationWorkerMap_p,
     std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> *triangleTree_p,
     std::mutex *triangleTreeMutex_p, const std::string& masterTraceContext) {
-    
+
     OTEL_TRACE_OPERATION("worker_communication_" + host + "_partition_" + std::to_string(partitionId));
-    
+
     int sockfd;
     char data[INSTANCE_DATA_LENGTH + 1];
     bool loop = false;
@@ -782,7 +783,8 @@ long TriangleCountExecutor::getTriangleCount(
     }
 
     // Protocol handshake
-    result_wr = write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(), JasmineGraphInstanceProtocol::HANDSHAKE.size());
+    result_wr = write(sockfd, JasmineGraphInstanceProtocol::HANDSHAKE.c_str(),
+                      JasmineGraphInstanceProtocol::HANDSHAKE.size());
 
     if (result_wr < 0) {
         triangleCount_logger.log("Error writing to socket", "error");
@@ -850,24 +852,24 @@ long TriangleCountExecutor::getTriangleCount(
             triangleCount_logger.log("Sent : Thread Priority " + std::to_string(threadPriority), "info");
 
             response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
-            
+
             // Send trace context to worker for trace propagation
             if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
                 triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::OK, "info");
-                
+
                 // Use the master trace context passed as parameter to ensure all workers inherit from same parent
                 std::string traceContext = masterTraceContext;
                 if (traceContext.empty()) {
                     traceContext = "NO_TRACE_CONTEXT";
                 }
-                
+
                 // Send trace context for distributed tracing
                 result_wr = write(sockfd, traceContext.c_str(), traceContext.size());
-                
+
                 if (result_wr < 0) {
                     triangleCount_logger.log("Error writing trace context to socket", "error");
                 }
-                
+
                 triangleCount_logger.log("Sent : Trace Context " + traceContext, "info");
                 response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
             }
@@ -1044,7 +1046,7 @@ static int updateTriangleTreeAndGetTriangleCount(
     std::unordered_map<long, std::unordered_map<long, std::unordered_set<long>>> *triangleTree_p,
     std::mutex *triangleTreeMutex_p) {
     OTEL_TRACE_FUNCTION();
-    
+
     std::mutex &triangleTreeMutex = *triangleTreeMutex_p;
     const std::lock_guard<std::mutex> lock1(triangleTreeMutex);
     int aggregateCount = 0;
@@ -1085,7 +1087,7 @@ static long aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, std::strin
                                            int threadPriority,
                                            const std::map<string, std::vector<string>> &partitionMap) {
     OTEL_TRACE_FUNCTION();
-    
+
     vector<string> partitionsVector;
     std::map<string, string> partitionWorkerMap;  // partition_id => worker_id
     for (auto it = partitionMap.begin(); it != partitionMap.end(); it++) {
@@ -1179,7 +1181,7 @@ static long aggregateCentralStoreTriangles(SQLiteDBInterface *sqlite, std::strin
         }
 
         std::string adjustedPartitionIdList = partitionIdList.substr(0, partitionIdList.size() - 1);
-        
+
         // Capture current trace context before async call
         std::string currentTraceContext = OpenTelemetryUtil::getCurrentTraceContext();
 
@@ -1912,11 +1914,12 @@ string TriangleCountExecutor::countCentralStoreTriangles(std::string aggregatorP
         }
 
         if (response.compare(JasmineGraphInstanceProtocol::OK) == 0) {
-            triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::OK + " (after thread priority)", "info");
-            
+            triangleCount_logger.log("Received : " + JasmineGraphInstanceProtocol::OK +
+                                   " (after thread priority)", "info");
+
             // Get current trace context and send it to worker for aggregation tracing
             std::string traceContext = OpenTelemetryUtil::getCurrentTraceContext();
-            
+
             result_wr = write(sockfd, traceContext.c_str(), traceContext.size());
             if (result_wr < 0) {
                 triangleCount_logger.log("Error writing trace context to socket", "error");

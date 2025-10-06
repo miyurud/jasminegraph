@@ -111,7 +111,7 @@ public:
     static thread_local trace_api::SpanContext remote_span_context_;
     static thread_local bool has_remote_context_;
 
-private:
+ private:
     static std::string service_name_;
     static nostd::shared_ptr<trace_api::TracerProvider> tracer_provider_;
     static nostd::shared_ptr<metrics_api::MeterProvider> meter_provider_;
@@ -127,7 +127,7 @@ private:
  * Use this for timing operations with automatic span creation and cleanup
  */
 class ScopedTracer {
-public:
+ public:
     ScopedTracer(const std::string& operation_name, 
                  const std::map<std::string, std::string>& attributes = {});
     
@@ -140,7 +140,7 @@ public:
     // Set span status
     void setStatus(trace_api::StatusCode code, const std::string& description = "");
 
-private:
+ private:
     nostd::shared_ptr<trace_api::Span> span_;
     nostd::unique_ptr<trace_api::Scope> scope_;
     std::chrono::steady_clock::time_point start_time_;
