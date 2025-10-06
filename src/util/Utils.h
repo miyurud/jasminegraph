@@ -167,9 +167,11 @@ class Utils {
      */
     static bool send_str_wrapper(int connFd, std::string str);
     static bool send_int_wrapper(int connFd, int* value, size_t datalength);
+    static bool send_long_wrapper(int connFd, long int* value, size_t datalength);
 
     static bool sendExpectResponse(int sockfd, char *data, size_t data_length, std::string sendMsg,
                                    std::string expectMsg);
+    static bool expect_str_wrapper(int sockfd, const std::string& expected);
 
     static bool performHandshake(int sockfd, char *data, size_t data_length, std::string masterIP);
 
@@ -185,6 +187,8 @@ class Utils {
 
     static map<string, string> getMetricMap(string metricName);
 
+    static double exponentialWeightedMovingAverage(const std::deque<double>& vals, double alpha = 0.3);
+    static  double  computeSlope(const std::deque<double>& vals);
     static bool uploadFileToWorker(std::string host, int port, int dataPort, int graphID, std::string filePath,
                                    std::string masterIP, std::string uploadType);
 
@@ -198,6 +202,10 @@ class Utils {
     static std::optional<std::tuple<std::string, int, int>> getWorker(string partitionID, std::string host, int port);
     static bool sendDataFromWorkerToWorker(string masterIP, int graphID, string partitionId, std::string message,
                                            SharedBuffer &sharedBuffer);
+    bool sendPartitionMetadata(int sockfd, int partitionId, int graphId, int localVertexCount, int centralVertexCount,
+                               int edgeCount, int centralEdgeCount);
+    static float cosineSimilarity(const std::vector<float>& a, const std::vector<float>& b);
+    static  string canonicalize(const std::string& input);
     static bool sendIntExpectResponse(int sockfd, char *data, size_t data_length,
                                       int value, std::string expectMsg);
 
@@ -209,6 +217,7 @@ class Utils {
     static string getFrontendInput(int connFd);
     static string getPartitionAlgorithm(string graphID, std::string host);
     static string getGraphDirection(string graphID, std::string host);
+
 };
 
 #endif  // JASMINEGRAPH_UTILS_H

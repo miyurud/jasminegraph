@@ -24,6 +24,7 @@ limitations under the License.
 #include <chrono>
 #include <ctime>
 #include <iomanip>
+#include <regex>
 #include <sstream>
 #include <vector>
 
@@ -618,7 +619,6 @@ std::string Utils::read_str_wrapper(int connFd, char *buf, size_t len, bool allo
     if (result < 0) {
         util_logger.error("Read failed: recv returned " + std::to_string((int)result));
         return "";
-    } else if (!allowEmpty && result == 0) {
         util_logger.error("Read failed: recv empty string");
         return "";
     }
@@ -634,7 +634,8 @@ std::string Utils::read_str_trim_wrapper(int connFd, char *buf, size_t len) {
 }
 
 bool Utils::send_wrapper(int connFd, const char *buf, size_t size) {
-    ssize_t sz = send(connFd, buf, size, 0);
+    ssize_t sz = send(connFd, buf, size, 0);\
+    // util_logger.info("Sent " + std::to_string(sz) + " bytes to socket " + std::to_string(connFd));
     if (sz < size) {
         util_logger.error("Send failed");
         return false;
@@ -647,6 +648,14 @@ bool Utils::send_str_wrapper(int connFd, std::string str) {
 }
 
 bool Utils::send_int_wrapper(int connFd, int *value, size_t datalength) {
+    ssize_t sz = send(connFd, value, datalength, 0);
+    if (sz < datalength) {
+        util_logger.error("Send failed");
+        return false;
+    }
+    return true;
+}
+bool Utils::send_long_wrapper(int connFd, long  *value, size_t datalength) {
     ssize_t sz = send(connFd, value, datalength, 0);
     if (sz < datalength) {
         util_logger.error("Send failed");
@@ -683,6 +692,24 @@ bool Utils::sendExpectResponse(int sockfd, char *data, size_t data_length, std::
     }
     util_logger.info("Received: " + response);
     return true;
+}
+
+bool Utils::expect_str_wrapper(int sockfd, const std::string &expected) {
+    char buffer[1024] = {0};  // Adjust if you expect larger messages
+    ssize_t bytes_received = recv(sockfd, buffer, sizeof(buffer) - 1, 0);
+
+    if (bytes_received <= 0) {
+        // Connection closed or error
+        return false;
+    }
+
+    std::string received(buffer, bytes_received);
+
+    // Trim CR/LF if needed
+    received.erase(std::remove(received.begin(), received.end(), '\r'), received.end());
+    received.erase(std::remove(received.begin(), received.end(), '\n'), received.end());
+
+    return received == expected;
 }
 
 bool Utils::performHandshake(int sockfd, char *data, size_t data_length, std::string masterIP) {
@@ -942,6 +969,36 @@ std::map<std::string, std::string> Utils::getMetricMap(std::string metricName) {
 
     return map;
 }
+
+// collect history of metrics
+
+
+
+double Utils:: exponentialWeightedMovingAverage(const std::deque<double>& vals, double alpha ) {
+    if (vals.empty()) return 0.0;
+    double ewma = vals[0];
+    for (size_t i = 1; i < vals.size(); i++) {
+        ewma = alpha * vals[i] + (1 - alpha) * ewma;
+    }
+    return ewma;
+}
+
+double Utils:: computeSlope(const std::deque<double>& vals) {
+    int n = vals.size();
+    if (n < 2) return 0.0;
+
+    double sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+    for (int i = 0; i < n; i++) {
+        sumX += i;
+        sumY += vals[i];
+        sumXY += i * vals[i];
+        sumXX += i * i;
+    }
+    double denom = n * sumXX - sumX * sumX;
+    if (denom == 0) return 0.0;
+    return (n * sumXY - sumX * sumY) / denom;
+}
+
 
 bool Utils::fileExistsWithReadPermission(const string &path) { return access(path.c_str(), R_OK) == 0; }
 
@@ -1392,6 +1449,8 @@ void Utils::assignPartitionToWorker(int graphId, int partitionIndex, string  hos
     delete sqlite;
 }
 
+
+
 bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string masterIP,
                                   int graphID, int partitionId, std::string message, SharedBuffer &sharedBuffer) {
     util_logger.info("Host:" + host + " Port:" + to_string(port));
@@ -1503,7 +1562,7 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
         std::string start_msg(start);
         if (JasmineGraphInstanceProtocol::QUERY_DATA_START != start_msg) {
             util_logger.error("Error while receiving start command: " + start_msg);
-            continue;
+            break;
         }
         send(sockfd, JasmineGraphInstanceProtocol::QUERY_DATA_ACK.c_str(),
              JasmineGraphInstanceProtocol::QUERY_DATA_ACK.length(), 0);
@@ -1521,7 +1580,17 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
              JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.length(), 0);
 
         std::string data(content_length, 0);
-        return_status = recv(sockfd, &data[0], content_length, 0);
+
+        size_t received = 0;
+        while (received < content_length) {
+            ssize_t ret = recv(sockfd, &data[received], content_length - received, 0);
+            if (ret <= 0) {
+                util_logger.error("Error receiving request string");
+                break;
+            }
+            received += ret;
+        }
+
         if (return_status > 0) {
             send(sockfd, JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS.c_str(),
                  JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS.length(), 0);
@@ -1714,6 +1783,7 @@ string Utils::getPartitionAlgorithm(std::string graphID, std::string host) {
         return "";
     }
 }
+
 
 string Utils::getGraphDirection(std::string graphID, std::string host) {
     util_logger.info("Host:" + host + " Port:" + to_string(Conts::JASMINEGRAPH_BACKEND_PORT));
@@ -1968,4 +2038,32 @@ bool Utils::sendDataFromWorkerToWorker(string masterIP, int graphID, string part
     auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - startTime);
     util_logger.info(" Time Taken: " + std::to_string(elapsed.count()) + " seconds");
     return true;
+}
+
+
+float  Utils::cosineSimilarity(const std::vector<float>& a, const std::vector<float>& b) {
+    float dot = 0.0f, normA = 0.0f, normB = 0.0f;
+    for (size_t i = 0; i < a.size(); ++i) {
+        dot += a[i] * b[i];
+        normA += a[i] * a[i];
+        normB += b[i] * b[i];
+    }
+    if (normA == 0 || normB == 0) return 0.0f;
+    return dot / (std::sqrt(normA) * std::sqrt(normB));
+}
+
+string Utils:: canonicalize(const std::string& input) {
+    std::string result = input;
+
+    // Convert to lowercase
+    std::transform(result.begin(), result.end(), result.begin(),
+                   [](unsigned char c){ return std::tolower(c); });
+
+    // Replace non-alphanumeric characters with underscores
+    result = std::regex_replace(result, std::regex("[^a-z0-9]+"), "_");
+
+    // Remove leading/trailing underscores
+    result = std::regex_replace(result, std::regex("^_+|_+$"), "");
+
+    return result;
 }

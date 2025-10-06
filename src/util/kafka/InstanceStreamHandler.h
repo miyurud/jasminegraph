@@ -25,6 +25,8 @@
 
 class InstanceStreamHandler {
  public:
+    std::map<std::string, JasmineGraphIncrementalLocalStore*>& incrementalLocalStoreMap;
+
     InstanceStreamHandler(std::map<std::string, JasmineGraphIncrementalLocalStore*>& incrementalLocalStoreMap);
     ~InstanceStreamHandler();
 
@@ -35,7 +37,6 @@ class InstanceStreamHandler {
                            std::string partitionId, std::string graphIdentifier);
 
  private:
-    std::map<std::string, JasmineGraphIncrementalLocalStore*>& incrementalLocalStoreMap;
     std::map<std::string, std::thread> threads;
     std::map<std::string, std::queue<std::string>> queues;
     std::map<std::string, std::condition_variable> cond_vars;

@@ -322,6 +322,8 @@
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
+             "axisMode": "fixed",
+
             "axisPlacement": "auto",
             "barAlignment": 0,
             "barWidthFactor": 0.6,
@@ -333,6 +335,8 @@
               "tooltip": false,
               "viz": false
             },
+            "min": 0,
+            "max": 100,
             "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,

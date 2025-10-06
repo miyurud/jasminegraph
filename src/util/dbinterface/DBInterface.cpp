@@ -202,3 +202,6 @@ std::string DBInterface::getPartitionAlgoByGraphID(std::string graphID) {
 
     return result;
 }
+
+
+
