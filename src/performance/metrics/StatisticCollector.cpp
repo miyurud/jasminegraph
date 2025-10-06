@@ -766,7 +766,6 @@ std::map<std::string, std::pair<double, double>> StatisticCollector::getNetworkP
 
 std::map<std::string, double> StatisticCollector::getDiskBusyPercentage() {
     std::map<std::string, double> diskBusyRates;
-    Logger stat_logger("StatisticCollector", "logs/main", "w");
     
     struct timespec startTime, endTime;
     
@@ -891,7 +890,6 @@ std::map<std::string, double> StatisticCollector::getDiskBusyPercentage() {
 
 std::map<std::string, std::pair<double, double>> StatisticCollector::getDiskReadWriteKBPerSecond() {
     std::map<std::string, std::pair<double, double>> diskRates;
-    Logger stat_logger("StatisticCollector", "logs/main", "w");
     
     struct timespec startTime, endTime;
     
@@ -1022,7 +1020,6 @@ std::map<std::string, std::pair<double, double>> StatisticCollector::getDiskRead
 
 std::map<std::string, double> StatisticCollector::getDiskBlockSizeKB() {
     std::map<std::string, double> diskBlockSizes;
-    Logger stat_logger("StatisticCollector", "logs/main", "w");
     
     FILE *file = fopen("/proc/diskstats", "r");
     if (!file) {
@@ -1076,6 +1073,128 @@ std::map<std::string, double> StatisticCollector::getDiskBlockSizeKB() {
     fclose(file);
     
     return diskBlockSizes;
+}
+
+std::map<std::string, double> StatisticCollector::getDiskTransfersPerSecond() {
+    std::map<std::string, double> diskTransferRates;
+    
+    struct timespec startTime, endTime;
+    
+    // Record start time
+    clock_gettime(CLOCK_MONOTONIC, &startTime);
+    
+    // First reading - store total transfers (dk_xfers = dk_reads + dk_writes) for each device
+    std::map<std::string, unsigned long long> firstReading;
+    FILE *file1 = fopen("/proc/diskstats", "r");
+    if (!file1) {
+        stat_logger.error("Cannot open /proc/diskstats for first reading");
+        return diskTransferRates;
+    }
+    
+    char line[256];
+    while (fgets(line, sizeof(line), file1) != NULL) {
+        int major, minor;
+        char device[32];
+        unsigned long long reads_completed, reads_merged, sectors_read, time_reading;
+        unsigned long long writes_completed, writes_merged, sectors_written, time_writing;
+        unsigned long long ios_in_progress, io_time, weighted_io_time;
+        
+        // Parse the diskstats line (14 fields)
+        int ret = sscanf(line, "%d %d %31s %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
+                        &major, &minor, device,
+                        &reads_completed, &reads_merged, &sectors_read, &time_reading,
+                        &writes_completed, &writes_merged, &sectors_written, &time_writing,
+                        &ios_in_progress, &io_time, &weighted_io_time);
+        
+        if (ret >= 14) {  // We need all 14 fields for full disk devices
+            // Skip loop devices and ram devices
+            if (strncmp(device, "loop", 4) != 0 && strncmp(device, "ram", 3) != 0) {
+                // Calculate total transfers: dk_xfers = dk_reads + dk_writes
+                unsigned long long total_transfers = reads_completed + writes_completed;
+                firstReading[device] = total_transfers;
+            }
+        }
+    }
+    fclose(file1);
+    
+    if (firstReading.empty()) {
+        stat_logger.error("No valid disk devices found in first reading");
+        return diskTransferRates;
+    }
+    
+    // Sleep for a short interval to get meaningful difference
+    usleep(1000000);  // 1 second
+    
+    // Second reading
+    std::map<std::string, unsigned long long> secondReading;
+    FILE *file2 = fopen("/proc/diskstats", "r");
+    if (!file2) {
+        stat_logger.error("Cannot open /proc/diskstats for second reading");
+        return diskTransferRates;
+    }
+    
+    while (fgets(line, sizeof(line), file2) != NULL) {
+        int major, minor;
+        char device[32];
+        unsigned long long reads_completed, reads_merged, sectors_read, time_reading;
+        unsigned long long writes_completed, writes_merged, sectors_written, time_writing;
+        unsigned long long ios_in_progress, io_time, weighted_io_time;
+        
+        // Parse the diskstats line (14 fields)
+        int ret = sscanf(line, "%d %d %31s %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
+                        &major, &minor, device,
+                        &reads_completed, &reads_merged, &sectors_read, &time_reading,
+                        &writes_completed, &writes_merged, &sectors_written, &time_writing,
+                        &ios_in_progress, &io_time, &weighted_io_time);
+        
+        if (ret >= 14) {  // We need all 14 fields for full disk devices
+            // Skip loop devices and ram devices
+            if (strncmp(device, "loop", 4) != 0 && strncmp(device, "ram", 3) != 0) {
+                // Calculate total transfers: dk_xfers = dk_reads + dk_writes
+                unsigned long long total_transfers = reads_completed + writes_completed;
+                secondReading[device] = total_transfers;
+            }
+        }
+    }
+    fclose(file2);
+    
+    // Record end time
+    clock_gettime(CLOCK_MONOTONIC, &endTime);
+    
+    // Calculate elapsed time in seconds
+    double elapsedTime = (endTime.tv_sec - startTime.tv_sec) + 
+                        (endTime.tv_nsec - startTime.tv_nsec) / 1000000000.0;
+    
+    if (elapsedTime <= 0.0) {
+        stat_logger.error("Invalid elapsed time for disk transfers calculation");
+        return diskTransferRates;
+    }
+    
+    // Calculate transfers per second for each device
+    for (const auto& entry : firstReading) {
+        const std::string& device = entry.first;
+        unsigned long long firstTransfers = entry.second;
+        
+        if (secondReading.find(device) != secondReading.end()) {
+            unsigned long long secondTransfers = secondReading[device];
+            
+            // Calculate the delta (handling potential counter wraparound)
+            unsigned long long deltaTransfers;
+            if (secondTransfers >= firstTransfers) {
+                deltaTransfers = secondTransfers - firstTransfers;
+            } else {
+                // Counter wrapped around, assume it's a 64-bit counter
+                deltaTransfers = (ULLONG_MAX - firstTransfers) + secondTransfers + 1;
+            }
+            
+            // Calculate transfers per second: DKDELTA(dk_xfers) / elapsed
+            double transfersPerSecond = static_cast<double>(deltaTransfers) / elapsedTime;
+            
+            diskTransferRates[device] = transfersPerSecond;
+        }
+    }
+    
+    return diskTransferRates;
 }
 
 void StatisticCollector::logLoadAverage(std::string name) {

@@ -66,6 +66,7 @@ class StatisticCollector {
     static std::map<std::string, double> getDiskBusyPercentage();
     static std::map<std::string, std::pair<double, double>> getDiskReadWriteKBPerSecond();
     static std::map<std::string, double> getDiskBlockSizeKB();
+    static std::map<std::string, double> getDiskTransfersPerSecond();
     static void logLoadAverage(std::string name);
 };
 
