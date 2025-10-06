@@ -14,7 +14,7 @@ services:
       - './conf:/home/ubuntu/software/jasminegraph/conf'
     networks:
       jasminenet:
-        ipv4_address: 172.28.5.9
+        ipv4_address: 172.28.5.7
     command: --MODE 1 --MASTERIP 172.28.5.1 --WORKERS 2 --WORKERIP 172.28.5.1 --ENABLE_NMON false
     depends_on:
       - prometheus
@@ -151,7 +151,7 @@ services:
     command: -config.file=/etc/tempo.yaml
     networks:
       jasminenet:
-        ipv4_address: 172.28.5.7
+        ipv4_address: 172.28.5.9
 
 networks:
   jasminenet:

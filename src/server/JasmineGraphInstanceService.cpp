@@ -472,7 +472,9 @@ long countLocalTriangles(
 
     result = Triangles::run(graphDB, centralGraphDB, duplicateCentralGraphDB, graphId, partitionId, threadPriority);
     
-    instance_logger.info("###INSTANCE### Local Triangle Count : Completed: Triangles: " + to_string(result));    return result;
+    instance_logger.info("###INSTANCE### Local Triangle Count : Completed: Triangles: " + to_string(result));
+    
+    return result;
 }
 
 bool JasmineGraphInstanceService::isGraphDBExists(std::string graphId, std::string partitionId) {
