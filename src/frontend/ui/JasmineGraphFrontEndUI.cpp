@@ -86,7 +86,7 @@ static void get_degree_command(int connFd, std::string command, int numberOfPart
 static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClients,
                                int numberOfPartitions, bool *loop_exit, std::string command);
 static void get_properties_command(int connFd, bool *loop_exit_p);
-static void subscribe_uploaded_bytes_batch(int connFd,SQLiteDBInterface  *sqlite, bool  *loop_exit, std::string command);
+static void send_uploaded_bytes(int connFd,SQLiteDBInterface  *sqlite, bool  *loop_exit, std::string command);
 static vector<DataPublisher *> getWorkerClients(SQLiteDBInterface *sqlite) {
     const vector<Utils::worker> &workerList = Utils::getWorkerList(sqlite);
     vector<DataPublisher *> workerClients;
@@ -129,6 +129,7 @@ void *uifrontendservicesesion(void *dummyPt) {
     bool loop_exit = false;
     int failCnt = 0;
     while (!loop_exit) {
+        ui_frontend_logger.info("reading");
         std::string line = JasmineGraphFrontEndCommon::readAndProcessInput(connFd, data, failCnt);
         if (line.empty()) {
             continue;
@@ -166,6 +167,7 @@ void *uifrontendservicesesion(void *dummyPt) {
         } else if (token.compare(OUT_DEGREE) == 0) {
             get_degree_command(connFd, line, numberOfPartitions, "_odd_",  &loop_exit);
         } else if (token.compare(CYPHER) == 0) {
+
             workerClients = getWorkerClients(sqlite);
             workerClientsInitialized = true;
             cypher_ast_command(connFd, workerClients, numberOfPartitions, &loop_exit, line);
@@ -175,7 +177,7 @@ void *uifrontendservicesesion(void *dummyPt) {
         else if (line.compare(CONSTRUCT_KG) == 0) {
             JasmineGraphFrontEnd::constructKGStreamHDFSCommand( masterIP, connFd, numberOfPartitions, sqlite, &loop_exit);
         }else if (token.compare("UPBYTES") == 0) {
-           subscribe_uploaded_bytes_batch(connFd, sqlite, &loop_exit, line);
+           send_uploaded_bytes(connFd, sqlite, &loop_exit, line);
         } else {
             ui_frontend_logger.error("Message format not recognized " + line);
             int result_wr = write(connFd, INVALID_FORMAT.c_str(), INVALID_FORMAT.size());
@@ -366,7 +368,14 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
                         entry["status"] = "unknown";  // Handle invalid status
                     }
                 } else if (col_name == "vertexcount") {
-                    entry["vertexcount"] = std::stoi(col_value);
+                    if (!col_value.empty())
+                    {
+                        entry["vertexcount"] = std::stoi(col_value);
+                    }else
+                    {
+                        entry["vertexcount"] = 0;
+                    }
+
                 } else if (col_name == "edgecount") {
                     entry["edgecount"] = std::stoi(col_value);
                 } else if (col_name == "centralpartitioncount") {
@@ -422,10 +431,9 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
     ui_frontend_logger.debug("list_command: finished");
 }
 
-static void subscribe_uploaded_bytes_batch(int connFd,
-                                           SQLiteDBInterface *sqlite,
-                                           bool *loop_exit_p,
-                                           std::string command) {
+static void send_uploaded_bytes(int connFd,
+                                     SQLiteDBInterface *sqlite, bool *loop_exit,
+                                     std::string command) {
     char delimiter = '|';
     std::stringstream ss(command);
     std::string token;
@@ -434,68 +442,100 @@ static void subscribe_uploaded_bytes_batch(int connFd,
     // Skip "UPBYTES"
     std::getline(ss, token, delimiter);
 
-    // Collect all graph IDs
+    // Collect provided graph IDs
     while (std::getline(ss, token, delimiter)) {
         if (JasmineGraphFrontEndCommon::graphExistsByID(token, sqlite)) {
             graphIDs.push_back(token);
-            ui_frontend_logger.info("Subscribed to uploaded_bytes of graph id: " + token);
+            ui_frontend_logger.info("Will fetch uploaded_bytes of graph id: " + token);
         } else {
             ui_frontend_logger.warn("Graph ID " + token + " not found. Skipping.");
         }
     }
 
+    // Fetch all if none specified
     if (graphIDs.empty()) {
-        std::string errorMsg = "No valid graph IDs found";
-        write(connFd, errorMsg.c_str(), errorMsg.size());
-        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
-              Conts::CARRIAGE_RETURN_NEW_LINE.size());
-        *loop_exit_p = true;
-        return;
+        ui_frontend_logger.info("No graph IDs specified. Fetching all graphs.");
+        std::string sqlAll = "SELECT idgraph FROM graph";
+        auto result = sqlite->runSelect(sqlAll);
+        for (const auto &row : result) {
+            if (!row.empty()) {
+                graphIDs.push_back(row[0].second);
+            }
+        }
     }
 
-    // Background thread to push updates periodically
-    std::thread([connFd, sqlite, graphIDs]() {
-        while (true) {
-            std::string msg = "UPBYTES";
-            for (const auto &graphID : graphIDs) {
-                std::string sql = "SELECT uploaded_bytes, file_size_bytes FROM graph WHERE idgraph=" + graphID;
-                auto result = sqlite->runSelect(sql);
+    ui_frontend_logger.info("Fetching uploaded_bytes for " +
+                            std::to_string(graphIDs.size()) + " graph(s).");
 
-                std::string uploadedBytes = "0";
-                std::string fileSizeBytes = "0";
-                std::string percent = "0";
+    std::string msg = "UPBYTES";
 
-                if (!result.empty() && result[0].size() >= 2) {
-                    uploadedBytes = result[0][0].second;
-                    fileSizeBytes = result[0][1].second;
+    for (const auto &graphID : graphIDs) {
+        std::string sql =
+            "SELECT uploaded_bytes, file_size_bytes, edgecount, upload_start_time "
+            "FROM graph WHERE idgraph=" + graphID;
+        auto result = sqlite->runSelect(sql);
 
-                    try {
-                        long uploaded = std::stol(uploadedBytes);
-                        long total = std::stol(fileSizeBytes);
-                        if (total > 0) {
-                            percent = std::to_string((uploaded * 100) / total);
-                        }
-                    } catch (...) {
-                        ui_frontend_logger.error("Error converting uploaded/file_size to int for graph " + graphID);
-                    }
-                }
-
-                msg += "|" + graphID + "|" + uploadedBytes + "|" + fileSizeBytes + "|" + percent;
-            }
-
-            int wr = write(connFd, msg.c_str(), msg.size());
-            write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
-                  Conts::CARRIAGE_RETURN_NEW_LINE.size());
-
-            if (wr < 0) {
-                ui_frontend_logger.error("Client disconnected. Stopping UPBYTES stream.");
-                return; // exit thread
-            }
-
-            std::this_thread::sleep_for(std::chrono::seconds(5)); // polling interval
+        if (result.empty() || result[0].size() < 4) {
+            ui_frontend_logger.warn("No data found for graph " + graphID);
+            continue;
         }
-    }).detach();
+
+        double uploadedBytes = 0.0, fileSizeBytes = 0.0, edgeCount = 0.0;
+        std::string startTimeStr;
+
+        try {
+            uploadedBytes = stod(result[0][0].second);
+            fileSizeBytes = stod(result[0][1].second);
+            if (!result[0][2].second.empty())
+                edgeCount = stod(result[0][2].second);
+            startTimeStr = result[0][3].second;
+        } catch (std::exception &e) {
+            ui_frontend_logger.error(e.what());
+            continue;
+        }
+
+        double percent = (fileSizeBytes > 0) ? (uploadedBytes * 100.0) / fileSizeBytes : 0.0;
+
+        // Compute elapsed time from upload_start_time
+        double elapsedSeconds = 1.0; // default to avoid divide by zero
+        try {
+            std::tm tm_start = {};
+            std::istringstream ss(startTimeStr);
+            ss >> std::get_time(&tm_start, "%H:%M:%S"); // assuming TIME format in DB
+            auto startTime = std::chrono::system_clock::from_time_t(std::mktime(&tm_start));
+            elapsedSeconds = std::chrono::duration_cast<std::chrono::seconds>(
+                                 std::chrono::system_clock::now() - startTime)
+                                 .count();
+            if (elapsedSeconds <= 0) elapsedSeconds = 1.0;
+        } catch (...) {
+            ui_frontend_logger.warn("Failed to parse upload_start_time for graph " + graphID);
+        }
+
+        double bytesPerSecond = uploadedBytes / elapsedSeconds;
+        double triplesPerSecond = edgeCount / elapsedSeconds;
+
+        if (percent < 100.0) {
+            msg += "|" + graphID + "|" +
+                   std::to_string(uploadedBytes) + "|" +
+                   std::to_string(fileSizeBytes) + "|" +
+                   std::to_string(percent) + "|" +
+                   std::to_string(bytesPerSecond) + "|" +
+                   std::to_string(triplesPerSecond);
+        }
+    }
+
+    int wr = write(connFd, msg.c_str(), msg.size());
+    write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+          Conts::CARRIAGE_RETURN_NEW_LINE.size());
+
+    if (wr < 0) {
+        ui_frontend_logger.error("Client disconnected while sending UPBYTES.");
+    } else {
+        ui_frontend_logger.info("UPBYTES sent successfully.");
+    }
 }
+
+
 
 // Function to extract the file name from the URL
 std::string extractFileNameFromURL(const std::string& url) {

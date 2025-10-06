@@ -890,7 +890,7 @@ bool Pipeline::streamGraphToDesignatedWorker(std::string host, int port,
 
 
         try {
-            int completedBytes = std::stoi(msg);
+            double  completedBytes = std::stod(msg);
             // totalReceivedBytes += completedBytes;
             kg_pipeline_stream_handler_logger.info("Worker uploaded bytes: " + std::to_string(completedBytes));
 

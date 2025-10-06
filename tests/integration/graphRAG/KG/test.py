@@ -6,6 +6,10 @@ import logging
 import os
 import subprocess
 import random
+import time
+
+
+
 import requests
 from rapidfuzz import fuzz
 
@@ -45,7 +49,7 @@ REASONING_MODEL_URI = RUNNER_URLS[0] if RUNNER_URLS else None
 REASONING_MODEL_URI = f"http://{SERVER_IP}:11450"
 # LLM model to use
 # LLM_MODEL = "google/gemma-3-4b-it"
-LLM_MODEL = "gemma3:4b-it-qat"
+LLM_MODEL = " gemma3:12b"
 
 # LLM_INFERENCE_ENGINE="vllm"
 LLM_INFERENCE_ENGINE="ollama"
@@ -130,6 +134,7 @@ def send_file_to_master(hdfs_file_path):
             final = recv_until(sock, b"\n")
             logging.info("Master: " + final.strip())
             if final.strip().lower() == "done":
+                sock.sendall(b"exit" + LINE_END)
                 logging.info("✅ KG extraction completed successfully!")
             else:
                 logging.error("❌ Unexpected response from master: " + final)
@@ -155,6 +160,7 @@ def send_file_to_master(hdfs_file_path):
             final = recv_until(sock, b"\n")
             logging.info("Master: " + final.strip())
             if final.strip().lower() == "done":
+                sock.sendall(b"exit" + LINE_END)
                 logging.info("✅ KG extraction completed successfully!")
             else:
                 logging.error("❌ Unexpected response from master: " + final)
@@ -176,6 +182,8 @@ def get_last_graph_id():
             if not line or "done" in line:
                 break
             data.append(line.strip())
+        sock.sendall(b"exit" + b"\n")
+
 
     graph_ids = []
     for line in data:
@@ -291,7 +299,7 @@ def run_cypher_query(graph_id: str, query: str):
             rows.append(line)
 
         # Close Cypher session
-        # sock.sendall(b"" + LINE_END)
+        sock.sendall(b"exit" + LINE_END)
         # recv_until(sock, b"\n")
 
         return rows
@@ -341,6 +349,25 @@ def test_KG(llm_inference_engine_startup_script, text_folder , upload_file_scrip
             logging.error(f"Failed to upload {local_path} to HDFS: {e}")
             continue
 
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.connect((HOST, PORT))
+
+            while True:
+                sock.sendall(b"lst" + b"\n")
+
+                data = []
+                while True:
+                    line = recv_until(sock, b"\r\n")
+                    if not line or "done" in line:
+                        break
+                    data.append(line.strip())
+
+                graph_ids = []
+                print(data)
+                print( data[-1].split("|"))
+                if "nop" == data[-1].split("|")[4]:
+                    time.sleep(10)
+                else:break
         raw = run_cypher_query(str(graph_id), query)
         triples = parse_results(raw)
 

@@ -1909,7 +1909,7 @@ bool  JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, i
 
     std::string path = "hdfs:" + hdfsFilePathS;
     //
-    ino64_t total_file_size =  hdfsGetPathInfo(hdfsConnector->getFileSystem(), hdfsFilePathS.c_str())->mSize;
+    double_t total_file_size =  hdfsGetPathInfo(hdfsConnector->getFileSystem(), hdfsFilePathS.c_str())->mSize;
     std::time_t time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
     std::string uploadStartTime = ctime(&time);
 
