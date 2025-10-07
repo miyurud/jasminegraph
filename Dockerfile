@@ -1,5 +1,6 @@
 FROM miyurud/jasminegraph-prerequisites:20250930T172442
 
+RUN apt-get update && apt-get install -y libcurl4-openssl-dev sysstat nmon python3-setuptools
 RUN rm -r /usr/lib/python3.8/distutils
 RUN apt-get purge -y libpython3.8-dev python3.8-dev python3.8-distutils libpython3.8 python3.8
 
