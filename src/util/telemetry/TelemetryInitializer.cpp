@@ -20,7 +20,7 @@ void initializeOpenTelemetry(ServiceType serviceType) {
         std::string serviceName;
         std::string otlpEndpoint;
         bool useSimpleProcessor;
-        
+
         if (serviceType == ServiceType::MASTER) {
             std::cout << "Initializing OpenTelemetry for master..." << std::endl;
             serviceName = "jasminegraph-master";
@@ -32,21 +32,19 @@ void initializeOpenTelemetry(ServiceType serviceType) {
             otlpEndpoint = "http://172.28.5.1:4318/v1/traces";  // Host IP for worker containers
             useSimpleProcessor = true;   // Use SimpleProcessor for immediate export
         }
-        
+
         // Initialize with unified configuration
         OpenTelemetryUtil::initialize(
             serviceName,
             otlpEndpoint,
             "http://pushgateway:9091",  // Prometheus endpoint (optional)
-            useSimpleProcessor
-        );
-        
+            useSimpleProcessor);
+
         g_telemetry_enabled = true;
-        std::cout << "OpenTelemetry initialized successfully for " 
-                  << (serviceType == ServiceType::MASTER ? "master" : "worker") 
-                  << (useSimpleProcessor ? " with simple processor" : " with batch processor") 
+        std::cout << "OpenTelemetry initialized successfully for "
+                  << (serviceType == ServiceType::MASTER ? "master" : "worker")
+                  << (useSimpleProcessor ? " with simple processor" : " with batch processor")
                   << std::endl;
-        
     } catch (const std::exception& e) {
         std::cerr << "Failed to initialize OpenTelemetry: " << e.what() << std::endl;
         std::cerr << "Continuing without telemetry..." << std::endl;

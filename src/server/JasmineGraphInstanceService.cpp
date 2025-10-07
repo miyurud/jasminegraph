@@ -443,7 +443,7 @@ long countLocalTriangles(
 
     instance_logger.info("###INSTANCE### Local Triangle Count : Started: Graph ID " + graphId +
                          " Partition " + partitionId);
-    
+
     std::string graphIdentifier = graphId + "_" + partitionId;
     std::string centralGraphIdentifier = graphId + "_centralstore_" + partitionId;
     std::string duplicateCentralGraphIdentifier = graphId + "_centralstore_dp_" + partitionId;

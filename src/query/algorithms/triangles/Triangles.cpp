@@ -33,8 +33,8 @@ long Triangles::run(JasmineGraphHashMapLocalStore &graphDB, JasmineGraphHashMapC
 long Triangles::run(JasmineGraphHashMapLocalStore &graphDB, JasmineGraphHashMapCentralStore &centralStore,
                     JasmineGraphHashMapDuplicateCentralStore &duplicateCentralStore, std::string graphId,
                     std::string partitionId, int threadPriority) {
-    OTEL_TRACE_FUNCTION(); 
-    
+    OTEL_TRACE_FUNCTION();
+
     // Add worker identification for better tracing
     std::string workerInfo = "worker_" + graphId + "_partition_" + partitionId;
     triangle_logger.info("###TRIANGLE### " + workerInfo + " Triangle Counting: Started");
@@ -63,13 +63,17 @@ long Triangles::run(JasmineGraphHashMapLocalStore &graphDB, JasmineGraphHashMapC
     // Trace duplicate central store merge
     {
         ScopedTracer merge_duplicates("merge_duplicate_central_store_" + workerInfo);
-        for (auto centralDuplicateDBDegreeDistributionIterator = centralDuplicateDBDegreeDistribution.begin();
-             centralDuplicateDBDegreeDistributionIterator != centralDuplicateDBDegreeDistribution.end();
+        for (auto centralDuplicateDBDegreeDistributionIterator =
+                 centralDuplicateDBDegreeDistribution.begin();
+             centralDuplicateDBDegreeDistributionIterator !=
+                 centralDuplicateDBDegreeDistribution.end();
              ++centralDuplicateDBDegreeDistributionIterator) {
             long centralDuplicateDBStartVid = centralDuplicateDBDegreeDistributionIterator->first;
 
-            unordered_set<long> &centralDBSecondVertexSet = centralDBSubGraphMap[centralDuplicateDBStartVid];
-            const unordered_set<long> &duplicateSecondVertexSet = duplicateCentralDBSubGraphMap[centralDuplicateDBStartVid];
+            unordered_set<long> &centralDBSecondVertexSet =
+                centralDBSubGraphMap[centralDuplicateDBStartVid];
+            const unordered_set<long> &duplicateSecondVertexSet =
+                duplicateCentralDBSubGraphMap[centralDuplicateDBStartVid];
             unordered_set<long> result;
 
             std::set_difference(duplicateSecondVertexSet.begin(), duplicateSecondVertexSet.end(),

@@ -582,10 +582,10 @@ void TriangleCountExecutor::execute() {
             partitionCount++;
             partitionId = *partitionIterator;
             triangleCount_logger.info("> partition" + partitionId);
-            
+
             // Store worker task information for tracing
             workerTaskInfo.push_back(std::make_tuple(workerID, partitionId, host));
-            
+
             {
                 OTEL_TRACE_OPERATION("distribute_to_worker_" + workerID + "_partition_" + partitionId);
 
@@ -873,7 +873,7 @@ long TriangleCountExecutor::getTriangleCount(
                 triangleCount_logger.log("Sent : Trace Context " + traceContext, "info");
                 response = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
             }
-            
+
             triangleCount_logger.log("Got response : |" + response + "|", "info");
             triangleCount = atol(response.c_str());
         }

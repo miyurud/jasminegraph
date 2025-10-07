@@ -40,7 +40,7 @@ namespace context = telemetry::context;
  * and simplified metric recording. Replaces custom telemetry implementation.
  */
 class OpenTelemetryUtil {
-public:
+ public:
     /**
      * Initialize OpenTelemetry with OTLP exporters
      * @param service_name Name of the service for tracing
@@ -86,15 +86,16 @@ public:
      * @param context_str Serialized trace context
      */
     static void setTraceContext(const std::string& context_str);
-    
+
     /**
      * Receive and set trace context with validation and logging
      * @param trace_context The trace context string received from master
      * @param operation_name Name of the operation for logging (e.g., "triangle counting", "aggregation")
      * @return true if trace context was valid and set, false otherwise
      */
-    static bool receiveAndSetTraceContext(const std::string& trace_context, const std::string& operation_name = "operation");
-    
+    static bool receiveAndSetTraceContext(const std::string& trace_context,
+                                          const std::string& operation_name = "operation");
+
     /**
      * Add attribute to current active span
      * @param key Attribute key
@@ -115,7 +116,7 @@ public:
     static std::string service_name_;
     static nostd::shared_ptr<trace_api::TracerProvider> tracer_provider_;
     static nostd::shared_ptr<metrics_api::MeterProvider> meter_provider_;
-    
+
     // Thread-local storage for worker context management
     // Each worker thread gets its own context token and parent span
     static thread_local std::unique_ptr<context::Token> context_token_;
@@ -128,15 +129,15 @@ public:
  */
 class ScopedTracer {
  public:
-    ScopedTracer(const std::string& operation_name, 
+    ScopedTracer(const std::string& operation_name,
                  const std::map<std::string, std::string>& attributes = {});
-    
+
     ~ScopedTracer();
 
     // Add attributes during execution
     void addAttribute(const std::string& key, const std::string& value);
     void addAttributes(const std::map<std::string, std::string>& attributes);
-    
+
     // Set span status
     void setStatus(trace_api::StatusCode code, const std::string& description = "");
 

@@ -77,9 +77,8 @@ void OpenTelemetryUtil::initialize(const std::string& service_name,
         auto provider = trace_sdk::TracerProviderFactory::Create(std::move(processor), resource);
         tracer_provider_ = nostd::shared_ptr<trace_api::TracerProvider>(provider.release());
 
-                // Set the global trace provider
+                        // Set the global trace provider
         trace_api::Provider::SetTracerProvider(tracer_provider_);
-
     } catch (const std::exception& e) {
         std::cerr << "Failed to initialize OpenTelemetry OTLP exporter: " << e.what() << std::endl;
         std::cerr << "Falling back to console exporter..." << std::endl;
@@ -288,17 +287,17 @@ void OpenTelemetryUtil::setTraceContext(const std::string& context_str) {
         if (context_str.empty() || context_str == "NO_TRACE_CONTEXT") {
             return;
         }
-        
+
         // Parse W3C trace context format: version-trace_id-span_id-trace_flags
         std::vector<std::string> parts;
         std::string delimiter = "-";
         std::stringstream ss(context_str);
         std::string item;
-        
+
         while (std::getline(ss, item, '-')) {
             parts.push_back(item);
         }
-        
+
         if (parts.size() != 4) {
             return;  // Invalid trace context format
         }
@@ -308,17 +307,17 @@ void OpenTelemetryUtil::setTraceContext(const std::string& context_str) {
         const std::string& trace_id_str = parts[1];
         const std::string& span_id_str = parts[2];
         const std::string& flags_str = parts[3];
-        
+
         // Validate component lengths
         if (trace_id_str.length() != 32 || span_id_str.length() != 16 || version != "00") {
             return;  // Invalid trace context format
         }
 
         // Convert hex strings to byte arrays
-            std::array<uint8_t, 16> trace_id_bytes = {0};
-            std::array<uint8_t, 8> span_id_bytes = {0};
-            
-            // Parse trace_id (32 hex chars = 16 bytes)
+        std::array<uint8_t, 16> trace_id_bytes = {0};
+        std::array<uint8_t, 8> span_id_bytes = {0};
+
+        // Parse trace_id (32 hex chars = 16 bytes)
             for (size_t i = 0; i < 16 && i * 2 < trace_id_str.length(); ++i) {
                 std::string byte_str = trace_id_str.substr(i * 2, 2);
                 trace_id_bytes[i] = static_cast<uint8_t>(std::stoul(byte_str, nullptr, 16));
@@ -350,7 +349,6 @@ void OpenTelemetryUtil::setTraceContext(const std::string& context_str) {
             } else {
                 // Invalid span context created from trace context
             }
-
     } catch (const std::exception& e) {
         std::cerr << "Error setting trace context: " << e.what() << std::endl;
     }
