@@ -82,7 +82,7 @@ int main(int argc, char *argv[]) {
 
     if (mode == Conts::JASMINEGRAPH_RUNTIME_PROFILE_MASTER) {
         // Initialize OpenTelemetry for master process
-        initializeOpenTelemetry();
+        //initializeOpenTelemetry();
 
         std::string masterIp = argv[master_mode_args::MASTER_IP];
         int numberOfWorkers = atoi(argv[master_mode_args::NUMBER_OF_WORKERS]);
@@ -105,7 +105,7 @@ int main(int argc, char *argv[]) {
         main_logger.info(to_string(argc));
 
         // Initialize OpenTelemetry for worker process
-        initializeWorkerTelemetry();
+        //initializeWorkerTelemetry();
 
         if (argc < 8) {
             main_logger.info(
