@@ -74,6 +74,12 @@ class OpenTelemetryUtil {
     static void shutdown();
 
     /**
+     * Check if telemetry is enabled and initialized
+     * @return true if telemetry is initialized, false otherwise
+     */
+    static bool isEnabled();
+
+    /**
      * Get current trace context as string for propagation
      * @return Serialized trace context
      */

@@ -103,6 +103,12 @@ void OpenTelemetryUtil::initialize(const std::string& service_name,
 
 
 nostd::shared_ptr<trace_api::Tracer> OpenTelemetryUtil::getTracer(const std::string& tracer_name) {
+    // Check if telemetry is enabled and tracer provider is initialized
+    if (!isEnabled()) {
+        // Return a no-op tracer when telemetry is disabled
+        auto noop_provider = trace_api::Provider::GetTracerProvider();
+        return noop_provider->GetTracer("noop", OPENTELEMETRY_ABI_VERSION);
+    }
     return trace_api::Provider::GetTracerProvider()->GetTracer(tracer_name, OPENTELEMETRY_ABI_VERSION);
 }
 
@@ -111,6 +117,11 @@ nostd::shared_ptr<metrics_api::Meter> OpenTelemetryUtil::getMeter(const std::str
 }
 
 void OpenTelemetryUtil::shutdown() {
+    // Check if telemetry is initialized
+    if (!isTelemetryEnabled() || !tracer_provider_) {
+        return;
+    }
+    
     if (tracer_provider_) {
         // Flush traces before shutdown
 
@@ -146,10 +157,26 @@ void OpenTelemetryUtil::shutdown() {
     std::cout << "OpenTelemetry shutdown completed" << std::endl;
 }
 
+bool OpenTelemetryUtil::isEnabled() {
+    return tracer_provider_ != nullptr;
+}
+
+bool isTelemetryEnabled() {
+    return OpenTelemetryUtil::isEnabled();
+}
+
 // ScopedTracer Implementation
 ScopedTracer::ScopedTracer(const std::string& operation_name,
                           const std::map<std::string, std::string>& attributes)
     : operation_name_(operation_name), start_time_(std::chrono::steady_clock::now()) {
+
+    // Check if telemetry is enabled and properly initialized
+    if (!isTelemetryEnabled()) {
+        // Telemetry is disabled or not initialized, skip all OpenTelemetry operations
+        span_ = nullptr;
+        scope_ = nullptr;
+        return;
+    }
 
     // Create span with proper parent context
 
@@ -355,6 +382,11 @@ void OpenTelemetryUtil::setTraceContext(const std::string& context_str) {
 }
 
 bool OpenTelemetryUtil::receiveAndSetTraceContext(const std::string& trace_context, const std::string& operation_name) {
+    // Check if telemetry is enabled
+    if (!isTelemetryEnabled()) {
+        return false;
+    }
+    
     // Validate and set trace context if it's valid
     if (trace_context != "NO_TRACE_CONTEXT" && !trace_context.empty()) {
         setTraceContext(trace_context);
@@ -367,6 +399,11 @@ bool OpenTelemetryUtil::receiveAndSetTraceContext(const std::string& trace_conte
 }
 
 void OpenTelemetryUtil::addSpanAttribute(const std::string& key, const std::string& value) {
+    // Check if telemetry is enabled
+    if (!isTelemetryEnabled()) {
+        return;
+    }
+    
     try {
         // Get current context and span
         auto current_context = context::RuntimeContext::GetCurrent();

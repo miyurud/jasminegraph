@@ -67,17 +67,13 @@ void initializeWorkerTelemetry() {
 }
 
 /**
- * Check if telemetry is currently enabled
- */
-bool isTelemetryEnabled() {
-    return g_telemetry_enabled;
-}
-
-/**
  * Shutdown OpenTelemetry gracefully
  * This should be called before application exit in main.cpp
  */
 void shutdownOpenTelemetry() {
-    OpenTelemetryUtil::shutdown();
-    std::cout << "OpenTelemetry shutdown completed" << std::endl;
+    if (g_telemetry_enabled) {
+        OpenTelemetryUtil::shutdown();
+        g_telemetry_enabled = false;
+        std::cout << "OpenTelemetry shutdown completed" << std::endl;
+    }
 }
