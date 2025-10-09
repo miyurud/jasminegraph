@@ -77,7 +77,7 @@ long Triangles::run(JasmineGraphHashMapLocalStore &graphDB, JasmineGraphHashMapC
     auto mergeDur = mergeEnd - mergeBbegin;
     auto mergeMsDuration = std::chrono::duration_cast<std::chrono::milliseconds>(mergeDur).count();
 
-    triangle_logger.info(" Merge time Taken: " + std::to_string(mergeMsDuration) + " milliseconds");
+    triangle_logger.info(" Merge time Taken : " + std::to_string(mergeMsDuration) + " milliseconds");
 
     const TriangleResult &triangleResult = countTriangles(localSubGraphMap, degreeDistribution, false);
     return triangleResult.count;
