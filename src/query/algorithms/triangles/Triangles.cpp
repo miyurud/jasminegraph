@@ -61,7 +61,7 @@ long Triangles::run(JasmineGraphHashMapLocalStore &graphDB, JasmineGraphHashMapC
         }
     }
 
-    // Merging Local Store and Workers central stores before starting triangle count
+    // Merging Local Store and Workers central stores before starting triangle count-
     for (auto centralDBDegreeDistributionIterator = centralDBDegreeDistribution.begin();
          centralDBDegreeDistributionIterator != centralDBDegreeDistribution.end();
          ++centralDBDegreeDistributionIterator) {
@@ -77,7 +77,7 @@ long Triangles::run(JasmineGraphHashMapLocalStore &graphDB, JasmineGraphHashMapC
     auto mergeDur = mergeEnd - mergeBbegin;
     auto mergeMsDuration = std::chrono::duration_cast<std::chrono::milliseconds>(mergeDur).count();
 
-    triangle_logger.info(" Merge time Taken: " + std::to_string(mergeMsDuration) + " milliseconds");
+    triangle_logger.info(" Merge time Taken : " + std::to_string(mergeMsDuration) + " milliseconds");
 
     const TriangleResult &triangleResult = countTriangles(localSubGraphMap, degreeDistribution, false);
     return triangleResult.count;
