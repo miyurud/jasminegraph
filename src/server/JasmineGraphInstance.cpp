@@ -15,8 +15,6 @@ limitations under the License.
 
 #include "../util/Utils.h"
 #include "../util/logger/Logger.h"
-#include "../util/telemetry/TelemetryInitializer.h"
-#include "../util/telemetry/OpenTelemetryUtil.h"
 
 Logger graphInstance_logger;
 
@@ -37,12 +35,7 @@ void *runFileTransferService(void *dummyPt) {
 
 int JasmineGraphInstance::start_running(string hostName, string masterHost, int serverPort, int serverDataPort,
                                         string enableNmon) {
-    graphInstance_logger.info("Worker started on port " + std::to_string(serverPort));
-
-    // OpenTelemetry is already initialized globally in main.cpp
-    // No need to initialize again per worker to avoid duplicate traces
-    graphInstance_logger.info("Using global OpenTelemetry configuration for worker on port " +
-                             std::to_string(serverPort));
+    graphInstance_logger.info("Worker started");
 
     this->hostName = hostName;
     this->masterHostName = masterHost;
@@ -71,15 +64,6 @@ int JasmineGraphInstance::start_running(string hostName, string masterHost, int 
 
     pthread_join(instanceCommunicatorThread, NULL);
     pthread_join(instanceFileTransferThread, NULL);
-
-    // Shutdown OpenTelemetry gracefully
-    try {
-        OpenTelemetryUtil::shutdown();
-        graphInstance_logger.info("OpenTelemetry shutdown completed for worker on port " + std::to_string(serverPort));
-    } catch (const std::exception& e) {
-        graphInstance_logger.error("Error during OpenTelemetry shutdown: " + std::string(e.what()));
-    }
-
     return 0;
 }
 
