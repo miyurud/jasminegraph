@@ -61,7 +61,7 @@ long Triangles::run(JasmineGraphHashMapLocalStore &graphDB, JasmineGraphHashMapC
         }
     }
 
-    // Merging Local Store and Workers central stores before starting triangle count
+    // Merging Local Store and Workers central stores before starting triangle count-
     for (auto centralDBDegreeDistributionIterator = centralDBDegreeDistribution.begin();
          centralDBDegreeDistributionIterator != centralDBDegreeDistribution.end();
          ++centralDBDegreeDistributionIterator) {
