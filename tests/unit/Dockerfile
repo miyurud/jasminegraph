@@ -1,9 +1,10 @@
-FROM miyurud/jasminegraph-prerequisites:20241231T070657
+FROM miyurud/jasminegraph-prerequisites:20250930T172442
 
 RUN apt-get update
 RUN apt-get install libcurl4-openssl-dev -y
 RUN apt-get install -y sysstat
 RUN apt-get install -y nmon
+RUN apt-get install -y python3-setuptools
 
 RUN ln -sf /usr/bin/python3.8 /usr/bin/python3
 

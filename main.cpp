@@ -23,6 +23,7 @@ limitations under the License.
 #include "src/server/JasmineGraphInstance.h"
 #include "src/util/logger/Logger.h"
 #include "src/util/scheduler/SchedulerService.h"
+#include "src/util/telemetry/TelemetryInitializer.h"
 
 unsigned int microseconds = 10000000;
 JasmineGraphServer *server;
@@ -54,7 +55,10 @@ enum worker_mode_args {
     WORKER_ENABLE_NMON = 7
 };
 
-void fnExit3(void) { delete (server); }
+void fnExit3(void) {
+    shutdownOpenTelemetry();
+    delete (server);
+}
 
 int main(int argc, char *argv[]) {
     atexit(fnExit3);
@@ -77,6 +81,9 @@ int main(int argc, char *argv[]) {
     thread schedulerThread(SchedulerService::startScheduler);
 
     if (mode == Conts::JASMINEGRAPH_RUNTIME_PROFILE_MASTER) {
+        // Initialize OpenTelemetry for master process
+        initializeOpenTelemetry();
+
         std::string masterIp = argv[master_mode_args::MASTER_IP];
         int numberOfWorkers = atoi(argv[master_mode_args::NUMBER_OF_WORKERS]);
         std::string workerIps = argv[master_mode_args::WORKER_IPS];
@@ -96,6 +103,9 @@ int main(int argc, char *argv[]) {
         delete server;
     } else if (mode == Conts::JASMINEGRAPH_RUNTIME_PROFILE_WORKER) {
         main_logger.info(to_string(argc));
+
+        // Initialize OpenTelemetry for worker process
+        initializeWorkerTelemetry();
 
         if (argc < 8) {
             main_logger.info(
