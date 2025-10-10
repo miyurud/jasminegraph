@@ -39,17 +39,20 @@ spec:
         - name: jasminegraph-master
           image: jasminegraph
           imagePullPolicy: IfNotPresent
+          command: ["/bin/bash", "-c"]
+          # args:
+          #   [
+          #     "--MODE",
+          #     "1",
+          #     "--WORKERS",
+          #     "${no_of_workers}",
+          #     "--ENABLE_NMON",
+          #     "${enable_nmon}",
+          #     "--PROFILE",
+          #     "k8s"
+          #   ]
           args:
-            [
-              "--MODE",
-              "1",
-              "--WORKERS",
-              "${no_of_workers}",
-              "--ENABLE_NMON",
-              "${enable_nmon}",
-              "--PROFILE",
-              "k8s"
-            ]
+            - "/home/ubuntu/software/jasminegraph/JasmineGraph --MODE 1 --WORKERS ${no_of_workers} --ENABLE_NMON ${enable_nmon} --PROFILE k8s; tail -f /dev/null"
           ports:
             - containerPort: 7777
             - containerPort: 7778

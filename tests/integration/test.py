@@ -487,6 +487,7 @@ def test(host, port):
                                       'tests/integration/utils/expected_output/'
                                       'orderby_expected_output_file.txt',exit_on_failure=True)
 
+
         print()
         logging.info('[Cypher] Testing Undirected Relationship Type Scan')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
