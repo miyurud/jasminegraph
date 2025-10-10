@@ -118,7 +118,7 @@ nostd::shared_ptr<metrics_api::Meter> OpenTelemetryUtil::getMeter(const std::str
 
 void OpenTelemetryUtil::shutdown() {
     // Check if telemetry is initialized
-    if (!isTelemetryEnabled() || !tracer_provider_) {
+    if (!OpenTelemetryUtil::isEnabled() || !tracer_provider_) {
         return;
     }
     
@@ -161,17 +161,13 @@ bool OpenTelemetryUtil::isEnabled() {
     return tracer_provider_ != nullptr;
 }
 
-bool isTelemetryEnabled() {
-    return OpenTelemetryUtil::isEnabled();
-}
-
 // ScopedTracer Implementation
 ScopedTracer::ScopedTracer(const std::string& operation_name,
                           const std::map<std::string, std::string>& attributes)
     : operation_name_(operation_name), start_time_(std::chrono::steady_clock::now()) {
 
     // Check if telemetry is enabled and properly initialized
-    if (!isTelemetryEnabled()) {
+    if (!OpenTelemetryUtil::isEnabled()) {
         // Telemetry is disabled or not initialized, skip all OpenTelemetry operations
         span_ = nullptr;
         scope_ = nullptr;
@@ -383,7 +379,7 @@ void OpenTelemetryUtil::setTraceContext(const std::string& context_str) {
 
 bool OpenTelemetryUtil::receiveAndSetTraceContext(const std::string& trace_context, const std::string& operation_name) {
     // Check if telemetry is enabled
-    if (!isTelemetryEnabled()) {
+    if (!OpenTelemetryUtil::isEnabled()) {
         return false;
     }
     
@@ -400,7 +396,7 @@ bool OpenTelemetryUtil::receiveAndSetTraceContext(const std::string& trace_conte
 
 void OpenTelemetryUtil::addSpanAttribute(const std::string& key, const std::string& value) {
     // Check if telemetry is enabled
-    if (!isTelemetryEnabled()) {
+    if (!OpenTelemetryUtil::isEnabled()) {
         return;
     }
     
