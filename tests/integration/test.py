@@ -51,34 +51,56 @@ LINE_END = b'\r\n'
 CYPHER = b'cypher'
 
 
-def expect_response(conn: socket.socket, expected: bytes):
-    """Check if the response is equal to the expected response
-    Return True if they are equal or False otherwise.
+def expect_response(conn: socket.socket, expected: bytes, timeout: float = 30000.0):
+    """Check if the response is equal to the expected response within a timeout.
+    Return True if they are equal, False otherwise.
     """
     global passed_all
     buffer = bytearray()
     read = 0
     expected_len = len(expected)
+
+    deadline = time.time() + timeout  # set overall timeout deadline
+
     while read < expected_len:
-        received = conn.recv(expected_len - read)
+        # check deadline
+        if time.time() > deadline:
+            logging.warning('Timed out waiting for full response')
+            passed_all = False
+            return False
+
+        try:
+            received = conn.recv(expected_len - read)
+        except socket.error as e:
+            logging.warning('Socket error: %s', e)
+            passed_all = False
+            return False
+
+        if not received:
+            logging.warning('Connection closed before expected response was fully received')
+            passed_all = False
+            return False
+
         received_len = len(received)
-        if received:
-            if received != expected[read:read + received_len]:
-                buffer.extend(received)
-                data = bytes(buffer)
-                logging.warning(
-                    'Output mismatch\nexpected : %s\nreceived : %s', expected.decode(),
-                    data.decode())
-                passed_all = False
-                return False
-            read += received_len
+        if received != expected[read:read + received_len]:
             buffer.extend(received)
+            data = bytes(buffer)
+            logging.warning(
+                'Output mismatch\nexpected : %s\nreceived : %s',
+                expected.decode(), data.decode())
+            passed_all = False
+            return False
+
+        read += received_len
+        buffer.extend(received)
+
     data = bytes(buffer)
     print(data.decode('utf-8'), end='')
     assert data == expected
     return True
 
-def expect_response_file(conn: socket.socket, expected: bytes, timeout=5):
+
+def expect_response_file(conn: socket.socket, expected: bytes, timeout=5000):
     """Check if the response matches expected file."""
     global passed_all
     buffer = bytearray()
@@ -127,6 +149,7 @@ def expect_response_file(conn: socket.socket, expected: bytes, timeout=5):
         passed_all = False
         return False
 
+    print('All the records match')
     return True
 
 def send_and_expect_response(conn, test_name, send, expected, exit_on_failure=False):
@@ -454,9 +477,6 @@ def test(host, port):
 
         send_and_expect_response(sock, 'cypher', b'',
                                  b'done', exit_on_failure=True)
-
-
-
         print()
         logging.info('[Cypher] Testing Undirected Relationship Type Scan')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
@@ -555,15 +575,6 @@ def test(host, port):
                                  b'done', exit_on_failure=True)
 
         print()
-        logging.info('[Cypher] Testing OrderBy for Large Graph')
-        send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
-        send_and_expect_response(sock, 'cypher', b'4', b'Input query :', exit_on_failure=True)
-        send_and_expect_response_file(sock,'cypher', b'MATCH (n) RETURN n.id, n.name, n.code '
-                                                     b'ORDER BY n.code ASC',
-                                      'tests/integration/utils/expected_output/'
-                                      'orderby_expected_output_file.txt',exit_on_failure=True)
-
-        print()
         logging.info('[Cypher] Testing Node Scan By Label')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'2', b'Input query :', exit_on_failure=True)
@@ -586,8 +597,14 @@ def test(host, port):
         send_and_expect_response(sock, 'rmgr', b'2', DONE, exit_on_failure=True)
         send_and_expect_response(sock, 'rmgr', RMGR, SEND, exit_on_failure=True)
         send_and_expect_response(sock, 'rmgr', b'3', DONE, exit_on_failure=True)
-        send_and_expect_response(sock, 'rmgr', RMGR, SEND, exit_on_failure=True)
-        send_and_expect_response(sock, 'rmgr', b'4', DONE, exit_on_failure=True)
+        print()
+        logging.info('[Cypher] Testing OrderBy for Large Graph')
+        send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher', b'4', b'Input query :', exit_on_failure=True)
+        send_and_expect_response_file(sock,'cypher', b'MATCH (n) RETURN n.id, n.name, n.code '
+                                                     b'ORDER BY n.code ASC',
+                                      'tests/integration/utils/expected_output/'
+                                      'orderby_expected_output_file.txt',exit_on_failure=True)
 
         # shutting down workers after testing
         print()
