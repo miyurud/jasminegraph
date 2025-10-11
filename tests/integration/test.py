@@ -477,8 +477,6 @@ def test(host, port):
 
         send_and_expect_response(sock, 'cypher', b'',
                                  b'done', exit_on_failure=True)
-        
-        
         print()
         logging.info('[Cypher] Testing Undirected Relationship Type Scan')
         send_and_expect_response(sock, 'cypher', CYPHER, b'Graph ID:', exit_on_failure=True)
