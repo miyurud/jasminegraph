@@ -1,2 +1,2 @@
-hdfs.host=10.10.7.223
+hdfs.host=10.8.100.245
 hdfs.port=9000
