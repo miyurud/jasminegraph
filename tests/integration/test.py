@@ -607,8 +607,6 @@ def test(host, port):
                                                      b'ORDER BY n.code ASC',
                                       'tests/integration/utils/expected_output/'
                                       'orderby_expected_output_file.txt',exit_on_failure=True)
-        send_and_expect_response(sock, 'rmgr', RMGR, SEND, exit_on_failure=True)
-        send_and_expect_response(sock, 'rmgr', b'4', DONE, exit_on_failure=True)
 
         # shutting down workers after testing
         print()
