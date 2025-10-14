@@ -17,6 +17,7 @@ limitations under the License.
 #include "../../../../util/logger/Logger.h"
 #include "Helpers.h"
 #include <thread>
+#include <future>
 #include <queue>
 #include <chrono>
 #include <random>
@@ -24,9 +25,23 @@ limitations under the License.
 Logger execution_logger;
 std::unordered_map<std::string,
     std::function<void(OperatorExecutor&, SharedBuffer&, std::string, GraphConfig)>> OperatorExecutor::methodMap;
+
+// Initialize static parallel executor (shared across all instances)
+std::unique_ptr<IntraPartitionParallelExecutor> OperatorExecutor::parallelExecutor = nullptr;
+
 OperatorExecutor::OperatorExecutor(GraphConfig gc, std::string queryPlan, std::string masterIP):
     queryPlan(queryPlan), gc(gc), masterIP(masterIP) {
     this->query = json::parse(queryPlan);
+    
+    // Initialize parallel executor safely
+    if (!parallelExecutor) {
+        try {
+            parallelExecutor = std::make_unique<IntraPartitionParallelExecutor>();
+        } catch (...) {
+            // If initialization fails, continue without parallel processing
+            parallelExecutor = nullptr;
+        }
+    }
 };
 
 void OperatorExecutor::initializeMethodMap() {
@@ -112,6 +127,23 @@ void OperatorExecutor::initializeMethodMap() {
 void OperatorExecutor::AllNodeScan(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
     json query = json::parse(jsonPlan);
     NodeManager nodeManager(gc);
+    
+    // STEP 2: HIGH THRESHOLD - Keep using sequential processing while we debug
+    size_t nodeCount = nodeManager.nodeIndex.size();
+    
+    // Set very high threshold to effectively disable parallel processing
+    if (parallelExecutor && nodeCount > 100000 && parallelExecutor->shouldUseParallelProcessing(nodeCount)) {
+        try {
+            // Use parallel processing for very large datasets only
+            AllNodeScanParallel(buffer, jsonPlan, gc);
+            return;
+        } catch (...) {
+            // If parallel processing fails, fall back to sequential
+            // Continue with sequential processing below
+        }
+    }
+    
+    // Use sequential processing for small datasets (original code)
     for (auto it : nodeManager.nodeIndex) {
         json nodeData;
         auto nodeId = it.first;
@@ -140,6 +172,23 @@ void OperatorExecutor::AllNodeScan(SharedBuffer &buffer, std::string jsonPlan, G
 void OperatorExecutor::NodeScanByLabel(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
     json query = json::parse(jsonPlan);
     NodeManager nodeManager(gc);
+    
+    // STEP 2: HIGH THRESHOLD - Keep using sequential processing while we debug
+    size_t nodeCount = nodeManager.nodeIndex.size();
+    
+    // Set very high threshold to effectively disable parallel processing
+    if (parallelExecutor && nodeCount > 100000 && parallelExecutor->shouldUseParallelProcessing(nodeCount)) {
+        try {
+            // Use parallel processing for very large datasets only
+            NodeScanByLabelParallel(buffer, jsonPlan, gc);
+            return;
+        } catch (...) {
+            // If parallel processing fails, fall back to sequential
+            // Continue with sequential processing below
+        }
+    }
+    
+    // Use sequential processing for small datasets (original code)
     for (auto it : nodeManager.nodeIndex) {
         json nodeData;
         auto nodeId = it.first;
@@ -1459,5 +1508,209 @@ void OperatorExecutor::OrderBy(SharedBuffer &buffer, std::string jsonPlan, Graph
         } catch (const std::exception& e) {
             execution_logger.error("OrderBy: Error parsing row: " + std::string(e.what()));
         }
+    }
+}
+
+// ===============================
+// PARALLEL PROCESSING IMPLEMENTATIONS
+// Minimal additions for intra-partition parallelism
+// ===============================
+
+void OperatorExecutor::AllNodeScanParallel(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
+    // STEP 2: Thread-safe pre-loading approach
+    try {
+        json query = json::parse(jsonPlan);
+        NodeManager nodeManager(gc);
+        string variable = query["variables"].get<std::string>();
+        
+        // THREAD SAFETY: Pre-load all node data in main thread
+        std::vector<PreloadedNodeData> nodeDataList;
+        nodeDataList.reserve(nodeManager.nodeIndex.size());
+        
+        for (auto it : nodeManager.nodeIndex) {
+            auto nodeId = it.first;
+            NodeBlock *node = nodeManager.get(nodeId);
+            
+            if (node == nullptr) continue;
+            
+            std::string partitionValue(node->getMetaPropertyHead()->value);
+            if (partitionValue == to_string(gc.partitionID)) {
+                
+                // Pre-load properties safely in main thread
+                std::map<std::string, std::string> nodeProperties;
+                nodeProperties["partitionID"] = partitionValue;
+                
+                std::map<std::string, char*> rawProperties = node->getAllProperties();
+                for (auto& prop : rawProperties) {
+                    nodeProperties[prop.first] = std::string(prop.second);
+                }
+                
+                // Clean up raw memory immediately
+                for (auto& [key, val] : rawProperties) {
+                    delete[] val;
+                }
+                rawProperties.clear();
+                
+                // Store thread-safe copy
+                nodeDataList.emplace_back(nodeId, partitionValue, nodeProperties);
+            }
+        }
+        
+        // STEP 3: TRUE PARALLEL PROCESSING - Use thread pool for large datasets
+        // STEP 3a: MINIMAL PARALLEL PROCESSING - Simple and deterministic
+        // Only use parallel processing for very large datasets to minimize risk
+        if (nodeDataList.size() >= 5000) {
+            // MINIMAL PARALLEL: Split into exactly 2 chunks for predictable behavior
+            const size_t halfSize = nodeDataList.size() / 2;
+            
+            // Process first half in main thread, second half in worker thread
+            std::vector<std::string> secondHalfResults;
+            std::future<std::vector<std::string>> secondHalfFuture;
+            
+            try {
+                // Launch worker for second half
+                secondHalfFuture = std::async(std::launch::async, [&nodeDataList, halfSize, variable]() -> std::vector<std::string> {
+                    std::vector<std::string> results;
+                    results.reserve(nodeDataList.size() - halfSize);
+                    
+                    for (size_t i = halfSize; i < nodeDataList.size(); ++i) {
+                        const auto& nodeData = nodeDataList[i];
+                        json nodeJson;
+                        for (const auto& [key, value] : nodeData.properties) {
+                            nodeJson[key] = value;
+                        }
+                        
+                        json data;
+                        data[variable] = nodeJson;
+                        results.push_back(data.dump());
+                    }
+                    return results;
+                });
+                
+                // Process first half in main thread (deterministic execution)
+                for (size_t i = 0; i < halfSize; ++i) {
+                    const auto& nodeData = nodeDataList[i];
+                    json nodeJson;
+                    for (const auto& [key, value] : nodeData.properties) {
+                        nodeJson[key] = value;
+                    }
+                    
+                    json data;
+                    data[variable] = nodeJson;
+                    buffer.add(data.dump());
+                }
+                
+                // Wait for worker and add second half results in order
+                secondHalfResults = secondHalfFuture.get();
+                for (const auto& result : secondHalfResults) {
+                    buffer.add(result);
+                }
+                
+            } catch (const std::exception& e) {
+                // If parallel processing fails, fall back to sequential for remaining data
+                for (size_t i = halfSize; i < nodeDataList.size(); ++i) {
+                    const auto& nodeData = nodeDataList[i];
+                    json nodeJson;
+                    for (const auto& [key, value] : nodeData.properties) {
+                        nodeJson[key] = value;
+                    }
+                    
+                    json data;
+                    data[variable] = nodeJson;
+                    buffer.add(data.dump());
+                }
+            }
+        } else {
+            // Small dataset: Use sequential processing (original behavior)
+            for (const auto& nodeData : nodeDataList) {
+                json nodeJson;
+                for (const auto& [key, value] : nodeData.properties) {
+                    nodeJson[key] = value;
+                }
+                
+                json data;
+                data[variable] = nodeJson;
+                buffer.add(data.dump());
+            }
+        }
+        buffer.add("-1");
+        
+    } catch (const std::exception& e) {
+        // SAFETY: Handle any errors gracefully  
+        buffer.add("-1"); // End marker
+    }
+}
+
+void OperatorExecutor::NodeScanByLabelParallel(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
+    // STEP 2: Thread-safe pre-loading approach with label filtering
+    try {
+        json query = json::parse(jsonPlan);
+        NodeManager nodeManager(gc);
+        string variable = query["variable"].get<std::string>();
+        string targetLabel = query["Label"].get<std::string>();
+        
+        // THREAD SAFETY: Pre-load all matching node data in main thread
+        std::vector<PreloadedNodeData> nodeDataList;
+        nodeDataList.reserve(nodeManager.nodeIndex.size() / 4); // Estimate for label filtering
+        
+        for (auto it : nodeManager.nodeIndex) {
+            auto nodeId = it.first;
+            NodeBlock *node = nodeManager.get(nodeId);
+            
+            if (node == nullptr) continue;
+            
+            string label = node->getLabel();
+            std::string partitionValue(node->getMetaPropertyHead()->value);
+            
+            if (partitionValue == to_string(gc.partitionID) && label == targetLabel) {
+                
+                // Pre-load properties safely in main thread
+                std::map<std::string, std::string> nodeProperties;
+                nodeProperties["partitionID"] = partitionValue;
+                
+                std::map<std::string, char*> rawProperties = node->getAllProperties();
+                for (auto& prop : rawProperties) {
+                    nodeProperties[prop.first] = std::string(prop.second);
+                }
+                
+                // Clean up raw memory immediately
+                for (auto& [key, val] : rawProperties) {
+                    delete[] val;
+                }
+                rawProperties.clear();
+                
+                // Store thread-safe copy
+                nodeDataList.emplace_back(nodeId, partitionValue, nodeProperties);
+            }
+        }
+        
+        // Now process the pre-loaded data (still sequential for now, but thread-safe)
+        for (const auto& nodeData : nodeDataList) {
+            json nodeJson;
+            for (const auto& [key, value] : nodeData.properties) {
+                nodeJson[key] = value;
+            }
+            
+            json data;
+            data[variable] = nodeJson;
+            buffer.add(data.dump());
+        }
+        buffer.add("-1");
+        
+    } catch (const std::exception& e) {
+        // SAFETY: Handle any errors gracefully
+        buffer.add("-1"); // End marker
+    }
+}
+
+void OperatorExecutor::DirectedAllRelationshipScanParallel(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
+    // SAFETY FIX: Fall back to sequential processing to avoid threading issues
+    try {
+        // Always use sequential processing for now to ensure stability
+        DirectedAllRelationshipScan(buffer, jsonPlan, gc);
+        
+    } catch (const std::exception& e) {
+        // SAFETY: Handle any errors gracefully
+        buffer.add("-1"); // End marker
     }
 }

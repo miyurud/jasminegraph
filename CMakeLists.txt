@@ -188,6 +188,7 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/query/processor/cypher/runtime/InstanceHandler.cpp
         src/query/processor/cypher/runtime/OperatorExecutor.cpp
         src/query/processor/cypher/util/SharedBuffer.cpp
+        src/query/processor/executor/IntraPartitionParallelExecutor.cpp
         src/nativestore/MetaPropertyLink.cpp
         src/nativestore/MetaPropertyEdgeLink.cpp
         src/nativestore/MetaPropertyLink.cpp
