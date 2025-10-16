@@ -2067,3 +2067,62 @@ string Utils:: canonicalize(const std::string& input) {
 
     return result;
 }
+
+std::string Utils::normalizeURL(const std::string &server, const std::string &path = "") {
+    std::string url = server;
+
+    // Trim leading/trailing spaces (optional)
+    auto trim = [](std::string s) {
+        s.erase(0, s.find_first_not_of(" \t\r\n"));
+        s.erase(s.find_last_not_of(" \t\r\n") + 1);
+        return s;
+    };
+    url = trim(url);
+
+    // If protocol not provided, prepend "http://"
+    if (!(url.rfind("http://", 0) == 0 || url.rfind("https://", 0) == 0)) {
+        url = "http://" + url;
+    }
+
+    // Ensure we only append path if non-empty
+    if (!path.empty()) {
+        // Avoid double slashes
+        if (url.back() == '/' && path.front() == '/') {
+            url.pop_back();
+        } else if (url.back() != '/' && path.front() != '/') {
+            url += '/';
+        }
+        url += path;
+    }
+
+    return url;
+}
+
+
+std::vector<std::string> Utils::getUniqueLLMRunners(const std::string &hostnamePortS) {
+    std::vector<std::string> llmRunnerSockets;
+    std::unordered_set<std::string> seen;
+    std::stringstream ss(hostnamePortS);
+    std::string token;
+
+    while (std::getline(ss, token, ',')) {
+        // Trim spaces
+        token.erase(0, token.find_first_not_of(" \t\r\n"));
+        token.erase(token.find_last_not_of(" \t\r\n") + 1);
+
+        // Skip empty entries
+        if (token.empty()) continue;
+
+        // Convert to lowercase for case-insensitive uniqueness (optional)
+        std::string key = token;
+        std::transform(key.begin(), key.end(), key.begin(), ::tolower);
+
+        if (seen.find(key) == seen.end()) {
+            seen.insert(key);
+            llmRunnerSockets.push_back(token);
+        }
+    }
+
+    return llmRunnerSockets;
+}
+

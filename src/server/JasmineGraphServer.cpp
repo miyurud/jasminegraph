@@ -462,7 +462,7 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                         "/var/tmp/jasminegraph/logs" + " -p " + std::to_string(workerPortsVector.at(i)) + ":" +
                         std::to_string(workerPortsVector.at(i)) + " -p " + std::to_string(workerDataPortsVector.at(i)) +
                         ":" + std::to_string(workerDataPortsVector.at(i)) + " -e WORKER_ID=" + to_string(i) +
-                        " jasminegraph:latest --MODE 2 --HOST_NAME " + host + " --MASTERIP " + masterHost +
+                        "  parameswaransajeenthiran/jasminegraph:latest --MODE 2 --HOST_NAME " + host + " --MASTERIP " + masterHost +
                         " --SERVER_PORT " + std::to_string(workerPortsVector.at(i)) + " --SERVER_DATA_PORT " +
                         std::to_string(workerDataPortsVector.at(i)) + " --ENABLE_NMON " + enableNmon;
                 }
@@ -484,7 +484,7 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                         "/var/tmp/jasminegraph/logs" + " -p " + std::to_string(workerPortsVector.at(i)) + ":" +
                         std::to_string(workerPortsVector.at(i)) + " -p " + std::to_string(workerDataPortsVector.at(i)) +
                         ":" + std::to_string(workerDataPortsVector.at(i)) + " -e WORKER_ID=" + to_string(i) +
-                        " jasminegraph:latest --MODE 2 --HOST_NAME " + host + " --MASTERIP " + masterHost +
+                        "  parameswaransajeenthiran/jasminegraph:latest --MODE 2 --HOST_NAME " + host + " --MASTERIP " + masterHost +
                         " --SERVER_PORT " + std::to_string(workerPortsVector.at(i)) + " --SERVER_DATA_PORT " +
                         std::to_string(workerDataPortsVector.at(i)) + " --ENABLE_NMON " + enableNmon;
                 }
@@ -492,7 +492,6 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
             const char *serverStartCmd = serverStartScript.c_str();
             pid_t child = fork();
             if (child == 0) {
-                server_logger.info("###MASTER#### pulling image");
 
                 execl("/bin/sh", "sh", "-c", serverStartCmd, nullptr);
                 _exit(1);

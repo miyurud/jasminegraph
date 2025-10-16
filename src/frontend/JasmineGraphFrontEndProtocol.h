@@ -64,6 +64,7 @@ extern const string ADD_STREAM;
 extern const string ADD_STREAM_KAFKA;
 extern const string ADD_STREAM_HDFS;
 extern const string CONSTRUCT_KG;
+extern const string  STOP_CONSTRUCT_KG;
 extern const string STRM_ACK;
 extern const string ADD_STREAM_KAFKA;
 extern const string STREAM_TOPIC_NAME;

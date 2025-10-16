@@ -99,7 +99,7 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
                                         {"source", {
                                             {"id", subject_id},
                                             {"properties", {
-                                                {"id", subject},
+                                                {"id", subject_id},
                                                 {"label", subject_type},
                                                 {"name", subject}
                                             }}
@@ -107,7 +107,7 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
                                         {"destination", {
                                             {"id", object_id},
                                             {"properties", {
-                                                {"id", object},
+                                                {"id", object_id},
                                                 {"label", object_type},
                                                 {"name", object}
                                             }}
@@ -118,6 +118,7 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
                                             {"description", subject + " " + predicate + " " + object}
                                         }}
                                     };
+                                    // check termination
 
                                     ctx->buffer->add(formattedTriple.dump());
                                     ollama_tuple_streamer_logger.debug(

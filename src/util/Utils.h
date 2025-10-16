@@ -206,6 +206,8 @@ class Utils {
                                int edgeCount, int centralEdgeCount);
     static float cosineSimilarity(const std::vector<float>& a, const std::vector<float>& b);
     static  string canonicalize(const std::string& input);
+    static std::string normalizeURL(const std::string& server, const std::string& path);
+    static std::vector<std::string> getUniqueLLMRunners(const std::string& hostnamePortS);
     static bool sendIntExpectResponse(int sockfd, char *data, size_t data_length,
                                       int value, std::string expectMsg);
 

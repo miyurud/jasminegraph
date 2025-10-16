@@ -132,7 +132,7 @@ void *uifrontendservicesesion(void *dummyPt) {
         ui_frontend_logger.info("reading");
         std::string line = JasmineGraphFrontEndCommon::readAndProcessInput(connFd, data, failCnt);
         if (line.empty()) {
-            continue;
+            break;
         }
         ui_frontend_logger.info("Command received: " + line);
         if (line.empty()) {
@@ -176,7 +176,12 @@ void *uifrontendservicesesion(void *dummyPt) {
         }
         else if (line.compare(CONSTRUCT_KG) == 0) {
             JasmineGraphFrontEnd::constructKGStreamHDFSCommand( masterIP, connFd, numberOfPartitions, sqlite, &loop_exit);
-        }else if (token.compare("UPBYTES") == 0) {
+        }
+        else if (line.compare(STOP_CONSTRUCT_KG) == 0) {
+            JasmineGraphFrontEnd::stop_graph_streaming(connFd ,  &loop_exit) ;
+        }
+
+        else if (token.compare("UPBYTES") == 0) {
            send_uploaded_bytes(connFd, sqlite, &loop_exit, line);
         } else {
             ui_frontend_logger.error("Message format not recognized " + line);
@@ -377,9 +382,19 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
                     }
 
                 } else if (col_name == "edgecount") {
-                    entry["edgecount"] = std::stoi(col_value);
+                    if (!col_value.empty())
+                    {
+                        entry["edgecount"] = std::stoi(col_value);
+                    } else {
+                        entry["edgecount"] = 0;
+                    }
                 } else if (col_name == "centralpartitioncount") {
-                    entry["centralpartitioncount"] = std::stoi(col_value);
+                    if (!col_value.empty())
+                    {
+                        entry["centralpartitioncount"] = std::stoi(col_value);
+                    } else {
+                        entry["centralpartitioncount"] = 0;
+                    }
                 }else if (col_name == "upload_start_time") {
                     entry["upload_start_time"] = std::stoi(col_value);
                 }
@@ -471,7 +486,7 @@ static void send_uploaded_bytes(int connFd,
 
     for (const auto &graphID : graphIDs) {
         std::string sql =
-            "SELECT uploaded_bytes, file_size_bytes, edgecount, upload_start_time "
+            "SELECT uploaded_bytes, file_size_bytes, edgecount, upload_start_time, upload_path "
             "FROM graph WHERE idgraph=" + graphID;
         auto result = sqlite->runSelect(sql);
 
@@ -481,11 +496,13 @@ static void send_uploaded_bytes(int connFd,
         }
 
         double uploadedBytes = 0.0, fileSizeBytes = 0.0, edgeCount = 0.0;
+
         std::string startTimeStr;
 
         try {
             uploadedBytes = stod(result[0][0].second);
             fileSizeBytes = stod(result[0][1].second);
+
             if (!result[0][2].second.empty())
                 edgeCount = stod(result[0][2].second);
             startTimeStr = result[0][3].second;
@@ -493,7 +510,7 @@ static void send_uploaded_bytes(int connFd,
             ui_frontend_logger.error(e.what());
             continue;
         }
-
+        std::string upload_path = result[0][4].second;
         double percent = (fileSizeBytes > 0) ? (uploadedBytes * 100.0) / fileSizeBytes : 0.0;
 
         // Compute elapsed time from upload_start_time
@@ -510,6 +527,8 @@ static void send_uploaded_bytes(int connFd,
         } catch (...) {
             ui_frontend_logger.warn("Failed to parse upload_start_time for graph " + graphID);
         }
+        ui_frontend_logger.info("elapsed time: " + std::to_string(elapsedSeconds));
+        ui_frontend_logger.info("edge count: " + std::to_string(elapsedSeconds));
 
         double bytesPerSecond = uploadedBytes / elapsedSeconds;
         double triplesPerSecond = edgeCount / elapsedSeconds;
@@ -519,8 +538,10 @@ static void send_uploaded_bytes(int connFd,
                    std::to_string(uploadedBytes) + "|" +
                    std::to_string(fileSizeBytes) + "|" +
                    std::to_string(percent) + "|" +
-                   std::to_string(bytesPerSecond) + "|" +
-                   std::to_string(triplesPerSecond);
+                   std::to_string(JasmineGraphFrontEnd::kgConstructionRates[stoi(graphID)]->bytesPerSecond) + "|" +
+                   std::to_string(JasmineGraphFrontEnd::kgConstructionRates[stoi(graphID)]->triplesPerSecond) + "|" +
+                    startTimeStr;
+
         }
     }
 

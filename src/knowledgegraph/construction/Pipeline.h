@@ -13,8 +13,12 @@
 
 #include "../../server/JasmineGraphServer.h"
 
-class SQLiteDBInterface;
 
+struct Chunk {
+    std::string doc_id;
+    std::string text;
+    int64_t chunk_size;
+};
 class Pipeline {
 public:
     Pipeline(hdfsFS fileSystem, const std::string &filePath, int numberOfPartitions, int graphId,
@@ -24,10 +28,11 @@ public:
              vector<JasmineGraphServer::worker>& workerList, std::vector<std::string> llmRunners,std::string llmInferenceEngine, std::string llm ,string chunkSize, std::string chunksPerBatch, long startFromBytes);
     void init();
     void startStreamingFromBufferToPartitions();
+
     static bool streamGraphToDesignatedWorker(std::string host, int port, std::string masterIP, std::string graphId, int numberOfPartitions, std::string hdfsServerIp,
                                               std::string hdfsPort, std::string hostnamePort, std::string llmInferenceEngine,
                                               std::string llm, std::string chunkSize, std::string hdfsFilePath, bool continueKGConstruction, SQLiteDBInterface*
-                                              sqlite);
+                                              sqlite, shared_ptr<atomic<bool>>& stopFlag, shared_ptr<KGConstructionRate>& kgConstructionRates);
 
 
 private:
@@ -38,16 +43,18 @@ private:
     json processTupleAndSaveInPartition(const std::vector<std::unique_ptr<SharedBuffer>>& tupleBuffer);
     void extractTuples(std::string host, int port, std::string masterIP, int graphID, int partitionId,
 
-                       std::queue<std::string>& dataBuffer, SharedBuffer& sharedBuffer);
+                       std::queue<Chunk>& dataBuffer, SharedBuffer& sharedBuffer);
 
 
 
     hdfsFS fileSystem;
 
     std::string filePath;
-    std::queue<std::string> dataBuffer;
+    std::queue<Chunk> dataBuffer;
 
     std::mutex dataBufferMutex;
+    std::mutex realTimeBytesMutex;
+    std::mutex realTimeBytesUpdateMutex;
     std::mutex dataBufferMutexForWorker;
     std::condition_variable dataBufferCV;
 
@@ -69,7 +76,9 @@ private:
     long startFromBytes;
     std:: string chunkSize;
     std::string chunksPerBatch;
-    int64_t bytes_read_so_far = 0;
+     int64_t  bytes_read_so_far = 0;
+   int64_t  realtime_bytes_read_so_far = 0;
+    bool stopFlag = false;
 
 };
 
@@ -89,10 +98,7 @@ private:
 };
 
 // ---------- Simple data structures ----------
-struct Chunk {
-    std::string doc_id;
-    std::string text;
-};
+
 
 struct Triple {
     std::string src;

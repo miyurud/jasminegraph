@@ -3347,6 +3347,7 @@ static void streaming_tuple_extraction(int connFd, int serverPort,
 
     while (true) {
         std::string command = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+
         if (command == JasmineGraphInstanceProtocol::CHUNK_STREAM_END) {
             Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK);
             break;
@@ -3380,7 +3381,7 @@ static void streaming_tuple_extraction(int connFd, int serverPort,
 
        };
        instance_logger.info("3200");
-         int idleTimeoutSec = 24000; // e.g., break if no tuple for 30s
+         int idleTimeoutSec = 120; // e.g., break if no tuple for 30s
 
         while (true) {
             auto optTupleData = tupleBuffer.getWithTimeout(idleTimeoutSec);
@@ -3409,7 +3410,16 @@ static void streaming_tuple_extraction(int connFd, int serverPort,
 
             // instance_logger.debug("3208 : " + tupleData);
             Utils::send_str_wrapper(connFd, tupleData);
-            Utils::expect_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS);
+            char ack1[FED_DATA_LENGTH + 1];
+
+            string response =  Utils::read_str_wrapper(connFd, ack1, FED_DATA_LENGTH);
+           if (response== "stop")
+           {
+               tupleBuffer.clear();
+                 break;
+           }
+
+            // Utils::expect_str_wrapper(connFd, JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS);
 
             if (tupleData == "-1") {
                 instance_logger.info("Received end signal from producer");

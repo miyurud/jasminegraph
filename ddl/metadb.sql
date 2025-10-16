@@ -55,12 +55,13 @@ create table model
 create table partition
 (
     idpartition                 INTEGER not null,
-    graph_idgraph               INTEGER,
+    graph_idgraph               INTEGER not null,
     vertexcount                 INTEGER,
     central_vertexcount         INTEGER,
     edgecount                   INTEGER,
     central_edgecount           INTEGER,
-    central_edgecount_with_dups INTEGER
+    central_edgecount_with_dups INTEGER,
+    PRIMARY KEY (idpartition, graph_idgraph)
 );
 
 create table worker
