@@ -46,7 +46,6 @@ void OpenTelemetryUtil::initialize(const std::string& service_name,
                                   const std::string& otlp_endpoint,
                                   const std::string& prometheus_endpoint,
                                   bool useSimpleProcessor) {
-    
     // Check if already initialized or shutdown
     if (g_initialized.load() || g_shutdown.load()) {
         std::cout << "OpenTelemetry already initialized or shutdown, skipping initialization" << std::endl;
@@ -91,7 +90,7 @@ void OpenTelemetryUtil::initialize(const std::string& service_name,
 
         // Set the global trace provider
         trace_api::Provider::SetTracerProvider(tracer_provider_);
-        
+
         std::cout << "OpenTelemetry OTLP initialization completed successfully" << std::endl;
     } catch (const std::exception& e) {
         std::cerr << "Failed to initialize OpenTelemetry OTLP exporter: " << e.what() << std::endl;
@@ -113,7 +112,6 @@ void OpenTelemetryUtil::initialize(const std::string& service_name,
 
         std::cout << "OpenTelemetry fallback initialization completed with console output" << std::endl;
     }
-    
     // Mark as initialized
     g_initialized.store(true);
     std::cout << "OpenTelemetry initialization completed" << std::endl;
@@ -206,13 +204,12 @@ void OpenTelemetryUtil::shutdown() {
         }
 
         service_name_.clear();
-        
+
         // Mark as shutdown
         g_shutdown.store(true);
         g_initialized.store(false);
-        
-        std::cout << "OpenTelemetry shutdown completed" << std::endl;
 
+        std::cout << "OpenTelemetry shutdown completed" << std::endl;
     } catch (const std::exception& e) {
         std::cerr << "Critical error during OpenTelemetry shutdown: " << e.what() << std::endl;
     } catch (...) {
