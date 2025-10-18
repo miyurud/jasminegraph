@@ -296,7 +296,6 @@ ScopedTracer::ScopedTracer(const std::string& operation_name,
         } catch (...) {
             // If scope creation fails, span is still valid for timing
         }
-
     } catch (...) {
         // Ultimate safety net - ensure we don't crash on construction
         span_ = nullptr;
