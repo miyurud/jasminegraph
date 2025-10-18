@@ -76,7 +76,8 @@ int JasmineGraphInstance::start_running(string hostName, string masterHost, int 
     try {
         if (isTelemetryEnabled()) {
             OpenTelemetryUtil::shutdown();
-            graphInstance_logger.info("OpenTelemetry shutdown completed for worker on port " + std::to_string(serverPort));
+            graphInstance_logger.info("OpenTelemetry shutdown completed for worker on port " +
+                                      std::to_string(serverPort));
         }
     } catch (const std::exception& e) {
         graphInstance_logger.error("Error during OpenTelemetry shutdown: " + std::string(e.what()));

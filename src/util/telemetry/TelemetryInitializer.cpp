@@ -20,19 +20,19 @@ void initializeOpenTelemetry(ServiceType serviceType) {
     const char* disableTelemetry = std::getenv("DISABLE_TELEMETRY");
     const char* testMode = std::getenv("TEST_MODE");
     const char* testing = std::getenv("TESTING");
-    
+
     if (disableTelemetry && std::string(disableTelemetry) == "true") {
         std::cout << "OpenTelemetry disabled via DISABLE_TELEMETRY environment variable" << std::endl;
         g_telemetry_enabled = false;
         return;
     }
-    
+
     if (testMode && std::string(testMode) == "true") {
         std::cout << "OpenTelemetry disabled in test mode" << std::endl;
         g_telemetry_enabled = false;
         return;
     }
-    
+
     if (testing && std::string(testing) == "true") {
         std::cout << "OpenTelemetry disabled in testing environment" << std::endl;
         g_telemetry_enabled = false;

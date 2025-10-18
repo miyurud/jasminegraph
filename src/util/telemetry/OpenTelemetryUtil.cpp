@@ -121,7 +121,7 @@ void OpenTelemetryUtil::shutdown() {
     if (!OpenTelemetryUtil::isEnabled() || !tracer_provider_) {
         return;
     }
-    
+
     if (tracer_provider_) {
         // Flush traces before shutdown
 
@@ -382,7 +382,7 @@ bool OpenTelemetryUtil::receiveAndSetTraceContext(const std::string& trace_conte
     if (!OpenTelemetryUtil::isEnabled()) {
         return false;
     }
-    
+
     // Validate and set trace context if it's valid
     if (trace_context != "NO_TRACE_CONTEXT" && !trace_context.empty()) {
         setTraceContext(trace_context);
@@ -399,7 +399,7 @@ void OpenTelemetryUtil::addSpanAttribute(const std::string& key, const std::stri
     if (!OpenTelemetryUtil::isEnabled()) {
         return;
     }
-    
+
     try {
         // Get current context and span
         auto current_context = context::RuntimeContext::GetCurrent();
