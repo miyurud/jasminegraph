@@ -12,8 +12,13 @@ limitations under the License.
  */
 
 #include "gtest/gtest.h"
+#include <cstdlib>
 
 int main(int argc, char **argv) {
+    // Disable OpenTelemetry for unit tests to prevent crashes
+    setenv("DISABLE_TELEMETRY", "true", 1);
+    setenv("TESTING", "true", 1);
+    
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

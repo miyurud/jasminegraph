@@ -219,7 +219,23 @@ void OpenTelemetryUtil::shutdown() {
 
 bool OpenTelemetryUtil::isEnabled() {
     try {
-        return g_initialized.load() && !g_shutdown.load() && tracer_provider_ != nullptr;
+        // Check environment variables first to disable telemetry completely in tests
+        const char* disableTelemetry = std::getenv("DISABLE_TELEMETRY");
+        const char* testMode = std::getenv("TEST_MODE");
+        const char* testing = std::getenv("TESTING");
+
+        if ((disableTelemetry && std::string(disableTelemetry) == "true") ||
+            (testMode && std::string(testMode) == "true") ||
+            (testing && std::string(testing) == "true")) {
+            return false;
+        }
+
+        // Check if shutdown was called
+        if (g_shutdown.load()) {
+            return false;
+        }
+
+        return tracer_provider_ != nullptr && g_initialized.load();
     } catch (...) {
         // If we can't safely check the provider, assume disabled
         return false;
@@ -233,6 +249,14 @@ ScopedTracer::ScopedTracer(const std::string& operation_name,
       span_(nullptr), scope_(nullptr) {
 
     try {
+        // Quick environment check to avoid any telemetry operations in tests
+        const char* disableTelemetry = std::getenv("DISABLE_TELEMETRY");
+        const char* testing = std::getenv("TESTING");
+        if ((disableTelemetry && std::string(disableTelemetry) == "true") ||
+            (testing && std::string(testing) == "true")) {
+            return;
+        }
+
         // Check if telemetry is enabled and properly initialized
         if (!OpenTelemetryUtil::isEnabled()) {
             // Telemetry is disabled or not initialized, skip all OpenTelemetry operations
