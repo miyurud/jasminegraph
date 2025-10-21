@@ -85,6 +85,9 @@ static void get_degree_command(int connFd, std::string command, int numberOfPart
                                std::string type, bool *loop_exit_p);
 static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClients,
                                int numberOfPartitions, bool *loop_exit, std::string command);
+
+ static void semantic_beam_search_command(int connFd, std::string command,
+                                         int numberOfPartitions, bool *loop_exit_p , JobScheduler *jobScheduler) ;
 static void get_properties_command(int connFd, bool *loop_exit_p);
 static void send_uploaded_bytes(int connFd,SQLiteDBInterface  *sqlite, bool  *loop_exit, std::string command);
 static vector<DataPublisher *> getWorkerClients(SQLiteDBInterface *sqlite) {
@@ -171,7 +174,12 @@ void *uifrontendservicesesion(void *dummyPt) {
             workerClients = getWorkerClients(sqlite);
             workerClientsInitialized = true;
             cypher_ast_command(connFd, workerClients, numberOfPartitions, &loop_exit, line);
-        } else if (line.compare(PROPERTIES) == 0) {
+        }  else if (token.compare(SEMANTIC_BEAM_SEARCH) == 0) {
+
+            workerClients = getWorkerClients(sqlite);
+            workerClientsInitialized = true;
+            semantic_beam_search_command(connFd,line ,  numberOfPartitions, &loop_exit , jobScheduler);
+        }else if (line.compare(PROPERTIES) == 0) {
             get_properties_command(connFd,  &loop_exit);
         }
         else if (line.compare(CONSTRUCT_KG) == 0) {
@@ -935,6 +943,7 @@ static void get_degree_command(int connFd, std::string command, int numberOfPart
     }
 }
 
+
 static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClients,
                                int numberOfPartitions, bool *loop_exit, std::string command) {
     char delimiter = '|';
@@ -1125,6 +1134,85 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
             }
         }
     }
+}
+static void semantic_beam_search_command(int connFd, std::string command,
+                                         int numberOfPartitions, bool *loop_exit_p , JobScheduler *jobScheduler) {
+    char delimiter = '|';
+    std::stringstream ss(command);
+    std::string token;
+    std::string graph_id;
+    std::string query_string;
+
+    // Expected command format: SEMANTIC_BEAM_SEARCH|<graph_id>|<query_string>
+    std::getline(ss, token, delimiter);       // SEMANTIC_BEAM_SEARCH
+    std::getline(ss, graph_id, delimiter);    // graph ID
+    std::getline(ss, query_string, delimiter); // query string (semantic text or Cypher-like input)
+
+    graph_id = Utils::trim_copy(graph_id);
+    query_string = Utils::trim_copy(query_string);
+
+    ui_frontend_logger.info("Graph ID received: " + graph_id);
+    ui_frontend_logger.info("Semantic query received: " + query_string);
+
+    // Verify inputs
+    if (graph_id.empty() || query_string.empty()) {
+        std::string errorMsg = "Error: Graph ID or Query is missing.";
+        ui_frontend_logger.error(errorMsg);
+        int wr = write(connFd, errorMsg.c_str(), errorMsg.size());
+        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        *loop_exit_p = true;
+        return;
+    }
+
+    // Step 1: Prepare Job details
+    JobRequest jobDetails;
+    int uid = JasmineGraphFrontEndCommon::getUid();
+    jobDetails.setJobId(std::to_string(uid));
+    jobDetails.setJobType(SEMANTIC_BEAM_SEARCH);
+    jobDetails.addParameter(Conts::PARAM_KEYS::GRAPH_ID, graph_id);
+    jobDetails.addParameter(Conts::PARAM_KEYS::CYPHER_QUERY::QUERY_STRING, query_string);
+    jobDetails.addParameter(Conts::PARAM_KEYS::NO_OF_PARTITIONS, std::to_string(numberOfPartitions));
+    jobDetails.addParameter(Conts::PARAM_KEYS::CONN_FILE_DESCRIPTOR, std::to_string(connFd));
+    jobDetails.addParameter(Conts::PARAM_KEYS::LOOP_EXIT_POINTER,
+                            std::to_string(reinterpret_cast<std::uintptr_t>(loop_exit_p)));
+
+    // Step 2: Dispatch job
+    ui_frontend_logger.info("Pushing semantic beam search job to scheduler");
+
+    jobScheduler->pushJob(jobDetails);
+
+    // Step 3: Wait for job response
+    JobResponse jobResponse = jobScheduler->getResult(jobDetails);
+    std::string errorMsg = jobResponse.getParameter(Conts::PARAM_KEYS::ERROR_MESSAGE);
+
+    if (!errorMsg.empty()) {
+        ui_frontend_logger.error("Semantic beam search failed: " + errorMsg);
+        int wr = write(connFd, errorMsg.c_str(), errorMsg.size());
+        write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        *loop_exit_p = true;
+        return;
+    }
+
+    // // Step 4: Fetch result
+    // std::string resultJSON = jobResponse.getParameter(Conts::PARAM_KEYS::RESULT);
+    // if (resultJSON.empty()) {
+    //     resultJSON = "{\"status\":\"No results found\"}";
+    // }
+    //
+    // // Step 5: Send result to client
+    // int wr = write(connFd, resultJSON.c_str(), resultJSON.length());
+    // if (wr < 0) {
+    //     ui_frontend_logger.error("Error writing beam search results to socket");
+    //     *loop_exit_p = true;
+    // }
+    //
+    // write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+
+    // Step 6: Send completion signal
+    // std::string done = DONE;
+    // int wr = write(connFd, done.c_str(), done.length());
+    // write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+    ui_frontend_logger.info("Semantic beam search completed successfully for graph " + graph_id);
 }
 
 static void get_properties_command(int connFd, bool *loop_exit_p) {

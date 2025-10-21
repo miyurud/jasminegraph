@@ -22,6 +22,7 @@ public:
     std::vector<std::pair<faiss::idx_t, float>> search(const std::vector<float>& query, int k);
 
     void save(const std::string& filepath);
+    void save();
     void load(const std::string& filepath);
     std::vector<float> getEmbeddingById(std::string id);
     std::string getNodeIdFromEmbeddingId(faiss::idx_t embeddingId);

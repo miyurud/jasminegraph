@@ -66,13 +66,11 @@ bool JasmineGraphIncrementalLocalStore::getAndStoreEmbeddings()
     }
     vector<vector<float>> results =  textEmbedder->batch_embed(batch_request);
 
-    int count =0;
-    for ( vector<float> result : results )
-    {
-        faissStore->add(result,embedding_requests->at(count).nodeId );
+    for (size_t i = 0; i < results.size(); ++i) {
+        faissStore->add(results[i], embedding_requests->at(i).nodeId);
     }
     embedding_requests->clear();
-
+    faissStore->save();
 
 }
 

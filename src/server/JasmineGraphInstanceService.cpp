@@ -5032,7 +5032,7 @@ size_t received = 0;
                 auto nodeProps = neighbor.first->getAllProperties();
                 nodeData["partitionID"] = std::string(neighbor.first->getMetaPropertyHead()->value);
                 for (auto& [k, v] : nodeProps) nodeData[k] = v;
-                nodeData["id"] = std::to_string(neighbor.first->nodeId);
+                // nodeData["id"] = std::to_string(neighbor.first->nodeId);
 
 
                 vector<float> emb_ = faissStore->getEmbeddingById(std::to_string(neighbor.first->nodeId));

@@ -39,6 +39,7 @@ FaissIndex::FaissIndex(int embeddingDim, const std::string& filepath)
 
 FaissIndex::~FaissIndex() {
     try {
+        std::cout << "saving FAISS index";
         save(filePath);
     } catch (const std::exception& e) {
         fprintf(stderr, "[FaissIndex] Failed to auto-save index: %s\n", e.what());
@@ -111,6 +112,31 @@ void FaissIndex::save(const std::string& filepath) {
 
     // Save mapping alongside index (e.g., filepath + ".map")
     std::ofstream mapFile(filepath + ".map", std::ios::binary);
+    if (!mapFile.is_open()) {
+        throw std::runtime_error("Failed to open map file for saving.");
+    }
+
+    size_t size = nodeIdToEmbeddingIdMap.size();
+    mapFile.write(reinterpret_cast<const char*>(&size), sizeof(size));
+
+    for (const auto& entry : nodeIdToEmbeddingIdMap) {
+        size_t keyLen = entry.first.size();
+        mapFile.write(reinterpret_cast<const char*>(&keyLen), sizeof(keyLen));
+        mapFile.write(entry.first.data(), keyLen);
+        mapFile.write(reinterpret_cast<const char*>(&entry.second), sizeof(entry.second));
+    }
+
+    mapFile.close();
+}
+
+void FaissIndex::save() {
+    std::lock_guard<std::mutex> lock(mtx);
+
+    // Save FAISS index
+    faiss::write_index(index, filePath.c_str());
+
+    // Save mapping alongside index (e.g., filepath + ".map")
+    std::ofstream mapFile(filePath + ".map", std::ios::binary);
     if (!mapFile.is_open()) {
         throw std::runtime_error("Failed to open map file for saving.");
     }
