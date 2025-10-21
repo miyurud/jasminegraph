@@ -14,4 +14,7 @@ target_link_libraries(${PROJECT_NAME} gtest gtest_main JasmineGraphLib)
 target_compile_definitions(${PROJECT_NAME} PUBLIC TEST_RESOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/resources/")
 target_compile_definitions(${PROJECT_NAME} PUBLIC DISABLE_OPENTELEMETRY)
 
+# Also set DISABLE_OPENTELEMETRY for JasmineGraphLib when building unit tests
+target_compile_definitions(JasmineGraphLib PUBLIC DISABLE_OPENTELEMETRY)
+
 add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})

@@ -587,16 +587,9 @@ void OpenTelemetryUtil::flushTraces() {
 
 // Stub implementations when OpenTelemetry is disabled
 
-// Static member definitions for disabled case
-std::string OpenTelemetryUtil::service_name_ = "";
-nostd::shared_ptr<trace_api::TracerProvider> OpenTelemetryUtil::tracer_provider_;
-nostd::shared_ptr<metrics_api::MeterProvider> OpenTelemetryUtil::meter_provider_;
-
-// Thread-local storage stubs
-thread_local std::unique_ptr<context::Token> OpenTelemetryUtil::context_token_;
-thread_local nostd::shared_ptr<trace_api::Span> OpenTelemetryUtil::parent_span_;
-thread_local trace_api::SpanContext OpenTelemetryUtil::remote_span_context_;
-thread_local bool OpenTelemetryUtil::has_remote_context_ = false;
+static bool isTestingEnvironment() {
+    return true;  // Always return true when OpenTelemetry is disabled
+}
 
 void OpenTelemetryUtil::initialize(const std::string& service_name,
                                   const std::string& otlp_endpoint,
