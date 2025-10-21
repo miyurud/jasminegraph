@@ -31,12 +31,6 @@ bool isTelemetryEnabled();
 #include <opentelemetry/sdk/trace/batch_span_processor_factory.h>
 #include <opentelemetry/sdk/trace/tracer_provider_factory.h>
 
-namespace telemetry = opentelemetry;
-namespace trace_api = telemetry::trace;
-namespace metrics_api = telemetry::metrics;
-namespace nostd = telemetry::nostd;
-namespace context = telemetry::context;
-
 #else
 
 // Mock implementations for when OpenTelemetry is disabled
@@ -123,11 +117,14 @@ namespace context {
 
 #endif
 
+// Namespace aliases - only create when OpenTelemetry is enabled
+#ifndef DISABLE_OPENTELEMETRY
 namespace telemetry = opentelemetry;
 namespace trace_api = telemetry::trace;
 namespace metrics_api = telemetry::metrics;
 namespace nostd = telemetry::nostd;
 namespace context = telemetry::context;
+#endif
 
 /**
  * Modern OpenTelemetry-based telemetry utility providing automatic parent-child tracing
