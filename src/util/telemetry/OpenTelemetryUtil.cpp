@@ -44,6 +44,29 @@ static bool isTestingEnvironment() {
 static std::atomic<bool> g_initialized{false};
 static std::atomic<bool> g_shutdown{false};
 
+// Global exit handler to safely shutdown OpenTelemetry
+static struct ExitHandler {
+    ExitHandler() {
+        std::atexit([]() {
+            if (isTestingEnvironment()) {
+                // In testing environment, force shutdown all static objects safely
+                g_shutdown.store(true);
+                // Don't call OpenTelemetry shutdown to avoid destructor issues
+                return;
+            }
+            
+            // Normal shutdown for production
+            if (g_initialized.load() && !g_shutdown.load()) {
+                try {
+                    OpenTelemetryUtil::shutdown();
+                } catch (...) {
+                    // Ignore all errors during exit
+                }
+            }
+        });
+    }
+} exit_handler;
+
 // Static member definitions - use safe initialization to prevent crashes
 std::string OpenTelemetryUtil::service_name_ = "";
 nostd::shared_ptr<trace_api::TracerProvider> OpenTelemetryUtil::tracer_provider_{};
@@ -53,8 +76,8 @@ nostd::shared_ptr<metrics_api::MeterProvider> OpenTelemetryUtil::meter_provider_
 thread_local std::unique_ptr<context::Token> OpenTelemetryUtil::context_token_{};
 thread_local nostd::shared_ptr<trace_api::Span> OpenTelemetryUtil::parent_span_{};
 
-// Thread-local storage for remote span context from master - use invalid context
-thread_local trace_api::SpanContext OpenTelemetryUtil::remote_span_context_ = trace_api::SpanContext::GetInvalid();
+// Thread-local storage for remote span context from master - use safe initialization
+thread_local trace_api::SpanContext OpenTelemetryUtil::remote_span_context_{false, false}; // Use constructor that doesn't fail
 thread_local bool OpenTelemetryUtil::has_remote_context_ = false;
 
 void OpenTelemetryUtil::initialize(const std::string& service_name,
