@@ -47,6 +47,20 @@ namespace nostd {
         operator bool() const { return false; }
         T* get() const { return nullptr; }
     };
+    
+    template<typename T>
+    class unique_ptr {
+    public:
+        unique_ptr() = default;
+        unique_ptr(std::nullptr_t) {}
+        template<typename U>
+        unique_ptr(U*) {}
+        T* operator->() const { return nullptr; }
+        T& operator*() const { static T dummy; return dummy; }
+        operator bool() const { return false; }
+        T* get() const { return nullptr; }
+        void reset() {}
+    };
 }
 
 namespace trace_api {
