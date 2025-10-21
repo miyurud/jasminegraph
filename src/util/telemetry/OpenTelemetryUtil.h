@@ -1,5 +1,12 @@
 #pragma once
 
+#include <string>
+#include <map>
+#include <chrono>
+#include <memory>
+
+#ifndef DISABLE_OPENTELEMETRY
+
 #include <opentelemetry/trace/provider.h>
 #include <opentelemetry/trace/tracer.h>
 #include <opentelemetry/trace/span.h>
@@ -24,10 +31,97 @@ bool isTelemetryEnabled();
 #include <opentelemetry/sdk/trace/batch_span_processor_factory.h>
 #include <opentelemetry/sdk/trace/tracer_provider_factory.h>
 
-#include <string>
-#include <map>
-#include <chrono>
-#include <memory>
+namespace telemetry = opentelemetry;
+namespace trace_api = telemetry::trace;
+namespace metrics_api = telemetry::metrics;
+namespace nostd = telemetry::nostd;
+namespace context = telemetry::context;
+
+#else
+
+// Mock implementations for when OpenTelemetry is disabled
+namespace nostd {
+    template<typename T>
+    class shared_ptr {
+    public:
+        shared_ptr() = default;
+        shared_ptr(std::nullptr_t) {}
+        template<typename U>
+        shared_ptr(U*) {}
+        T* operator->() const { return nullptr; }
+        T& operator*() const { static T dummy; return dummy; }
+        operator bool() const { return false; }
+        T* get() const { return nullptr; }
+    };
+}
+
+namespace trace_api {
+    enum class StatusCode { kOk };
+    
+    class SpanContext {
+    public:
+        SpanContext() = default;
+        SpanContext(bool, bool) {}
+        static SpanContext GetInvalid() { return SpanContext(); }
+        bool IsValid() const { return false; }
+    };
+    
+    class Span {
+    public:
+        void SetAttribute(const std::string&, const std::string&) {}
+        void SetAttribute(const std::string&, double) {}
+        void SetStatus(StatusCode, const std::string& = "") {}
+        void End() {}
+        bool IsRecording() const { return false; }
+        SpanContext GetContext() const { return SpanContext::GetInvalid(); }
+    };
+    
+    class Scope {
+    public:
+        Scope(nostd::shared_ptr<Span>) {}
+    };
+    
+    class Tracer {
+    public:
+        nostd::shared_ptr<Span> StartSpan(const std::string&) { return nostd::shared_ptr<Span>(); }
+        nostd::shared_ptr<Span> StartSpan(const std::string&, const struct StartSpanOptions&) { 
+            return nostd::shared_ptr<Span>(); 
+        }
+    };
+    
+    class TracerProvider {
+    public:
+        nostd::shared_ptr<Tracer> GetTracer(const std::string&, const std::string&) {
+            return nostd::shared_ptr<Tracer>();
+        }
+    };
+    
+    struct StartSpanOptions {
+        SpanContext parent;
+    };
+    
+    Span* GetSpan(void*) { return nullptr; }
+}
+
+namespace metrics_api {
+    class Meter {};
+    class MeterProvider {
+    public:
+        nostd::shared_ptr<Meter> GetMeter(const std::string&, const std::string&) {
+            return nostd::shared_ptr<Meter>();
+        }
+    };
+}
+
+namespace context {
+    class Token {};
+    class RuntimeContext {
+    public:
+        static void* GetCurrent() { return nullptr; }
+    };
+}
+
+#endif
 
 namespace telemetry = opentelemetry;
 namespace trace_api = telemetry::trace;

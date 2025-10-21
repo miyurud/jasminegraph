@@ -12,5 +12,6 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 target_link_libraries(${PROJECT_NAME} gtest gtest_main JasmineGraphLib)
 
 target_compile_definitions(${PROJECT_NAME} PUBLIC TEST_RESOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/resources/")
+target_compile_definitions(${PROJECT_NAME} PUBLIC DISABLE_OPENTELEMETRY)
 
 add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})

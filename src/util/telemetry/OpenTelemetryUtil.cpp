@@ -6,6 +6,8 @@
 #include <iomanip>
 #include <array>
 #include <atomic>
+
+#ifndef DISABLE_OPENTELEMETRY
 #include "opentelemetry/common/key_value_iterable_view.h"
 #include "opentelemetry/exporters/otlp/otlp_http_exporter_factory.h"
 #include "opentelemetry/exporters/otlp/otlp_http_exporter_options.h"
@@ -580,3 +582,88 @@ void OpenTelemetryUtil::flushTraces() {
         // Flush failed - traces may be lost
     }
 }
+
+#else
+
+// Stub implementations when OpenTelemetry is disabled
+
+// Static member definitions for disabled case
+std::string OpenTelemetryUtil::service_name_ = "";
+nostd::shared_ptr<trace_api::TracerProvider> OpenTelemetryUtil::tracer_provider_;
+nostd::shared_ptr<metrics_api::MeterProvider> OpenTelemetryUtil::meter_provider_;
+
+// Thread-local storage stubs
+thread_local std::unique_ptr<context::Token> OpenTelemetryUtil::context_token_;
+thread_local nostd::shared_ptr<trace_api::Span> OpenTelemetryUtil::parent_span_;
+thread_local trace_api::SpanContext OpenTelemetryUtil::remote_span_context_;
+thread_local bool OpenTelemetryUtil::has_remote_context_ = false;
+
+void OpenTelemetryUtil::initialize(const std::string& service_name,
+                                  const std::string& otlp_endpoint,
+                                  const std::string& prometheus_endpoint,
+                                  bool useSimpleProcessor) {
+    service_name_ = service_name;
+    std::cout << "OpenTelemetry disabled (stub implementation)" << std::endl;
+}
+
+nostd::shared_ptr<trace_api::Tracer> OpenTelemetryUtil::getTracer(const std::string& tracer_name) {
+    return nostd::shared_ptr<trace_api::Tracer>();
+}
+
+nostd::shared_ptr<metrics_api::Meter> OpenTelemetryUtil::getMeter(const std::string& meter_name) {
+    return nostd::shared_ptr<metrics_api::Meter>();
+}
+
+void OpenTelemetryUtil::shutdown() {
+    std::cout << "OpenTelemetry shutdown (stub implementation)" << std::endl;
+}
+
+bool OpenTelemetryUtil::isEnabled() {
+    return false;
+}
+
+std::string OpenTelemetryUtil::getCurrentTraceContext() {
+    return "";
+}
+
+void OpenTelemetryUtil::setTraceContext(const std::string& context_str) {
+    // No-op
+}
+
+bool OpenTelemetryUtil::receiveAndSetTraceContext(const std::string& trace_context,
+                                                  const std::string& operation_name) {
+    return false;
+}
+
+void OpenTelemetryUtil::addSpanAttribute(const std::string& key, const std::string& value) {
+    // No-op
+}
+
+void OpenTelemetryUtil::flushTraces() {
+    // No-op
+}
+
+// ScopedTracer stub implementation
+ScopedTracer::ScopedTracer(const std::string& operation_name,
+                          const std::map<std::string, std::string>& attributes) 
+    : operation_name_(operation_name), start_time_(std::chrono::steady_clock::now()) {
+    // No-op
+}
+
+ScopedTracer::~ScopedTracer() {
+    // No-op
+}
+
+void ScopedTracer::addAttribute(const std::string& key, const std::string& value) {
+    // No-op
+}
+
+void ScopedTracer::addAttributes(const std::map<std::string, std::string>& attributes) {
+    // No-op
+}
+
+void ScopedTracer::setStatus(trace_api::StatusCode code, const std::string& description) {
+    // No-op
+}
+
+#endif
