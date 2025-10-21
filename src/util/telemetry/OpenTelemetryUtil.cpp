@@ -26,6 +26,21 @@ namespace metrics_api = opentelemetry::metrics;
 namespace context_api = opentelemetry::context;
 
 // Static initialization flag to prevent double initialization
+// Check for testing environment early - disable all OpenTelemetry in tests
+static bool isTestingEnvironment() {
+    static bool checked = false;
+    static bool is_testing = false;
+    
+    if (!checked) {
+        const char* disable_telemetry = std::getenv("DISABLE_TELEMETRY");
+        const char* testing = std::getenv("TESTING");
+        is_testing = (disable_telemetry && std::string(disable_telemetry) == "true") ||
+                    (testing && std::string(testing) == "true");
+        checked = true;
+    }
+    return is_testing;
+}
+
 static std::atomic<bool> g_initialized{false};
 static std::atomic<bool> g_shutdown{false};
 
@@ -46,6 +61,12 @@ void OpenTelemetryUtil::initialize(const std::string& service_name,
                                   const std::string& otlp_endpoint,
                                   const std::string& prometheus_endpoint,
                                   bool useSimpleProcessor) {
+    // Early check for testing environment - completely skip initialization
+    if (isTestingEnvironment()) {
+        std::cout << "OpenTelemetry disabled for testing environment" << std::endl;
+        return;
+    }
+    
     // Check if already initialized or shutdown
     if (g_initialized.load() || g_shutdown.load()) {
         std::cout << "OpenTelemetry already initialized or shutdown, skipping initialization" << std::endl;
@@ -219,14 +240,8 @@ void OpenTelemetryUtil::shutdown() {
 
 bool OpenTelemetryUtil::isEnabled() {
     try {
-        // Check environment variables first to disable telemetry completely in tests
-        const char* disableTelemetry = std::getenv("DISABLE_TELEMETRY");
-        const char* testMode = std::getenv("TEST_MODE");
-        const char* testing = std::getenv("TESTING");
-
-        if ((disableTelemetry && std::string(disableTelemetry) == "true") ||
-            (testMode && std::string(testMode) == "true") ||
-            (testing && std::string(testing) == "true")) {
+        // Early check for testing environment
+        if (isTestingEnvironment()) {
             return false;
         }
 
@@ -249,11 +264,8 @@ ScopedTracer::ScopedTracer(const std::string& operation_name,
       span_(nullptr), scope_(nullptr) {
 
     try {
-        // Quick environment check to avoid any telemetry operations in tests
-        const char* disableTelemetry = std::getenv("DISABLE_TELEMETRY");
-        const char* testing = std::getenv("TESTING");
-        if ((disableTelemetry && std::string(disableTelemetry) == "true") ||
-            (testing && std::string(testing) == "true")) {
+        // Early check for testing environment - completely skip OpenTelemetry in tests
+        if (isTestingEnvironment()) {
             return;
         }
 
