@@ -54,7 +54,7 @@ static struct ExitHandler {
                 // Don't call OpenTelemetry shutdown to avoid destructor issues
                 return;
             }
-            
+
             // Normal shutdown for production
             if (g_initialized.load() && !g_shutdown.load()) {
                 try {
@@ -77,7 +77,8 @@ thread_local std::unique_ptr<context::Token> OpenTelemetryUtil::context_token_{}
 thread_local nostd::shared_ptr<trace_api::Span> OpenTelemetryUtil::parent_span_{};
 
 // Thread-local storage for remote span context from master - use safe initialization
-thread_local trace_api::SpanContext OpenTelemetryUtil::remote_span_context_{false, false}; // Use constructor that doesn't fail
+// Use constructor that doesn't fail
+thread_local trace_api::SpanContext OpenTelemetryUtil::remote_span_context_{false, false};
 thread_local bool OpenTelemetryUtil::has_remote_context_ = false;
 
 void OpenTelemetryUtil::initialize(const std::string& service_name,
