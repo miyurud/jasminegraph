@@ -30,7 +30,7 @@ namespace context_api = opentelemetry::context;
 static bool isTestingEnvironment() {
     static bool checked = false;
     static bool is_testing = false;
-    
+
     if (!checked) {
         const char* disable_telemetry = std::getenv("DISABLE_TELEMETRY");
         const char* testing = std::getenv("TESTING");
@@ -66,7 +66,7 @@ void OpenTelemetryUtil::initialize(const std::string& service_name,
         std::cout << "OpenTelemetry disabled for testing environment" << std::endl;
         return;
     }
-    
+
     // Check if already initialized or shutdown
     if (g_initialized.load() || g_shutdown.load()) {
         std::cout << "OpenTelemetry already initialized or shutdown, skipping initialization" << std::endl;
