@@ -108,7 +108,7 @@ namespace trace_api {
         SpanContext parent;
     };
     
-    Span* GetSpan(void*) { return nullptr; }
+    Span* GetSpan(void*);
 }
 
 namespace metrics_api {

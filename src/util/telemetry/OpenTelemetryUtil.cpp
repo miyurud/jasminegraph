@@ -83,6 +83,33 @@ thread_local nostd::shared_ptr<trace_api::Span> OpenTelemetryUtil::parent_span_{
 thread_local trace_api::SpanContext OpenTelemetryUtil::remote_span_context_{false, false};
 thread_local bool OpenTelemetryUtil::has_remote_context_ = false;
 
+#endif
+
+// Implementation of GetSpan function for both enabled and disabled OpenTelemetry
+#ifdef DISABLE_OPENTELEMETRY
+// When OpenTelemetry is disabled, implement the mock GetSpan function
+namespace opentelemetry {
+namespace trace {
+Span* GetSpan(void*) { 
+    return nullptr; 
+}
+}
+}
+#else
+// When OpenTelemetry is enabled, implement GetSpan function using real API
+namespace opentelemetry {
+namespace trace {
+Span* GetSpan(void*) { 
+    // Convert shared_ptr to raw pointer
+    auto span_shared = opentelemetry::trace::GetSpan(opentelemetry::context::RuntimeContext::GetCurrent());
+    return span_shared.get();
+}
+}
+}
+#endif
+
+#ifndef DISABLE_OPENTELEMETRY
+
 void OpenTelemetryUtil::initialize(const std::string& service_name,
                                   const std::string& otlp_endpoint,
                                   const std::string& prometheus_endpoint,
@@ -570,13 +597,16 @@ void OpenTelemetryUtil::addSpanAttribute(const std::string& key, const std::stri
 }
 
 void OpenTelemetryUtil::flushTraces() {
+    if (isTestingEnvironment() || !g_initialized.load()) {
+        return;
+    }
+
     try {
-        if (tracer_provider_) {
-            auto sdk_provider = dynamic_cast<trace_sdk::TracerProvider*>(tracer_provider_.get());
-            if (sdk_provider) {
-                // Force flush with a 2 second timeout
-                sdk_provider->ForceFlush(std::chrono::seconds(2));
-            }
+        auto provider = opentelemetry::trace::Provider::GetTracerProvider();
+        if (provider) {
+            auto sdk_provider = static_cast<opentelemetry::sdk::trace::TracerProvider*>(provider.get());
+            // Use ForceFlush directly on the provider
+            sdk_provider->ForceFlush(std::chrono::milliseconds(1000));
         }
     } catch (const std::exception& e) {
         // Flush failed - traces may be lost
