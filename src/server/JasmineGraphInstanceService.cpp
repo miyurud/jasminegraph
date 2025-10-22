@@ -32,8 +32,6 @@ limitations under the License.
 #include <thread>
 
 using namespace std;
-namespace trace_api = opentelemetry::trace;
-namespace nostd = opentelemetry::nostd;
 
 #define PENDING_CONNECTION_QUEUE_SIZE 10
 #define DATA_BUFFER_SIZE (INSTANCE_DATA_LENGTH + 1)
