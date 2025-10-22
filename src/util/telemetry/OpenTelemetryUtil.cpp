@@ -87,12 +87,10 @@ thread_local bool OpenTelemetryUtil::has_remote_context_ = false;
 
 // Implementation of GetSpan function for both enabled and disabled OpenTelemetry
 #ifdef DISABLE_OPENTELEMETRY
-// When OpenTelemetry is disabled, implement the mock GetSpan function
-namespace opentelemetry {
-namespace trace {
+// When OpenTelemetry is disabled, implement the mock GetSpan function in trace_api namespace
+namespace trace_api {
 Span* GetSpan(void*) { 
     return nullptr; 
-}
 }
 }
 #else
