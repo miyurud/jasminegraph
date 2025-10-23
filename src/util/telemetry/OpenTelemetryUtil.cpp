@@ -89,13 +89,13 @@ thread_local nostd::shared_ptr<trace_api::Span> OpenTelemetryUtil::parent_span_{
 thread_local trace_api::SpanContext OpenTelemetryUtil::remote_span_context_{false, false};
 thread_local bool OpenTelemetryUtil::has_remote_context_ = false;
 #else
-// Mock static members for disabled OpenTelemetry (using standard types)
-std::shared_ptr<void> OpenTelemetryUtil::tracer_provider_{};
-std::shared_ptr<void> OpenTelemetryUtil::meter_provider_{};
+// Mock static members for disabled OpenTelemetry (using safe types instead of void)
+std::shared_ptr<int> OpenTelemetryUtil::tracer_provider_{};
+std::shared_ptr<int> OpenTelemetryUtil::meter_provider_{};
 
-// Thread-local storage for worker context management - use standard types
-thread_local std::unique_ptr<void> OpenTelemetryUtil::context_token_{};
-thread_local std::shared_ptr<void> OpenTelemetryUtil::parent_span_{};
+// Thread-local storage for worker context management - use safe types instead of void
+thread_local std::unique_ptr<int> OpenTelemetryUtil::context_token_{};
+thread_local std::shared_ptr<int> OpenTelemetryUtil::parent_span_{};
 
 // Thread-local storage for remote span context from master - use mock implementation
 thread_local int OpenTelemetryUtil::remote_span_context_{0};

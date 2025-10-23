@@ -241,13 +241,13 @@ class OpenTelemetryUtil {
     static thread_local std::unique_ptr<context::Token> context_token_;
     static thread_local nostd::shared_ptr<trace_api::Span> parent_span_;
 #else
-    // Mock static members for disabled OpenTelemetry (using standard types)
-    static std::shared_ptr<void> tracer_provider_;
-    static std::shared_ptr<void> meter_provider_;
+    // Mock static members for disabled OpenTelemetry (using safe types instead of void)
+    static std::shared_ptr<int> tracer_provider_;
+    static std::shared_ptr<int> meter_provider_;
 
-    // Thread-local storage for worker context management - use standard types
-    static thread_local std::unique_ptr<void> context_token_;
-    static thread_local std::shared_ptr<void> parent_span_;
+    // Thread-local storage for worker context management - use safe types instead of void
+    static thread_local std::unique_ptr<int> context_token_;
+    static thread_local std::shared_ptr<int> parent_span_;
 #endif
 };
 
