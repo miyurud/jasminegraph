@@ -220,11 +220,19 @@ class OpenTelemetryUtil {
     static void flushTraces();
 
     // Thread-local storage for remote span context from master (public for ScopedTracer access)
+#ifndef DISABLE_OPENTELEMETRY
     static thread_local trace_api::SpanContext remote_span_context_;
+#else
+    static thread_local int remote_span_context_;  // Mock with simple type
+#endif
     static thread_local bool has_remote_context_;
 
  private:
+    // Static members that exist regardless of OpenTelemetry state
     static std::string service_name_;
+
+#ifndef DISABLE_OPENTELEMETRY
+    // OpenTelemetry-specific static members (only when OpenTelemetry is enabled)
     static nostd::shared_ptr<trace_api::TracerProvider> tracer_provider_;
     static nostd::shared_ptr<metrics_api::MeterProvider> meter_provider_;
 
@@ -232,6 +240,15 @@ class OpenTelemetryUtil {
     // Each worker thread gets its own context token and parent span
     static thread_local std::unique_ptr<context::Token> context_token_;
     static thread_local nostd::shared_ptr<trace_api::Span> parent_span_;
+#else
+    // Mock static members for disabled OpenTelemetry (using standard types)
+    static std::shared_ptr<void> tracer_provider_;
+    static std::shared_ptr<void> meter_provider_;
+
+    // Thread-local storage for worker context management - use standard types
+    static thread_local std::unique_ptr<void> context_token_;
+    static thread_local std::shared_ptr<void> parent_span_;
+#endif
 };
 
 /**
