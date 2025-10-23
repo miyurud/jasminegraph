@@ -303,30 +303,46 @@ target_link_libraries(JasmineGraphLib PRIVATE yaml-cpp)
 target_link_libraries(JasmineGraphLib PRIVATE curl)
 target_link_libraries(JasmineGraphLib PRIVATE antlr4-runtime)
 
-# Find OpenTelemetry packages
-find_package(opentelemetry-cpp REQUIRED)
-find_package(PkgConfig REQUIRED)
+# Option to enable/disable OpenTelemetry
+option(ENABLE_OPENTELEMETRY "Enable OpenTelemetry support" ON)
 
-# Find nlohmann_json package for OpenTelemetry
-find_package(nlohmann_json REQUIRED)
+# Disable OpenTelemetry for DEBUG builds to avoid issues in unit tests
+if(CMAKE_BUILD_TYPE STREQUAL "DEBUG")
+    set(ENABLE_OPENTELEMETRY OFF)
+    message(STATUS "DEBUG build detected - disabling OpenTelemetry to prevent test issues")
+endif()
 
-# OpenTelemetry libraries for native tracing support (without gRPC)
-target_link_libraries(JasmineGraphLib PRIVATE opentelemetry-cpp::api)
-target_link_libraries(JasmineGraphLib PRIVATE opentelemetry-cpp::sdk)
-target_link_libraries(JasmineGraphLib PRIVATE opentelemetry-cpp::trace)
-target_link_libraries(JasmineGraphLib PRIVATE opentelemetry-cpp::metrics)
-target_link_libraries(JasmineGraphLib PRIVATE opentelemetry-cpp::ostream_span_exporter)
-target_link_libraries(JasmineGraphLib PRIVATE opentelemetry-cpp::otlp_http_exporter)
-target_link_libraries(JasmineGraphLib PRIVATE nlohmann_json::nlohmann_json)
+# Conditionally find and link OpenTelemetry packages
+if(ENABLE_OPENTELEMETRY)
+    # Find OpenTelemetry packages
+    find_package(opentelemetry-cpp REQUIRED)
+    find_package(PkgConfig REQUIRED)
 
-# Link main executable with OpenTelemetry libraries
-target_link_libraries(JasmineGraph PRIVATE opentelemetry-cpp::api)
-target_link_libraries(JasmineGraph PRIVATE opentelemetry-cpp::sdk)
-target_link_libraries(JasmineGraph PRIVATE opentelemetry-cpp::trace)
-target_link_libraries(JasmineGraph PRIVATE opentelemetry-cpp::metrics)
-target_link_libraries(JasmineGraph PRIVATE opentelemetry-cpp::ostream_span_exporter)
-target_link_libraries(JasmineGraph PRIVATE opentelemetry-cpp::otlp_http_exporter)
-target_link_libraries(JasmineGraph PRIVATE nlohmann_json::nlohmann_json)
+    # Find nlohmann_json package for OpenTelemetry
+    find_package(nlohmann_json REQUIRED)
+
+    # OpenTelemetry libraries for native tracing support (without gRPC)
+    target_link_libraries(JasmineGraphLib PRIVATE opentelemetry-cpp::api)
+    target_link_libraries(JasmineGraphLib PRIVATE opentelemetry-cpp::sdk)
+    target_link_libraries(JasmineGraphLib PRIVATE opentelemetry-cpp::trace)
+    target_link_libraries(JasmineGraphLib PRIVATE opentelemetry-cpp::metrics)
+    target_link_libraries(JasmineGraphLib PRIVATE opentelemetry-cpp::ostream_span_exporter)
+    target_link_libraries(JasmineGraphLib PRIVATE opentelemetry-cpp::otlp_http_exporter)
+    target_link_libraries(JasmineGraphLib PRIVATE nlohmann_json::nlohmann_json)
+
+    # Link main executable with OpenTelemetry libraries
+    target_link_libraries(JasmineGraph PRIVATE opentelemetry-cpp::api)
+    target_link_libraries(JasmineGraph PRIVATE opentelemetry-cpp::sdk)
+    target_link_libraries(JasmineGraph PRIVATE opentelemetry-cpp::trace)
+    target_link_libraries(JasmineGraph PRIVATE opentelemetry-cpp::metrics)
+    target_link_libraries(JasmineGraph PRIVATE opentelemetry-cpp::ostream_span_exporter)
+    target_link_libraries(JasmineGraph PRIVATE opentelemetry-cpp::otlp_http_exporter)
+    target_link_libraries(JasmineGraph PRIVATE nlohmann_json::nlohmann_json)
+    
+    message(STATUS "OpenTelemetry support enabled - linking OpenTelemetry libraries")
+else()
+    message(STATUS "OpenTelemetry support disabled - skipping OpenTelemetry library linking")
+endif()
 
 # Include OpenTelemetry headers
 target_include_directories(JasmineGraphLib PRIVATE /usr/local/include)
