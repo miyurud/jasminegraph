@@ -640,10 +640,6 @@ void OpenTelemetryUtil::flushTraces() {
 
 // Stub implementations when OpenTelemetry is disabled
 
-static bool isTestingEnvironment() {
-    return true;  // Always return true when OpenTelemetry is disabled
-}
-
 void OpenTelemetryUtil::initialize(const std::string& service_name,
                                   const std::string& otlp_endpoint,
                                   const std::string& prometheus_endpoint,
