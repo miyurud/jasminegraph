@@ -27,7 +27,6 @@ namespace otlp_exporter = opentelemetry::exporter::otlp;
 namespace metrics_api = opentelemetry::metrics;
 namespace context_api = opentelemetry::context;
 
-// Static initialization flag to prevent double initialization
 // Check for testing environment early - disable all OpenTelemetry in tests
 static bool isTestingEnvironment() {
     static bool checked = false;
@@ -69,13 +68,6 @@ static struct ExitHandler {
     }
 } exit_handler;
 
-#endif
-
-// Static member definitions - these must be outside conditional compilation
-// They are needed regardless of whether OpenTelemetry is enabled or disabled
-std::string OpenTelemetryUtil::service_name_ = "";
-
-#ifndef DISABLE_OPENTELEMETRY
 // OpenTelemetry-specific static members (only when OpenTelemetry is enabled)
 nostd::shared_ptr<trace_api::TracerProvider> OpenTelemetryUtil::tracer_provider_{};
 nostd::shared_ptr<metrics_api::MeterProvider> OpenTelemetryUtil::meter_provider_{};
@@ -88,7 +80,18 @@ thread_local nostd::shared_ptr<trace_api::Span> OpenTelemetryUtil::parent_span_{
 // Use constructor that doesn't fail
 thread_local trace_api::SpanContext OpenTelemetryUtil::remote_span_context_{false, false};
 thread_local bool OpenTelemetryUtil::has_remote_context_ = false;
+
 #else
+
+// Mock testing environment function for disabled OpenTelemetry
+static bool isTestingEnvironment() {
+    return true;  // Always return true for disabled OpenTelemetry (safer for tests)
+}
+
+// Mock static initialization flags for disabled OpenTelemetry
+static std::atomic<bool> g_initialized{false};
+static std::atomic<bool> g_shutdown{false};
+
 // Mock static members for disabled OpenTelemetry (using safe types instead of void)
 std::shared_ptr<int> OpenTelemetryUtil::tracer_provider_{};
 std::shared_ptr<int> OpenTelemetryUtil::meter_provider_{};
@@ -100,7 +103,12 @@ thread_local std::shared_ptr<int> OpenTelemetryUtil::parent_span_{};
 // Thread-local storage for remote span context from master - use mock implementation
 thread_local int OpenTelemetryUtil::remote_span_context_{0};
 thread_local bool OpenTelemetryUtil::has_remote_context_ = false;
+
 #endif
+
+// Static member definitions - these must be outside conditional compilation
+// They are needed regardless of whether OpenTelemetry is enabled or disabled
+std::string OpenTelemetryUtil::service_name_ = "";
 
 // Implementation of GetSpan function for both enabled and disabled OpenTelemetry
 #ifdef DISABLE_OPENTELEMETRY
