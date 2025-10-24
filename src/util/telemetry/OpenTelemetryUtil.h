@@ -219,6 +219,12 @@ class OpenTelemetryUtil {
      */
     static void flushTraces();
 
+    /**
+     * Check if OpenTelemetry is properly initialized
+     * @return true if initialized, false otherwise
+     */
+    static bool isInitialized();
+
     // Thread-local storage for remote span context from master (public for ScopedTracer access)
 #ifndef DISABLE_OPENTELEMETRY
     static thread_local trace_api::SpanContext remote_span_context_;

@@ -29,44 +29,16 @@ namespace context_api = opentelemetry::context;
 
 // Check for testing environment early - disable all OpenTelemetry in tests
 static bool isTestingEnvironment() {
-    static bool checked = false;
-    static bool is_testing = false;
-
-    if (!checked) {
-        const char* disable_telemetry = std::getenv("DISABLE_TELEMETRY");
-        const char* testing = std::getenv("TESTING");
-        is_testing = (disable_telemetry && std::string(disable_telemetry) == "true") ||
-                    (testing && std::string(testing) == "true");
-        checked = true;
-    }
-    return is_testing;
+    const char* disable_telemetry = std::getenv("DISABLE_TELEMETRY");
+    const char* testing = std::getenv("TESTING");
+    return (disable_telemetry && std::string(disable_telemetry) == "true") ||
+           (testing && std::string(testing) == "true");
 }
 
-static std::atomic<bool> g_initialized{false};
-static std::atomic<bool> g_shutdown{false};
-
-// Global exit handler to safely shutdown OpenTelemetry
-static struct ExitHandler {
-    ExitHandler() {
-        std::atexit([]() {
-            if (isTestingEnvironment()) {
-                // In testing environment, force shutdown all static objects safely
-                g_shutdown.store(true);
-                // Don't call OpenTelemetry shutdown to avoid destructor issues
-                return;
-            }
-
-            // Normal shutdown for production
-            if (g_initialized.load() && !g_shutdown.load()) {
-                try {
-                    OpenTelemetryUtil::shutdown();
-                } catch (...) {
-                    // Ignore all errors during exit
-                }
-            }
-        });
-    }
-} exit_handler;
+// Helper function to check if OpenTelemetry is properly initialized
+bool OpenTelemetryUtil::isInitialized() {
+    return tracer_provider_ != nullptr;
+}
 
 // OpenTelemetry-specific static members (only when OpenTelemetry is enabled)
 nostd::shared_ptr<trace_api::TracerProvider> OpenTelemetryUtil::tracer_provider_{};
@@ -83,20 +55,13 @@ thread_local bool OpenTelemetryUtil::has_remote_context_ = false;
 
 #else
 
-// Mock testing environment function for disabled OpenTelemetry
-static bool isTestingEnvironment() {
-    return true;  // Always return true for disabled OpenTelemetry (safer for tests)
-}
+// When OpenTelemetry is DISABLED, provide minimal mock implementations without static initialization
 
-// Mock static initialization flags for disabled OpenTelemetry
-static std::atomic<bool> g_initialized{false};
-static std::atomic<bool> g_shutdown{false};
-
-// Mock static members for disabled OpenTelemetry (using safe types instead of void)
+// Mock static members for disabled OpenTelemetry (using safe types)
 std::shared_ptr<int> OpenTelemetryUtil::tracer_provider_{};
 std::shared_ptr<int> OpenTelemetryUtil::meter_provider_{};
 
-// Thread-local storage for worker context management - use safe types instead of void
+// Thread-local storage for worker context management - use safe types
 thread_local std::unique_ptr<int> OpenTelemetryUtil::context_token_{};
 thread_local std::shared_ptr<int> OpenTelemetryUtil::parent_span_{};
 
@@ -143,9 +108,9 @@ void OpenTelemetryUtil::initialize(const std::string& service_name,
         return;
     }
 
-    // Check if already initialized or shutdown
-    if (g_initialized.load() || g_shutdown.load()) {
-        std::cout << "OpenTelemetry already initialized or shutdown, skipping initialization" << std::endl;
+    // Check if already initialized
+    if (OpenTelemetryUtil::isInitialized()) {
+        std::cout << "OpenTelemetry already initialized, skipping initialization" << std::endl;
         return;
     }
 
@@ -209,8 +174,6 @@ void OpenTelemetryUtil::initialize(const std::string& service_name,
 
         std::cout << "OpenTelemetry fallback initialization completed with console output" << std::endl;
     }
-    // Mark as initialized
-    g_initialized.store(true);
     std::cout << "OpenTelemetry initialization completed" << std::endl;
 }
 
@@ -244,9 +207,9 @@ void OpenTelemetryUtil::shutdown() {
     try {
         std::cout << "Shutting down OpenTelemetry..." << std::endl;
 
-        // Check if telemetry is initialized and not already shutdown
-        if (g_shutdown.load() || !g_initialized.load() || !tracer_provider_) {
-            std::cout << "OpenTelemetry not initialized or already shutdown, skipping shutdown" << std::endl;
+        // Check if telemetry is initialized
+        if (!OpenTelemetryUtil::isInitialized()) {
+            std::cout << "OpenTelemetry not initialized, skipping shutdown" << std::endl;
             return;
         }
 
@@ -302,10 +265,6 @@ void OpenTelemetryUtil::shutdown() {
 
         service_name_.clear();
 
-        // Mark as shutdown
-        g_shutdown.store(true);
-        g_initialized.store(false);
-
         std::cout << "OpenTelemetry shutdown completed" << std::endl;
     } catch (const std::exception& e) {
         std::cerr << "Critical error during OpenTelemetry shutdown: " << e.what() << std::endl;
@@ -321,12 +280,7 @@ bool OpenTelemetryUtil::isEnabled() {
             return false;
         }
 
-        // Check if shutdown was called
-        if (g_shutdown.load()) {
-            return false;
-        }
-
-        return tracer_provider_ != nullptr && g_initialized.load();
+        return OpenTelemetryUtil::isInitialized();
     } catch (...) {
         // If we can't safely check the provider, assume disabled
         return false;
@@ -620,7 +574,7 @@ void OpenTelemetryUtil::addSpanAttribute(const std::string& key, const std::stri
 }
 
 void OpenTelemetryUtil::flushTraces() {
-    if (isTestingEnvironment() || !g_initialized.load()) {
+    if (isTestingEnvironment() || !OpenTelemetryUtil::isInitialized()) {
         return;
     }
 
@@ -661,6 +615,10 @@ void OpenTelemetryUtil::shutdown() {
 }
 
 bool OpenTelemetryUtil::isEnabled() {
+    return false;
+}
+
+bool OpenTelemetryUtil::isInitialized() {
     return false;
 }
 
