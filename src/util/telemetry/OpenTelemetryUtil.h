@@ -37,7 +37,7 @@ bool isTelemetryEnabled();
 namespace nostd {
     template<typename T>
     class shared_ptr {
-    public:
+     public:
         shared_ptr() = default;
         shared_ptr(std::nullptr_t) {}
         template<typename U>
@@ -47,10 +47,10 @@ namespace nostd {
         operator bool() const { return false; }
         T* get() const { return nullptr; }
     };
-    
+
     template<typename T>
     class unique_ptr {
-    public:
+     public:
         unique_ptr() = default;
         unique_ptr(std::nullptr_t) {}
         template<typename U>
@@ -61,21 +61,21 @@ namespace nostd {
         T* get() const { return nullptr; }
         void reset() {}
     };
-}
+}  // namespace nostd
 
 namespace trace_api {
     enum class StatusCode { kOk };
-    
+
     class SpanContext {
-    public:
+     public:
         SpanContext() = default;
         SpanContext(bool, bool) {}
         static SpanContext GetInvalid() { return SpanContext(); }
         bool IsValid() const { return false; }
     };
-    
+
     class Span {
-    public:
+     public:
         void SetAttribute(const std::string&, const std::string&) {}
         void SetAttribute(const std::string&, double) {}
         void SetStatus(StatusCode, const std::string& = "") {}
@@ -83,51 +83,51 @@ namespace trace_api {
         bool IsRecording() const { return false; }
         SpanContext GetContext() const { return SpanContext::GetInvalid(); }
     };
-    
+
     class Scope {
-    public:
+     public:
         Scope(nostd::shared_ptr<Span>) {}
     };
-    
+
     class Tracer {
-    public:
+     public:
         nostd::shared_ptr<Span> StartSpan(const std::string&) { return nostd::shared_ptr<Span>(); }
-        nostd::shared_ptr<Span> StartSpan(const std::string&, const struct StartSpanOptions&) { 
-            return nostd::shared_ptr<Span>(); 
+        nostd::shared_ptr<Span> StartSpan(const std::string&, const struct StartSpanOptions&) {
+            return nostd::shared_ptr<Span>();
         }
     };
-    
+
     class TracerProvider {
-    public:
+     public:
         nostd::shared_ptr<Tracer> GetTracer(const std::string&, const std::string&) {
             return nostd::shared_ptr<Tracer>();
         }
     };
-    
+
     struct StartSpanOptions {
         SpanContext parent;
     };
-    
+
     Span* GetSpan(void*);
-}
+}  // namespace trace_api
 
 namespace metrics_api {
     class Meter {};
     class MeterProvider {
-    public:
+     public:
         nostd::shared_ptr<Meter> GetMeter(const std::string&, const std::string&) {
             return nostd::shared_ptr<Meter>();
         }
     };
-}
+}  // namespace metrics_api
 
 namespace context {
     class Token {};
     class RuntimeContext {
-    public:
+     public:
         static void* GetCurrent() { return nullptr; }
     };
-}
+}  // namespace context
 
 #endif
 

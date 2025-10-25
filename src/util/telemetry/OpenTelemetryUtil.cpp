@@ -79,15 +79,15 @@ std::string OpenTelemetryUtil::service_name_ = "";
 #ifdef DISABLE_OPENTELEMETRY
 // When OpenTelemetry is disabled, implement the mock GetSpan function in trace_api namespace
 namespace trace_api {
-Span* GetSpan(void*) { 
-    return nullptr; 
+Span* GetSpan(void*) {
+    return nullptr;
 }
 }
 #else
 // When OpenTelemetry is enabled, implement GetSpan function using real API
 namespace opentelemetry {
 namespace trace {
-Span* GetSpan(void*) { 
+Span* GetSpan(void*) {
     // Convert shared_ptr to raw pointer
     auto span_shared = opentelemetry::trace::GetSpan(opentelemetry::context::RuntimeContext::GetCurrent());
     return span_shared.get();
@@ -645,7 +645,7 @@ void OpenTelemetryUtil::flushTraces() {
 
 // ScopedTracer stub implementation
 ScopedTracer::ScopedTracer(const std::string& operation_name,
-                          const std::map<std::string, std::string>& attributes) 
+                          const std::map<std::string, std::string>& attributes)
     : operation_name_(operation_name), start_time_(std::chrono::steady_clock::now()) {
     // No-op
 }
