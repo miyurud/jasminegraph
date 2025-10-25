@@ -78,6 +78,21 @@ jobs:
         with:
           docker-enabled: true
 
+      - name: Show system resources and StorageClass
+        run: |
+            echo "=== CPU Info ==="
+            lscpu | grep -E '^CPU\(s\)|^Model name'
+            echo
+            echo "=== Memory Info ==="
+            free -h
+            echo
+            echo "=== Disk Info ==="
+            df -h
+            echo
+            echo "=== Kubernetes StorageClasses ==="
+            kubectl get storageclass
+            kubectl describe storageclass
+
       - name: Grant permissions for default user
         run: kubectl apply -f ./k8s/rbac.yaml
 
