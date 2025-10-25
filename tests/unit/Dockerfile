@@ -1,4 +1,5 @@
-FROM miyurud/jasminegraph-prerequisites:20250930T172442
+# Pin to the known-good prerequisites image used on master to avoid k8s client/runtime mismatches
+FROM miyurud/jasminegraph-prerequisites:20241231T070657
 
 RUN apt-get update
 RUN apt-get install libcurl4-openssl-dev -y
