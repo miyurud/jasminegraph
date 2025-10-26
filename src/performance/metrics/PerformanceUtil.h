@@ -64,6 +64,15 @@ class PerformanceUtil {
                                                       std::vector<JobRequest>& pendingHPJobList);
 
     static void logLoadAverage();
+    static void logRunQueue();
+    static void logLogicalCpuCoreThreadUsage();
+    static void logProcessSwitchesPerSecond();
+    static void logForkCallsPerSecond();
+    static void logNetworkPacketsPerSecond();
+    static void logDiskBusyPercentage();
+    static void logDiskReadWriteKBPerSecond();
+    static void logDiskBlockSizeKB();
+    static void logDiskTransfersPerSecond();
     static std::vector<Place> getHostReporterList();
     static void updateResourceConsumption(PerformanceSQLiteDBInterface* performanceDb, std::string graphId,
                                           int partitionCount, std::vector<Place> placeList, std::string slaCategoryId);

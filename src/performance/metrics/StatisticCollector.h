@@ -20,13 +20,17 @@ limitations under the License.
 #include <sys/types.h>
 
 #include <algorithm>
+#include <climits>
 #include <cmath>
+#include <cstring>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <limits>
 #include <sstream>
 #include <thread>
+#include <vector>
+#include <map>
 
 #include "../../util/Utils.h"
 #include "PerformanceUtil.h"
@@ -54,6 +58,15 @@ class StatisticCollector {
     static long getTotalMemoryUsage();
     static double getTotalCpuUsage();
     static double getLoadAverage();
+    static long getRunQueue();
+    static std::vector<double> getLogicalCpuCoreThreadUsage();
+    static double getProcessSwitchesPerSecond();
+    static double getForkCallsPerSecond();
+    static std::map<std::string, std::pair<double, double>> getNetworkPacketsPerSecond();
+    static std::map<std::string, double> getDiskBusyPercentage();
+    static std::map<std::string, std::pair<double, double>> getDiskReadWriteKBPerSecond();
+    static std::map<std::string, double> getDiskBlockSizeKB();
+    static std::map<std::string, double> getDiskTransfersPerSecond();
     static void logLoadAverage(std::string name);
 };
 

@@ -55,6 +55,59 @@ int PerformanceUtil::collectPerformanceStatistics() {
     double currentLoadAverage = StatisticCollector::getLoadAverage();
     Utils::send_job("", "load_average", std::to_string(currentLoadAverage));
 
+    long runQueue = StatisticCollector::getRunQueue();
+    Utils::send_job("", "run_queue", std::to_string(runQueue));
+
+    std::vector<double> logicalCpuUsages = StatisticCollector::getLogicalCpuCoreThreadUsage();
+    for (size_t i = 0; i < logicalCpuUsages.size(); i++) {
+        Utils::send_job("", "cpu_core_" + std::to_string(i) + "_usage", std::to_string(logicalCpuUsages[i]));
+    }
+
+    double processSwitchesPerSec = StatisticCollector::getProcessSwitchesPerSecond();
+    Utils::send_job("", "process_switches_per_sec", std::to_string(processSwitchesPerSec));
+
+    double forkCallsPerSec = StatisticCollector::getForkCallsPerSecond();
+    Utils::send_job("", "fork_calls_per_sec", std::to_string(forkCallsPerSec));
+
+    std::map<std::string, std::pair<double, double>> networkPackets = StatisticCollector::getNetworkPacketsPerSecond();
+    for (const auto& entry : networkPackets) {
+        const std::string& interface = entry.first;
+        double rxPacketsPerSec = entry.second.first;
+        double txPacketsPerSec = entry.second.second;
+        Utils::send_job("", "net_" + interface + "_rx_packets_per_sec", std::to_string(rxPacketsPerSec));
+        Utils::send_job("", "net_" + interface + "_tx_packets_per_sec", std::to_string(txPacketsPerSec));
+    }
+
+    std::map<std::string, double> diskBusy = StatisticCollector::getDiskBusyPercentage();
+    for (const auto& entry : diskBusy) {
+        const std::string& device = entry.first;
+        double busyPercentage = entry.second;
+        Utils::send_job("", "disk_" + device + "_busy_percentage", std::to_string(busyPercentage));
+    }
+
+    std::map<std::string, std::pair<double, double>> diskRates = StatisticCollector::getDiskReadWriteKBPerSecond();
+    for (const auto& entry : diskRates) {
+        const std::string& device = entry.first;
+        double readKBPerSec = entry.second.first;
+        double writeKBPerSec = entry.second.second;
+        Utils::send_job("", "disk_" + device + "_read_kb_per_sec", std::to_string(readKBPerSec));
+        Utils::send_job("", "disk_" + device + "_write_kb_per_sec", std::to_string(writeKBPerSec));
+    }
+
+    std::map<std::string, double> diskBlockSizes = StatisticCollector::getDiskBlockSizeKB();
+    for (const auto& entry : diskBlockSizes) {
+        const std::string& device = entry.first;
+        double blockSizeKB = entry.second;
+        Utils::send_job("", "disk_" + device + "_block_size_kb", std::to_string(blockSizeKB));
+    }
+
+    std::map<std::string, double> diskTransferRates = StatisticCollector::getDiskTransfersPerSecond();
+    for (const auto& entry : diskTransferRates) {
+        const std::string& device = entry.first;
+        double transfersPerSec = entry.second;
+        Utils::send_job("", "disk_" + device + "_transfers_per_sec", std::to_string(transfersPerSec));
+    }
+
     long totalSwapSpace = StatisticCollector::getTotalSwapSpace();
     Utils::send_job("", "total_swap_space", std::to_string(totalSwapSpace));
 
@@ -439,6 +492,102 @@ void PerformanceUtil::adjustAggregateLoadMap(std::map<std::string, std::vector<d
 
 void PerformanceUtil::logLoadAverage() {
     double currentLoadAverage = StatisticCollector::getLoadAverage();
+}
+
+void PerformanceUtil::logRunQueue() {
+    long currentRunQueue = StatisticCollector::getRunQueue();
+}
+
+void PerformanceUtil::logLogicalCpuCoreThreadUsage() {
+    std::vector<double> logicalCpuUsages = StatisticCollector::getLogicalCpuCoreThreadUsage();
+    for (size_t i = 0; i < logicalCpuUsages.size(); i++) {
+        scheduler_logger.info("CPU Core " + std::to_string(i) + " usage: " + std::to_string(logicalCpuUsages[i]) + "%");
+    }
+}
+
+void PerformanceUtil::logProcessSwitchesPerSecond() {
+    double processSwitchesPerSec = StatisticCollector::getProcessSwitchesPerSecond();
+    if (processSwitchesPerSec >= 0) {
+        scheduler_logger.info("Process switches per second: " + std::to_string(processSwitchesPerSec));
+    } else {
+        scheduler_logger.error("Failed to get process switches per second");
+    }
+}
+
+void PerformanceUtil::logForkCallsPerSecond() {
+    double forkCallsPerSec = StatisticCollector::getForkCallsPerSecond();
+    if (forkCallsPerSec >= 0) {
+        scheduler_logger.info("Fork calls per second: " + std::to_string(forkCallsPerSec));
+    } else {
+        scheduler_logger.error("Failed to get fork calls per second");
+    }
+}
+
+void PerformanceUtil::logNetworkPacketsPerSecond() {
+    std::map<std::string, std::pair<double, double>> networkPackets = StatisticCollector::getNetworkPacketsPerSecond();
+    if (!networkPackets.empty()) {
+        for (const auto& entry : networkPackets) {
+            const std::string& interface = entry.first;
+            double rxPacketsPerSec = entry.second.first;
+            double txPacketsPerSec = entry.second.second;
+            scheduler_logger.info("Network " + interface + " - RX: " + std::to_string(rxPacketsPerSec) + " packets/sec, TX: " + std::to_string(txPacketsPerSec) + " packets/sec");
+        }
+    } else {
+        scheduler_logger.error("Failed to get network packets per second");
+    }
+}
+
+void PerformanceUtil::logDiskBusyPercentage() {
+    std::map<std::string, double> diskBusy = StatisticCollector::getDiskBusyPercentage();
+    if (!diskBusy.empty()) {
+        for (const auto& entry : diskBusy) {
+            const std::string& device = entry.first;
+            double busyPercentage = entry.second;
+            scheduler_logger.info("Disk " + device + " busy: " + std::to_string(busyPercentage) + "%");
+        }
+    } else {
+        scheduler_logger.error("Failed to get disk busy percentage");
+    }
+}
+
+void PerformanceUtil::logDiskReadWriteKBPerSecond() {
+    std::map<std::string, std::pair<double, double>> diskRates = StatisticCollector::getDiskReadWriteKBPerSecond();
+    if (!diskRates.empty()) {
+        for (const auto& entry : diskRates) {
+            const std::string& device = entry.first;
+            double readKBPerSec = entry.second.first;
+            double writeKBPerSec = entry.second.second;
+            scheduler_logger.info("Disk " + device + " - Read: " + std::to_string(readKBPerSec) + " KB/s, Write: " + std::to_string(writeKBPerSec) + " KB/s");
+        }
+    } else {
+        scheduler_logger.error("Failed to get disk read/write KB per second");
+    }
+}
+
+void PerformanceUtil::logDiskBlockSizeKB() {
+    std::map<std::string, double> diskBlockSizes = StatisticCollector::getDiskBlockSizeKB();
+    if (!diskBlockSizes.empty()) {
+        for (const auto& entry : diskBlockSizes) {
+            const std::string& device = entry.first;
+            double blockSizeKB = entry.second;
+            scheduler_logger.info("Disk " + device + " average block size: " + std::to_string(blockSizeKB) + " KB");
+        }
+    } else {
+        scheduler_logger.error("Failed to get disk block sizes");
+    }
+}
+
+void PerformanceUtil::logDiskTransfersPerSecond() {
+    std::map<std::string, double> diskTransferRates = StatisticCollector::getDiskTransfersPerSecond();
+    if (!diskTransferRates.empty()) {
+        for (const auto& entry : diskTransferRates) {
+            const std::string& device = entry.first;
+            double transfersPerSec = entry.second;
+            scheduler_logger.info("Disk " + device + " transfers: " + std::to_string(transfersPerSec) + " transfers/s");
+        }
+    } else {
+        scheduler_logger.error("Failed to get disk transfers per second");
+    }
 }
 
 void PerformanceUtil::updateResourceConsumption(PerformanceSQLiteDBInterface *performanceDb, std::string graphId,
