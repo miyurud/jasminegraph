@@ -1,3 +1,16 @@
+/**
+Copyright 2019-2025 JasmineGraph Team
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+ */
+
 #include "../../util/telemetry/OpenTelemetryUtil.h"
 #include <cstdlib>
 #include "../logger/Logger.h"
@@ -45,17 +58,21 @@ void initializeOpenTelemetry(ServiceType serviceType) {
         std::string otlpEndpoint;
         bool useSimpleProcessor;
 
+        const std::string kOtlpDefaultEndpoint = "http://tempo:4318/v1/traces";
+
         if (serviceType == ServiceType::MASTER) {
             telemetry_init_logger.info("Initializing OpenTelemetry for master...");
             serviceName = "jasminegraph-master";
-            otlpEndpoint = "http://tempo:4318/v1/traces";  // Docker-compose network
+            otlpEndpoint = kOtlpDefaultEndpoint;
             useSimpleProcessor = false;  // Use BatchProcessor for master
         } else {
             telemetry_init_logger.info("Initializing OpenTelemetry for worker...");
             serviceName = "jasminegraph-worker";
-            otlpEndpoint = "http://172.28.5.1:4318/v1/traces";  // Host IP for worker containers
+            otlpEndpoint = kOtlpDefaultEndpoint;
             useSimpleProcessor = true;   // Use SimpleProcessor for immediate export
         }
+
+        telemetry_init_logger.info("Using OTLP endpoint: " + otlpEndpoint);
 
         // Initialize with unified configuration
         OpenTelemetryUtil::initialize(

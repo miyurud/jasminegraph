@@ -1,3 +1,16 @@
+/**
+Copyright 2019-2025 JasmineGraph Team
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+ */
+
 #include "OpenTelemetryUtil.h"
 #include <sstream>
 #include <vector>
@@ -7,6 +20,8 @@
 #include <atomic>
 
 #include "../logger/Logger.h"
+
+static Logger telemetry_logger;
 
 #ifndef DISABLE_OPENTELEMETRY
 #include "opentelemetry/common/key_value_iterable_view.h"
@@ -36,7 +51,12 @@ static bool isTestingEnvironment() {
            (testing && std::string(testing) == "true");
 }
 
-static Logger telemetry_logger;
+// Constants for W3C trace-context formatting
+namespace {
+constexpr int kTraceIdNumBytes = 16;  // 16 bytes = 32 hex chars
+constexpr int kSpanIdNumBytes = 8;    // 8 bytes = 16 hex chars
+constexpr int kW3CParts = 4;          // version, trace_id, span_id, flags
+}
 
 // Helper function to check if OpenTelemetry is properly initialized
 bool OpenTelemetryUtil::isInitialized() {
@@ -280,6 +300,11 @@ bool OpenTelemetryUtil::isEnabled() {
     try {
         // Early check for testing environment
         if (isTestingEnvironment()) {
+            static std::atomic<bool> logged{false};
+            bool expected = false;
+            if (logged.compare_exchange_strong(expected, true)) {
+                telemetry_logger.info("OpenTelemetry disabled in testing environment");
+            }
             return false;
         }
 
@@ -442,15 +467,15 @@ std::string OpenTelemetryUtil::getCurrentTraceContext() {
             std::ostringstream oss;
             oss << "00-";
 
-            // Convert trace_id to hex string
-            for (int i = 0; i < 16; ++i) {
+            // Convert trace_id (16 bytes) to hex string
+            for (int i = 0; i < kTraceIdNumBytes; ++i) {
                 oss << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(trace_id.Id()[i]);
             }
 
             oss << "-";
 
-            // Convert span_id to hex string
-            for (int i = 0; i < 8; ++i) {
+            // Convert span_id (8 bytes) to hex string
+            for (int i = 0; i < kSpanIdNumBytes; ++i) {
                 oss << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(span_id.Id()[i]);
             }
 
@@ -484,7 +509,7 @@ void OpenTelemetryUtil::setTraceContext(const std::string& context_str) {
             parts.push_back(item);
         }
 
-        if (parts.size() != 4) {
+        if (static_cast<int>(parts.size()) != kW3CParts) {
             return;  // Invalid trace context format
         }
 
@@ -500,17 +525,17 @@ void OpenTelemetryUtil::setTraceContext(const std::string& context_str) {
         }
 
         // Convert hex strings to byte arrays
-        std::array<uint8_t, 16> trace_id_bytes = {0};
-        std::array<uint8_t, 8> span_id_bytes = {0};
+    std::array<uint8_t, kTraceIdNumBytes> trace_id_bytes = {0};
+    std::array<uint8_t, kSpanIdNumBytes> span_id_bytes = {0};
 
         // Parse trace_id (32 hex chars = 16 bytes)
-            for (size_t i = 0; i < 16 && i * 2 < trace_id_str.length(); ++i) {
+            for (size_t i = 0; i < kTraceIdNumBytes && i * 2 < trace_id_str.length(); ++i) {
                 std::string byte_str = trace_id_str.substr(i * 2, 2);
                 trace_id_bytes[i] = static_cast<uint8_t>(std::stoul(byte_str, nullptr, 16));
             }
 
             // Parse span_id (16 hex chars = 8 bytes)
-            for (size_t i = 0; i < 8 && i * 2 < span_id_str.length(); ++i) {
+            for (size_t i = 0; i < kSpanIdNumBytes && i * 2 < span_id_str.length(); ++i) {
                 std::string byte_str = span_id_str.substr(i * 2, 2);
                 span_id_bytes[i] = static_cast<uint8_t>(std::stoul(byte_str, nullptr, 16));
             }
@@ -519,10 +544,10 @@ void OpenTelemetryUtil::setTraceContext(const std::string& context_str) {
             uint8_t flags = static_cast<uint8_t>(std::stoul(flags_str, nullptr, 16));
 
             // Create trace and span IDs using nostd::span for v1.16.1 compatibility
-            auto trace_id = trace_api::TraceId(nostd::span<const uint8_t, 16>(
-                reinterpret_cast<const uint8_t*>(trace_id_bytes.data()), 16));
-            auto parent_span_id = trace_api::SpanId(nostd::span<const uint8_t, 8>(
-                reinterpret_cast<const uint8_t*>(span_id_bytes.data()), 8));
+            auto trace_id = trace_api::TraceId(nostd::span<const uint8_t, kTraceIdNumBytes>(
+                reinterpret_cast<const uint8_t*>(trace_id_bytes.data()), kTraceIdNumBytes));
+            auto parent_span_id = trace_api::SpanId(nostd::span<const uint8_t, kSpanIdNumBytes>(
+                reinterpret_cast<const uint8_t*>(span_id_bytes.data()), kSpanIdNumBytes));
             auto trace_flags = trace_api::TraceFlags(flags);
 
             // Create a span context with the parent information
@@ -590,6 +615,7 @@ void OpenTelemetryUtil::flushTraces() {
         }
     } catch (const std::exception& e) {
         // Flush failed - traces may be lost
+        telemetry_logger.warn(std::string("Failed to flush OpenTelemetry traces: ") + e.what());
     }
 }
 
