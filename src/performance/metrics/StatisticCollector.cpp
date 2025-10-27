@@ -22,6 +22,7 @@ static long parseLine(char *line);
 static long getSwapSpace(const char *type);
 
 #define LINE_BUF_SIZE 128
+#define LINE_BUF_SIZE_LONG 256
 
 int StatisticCollector::init() {
     FILE *file;
@@ -360,7 +361,7 @@ std::vector<double> StatisticCollector::getLogicalCpuCoreThreadUsage() {
         return cpuUsages;
     }
     
-    char line[1024];
+    char line[LINE_BUF_SIZE];
     // Skip the first line (total cpu stats)
     fgets(line, sizeof(line), file1);
     
@@ -653,7 +654,7 @@ std::map<std::string, std::pair<double, double>> StatisticCollector::getNetworkP
         return packetRates;
     }
     
-    char line[1024];
+    char line[LINE_BUF_SIZE_LONG];
     // Skip header lines
     if (fgets(line, sizeof(line), file1) == NULL || fgets(line, sizeof(line), file1) == NULL) {
         stat_logger.error("Cannot read header lines from /proc/net/dev");
@@ -780,7 +781,7 @@ std::map<std::string, double> StatisticCollector::getDiskBusyPercentage() {
         return diskBusyRates;
     }
     
-    char line[256];
+    char line[LINE_BUF_SIZE_LONG];
     while (fgets(line, sizeof(line), file1) != NULL) {
         int major, minor;
         char device[32];
@@ -904,7 +905,7 @@ std::map<std::string, std::pair<double, double>> StatisticCollector::getDiskRead
         return diskRates;
     }
     
-    char line[256];
+    char line[LINE_BUF_SIZE_LONG];
     while (fgets(line, sizeof(line), file1) != NULL) {
         int major, minor;
         char device[32];
@@ -1027,7 +1028,7 @@ std::map<std::string, double> StatisticCollector::getDiskBlockSizeKB() {
         return diskBlockSizes;
     }
     
-    char line[256];
+    char line[LINE_BUF_SIZE_LONG];
     while (fgets(line, sizeof(line), file) != NULL) {
         int major, minor;
         char device[32];
@@ -1091,7 +1092,7 @@ std::map<std::string, double> StatisticCollector::getDiskTransfersPerSecond() {
         return diskTransferRates;
     }
     
-    char line[256];
+    char line[LINE_BUF_SIZE_LONG];
     while (fgets(line, sizeof(line), file1) != NULL) {
         int major, minor;
         char device[32];
