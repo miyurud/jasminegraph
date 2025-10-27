@@ -1,6 +1,6 @@
 #include "../../util/telemetry/OpenTelemetryUtil.h"
-#include <iostream>
 #include <cstdlib>
+#include "../logger/Logger.h"
 
 // Service type enumeration for telemetry initialization
 enum class ServiceType {
@@ -10,6 +10,7 @@ enum class ServiceType {
 
 // Global flag to control OpenTelemetry initialization
 static bool g_telemetry_enabled = false;
+static Logger telemetry_init_logger;
 
 /**
  * Initialize OpenTelemetry for JasmineGraph services
@@ -22,19 +23,19 @@ void initializeOpenTelemetry(ServiceType serviceType) {
     const char* testing = std::getenv("TESTING");
 
     if (disableTelemetry && std::string(disableTelemetry) == "true") {
-        std::cout << "OpenTelemetry disabled via DISABLE_TELEMETRY environment variable" << std::endl;
+        telemetry_init_logger.info("OpenTelemetry disabled via DISABLE_TELEMETRY environment variable");
         g_telemetry_enabled = false;
         return;
     }
 
     if (testMode && std::string(testMode) == "true") {
-        std::cout << "OpenTelemetry disabled in test mode" << std::endl;
+        telemetry_init_logger.info("OpenTelemetry disabled in test mode");
         g_telemetry_enabled = false;
         return;
     }
 
     if (testing && std::string(testing) == "true") {
-        std::cout << "OpenTelemetry disabled in testing environment" << std::endl;
+        telemetry_init_logger.info("OpenTelemetry disabled in testing environment");
         g_telemetry_enabled = false;
         return;
     }
@@ -45,12 +46,12 @@ void initializeOpenTelemetry(ServiceType serviceType) {
         bool useSimpleProcessor;
 
         if (serviceType == ServiceType::MASTER) {
-            std::cout << "Initializing OpenTelemetry for master..." << std::endl;
+            telemetry_init_logger.info("Initializing OpenTelemetry for master...");
             serviceName = "jasminegraph-master";
             otlpEndpoint = "http://tempo:4318/v1/traces";  // Docker-compose network
             useSimpleProcessor = false;  // Use BatchProcessor for master
         } else {
-            std::cout << "Initializing OpenTelemetry for worker..." << std::endl;
+            telemetry_init_logger.info("Initializing OpenTelemetry for worker...");
             serviceName = "jasminegraph-worker";
             otlpEndpoint = "http://172.28.5.1:4318/v1/traces";  // Host IP for worker containers
             useSimpleProcessor = true;   // Use SimpleProcessor for immediate export
@@ -64,13 +65,12 @@ void initializeOpenTelemetry(ServiceType serviceType) {
             useSimpleProcessor);
 
         g_telemetry_enabled = true;
-        std::cout << "OpenTelemetry initialized successfully for "
-                  << (serviceType == ServiceType::MASTER ? "master" : "worker")
-                  << (useSimpleProcessor ? " with simple processor" : " with batch processor")
-                  << std::endl;
+        telemetry_init_logger.info(std::string("OpenTelemetry initialized successfully for ") +
+                                   (serviceType == ServiceType::MASTER ? "master" : "worker") +
+                                   (useSimpleProcessor ? " with simple processor" : " with batch processor"));
     } catch (const std::exception& e) {
-        std::cerr << "Failed to initialize OpenTelemetry: " << e.what() << std::endl;
-        std::cerr << "Continuing without telemetry..." << std::endl;
+        telemetry_init_logger.error(std::string("Failed to initialize OpenTelemetry: ") + e.what());
+        telemetry_init_logger.warn("Continuing without telemetry...");
         g_telemetry_enabled = false;
     }
 }
@@ -97,7 +97,7 @@ void shutdownOpenTelemetry() {
     if (g_telemetry_enabled) {
         OpenTelemetryUtil::shutdown();
         g_telemetry_enabled = false;
-        std::cout << "OpenTelemetry shutdown completed" << std::endl;
+        telemetry_init_logger.info("OpenTelemetry shutdown completed");
     }
 }
 

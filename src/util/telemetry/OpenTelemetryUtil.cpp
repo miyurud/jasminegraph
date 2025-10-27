@@ -1,11 +1,12 @@
 #include "OpenTelemetryUtil.h"
-#include <iostream>
 #include <sstream>
 #include <vector>
 #include <chrono>
 #include <iomanip>
 #include <array>
 #include <atomic>
+
+#include "../logger/Logger.h"
 
 #ifndef DISABLE_OPENTELEMETRY
 #include "opentelemetry/common/key_value_iterable_view.h"
@@ -34,6 +35,8 @@ static bool isTestingEnvironment() {
     return (disable_telemetry && std::string(disable_telemetry) == "true") ||
            (testing && std::string(testing) == "true");
 }
+
+static Logger telemetry_logger;
 
 // Helper function to check if OpenTelemetry is properly initialized
 bool OpenTelemetryUtil::isInitialized() {
@@ -104,13 +107,13 @@ void OpenTelemetryUtil::initialize(const std::string& service_name,
                                   bool useSimpleProcessor) {
     // Early check for testing environment - completely skip initialization
     if (isTestingEnvironment()) {
-        std::cout << "OpenTelemetry disabled for testing environment" << std::endl;
+        telemetry_logger.info("OpenTelemetry disabled for testing environment");
         return;
     }
 
     // Check if already initialized
     if (OpenTelemetryUtil::isInitialized()) {
-        std::cout << "OpenTelemetry already initialized, skipping initialization" << std::endl;
+        telemetry_logger.info("OpenTelemetry already initialized, skipping initialization");
         return;
     }
 
@@ -153,10 +156,10 @@ void OpenTelemetryUtil::initialize(const std::string& service_name,
         // Set the global trace provider
         trace_api::Provider::SetTracerProvider(tracer_provider_);
 
-        std::cout << "OpenTelemetry OTLP initialization completed successfully" << std::endl;
+        telemetry_logger.info("OpenTelemetry OTLP initialization completed successfully");
     } catch (const std::exception& e) {
-        std::cerr << "Failed to initialize OpenTelemetry OTLP exporter: " << e.what() << std::endl;
-        std::cerr << "Falling back to console exporter..." << std::endl;
+        telemetry_logger.error("Failed to initialize OpenTelemetry OTLP exporter: " + std::string(e.what()));
+        telemetry_logger.warn("Falling back to console exporter...");
 
         // Create resource with service name for fallback too
         auto fallback_resource = opentelemetry::sdk::resource::Resource::Create({
@@ -172,9 +175,9 @@ void OpenTelemetryUtil::initialize(const std::string& service_name,
         tracer_provider_ = nostd::shared_ptr<trace_api::TracerProvider>(fallback_provider.release());
         trace_api::Provider::SetTracerProvider(tracer_provider_);
 
-        std::cout << "OpenTelemetry fallback initialization completed with console output" << std::endl;
+        telemetry_logger.info("OpenTelemetry fallback initialization completed with console output");
     }
-    std::cout << "OpenTelemetry initialization completed" << std::endl;
+    telemetry_logger.info("OpenTelemetry initialization completed");
 }
 
 
@@ -205,11 +208,11 @@ nostd::shared_ptr<metrics_api::Meter> OpenTelemetryUtil::getMeter(const std::str
 
 void OpenTelemetryUtil::shutdown() {
     try {
-        std::cout << "Shutting down OpenTelemetry..." << std::endl;
+        telemetry_logger.info("Shutting down OpenTelemetry...");
 
         // Check if telemetry is initialized
         if (!OpenTelemetryUtil::isInitialized()) {
-            std::cout << "OpenTelemetry not initialized, skipping shutdown" << std::endl;
+            telemetry_logger.info("OpenTelemetry not initialized, skipping shutdown");
             return;
         }
 
@@ -220,15 +223,15 @@ void OpenTelemetryUtil::shutdown() {
                 // Reduce timeout to prevent hanging
                 auto flush_result = sdk_provider->ForceFlush(std::chrono::milliseconds(1000));
                 if (!flush_result) {
-                    std::cerr << "Warning: OpenTelemetry flush timeout or failed" << std::endl;
+                    telemetry_logger.warn("OpenTelemetry flush timeout or failed");
                 }
                 // Call shutdown to properly clean up resources
                 sdk_provider->Shutdown();
             }
         } catch (const std::exception& e) {
-            std::cerr << "Error during OpenTelemetry flush/shutdown: " << e.what() << std::endl;
+            telemetry_logger.error("Error during OpenTelemetry flush/shutdown: " + std::string(e.what()));
         } catch (...) {
-            std::cerr << "Unknown error during OpenTelemetry flush/shutdown" << std::endl;
+            telemetry_logger.error("Unknown error during OpenTelemetry flush/shutdown");
         }
 
         // Reset providers safely
@@ -265,11 +268,11 @@ void OpenTelemetryUtil::shutdown() {
 
         service_name_.clear();
 
-        std::cout << "OpenTelemetry shutdown completed" << std::endl;
+        telemetry_logger.info("OpenTelemetry shutdown completed");
     } catch (const std::exception& e) {
-        std::cerr << "Critical error during OpenTelemetry shutdown: " << e.what() << std::endl;
+        telemetry_logger.error("Critical error during OpenTelemetry shutdown: " + std::string(e.what()));
     } catch (...) {
-        std::cerr << "Unknown critical error during OpenTelemetry shutdown" << std::endl;
+        telemetry_logger.error("Unknown critical error during OpenTelemetry shutdown");
     }
 }
 
@@ -533,7 +536,7 @@ void OpenTelemetryUtil::setTraceContext(const std::string& context_str) {
                 // Invalid span context created from trace context
             }
     } catch (const std::exception& e) {
-        std::cerr << "Error setting trace context: " << e.what() << std::endl;
+        telemetry_logger.warn("Error setting trace context: " + std::string(e.what()));
     }
 }
 
@@ -599,7 +602,7 @@ void OpenTelemetryUtil::initialize(const std::string& service_name,
                                   const std::string& prometheus_endpoint,
                                   bool useSimpleProcessor) {
     service_name_ = service_name;
-    std::cout << "OpenTelemetry disabled (stub implementation)" << std::endl;
+    telemetry_logger.info("OpenTelemetry disabled (stub implementation)");
 }
 
 nostd::shared_ptr<trace_api::Tracer> OpenTelemetryUtil::getTracer(const std::string& tracer_name) {
@@ -611,7 +614,7 @@ nostd::shared_ptr<metrics_api::Meter> OpenTelemetryUtil::getMeter(const std::str
 }
 
 void OpenTelemetryUtil::shutdown() {
-    std::cout << "OpenTelemetry shutdown (stub implementation)" << std::endl;
+    telemetry_logger.info("OpenTelemetry shutdown (stub implementation)");
 }
 
 bool OpenTelemetryUtil::isEnabled() {
