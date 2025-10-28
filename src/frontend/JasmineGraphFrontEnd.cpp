@@ -1086,6 +1086,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     string graphId;
     string partitionAlgo;
     string direction;
+    bool enableTemporal = false;
 
     if (existingGraph == "y") {
         string existingGraphIdMsg = "Send the existing graph ID ? ";
@@ -1250,6 +1251,51 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
             *loop_exit_p = true;
             return;
         }
+
+        // Ask for temporal streaming configuration
+        string temporalConfigMsg = "Enable temporal streaming with event timestamps (y/n)? ";
+        result_wr = write(connFd, temporalConfigMsg.c_str(), temporalConfigMsg.length());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        
+        string temporalEnabled = Utils::getFrontendInput(connFd);
+        enableTemporal = (temporalEnabled == "y" || temporalEnabled == "Y");
+        
+        string temporalResponse = enableTemporal ? 
+            "Temporal streaming enabled - expecting 'event_timestamp' field in JSON" : 
+            "Standard streaming mode - no temporal processing";
+        result_wr = write(connFd, temporalResponse.c_str(), temporalResponse.length());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        
+        // Inform about automatic operation type detection
+        string operationTypeInfo = "Operation types (ADD/EDIT/DELETE) will be automatically detected from 'operation_type' field in JSON messages";
+        result_wr = write(connFd, operationTypeInfo.c_str(), operationTypeInfo.length());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+
+
     }
 
     string msg_1 = "Do you want to use default KAFKA consumer(y/n) ?";
@@ -1358,7 +1404,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     // Create the StreamHandler object.
     StreamHandler *stream_handler = new StreamHandler(kstream, numberOfPartitions, workerClients, sqlite,
                                                       stoi(graphId), direction == Conts::DIRECTED,
-                                                      spt::getPartitioner(partitionAlgo));
+                                                      spt::getPartitioner(partitionAlgo), enableTemporal, true);
 
     if (existingGraph != "y") {
         string path = "kafka:\\" + topic_name_s + ":" + group_id;
