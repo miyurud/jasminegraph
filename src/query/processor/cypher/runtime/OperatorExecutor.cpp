@@ -1517,189 +1517,171 @@ void OperatorExecutor::OrderBy(SharedBuffer &buffer, std::string jsonPlan, Graph
 // ===============================
 
 void OperatorExecutor::AllNodeScanParallel(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
-    // STEP 2: Thread-safe pre-loading approach
+    // Use thread pool executor with deterministic merge
     try {
         json query = json::parse(jsonPlan);
         NodeManager nodeManager(gc);
         string variable = query["variables"].get<std::string>();
-        
-        // THREAD SAFETY: Pre-load all node data in main thread
+
+        // Pre-load node data safely in main thread
         std::vector<PreloadedNodeData> nodeDataList;
         nodeDataList.reserve(nodeManager.nodeIndex.size());
-        
+
         for (auto it : nodeManager.nodeIndex) {
             auto nodeId = it.first;
             NodeBlock *node = nodeManager.get(nodeId);
-            
             if (node == nullptr) continue;
-            
+
             std::string partitionValue(node->getMetaPropertyHead()->value);
             if (partitionValue == to_string(gc.partitionID)) {
-                
-                // Pre-load properties safely in main thread
                 std::map<std::string, std::string> nodeProperties;
                 nodeProperties["partitionID"] = partitionValue;
-                
+
                 std::map<std::string, char*> rawProperties = node->getAllProperties();
                 for (auto& prop : rawProperties) {
                     nodeProperties[prop.first] = std::string(prop.second);
                 }
-                
-                // Clean up raw memory immediately
-                for (auto& [key, val] : rawProperties) {
-                    delete[] val;
+                for (auto& [k, v] : rawProperties) {
+                    delete[] v;
                 }
                 rawProperties.clear();
-                
-                // Store thread-safe copy
+
                 nodeDataList.emplace_back(nodeId, partitionValue, nodeProperties);
             }
         }
-        
-        // STEP 3: TRUE PARALLEL PROCESSING - Use thread pool for large datasets
-        // STEP 3a: MINIMAL PARALLEL PROCESSING - Simple and deterministic
-        // Only use parallel processing for very large datasets to minimize risk
-        if (nodeDataList.size() >= 5000) {
-            // MINIMAL PARALLEL: Split into exactly 2 chunks for predictable behavior
-            const size_t halfSize = nodeDataList.size() / 2;
-            
-            // Process first half in main thread, second half in worker thread
-            std::vector<std::string> secondHalfResults;
-            std::future<std::vector<std::string>> secondHalfFuture;
-            
-            try {
-                // Launch worker for second half
-                secondHalfFuture = std::async(std::launch::async, [&nodeDataList, halfSize, variable]() -> std::vector<std::string> {
-                    std::vector<std::string> results;
-                    results.reserve(nodeDataList.size() - halfSize);
-                    
-                    for (size_t i = halfSize; i < nodeDataList.size(); ++i) {
-                        const auto& nodeData = nodeDataList[i];
-                        json nodeJson;
-                        for (const auto& [key, value] : nodeData.properties) {
-                            nodeJson[key] = value;
-                        }
-                        
-                        json data;
-                        data[variable] = nodeJson;
-                        results.push_back(data.dump());
-                    }
-                    return results;
-                });
-                
-                // Process first half in main thread (deterministic execution)
-                for (size_t i = 0; i < halfSize; ++i) {
-                    const auto& nodeData = nodeDataList[i];
-                    json nodeJson;
-                    for (const auto& [key, value] : nodeData.properties) {
-                        nodeJson[key] = value;
-                    }
-                    
-                    json data;
-                    data[variable] = nodeJson;
-                    buffer.add(data.dump());
-                }
-                
-                // Wait for worker and add second half results in order
-                secondHalfResults = secondHalfFuture.get();
-                for (const auto& result : secondHalfResults) {
-                    buffer.add(result);
-                }
-                
-            } catch (const std::exception& e) {
-                // If parallel processing fails, fall back to sequential for remaining data
-                for (size_t i = halfSize; i < nodeDataList.size(); ++i) {
-                    const auto& nodeData = nodeDataList[i];
-                    json nodeJson;
-                    for (const auto& [key, value] : nodeData.properties) {
-                        nodeJson[key] = value;
-                    }
-                    
-                    json data;
-                    data[variable] = nodeJson;
-                    buffer.add(data.dump());
-                }
-            }
-        } else {
-            // Small dataset: Use sequential processing (original behavior)
+
+        // If no executor available or dataset too small, fall back to sequential
+        if (!parallelExecutor || nodeDataList.size() < 2) {
             for (const auto& nodeData : nodeDataList) {
                 json nodeJson;
                 for (const auto& [key, value] : nodeData.properties) {
                     nodeJson[key] = value;
                 }
-                
                 json data;
                 data[variable] = nodeJson;
                 buffer.add(data.dump());
             }
+            buffer.add("-1");
+            return;
+        }
+
+        // Define processor over WorkChunk using the preloaded vector
+        auto processor = [&nodeDataList, &variable](const WorkChunk& chunk) -> std::vector<std::string> {
+            std::vector<std::string> results;
+            results.reserve(static_cast<size_t>(chunk.endIndex - chunk.startIndex + 1));
+            long start = std::max(0L, chunk.startIndex - 1); // convert to 0-based
+            long end = std::min<long>(static_cast<long>(nodeDataList.size()) - 1, chunk.endIndex - 1);
+            for (long i = start; i <= end; ++i) {
+                const auto& nodeData = nodeDataList[static_cast<size_t>(i)];
+                json nodeJson;
+                for (const auto& [key, value] : nodeData.properties) {
+                    nodeJson[key] = value;
+                }
+                json data;
+                data[variable] = nodeJson;
+                results.push_back(data.dump());
+            }
+            return results;
+        };
+
+        // Execute using the thread pool with adaptive chunking
+        std::vector<std::vector<std::string>> chunkResults =
+            parallelExecutor->processInParallel<decltype(processor), std::vector<std::string>>(
+                static_cast<long>(nodeDataList.size()), processor);
+
+        // Deterministic merge in chunk order and emit
+        for (const auto& chunkVec : chunkResults) {
+            for (const auto& row : chunkVec) {
+                buffer.add(row);
+            }
         }
         buffer.add("-1");
-        
-    } catch (const std::exception& e) {
-        // SAFETY: Handle any errors gracefully  
-        buffer.add("-1"); // End marker
+    } catch (...) {
+        // Ensure termination on any unexpected error
+        buffer.add("-1");
     }
 }
 
 void OperatorExecutor::NodeScanByLabelParallel(SharedBuffer &buffer, std::string jsonPlan, GraphConfig gc) {
-    // STEP 2: Thread-safe pre-loading approach with label filtering
+    // Use thread pool executor with deterministic merge (label-filtered)
     try {
         json query = json::parse(jsonPlan);
         NodeManager nodeManager(gc);
         string variable = query["variable"].get<std::string>();
         string targetLabel = query["Label"].get<std::string>();
-        
-        // THREAD SAFETY: Pre-load all matching node data in main thread
+
+        // Pre-load matching nodes safely in main thread
         std::vector<PreloadedNodeData> nodeDataList;
-        nodeDataList.reserve(nodeManager.nodeIndex.size() / 4); // Estimate for label filtering
-        
+        nodeDataList.reserve(nodeManager.nodeIndex.size() / 4);
+
         for (auto it : nodeManager.nodeIndex) {
             auto nodeId = it.first;
             NodeBlock *node = nodeManager.get(nodeId);
-            
             if (node == nullptr) continue;
-            
+
             string label = node->getLabel();
             std::string partitionValue(node->getMetaPropertyHead()->value);
-            
             if (partitionValue == to_string(gc.partitionID) && label == targetLabel) {
-                
-                // Pre-load properties safely in main thread
                 std::map<std::string, std::string> nodeProperties;
                 nodeProperties["partitionID"] = partitionValue;
-                
+
                 std::map<std::string, char*> rawProperties = node->getAllProperties();
                 for (auto& prop : rawProperties) {
                     nodeProperties[prop.first] = std::string(prop.second);
                 }
-                
-                // Clean up raw memory immediately
-                for (auto& [key, val] : rawProperties) {
-                    delete[] val;
+                for (auto& [k, v] : rawProperties) {
+                    delete[] v;
                 }
                 rawProperties.clear();
-                
-                // Store thread-safe copy
+
                 nodeDataList.emplace_back(nodeId, partitionValue, nodeProperties);
             }
         }
-        
-        // Now process the pre-loaded data (still sequential for now, but thread-safe)
-        for (const auto& nodeData : nodeDataList) {
-            json nodeJson;
-            for (const auto& [key, value] : nodeData.properties) {
-                nodeJson[key] = value;
+
+        if (!parallelExecutor || nodeDataList.empty()) {
+            for (const auto& nodeData : nodeDataList) {
+                json nodeJson;
+                for (const auto& [key, value] : nodeData.properties) {
+                    nodeJson[key] = value;
+                }
+                json data;
+                data[variable] = nodeJson;
+                buffer.add(data.dump());
             }
-            
-            json data;
-            data[variable] = nodeJson;
-            buffer.add(data.dump());
+            buffer.add("-1");
+            return;
+        }
+
+        auto processor = [&nodeDataList, &variable](const WorkChunk& chunk) -> std::vector<std::string> {
+            std::vector<std::string> results;
+            results.reserve(static_cast<size_t>(chunk.endIndex - chunk.startIndex + 1));
+            long start = std::max(0L, chunk.startIndex - 1);
+            long end = std::min<long>(static_cast<long>(nodeDataList.size()) - 1, chunk.endIndex - 1);
+            for (long i = start; i <= end; ++i) {
+                const auto& nodeData = nodeDataList[static_cast<size_t>(i)];
+                json nodeJson;
+                for (const auto& [key, value] : nodeData.properties) {
+                    nodeJson[key] = value;
+                }
+                json data;
+                data[variable] = nodeJson;
+                results.push_back(data.dump());
+            }
+            return results;
+        };
+
+        std::vector<std::vector<std::string>> chunkResults =
+            parallelExecutor->processInParallel<decltype(processor), std::vector<std::string>>(
+                static_cast<long>(nodeDataList.size()), processor);
+
+        for (const auto& chunkVec : chunkResults) {
+            for (const auto& row : chunkVec) {
+                buffer.add(row);
+            }
         }
         buffer.add("-1");
-        
-    } catch (const std::exception& e) {
-        // SAFETY: Handle any errors gracefully
-        buffer.add("-1"); // End marker
+    } catch (...) {
+        buffer.add("-1");
     }
 }
 
