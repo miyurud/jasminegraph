@@ -42,15 +42,6 @@ limitations under the License.
 class StatisticCollector {
  private:
     static const int BUFFER_SIZE = 128;
-    
-    // Helper functions to eliminate code duplication
-    static long long readProcStatValue(const char* prefix, int prefixLen);
-    static double calculateElapsedTime(const struct timespec& startTime, const struct timespec& endTime);
-    static double calculateElapsedTimeMs(const struct timespec& startTime, const struct timespec& endTime);
-    static double measureProcStatRate(const char* prefix, int prefixLen, int sleepSeconds = 1);
-    static bool readDiskStatsFromFile(std::map<std::string, struct DiskStats> &out, const std::string& errorContext = "");
-    static bool readPerCpuStatsFromFile(std::vector<std::vector<long long>> &readings, const std::string& errorContext = "");
-    static bool readNetworkStatsFromFile(std::map<std::string, struct NetworkStats> &out, const std::string& errorContext = "");
 
  public:
     static int init();

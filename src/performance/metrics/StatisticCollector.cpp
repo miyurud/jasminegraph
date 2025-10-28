@@ -109,35 +109,6 @@ static double measureProcStatRate(const char* prefix, int prefixLen, int sleepSe
 #define LINE_BUF_SIZE 128
 #define LINE_BUF_SIZE_LONG 256
 
-// Helper function implementations
-long long StatisticCollector::readProcStatValue(const char* prefix, int prefixLen) {
-    return ::readProcStatValue(prefix, prefixLen);
-}
-
-double StatisticCollector::calculateElapsedTime(const struct timespec& startTime, const struct timespec& endTime) {
-    return ::calculateElapsedTime(startTime, endTime);
-}
-
-double StatisticCollector::calculateElapsedTimeMs(const struct timespec& startTime, const struct timespec& endTime) {
-    return ::calculateElapsedTimeMs(startTime, endTime);
-}
-
-double StatisticCollector::measureProcStatRate(const char* prefix, int prefixLen, int sleepSeconds) {
-    return ::measureProcStatRate(prefix, prefixLen, sleepSeconds);
-}
-
-bool StatisticCollector::readDiskStatsFromFile(std::map<std::string, DiskStats> &out, const std::string& errorContext) {
-    return ::readDiskStatsFromFile(out, errorContext);
-}
-
-bool StatisticCollector::readPerCpuStatsFromFile(std::vector<std::vector<long long>> &readings, const std::string& errorContext) {
-    return ::readPerCpuStatsFromFile(readings, errorContext);
-}
-
-bool StatisticCollector::readNetworkStatsFromFile(std::map<std::string, NetworkStats> &out, const std::string& errorContext) {
-    return ::readNetworkStatsFromFile(out, errorContext);
-}
-
 int StatisticCollector::init() {
     FILE *file;
     struct tms timeSample;
@@ -315,7 +286,7 @@ static void getCpuCycles(long long *totalp, long long *idlep) {
 }
 
 // Helper function to read per-CPU stats from /proc/stat (handles file open/close)
-static bool readPerCpuStatsFromFile(std::vector<std::vector<long long>> &readings, const std::string& errorContext = "") {
+static bool readCpuStats(std::vector<std::vector<long long>> &readings, const std::string& errorContext = "") {
     FILE *file = fopen("/proc/stat", "r");
     if (!file) {
         std::string msg = "Cannot open /proc/stat";
@@ -326,17 +297,12 @@ static bool readPerCpuStatsFromFile(std::vector<std::vector<long long>> &reading
         return false;
     }
     
-    readPerCpuStats(file, readings);
-    fclose(file);
-    return true;
-}
-
-// Helper to read per-CPU stats from an open /proc/stat FILE*.
-// It expects the file cursor to be at the beginning of the file.
-static void readPerCpuStats(FILE *file, std::vector<std::vector<long long>> &readings) {
     char line[LINE_BUF_SIZE];
     // Skip the first line (total cpu stats)
-    if (fgets(line, sizeof(line), file) == NULL) return;
+    if (fgets(line, sizeof(line), file) == NULL) {
+        fclose(file);
+        return true;
+    }
 
     // Read per-CPU stats
     while (fgets(line, sizeof(line), file) != NULL) {
@@ -361,6 +327,9 @@ static void readPerCpuStats(FILE *file, std::vector<std::vector<long long>> &rea
             break;  // No more CPU lines
         }
     }
+    
+    fclose(file);
+    return true;
 }
 
 // Small container for parsed /proc/diskstats fields that we need.
@@ -385,7 +354,7 @@ struct NetworkStats {
 };
 
 // Helper function to read network stats from /proc/net/dev (handles file open/close)
-static bool readNetworkStatsFromFile(std::map<std::string, NetworkStats> &out, const std::string& errorContext = "") {
+static bool readNetworkStats(std::map<std::string, NetworkStats> &out, const std::string& errorContext = "") {
     FILE *file = fopen("/proc/net/dev", "r");
     if (!file) {
         std::string msg = "Cannot open /proc/net/dev";
@@ -436,7 +405,7 @@ static bool readNetworkStatsFromFile(std::map<std::string, NetworkStats> &out, c
 }
 
 // Helper function to read disk stats from /proc/diskstats (handles file open/close)
-static bool readDiskStatsFromFile(std::map<std::string, DiskStats> &out, const std::string& errorContext = "") {
+static bool readDiskStats(std::map<std::string, DiskStats> &out, const std::string& errorContext = "") {
     FILE *file = fopen("/proc/diskstats", "r");
     if (!file) {
         std::string msg = "Cannot open /proc/diskstats";
@@ -447,14 +416,6 @@ static bool readDiskStatsFromFile(std::map<std::string, DiskStats> &out, const s
         return false;
     }
     
-    readDiskStats(file, out);
-    fclose(file);
-    return true;
-}
-
-// Read /proc/diskstats from an open FILE* and fill the provided map.
-// Caller is responsible for opening/closing the FILE* and rewinding if needed.
-static void readDiskStats(FILE *file, std::map<std::string, DiskStats> &out) {
     char line[LINE_BUF_SIZE_LONG];
     while (fgets(line, sizeof(line), file) != NULL) {
         int major = 0, minor = 0;
@@ -475,6 +436,9 @@ static void readDiskStats(FILE *file, std::map<std::string, DiskStats> &out) {
             }
         }
     }
+    
+    fclose(file);
+    return true;
 }
 
 double StatisticCollector::getCpuUsage() {
@@ -606,7 +570,7 @@ std::vector<double> StatisticCollector::getLogicalCpuCoreThreadUsage() {
     
     // First reading
     std::vector<std::vector<long long>> firstReading;
-    if (!readPerCpuStatsFromFile(firstReading, "first reading")) {
+    if (!readCpuStats(firstReading, "first reading")) {
         return cpuUsages;
     }
     
@@ -615,7 +579,7 @@ std::vector<double> StatisticCollector::getLogicalCpuCoreThreadUsage() {
     
     // Second reading
     std::vector<std::vector<long long>> secondReading;
-    if (!readPerCpuStatsFromFile(secondReading, "second reading")) {
+    if (!readCpuStats(secondReading, "second reading")) {
         return cpuUsages;
     }
     
@@ -662,7 +626,7 @@ std::map<std::string, std::pair<double, double>> StatisticCollector::getNetworkP
     
     // First reading of network statistics
     std::map<std::string, NetworkStats> firstReading;
-    if (!readNetworkStatsFromFile(firstReading, "first reading")) {
+    if (!readNetworkStats(firstReading, "first reading")) {
         return packetRates;
     }
     
@@ -680,7 +644,7 @@ std::map<std::string, std::pair<double, double>> StatisticCollector::getNetworkP
     
     // Second reading of network statistics
     std::map<std::string, NetworkStats> secondReading;
-    if (!readNetworkStatsFromFile(secondReading, "second reading")) {
+    if (!readNetworkStats(secondReading, "second reading")) {
         return packetRates;
     }
     
@@ -731,7 +695,7 @@ std::map<std::string, double> StatisticCollector::getDiskBusyPercentage() {
     
     // First reading
     std::map<std::string, DiskStats> firstReading;
-    if (!readDiskStatsFromFile(firstReading, "first reading")) {
+    if (!readDiskStats(firstReading, "first reading")) {
         return diskBusyRates;
     }
 
@@ -745,7 +709,7 @@ std::map<std::string, double> StatisticCollector::getDiskBusyPercentage() {
 
     // Second reading
     std::map<std::string, DiskStats> secondReading;
-    if (!readDiskStatsFromFile(secondReading, "second reading")) {
+    if (!readDiskStats(secondReading, "second reading")) {
         return diskBusyRates;
     }
 
@@ -803,7 +767,7 @@ std::map<std::string, std::pair<double, double>> StatisticCollector::getDiskRead
     
     // First reading - store sectors_read and sectors_written for each device
     std::map<std::string, DiskStats> firstReading;
-    if (!readDiskStatsFromFile(firstReading, "first reading")) {
+    if (!readDiskStats(firstReading, "first reading")) {
         return diskRates;
     }
 
@@ -817,7 +781,7 @@ std::map<std::string, std::pair<double, double>> StatisticCollector::getDiskRead
 
     // Second reading
     std::map<std::string, DiskStats> secondReading;
-    if (!readDiskStatsFromFile(secondReading, "second reading")) {
+    if (!readDiskStats(secondReading, "second reading")) {
         return diskRates;
     }
 
@@ -875,7 +839,7 @@ std::map<std::string, double> StatisticCollector::getDiskBlockSizeKB() {
     std::map<std::string, double> diskBlockSizes;
     
     std::map<std::string, DiskStats> allStats;
-    if (!readDiskStatsFromFile(allStats, "disk block size reading")) {
+    if (!readDiskStats(allStats, "disk block size reading")) {
         return diskBlockSizes;
     }
 
@@ -912,7 +876,7 @@ std::map<std::string, double> StatisticCollector::getDiskTransfersPerSecond() {
     
     // First reading - store total transfers (dk_xfers = dk_reads + dk_writes) for each device
     std::map<std::string, DiskStats> firstReading;
-    if (!readDiskStatsFromFile(firstReading, "first reading")) {
+    if (!readDiskStats(firstReading, "first reading")) {
         return diskTransferRates;
     }
 
@@ -926,7 +890,7 @@ std::map<std::string, double> StatisticCollector::getDiskTransfersPerSecond() {
 
     // Second reading
     std::map<std::string, DiskStats> secondReading;
-    if (!readDiskStatsFromFile(secondReading, "second reading")) {
+    if (!readDiskStats(secondReading, "second reading")) {
         return diskTransferRates;
     }
 
