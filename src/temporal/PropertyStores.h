@@ -6,13 +6,25 @@ Append-only temporal property stores for edges and vertices (EP/VP logs).
 
 #include <cstdint>
 #include <memory>
-#include <optional>
 #include <string>
 #include <unordered_map>
 
 #include "TemporalTypes.h"
 
 namespace jasminegraph {
+
+// Helper struct to replace std::optional for compatibility
+template<typename T>
+struct PropertyResult {
+    bool hasValue;
+    T value;
+    
+    PropertyResult() : hasValue(false) {}
+    PropertyResult(const T& val) : hasValue(true), value(val) {}
+    
+    explicit operator bool() const { return hasValue; }
+    const T& operator*() const { return value; }
+};
 
 class EdgePropertyStore {
 public:
@@ -25,7 +37,7 @@ public:
                 SnapshotID startSnapshot, SnapshotID endSnapshot);
 
     // Read value valid at snapshot if any.
-    std::optional<std::string> get(EdgeID edgeId, SnapshotID snapshot, const std::string& key) const;
+    PropertyResult<std::string> get(EdgeID edgeId, SnapshotID snapshot, const std::string& key) const;
 
 private:
     struct Impl; std::unique_ptr<Impl> impl;
@@ -40,7 +52,7 @@ public:
     void append(VertexID vertexId, const std::string& key, const std::string& value,
                 SnapshotID startSnapshot, SnapshotID endSnapshot);
 
-    std::optional<std::string> get(VertexID vertexId, SnapshotID snapshot, const std::string& key) const;
+    PropertyResult<std::string> get(VertexID vertexId, SnapshotID snapshot, const std::string& key) const;
 
 private:
     struct Impl; std::unique_ptr<Impl> impl;

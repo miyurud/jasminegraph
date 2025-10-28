@@ -8,7 +8,6 @@ Snapshot assembly, buffering, and compaction coordinator.
 #include <functional>
 #include <memory>
 #include <mutex>
-#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -43,8 +42,8 @@ public:
     void compact(SnapshotID upTo);
 
     // Property accessors used at query time
-    std::optional<std::string> getEdgeProperty(EdgeID e, SnapshotID s, const std::string& key) const;
-    std::optional<std::string> getVertexProperty(VertexID v, SnapshotID s, const std::string& key) const;
+    PropertyResult<std::string> getEdgeProperty(EdgeID e, SnapshotID s, const std::string& key) const;
+    PropertyResult<std::string> getVertexProperty(VertexID v, SnapshotID s, const std::string& key) const;
 
 private:
     struct Impl; std::unique_ptr<Impl> impl;

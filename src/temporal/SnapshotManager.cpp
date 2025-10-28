@@ -2,6 +2,11 @@
 
 #include <ctime>
 #include <sstream>
+#include <functional>
+#include <algorithm>
+#include "../util/logger/Logger.h"
+
+Logger snapshot_manager_logger;
 
 namespace jasminegraph {
 
@@ -37,29 +42,78 @@ void SnapshotManager::ingest(const StreamEdgeRecord& rec) {
     auto& entry = impl->buffer[eid];
     entry.op = rec.op;
     entry.properties = rec.properties; // For updates, overwrite latest within Δt
+    
+    // Store source and destination vertex properties if present
+    // For scaffolding, use simple hash of vertex ID as VertexID
+    if (!rec.source.properties.empty()) {
+        VertexID srcVertexId = std::hash<std::string>{}(rec.source.id);
+        for (const auto& prop : rec.source.properties) {
+            impl->vpStore.append(srcVertexId, prop.first, prop.second, impl->currentSnapshot, UINT64_MAX);
+        }
+    }
+    
+    if (!rec.destination.properties.empty()) {
+        VertexID dstVertexId = std::hash<std::string>{}(rec.destination.id);
+        for (const auto& prop : rec.destination.properties) {
+            impl->vpStore.append(dstVertexId, prop.first, prop.second, impl->currentSnapshot, UINT64_MAX);
+        }
+    }
 }
 
 SnapshotID SnapshotManager::flush() {
+    snapshot_manager_logger.info("Flushing snapshot " + std::to_string(impl->currentSnapshot) + 
+                                " with " + std::to_string(impl->buffer.size()) + " buffered operations");
+    
     // Apply buffered ops to storage
     for (const auto& kv : impl->buffer) {
         EdgeID eid = kv.first;
         const auto& pe = kv.second;
+        
+        std::string opName;
         switch (pe.op) {
             case StreamOp::Insert:
+                opName = "INSERT";
                 impl->bitmapMgr.setActive(eid, impl->currentSnapshot, true);
-                break;
-            case StreamOp::Update:
+                // Store properties for new edges
                 for (const auto& p : pe.properties) {
                     impl->epStore.append(eid, p.first, p.second, impl->currentSnapshot, UINT64_MAX);
+                    snapshot_manager_logger.debug("Stored edge property: EdgeID=" + std::to_string(eid) + 
+                                                 ", key=" + p.first + ", value=" + p.second + 
+                                                 ", snapshot=" + std::to_string(impl->currentSnapshot));
+                }
+                break;
+            case StreamOp::Update:
+                opName = "UPDATE";
+                // Keep edge active and update properties
+                impl->bitmapMgr.setActive(eid, impl->currentSnapshot, true);
+                for (const auto& p : pe.properties) {
+                    impl->epStore.append(eid, p.first, p.second, impl->currentSnapshot, UINT64_MAX);
+                    snapshot_manager_logger.debug("Updated edge property: EdgeID=" + std::to_string(eid) + 
+                                                 ", key=" + p.first + ", value=" + p.second + 
+                                                 ", snapshot=" + std::to_string(impl->currentSnapshot));
                 }
                 break;
             case StreamOp::Delete:
+                opName = "DELETE";
                 impl->bitmapMgr.setActive(eid, impl->currentSnapshot, false);
+                // Properties remain in store but edge becomes inactive
+                snapshot_manager_logger.debug("Deactivated edge: EdgeID=" + std::to_string(eid) + 
+                                             ", snapshot=" + std::to_string(impl->currentSnapshot));
                 break;
         }
+        
+        snapshot_manager_logger.debug("Processed " + opName + " operation for EdgeID=" + std::to_string(eid) + 
+                                    " with " + std::to_string(pe.properties.size()) + " properties");
     }
+    
+    size_t processedOps = impl->buffer.size();
     impl->buffer.clear();
-    return impl->currentSnapshot++;
+    
+    SnapshotID completedSnapshot = impl->currentSnapshot++;
+    snapshot_manager_logger.info("Completed snapshot " + std::to_string(completedSnapshot) + 
+                                " with " + std::to_string(processedOps) + " operations");
+    
+    return completedSnapshot;
 }
 
 std::unordered_map<VertexID, std::vector<TemporalEdgeRef>> SnapshotManager::buildAdjacency(SnapshotID snapshotId) {
@@ -77,11 +131,11 @@ void SnapshotManager::compact(SnapshotID upTo) {
     impl->bitmapMgr.compactTimelinesUpTo(upTo);
 }
 
-std::optional<std::string> SnapshotManager::getEdgeProperty(EdgeID e, SnapshotID s, const std::string& key) const {
+PropertyResult<std::string> SnapshotManager::getEdgeProperty(EdgeID e, SnapshotID s, const std::string& key) const {
     return impl->epStore.get(e, s, key);
 }
 
-std::optional<std::string> SnapshotManager::getVertexProperty(VertexID v, SnapshotID s, const std::string& key) const {
+PropertyResult<std::string> SnapshotManager::getVertexProperty(VertexID v, SnapshotID s, const std::string& key) const {
     return impl->vpStore.get(v, s, key);
 }
 

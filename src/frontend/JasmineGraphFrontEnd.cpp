@@ -61,6 +61,7 @@ limitations under the License.
 #include "../query/processor/cypher/util/SharedBuffer.h"
 #include "../query/processor/cypher/runtime/AggregationFactory.h"
 #include "../query/processor/cypher/runtime/Aggregation.h"
+#include "../temporal/TemporalIntegration.h"
 #include "../partitioner/stream/Partitioner.h"
 
 #define MAX_PENDING_CONNECTIONS 10
@@ -1393,6 +1394,30 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
         frontend_logger.error("Error writing to socket");
         *loop_exit_p = true;
         return;
+    }
+
+    // Initialize temporal integration if temporal streaming is enabled
+    if (enableTemporal) {
+        std::string instanceDataFolder = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+        std::string temporalBaseDir = instanceDataFolder + "/temporal/g" + graphId;
+        std::chrono::seconds snapshotInterval(60); // Default 60 second intervals
+        
+        // Check if custom snapshot interval is configured
+        std::string intervalProp = Utils::getJasmineGraphProperty("org.jasminegraph.temporal.snapshot.interval");
+        if (!intervalProp.empty()) {
+            try {
+                int intervalSec = std::stoi(intervalProp);
+                snapshotInterval = std::chrono::seconds(intervalSec);
+                frontend_logger.info("Using custom snapshot interval: " + std::to_string(intervalSec) + " seconds");
+            } catch (const std::exception& e) {
+                frontend_logger.warn("Invalid snapshot interval property, using default 60 seconds");
+            }
+        }
+        
+        // Initialize global temporal facade
+        jasminegraph::TemporalIntegration::initialize(temporalBaseDir, snapshotInterval);
+        frontend_logger.info("Temporal integration initialized for graph " + graphId + 
+                           " with snapshot interval: " + std::to_string(snapshotInterval.count()) + " seconds");
     }
 
     // create kafka consumer and graph partitioner
