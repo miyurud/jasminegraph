@@ -15,13 +15,50 @@ limitations under the License.
 #include <time.h>
 #include <unistd.h>
 
+#define LINE_BUF_SIZE 128
+#define LINE_BUF_SIZE_LONG 256
+
+// Global variables
 Logger stat_logger;
 static int numProcessors;
 
+// Data structures for system statistics
+struct DiskStats {
+    unsigned long long reads_completed = 0;
+    unsigned long long reads_merged = 0;
+    unsigned long long sectors_read = 0;
+    unsigned long long time_reading = 0;
+    unsigned long long writes_completed = 0;
+    unsigned long long writes_merged = 0;
+    unsigned long long sectors_written = 0;
+    unsigned long long time_writing = 0;
+    unsigned long long ios_in_progress = 0;
+    unsigned long long io_time = 0;
+    unsigned long long weighted_io_time = 0;
+};
+
+struct NetworkStats {
+    unsigned long long rx_packets = 0;
+    unsigned long long tx_packets = 0;
+};
+
+// Forward declarations for internal helper functions
 static long parseLine(char *line);
 static long getSwapSpace(const char *type);
+static void getCpuCycles(long long *totalp, long long *idlep);
 
-// Helper function to read a single value from /proc/stat by prefix
+// Time calculation utilities
+static double calculateElapsedTime(const struct timespec& startTime, const struct timespec& endTime) {
+    return (endTime.tv_sec - startTime.tv_sec) + 
+           (endTime.tv_nsec - startTime.tv_nsec) / 1000000000.0;
+}
+
+static double calculateElapsedTimeMs(const struct timespec& startTime, const struct timespec& endTime) {
+    return ((endTime.tv_sec - startTime.tv_sec) * 1000.0) + 
+           ((endTime.tv_nsec - startTime.tv_nsec) / 1000000.0);
+}
+
+// /proc/stat operations
 static long long readProcStatValue(const char* prefix, int prefixLen) {
     FILE *file = fopen("/proc/stat", "r");
     if (!file) {
@@ -50,19 +87,6 @@ static long long readProcStatValue(const char* prefix, int prefixLen) {
     return value;
 }
 
-// Helper function to calculate elapsed time between two timespec structs
-static double calculateElapsedTime(const struct timespec& startTime, const struct timespec& endTime) {
-    return (endTime.tv_sec - startTime.tv_sec) + 
-           (endTime.tv_nsec - startTime.tv_nsec) / 1000000000.0;
-}
-
-// Helper function to calculate elapsed time in milliseconds
-static double calculateElapsedTimeMs(const struct timespec& startTime, const struct timespec& endTime) {
-    return ((endTime.tv_sec - startTime.tv_sec) * 1000.0) + 
-           ((endTime.tv_nsec - startTime.tv_nsec) / 1000000.0);
-}
-
-// Helper function to measure rate per second from /proc/stat
 static double measureProcStatRate(const char* prefix, int prefixLen, int sleepSeconds) {
     // First reading
     long long firstValue = readProcStatValue(prefix, prefixLen);
@@ -106,8 +130,217 @@ static double measureProcStatRate(const char* prefix, int prefixLen, int sleepSe
     return (double)valueDiff / elapsedTime;
 }
 
-#define LINE_BUF_SIZE 128
-#define LINE_BUF_SIZE_LONG 256
+// CPU statistics operations
+static bool readCpuStats(std::vector<std::vector<long long>> &readings, const std::string& errorContext = "") {
+    FILE *file = fopen("/proc/stat", "r");
+    if (!file) {
+        std::string msg = "Cannot open /proc/stat";
+        if (!errorContext.empty()) {
+            msg += " for " + errorContext;
+        }
+        stat_logger.error(msg);
+        return false;
+    }
+    
+    char line[LINE_BUF_SIZE];
+    // Skip the first line (total cpu stats)
+    if (fgets(line, sizeof(line), file) == NULL) {
+        fclose(file);
+        return true;
+    }
+
+    // Read per-CPU stats
+    while (fgets(line, sizeof(line), file) != NULL) {
+        if (strncmp(line, "cpu", 3) == 0 && line[3] >= '0' && line[3] <= '9') {
+            std::vector<long long> cpuStats;
+            char *p = line;
+            // Skip "cpu" and cpu number
+            while (*p && *p != ' ') p++;
+            while (*p == ' ') p++;
+
+            // Parse CPU time values: user, nice, system, idle, iowait, irq, softirq, steal
+            for (int i = 0; i < 8; i++) {
+                long long value = 0;
+                if (*p && (*p >= '0' && *p <= '9')) {
+                    value = strtoll(p, &p, 10);
+                    while (*p == ' ') p++;
+                }
+                cpuStats.push_back(value);
+            }
+            readings.push_back(cpuStats);
+        } else {
+            break;  // No more CPU lines
+        }
+    }
+    
+    fclose(file);
+    return true;
+}
+
+static void getCpuCycles(long long *totalp, long long *idlep) {
+    *totalp = 0;
+    *idlep = 0;
+    FILE *fp = fopen("/proc/stat", "r");
+    if (!fp) return;
+    char line[1024];
+    fscanf(fp, "%[^\r\n]%*c", line);
+    fclose(fp);
+
+    char *p = line;
+    while (*p < '0' || *p > '9') p++;
+    long long total = 0;
+    long long idle = 0;
+    char *end_ptr = p;
+    for (int field = 1; field <= 10; field++) {
+        while (*p < '0' || *p > '9') {
+            if (!(*p)) break;
+            p++;
+        }
+        if (!(*p)) break;
+        long long value = strtoll(p, &end_ptr, 10);
+        p = end_ptr;
+        if (value < 0) {
+            stat_logger.error("Value is " + to_string(value) + " for line " + string(line));
+        }
+        if (field == 4) {
+            idle += value;
+        }
+        total += value;
+    }
+    *totalp = total;
+    *idlep = idle;
+}
+
+// Network statistics operations
+static bool readNetworkStats(std::map<std::string, NetworkStats> &out, const std::string& errorContext = "") {
+    FILE *file = fopen("/proc/net/dev", "r");
+    if (!file) {
+        std::string msg = "Cannot open /proc/net/dev";
+        if (!errorContext.empty()) {
+            msg += " for " + errorContext;
+        }
+        stat_logger.error(msg);
+        return false;
+    }
+    
+    char line[LINE_BUF_SIZE_LONG];
+    // Skip header lines
+    if (fgets(line, sizeof(line), file) == NULL || fgets(line, sizeof(line), file) == NULL) {
+        std::string msg = "Cannot read header lines from /proc/net/dev";
+        if (!errorContext.empty()) {
+            msg += " in " + errorContext;
+        }
+        stat_logger.error(msg);
+        fclose(file);
+        return false;
+    }
+    
+    // Read network interface statistics
+    while (fgets(line, sizeof(line), file) != NULL) {
+        char interface[32];
+        unsigned long long rx_bytes, rx_packets, rx_errs, rx_drop, rx_fifo, rx_frame, rx_compressed, rx_multicast;
+        unsigned long long tx_bytes, tx_packets, tx_errs, tx_drop, tx_fifo, tx_colls, tx_carrier, tx_compressed;
+        
+        // Strip spaces and parse the line
+        char *p = line;
+        while (*p == ' ' || *p == '\t') p++;  // Skip leading whitespace
+        
+        int ret = sscanf(p, "%31[^:]: %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
+            interface,
+            &rx_bytes, &rx_packets, &rx_errs, &rx_drop, &rx_fifo, &rx_frame, &rx_compressed, &rx_multicast,
+            &tx_bytes, &tx_packets, &tx_errs, &tx_drop, &tx_fifo, &tx_colls, &tx_carrier, &tx_compressed);
+        
+        if (ret == 17) {
+            NetworkStats ns;
+            ns.rx_packets = rx_packets;
+            ns.tx_packets = tx_packets;
+            out[std::string(interface)] = ns;
+        }
+    }
+    
+    fclose(file);
+    return true;
+}
+
+// Disk statistics operations
+static bool readDiskStats(std::map<std::string, DiskStats> &out, const std::string& errorContext = "") {
+    FILE *file = fopen("/proc/diskstats", "r");
+    if (!file) {
+        std::string msg = "Cannot open /proc/diskstats";
+        if (!errorContext.empty()) {
+            msg += " for " + errorContext;
+        }
+        stat_logger.error(msg);
+        return false;
+    }
+    
+    char line[LINE_BUF_SIZE_LONG];
+    while (fgets(line, sizeof(line), file) != NULL) {
+        int major = 0, minor = 0;
+        char device[32] = {0};
+        DiskStats ds;
+
+        // Parse up to 14 fields; sscanf will fill available values.
+        int ret = sscanf(line, "%d %d %31s %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
+                         &major, &minor, device,
+                         &ds.reads_completed, &ds.reads_merged, &ds.sectors_read, &ds.time_reading,
+                         &ds.writes_completed, &ds.writes_merged, &ds.sectors_written, &ds.time_writing,
+                         &ds.ios_in_progress, &ds.io_time, &ds.weighted_io_time);
+
+        if (ret >= 3) {
+            // Skip loop and ram devices
+            if (strncmp(device, "loop", 4) != 0 && strncmp(device, "ram", 3) != 0) {
+                out[std::string(device)] = ds;
+            }
+        }
+    }
+    
+    fclose(file);
+    return true;
+}
+
+// Memory and process utilities
+static long parseLine(char *line) {
+    int i = strlen(line);
+    const char *p = line;
+    while (*p < '0' || *p > '9') p++;
+    line[i - 3] = '\0';
+    long val = strtol(p, NULL, 10);
+    if (val < 0 || val > 0xfffffffffffffffL) return -1;
+    return val;
+}
+
+static long getSwapSpace(int field) {
+    FILE *file = fopen("/proc/swaps", "r");
+    long result = -1;
+    char line[LINE_BUF_SIZE];
+
+    fgets(line, LINE_BUF_SIZE, file);
+
+    while (fgets(line, LINE_BUF_SIZE, file) != NULL) {
+        char *value;
+        char *save = NULL;
+        for (int i = 0; i < field; i++) {
+            if (i == 0) {
+                value = strtok_r(line, " ", &save);
+            } else {
+                value = strtok_r(NULL, "\t", &save);
+            }
+        }
+        long used = strtol(value, NULL, 10);
+        if (used < 0 || used > 0xfffffffffffffffL) {
+            continue;
+        }
+        if (result >= 0) {
+            result += used;
+        } else {
+            result = used;
+        }
+    }
+    fclose(file);
+
+    return result;
+}
 
 int StatisticCollector::init() {
     FILE *file;
@@ -332,128 +565,20 @@ static bool readCpuStats(std::vector<std::vector<long long>> &readings, const st
     return true;
 }
 
-// Small container for parsed /proc/diskstats fields that we need.
-struct DiskStats {
-    unsigned long long reads_completed = 0;
-    unsigned long long reads_merged = 0;
-    unsigned long long sectors_read = 0;
-    unsigned long long time_reading = 0;
-    unsigned long long writes_completed = 0;
-    unsigned long long writes_merged = 0;
-    unsigned long long sectors_written = 0;
-    unsigned long long time_writing = 0;
-    unsigned long long ios_in_progress = 0;
-    unsigned long long io_time = 0;
-    unsigned long long weighted_io_time = 0;
-};
+// Memory operations
+long StatisticCollector::getMemoryUsageByProcess() {
+    FILE *file = fopen("/proc/self/status", "r");
+    long result = -1;
+    char line[LINE_BUF_SIZE];
 
-// Small container for network interface statistics
-struct NetworkStats {
-    unsigned long long rx_packets = 0;
-    unsigned long long tx_packets = 0;
-};
-
-// Helper function to read network stats from /proc/net/dev (handles file open/close)
-static bool readNetworkStats(std::map<std::string, NetworkStats> &out, const std::string& errorContext = "") {
-    FILE *file = fopen("/proc/net/dev", "r");
-    if (!file) {
-        std::string msg = "Cannot open /proc/net/dev";
-        if (!errorContext.empty()) {
-            msg += " for " + errorContext;
-        }
-        stat_logger.error(msg);
-        return false;
-    }
-    
-    char line[LINE_BUF_SIZE_LONG];
-    // Skip header lines
-    if (fgets(line, sizeof(line), file) == NULL || fgets(line, sizeof(line), file) == NULL) {
-        std::string msg = "Cannot read header lines from /proc/net/dev";
-        if (!errorContext.empty()) {
-            msg += " in " + errorContext;
-        }
-        stat_logger.error(msg);
-        fclose(file);
-        return false;
-    }
-    
-    // Read network interface statistics
-    while (fgets(line, sizeof(line), file) != NULL) {
-        char interface[32];
-        unsigned long long rx_bytes, rx_packets, rx_errs, rx_drop, rx_fifo, rx_frame, rx_compressed, rx_multicast;
-        unsigned long long tx_bytes, tx_packets, tx_errs, tx_drop, tx_fifo, tx_colls, tx_carrier, tx_compressed;
-        
-        // Strip spaces and parse the line
-        char *p = line;
-        while (*p == ' ' || *p == '\t') p++;  // Skip leading whitespace
-        
-        int ret = sscanf(p, "%31[^:]: %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
-            interface,
-            &rx_bytes, &rx_packets, &rx_errs, &rx_drop, &rx_fifo, &rx_frame, &rx_compressed, &rx_multicast,
-            &tx_bytes, &tx_packets, &tx_errs, &tx_drop, &tx_fifo, &tx_colls, &tx_carrier, &tx_compressed);
-        
-        if (ret == 17) {
-            NetworkStats ns;
-            ns.rx_packets = rx_packets;
-            ns.tx_packets = tx_packets;
-            out[std::string(interface)] = ns;
+    while (fgets(line, LINE_BUF_SIZE, file) != NULL) {
+        if (strncmp(line, "VmSize:", 7) == 0) {
+            result = parseLine(line);
+            break;
         }
     }
-    
     fclose(file);
-    return true;
-}
-
-// Helper function to read disk stats from /proc/diskstats (handles file open/close)
-static bool readDiskStats(std::map<std::string, DiskStats> &out, const std::string& errorContext = "") {
-    FILE *file = fopen("/proc/diskstats", "r");
-    if (!file) {
-        std::string msg = "Cannot open /proc/diskstats";
-        if (!errorContext.empty()) {
-            msg += " for " + errorContext;
-        }
-        stat_logger.error(msg);
-        return false;
-    }
-    
-    char line[LINE_BUF_SIZE_LONG];
-    while (fgets(line, sizeof(line), file) != NULL) {
-        int major = 0, minor = 0;
-        char device[32] = {0};
-        DiskStats ds;
-
-        // Parse up to 14 fields; sscanf will fill available values.
-        int ret = sscanf(line, "%d %d %31s %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
-                         &major, &minor, device,
-                         &ds.reads_completed, &ds.reads_merged, &ds.sectors_read, &ds.time_reading,
-                         &ds.writes_completed, &ds.writes_merged, &ds.sectors_written, &ds.time_writing,
-                         &ds.ios_in_progress, &ds.io_time, &ds.weighted_io_time);
-
-        if (ret >= 3) {
-            // Skip loop and ram devices
-            if (strncmp(device, "loop", 4) != 0 && strncmp(device, "ram", 3) != 0) {
-                out[std::string(device)] = ds;
-            }
-        }
-    }
-    
-    fclose(file);
-    return true;
-}
-
-double StatisticCollector::getCpuUsage() {
-    long long total1;
-    long long idle1;
-    getCpuCycles(&total1, &idle1);
-    sleep(5);
-    long long total2;
-    long long idle2;
-    getCpuCycles(&total2, &idle2);
-
-    long long diffTotal = total2 - total1;
-    long long diffIdle = idle2 - idle1;
-
-    return (diffTotal - diffIdle) / (double)diffTotal;
+    return result;
 }
 
 long StatisticCollector::getTotalMemoryAllocated() {
@@ -506,6 +631,74 @@ long StatisticCollector::getTotalMemoryUsage() {
     return memUsage;
 }
 
+long StatisticCollector::getUsedSwapSpace() {
+    long result = getSwapSpace(4);
+    return result;
+}
+
+long StatisticCollector::getTotalSwapSpace() {
+    long result = getSwapSpace(3);
+    return result;
+}
+
+// Process and thread operations
+int StatisticCollector::getThreadCount() {
+    FILE *file = fopen("/proc/self/stat", "r");
+    long result;
+    char line[LINE_BUF_SIZE];
+
+    for (int i = 0; i < 20; i++) {
+        if (fscanf(file, "%127s%*c", line) < 0) {
+            fclose(file);
+            return -1;
+        }
+    }
+    fclose(file);
+    result = strtol(line, NULL, 10);
+    if (result <= 0 || result > 0xfffffffffffffffL) return -1;
+    return result;
+}
+
+int StatisticCollector::getSocketCount() {
+    DIR *d = opendir("/proc/self/fd");
+    if (!d) {
+        puts("Error opening directory /proc/self/fd");
+        return -1;
+    }
+    const struct dirent *dir;
+    char path[64];
+    char link_buf[1024];
+    int count = 0;
+    while ((dir = readdir(d)) != NULL) {
+        const char *filename = dir->d_name;
+        if (filename[0] < '0' || '9' < filename[0]) continue;
+        sprintf(path, "/proc/self/fd/%s", filename);
+        size_t len = readlink(path, link_buf, sizeof(link_buf) - 1);
+        link_buf[len] = 0;
+        if (len > 0 && strncmp("socket:", link_buf, 7) == 0) {
+            count++;
+        }
+    }
+    (void)closedir(d);
+    return count;
+}
+
+// CPU statistics
+double StatisticCollector::getCpuUsage() {
+    long long total1;
+    long long idle1;
+    getCpuCycles(&total1, &idle1);
+    sleep(5);
+    long long total2;
+    long long idle2;
+    getCpuCycles(&total2, &idle2);
+
+    long long diffTotal = total2 - total1;
+    long long diffIdle = idle2 - idle1;
+
+    return (diffTotal - diffIdle) / (double)diffTotal;
+}
+
 double StatisticCollector::getTotalCpuUsage() {
     std::string mpstatCommand = "mpstat";
     char buffer[BUFFER_SIZE];
@@ -553,6 +746,11 @@ double StatisticCollector::getTotalCpuUsage() {
     }
 
     return totalCPUUsage;
+}
+
+int StatisticCollector::getTotalNumberofCores() {
+    unsigned concurentThreadsSupported = std::thread::hardware_concurrency();
+    return concurentThreadsSupported;
 }
 
 double StatisticCollector::getLoadAverage() {
@@ -621,6 +819,23 @@ double StatisticCollector::getForkCallsPerSecond() {
     return measureProcStatRate("processes", 9, 1);
 }
 
+// Network operations
+long StatisticCollector::getRXBytes() {
+    FILE *file = fopen("/sys/class/net/eth0/statistics/rx_bytes", "r");
+    long result = -1;
+    fscanf(file, "%li", &result);
+    fclose(file);
+    return result;
+}
+
+long StatisticCollector::getTXBytes() {
+    FILE *file = fopen("/sys/class/net/eth0/statistics/tx_bytes", "r");
+    long result = -1;
+    fscanf(file, "%li", &result);
+    fclose(file);
+    return result;
+}
+
 std::map<std::string, std::pair<double, double>> StatisticCollector::getNetworkPacketsPerSecond() {
     std::map<std::string, std::pair<double, double>> packetRates; // <interface, <input_pps, output_pps>>
     
@@ -685,6 +900,7 @@ std::map<std::string, std::pair<double, double>> StatisticCollector::getNetworkP
     return packetRates;
 }
 
+// Disk operations
 std::map<std::string, double> StatisticCollector::getDiskBusyPercentage() {
     std::map<std::string, double> diskBusyRates;
     
