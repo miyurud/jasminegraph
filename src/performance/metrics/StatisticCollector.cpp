@@ -232,6 +232,46 @@ static void readPerCpuStats(FILE *file, std::vector<std::vector<long long>> &rea
     }
 }
 
+// Small container for parsed /proc/diskstats fields that we need.
+struct DiskStats {
+    unsigned long long reads_completed = 0;
+    unsigned long long reads_merged = 0;
+    unsigned long long sectors_read = 0;
+    unsigned long long time_reading = 0;
+    unsigned long long writes_completed = 0;
+    unsigned long long writes_merged = 0;
+    unsigned long long sectors_written = 0;
+    unsigned long long time_writing = 0;
+    unsigned long long ios_in_progress = 0;
+    unsigned long long io_time = 0;
+    unsigned long long weighted_io_time = 0;
+};
+
+// Read /proc/diskstats from an open FILE* and fill the provided map.
+// Caller is responsible for opening/closing the FILE* and rewinding if needed.
+static void readDiskStats(FILE *file, std::map<std::string, DiskStats> &out) {
+    char line[LINE_BUF_SIZE_LONG];
+    while (fgets(line, sizeof(line), file) != NULL) {
+        int major = 0, minor = 0;
+        char device[32] = {0};
+        DiskStats ds;
+
+        // Parse up to 14 fields; sscanf will fill available values.
+        int ret = sscanf(line, "%d %d %31s %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
+                         &major, &minor, device,
+                         &ds.reads_completed, &ds.reads_merged, &ds.sectors_read, &ds.time_reading,
+                         &ds.writes_completed, &ds.writes_merged, &ds.sectors_written, &ds.time_writing,
+                         &ds.ios_in_progress, &ds.io_time, &ds.weighted_io_time);
+
+        if (ret >= 3) {
+            // Skip loop and ram devices
+            if (strncmp(device, "loop", 4) != 0 && strncmp(device, "ram", 3) != 0) {
+                out[std::string(device)] = ds;
+            }
+        }
+    }
+}
+
 double StatisticCollector::getCpuUsage() {
     long long total1;
     long long idle1;
@@ -757,76 +797,33 @@ std::map<std::string, double> StatisticCollector::getDiskBusyPercentage() {
     clock_gettime(CLOCK_MONOTONIC, &startTime);
     
     // First reading
-    std::map<std::string, unsigned long long> firstReading;
+    std::map<std::string, DiskStats> firstReading;
     FILE *file1 = fopen("/proc/diskstats", "r");
     if (!file1) {
         stat_logger.error("Cannot open /proc/diskstats for first reading");
         return diskBusyRates;
     }
-    
-    char line[LINE_BUF_SIZE_LONG];
-    while (fgets(line, sizeof(line), file1) != NULL) {
-        int major, minor;
-        char device[32];
-        unsigned long long reads_completed, reads_merged, sectors_read, time_reading;
-        unsigned long long writes_completed, writes_merged, sectors_written, time_writing;
-        unsigned long long ios_in_progress, io_time, weighted_io_time;
-        
-        // Parse the diskstats line (11 or more fields)
-        int ret = sscanf(line, "%d %d %31s %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
-                        &major, &minor, device,
-                        &reads_completed, &reads_merged, &sectors_read, &time_reading,
-                        &writes_completed, &writes_merged, &sectors_written, &time_writing,
-                        &ios_in_progress, &io_time, &weighted_io_time);
-        
-        if (ret >= 14) {  // We need at least 14 fields to get io_time
-            // Skip loop devices and ram devices
-            if (strncmp(device, "loop", 4) != 0 && strncmp(device, "ram", 3) != 0) {
-                firstReading[device] = io_time;  // io_time is in milliseconds
-            }
-        }
-    }
+    readDiskStats(file1, firstReading);
     fclose(file1);
-    
+
     if (firstReading.empty()) {
         stat_logger.error("No valid disk devices found in first reading");
         return diskBusyRates;
     }
-    
+
     // Sleep for a short interval to get meaningful difference
     usleep(1000000);  // 1 second
-    
+
     // Second reading
-    std::map<std::string, unsigned long long> secondReading;
+    std::map<std::string, DiskStats> secondReading;
     FILE *file2 = fopen("/proc/diskstats", "r");
     if (!file2) {
         stat_logger.error("Cannot open /proc/diskstats for second reading");
         return diskBusyRates;
     }
-    
-    while (fgets(line, sizeof(line), file2) != NULL) {
-        int major, minor;
-        char device[32];
-        unsigned long long reads_completed, reads_merged, sectors_read, time_reading;
-        unsigned long long writes_completed, writes_merged, sectors_written, time_writing;
-        unsigned long long ios_in_progress, io_time, weighted_io_time;
-        
-        // Parse the diskstats line (11 or more fields)
-        int ret = sscanf(line, "%d %d %31s %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
-                        &major, &minor, device,
-                        &reads_completed, &reads_merged, &sectors_read, &time_reading,
-                        &writes_completed, &writes_merged, &sectors_written, &time_writing,
-                        &ios_in_progress, &io_time, &weighted_io_time);
-        
-        if (ret >= 14) {  // We need at least 14 fields to get io_time
-            // Skip loop devices and ram devices
-            if (strncmp(device, "loop", 4) != 0 && strncmp(device, "ram", 3) != 0) {
-                secondReading[device] = io_time;  // io_time is in milliseconds
-            }
-        }
-    }
+    readDiskStats(file2, secondReading);
     fclose(file2);
-    
+
     // Record end time
     clock_gettime(CLOCK_MONOTONIC, &endTime);
     
@@ -881,76 +878,33 @@ std::map<std::string, std::pair<double, double>> StatisticCollector::getDiskRead
     clock_gettime(CLOCK_MONOTONIC, &startTime);
     
     // First reading - store sectors_read and sectors_written for each device
-    std::map<std::string, std::pair<unsigned long long, unsigned long long>> firstReading;
+    std::map<std::string, DiskStats> firstReading;
     FILE *file1 = fopen("/proc/diskstats", "r");
     if (!file1) {
         stat_logger.error("Cannot open /proc/diskstats for first reading");
         return diskRates;
     }
-    
-    char line[LINE_BUF_SIZE_LONG];
-    while (fgets(line, sizeof(line), file1) != NULL) {
-        int major, minor;
-        char device[32];
-        unsigned long long reads_completed, reads_merged, sectors_read, time_reading;
-        unsigned long long writes_completed, writes_merged, sectors_written, time_writing;
-        unsigned long long ios_in_progress, io_time, weighted_io_time;
-        
-        // Parse the diskstats line (14 fields)
-        int ret = sscanf(line, "%d %d %31s %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
-                        &major, &minor, device,
-                        &reads_completed, &reads_merged, &sectors_read, &time_reading,
-                        &writes_completed, &writes_merged, &sectors_written, &time_writing,
-                        &ios_in_progress, &io_time, &weighted_io_time);
-        
-        if (ret >= 14) {  // We need all 14 fields for full disk devices
-            // Skip loop devices and ram devices
-            if (strncmp(device, "loop", 4) != 0 && strncmp(device, "ram", 3) != 0) {
-                firstReading[device] = std::make_pair(sectors_read, sectors_written);
-            }
-        }
-    }
+    readDiskStats(file1, firstReading);
     fclose(file1);
-    
+
     if (firstReading.empty()) {
         stat_logger.error("No valid disk devices found in first reading");
         return diskRates;
     }
-    
+
     // Sleep for a short interval to get meaningful difference
     usleep(1000000);  // 1 second
-    
+
     // Second reading
-    std::map<std::string, std::pair<unsigned long long, unsigned long long>> secondReading;
+    std::map<std::string, DiskStats> secondReading;
     FILE *file2 = fopen("/proc/diskstats", "r");
     if (!file2) {
         stat_logger.error("Cannot open /proc/diskstats for second reading");
         return diskRates;
     }
-    
-    while (fgets(line, sizeof(line), file2) != NULL) {
-        int major, minor;
-        char device[32];
-        unsigned long long reads_completed, reads_merged, sectors_read, time_reading;
-        unsigned long long writes_completed, writes_merged, sectors_written, time_writing;
-        unsigned long long ios_in_progress, io_time, weighted_io_time;
-        
-        // Parse the diskstats line (14 fields)
-        int ret = sscanf(line, "%d %d %31s %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
-                        &major, &minor, device,
-                        &reads_completed, &reads_merged, &sectors_read, &time_reading,
-                        &writes_completed, &writes_merged, &sectors_written, &time_writing,
-                        &ios_in_progress, &io_time, &weighted_io_time);
-        
-        if (ret >= 14) {  // We need all 14 fields for full disk devices
-            // Skip loop devices and ram devices
-            if (strncmp(device, "loop", 4) != 0 && strncmp(device, "ram", 3) != 0) {
-                secondReading[device] = std::make_pair(sectors_read, sectors_written);
-            }
-        }
-    }
+    readDiskStats(file2, secondReading);
     fclose(file2);
-    
+
     // Record end time
     clock_gettime(CLOCK_MONOTONIC, &endTime);
     
@@ -1010,51 +964,30 @@ std::map<std::string, double> StatisticCollector::getDiskBlockSizeKB() {
         stat_logger.error("Cannot open /proc/diskstats for disk block size reading");
         return diskBlockSizes;
     }
-    
-    char line[LINE_BUF_SIZE_LONG];
-    while (fgets(line, sizeof(line), file) != NULL) {
-        int major, minor;
-        char device[32];
-        unsigned long long reads_completed, reads_merged, sectors_read, time_reading;
-        unsigned long long writes_completed, writes_merged, sectors_written, time_writing;
-        unsigned long long ios_in_progress, io_time, weighted_io_time;
-        
-        // Parse the diskstats line (14 fields)
-        int ret = sscanf(line, "%d %d %31s %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
-                        &major, &minor, device,
-                        &reads_completed, &reads_merged, &sectors_read, &time_reading,
-                        &writes_completed, &writes_merged, &sectors_written, &time_writing,
-                        &ios_in_progress, &io_time, &weighted_io_time);
-        
-        if (ret >= 14) {  // We need all 14 fields for full disk devices
-            // Skip loop devices and ram devices
-            if (strncmp(device, "loop", 4) != 0 && strncmp(device, "ram", 3) != 0) {
-                // Calculate block size following lmon15h.c methodology:
-                // dk_bsize = ((dk_rkb + dk_wkb) / dk_xfers) * 1024
-                // where dk_rkb = sectors_read / 2, dk_wkb = sectors_written / 2
-                // and dk_xfers = reads_completed + writes_completed
-                
-                unsigned long long total_transfers = reads_completed + writes_completed;
-                if (total_transfers > 0) {
-                    // Convert sectors to KB (sectors are 512 bytes, so divide by 2)
-                    double read_kb = static_cast<double>(sectors_read) / 2.0;
-                    double write_kb = static_cast<double>(sectors_written) / 2.0;
-                    double total_kb = read_kb + write_kb;
-                    
-                    // Calculate average block size in KB following lmon15h.c formula
-                    // dk_bsize = ((dk_rkb + dk_wkb) / dk_xfers) * 1024 (but this gives bytes)
-                    // For KB, we use: ((read_kb + write_kb) / total_transfers)
-                    double block_size_kb = total_kb / static_cast<double>(total_transfers);
-                    
-                    diskBlockSizes[device] = block_size_kb;
-                } else {
-                    // No transfers recorded, block size is 0
-                    diskBlockSizes[device] = 0.0;
-                }
-            }
+
+    std::map<std::string, DiskStats> allStats;
+    readDiskStats(file, allStats);
+    fclose(file);
+
+    for (const auto &kv : allStats) {
+        const std::string device = kv.first;
+        const DiskStats &ds = kv.second;
+        // Calculate block size following lmon15h.c methodology:
+        // dk_bsize = ((dk_rkb + dk_wkb) / dk_xfers) * 1024
+        // where dk_rkb = sectors_read / 2, dk_wkb = sectors_written / 2
+        // and dk_xfers = reads_completed + writes_completed
+
+        unsigned long long total_transfers = ds.reads_completed + ds.writes_completed;
+        if (total_transfers > 0) {
+            double read_kb = static_cast<double>(ds.sectors_read) / 2.0;
+            double write_kb = static_cast<double>(ds.sectors_written) / 2.0;
+            double total_kb = read_kb + write_kb;
+            double block_size_kb = total_kb / static_cast<double>(total_transfers);
+            diskBlockSizes[device] = block_size_kb;
+        } else {
+            diskBlockSizes[device] = 0.0;
         }
     }
-    fclose(file);
     
     return diskBlockSizes;
 }
@@ -1068,80 +1001,33 @@ std::map<std::string, double> StatisticCollector::getDiskTransfersPerSecond() {
     clock_gettime(CLOCK_MONOTONIC, &startTime);
     
     // First reading - store total transfers (dk_xfers = dk_reads + dk_writes) for each device
-    std::map<std::string, unsigned long long> firstReading;
+    std::map<std::string, DiskStats> firstReading;
     FILE *file1 = fopen("/proc/diskstats", "r");
     if (!file1) {
         stat_logger.error("Cannot open /proc/diskstats for first reading");
         return diskTransferRates;
     }
-    
-    char line[LINE_BUF_SIZE_LONG];
-    while (fgets(line, sizeof(line), file1) != NULL) {
-        int major, minor;
-        char device[32];
-        unsigned long long reads_completed, reads_merged, sectors_read, time_reading;
-        unsigned long long writes_completed, writes_merged, sectors_written, time_writing;
-        unsigned long long ios_in_progress, io_time, weighted_io_time;
-        
-        // Parse the diskstats line (14 fields)
-        int ret = sscanf(line, "%d %d %31s %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
-                        &major, &minor, device,
-                        &reads_completed, &reads_merged, &sectors_read, &time_reading,
-                        &writes_completed, &writes_merged, &sectors_written, &time_writing,
-                        &ios_in_progress, &io_time, &weighted_io_time);
-        
-        if (ret >= 14) {  // We need all 14 fields for full disk devices
-            // Skip loop devices and ram devices
-            if (strncmp(device, "loop", 4) != 0 && strncmp(device, "ram", 3) != 0) {
-                // Calculate total transfers: dk_xfers = dk_reads + dk_writes
-                unsigned long long total_transfers = reads_completed + writes_completed;
-                firstReading[device] = total_transfers;
-            }
-        }
-    }
+    readDiskStats(file1, firstReading);
     fclose(file1);
-    
+
     if (firstReading.empty()) {
         stat_logger.error("No valid disk devices found in first reading");
         return diskTransferRates;
     }
-    
+
     // Sleep for a short interval to get meaningful difference
     usleep(1000000);  // 1 second
-    
+
     // Second reading
-    std::map<std::string, unsigned long long> secondReading;
+    std::map<std::string, DiskStats> secondReading;
     FILE *file2 = fopen("/proc/diskstats", "r");
     if (!file2) {
         stat_logger.error("Cannot open /proc/diskstats for second reading");
         return diskTransferRates;
     }
-    
-    while (fgets(line, sizeof(line), file2) != NULL) {
-        int major, minor;
-        char device[32];
-        unsigned long long reads_completed, reads_merged, sectors_read, time_reading;
-        unsigned long long writes_completed, writes_merged, sectors_written, time_writing;
-        unsigned long long ios_in_progress, io_time, weighted_io_time;
-        
-        // Parse the diskstats line (14 fields)
-        int ret = sscanf(line, "%d %d %31s %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
-                        &major, &minor, device,
-                        &reads_completed, &reads_merged, &sectors_read, &time_reading,
-                        &writes_completed, &writes_merged, &sectors_written, &time_writing,
-                        &ios_in_progress, &io_time, &weighted_io_time);
-        
-        if (ret >= 14) {  // We need all 14 fields for full disk devices
-            // Skip loop devices and ram devices
-            if (strncmp(device, "loop", 4) != 0 && strncmp(device, "ram", 3) != 0) {
-                // Calculate total transfers: dk_xfers = dk_reads + dk_writes
-                unsigned long long total_transfers = reads_completed + writes_completed;
-                secondReading[device] = total_transfers;
-            }
-        }
-    }
+    readDiskStats(file2, secondReading);
     fclose(file2);
-    
+
     // Record end time
     clock_gettime(CLOCK_MONOTONIC, &endTime);
     
