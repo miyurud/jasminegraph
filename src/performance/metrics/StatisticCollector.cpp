@@ -200,6 +200,38 @@ static void getCpuCycles(long long *totalp, long long *idlep) {
     *idlep = idle;
 }
 
+// Helper to read per-CPU stats from an open /proc/stat FILE*.
+// It expects the file cursor to be at the beginning of the file.
+static void readPerCpuStats(FILE *file, std::vector<std::vector<long long>> &readings) {
+    char line[LINE_BUF_SIZE];
+    // Skip the first line (total cpu stats)
+    if (fgets(line, sizeof(line), file) == NULL) return;
+
+    // Read per-CPU stats
+    while (fgets(line, sizeof(line), file) != NULL) {
+        if (strncmp(line, "cpu", 3) == 0 && line[3] >= '0' && line[3] <= '9') {
+            std::vector<long long> cpuStats;
+            char *p = line;
+            // Skip "cpu" and cpu number
+            while (*p && *p != ' ') p++;
+            while (*p == ' ') p++;
+
+            // Parse CPU time values: user, nice, system, idle, iowait, irq, softirq, steal
+            for (int i = 0; i < 8; i++) {
+                long long value = 0;
+                if (*p && (*p >= '0' && *p <= '9')) {
+                    value = strtoll(p, &p, 10);
+                    while (*p == ' ') p++;
+                }
+                cpuStats.push_back(value);
+            }
+            readings.push_back(cpuStats);
+        } else {
+            break;  // No more CPU lines
+        }
+    }
+}
+
 double StatisticCollector::getCpuUsage() {
     long long total1;
     long long idle1;
@@ -361,33 +393,8 @@ std::vector<double> StatisticCollector::getLogicalCpuCoreThreadUsage() {
         return cpuUsages;
     }
     
-    char line[LINE_BUF_SIZE];
-    // Skip the first line (total cpu stats)
-    fgets(line, sizeof(line), file1);
-    
-    // Read per-CPU stats
-    while (fgets(line, sizeof(line), file1) != NULL) {
-        if (strncmp(line, "cpu", 3) == 0 && line[3] >= '0' && line[3] <= '9') {
-            std::vector<long long> cpuStats;
-            char *p = line;
-            // Skip "cpu" and cpu number
-            while (*p && *p != ' ') p++;
-            while (*p == ' ') p++;
-            
-            // Parse CPU time values: user, nice, system, idle, iowait, irq, softirq, steal
-            for (int i = 0; i < 8; i++) {
-                long long value = 0;
-                if (*p && (*p >= '0' && *p <= '9')) {
-                    value = strtoll(p, &p, 10);
-                    while (*p == ' ') p++;
-                }
-                cpuStats.push_back(value);
-            }
-            firstReading.push_back(cpuStats);
-        } else {
-            break;  // No more CPU lines
-        }
-    }
+    // Read first snapshot of per-CPU stats
+    readPerCpuStats(file1, firstReading);
     fclose(file1);
     
     // Sleep for a short interval to get meaningful difference
@@ -401,32 +408,8 @@ std::vector<double> StatisticCollector::getLogicalCpuCoreThreadUsage() {
         return cpuUsages;
     }
     
-    // Skip the first line (total cpu stats)
-    fgets(line, sizeof(line), file2);
-    
-    // Read per-CPU stats
-    while (fgets(line, sizeof(line), file2) != NULL) {
-        if (strncmp(line, "cpu", 3) == 0 && line[3] >= '0' && line[3] <= '9') {
-            std::vector<long long> cpuStats;
-            char *p = line;
-            // Skip "cpu" and cpu number
-            while (*p && *p != ' ') p++;
-            while (*p == ' ') p++;
-            
-            // Parse CPU time values
-            for (int i = 0; i < 8; i++) {
-                long long value = 0;
-                if (*p && (*p >= '0' && *p <= '9')) {
-                    value = strtoll(p, &p, 10);
-                    while (*p == ' ') p++;
-                }
-                cpuStats.push_back(value);
-            }
-            secondReading.push_back(cpuStats);
-        } else {
-            break;  // No more CPU lines
-        }
-    }
+    // Read second snapshot of per-CPU stats
+    readPerCpuStats(file2, secondReading);
     fclose(file2);
     
     // Calculate usage for each CPU
