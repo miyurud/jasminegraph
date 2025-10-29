@@ -375,55 +375,6 @@ long StatisticCollector::getMemoryUsageByProcess() {
     return result;
 }
 
-int StatisticCollector::getThreadCount() {
-    FILE *file = fopen("/proc/self/stat", "r");
-    long result;
-    char line[LINE_BUF_SIZE];
-
-    for (int i = 0; i < 20; i++) {
-        if (fscanf(file, "%127s%*c", line) < 0) {
-            fclose(file);
-            return -1;
-        }
-    }
-    fclose(file);
-    result = strtol(line, NULL, 10);
-    if (result <= 0 || result > 0xfffffffffffffffL) return -1;
-    return result;
-}
-
-static long getSwapSpace(int field) {
-    FILE *file = fopen("/proc/swaps", "r");
-    long result = -1;
-    char line[LINE_BUF_SIZE];
-
-    fgets(line, LINE_BUF_SIZE, file);
-
-    while (fgets(line, LINE_BUF_SIZE, file) != NULL) {
-        char *value;
-        char *save = NULL;
-        for (int i = 0; i < field; i++) {
-            if (i == 0) {
-                value = strtok_r(line, " ", &save);
-            } else {
-                value = strtok_r(NULL, "\t", &save);
-            }
-        }
-        long used = strtol(value, NULL, 10);
-        if (used < 0 || used > 0xfffffffffffffffL) {
-            continue;
-        }
-        if (result >= 0) {
-            result += used;
-        } else {
-            result = used;
-        }
-    }
-    fclose(file);
-
-    return result;
-}
-
 long StatisticCollector::getUsedSwapSpace() {
     long result = getSwapSpace(4);
     return result;
@@ -450,137 +401,7 @@ long StatisticCollector::getTXBytes() {
     return result;
 }
 
-int StatisticCollector::getSocketCount() {
-    DIR *d = opendir("/proc/self/fd");
-    if (!d) {
-        puts("Error opening directory /proc/self/fd");
-        return -1;
-    }
-    const struct dirent *dir;
-    char path[64];
-    char link_buf[1024];
-    int count = 0;
-    while ((dir = readdir(d)) != NULL) {
-        const char *filename = dir->d_name;
-        if (filename[0] < '0' || '9' < filename[0]) continue;
-        sprintf(path, "/proc/self/fd/%s", filename);
-        size_t len = readlink(path, link_buf, sizeof(link_buf) - 1);
-        link_buf[len] = 0;
-        if (len > 0 && strncmp("socket:", link_buf, 7) == 0) {
-            count++;
-        }
-    }
-    (void)closedir(d);
-    return count;
-}
-
-static long parseLine(char *line) {
-    int i = strlen(line);
-    const char *p = line;
-    while (*p < '0' || *p > '9') p++;
-    line[i - 3] = '\0';
-    long val = strtol(p, NULL, 10);
-    if (val < 0 || val > 0xfffffffffffffffL) return -1;
-    return val;
-}
-
-static void getCpuCycles(long long *totalp, long long *idlep) {
-    *totalp = 0;
-    *idlep = 0;
-    FILE *fp = fopen("/proc/stat", "r");
-    if (!fp) return;
-    char line[1024];
-    fscanf(fp, "%[^\r\n]%*c", line);
-    fclose(fp);
-
-    char *p = line;
-    while (*p < '0' || *p > '9') p++;
-    long long total = 0;
-    long long idle = 0;
-    char *end_ptr = p;
-    for (int field = 1; field <= 10; field++) {
-        while (*p < '0' || *p > '9') {
-            if (!(*p)) break;
-            p++;
-        }
-        if (!(*p)) break;
-        long long value = strtoll(p, &end_ptr, 10);
-        p = end_ptr;
-        if (value < 0) {
-            stat_logger.error("Value is " + to_string(value) + " for line " + string(line));
-        }
-        if (field == 4) {
-            idle += value;
-        }
-        total += value;
-    }
-    *totalp = total;
-    *idlep = idle;
-}
-
-// Helper function to read per-CPU stats from /proc/stat (handles file open/close)
-static bool readCpuStats(std::vector<std::vector<long long>> &readings, const std::string& errorContext = "") {
-    FILE *file = fopen("/proc/stat", "r");
-    if (!file) {
-        std::string msg = "Cannot open /proc/stat";
-        if (!errorContext.empty()) {
-            msg += " for " + errorContext;
-        }
-        stat_logger.error(msg);
-        return false;
-    }
-    
-    char line[LINE_BUF_SIZE];
-    // Skip the first line (total cpu stats)
-    if (fgets(line, sizeof(line), file) == NULL) {
-        fclose(file);
-        return true;
-    }
-
-    // Read per-CPU stats
-    while (fgets(line, sizeof(line), file) != NULL) {
-        if (strncmp(line, "cpu", 3) == 0 && line[3] >= '0' && line[3] <= '9') {
-            std::vector<long long> cpuStats;
-            char *p = line;
-            // Skip "cpu" and cpu number
-            while (*p && *p != ' ') p++;
-            while (*p == ' ') p++;
-
-            // Parse CPU time values: user, nice, system, idle, iowait, irq, softirq, steal
-            for (int i = 0; i < 8; i++) {
-                long long value = 0;
-                if (*p && (*p >= '0' && *p <= '9')) {
-                    value = strtoll(p, &p, 10);
-                    while (*p == ' ') p++;
-                }
-                cpuStats.push_back(value);
-            }
-            readings.push_back(cpuStats);
-        } else {
-            break;  // No more CPU lines
-        }
-    }
-    
-    fclose(file);
-    return true;
-}
-
 // Memory operations
-long StatisticCollector::getMemoryUsageByProcess() {
-    FILE *file = fopen("/proc/self/status", "r");
-    long result = -1;
-    char line[LINE_BUF_SIZE];
-
-    while (fgets(line, LINE_BUF_SIZE, file) != NULL) {
-        if (strncmp(line, "VmSize:", 7) == 0) {
-            result = parseLine(line);
-            break;
-        }
-    }
-    fclose(file);
-    return result;
-}
-
 long StatisticCollector::getTotalMemoryAllocated() {
     std::string token;
     std::ifstream file("/proc/meminfo");
@@ -629,16 +450,6 @@ long StatisticCollector::getTotalMemoryUsage() {
     memUsage = memTotal - (memFree + buffers + cached + sReclaimable);
 
     return memUsage;
-}
-
-long StatisticCollector::getUsedSwapSpace() {
-    long result = getSwapSpace(4);
-    return result;
-}
-
-long StatisticCollector::getTotalSwapSpace() {
-    long result = getSwapSpace(3);
-    return result;
 }
 
 // Process and thread operations
@@ -748,11 +559,6 @@ double StatisticCollector::getTotalCpuUsage() {
     return totalCPUUsage;
 }
 
-int StatisticCollector::getTotalNumberofCores() {
-    unsigned concurentThreadsSupported = std::thread::hardware_concurrency();
-    return concurentThreadsSupported;
-}
-
 double StatisticCollector::getLoadAverage() {
     double loadAvg;
     getloadavg(&loadAvg, 1);
@@ -820,22 +626,6 @@ double StatisticCollector::getForkCallsPerSecond() {
 }
 
 // Network operations
-long StatisticCollector::getRXBytes() {
-    FILE *file = fopen("/sys/class/net/eth0/statistics/rx_bytes", "r");
-    long result = -1;
-    fscanf(file, "%li", &result);
-    fclose(file);
-    return result;
-}
-
-long StatisticCollector::getTXBytes() {
-    FILE *file = fopen("/sys/class/net/eth0/statistics/tx_bytes", "r");
-    long result = -1;
-    fscanf(file, "%li", &result);
-    fclose(file);
-    return result;
-}
-
 std::map<std::string, std::pair<double, double>> StatisticCollector::getNetworkPacketsPerSecond() {
     std::map<std::string, std::pair<double, double>> packetRates; // <interface, <input_pps, output_pps>>
     
