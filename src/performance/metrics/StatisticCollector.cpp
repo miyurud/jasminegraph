@@ -917,7 +917,8 @@ std::map<std::string, double> StatisticCollector::getDiskTransfersPerSecond() {
         unsigned long long firstTransfers = entry.second.reads_completed + entry.second.writes_completed;
 
         if (secondReading.find(device) != secondReading.end()) {
-            unsigned long long secondTransfers = secondReading[device].reads_completed + secondReading[device].writes_completed;
+            unsigned long long secondTransfers = secondReading[device].reads_completed +
+                secondReading[device].writes_completed;
 
             // Calculate the delta (handling potential counter wraparound)
             unsigned long long deltaTransfers;
