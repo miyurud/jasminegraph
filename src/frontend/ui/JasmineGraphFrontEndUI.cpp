@@ -538,16 +538,18 @@ static void send_uploaded_bytes(int connFd,
         ui_frontend_logger.info("elapsed time: " + std::to_string(elapsedSeconds));
         ui_frontend_logger.info("edge count: " + std::to_string(elapsedSeconds));
 
-        double bytesPerSecond = uploadedBytes / elapsedSeconds;
-        double triplesPerSecond = edgeCount / elapsedSeconds;
+        int id = std::stoi(graphID);
+        auto rate = JasmineGraphFrontEnd::kgConstructionRates[id];
 
+        double bytesPerSecond = rate ? rate->bytesPerSecond : 0.0;
+        double triplesPerSecond = rate ? rate->triplesPerSecond : 0.0;
         if (percent < 100.0) {
             msg += "|" + graphID + "|" +
                    std::to_string(uploadedBytes) + "|" +
                    std::to_string(fileSizeBytes) + "|" +
                    std::to_string(percent) + "|" +
-                   std::to_string(JasmineGraphFrontEnd::kgConstructionRates[stoi(graphID)]->bytesPerSecond) + "|" +
-                   std::to_string(JasmineGraphFrontEnd::kgConstructionRates[stoi(graphID)]->triplesPerSecond) + "|" +
+                   std::to_string(bytesPerSecond) + "|" +
+                   std::to_string(triplesPerSecond) + "|" +
                     startTimeStr;
 
         }

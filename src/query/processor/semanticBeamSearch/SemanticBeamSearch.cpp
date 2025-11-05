@@ -63,7 +63,7 @@ std::vector<ScoredPath> SemanticBeamSearch::getSeedNodes()
             // nodeData["id"] = std::to_string(seedNode->nodeId);
             initialPath["pathNodes"].push_back(nodeData);
             initialPath["pathRels"] = json::array();
-            float score = Utils::cosineSimilarity(emb, faissStore->getEmbeddingById(std::to_string(seedNode->nodeId)));
+            float score = Utils::cosineSimilarity(emb, faissStore->getEmbeddingById(nodeData["id"]));
             paths.push_back({initialPath, score});
 
 
@@ -107,7 +107,13 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer &buffer,
             float score = sp.score;
            semantic_beam_search_logger.debug("Current path object: " + currentPath.dump());
            json lastNodeJson = currentPath["pathNodes"].back();
+            string lastRelationId  ="";
+            if (!currentPath["pathRels"].empty()) {
+                json lastRelationJson = currentPath["pathRels"].back();
+                lastRelationId = lastRelationJson["id"].get<std::string>();
+            }
            semantic_beam_search_logger.debug("Last node JSON: " + lastNodeJson.dump());
+            if (lastNodeJson["id"].empty())continue;
            string lastNodeId = lastNodeJson["id"].get<std::string>();
            semantic_beam_search_logger.debug("Last node ID: " + lastNodeId);
            std::string destPartitionId = lastNodeJson["partitionID"].get<std::string>();
@@ -120,7 +126,6 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer &buffer,
                 remoteFrontier[destPartitionId].push_back(sp);
 
 
-                // relation = relation->nextCentralDestination();
                 continue; // skip local expansion
             }
             NodeBlock* lastNode = nodeManager->get(lastNodeId);
@@ -140,10 +145,16 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer &buffer,
                     relCount++;
                     semantic_beam_search_logger.debug("Expanding relation #" + std::to_string(relCount));
                     NodeBlock* destNode = relation->getDestination();
-                    if (!destNode) {
+                    if (!destNode ) {
                         semantic_beam_search_logger.info("Destination node not found for relation, skipping.");
-                        relation = relation->nextLocalDestination(); // or nextCentralDestination
-                        continue;
+                        relation = relation->nextLocalSource(); // or nextCentralDestination
+                        if (relation)
+                        {
+                            continue;
+                        }else
+                        {
+                            break;
+                        }
                     }
                     semantic_beam_search_logger.debug("Destination node ID: " + std::to_string(destNode->nodeId));
 
@@ -152,7 +163,20 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer &buffer,
                     json relData;
                     auto relProps = relation->getAllProperties();
                     for (auto& [k, v] : relProps) relData[k] = v;
+if (relProps.empty()) {
+    relation = relation->nextLocalSource();
+    continue;
+}
+                    if (relData.contains("id") &&  relData["id"].get<std::string>()== lastRelationId ) {
+                        semantic_beam_search_logger.info("Skipping parent relation");
+                        relation = relation->nextLocalDestination(); // or nextCentralDestination
+
+                        continue;
+                    }
                     newPath["pathRels"].push_back(relData);
+
+                    semantic_beam_search_logger.debug("Relation properties: " + relData.dump());
+
 
                     // concatenate all property values to form a text for embedding
                         std::string edgeText;
@@ -199,7 +223,7 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer &buffer,
                     NodeBlock* destNode = relation->getDestination();
                     if (!destNode) {
                         semantic_beam_search_logger.info("Destination node not found for relation, skipping.");
-                        relation = relation->nextCentralDestination(); // or nextCentralDestination
+                        relation = relation->nextCentralSource(); // or nextCentralDestination
                         continue;
                     }
                     semantic_beam_search_logger.debug("Destination node ID: " + std::to_string(destNode->nodeId));
@@ -209,6 +233,11 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer &buffer,
                     json relData;
                     auto relProps = relation->getAllProperties();
                     for (auto& [k, v] : relProps) relData[k] = v;
+                    if ( relData.contains("id") &&  relData["id"].get<std::string>()== lastRelationId ) {
+                        semantic_beam_search_logger.info("Skipping parent relation");
+                        relation = relation->nextCentralDestination(); // or nextCentralDestination
+                        continue;
+                    }
                     newPath["pathRels"].push_back(relData);
 
                     std::string edgeText;
@@ -245,11 +274,7 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer &buffer,
 
                     semantic_beam_search_logger.info("Expanded path to node " + std::to_string(destNode->nodeId) + " with score " + std::to_string(score));
                     semantic_beam_search_logger.debug("Expanded path JSON: " + newPath.dump());
-                    // if (!relation->nextLocalSource())
-                    // {
-                    //     relation = relation->nextCentralSource();
-                    //
-                    // }
+
                     relation = relation->nextCentralSource(); // or nextCentralDestination
                 }
 
@@ -271,6 +296,15 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer &buffer,
                 expandCentralRelations(centralRel);
             } else {
                 semantic_beam_search_logger.debug("No central relations for node " + std::to_string(lastNode->nodeId));
+            }
+
+            if (expandedPaths.empty())
+            {
+                json spJson;
+                spJson["score"]= sp.score;
+                spJson["pathObj"] =sp.pathObj;
+                semantic_beam_search_logger.info("Adding terminal:"+spJson.dump());
+                buffer.add(spJson.dump());
             }
         }
 
@@ -313,6 +347,8 @@ if (!embeddingRequestsForNewlyExploredEdges.empty()) {
 }
 
     // now update scores using cached embeddings
+
+
         for (auto& path : expandedPaths) {
             json pathRels = path.pathObj["pathRels"].back();
             if (pathRels.contains("type")) {
@@ -453,36 +489,7 @@ request["currentPaths"] = json::array();
 
 
     semantic_beam_search_logger.info("Waiting for response length from remote server");
-    //
-    // const int MAX_ATTEMPTS = 3;
-    // std::string command;
-    // bool gotStart = false;
-    //
-    // for (int attempt = 1; attempt <= MAX_ATTEMPTS; ++attempt) {
-    //     command = Utils::read_str_trim_wrapper(sockfd, data, INSTANCE_DATA_LENGTH);
-    //     semantic_beam_search_logger.info(
-    //         "Attempt " + std::to_string(attempt) +
-    //         ": received command '" + command + "'");
-    //
-    //     if (command == JasmineGraphInstanceProtocol::QUERY_DATA_START) {
-    //         gotStart = true;
-    //         break; // success
-    //     }
-    //
-    //     // small delay before retry
-    //     std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    // }
-    //
-    // if (!gotStart) {
-    //     semantic_beam_search_logger.error(
-    //         "Failed to receive QUERY_DATA_START after " +
-    //         std::to_string(MAX_ATTEMPTS) + " attempts");
-    //     close(sockfd);
-    //     return json(); // abort
-    // }
-    //
-    // // ✅ Continue as normal
-    // Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::OK);
+
     int respLen;
     recv(sockfd, &respLen, sizeof(int), 0);
     respLen = ntohl(respLen);
@@ -519,8 +526,7 @@ request["currentPaths"] = json::array();
                 // not cached → request an embedding
                 embeddingRequestsForNewlyExploredEdges.push_back(edgeType);
 
-                // later, after you get the embedding result, store it:
-                // typeEmbeddingCache[edgeType] = computedEmbedding;
+
             }
         }
 
