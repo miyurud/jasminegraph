@@ -16,14 +16,14 @@ RUN if [ "$DEBUG" = "true" ]; then apt-get update \
 && apt-get install --no-install-recommends -y gdb gdbserver \
 && apt-get clean; fi
 
-RUN wget https://github.com/Kitware/CMake/releases/download/v3.29.6/cmake-3.29.6.tar.gz \
- && tar -zxvf cmake-3.29.6.tar.gz \
- && cd cmake-3.29.6 \
- && ./bootstrap \
- && make -j$(nproc) \
- && make install \
- && cd .. \
- && rm -rf cmake-3.29.6 cmake-3.29.6.tar.gz
+#RUN wget https://github.com/Kitware/CMake/releases/download/v3.29.6/cmake-3.29.6.tar.gz \
+# && tar -zxvf cmake-3.29.6.tar.gz \
+# && cd cmake-3.29.6 \
+# && ./bootstrap \
+# && make -j$(nproc) \
+# && make install \
+# && cd .. \
+# && rm -rf cmake-3.29.6 cmake-3.29.6.tar.gz
 
 #WORKDIR /usr/local/lib
 #RUN git clone --depth=1 https://github.com/ggml-org/llama.cpp.git
@@ -32,13 +32,13 @@ RUN wget https://github.com/Kitware/CMake/releases/download/v3.29.6/cmake-3.29.6
 
 
 
-WORKDIR /usr/local/lib
-RUN git clone --depth=1 https://github.com/facebookresearch/faiss.git
-WORKDIR /usr/local/lib/faiss
-RUN mkdir build && cd build \
- && cmake -DFAISS_ENABLE_PYTHON=OFF -DFAISS_ENABLE_GPU=OFF .. \
- && make -j$(nproc) \
- && make install
+#WORKDIR /usr/local/lib
+#RUN git clone --depth=1 https://github.com/facebookresearch/faiss.git
+#WORKDIR /usr/local/lib/faiss
+#RUN mkdir build && cd build \
+# && cmake -DFAISS_ENABLE_PYTHON=OFF -DFAISS_ENABLE_GPU=OFF .. \
+# && make -j$(nproc) \
+# && make install
 
 WORKDIR "${JASMINEGRAPH_HOME}"
 COPY ./build.sh ./build.sh
