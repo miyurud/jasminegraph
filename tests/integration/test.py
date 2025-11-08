@@ -210,7 +210,6 @@ def test(host, port):
         send_and_expect_response(sock, 'lst after adgr', LIST,
                                  b'|1|powergrid|/var/tmp/data/powergrid.dl|op|')
 
-
         print()
         logging.info('Testing ecnt')
         send_and_expect_response(sock, 'ecnt', ECNT, b'graphid-send')
@@ -239,50 +238,50 @@ def test(host, port):
                                  DONE, exit_on_failure=True)
 
         print()
-        # logging.info('Testing adgr-cust')
-        # send_and_expect_response(sock, 'adgr-cust', ADGR_CUST,
-        #                          b'Select a custom graph upload option' + LINE_END +
-        #                          b'1 : Graph with edge list + text attributes list' + LINE_END +
-        #                          b'2 : Graph with edge list + JSON attributes list' + LINE_END +
-        #                          b'3 : Graph with edge list + XML attributes list',
-        #                          exit_on_failure=True)
-        # send_and_expect_response(sock, 'adgr-cust',
-        #                          b'1',
-        #                          b'Send <name>|<path to edge list>|<path to attribute file>|' +
-        #                          b'(optional)<attribute data type: int8. int16, int32 or float>',
-        #                          exit_on_failure=True)
-        # send_and_expect_response(sock, 'adgr-cust',
-        #                          b'cora|/var/tmp/data/cora/cora.cites|' +
-        #                          b'/var/tmp/data/cora/cora.content',
-        #                          DONE, exit_on_failure=True)
+        logging.info('Testing adgr-cust')
+        send_and_expect_response(sock, 'adgr-cust', ADGR_CUST,
+                                 b'Select a custom graph upload option' + LINE_END +
+                                 b'1 : Graph with edge list + text attributes list' + LINE_END +
+                                 b'2 : Graph with edge list + JSON attributes list' + LINE_END +
+                                 b'3 : Graph with edge list + XML attributes list',
+                                 exit_on_failure=True)
+        send_and_expect_response(sock, 'adgr-cust',
+                                 b'1',
+                                 b'Send <name>|<path to edge list>|<path to attribute file>|' +
+                                 b'(optional)<attribute data type: int8. int16, int32 or float>',
+                                 exit_on_failure=True)
+        send_and_expect_response(sock, 'adgr-cust',
+                                 b'cora|/var/tmp/data/cora/cora.cites|' +
+                                 b'/var/tmp/data/cora/cora.content',
+                                 DONE, exit_on_failure=True)
 
-        # print()
-        # logging.info('Testing lst after adgr-cust')
-        # send_and_expect_response(sock, 'lst after adgr-cust', LIST,
-        #                          b'|1|powergrid|/var/tmp/data/powergrid.dl|op|' + LINE_END +
-        #                          b'|2|cora|/var/tmp/data/cora/cora.cites|op|')
-        #
-        # print()
-        # logging.info('Testing merge')
-        # send_and_expect_response(sock, 'merge', MERGE, b'Available main flags:' + LINE_END +
-        #                          b'graph_id' + LINE_END +
-        #                          b'Send --<flag1> <value1>')
-        # send_and_expect_response(
-        #     sock, 'merge', b'--graph_id 2', DONE, exit_on_failure=True)
+        print()
+        logging.info('Testing lst after adgr-cust')
+        send_and_expect_response(sock, 'lst after adgr-cust', LIST,
+                                 b'|1|powergrid|/var/tmp/data/powergrid.dl|op|' + LINE_END +
+                                 b'|2|cora|/var/tmp/data/cora/cora.cites|op|')
 
-        # print()
-        # logging.info('Testing train')
-        # send_and_expect_response(sock, 'train', TRAIN, b'Available main flags:' + LINE_END +
-        #                          b'graph_id learning_rate batch_size validate_iter epochs' +
-        #                          LINE_END + b'Send --<flag1> <value1> --<flag2> <value2> ..',
-        #                          exit_on_failure=True)
-        # send_and_expect_response(
-        #     sock, 'train', b'--graph_id 2', DONE, exit_on_failure=True)
+        print()
+        logging.info('Testing merge')
+        send_and_expect_response(sock, 'merge', MERGE, b'Available main flags:' + LINE_END +
+                                 b'graph_id' + LINE_END +
+                                 b'Send --<flag1> <value1>')
+        send_and_expect_response(
+            sock, 'merge', b'--graph_id 2', DONE, exit_on_failure=True)
 
-        # print()
-        # logging.info('Testing rmgr')
-        # send_and_expect_response(sock, 'rmgr', RMGR, SEND)
-        # send_and_expect_response(sock, 'rmgr', b'2', DONE)
+        print()
+        logging.info('Testing train')
+        send_and_expect_response(sock, 'train', TRAIN, b'Available main flags:' + LINE_END +
+                                 b'graph_id learning_rate batch_size validate_iter epochs' +
+                                 LINE_END + b'Send --<flag1> <value1> --<flag2> <value2> ..',
+                                 exit_on_failure=True)
+        send_and_expect_response(
+            sock, 'train', b'--graph_id 2', DONE, exit_on_failure=True)
+
+        print()
+        logging.info('Testing rmgr')
+        send_and_expect_response(sock, 'rmgr', RMGR, SEND)
+        send_and_expect_response(sock, 'rmgr', b'2', DONE)
 
         print()
         logging.info('Testing lst after rmgr')
@@ -594,7 +593,7 @@ def test(host, port):
 
 
         print()
-        # test_KG(OLLAMA_SETUP_SCRIPT , TEXT_FOLDER ,UPLOAD_SCRIPT)
+        test_KG(OLLAMA_SETUP_SCRIPT , TEXT_FOLDER ,UPLOAD_SCRIPT)
 
 
 

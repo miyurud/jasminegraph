@@ -6,10 +6,13 @@
 #include <iostream>
 #include <stdexcept>
 
+#include "../frontend/core/executor/impl/StreamingTriangleCountExecutor.h"
+#include "../util/logger/Logger.h"
+
 // Static members
 std::unique_ptr<FaissIndex> FaissIndex::instance = nullptr;
 std::once_flag FaissIndex::initFlag;
-
+Logger faiss_index_logger;
 FaissIndex* FaissIndex::getInstance(int embeddingDim, const std::string& filepath) {
     std::call_once(initFlag, [&]() {
         instance.reset(new FaissIndex(embeddingDim, filepath));
@@ -42,7 +45,7 @@ FaissIndex::~FaissIndex() {
         std::cout << "saving FAISS index";
         save(filePath);
     } catch (const std::exception& e) {
-        fprintf(stderr, "[FaissIndex] Failed to auto-save index: %s\n", e.what());
+        faiss_index_logger.error("[FaissIndex] Failed to auto-save index: "+std::string(e.what()));
     }
     delete index;
 }
@@ -54,7 +57,7 @@ faiss::idx_t FaissIndex::add(const std::vector<float>& embedding, std::string no
     std::lock_guard<std::mutex> lock(mtx);
 
    faiss::idx_t new_id = index->ntotal;
-   std::cout << "[FaissIndex] Adding new embedding with nodeId: " << nodeId << ", assigned id: " << new_id << std::endl;
+   faiss_index_logger.info("[FaissIndex] Adding new embedding with nodeId: " + nodeId + ", assigned id: "+ nlohmann::to_string(new_id );
 
    index->add(1, embedding.data());
 
