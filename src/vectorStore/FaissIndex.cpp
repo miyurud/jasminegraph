@@ -57,28 +57,15 @@ faiss::idx_t FaissIndex::add(const std::vector<float>& embedding, std::string no
     std::lock_guard<std::mutex> lock(mtx);
 
    faiss::idx_t new_id = index->ntotal;
-   faiss_index_logger.info("[FaissIndex] Adding new embedding with nodeId: " + nodeId + ", assigned id: "+ nlohmann::to_string(new_id );
+   faiss_index_logger.debug("[FaissIndex] Adding new embedding with nodeId: " + nodeId + ", assigned id: "+ std::to_string(new_id ));
 
    index->add(1, embedding.data());
 
-    // // iterate over the nodeIdToEmbeddingIdMap to check if the nodeId already exists
-    // for (auto & entry : nodeIdToEmbeddingIdMap) {
-    //     // if (entry.first == nodeId) {
-    //         std::cout << "[FaissIndex] Node ID already exists in the map. Returning existing ID: " << entry.second << std::endl;
-    //         // return entry.second; // Return existing ID if nodeId already exists
-    //     // }
-    // }
-    // for (auto & entry : embeddingIdToNodeIdMap) {
-    //     // if (entry.first == nodeId) {
-    //     std::cout << "[FaissIndex] Node ID already exists in the map. Returning existing ID: " << entry.second << std::endl;
-    //     // return entry.second; // Return existing ID if nodeId already exists
-    //     // }
-    // }
-   std::cout << "[FaissIndex] Embedding added to index. Updating nodeEmbeddingMap." << std::endl;
+
+   faiss_index_logger.debug("[FaissIndex] Embedding added to index. Updating nodeEmbeddingMap.");
     nodeIdToEmbeddingIdMap.insert({nodeId, new_id});
     embeddingIdToNodeIdMap.insert({new_id, nodeId});
    // nodeEmbeddingMap.insert( value_type(nodeId, new_id));
-   std::cout << "[FaissIndex] nodeEmbeddingMap updated for nodeId: " << nodeId << std::endl;
     return new_id;
 }
 
@@ -161,10 +148,10 @@ void FaissIndex::load(const std::string& filepath) {
 
     // Load FAISS index
     std::ifstream f(filepath, std::ios::binary);
-    std::cout << "Loading FAISS index from: " << filepath << std::endl;
+   faiss_index_logger.info("Loading FAISS index from: "+ filepath );
 
     if (f.good()) {
-        std::cout << "File exists, loading index..." << std::endl;
+        faiss_index_logger.info( "File exists, loading index..." );
         faiss::Index* loaded = faiss::read_index(filepath.c_str());
         index = dynamic_cast<faiss::IndexFlatL2*>(loaded);
         if (!index) {
@@ -175,22 +162,23 @@ void FaissIndex::load(const std::string& filepath) {
         index = new faiss::IndexFlatL2(dim);
     }
 
-    std::cout << "[FaissIndex::load] FAISS index loaded successfully." << std::endl;
+   faiss_index_logger.info("[FaissIndex::load] FAISS index loaded successfully." );
 
     // Load mapping file
     std::ifstream mapFile(filepath + ".map", std::ios::binary);
-    if (!mapFile.is_open()) {
-        std::cerr << "[FaissIndex::load] [Warning] Mapping file not found, nodeEmbeddingMap will be empty." << std::endl;
+    if (!mapFile.is_open())
+    {
+        faiss_index_logger.warn("[FaissIndex::load] [Warning] Mapping file not found, nodeEmbeddingMap will be empty." );
+
         return;
     }
 
     size_t size = 0;
     if (!mapFile.read(reinterpret_cast<char*>(&size), sizeof(size))) {
-        std::cerr << "[FaissIndex::load] Failed to read mapping size." << std::endl;
+        faiss_index_logger.error("[FaissIndex::load] Failed to read mapping size." );
         return;
     }
 
-    std::cout << "[FaissIndex::load] Mapping file opened. Entries to read: " << size << std::endl;
 
     for (size_t i = 0; i < size; i++) {
         size_t keyLen = 0;
@@ -202,7 +190,7 @@ void FaissIndex::load(const std::string& filepath) {
 
         // Sanity check key length
         if (keyLen == 0 || keyLen > 1024) {
-            std::cerr << "[FaissIndex::load] Invalid key length " << keyLen << ", skipping entry." << std::endl;
+            faiss_index_logger.warn("[FaissIndex::load] Invalid key length " + std::to_string(keyLen) +", skipping entry.");
             // Skip the value if key length is invalid
             faiss::idx_t dummy;
             if (!mapFile.read(reinterpret_cast<char*>(&dummy), sizeof(dummy))) {
@@ -213,7 +201,7 @@ void FaissIndex::load(const std::string& filepath) {
 
         std::string key(keyLen, '\0');
         if (!mapFile.read(&key[0], keyLen)) {
-            std::cerr << "[FaissIndex::load] Unexpected EOF while reading key." << std::endl;
+            faiss_index_logger.debug("[FaissIndex::load] Unexpected EOF while reading key." );
             break;
         }
 
@@ -223,7 +211,6 @@ void FaissIndex::load(const std::string& filepath) {
 
         faiss::idx_t value = 0;
         if (!mapFile.read(reinterpret_cast<char*>(&value), sizeof(value))) {
-            std::cerr << "[FaissIndex::load] Unexpected EOF while reading value." << std::endl;
             break;
         }
 
@@ -234,7 +221,6 @@ void FaissIndex::load(const std::string& filepath) {
     }
 
     mapFile.close();
-    std::cout << "[FaissIndex::load] Mapping file closed." << std::endl;
 }
 
 
