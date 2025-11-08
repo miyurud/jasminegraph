@@ -313,7 +313,7 @@ void Pipeline::startStreamingFromBufferToWorkers()
 json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<SharedBuffer>>& tupleBuffer) {
     auto startTime = high_resolution_clock::now();
     kg_pipeline_stream_handler_logger.info("Starting processTupleAndSaveInPartition");
-    HDFSMultiThreadedHashPartitioner partitioner(numberOfPartitions, graphId, masterIP, true , workerList ,true);
+    HDFSMultiThreadedHashPartitioner partitioner(numberOfPartitions, graphId, masterIP, true , workerList ,true, 5);
     std::hash<std::string> hasher;
     std::vector<std::thread> tupleThreads;
     for (size_t i = 0; i < tupleBuffer.size(); ++i) {

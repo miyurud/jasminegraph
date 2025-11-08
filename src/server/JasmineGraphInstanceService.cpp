@@ -557,7 +557,7 @@ JasmineGraphIncrementalLocalStore *JasmineGraphInstanceService::loadStreamingSto
     JasmineGraphIncrementalLocalStore *jasmineGraphStreamingLocalStore =
         new JasmineGraphIncrementalLocalStore(stoi(graphId), stoi(partitionId), openMode , true);
     graphDBMapStreamingStores[graphIdentifier] = jasmineGraphStreamingLocalStore;
-    instance_logger.info("###INSTANCE### Loading Local Store : Completed");
+    instance_logger.info("###INSTANCE### Loading Streaming Store : Completed");
     return jasmineGraphStreamingLocalStore;
 }
 
@@ -5366,10 +5366,11 @@ static void processFile(string fileName, bool isLocal,
                     std::to_string(graphId) + "_" + std::to_string(partitionIndex));
         }
     }
-    JasmineGraphIncrementalLocalStore* localStore = handler.incrementalLocalStoreMap[std::to_string(graphId) + "_" + std::to_string(partitionIndex)];
 
     if (isEmbedGraph)
     {
+        JasmineGraphIncrementalLocalStore* localStore = handler.incrementalLocalStoreMap[std::to_string(graphId) + "_" + std::to_string(partitionIndex)];
+
         localStore->getAndStoreEmbeddings();
     }
     // std::string instanceDataFolderLocation =

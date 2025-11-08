@@ -20,7 +20,7 @@ Logger hash_partitioner_logger;
 int PARTITION_FILE_EDGE_COUNT_THRESHOLD = 5;
 
 HDFSMultiThreadedHashPartitioner::HDFSMultiThreadedHashPartitioner(int numberOfPartitions, int graphID,
-    std::string masterIp, bool isDirected ,  std::vector<JasmineGraphServer::worker> workers ,bool isEmbedGraph )
+    std::string masterIp, bool isDirected ,  std::vector<JasmineGraphServer::worker> workers ,bool isEmbedGraph, int  partitionFileEdgeThreshold )
         : numberOfPartitions(numberOfPartitions), graphId(graphID),
           partitionLocks(numberOfPartitions), vertexCount(0), edgeCount(0),
           localEdgeArrays(numberOfPartitions), edgeCutsArrays(numberOfPartitions),
@@ -28,7 +28,7 @@ HDFSMultiThreadedHashPartitioner::HDFSMultiThreadedHashPartitioner(int numberOfP
           edgeReady(numberOfPartitions, false), edgeCutsMutexes(numberOfPartitions),
           edgeCutsAvailableCV(numberOfPartitions), edgeCutsReady(numberOfPartitions, false),
           terminateConsumers(false), masterIp(masterIp), partitionMutexArray(numberOfPartitions),
-          isDirected(isDirected) , isEmbedGraph(isEmbedGraph){
+          isDirected(isDirected) , isEmbedGraph(isEmbedGraph), partitionFileEdgeThreshold(partitionFileEdgeThreshold){
     this->outputFilePath = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.hdfs.tempfolder")
             + "/" + std::to_string(this->graphId);
     Utils::createDirectory(this->outputFilePath);
