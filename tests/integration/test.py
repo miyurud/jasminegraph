@@ -210,6 +210,7 @@ def test(host, port):
         send_and_expect_response(sock, 'lst after adgr', LIST,
                                  b'|1|powergrid|/var/tmp/data/powergrid.dl|op|')
 
+
         print()
         logging.info('Testing ecnt')
         send_and_expect_response(sock, 'ecnt', ECNT, b'graphid-send')

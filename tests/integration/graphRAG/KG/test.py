@@ -65,6 +65,7 @@ def recv_until(sock, stop=b"\n"):
     buffer = bytearray()
     while True:
         chunk = sock.recv(1)
+        # print ( chunk.decode("utf-8"))
         if not chunk:
             break
         buffer.extend(chunk)
@@ -173,27 +174,30 @@ def send_file_to_master(hdfs_file_path):
 
 def get_last_graph_id():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.connect((HOST, PORT))
-        sock.sendall(b"lst" + b"\n")
+        sock.connect((HOST, 7776))
+        sock.sendall(b"lst\n")
 
-        data = []
-        while True:
-            line = recv_until(sock, b"\r\n")
-            if not line or "done" in line:
-                break
-            data.append(line.strip())
-        sock.sendall(b"exit" + b"\n")
+        data = recv_until(sock, b"]")
 
+        # while True:
+        #     chunk = sock.recv(4096)
+        #     if not chunk:
+        #         break
+        #     data += chunk
 
-    graph_ids = []
-    for line in data:
-        parts = line.split("|")
-        if len(parts) > 1 and parts[1].isdigit():
-            graph_ids.append(int(parts[1]))
+        sock.sendall(b"exit\n")
 
-    if graph_ids:
-        return max(graph_ids)
-    return 0
+    # Try to decode the JSON response
+    try:
+        graphs = json.loads(data.strip())
+    except json.JSONDecodeError as e:
+        print("JSON decode error:", e)
+        print("Raw data received:", data)
+        return 0
+
+    # Extract and return the highest graph ID
+    graph_ids = [g.get("idgraph", 0) for g in graphs if isinstance(g, dict)]
+    return max(graph_ids) if graph_ids else 0
 def call_reasoning_model(prompt):
     """
     Call reasoning model (Ollama or vLLM) using the first runner URL.
@@ -327,7 +331,7 @@ def test_KG(llm_inference_engine_startup_script, text_folder , upload_file_scrip
     query = "MATCH (n)-[r]-(m) RETURN n,r,m"
 
     # start the llm inference engine
-    subprocess.run(["bash", llm_inference_engine_startup_script], check=True)
+    # subprocess.run(["bash", llm_inference_engine_startup_script], check=True)
 
 
     last_graph_id = get_last_graph_id()
