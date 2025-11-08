@@ -49,8 +49,8 @@ REASONING_MODEL_URI = RUNNER_URLS[0] if RUNNER_URLS else None
 REASONING_MODEL_URI = f"http://{SERVER_IP}:11450"
 # LLM model to use
 # LLM_MODEL = "google/gemma-3-4b-it"
-LLM_MODEL = "gemma3:4b-it-qat"
-
+# LLM_MODEL = "gemma3:4b-it-qat"
+LLM_MODEL = "gemma3:12b"
 # LLM_INFERENCE_ENGINE="vllm"
 LLM_INFERENCE_ENGINE="ollama"
 

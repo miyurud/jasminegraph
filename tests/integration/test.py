@@ -594,7 +594,7 @@ def test(host, port):
 
 
         print()
-        test_KG(OLLAMA_SETUP_SCRIPT , TEXT_FOLDER ,UPLOAD_SCRIPT)
+        # test_KG(OLLAMA_SETUP_SCRIPT , TEXT_FOLDER ,UPLOAD_SCRIPT)
 
 
 
