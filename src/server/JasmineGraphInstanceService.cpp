@@ -157,7 +157,7 @@ long countLocalTriangles(
     std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores,
     int threadPriority);
 
-static void processFile(string basicString, bool isLocal, InstanceStreamHandler &handler);
+static void processFile(string basicString, bool isLocal, InstanceStreamHandler &handler, bool isEmbedGraph) ;
 
 char *converter(const std::string &s) {
     char *pc = new char[s.size() + 1];
@@ -5204,6 +5204,16 @@ static void hdfs_start_stream_command(int connFd, bool *loop_exit_p, bool isLoca
     instance_logger.debug("Sent : " + JasmineGraphInstanceProtocol::HDFS_STREAM_START_ACK);
 
     char data[DATA_BUFFER_SIZE];
+    string isEmbedGraph = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
+    instance_logger.debug("Received isEmbedGraph : " + isEmbedGraph);
+
+
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::HDFS_STREAM_IS_EMBED_ACK)) {
+        *loop_exit_p = true;
+        return;
+    }
+    instance_logger.debug("Acked for isEmbedGraph ");
+
     string fileName = Utils::read_str_wrapper(connFd, data, INSTANCE_DATA_LENGTH, false);
     instance_logger.debug("Received File name: " + fileName);
 
@@ -5293,14 +5303,14 @@ static void hdfs_start_stream_command(int connFd, bool *loop_exit_p, bool isLoca
     }
     instance_logger.debug("Sent : " + JasmineGraphInstanceProtocol::HDFS_STREAM_END_ACK);
 
-    processFile(fileName, isLocalStream, instanceStreamHandler);
+    processFile(fileName, isLocalStream, instanceStreamHandler , isEmbedGraph.data());
 
     // delete file chunk after adding to the store
     Utils::deleteFile(fullFilePath);
 }
 
 static void processFile(string fileName, bool isLocal,
-                                              InstanceStreamHandler &handler) {
+                                              InstanceStreamHandler &handler ,bool isEmbedGraph) {
     std::string fileDirectory = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/";
     std::string filePath = fileDirectory + fileName;
 
@@ -5357,7 +5367,11 @@ static void processFile(string fileName, bool isLocal,
         }
     }
     JasmineGraphIncrementalLocalStore* localStore = handler.incrementalLocalStoreMap[std::to_string(graphId) + "_" + std::to_string(partitionIndex)];
-    localStore->getAndStoreEmbeddings();
+
+    if (isEmbedGraph)
+    {
+        localStore->getAndStoreEmbeddings();
+    }
     // std::string instanceDataFolderLocation =
     //   Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
     // std::string graphPrefix = instanceDataFolderLocation + "/g" + std::to_string(graphId);

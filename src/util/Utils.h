@@ -212,7 +212,7 @@ class Utils {
                                       int value, std::string expectMsg);
 
     static bool sendFileChunkToWorker(std::string host, int port, int dataPort, std::string filePath,
-                                      std::string masterIP, std::string uploadType);
+                                      std::string masterIP, std::string uploadType, bool isEmbedGraph);
 
     static void assignPartitionToWorker(int graphId, int partitionIndex, string  hostname, int port);
 

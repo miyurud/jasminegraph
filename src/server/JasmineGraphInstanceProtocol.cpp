@@ -118,6 +118,7 @@ const string JasmineGraphInstanceProtocol::HDFS_LOCAL_STREAM_START = "hdfs-local
 const string JasmineGraphInstanceProtocol::HDFS_CENTRAL_STREAM_START = "hdfs-central-stream-start";
 const string JasmineGraphInstanceProtocol::HDFS_STREAM_END_WAIT = "hdfs-stream-end-wait";
 const string JasmineGraphInstanceProtocol::HDFS_STREAM_START_ACK = "hdfs-stream-start-ack";
+const string JasmineGraphInstanceProtocol::HDFS_STREAM_IS_EMBED_ACK = "hdfs-stream-is-embed-ack";
 const string JasmineGraphInstanceProtocol::HDFS_STREAM_END_ACK = "hdfs-stream-end-ack";
 const string JasmineGraphInstanceProtocol::HDFS_STREAM_END_CHK = "hdfs-stream-end-chk";
 const string JasmineGraphInstanceProtocol::HDFS_STREAM_FILE_NAME_ACK = "hdfs-file-name-ack";

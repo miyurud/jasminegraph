@@ -144,6 +144,7 @@ class JasmineGraphInstanceProtocol {
     static  const string  CHUNK_STREAM_END;
     static const string SEMANTIC_BEAM_SEARCH;
     static const string EXPAND_NODE_BATCH;
+    static const string HDFS_STREAM_IS_EMBED_ACK;
 };
 
 const int INSTANCE_DATA_LENGTH = 300;

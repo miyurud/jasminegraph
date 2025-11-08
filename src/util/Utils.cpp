@@ -1136,7 +1136,7 @@ bool Utils::uploadFileToWorker(std::string host, int port, int dataPort, int gra
 }
 
 bool Utils::sendFileChunkToWorker(std::string host, int port, int dataPort, std::string filePath, std::string masterIP,
-                                  std::string uploadType) {
+                                  std::string uploadType , bool isEmbedGraph) {
     util_logger.info("Host:" + host + " Port:" + to_string(port) + " DPort:" + to_string(dataPort));
     bool result = true;
     int sockfd;
@@ -1184,7 +1184,12 @@ bool Utils::sendFileChunkToWorker(std::string host, int port, int dataPort, std:
 
     std::string fileName = Utils::getFileName(filePath);
     int fileSize = Utils::getFileSize(filePath);
-
+    if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, std::to_string(isEmbedGraph),
+                                     JasmineGraphInstanceProtocol::HDFS_STREAM_IS_EMBED_ACK)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return false;
+                                     }
     if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, fileName,
                                    JasmineGraphInstanceProtocol::HDFS_STREAM_FILE_NAME_ACK)) {
         Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
