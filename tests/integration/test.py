@@ -16,7 +16,6 @@ import logging
 import os
 import time
 
-from tests.integration.graphRAG.KG.test import test_KG, TEXT_FOLDER
 from utils.telnetScripts.validate_uploaded_graph import  test_graph_validation
 
 logging.addLevelName(
@@ -51,9 +50,9 @@ DONE = b'done'
 ADHDFS = b'adhdfs'
 LINE_END = b'\r\n'
 CYPHER = b'cypher'
-UPLOAD_SCRIPT = "../../utils/datasets/upload-hdfs-file.sh"
-OLLAMA_SETUP_SCRIPT = "../utils/start-ollama.sh"
-
+UPLOAD_SCRIPT = "utils/datasets/upload-hdfs-file.sh"
+OLLAMA_SETUP_SCRIPT = "utils/start-ollama.sh"
+TEXT_FOLDER = "graphRAG/KG/gold"
 def expect_response(conn: socket.socket, expected: bytes, timeout: float = 30000.0):
     """Check if the response is equal to the expected response within a timeout.
     Return True if they are equal, False otherwise.
