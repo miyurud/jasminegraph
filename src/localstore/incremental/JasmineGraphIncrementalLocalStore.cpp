@@ -233,18 +233,23 @@ void JasmineGraphIncrementalLocalStore::addCentralEdge(std::string edge) {
     RelationBlock* newRelation;
 
 
+    if (jsonEdge["properties"].contains("id"))
+    {  std::string edgeId = std::string(jsonEdge["properties"]["id"]);
+        incremental_localstore_logger.info("Edge Id: " + edgeId);
 
-    if (this->nm->edgeIndex.find(edgeId) == this->nm->edgeIndex.end())
-    {
+        if (this->nm->edgeIndex.find(edgeId) == this->nm->edgeIndex.end())
+        {
 
-        incremental_localstore_logger.debug("Edge Id not found: " + edgeId);
+            incremental_localstore_logger.debug("Edge Id not found: " + edgeId);
 
-    newRelation = this->nm->addCentralEdge({sId, dId});
-        this->nm->edgeIndex.insert({edgeId, this->nm->nextEdgeIndex});
-    }else
-    {
-        incremental_localstore_logger.debug("Edge Id already found: " + edgeId);
+            newRelation = this->nm->addCentralEdge({sId, dId});
+            this->nm->edgeIndex.insert({edgeId, this->nm->nextEdgeIndex});
+        }else
+        {
+            incremental_localstore_logger.debug("Edge Id already found: " + edgeId);
+        }
     }
+
 
 
     if (!newRelation) {
