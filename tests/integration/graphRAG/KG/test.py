@@ -160,11 +160,18 @@ def send_file_to_master(hdfs_file_path):
             sock.sendall(CHUNK_SIZE.encode("utf-8") + LINE_END)
             final = recv_until(sock, b"\n")
             logging.info("Master: " + final.strip())
-            if final.strip().lower() == "done":
+            if final.strip()== "There exists a graph with the file path, would you like to resume?":
+                sock.sendall(b"n" + LINE_END)
+                final = recv_until(sock, b"\n")
+                logging.info("Master: " + final.strip())
+
                 sock.sendall(b"exit" + LINE_END)
                 logging.info("✅ KG extraction completed successfully!")
             else:
-                logging.error("❌ Unexpected response from master: " + final)
+                logging.info("Master: " + final.strip())
+                sock.sendall(b"exit" + LINE_END)
+
+            return final.strip().split(":")[1]
 
 
 
@@ -326,6 +333,81 @@ def parse_results(raw_rows):
             logging.warning(f"Could not parse row: {row} ({e})")
     return triples
 
+def wait_until_graph_ready(HOST, PORT):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.connect((HOST, PORT))
+
+        while True:
+            sock.sendall(b"lst")
+
+            buffer = b""
+            bracket_count = 0
+            started = False
+
+            while True:
+                chunk = sock.recv(4096)
+                if not chunk:
+                    break
+                buffer += chunk
+
+                # decode incrementally to count brackets
+                text = chunk.decode(errors="ignore")
+                for ch in text:
+                    if ch == '[':
+                        started = True
+                        bracket_count += 1
+                    elif ch == ']':
+                        bracket_count -= 1
+
+                # stop only when we started and brackets are balanced
+                if started and bracket_count == 0:
+                    break
+
+            raw = buffer.decode(errors="ignore").strip()
+            if not raw:
+                print("[WARN] Empty response")
+                time.sleep(5)
+                continue
+
+            start = raw.find("[")
+            end = raw.rfind("]")
+            if start == -1 or end == -1:
+                print("[WARN] No JSON brackets found in response")
+                time.sleep(5)
+                continue
+
+            json_text = raw[start:end + 1]
+
+            try:
+                graphs = json.loads(json_text)
+            except json.JSONDecodeError as e:
+                print(f"[WARN] JSON parse failed: {e}")
+                print("Raw JSON candidate:", repr(json_text))
+                time.sleep(5)
+                continue
+
+            if not graphs:
+                print("[WARN] Empty graph list")
+                time.sleep(5)
+                continue
+
+            last_graph = graphs[-1]
+            status = last_graph.get("status", "").lower()
+            graph_id = last_graph.get("idgraph")
+            print(f"Graph {graph_id} status: {status}")
+
+            if status == "nop":
+                time.sleep(10)
+            else:
+                break
+
+        try:
+            sock.sendall(b"exit")
+        except Exception:
+            pass
+
+    print("✅ Graph is ready:", last_graph)
+    return last_graph
 def test_KG(llm_inference_engine_startup_script, text_folder , upload_file_script):
 
     query = "MATCH (n)-[r]-(m) RETURN n,r,m"
@@ -352,30 +434,31 @@ def test_KG(llm_inference_engine_startup_script, text_folder , upload_file_scrip
         folder_name = os.path.basename(os.path.dirname(local_path))
         try:
             hdfs_path = upload_to_hdfs(local_path , upload_file_script)
-            send_file_to_master(hdfs_path)
+            graph_id = send_file_to_master(hdfs_path)
         except subprocess.CalledProcessError as e:
             logging.error(f"Failed to upload {local_path} to HDFS: {e}")
             continue
 
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            sock.connect((HOST, PORT))
-
-            while True:
-                sock.sendall(b"lst" + b"\n")
-
-                data = []
-                while True:
-                    line = recv_until(sock, b"\r\n")
-                    if not line or "done" in line:
-                        break
-                    data.append(line.strip())
-
-                graph_ids = []
-                print(data)
-                print( data[-1].split("|"))
-                if "nop" == data[-1].split("|")[4]:
-                    time.sleep(10)
-                else:break
+        # with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        #     sock.connect((HOST, PORT))
+        #
+        #     while True:
+        #         sock.sendall(b"lst" + b"\n")
+        #
+        #         data = []
+        #         while True:
+        #             line = recv_until(sock, b"\r\n")
+        #             if not line or "done" in line:
+        #                 break
+        #             data.append(line.strip())
+        #
+        #         graph_ids = []
+        #         print(data)
+        #         print( data[-1].split("|"))
+        #         if "nop" == data[-1].split("|")[4]:
+        #             time.sleep(10)
+        #         else:break
+        wait_until_graph_ready(HOST, 7776)
         raw = run_cypher_query(str(graph_id), query)
         triples = parse_results(raw)
 

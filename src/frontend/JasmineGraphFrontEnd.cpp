@@ -469,9 +469,9 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
             *loop_exit_p = true;
         }
     }
-    // int result_wr = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
-    int result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
-                        Conts::CARRIAGE_RETURN_NEW_LINE.size());
+    // // int result_wr = write(connFd, DONE.c_str(), FRONTEND_COMMAND_LENGTH);
+    // int result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
+    //                     Conts::CARRIAGE_RETURN_NEW_LINE.size());
 }
 
 void* frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface* sqlite,
