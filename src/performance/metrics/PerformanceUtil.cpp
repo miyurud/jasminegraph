@@ -34,18 +34,18 @@ void PerformanceUtil::init() {
         perfDb = new PerformanceSQLiteDBInterface();
         perfDb->init();
     }
-    scheduler_logger.info("Testing 37");
-    char hostname[1024];
-    hostname[1023] = '\0';
-    if (gethostname(hostname, 1023) == 0) {
-        std::cout << "Hostname: " << hostname << std::endl;
-    } else {
-        perror("gethostname");
-    }
-    // Initialize the metric history store
-    const char *hostAddress = getenv("HOST_NAME");
-    scheduler_logger.debug("Host Address: " + std::string(hostAddress));
-    history_store[ std::string(hostAddress)] = { std::deque<double>(), std::deque<double>(), std::deque<double>() };
+    // scheduler_logger.info("Testing 37");
+    // char hostname[1024];
+    // hostname[1023] = '\0';
+    // if (gethostname(hostname, 1023) == 0) {
+    //     std::cout << "Hostname: " << hostname << std::endl;
+    // } else {
+    //     perror("gethostname");
+    // }
+    // // Initialize the metric history store
+    // const char *hostAddress = getenv("HOST_NAME");
+    // scheduler_logger.debug("Host Address: " + std::string(hostAddress));
+    // history_store[ std::string(hostAddress)] = { std::deque<double>(), std::deque<double>(), std::deque<double>() };
 
 }
 
@@ -81,11 +81,11 @@ int PerformanceUtil::collectPerformanceStatistics() {
 
     int socketCount = StatisticCollector::getSocketCount();
     Utils::send_job("", "socket_count", std::to_string(socketCount));
-    const char *hostAddress = getenv("HOST_NAME");
-    // Push into history store
-    history_store[hostAddress].addCpu(cpuUsage);
-    history_store[hostAddress].addMemory((double)totalMemoryUsage);
-    history_store[hostAddress].addLoad(currentLoadAverage);
+    // const char *hostAddress = getenv("HOST_NAME");
+    // // Push into history store
+    // history_store[hostAddress].addCpu(cpuUsage);
+    // history_store[hostAddress].addMemory((double)totalMemoryUsage);
+    // history_store[hostAddress].addLoad(currentLoadAverage);
 
     scheduler_logger.info("Pushed performance metrics");
     return 0;
