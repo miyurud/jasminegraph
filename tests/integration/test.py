@@ -16,7 +16,7 @@ import logging
 import os
 import time
 
-from tests.integration.graphRAG.KG.test import test_KG
+from graphRAG.KG.test import test_KG
 from utils.telnetScripts.validate_uploaded_graph import  test_graph_validation
 
 logging.addLevelName(
