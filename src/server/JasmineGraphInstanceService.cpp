@@ -5357,18 +5357,19 @@ static void processFile(string fileName, bool isLocal,
                     line,
                     std::to_string(graphId),
                     std::to_string(partitionIndex),
-                    std::to_string(graphId) + "_" + std::to_string(partitionIndex));
+                    std::to_string(graphId) + "_" + std::to_string(partitionIndex) , isEmbedGraph);
         } else {
             handler.handleCentralEdge(
                     line,
                     std::to_string(graphId),
                     std::to_string(partitionIndex),
-                    std::to_string(graphId) + "_" + std::to_string(partitionIndex));
+                    std::to_string(graphId) + "_" + std::to_string(partitionIndex), isEmbedGraph);
         }
     }
 
     if (isEmbedGraph)
     {
+
         JasmineGraphIncrementalLocalStore* localStore = handler.incrementalLocalStoreMap[std::to_string(graphId) + "_" + std::to_string(partitionIndex)];
 
         localStore->getAndStoreEmbeddings();

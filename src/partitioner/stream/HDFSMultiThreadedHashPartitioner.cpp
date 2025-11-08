@@ -17,7 +17,6 @@
 
 Logger hash_partitioner_logger;
 
-int PARTITION_FILE_EDGE_COUNT_THRESHOLD = 5;
 
 HDFSMultiThreadedHashPartitioner::HDFSMultiThreadedHashPartitioner(int numberOfPartitions, int graphID,
     std::string masterIp, bool isDirected ,  std::vector<JasmineGraphServer::worker> workers ,bool isEmbedGraph, int  partitionFileEdgeThreshold )
@@ -149,7 +148,7 @@ void HDFSMultiThreadedHashPartitioner::consumeLocalEdges(int partitionIndex, Jas
             threadEdgeCount++;
 
             // Check if the edge count has reached the threshold
-            if (threadEdgeCount == PARTITION_FILE_EDGE_COUNT_THRESHOLD) {
+            if (threadEdgeCount == this->partitionFileEdgeThreshold) {
                 threadEdgeCount = 0;
                 partitionFile.close();  // Close the file after reaching the threshold
 
@@ -160,7 +159,7 @@ void HDFSMultiThreadedHashPartitioner::consumeLocalEdges(int partitionIndex, Jas
 
                 hash_partitioner_logger.info("Local edge consumer " + std::to_string(partitionIndex) +
                                               " generated file of " +
-                                              std::to_string(PARTITION_FILE_EDGE_COUNT_THRESHOLD) +
+                                              std::to_string(this->partitionFileEdgeThreshold) +
                                               " edges: " + filePath);
 
                 // Increment file index and open the next file
@@ -242,7 +241,7 @@ void HDFSMultiThreadedHashPartitioner::consumeEdgeCuts(int partitionIndex, Jasmi
             threadEdgeCount++;
 
             // If threshold reached, close current file and open a new one
-            if (threadEdgeCount == PARTITION_FILE_EDGE_COUNT_THRESHOLD) {
+            if (threadEdgeCount == this->partitionFileEdgeThreshold) {
                 threadEdgeCount = 0;
                 edgeCutsFile.close();
 
@@ -253,7 +252,7 @@ void HDFSMultiThreadedHashPartitioner::consumeEdgeCuts(int partitionIndex, Jasmi
 
                 hash_partitioner_logger.debug("Central edge consumer " + std::to_string(partitionIndex) +
                                               " generated file of " +
-                                              std::to_string(PARTITION_FILE_EDGE_COUNT_THRESHOLD) +
+                                              std::to_string(this->partitionFileEdgeThreshold) +
                                               " edges: " + filePath);
 
                 // Open the next file

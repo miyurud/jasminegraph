@@ -32,9 +32,9 @@ class InstanceStreamHandler {
 
     void handleRequest(const std::string& nodeString);
     void handleLocalEdge(std::string edge, std::string graphId,
-                         std::string partitionId, std::string graphIdentifier);
+                         std::string partitionId, std::string graphIdentifier, bool isEmbed);
     void handleCentralEdge(std::string edge, std::string graphId,
-                           std::string partitionId, std::string graphIdentifier);
+                           std::string partitionId, std::string graphIdentifier, bool isEmbed);
 
  private:
     std::map<std::string, std::thread> threads;
@@ -47,6 +47,6 @@ class InstanceStreamHandler {
         static std::string extractGraphIdentifier(const std::string& nodeString);
         static JasmineGraphIncrementalLocalStore *loadStreamingStore(
                 std::string graphId, std::string partitionId, std::map<std::string,
-                JasmineGraphIncrementalLocalStore *> &graphDBMapStreamingStores, std::string dbFilesOpenMode = "trunk");
+                JasmineGraphIncrementalLocalStore *> &graphDBMapStreamingStores, std::string dbFilesOpenMode = "trunk", bool isEmbed =false);
 };
 #endif  // INSTANCESTREAMHANDLER_H

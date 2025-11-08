@@ -15,8 +15,8 @@
 
 # Check for two arguments
 if [ "$#" -ne 2 ]; then
-  echo "Usage: $0 <local_file_path> <hdfs_target_path>"
-  exit 1
+    echo "Usage: $0 <local_file_path> <hdfs_target_path>"
+    exit 1
 fi
 
 LOCAL_FILE=$1
@@ -31,7 +31,7 @@ FILENAME=$(basename "$LOCAL_FILE")
 
 # Step 2: Upload the file to HDFS from inside the container
 echo "Uploading $FILENAME to HDFS path $HDFS_PATH..."
-docker exec -it "$DOCKER_CONTAINER_NAME" hadoop fs  -mkdir -p "$HDFS_PATH"
+docker exec -it "$DOCKER_CONTAINER_NAME" hadoop fs -mkdir -p "$HDFS_PATH"
 docker exec -it "$DOCKER_CONTAINER_NAME" hadoop fs -put  "/tmp/$FILENAME" "$HDFS_PATH"
 
 # Optional: Remove the temp file inside container

@@ -1,39 +1,39 @@
 #!/bin/bash
-# start-olama.sh
+# start-ollama.sh
 # Start a single Ollama container with gemma3:4b and nomic-embed-text, GPU if available, else CPU
-# Usage: ./start-olama.sh <NUM_PARALLEL> [HOST_PORT]
+# Usage: ./start-ollama.sh <NUM_PARALLEL> [HOST_PORT]
 
-NUM_PARALLEL=${1:-2}     # Default to 2 parallel queries
-HOST_PORT=${2:-11441}    # Default port 11441
+NUM_PARALLEL=${1:-2}  # Default to 2 parallel queries
+HOST_PORT=${2:-11441} # Default port 11441
 CONTAINER_NAME="gemma3_container"
 DOCKER_IMAGE="ollama/ollama"
-MODELS=("gemma3:4b-it-qat" "nomic-embed-text")  # List of models to launch
+MODELS=("gemma3:4b-it-qat" "nomic-embed-text") # List of models to launch
 
 # Detect GPU support
-if command -v nvidia-smi &> /dev/null && nvidia-smi > /dev/null 2>&1; then
+if command -v nvidia-smi &>/dev/null && nvidia-smi >/dev/null 2>&1; then
     echo "GPU detected, running with GPU support."
     GPU_FLAG="--gpus all"
 else
-    echo " No GPU detected, running on CPU only."
+    echo "No GPU detected, running on CPU only."
     GPU_FLAG=""
 fi
 
 # Check if container already exists
-EXISTING_CONTAINER=$( docker ps -a -q -f name=$CONTAINER_NAME)
+EXISTING_CONTAINER=$(docker ps -a -q -f name="$CONTAINER_NAME")
 
 if [ -n "$EXISTING_CONTAINER" ]; then
     echo "Container '$CONTAINER_NAME' exists. Starting it..."
-     docker start $CONTAINER_NAME
+    docker start "$CONTAINER_NAME"
 else
     echo "Container '$CONTAINER_NAME' does not exist. Creating and starting it..."
-     docker run -d $GPU_FLAG \
-        -p ${HOST_PORT}:11434 \
-        --name $CONTAINER_NAME \
-        -e OLLAMA_NUM_PARALLEL=$NUM_PARALLEL \
+    docker run -d $GPU_FLAG \
+        -p "${HOST_PORT}:11434" \
+        --name "$CONTAINER_NAME" \
+        -e OLLAMA_NUM_PARALLEL="$NUM_PARALLEL" \
         -e OLLAMA_MAX_LOADED_MODELS=2 \
         -e OLLAMA_VRAM_RECOVERY_TIMEOUT=15 \
         -e OLLAMA_KEEP_ALIVE=30s \
-        $DOCKER_IMAGE
+        "$DOCKER_IMAGE"
 fi
 
 # Wait a few seconds for the container to initialize
@@ -43,15 +43,15 @@ sleep 5
 # Start pulling each model in background
 for MODEL_NAME in "${MODELS[@]}"; do
     echo "Launching model '$MODEL_NAME' inside container..."
-     docker exec -d $CONTAINER_NAME ollama run $MODEL_NAME
+    docker exec -d "$CONTAINER_NAME" ollama run "$MODEL_NAME"
 done
 
 # Poll until all models are downloaded
 for MODEL_NAME in "${MODELS[@]}"; do
     echo "Waiting for model '$MODEL_NAME' to finish downloading..."
     while true; do
-        STATUS=$( docker exec $CONTAINER_NAME ollama list | grep "$MODEL_NAME" || true)
-        if [[ -n "$STATUS" && "$STATUS" != *"downloading"* ]]; then
+        STATUS=$(docker exec "$CONTAINER_NAME" ollama list | grep "$MODEL_NAME" || true)
+        if [[ -n $STATUS && $STATUS != *"downloading"* ]]; then
             echo "✅ Model '$MODEL_NAME' is downloaded and ready!"
             break
         else
