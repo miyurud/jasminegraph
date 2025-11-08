@@ -11,7 +11,7 @@ import time
 
 
 import requests
-from rapidfuzz import fuzz
+# from rapidfuzz import fuzz
 
 # from tests.integration.graphRAG.fetch_pred import run_cypher_query, parse_results
 
@@ -423,49 +423,49 @@ Question: {question}
 
         graph_id += 1
 
-def evaluate_predictions_fuzzy(pred_base="pred", threshold=90):
-    """
-    Evaluate QA predictions with fuzzy matching.
-    threshold: percentage similarity to count as correct
-    """
-    total = 0
-    correct = 0
-    mismatches = []
-
-    for root, _, files in os.walk(pred_base):
-        for file in files:
-            if file == "pred_answer.json":
-                pred_file = os.path.join(root, file)
-                with open(pred_file, "r", encoding="utf-8") as f:
-                    pred_data = json.load(f)
-
-                gold = pred_data["gold_answer"].strip().lower()
-                pred = pred_data["predicted_answer"].strip().lower()
-
-                total += 1
-                score = fuzz.ratio(pred, gold)
-                if score >= threshold:
-                    correct += 1
-                else:
-                    mismatches.append({
-                        "id": pred_data["id"],
-                        "question": pred_data["question"],
-                        "gold_answer": pred_data["gold_answer"],
-                        "predicted_answer": pred_data["predicted_answer"],
-                        "similarity": score
-                    })
-
-    accuracy = correct / total if total > 0 else 0
-    print("\n=== Fuzzy Evaluation ===")
-    print(f"Total QA pairs: {total}")
-    print(f"Correct predictions (>= {threshold}% similarity): {correct}")
-    print(f"Accuracy: {accuracy:.2%}")
-
-    if mismatches:
-        print("\nMismatched predictions (below threshold):")
-        for m in mismatches:
-            print(f"ID: {m['id']}, Q: {m['question']}")
-            print(f"  Gold: {m['gold_answer']}, Pred: {m['predicted_answer']}, Similarity: {m['similarity']:.1f}%\n")
+# def evaluate_predictions_fuzzy(pred_base="pred", threshold=90):
+#     """
+#     Evaluate QA predictions with fuzzy matching.
+#     threshold: percentage similarity to count as correct
+#     """
+#     total = 0
+#     correct = 0
+#     mismatches = []
+#
+#     for root, _, files in os.walk(pred_base):
+#         for file in files:
+#             if file == "pred_answer.json":
+#                 pred_file = os.path.join(root, file)
+#                 with open(pred_file, "r", encoding="utf-8") as f:
+#                     pred_data = json.load(f)
+#
+#                 gold = pred_data["gold_answer"].strip().lower()
+#                 pred = pred_data["predicted_answer"].strip().lower()
+#
+#                 total += 1
+#                 score = fuzz.ratio(pred, gold)
+#                 if score >= threshold:
+#                     correct += 1
+#                 else:
+#                     mismatches.append({
+#                         "id": pred_data["id"],
+#                         "question": pred_data["question"],
+#                         "gold_answer": pred_data["gold_answer"],
+#                         "predicted_answer": pred_data["predicted_answer"],
+#                         "similarity": score
+#                     })
+#
+#     accuracy = correct / total if total > 0 else 0
+#     print("\n=== Fuzzy Evaluation ===")
+#     print(f"Total QA pairs: {total}")
+#     print(f"Correct predictions (>= {threshold}% similarity): {correct}")
+#     print(f"Accuracy: {accuracy:.2%}")
+#
+#     if mismatches:
+#         print("\nMismatched predictions (below threshold):")
+#         for m in mismatches:
+#             print(f"ID: {m['id']}, Q: {m['question']}")
+#             print(f"  Gold: {m['gold_answer']}, Pred: {m['predicted_answer']}, Similarity: {m['similarity']:.1f}%\n")
 
 
 # def process_file(local_path, graph_id):
