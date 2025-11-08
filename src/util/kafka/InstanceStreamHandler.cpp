@@ -58,7 +58,7 @@ void InstanceStreamHandler::threadFunction(const std::string& nodeString) {
         auto graphIdPartitionId = JasmineGraphIncrementalLocalStore::getIDs(nodeString);
         std::string graphId = graphIdPartitionId.first;
         std::string partitionId = std::to_string(graphIdPartitionId.second);
-        loadStreamingStore(graphId, partitionId, incrementalLocalStoreMap , );
+        loadStreamingStore(graphId, partitionId, incrementalLocalStoreMap  );
     }
     JasmineGraphIncrementalLocalStore* localStore = incrementalLocalStoreMap[graphIdentifier];
     instance_stream_logger.info("Thread Function");
