@@ -49,7 +49,7 @@ REASONING_MODEL_URI = RUNNER_URLS[0] if RUNNER_URLS else None
 REASONING_MODEL_URI = f"http://{SERVER_IP}:11450"
 # LLM model to use
 # LLM_MODEL = "google/gemma-3-4b-it"
-LLM_MODEL = " gemma3:12b"
+LLM_MODEL = "gemma3:4b-it-qat"
 
 # LLM_INFERENCE_ENGINE="vllm"
 LLM_INFERENCE_ENGINE="ollama"
@@ -225,6 +225,7 @@ def call_reasoning_model(prompt):
             resp = requests.post(url, json=payload, timeout=120)
             resp.raise_for_status()
             data = resp.json()
+            print(data)
             return data.get("response", "").strip()
 
         elif LLM_INFERENCE_ENGINE.lower() == "vllm":
@@ -302,7 +303,7 @@ def run_cypher_query(graph_id: str, query: str):
 
         rows = []
         while True:
-            print("why")
+
             line = recv_until(sock, b"\n").strip()
             print(line)
             if not line or "done" in line:
@@ -408,6 +409,40 @@ def wait_until_graph_ready(HOST, PORT):
 
     print("✅ Graph is ready:", last_graph)
     return last_graph
+
+def get_upbytes_percentage(HOST, PORT, id_value):
+    """Send UPBYTES|<id> and return the percentage (3rd numeric field)."""
+    command = f"UPBYTES|{id_value}\n".encode("utf-8")
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.connect((HOST, PORT))
+        sock.sendall(command)
+        response = recv_until(sock)
+        sock.sendall(b"exit\n")
+
+    parts = response.split('|')
+
+    # if upload completed
+    if len(parts)==1 :return 100.00
+    if len(parts) < 4:
+        raise ValueError(f"Unexpected UPBYTES response: {response}")
+    try:
+        percentage = float(parts[4])
+    except ValueError:
+        raise ValueError(f"Cannot convert percentage to float: {parts[3]}")
+    return percentage
+
+def wait_until_complete(HOST, PORT, id_value, poll_interval=5):
+    """Poll UPBYTES|<id> until percentage reaches 100."""
+    while True:
+        try:
+            percent = get_upbytes_percentage(HOST, PORT, id_value)
+            print(f"UPBYTES|{id_value} progress: {percent:.2f}%")
+            if percent >= 100.0:
+                print("✅ Task completed!")
+                break
+        except Exception as e:
+            print(f"[WARN] Failed to get UPBYTES percentage: {e}")
+        time.sleep(poll_interval)
 def test_KG(llm_inference_engine_startup_script, text_folder , upload_file_script):
 
     query = "MATCH (n)-[r]-(m) RETURN n,r,m"
@@ -458,7 +493,7 @@ def test_KG(llm_inference_engine_startup_script, text_folder , upload_file_scrip
         #         if "nop" == data[-1].split("|")[4]:
         #             time.sleep(10)
         #         else:break
-        wait_until_graph_ready(HOST, 7776)
+        wait_until_complete(HOST, 7776, graph_id)
         raw = run_cypher_query(str(graph_id), query)
         triples = parse_results(raw)
 
@@ -480,6 +515,7 @@ def test_KG(llm_inference_engine_startup_script, text_folder , upload_file_scrip
         # QA prediction
         qa_file = os.path.join(text_folder, folder_name, "qa_pairs.json")
         if os.path.exists(qa_file):
+            print("file exists")
             with open(qa_file, "r", encoding="utf-8") as f:
                 qa_data = json.load(f)
 
@@ -508,7 +544,7 @@ Question: {question}
             with open(os.path.join(output_dir, "pred_answer.json"), "w", encoding="utf-8") as f:
                 json.dump(pred_out, f, indent=2, ensure_ascii=False)
 
-        graph_id += 1
+        # graph_id += 1
 
 # def evaluate_predictions_fuzzy(pred_base="pred", threshold=90):
 #     """
