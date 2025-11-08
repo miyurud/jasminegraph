@@ -2388,8 +2388,8 @@ static void triangles_command(std::string masterIP, int connFd, SQLiteDBInterfac
         }
 
         // We get the name and the path to graph as a pair separated by |.
-        char priority_data[301];
-        bzero(priority_data, 301);
+        char priority_data[FRONTEND_DATA_LENGTH+1];
+        bzero(priority_data, FRONTEND_DATA_LENGTH+1);
 
         read(connFd, priority_data, FRONTEND_DATA_LENGTH);
 

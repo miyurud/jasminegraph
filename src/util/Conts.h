@@ -48,7 +48,7 @@ struct ResourceUsageInfo {
     std::string elapsedTime;
     std::string loadAverage;
     std::string memoryUsage;
-};
+};t
 
 extern std::set<ProcessInfo> processData;
 extern std::map<std::string, std::vector<ResourceUsageInfo>> resourceUsageMap;
