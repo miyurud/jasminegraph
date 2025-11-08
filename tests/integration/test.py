@@ -16,6 +16,7 @@ import logging
 import os
 import time
 
+from tests.integration.graphRAG.KG.test import test_KG
 from utils.telnetScripts.validate_uploaded_graph import  test_graph_validation
 
 logging.addLevelName(
@@ -202,7 +203,7 @@ def test(host, port):
         logging.info('Testing adgr')
         send_and_expect_response(sock, 'adgr', ADGR, SEND, exit_on_failure=True)
         send_and_expect_response(
-            sock, 'adgr', b'powergrid|/var/tmp/data/powergrid.dl', DONE, exit_on_failure=True)
+        sock, 'adgr', b'powergrid|/var/tmp/data/powergrid.dl', DONE, exit_on_failure=True)
 
         print()
         logging.info('Testing lst after adgr')
