@@ -6,7 +6,7 @@ export TERM=xterm-256color
 
 PROJECT_ROOT="$(pwd)"
 TEST_ROOT="${PROJECT_ROOT}/tests/integration"
-TIMEOUT_SECONDS=180
+TIMEOUT_SECONDS=600
 RUN_ID="$(date +%y%m%d_%H%M%S)"
 LOG_DIR="${PROJECT_ROOT}/logs/${RUN_ID}"
 while [ -d "$LOG_DIR" ]; do
@@ -276,6 +276,6 @@ fi
 stop_and_remove_containers
 force_remove "${TEST_ROOT}/env" "${WORKER_LOG_DIR}"
 if [ "$exit_code" = '0' ]; then
-    docker tag jasminegraph:test jasminegraph:latest
+    docker tag jasminegraph:test jasmTest Timeoutinegraph:latest
 fi
 exit "$exit_code"

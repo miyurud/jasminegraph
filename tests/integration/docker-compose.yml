@@ -88,7 +88,6 @@ volumes:
 
 networks:
   jasminegraph_net:
-    name: jasminegraph_net
     driver: bridge
     ipam:
       config:
