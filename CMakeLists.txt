@@ -230,8 +230,7 @@ endif ()
 file(GLOB GENERATED_SRC /home/ubuntu/software/antlr/*.cpp)
 if(NOT GENERATED_SRC)
     message(WARNING "No ANTLR generated files found in /home/ubuntu/software/antlr/")
-    set(GENERATED_SRC ""
-            src/util/HTTPClient.cpp)
+    set(GENERATED_SRC "")
 endif()
 
 add_library(JasmineGraphLib ${HEADERS} ${SOURCES} ${GENERATED_SRC})
@@ -307,7 +306,6 @@ target_link_libraries(JasmineGraphLib PRIVATE /usr/lib/x86_64-linux-gnu/libflatb
 target_link_libraries(JasmineGraphLib PRIVATE /usr/lib/x86_64-linux-gnu/libjsoncpp.so)
 target_link_libraries(JasmineGraphLib PRIVATE /usr/local/lib/libcppkafka.so)
 target_link_libraries(JasmineGraphLib PRIVATE /usr/local/libhdfs3/lib/libhdfs3.so)
-#target_link_libraries(JasmineGraphLib PRIVATE   /usr/local/lib/llama.cpp/build/bin/libllama.so  )
 
 target_link_libraries(JasmineGraph JasmineGraphLib)
 target_link_libraries(JasmineGraph curl)
@@ -324,9 +322,6 @@ include_directories(/usr/include/oneapi/)
 include_directories(/usr/local/parmetis/include/)
 include_directories(/usr/lib/x86_64-linux-gnu/openmpi/include/)
 include_directories(/usr/local/include/antlr4-runtime)
-include_directories(/usr/local/lib/llama.cpp/include/)
-include_directories(/usr/local/lib/llama.cpp)
-include_directories(/usr/local/lib/llama.cpp/ggml/include)
 include_directories(/usr/local/lib/faiss)
 
 link_directories(/usr/local/lib)

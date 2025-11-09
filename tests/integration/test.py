@@ -51,9 +51,11 @@ DONE = b'done'
 ADHDFS = b'adhdfs'
 LINE_END = b'\r\n'
 CYPHER = b'cypher'
-UPLOAD_SCRIPT = "utils/datasets/upload-hdfs-file.sh"
-OLLAMA_SETUP_SCRIPT = "utils/start-ollama.sh"
-TEXT_FOLDER = "graphRAG/KG/gold"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+UPLOAD_SCRIPT = os.path.join(BASE_DIR, "utils/datasets/upload-hdfs-file.sh")
+OLLAMA_SETUP_SCRIPT = os.path.join(BASE_DIR, "utils/start-ollama.sh")
+TEXT_FOLDER = os.path.join(BASE_DIR, "graphRAG/KG/gold")
 def expect_response(conn: socket.socket, expected: bytes, timeout: float = 30000.0):
     """Check if the response is equal to the expected response within a timeout.
     Return True if they are equal, False otherwise.
