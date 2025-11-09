@@ -3,7 +3,7 @@
 # Start a single Ollama container with gemma3:4b and nomic-embed-text, GPU if available, else CPU
 # Usage: ./start-ollama.sh <NUM_PARALLEL> [HOST_PORT]
 
-NUM_PARALLEL=${1:-2}  # Default to 2 parallel queries
+NUM_PARALLEL=${1:-4}  # Default to 4 parallel queries
 HOST_PORT=${2:-11441} # Default port 11441
 CONTAINER_NAME="gemma3_container"
 DOCKER_IMAGE="ollama/ollama"

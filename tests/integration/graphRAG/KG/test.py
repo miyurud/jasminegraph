@@ -80,7 +80,7 @@ def upload_to_hdfs(local_file, upload_file_script):
     hdfs_path = folder_name + "/" + hdfs_filename
 
     logging.info(f"Uploading {local_file} → HDFS:{hdfs_path}")
-    subprocess.run(["bash", upload_file_script, local_file, folder_name], check=True)
+    subprocess.run(["bash", upload_file_script, local_file, "/home/"], check=True)
     return hdfs_path
 
 
@@ -452,7 +452,7 @@ def test_KG(llm_inference_engine_startup_script, text_folder, upload_file_script
     query = "MATCH (n)-[r]-(m) RETURN n,r,m"
 
     # start the llm inference engine
-    subprocess.run(["bash", llm_inference_engine_startup_script], check=True)
+    # subprocess.run(["bash", llm_inference_engine_startup_script], check=True)
 
     last_graph_id = get_last_graph_id()
     graph_id = last_graph_id + 1
@@ -471,7 +471,7 @@ def test_KG(llm_inference_engine_startup_script, text_folder, upload_file_script
     for local_path in all_txt_files:
         folder_name = os.path.basename(os.path.dirname(local_path))
         try:
-            hdfs_path = upload_to_hdfs("/home", upload_file_script)
+            hdfs_path = upload_to_hdfs(local_path, upload_file_script)
             graph_id = send_file_to_master(hdfs_path)
         except subprocess.CalledProcessError as e:
             logging.error(f"Failed to upload {local_path} to HDFS: {e}")
