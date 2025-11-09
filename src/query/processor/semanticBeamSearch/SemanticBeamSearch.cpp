@@ -138,8 +138,6 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
       }
       NodeBlock* lastNode = nodeManager->get(lastNodeId);
 
-      semantic_beam_search_logger.debug("130");
-
       if (!lastNode) {
         semantic_beam_search_logger.info(
             "Last node not found for path, skipping.");
