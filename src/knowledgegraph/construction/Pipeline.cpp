@@ -369,9 +369,9 @@ json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
                         auto jsonEdge = json::parse(line);
                         auto source = jsonEdge["source"];
                         auto destination = jsonEdge["destination"];
-                        std::string sourceId = source["id"];
+                        std::string sourceId = source["id"].get<std::string>();
                         // source["id"] = sourceId;
-                        std::string destinationId = destination["id"];
+                        std::string destinationId = destination["id"].get<std::string>();
 
                         if (nodeIndex.find(sourceId) == nodeIndex.end()) {
                             nodeIndex.insert({sourceId, nextNodeIndex});
