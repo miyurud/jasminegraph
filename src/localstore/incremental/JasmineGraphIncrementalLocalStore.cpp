@@ -183,7 +183,7 @@ void JasmineGraphIncrementalLocalStore::addLocalEdge(std::string edge) {
 
     std::string sId = std::string(jsonSource["id"]);
     std::string dId = std::string(jsonDestination["id"]);
-    RelationBlock* newRelation;
+    RelationBlock* newRelation = nullptr;
     if (jsonEdge["properties"].contains("id"))
     {  std::string edgeId = std::string(jsonEdge["properties"]["id"]);
         incremental_localstore_logger.info("Edge Id: " + edgeId);
@@ -199,6 +199,10 @@ void JasmineGraphIncrementalLocalStore::addLocalEdge(std::string edge) {
         {
             incremental_localstore_logger.debug("Edge Id already found: " + edgeId);
         }
+    }else
+    {
+        newRelation = this->nm->addLocalEdge({sId, dId});
+
     }
 
 
@@ -208,7 +212,7 @@ void JasmineGraphIncrementalLocalStore::addLocalEdge(std::string edge) {
 
 
 
-    if (!newRelation) {
+    if (newRelation == nullptr) {
         return;
     }
 
@@ -230,7 +234,7 @@ void JasmineGraphIncrementalLocalStore::addCentralEdge(std::string edge) {
     std::string dId = std::string(jsonDestination["id"]);
     // std::string edgeId = std::string(jsonEdge["properties"]["id"]);
 
-    RelationBlock* newRelation;
+    RelationBlock* newRelation = nullptr;
 
 
     if (jsonEdge["properties"].contains("id"))
@@ -248,11 +252,16 @@ void JasmineGraphIncrementalLocalStore::addCentralEdge(std::string edge) {
         {
             incremental_localstore_logger.debug("Edge Id already found: " + edgeId);
         }
+    }else
+    {
+        newRelation = this->nm->addCentralEdge({sId, dId});
+
     }
 
 
 
-    if (!newRelation) {
+
+    if (newRelation == nullptr) {
         return;
     }
 

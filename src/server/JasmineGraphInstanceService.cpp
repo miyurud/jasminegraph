@@ -5341,7 +5341,7 @@ static void processFile(string fileName, bool isLocal,
     }
 
     instance_logger.debug("Processing file: " + filePath);
-    instance_logger.debug("isEmbed enabled: " + isEmbedGraph);
+    instance_logger.debug("isEmbed enabled: " + to_string(isEmbedGraph));
 
     // check file contents
     if (file.peek() == std::ifstream::traits_type::eof()) {
