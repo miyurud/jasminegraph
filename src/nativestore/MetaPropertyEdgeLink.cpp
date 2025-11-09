@@ -141,7 +141,7 @@ MetaPropertyEdgeLink* MetaPropertyEdgeLink::get(unsigned int propertyBlockAddres
     MetaPropertyEdgeLink* pl = nullptr;
 
     pthread_mutex_lock(&lockGetMetaPropertyEdgeLink);
-    if (propertyBlockAddress >= 0) {
+    if (propertyBlockAddress > 0) {
         char propertyName[MetaPropertyEdgeLink::MAX_NAME_SIZE] = {0};
         char propertyValue[MetaPropertyEdgeLink::MAX_VALUE_SIZE] = {0};
         unsigned int nextAddress;
