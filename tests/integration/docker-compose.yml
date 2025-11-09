@@ -102,15 +102,8 @@ services:
 #            - capabilities: [gpu]   # uses GPU if available
     networks:
       - jasminegraph_net
-    entrypoint:
-      - /bin/bash
-      - -c
-      - |
-        echo "Pulling Gemma3:4b-it-qat and DeepSeek-R1..."
-        ollama pull gemma3:4b-it-qat
-        ollama pull deepseek-r1
-        echo "✅ LLM container ready on port 11434"
-        tail -f /dev/null
+    entrypoint: /bin/bash -c "echo 'Pulling Gemma3:4b-it-qat and DeepSeek-R1...'; ollama pull gemma3:4b-it-qat; ollama pull deepseek-r1; echo '✅ LLM container ready on port 11434'; tail -f /dev/null"
+
 
 
   # === EMBEDDING CONTAINER ===
@@ -134,15 +127,9 @@ services:
 #            - capabilities: [gpu]
     networks:
       - jasminegraph_net
-    entrypoint:
-      - /bin/bash
-      - -c
-      - |
-        echo "Pulling nomic-embed-text..."
-        ollama pull nomic-embed-text
-        echo "✅ Embedding container ready on port 11434"
-        tail -f /dev/null
-      
+    entrypoint: /bin/bash -c "echo 'Pulling nomic-embed-text...'; ollama pull nomic-embed-text; echo '✅ Embedding container ready on port 11434'; tail -f /dev/null"
+
+
 
 volumes:
   hadoop_namenode:

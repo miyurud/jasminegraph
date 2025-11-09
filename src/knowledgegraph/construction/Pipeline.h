@@ -81,7 +81,7 @@ class Pipeline {
     int64_t bytes_read_so_far = 0;
     int64_t realtime_bytes_read_so_far = 0;
     bool stopFlag = false;
-    std::unordered_map<std::string, unsigned int> nodeIndex;
+    std::unordered_map<std::string, long> nodeIndex;
     long nextNodeIndex =0;
 };
 
