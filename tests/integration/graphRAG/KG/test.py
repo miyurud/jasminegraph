@@ -41,11 +41,11 @@ TEXT_FOLDER = "gold"
 
 # LLM runner addresses (comma-separated)
 LLM_RUNNERS = f"http://{SERVER_IP}:11450," * 2
-LLM_RUNNERS = f"http://ollama-llm:11450," * 2
+LLM_RUNNERS = f"http://ollama-llm:11434," * 2
 RUNNER_URLS = [u.strip() for u in LLM_RUNNERS.split(",") if u.strip()]
 REASONING_MODEL_URI = RUNNER_URLS[0] if RUNNER_URLS else None
 REASONING_MODEL_URI = f"http://{SERVER_IP}:11450"
-REASONING_MODEL_URI = f"http://ollama-llm:11450"
+REASONING_MODEL_URI = f"http://ollama-llm:11434"
 
 
 
