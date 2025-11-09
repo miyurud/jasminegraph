@@ -378,7 +378,7 @@ json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
                             source["id"]= to_string(nextNodeIndex);
                             nextNodeIndex++;
                         }else {
-                            source["id"]= nodeIndex[sourceId];
+                            source["id"]= to_string(nodeIndex[sourceId]);
                         }
 
                         if (nodeIndex.find(destinationId) == nodeIndex.end()) {
@@ -386,7 +386,7 @@ json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
                             destination["id"]= to_string(nextNodeIndex);
                             nextNodeIndex++;
                         }else {
-                            destination["id"]= nodeIndex[destinationId];
+                            destination["id"]= to_string(nodeIndex[destinationId]);
                         }
                         // destination["id"] = destinationId;
                         kg_pipeline_stream_handler_logger.debug("Thread " + std::to_string(i) + " sourceId: " +
