@@ -32,6 +32,7 @@ const size_t MESSAGE_SIZE = 5 * 1024 * 1024;
 const size_t MAX_BUFFER_SIZE = MESSAGE_SIZE * 512;
 const size_t OVERLAP_BYTES = 1024;  // bytes to overlap between chunks to avoid splitting lines
 
+
 const std::string END_OF_STREAM_MARKER = "-1";
 
 Pipeline::Pipeline(int connFd, hdfsFS fileSystem, const std::string& filePath, int numberOfPartitions, int graphId,
@@ -371,6 +372,22 @@ json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
                         std::string sourceId = source["id"];
                         // source["id"] = sourceId;
                         std::string destinationId = destination["id"];
+
+                        if (nodeIndex.find(sourceId) == nodeIndex.end()) {
+                            nodeIndex.insert(std::make_pair(sourceId, nextNodeIndex));
+                            source["id"]=nodeIndex;
+                            nextNodeIndex++;
+                        }else {
+                            source["id"]= nodeIndex[sourceId];
+                        }
+
+                        if (nodeIndex.find(destinationId) == nodeIndex.end()) {
+                            nodeIndex.insert(std::make_pair(destinationId, nextNodeIndex));
+                            destination["id"]=nodeIndex;
+                            nextNodeIndex++;
+                        }else {
+                            destination["id"]= nodeIndex[destinationId];
+                        }
                         // destination["id"] = destinationId;
                         kg_pipeline_stream_handler_logger.debug("Thread " + std::to_string(i) + " sourceId: " +
                                                                 sourceId + ", destinationId: " + destinationId);
@@ -396,15 +413,7 @@ json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
                                                                         " adding edge cut to partition " +
                                                                         std::to_string(sourceIndex));
                                 partitioner.addEdgeCut(obj.dump(), sourceIndex);
-                                // json reversedObj = {
-                                //     {"source", destination},
-                                //     {"destination", source},
-                                //     {"properties", jsonEdge["properties"]}
-                                // };
-                                // kg_pipeline_stream_handler_logger.debug("Thread " +
-                                // std::to_string(i) + " adding reversed edge cut to partition "
-                                // + std::to_string(destIndex));
-                                // partitioner.addEdgeCut(reversedObj.dump(), destIndex);
+
                             }
                         } else {
                             kg_pipeline_stream_handler_logger.error("Malformed line: missing source/destination ID: " +
@@ -696,20 +705,10 @@ void Pipeline::extractTuples(std::string host, int port, std::string masterIP, i
 
             if (tuple == END_OF_STREAM_MARKER) {
                 realTimeBytesMutex.lock();
-                // bytes_read_so_far = bytes_read_so_far+=stol(chunkSize);
                 bytes_read_so_far += chunkData.chunk_size;
                 realtime_bytes_read_so_far = bytes_read_so_far;
                 realTimeBytesMutex.unlock();
-                // char ack1[FED_DATA_LENGTH + 1];
-                //
-                // Utils::send_str_wrapper(connFd,
-                // std::to_string(realtime_bytes_read_so_far));
-                // kg_pipeline_stream_handler_logger.info("Received end of tuple stream
-                // marker"); string response =  Utils::read_str_wrapper(connFd, ack1,
-                // FED_DATA_LENGTH); if (response== "stop")
-                // {
-                //     stopFlag = true;
-                // }
+
 
                 break;
             }
