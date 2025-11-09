@@ -459,7 +459,7 @@ def test_KG(llm_inference_engine_startup_script, text_folder, upload_file_script
     query = "MATCH (n)-[r]-(m) RETURN n,r,m"
 
     # start the llm inference engine
-    # subprocess.run(["bash", llm_inference_engine_startup_script], check=True)
+    subprocess.run(["bash", llm_inference_engine_startup_script], check=True)
 
     last_graph_id = get_last_graph_id()
     graph_id = last_graph_id + 1
