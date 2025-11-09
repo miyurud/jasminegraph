@@ -95,11 +95,11 @@ services:
       - OLLAMA_KEEP_ALIVE=30s
     volumes:
       - ollama_llm_models:/root/.ollama
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - capabilities: [gpu]   # uses GPU if available
+#    deploy:
+#      resources:
+#        reservations:
+#          devices:
+#            - capabilities: [gpu]   # uses GPU if available
     networks:
       - jasminegraph_net
     entrypoint:
@@ -129,11 +129,11 @@ services:
       - OLLAMA_KEEP_ALIVE=30s
     volumes:
       - ollama_embed_models:/root/.ollama
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - capabilities: [gpu]
+#    deploy:
+#      resources:
+#        reservations:
+#          devices:
+#            - capabilities: [gpu]
     networks:
       - jasminegraph_net
     entrypoint:

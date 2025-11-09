@@ -77,7 +77,7 @@ def upload_to_hdfs(local_file, upload_file_script):
     """Uploads a local file to HDFS using your bash script"""
     folder_name = os.path.basename(os.path.dirname(local_file))
     hdfs_filename = os.path.basename(local_file)
-    hdfs_path = folder_name + "/" + hdfs_filename
+    hdfs_path = "/home/" + hdfs_filename
 
     logging.info(f"Uploading {local_file} → HDFS:{hdfs_path}")
     subprocess.run(["bash", upload_file_script, local_file, "/home/"], check=True)
