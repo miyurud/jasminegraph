@@ -1,24 +1,23 @@
 version: '3.0'
 services:
-#  jasminegraph:
-#    image: jasminegraph:test
-#    ports:
-#      - '7776:7776'
-#      - '7777:7777'
-#      - '7778:7778'
-#    volumes:
-#      - '/var/run/docker.sock:/var/run/docker.sock:rw'
-#      - './env/databases/metadb:/home/ubuntu/software/jasminegraph/metadb'
-#      - './env/databases/performancedb:/home/ubuntu/software/jasminegraph/performancedb'
-#      - './env/data:/var/tmp/data'
-#      - './env/config:/var/tmp/config'
-#      - '/tmp/jasminegraph:/tmp/jasminegraph'
-#    environment:
-#      - TESTING=true
-#    networks:
-#      - jasminegraph_net
-#    command: --MODE 1 --MASTERIP 172.30.5.1 --WORKERS 2 --WORKERIP 172.30.5.1 --ENABLE_NMON false
-#
+  jasminegraph:
+    image: jasminegraph:test
+    ports:
+      - '7776:7776'
+      - '7777:7777'
+      - '7778:7778'
+    volumes:
+      - '/var/run/docker.sock:/var/run/docker.sock:rw'
+      - './env/databases/metadb:/home/ubuntu/software/jasminegraph/metadb'
+      - './env/databases/performancedb:/home/ubuntu/software/jasminegraph/performancedb'
+      - './env/data:/var/tmp/data'
+      - './env/config:/var/tmp/config'
+      - '/tmp/jasminegraph:/tmp/jasminegraph'
+    environment:
+      - TESTING=true
+    networks:
+      - jasminegraph_net
+    command: --MODE 1 --MASTERIP 172.30.5.1 --WORKERS 2 --WORKERIP 172.30.5.1 --ENABLE_NMON false
 
   namenode:
     hostname: namenode
@@ -28,24 +27,15 @@ services:
     ports:
       - 9870:9870
       - 9000:9000
-
-
-
-
     volumes:
       - hadoop_namenode:/hadoop/dfs/name
     environment:
       - CLUSTER_NAME=test
     env_file:
       - env_init/config/hdfs/hadoop.env
-    extra_hosts:
-      - "namenode:192.168.1.19"
-      - "datanode:192.168.1.19"
-      - "resourcemanager:192.168.1.19"
-    network_mode: "host"
-
-
-
+    networks:
+      jasminegraph_net:
+        ipv4_address: 172.30.5.10 # this IP is referred at tests/integration/env_init/config/hdfs/hdfs_config.txt
 
   datanode:
     hostname: datanode
@@ -63,14 +53,8 @@ services:
       - SERVICE_PRECONDITION=namenode:9870
     env_file:
       - env_init/config/hdfs/hadoop.env
-    extra_hosts:
-      - "namenode:192.168.1.19"
-      - "datanode:192.168.1.19"
-      - "resourcemanager:192.168.1.19"
-    network_mode: "host"
-
-
-
+    networks:
+      - jasminegraph_net
 
   resourcemanager:
     hostname: resourcemanager
@@ -80,19 +64,12 @@ services:
     ports:
       - "8088:8088"   # YARN Web UI
       - "8032:8032"   # ResourceManager IPC
-      - "8031:8031"   # ResourceManager sheduler
     environment:
       - SERVICE_PRECONDITION=namenode:9000 namenode:9870 datanode:50010
     env_file:
       - env_init/config/hdfs/hadoop.env
-    extra_hosts:
-      - "namenode:192.168.1.19"
-      - "datanode:192.168.1.19"
-      - "resourcemanager:192.168.1.19"
-    network_mode: "host"
-
-
-
+    networks:
+      - jasminegraph_net
 
   nodemanager1:
     image: bde2020/hadoop-nodemanager:2.0.0-hadoop3.2.1-java8
@@ -102,26 +79,18 @@ services:
       - SERVICE_PRECONDITION=namenode:9000 namenode:9870 datanode:9864 resourcemanager:8088
     env_file:
       - env_init/config/hdfs/hadoop.env
-    extra_hosts:
-      - "namenode:192.168.1.19"
-      - "datanode:192.168.1.19"
-      - "resourcemanager:192.168.1.19"
-    network_mode: "host"
-
-
-
+    networks:
+      - jasminegraph_net
 
 volumes:
   hadoop_namenode:
   hadoop_datanode:
 
-
-#networks:
-#  jasminegraph_net:
-#    name: jasminegraph_net
-#    driver: bridge
-#    ipam:
-#      config:
-#        - subnet: 172.30.5.0/24
-#          ip_range: 172.30.5.0/24
-#          gateway: 172.30.5.1
+networks:
+  jasminegraph_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.5.0/24
+          ip_range: 172.30.5.0/24
+          gateway: 172.30.5.1
