@@ -13,6 +13,9 @@ spec:
     - port: 7778
       name: 'backend-port'
       nodePort: 30002
+    - port: 7776
+      name: 'frontend-ui-port'
+      nodePort: 30003
   selector:
     type: master
     service: jasminegraph
