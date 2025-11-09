@@ -1736,7 +1736,6 @@ void addStreamHDFSCommand(std::string masterIP, int connFd, std::string &hdfsSer
     }
 }
 
-//
 bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, int connFd, int numberOfPartitions,
                                                         SQLiteDBInterface *sqlite, bool *loop_exit_p) {
     std::string hdfsPort;
@@ -1809,48 +1808,7 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
         std::string hdfsPortS(hdfsPortChar);
         hdfsPortS = Utils::trim_copy(hdfsPortS);
         hdfsPort = hdfsPortS;
-        // std::string message = "Send the file path to the HDFS configuration file.
-        // This file needs to be in some"
-        //                       " directory location that is accessible for
-        //                       JasmineGraph master";
-        // resultWr = write(connFd, message.c_str(), message.length());
-        // if (resultWr < 0) {
-        //     frontend_logger.error("Error writing to socket");
-        //     *loop_exit_p = true;
-        //     return;
-        // }
-        // resultWr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
-        //                  Conts::CARRIAGE_RETURN_NEW_LINE.size());
-        // if (resultWr < 0) {
-        //     frontend_logger.error("Error writing to socket");
-        //     *loop_exit_p = true;
-        //     return;
-        // }
-        //
-        // char filePath[FRONTEND_DATA_LENGTH + 1];
-        // bzero(filePath, FRONTEND_DATA_LENGTH + 1);
-        // read(connFd, filePath, FRONTEND_DATA_LENGTH);
-        // std::string filePathS(filePath);
-        // filePathS = Utils::trim_copy(filePathS);
-        //
-        // frontend_logger.info("Reading HDFS configuration file: " + filePathS);
-        //
-        // std::vector<std::string> vec = Utils::getFileContent(filePathS);
-        // for (const auto &item : vec) {
-        //     if (item.length() > 0 && !(item.rfind("#", 0) == 0)) {
-        //         std::vector<std::string> vec2 = Utils::split(item, '=');
-        //         if (vec2.size() == 2) {
-        //             if (vec2.at(0).compare("hdfs.host") == 0) {
-        //                 hdfsServerIp = vec2.at(1);
-        //             } else if (vec2.at(0).compare("hdfs.port") == 0) {
-        //                 hdfsPort = vec2.at(1);
-        //             }
-        //         } else {
-        //             frontend_logger.error("Invalid line in configuration file: "
-        //             + item);
-        //         }
-        //     }
-        // }
+
     }
 
     frontend_logger.info("HDFS Server IP:" + hdfsServerIp);
@@ -2038,8 +1996,6 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
             }
         }
     }
-
-    // std::string inferenceEngine = Utils::toLowerCopy(llmInferenceEngineS);
 
     std::string chunk_size_msg = "chunk size (Bytes):";
     resultWr = write(connFd, chunk_size_msg.c_str(), chunk_size_msg.length());

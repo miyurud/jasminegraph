@@ -261,7 +261,6 @@ void *backendservicesesion(void *dummyPt) {
                 backend_logger.error("Query returned no results.");
                 break;
             }
-            // backend_logger.info("Sending direction : " + direction[0]);
             std::string graphDirection = direction[0][0].second;
             int message_length = graphDirection.length();
             int converted_number = htonl(message_length);

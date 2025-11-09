@@ -471,7 +471,7 @@ def test_KG(llm_inference_engine_startup_script, text_folder, upload_file_script
     for local_path in all_txt_files:
         folder_name = os.path.basename(os.path.dirname(local_path))
         try:
-            hdfs_path = upload_to_hdfs(local_path, upload_file_script)
+            hdfs_path = upload_to_hdfs("/home", upload_file_script)
             graph_id = send_file_to_master(hdfs_path)
         except subprocess.CalledProcessError as e:
             logging.error(f"Failed to upload {local_path} to HDFS: {e}")

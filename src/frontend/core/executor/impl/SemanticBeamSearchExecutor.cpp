@@ -72,19 +72,8 @@ void SemanticBeamSearchExecutor::execute() {
         semantic_beam_search_logger_executor.info(
             "Fetched data from bufferPool[" + std::to_string(i) + "]: " + data);
         if (data == "-1") {
-          // Atomically increment closeFlag
-          // __sync_fetch_and_add(&closeFlag, 1);
           break;
         }
-        // Atomically increment count
-        // __sync_fetch_and_add(&count, 1);
-        // int result_wr = write(connFd, data.c_str(), data.length());
-        // result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
-        //                   Conts::CARRIAGE_RETURN_NEW_LINE.size());
-        // if (result_wr < 0) {
-        //     semantic_beam_search_logger_executor.error("Error writing to
-        //     socket"); *loop_exit = true; break;
-        // }
         results.push_back(json::parse(data));
       }
     });
@@ -346,13 +335,8 @@ void SemanticBeamSearchExecutor::doSemanticBeamSearch(
     return;
   }
 
-  semantic_beam_search_logger_executor.info("Received ACK after query 287");
-  // if (recv(sockfd, ack, strlen("stream-c-length-ack"), 0) <= 0) {
-  //     semantic_beam_search_logger_executor.error("Failed to receive ACK after
-  //     query"); close(sockfd); return ;
-  // }
+  semantic_beam_search_logger_executor.info("Received ACK after query ");
 
-  semantic_beam_search_logger_executor.debug("Received ACK after query");
 
   char start[ACK_MESSAGE_SIZE] = {0};
   recv(sockfd, &start, sizeof(start), 0);
@@ -404,16 +388,7 @@ void SemanticBeamSearchExecutor::doSemanticBeamSearch(
     send(sockfd, JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS.c_str(),
          JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS.length(), 0);
 
-    // std::string data(content_length, 0);
-    // return_status = recv(sockfd, &data[0], content_length, 0);
-    // if (return_status > 0) {
-    //     send(sockfd,
-    //     JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS.c_str(),
-    //          JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS.length(), 0);
-    // } else {
-    //     semantic_beam_search_logger_executor.info("Error while reading graph
-    //     data"); return ;
-    // }
+
     semantic_beam_search_logger_executor.info("patition " +
                                               std::to_string(partitionId) +
                                               "Received graph data: " + data);
