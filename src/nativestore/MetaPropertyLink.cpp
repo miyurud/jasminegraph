@@ -134,13 +134,15 @@ MetaPropertyLink* MetaPropertyLink::next() {
 MetaPropertyLink* MetaPropertyLink::get(unsigned int propertyBlockAddress) {
     MetaPropertyLink* pl = nullptr;
 
-    meta_property_link_logger.debug("Entering MetaPropertyLink::get with propertyBlockAddress = " + std::to_string(propertyBlockAddress));
+    meta_property_link_logger.debug("Entering MetaPropertyLink::get with propertyBlockAddress = "
+        + std::to_string(propertyBlockAddress));
     pthread_mutex_lock(&lockGetMetaPropertyLink);
     if (propertyBlockAddress >= 0) {
         char propertyName[MetaPropertyLink::MAX_NAME_SIZE] = {0};
         char propertyValue[MetaPropertyLink::MAX_VALUE_SIZE] = {0};
         unsigned int nextAddress;
-        meta_property_link_logger.debug("Seeking to propertyBlockAddress = " + std::to_string(propertyBlockAddress));
+        meta_property_link_logger.debug("Seeking to propertyBlockAddress = " +
+            std::to_string(propertyBlockAddress));
         MetaPropertyLink::metaPropertiesDB->seekg(propertyBlockAddress);
 
         if (!MetaPropertyLink::metaPropertiesDB->read(reinterpret_cast<char*>(&propertyName),
@@ -155,7 +157,8 @@ MetaPropertyLink* MetaPropertyLink::get(unsigned int propertyBlockAddress) {
             meta_property_link_logger.error("Error while reading node property value from block = " +
                                        std::to_string(propertyBlockAddress));
         } else {
-            meta_property_link_logger.debug("Read property value for property name: " + std::string(propertyName));
+            meta_property_link_logger.debug("Read property value for property name: " +
+                std::string(propertyName));
         }
 
         if (!MetaPropertyLink::metaPropertiesDB->read(reinterpret_cast<char*>(&(nextAddress)),
@@ -168,9 +171,11 @@ MetaPropertyLink* MetaPropertyLink::get(unsigned int propertyBlockAddress) {
 
         pl = new MetaPropertyLink(propertyBlockAddress, std::string(propertyName),
                                   propertyValue, nextAddress);
-        meta_property_link_logger.debug("Created MetaPropertyLink object at address: " + std::to_string(propertyBlockAddress));
+        meta_property_link_logger.debug("Created MetaPropertyLink object at address: " +
+            std::to_string(propertyBlockAddress));
     }
     pthread_mutex_unlock(&lockGetMetaPropertyLink);
-    meta_property_link_logger.debug("Exiting MetaPropertyLink::get with propertyBlockAddress = " + std::to_string(propertyBlockAddress));
+    meta_property_link_logger.debug("Exiting MetaPropertyLink::get with propertyBlockAddress = " +
+        std::to_string(propertyBlockAddress));
     return pl;
 }

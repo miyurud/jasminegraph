@@ -86,10 +86,10 @@ static void get_degree_command(int connFd, std::string command, int numberOfPart
 static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClients,
                                int numberOfPartitions, bool *loop_exit, std::string command);
 
- static void semantic_beam_search_command(int connFd, std::string command,
-                                         int numberOfPartitions, bool *loop_exit_p , JobScheduler *jobScheduler) ;
+static void semantic_beam_search_command(int connFd, std::string command,
+                                         int numberOfPartitions, bool *loop_exit_p , JobScheduler *jobScheduler);
 static void get_properties_command(int connFd, bool *loop_exit_p);
-static void send_uploaded_bytes(int connFd,SQLiteDBInterface  *sqlite, bool  *loop_exit, std::string command);
+static void send_uploaded_bytes(int connFd, SQLiteDBInterface  *sqlite, bool  *loop_exit, std::string command);
 static vector<DataPublisher *> getWorkerClients(SQLiteDBInterface *sqlite) {
     const vector<Utils::worker> &workerList = Utils::getWorkerList(sqlite);
     vector<DataPublisher *> workerClients;
@@ -170,26 +170,20 @@ void *uifrontendservicesesion(void *dummyPt) {
         } else if (token.compare(OUT_DEGREE) == 0) {
             get_degree_command(connFd, line, numberOfPartitions, "_odd_",  &loop_exit);
         } else if (token.compare(CYPHER) == 0) {
-
             workerClients = getWorkerClients(sqlite);
             workerClientsInitialized = true;
             cypher_ast_command(connFd, workerClients, numberOfPartitions, &loop_exit, line);
-        }  else if (token.compare(SEMANTIC_BEAM_SEARCH) == 0) {
-
+        } else if (token.compare(SEMANTIC_BEAM_SEARCH) == 0) {
             workerClients = getWorkerClients(sqlite);
             workerClientsInitialized = true;
             semantic_beam_search_command(connFd,line ,  numberOfPartitions, &loop_exit , jobScheduler);
-        }else if (line.compare(PROPERTIES) == 0) {
+        } else if (line.compare(PROPERTIES) == 0) {
             get_properties_command(connFd,  &loop_exit);
-        }
-        else if (line.compare(CONSTRUCT_KG) == 0) {
+        } else if (line.compare(CONSTRUCT_KG) == 0) {
             JasmineGraphFrontEnd::constructKGStreamHDFSCommand( masterIP, connFd, numberOfPartitions, sqlite, &loop_exit);
-        }
-        else if (line.compare(STOP_CONSTRUCT_KG) == 0) {
+        } else if (line.compare(STOP_CONSTRUCT_KG) == 0) {
             JasmineGraphFrontEnd::stop_graph_streaming(connFd ,  &loop_exit) ;
-        }
-
-        else if (token.compare("UPBYTES") == 0) {
+        } else if (token.compare("UPBYTES") == 0) {
            send_uploaded_bytes(connFd, sqlite, &loop_exit, line);
         } else {
             ui_frontend_logger.error("Message format not recognized " + line);
@@ -299,7 +293,7 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
 
     // Create a map to group partitions by graph_idgraph for efficient lookup
     std::unordered_map<int, std::vector<json>> partition_map;
-    for (const auto& row : partitionData) {
+    for (const auto &row : partitionData) {
         if (row.size() != Conts::NUMBER_OF_PARTITION_DATA) {
             ui_frontend_logger.debug("Skipping malformed partition row");
             continue;
@@ -308,10 +302,10 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
         json partition_entry;
         int graph_idgraph = -1;
 
-        for (const auto& column : row) {
-            const std::string& col_name = column.first;
-            const std::string& col_value = column.second;
-            ui_frontend_logger.debug("Partition row: "+  col_name+" "+ col_value);
+        for (const auto &column : row) {
+            const std::string &col_name = column.first;
+            const std::string &col_value = column.second;
+            ui_frontend_logger.debug("Partition row: " + col_name + " " + col_value);
 
             try {
                 if (col_name == "idpartition") {
@@ -329,7 +323,7 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
                 } else if (col_name == "central_edgecount_with_dups") {
                     partition_entry["central_edgecount_with_dups"] = std::stoi(col_value);
                 }
-            } catch (const std::exception& e) {
+            } catch (const std::exception &e) {
                 ui_frontend_logger.debug("Exception parsing partition row: " + std::string(e.what()));
                 partition_entry.clear();
                 break;
@@ -342,7 +336,7 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
     }
 
     // Process graph data
-    for (const auto& row : graphData) {
+    for (const auto &row : graphData) {
         if (row.size() != Conts::NUMBER_OF_PARTITION_DATA) {
             ui_frontend_logger.debug("Skipping malformed graph row");
             continue;
@@ -352,10 +346,10 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
         int idgraph = -1;
 
         // Map graph columns to JSON
-        for (const auto& column : row) {
-            const std::string& col_name = column.first;
-            const std::string& col_value = column.second;
-            ui_frontend_logger.debug("graph row: "+  col_name+" "+ col_value);
+        for (const auto &column : row) {
+            const std::string &col_name = column.first;
+            const std::string &col_value = column.second;
+            ui_frontend_logger.debug("graph row: " + col_name + " " + col_value);
 
             try {
                 if (col_name == "idgraph") {
@@ -376,37 +370,33 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
                         } else if (std::stoi(column.second) == Conts::GRAPH_STATUS::OPERATIONAL) {
                             entry["status"] = "op";
                         }
-                    } catch (const std::exception& e) {
+                    } catch (const std::exception &e) {
                         ui_frontend_logger.debug("Exception parsing graph status: " + std::string(e.what()));
                         entry["status"] = "unknown";  // Handle invalid status
                     }
                 } else if (col_name == "vertexcount") {
-                    if (!col_value.empty())
-                    {
+                    if (!col_value.empty()) {
                         entry["vertexcount"] = std::stoi(col_value);
-                    }else
-                    {
+                    } else {
                         entry["vertexcount"] = 0;
                     }
 
                 } else if (col_name == "edgecount") {
-                    if (!col_value.empty())
-                    {
+                    if (!col_value.empty()) {
                         entry["edgecount"] = std::stoi(col_value);
                     } else {
                         entry["edgecount"] = 0;
                     }
                 } else if (col_name == "centralpartitioncount") {
-                    if (!col_value.empty())
-                    {
+                    if (!col_value.empty()) {
                         entry["centralpartitioncount"] = std::stoi(col_value);
                     } else {
                         entry["centralpartitioncount"] = 0;
                     }
-                }else if (col_name == "upload_start_time") {
+                } else if (col_name == "upload_start_time") {
                     entry["upload_start_time"] = std::stoi(col_value);
                 }
-            } catch (const std::exception& e) {
+            } catch (const std::exception &e) {
                 ui_frontend_logger.debug("Exception parsing graph row: " + std::string(e.what()));
                 entry.clear();
                 break;
@@ -454,9 +444,7 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
     ui_frontend_logger.debug("list_command: finished");
 }
 
-static void send_uploaded_bytes(int connFd,
-                                     SQLiteDBInterface *sqlite, bool *loop_exit,
-                                     std::string command) {
+static void send_uploaded_bytes(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit, std::string command) {
     char delimiter = '|';
     std::stringstream ss(command);
     std::string token;
@@ -487,15 +475,15 @@ static void send_uploaded_bytes(int connFd,
         }
     }
 
-    ui_frontend_logger.info("Fetching uploaded_bytes for " +
-                            std::to_string(graphIDs.size()) + " graph(s).");
+    ui_frontend_logger.info("Fetching uploaded_bytes for " + std::to_string(graphIDs.size()) + " graph(s).");
 
     std::string msg = "UPBYTES";
 
     for (const auto &graphID : graphIDs) {
         std::string sql =
             "SELECT uploaded_bytes, file_size_bytes, edgecount, upload_start_time, upload_path "
-            "FROM graph WHERE idgraph=" + graphID;
+            "FROM graph WHERE idgraph=" +
+            graphID;
         auto result = sqlite->runSelect(sql);
 
         if (result.empty() || result[0].size() < 4) {
@@ -511,8 +499,7 @@ static void send_uploaded_bytes(int connFd,
             uploadedBytes = stod(result[0][0].second);
             fileSizeBytes = stod(result[0][1].second);
 
-            if (!result[0][2].second.empty())
-                edgeCount = stod(result[0][2].second);
+            if (!result[0][2].second.empty()) edgeCount = stod(result[0][2].second);
             startTimeStr = result[0][3].second;
         } catch (std::exception &e) {
             ui_frontend_logger.error(e.what());
@@ -522,15 +509,14 @@ static void send_uploaded_bytes(int connFd,
         double percent = (fileSizeBytes > 0) ? (uploadedBytes * 100.0) / fileSizeBytes : 0.0;
 
         // Compute elapsed time from upload_start_time
-        double elapsedSeconds = 1.0; // default to avoid divide by zero
+        double elapsedSeconds = 1.0;  // default to avoid divide by zero
         try {
             std::tm tm_start = {};
             std::istringstream ss(startTimeStr);
-            ss >> std::get_time(&tm_start, "%H:%M:%S"); // assuming TIME format in DB
+            ss >> std::get_time(&tm_start, "%H:%M:%S");  // assuming TIME format in DB
             auto startTime = std::chrono::system_clock::from_time_t(std::mktime(&tm_start));
-            elapsedSeconds = std::chrono::duration_cast<std::chrono::seconds>(
-                                 std::chrono::system_clock::now() - startTime)
-                                 .count();
+            elapsedSeconds =
+                std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - startTime).count();
             if (elapsedSeconds <= 0) elapsedSeconds = 1.0;
         } catch (...) {
             ui_frontend_logger.warn("Failed to parse upload_start_time for graph " + graphID);
@@ -544,20 +530,14 @@ static void send_uploaded_bytes(int connFd,
         double bytesPerSecond = rate ? rate->bytesPerSecond : 0.0;
         double triplesPerSecond = rate ? rate->triplesPerSecond : 0.0;
         if (percent < 100.0) {
-            msg += "|" + graphID + "|" +
-                   std::to_string(uploadedBytes) + "|" +
-                   std::to_string(fileSizeBytes) + "|" +
-                   std::to_string(percent) + "|" +
-                   std::to_string(bytesPerSecond) + "|" +
-                   std::to_string(triplesPerSecond) + "|" +
-                    startTimeStr;
-
+            msg += "|" + graphID + "|" + std::to_string(uploadedBytes) + "|" + std::to_string(fileSizeBytes) + "|" +
+                   std::to_string(percent) + "|" + std::to_string(bytesPerSecond) + "|" +
+                   std::to_string(triplesPerSecond) + "|" + startTimeStr;
         }
     }
 
     int wr = write(connFd, msg.c_str(), msg.size());
-    write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(),
-          Conts::CARRIAGE_RETURN_NEW_LINE.size());
+    write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
 
     if (wr < 0) {
         ui_frontend_logger.error("Client disconnected while sending UPBYTES.");
@@ -1137,8 +1117,8 @@ static void cypher_ast_command(int connFd, vector<DataPublisher *> &workerClient
         }
     }
 }
-static void semantic_beam_search_command(int connFd, std::string command,
-                                         int numberOfPartitions, bool *loop_exit_p , JobScheduler *jobScheduler) {
+static void semantic_beam_search_command(int connFd, std::string command, int numberOfPartitions, bool *loop_exit_p,
+                                         JobScheduler *jobScheduler) {
     char delimiter = '|';
     std::stringstream ss(command);
     std::string token;
@@ -1146,9 +1126,9 @@ static void semantic_beam_search_command(int connFd, std::string command,
     std::string query_string;
 
     // Expected command format: SEMANTIC_BEAM_SEARCH|<graph_id>|<query_string>
-    std::getline(ss, token, delimiter);       // SEMANTIC_BEAM_SEARCH
-    std::getline(ss, graph_id, delimiter);    // graph ID
-    std::getline(ss, query_string, delimiter); // query string (semantic text or Cypher-like input)
+    std::getline(ss, token, delimiter);         // SEMANTIC_BEAM_SEARCH
+    std::getline(ss, graph_id, delimiter);      // graph ID
+    std::getline(ss, query_string, delimiter);  // query string (semantic text or Cypher-like input)
 
     graph_id = Utils::trim_copy(graph_id);
     query_string = Utils::trim_copy(query_string);
@@ -1195,25 +1175,6 @@ static void semantic_beam_search_command(int connFd, std::string command,
         return;
     }
 
-    // // Step 4: Fetch result
-    // std::string resultJSON = jobResponse.getParameter(Conts::PARAM_KEYS::RESULT);
-    // if (resultJSON.empty()) {
-    //     resultJSON = "{\"status\":\"No results found\"}";
-    // }
-    //
-    // // Step 5: Send result to client
-    // int wr = write(connFd, resultJSON.c_str(), resultJSON.length());
-    // if (wr < 0) {
-    //     ui_frontend_logger.error("Error writing beam search results to socket");
-    //     *loop_exit_p = true;
-    // }
-    //
-    // write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
-
-    // Step 6: Send completion signal
-    // std::string done = DONE;
-    // int wr = write(connFd, done.c_str(), done.length());
-    // write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
     ui_frontend_logger.info("Semantic beam search completed successfully for graph " + graph_id);
 }
 

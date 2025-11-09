@@ -33,8 +33,7 @@ AbstractExecutor* ExecutorFactory::getExecutor(JobRequest jobRequest) {
         return new PageRankExecutor(this->sqliteDB, this->perfDB, jobRequest);
     } else if (CYPHER == jobRequest.getJobType()) {
         return new CypherQueryExecutor(this->sqliteDB, this->perfDB, jobRequest);
-    } else if (SEMANTIC_BEAM_SEARCH == jobRequest.getJobType())
-    {
+    } else if (SEMANTIC_BEAM_SEARCH == jobRequest.getJobType()){
         return new SemanticBeamSearchExecutor(this->sqliteDB, this->perfDB, jobRequest);
     }
     return nullptr;

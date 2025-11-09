@@ -47,28 +47,26 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                             PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler);
 
 class JasmineGraphFrontEnd {
- public:
-    static std::map<int, std::shared_ptr<::KGConstructionRate>> kgConstructionRates ;
+   public:
+    static std::map<int, std::shared_ptr<::KGConstructionRate>> kgConstructionRates;
     JasmineGraphFrontEnd(SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb, std::string masterIP,
                          JobScheduler *jobScheduler);
 
     int run();
 
     static void scheduleStrianJobs(JobRequest &jobDetails, std::priority_queue<JobRequest> &jobQueue,
-                                    JobScheduler *jobScheduler, bool *strian_exist);
-
+                                   JobScheduler *jobScheduler, bool *strian_exist);
 
     static int getRunningHighPriorityTaskCount();
     static bool areRunningJobsForSameGraph();
-    static bool constructKGStreamHDFSCommand(std::string masterIP, int connFd,
-                                             int numberOfPartitions,
-                                             SQLiteDBInterface* sqlite, bool* loop_exit_p);
-    static  void stop_graph_streaming(int connfd, bool* loop_exit_p);
+    static bool constructKGStreamHDFSCommand(std::string masterIP, int connFd, int numberOfPartitions,
+                                             SQLiteDBInterface *sqlite, bool *loop_exit_p);
+    static void stop_graph_streaming(int connfd, bool *loop_exit_p);
     static bool strian_exit;
     std::map<std::string, std::atomic<bool>> *streamsState;
     std::map<std::string, std::thread> streamingThreads;
 
- private:
+   private:
     SQLiteDBInterface *sqlite;
     std::string masterIP;
     PerformanceSQLiteDBInterface *perfSqlite;
@@ -83,8 +81,7 @@ struct frontendservicesessionargs {
     JobScheduler *jobScheduler;
 };
 
-struct KGConstructionRate
-{
+struct KGConstructionRate {
     double triplesPerSecond;
     double bytesPerSecond;
 };

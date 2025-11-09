@@ -234,7 +234,7 @@ std::unordered_map<std::string, unsigned int> NodeManager::readEdgeIndex() {
             }
 
             _edgeIndex[std::string(edgeKeyC)] = edgeIndexId;
-            bzero(edgeKeyC, NodeManager::INDEX_KEY_SIZE); // clear buffer before next read
+            bzero(edgeKeyC, NodeManager::INDEX_KEY_SIZE);  // clear buffer before next read
         }
 
         index_db.close();
