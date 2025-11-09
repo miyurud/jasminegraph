@@ -4,7 +4,8 @@
 #include <string>
 #include "../../query/processor/cypher/util/SharedBuffer.h"
 
-class TupleStreamer {
+class TupleStreamer
+{
 public:
     virtual ~TupleStreamer() = default;
 
@@ -12,5 +13,4 @@ public:
                              const std::string& chunkText,
                              SharedBuffer& tupleBuffer) = 0;
 };
-
 #endif

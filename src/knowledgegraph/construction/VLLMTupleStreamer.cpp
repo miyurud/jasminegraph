@@ -13,21 +13,23 @@ Logger vllm_tuple_streamer_logger;
 
 // ---------------- Constructor ----------------
 VLLMTupleStreamer::VLLMTupleStreamer(const std::string& modelName, const std::string& host)
-    : model(modelName), host(host) {
+    : model(modelName), host(host)
+{
     curl_global_init(CURL_GLOBAL_DEFAULT);
     vllm_tuple_streamer_logger.info(
         "Initialized VLLMTupleStreamer with model: " + modelName + ", host: " + host);
 }
 
 // ---------------- Stream Callback ----------------
-size_t VLLMTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb, void* userdata) {
+size_t VLLMTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb, void* userdata)
+{
     size_t totalSize = size * nmemb;
     StreamContext* ctx = static_cast<StreamContext*>(userdata);
 
     std::string incoming(ptr, totalSize);
     size_t start = 0;
-
-    while (start < incoming.size()) {
+    while (start < incoming.size())
+    {
         size_t pos = incoming.find("\n", start);
         if (pos == std::string::npos) pos = incoming.size();
         std::string line = incoming.substr(start, pos - start);
@@ -36,8 +38,10 @@ size_t VLLMTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb, v
         if (line.empty()) continue;
 
         // End of stream
-        if (line == "data: [DONE]") {
-            if (!ctx->current_tuple.empty()) {
+        if (line == "data: [DONE]")
+        {
+            if (!ctx->current_tuple.empty())
+            {
                 ctx->buffer->add(ctx->current_tuple);
                 ctx->current_tuple.clear();
             }
@@ -50,38 +54,51 @@ size_t VLLMTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb, v
         if (line.rfind(prefix, 0) != 0) continue;
 
         std::string jsonPart = line.substr(prefix.size());
-        try {
+        try
+        {
             auto j = json::parse(jsonPart);
-            if (j.contains("choices") && !j["choices"].empty()) {
+            if (j.contains("choices") && !j["choices"].empty())
+            {
                 std::string partial = j["choices"][0]["delta"].value("content", "");
                 vllm_tuple_streamer_logger.info("Partial: " + partial);
 
                 size_t i = 0;
-                while (i < partial.size()) {
+                while (i < partial.size())
+                {
                     size_t bpos = partial.find_first_of("[]", i);
-                    if (bpos == std::string::npos) {
-                        if (ctx->braceDepth >= 2) {
+                    if (bpos == std::string::npos)
+                    {
+                        if (ctx->braceDepth >= 2)
+                        {
                             ctx->current_tuple.append(partial, i, std::string::npos);
                         }
                         break;
                     }
-                    if (ctx->braceDepth >= 2) {
+                    if (ctx->braceDepth >= 2)
+                    {
                         ctx->current_tuple.append(partial, i, bpos - i);
                     }
 
                     char c = partial[bpos];
-                    if (c == '[') {
+                    if (c == '[')
+                    {
                         ctx->braceDepth++;
                         if (ctx->braceDepth >= 2) ctx->current_tuple.push_back(c);
-                    } else { // ']'
+                    }
+                    else
+                    {
+                        // ']'
                         ctx->braceDepth--;
                         ctx->current_tuple.push_back(c);
 
-                        if (ctx->braceDepth == 1) {
+                        if (ctx->braceDepth == 1)
+                        {
                             vllm_tuple_streamer_logger.info("Current tuple: " + ctx->current_tuple);
-                            try {
+                            try
+                            {
                                 auto triple = json::parse(ctx->current_tuple);
-                                if (triple.is_array() && triple.size() == 5) {
+                                if (triple.is_array() && triple.size() == 5)
+                                {
                                     std::string subject = triple[0].get<std::string>();
                                     std::string predicate = triple[1].get<std::string>();
                                     std::string object = triple[2].get<std::string>();
@@ -89,38 +106,51 @@ size_t VLLMTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb, v
                                     std::string object_type = triple[4].get<std::string>();
 
                                     std::string subject_id = Utils::canonicalize(subject + "_" + subject_type);
-                                    std::string object_id  = Utils::canonicalize(object + "_" + object_type);
-                                    std::string edge_id    = Utils::canonicalize(subject_id + "_" + predicate + "_" + object_id);
+                                    std::string object_id = Utils::canonicalize(object + "_" + object_type);
+                                    std::string edge_id = Utils::canonicalize(
+                                        subject_id + "_" + predicate + "_" + object_id);
 
                                     json formattedTriple = {
-                                        {"source", {
-                                            {"id", subject_id},
-                                            {"properties", {
+                                        {
+                                            "source", {
                                                 {"id", subject_id},
-                                                {"label", subject_type},
-                                                {"name", subject}
-                                            }}
-                                        }},
-                                        {"destination", {
-                                            {"id", object_id},
-                                            {"properties", {
+                                                {
+                                                    "properties", {
+                                                        {"id", subject_id},
+                                                        {"label", subject_type},
+                                                        {"name", subject}
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "destination", {
                                                 {"id", object_id},
-                                                {"label", object_type},
-                                                {"name", object}
-                                            }}
-                                        }},
-                                        {"properties", {
-                                            {"id", edge_id},
-                                            {"type", predicate},
-                                            {"description", subject + " " + predicate + " " + object}
-                                        }}
+                                                {
+                                                    "properties", {
+                                                        {"id", object_id},
+                                                        {"label", object_type},
+                                                        {"name", object}
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "properties", {
+                                                {"id", edge_id},
+                                                {"type", predicate},
+                                                {"description", subject + " " + predicate + " " + object}
+                                            }
+                                        }
                                     };
 
                                     ctx->buffer->add(formattedTriple.dump());
                                     vllm_tuple_streamer_logger.debug(
                                         "✅ Added formatted triple: " + formattedTriple.dump());
                                 }
-                            } catch (const std::exception& ex) {
+                            }
+                            catch (const std::exception& ex)
+                            {
                                 vllm_tuple_streamer_logger.error(
                                     "❌ JSON array parse failed: " + std::string(ex.what()));
                             }
@@ -130,7 +160,9 @@ size_t VLLMTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb, v
                     i = bpos + 1;
                 }
             }
-        } catch (const std::exception& ex) {
+        }
+        catch (const std::exception& ex)
+        {
             vllm_tuple_streamer_logger.error("JSON parse error: " + std::string(ex.what()));
         }
     }
@@ -141,7 +173,8 @@ size_t VLLMTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb, v
 // ---------------- Stream Chunk ----------------
 void VLLMTupleStreamer::streamChunk(const std::string& chunkKey,
                                     const std::string& chunkText,
-                                    SharedBuffer& tupleBuffer) {
+                                    SharedBuffer& tupleBuffer)
+{
     const int maxRetries = 10;
     const int baseDelaySeconds = 50;
     int attempt = 0;
@@ -149,9 +182,11 @@ void VLLMTupleStreamer::streamChunk(const std::string& chunkKey,
 
     StreamContext ctx{chunkKey, &tupleBuffer, "", true};
 
-    do {
+    do
+    {
         CURL* curl = curl_easy_init();
-        if (!curl) {
+        if (!curl)
+        {
             vllm_tuple_streamer_logger.error("Failed to initialize CURL");
             return;
         }
@@ -186,8 +221,10 @@ void VLLMTupleStreamer::streamChunk(const std::string& chunkKey,
             },
             {
                 {"role", "user"},
-                {"content",
-                   Prompts::KNOWLEDGE_EXTRACTION + "\nNow process the following text:\n" + chunkText + "\n\nArray:"}
+                {
+                    "content",
+                    Prompts::KNOWLEDGE_EXTRACTION + "\nNow process the following text:\n" + chunkText + "\n\nArray:"
+                }
             }
         };
 
@@ -212,7 +249,8 @@ void VLLMTupleStreamer::streamChunk(const std::string& chunkKey,
         curl_slist_free_all(headers);
         curl_easy_cleanup(curl);
 
-        if (res != CURLE_OK && attempt < maxRetries - 1) {
+        if (res != CURLE_OK && attempt < maxRetries - 1)
+        {
             vllm_tuple_streamer_logger.error("CURL response code: " + std::to_string(res));
             int waitTime = baseDelaySeconds * attempt;
             vllm_tuple_streamer_logger.info("Retrying in " + std::to_string(waitTime) + " seconds...");
@@ -220,9 +258,11 @@ void VLLMTupleStreamer::streamChunk(const std::string& chunkKey,
         }
 
         attempt++;
-    } while ((res != CURLE_OK && attempt < maxRetries) || !ctx.isSuccess);
+    }
+    while ((res != CURLE_OK && attempt < maxRetries) || !ctx.isSuccess);
 
-    if (res != CURLE_OK) {
+    if (res != CURLE_OK)
+    {
         vllm_tuple_streamer_logger.error("Failed after " + std::to_string(maxRetries) + " attempts.");
         ctx.buffer->add("-1");
     }

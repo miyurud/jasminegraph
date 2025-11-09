@@ -20,30 +20,36 @@ OllamaTupleStreamer::OllamaTupleStreamer(const std::string& modelName, const std
         "Initialized OllamaTupleStreamer with model: " + modelName + ", host: " + host);
 }
 
-size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb, void* userdata) {
+size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb, void* userdata)
+{
     size_t totalSize = size * nmemb;
     StreamContext* ctx = static_cast<StreamContext*>(userdata);
 
     std::string incoming(ptr, totalSize);
     size_t start = 0;
 
-    while (true) {
+
+    while (true)
+    {
         size_t pos = incoming.find("\n", start);
         if (pos == std::string::npos) break;
 
         std::string line = incoming.substr(start, pos - start);
         start = pos + 1;
 
-        if (line.empty()) {
+        if (line.empty())
+        {
             ollama_tuple_streamer_logger.debug("Skipping empty line");
             continue;
         }
 
-        try {
+        try
+        {
             auto j = json::parse(line);
 
             // Completed tuple
-            if (j.value("done", false)) {
+            if (j.value("done", false))
+            {
                 ollama_tuple_streamer_logger.debug("Received done partial: " + ctx->current_tuple);
                 ctx->buffer->add("-1");
                 ctx->current_tuple.clear();
@@ -51,72 +57,96 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
             }
 
             // Partial response
-            if (j.contains("response")) {
+            if (j.contains("response"))
+            {
                 std::string partial = j["response"];
                 ollama_tuple_streamer_logger.info("Partial: " + partial);
 
                 size_t i = 0;
-                while (i < partial.size()) {
+                while (i < partial.size())
+                {
                     size_t bpos = partial.find_first_of("[]", i);
-                    if (bpos == std::string::npos) {
-                        if (ctx->braceDepth >= 2) {
+                    if (bpos == std::string::npos)
+                    {
+                        if (ctx->braceDepth >= 2)
+                        {
                             ctx->current_tuple.append(partial, i, std::string::npos);
                         }
                         break;
                     }
 
-                    if (ctx->braceDepth >= 2) {
+                    if (ctx->braceDepth >= 2)
+                    {
                         ctx->current_tuple.append(partial, i, bpos - i);
                     }
 
                     char c = partial[bpos];
-                    if (c == '[') {
+                    if (c == '[')
+                    {
                         ctx->braceDepth++;
-                        if (ctx->braceDepth >= 2) {
+                        if (ctx->braceDepth >= 2)
+                        {
                             ctx->current_tuple.push_back(c);
                         }
-                    } else { // ']'
+                    }
+                    else
+                    {
+                        // ']'
                         ctx->braceDepth--;
                         ctx->current_tuple.push_back(c);
 
-                        if (ctx->braceDepth == 1) {
+                        if (ctx->braceDepth == 1)
+                        {
                             ollama_tuple_streamer_logger.info("Current: " + ctx->current_tuple);
 
-                            try {
+                            try
+                            {
                                 auto triple = json::parse(ctx->current_tuple);
-                                if (triple.is_array() && triple.size() == 5) {
-                                    std::string subject      = triple[0].get<std::string>();
-                                    std::string predicate    = triple[1].get<std::string>();
-                                    std::string object       = triple[2].get<std::string>();
+                                if (triple.is_array() && triple.size() == 5)
+                                {
+                                    std::string subject = triple[0].get<std::string>();
+                                    std::string predicate = triple[1].get<std::string>();
+                                    std::string object = triple[2].get<std::string>();
                                     std::string subject_type = triple[3].get<std::string>();
-                                    std::string object_type  = triple[4].get<std::string>();
+                                    std::string object_type = triple[4].get<std::string>();
 
                                     std::string subject_id = Utils::canonicalize(subject + "_" + subject_type);
-                                    std::string object_id  = Utils::canonicalize(object + "_" + object_type);
-                                    std::string edge_id    = Utils::canonicalize(subject_id + "_" + predicate + "_" + object_id);
+                                    std::string object_id = Utils::canonicalize(object + "_" + object_type);
+                                    std::string edge_id = Utils::canonicalize(
+                                        subject_id + "_" + predicate + "_" + object_id);
 
                                     json formattedTriple = {
-                                        {"source", {
-                                            {"id", subject_id},
-                                            {"properties", {
+                                        {
+                                            "source", {
                                                 {"id", subject_id},
-                                                {"label", subject_type},
-                                                {"name", subject}
-                                            }}
-                                        }},
-                                        {"destination", {
-                                            {"id", object_id},
-                                            {"properties", {
+                                                {
+                                                    "properties", {
+                                                        {"id", subject_id},
+                                                        {"label", subject_type},
+                                                        {"name", subject}
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "destination", {
                                                 {"id", object_id},
-                                                {"label", object_type},
-                                                {"name", object}
-                                            }}
-                                        }},
-                                        {"properties", {
-                                            {"id", edge_id},
-                                            {"type", predicate},
-                                            {"description", subject + " " + predicate + " " + object}
-                                        }}
+                                                {
+                                                    "properties", {
+                                                        {"id", object_id},
+                                                        {"label", object_type},
+                                                        {"name", object}
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "properties", {
+                                                {"id", edge_id},
+                                                {"type", predicate},
+                                                {"description", subject + " " + predicate + " " + object}
+                                            }
+                                        }
                                     };
                                     // check termination
 
@@ -124,7 +154,9 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
                                     ollama_tuple_streamer_logger.debug(
                                         "✅ Added formatted triple: " + formattedTriple.dump());
                                 }
-                            } catch (const std::exception& ex) {
+                            }
+                            catch (const std::exception& ex)
+                            {
                                 ollama_tuple_streamer_logger.error(
                                     "❌ JSON array parse failed: " + std::string(ex.what()));
                             }
@@ -134,7 +166,9 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
                     i = bpos + 1;
                 }
             }
-        } catch (...) {
+        }
+        catch (...)
+        {
             ollama_tuple_streamer_logger.info("Malformed/partial JSON ignored: " + line);
             ctx->buffer->add("-1");
         }
@@ -145,21 +179,24 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
 
 void OllamaTupleStreamer::streamChunk(const std::string& chunkKey,
                                       const std::string& chunkText,
-                                      SharedBuffer& tupleBuffer) {
-    const int maxRetries       = 10;
-    const int baseDelaySeconds = 50;   // exponential backoff base
-    int attempt                = 0;
+                                      SharedBuffer& tupleBuffer)
+{
+    const int maxRetries = 10;
+    const int baseDelaySeconds = 50; // exponential backoff base
+    int attempt = 0;
 
     ollama_tuple_streamer_logger.debug("Chunk: " + chunkText);
 
     CURLcode res;
     StreamContext ctx{chunkKey, &tupleBuffer, "", true};
 
-    do {
+    do
+    {
         ollama_tuple_streamer_logger.debug("Attempt: " + std::to_string(attempt));
 
         CURL* curl = curl_easy_init();
-        if (!curl) {
+        if (!curl)
+        {
             ollama_tuple_streamer_logger.error("Failed to initialize CURL");
             return;
         }
@@ -183,16 +220,19 @@ void OllamaTupleStreamer::streamChunk(const std::string& chunkKey,
         curl_easy_setopt(curl, CURLOPT_POST, 1L);
 
         json j;
-        j["model"]      = model;
+        j["model"] = model;
         j["max_tokens"] = 8000;
-        j["prompt"]     =  Prompts::KNOWLEDGE_EXTRACTION + "\nNow process the following text:\n" + chunkText + "\n\nArray:";
+        j["prompt"] = Prompts::KNOWLEDGE_EXTRACTION + "\nNow process the following text:\n" + chunkText + "\n\nArray:";
         j["stream"] = true;
 
         std::string postFields;
-        try {
+        try
+        {
             postFields = j.dump();
             ollama_tuple_streamer_logger.debug("Post fields: " + postFields);
-        } catch (const std::exception& e) {
+        }
+        catch (const std::exception& e)
+        {
             ollama_tuple_streamer_logger.error("JSON dump error: " + std::string(e.what()));
             ctx.buffer->add("-1");
             return;
@@ -210,24 +250,28 @@ void OllamaTupleStreamer::streamChunk(const std::string& chunkKey,
 
         res = curl_easy_perform(curl);
 
-        if (res != CURLE_OK) {
+        if (res != CURLE_OK)
+        {
             ollama_tuple_streamer_logger.error("Curl error: " +
-                                               std::string(curl_easy_strerror(res)));
+                std::string(curl_easy_strerror(res)));
         }
 
         curl_slist_free_all(headers);
         curl_easy_cleanup(curl);
 
-        if (res != CURLE_OK && attempt < maxRetries - 1) {
-            int waitTime = baseDelaySeconds * attempt;  // exponential backoff
+        if (res != CURLE_OK && attempt < maxRetries - 1)
+        {
+            int waitTime = baseDelaySeconds * attempt; // exponential backoff
             ollama_tuple_streamer_logger.error("Retrying in " + std::to_string(waitTime) + " seconds...");
             std::this_thread::sleep_for(std::chrono::seconds(waitTime));
         }
 
         attempt++;
-    } while ((res != CURLE_OK && attempt < maxRetries) || !ctx.isSuccess);
+    }
+    while ((res != CURLE_OK && attempt < maxRetries) || !ctx.isSuccess);
 
-    if (res != CURLE_OK) {
+    if (res != CURLE_OK)
+    {
         ollama_tuple_streamer_logger.error("Failed after " + std::to_string(maxRetries) + " attempts.");
         ctx.buffer->add("-1");
     }
