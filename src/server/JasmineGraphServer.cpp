@@ -479,7 +479,8 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
                 } else {
                     serverStartScript =
                         "docker -H ssh://" + host + " run -v " + instanceDataFolder + ":" + instanceDataFolder +
-                        " -v " + aggregateDataFolder + ":" + aggregateDataFolder + " -v /var/tmp:/var/tmp/hdfs/filechunks" " -v " + nmonFileLocation + ":" +
+                        " -v " + aggregateDataFolder + ":" + aggregateDataFolder +
+                            " -v /var/tmp:/var/tmp/hdfs/filechunks" " -v " + nmonFileLocation + ":" +
                         nmonFileLocation + " -v " + instanceDataFolder + "/" + to_string(i) + "/logs" + ":" +
                         "/var/tmp/jasminegraph/logs" + " -p " + std::to_string(workerPortsVector.at(i)) + ":" +
                         std::to_string(workerPortsVector.at(i)) + " -p " + std::to_string(workerDataPortsVector.at(i)) +
@@ -492,7 +493,6 @@ void JasmineGraphServer::startRemoteWorkers(std::vector<int> workerPortsVector, 
             const char *serverStartCmd = serverStartScript.c_str();
             pid_t child = fork();
             if (child == 0) {
-
                 execl("/bin/sh", "sh", "-c", serverStartCmd, nullptr);
                 _exit(1);
             }
@@ -869,13 +869,13 @@ server_logger.debug("designated worker");
         double mem_ewma = Utils::exponentialWeightedMovingAverage(hist.memory_usage);
         double load_ewma = Utils::exponentialWeightedMovingAverage(hist.load_average);
 
-        double cpu_slope =Utils:: computeSlope(hist.cpu_usage);
+        double cpu_slope = Utils:: computeSlope(hist.cpu_usage);
         double mem_slope = Utils:: computeSlope(hist.memory_usage);
 
         // Score function (tunable weights)
         double score = 0.5 * cpu_ewma + 0.3 * mem_ewma + 0.2 * load_ewma;
-        score += 0.2 * std::max(0.0, cpu_slope); // penalize rising CPU
-        score += 0.1 * std::max(0.0, mem_slope); // penalize rising memory
+        score += 0.2 * std::max(0.0, cpu_slope);  // penalize rising CPU
+        score += 0.1 * std::max(0.0, mem_slope);  // penalize rising memory
 
         if (score < best_score) {
             server_logger.debug("current best s worker:  score" + to_string(worker.port)+ to_string(score));

@@ -47,6 +47,7 @@ class InstanceStreamHandler {
         static std::string extractGraphIdentifier(const std::string& nodeString);
         static JasmineGraphIncrementalLocalStore *loadStreamingStore(
                 std::string graphId, std::string partitionId, std::map<std::string,
-                JasmineGraphIncrementalLocalStore *> &graphDBMapStreamingStores, std::string dbFilesOpenMode = "trunk", bool isEmbed =false);
+                JasmineGraphIncrementalLocalStore *> &graphDBMapStreamingStores,
+                std::string dbFilesOpenMode = "trunk", bool isEmbed = false);
 };
 #endif  // INSTANCESTREAMHANDLER_H

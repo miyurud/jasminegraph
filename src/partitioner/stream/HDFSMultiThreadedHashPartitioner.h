@@ -55,13 +55,14 @@ class HDFSMultiThreadedHashPartitioner {
 
     std::vector<std::mutex> partitionMutexArray;
 
-    bool isEmbedGraph =false;
+    bool isEmbedGraph = false;
 
     int partitionFileEdgeThreshold = 1000;
 
  public:
     HDFSMultiThreadedHashPartitioner(int numberOfPartitions, int graphID, std::string masterIp, bool isDirected,
-                                     std::vector<JasmineGraphServer::worker> workers, bool isEmbedGraph, int partitionFileEdgeThreshold);
+                                     std::vector<JasmineGraphServer::worker> workers, bool isEmbedGraph,
+                                     int partitionFileEdgeThreshold);
     ~HDFSMultiThreadedHashPartitioner();
     HDFSMultiThreadedHashPartitioner(int numberOfPartitions, int graphID, std::string masterIp, bool isDirected);
     long getVertexCount();

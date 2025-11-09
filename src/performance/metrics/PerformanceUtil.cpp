@@ -46,7 +46,6 @@ void PerformanceUtil::init() {
     // const char *hostAddress = getenv("HOST_NAME");
     // scheduler_logger.debug("Host Address: " + std::string(hostAddress));
     // history_store[ std::string(hostAddress)] = { std::deque<double>(), std::deque<double>(), std::deque<double>() };
-
 }
 
 int PerformanceUtil::collectPerformanceStatistics() {

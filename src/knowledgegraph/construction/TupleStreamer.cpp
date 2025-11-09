@@ -6,7 +6,7 @@
 #include "../../query/processor/cypher/util/SharedBuffer.h"
 
 class TupleStreamer {
-   public:
+ public:
     virtual ~TupleStreamer() = default;
 
     virtual void streamChunk(const std::string& chunkKey, const std::string& chunkText, SharedBuffer& tupleBuffer) = 0;

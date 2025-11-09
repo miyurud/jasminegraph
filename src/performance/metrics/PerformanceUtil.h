@@ -56,7 +56,7 @@ struct MetricHistory {
     std::deque<double> memory_usage;
     std::deque<double> load_average;
 
-    static const size_t MAX_HISTORY = 20; // keep last 20 samples
+    static const size_t MAX_HISTORY = 20;  // keep last 20 samples
 
     void addCpu(double val) {
         if (cpu_usage.size() >= MAX_HISTORY) cpu_usage.pop_front();
@@ -107,7 +107,6 @@ class PerformanceUtil {
 
 
  private:
-
     static void collectLocalSLAResourceUtilization(std::string graphId, std::string placeId, std::string command,
                                                    std::string category, int elapsedTime, bool autoCalibrate);
     static void adjustAggregateLoadMap(std::map<std::string, std::vector<double>>& aggregateLoadAvgMap,

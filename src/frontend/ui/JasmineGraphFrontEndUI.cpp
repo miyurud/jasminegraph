@@ -176,13 +176,14 @@ void *uifrontendservicesesion(void *dummyPt) {
         } else if (token.compare(SEMANTIC_BEAM_SEARCH) == 0) {
             workerClients = getWorkerClients(sqlite);
             workerClientsInitialized = true;
-            semantic_beam_search_command(connFd,line ,  numberOfPartitions, &loop_exit , jobScheduler);
+            semantic_beam_search_command(connFd, line,  numberOfPartitions, &loop_exit, jobScheduler);
         } else if (line.compare(PROPERTIES) == 0) {
             get_properties_command(connFd,  &loop_exit);
         } else if (line.compare(CONSTRUCT_KG) == 0) {
-            JasmineGraphFrontEnd::constructKGStreamHDFSCommand( masterIP, connFd, numberOfPartitions, sqlite, &loop_exit);
+            JasmineGraphFrontEnd::constructKGStreamHDFSCommand(masterIP, connFd, numberOfPartitions,
+                sqlite, &loop_exit);
         } else if (line.compare(STOP_CONSTRUCT_KG) == 0) {
-            JasmineGraphFrontEnd::stop_graph_streaming(connFd ,  &loop_exit) ;
+            JasmineGraphFrontEnd::stop_graph_streaming(connFd, &loop_exit);
         } else if (token.compare("UPBYTES") == 0) {
            send_uploaded_bytes(connFd, sqlite, &loop_exit, line);
         } else {

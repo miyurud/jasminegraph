@@ -11,7 +11,6 @@
 #include <vector>
 class FaissIndex {
  public:
-  // Get singleton instance
   static FaissIndex* getInstance(int embeddingDim, const std::string& filepath);
 
   ~FaissIndex();

@@ -7,7 +7,7 @@
 #include "../AbstractExecutor.h"
 
 class SemanticBeamSearchExecutor : public AbstractExecutor {
-   public:
+ public:
     SemanticBeamSearchExecutor();
 
     SemanticBeamSearchExecutor(SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb, JobRequest jobRequest);
@@ -17,7 +17,7 @@ class SemanticBeamSearchExecutor : public AbstractExecutor {
                                      std::string query, SharedBuffer &sharedBuffer, int noOfPartitions);
     static int getUid();
 
-   private:
+ private:
     SQLiteDBInterface *sqlite;
     PerformanceSQLiteDBInterface *perfDB;
 };

@@ -49,8 +49,7 @@ JasmineGraphIncrementalLocalStore::JasmineGraphIncrementalLocalStore(
         Utils::getJasmineGraphProperty("org.jasminegraph.vectorstore.embedding."
                                        "ollama.endpoint"),  // Ollama endpoint
         Utils::getJasmineGraphProperty(
-            "org.jasminegraph.vectorstore.embedding.model")  // model name
-    );
+            "org.jasminegraph.vectorstore.embedding.model"));
   }
 };
 bool JasmineGraphIncrementalLocalStore::getAndStoreEmbeddings() {

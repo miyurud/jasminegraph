@@ -146,7 +146,7 @@ void HDFSMultiThreadedHashPartitioner::consumeLocalEdges(int partitionIndex, Jas
                 Utils::sendFileChunkToWorker(worker.hostname, worker.port, worker.dataPort, filePath,
                     masterIp,
                                              JasmineGraphInstanceProtocol::HDFS_LOCAL_STREAM_START,
-                                             this->isEmbedGraph );
+                                             this->isEmbedGraph);
                 partitionMutexArray[partitionIndex].unlock();
             }
             break;
@@ -239,7 +239,8 @@ void HDFSMultiThreadedHashPartitioner::consumeEdgeCuts(int partitionIndex, Jasmi
                                               " edges: " + filePath);
                 partitionMutexArray[partitionIndex].lock();
                 Utils::sendFileChunkToWorker(worker.hostname, worker.port, worker.dataPort, filePath, masterIp,
-                                             JasmineGraphInstanceProtocol::HDFS_CENTRAL_STREAM_START, this->isEmbedGraph);
+                                             JasmineGraphInstanceProtocol::HDFS_CENTRAL_STREAM_START,
+                                             this->isEmbedGraph);
                 partitionMutexArray[partitionIndex].unlock();
             }
             break;
@@ -261,8 +262,8 @@ void HDFSMultiThreadedHashPartitioner::consumeEdgeCuts(int partitionIndex, Jasmi
                 edgeCutsFile.close();
 
                 partitionMutexArray[partitionIndex].lock();
-                Utils::sendFileChunkToWorker(worker.hostname, worker.port, worker.dataPort, filePath, masterIp,
-                                             JasmineGraphInstanceProtocol::HDFS_CENTRAL_STREAM_START , this->isEmbedGraph);
+                Utils::sendFileChunkToWorker(worker.hostname, worker.port, worker.dataPort, filePath,
+                    masterIp, JasmineGraphInstanceProtocol::HDFS_CENTRAL_STREAM_START, this->isEmbedGraph);
                 partitionMutexArray[partitionIndex].unlock();
 
                 hash_partitioner_logger.debug("Central edge consumer " + std::to_string(partitionIndex) +

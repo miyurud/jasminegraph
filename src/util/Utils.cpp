@@ -621,7 +621,6 @@ std::string Utils::read_str_wrapper(int connFd, char *buf, size_t len, bool allo
         return "";
     }
     if (!allowEmpty && result == 0) {
-
         util_logger.error("Read failed: recv empty string");
         return "";
     }
@@ -638,7 +637,6 @@ std::string Utils::read_str_trim_wrapper(int connFd, char *buf, size_t len) {
 
 bool Utils::send_wrapper(int connFd, const char *buf, size_t size) {
     ssize_t sz = send(connFd, buf, size, 0);
-    // util_logger.info("Sent " + std::to_string(sz) + " bytes to socket " + std::to_string(connFd));
     if (sz < size) {
         util_logger.error("Send failed");
         return false;

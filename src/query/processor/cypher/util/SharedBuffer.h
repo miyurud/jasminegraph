@@ -15,13 +15,13 @@
 
 
 class SharedBuffer {
-private:
+ private:
     std::deque<std::string> buffer;
     std::mutex mtx;
     std::condition_variable cv;
     const size_t max_size;
 
-public:
+ public:
     explicit SharedBuffer(size_t size) : max_size(size) {}
 
     // Add data to the buffer

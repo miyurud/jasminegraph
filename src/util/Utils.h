@@ -219,7 +219,6 @@ class Utils {
     static string getFrontendInput(int connFd);
     static string getPartitionAlgorithm(string graphID, std::string host);
     static string getGraphDirection(string graphID, std::string host);
-
 };
 
 #endif  // JASMINEGRAPH_UTILS_H

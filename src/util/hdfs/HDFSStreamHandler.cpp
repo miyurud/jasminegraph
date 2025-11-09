@@ -271,7 +271,8 @@ void HDFSStreamHandler::startStreamingFromBufferToPartitions() {
 
     JasmineGraphServer *server = JasmineGraphServer::getInstance();
     std::vector<JasmineGraphServer::worker> workers = server->workers(numberOfPartitions);
-    HDFSMultiThreadedHashPartitioner partitioner(numberOfPartitions, graphId, masterIP, isDirected, workers, false, 1000);
+    HDFSMultiThreadedHashPartitioner partitioner(numberOfPartitions, graphId, masterIP, isDirected, workers,
+        false, 1000);
 
     std::thread readerThread(&HDFSStreamHandler::streamFromHDFSIntoBuffer, this);
     std::vector<std::thread> bufferProcessorThreads;

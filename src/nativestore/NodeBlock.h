@@ -89,7 +89,7 @@ class NodeBlock {
     bool setCentralRelationHead(RelationBlock newRelation);
 
     std::list<std::pair<NodeBlock*, RelationBlock*>>  getLocalEdgeNodes();
-    std::list<std::pair<NodeBlock*, RelationBlock*>>getCentralEdgeNodes();
+    std::list<std::pair<NodeBlock*, RelationBlock*>> getCentralEdgeNodes();
     std::list<std::pair<NodeBlock*, RelationBlock*>> getAllEdgeNodes();
 
     RelationBlock *searchLocalRelation(NodeBlock);

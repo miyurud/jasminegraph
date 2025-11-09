@@ -125,7 +125,8 @@ class JasmineGraphInstanceService {
                                std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores);
     static JasmineGraphIncrementalLocalStore *loadStreamingStore(
         std::string graphId, std::string partitionId,
-        std::map<std::string, JasmineGraphIncrementalLocalStore *> &graphDBMapStreamingStores, std::string openMode , bool isEmbed);
+        std::map<std::string, JasmineGraphIncrementalLocalStore *> &graphDBMapStreamingStores, std::string openMode ,
+        bool isEmbed);
     static void loadInstanceCentralStore(
         std::string graphId, std::string partitionId,
         std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores);

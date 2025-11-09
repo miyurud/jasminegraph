@@ -28,7 +28,7 @@ struct EmbeddingRequest {
 };
 
 class JasmineGraphIncrementalLocalStore {
-   public:
+ public:
     GraphConfig gc;
     NodeManager* nm;
     FaissIndex* faissStore;

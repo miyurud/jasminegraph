@@ -464,7 +464,6 @@ static void list_command(int connFd, SQLiteDBInterface *sqlite, bool *loop_exit_
 
 void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
                             PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler) {
-
 }
 
 static void cypherCommand(std::string masterIP, int connFd, vector<DataPublisher *> &workerClients,

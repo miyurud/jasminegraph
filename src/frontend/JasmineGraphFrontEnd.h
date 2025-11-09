@@ -47,7 +47,7 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
                             PerformanceSQLiteDBInterface *perfSqlite, JobScheduler *jobScheduler);
 
 class JasmineGraphFrontEnd {
-   public:
+ public:
     static std::map<int, std::shared_ptr<::KGConstructionRate>> kgConstructionRates;
     JasmineGraphFrontEnd(SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb, std::string masterIP,
                          JobScheduler *jobScheduler);
@@ -66,7 +66,7 @@ class JasmineGraphFrontEnd {
     std::map<std::string, std::atomic<bool>> *streamsState;
     std::map<std::string, std::thread> streamingThreads;
 
-   private:
+ private:
     SQLiteDBInterface *sqlite;
     std::string masterIP;
     PerformanceSQLiteDBInterface *perfSqlite;
