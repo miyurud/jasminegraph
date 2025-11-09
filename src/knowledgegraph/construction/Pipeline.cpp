@@ -375,7 +375,7 @@ json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
 
                         if (nodeIndex.find(sourceId) == nodeIndex.end()) {
                             nodeIndex.insert({sourceId, nextNodeIndex});
-                            source["id"]=nodeIndex;
+                            source["id"]= to_string(nextNodeIndex);
                             nextNodeIndex++;
                         }else {
                             source["id"]= nodeIndex[sourceId];
@@ -383,7 +383,7 @@ json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
 
                         if (nodeIndex.find(destinationId) == nodeIndex.end()) {
                             nodeIndex.insert({destinationId, nextNodeIndex});
-                            destination["id"]=nodeIndex;
+                            destination["id"]=nextNodeIndex;
                             nextNodeIndex++;
                         }else {
                             destination["id"]= nodeIndex[destinationId];
