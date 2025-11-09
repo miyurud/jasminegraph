@@ -157,7 +157,8 @@ long countLocalTriangles(
     std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores,
     int threadPriority);
 
-static void processFile(string basicString, bool isLocal, InstanceStreamHandler &handler, bool isEmbedGraph) ;
+static void processFile(string basicString, bool isLocal, InstanceStreamHandler &handler, bool
+    isEmbedGraph) ;
 
 char *converter(const std::string &s) {
     char *pc = new char[s.size() + 1];
@@ -5303,14 +5304,13 @@ static void hdfs_start_stream_command(int connFd, bool *loop_exit_p, bool isLoca
     }
     instance_logger.debug("Sent : " + JasmineGraphInstanceProtocol::HDFS_STREAM_END_ACK);
 
-    processFile(fileName, isLocalStream, instanceStreamHandler , isEmbedGraph.data());
-
+processFile(fileName, isLocalStream, instanceStreamHandler, isEmbedGraph == "true");
     // delete file chunk after adding to the store
     Utils::deleteFile(fullFilePath);
 }
 
 static void processFile(string fileName, bool isLocal,
-                                              InstanceStreamHandler &handler ,bool isEmbedGraph) {
+                                              InstanceStreamHandler &handler , bool isEmbedGraph) {
     std::string fileDirectory = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder") + "/";
     std::string filePath = fileDirectory + fileName;
 
@@ -5342,6 +5342,7 @@ static void processFile(string fileName, bool isLocal,
 
     instance_logger.debug("Processing file: " + filePath);
     instance_logger.debug("isEmbed enabled: " + to_string(isEmbedGraph));
+
 
     // check file contents
     if (file.peek() == std::ifstream::traits_type::eof()) {
