@@ -53,6 +53,7 @@ spec:
           ports:
             - containerPort: 7777
             - containerPort: 7778
+            - containerPort: 7776
           volumeMounts:
             - mountPath: /home/ubuntu/software/jasminegraph/metadb
               name: jasminegraph-metadb

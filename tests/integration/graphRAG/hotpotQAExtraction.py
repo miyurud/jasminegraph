@@ -1,7 +1,9 @@
 import json
 
 # Replace with your dataset file
-with open("/home/sajeenthiran/FYP/Data/QA/hotpot_train_v1.1.json", "r", encoding="utf-8") as f:
+with open(
+    "/home/sajeenthiran/FYP/Data/QA/hotpot_train_v1.1.json", "r", encoding="utf-8"
+) as f:
     data = json.load(f)
 
 
@@ -43,7 +45,7 @@ print(f"Total records: {len(data)}")
 os.makedirs(output_dir, exist_ok=True)
 
 # Process each record
-folder_id=0
+folder_id = 0
 for item in data[:20]:
     record_id = item["_id"]
     record_folder = os.path.join(output_dir, record_id)
@@ -62,7 +64,7 @@ for item in data[:20]:
     qa_data = {
         "id": record_id,
         "question": item.get("question", ""),
-        "answer": item.get("answer", "")
+        "answer": item.get("answer", ""),
     }
     qa_path = os.path.join(record_folder, "qa_pairs.json")
     with open(qa_path, "w", encoding="utf-8") as f:

@@ -10,8 +10,9 @@ import time
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 
 HOST = "127.0.0.1"
-PORT = 7777   # JasmineGraph master port
+PORT = 7777  # JasmineGraph master port
 LINE_END = b"\r\n"
+
 
 # ---------------------------
 # Helpers
@@ -26,6 +27,7 @@ def recv_until(sock, stop=b"\n"):
         if buffer.endswith(stop):
             break
     return buffer.decode("utf-8")
+
 
 def query_jasminegraph(question: str) -> dict:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
@@ -46,6 +48,7 @@ def query_jasminegraph(question: str) -> dict:
         except Exception:
             return {"raw": response.strip()}
 
+
 def format_graph_context(graph_data: dict) -> str:
     if "nodes" in graph_data and "paths" in graph_data:
         nodes = graph_data["nodes"]
@@ -55,6 +58,7 @@ def format_graph_context(graph_data: dict) -> str:
         return f"Nodes:\n{node_text}\n\nPaths:\n{path_text}"
     else:
         return json.dumps(graph_data, indent=2)
+
 
 def ask_llama3(context: str, question: str) -> str:
     prompt = f"""You are given a graph substructure from a knowledge graph.
@@ -73,6 +77,7 @@ Answer:"""
     )
     return response.json()["response"].strip()
 
+
 # ---------------------------
 # F1 Scoring
 # ---------------------------
@@ -80,6 +85,7 @@ def normalize(text):
     text = text.lower()
     text = re.sub(r"[^a-z0-9]+", " ", text)
     return text.strip().split()
+
 
 def f1_score(prediction, ground_truth):
     pred_tokens = normalize(prediction)
@@ -91,6 +97,7 @@ def f1_score(prediction, ground_truth):
     precision = num_same / len(pred_tokens)
     recall = num_same / len(truth_tokens)
     return 2 * precision * recall / (precision + recall)
+
 
 # ---------------------------
 # Validation Pipeline
@@ -127,6 +134,7 @@ def main():
         print(f"F1: {score:.2f}\n")
 
     print("Average F1:", sum(scores) / len(scores))
+
 
 if __name__ == "__main__":
     main()

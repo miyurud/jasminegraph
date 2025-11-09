@@ -9,14 +9,13 @@ import random
 import time
 
 
-
 import requests
+
 # from rapidfuzz import fuzz
 
 # from tests.integration.graphRAG.fetch_pred import run_cypher_query, parse_results
 
 # from tests.integration.graphRAG.fetch_pred import run_cypher_query, parse_results, OUTPUT_FILE
-
 
 
 # Run hostname -I
@@ -31,8 +30,8 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 SERVER_IP = first_ip
 # JasmineGraph master config
-HOST = '127.0.0.1'
-HDFS_PORT ='9000'
+HOST = "127.0.0.1"
+HDFS_PORT = "9000"
 
 PORT = 7777
 LINE_END = b"\r\n"
@@ -41,9 +40,7 @@ LINE_END = b"\r\n"
 TEXT_FOLDER = "gold"
 
 # LLM runner addresses (comma-separated)
-LLM_RUNNERS = (
-        f"http://{SERVER_IP}:11450," * 2
-)
+LLM_RUNNERS = f"http://{SERVER_IP}:11450," * 2
 RUNNER_URLS = [u.strip() for u in LLM_RUNNERS.split(",") if u.strip()]
 REASONING_MODEL_URI = RUNNER_URLS[0] if RUNNER_URLS else None
 REASONING_MODEL_URI = f"http://{SERVER_IP}:11450"
@@ -52,7 +49,7 @@ REASONING_MODEL_URI = f"http://{SERVER_IP}:11450"
 # LLM_MODEL = "gemma3:4b-it-qat"
 LLM_MODEL = "gemma3:12b"
 # LLM_INFERENCE_ENGINE="vllm"
-LLM_INFERENCE_ENGINE="ollama"
+LLM_INFERENCE_ENGINE = "ollama"
 
 CHUNK_SIZE = "2048"
 # HDFS target folder
@@ -61,6 +58,8 @@ HDFS_BASE = "/home/"
 # Path to your bash script
 UPLOAD_SCRIPT = "../../utils/datasets/upload-hdfs-file.sh"
 OLLAMA_SETUP_SCRIPT = "../utils/start-ollama.sh"
+
+
 def recv_until(sock, stop=b"\n"):
     buffer = bytearray()
     while True:
@@ -73,6 +72,7 @@ def recv_until(sock, stop=b"\n"):
             break
     return buffer.decode("utf-8")
 
+
 def upload_to_hdfs(local_file, upload_file_script):
     """Uploads a local file to HDFS using your bash script"""
     folder_name = os.path.basename(os.path.dirname(local_file))
@@ -82,6 +82,7 @@ def upload_to_hdfs(local_file, upload_file_script):
     logging.info(f"Uploading {local_file} → HDFS:{hdfs_path}")
     subprocess.run(["bash", upload_file_script, local_file, folder_name], check=True)
     return hdfs_path
+
 
 def send_file_to_master(hdfs_file_path):
     logging.info(f"Sending {hdfs_file_path} to JasmineGraph master")
@@ -103,7 +104,7 @@ def send_file_to_master(hdfs_file_path):
 
         msg = recv_until(sock, b"\n")
         logging.info("Master: " + msg.strip())
-        sock.sendall(HDFS_PORT.encode("utf-8")+ LINE_END)
+        sock.sendall(HDFS_PORT.encode("utf-8") + LINE_END)
         msg = recv_until(sock, b"\n")
         logging.info("Master: " + msg.strip())
         sock.sendall(hdfs_file_path.encode("utf-8") + LINE_END)
@@ -111,14 +112,15 @@ def send_file_to_master(hdfs_file_path):
         msg = recv_until(sock, b"\n")
         logging.info("Master 101: " + msg.strip())
 
-        if msg.strip() == "There exists a graph with the file path, would you like to resume?":
+        if (
+            msg.strip()
+            == "There exists a graph with the file path, would you like to resume?"
+        ):
             sock.sendall(b"n" + LINE_END)
             msg = recv_until(sock, b"\n")
             logging.info("Master 106: " + msg.strip())
 
-
             sock.sendall(LLM_RUNNERS.encode("utf-8") + LINE_END)
-
 
             msg5 = recv_until(sock, b"\n")
             logging.info("Master1133 : " + msg5.strip())
@@ -140,16 +142,15 @@ def send_file_to_master(hdfs_file_path):
             else:
                 logging.error("❌ Unexpected response from master: " + final)
 
-
         else:
-            print("LLM_RUNNERS 133 "+ LLM_RUNNERS)
+            print("LLM_RUNNERS 133 " + LLM_RUNNERS)
             # msg = recv_until(sock, b"\n")
             logging.info("Master 135: " + msg.strip())
             sock.sendall(LLM_RUNNERS.encode("utf-8") + LINE_END)
 
             msg = recv_until(sock, b"\n")
             logging.info("Master: " + msg.strip())
-            sock.sendall(LLM_INFERENCE_ENGINE.encode("utf-8")+ LINE_END)
+            sock.sendall(LLM_INFERENCE_ENGINE.encode("utf-8") + LINE_END)
 
             msg = recv_until(sock, b"\n")
             logging.info("Master: " + msg.strip())
@@ -160,7 +161,10 @@ def send_file_to_master(hdfs_file_path):
             sock.sendall(CHUNK_SIZE.encode("utf-8") + LINE_END)
             final = recv_until(sock, b"\n")
             logging.info("Master: " + final.strip())
-            if final.strip()== "There exists a graph with the file path, would you like to resume?":
+            if (
+                final.strip()
+                == "There exists a graph with the file path, would you like to resume?"
+            ):
                 sock.sendall(b"n" + LINE_END)
                 final = recv_until(sock, b"\n")
                 logging.info("Master: " + final.strip())
@@ -172,11 +176,6 @@ def send_file_to_master(hdfs_file_path):
                 sock.sendall(b"exit" + LINE_END)
 
             return final.strip().split(":")[1]
-
-
-
-
-
 
 
 def get_last_graph_id():
@@ -205,6 +204,8 @@ def get_last_graph_id():
     # Extract and return the highest graph ID
     graph_ids = [g.get("idgraph", 0) for g in graphs if isinstance(g, dict)]
     return max(graph_ids) if graph_ids else 0
+
+
 def call_reasoning_model(prompt):
     """
     Call reasoning model (Ollama or vLLM) using the first runner URL.
@@ -217,11 +218,7 @@ def call_reasoning_model(prompt):
     try:
         if LLM_INFERENCE_ENGINE.lower() == "ollama":
             url = f"{REASONING_MODEL_URI}/api/generate"
-            payload = {
-                "model": LLM_MODEL,
-                "prompt": prompt,
-                "stream": False
-            }
+            payload = {"model": LLM_MODEL, "prompt": prompt, "stream": False}
             resp = requests.post(url, json=payload, timeout=120)
             resp.raise_for_status()
             data = resp.json()
@@ -234,10 +231,10 @@ def call_reasoning_model(prompt):
                 "model": LLM_MODEL,
                 "messages": [
                     {"role": "system", "content": "You are a reasoning assistant."},
-                    {"role": "user", "content": prompt}
+                    {"role": "user", "content": prompt},
                 ],
                 "temperature": 0.2,
-                "max_tokens": 512
+                "max_tokens": 512,
             }
             resp = requests.post(url, json=payload, timeout=120)
             resp.raise_for_status()
@@ -250,32 +247,36 @@ def call_reasoning_model(prompt):
     except Exception as e:
         logging.error(f"❌ Reasoning model call failed: {e}")
         return ""
+
+
 def compress_triples(triples):
     """
     Compress triples to short string representation:
     [{"head_entity":"A","relation":"is","tail_entity":"B"}] -> ["A|is|B"]
     """
-    compressed = [f"{t['head_entity']}|{t['relation']}|{t['tail_entity']}" for t in triples]
+    compressed = [
+        f"{t['head_entity']}|{t['relation']}|{t['tail_entity']}" for t in triples
+    ]
     return compressed
+
+
 def call_llm_ollama(prompt):
     """Call Ollama API and return model response"""
 
-    endpoint= "/api/generate"
+    endpoint = "/api/generate"
     url = REASONING_MODEL_URI + endpoint
-    payload = {
-        "model": "deepseek-r1",
-        "prompt": prompt,
-        "stream": False
-    }
+    payload = {"model": "deepseek-r1", "prompt": prompt, "stream": False}
     try:
         resp = requests.post(url, json=payload, timeout=120)
         resp.raise_for_status()
         data = resp.json()
-        print("LLM response:"+str(data))
+        print("LLM response:" + str(data))
         return data.get("response", "").strip()
     except Exception as e:
         logging.error(f"❌ LLM call failed: {e}")
         return ""
+
+
 def extract_final_answer(text: str) -> str:
     # Remove <think>...</think> reasoning if present
     if "<think>" in text and "</think>" in text:
@@ -316,6 +317,7 @@ def run_cypher_query(graph_id: str, query: str):
 
         return rows
 
+
 def parse_results(raw_rows):
     """Convert raw JSON rows from JasmineGraph to head-tail-relation triples"""
     triples = []
@@ -324,15 +326,12 @@ def parse_results(raw_rows):
             data = json.loads(row)
             head = data["n"].get("name", data["n"].get("id"))
             tail = data["m"].get("name", data["m"].get("id"))
-            rel  = data["r"].get("type", "related_to")
-            triples.append({
-                "head_entity": head,
-                "tail_entity": tail,
-                "relation": rel
-            })
+            rel = data["r"].get("type", "related_to")
+            triples.append({"head_entity": head, "tail_entity": tail, "relation": rel})
         except Exception as e:
             logging.warning(f"Could not parse row: {row} ({e})")
     return triples
+
 
 def wait_until_graph_ready(HOST, PORT):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
@@ -354,10 +353,10 @@ def wait_until_graph_ready(HOST, PORT):
                 # decode incrementally to count brackets
                 text = chunk.decode(errors="ignore")
                 for ch in text:
-                    if ch == '[':
+                    if ch == "[":
                         started = True
                         bracket_count += 1
-                    elif ch == ']':
+                    elif ch == "]":
                         bracket_count -= 1
 
                 # stop only when we started and brackets are balanced
@@ -377,7 +376,7 @@ def wait_until_graph_ready(HOST, PORT):
                 time.sleep(5)
                 continue
 
-            json_text = raw[start:end + 1]
+            json_text = raw[start : end + 1]
 
             try:
                 graphs = json.loads(json_text)
@@ -410,6 +409,7 @@ def wait_until_graph_ready(HOST, PORT):
     print("✅ Graph is ready:", last_graph)
     return last_graph
 
+
 def get_upbytes_percentage(HOST, PORT, id_value):
     """Send UPBYTES|<id> and return the percentage (3rd numeric field)."""
     command = f"UPBYTES|{id_value}\n".encode("utf-8")
@@ -419,10 +419,11 @@ def get_upbytes_percentage(HOST, PORT, id_value):
         response = recv_until(sock)
         sock.sendall(b"exit\n")
 
-    parts = response.split('|')
+    parts = response.split("|")
 
     # if upload completed
-    if len(parts)==1 :return 100.00
+    if len(parts) == 1:
+        return 100.00
     if len(parts) < 4:
         raise ValueError(f"Unexpected UPBYTES response: {response}")
     try:
@@ -430,6 +431,7 @@ def get_upbytes_percentage(HOST, PORT, id_value):
     except ValueError:
         raise ValueError(f"Cannot convert percentage to float: {parts[3]}")
     return percentage
+
 
 def wait_until_complete(HOST, PORT, id_value, poll_interval=5):
     """Poll UPBYTES|<id> until percentage reaches 100."""
@@ -443,13 +445,14 @@ def wait_until_complete(HOST, PORT, id_value, poll_interval=5):
         except Exception as e:
             print(f"[WARN] Failed to get UPBYTES percentage: {e}")
         time.sleep(poll_interval)
-def test_KG(llm_inference_engine_startup_script, text_folder , upload_file_script):
+
+
+def test_KG(llm_inference_engine_startup_script, text_folder, upload_file_script):
 
     query = "MATCH (n)-[r]-(m) RETURN n,r,m"
 
     # start the llm inference engine
     subprocess.run(["bash", llm_inference_engine_startup_script], check=True)
-
 
     last_graph_id = get_last_graph_id()
     graph_id = last_graph_id + 1
@@ -468,7 +471,7 @@ def test_KG(llm_inference_engine_startup_script, text_folder , upload_file_scrip
     for local_path in all_txt_files:
         folder_name = os.path.basename(os.path.dirname(local_path))
         try:
-            hdfs_path = upload_to_hdfs(local_path , upload_file_script)
+            hdfs_path = upload_to_hdfs(local_path, upload_file_script)
             graph_id = send_file_to_master(hdfs_path)
         except subprocess.CalledProcessError as e:
             logging.error(f"Failed to upload {local_path} to HDFS: {e}")
@@ -519,8 +522,6 @@ def test_KG(llm_inference_engine_startup_script, text_folder , upload_file_scrip
             with open(qa_file, "r", encoding="utf-8") as f:
                 qa_data = json.load(f)
 
-
-
             question = qa_data["question"]
             answer = qa_data["answer"]
             compressed_triples_ = compress_triples(triples)
@@ -531,20 +532,21 @@ Given the extracted triples:
 Question: {question}
  Answer in a short phrase. Do not include reasoning, explanations, or extra text."""
 
-
-
             predicted_answer = extract_final_answer(call_reasoning_model(prompt))
 
             pred_out = {
                 "id": qa_data["id"],
                 "question": question,
                 "gold_answer": answer,
-                "predicted_answer": predicted_answer
+                "predicted_answer": predicted_answer,
             }
-            with open(os.path.join(output_dir, "pred_answer.json"), "w", encoding="utf-8") as f:
+            with open(
+                os.path.join(output_dir, "pred_answer.json"), "w", encoding="utf-8"
+            ) as f:
                 json.dump(pred_out, f, indent=2, ensure_ascii=False)
 
         # graph_id += 1
+
 
 # def evaluate_predictions_fuzzy(pred_base="pred", threshold=90):
 #     """
@@ -675,5 +677,5 @@ Question: {question}
 #                 logging.error(f"Error processing {path}: {e}")
 
 if __name__ == "__main__":
-    test_KG(OLLAMA_SETUP_SCRIPT , TEXT_FOLDER ,UPLOAD_SCRIPT)
+    test_KG(OLLAMA_SETUP_SCRIPT, TEXT_FOLDER, UPLOAD_SCRIPT)
     # evaluate_predictions_fuzzy(pred_base="pred", threshold=90)
