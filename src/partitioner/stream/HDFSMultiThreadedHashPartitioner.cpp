@@ -271,6 +271,7 @@ void HDFSMultiThreadedHashPartitioner::consumeEdgeCuts(int partitionIndex, Jasmi
             string sourceId = std::string(jsonEdge["source"]["id"]);
             string destinationId = std::string(jsonEdge["destination"]["id"]);
 
+            // First, add edge cuts to the current partition
             {
                 std::lock_guard<std::mutex> partitionLock(partitionLocks[partitionIndex]);
                 partitions[partitionIndex]->addToEdgeCuts(sourceId, destinationId, partitionIndex);

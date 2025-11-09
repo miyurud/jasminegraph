@@ -32,7 +32,7 @@ FILENAME=$(basename "$LOCAL_FILE")
 # Step 2: Upload the file to HDFS from inside the container
 echo "Uploading $FILENAME to HDFS path $HDFS_PATH..."
 docker exec -it "$DOCKER_CONTAINER_NAME" hadoop fs -mkdir -p "$HDFS_PATH"
-docker exec -it "$DOCKER_CONTAINER_NAME" hadoop fs -put  "/tmp/$FILENAME" "$HDFS_PATH"
+docker exec -it "$DOCKER_CONTAINER_NAME" hadoop fs -put "/tmp/$FILENAME" "$HDFS_PATH"
 
 # Optional: Remove the temp file inside container
 docker exec -it "$DOCKER_CONTAINER_NAME" rm "/tmp/$FILENAME"

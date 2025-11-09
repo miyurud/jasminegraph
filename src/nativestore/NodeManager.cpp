@@ -295,19 +295,10 @@ NodeBlock *NodeManager::addNode(std::string nodeId) {
     node_manager_logger.debug("Adding node index " + std::to_string(this->nextNodeIndex));
     if (this->nodeIndex.find(nodeId) == this->nodeIndex.end()) {
         node_manager_logger.debug("Can't find NodeId (" + nodeId + ") in the index database");
-        // bool isNumeric = !nodeId.empty() && std::all_of(nodeId.begin(), nodeId.end(), ::isdigit);
-
-        // if (isNumeric) {
-        //     node_manager_logger.debug("Is numeric Id");
-        //     vertexId = std::stoul(nodeId); // use nodeId directly
-        // } else {
-            unsigned int vertexId = this->nextNodeIndex;
-
-        // }
-
-        NodeBlock *sourceBlk = new NodeBlock(to_string(vertexId), vertexId, this->nextNodeIndex * NodeBlock::BLOCK_SIZE);
+        unsigned int vertexId = std::stoul(nodeId);
+        NodeBlock *sourceBlk = new NodeBlock(nodeId, vertexId, this->nextNodeIndex * NodeBlock::BLOCK_SIZE);
         this->addNodeIndex(nodeId, this->nextNodeIndex);
-        // assignedNodeIndex = this->nextNodeIndex;
+        assignedNodeIndex = this->nextNodeIndex;
         this->nextNodeIndex++;
         sourceBlk->setLabel(nodeId.c_str());
         sourceBlk->save();
