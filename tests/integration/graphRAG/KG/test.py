@@ -445,7 +445,7 @@ def wait_until_complete(HOST, PORT, id_value, poll_interval=5):
     attempt_count=0
     while True:
         try:
-            if attempt_count>10:break
+            if attempt_count>10:exit(1)
             attempt_count+=1
             percent = get_upbytes_percentage(HOST, PORT, id_value)
             print(f"UPBYTES|{id_value} progress: {percent:.2f}%")
