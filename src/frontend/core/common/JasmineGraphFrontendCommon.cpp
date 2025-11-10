@@ -211,7 +211,6 @@ bool JasmineGraphFrontEndCommon::checkServerBusy(std::atomic<int> *currentFESess
 
 std::string JasmineGraphFrontEndCommon::readAndProcessInput(int connFd, char* data, int &failCnt) {
     std::string line = Utils::read_str_wrapper(connFd, data, FRONTEND_DATA_LENGTH, true);
-    // common_logger.info("common:"+line);
     if (line.empty()) {
         failCnt++;
         if (failCnt > 4) {

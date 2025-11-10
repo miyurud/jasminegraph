@@ -15,22 +15,24 @@ limitations under the License.
 
 #include <arpa/inet.h>
 #include <yaml-cpp/yaml.h>
-#include <optional>
+
 #include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <map>
 #include <nlohmann/json.hpp>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-#include "../metadb/SQLiteDBInterface.h"
-#include "../performancedb/PerformanceSQLiteDBInterface.h"
-#include "../frontend/JasmineGraphFrontEndProtocol.h"
 #include "../backend/JasmineGraphBackendProtocol.h"
-#include "Conts.h"
+#include "../frontend/JasmineGraphFrontEndProtocol.h"
+#include "../metadb/SQLiteDBInterface.h"
+#include "../performance/metrics/PerformanceUtil.h"
+#include "../performancedb/PerformanceSQLiteDBInterface.h"
 #include "../query/processor/cypher/util/SharedBuffer.h"
+#include "Conts.h"
 
 using std::map;
 using std::unordered_map;
@@ -48,6 +50,11 @@ class Utils {
         std::string username;
         std::string port;
         std::string dataPort;
+    };
+    struct MetricHistory {
+        std::deque<double> cpu_usage;
+        std::deque<double> memory_usage;
+        std::deque<double> load_average;
     };
 
     static std::string getJasmineGraphProperty(std::string key);
@@ -186,6 +193,10 @@ class Utils {
     static std::string send_job(std::string job_group_name, std::string metric_name, std::string metric_value);
 
     static map<string, string> getMetricMap(string metricName);
+
+    static std::unordered_map<std::string, MetricHistory> getMetricsForHosts(
+        const std::vector<std::string> &metricNames, int secondsBack);
+
 
     static double exponentialWeightedMovingAverage(const std::deque<double>& vals, double alpha = 0.3);
     static  double  computeSlope(const std::deque<double>& vals);

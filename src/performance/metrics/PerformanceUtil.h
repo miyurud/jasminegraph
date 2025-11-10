@@ -51,28 +51,6 @@ struct Place {
     std::string placeId;
 };
 
-struct MetricHistory {
-    std::deque<double> cpu_usage;
-    std::deque<double> memory_usage;
-    std::deque<double> load_average;
-
-    static const size_t MAX_HISTORY = 20;  // keep last 20 samples
-
-    void addCpu(double val) {
-        if (cpu_usage.size() >= MAX_HISTORY) cpu_usage.pop_front();
-        cpu_usage.push_back(val);
-    }
-
-    void addMemory(double val) {
-        if (memory_usage.size() >= MAX_HISTORY) memory_usage.pop_front();
-        memory_usage.push_back(val);
-    }
-
-    void addLoad(double val) {
-        if (load_average.size() >= MAX_HISTORY) load_average.pop_front();
-        load_average.push_back(val);
-    }
-};
 
 class PerformanceUtil {
  public:
@@ -103,7 +81,6 @@ class PerformanceUtil {
                                                  int elapsedTime, std::string masterIP);
     static double getAggregatedLoadAverage(std::string graphId, std::string placeId, std::string command,
                                            std::string category, int elapsedTime);
-    static unordered_map<std::string, MetricHistory> history_store;
 
 
  private:
@@ -112,6 +89,8 @@ class PerformanceUtil {
     static void adjustAggregateLoadMap(std::map<std::string, std::vector<double>>& aggregateLoadAvgMap,
                                        std::map<std::string, std::vector<double>>& newJobLoadAvgMap,
                                        long newJobAcceptanceTime);
+
+
 };
 
 #endif  // JASMINEGRAPH_PERFORMANCEUTIL_H

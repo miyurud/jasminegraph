@@ -227,12 +227,29 @@ long StatisticCollector::getTotalMemoryAllocated() {
     }
     return 0;
 }
+double StatisticCollector::getMemoryUsagePercentage() {
+    long totalMem = getTotalMemoryAllocated();   // in KB
+    long usedMem = getTotalMemoryUsage();        // in KB
+
+    if (totalMem <= 0) return -1.0;             // avoid division by zero
+
+    return (usedMem / (double)totalMem);
+}
+
 
 int StatisticCollector::getTotalNumberofCores() {
     unsigned concurentThreadsSupported = std::thread::hardware_concurrency();
     return concurentThreadsSupported;
 }
 
+double StatisticCollector::getCpuLoadPercentage() {
+    int cores = getTotalNumberofCores();       // total CPU cores
+    double load = getLoadAverage();            // 1-min load average
+
+    if (cores <= 0) return -1.0;              // avoid division by zero
+
+    return (load / cores) ;
+}
 long StatisticCollector::getTotalMemoryUsage() {
     std::string token;
     std::ifstream file("/proc/meminfo");

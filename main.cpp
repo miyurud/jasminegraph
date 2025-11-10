@@ -73,15 +73,6 @@ int main(int argc, char *argv[]) {
     std::string enableNmon = "false";
     main_logger.info("Using JASMINE_GRAPH_HOME=" + JASMINEGRAPH_HOME);
 
-    // if (mode == Conts::JASMINEGRAPH_RUNTIME_PROFILE_WORKER){
-    //     setenv("HOST_NAME", argv[worker_mode_args::HOST_NAME], 1);
-    //
-    // }else {
-    //     setenv("HOST_NAME", argv[master_mode_args::MASTER_IP], 1);
-    //
-    // }
-    // setenv("HOST_NAME", argv[worker_mode_args::HOST_NAME], 1);
-
     StatisticCollector::init();
     thread schedulerThread(SchedulerService::startScheduler);
 
@@ -103,6 +94,7 @@ int main(int argc, char *argv[]) {
         server->run(masterIp, numberOfWorkers, workerIps, enableNmon);
 
         schedulerThread.join();
+
         delete server;
     } else if (mode == Conts::JASMINEGRAPH_RUNTIME_PROFILE_WORKER) {
         main_logger.info(to_string(argc));

@@ -7,7 +7,7 @@ NUM_PARALLEL=${1:-4}  # Default to 4 parallel queries
 HOST_PORT=${2:-11441} # Default port 11441
 CONTAINER_NAME="gemma3_container"
 DOCKER_IMAGE="ollama/ollama"
-MODELS=("gemma3:4b-it-qat" "nomic-embed-text" ) # List of models to launch
+MODELS=("gemma3:4b-it-qat" "nomic-embed-text") # List of models to launch
 
 # Detect GPU support
 if command -v nvidia-smi &>/dev/null && nvidia-smi >/dev/null 2>&1; then
@@ -60,6 +60,7 @@ for MODEL_NAME in "${MODELS[@]}"; do
         fi
     done
 done
+docker network connect --ip 172.30.5.100 jasminegraph_net "$CONTAINER_NAME"
 
 echo "Container started and all models are ready!"
 echo "Access API at http://localhost:${HOST_PORT}"

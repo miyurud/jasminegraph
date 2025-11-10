@@ -17,6 +17,7 @@ services:
       - TESTING=true
     networks:
       - jasminegraph_net
+      - prom_net
     command: --MODE 1 --MASTERIP 172.30.5.1 --WORKERS 2 --WORKERIP 172.30.5.1 --ENABLE_NMON false
 
   namenode:

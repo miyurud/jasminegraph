@@ -13,9 +13,10 @@ limitations under the License.
 
 #include "PerformanceUtil.h"
 
+#include "../../server/JasmineGraphServer.h"
+
 using namespace std::chrono;
 std::map<std::string, std::vector<ResourceUsageInfo>> resourceUsageMap;
-std::unordered_map<std::string, MetricHistory> PerformanceUtil::history_store;
 
 static size_t write_callback(void *contents, size_t size, size_t nmemb, std::string *output);
 static size_t write_file_callback(void* contents, size_t size, size_t nmemb, void* userp);
@@ -62,11 +63,17 @@ int PerformanceUtil::collectPerformanceStatistics() {
     long totalMemoryUsage = StatisticCollector::getTotalMemoryUsage();
     Utils::send_job("", "total_memory", std::to_string(totalMemoryUsage));
 
+    double totalMemoryUsagePercentage = StatisticCollector::getMemoryUsagePercentage();
+    Utils::send_job("", "memory_usage_percentage", std::to_string(totalMemoryUsagePercentage));
+
+
     long usedSwapSpace = StatisticCollector::getUsedSwapSpace();
     Utils::send_job("", "used_swap_space", std::to_string(usedSwapSpace));
 
     double currentLoadAverage = StatisticCollector::getLoadAverage();
     Utils::send_job("", "load_average", std::to_string(currentLoadAverage));
+    double cpuLoadPercentage = StatisticCollector::getCpuLoadPercentage();
+    Utils::send_job("", "cpu_load_percentage", std::to_string(cpuLoadPercentage));
 
     long totalSwapSpace = StatisticCollector::getTotalSwapSpace();
     Utils::send_job("", "total_swap_space", std::to_string(totalSwapSpace));
@@ -89,6 +96,9 @@ int PerformanceUtil::collectPerformanceStatistics() {
     scheduler_logger.info("Pushed performance metrics");
     return 0;
 }
+
+
+
 
 std::vector<Place> PerformanceUtil::getHostReporterList() {
     std::vector<Place> hostReporterList;

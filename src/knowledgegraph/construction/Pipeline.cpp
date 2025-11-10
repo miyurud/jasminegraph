@@ -147,7 +147,6 @@ void Pipeline::streamFromHDFSIntoBuffer() {
         } else {
             leftover.clear();
         }
-        // leftover = chunk_text.substr(last_newline + 1);
 
         kg_pipeline_stream_handler_logger.info("Full lines chunk size: " + std::to_string(full_lines_chunk.size()));
         kg_pipeline_stream_handler_logger.info("Leftover after split size: " + std::to_string(leftover.size()));
@@ -167,14 +166,6 @@ void Pipeline::streamFromHDFSIntoBuffer() {
 
         chunk_idx++;
         kg_pipeline_stream_handler_logger.info("Finished processing chunk " + std::to_string(chunk_idx));
-        // bytes_read_so_far += read_bytes;
-
-        // Utils::sendExpectResponse( connFd, std::to_string(read_bytes).c_str());
-
-        // Utils::send_long_wrapper( connFd, &read_bytes, sizeof(read_bytes));
-
-        // Utils::send_str_wrapper( connFd, "test");
-        // Utils::read_str_trim_wrapper( connFd, "test");
     }
 
     // Push leftover partial line if any (last chunk)
@@ -443,24 +434,6 @@ json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
         t.join();
     }
 
-    //
-    // long vertices = partitioner.getVertexCount();
-    // long edges = partitioner.getEdgeCount();
-    //
-    // std::string sqlStatement = "UPDATE graph SET vertexcount = '" +
-    // std::to_string(vertices) +
-    //                            "', centralpartitioncount = '" +
-    //                            std::to_string(this->numberOfPartitions) +
-    //                            "', edgecount = '" + std::to_string(edges) +
-    //                            "', graph_status_idgraph_status = '" +
-    //                            std::to_string(Conts::GRAPH_STATUS::OPERATIONAL)
-    //                            +
-    //                            "' WHERE idgraph = '" +
-    //                            std::to_string(this->graphId) + "'";
-    //
-    // dbLock.lock();
-    // this->sqlite->runUpdate(sqlStatement);
-    // dbLock.unlock();
 
     auto endTime = high_resolution_clock::now();
     std::chrono::duration<double> duration = endTime - startTime;

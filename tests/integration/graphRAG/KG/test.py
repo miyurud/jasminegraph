@@ -445,7 +445,7 @@ def wait_until_complete(HOST, PORT, id_value, poll_interval=5):
     attempt_count=0
     while True:
         try:
-            if attempt_count>10:exit(1)
+            if attempt_count>100:exit(1)
             attempt_count+=1
             percent = get_upbytes_percentage(HOST, PORT, id_value)
             print(f"UPBYTES|{id_value} progress: {percent:.2f}%")
@@ -506,7 +506,8 @@ def test_KG(llm_inference_engine_startup_script, text_folder, upload_file_script
         #         if "nop" == data[-1].split("|")[4]:
         #             time.sleep(10)
         #         else:break
-        wait_until_complete(HOST, 7776, graph_id)
+        time.sleep(120)
+        # wait_until_complete(HOST, 7776, graph_id)
         raw = run_cypher_query(str(graph_id), query)
         triples = parse_results(raw)
 
