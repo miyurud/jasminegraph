@@ -862,7 +862,7 @@ JasmineGraphServer::worker JasmineGraphServer::getDesignatedWorker() {
     server_logger.debug("Selecting designated worker based on Prometheus metrics...");
 
     // Step 1: Define the metrics we care about
-    std::vector<std::string> metricNames = {"cpu_usage", "memory_usage", "load_average"};
+    std::vector<std::string> metricNames = {"cpu_usage", "memory_usage_percentage", "cpu_load_percentage"};
 
     // Step 2: Fetch metric history for all hosts for the last N seconds
     int secondsBack = 300; // last 5 minutes, configurable

@@ -63,11 +63,17 @@ int PerformanceUtil::collectPerformanceStatistics() {
     long totalMemoryUsage = StatisticCollector::getTotalMemoryUsage();
     Utils::send_job("", "total_memory", std::to_string(totalMemoryUsage));
 
+    double totalMemoryUsagePercentage = StatisticCollector::getMemoryUsagePercentage();
+    Utils::send_job("", "memory_usage_percentage", std::to_string(totalMemoryUsagePercentage));
+
+
     long usedSwapSpace = StatisticCollector::getUsedSwapSpace();
     Utils::send_job("", "used_swap_space", std::to_string(usedSwapSpace));
 
     double currentLoadAverage = StatisticCollector::getLoadAverage();
     Utils::send_job("", "load_average", std::to_string(currentLoadAverage));
+    double cpuLoadPercentage = StatisticCollector::getCpuLoadPercentage();
+    Utils::send_job("", "cpu_load_percentage", std::to_string(cpuLoadPercentage));
 
     long totalSwapSpace = StatisticCollector::getTotalSwapSpace();
     Utils::send_job("", "total_swap_space", std::to_string(totalSwapSpace));

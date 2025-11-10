@@ -51,10 +51,14 @@ class StatisticCollector {
     static double getCpuUsage();
     static long getTotalMemoryAllocated();
     static int getTotalNumberofCores();
+    static double getCpuLoadPercentage();
     static long getTotalMemoryUsage();
     static double getTotalCpuUsage();
     static double getLoadAverage();
     static void logLoadAverage(std::string name);
+    static double getMemoryUsagePercentage();
+
+
 };
 
 #endif  // JASMINEGRAPH_STATISTICCOLLECTOR_H
