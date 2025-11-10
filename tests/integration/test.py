@@ -9,7 +9,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-
+import subprocess
 import sys
 import socket
 import logging
@@ -629,4 +629,5 @@ def test(host, port):
             sys.exit(1)
 
 if __name__ == '__main__':
+    subprocess.run(["bash", OLLAMA_SETUP_SCRIPT], check=True)
     test(HOST, PORT)

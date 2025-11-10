@@ -89,7 +89,6 @@ class PerformanceUtil {
     static void adjustAggregateLoadMap(std::map<std::string, std::vector<double>>& aggregateLoadAvgMap,
                                        std::map<std::string, std::vector<double>>& newJobLoadAvgMap,
                                        long newJobAcceptanceTime);
-
 };
 
 #endif  // JASMINEGRAPH_PERFORMANCEUTIL_H

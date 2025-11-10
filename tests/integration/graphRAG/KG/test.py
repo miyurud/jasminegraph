@@ -184,7 +184,6 @@ def test_KG(llm_inference_engine_startup_script, text_folder, upload_file_script
     query = "MATCH (n)-[r]-(m) RETURN n,r,m"
 
     # start the llm inference engine
-    # subprocess.run(["bash", llm_inference_engine_startup_script], check=True)
 
     all_txt_files = []
     for root, _, files in os.walk(text_folder):
@@ -207,7 +206,6 @@ def test_KG(llm_inference_engine_startup_script, text_folder, upload_file_script
 
 
         time.sleep(120)
-        # wait_until_complete(HOST, 7776, graph_id)
         raw = run_cypher_query(str(graph_id), query)
         triples = parse_results(raw)
 

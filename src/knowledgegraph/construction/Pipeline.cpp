@@ -404,7 +404,6 @@ json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
                                                                         " adding edge cut to partition " +
                                                                         std::to_string(sourceIndex));
                                 partitioner.addEdgeCut(obj.dump(), sourceIndex);
-
                             }
                         } else {
                             kg_pipeline_stream_handler_logger.error("Malformed line: missing source/destination ID: " +

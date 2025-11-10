@@ -82,7 +82,7 @@ class Pipeline {
     int64_t realtime_bytes_read_so_far = 0;
     bool stopFlag = false;
     std::unordered_map<std::string, long> nodeIndex;
-    unsigned int nextNodeIndex =0;
+    unsigned int nextNodeIndex = 0;
 };
 
 // ---------- Thread-safe queue ----------

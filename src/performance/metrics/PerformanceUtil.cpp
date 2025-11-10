@@ -35,7 +35,6 @@ void PerformanceUtil::init() {
         perfDb = new PerformanceSQLiteDBInterface();
         perfDb->init();
     }
-
 }
 
 int PerformanceUtil::collectPerformanceStatistics() {
