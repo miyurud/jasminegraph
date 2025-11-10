@@ -7,7 +7,6 @@ NUM_PARALLEL=${1:-4}  # Default to 4 parallel queries
 HOST_PORT=${2:-11441} # Default port 11441
 CONTAINER_NAME="gemma3_container"
 DOCKER_IMAGE="ollama/ollama"
-NETWORK_NAME="jasminegraph_net"
 MODELS=("gemma3:4b-it-qat" "nomic-embed-text") # List of models to launch
 
 # Detect GPU support
@@ -19,12 +18,6 @@ else
     GPU_FLAG=""
 fi
 
-# Ensure network exists
-if ! docker network ls | grep -q "$NETWORK_NAME"; then
-    echo "Creating Docker network: $NETWORK_NAME"
-    docker network create "$NETWORK_NAME"
-fi
-
 # Check if container already exists
 EXISTING_CONTAINER=$(docker ps -a -q -f name="$CONTAINER_NAME")
 
@@ -34,8 +27,6 @@ if [ -n "$EXISTING_CONTAINER" ]; then
 else
     echo "Container '$CONTAINER_NAME' does not exist. Creating and starting it..."
     docker run -d $GPU_FLAG \
-        --hostname "$CONTAINER_NAME" \
-        --network "$NETWORK_NAME" \
         -p "${HOST_PORT}:11434" \
         --name "$CONTAINER_NAME" \
         -e OLLAMA_NUM_PARALLEL="$NUM_PARALLEL" \
