@@ -79,6 +79,7 @@ class PerformanceUtil {
     // PerformanceUtil(SQLiteDBInterface *sqlLiteDB, PerformanceSQLiteDBInterface *perfDb);
     static void init();
     static int collectPerformanceStatistics();
+    int collectCummulativePerformanceStatistics();
     static int collectSLAResourceConsumption(std::vector<Place> placeList, std::string graphId, std::string command,
                                              std::string category, std::string masterIP, int elapsedTime,
                                              bool autoCalibrate);
