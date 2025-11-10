@@ -303,10 +303,8 @@ void JasmineGraphIncrementalLocalStore::addSourceProperties(
   char label[NodeBlock::LABEL_SIZE] = {0};
   std::ostringstream textForEmbedding;
 
-  incremental_localstore_logger.info("Adding source properties");
   incremental_localstore_logger.info(sourceJson["properties"].dump());
   if (sourceJson.contains("properties")) {
-    incremental_localstore_logger.info("inside if ");
     auto sourceProps = json(sourceJson["properties"]);
 
     if (!sourceProps.empty()) {
@@ -316,10 +314,7 @@ void JasmineGraphIncrementalLocalStore::addSourceProperties(
           strcpy(label, it.value().get<std::string>().c_str());
           relationBlock->getSource()->addLabel(&label[0]);
         }
-        incremental_localstore_logger.info("canctenated string " +
-                                           textForEmbedding.str());
         textForEmbedding << it.key() << ":" << value << " ";
-
         relationBlock->getSource()->addProperty(std::string(it.key()),
                                                 &value[0]);
       }
@@ -327,8 +322,6 @@ void JasmineGraphIncrementalLocalStore::addSourceProperties(
       if (this->embedNode) {
         std::string nodeText = textForEmbedding.str();
         if (!nodeText.empty()) {
-          // faiss::idx_t docId =
-          // std::stoll(sourceJson["id"].get<std::string>());
           if (faissStore->getEmbeddingById(sourceJson["id"]).size() == 0) {
             incremental_localstore_logger.error(
                 "Node with ID " + sourceJson["id"].get<std::string>() +
@@ -372,8 +365,6 @@ void JasmineGraphIncrementalLocalStore::addDestinationProperties(
       if (this->embedNode) {
         std::string nodeText = textForEmbedding.str();
         if (!nodeText.empty()) {
-          // faiss::idx_t docId =
-          // std::stoll(destinationJson["id"].get<std::string>());
           if (faissStore->getEmbeddingById(destinationJson["id"]).empty()) {
             incremental_localstore_logger.error(
                 "Node with ID " + destinationJson["id"].get<std::string>() +
