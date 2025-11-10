@@ -906,19 +906,19 @@ std::vector<JasmineGraphServer::worker> JasmineGraphServer::getWorkers(size_t np
         workerListAll = &hostWorkerList;
 
 
-        // const map<string, string> cpu_map = Utils::getMetricMap("cpu_usage");
-        // // Convert strings to float
-        // unordered_map<string, float> cpu_loads;
-        // for (auto it = cpu_map.begin(); it != cpu_map.end(); it++) {
-        //     cpu_loads[it->first] = std::stof(it->second);
-        //     server_logger.debug(std::to_string(cpu_loads[it->first]) +" : " + std::to_string(cpu_loads[it->second]));
-        // }
+        const map<string, string> cpu_map = Utils::getMetricMap("cpu_usage");
+        // Convert strings to float
+        unordered_map<string, float> cpu_loads;
+        for (auto it = cpu_map.begin(); it != cpu_map.end(); it++) {
+            cpu_loads[it->first] = std::stof(it->second);
+            server_logger.debug(std::to_string(cpu_loads[it->first]) +" : " + std::to_string(cpu_loads[it->second]));
+        }
 
-        // for (auto it = hostWorkerList.begin(); it != hostWorkerList.end(); it++) {
-        //     auto &worker = *it;
-        //     string workerHostPort = worker.hostname + ":" + to_string(worker.port);
-        //     cpu_loads[workerHostPort] = 0.;
-        // }
+        for (auto it = hostWorkerList.begin(); it != hostWorkerList.end(); it++) {
+            auto &worker = *it;
+            string workerHostPort = worker.hostname + ":" + to_string(worker.port);
+            cpu_loads[workerHostPort] = 0.;
+        }
     }
     size_t len = workerListAll->size();
     std::vector<JasmineGraphServer::worker> workerList;
@@ -928,14 +928,14 @@ std::vector<JasmineGraphServer::worker> JasmineGraphServer::getWorkers(size_t np
         for (auto it = (*workerListAll).begin(); it != (*workerListAll).end(); it++) {
             auto &worker = *it;
             string workerHostPort = worker.hostname + ":" + to_string(worker.port);
-            // float cpu = cpu_loads[workerHostPort];
-            // if (cpu < cpu_min) {
+            float cpu = cpu_loads[workerHostPort];
+            if (cpu < cpu_min) {
                 worker_min = worker;
-                // cpu_min = cpu;
-            // }
+                cpu_min = cpu;
+            }
         }
         string workerHostPort = worker_min.hostname + ":" + to_string(worker_min.port);
-        // cpu_loads[workerHostPort] += 0.25;  // 0.25 = 1/nproc
+        cpu_loads[workerHostPort] += 0.25;  // 0.25 = 1/nproc
         workerList.push_back(worker_min);
     }
     return workerList;
