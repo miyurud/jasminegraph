@@ -263,13 +263,13 @@ def test(host, port):
                                  b'|1|powergrid|/var/tmp/data/powergrid.dl|op|' + LINE_END +
                                  b'|2|cora|/var/tmp/data/cora/cora.cites|op|')
 
-        # print()
-        # logging.info('Testing merge')
-        # send_and_expect_response(sock, 'merge', MERGE, b'Available main flags:' + LINE_END +
-        #                          b'graph_id' + LINE_END +
-        #                          b'Send --<flag1> <value1>')
-        # send_and_expect_response(
-        #     sock, 'merge', b'--graph_id 2', DONE, exit_on_failure=True)
+        print()
+        logging.info('Testing merge')
+        send_and_expect_response(sock, 'merge', MERGE, b'Available main flags:' + LINE_END +
+                                 b'graph_id' + LINE_END +
+                                 b'Send --<flag1> <value1>')
+        send_and_expect_response(
+            sock, 'merge', b'--graph_id 2', DONE, exit_on_failure=True)
 
         print()
         logging.info('Testing train')
@@ -591,7 +591,6 @@ def test(host, port):
                                  exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'',
                                  b'done', exit_on_failure=True)
-
 
 
         print()

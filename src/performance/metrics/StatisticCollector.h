@@ -58,7 +58,6 @@ class StatisticCollector {
     static void logLoadAverage(std::string name);
     static double getMemoryUsagePercentage();
 
-
 };
 
 #endif  // JASMINEGRAPH_STATISTICCOLLECTOR_H

@@ -1808,9 +1808,7 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
         std::string hdfsPortS(hdfsPortChar);
         hdfsPortS = Utils::trim_copy(hdfsPortS);
         hdfsPort = hdfsPortS;
-
     }
-
     frontend_logger.info("HDFS Server IP:" + hdfsServerIp);
     frontend_logger.info("HDFS Server Port:" + hdfsPort);
     if (hdfsServerIp.empty()) {

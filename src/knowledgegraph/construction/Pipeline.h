@@ -21,7 +21,7 @@ struct Chunk {
 };
 
 class Pipeline {
-   public:
+ public:
     Pipeline(hdfsFS fileSystem, const std::string& filePath, int numberOfPartitions, int graphId,
 
              std::string masterIP, vector<JasmineGraphServer::worker>& workerList, std::vector<std::string> llmRunners);
@@ -40,7 +40,7 @@ class Pipeline {
                                               shared_ptr<atomic<bool>>& stopFlag,
                                               shared_ptr<KGConstructionRate>& kgConstructionRates);
 
-   private:
+ private:
     void streamFromHDFSIntoBuffer();
     void streamChunckToWorker(const std::string& chunk, int partitionId);
     void startStreamingFromBufferToWorkers();
@@ -122,8 +122,7 @@ class KafkaProducer {
 // ---------- Kafka Consumer wrapper ----------
 class KafkaConsumer {
     cppkafka::Consumer consumer;
-
-   public:
+ public:
     KafkaConsumer(const std::string& brokers, const std::string& groupId, const std::vector<std::string>& topics);
     std::string poll_msg(int timeout_ms = 1000);
 };

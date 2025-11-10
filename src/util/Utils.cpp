@@ -1036,11 +1036,11 @@ Utils::getMetricsForHosts(const std::vector<std::string> &metricNames, int secon
 
                 // Store metric based on its type
                 if (metricName == "cpu_usage") {
-                    hostMetrics[host].cpu_usage.emplace_back( val);
+                    hostMetrics[host].cpu_usage.emplace_back(val);
                 } else if (metricName == "memory_usage") {
-                    hostMetrics[host].memory_usage.emplace_back( val);
+                    hostMetrics[host].memory_usage.emplace_back(val);
                 } else if (metricName == "load_average") {
-                    hostMetrics[host].load_average.emplace_back( val);
+                    hostMetrics[host].load_average.emplace_back(val);
                 }
             }
         }

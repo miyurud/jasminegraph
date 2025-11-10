@@ -248,7 +248,7 @@ double StatisticCollector::getCpuLoadPercentage() {
 
     if (cores <= 0) return -1.0;              // avoid division by zero
 
-    return (load / cores) ;
+    return (load / cores);
 }
 long StatisticCollector::getTotalMemoryUsage() {
     std::string token;
