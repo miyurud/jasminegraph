@@ -7,7 +7,7 @@ NUM_PARALLEL=${1:-4}  # Default to 4 parallel queries
 HOST_PORT=${2:-11441} # Default port 11441
 CONTAINER_NAME="gemma3_container"
 DOCKER_IMAGE="ollama/ollama"
-MODELS=("gemma3:4b-it-qat" "nomic-embed-text"  "deepseek-r1") # List of models to launch
+MODELS=("gemma3:12b" "nomic-embed-text"  "deepseek-r1") # List of models to launch
 
 # Detect GPU support
 if command -v nvidia-smi &>/dev/null && nvidia-smi >/dev/null 2>&1; then
