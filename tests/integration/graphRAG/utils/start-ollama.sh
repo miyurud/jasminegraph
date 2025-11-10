@@ -52,7 +52,7 @@ for MODEL_NAME in "${MODELS[@]}"; do
     while true; do
         STATUS=$(docker exec "$CONTAINER_NAME" ollama list | grep "$MODEL_NAME" || true)
         if [[ -n $STATUS && $STATUS != *"downloading"* ]]; then
-            echo "✅ Model '$MODEL_NAME' is downloaded and ready!"
+            echo "Model '$MODEL_NAME' is downloaded and ready!"
             break
         else
             echo "… still downloading '$MODEL_NAME', checking again in 10s"

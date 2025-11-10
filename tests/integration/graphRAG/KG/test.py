@@ -9,19 +9,13 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-#!/usr/bin/env python3
-"""Knowledge Graph construction and Cypher query test runner."""
-
 import json
 import logging
 import os
 import random
-import shutil
 import socket
 import subprocess
 import time
-
-import requests  # noqa: F401
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 
