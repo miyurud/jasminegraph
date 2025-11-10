@@ -87,7 +87,7 @@ services:
     ports:
       - 9090:9090
     volumes:
-      - 'env_init/config/prometheus.yaml:/etc/prometheus/prometheus.yml'
+      - './env_init/config/prometheus.yaml:/etc/prometheus/prometheus.yml'
     depends_on:
       - pushgateway
     networks:
