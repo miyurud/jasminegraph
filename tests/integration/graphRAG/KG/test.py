@@ -54,7 +54,7 @@ REASONING_MODEL_URI = f"http://{SERVER_IP}:11441"
 # LLM model to use
 # LLM_MODEL = "google/gemma-3-4b-it"
 # LLM_MODEL = "gemma3:4b-it-qat"
-LLM_MODEL = "gemma3:12b"
+LLM_MODEL = "gemma3:4b-it-qat"
 # LLM_INFERENCE_ENGINE="vllm"
 LLM_INFERENCE_ENGINE = "ollama"
 
