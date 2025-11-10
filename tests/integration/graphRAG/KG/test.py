@@ -40,11 +40,11 @@ LINE_END = b"\r\n"
 TEXT_FOLDER = "gold"
 
 # LLM runner addresses (comma-separated)
-LLM_RUNNERS = f"http://{SERVER_IP}:11450," * 2
+LLM_RUNNERS = f"http://{SERVER_IP}:11434," * 2
 # LLM_RUNNERS = f"http://gemma3_container:11434," * 2
 RUNNER_URLS = [u.strip() for u in LLM_RUNNERS.split(",") if u.strip()]
 REASONING_MODEL_URI = RUNNER_URLS[0] if RUNNER_URLS else None
-REASONING_MODEL_URI = f"http://{SERVER_IP}:11450"
+REASONING_MODEL_URI = f"http://{SERVER_IP}:11434"
 # REASONING_MODEL_URI = f"http://gemma3_container:11434"
 
 
@@ -459,7 +459,7 @@ def test_KG(llm_inference_engine_startup_script, text_folder, upload_file_script
     query = "MATCH (n)-[r]-(m) RETURN n,r,m"
 
     # start the llm inference engine
-    # subprocess.run(["bash", llm_inference_engine_startup_script], check=True)
+    subprocess.run(["bash", llm_inference_engine_startup_script], check=True)
 
     last_graph_id = get_last_graph_id()
     graph_id = last_graph_id + 1
