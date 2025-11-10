@@ -45,7 +45,7 @@ void SchedulerService::startPerformanceScheduler() {
 
     std::this_thread::sleep_for(std::chrono::minutes(1440));
 }
-void SchedulerService::startCummulativePerformanceMetricScheduler() {
+void SchedulerService::startCumulativePerformanceMetricScheduler() {
     unsigned int max_n_threads = 12;
 
     PerformanceUtil util;
@@ -56,7 +56,7 @@ void SchedulerService::startCummulativePerformanceMetricScheduler() {
     std::string performanceSchedulerTiming =
         Utils::getJasmineGraphProperty("org.jasminegraph.scheduler.performancecollector.timing");
 
-    scheduler.every(std::chrono::seconds(atoi(performanceSchedulerTiming.c_str())), util.collectCummulativePerformanceStatistics());
+    scheduler.every(std::chrono::seconds(atoi(performanceSchedulerTiming.c_str())), util.collectCummulativePerformanceStatistics);
 
     std::this_thread::sleep_for(std::chrono::minutes(1440));
 }

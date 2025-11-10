@@ -25,7 +25,7 @@ class SchedulerService {
  public:
     static void startScheduler();
     static void startPerformanceScheduler();
-    static  void startCummulativePerformanceMetricScheduler();
+    static void startCumulativePerformanceMetricScheduler();
 };
 
 #endif  // JASMINEGRAPH_SCHEDULERSERVICE_H
