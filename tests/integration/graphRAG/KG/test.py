@@ -523,34 +523,34 @@ def test_KG(llm_inference_engine_startup_script, text_folder, upload_file_script
                 shutil.copy(src, dst)
 
         # QA prediction
-        qa_file = os.path.join(text_folder, folder_name, "qa_pairs.json")
-        if os.path.exists(qa_file):
-            print("file exists")
-            with open(qa_file, "r", encoding="utf-8") as f:
-                qa_data = json.load(f)
-
-            question = qa_data["question"]
-            answer = qa_data["answer"]
-            compressed_triples_ = compress_triples(triples)
-            prompt = f"""You are a QA assistant.
-Given the extracted triples:
-{json.dumps(compressed_triples_, indent=2, ensure_ascii=False)}
-
-Question: {question}
- Answer in a short phrase. Do not include reasoning, explanations, or extra text."""
-
-            predicted_answer = extract_final_answer(call_reasoning_model(prompt))
-
-            pred_out = {
-                "id": qa_data["id"],
-                "question": question,
-                "gold_answer": answer,
-                "predicted_answer": predicted_answer,
-            }
-            with open(
-                os.path.join(output_dir, "pred_answer.json"), "w", encoding="utf-8"
-            ) as f:
-                json.dump(pred_out, f, indent=2, ensure_ascii=False)
+#         qa_file = os.path.join(text_folder, folder_name, "qa_pairs.json")
+#         if os.path.exists(qa_file):
+#             print("file exists")
+#             with open(qa_file, "r", encoding="utf-8") as f:
+#                 qa_data = json.load(f)
+#
+#             question = qa_data["question"]
+#             answer = qa_data["answer"]
+#             compressed_triples_ = compress_triples(triples)
+#             prompt = f"""You are a QA assistant.
+# Given the extracted triples:
+# {json.dumps(compressed_triples_, indent=2, ensure_ascii=False)}
+#
+# Question: {question}
+#  Answer in a short phrase. Do not include reasoning, explanations, or extra text."""
+#
+#             predicted_answer = extract_final_answer(call_reasoning_model(prompt))
+#
+#             pred_out = {
+#                 "id": qa_data["id"],
+#                 "question": question,
+#                 "gold_answer": answer,
+#                 "predicted_answer": predicted_answer,
+#             }
+#             with open(
+#                 os.path.join(output_dir, "pred_answer.json"), "w", encoding="utf-8"
+#             ) as f:
+#                 json.dump(pred_out, f, indent=2, ensure_ascii=False)
 
         # graph_id += 1
 
