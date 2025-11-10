@@ -127,11 +127,11 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
 
                   ctx->buffer->add(formattedTriple.dump());
                   ollama_tuple_streamer_logger.debug(
-                      "✅ Added formatted triple: " + formattedTriple.dump());
+                      "Added formatted triple: " + formattedTriple.dump());
                 }
               } catch (const std::exception& ex) {
                 ollama_tuple_streamer_logger.error(
-                    "❌ JSON array parse failed: " + std::string(ex.what()));
+                    "JSON array parse failed: " + std::string(ex.what()));
               }
               ctx->current_tuple.clear();
             }
