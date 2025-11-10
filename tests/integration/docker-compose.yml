@@ -90,11 +90,18 @@ services:
       - 'env_init/config/prometheus.yaml:/etc/prometheus/prometheus.yml'
     depends_on:
       - pushgateway
+    networks:
+      prom_net:
+        ipv4_address: 172.28.5.2  #  Fixed IP for Prometheu
 
   pushgateway:
     image: prom/pushgateway
     ports:
       - 9091:9091
+    networks:
+      prom_net:
+        ipv4_address: 172.28.5.3  #  Fixed IP for Pushgateway
+
 
 
 
@@ -112,3 +119,10 @@ networks:
         - subnet: 172.30.5.0/24
           ip_range: 172.30.5.0/24
           gateway: 172.30.5.1
+  prom_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.5.0/24
+          ip_range: 172.28.5.0/24
+          gateway: 172.28.5.1
