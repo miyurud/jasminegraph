@@ -123,7 +123,7 @@ def send_file_to_master(hdfs_file_path):
             logging.info("Master: " + final.strip())
 
             sock.sendall(b"exit" + LINE_END)
-            logging.info("KG extraction completed successfully!")
+            logging.info("KG extraction started successfully!")
         else:
             logging.info("Master: " + final.strip())
             sock.sendall(b"exit" + LINE_END)
@@ -184,7 +184,7 @@ def test_KG(llm_inference_engine_startup_script, text_folder, upload_file_script
     query = "MATCH (n)-[r]-(m) RETURN n,r,m"
 
     # start the llm inference engine
-    subprocess.run(["bash", llm_inference_engine_startup_script], check=True)
+    # subprocess.run(["bash", llm_inference_engine_startup_script], check=True)
 
     all_txt_files = []
     for root, _, files in os.walk(text_folder):
