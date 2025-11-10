@@ -249,7 +249,6 @@ void HDFSMultiThreadedHashPartitioner::consumeEdgeCuts(int partitionIndex, Jasmi
         // Process edges from edgeCutsArrays
         while (!edgeCutsArrays[partitionIndex].empty()) {
             std::string edge = edgeCutsArrays[partitionIndex].back();
-            hash_partitioner_logger.info("edge: " + edge);
             edgeCutsArrays[partitionIndex].pop_back();
 
             // Write the edge to the file

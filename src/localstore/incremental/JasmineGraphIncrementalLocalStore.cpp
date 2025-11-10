@@ -55,7 +55,6 @@ JasmineGraphIncrementalLocalStore::JasmineGraphIncrementalLocalStore(
 bool JasmineGraphIncrementalLocalStore::getAndStoreEmbeddings() {
   std::vector<string> batch_request;
   for (EmbeddingRequest& request : *embedding_requests) {
-    incremental_localstore_logger.info("nodeTExt:" + request.nodeText);
     batch_request.emplace_back(request.nodeText);
   }
   vector<vector<float>> results = textEmbedder->batch_embed(batch_request);
@@ -92,7 +91,6 @@ void JasmineGraphIncrementalLocalStore::addEdgeFromString(
     std::string edgeString) {
   try {
     auto edgeJson = json::parse(edgeString);
-    incremental_localstore_logger.info(edgeString);
     if (edgeJson.contains("isNode")) {
       std::string nodeId = edgeJson["id"];
       NodeBlock* newNode = this->nm->addNode(nodeId);
@@ -164,7 +162,6 @@ void JasmineGraphIncrementalLocalStore::addLocalEdge(std::string edge) {
   auto jsonDestination = jsonEdge["destination"];
 
   // log the edge information
-  incremental_localstore_logger.info("Adding local edge: " + edge);
   if (!jsonSource.contains("id") || !jsonDestination.contains("id")) {
     incremental_localstore_logger.error(
         "Source or destination ID missing in edge data: " + edge);
@@ -191,7 +188,6 @@ void JasmineGraphIncrementalLocalStore::addLocalEdge(std::string edge) {
   RelationBlock* newRelation = nullptr;
   if (jsonEdge["properties"].contains("id")) {
     std::string edgeId = std::string(jsonEdge["properties"]["id"]);
-    incremental_localstore_logger.info("Edge Id: " + edgeId);
 
     if (this->nm->edgeIndex.find(edgeId) == this->nm->edgeIndex.end()) {
       incremental_localstore_logger.debug("Edge Id not found: " + edgeId);
@@ -232,7 +228,6 @@ void JasmineGraphIncrementalLocalStore::addCentralEdge(std::string edge) {
 
   if (jsonEdge["properties"].contains("id")) {
     std::string edgeId = std::string(jsonEdge["properties"]["id"]);
-    incremental_localstore_logger.info("Edge Id: " + edgeId);
 
     if (this->nm->edgeIndex.find(edgeId) == this->nm->edgeIndex.end()) {
       incremental_localstore_logger.debug("Edge Id not found: " + edgeId);
@@ -303,7 +298,6 @@ void JasmineGraphIncrementalLocalStore::addSourceProperties(
   char label[NodeBlock::LABEL_SIZE] = {0};
   std::ostringstream textForEmbedding;
 
-  incremental_localstore_logger.info(sourceJson["properties"].dump());
   if (sourceJson.contains("properties")) {
     auto sourceProps = json(sourceJson["properties"]);
 
