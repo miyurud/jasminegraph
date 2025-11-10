@@ -70,11 +70,11 @@ def upload_to_hdfs(local_file, upload_file_script):
     return hdfs_path
 
 
-def send_file_to_master(hdfs_file_path):
+def send_file_to_master(hdfs_file_path, host, port):
     logging.info(f"Sending {hdfs_file_path} to JasmineGraph master")
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.connect((HOST, PORT))
-        logging.info(f"Connected to JasmineGraph master at {HOST}:{PORT}")
+        sock.connect((host, port))
+        logging.info(f"Connected to JasmineGraph master at {host}:{port}")
 
         sock.sendall(b"constructkg" + LINE_END)
         msg = recv_until(sock, b"\n")
@@ -131,11 +131,11 @@ def send_file_to_master(hdfs_file_path):
         return final.strip().split(":")[1]
 
 
-def run_cypher_query(graph_id: str, query: str):
+def run_cypher_query(graph_id, query, host, port):
     """Run a Cypher query and return raw rows"""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.connect((HOST, PORT))
-        logging.info(f"Connected to JasmineGraph at {HOST}:{PORT}")
+        sock.connect((host, port))
+        logging.info(f"Connected to JasmineGraph at {host}:{port}")
 
         # Step 1: Send 'cypher'
         sock.sendall(b"cypher" + LINE_END)
@@ -179,11 +179,9 @@ def parse_results(raw_rows):
     return triples
 
 
-def test_KG(llm_inference_engine_startup_script, text_folder, upload_file_script):
+def test_KG( text_folder, upload_file_script, host, port):
 
     query = "MATCH (n)-[r]-(m) RETURN n,r,m"
-
-    # start the llm inference engine
 
     all_txt_files = []
     for root, _, files in os.walk(text_folder):
@@ -199,13 +197,13 @@ def test_KG(llm_inference_engine_startup_script, text_folder, upload_file_script
         folder_name = os.path.basename(os.path.dirname(local_path))
         try:
             hdfs_path = upload_to_hdfs(local_path, upload_file_script)
-            graph_id = send_file_to_master(hdfs_path)
+            graph_id = send_file_to_master(hdfs_path, host ,port )
         except subprocess.CalledProcessError as e:
             logging.error(f"Failed to upload {local_path} to HDFS: {e}")
             continue
 
 
-        time.sleep(120)
+        time.sleep(240)
         raw = run_cypher_query(str(graph_id), query)
         triples = parse_results(raw)
 
@@ -226,4 +224,4 @@ def test_KG(llm_inference_engine_startup_script, text_folder, upload_file_script
 
 
 if __name__ == "__main__":
-    test_KG(OLLAMA_SETUP_SCRIPT, TEXT_FOLDER, UPLOAD_SCRIPT)
+    test_KG( TEXT_FOLDER, UPLOAD_SCRIPT, HOST, PORT)

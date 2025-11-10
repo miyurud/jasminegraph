@@ -194,6 +194,8 @@ passed_all = True
 failed_tests = []
 
 def test(host, port):
+    subprocess.run(["bash", OLLAMA_SETUP_SCRIPT], check=True)
+
     """Test the JasmineGraph server by sending a series of commands and checking the responses."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((host, port))
@@ -592,9 +594,8 @@ def test(host, port):
         send_and_expect_response(sock, 'cypher', b'',
                                  b'done', exit_on_failure=True)
 
-
         print()
-        test_KG(OLLAMA_SETUP_SCRIPT , TEXT_FOLDER ,UPLOAD_SCRIPT )
+        test_KG(TEXT_FOLDER ,UPLOAD_SCRIPT, host, port)
 
         print()
         logging.info('[Cypher] Testing rmgr after adhdfs')
@@ -629,5 +630,4 @@ def test(host, port):
             sys.exit(1)
 
 if __name__ == '__main__':
-    subprocess.run(["bash", OLLAMA_SETUP_SCRIPT], check=True)
     test(HOST, PORT)
