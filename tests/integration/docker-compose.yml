@@ -82,54 +82,6 @@ services:
     networks:
       - jasminegraph_net
 
-  ollama-llm:
-    image: ollama/ollama
-    container_name: ollama-llm
-    restart: always
-    ports:
-      - "11450:11434"
-    environment:
-      - OLLAMA_NUM_PARALLEL=4
-      - OLLAMA_MAX_LOADED_MODELS=2
-      - OLLAMA_VRAM_RECOVERY_TIMEOUT=15
-      - OLLAMA_KEEP_ALIVE=30s
-    volumes:
-      - ollama_llm_models:/root/.ollama
-#    deploy:
-#      resources:
-#        reservations:
-#          devices:
-#            - capabilities: [gpu]   # uses GPU if available
-    networks:
-      - jasminegraph_net
-    entrypoint: /bin/bash -c "echo 'Pulling Gemma3:4b-it-qat and DeepSeek-R1...'; ollama pull gemma3:4b-it-qat; ollama pull deepseek-r1; echo '✅ LLM container ready on port 11434'; ollama serve "
-
-
-
-  # === EMBEDDING CONTAINER ===
-  ollama-embed:
-    image: ollama/ollama
-    container_name: ollama-embed
-    restart: always
-    ports:
-      - "11441:11434"
-    environment:
-      - OLLAMA_NUM_PARALLEL=4
-      - OLLAMA_MAX_LOADED_MODELS=1
-      - OLLAMA_VRAM_RECOVERY_TIMEOUT=10
-      - OLLAMA_KEEP_ALIVE=30s
-    volumes:
-      - ollama_embed_models:/root/.ollama
-#    deploy:
-#      resources:
-#        reservations:
-#          devices:
-#            - capabilities: [gpu]
-    networks:
-      - jasminegraph_net
-    entrypoint: /bin/bash -c "ollama serve --port 11434; echo 'Pulling nomic-embed-text...'; ollama pull nomic-embed-text; echo '✅ Embedding container ready on port 11434'; tail -f /dev/null"
-
-
 
 volumes:
   hadoop_namenode:
