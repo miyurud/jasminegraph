@@ -37,4 +37,4 @@ docker exec -it "$DOCKER_CONTAINER_NAME" hadoop fs -put "/tmp/$FILENAME" "$HDFS_
 # Optional: Remove the temp file inside container
 docker exec -it "$DOCKER_CONTAINER_NAME" rm "/tmp/$FILENAME"
 
-echo "✅ File uploaded successfully to HDFS!"
+echo "File uploaded successfully to HDFS!"

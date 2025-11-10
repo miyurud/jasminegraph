@@ -119,7 +119,6 @@ def send_file_to_master(hdfs_file_path, host, port):
         sock.sendall(CHUNK_SIZE.encode("utf-8") + LINE_END)
 
         final = recv_until(sock, b"\n").strip()
-        logging.info("Master: %s", final)
 
         if final == "There exists a graph with the file path, would you like to resume?":
             sock.sendall(b"n" + LINE_END)
@@ -199,20 +198,13 @@ def test_kg(text_folder, upload_file_script, host, port):
         time.sleep(240)
         raw = run_cypher_query(str(graph_id), query, host, port)
         triples = parse_results(raw)
+        print(json.dumps(triples, indent=2, ensure_ascii=False))
 
         output_dir = os.path.join("pred", folder_name)
         os.makedirs(output_dir, exist_ok=True)
 
         with open(os.path.join(output_dir, "pred.json"), "w", encoding="utf-8") as f:
             json.dump(triples, f, indent=2, ensure_ascii=False)
-
-        # Copy gold files
-        for gold_file in ["entities.json", "relations.json", "text.txt"]:
-            src = os.path.join(text_folder, folder_name, gold_file)
-            dst = os.path.join(output_dir, gold_file)
-            if os.path.exists(src):
-                shutil.copy(src, dst)
-
 
 if __name__ == "__main__":
     test_kg(TEXT_FOLDER, UPLOAD_SCRIPT, HOST, PORT)

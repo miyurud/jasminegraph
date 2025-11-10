@@ -596,6 +596,7 @@ def test(host, port):
                                  b'done', exit_on_failure=True)
 
         print()
+        logging.info('[GraphRAG] Testing knowledge graph construction ')
         test_kg(TEXT_FOLDER ,UPLOAD_SCRIPT, host, port)
 
         print()
