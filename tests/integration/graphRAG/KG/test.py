@@ -487,25 +487,7 @@ def test_KG(llm_inference_engine_startup_script, text_folder, upload_file_script
             logging.error(f"Failed to upload {local_path} to HDFS: {e}")
             continue
 
-        # with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        #     sock.connect((HOST, PORT))
-        #
-        #     while True:
-        #         sock.sendall(b"lst" + b"\n")
-        #
-        #         data = []
-        #         while True:
-        #             line = recv_until(sock, b"\r\n")
-        #             if not line or "done" in line:
-        #                 break
-        #             data.append(line.strip())
-        #
-        #         graph_ids = []
-        #         print(data)
-        #         print( data[-1].split("|"))
-        #         if "nop" == data[-1].split("|")[4]:
-        #             time.sleep(10)
-        #         else:break
+
         time.sleep(120)
         # wait_until_complete(HOST, 7776, graph_id)
         raw = run_cypher_query(str(graph_id), query)
