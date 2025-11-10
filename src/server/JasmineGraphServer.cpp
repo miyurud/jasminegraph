@@ -870,7 +870,7 @@ JasmineGraphServer::worker JasmineGraphServer::getDesignatedWorker() {
 
     // Step 3: Iterate through each worker and compute scores
     for (auto &worker : hostWorkerList) {
-        std::string host = worker.hostname;
+        std::string host = worker.hostname +":"+ std::to_string(worker.port);
         if (hostMetrics.find(host) == hostMetrics.end()) {
             server_logger.warn("No metrics found for host: " + host);
             continue;

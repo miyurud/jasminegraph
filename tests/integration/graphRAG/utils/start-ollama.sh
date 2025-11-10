@@ -60,6 +60,7 @@ for MODEL_NAME in "${MODELS[@]}"; do
         fi
     done
 done
+docker network connect --ip 172.30.5.100 jasminegraph_net "$CONTAINER_NAME"
 
 echo "Container started and all models are ready!"
 echo "Access API at http://localhost:${HOST_PORT}"

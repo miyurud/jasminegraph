@@ -121,9 +121,3 @@ networks:
           ip_range: 172.30.5.0/24
           gateway: 172.30.5.1
   prom_net:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.28.5.0/24
-          ip_range: 172.28.5.0/24
-          gateway: 172.28.5.1
