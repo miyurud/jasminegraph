@@ -90,7 +90,6 @@ class PerformanceUtil {
                                        std::map<std::string, std::vector<double>>& newJobLoadAvgMap,
                                        long newJobAcceptanceTime);
 
-
 };
 
 #endif  // JASMINEGRAPH_PERFORMANCEUTIL_H

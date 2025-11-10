@@ -35,18 +35,7 @@ void PerformanceUtil::init() {
         perfDb = new PerformanceSQLiteDBInterface();
         perfDb->init();
     }
-    // scheduler_logger.info("Testing 37");
-    // char hostname[1024];
-    // hostname[1023] = '\0';
-    // if (gethostname(hostname, 1023) == 0) {
-    //     std::cout << "Hostname: " << hostname << std::endl;
-    // } else {
-    //     perror("gethostname");
-    // }
-    // // Initialize the metric history store
-    // const char *hostAddress = getenv("HOST_NAME");
-    // scheduler_logger.debug("Host Address: " + std::string(hostAddress));
-    // history_store[ std::string(hostAddress)] = { std::deque<double>(), std::deque<double>(), std::deque<double>() };
+
 }
 
 int PerformanceUtil::collectPerformanceStatistics() {

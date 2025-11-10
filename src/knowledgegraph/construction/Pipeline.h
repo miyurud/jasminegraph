@@ -88,12 +88,12 @@ class Pipeline {
 // ---------- Thread-safe queue ----------
 template <typename T>
 class TSQueue {
-   public:
+ public:
     void push(const T& v);
     bool pop(T& out);
     void close();
 
-   private:
+ private:
     std::queue<T> q;
     std::mutex m;
     std::condition_variable cv;
@@ -113,8 +113,7 @@ struct Triple {
 class KafkaProducer {
     cppkafka::Producer producer;
     std::string topic;
-
-   public:
+ public:
     KafkaProducer(const std::string& brokers, const std::string& topic_);
     void send(const std::string& message);
 };
