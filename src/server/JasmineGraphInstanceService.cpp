@@ -5302,7 +5302,7 @@ static void hdfs_start_stream_command(int connFd, bool *loop_exit_p, bool isLoca
     }
     instance_logger.debug("Sent : " + JasmineGraphInstanceProtocol::HDFS_STREAM_END_ACK);
 
-processFile(fileName, isLocalStream, instanceStreamHandler, isEmbedGraph == "true");
+processFile(fileName, isLocalStream, instanceStreamHandler, isEmbedGraph == "1");
     // delete file chunk after adding to the store
     Utils::deleteFile(fullFilePath);
 }

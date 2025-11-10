@@ -16,7 +16,7 @@ import logging
 import os
 import time
 
-from graphRAG.KG.test import test_KG
+from graphRAG.KG.test import test_kg
 from utils.telnetScripts.validate_uploaded_graph import  test_graph_validation
 
 logging.addLevelName(
@@ -596,7 +596,7 @@ def test(host, port):
                                  b'done', exit_on_failure=True)
 
         print()
-        test_KG(TEXT_FOLDER ,UPLOAD_SCRIPT, host, port)
+        test_kg(TEXT_FOLDER ,UPLOAD_SCRIPT, host, port)
 
         print()
         logging.info('[Cypher] Testing rmgr after adhdfs')

@@ -69,7 +69,6 @@ size_t VLLMTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
       auto j = json::parse(jsonPart);
       if (j.contains("choices") && !j["choices"].empty()) {
         std::string partial = j["choices"][0]["delta"].value("content", "");
-        vllm_tuple_streamer_logger.info("Partial: " + partial);
 
         size_t i = 0;
         while (i < partial.size()) {

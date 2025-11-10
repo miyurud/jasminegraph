@@ -314,7 +314,7 @@ void SemanticBeamSearchExecutor::doSemanticBeamSearch(
     }
   }
 
-  semantic_beam_search_logger_executor.info("semantic beam searcg" + workers);
+  semantic_beam_search_logger_executor.info("semantic beam search" + workers);
   length = htonl(workers.size());
   semantic_beam_search_logger_executor.debug("Sending workers length: " +
                                              std::to_string(ntohl(length)));
