@@ -974,6 +974,83 @@ std::map<std::string, std::string> Utils::getMetricMap(std::string metricName) {
 // collect history of metrics
 
 
+std::unordered_map<std::string, Utils::MetricHistory>
+Utils::getMetricsForHosts(const std::vector<std::string> &metricNames, int secondsBack) {
+    std::unordered_map<std::string, MetricHistory> hostMetrics;
+    CURL *curl;
+    CURLcode res;
+
+    std::string prometheusAddr;
+    if (jasminegraph_profile == PROFILE_K8S) {
+        std::unique_ptr<K8sInterface> interface(new K8sInterface());
+        prometheusAddr = interface->getJasmineGraphConfig("prometheus_address");
+    } else {
+        prometheusAddr = getJasmineGraphProperty("org.jasminegraph.collector.prometheus");
+    }
+
+    std::time_t endTime = std::time(nullptr);
+    std::time_t startTime = endTime - secondsBack;
+    std::string step = "15s";
+
+    for (const auto &metricName : metricNames) {
+        std::string response;
+        std::string prometheusQueryAddr =
+            prometheusAddr + "api/v1/query_range?query=" + metricName +
+            "&start=" + std::to_string(startTime) +
+            "&end=" + std::to_string(endTime) +
+            "&step=" + step;
+
+        curl = curl_easy_init();
+        if (!curl) continue;
+
+        curl_easy_setopt(curl, CURLOPT_URL, prometheusQueryAddr.c_str());
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+        curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_0);
+        curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
+        curl_easy_setopt(curl, CURLOPT_FORBID_REUSE, 1L);
+
+        res = curl_easy_perform(curl);
+        if (res != CURLE_OK) {
+            std::cerr << "cURL failed: " << curl_easy_strerror(res) << std::endl;
+            curl_easy_cleanup(curl);
+            continue;
+        }
+
+        Json::Value root;
+        Json::Reader reader;
+        if (!reader.parse(response, root)) {
+            std::cerr << "Failed to parse JSON for " << metricName << std::endl;
+            curl_easy_cleanup(curl);
+            continue;
+        }
+
+        const Json::Value results = root["data"]["result"];
+        for (const auto &result : results) {
+            std::string host = result["metric"].get("exported_job", "unknown").asString();
+            const Json::Value values = result["values"];
+
+            for (const auto &entry : values) {
+                std::string timestamp = entry[0].asString();
+                double val = atof(entry[1].asString().c_str());
+
+                // Store metric based on its type
+                if (metricName == "cpu_usage") {
+                    hostMetrics[host].cpu_usage.emplace_back( val);
+                } else if (metricName == "memory_usage") {
+                    hostMetrics[host].memory_usage.emplace_back( val);
+                } else if (metricName == "load_average") {
+                    hostMetrics[host].load_average.emplace_back( val);
+                }
+            }
+        }
+
+        curl_easy_cleanup(curl);
+    }
+
+    return hostMetrics;
+}
+
 
 double Utils:: exponentialWeightedMovingAverage(const std::deque<double>& vals, double alpha ) {
     if (vals.empty()) return 0.0;

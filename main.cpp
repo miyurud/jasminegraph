@@ -101,10 +101,8 @@ int main(int argc, char *argv[]) {
             }
         }
         server->run(masterIp, numberOfWorkers, workerIps, enableNmon);
-        thread cumulativePerformanceStatsCollector(SchedulerService::startCumulativePerformanceMetricScheduler);
 
         schedulerThread.join();
-        cumulativePerformanceStatsCollector.join();
 
         delete server;
     } else if (mode == Conts::JASMINEGRAPH_RUNTIME_PROFILE_WORKER) {

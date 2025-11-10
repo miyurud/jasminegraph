@@ -17,7 +17,6 @@ limitations under the License.
 
 using namespace std::chrono;
 std::map<std::string, std::vector<ResourceUsageInfo>> resourceUsageMap;
-std::unordered_map<std::string, MetricHistory> PerformanceUtil::history_store;
 
 static size_t write_callback(void *contents, size_t size, size_t nmemb, std::string *output);
 static size_t write_file_callback(void* contents, size_t size, size_t nmemb, void* userp);
@@ -92,34 +91,7 @@ int PerformanceUtil::collectPerformanceStatistics() {
     return 0;
 }
 
-int PerformanceUtil::collectCummulativePerformanceStatistics() {
-      const map<string, string> cpu_map  = Utils::getMetricMap("cpu_usage");
-    const map<string, string> memory_map  = Utils::getMetricMap("memory_usage");
-    const map<string, string> load_average_map  = Utils::getMetricMap("load_average");
 
-    for (auto it = cpu_map.begin(); it != cpu_map.end(); it++) {
-        history_store[it->first].addCpu(std::stof(it->second));
-        scheduler_logger.info("Pushed performance metric of CPU host: " + it->first);
-        scheduler_logger.info("Pushed performance metric of CPU value: " + it->first);
-
-    }
-
-    for (auto it = memory_map.begin(); it != cpu_map.end(); it++) {
-        history_store[it->first].addMemory(std::stof(it->second));
-        scheduler_logger.info("Pushed performance metric of MEM host: " + it->first);
-        scheduler_logger.info("Pushed performance metric of MEM value: " + it->first);
-
-    }
-
-    for (auto it = load_average_map.begin(); it != cpu_map.end(); it++) {
-        history_store[it->first].addLoad(std::stof(it->second));
-        scheduler_logger.info("Pushed performance metric of LOAD host: " + it->first);
-        scheduler_logger.info("Pushed performance metric of LOAD value: " + it->first);
-
-    }
-
-
-}
 
 
 std::vector<Place> PerformanceUtil::getHostReporterList() {
