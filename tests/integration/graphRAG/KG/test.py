@@ -11,21 +11,11 @@ import time
 
 import requests
 
-# from rapidfuzz import fuzz
-
-# from tests.integration.graphRAG.fetch_pred import run_cypher_query, parse_results
-
-# from tests.integration.graphRAG.fetch_pred import run_cypher_query, parse_results, OUTPUT_FILE
-
-
-# Run hostname -I
 result = subprocess.check_output(["hostname", "-I"]).decode().strip()
 
 # Split by spaces and take the first IP
 first_ip = result.split()[0]
 
-print("First IP:", first_ip)
-from concurrent.futures import ProcessPoolExecutor, as_completed
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 SERVER_IP = first_ip
@@ -41,21 +31,10 @@ TEXT_FOLDER = "gold"
 
 # LLM runner addresses (comma-separated)
 LLM_RUNNERS = f"http://{SERVER_IP}:11441," * 2
-# LLM_RUNNERS = f"http://gemma3_container:11434," * 2
 RUNNER_URLS = [u.strip() for u in LLM_RUNNERS.split(",") if u.strip()]
 REASONING_MODEL_URI = RUNNER_URLS[0] if RUNNER_URLS else None
 REASONING_MODEL_URI = f"http://{SERVER_IP}:11441"
-# REASONING_MODEL_URI = f"http://gemma3_container:11434"
-
-
-
-
-
-# LLM model to use
-# LLM_MODEL = "google/gemma-3-4b-it"
-# LLM_MODEL = "gemma3:4b-it-qat"
 LLM_MODEL = "gemma3:4b-it-qat"
-# LLM_INFERENCE_ENGINE="vllm"
 LLM_INFERENCE_ENGINE = "ollama"
 
 CHUNK_SIZE = "2048"
@@ -102,9 +81,7 @@ def send_file_to_master(hdfs_file_path):
         logging.info("Master: " + msg.strip())
         sock.sendall(b"n" + LINE_END)
 
-        # msg = recv_until(sock, b"\n")
-        # logging.info("Master: " + msg.strip())
-        # sock.sendall(b"/var/tmp/config/hdfs_config.txt" + LINE_END)
+
         msg = recv_until(sock, b"\n")
         logging.info("Master: " + msg.strip())
         sock.sendall(SERVER_IP.encode("utf-8") + LINE_END)
@@ -119,177 +96,39 @@ def send_file_to_master(hdfs_file_path):
         msg = recv_until(sock, b"\n")
         logging.info("Master 101: " + msg.strip())
 
+
+        print("LLM_RUNNERS  " + LLM_RUNNERS)
+        logging.info("Master : " + msg.strip())
+        sock.sendall(LLM_RUNNERS.encode("utf-8") + LINE_END)
+
+        msg = recv_until(sock, b"\n")
+        logging.info("Master: " + msg.strip())
+        sock.sendall(LLM_INFERENCE_ENGINE.encode("utf-8") + LINE_END)
+
+        msg = recv_until(sock, b"\n")
+        logging.info("Master: " + msg.strip())
+        sock.sendall(LLM_MODEL.encode("utf-8") + LINE_END)
+
+        msg = recv_until(sock, b"\n")
+        logging.info("Master: " + msg.strip())
+        sock.sendall(CHUNK_SIZE.encode("utf-8") + LINE_END)
+        final = recv_until(sock, b"\n")
+        logging.info("Master: " + final.strip())
         if (
-            msg.strip()
-            == "There exists a graph with the file path, would you like to resume?"
-        ):
-            sock.sendall(b"n" + LINE_END)
-            msg = recv_until(sock, b"\n")
-            logging.info("Master 106: " + msg.strip())
-
-            sock.sendall(LLM_RUNNERS.encode("utf-8") + LINE_END)
-
-            msg5 = recv_until(sock, b"\n")
-            logging.info("Master1133 : " + msg5.strip())
-            sock.sendall(LLM_INFERENCE_ENGINE.encode("utf-8") + LINE_END)
-
-            msg = recv_until(sock, b"\n")
-            logging.info("Master: " + msg.strip())
-            sock.sendall(LLM_MODEL.encode("utf-8") + LINE_END)
-
-            msg = recv_until(sock, b"\n")
-            logging.info("Master: " + msg.strip())
-            sock.sendall(CHUNK_SIZE.encode("utf-8") + LINE_END)
-
-            final = recv_until(sock, b"\n")
-            logging.info("Master: " + final.strip())
-            if final.strip().lower() == "done":
-                sock.sendall(b"exit" + LINE_END)
-                logging.info("✅ KG extraction completed successfully!")
-            else:
-                logging.error("❌ Unexpected response from master: " + final)
-
-        else:
-            print("LLM_RUNNERS 133 " + LLM_RUNNERS)
-            # msg = recv_until(sock, b"\n")
-            logging.info("Master 135: " + msg.strip())
-            sock.sendall(LLM_RUNNERS.encode("utf-8") + LINE_END)
-
-            msg = recv_until(sock, b"\n")
-            logging.info("Master: " + msg.strip())
-            sock.sendall(LLM_INFERENCE_ENGINE.encode("utf-8") + LINE_END)
-
-            msg = recv_until(sock, b"\n")
-            logging.info("Master: " + msg.strip())
-            sock.sendall(LLM_MODEL.encode("utf-8") + LINE_END)
-
-            msg = recv_until(sock, b"\n")
-            logging.info("Master: " + msg.strip())
-            sock.sendall(CHUNK_SIZE.encode("utf-8") + LINE_END)
-            final = recv_until(sock, b"\n")
-            logging.info("Master: " + final.strip())
-            if (
                 final.strip()
                 == "There exists a graph with the file path, would you like to resume?"
-            ):
-                sock.sendall(b"n" + LINE_END)
-                final = recv_until(sock, b"\n")
-                logging.info("Master: " + final.strip())
+        ):
+            sock.sendall(b"n" + LINE_END)
+            final = recv_until(sock, b"\n")
+            logging.info("Master: " + final.strip())
 
-                sock.sendall(b"exit" + LINE_END)
-                logging.info("✅ KG extraction completed successfully!")
-            else:
-                logging.info("Master: " + final.strip())
-                sock.sendall(b"exit" + LINE_END)
-
-            return final.strip().split(":")[1]
-
-
-def get_last_graph_id():
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.connect((HOST, 7776))
-        sock.sendall(b"lst\n")
-
-        data = recv_until(sock, b"]")
-
-        # while True:
-        #     chunk = sock.recv(4096)
-        #     if not chunk:
-        #         break
-        #     data += chunk
-
-        sock.sendall(b"exit\n")
-
-    # Try to decode the JSON response
-    try:
-        graphs = json.loads(data.strip())
-    except json.JSONDecodeError as e:
-        print("JSON decode error:", e)
-        print("Raw data received:", data)
-        return 0
-
-    # Extract and return the highest graph ID
-    graph_ids = [g.get("idgraph", 0) for g in graphs if isinstance(g, dict)]
-    return max(graph_ids) if graph_ids else 0
-
-
-def call_reasoning_model(prompt):
-    """
-    Call reasoning model (Ollama or vLLM) using the first runner URL.
-    Uses LLM_INFERENCE_ENGINE ('ollama' | 'vllm') and LLM_MODEL.
-    """
-    if not REASONING_MODEL_URI:
-        logging.error("❌ No valid runner URL found in LLM_RUNNERS")
-        return ""
-
-    try:
-        if LLM_INFERENCE_ENGINE.lower() == "ollama":
-            url = f"{REASONING_MODEL_URI}/api/generate"
-            payload = {"model": LLM_MODEL, "prompt": prompt, "stream": False}
-            resp = requests.post(url, json=payload, timeout=120)
-            resp.raise_for_status()
-            data = resp.json()
-            print(data)
-            return data.get("response", "").strip()
-
-        elif LLM_INFERENCE_ENGINE.lower() == "vllm":
-            url = f"{REASONING_MODEL_URI}/v1/chat/completions"
-            payload = {
-                "model": LLM_MODEL,
-                "messages": [
-                    {"role": "system", "content": "You are a reasoning assistant."},
-                    {"role": "user", "content": prompt},
-                ],
-                "temperature": 0.2,
-                "max_tokens": 512,
-            }
-            resp = requests.post(url, json=payload, timeout=120)
-            resp.raise_for_status()
-            data = resp.json()
-            return data["choices"][0]["message"]["content"].strip()
-
+            sock.sendall(b"exit" + LINE_END)
+            logging.info("KG extraction completed successfully!")
         else:
-            raise ValueError(f"Unsupported engine: {LLM_INFERENCE_ENGINE}")
+            logging.info("Master: " + final.strip())
+            sock.sendall(b"exit" + LINE_END)
 
-    except Exception as e:
-        logging.error(f"❌ Reasoning model call failed: {e}")
-        return ""
-
-
-def compress_triples(triples):
-    """
-    Compress triples to short string representation:
-    [{"head_entity":"A","relation":"is","tail_entity":"B"}] -> ["A|is|B"]
-    """
-    compressed = [
-        f"{t['head_entity']}|{t['relation']}|{t['tail_entity']}" for t in triples
-    ]
-    return compressed
-
-
-def call_llm_ollama(prompt):
-    """Call Ollama API and return model response"""
-
-    endpoint = "/api/generate"
-    url = REASONING_MODEL_URI + endpoint
-    payload = {"model": "deepseek-r1", "prompt": prompt, "stream": False}
-    try:
-        resp = requests.post(url, json=payload, timeout=120)
-        resp.raise_for_status()
-        data = resp.json()
-        print("LLM response:" + str(data))
-        return data.get("response", "").strip()
-    except Exception as e:
-        logging.error(f"❌ LLM call failed: {e}")
-        return ""
-
-
-def extract_final_answer(text: str) -> str:
-    # Remove <think>...</think> reasoning if present
-    if "<think>" in text and "</think>" in text:
-        text = text.split("</think>")[-1].strip()
-    # Take only the first line / short phrase
-    return text
+        return final.strip().split(":")[1]
 
 
 def run_cypher_query(graph_id: str, query: str):
@@ -340,133 +179,12 @@ def parse_results(raw_rows):
     return triples
 
 
-def wait_until_graph_ready(HOST, PORT):
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.connect((HOST, PORT))
-
-        while True:
-            sock.sendall(b"lst")
-
-            buffer = b""
-            bracket_count = 0
-            started = False
-
-            while True:
-                chunk = sock.recv(4096)
-                if not chunk:
-                    break
-                buffer += chunk
-
-                # decode incrementally to count brackets
-                text = chunk.decode(errors="ignore")
-                for ch in text:
-                    if ch == "[":
-                        started = True
-                        bracket_count += 1
-                    elif ch == "]":
-                        bracket_count -= 1
-
-                # stop only when we started and brackets are balanced
-                if started and bracket_count == 0:
-                    break
-
-            raw = buffer.decode(errors="ignore").strip()
-            if not raw:
-                print("[WARN] Empty response")
-                time.sleep(5)
-                continue
-
-            start = raw.find("[")
-            end = raw.rfind("]")
-            if start == -1 or end == -1:
-                print("[WARN] No JSON brackets found in response")
-                time.sleep(5)
-                continue
-
-            json_text = raw[start : end + 1]
-
-            try:
-                graphs = json.loads(json_text)
-            except json.JSONDecodeError as e:
-                print(f"[WARN] JSON parse failed: {e}")
-                print("Raw JSON candidate:", repr(json_text))
-                time.sleep(5)
-                continue
-
-            if not graphs:
-                print("[WARN] Empty graph list")
-                time.sleep(5)
-                continue
-
-            last_graph = graphs[-1]
-            status = last_graph.get("status", "").lower()
-            graph_id = last_graph.get("idgraph")
-            print(f"Graph {graph_id} status: {status}")
-
-            if status == "nop":
-                time.sleep(10)
-            else:
-                break
-
-        try:
-            sock.sendall(b"exit")
-        except Exception:
-            pass
-
-    print("✅ Graph is ready:", last_graph)
-    return last_graph
-
-
-def get_upbytes_percentage(HOST, PORT, id_value):
-    """Send UPBYTES|<id> and return the percentage (3rd numeric field)."""
-    command = f"UPBYTES|{id_value}\n".encode("utf-8")
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.connect((HOST, PORT))
-        sock.sendall(command)
-        response = recv_until(sock)
-        sock.sendall(b"exit\n")
-
-    parts = response.split("|")
-
-    # if upload completed
-    if len(parts) == 1:
-        return 100.00
-    if len(parts) < 4:
-        raise ValueError(f"Unexpected UPBYTES response: {response}")
-    try:
-        percentage = float(parts[4])
-    except ValueError:
-        raise ValueError(f"Cannot convert percentage to float: {parts[3]}")
-    return percentage
-
-
-def wait_until_complete(HOST, PORT, id_value, poll_interval=5):
-    """Poll UPBYTES|<id> until percentage reaches 100."""
-    attempt_count=0
-    while True:
-        try:
-            if attempt_count>100:exit(1)
-            attempt_count+=1
-            percent = get_upbytes_percentage(HOST, PORT, id_value)
-            print(f"UPBYTES|{id_value} progress: {percent:.2f}%")
-            if percent >= 100.0:
-                print("✅ Task completed!")
-                break
-        except Exception as e:
-            print(f"[WARN] Failed to get UPBYTES percentage: {e}")
-        time.sleep(poll_interval)
-
-
 def test_KG(llm_inference_engine_startup_script, text_folder, upload_file_script):
 
     query = "MATCH (n)-[r]-(m) RETURN n,r,m"
 
     # start the llm inference engine
     subprocess.run(["bash", llm_inference_engine_startup_script], check=True)
-
-    last_graph_id = get_last_graph_id()
-    graph_id = last_graph_id + 1
-    logging.info(f"Starting processing from graph ID {graph_id}")
 
     all_txt_files = []
     for root, _, files in os.walk(text_folder):
@@ -508,167 +226,6 @@ def test_KG(llm_inference_engine_startup_script, text_folder, upload_file_script
             if os.path.exists(src):
                 shutil.copy(src, dst)
 
-        # QA prediction
-#         qa_file = os.path.join(text_folder, folder_name, "qa_pairs.json")
-#         if os.path.exists(qa_file):
-#             print("file exists")
-#             with open(qa_file, "r", encoding="utf-8") as f:
-#                 qa_data = json.load(f)
-#
-#             question = qa_data["question"]
-#             answer = qa_data["answer"]
-#             compressed_triples_ = compress_triples(triples)
-#             prompt = f"""You are a QA assistant.
-# Given the extracted triples:
-# {json.dumps(compressed_triples_, indent=2, ensure_ascii=False)}
-#
-# Question: {question}
-#  Answer in a short phrase. Do not include reasoning, explanations, or extra text."""
-#
-#             predicted_answer = extract_final_answer(call_reasoning_model(prompt))
-#
-#             pred_out = {
-#                 "id": qa_data["id"],
-#                 "question": question,
-#                 "gold_answer": answer,
-#                 "predicted_answer": predicted_answer,
-#             }
-#             with open(
-#                 os.path.join(output_dir, "pred_answer.json"), "w", encoding="utf-8"
-#             ) as f:
-#                 json.dump(pred_out, f, indent=2, ensure_ascii=False)
-
-        # graph_id += 1
-
-
-# def evaluate_predictions_fuzzy(pred_base="pred", threshold=90):
-#     """
-#     Evaluate QA predictions with fuzzy matching.
-#     threshold: percentage similarity to count as correct
-#     """
-#     total = 0
-#     correct = 0
-#     mismatches = []
-#
-#     for root, _, files in os.walk(pred_base):
-#         for file in files:
-#             if file == "pred_answer.json":
-#                 pred_file = os.path.join(root, file)
-#                 with open(pred_file, "r", encoding="utf-8") as f:
-#                     pred_data = json.load(f)
-#
-#                 gold = pred_data["gold_answer"].strip().lower()
-#                 pred = pred_data["predicted_answer"].strip().lower()
-#
-#                 total += 1
-#                 score = fuzz.ratio(pred, gold)
-#                 if score >= threshold:
-#                     correct += 1
-#                 else:
-#                     mismatches.append({
-#                         "id": pred_data["id"],
-#                         "question": pred_data["question"],
-#                         "gold_answer": pred_data["gold_answer"],
-#                         "predicted_answer": pred_data["predicted_answer"],
-#                         "similarity": score
-#                     })
-#
-#     accuracy = correct / total if total > 0 else 0
-#     print("\n=== Fuzzy Evaluation ===")
-#     print(f"Total QA pairs: {total}")
-#     print(f"Correct predictions (>= {threshold}% similarity): {correct}")
-#     print(f"Accuracy: {accuracy:.2%}")
-#
-#     if mismatches:
-#         print("\nMismatched predictions (below threshold):")
-#         for m in mismatches:
-#             print(f"ID: {m['id']}, Q: {m['question']}")
-#             print(f"  Gold: {m['gold_answer']}, Pred: {m['predicted_answer']}, Similarity: {m['similarity']:.1f}%\n")
-
-
-# def process_file(local_path, graph_id):
-#     folder_name = os.path.basename(os.path.dirname(local_path))
-#     try:
-#         hdfs_path = upload_to_hdfs(local_path)
-#         send_file_to_master(hdfs_path)
-#     except subprocess.CalledProcessError as e:
-#         logging.error(f"Failed to upload {local_path} to HDFS: {e}")
-#         return None
-#
-#     query = "MATCH (n)-[r]-(m) RETURN n,r,m"
-#     raw = run_cypher_query(str(graph_id), query)
-#     triples = parse_results(raw)
-#
-#     output_dir = os.path.join("pred", folder_name)
-#     os.makedirs(output_dir, exist_ok=True)
-#
-#     with open(os.path.join(output_dir, "pred.json"), "w", encoding="utf-8") as f:
-#         json.dump(triples, f, indent=2, ensure_ascii=False)
-#
-#     # Copy gold files
-#     for gold_file in ["entities.json", "relations.json", "text.txt"]:
-#         src = os.path.join(TEXT_FOLDER, folder_name, gold_file)
-#         dst = os.path.join(output_dir, gold_file)
-#         if os.path.exists(src):
-#             shutil.copy(src, dst)
-#
-#     # QA prediction
-#     qa_file = os.path.join(TEXT_FOLDER, folder_name, "qa_pairs.json")
-#     if os.path.exists(qa_file):
-#         with open(qa_file, "r", encoding="utf-8") as f:
-#             qa_data = json.load(f)
-#
-#         question = qa_data["question"]
-#         answer = qa_data["answer"]
-#
-#         prompt = f"""You are a QA assistant.
-# Given the extracted triples:
-# {json.dumps(triples, indent=2, ensure_ascii=False)}
-#
-# Question: {question}
-# Answer in a short phrase."""
-#
-#         predicted_answer = call_llm_ollama(prompt)
-#
-#         pred_out = {
-#             "id": qa_data["id"],
-#             "question": question,
-#             "gold_answer": answer,
-#             "predicted_answer": predicted_answer
-#         }
-#         with open(os.path.join(output_dir, "pred_answer.json"), "w", encoding="utf-8") as f:
-#             json.dump(pred_out, f, indent=2, ensure_ascii=False)
-#
-#     return graph_id
-# def main():
-#     last_graph_id = get_last_graph_id()
-#     graph_id = last_graph_id + 1
-#     logging.info(f"Starting processing from graph ID {graph_id}")
-#
-#     all_txt_files = []
-#     for root, _, files in os.walk(TEXT_FOLDER):
-#         for file in files:
-#             if file.endswith(".txt"):
-#                 all_txt_files.append(os.path.join(root, file))
-#
-#     random.shuffle(all_txt_files)
-#     print(all_txt_files)
-#
-#     # Run max 5 files in parallel
-#     with ProcessPoolExecutor(max_workers=5) as executor:
-#         future_to_file = {
-#             executor.submit(process_file, path, gid): (path, gid)
-#             for gid, path in enumerate(all_txt_files, start=graph_id)
-#         }
-#
-#         for future in as_completed(future_to_file):
-#             path, gid = future_to_file[future]
-#             try:
-#                 res = future.result()
-#                 logging.info(f"Finished {path} with graph ID {res}")
-#             except Exception as e:
-#                 logging.error(f"Error processing {path}: {e}")
 
 if __name__ == "__main__":
     test_KG(OLLAMA_SETUP_SCRIPT, TEXT_FOLDER, UPLOAD_SCRIPT)
-    # evaluate_predictions_fuzzy(pred_base="pred", threshold=90)
