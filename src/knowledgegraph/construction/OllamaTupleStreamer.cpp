@@ -60,8 +60,6 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
 
       // Completed tuple
       if (j.value("done", false)) {
-        ollama_tuple_streamer_logger.debug("Received done partial: " +
-                                           ctx->current_tuple);
         ctx->buffer->add("-1");
         ctx->current_tuple.clear();
         break;
@@ -70,7 +68,6 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
       // Partial response
       if (j.contains("response")) {
         std::string partial = j["response"];
-        ollama_tuple_streamer_logger.info("Partial: " + partial);
 
         size_t i = 0;
         while (i < partial.size()) {
