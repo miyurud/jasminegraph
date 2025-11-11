@@ -30,7 +30,9 @@ while [[ $(check_pod_status) == "0" ]]; do
         break
     fi
 done
-
+free -h
+df -h
+du -sh /* 2>/dev/null | sort -hr | head -n 10
 echo "----------------------------- logs -----------------------------"
 kubectl logs -f jasminegraph-unit-test-pod
 
