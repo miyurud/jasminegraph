@@ -28,7 +28,8 @@ else
 
     echo "Container '$CONTAINER_NAME' does not exist. Creating and starting it..."
     # Use a dedicated host directory for Ollama models to avoid filling root
-    MODEL_DIR="/mnt/ollama_models"        # Use /mnt because it has 66 GB free
+    MODEL_DIR="/mnt/ollama_models"
+    MODEL_DIR="$(pwd)/ollama_models"
     mkdir -p "$MODEL_DIR"
     docker run -d $GPU_FLAG \
         -p "${HOST_PORT}:11434" \
