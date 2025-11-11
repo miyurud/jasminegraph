@@ -30,8 +30,12 @@ const int HTTP_CREATED = 201;
 TEST_F(K8sInterfaceTest, TestConstructor) { ASSERT_NE(interface->apiClient, nullptr); }
 
 TEST_F(K8sInterfaceTest, TestGetNodes) {
-    v1_node_list_t *nodes = interface->getNodes();
+  std::cout << "lin 33";
+  v1_node_list_t *nodes = interface->getNodes();
+  std::cout << "lin 35";
+  std::cout << nodes->items->count;
     ASSERT_NE(nodes->items->count, 0);
+  std::cout << "lin 37";
 }
 
 TEST_F(K8sInterfaceTest, TestGetDeploymentList) {

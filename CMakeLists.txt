@@ -105,7 +105,6 @@ set(HEADERS globals.h
         src/frontend/core/executor/impl/CypherQueryExecutor.h
         src/query/processor/cypher/runtime/Aggregation.h
         src/query/processor/cypher/runtime/AggregationFactory.h
-        src/knowledgegraph/construction/Pipeline.h
         src/knowledgegraph/construction/Prompt.h
         src/knowledgegraph/construction/VLLMTupleStreamer.h
         src/vectorStore/TextEmbedder.h
@@ -207,7 +206,6 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/frontend/core/executor/impl/CypherQueryExecutor.cpp
         src/query/processor/cypher/runtime/Aggregation.cpp
         src/query/processor/cypher/runtime/AggregationFactory.cpp
-        src/knowledgegraph/construction/Pipeline.cpp
         src/knowledgegraph/construction/OllamaTupleStreamer.cpp
         src/knowledgegraph/construction/VLLMTupleStreamer.cpp
         src/vectorStore/TextEmbedder.cpp

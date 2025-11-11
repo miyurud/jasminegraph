@@ -190,7 +190,7 @@ def test_kg(text_folder, upload_file_script, host, port):
             continue
 
         # Wait for KG construction
-        time.sleep(240)
+        time.sleep(120)
         raw = run_cypher_query(str(graph_id), query, host, port)
         triples = parse_results(raw)
         print(json.dumps(triples, indent=2, ensure_ascii=False))
