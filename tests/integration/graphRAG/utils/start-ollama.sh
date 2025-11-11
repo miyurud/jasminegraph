@@ -25,10 +25,16 @@ if [ -n "$EXISTING_CONTAINER" ]; then
     echo "Container '$CONTAINER_NAME' exists. Starting it..."
     docker start "$CONTAINER_NAME"
 else
+
     echo "Container '$CONTAINER_NAME' does not exist. Creating and starting it..."
+    # Use a dedicated host directory for Ollama models to avoid filling root
+    MODEL_DIR="/mnt/ollama_models"        # Use /mnt because it has 66 GB free
+    mkdir -p "$MODEL_DIR"
     docker run -d $GPU_FLAG \
         -p "${HOST_PORT}:11434" \
         --name "$CONTAINER_NAME" \
+        -v "${MODEL_DIR}:/root/.ollama" \
+        -e OLLAMA_MODELS=/root/.ollama/models \
         -e OLLAMA_NUM_PARALLEL="$NUM_PARALLEL" \
         -e OLLAMA_MAX_LOADED_MODELS=2 \
         -e OLLAMA_VRAM_RECOVERY_TIMEOUT=15 \
