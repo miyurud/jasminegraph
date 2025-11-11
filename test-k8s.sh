@@ -312,6 +312,7 @@ if [ "$exit_code" != '0' ]; then
     kubectl top pods || echo "kubectl top not available"
     free -h
     df -h
+    du -sh /* 2>/dev/null | sort -hr | head -n 10
 
     echo
     echo -e '\e[31;1mERROR: Test Timeout\e[0m'
