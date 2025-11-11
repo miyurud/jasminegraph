@@ -193,6 +193,7 @@ def test_kg(text_folder, upload_file_script, host, port):
         raw = run_cypher_query(str(graph_id), query, host, port)
         triples = parse_results(raw)
         print(json.dumps(triples, indent=2, ensure_ascii=False))
+        # assert triples[0]["head_entity"] == "Radio City"
 
         output_dir = os.path.join("pred", folder_name)
         os.makedirs(output_dir, exist_ok=True)
