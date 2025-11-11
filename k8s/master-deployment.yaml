@@ -66,8 +66,3 @@ spec:
               name: jasminegraph-aggregate
             - mountPath: /var/tmp/config
               name: common-config
-          resources:
-            requests:
-              ephemeral-storage: "500Mi"
-            limits:
-              ephemeral-storage: "2Gi"
