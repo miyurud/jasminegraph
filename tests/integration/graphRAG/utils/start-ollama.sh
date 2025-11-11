@@ -25,7 +25,6 @@ if [ -n "$EXISTING_CONTAINER" ]; then
     echo "Container '$CONTAINER_NAME' exists. Starting it..."
     docker start "$CONTAINER_NAME"
 else
-
     echo "Container '$CONTAINER_NAME' does not exist. Creating and starting it..."
     # Use a dedicated host directory for Ollama models to avoid filling root
     MODEL_DIR="/mnt/ollama_models"

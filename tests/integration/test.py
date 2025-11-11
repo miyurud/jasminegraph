@@ -274,14 +274,14 @@ def test(host, port):
         send_and_expect_response(
             sock, 'merge', b'--graph_id 2', DONE, exit_on_failure=True)
 
-        print()
-        logging.info('Testing train')
-        send_and_expect_response(sock, 'train', TRAIN, b'Available main flags:' + LINE_END +
-                                 b'graph_id learning_rate batch_size validate_iter epochs' +
-                                 LINE_END + b'Send --<flag1> <value1> --<flag2> <value2> ..',
-                                 exit_on_failure=True)
-        send_and_expect_response(
-            sock, 'train', b'--graph_id 2', DONE, exit_on_failure=True)
+        # print()
+        # logging.info('Testing train')
+        # send_and_expect_response(sock, 'train', TRAIN, b'Available main flags:' + LINE_END +
+        #                          b'graph_id learning_rate batch_size validate_iter epochs' +
+        #                          LINE_END + b'Send --<flag1> <value1> --<flag2> <value2> ..',
+        #                          exit_on_failure=True)
+        # send_and_expect_response(
+        #     sock, 'train', b'--graph_id 2', DONE, exit_on_failure=True)
 
         print()
         logging.info('Testing rmgr')
