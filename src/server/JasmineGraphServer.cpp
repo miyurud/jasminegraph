@@ -856,7 +856,7 @@ static unordered_map<string, float> scaleK8s(size_t npart) {
 }
 
 JasmineGraphServer::worker JasmineGraphServer::getDesignatedWorker() {
-    JasmineGraphServer::worker best_worker;
+    worker best_worker;
     double best_score = std::numeric_limits<double>::max();
 
     server_logger.debug("Selecting designated worker based on Prometheus metrics...");
