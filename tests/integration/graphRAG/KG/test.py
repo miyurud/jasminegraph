@@ -15,7 +15,6 @@ import os
 import random
 import socket
 import subprocess
-import sys
 import time
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -194,20 +193,6 @@ def test_kg(text_folder, upload_file_script, host, port):
         raw = run_cypher_query(str(graph_id), query, host, port)
         triples = parse_results(raw)
         print(json.dumps(triples, indent=2, ensure_ascii=False))
-        # if not triples or triples[0].get("head_entity") != "Radio City":
-        #     logging.error("Expected first head_entity to be 'Radio City', got: %s",
-        #                   triples[0] if triples else None)
-        #     sys.exit(1)
-        #
-        # if not triples or triples[1].get("head_entity") != "Radio City":
-        #     logging.error("Expected first head_entity to be 'Radio City', got: %s",
-        #                   triples[0] if triples else None)
-        #     sys.exit(1)
-        #
-        # if not triples or triples[2].get("head_entity") != "Radio City":
-        #     logging.error("Expected first head_entity to be 'Radio City', got: %s",
-        #                   triples[0] if triples else None)
-        #     sys.exit(1)
 
         output_dir = os.path.join("pred", folder_name)
         os.makedirs(output_dir, exist_ok=True)
