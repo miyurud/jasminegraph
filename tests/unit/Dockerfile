@@ -26,6 +26,7 @@ COPY ./ddl ./ddl
 COPY ./main.h ./main.h
 COPY ./main.cpp ./main.cpp
 COPY ./globals.h ./globals.h
+COPY ./globals.h ./src/globals.h
 COPY ./conf ./conf
 COPY ./k8s ./k8s
 

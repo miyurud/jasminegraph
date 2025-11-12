@@ -68,7 +68,7 @@ void initializeOpenTelemetry(ServiceType serviceType) {
         } else {
             telemetry_init_logger.info("Initializing OpenTelemetry for worker...");
             serviceName = "jasminegraph-worker";
-            
+
             if (jasminegraph_profile != PROFILE_K8S) {
                 const char* masterIP = std::getenv("MASTERIP");
                 std::string gatewayIP = masterIP ? masterIP : "172.28.5.1";
@@ -76,7 +76,7 @@ void initializeOpenTelemetry(ServiceType serviceType) {
             } else {
                 otlpEndpoint = "http://tempo:4318/v1/traces";
             }
-            
+
             useSimpleProcessor = true;   // Use SimpleProcessor for immediate export
         }
 
