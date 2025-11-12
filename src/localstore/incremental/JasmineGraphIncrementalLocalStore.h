@@ -14,8 +14,8 @@ limitations under the License.
 #include <nlohmann/json.hpp>
 #include <string>
 
-#include "../../vectorStore/FaissIndex.h"
-#include "../../vectorStore/TextEmbedder.h"
+#include "../../vectorstore/FaissIndex.h"
+#include "../../vectorstore/TextEmbedder.h"
 using json = nlohmann::json;
 
 #include "../../nativestore/NodeManager.h"

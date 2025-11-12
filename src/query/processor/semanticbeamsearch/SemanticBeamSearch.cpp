@@ -13,7 +13,7 @@
 #include "../../../nativestore/NodeManager.h"
 #include "../../../server/JasmineGraphInstanceProtocol.h"
 #include "../../../server/JasmineGraphServer.h"
-#include "../../../vectorStore/FaissIndex.h"
+#include "../../../vectorstore/FaissIndex.h"
 #include "../cypher/runtime/Helpers.h"
 
 Logger semantic_beam_search_logger;

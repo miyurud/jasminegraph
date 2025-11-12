@@ -22,8 +22,8 @@ limitations under the License.
 #include "../../nativestore/RelationBlock.h"
 #include "../../util/Utils.h"
 #include "../../util/logger/Logger.h"
-#include "../../vectorStore/FaissIndex.h"
-#include "../../vectorStore/TextEmbedder.h"
+#include "../../vectorstore/FaissIndex.h"
+#include "../../vectorstore/TextEmbedder.h"
 
 Logger incremental_localstore_logger;
 

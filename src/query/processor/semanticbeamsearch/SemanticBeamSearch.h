@@ -12,8 +12,8 @@
 
 #include "../../../nativestore/NodeManager.h"
 #include "../../../server/JasmineGraphServer.h"
-#include "../../../vectorStore/FaissIndex.h"
-#include "../../../vectorStore/TextEmbedder.h"
+#include "../../../vectorstore/FaissIndex.h"
+#include "../../../vectorstore/TextEmbedder.h"
 #include "../cypher/util/SharedBuffer.h"
 
 namespace faiss {
