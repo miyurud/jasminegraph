@@ -107,8 +107,8 @@ set(HEADERS globals.h
         src/query/processor/cypher/runtime/AggregationFactory.h
         src/knowledgegraph/construction/Prompt.h
         src/knowledgegraph/construction/VLLMTupleStreamer.h
-        src/vectorStore/TextEmbedder.h
-        src/vectorStore/FaissIndex.h
+        src/vectorstore/TextEmbedder.h
+        src/vectorstore/FaissIndex.h
         src/query/processor/semanticbeamsearch/SemanticBeamSearch.h
         src/frontend/core/executor/impl/SemanticBeamSearchExecutor.h
 
