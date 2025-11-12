@@ -109,7 +109,7 @@ set(HEADERS globals.h
         src/knowledgegraph/construction/VLLMTupleStreamer.h
         src/vectorStore/TextEmbedder.h
         src/vectorStore/FaissIndex.h
-        src/query/processor/semanticBeamSearch/SemanticBeamSearch.h
+        src/query/processor/semanticbeamsearch/SemanticBeamSearch.h
         src/frontend/core/executor/impl/SemanticBeamSearchExecutor.h
 
 
@@ -208,9 +208,9 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/query/processor/cypher/runtime/AggregationFactory.cpp
         src/knowledgegraph/construction/OllamaTupleStreamer.cpp
         src/knowledgegraph/construction/VLLMTupleStreamer.cpp
-        src/vectorStore/TextEmbedder.cpp
+        src/vectorstore/TextEmbedder.cpp
         src/vectorStore/FaissIndex.cpp
-        src/query/processor/semanticBeamSearch/SemanticBeamSearch.cpp
+        src/query/processor/semanticbeamsearch/SemanticBeamSearch.cpp
         src/frontend/core/executor/impl/SemanticBeamSearchExecutor.cpp
         src/knowledgegraph/construction/VLLMTupleStreamer.cpp
         src/knowledgegraph/construction/TupleStreamer.cpp
@@ -330,11 +330,6 @@ target_link_libraries(JasmineGraphLib PRIVATE yaml-cpp)
 target_link_libraries(JasmineGraphLib PRIVATE curl)
 target_link_libraries(JasmineGraphLib PRIVATE antlr4-runtime)
 target_link_libraries(JasmineGraphLib PRIVATE faiss)
-
-#target_link_libraries(JasmineGraphLib PRIVATE /usr/local/lib/llama.cpp/build/libllama.so)
-
-
-#target_link_libraries(llama)
 
 if (CMAKE_BUILD_TYPE STREQUAL "DEBUG")
     # Include google test

@@ -287,7 +287,6 @@ void *backendservicesesion(void *dummyPt) {
         } else {
             backend_logger.error("Message format not recognized");
             loop = true;
-            // sleep(1);
         }
     }
     backend_logger.info("Closing thread " + to_string(pthread_self()) + " and connection");
