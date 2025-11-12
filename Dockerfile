@@ -24,6 +24,7 @@ COPY ./main.h ./main.h
 COPY ./main.cpp ./main.cpp
 COPY ./globals.h ./globals.h
 COPY ./src ./src
+COPY ./globals.h ./src/globals.h
 
 RUN if [ "$DEBUG" = "true" ]; then echo "building in DEBUG mode" && sh build.sh --debug; else sh build.sh; fi
 
