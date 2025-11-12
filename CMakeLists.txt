@@ -209,7 +209,7 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/knowledgegraph/construction/OllamaTupleStreamer.cpp
         src/knowledgegraph/construction/VLLMTupleStreamer.cpp
         src/vectorstore/TextEmbedder.cpp
-        src/vectorStore/FaissIndex.cpp
+        src/vectorstore/FaissIndex.cpp
         src/query/processor/semanticbeamsearch/SemanticBeamSearch.cpp
         src/frontend/core/executor/impl/SemanticBeamSearchExecutor.cpp
         src/knowledgegraph/construction/VLLMTupleStreamer.cpp
