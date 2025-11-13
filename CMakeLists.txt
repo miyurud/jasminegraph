@@ -107,8 +107,8 @@ set(HEADERS globals.h
         src/query/processor/cypher/runtime/AggregationFactory.h
         src/knowledgegraph/construction/Prompt.h
         src/knowledgegraph/construction/VLLMTupleStreamer.h
-        src/vectorStore/TextEmbedder.h
-        src/vectorStore/FaissIndex.h
+        src/vectorstore/TextEmbedder.h
+        src/vectorstore/FaissIndex.h
         src/query/processor/semanticBeamSearch/SemanticBeamSearch.h
         src/frontend/core/executor/impl/SemanticBeamSearchExecutor.h
 
@@ -208,8 +208,8 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/query/processor/cypher/runtime/AggregationFactory.cpp
         src/knowledgegraph/construction/OllamaTupleStreamer.cpp
         src/knowledgegraph/construction/VLLMTupleStreamer.cpp
-        src/vectorStore/TextEmbedder.cpp
-        src/vectorStore/FaissIndex.cpp
+        src/vectorstore/TextEmbedder.cpp
+        src/vectorstore/FaissIndex.cpp
         src/query/processor/semanticBeamSearch/SemanticBeamSearch.cpp
         src/frontend/core/executor/impl/SemanticBeamSearchExecutor.cpp
         src/knowledgegraph/construction/VLLMTupleStreamer.cpp
