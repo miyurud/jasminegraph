@@ -107,9 +107,9 @@ set(HEADERS globals.h
         src/query/processor/cypher/runtime/AggregationFactory.h
         src/knowledgegraph/construction/Prompt.h
         src/knowledgegraph/construction/VLLMTupleStreamer.h
-        src/vectorstore/TextEmbedder.h
-        src/vectorstore/FaissIndex.h
-        src/query/processor/semanticbeamsearch/SemanticBeamSearch.h
+        src/vectorStore/TextEmbedder.h
+        src/vectorStore/FaissIndex.h
+        src/query/processor/semanticBeamSearch/SemanticBeamSearch.h
         src/frontend/core/executor/impl/SemanticBeamSearchExecutor.h
 
 
@@ -208,9 +208,9 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/query/processor/cypher/runtime/AggregationFactory.cpp
         src/knowledgegraph/construction/OllamaTupleStreamer.cpp
         src/knowledgegraph/construction/VLLMTupleStreamer.cpp
-        src/vectorstore/TextEmbedder.cpp
-        src/vectorstore/FaissIndex.cpp
-        src/query/processor/semanticbeamsearch/SemanticBeamSearch.cpp
+        src/vectorStore/TextEmbedder.cpp
+        src/vectorStore/FaissIndex.cpp
+        src/query/processor/semanticBeamSearch/SemanticBeamSearch.cpp
         src/frontend/core/executor/impl/SemanticBeamSearchExecutor.cpp
         src/knowledgegraph/construction/VLLMTupleStreamer.cpp
         src/knowledgegraph/construction/TupleStreamer.cpp
@@ -308,12 +308,12 @@ target_link_libraries(JasmineGraphLib PRIVATE /usr/local/libhdfs3/lib/libhdfs3.s
 target_link_libraries(JasmineGraph JasmineGraphLib)
 target_link_libraries(JasmineGraph curl)
 
-target_link_libraries(JasmineGraphLib PRIVATE OpenMP::OpenMP_CXX faiss openblas)
+#target_link_libraries(JasmineGraphLib PRIVATE OpenMP::OpenMP_CXX faiss openblas)
 target_link_libraries(JasmineGraph  OpenMP::OpenMP_CXX faiss openblas)
 find_package(OpenMP REQUIRED)
 if(OpenMP_CXX_FOUND)
     target_link_libraries(JasmineGraph  OpenMP::OpenMP_CXX faiss)
-    target_link_libraries(JasmineGraphLib PRIVATE  OpenMP::OpenMP_CXX)
+    #target_link_libraries(JasmineGraphLib PRIVATE  OpenMP::OpenMP_CXX)
 endif()
 include_directories(/usr/local/libhdfs3/include/hdfs/)
 include_directories(/usr/include/oneapi/)
@@ -329,7 +329,12 @@ target_link_libraries(JasmineGraphLib PRIVATE /usr/local/lib/libkubernetes.so)
 target_link_libraries(JasmineGraphLib PRIVATE yaml-cpp)
 target_link_libraries(JasmineGraphLib PRIVATE curl)
 target_link_libraries(JasmineGraphLib PRIVATE antlr4-runtime)
-target_link_libraries(JasmineGraphLib PRIVATE faiss)
+#target_link_libraries(JasmineGraphLib PRIVATE faiss)
+
+#target_link_libraries(JasmineGraphLib PRIVATE /usr/local/lib/llama.cpp/build/libllama.so)
+
+
+#target_link_libraries(llama)
 
 if (CMAKE_BUILD_TYPE STREQUAL "DEBUG")
     # Include google test
