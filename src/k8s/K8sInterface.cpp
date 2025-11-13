@@ -106,7 +106,7 @@ v1_deployment_t *K8sInterface::createJasmineGraphWorkerDeployment(int workerId,
 v1_status_t *K8sInterface::deleteJasmineGraphWorkerDeployment(int workerId) const {
     std::string deploymentName = "jasminegraph-worker" + std::to_string(workerId) + "-deployment";
     v1_status_t *result = AppsV1API_deleteNamespacedDeployment(this->apiClient, strdup(deploymentName.c_str()),
-                                                               namespace_, NULL, NULL, NULL, NULL, NULL, NULL);
+                                                               namespace_, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
     return result;
 }
 
@@ -125,7 +125,7 @@ v1_service_t *K8sInterface::createJasmineGraphWorkerService(int workerId) const 
 v1_service_t *K8sInterface::deleteJasmineGraphWorkerService(int workerId) const {
     std::string serviceName = "jasminegraph-worker" + std::to_string(workerId) + "-service";
     v1_service_t *result = CoreV1API_deleteNamespacedService(this->apiClient, strdup(serviceName.c_str()), namespace_,
-                                                             NULL, NULL, NULL, NULL, NULL, NULL);
+                                                             NULL, NULL, NULL, NULL, NULL, NULL, NULL);
     return result;
 }
 
@@ -143,7 +143,7 @@ v1_service_t *K8sInterface::createJasmineGraphMasterService() {
 v1_service_t *K8sInterface::deleteJasmineGraphMasterService() {
     std::string serviceName = "jasminegraph-master-service";
     v1_service_t *result = CoreV1API_deleteNamespacedService(this->apiClient, strdup(serviceName.c_str()), namespace_,
-                                                             NULL, NULL, NULL, NULL, NULL, NULL);
+                                                             NULL, NULL, NULL, NULL, NULL, NULL,NULL);
     return result;
 }
 
@@ -235,7 +235,7 @@ v1_persistent_volume_claim_t *K8sInterface::createJasmineGraphPersistentVolumeCl
 v1_persistent_volume_t *K8sInterface::deleteJasmineGraphPersistentVolume(int workerId) const {
     std::string volumeName = "jasminegraph-worker" + std::to_string(workerId) + "-data";
     v1_persistent_volume_t *result = CoreV1API_deletePersistentVolume(apiClient, strdup(volumeName.c_str()), NULL, NULL,
-                                                                      NULL, NULL, NULL, NULL);
+                                                                      NULL, NULL, NULL, NULL, NULL);
     return result;
 }
 
@@ -246,6 +246,6 @@ v1_persistent_volume_claim_t *K8sInterface::deleteJasmineGraphPersistentVolumeCl
                                                         strdup(volumeClaimName.c_str()),
                                                         namespace_,
                                                         NULL, NULL, NULL, NULL, NULL,
-                                                        NULL);
+                                                        NULL, NULL);
     return result;
 }
