@@ -20,15 +20,11 @@ class K8sInterfaceTest : public ::testing::Test {
     K8sInterface *interface {};
 
     void SetUp() override {
-        std::cerr << "lin 23\n";
         interface = new K8sInterface();
-     std::cerr << "lin 25\n";
     }
 
     void TearDown() override {
-        std::cerr << "lin 29\n";
         delete interface;
-     std::cerr << "lin 31\n";
     }
 };
 
@@ -36,27 +32,14 @@ const int HTTP_OK = 200;
 const int HTTP_CREATED = 201;
 
 TEST_F(K8sInterfaceTest, TestConstructor) {
-      std::cerr << "lin 39\n";    // use stderr and newline (unbuffered)
-
     ASSERT_NE(interface->apiClient, nullptr);
     if (interface->apiClient) {
-        std::cerr << "Base path: " << interface->apiClient->basePath << "\n";
-        std::cerr << "Response code: " << interface->apiClient->response_code << "\n";
-
     }
-    std::cerr << "lin 44\n";
-
 }
 
 TEST_F(K8sInterfaceTest, TestGetNodes) {
-  std::cerr << "lin 33\n";    // use stderr and newline (unbuffered)
   v1_node_list_t *nodes = interface->getNodes();
-  std::cerr << "lin 35\n";
-  if (!nodes) { std::cerr << "nodes == nullptr\n"; }
-  else if (!nodes->items) { std::cerr << "nodes->items == nullptr\n"; }
-  else { std::cerr << "count=" << nodes->items->count << "\n"; }
   ASSERT_NE(nodes->items->count, 0);
-  std::cerr << "lin 37\n";
 }
 
 TEST_F(K8sInterfaceTest, TestGetDeploymentList) {
