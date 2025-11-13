@@ -33,8 +33,6 @@ const int HTTP_CREATED = 201;
 
 TEST_F(K8sInterfaceTest, TestConstructor) {
     ASSERT_NE(interface->apiClient, nullptr);
-    if (interface->apiClient) {
-    }
 }
 
 TEST_F(K8sInterfaceTest, TestGetNodes) {
