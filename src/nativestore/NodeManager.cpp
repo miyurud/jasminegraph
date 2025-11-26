@@ -359,6 +359,11 @@ NodeBlock *NodeManager::get(std::string nodeId) {
         return nodeBlockPointer;
     }
     unsigned int nodeIndex = this->nodeIndex[nodeId];
+    return get(nodeIndex, nodeId);
+}
+
+NodeBlock *NodeManager::get(unsigned int nodeIndex, std::string nodeId) {
+    NodeBlock *nodeBlockPointer = NULL;
     const unsigned int blockAddress = nodeIndex * NodeBlock::BLOCK_SIZE;
     NodeBlock::nodesDB->seekg(blockAddress);
     unsigned int vertexId;
@@ -401,18 +406,18 @@ NodeBlock *NodeManager::get(std::string nodeId) {
         node_manager_logger.error("Error while reading label data from block " + std::to_string(blockAddress));
     }
     bool usage = usageBlock == '\1';
-    node_manager_logger.debug("Label = " + std::string(label));
-    node_manager_logger.debug("Length of label = " + std::to_string(strlen(label)));
-    node_manager_logger.debug("DEBUG: raw edgeRef from DB (disk) " + std::to_string(edgeRef));
+    // node_manager_logger.debug("Label = " + std::string(label));
+    // node_manager_logger.debug("Length of label = " + std::to_string(strlen(label)));
+    // node_manager_logger.debug("DEBUG: raw edgeRef from DB (disk) " + std::to_string(edgeRef));
 
     nodeBlockPointer = new NodeBlock(nodeId, vertexId, blockAddress, propRef, metaPropRef, edgeRef,
                                      centralEdgeRef, edgeRefPID, label, usage);
 
-    node_manager_logger.debug("DEBUG: nodeBlockPointer after creating the object edgeRef " +
-                              std::to_string(nodeBlockPointer->edgeRef));
+    // node_manager_logger.debug("DEBUG: nodeBlockPointer after creating the object edgeRef " +
+    //                          std::to_string(nodeBlockPointer->edgeRef));
 
     if (nodeBlockPointer->edgeRef % RelationBlock::BLOCK_SIZE != 0) {
-        node_manager_logger.error("Exception: Invalid edge reference address = " + nodeBlockPointer->edgeRef);
+        node_manager_logger.error("Exception: Invalid edge reference address = " + std::to_string(nodeBlockPointer->edgeRef));
     }
     return nodeBlockPointer;
 }
