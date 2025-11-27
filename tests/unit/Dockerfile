@@ -1,9 +1,11 @@
-FROM parameswaransajeenthiran/jasminegraph-prerequisites:new
+# Pin to the known-good prerequisites image used on master to avoid k8s client/runtime mismatches
+FROM miyurud/jasminegraph-prerequisites:20241231T070657
 
 RUN apt-get update
 RUN apt-get install libcurl4-openssl-dev -y
 RUN apt-get install -y sysstat
 RUN apt-get install -y nmon
+RUN apt-get install -y python3-setuptools
 
 RUN ln -sf /usr/bin/python3.8 /usr/bin/python3
 
@@ -24,6 +26,7 @@ COPY ./ddl ./ddl
 COPY ./main.h ./main.h
 COPY ./main.cpp ./main.cpp
 COPY ./globals.h ./globals.h
+COPY ./globals.h ./src/globals.h
 COPY ./conf ./conf
 COPY ./k8s ./k8s
 

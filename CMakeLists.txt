@@ -8,10 +8,10 @@ if(NOT CMAKE_BUILD_TYPE)
     message(STATUS "Build type not specified, setting to RelWithDebInfo for VTune profiling")
 endif()
 
-
-
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
+find_package(Protobuf REQUIRED)
+find_package(CURL REQUIRED)
 
 set(HEADERS globals.h
         src/backend/JasmineGraphBackend.h
@@ -92,6 +92,7 @@ set(HEADERS globals.h
         src/util/hdfs/HDFSStreamHandler.h
         src/partitioner/stream/HDFSMultiThreadedHashPartitioner.h
         src/query/processor/cypher/util/Const.h
+        src/util/telemetry/OpenTelemetryUtil.h
         src/nativestore/MetaPropertyLink.h
         src/nativestore/MetaPropertyEdgeLink.h
         src/query/processor/cypher/queryplanner/Operators.h
@@ -170,6 +171,8 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/util/kafka/InstanceStreamHandler.cpp
         src/util/logger/Logger.cpp
         src/util/scheduler/SchedulerService.cpp
+        src/util/telemetry/OpenTelemetryUtil.cpp
+        src/util/telemetry/TelemetryInitializer.cpp
         src/k8s/K8sInterface.cpp
         src/nativestore/NodeManager.cpp
         src/nativestore/NodeBlock.cpp
@@ -304,9 +307,9 @@ target_link_libraries(JasmineGraphLib PRIVATE /usr/lib/x86_64-linux-gnu/libflatb
 target_link_libraries(JasmineGraphLib PRIVATE /usr/lib/x86_64-linux-gnu/libjsoncpp.so)
 target_link_libraries(JasmineGraphLib PRIVATE /usr/local/lib/libcppkafka.so)
 target_link_libraries(JasmineGraphLib PRIVATE /usr/local/libhdfs3/lib/libhdfs3.so)
+target_link_libraries(JasmineGraph PRIVATE JasmineGraphLib)
+target_link_libraries(JasmineGraph PRIVATE curl)
 
-target_link_libraries(JasmineGraph JasmineGraphLib)
-target_link_libraries(JasmineGraph curl)
 
 #target_link_libraries(JasmineGraphLib PRIVATE OpenMP::OpenMP_CXX faiss openblas)
 target_link_libraries(JasmineGraph  OpenMP::OpenMP_CXX faiss openblas)
@@ -329,7 +332,51 @@ target_link_libraries(JasmineGraphLib PRIVATE /usr/local/lib/libkubernetes.so)
 target_link_libraries(JasmineGraphLib PRIVATE yaml-cpp)
 target_link_libraries(JasmineGraphLib PRIVATE curl)
 target_link_libraries(JasmineGraphLib PRIVATE antlr4-runtime)
-#target_link_libraries(JasmineGraphLib PRIVATE faiss)
+
+# Option to enable/disable OpenTelemetry
+option(ENABLE_OPENTELEMETRY "Enable OpenTelemetry support" ON)
+
+# Disable OpenTelemetry for DEBUG builds to avoid issues in unit tests
+if(CMAKE_BUILD_TYPE STREQUAL "DEBUG")
+    set(ENABLE_OPENTELEMETRY OFF)
+    message(STATUS "DEBUG build detected - disabling OpenTelemetry to prevent test issues")
+endif()
+
+# Conditionally find and link OpenTelemetry packages
+if(ENABLE_OPENTELEMETRY)
+    # Find OpenTelemetry packages
+    find_package(opentelemetry-cpp REQUIRED)
+    find_package(PkgConfig REQUIRED)
+
+    # Find nlohmann_json package for OpenTelemetry
+    find_package(nlohmann_json REQUIRED)
+
+    # OpenTelemetry libraries for native tracing support (without gRPC)
+    target_link_libraries(JasmineGraphLib PRIVATE opentelemetry-cpp::api)
+    target_link_libraries(JasmineGraphLib PRIVATE opentelemetry-cpp::sdk)
+    target_link_libraries(JasmineGraphLib PRIVATE opentelemetry-cpp::trace)
+    target_link_libraries(JasmineGraphLib PRIVATE opentelemetry-cpp::metrics)
+    target_link_libraries(JasmineGraphLib PRIVATE opentelemetry-cpp::ostream_span_exporter)
+    target_link_libraries(JasmineGraphLib PRIVATE opentelemetry-cpp::otlp_http_exporter)
+    target_link_libraries(JasmineGraphLib PRIVATE nlohmann_json::nlohmann_json)
+
+    # Link main executable with OpenTelemetry libraries
+    target_link_libraries(JasmineGraph PRIVATE opentelemetry-cpp::api)
+    target_link_libraries(JasmineGraph PRIVATE opentelemetry-cpp::sdk)
+    target_link_libraries(JasmineGraph PRIVATE opentelemetry-cpp::trace)
+    target_link_libraries(JasmineGraph PRIVATE opentelemetry-cpp::metrics)
+    target_link_libraries(JasmineGraph PRIVATE opentelemetry-cpp::ostream_span_exporter)
+    target_link_libraries(JasmineGraph PRIVATE opentelemetry-cpp::otlp_http_exporter)
+    target_link_libraries(JasmineGraph PRIVATE nlohmann_json::nlohmann_json)
+    
+    message(STATUS "OpenTelemetry support enabled - linking OpenTelemetry libraries")
+else()
+    message(STATUS "OpenTelemetry support disabled - skipping OpenTelemetry library linking")
+endif()
+
+# Include OpenTelemetry headers
+target_include_directories(JasmineGraphLib PRIVATE /usr/local/include)
+
 
 if (CMAKE_BUILD_TYPE STREQUAL "DEBUG")
     # Include google test
