@@ -307,14 +307,21 @@ target_link_libraries(JasmineGraphLib PRIVATE /usr/lib/x86_64-linux-gnu/libflatb
 target_link_libraries(JasmineGraphLib PRIVATE /usr/lib/x86_64-linux-gnu/libjsoncpp.so)
 target_link_libraries(JasmineGraphLib PRIVATE /usr/local/lib/libcppkafka.so)
 target_link_libraries(JasmineGraphLib PRIVATE /usr/local/libhdfs3/lib/libhdfs3.so)
+target_link_libraries(JasmineGraphLib PRIVATE OpenMP::OpenMP_CXX faiss openblas)
 
 find_package(OpenMP REQUIRED)
 if(OpenMP_CXX_FOUND)
-      target_link_libraries(JasmineGraphLib PRIVATE  OpenMP::OpenMP_CXX  faiss openblas)
+      target_link_libraries(JasmineGraphLib PRIVATE  OpenMP::OpenMP_CXX)
 endif()
 target_link_libraries(JasmineGraph PRIVATE JasmineGraphLib)
 target_link_libraries(JasmineGraph PRIVATE curl)
 
+
+find_package(OpenMP REQUIRED)
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(JasmineGraph  PRIVATE OpenMP::OpenMP_CXX faiss)
+#    target_link_libraries(JasmineGraphLib PRIVATE  OpenMP::OpenMP_CXX)
+endif()
 include_directories(/usr/local/libhdfs3/include/hdfs/)
 include_directories(/usr/include/oneapi/)
 include_directories(/usr/local/parmetis/include/)
