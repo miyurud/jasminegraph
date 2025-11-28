@@ -27,6 +27,7 @@ limitations under the License.
 #include "../server/JasmineGraphServer.h"
 #include "../util/kafka/InstanceStreamHandler.h"
 #include "../util/logger/Logger.h"
+#include "../util/telemetry/OpenTelemetryUtil.h"
 #include "JasmineGraphInstance.h"
 #include <thread>
 
@@ -433,9 +434,14 @@ long countLocalTriangles(
     std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores,
     std::map<std::string, JasmineGraphHashMapDuplicateCentralStore> &graphDBMapDuplicateCentralStores,
     int threadPriority) {
+
+    OTEL_TRACE_FUNCTION();
+
     long result;
 
-    instance_logger.info("###INSTANCE### Local Triangle Count : Started");
+    instance_logger.info("###INSTANCE### Local Triangle Count : Started: Graph ID " + graphId +
+                         " Partition " + partitionId);
+
     std::string graphIdentifier = graphId + "_" + partitionId;
     std::string centralGraphIdentifier = graphId + "_centralstore_" + partitionId;
     std::string duplicateCentralGraphIdentifier = graphId + "_centralstore_dp_" + partitionId;
@@ -2899,6 +2905,27 @@ static void triangles_command(
     string priority = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
     instance_logger.info("Received Priority : " + priority);
 
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    // Receive trace context from master
+    string traceContext = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+
+    // Use utility function to validate and set trace context
+    OpenTelemetryUtil::receiveAndSetTraceContext(traceContext, "triangle counting");
+
+    // Start tracing AFTER trace context is set to ensure proper parent-child relationship
+    OTEL_TRACE_FUNCTION();
+
+    // Add worker identification attributes to distinguish workers in traces
+    OpenTelemetryUtil::addSpanAttribute("worker.id", "worker_" + std::to_string(serverPort));
+    OpenTelemetryUtil::addSpanAttribute("worker.port", std::to_string(serverPort));
+    OpenTelemetryUtil::addSpanAttribute("partition.id", partitionId);
+    OpenTelemetryUtil::addSpanAttribute("graph.id", graphID);
+    OpenTelemetryUtil::addSpanAttribute("operation.type", "triangle_counting");
+
     int threadPriority = stoi(priority);
 
     if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
@@ -2910,8 +2937,11 @@ static void triangles_command(
 
     std::thread perfThread = std::thread(&PerformanceUtil::collectPerformanceStatistics);
     perfThread.detach();
+
     long localCount = countLocalTriangles(graphID, partitionId, graphDBMapLocalStores, graphDBMapCentralStores,
                                           graphDBMapDuplicateCentralStores, threadPriority);
+
+
 
     if (threadPriority > Conts::DEFAULT_THREAD_PRIORITY) {
         threadPriorityMutex.lock();
@@ -3235,6 +3265,21 @@ static void aggregate_centralstore_triangles_command(int connFd, bool *loop_exit
         highestPriority = threadPriority;
         threadPriorityMutex.unlock();
     }
+
+    // Send OK to indicate ready for trace context
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
+    }
+
+    // Receive and set trace context for distributed tracing
+    string traceContext = Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
+
+    // Use utility function to validate and set trace context
+    OpenTelemetryUtil::receiveAndSetTraceContext(traceContext, "aggregation");
+
+    // Start tracing AFTER trace context is set to ensure proper parent-child relationship
+    OTEL_TRACE_FUNCTION();
 
     const std::string &aggregatedTriangles =
         aggregateCentralStoreTriangles(graphId, partitionId, partitionIdList, threadPriority);
