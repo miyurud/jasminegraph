@@ -317,10 +317,10 @@ target_link_libraries(JasmineGraph PRIVATE JasmineGraphLib)
 target_link_libraries(JasmineGraph PRIVATE curl)
 
 
-target_link_libraries(JasmineGraph  OpenMP::OpenMP_CXX faiss openblas)
+# target_link_libraries(JasmineGraph  OpenMP::OpenMP_CXX faiss openblas)
 find_package(OpenMP REQUIRED)
 if(OpenMP_CXX_FOUND)
-    target_link_libraries(JasmineGraph  OpenMP::OpenMP_CXX faiss)
+    target_link_libraries(JasmineGraph PRIVATE  OpenMP::OpenMP_CXX faiss openblas)
 #    target_link_libraries(JasmineGraphLib PRIVATE  OpenMP::OpenMP_CXX)
 endif()
 include_directories(/usr/local/libhdfs3/include/hdfs/)
