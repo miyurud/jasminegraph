@@ -28,7 +28,7 @@ limitations under the License.
 #include "../knowledgegraph/construction/VLLMTupleStreamer.h"
 #include "../query/algorithms/triangles/StreamingTriangles.h"
 #include "../query/processor/cypher/runtime/InstanceHandler.h"
-#include "../query/processor/semanticbeamsearch/SemanticBeamSearch.h"
+#include "../query/processor/nlp/semanticbeamsearch/SemanticBeamSearch.h"
 #include "../server/JasmineGraphServer.h"
 #include "../util/hdfs/HDFSConnector.h"
 #include "../util/kafka/InstanceStreamHandler.h"
