@@ -19,10 +19,16 @@ using json = nlohmann::json;
 #ifndef Incremental_LocalStore
 #define Incremental_LocalStore
 
+// Forward declaration
+namespace jasminegraph {
+    class TemporalPartitionManager;
+}
+
 class JasmineGraphIncrementalLocalStore {
  public:
     GraphConfig gc;
     NodeManager *nm;
+    std::unique_ptr<jasminegraph::TemporalPartitionManager> temporalManager;
     void addEdgeFromString(std::string edgeString);
     static std::pair<std::string, unsigned int> getIDs(std::string edgeString);
     JasmineGraphIncrementalLocalStore(unsigned int graphID = 0,
@@ -35,6 +41,10 @@ class JasmineGraphIncrementalLocalStore {
     void addCentralEdgeProperties(RelationBlock* relationBlock, const json& edgeJson);
     void addSourceProperties(RelationBlock* relationBlock, const json& sourceJson);
     void addDestinationProperties(RelationBlock* relationBlock, const json& destinationJson);
+    
+private:
+    void processTemporalEdge(const json& edgeJson, const std::string& sId, const std::string& dId, 
+                            const std::string& operationType, bool isLocal);
 };
 
 #endif

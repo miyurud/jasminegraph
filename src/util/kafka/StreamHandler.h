@@ -26,7 +26,8 @@ class StreamHandler {
  public:
     StreamHandler(KafkaConnector *kstream, int numberOfPartitions,
                   std::vector<DataPublisher *> &workerClients, SQLiteDBInterface* sqlite,
-                  int graphId, bool isDirected, spt::Algorithms algo = spt::Algorithms::HASH);
+                  int graphId, bool isDirected, spt::Algorithms algo = spt::Algorithms::HASH, 
+                  bool enableTemporal = false, bool enableOperationType = false);
     void listen_to_kafka_topic();
     cppkafka::Message pollMessage();
     bool isErrorInMessage(const cppkafka::Message &msg);
@@ -38,4 +39,6 @@ class StreamHandler {
     Logger frontend_logger;
     std::string stream_topic_name;
     std::vector<DataPublisher *> &workerClients;
+    bool temporalStreamingEnabled;
+    bool operationTypeEnabled;
 };

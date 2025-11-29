@@ -20,6 +20,9 @@ limitations under the License.
 #include "../../util/logger/Logger.h"
 #include "../../util/Utils.h"
 #include "../../nativestore/MetaPropertyLink.h"
+#include "../../temporal/TemporalIntegration.h"
+#include "../../temporal/TemporalTypes.h"
+#include "../../temporal/TemporalPartitionManager.h"
 
 Logger incremental_localstore_logger;
 
@@ -30,6 +33,31 @@ JasmineGraphIncrementalLocalStore::JasmineGraphIncrementalLocalStore(unsigned in
     gc.maxLabelSize = std::stoi(Utils::getJasmineGraphProperty("org.jasminegraph.nativestore.max.label.size"));
     gc.openMode = openMode;
     this->nm = new NodeManager(gc);
+    
+    // Initialize temporal partition manager if temporal integration is active
+    if (jasminegraph::TemporalIntegration::instance() != nullptr) {
+        jasminegraph::TemporalPartitionManager::Config tmConfig;
+        tmConfig.graphId = graphID;
+        tmConfig.partitionId = partitionID;
+        
+        std::string instanceDataFolder = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+        tmConfig.baseDir = instanceDataFolder + "/temporal/g" + std::to_string(graphID);
+        
+        // Get snapshot interval from properties or use default
+        std::string intervalProp = Utils::getJasmineGraphProperty("org.jasminegraph.temporal.snapshot.interval");
+        if (!intervalProp.empty()) {
+            try {
+                int intervalSec = std::stoi(intervalProp);
+                tmConfig.snapshotInterval = std::chrono::seconds(intervalSec);
+            } catch (const std::exception& e) {
+                incremental_localstore_logger.warn("Invalid snapshot interval property, using default 60 seconds");
+            }
+        }
+        
+        temporalManager = std::make_unique<jasminegraph::TemporalPartitionManager>(tmConfig);
+        incremental_localstore_logger.info("Temporal partition manager initialized for graph " + 
+                                         std::to_string(graphID) + ", partition " + std::to_string(partitionID));
+    }
 };
 
 std::pair<std::string, unsigned int> JasmineGraphIncrementalLocalStore::getIDs(std::string edgeString) {
@@ -54,6 +82,10 @@ void JasmineGraphIncrementalLocalStore::addEdgeFromString(std::string edgeString
     try {
         auto edgeJson = json::parse(edgeString);
         incremental_localstore_logger.info(edgeString);
+        
+        // Check if temporal streaming is enabled
+        bool temporalEnabled = (jasminegraph::TemporalIntegration::instance() != nullptr);
+        
         if (edgeJson.contains("isNode")) {
             std::string nodeId = edgeJson["id"];
             NodeBlock* newNode = this->nm->addNode(nodeId);
@@ -86,14 +118,57 @@ void JasmineGraphIncrementalLocalStore::addEdgeFromString(std::string edgeString
             isLocal = true;
         }
 
-        RelationBlock* newRelation;
-        if (isLocal) {
-            newRelation = this->nm->addLocalEdge({sId, dId});
-        } else {
-            newRelation = this->nm->addCentralEdge({sId, dId});
+        // Extract operation type
+        std::string operationType = "ADD";  // Default to ADD
+        if (edgeJson.contains("OperationType")) {
+            operationType = edgeJson["OperationType"];
         }
-        if (!newRelation) {
+
+        incremental_localstore_logger.debug("Processing " + operationType + " operation for edge (" + 
+                                          sId + " -> " + dId + ")");
+
+        // If temporal streaming is enabled, use temporal components
+        if (temporalEnabled) {
+            processTemporalEdge(edgeJson, sId, dId, operationType, isLocal);
             return;
+        }
+
+        // Non-temporal processing (legacy mode)
+        RelationBlock* newRelation = nullptr;
+        
+        if (operationType == "DELETE") {
+            // Handle delete operation
+            incremental_localstore_logger.info("Processing DELETE operation for edge (" + sId + " -> " + dId + ")");
+            
+            // For DELETE operations, we need to find and remove the edge
+            // Note: This is a simplified implementation - in a full system you'd want
+            // to implement proper edge deletion in the NodeManager
+            if (isLocal) {
+                incremental_localstore_logger.warn("DELETE operation for Local edge (" + sId + " -> " + dId + 
+                                                  ") - Delete functionality not yet implemented");
+            } else {
+                incremental_localstore_logger.warn("DELETE operation for Central edge (" + sId + " -> " + dId + 
+                                                  ") - Delete functionality not yet implemented");
+            }
+            return;  // Exit early for DELETE operations
+        } else {
+            // Handle ADD and EDIT operations (both create/update edges)
+            if (isLocal) {
+                newRelation = this->nm->addLocalEdge({sId, dId});
+            } else {
+                newRelation = this->nm->addCentralEdge({sId, dId});
+            }
+            
+            if (!newRelation) {
+                incremental_localstore_logger.error("Failed to create edge for " + operationType + 
+                                                   " operation: (" + sId + " -> " + dId + ")");
+                return;
+            }
+            
+            if (operationType == "EDIT") {
+                incremental_localstore_logger.info("Processing EDIT operation for edge (" + sId + " -> " + dId + 
+                                                  ") - updating existing edge properties");
+            }
         }
 
         if (isLocal) {
@@ -104,7 +179,24 @@ void JasmineGraphIncrementalLocalStore::addEdgeFromString(std::string edgeString
 
         addSourceProperties(newRelation, sourceJson);
         addDestinationProperties(newRelation, destinationJson);
-        incremental_localstore_logger.debug("Edge (" + sId + ", " + dId + ") Added successfully!");
+        
+        // Log temporal and operation information if available
+        if (edgeJson.contains("properties")) {
+            auto props = edgeJson["properties"];
+            if (props.contains("event_timestamp") && props.contains("ingestion_timestamp")) {
+                string edgeType = isLocal ? "Local" : "Central";
+                incremental_localstore_logger.info("Processed " + operationType + " operation on " + edgeType + 
+                                                  " edge (" + sId + " -> " + dId + ") with temporal data - Event: " + 
+                                                  props["event_timestamp"].dump() + ", Ingestion: " + 
+                                                  props["ingestion_timestamp"].dump());
+                
+                if (props.contains("processing_latency_ms")) {
+                    incremental_localstore_logger.debug("Processing latency: " + props["processing_latency_ms"].dump() + "ms");
+                }
+            }
+        }
+        
+        incremental_localstore_logger.debug("Edge (" + sId + ", " + dId + ") " + operationType + " operation completed successfully!");
     } catch (const std::exception&) {  // TODO tmkasun: Handle multiple types of exceptions
         incremental_localstore_logger.log(
                 "Error while processing edge data = " + edgeString +
@@ -162,15 +254,42 @@ void JasmineGraphIncrementalLocalStore::addCentralEdge(std::string edge) {
 void JasmineGraphIncrementalLocalStore::addCentralEdgeProperties(RelationBlock* relationBlock, const json& edgeJson) {
     char value[PropertyLink::MAX_VALUE_SIZE] = {};
     char type[RelationBlock::MAX_TYPE_SIZE] = {0};
+    bool hasTemporalData = false;
+    
     if (edgeJson.contains("properties")) {
         auto edgeProperties = edgeJson["properties"];
         for (auto it = edgeProperties.begin(); it != edgeProperties.end(); it++) {
+            std::string key = it.key();
+            
+            // Handle temporal properties
+            if (key == "event_timestamp" || key == "ingestion_timestamp" || key == "processing_latency_ms") {
+                hasTemporalData = true;
+                // Convert numeric values to string for storage
+                std::string temporalValue;
+                if (it.value().is_number()) {
+                    temporalValue = std::to_string(it.value().get<uint64_t>());
+                } else {
+                    temporalValue = it.value().get<std::string>();
+                }
+                strcpy(value, temporalValue.c_str());
+                relationBlock->addCentralProperty(key, &value[0]);
+                continue;
+            }
+            
+            // Handle regular properties
             strcpy(value, it.value().get<std::string>().c_str());
-            if (std::string(it.key()) == "type") {
+            if (key == "type") {
                 strcpy(type, it.value().get<std::string>().c_str());
                 relationBlock->addCentralRelationshipType(&type[0]);
             }
-            relationBlock->addCentralProperty(std::string(it.key()), &value[0]);
+            relationBlock->addCentralProperty(key, &value[0]);
+        }
+        
+        // Log temporal information if present
+        if (hasTemporalData && edgeProperties.contains("event_timestamp") && edgeProperties.contains("ingestion_timestamp")) {
+            incremental_localstore_logger.debug("Stored central edge with temporal data - Event: " + 
+                                              edgeProperties["event_timestamp"].dump() + 
+                                              ", Ingestion: " + edgeProperties["ingestion_timestamp"].dump());
         }
     }
     std::string edgePid = std::to_string(edgeJson["source"]["pid"].get<int>());
@@ -180,15 +299,42 @@ void JasmineGraphIncrementalLocalStore::addCentralEdgeProperties(RelationBlock* 
 void JasmineGraphIncrementalLocalStore::addLocalEdgeProperties(RelationBlock* relationBlock, const json& edgeJson) {
     char value[PropertyLink::MAX_VALUE_SIZE] = {};
     char type[RelationBlock::MAX_TYPE_SIZE] = {0};
+    bool hasTemporalData = false;
+    
     if (edgeJson.contains("properties")) {
         auto edgeProperties = edgeJson["properties"];
         for (auto it = edgeProperties.begin(); it != edgeProperties.end(); it++) {
+            std::string key = it.key();
+            
+            // Handle temporal properties
+            if (key == "event_timestamp" || key == "ingestion_timestamp" || key == "processing_latency_ms") {
+                hasTemporalData = true;
+                // Convert numeric values to string for storage
+                std::string temporalValue;
+                if (it.value().is_number()) {
+                    temporalValue = std::to_string(it.value().get<uint64_t>());
+                } else {
+                    temporalValue = it.value().get<std::string>();
+                }
+                strcpy(value, temporalValue.c_str());
+                relationBlock->addLocalProperty(key, &value[0]);
+                continue;
+            }
+            
+            // Handle regular properties
             strcpy(value, it.value().get<std::string>().c_str());
-            if (std::string(it.key()) == "type") {
+            if (key == "type") {
                 strcpy(type, it.value().get<std::string>().c_str());
                 relationBlock->addLocalRelationshipType(&type[0]);
             }
-            relationBlock->addLocalProperty(std::string(it.key()), &value[0]);
+            relationBlock->addLocalProperty(key, &value[0]);
+        }
+        
+        // Log temporal information if present
+        if (hasTemporalData && edgeProperties.contains("event_timestamp") && edgeProperties.contains("ingestion_timestamp")) {
+            incremental_localstore_logger.debug("Stored local edge with temporal data - Event: " + 
+                                              edgeProperties["event_timestamp"].dump() + 
+                                              ", Ingestion: " + edgeProperties["ingestion_timestamp"].dump());
         }
     }
 }
@@ -244,4 +390,145 @@ void JasmineGraphIncrementalLocalStore::addRelationMetaProperty(RelationBlock* r
     char meta[MetaPropertyEdgeLink::MAX_VALUE_SIZE] = {};
     strcpy(meta, propertyValue.c_str());
     relationBlock->addMetaProperty(propertyKey, &meta[0]);
+}
+
+void JasmineGraphIncrementalLocalStore::processTemporalEdge(const json& edgeJson, const std::string& sId, 
+                                                           const std::string& dId, const std::string& operationType, 
+                                                           bool isLocal) {
+    // Get temporal facade instance
+    jasminegraph::TemporalFacade* temporalFacade = jasminegraph::TemporalIntegration::instance();
+    if (!temporalFacade) {
+        incremental_localstore_logger.error("Temporal facade not initialized for temporal processing");
+        return;
+    }
+    
+    // Create StreamEdgeRecord from JSON data
+    jasminegraph::StreamEdgeRecord streamRecord;
+    
+    // Set source and destination vertices
+    streamRecord.source.id = sId;
+    streamRecord.destination.id = dId;
+    
+    // Extract source properties
+    if (edgeJson.contains("source") && edgeJson["source"].contains("properties")) {
+        auto sourceProps = edgeJson["source"]["properties"];
+        for (auto it = sourceProps.begin(); it != sourceProps.end(); ++it) {
+            // Handle different JSON value types
+            std::string value;
+            if (it.value().is_string()) {
+                value = it.value().get<std::string>();
+            } else if (it.value().is_number()) {
+                value = std::to_string(it.value().get<double>());
+            } else if (it.value().is_boolean()) {
+                value = it.value().get<bool>() ? "true" : "false";
+            } else {
+                value = it.value().dump(); // Fallback to JSON string representation
+            }
+            streamRecord.source.properties[it.key()] = value;
+        }
+    }
+    if (edgeJson.contains("source") && edgeJson["source"].contains("pid")) {
+        streamRecord.source.pid = edgeJson["source"]["pid"].get<std::uint32_t>();
+    }
+    
+    // Extract destination properties
+    if (edgeJson.contains("destination") && edgeJson["destination"].contains("properties")) {
+        auto destProps = edgeJson["destination"]["properties"];
+        for (auto it = destProps.begin(); it != destProps.end(); ++it) {
+            // Handle different JSON value types
+            std::string value;
+            if (it.value().is_string()) {
+                value = it.value().get<std::string>();
+            } else if (it.value().is_number()) {
+                value = std::to_string(it.value().get<double>());
+            } else if (it.value().is_boolean()) {
+                value = it.value().get<bool>() ? "true" : "false";
+            } else {
+                value = it.value().dump(); // Fallback to JSON string representation
+            }
+            streamRecord.destination.properties[it.key()] = value;
+        }
+    }
+    if (edgeJson.contains("destination") && edgeJson["destination"].contains("pid")) {
+        streamRecord.destination.pid = edgeJson["destination"]["pid"].get<std::uint32_t>();
+    }
+    
+    // Extract edge properties (including temporal metadata)
+    if (edgeJson.contains("properties")) {
+        auto edgeProps = edgeJson["properties"];
+        for (auto it = edgeProps.begin(); it != edgeProps.end(); ++it) {
+            // Handle different JSON value types
+            std::string value;
+            if (it.value().is_string()) {
+                value = it.value().get<std::string>();
+            } else if (it.value().is_number()) {
+                value = std::to_string(it.value().get<double>());
+            } else if (it.value().is_boolean()) {
+                value = it.value().get<bool>() ? "true" : "false";
+            } else {
+                value = it.value().dump(); // Fallback to JSON string representation
+            }
+            streamRecord.properties[it.key()] = value;
+        }
+    }
+    
+    // Set operation type
+    if (operationType == "ADD") {
+        streamRecord.op = jasminegraph::StreamOp::Insert;
+    } else if (operationType == "EDIT") {
+        streamRecord.op = jasminegraph::StreamOp::Update;
+    } else if (operationType == "DELETE") {
+        streamRecord.op = jasminegraph::StreamOp::Delete;
+    } else {
+        incremental_localstore_logger.warn("Unknown operation type: " + operationType + ", defaulting to Insert");
+        streamRecord.op = jasminegraph::StreamOp::Insert;
+    }
+    
+    // Extract event timestamp if available
+    if (edgeJson.contains("properties") && edgeJson["properties"].contains("event_timestamp")) {
+        streamRecord.eventTimeISO8601 = edgeJson["properties"]["event_timestamp"].get<std::string>();
+    }
+    
+    // Add edge type metadata
+    streamRecord.properties["edge_type"] = isLocal ? "Local" : "Central";
+    streamRecord.properties["partition_id"] = std::to_string(gc.partitionID);
+    streamRecord.properties["graph_id"] = std::to_string(gc.graphID);
+    
+    // Log temporal processing
+    incremental_localstore_logger.info("Temporal processing: " + operationType + " operation for " + 
+                                     (isLocal ? "Local" : "Central") + " edge (" + sId + " -> " + dId + 
+                                     ") in partition " + std::to_string(gc.partitionID));
+    
+    // Send to temporal partition manager for processing
+    if (temporalManager) {
+        temporalManager->ingestEdgeRecord(streamRecord);
+        
+        incremental_localstore_logger.info("Successfully ingested " + operationType + " operation for " + 
+                                         (isLocal ? "Local" : "Central") + " edge (" + sId + " -> " + dId + 
+                                         ") into temporal partition manager");
+        
+        // Log statistics
+        size_t pendingCount = temporalManager->getPendingRecordCount();
+        jasminegraph::SnapshotID currentSnapshot = temporalManager->getCurrentSnapshotId();
+        
+        incremental_localstore_logger.debug("Temporal stats - Pending records: " + std::to_string(pendingCount) + 
+                                          ", Current snapshot: " + std::to_string(currentSnapshot));
+        
+        // Force flush if we have accumulated many records (optional optimization)
+        if (pendingCount > 1000) { // Configurable threshold
+            incremental_localstore_logger.info("Triggering early snapshot flush due to high record count: " + 
+                                             std::to_string(pendingCount));
+            jasminegraph::SnapshotID newSnapshot = temporalManager->flushSnapshot();
+            incremental_localstore_logger.info("Created snapshot " + std::to_string(newSnapshot) + 
+                                             " for partition " + std::to_string(gc.partitionID));
+        }
+    } else {
+        incremental_localstore_logger.error("Temporal partition manager not initialized for temporal processing");
+    }
+    
+    incremental_localstore_logger.debug("StreamEdgeRecord processed successfully");
+    incremental_localstore_logger.debug("Source: " + streamRecord.source.id + " (PID: " + std::to_string(streamRecord.source.pid) + ")");
+    incremental_localstore_logger.debug("Destination: " + streamRecord.destination.id + " (PID: " + std::to_string(streamRecord.destination.pid) + ")");
+    incremental_localstore_logger.debug("Operation: " + std::to_string(static_cast<int>(streamRecord.op)));
+    incremental_localstore_logger.debug("Properties count: " + std::to_string(streamRecord.properties.size()));
 }

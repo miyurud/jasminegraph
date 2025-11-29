@@ -36,6 +36,10 @@ tests/integration/env/
 
 # CMake
 cmake-build-*/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+*.cmake
 .idea/
 
 # Mongo Explorer plugin

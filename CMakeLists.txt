@@ -105,6 +105,14 @@ set(HEADERS globals.h
         src/frontend/core/executor/impl/CypherQueryExecutor.h
         src/query/processor/cypher/runtime/Aggregation.h
         src/query/processor/cypher/runtime/AggregationFactory.h
+        src/temporal/TemporalTypes.h
+        src/temporal/EdgeStorage.h
+        src/temporal/BitmapManager.h
+        src/temporal/PropertyStores.h
+        src/temporal/SnapshotManager.h
+        src/temporal/TemporalStreamIngestor.h
+        src/temporal/TemporalFacade.h
+        src/temporal/TemporalIntegration.h
 )
 
 set(SOURCES src/backend/JasmineGraphBackend.cpp
@@ -199,6 +207,13 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/frontend/core/executor/impl/CypherQueryExecutor.cpp
         src/query/processor/cypher/runtime/Aggregation.cpp
         src/query/processor/cypher/runtime/AggregationFactory.cpp
+        src/temporal/EdgeStorage.cpp
+        src/temporal/BitmapManager.cpp
+        src/temporal/PropertyStores.cpp
+        src/temporal/SnapshotManager.cpp
+        src/temporal/TemporalStreamIngestor.cpp
+        src/temporal/TemporalFacade.cpp
+        src/temporal/TemporalIntegration.cpp
 
 )
 

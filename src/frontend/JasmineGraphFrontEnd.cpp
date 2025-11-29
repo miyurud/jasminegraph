@@ -61,6 +61,7 @@ limitations under the License.
 #include "../query/processor/cypher/util/SharedBuffer.h"
 #include "../query/processor/cypher/runtime/AggregationFactory.h"
 #include "../query/processor/cypher/runtime/Aggregation.h"
+#include "../temporal/TemporalIntegration.h"
 #include "../partitioner/stream/Partitioner.h"
 
 #define MAX_PENDING_CONNECTIONS 10
@@ -1086,6 +1087,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     string graphId;
     string partitionAlgo;
     string direction;
+    bool enableTemporal = false;
 
     if (existingGraph == "y") {
         string existingGraphIdMsg = "Send the existing graph ID ? ";
@@ -1250,6 +1252,51 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
             *loop_exit_p = true;
             return;
         }
+
+        // Ask for temporal streaming configuration
+        string temporalConfigMsg = "Enable temporal streaming with event timestamps (y/n)? ";
+        result_wr = write(connFd, temporalConfigMsg.c_str(), temporalConfigMsg.length());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        
+        string temporalEnabled = Utils::getFrontendInput(connFd);
+        enableTemporal = (temporalEnabled == "y" || temporalEnabled == "Y");
+        
+        string temporalResponse = enableTemporal ? 
+            "Temporal streaming enabled - expecting 'event_timestamp' field in JSON" : 
+            "Standard streaming mode - no temporal processing";
+        result_wr = write(connFd, temporalResponse.c_str(), temporalResponse.length());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        
+        // Inform about automatic operation type detection
+        string operationTypeInfo = "Operation types (ADD/EDIT/DELETE) will be automatically detected from 'operation_type' field in JSON messages";
+        result_wr = write(connFd, operationTypeInfo.c_str(), operationTypeInfo.length());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+        result_wr = write(connFd, Conts::CARRIAGE_RETURN_NEW_LINE.c_str(), Conts::CARRIAGE_RETURN_NEW_LINE.size());
+        if (result_wr < 0) {
+            frontend_logger.error("Error writing to socket");
+            *loop_exit_p = true;
+            return;
+        }
+
+
     }
 
     string msg_1 = "Do you want to use default KAFKA consumer(y/n) ?";
@@ -1349,6 +1396,30 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
         return;
     }
 
+    // Initialize temporal integration if temporal streaming is enabled
+    if (enableTemporal) {
+        std::string instanceDataFolder = Utils::getJasmineGraphProperty("org.jasminegraph.server.instance.datafolder");
+        std::string temporalBaseDir = instanceDataFolder + "/temporal/g" + graphId;
+        std::chrono::seconds snapshotInterval(60); // Default 60 second intervals
+        
+        // Check if custom snapshot interval is configured
+        std::string intervalProp = Utils::getJasmineGraphProperty("org.jasminegraph.temporal.snapshot.interval");
+        if (!intervalProp.empty()) {
+            try {
+                int intervalSec = std::stoi(intervalProp);
+                snapshotInterval = std::chrono::seconds(intervalSec);
+                frontend_logger.info("Using custom snapshot interval: " + std::to_string(intervalSec) + " seconds");
+            } catch (const std::exception& e) {
+                frontend_logger.warn("Invalid snapshot interval property, using default 60 seconds");
+            }
+        }
+        
+        // Initialize global temporal facade
+        jasminegraph::TemporalIntegration::initialize(temporalBaseDir, snapshotInterval);
+        frontend_logger.info("Temporal integration initialized for graph " + graphId + 
+                           " with snapshot interval: " + std::to_string(snapshotInterval.count()) + " seconds");
+    }
+
     // create kafka consumer and graph partitioner
     kstream = new KafkaConnector(configs);
     // Create the KafkaConnector object.
@@ -1358,7 +1429,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     // Create the StreamHandler object.
     StreamHandler *stream_handler = new StreamHandler(kstream, numberOfPartitions, workerClients, sqlite,
                                                       stoi(graphId), direction == Conts::DIRECTED,
-                                                      spt::getPartitioner(partitionAlgo));
+                                                      spt::getPartitioner(partitionAlgo), enableTemporal, true);
 
     if (existingGraph != "y") {
         string path = "kafka:\\" + topic_name_s + ":" + group_id;
