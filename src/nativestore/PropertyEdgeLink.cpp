@@ -29,7 +29,7 @@ pthread_mutex_t lockGetPropertyEdgeLink;
 
 PropertyEdgeLink::PropertyEdgeLink(unsigned int propertyBlockAddress) : blockAddress(propertyBlockAddress) {
     pthread_mutex_lock(&lockPropertyEdgeLink);
-    if (propertyBlockAddress > 0) {
+    if (propertyBlockAddress >= 0) {
         this->edgePropertiesDB->seekg(propertyBlockAddress);
         char rawName[PropertyEdgeLink::MAX_NAME_SIZE] = {0};
         //        property_edge_link_logger.info("Traverse state  = " +
@@ -180,10 +180,11 @@ PropertyEdgeLink* PropertyEdgeLink::next() {
 bool PropertyEdgeLink::isEmpty() { return !(this->blockAddress); }
 
 PropertyEdgeLink* PropertyEdgeLink::get(unsigned int propertyBlockAddress) {
+    property_edge_link_logger.info("Entering PropertyEdgeLink::get()"+ std::to_string(propertyBlockAddress));
     PropertyEdgeLink* pl = NULL;
 
     pthread_mutex_lock(&lockGetPropertyEdgeLink);
-    if (propertyBlockAddress > 0) {
+    if (propertyBlockAddress >= 0) {
         char propertyName[PropertyEdgeLink::MAX_NAME_SIZE] = {0};
         char propertyValue[PropertyEdgeLink::MAX_VALUE_SIZE] = {0};
         unsigned int nextAddress;

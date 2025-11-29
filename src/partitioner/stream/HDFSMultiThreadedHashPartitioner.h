@@ -56,13 +56,14 @@ class HDFSMultiThreadedHashPartitioner {
     std::vector<std::mutex> partitionMutexArray;
 
     bool isEmbedGraph = false;
-
+    std::mutex dbLock;
+    SQLiteDBInterface *sqlite;
     int partitionFileEdgeThreshold = 1000;
 
  public:
     HDFSMultiThreadedHashPartitioner(int numberOfPartitions, int graphID, std::string masterIp, bool isDirected,
                                      std::vector<JasmineGraphServer::worker> workers, bool isEmbedGraph,
-                                     int partitionFileEdgeThreshold);
+                                     int partitionFileEdgeThreshold, SQLiteDBInterface *sqlite);
     ~HDFSMultiThreadedHashPartitioner();
     HDFSMultiThreadedHashPartitioner(int numberOfPartitions, int graphID, std::string masterIp, bool isDirected);
     long getVertexCount();

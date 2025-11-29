@@ -3195,45 +3195,99 @@ static void streaming_kg_construction(
     *loop_exit_p = true;
     return;
   }
+    // Parse workerIP:port:replicationCount (comma separated)
+    string workersIP =
+        Utils::read_str_trim_wrapper(connFd, data, INSTANCE_LONG_DATA_LENGTH);
 
-  // read workerIP:port in comma separated format
-  string workersIP =
-      Utils::read_str_trim_wrapper(connFd, data, INSTANCE_LONG_DATA_LENGTH);
-  instance_logger.info("Received Worker IP: " + workersIP);
-  if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
-    *loop_exit_p = true;
-    return;
-  }
-  std::vector<string> workerSockets;
-  stringstream wl(workersIP);
-  string intermediate;
-  while (getline(wl, intermediate, ',')) {
-    workerSockets.push_back(intermediate);
-  }
-  std::vector<JasmineGraphServer::worker> workers;
-  for (const auto &workerSocket : workerSockets) {
-    JasmineGraphServer::worker worker;
-    size_t pos = workerSocket.find(":");
-    if (pos != string::npos) {
-      worker.hostname = workerSocket.substr(0, pos);
-      worker.port = stoi(workerSocket.substr(pos + 1));
-      worker.dataPort =
-          worker.port +
-          1;  // Assuming data port is one more than the worker port
-    } else {
-      instance_logger.error("Invalid worker socket format: " + workerSocket);
-      *loop_exit_p = true;
-      return;
+    instance_logger.info("Received Worker IP: " + workersIP);
+
+    if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK)) {
+        *loop_exit_p = true;
+        return;
     }
-    workers.push_back(worker);
-  }
 
-  std::vector<string> llmRunnerSockets;
-  stringstream llm_(llm_runner);
-  string intermediate_llm;
-  while (getline(llm_, intermediate_llm, ',')) {
-    llmRunnerSockets.push_back(intermediate_llm);
-  }
+    std::vector<std::string> workerSockets;
+    std::stringstream ss(workersIP);
+    std::string token;
+
+    // Split by comma
+    while (std::getline(ss, token, ',')) {
+        if (!token.empty()) {
+            workerSockets.push_back(token);
+        }
+    }
+
+    std::vector<JasmineGraphServer::worker> workers;
+
+    for (const auto &socketStr : workerSockets) {
+        std::stringstream ss2(socketStr);
+        std::vector<std::string> parts;
+        std::string part;
+
+        // Split by ":"
+        while (std::getline(ss2, part, ':')) {
+            parts.push_back(part);
+        }
+
+        if (parts.size() != 3) {
+            instance_logger.error("Invalid worker socket format (expected host:port:count): " + socketStr);
+            *loop_exit_p = true;
+            return;
+        }
+
+        std::string hostname = parts[0];
+        int port = std::stoi(parts[1]);
+        int replicationCount = std::stoi(parts[2]);
+
+        // Push the worker replicationCount times
+        for (int i = 0; i < replicationCount; i++) {
+            JasmineGraphServer::worker worker;
+            worker.hostname = hostname;
+            worker.port = port;
+            worker.dataPort =
+         worker.port +
+         1;
+            workers.push_back(worker);
+        }
+    }
+
+    std::vector<std::string> llmRunnerSockets;
+    std::stringstream llm_runner_ss(llm_runner);
+    std::string entry;
+
+    while (std::getline(llm_runner_ss, entry, ',')) {
+        // Trim spaces
+        entry.erase(0, entry.find_first_not_of(" \t\r\n"));
+        entry.erase(entry.find_last_not_of(" \t\r\n") + 1);
+        if (entry.empty()) continue;
+
+        // Find last colon
+        size_t lastColon = entry.rfind(':');
+        if (lastColon == std::string::npos) {
+            continue; // Invalid format (must have a count)
+        }
+
+        std::string lastPart = entry.substr(lastColon + 1);
+
+        // Check if last part is numeric (chunk count)
+        bool isNumber = !lastPart.empty() &&
+                        std::all_of(lastPart.begin(), lastPart.end(), ::isdigit);
+
+        if (!isNumber) {
+            continue; // No count → skip
+        }
+
+        int count = std::stoi(lastPart);
+
+        // Base URL without the chunk count
+        std::string baseURL = entry.substr(0, lastColon);
+
+        // Replicate 'count' times
+        for (int i = 0; i < count; i++) {
+            llmRunnerSockets.push_back(baseURL);
+        }
+    }
+
 
   string hdfsPath =
       Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
@@ -4906,7 +4960,7 @@ static void semantic_beam_search(
       faissStore, textEmbedder, textEmbedder->embed(message), 7, gc, workers);
   semanticBeamSearch->getSeedNodes();
   SharedBuffer shared(50);
-  semanticBeamSearch->semanticMultiHopBeamSearch(shared, 3, 10);
+  semanticBeamSearch->semanticMultiHopBeamSearch(shared, 5, 10);
   auto startTime = std::chrono::high_resolution_clock::now();
   int time = 0;
 
@@ -5364,14 +5418,14 @@ static void processFile(string fileName, bool isLocal,
                     std::to_string(graphId) + "_" + std::to_string(partitionIndex), isEmbedGraph);
         }
     }
-
+    file.close();
     if (isEmbedGraph) {
         JasmineGraphIncrementalLocalStore* localStore =
             handler.incrementalLocalStoreMap[std::to_string(graphId) + "_" + std::to_string(partitionIndex)];
         localStore->getAndStoreEmbeddings();
     }
 
-    file.close();
+
     instance_logger.info("Finished processing file: " + filePath);
 }
 

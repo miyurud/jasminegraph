@@ -291,7 +291,8 @@ void Pipeline::startStreamingFromBufferToWorkers() {
 json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<SharedBuffer>>& tupleBuffer) {
     auto startTime = high_resolution_clock::now();
     kg_pipeline_stream_handler_logger.info("Starting processTupleAndSaveInPartition");
-    HDFSMultiThreadedHashPartitioner partitioner(numberOfPartitions, graphId, masterIP, true, workerList, true, 5);
+    Partitioner partitioner ( numberOfPartitions,graphId,  spt::FENNEL, sqlite,  true );
+    HDFSMultiThreadedHashPartitioner partitions(numberOfPartitions, graphId, masterIP, true, workerList, true, 10, sqlite);
     std::hash<std::string> hasher;
     std::vector<std::thread> tupleThreads;
     for (size_t i = 0; i < tupleBuffer.size(); ++i) {
@@ -308,13 +309,13 @@ json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
 
                         json meta;
                         json graph;
-                        graph["vertexcount"] = partitioner.getVertexCount();
-                        graph["edgecount"] = partitioner.getEdgeCount();
+                        graph["vertexcount"] = partitions.getVertexCount();
+                        graph["edgecount"] = partitions.getEdgeCount();
                         graph["centralpartitioncount"] = this->numberOfPartitions;
                         graph["graph_status_idgraph_status"] = Conts::GRAPH_STATUS::OPERATIONAL;
 
                         meta["graph"] = graph;
-                        meta["partitions"] = partitioner.getPartitionsMeta();
+                        meta["partitions"] = partitions.getPartitionsMeta();
 
                         char data[FED_DATA_LENGTH + 1];
 
@@ -396,8 +397,9 @@ json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
                         kg_pipeline_stream_handler_logger.debug("Thread " + std::to_string(i) + " sourceId: " +
                                                                 sourceId + ", destinationId: " + destinationId);
                         if (!sourceId.empty() && !destinationId.empty()) {
-                            int sourceIndex = i % this->numberOfPartitions;
-                            int destIndex = i % this->numberOfPartitions;
+                            partitionedEdge partitioned_edge = partitioner.addEdge({sourceId, destinationId});
+                            int sourceIndex =  partitioned_edge[0].second;
+                            int destIndex =  partitioned_edge[1].second;
                             source["pid"] = sourceIndex;
                             destination["pid"] = destIndex;
                             //   std::string edgeId =
@@ -411,12 +413,12 @@ json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
                                 kg_pipeline_stream_handler_logger.debug("Thread " + std::to_string(i) +
                                                                         " adding local edge to partition " +
                                                                         std::to_string(sourceIndex));
-                                partitioner.addLocalEdge(obj.dump(), sourceIndex);
+                                partitions.addLocalEdge(obj.dump(), sourceIndex);
                             } else {
                                 kg_pipeline_stream_handler_logger.debug("Thread " + std::to_string(i) +
                                                                         " adding edge cut to partition " +
                                                                         std::to_string(sourceIndex));
-                                partitioner.addEdgeCut(obj.dump(), sourceIndex);
+                                partitions.addEdgeCut(obj.dump(), sourceIndex);
                             }
                         } else {
                             kg_pipeline_stream_handler_logger.error("Malformed line: missing source/destination ID: " +
@@ -455,13 +457,13 @@ json Pipeline::processTupleAndSaveInPartition(const std::vector<std::unique_ptr<
     json meta;
 
     json graph;
-    graph["vertexcount"] = partitioner.getVertexCount();
-    graph["edgecount"] = partitioner.getEdgeCount();
+    graph["vertexcount"] = partitions.getVertexCount();
+    graph["edgecount"] = partitions.getEdgeCount();
     graph["centralpartitioncount"] = this->numberOfPartitions;
     graph["graph_status_idgraph_status"] = Conts::GRAPH_STATUS::OPERATIONAL;
 
     meta["graph"] = graph;
-    meta["partitions"] = partitioner.getPartitionsMeta();
+    meta["partitions"] = partitions.getPartitionsMeta();
     return meta;
 }
 
@@ -798,12 +800,46 @@ bool Pipeline::streamGraphToDesignatedWorker(std::string host, int port, std::st
         kg_pipeline_stream_handler_logger.info("Worker responded '" + resp + "' for '" + msg + "'");
         return true;
     };
-    std::vector<string> llmRunnerSockets;
-    stringstream llm_(hostnamePort);
-    string intermediate_llm;
-    while (getline(llm_, intermediate_llm, ',')) {
-        llmRunnerSockets.push_back(intermediate_llm);
+
+
+    std::vector<std::string> llmRunnerSockets;
+    std::stringstream ss(hostnamePort);
+    std::string entry;
+
+    while (std::getline(ss, entry, ',')) {
+        // Trim spaces
+        entry.erase(0, entry.find_first_not_of(" \t\r\n"));
+        entry.erase(entry.find_last_not_of(" \t\r\n") + 1);
+        if (entry.empty()) continue;
+
+        // Find last colon
+        size_t lastColon = entry.rfind(':');
+        if (lastColon == std::string::npos) {
+            continue; // Invalid format (must have a count)
+        }
+
+        std::string lastPart = entry.substr(lastColon + 1);
+
+        // Check if last part is numeric (chunk count)
+        bool isNumber = !lastPart.empty() &&
+                        std::all_of(lastPart.begin(), lastPart.end(), ::isdigit);
+
+        if (!isNumber) {
+            continue; // No count → skip
+        }
+
+        int count = std::stoi(lastPart);
+
+        // Base URL without the chunk count
+        std::string baseURL = entry.substr(0, lastColon);
+
+        // Replicate 'count' times
+        for (int i = 0; i < count; i++) {
+            llmRunnerSockets.push_back(baseURL);
+        }
     }
+
+
     const std::string chunksPerBatch = std::to_string(llmRunnerSockets.size());
     string workers = "";
     int counter = 0;
@@ -814,14 +850,33 @@ bool Pipeline::streamGraphToDesignatedWorker(std::string host, int port, std::st
     } else {
         workerCount = llmRunnerSockets.size();
     }
-    for (JasmineGraphServer::worker worker : JasmineGraphServer::getWorkers(workerCount)) {
-        counter++;
-        kg_pipeline_stream_handler_logger.info("count " + std::to_string(counter));
-        workers += worker.hostname + ":" + std::to_string(worker.port) + ":" + std::to_string(worker.dataPort);
-        // append , only if not last
-        if (counter < workerCount) {
+    std::unordered_map<std::string, int> workerCountMap;
+
+    auto workerList = JasmineGraphServer::getWorkers(workerCount);
+
+    // First pass: count occurrences of each worker (hostname + port)
+    for (const auto &worker : workerList) {
+        std::string key = worker.hostname + ":" +
+                          std::to_string(worker.port);
+        workerCountMap[key] += 1;
+    }
+
+    // Build final string by iterating the map keys
+
+    int index = 0;
+    int size = workerCountMap.size();
+
+    for (const auto &entry : workerCountMap) {
+        const std::string &key = entry.first;        // hostname:port:dataPort
+        int count = entry.second;                    // total count
+
+        workers += key + ":" + std::to_string(count);
+
+        if (index < size - 1) {
             workers += ",";
         }
+
+        index++;
     }
 
     if (!sendAndExpect("initiate-streaming-kg-construction", "ok")) {
