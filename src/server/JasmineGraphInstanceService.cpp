@@ -1865,7 +1865,7 @@ void JasmineGraphInstanceService::startCollectingLoadAverage() {
         time_t elapsed = time(0) - start;
         if (elapsed >= Conts::LOAD_AVG_COLLECTING_GAP) {
             elapsedTime += Conts::LOAD_AVG_COLLECTING_GAP * 1000;
-            double loadAgerage = StatisticCollector::getLoadAverage();
+            double loadAgerage = StatisticsCollector::getLoadAverage();
             loadAverageVector.push_back(std::to_string(loadAgerage));
             start = start + Conts::LOAD_AVG_COLLECTING_GAP;
         } else {

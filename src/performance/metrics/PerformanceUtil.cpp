@@ -39,41 +39,41 @@ void PerformanceUtil::init() {
 
 int PerformanceUtil::collectPerformanceStatistics() {
     // Host level
-    double cpuUsage = StatisticCollector::getCpuUsage();
+    double cpuUsage = StatisticsCollector::getCpuUsage();
     Utils::send_job("", "cpu_usage", std::to_string(cpuUsage));
 
-    long rxBytes = StatisticCollector::getRXBytes();
+    long rxBytes = StatisticsCollector::getRXBytes();
     Utils::send_job("", "rx_bytes", std::to_string(rxBytes));
 
-    long txBytes = StatisticCollector::getTXBytes();
+    long txBytes = StatisticsCollector::getTXBytes();
     Utils::send_job("", "tx_bytes", std::to_string(txBytes));
 
-    long totalMemoryUsage = StatisticCollector::getTotalMemoryUsage();
+    long totalMemoryUsage = StatisticsCollector::getTotalMemoryUsage();
     Utils::send_job("", "total_memory", std::to_string(totalMemoryUsage));
 
-    double totalMemoryUsagePercentage = StatisticCollector::getMemoryUsagePercentage();
+    double totalMemoryUsagePercentage = StatisticsCollector::getMemoryUsagePercentage();
     Utils::send_job("", "memory_usage_percentage", std::to_string(totalMemoryUsagePercentage));
 
 
-    long usedSwapSpace = StatisticCollector::getUsedSwapSpace();
+    long usedSwapSpace = StatisticsCollector::getUsedSwapSpace();
     Utils::send_job("", "used_swap_space", std::to_string(usedSwapSpace));
 
-    double currentLoadAverage = StatisticCollector::getLoadAverage();
+    double currentLoadAverage = StatisticsCollector::getLoadAverage();
     Utils::send_job("", "load_average", std::to_string(currentLoadAverage));
-    double cpuLoadPercentage = StatisticCollector::getCpuLoadPercentage();
+    double cpuLoadPercentage = StatisticsCollector::getCpuLoadPercentage();
     Utils::send_job("", "cpu_load_percentage", std::to_string(cpuLoadPercentage));
 
-    long totalSwapSpace = StatisticCollector::getTotalSwapSpace();
+    long totalSwapSpace = StatisticsCollector::getTotalSwapSpace();
     Utils::send_job("", "total_swap_space", std::to_string(totalSwapSpace));
 
     // Per process
-    long memoryUsage = StatisticCollector::getMemoryUsageByProcess();
+    long memoryUsage = StatisticsCollector::getMemoryUsageByProcess();
     Utils::send_job("", "memory_usage", std::to_string(memoryUsage));
 
-    int threadCount = StatisticCollector::getThreadCount();
+    int threadCount = StatisticsCollector::getThreadCount();
     Utils::send_job("", "thread_count", std::to_string(threadCount));
 
-    int socketCount = StatisticCollector::getSocketCount();
+    int socketCount = StatisticsCollector::getSocketCount();
     Utils::send_job("", "socket_count", std::to_string(socketCount));
     // const char *hostAddress = getenv("HOST_NAME");
     // // Push into history store
@@ -153,7 +153,7 @@ void PerformanceUtil::collectLocalSLAResourceUtilization(std::string graphId, st
                                                          std::string category, int elapsedTime, bool autoCalibrate) {
     string graphSlaId;
 
-    double loadAverage = StatisticCollector::getLoadAverage();
+    double loadAverage = StatisticsCollector::getLoadAverage();
 
     auto executedTime = std::chrono::system_clock::now();
     std::time_t reportTime = std::chrono::system_clock::to_time_t(executedTime);
@@ -454,7 +454,7 @@ void PerformanceUtil::adjustAggregateLoadMap(std::map<std::string, std::vector<d
 }
 
 void PerformanceUtil::logLoadAverage() {
-    double currentLoadAverage = StatisticCollector::getLoadAverage();
+    double currentLoadAverage = StatisticsCollector::getLoadAverage();
 }
 
 void PerformanceUtil::updateResourceConsumption(PerformanceSQLiteDBInterface *performanceDb, std::string graphId,

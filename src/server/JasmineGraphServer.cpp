@@ -164,7 +164,7 @@ int JasmineGraphServer::run(std::string masterIp, int numberofWorkers, std::stri
 
     init();
     std::thread *myThreads = new std::thread[1];
-    myThreads[0] = std::thread(StatisticCollector::logLoadAverage, "Load Average");
+    myThreads[0] = std::thread(StatisticsCollector::logLoadAverage, "Load Average");
     sleep(1);
     waitForAcknowledgement(numberofWorkers);
     resolveOperationalGraphs();
