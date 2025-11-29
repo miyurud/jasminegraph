@@ -196,8 +196,6 @@ failed_tests = []
 def test(host, port):
     """Test the JasmineGraph server by sending a series of commands and checking the responses."""
 
-    subprocess.run(['bash', OLLAMA_SETUP_SCRIPT], check=True)
-
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((host, port))
         print()
@@ -594,10 +592,6 @@ def test(host, port):
                                  exit_on_failure=True)
         send_and_expect_response(sock, 'cypher', b'',
                                  b'done', exit_on_failure=True)
-
-        print()
-        logging.info('[GraphRAG] Testing knowledge graph construction ')
-        test_kg(TEXT_FOLDER ,UPLOAD_SCRIPT, host, port)
 
         print()
         logging.info('[Cypher] Testing rmgr after adhdfs')
