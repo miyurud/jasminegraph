@@ -316,7 +316,6 @@ endif()
 target_link_libraries(JasmineGraph PRIVATE JasmineGraphLib)
 target_link_libraries(JasmineGraph PRIVATE curl)
 
-
 find_package(OpenMP REQUIRED)
 if(OpenMP_CXX_FOUND)
     target_link_libraries(JasmineGraph  PRIVATE OpenMP::OpenMP_CXX faiss)
