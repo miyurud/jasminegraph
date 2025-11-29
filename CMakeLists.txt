@@ -43,7 +43,7 @@ set(HEADERS globals.h
         src/partitioner/stream/Partition.h
         src/partitioner/stream/Partitioner.h
         src/performance/metrics/PerformanceUtil.h
-        src/performance/metrics/StatisticCollector.h
+        src/performance/metrics/StatisticsCollector.h
         src/performancedb/PerformanceSQLiteDBInterface.h
         src/query/algorithms/linkprediction/JasminGraphLinkPredictor.h
         src/query/algorithms/triangles/Triangles.h
@@ -110,7 +110,7 @@ set(HEADERS globals.h
         src/knowledgegraph/construction/VLLMTupleStreamer.h
         src/vectorstore/TextEmbedder.h
         src/vectorstore/FaissIndex.h
-        src/query/processor/semanticbeamsearch/SemanticBeamSearch.h
+        src/query/processor/nlp/semanticbeamsearch/SemanticBeamSearch.h
         src/frontend/core/executor/impl/SemanticBeamSearchExecutor.h
 
 
@@ -145,7 +145,7 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/partitioner/stream/Partition.cpp
         src/partitioner/stream/Partitioner.cpp
         src/performance/metrics/PerformanceUtil.cpp
-        src/performance/metrics/StatisticCollector.cpp
+        src/performance/metrics/StatisticsCollector.cpp
         src/performancedb/PerformanceSQLiteDBInterface.cpp
         src/query/algorithms/linkprediction/JasminGraphLinkPredictor.cpp
         src/query/algorithms/triangles/Triangles.cpp
@@ -213,7 +213,7 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/knowledgegraph/construction/VLLMTupleStreamer.cpp
         src/vectorstore/TextEmbedder.cpp
         src/vectorstore/FaissIndex.cpp
-        src/query/processor/semanticbeamsearch/SemanticBeamSearch.cpp
+        src/query/processor/nlp/semanticbeamsearch/SemanticBeamSearch.cpp
         src/frontend/core/executor/impl/SemanticBeamSearchExecutor.cpp
         src/knowledgegraph/construction/VLLMTupleStreamer.cpp
         src/knowledgegraph/construction/TupleStreamer.cpp
