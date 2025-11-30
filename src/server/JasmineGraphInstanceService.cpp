@@ -3282,14 +3282,6 @@ static void streaming_kg_construction(
   instance_logger.info("Started listening to " + hdfsPath);
 
   streamHandler->init();
-
-  // int conResultWr = write( , DONE.c_str(), DONE.length());
-  // if (!Utils::send_str_wrapper(connFd, DONE.c_str()))
-  // {
-  //     *loop_exit_p     = true;
-  //     return;
-  //
-  // }
   *loop_exit_p = true;
 
   close(connFd);
@@ -3323,16 +3315,6 @@ static void streaming_tuple_extraction(
   std::string llm =
       Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
   Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK);
-  // instance_logger.info("LLM Host and Port: " + llmHostPort);
-  // split llmHostPort into hostname and port
-  // size_t pos = llmHostPort.find(":");
-  // if (pos == std::string::npos) {
-  //     instance_logger.error("Invalid LLM host and port format");
-  //     *loop_exit_p = true;
-  //     return;
-  // // }
-  // std::string llmHost = llmHostPort.substr(0, pos);
-  // int llmPort = std::stoi(llmHostPort.substr(pos + 1));
   instance_logger.info("LLM Host: " + llmHost);
   instance_logger.info("LLM : " + llm);
   std::unique_ptr<TupleStreamer> streamer;
@@ -3342,12 +3324,6 @@ static void streaming_tuple_extraction(
   } else {
     streamer = std::make_unique<VLLMTupleStreamer>(llm, llmHost);
   }
-  // VLLMTupleStreamer streamer("meta-llama/Llama-3.2-3B-Instruct", llmHost);
-
-  // // VLLMTupleStreamer streamer("numind/NuExtract-2.0-4B", llmHost);
-  // VLLMTupleStreamer streamer("meta-llama/Meta-Llama-3-8B", llmHost);
-  // VLLMTupleStreamer streamer("SciPhi/Triplex", llmHost);
-  // VLLMTupleStreamer streamer(llm, llmHost);
 
   SharedBuffer sharedBuffer(5);
   SharedBuffer tupleBuffer(5);
@@ -3380,8 +3356,6 @@ static void streaming_tuple_extraction(
     Utils::send_str_wrapper(connFd,
                             JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS);
     instance_logger.info(chunk);
-    // Process and add to buffers
-    // sharedBuffer.add(chunk);
 
     // Consumer thread that prints tuples from buffer
     std::thread consumer([&]() {
@@ -3434,9 +3408,6 @@ static void streaming_tuple_extraction(
           break;
         }
 
-        // Utils::expect_str_wrapper(connFd,
-        // JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS);
-
         if (tupleData == "-1") {
           instance_logger.info("Received end signal from producer");
           tupleBuffer.clear();
@@ -3445,17 +3416,8 @@ static void streaming_tuple_extraction(
       }
     });
     streamer->streamChunk("chunk1", chunk, tupleBuffer);
-    // streamer.processChunk("chunk1", chunk, tupleBuffer);
-
     consumer.join();
-
-    // tupleBuffer.add("ProcessedTupleFor:" + sharedBuffer.get()); // Example
-    instance_logger.info("3196");
-    // Send tuple back to client
   }
-
-  // Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::CLOSE);
-  // close(connFd);
 }
 
 

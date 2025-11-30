@@ -89,7 +89,6 @@ int main(int argc, char *argv[]) {
         enableNmon = argv[master_mode_args::ENABLE_NMON];
         server = JasmineGraphServer::getInstance();
 
-
         if (jasminegraph_profile == PROFILE_K8S) {
             std::unique_ptr<K8sInterface> k8sInterface(new K8sInterface());
             masterIp = k8sInterface->getMasterIp();
@@ -100,7 +99,6 @@ int main(int argc, char *argv[]) {
         server->run(masterIp, numberOfWorkers, workerIps, enableNmon);
 
         schedulerThread.join();
-
         delete server;
     } else if (mode == Conts::JASMINEGRAPH_RUNTIME_PROFILE_WORKER) {
         main_logger.info(to_string(argc));
