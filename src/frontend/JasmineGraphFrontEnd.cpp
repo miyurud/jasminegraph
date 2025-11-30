@@ -609,7 +609,7 @@ static void semanticBeamSearch(std::string masterIP, int connFd, vector<DataPubl
         return;
     }
     char graphIdResponse[FRONTEND_DATA_LENGTH + 1];
-    memset(graphIdResponse, FRONTEND_DATA_LENGTH + 1);
+    memset(graphIdResponse, 0,  FRONTEND_DATA_LENGTH + 1);
     read(connFd, graphIdResponse, FRONTEND_DATA_LENGTH);
     string user_res_1(graphIdResponse);
     frontend_logger.info("Graph ID received: " + user_res_1);
@@ -631,7 +631,7 @@ static void semanticBeamSearch(std::string masterIP, int connFd, vector<DataPubl
 
     // Get user response.
     char query[FRONTEND_DATA_LENGTH + 1];
-    memset(query, FRONTEND_DATA_LENGTH + 1);
+    memset(query, 0,  FRONTEND_DATA_LENGTH + 1);
     read(connFd, query, FRONTEND_DATA_LENGTH);
     string queryString(query);
     frontend_logger.info("Query received: " + queryString);
@@ -1753,7 +1753,7 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
     }
 
     char userRes[FRONTEND_DATA_LENGTH + 1];
-    memset(userRes, FRONTEND_DATA_LENGTH + 1);
+    memset(userRes, 0, FRONTEND_DATA_LENGTH + 1);
     read(connFd, userRes, FRONTEND_DATA_LENGTH);
     std::string userResS(userRes);
     userResS = Utils::trim_copy(userResS);
@@ -1780,7 +1780,7 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
         }
 
         char hdfsIP[FRONTEND_DATA_LENGTH + 1];
-        memset(hdfsIP, FRONTEND_DATA_LENGTH + 1);
+        memset(hdfsIP, 0, FRONTEND_DATA_LENGTH + 1);
         read(connFd, hdfsIP, FRONTEND_DATA_LENGTH);
         std::string hdfsIPS(hdfsIP);
         hdfsIPS = Utils::trim_copy(hdfsIPS);
@@ -1801,7 +1801,7 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
         }
 
         char hdfsPortChar[FRONTEND_DATA_LENGTH + 1];
-        memset(hdfsPortChar, FRONTEND_DATA_LENGTH + 1);
+        memset(hdfsPortChar, 0, FRONTEND_DATA_LENGTH + 1);
         read(connFd, hdfsPortChar, FRONTEND_DATA_LENGTH);
         std::string hdfsPortS(hdfsPortChar);
         hdfsPortS = Utils::trim_copy(hdfsPortS);
@@ -1831,7 +1831,7 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
     }
 
     char hdfsFilePath[FRONTEND_DATA_LENGTH + 1];
-    memset(hdfsFilePath, FRONTEND_DATA_LENGTH + 1);
+    memset(hdfsFilePath, 0, FRONTEND_DATA_LENGTH + 1);
     read(connFd, hdfsFilePath, FRONTEND_DATA_LENGTH);
     std::string hdfsFilePathS(hdfsFilePath);
     hdfsFilePathS = Utils::trim_copy(hdfsFilePathS);
@@ -1872,7 +1872,7 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
     }
 
     char hostnamePort[FRONTEND_DATA_LENGTH + 1];
-    memset(hostnamePort, FRONTEND_DATA_LENGTH + 1);
+    memset(hostnamePort, 0, FRONTEND_DATA_LENGTH + 1);
     read(connFd, hostnamePort, FRONTEND_DATA_LENGTH);
     std::string hostnamePortS(hostnamePort);
     hostnamePortS = Utils::trim_copy(hostnamePortS);
@@ -1894,7 +1894,7 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
     }
 
     char llmInferenceEngine[FRONTEND_DATA_LENGTH + 1];
-    memset(llmInferenceEngine, FRONTEND_DATA_LENGTH + 1);
+    memset(llmInferenceEngine, 0, FRONTEND_DATA_LENGTH + 1);
     read(connFd, llmInferenceEngine, FRONTEND_DATA_LENGTH);
     std::string llmInferenceEngineS(llmInferenceEngine);
     llmInferenceEngineS = Utils::trim_copy(llmInferenceEngineS);
@@ -1916,7 +1916,7 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
     }
 
     char llm[FRONTEND_DATA_LENGTH + 1];
-    memset(llm, FRONTEND_DATA_LENGTH + 1);
+    memset(llm, 0, FRONTEND_DATA_LENGTH + 1);
     read(connFd, llm, FRONTEND_DATA_LENGTH);
     std::string llmS(llm);
     llmS = Utils::trim_copy(llmS);
@@ -2006,7 +2006,7 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
     }
 
     char chunkSize[FRONTEND_DATA_LENGTH + 1];
-    memset(chunkSize, FRONTEND_DATA_LENGTH + 1);
+    memset(chunkSize, 0, FRONTEND_DATA_LENGTH + 1);
     read(connFd, chunkSize, FRONTEND_DATA_LENGTH);
     std::string chunkSizeS(chunkSize);
     chunkSizeS = Utils::trim_copy(chunkSizeS);
@@ -2036,7 +2036,7 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
         }
 
         char resume[FRONTEND_DATA_LENGTH + 1];
-        memset(resume, FRONTEND_DATA_LENGTH + 1);
+        memset(resume, 0, FRONTEND_DATA_LENGTH + 1);
         read(connFd, resume, FRONTEND_DATA_LENGTH);
         std::string resumeS(resume);
         resumeS = Utils::trim_copy(resumeS);
@@ -2057,7 +2057,7 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
             }
 
             char resumeGraphId[FRONTEND_DATA_LENGTH + 1];
-            memset(resumeGraphId, FRONTEND_DATA_LENGTH + 1);
+            memset(resumeGraphId, 0, FRONTEND_DATA_LENGTH + 1);
             read(connFd, resumeGraphId, FRONTEND_DATA_LENGTH);
             std::string resumeGraphIdS(resumeGraphId);
             resumeGraphIdS = Utils::trim_copy(resumeGraphIdS);
