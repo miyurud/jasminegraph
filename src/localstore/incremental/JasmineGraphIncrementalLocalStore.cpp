@@ -143,16 +143,34 @@ void JasmineGraphIncrementalLocalStore::addEdgeFromString(
     addDestinationProperties(newRelation, destinationJson);
     incremental_localstore_logger.debug("Edge (" + sId + ", " + dId +
                                         ") Added successfully!");
-  } catch (const std::exception&) {  // TODO tmkasun: Handle multiple types of
-                                     // exceptions
-    incremental_localstore_logger.log(
-        "Error while processing edge data = " + edgeString +
-            "Could be due to JSON parsing error or error while persisting the "
-            "data to disk",
-        "error");
-    incremental_localstore_logger.log("Error malformed JSON attributes!",
-                                      "error");
-    // TODO tmkasun: handle JSON errors
+  } catch (const json::parse_error &ex) {
+    // JSON syntax errors
+    incremental_localstore_logger.error(
+        "JSON parse error while processing edge string: " + edgeString +
+        " | Error: " + std::string(ex.what()));
+  }
+  catch (const json::type_error &ex) {
+    // Wrong JSON types (e.g., expecting string but got int)
+    incremental_localstore_logger.error(
+        "JSON type error: Invalid JSON attribute types in: " + edgeString +
+        " | Error: " + std::string(ex.what()));
+  }
+  catch (const json::out_of_range &ex) {
+    // Missing fields like "source" or "destination"
+    incremental_localstore_logger.error(
+        "JSON out-of-range error: Missing required keys in: " + edgeString +
+        " | Error: " + std::string(ex.what()));
+  }
+  catch (const std::exception &ex) {
+    // All other standard errors (filesystem errors, memory issues, etc.)
+    incremental_localstore_logger.error(
+        "Unhandled exception while processing edge data: " + edgeString +
+        " | Error: " + std::string(ex.what()));
+  }
+  catch (...) {
+    // Non-standard exceptions
+    incremental_localstore_logger.error(
+        "Unknown fatal error while processing: " + edgeString);
   }
 }
 

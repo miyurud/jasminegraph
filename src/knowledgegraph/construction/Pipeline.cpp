@@ -912,7 +912,7 @@ bool Pipeline::streamGraphToDesignatedWorker(std::string host, int port, std::st
 
             std::string meta(content_length, 0);
             recv(sockfd, &meta[0], content_length, 0);
-            kg_pipeline_stream_handler_logger.info("Received meta: " + meta);
+            kg_pipeline_stream_handler_logger.info("Received meta data: " + meta);
 
             json metaJSON = json::parse(meta);
             json graph = metaJSON["graph"];
