@@ -56,18 +56,18 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
     }
 
     try {
-      auto j = json::parse(line);
+      auto jsonLine = json::parse(line);
 
       // Completed tuple
-      if (j.value("done", false)) {
+      if (jsonLine.value("done", false)) {
         ctx->buffer->add("-1");
         ctx->current_tuple.clear();
         break;
       }
 
       // Partial response
-      if (j.contains("response")) {
-        std::string partial = j["response"];
+      if (jsonLine.contains("response")) {
+        std::string partial = jsonLine["response"];
 
         size_t i = 0;
         while (i < partial.size()) {
@@ -161,8 +161,11 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
 void OllamaTupleStreamer::streamChunk(const std::string& chunkKey,
                                       const std::string& chunkText,
                                       SharedBuffer& tupleBuffer) {
-  const int maxRetries = 10;
-  const int baseDelaySeconds = 50;  // exponential backoff base
+
+  const int maxRetries = std::stoi(Utils::getJasmineGraphProperty(
+      "org.jasminegraph.kg.tuplestreamer.retry.max"));
+  const int baseDelaySeconds = std::stoi(Utils::getJasmineGraphProperty(
+      "org.jasminegraph.kg.tuplestreamer.retry.base"));  // exponential backoff base
   int attempt = 0;
 
   ollama_tuple_streamer_logger.debug("Chunk: " + chunkText);
@@ -198,17 +201,17 @@ void OllamaTupleStreamer::streamChunk(const std::string& chunkKey,
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
     curl_easy_setopt(curl, CURLOPT_POST, 1L);
 
-    json j;
-    j["model"] = model;
-    j["max_tokens"] = 8000;
-    j["prompt"] = Prompts::KNOWLEDGE_EXTRACTION +
+    json jsonRequest;
+    jsonRequest["model"] = model;
+    jsonRequest["max_tokens"] = 8000;
+    jsonRequest["prompt"] = Prompts::KNOWLEDGE_EXTRACTION +
                   "\nNow process the following text:\n" + chunkText +
                   "\n\nArray:";
-    j["stream"] = true;
+    jsonRequest["stream"] = true;
 
     std::string postFields;
     try {
-      postFields = j.dump();
+      postFields = jsonRequest.dump();
       ollama_tuple_streamer_logger.debug("Post fields: " + postFields);
     } catch (const std::exception& e) {
       ollama_tuple_streamer_logger.error("JSON dump error: " +

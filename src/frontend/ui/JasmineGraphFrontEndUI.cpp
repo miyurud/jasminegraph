@@ -195,9 +195,6 @@ void *uifrontendservicesesion(void *dummyPt) {
             }
         }
     }
-    // if (input_stream_handler.joinable()) {
-    //     input_stream_handler.join();
-    // }
     ui_frontend_logger.info("Closing thread " + to_string(pthread_self()) + " and connection");
     close(connFd);
     currentFESession--;

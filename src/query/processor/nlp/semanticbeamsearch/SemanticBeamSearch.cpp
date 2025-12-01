@@ -68,7 +68,6 @@ std::vector<ScoredPath> SemanticBeamSearch::getSeedNodes() {
         nodeData[key] = value;
       }
 
-      // nodeData["id"] = std::to_string(seedNode->nodeId);
       initialPath["pathNodes"].push_back(nodeData);
       initialPath["pathRels"] = json::array();
       float score = Utils::cosineSimilarity(
@@ -76,8 +75,9 @@ std::vector<ScoredPath> SemanticBeamSearch::getSeedNodes() {
       paths.push_back({initialPath, score});
     }
   } catch (std::exception& e) {
-    std::cout << e.what() << "\n";
-  }
+      semantic_beam_search_logger.error(std::string("getSeedNodes exception: ") + e.what());
+    }
+
 
   return paths;
 }
@@ -86,7 +86,7 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
                                                     int numHops,
                                                     int beamWidth) {
   semantic_beam_search_logger.info(
-      "Starting semanticMultiHopBeamSearch with numHops: " +
+      "Starting semantic Multi-Hop Beam Search with following number of hops : " +
       std::to_string(numHops) + ", beamWidth: " + std::to_string(beamWidth));
 
   // 1. Get seed nodes using FAISS
@@ -301,7 +301,6 @@ void SemanticBeamSearch::semanticMultiHopBeamSearch(SharedBuffer& buffer,
           nodeData["partitionID"] =
               std::string(destNode->getMetaPropertyHead()->value);
           for (auto& [k, v] : nodeProps) nodeData[k] = v;
-          // nodeData["id"] = std::to_string(destNode->nodeId);
           vector<float> emb_ =
               faissStore->getEmbeddingById(std::to_string(destNode->nodeId));
           semantic_beam_search_logger.debug("Scoring node ID: " +

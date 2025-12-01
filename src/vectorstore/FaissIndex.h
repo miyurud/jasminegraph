@@ -42,19 +42,12 @@ class FaissIndex {
   std::string getNodeIdFromEmbeddingId(std::string embeddingId) const;
 
  private:
-  // Private constructor (Singleton)
   FaissIndex(int embeddingDim, const std::string& filepath);
 
   int dim;
   faiss::IndexFlatL2* index;
   std::mutex mtx;
   std::string filePath;
-  // typedef boost::bimap<boost::bimaps::multiset_of<std::string>,
-  // boost::bimaps::set_of<faiss::idx_t> > bimap_t; typedef bimap_t::value_type
-  // value_type;
-
-  // boost::bimap<std::string, faiss::idx_t > nodeEmbeddingMap; // Maps node IDs
-  // to FAISS IDs
   std::unordered_map<std::string, faiss::idx_t>
       nodeIdToEmbeddingIdMap;  // Maps node IDs to FAISS IDs
   std::unordered_map<faiss::idx_t, std::string> embeddingIdToNodeIdMap;

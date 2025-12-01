@@ -1411,7 +1411,7 @@ static void add_stream_kafka_command(int connFd, std::string &kafka_server_IP, c
     // Get user response.
     string default_kafka = Utils::getFrontendInput(connFd);
     //          use default kafka consumer details
-    string group_id = "knnect";  // TODO(sakeerthan): MOVE TO CONSTANT LATER
+    string group_id =  Conts::KAFKA_GROUP_ID;  // TODO(sakeerthan): MOVE TO CONSTANT LATER
     if (default_kafka == "y") {
         kafka_server_IP = Utils::getJasmineGraphProperty("org.jasminegraph.server.streaming.kafka.host");
         configs = {
@@ -2010,7 +2010,7 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
     read(connFd, chunkSize, FRONTEND_DATA_LENGTH);
     std::string chunkSizeS(chunkSize);
     chunkSizeS = Utils::trim_copy(chunkSizeS);
-    frontend_logger.info("received chunk Size engine: " + chunkSizeS);
+    frontend_logger.info("Received engine chunk size: " + chunkSizeS);
 
     int newGraphID;
     bool graphExits = false;
@@ -2064,7 +2064,7 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
 
             newGraphID = stoi(resumeGraphIdS);
             graphExits = true;
-            frontend_logger.info("1947 GrpahID: " + to_string(newGraphID));
+            frontend_logger.info("Resuming Knowledge Graph construction from GraphID: " + to_string(newGraphID));
 
         } else {
             std::string insertQuery =
@@ -2075,7 +2075,7 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
                 hdfsFilePathS + "\", \"" + path + "\", \"" + uploadStartTime + "\", \"\", \"" +
                 std::to_string(Conts::GRAPH_STATUS::NONOPERATIONAL) + "\", \"\", \"\", \"\", \"TRUE\", \"" +
                 to_string(total_file_size) + "\");";
-            frontend_logger.info("1955 GrpahID: " + to_string(newGraphID));
+            frontend_logger.info("Constructing new Knowledge Graph with new GraphID: " + to_string(newGraphID));
 
             newGraphID = sqlite->runInsert(insertQuery);
         }
@@ -2089,11 +2089,10 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
             hdfsFilePathS + "\", \"" + path + "\", \"" + uploadStartTime + "\", \"\", \"" +
             std::to_string(Conts::GRAPH_STATUS::NONOPERATIONAL) + "\", \"\", \"\", \"\", \"TRUE\", \"" +
             to_string(total_file_size) + "\");";
-        frontend_logger.info("1955 GrpahID: " + to_string(newGraphID));
+            frontend_logger.info("Constructing new Knowledge Graph with new GraphID: " + to_string(newGraphID));
 
         newGraphID = sqlite->runInsert(insertQuery);
     }
-    frontend_logger.info("GrpahID: " + to_string(newGraphID));
     JasmineGraphServer::worker designatedWorker = JasmineGraphServer::getDesignatedWorker();
     auto stopFlag = std::make_shared<std::atomic<bool>>(false);
     {
@@ -3417,7 +3416,7 @@ void JasmineGraphFrontEnd::stop_graph_streaming(int connFd, bool *loop_exit_p) {
     }
 
     char userRes[FRONTEND_DATA_LENGTH + 1];
-    bzero(userRes, FRONTEND_DATA_LENGTH + 1);
+    memset(userRes, 0, FRONTEND_DATA_LENGTH + 1);
     read(connFd, userRes, FRONTEND_DATA_LENGTH);
     std::string userResS(userRes);
     userResS = Utils::trim_copy(userResS);
@@ -3427,7 +3426,7 @@ void JasmineGraphFrontEnd::stop_graph_streaming(int connFd, bool *loop_exit_p) {
     if (it != stopFlags.end()) {
         *(it->second) = true;
 
-        int maxWaits = 72;  // Wait up to 1 minute (12 * 5 seconds)
+        int maxWaits = 12;  // Wait up to 6 minute (12 * 5 seconds)
         int waits = 0;
         while (*(it->second) && waits < maxWaits) {
             sleep(5);

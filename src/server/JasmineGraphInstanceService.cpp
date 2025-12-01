@@ -3296,8 +3296,6 @@ static void streaming_tuple_extraction(
 
   instance_logger.info("in streaming_tuple_extraction");
   Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::OK);
-  // instance_logger.info("in streaming_tuple_extraction");
-
   // 2. Expect graphID
   std::string graphID =
       Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
@@ -3367,7 +3365,6 @@ static void streaming_tuple_extraction(
         *loop_exit_p = true;
         close(connFd);
       };
-      instance_logger.info("3200");
       int idleTimeoutSec = 120;  // e.g., break if no tuple for 30s
 
       while (true) {
@@ -4883,8 +4880,6 @@ static void semantic_beam_search(
     workers.push_back(worker);
   }
 
-  // instanceHandler.handleRequest(connFd, loop_exit_p,
-  // incrementalLocalStoreInstance->gc, masterIP, message);
   unsigned long maxLabel = std::stol(Utils::getJasmineGraphProperty(
       "org.jasminegraph.nativestore.max.label.size"));
   GraphConfig gc{maxLabel, static_cast<unsigned int>(std::stoi(graphId)),
@@ -4924,7 +4919,6 @@ static void semantic_beam_search(
       instanceHandler.dataPublishToMaster(connFd, loop_exit_p, raw);
       instance_logger.info("Total time taken for query execution: " +
                            std::to_string(time) + " ms");
-      // result.join();
       break;
     }
     auto endTime = std::chrono::high_resolution_clock::now();
@@ -4934,11 +4928,6 @@ static void semantic_beam_search(
     instanceHandler.dataPublishToMaster(connFd, loop_exit_p, raw);
     startTime = std::chrono::high_resolution_clock::now();
   }
-  // if (!Utils::send_str_wrapper(connFd,fF
-  // JasmineGrapfhInstanceProtocol::GRAPH_STREAM_END_OF_EDGE)) {
-  //     *loop_exit_p = true;
-  //     return;
-  // }
   instance_logger.debug("Sent CRLF string to mark the end");
   *loop_exit_p = true;
 
@@ -4974,7 +4963,6 @@ static void semantic_search_expand_node_remote_batch(
         received += ret;
     }
     instance_logger.info("Received request string of length: " + std::to_string(received));
-    instance_logger.info("Received request string of length: " + std::to_string(requestStr.size()));
     instance_logger.info("Received request: " + requestStr);
 
     json request = json::parse(requestStr);
@@ -4982,28 +4970,6 @@ static void semantic_search_expand_node_remote_batch(
     std::string fromPartition = request["fromPartition"];
     unsigned int partitionId = request["toPartition"].get<unsigned int>();
     vector<float> queryEmbedding = request["queryEmbedding"].get<std::vector<float>>();
-
-    // recieve embedding size
-    // recv( connFd, &content_length, sizeof(int), 0);
-    // content_length = ntohl(content_length);
-    // std::vector<float> queryEmbedding(content_length);
-    //
-    // recv(connFd, queryEmbedding.data(), queryEmbedding.size() * sizeof(float),
-    // 0);
-    // // request[""]
-    // instance_logger.info("Received query embedding of size: " +
-    // std::to_string(queryEmbedding.size()));
-    // // log query emb
-    // instance_logger.debug("Query embedding: ");
-    // for (const auto &val : queryEmbedding)
-    // {
-    //     instance_logger.debug(std::to_string(val));
-    // }
-
-    // log emb
-
-    // instance_logger.info("Expanding " + std::to_string(nodeIds.size()) +
-    //                      " nodes from partition " + fromPartition);
 
     // 4. Expand nodes using local store
     json response;
@@ -5074,13 +5040,6 @@ static void semantic_search_expand_node_remote_batch(
                                  std::to_string(newPath["pathRels"].size()) + " relations.");
         }
     }
-
-    // if (!Utils::sendExpectResponse(connFd, data, INSTANCE_DATA_LENGTH,
-    // JasmineGraphInstanceProtocol::QUERY_DATA_START,
-    // JasmineGraphInstanceProtocol::OK)) {
-    //     instance_logger.error("Failed to send QUERY_DATA_START");
-    //
-    // }
 
     std::string responseStr = response.dump();
     instance_logger.info("Expanded Response: " + responseStr);

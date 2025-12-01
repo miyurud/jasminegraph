@@ -222,7 +222,6 @@ void JasmineGraphIncrementalLocalStore::addCentralEdge(std::string edge) {
 
   std::string sId = std::string(jsonSource["id"]);
   std::string dId = std::string(jsonDestination["id"]);
-  // std::string edgeId = std::string(jsonEdge["properties"]["id"]);
 
   RelationBlock* newRelation = nullptr;
 

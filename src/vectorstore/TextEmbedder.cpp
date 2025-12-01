@@ -18,9 +18,12 @@ limitations under the License.
 #include <iostream>
 #include <nlohmann/json.hpp>
 #include <thread>
+#include "../util/logger/Logger.h"
 
 #include "TextEmbedder.h"
 using json = nlohmann::json;
+Logger text_embedder_logger;
+
 // ---------------- HTTP Client ----------------
 static size_t WriteToString(void* contents, size_t size, size_t nmemb,
                             void* userp) {
@@ -71,10 +74,6 @@ std::string HttpClient::post(const std::string& url, const std::string& body,
     throw std::runtime_error(std::string("curl error: ") +
                              curl_easy_strerror(res));
   }
-  if (code < 200 || code >= 300) {
-    throw std::runtime_error("HTTP " + std::to_string(code) +
-                             " body: " + response);
-  }
   return response;
 }
 
@@ -88,8 +87,6 @@ std::vector<std::vector<float>> TextEmbedder::batch_embed(
   std::vector<std::vector<float>> embeddings;
   json req = {{"model", model_name}, {"input", texts}};
 
-  std::cout << "Embedding request: " << req.dump() << std::endl;
-
   int max_retries = 3;
   int delay_ms = 1000;  // 1 second
   std::string res;
@@ -100,12 +97,10 @@ std::vector<std::vector<float>> TextEmbedder::batch_embed(
       res = http.post(endpoint + "/v1/embeddings", req.dump(),
                       {"Content-Type: application/json"});
 
-      std::cout << "Response (attempt " << attempt << "): " << res << std::endl;
+      auto jsonResponse = json::parse(res);
 
-      auto j = json::parse(res);
-
-      if (j.contains("data")) {
-        const auto& arr = j["data"];
+      if (jsonResponse.contains("data")) {
+        const auto& arr = jsonResponse["data"];
         for (auto& item : arr) {
           const auto& emb = item["embedding"];
           std::vector<float> out;
@@ -116,10 +111,9 @@ std::vector<std::vector<float>> TextEmbedder::batch_embed(
         return embeddings;
       }
 
-      throw std::runtime_error("Unexpected embedding response: " + j.dump());
+      throw std::runtime_error("Unexpected embedding response: " + jsonResponse.dump());
     } catch (const std::exception& ex) {
-      std::cerr << "Batch embedding failed (attempt " << attempt
-                << "): " << ex.what() << std::endl;
+      text_embedder_logger.error("Batch embedding failed: " + std::string(ex.what()));
 
       if (attempt < max_retries) {
         std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms));
@@ -136,9 +130,6 @@ std::vector<std::vector<float>> TextEmbedder::batch_embed(
 std::vector<float> TextEmbedder::embed(const std::string& text) {
   json req = {{"model", model_name}, {"prompt", text}};
 
-  // log the request
-  std::cout << "Embedding request: " << req.dump() << std::endl;
-
   int max_retries = 3;
   int delay_ms = 1000;  // 1 second gap between retries
 
@@ -146,14 +137,10 @@ std::vector<float> TextEmbedder::embed(const std::string& text) {
     try {
       std::string res = http.post(endpoint + "/api/embeddings", req.dump(),
                                   {"Content-Type: application/json"});
-      auto j = json::parse(res);
+      auto jsonLine = json::parse(res);
 
-      // log response
-      std::cout << "Response (attempt " << attempt << "): " << res << std::endl;
-
-      // Ollama format: { "embedding": [ ... ] }
-      if (j.contains("embedding")) {
-        const auto& arr = j["embedding"];
+      if (jsonLine.contains("embedding")) {
+        const auto& arr = jsonLine["embedding"];
         std::vector<float> out;
         out.reserve(arr.size());
         for (auto& x : arr) out.push_back((float)x.get<double>());
@@ -161,18 +148,18 @@ std::vector<float> TextEmbedder::embed(const std::string& text) {
       }
 
       // OpenAI format: { "data": [ { "embedding": [ ... ] } ] }
-      if (j.contains("data")) {
-        const auto& arr = j["data"][0]["embedding"];
+      if (jsonLine.contains("data")) {
+        const auto& arr = jsonLine["data"][0]["embedding"];
         std::vector<float> out;
         out.reserve(arr.size());
         for (auto& x : arr) out.push_back((float)x.get<double>());
         return out;
       }
 
-      throw std::runtime_error("Unexpected embedding response: " + j.dump());
+      throw std::runtime_error("Unexpected embedding response: " + jsonLine.dump());
     } catch (const std::exception& ex) {
-      std::cerr << "Embedding request failed (attempt " << attempt
-                << "): " << ex.what() << std::endl;
+      text_embedder_logger.error("Embedding failed: " +std::string(ex.what()));
+
 
       if (attempt < max_retries) {
         std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms));

@@ -38,25 +38,11 @@ FaissIndex* FaissIndex::getInstance(int embeddingDim,
 FaissIndex::FaissIndex(int embeddingDim, const std::string& filepath)
     : dim(embeddingDim), filePath(filepath) {
   load(filepath);
-  // std::ifstream f(filepath);
-  // std::cout<< "Loading FAISS index from: " << filepath << std::endl;
-  // if (f.good()) {
-  //     std::cout << "File exists, loading index..." << std::endl;
-  //     faiss::Index* loaded = faiss::read_index(filepath.c_str());
-  //     index = dynamic_cast<faiss::IndexFlatL2*>(loaded);FA
-  //     if (!index) {
-  //         throw std::runtime_error("Loaded FAISS index is not L2 Flat
-  //         index.");
-  //     }
-  // } else {
-  //     // Otherwise create new index
-  //     index = new faiss::IndexFlatL2(dim);
-  // }
 }
 
 FaissIndex::~FaissIndex() {
   try {
-    std::cout << "saving FAISS index";
+    faiss_index_logger.debug("saving FAISS index");
     save(filePath);
   } catch (const std::exception& e) {
     faiss_index_logger.error("[FaissIndex] Failed to auto-save index: " +
@@ -82,7 +68,6 @@ faiss::idx_t FaissIndex::add(const std::vector<float>& embedding,
       "[FaissIndex] Embedding added to index. Updating nodeEmbeddingMap.");
   nodeIdToEmbeddingIdMap.insert({nodeId, new_id});
   embeddingIdToNodeIdMap.insert({new_id, nodeId});
-  // nodeEmbeddingMap.insert( value_type(nodeId, new_id));
   return new_id;
 }
 
@@ -92,18 +77,10 @@ std::vector<std::pair<faiss::idx_t, float>> FaissIndex::search(
     throw std::runtime_error("Query dimension mismatch!");
   }
 
-  std::cout << "61";
-
   std::vector<faiss::idx_t> indices(k);
   std::vector<float> distances(k);
-  std::cout << "65";
-
   std::lock_guard<std::mutex> lock(mtx);
-  std::cout << "68";
-
   index->search(1, query.data(), k, distances.data(), indices.data());
-  std::cout << "71";
-
   std::vector<std::pair<faiss::idx_t, float>> results;
   for (int i = 0; i < k; i++) {
     results.emplace_back(indices[i], distances[i]);
@@ -237,12 +214,8 @@ void FaissIndex::load(const std::string& filepath) {
     if (!mapFile.read(reinterpret_cast<char*>(&value), sizeof(value))) {
       break;
     }
-
     nodeIdToEmbeddingIdMap[key] = value;
     embeddingIdToNodeIdMap[value] = key;
-
-    // std::cout << "[FaissIndex::load] Mapping loaded: " << key << " -> " <<
-    // value << std::endl;
   }
 
   mapFile.close();
@@ -280,14 +253,6 @@ std::vector<float> FaissIndex::getEmbeddingById(std::string nodeId) {
 }
 
 std::string FaissIndex::getNodeIdFromEmbeddingId(faiss::idx_t embeddingId) {
-  // std::lock_guard<std::mutex> lock(mtx);
-
-  // Debug logging (optional)
-  // for (const auto& entry : nodeIdToEmbeddingIdMap) {
-  //     std::cout << "Node ID: " << entry.first
-  //               << ", Embedding ID: " << entry.second << std::endl;
-  // }
-
   auto it = embeddingIdToNodeIdMap.find(embeddingId);
   if (it == embeddingIdToNodeIdMap.end()) {
     throw std::runtime_error("Node ID not found for embedding ID: " +

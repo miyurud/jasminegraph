@@ -75,12 +75,6 @@ int PerformanceUtil::collectPerformanceStatistics() {
 
     int socketCount = StatisticsCollector::getSocketCount();
     Utils::send_job("", "socket_count", std::to_string(socketCount));
-    // const char *hostAddress = getenv("HOST_NAME");
-    // // Push into history store
-    // history_store[hostAddress].addCpu(cpuUsage);
-    // history_store[hostAddress].addMemory((double)totalMemoryUsage);
-    // history_store[hostAddress].addLoad(currentLoadAverage);
-
     scheduler_logger.info("Pushed performance metrics");
     return 0;
 }
