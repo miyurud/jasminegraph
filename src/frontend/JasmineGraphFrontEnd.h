@@ -40,6 +40,7 @@ limitations under the License.
 #include "../query/algorithms/triangles/Triangles.h"
 #include "core/scheduler/JobScheduler.h"
 
+struct KGConstructionRate;
 class JasmineGraphHashMapCentralStore;
 
 void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface *sqlite,
@@ -47,17 +48,20 @@ void *frontendservicesesion(std::string masterIP, int connFd, SQLiteDBInterface 
 
 class JasmineGraphFrontEnd {
  public:
+    static std::map<int, std::shared_ptr<::KGConstructionRate>> kgConstructionRates;
     JasmineGraphFrontEnd(SQLiteDBInterface *db, PerformanceSQLiteDBInterface *perfDb, std::string masterIP,
                          JobScheduler *jobScheduler);
 
     int run();
 
     static void scheduleStrianJobs(JobRequest &jobDetails, std::priority_queue<JobRequest> &jobQueue,
-                                    JobScheduler *jobScheduler, bool *strian_exist);
+                                   JobScheduler *jobScheduler, bool *strian_exist);
 
     static int getRunningHighPriorityTaskCount();
     static bool areRunningJobsForSameGraph();
-
+    static bool constructKGStreamHDFSCommand(std::string masterIP, int connFd, int numberOfPartitions,
+                                             SQLiteDBInterface *sqlite, bool *loop_exit_p);
+    static void stop_graph_streaming(int connfd, bool *loop_exit_p);
     static bool strian_exit;
     std::map<std::string, std::atomic<bool>> *streamsState;
     std::map<std::string, std::thread> streamingThreads;
@@ -75,6 +79,11 @@ struct frontendservicesessionargs {
     SQLiteDBInterface *sqlite;
     PerformanceSQLiteDBInterface *perfSqlite;
     JobScheduler *jobScheduler;
+};
+
+struct KGConstructionRate {
+    double triplesPerSecond;
+    double bytesPerSecond;
 };
 
 #endif  // JASMINGRAPH_JASMINGRAPHFRONTEND_H

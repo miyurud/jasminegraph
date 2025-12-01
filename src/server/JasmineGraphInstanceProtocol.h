@@ -139,11 +139,17 @@ class JasmineGraphInstanceProtocol {
     static const string HDFS_STREAM_FILE_SIZE_ACK;
     static const string HDFS_FILE_CHUNK_END_CHK;
     static const string HDFS_FILE_CHUNK_END_ACK;
+    static const string INITIATE_STREAMING_KG_CONSTRUCTION;
+    static  const string INITIATE_STREAMING_TUPLE_CONSTRUCTION;
+    static  const string  CHUNK_STREAM_END;
+    static const string SEMANTIC_BEAM_SEARCH;
+    static const string EXPAND_NODE_BATCH;
+    static const string HDFS_STREAM_IS_EMBED_ACK;
 };
 
 const int INSTANCE_DATA_LENGTH = 300;
 const int FED_DATA_LENGTH = 300;
-const int INSTANCE_LONG_DATA_LENGTH = 1024;
+const int INSTANCE_LONG_DATA_LENGTH = 5048;
 const int INSTANCE_FILE_BUFFER_LENGTH = 1024;
 const int MAX_STREAMING_DATA_LENGTH = 1024;
 

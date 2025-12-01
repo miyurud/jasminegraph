@@ -85,11 +85,14 @@ void NodeBlock::save() {
 }
 
 void NodeBlock::addProperty(std::string name, const char* value) {
+    node_block_logger.debug("Attempting to add property: " + name + " to node at address: " +
+        std::to_string(this->addr));
     if (this->propRef == 0) {
         PropertyLink* newLink = PropertyLink::create(name, value);
         //        pthread_mutex_lock(&lockAddNodeProperty);
         if (newLink) {
             this->propRef = newLink->blockAddress;
+            node_block_logger.debug("Created new PropertyLink at address: " + std::to_string(newLink->blockAddress));
             // If it was an empty prop link before inserting, Then update the property reference of this node
             // block
             //            node_block_logger.info("propRef = " + std::to_string(this->propRef));
@@ -97,32 +100,44 @@ void NodeBlock::addProperty(std::string name, const char* value) {
                                       sizeof(this->centralEdgeRef) + sizeof(this->edgeRefPID));
             NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(this->propRef)), sizeof(this->propRef));
             NodeBlock::nodesDB->flush();
+            node_block_logger.debug("Updated propRef in DB for node at address: " + std::to_string(this->addr));
         } else {
             node_block_logger.error("Error occurred while adding a new property link to " +
                         std::to_string(this->addr) + " node block");
         }
     } else {
+        node_block_logger.debug("Property head exists. Inserting property: " + name +
+            " to existing PropertyLink chain.");
         this->propRef = this->getPropertyHead()->insert(name, value);
+        node_block_logger.debug("Updated propRef after insert: " + std::to_string(this->propRef));
     }
 }
 
 void NodeBlock::addMetaProperty(std::string name, const char* value) {
+    node_block_logger.debug("Attempting to add meta property: " + name + " to node at address: "
+        + std::to_string(this->addr));
     if (this->metaPropRef == 0) {
         MetaPropertyLink* newLink = MetaPropertyLink::create(name, value);
 
         if (newLink) {
             this->metaPropRef = newLink->blockAddress;
 
-            NodeBlock::nodesDB->seekp(this->addr +sizeof(this->usage) +sizeof(this->nodeId) + sizeof(this->edgeRef) +
-                                      sizeof(this->centralEdgeRef) + sizeof(this->edgeRefPID)+ sizeof(this->propRef));
+            node_block_logger.debug("Created new MetaPropertyLink at address: " +
+                std::to_string(newLink->blockAddress));
+            NodeBlock::nodesDB->seekp(this->addr + sizeof(this->usage) + sizeof(this->nodeId) + sizeof(this->edgeRef) +
+                                      sizeof(this->centralEdgeRef) + sizeof(this->edgeRefPID) + sizeof(this->propRef));
             NodeBlock::nodesDB->write(reinterpret_cast<char*>(&(this->metaPropRef)), sizeof(this->metaPropRef));
             NodeBlock::nodesDB->flush();
+            node_block_logger.debug("Updated metaPropRef in DB for node at address: " + std::to_string(this->addr));
         } else {
-            node_block_logger.error("Error occurred while adding a new property link to " +
+            node_block_logger.error("Error occurred while adding a new meta property link to " +
                                     std::to_string(this->addr) + " node block");
         }
     } else {
+        node_block_logger.debug("Meta property head exists. Inserting meta property: " + name +
+            " to existing MetaPropertyLink chain.");
         this->metaPropRef = this->getMetaPropertyHead()->insert(name, value);
+        node_block_logger.debug("Updated metaPropRef after insert: " + std::to_string(this->metaPropRef));
     }
 }
 
@@ -336,16 +351,19 @@ bool NodeBlock::searchRelation(NodeBlock withNode) {
     return found;
 }
 
-std::list<NodeBlock*> NodeBlock::getLocalEdgeNodes() {
-    std::list<NodeBlock*> edges;
+
+std::list<std::pair<NodeBlock*, RelationBlock*>> NodeBlock::getLocalEdgeNodes() {
+    std::list<std::pair<NodeBlock*, RelationBlock*>> edges;
     RelationBlock* currentRelation = this->getLocalRelationHead();
     while (currentRelation != nullptr) {
         NodeBlock* node = NULL;
         if (currentRelation->source.address == this->addr) {
             node = NodeBlock::get(currentRelation->destination.address);
+            edges.push_back(std::make_pair(node, currentRelation));
             currentRelation = currentRelation->nextLocalSource();
         } else if (currentRelation->destination.address == this->addr) {
             node = NodeBlock::get(currentRelation->source.address);
+            edges.push_back(std::make_pair(node, currentRelation));
             currentRelation = currentRelation->nextLocalDestination();
         } else {
             node_block_logger.error("Error: Unrecognized relation for " + std::to_string(this->addr) +
@@ -356,40 +374,39 @@ std::list<NodeBlock*> NodeBlock::getLocalEdgeNodes() {
             node_block_logger.error("Error creating node in the relation");
             break;
         }
-        edges.push_back(node);
     }
     return edges;
 }
-
-std::list<NodeBlock*> NodeBlock::getCentralEdgeNodes() {
-    std::list<NodeBlock*> edges;
+std::list<std::pair<NodeBlock*, RelationBlock*>> NodeBlock::getCentralEdgeNodes() {
+    std::list<std::pair<NodeBlock*, RelationBlock*>> edges;
     RelationBlock* currentRelation = this->getCentralRelationHead();
     while (currentRelation != NULL) {
         NodeBlock* node = NULL;
         if (currentRelation->source.address == this->addr) {
             node = NodeBlock::get(currentRelation->destination.address);
+            edges.push_back(std::make_pair(node, currentRelation));
             currentRelation = currentRelation->nextCentralSource();
         } else if (currentRelation->destination.address == this->addr) {
             node = NodeBlock::get(currentRelation->source.address);
+            edges.push_back(std::make_pair(node, currentRelation));
             currentRelation = currentRelation->nextCentralDestination();
         } else {
-            node_block_logger.error("Error: Unrecognized central relation for " +
-                                    std::to_string(this->addr) + " in relation block " +
-                                    std::to_string(currentRelation->addr));
+            node_block_logger.error("Error: Unrecognized central relation for " + std::to_string(this->addr) +
+                                    " in relation block " + std::to_string(currentRelation->addr));
+            break;
         }
         if (!node) {
             node_block_logger.error("Error creating node in the central relation");
+            break;
         }
-        edges.push_back(node);
     }
     return edges;
 }
-
-std::list<NodeBlock*> NodeBlock::getAllEdgeNodes() {
+std::list<std::pair<NodeBlock*, RelationBlock*>> NodeBlock::getAllEdgeNodes() {
     // Get local and central edges
-    std::list<NodeBlock*> allEdges;
-    std::list<NodeBlock*> localEdges = getLocalEdgeNodes();
-    std::list<NodeBlock*> centralEdges = getCentralEdgeNodes();
+    std::list<std::pair<NodeBlock*, RelationBlock*>> allEdges;
+    std::list<std::pair<NodeBlock*, RelationBlock*>> localEdges = getLocalEdgeNodes();
+    std::list<std::pair<NodeBlock*, RelationBlock*>> centralEdges = getCentralEdgeNodes();
     allEdges.insert(allEdges.end(), localEdges.begin(), localEdges.end());
     allEdges.insert(allEdges.end(), centralEdges.begin(), centralEdges.end());
     return allEdges;
@@ -431,7 +448,8 @@ NodeBlock* NodeBlock::get(unsigned int blockAddress) {
         node_block_logger.error("Error while reading nodeId  data from block " + std::to_string(blockAddress));
     }
     if (!NodeBlock::nodesDB->read(reinterpret_cast<char*>(&edgeRef), sizeof(unsigned int))) {
-        node_block_logger.error("Error while reading edge reference data from block " + std::to_string(blockAddress));
+        node_block_logger.error("Error while reading edge reference data from block " +
+            std::to_string(blockAddress));
     }
     if (!NodeBlock::nodesDB->read(reinterpret_cast<char*>(&centralEdgeRef), sizeof(unsigned int))) {
         node_block_logger.error("Error while reading central edge reference data from block " +
@@ -444,7 +462,8 @@ NodeBlock* NodeBlock::get(unsigned int blockAddress) {
     }
 
     if (!NodeBlock::nodesDB->read(reinterpret_cast<char*>(&propRef), sizeof(unsigned int))) {
-        node_block_logger.error("Error while reading prop reference data from block " + std::to_string(blockAddress));
+        node_block_logger.error("Error while reading prop reference data from block " +
+            std::to_string(blockAddress));
     }
 
     if (!NodeBlock::nodesDB->read(reinterpret_cast<char*>(&metaPropRef), sizeof(unsigned int))) {

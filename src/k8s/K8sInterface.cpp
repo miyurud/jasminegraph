@@ -234,8 +234,8 @@ v1_persistent_volume_claim_t *K8sInterface::createJasmineGraphPersistentVolumeCl
 
 v1_persistent_volume_t *K8sInterface::deleteJasmineGraphPersistentVolume(int workerId) const {
     std::string volumeName = "jasminegraph-worker" + std::to_string(workerId) + "-data";
-    v1_persistent_volume_t *result = CoreV1API_deletePersistentVolume(apiClient, strdup(volumeName.c_str()), NULL, NULL,
-                                                                      NULL, NULL, NULL, NULL);
+    v1_persistent_volume_t *result = CoreV1API_deletePersistentVolume(apiClient, strdup(volumeName.c_str()), NULL,
+        NULL, NULL, NULL, NULL, NULL);
     return result;
 }
 

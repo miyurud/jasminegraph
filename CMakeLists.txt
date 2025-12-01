@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.29.6)
 project(JasmineGraph)
 set(CMAKE_CXX_STANDARD 17)
 
@@ -29,6 +29,7 @@ set(HEADERS globals.h
         src/frontend/core/executor/impl/StreamingTriangleCountExecutor.h
         src/frontend/core/factory/ExecutorFactory.h
         src/frontend/core/scheduler/JobScheduler.h
+        src/knowledgegraph/construction/Pipeline.h
         src/localstore/JasmineGraphHashMapLocalStore.h
         src/localstore/JasmineGraphLocalStore.h
         src/localstore/JasmineGraphLocalStoreFactory.h
@@ -42,7 +43,7 @@ set(HEADERS globals.h
         src/partitioner/stream/Partition.h
         src/partitioner/stream/Partitioner.h
         src/performance/metrics/PerformanceUtil.h
-        src/performance/metrics/StatisticCollector.h
+        src/performance/metrics/StatisticsCollector.h
         src/performancedb/PerformanceSQLiteDBInterface.h
         src/query/algorithms/linkprediction/JasminGraphLinkPredictor.h
         src/query/algorithms/triangles/Triangles.h
@@ -105,6 +106,14 @@ set(HEADERS globals.h
         src/frontend/core/executor/impl/CypherQueryExecutor.h
         src/query/processor/cypher/runtime/Aggregation.h
         src/query/processor/cypher/runtime/AggregationFactory.h
+        src/knowledgegraph/construction/Prompt.h
+        src/knowledgegraph/construction/VLLMTupleStreamer.h
+        src/vectorstore/TextEmbedder.h
+        src/vectorstore/FaissIndex.h
+        src/query/processor/nlp/semanticbeamsearch/SemanticBeamSearch.h
+        src/frontend/core/executor/impl/SemanticBeamSearchExecutor.h
+
+
 )
 
 set(SOURCES src/backend/JasmineGraphBackend.cpp
@@ -122,6 +131,7 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/frontend/core/executor/impl/StreamingTriangleCountExecutor.cpp
         src/frontend/core/factory/ExecutorFactory.cpp
         src/frontend/core/scheduler/JobScheduler.cpp
+        src/knowledgegraph/construction/Pipeline.cpp
         src/localstore/JasmineGraphHashMapLocalStore.cpp
         src/localstore/JasmineGraphLocalStore.cpp
         src/localstore/JasmineGraphLocalStoreFactory.cpp
@@ -135,7 +145,7 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/partitioner/stream/Partition.cpp
         src/partitioner/stream/Partitioner.cpp
         src/performance/metrics/PerformanceUtil.cpp
-        src/performance/metrics/StatisticCollector.cpp
+        src/performance/metrics/StatisticsCollector.cpp
         src/performancedb/PerformanceSQLiteDBInterface.cpp
         src/query/algorithms/linkprediction/JasminGraphLinkPredictor.cpp
         src/query/algorithms/triangles/Triangles.cpp
@@ -199,6 +209,16 @@ set(SOURCES src/backend/JasmineGraphBackend.cpp
         src/frontend/core/executor/impl/CypherQueryExecutor.cpp
         src/query/processor/cypher/runtime/Aggregation.cpp
         src/query/processor/cypher/runtime/AggregationFactory.cpp
+        src/knowledgegraph/construction/OllamaTupleStreamer.cpp
+        src/knowledgegraph/construction/VLLMTupleStreamer.cpp
+        src/vectorstore/TextEmbedder.cpp
+        src/vectorstore/FaissIndex.cpp
+        src/query/processor/nlp/semanticbeamsearch/SemanticBeamSearch.cpp
+        src/frontend/core/executor/impl/SemanticBeamSearchExecutor.cpp
+        src/knowledgegraph/construction/VLLMTupleStreamer.cpp
+        src/knowledgegraph/construction/TupleStreamer.cpp
+
+
 
 )
 
@@ -211,7 +231,8 @@ endif ()
 file(GLOB GENERATED_SRC /home/ubuntu/software/antlr/*.cpp)
 if(NOT GENERATED_SRC)
     message(WARNING "No ANTLR generated files found in /home/ubuntu/software/antlr/")
-    set(GENERATED_SRC "")
+    set(GENERATED_SRC ""
+            src/frontend/JasmineGraphFrontEnd.cpp)
 endif()
 
 add_library(JasmineGraphLib ${HEADERS} ${SOURCES} ${GENERATED_SRC})
@@ -287,14 +308,26 @@ target_link_libraries(JasmineGraphLib PRIVATE /usr/lib/x86_64-linux-gnu/libflatb
 target_link_libraries(JasmineGraphLib PRIVATE /usr/lib/x86_64-linux-gnu/libjsoncpp.so)
 target_link_libraries(JasmineGraphLib PRIVATE /usr/local/lib/libcppkafka.so)
 target_link_libraries(JasmineGraphLib PRIVATE /usr/local/libhdfs3/lib/libhdfs3.so)
+target_link_libraries(JasmineGraphLib PRIVATE OpenMP::OpenMP_CXX faiss openblas)
+
+find_package(OpenMP REQUIRED)
+if(OpenMP_CXX_FOUND)
+      target_link_libraries(JasmineGraphLib PRIVATE  OpenMP::OpenMP_CXX)
+endif()
 target_link_libraries(JasmineGraph PRIVATE JasmineGraphLib)
 target_link_libraries(JasmineGraph PRIVATE curl)
 
+find_package(OpenMP REQUIRED)
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(JasmineGraph  PRIVATE OpenMP::OpenMP_CXX faiss)
+endif()
 include_directories(/usr/local/libhdfs3/include/hdfs/)
 include_directories(/usr/include/oneapi/)
 include_directories(/usr/local/parmetis/include/)
 include_directories(/usr/lib/x86_64-linux-gnu/openmpi/include/)
 include_directories(/usr/local/include/antlr4-runtime)
+include_directories(/usr/local/lib/faiss)
+
 link_directories(/usr/local/lib)
 include_directories(/usr/local/include/yaml-cpp)
 target_link_libraries(JasmineGraphLib PRIVATE m)

@@ -76,7 +76,7 @@ int main(int argc, char *argv[]) {
     std::string enableNmon = "false";
     main_logger.info("Using JASMINE_GRAPH_HOME=" + JASMINEGRAPH_HOME);
 
-    StatisticCollector::init();
+    StatisticsCollector::init();
     thread schedulerThread(SchedulerService::startScheduler);
 
     if (mode == Conts::JASMINEGRAPH_RUNTIME_PROFILE_MASTER) {
