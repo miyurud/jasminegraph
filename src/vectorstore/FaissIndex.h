@@ -13,10 +13,6 @@ limitations under the License.
 #pragma once
 #include <faiss/IndexFlat.h>
 #include <faiss/IndexIDMap.h>
-
-#include <boost/bimap.hpp>
-#include <boost/bimap/multiset_of.hpp>
-#include <boost/bimap/set_of.hpp>
 #include <memory>
 #include <mutex>
 #include <string>
