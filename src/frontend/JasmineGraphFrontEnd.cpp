@@ -3426,9 +3426,9 @@ void JasmineGraphFrontEnd::stop_graph_streaming(int connFd, bool *loop_exit_p) {
     if (it != stopFlags.end()) {
         *(it->second) = true;
 
-        int maxWaits = 12;  // Wait up to 1 minute (12 * 5 seconds)
+        int noOfMaxWaits = 12;  // Wait up to 1 minute (12 * 5 seconds)
         int waits = 0;
-        while (*(it->second) && waits < maxWaits) {
+        while (*(it->second) && waits < noOfMaxWaits) {
             sleep(5);
             waits++;
         }
