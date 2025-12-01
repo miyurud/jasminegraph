@@ -161,7 +161,6 @@ size_t OllamaTupleStreamer::StreamCallback(char* ptr, size_t size, size_t nmemb,
 void OllamaTupleStreamer::streamChunk(const std::string& chunkKey,
                                       const std::string& chunkText,
                                       SharedBuffer& tupleBuffer) {
-
   const int maxRetries = std::stoi(Utils::getJasmineGraphProperty(
       "org.jasminegraph.kg.tuplestreamer.retry.max"));
   const int baseDelaySeconds = std::stoi(Utils::getJasmineGraphProperty(

@@ -966,7 +966,6 @@ bool Pipeline::streamGraphToDesignatedWorker(std::string host, int port, std::st
                     partition["edgecount"].dump() + ", " + partition["central_edgecount_with_dups"].dump() + ", " +
                     partition["central_edgecount"].dump() + " WHERE (SELECT changes() = 0)";
                 int result = sqlite->runInsert(sqlStatement);
-
             }
 
             dbLock.unlock();
