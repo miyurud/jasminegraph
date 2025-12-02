@@ -39,7 +39,7 @@ ADHDFS = b'adhdfs'
 LINE_END = b'\r\n'
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-UPLOAD_SCRIPT = os.path.join(BASE_DIR, 'utils/datasets/upload-hdfs-file.sh')
+UPLOAD_SCRIPT = os.path.join(BASE_DIR, '../utils/datasets/upload-hdfs-file.sh')
 OLLAMA_SETUP_SCRIPT = os.path.join(BASE_DIR, 'utils/start-ollama.sh')
 TEXT_FOLDER = os.path.join(BASE_DIR, 'KG/gold')
 def expect_response(conn: socket.socket, expected: bytes, timeout: float = 30000.0):
