@@ -15,22 +15,24 @@ limitations under the License.
 
 #include <arpa/inet.h>
 #include <yaml-cpp/yaml.h>
-#include <optional>
+
 #include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <map>
 #include <nlohmann/json.hpp>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-#include "../metadb/SQLiteDBInterface.h"
-#include "../performancedb/PerformanceSQLiteDBInterface.h"
-#include "../frontend/JasmineGraphFrontEndProtocol.h"
 #include "../backend/JasmineGraphBackendProtocol.h"
-#include "Conts.h"
+#include "../frontend/JasmineGraphFrontEndProtocol.h"
+#include "../metadb/SQLiteDBInterface.h"
+#include "../performance/metrics/PerformanceUtil.h"
+#include "../performancedb/PerformanceSQLiteDBInterface.h"
 #include "../query/processor/cypher/util/SharedBuffer.h"
+#include "Conts.h"
 
 using std::map;
 using std::unordered_map;
@@ -48,6 +50,11 @@ class Utils {
         std::string username;
         std::string port;
         std::string dataPort;
+    };
+    struct MetricHistory {
+        std::deque<double> cpu_usage;
+        std::deque<double> memory_usage;
+        std::deque<double> load_average;
     };
 
     static std::string getJasmineGraphProperty(std::string key);
@@ -167,9 +174,11 @@ class Utils {
      */
     static bool send_str_wrapper(int connFd, std::string str);
     static bool send_int_wrapper(int connFd, int* value, size_t datalength);
+    static bool send_long_wrapper(int connFd, long int* value, size_t datalength);
 
     static bool sendExpectResponse(int sockfd, char *data, size_t data_length, std::string sendMsg,
                                    std::string expectMsg);
+    static bool expect_str_wrapper(int sockfd, const std::string& expected);
 
     static bool performHandshake(int sockfd, char *data, size_t data_length, std::string masterIP);
 
@@ -185,6 +194,12 @@ class Utils {
 
     static map<string, string> getMetricMap(string metricName);
 
+    static std::unordered_map<std::string, MetricHistory> getMetricsForHosts(
+        const std::vector<std::string> &metricNames, int secondsBack);
+
+
+    static double exponentialWeightedMovingAverage(const std::deque<double>& vals, double alpha = 0.3);
+    static  double  computeSlope(const std::deque<double>& vals);
     static bool uploadFileToWorker(std::string host, int port, int dataPort, int graphID, std::string filePath,
                                    std::string masterIP, std::string uploadType);
 
@@ -198,11 +213,17 @@ class Utils {
     static std::optional<std::tuple<std::string, int, int>> getWorker(string partitionID, std::string host, int port);
     static bool sendDataFromWorkerToWorker(string masterIP, int graphID, string partitionId, std::string message,
                                            SharedBuffer &sharedBuffer);
+    bool sendPartitionMetadata(int sockfd, int partitionId, int graphId, int localVertexCount, int centralVertexCount,
+                               int edgeCount, int centralEdgeCount);
+    static float cosineSimilarity(const std::vector<float>& a, const std::vector<float>& b);
+    static  string canonicalize(const std::string& input);
+    static std::string normalizeURL(const std::string& server, const std::string& path);
+    static std::vector<std::string> getUniqueLLMRunners(const std::string& hostnamePortS);
     static bool sendIntExpectResponse(int sockfd, char *data, size_t data_length,
                                       int value, std::string expectMsg);
 
     static bool sendFileChunkToWorker(std::string host, int port, int dataPort, std::string filePath,
-                                      std::string masterIP, std::string uploadType);
+                                      std::string masterIP, std::string uploadType, bool isEmbedGraph);
 
     static void assignPartitionToWorker(int graphId, int partitionIndex, string  hostname, int port);
 

@@ -17,6 +17,7 @@ services:
       - TESTING=true
     networks:
       - jasminegraph_net
+      - prom_net
     command: --MODE 1 --MASTERIP 172.30.5.1 --WORKERS 2 --WORKERIP 172.30.5.1 --ENABLE_NMON false
 
   namenode:
@@ -82,16 +83,47 @@ services:
     networks:
       - jasminegraph_net
 
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - 9090:9090
+    volumes:
+      - './env_init/config/prometheus.yaml:/etc/prometheus/prometheus.yml'
+    depends_on:
+      - pushgateway
+    networks:
+      prom_net:
+        ipv4_address: 172.28.5.2  #  Fixed IP for Prometheu
+
+  pushgateway:
+    image: prom/pushgateway
+    ports:
+      - 9091:9091
+    networks:
+      prom_net:
+        ipv4_address: 172.28.5.3  #  Fixed IP for Pushgateway
+
+
+
+
 volumes:
   hadoop_namenode:
   hadoop_datanode:
+  ollama_llm_models:
+  ollama_embed_models:
 
 networks:
   jasminegraph_net:
-    name: jasminegraph_net
     driver: bridge
     ipam:
       config:
         - subnet: 172.30.5.0/24
           ip_range: 172.30.5.0/24
           gateway: 172.30.5.1
+  prom_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.5.0/24
+          ip_range: 172.28.5.0/24
+          gateway: 172.28.5.1

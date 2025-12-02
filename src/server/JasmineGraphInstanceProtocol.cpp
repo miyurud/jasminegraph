@@ -98,6 +98,16 @@ const string JasmineGraphInstanceProtocol::INITIATE_FED_PREDICT = "initiate-fed-
 const string JasmineGraphInstanceProtocol::INITIATE_STREAMING_SERVER = "initiate-streaming-server";
 const string JasmineGraphInstanceProtocol::INITIATE_STREAMING_CLIENT = "initiate-streaming-client";
 const string JasmineGraphInstanceProtocol::INITIATE_STREAMING_TRIAN = "initiate-streaming-trian";
+const string JasmineGraphInstanceProtocol::INITIATE_STREAMING_KG_CONSTRUCTION = "initiate-streaming-kg-construction";
+const string JasmineGraphInstanceProtocol::INITIATE_STREAMING_TUPLE_CONSTRUCTION =
+    "initiate-streaming-tuple-extraction";
+const string JasmineGraphInstanceProtocol::SEMANTIC_BEAM_SEARCH = "initiate-semantic-beam-search";
+const string  JasmineGraphInstanceProtocol::CHUNK_STREAM_END = "chunk-stream-end";
+const string  JasmineGraphInstanceProtocol::EXPAND_NODE_BATCH = "semantic_beam_search_expand";
+
+
+
+
 const string JasmineGraphInstanceProtocol::QUERY_START = "query-start";
 const string JasmineGraphInstanceProtocol::SUB_QUERY_START = "sub-query-start";
 const string JasmineGraphInstanceProtocol::QUERY_START_ACK = "query-start-ack";
@@ -109,6 +119,7 @@ const string JasmineGraphInstanceProtocol::HDFS_LOCAL_STREAM_START = "hdfs-local
 const string JasmineGraphInstanceProtocol::HDFS_CENTRAL_STREAM_START = "hdfs-central-stream-start";
 const string JasmineGraphInstanceProtocol::HDFS_STREAM_END_WAIT = "hdfs-stream-end-wait";
 const string JasmineGraphInstanceProtocol::HDFS_STREAM_START_ACK = "hdfs-stream-start-ack";
+const string JasmineGraphInstanceProtocol::HDFS_STREAM_IS_EMBED_ACK = "hdfs-stream-is-embed-ack";
 const string JasmineGraphInstanceProtocol::HDFS_STREAM_END_ACK = "hdfs-stream-end-ack";
 const string JasmineGraphInstanceProtocol::HDFS_STREAM_END_CHK = "hdfs-stream-end-chk";
 const string JasmineGraphInstanceProtocol::HDFS_STREAM_FILE_NAME_ACK = "hdfs-file-name-ack";

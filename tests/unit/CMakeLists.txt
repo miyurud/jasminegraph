@@ -1,5 +1,6 @@
+# cmake_minimum_required(VERSION 3.29.6)
 project(JasmineGraphUnitTest)
-
+# find_package(OpenMP REQUIRED)
 set(SOURCES
         main.cpp
         util/Utils_test.cpp
@@ -10,7 +11,7 @@ set(SOURCES
 
 add_executable(${PROJECT_NAME} ${SOURCES})
 target_link_libraries(${PROJECT_NAME} gtest gtest_main JasmineGraphLib)
-
+target_link_libraries(JasmineGraphUnitTest  OpenMP::OpenMP_CXX faiss)
 target_compile_definitions(${PROJECT_NAME} PUBLIC TEST_RESOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/resources/")
 target_compile_definitions(${PROJECT_NAME} PUBLIC DISABLE_OPENTELEMETRY)
 
@@ -18,3 +19,5 @@ target_compile_definitions(${PROJECT_NAME} PUBLIC DISABLE_OPENTELEMETRY)
 target_compile_definitions(JasmineGraphLib PUBLIC DISABLE_OPENTELEMETRY)
 
 add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})
+
+

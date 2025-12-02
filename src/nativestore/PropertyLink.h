@@ -22,7 +22,7 @@ limitations under the License.
 class PropertyLink {
  public:
     static const unsigned long MAX_NAME_SIZE = 30;    // Size of a property name in bytes
-    static const unsigned long MAX_VALUE_SIZE = 400;  // Size of a property value in bytes
+    static const unsigned long MAX_VALUE_SIZE = 10000;  // Size of a property value in bytes
     static thread_local unsigned int nextPropertyIndex;            // Next available property block index
     // unless open in wipe data
     // mode(trunc) need to set this value to property db seekp()/BLOCK_SIZE

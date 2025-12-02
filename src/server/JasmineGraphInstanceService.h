@@ -41,7 +41,7 @@ limitations under the License.
 #include "../localstore/JasmineGraphLocalStore.h"
 #include "../localstore/JasmineGraphLocalStoreFactory.h"
 #include "../localstore/incremental/JasmineGraphIncrementalLocalStore.h"
-#include "../performance/metrics/StatisticCollector.h"
+#include "../performance/metrics/StatisticsCollector.h"
 #include "../query/algorithms/triangles/Triangles.h"
 #include "../util/Conts.h"
 #include "../util/Utils.h"
@@ -125,7 +125,8 @@ class JasmineGraphInstanceService {
                                std::map<std::string, JasmineGraphHashMapLocalStore> &graphDBMapLocalStores);
     static JasmineGraphIncrementalLocalStore *loadStreamingStore(
         std::string graphId, std::string partitionId,
-        std::map<std::string, JasmineGraphIncrementalLocalStore *> &graphDBMapStreamingStores, std::string openMode);
+        std::map<std::string, JasmineGraphIncrementalLocalStore *> &graphDBMapStreamingStores, std::string openMode ,
+        bool isEmbed);
     static void loadInstanceCentralStore(
         std::string graphId, std::string partitionId,
         std::map<std::string, JasmineGraphHashMapCentralStore> &graphDBMapCentralStores);

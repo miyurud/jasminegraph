@@ -71,10 +71,9 @@ class Conts {
     static std::string UNDIRECTED;
     static std::string TEMP_GRAPH_FILE_PATH;
     static std::string CARRIAGE_RETURN_NEW_LINE;
-
     static std::string
         GRAPH_WITH_ATTRIBUTES;  // To identify that there are additional attribute files to be uploaded through workers
-
+    static std::string KAFKA_GROUP_ID;
     struct GRAPH_WITH {
         static std::string TEXT_ATTRIBUTES;  // Graph is uploaded with edge list and a plain text attribute file
         static std::string JSON_ATTRIBUTES;  // Graph is uploaded with edge list and a JSON formatted attribute file

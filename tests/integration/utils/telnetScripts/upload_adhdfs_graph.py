@@ -141,7 +141,7 @@ def test(host, port):
         send_and_expect_response(
             sock,
             "adhdfs",
-            b"/home/graph_with_properties_test2.txt",
+            b"/home/graph_with_properties.txt",
             b"Is this an edge list type graph(y/n)?",
             exit_on_failure=True,
         )
