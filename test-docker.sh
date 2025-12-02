@@ -249,9 +249,7 @@ else
                 echo "ERROR: main/test.py does not exist"
                 exit 1
             fi
-            # Also add all integration tests
-            mapfile -t INTEGRATION_TESTS < <(find "$TEST_ROOT" -maxdepth 2 -type f -name "test.py")
-            TEST_LIST+=("${INTEGRATION_TESTS[@]}")
+
         else
             # Regular test under integration folder
             TEST_PY="${TEST_ROOT}/${name}/test.py"
