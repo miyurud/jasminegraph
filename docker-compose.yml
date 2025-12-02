@@ -92,6 +92,9 @@ services:
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_BASIC_ENABLED=false
+    volumes:
+      - ./conf/grafana/dashboards:/var/lib/grafana/dashboards
+      - ./conf/grafana/provisioning:/etc/grafana/provisioning
     ports:
       - 3001:3000
     entrypoint:
