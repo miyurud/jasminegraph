@@ -61,6 +61,9 @@ int PerformanceUtil::collectPerformanceStatistics() {
     double currentLoadAverage = StatisticsCollector::getLoadAverage();
     Utils::send_job("", "load_average", std::to_string(currentLoadAverage));
 
+    double cpuLoadPercentage = StatisticsCollector::getCpuLoadPercentage();
+    Utils::send_job("", "cpu_load_percentage", std::to_string(cpuLoadPercentage));
+
     long runQueue = StatisticCollector::getRunQueue();
     Utils::send_job("", "run_queue", std::to_string(runQueue));
 

@@ -11,7 +11,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
-#include "StatisticCollector.h"
+#include "StatisticsCollector.h"
 #include <time.h>
 #include <unistd.h>
 
@@ -342,7 +342,7 @@ static long getSwapSpace(int field) {
     return result;
 }
 
-int StatisticCollector::init() {
+int StatisticsCollector::init() {
     FILE *file;
     struct tms timeSample;
     char line[LINE_BUF_SIZE];
@@ -360,7 +360,7 @@ int StatisticCollector::init() {
     return 0;
 }
 
-long StatisticCollector::getMemoryUsageByProcess() {
+long StatisticsCollector::getMemoryUsageByProcess() {
     FILE *file = fopen("/proc/self/status", "r");
     long result = -1;
     char line[LINE_BUF_SIZE];
@@ -375,7 +375,7 @@ long StatisticCollector::getMemoryUsageByProcess() {
     return result;
 }
 
-long StatisticCollector::getUsedSwapSpace() {
+long StatisticsCollector::getUsedSwapSpace() {
     long result = getSwapSpace(4);
     return result;
 }
@@ -402,7 +402,7 @@ long StatisticsCollector::getTXBytes() {
 }
 
 // Memory operations
-long StatisticCollector::getTotalMemoryAllocated() {
+long StatisticsCollector::getTotalMemoryAllocated() {
     std::string token;
     std::ifstream file("/proc/meminfo");
     while (file >> token) {
@@ -470,7 +470,7 @@ long StatisticsCollector::getTotalMemoryUsage() {
 }
 
 // Process and thread operations
-int StatisticCollector::getThreadCount() {
+int StatisticsCollector::getThreadCount() {
     FILE *file = fopen("/proc/self/stat", "r");
     long result;
     char line[LINE_BUF_SIZE];
@@ -487,7 +487,7 @@ int StatisticCollector::getThreadCount() {
     return result;
 }
 
-int StatisticCollector::getSocketCount() {
+int StatisticsCollector::getSocketCount() {
     DIR *d = opendir("/proc/self/fd");
     if (!d) {
         puts("Error opening directory /proc/self/fd");
@@ -512,7 +512,7 @@ int StatisticCollector::getSocketCount() {
 }
 
 // CPU statistics
-double StatisticCollector::getCpuUsage() {
+double StatisticsCollector::getCpuUsage() {
     long long total1;
     long long idle1;
     getCpuCycles(&total1, &idle1);
@@ -527,7 +527,7 @@ double StatisticCollector::getCpuUsage() {
     return (diffTotal - diffIdle) / (double)diffTotal;
 }
 
-double StatisticCollector::getTotalCpuUsage() {
+double StatisticsCollector::getTotalCpuUsage() {
     std::string mpstatCommand = "mpstat";
     char buffer[BUFFER_SIZE];
     std::string result = "";
@@ -582,11 +582,11 @@ double StatisticsCollector::getLoadAverage() {
     return loadAvg;
 }
 
-long StatisticCollector::getRunQueue() {
+long StatisticsCollector::getRunQueue() {
     return readProcStatValue("procs_running", 13);
 }
 
-std::vector<double> StatisticCollector::getLogicalCpuCoreThreadUsage() {
+std::vector<double> StatisticsCollector::getLogicalCpuCoreThreadUsage() {
     std::vector<double> cpuUsages;
 
     // First reading
@@ -634,16 +634,16 @@ std::vector<double> StatisticCollector::getLogicalCpuCoreThreadUsage() {
     return cpuUsages;
 }
 
-double StatisticCollector::getProcessSwitchesPerSecond() {
+double StatisticsCollector::getProcessSwitchesPerSecond() {
     return measureProcStatRate("ctxt", 4, 1);
 }
 
-double StatisticCollector::getForkCallsPerSecond() {
+double StatisticsCollector::getForkCallsPerSecond() {
     return measureProcStatRate("processes", 9, 1);
 }
 
 // Network operations
-std::map<std::string, std::pair<double, double>> StatisticCollector::getNetworkPacketsPerSecond() {
+std::map<std::string, std::pair<double, double>> StatisticsCollector::getNetworkPacketsPerSecond() {
     std::map<std::string, std::pair<double, double>> packetRates;
 
     // First reading of network statistics
@@ -708,7 +708,7 @@ std::map<std::string, std::pair<double, double>> StatisticCollector::getNetworkP
 }
 
 // Disk operations
-std::map<std::string, double> StatisticCollector::getDiskBusyPercentage() {
+std::map<std::string, double> StatisticsCollector::getDiskBusyPercentage() {
     std::map<std::string, double> diskBusyRates;
 
     struct timespec startTime, endTime;
@@ -780,7 +780,7 @@ std::map<std::string, double> StatisticCollector::getDiskBusyPercentage() {
     return diskBusyRates;
 }
 
-std::map<std::string, std::pair<double, double>> StatisticCollector::getDiskReadWriteKBPerSecond() {
+std::map<std::string, std::pair<double, double>> StatisticsCollector::getDiskReadWriteKBPerSecond() {
     std::map<std::string, std::pair<double, double>> diskRates;
 
     struct timespec startTime, endTime;
@@ -858,7 +858,7 @@ std::map<std::string, std::pair<double, double>> StatisticCollector::getDiskRead
     return diskRates;
 }
 
-std::map<std::string, double> StatisticCollector::getDiskBlockSizeKB() {
+std::map<std::string, double> StatisticsCollector::getDiskBlockSizeKB() {
     std::map<std::string, double> diskBlockSizes;
 
     std::map<std::string, DiskStats> allStats;
@@ -869,7 +869,6 @@ std::map<std::string, double> StatisticCollector::getDiskBlockSizeKB() {
     for (const auto &kv : allStats) {
         const std::string device = kv.first;
         const DiskStats &ds = kv.second;
-        // Calculate block size following lmon15h.c methodology:
         // dk_bsize = ((dk_rkb + dk_wkb) / dk_xfers) * 1024
         // where dk_rkb = sectors_read / 2, dk_wkb = sectors_written / 2
         // and dk_xfers = reads_completed + writes_completed
@@ -889,7 +888,7 @@ std::map<std::string, double> StatisticCollector::getDiskBlockSizeKB() {
     return diskBlockSizes;
 }
 
-std::map<std::string, double> StatisticCollector::getDiskTransfersPerSecond() {
+std::map<std::string, double> StatisticsCollector::getDiskTransfersPerSecond() {
     std::map<std::string, double> diskTransferRates;
 
     struct timespec startTime, endTime;
@@ -956,7 +955,7 @@ std::map<std::string, double> StatisticCollector::getDiskTransfersPerSecond() {
     return diskTransferRates;
 }
 
-void StatisticCollector::logLoadAverage(std::string name) {
+void StatisticsCollector::logLoadAverage(std::string name) {
     PerformanceUtil::logLoadAverage();
 
     int elapsedTime = 0;
