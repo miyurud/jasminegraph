@@ -180,7 +180,6 @@ def test_kg(text_folder, upload_file_script, host, port):
     random.shuffle(all_txt_files)
 
     for local_path in all_txt_files:
-        folder_name = os.path.basename(os.path.dirname(local_path))
         try:
             hdfs_path = upload_to_hdfs(local_path, upload_file_script)
             graph_id = send_file_to_master(hdfs_path, host, port)

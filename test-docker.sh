@@ -246,7 +246,7 @@ else
             if [ -f "${TEST_ROOT}/test.py" ]; then
                 TEST_LIST+="${TEST_ROOT}/test.py"
             else
-                echo "ERROR: main/test.py does not exist"
+                echo "ERROR: test.py does not exist"
                 exit 1
             fi
 
@@ -280,8 +280,6 @@ for test_file in "${TEST_LIST[@]}"; do
         break
     fi
 done
-
-exit "$exit_code"
 
 set +ex
 if [ "$exit_code" = '124' ]; then
