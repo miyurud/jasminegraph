@@ -61,7 +61,7 @@ jobs:
     - name: Run Integration Tests
       run: |
         chmod +x test-docker.sh
-        ./test-docker.sh
+        TEST_NAME="main"  ./test-docker.sh
 
   docker-integration-tests-graph-rag:
     runs-on: ubuntu-latest
@@ -80,7 +80,7 @@ jobs:
       - name: Run Integration Tests
         run: |
           chmod +x test-docker.sh
-          ./test-docker.sh
+          TEST_NAME="graphRAG"  ./test-docker.sh
 
   k8s-integration-tests:
     runs-on: ubuntu-latest

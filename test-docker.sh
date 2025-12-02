@@ -230,27 +230,40 @@ sleep 2
 stop_tests_on_failure &
 
 # Expand comma-separated or space-separated list into array TEST_LIST
+TEST_LIST=()
+
 if [ -z "$TEST_NAME" ]; then
     # No arguments → run ALL tests
     echo "No specific test provided — running ALL tests under $TEST_ROOT"
-
     TEST_LIST=($(find "$TEST_ROOT" -maxdepth 2 -type f -name "test.py"))
 else
     # Arguments provided → support multiple or comma-separated test names
     IFS=',' read -ra RAW_LIST <<< "$TEST_NAME"
-    TEST_LIST=()
 
     for name in "${RAW_LIST[@]}"; do
-        TEST_PY="${TEST_ROOT}/${name}/test.py"
-        if [ -f "$TEST_PY" ]; then
-            TEST_LIST+=("$TEST_PY")
+        if [ "$name" = "main" ]; then
+            # Add main/test.py first if exists
+            if [ -f "${TEST_ROOT}/test.py" ]; then
+                TEST_LIST+="${TEST_ROOT}/test.py"
+            else
+                echo "ERROR: main/test.py does not exist"
+                exit 1
+            fi
+            # Also add all integration tests
+            mapfile -t INTEGRATION_TESTS < <(find "$TEST_ROOT" -maxdepth 2 -type f -name "test.py")
+            TEST_LIST+=("${INTEGRATION_TESTS[@]}")
         else
-            echo "ERROR: Test does not exist: $name"
-            exit 1
+            # Regular test under integration folder
+            TEST_PY="${TEST_ROOT}/${name}/test.py"
+            if [ -f "$TEST_PY" ]; then
+                TEST_LIST+=("$TEST_PY")
+            else
+                echo "ERROR: Test does not exist: $name"
+                exit 1
+            fi
         fi
     done
 fi
-
 
 # --- Run the collected test files ---
 exit_code=0
@@ -269,6 +282,8 @@ for test_file in "${TEST_LIST[@]}"; do
         break
     fi
 done
+
+exit "$exit_code"
 
 set +ex
 if [ "$exit_code" = '124' ]; then
