@@ -37,7 +37,7 @@ REASONING_MODEL_URI = RUNNER_URLS[0] if RUNNER_URLS else None
 LLM_MODEL = "gemma3:1b"
 LLM_INFERENCE_ENGINE = "ollama"
 
-CHUNK_SIZE = "2048"
+CHUNK_SIZE = "1000"
 
 # HDFS target folder
 HDFS_BASE = "/home/"
@@ -189,7 +189,7 @@ def test_kg(text_folder, upload_file_script, host, port):
             continue
 
         # Wait for KG construction
-        time.sleep(240)
+        time.sleep(300)
         raw = run_cypher_query(str(graph_id), query, host, port)
         triples = parse_results(raw)
         print(json.dumps(triples, indent=2, ensure_ascii=False))

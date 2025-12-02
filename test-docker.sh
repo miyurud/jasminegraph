@@ -238,7 +238,7 @@ if [ -z "$TEST_NAME" ]; then
     TEST_LIST=($(find "$TEST_ROOT" -maxdepth 2 -type f -name "test.py"))
 else
     # Arguments provided → support multiple or comma-separated test names
-    IFS=',' read -ra RAW_LIST <<< "$TEST_NAME"
+    IFS=',' read -ra RAW_LIST <<<"$TEST_NAME"
 
     for name in "${RAW_LIST[@]}"; do
         if [ "$name" = "main" ]; then
