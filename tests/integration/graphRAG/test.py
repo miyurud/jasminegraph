@@ -32,6 +32,7 @@ logging.getLogger().setLevel(logging.INFO)
 HOST = '127.0.0.1'
 PORT = 7777  # The port used by the server
 UI_PORT = 7776 # The port used by the frontend-ui
+SBS =b'sbs'
 SHDN = b'shdn'
 SEND = b'send'
 DONE = b'done'
@@ -187,8 +188,20 @@ def test(host, port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((host, port))
         print()
-        logging.info('[GraphRAG] Testing knowledge graph construction ')
+        logging.info('[KG] Testing knowledge graph construction ')
         test_kg(TEXT_FOLDER ,UPLOAD_SCRIPT, host, port)
+
+        print()
+        logging.info('[Semantic Beam Search] Query "At what frequency does Radio City broadcast?" ')
+        send_and_expect_response(sock, 'sbs', SBS, b'Graph ID:', exit_on_failure=True)
+        send_and_expect_response(sock, 'sbs', b'1', b'Input query :', exit_on_failure=True)
+        send_and_expect_response(sock, 'sbs', b'At what frequency does Radio City broadcast?',
+                                 b'{"n":{"id":"2","label":"Person","name":"Charlie",'
+                                 b'"occupation":"IT Engineer",'
+                                 b'"partitionID":"0"}}', exit_on_failure=True)
+        send_and_expect_response(sock, 'cypher', b'',
+                                 b'done', exit_on_failure=True)
+
 
 
 

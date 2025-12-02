@@ -194,11 +194,8 @@ def test_kg(text_folder, upload_file_script, host, port):
         triples = parse_results(raw)
         print(json.dumps(triples, indent=2, ensure_ascii=False))
 
-        output_dir = os.path.join("pred", folder_name)
-        os.makedirs(output_dir, exist_ok=True)
-
-        with open(os.path.join(output_dir, "pred.json"), "w", encoding="utf-8") as f:
-            json.dump(triples, f, indent=2, ensure_ascii=False)
+        assert triples[0]["head_entity"] == "Radio City"
+        assert triples[1]["head_entity"] == "Radio City"
 
 if __name__ == "__main__":
     test_kg(TEXT_FOLDER, UPLOAD_SCRIPT, HOST, PORT)
