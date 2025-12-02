@@ -229,44 +229,47 @@ done
 sleep 2
 stop_tests_on_failure &
 
+# Expand comma-separated or space-separated list into array TEST_LIST
 if [ -z "$TEST_NAME" ]; then
+    # No arguments → run ALL tests
     echo "No specific test provided — running ALL tests under $TEST_ROOT"
 
-    TEST_FILES=($(find "$TEST_ROOT" -maxdepth 2 -type f -name "test.py"))
+    TEST_LIST=($(find "$TEST_ROOT" -maxdepth 2 -type f -name "test.py"))
+else
+    # Arguments provided → support multiple or comma-separated test names
+    IFS=',' read -ra RAW_LIST <<< "$TEST_NAME"
+    TEST_LIST=()
 
-    if [ ${#TEST_FILES[@]} -eq 0 ]; then
-        echo "ERROR: No test.py files found under $TEST_ROOT"
-        exit 1
-    fi
-
-    for test_file in "${TEST_FILES[@]}"; do
-        echo "--------------------------------------------------"
-        echo "Running: $test_file"
-        echo "--------------------------------------------------"
-
-        timeout "$TIMEOUT_SECONDS" python3 -u "$test_file" |& tee -a "$TEST_LOG"
-        exit_code="${PIPESTATUS[0]}"
-
-        if [ "$exit_code" != "0" ]; then
-            echo "❌ Test failed: $test_file"
-            break
+    for name in "${RAW_LIST[@]}"; do
+        TEST_PY="${TEST_ROOT}/${name}/test.py"
+        if [ -f "$TEST_PY" ]; then
+            TEST_LIST+=("$TEST_PY")
+        else
+            echo "ERROR: Test does not exist: $name"
+            exit 1
         fi
     done
-
-else
-    echo "Running specific test: $TEST_NAME"
-    TEST_DIR="${TEST_ROOT}/${TEST_NAME}"
-    TEST_PY="${TEST_DIR}/test.py"
-
-    if [ ! -f "$TEST_PY" ]; then
-        echo "ERROR: ${TEST_PY} does not exist"
-        exit 1
-    fi
-
-    timeout "$TIMEOUT_SECONDS" python3 -u "$TEST_PY" |& tee "$TEST_LOG"
-    exit_code="${PIPESTATUS[0]}"
 fi
-exit_code="${PIPESTATUS[0]}"
+
+
+# --- Run the collected test files ---
+exit_code=0
+
+for test_file in "${TEST_LIST[@]}"; do
+    echo "--------------------------------------------------"
+    echo "Running: $test_file"
+    echo "--------------------------------------------------"
+
+    timeout "$TIMEOUT_SECONDS" python3 -u "$test_file" |& tee -a "$TEST_LOG"
+    test_exit=${PIPESTATUS[0]}
+
+    if [ "$test_exit" != "0" ]; then
+        echo "❌ Test failed: $test_file"
+        exit_code="$test_exit"
+        break
+    fi
+done
+
 set +ex
 if [ "$exit_code" = '124' ]; then
     echo
