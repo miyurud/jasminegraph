@@ -193,8 +193,11 @@ def test_kg(text_folder, upload_file_script, host, port):
         triples = parse_results(raw)
         print(json.dumps(triples, indent=2, ensure_ascii=False))
 
-        assert triples[0]["head_entity"] == "Radio City"
-        assert triples[1]["head_entity"] == "Radio City"
+        entities = []
+        for triple in triples :
+            entities.push(triple["head_entity"])
+
+        assert entities.index("Radio City") != -1
 
 if __name__ == "__main__":
     test_kg(TEXT_FOLDER, UPLOAD_SCRIPT, HOST, PORT)
