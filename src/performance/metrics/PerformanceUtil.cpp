@@ -78,42 +78,34 @@ int PerformanceUtil::collectPerformanceStatistics() {
     double forkCallsPerSec = StatisticsCollector::getForkCallsPerSecond();
     Utils::send_job("", "fork_calls_per_sec", std::to_string(forkCallsPerSec));
 
-    std::map<std::string, std::pair<double, double>> networkPackets = StatisticsCollector::getNetworkPacketsPerSecond();
-    for (const auto& entry : networkPackets) {
-        const std::string& interface = entry.first;
-        double rxPacketsPerSec = entry.second.first;
-        double txPacketsPerSec = entry.second.second;
+    std::map<std::string, std::pair<double, double>, std::less<>> networkPackets = StatisticsCollector::getNetworkPacketsPerSecond();
+    for (const auto& [interface, packets] : networkPackets) {
+        double rxPacketsPerSec = packets.first;
+        double txPacketsPerSec = packets.second;
         Utils::send_job("", "net_" + interface + "_rx_packets_per_sec", std::to_string(rxPacketsPerSec));
         Utils::send_job("", "net_" + interface + "_tx_packets_per_sec", std::to_string(txPacketsPerSec));
     }
 
-    std::map<std::string, double> diskBusy = StatisticsCollector::getDiskBusyPercentage();
-    for (const auto& entry : diskBusy) {
-        const std::string& device = entry.first;
-        double busyPercentage = entry.second;
+    std::map<std::string, double, std::less<>> diskBusy = StatisticsCollector::getDiskBusyPercentage();
+    for (const auto& [device, busyPercentage] : diskBusy) {
         Utils::send_job("", "disk_" + device + "_busy_percentage", std::to_string(busyPercentage));
     }
 
-    std::map<std::string, std::pair<double, double>> diskRates = StatisticsCollector::getDiskReadWriteKBPerSecond();
-    for (const auto& entry : diskRates) {
-        const std::string& device = entry.first;
-        double readKBPerSec = entry.second.first;
-        double writeKBPerSec = entry.second.second;
+    std::map<std::string, std::pair<double, double>, std::less<>> diskRates = StatisticsCollector::getDiskReadWriteKBPerSecond();
+    for (const auto& [device, rates] : diskRates) {
+        double readKBPerSec = rates.first;
+        double writeKBPerSec = rates.second;
         Utils::send_job("", "disk_" + device + "_read_kb_per_sec", std::to_string(readKBPerSec));
         Utils::send_job("", "disk_" + device + "_write_kb_per_sec", std::to_string(writeKBPerSec));
     }
 
-    std::map<std::string, double> diskBlockSizes = StatisticsCollector::getDiskBlockSizeKB();
-    for (const auto& entry : diskBlockSizes) {
-        const std::string& device = entry.first;
-        double blockSizeKB = entry.second;
+    std::map<std::string, double, std::less<>> diskBlockSizes = StatisticsCollector::getDiskBlockSizeKB();
+    for (const auto& [device, blockSizeKB] : diskBlockSizes) {
         Utils::send_job("", "disk_" + device + "_block_size_kb", std::to_string(blockSizeKB));
     }
 
-    std::map<std::string, double> diskTransferRates = StatisticsCollector::getDiskTransfersPerSecond();
-    for (const auto& entry : diskTransferRates) {
-        const std::string& device = entry.first;
-        double transfersPerSec = entry.second;
+    std::map<std::string, double, std::less<>> diskTransferRates = StatisticsCollector::getDiskTransfersPerSecond();
+    for (const auto& [device, transfersPerSec] : diskTransferRates) {
         Utils::send_job("", "disk_" + device + "_transfers_per_sec", std::to_string(transfersPerSec));
     }
 

@@ -66,21 +66,27 @@ static long readProcStatValue(const char* prefix, int prefixLen) {
         return -1;
     }
 
-    char line[LINE_BUF_SIZE];
+    std::string line;
+    char buffer[LINE_BUF_SIZE];
     long value = -1;
 
-    while (fgets(line, LINE_BUF_SIZE, file) != nullptr) {
-        if (strncmp(line, prefix, prefixLen) == 0) {
-            const char *p = line;
-            while (*p && (*p < '0' || *p > '9')) p++;  // Skip to first digit
-            if (*p) {
-                value = strtoll(p, nullptr, 10);
-                if (value < 0) {
-                    value = -1;  // Invalid value
-                }
-            }
+    while (fgets(buffer, LINE_BUF_SIZE, file) != nullptr) {
+        line = buffer;
+        if (strncmp(line.c_str(), prefix, prefixLen) != 0) {
+            continue;
+        }
+        
+        const char *p = line.c_str();
+        while (*p && (*p < '0' || *p > '9')) p++;  // Skip to first digit
+        if (!*p) {
             break;
         }
+        
+        value = strtoll(p, nullptr, 10);
+        if (value < 0) {
+            value = -1;  // Invalid value
+        }
+        break;
     }
 
     fclose(file);
@@ -212,7 +218,7 @@ static void getCpuCycles(long *totalp, long *idlep) {
 }
 
 // Network statistics operations
-static bool readNetworkStats(std::map<std::string, NetworkStats> &out, const std::string& errorContext = "") {
+static bool readNetworkStats(std::map<std::string, NetworkStats, std::less<>> &out, const std::string& errorContext = "") {
     FILE *file = fopen("/proc/net/dev", "r");
     if (!file) {
         std::string msg = "Cannot open /proc/net/dev";
@@ -223,9 +229,10 @@ static bool readNetworkStats(std::map<std::string, NetworkStats> &out, const std
         return false;
     }
 
-    char line[LINE_BUF_SIZE_LONG];
+    std::string line;
+    char buffer[LINE_BUF_SIZE_LONG];
     // Skip header lines
-    if (fgets(line, sizeof(line), file) == nullptr || fgets(line, sizeof(line), file) == nullptr) {
+    if (fgets(buffer, sizeof(buffer), file) == nullptr || fgets(buffer, sizeof(buffer), file) == nullptr) {
         std::string msg = "Cannot read header lines from /proc/net/dev";
         if (!errorContext.empty()) {
             msg += " in " + errorContext;
@@ -236,25 +243,42 @@ static bool readNetworkStats(std::map<std::string, NetworkStats> &out, const std
     }
 
     // Read network interface statistics
-    while (fgets(line, sizeof(line), file) != nullptr) {
-        char interface[32];
-        unsigned long rx_bytes, rx_packets, rx_errs, rx_drop, rx_fifo, rx_frame, rx_compressed, rx_multicast;
-        unsigned long tx_bytes, tx_packets, tx_errs, tx_drop, tx_fifo, tx_colls, tx_carrier, tx_compressed;
+    while (fgets(buffer, sizeof(buffer), file) != nullptr) {
+        line = buffer;
+        std::string interface;
+        unsigned long rx_bytes;
+        unsigned long rx_packets;
+        unsigned long rx_errs;
+        unsigned long rx_drop;
+        unsigned long rx_fifo;
+        unsigned long rx_frame;
+        unsigned long rx_compressed;
+        unsigned long rx_multicast;
+        unsigned long tx_bytes;
+        unsigned long tx_packets;
+        unsigned long tx_errs;
+        unsigned long tx_drop;
+        unsigned long tx_fifo;
+        unsigned long tx_colls;
+        unsigned long tx_carrier;
+        unsigned long tx_compressed;
 
         // Strip spaces and parse the line
-        char *p = line;
+        const char *p = line.c_str();
         while (*p == ' ' || *p == '\t') p++;  // Skip leading whitespace
 
+        char interfaceBuffer[32];
         int ret = sscanf(p, "%31[^:]: %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
-            interface,
+            interfaceBuffer,
             &rx_bytes, &rx_packets, &rx_errs, &rx_drop, &rx_fifo, &rx_frame, &rx_compressed, &rx_multicast,
             &tx_bytes, &tx_packets, &tx_errs, &tx_drop, &tx_fifo, &tx_colls, &tx_carrier, &tx_compressed);
 
         if (ret == 17) {
+            interface = interfaceBuffer;
             NetworkStats ns;
             ns.rx_packets = rx_packets;
             ns.tx_packets = tx_packets;
-            out[std::string(interface)] = ns;
+            out[interface] = ns;
         }
     }
 
@@ -263,7 +287,7 @@ static bool readNetworkStats(std::map<std::string, NetworkStats> &out, const std
 }
 
 // Disk statistics operations
-static bool readDiskStats(std::map<std::string, DiskStats> &out, const std::string& errorContext = "") {
+static bool readDiskStats(std::map<std::string, DiskStats, std::less<>> &out, const std::string& errorContext = "") {
     FILE *file = fopen("/proc/diskstats", "r");
     if (!file) {
         std::string msg = "Cannot open /proc/diskstats";
@@ -274,23 +298,28 @@ static bool readDiskStats(std::map<std::string, DiskStats> &out, const std::stri
         return false;
     }
 
-    char line[LINE_BUF_SIZE_LONG];
-    while (fgets(line, sizeof(line), file) != nullptr) {
-        int major = 0, minor = 0;
-        char device[32] = {0};
+    std::string line;
+    char buffer[LINE_BUF_SIZE_LONG];
+    while (fgets(buffer, sizeof(buffer), file) != nullptr) {
+        line = buffer;
+        int major = 0;
+        int minor = 0;
+        std::string device;
         DiskStats ds;
 
         // Parse up to 14 fields; sscanf will fill available values.
-        int ret = sscanf(line, "%d %d %31s %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
-                         &major, &minor, device,
+        char deviceBuffer[32];
+        int ret = sscanf(line.c_str(), "%d %d %31s %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
+                         &major, &minor, deviceBuffer,
                          &ds.reads_completed, &ds.reads_merged, &ds.sectors_read, &ds.time_reading,
                          &ds.writes_completed, &ds.writes_merged, &ds.sectors_written, &ds.time_writing,
                          &ds.ios_in_progress, &ds.io_time, &ds.weighted_io_time);
 
         if (ret >= 3) {
+            device = deviceBuffer;
             // Skip loop and ram devices
-            if (strncmp(device, "loop", 4) != 0 && strncmp(device, "ram", 3) != 0) {
-                out[std::string(device)] = ds;
+            if (device.compare(0, 4, "loop") != 0 && device.compare(0, 3, "ram") != 0) {
+                out[device] = ds;
             }
         }
     }
@@ -318,7 +347,7 @@ static long getSwapSpace(int field) {
     fgets(line, LINE_BUF_SIZE, file);
 
     while (fgets(line, LINE_BUF_SIZE, file) != nullptr) {
-        char *value;
+        char *value = nullptr;
         char *save = nullptr;
         for (int i = 0; i < field; i++) {
             if (i == 0) {
@@ -362,6 +391,11 @@ int StatisticsCollector::init() {
 
 long StatisticsCollector::getMemoryUsageByProcess() {
     FILE *file = fopen("/proc/self/status", "r");
+    if (!file) {
+        stat_logger.error("Cannot open /proc/self/status");
+        return -1;
+    }
+    
     long result = -1;
     char line[LINE_BUF_SIZE];
 
@@ -586,6 +620,32 @@ long StatisticsCollector::getRunQueue() {
     return readProcStatValue("procs_running", 13);
 }
 
+// Helper function to calculate CPU usage for a single core
+static double calculateSingleCoreUsage(const std::vector<long>& firstReading, const std::vector<long>& secondReading) {
+    if (firstReading.size() < 4 || secondReading.size() < 4) {
+        return 0.0;
+    }
+
+    long totalDiff = 0;
+    long idleDiff = 0;
+
+    int maxFields = std::min({8, (int)firstReading.size(), (int)secondReading.size()});
+    for (int j = 0; j < maxFields; j++) {
+        long diff = secondReading[j] - firstReading[j];
+        totalDiff += diff;
+        if (j == 3) {  // idle time is the 4th field (index 3)
+            idleDiff = diff;
+        }
+    }
+
+    if (totalDiff <= 0) {
+        return 0.0;
+    }
+
+    double usage = ((double)(totalDiff - idleDiff) / totalDiff) * 100.0;
+    return std::max(0.0, std::min(100.0, usage));
+}
+
 std::vector<double> StatisticsCollector::getLogicalCpuCoreThreadUsage() {
     std::vector<double> cpuUsages;
 
@@ -596,7 +656,8 @@ std::vector<double> StatisticsCollector::getLogicalCpuCoreThreadUsage() {
     }
 
     // Sleep for a short interval to get meaningful difference
-    usleep(100000);  // 100ms
+    struct timespec sleepTime = {0, 100000000};  // 100ms
+    nanosleep(&sleepTime, nullptr);
 
     // Second reading
     std::vector<std::vector<long>> secondReading;
@@ -606,29 +667,11 @@ std::vector<double> StatisticsCollector::getLogicalCpuCoreThreadUsage() {
 
     // Calculate usage for each CPU
     size_t numCpus = std::min(firstReading.size(), secondReading.size());
+    cpuUsages.reserve(numCpus);
+    
     for (size_t i = 0; i < numCpus; i++) {
-        if (firstReading[i].size() >= 4 && secondReading[i].size() >= 4) {
-            // Calculate total time difference
-            long totalDiff = 0;
-            long idleDiff = 0;
-
-            for (int j = 0; j < 8 && j < (int)firstReading[i].size() && j < (int)secondReading[i].size(); j++) {
-                long diff = secondReading[i][j] - firstReading[i][j];
-                totalDiff += diff;
-                if (j == 3) {  // idle time is the 4th field (index 3)
-                    idleDiff = diff;
-                }
-            }
-
-            // Calculate CPU usage percentage
-            double usage = 0.0;
-            if (totalDiff > 0) {
-                usage = ((double)(totalDiff - idleDiff) / totalDiff) * 100.0;
-                if (usage < 0.0) usage = 0.0;
-                if (usage > 100.0) usage = 100.0;
-            }
-            cpuUsages.push_back(usage);
-        }
+        double usage = calculateSingleCoreUsage(firstReading[i], secondReading[i]);
+        cpuUsages.push_back(usage);
     }
 
     return cpuUsages;
@@ -643,11 +686,11 @@ double StatisticsCollector::getForkCallsPerSecond() {
 }
 
 // Network operations
-std::map<std::string, std::pair<double, double>> StatisticsCollector::getNetworkPacketsPerSecond() {
-    std::map<std::string, std::pair<double, double>> packetRates;
+std::map<std::string, std::pair<double, double>, std::less<>> StatisticsCollector::getNetworkPacketsPerSecond() {
+    std::map<std::string, std::pair<double, double>, std::less<>> packetRates;
 
     // First reading of network statistics
-    std::map<std::string, NetworkStats> firstReading;
+    std::map<std::string, NetworkStats, std::less<>> firstReading;
     if (!readNetworkStats(firstReading, "first reading")) {
         return packetRates;
     }
@@ -658,14 +701,15 @@ std::map<std::string, std::pair<double, double>> StatisticsCollector::getNetwork
     }
 
     // Record start time
-    struct timespec startTime, endTime;
+    struct timespec startTime;
+    struct timespec endTime;
     clock_gettime(CLOCK_MONOTONIC, &startTime);
 
     // Sleep for measurement interval (1 second)
     sleep(1);
 
     // Second reading of network statistics
-    std::map<std::string, NetworkStats> secondReading;
+    std::map<std::string, NetworkStats, std::less<>> secondReading;
     if (!readNetworkStats(secondReading, "second reading")) {
         return packetRates;
     }
@@ -682,9 +726,7 @@ std::map<std::string, std::pair<double, double>> StatisticsCollector::getNetwork
     }
 
     // Calculate packet differences and rates for each interface
-    for (const auto& entry : firstReading) {
-        const std::string& ifName = entry.first;
-        const NetworkStats& firstStats = entry.second;
+    for (const auto& [ifName, firstStats] : firstReading) {
 
         // Check if we have second reading for this interface
         if (secondReading.find(ifName) != secondReading.end()) {
@@ -708,16 +750,17 @@ std::map<std::string, std::pair<double, double>> StatisticsCollector::getNetwork
 }
 
 // Disk operations
-std::map<std::string, double> StatisticsCollector::getDiskBusyPercentage() {
-    std::map<std::string, double> diskBusyRates;
+std::map<std::string, double, std::less<>> StatisticsCollector::getDiskBusyPercentage() {
+    std::map<std::string, double, std::less<>> diskBusyRates;
 
-    struct timespec startTime, endTime;
+    struct timespec startTime;
+    struct timespec endTime;
 
     // Record start time
     clock_gettime(CLOCK_MONOTONIC, &startTime);
 
     // First reading
-    std::map<std::string, DiskStats> firstReading;
+    std::map<std::string, DiskStats, std::less<>> firstReading;
     if (!readDiskStats(firstReading, "first reading")) {
         return diskBusyRates;
     }
@@ -728,10 +771,11 @@ std::map<std::string, double> StatisticsCollector::getDiskBusyPercentage() {
     }
 
     // Sleep for a short interval to get meaningful difference
-    usleep(1000000);  // 1 second
+    struct timespec sleepTime = {1, 0};  // 1 second
+    nanosleep(&sleepTime, nullptr);
 
     // Second reading
-    std::map<std::string, DiskStats> secondReading;
+    std::map<std::string, DiskStats, std::less<>> secondReading;
     if (!readDiskStats(secondReading, "second reading")) {
         return diskBusyRates;
     }
@@ -748,9 +792,8 @@ std::map<std::string, double> StatisticsCollector::getDiskBusyPercentage() {
     }
 
     // Calculate disk busy percentage for each device
-    for (const auto& entry : firstReading) {
-        const std::string& device = entry.first;
-        unsigned long firstTime = entry.second.io_time;
+    for (const auto& [device, diskStats] : firstReading) {
+        unsigned long firstTime = diskStats.io_time;
 
         if (secondReading.find(device) != secondReading.end()) {
             unsigned long secondTime = secondReading[device].io_time;
@@ -780,16 +823,17 @@ std::map<std::string, double> StatisticsCollector::getDiskBusyPercentage() {
     return diskBusyRates;
 }
 
-std::map<std::string, std::pair<double, double>> StatisticsCollector::getDiskReadWriteKBPerSecond() {
-    std::map<std::string, std::pair<double, double>> diskRates;
+std::map<std::string, std::pair<double, double>, std::less<>> StatisticsCollector::getDiskReadWriteKBPerSecond() {
+    std::map<std::string, std::pair<double, double>, std::less<>> diskRates;
 
-    struct timespec startTime, endTime;
+    struct timespec startTime;
+    struct timespec endTime;
 
     // Record start time
     clock_gettime(CLOCK_MONOTONIC, &startTime);
 
     // First reading - store sectors_read and sectors_written for each device
-    std::map<std::string, DiskStats> firstReading;
+    std::map<std::string, DiskStats, std::less<>> firstReading;
     if (!readDiskStats(firstReading, "first reading")) {
         return diskRates;
     }
@@ -800,10 +844,11 @@ std::map<std::string, std::pair<double, double>> StatisticsCollector::getDiskRea
     }
 
     // Sleep for a short interval to get meaningful difference
-    usleep(1000000);  // 1 second
+    struct timespec sleepTime = {1, 0};  // 1 second
+    nanosleep(&sleepTime, nullptr);
 
     // Second reading
-    std::map<std::string, DiskStats> secondReading;
+    std::map<std::string, DiskStats, std::less<>> secondReading;
     if (!readDiskStats(secondReading, "second reading")) {
         return diskRates;
     }
@@ -820,17 +865,17 @@ std::map<std::string, std::pair<double, double>> StatisticsCollector::getDiskRea
     }
 
     // Calculate read/write KB per second for each device
-    for (const auto& entry : firstReading) {
-        const std::string& device = entry.first;
-        unsigned long firstSectorsRead = entry.second.sectors_read;
-        unsigned long firstSectorsWritten = entry.second.sectors_written;
+    for (const auto& [device, diskStats] : firstReading) {
+        unsigned long firstSectorsRead = diskStats.sectors_read;
+        unsigned long firstSectorsWritten = diskStats.sectors_written;
 
         if (secondReading.find(device) != secondReading.end()) {
             unsigned long secondSectorsRead = secondReading[device].sectors_read;
             unsigned long secondSectorsWritten = secondReading[device].sectors_written;
 
             // Calculate the deltas (handling potential counter wraparound)
-            unsigned long deltaSectorsRead, deltaSectorsWritten;
+            unsigned long deltaSectorsRead;
+            unsigned long deltaSectorsWritten;
 
             if (secondSectorsRead >= firstSectorsRead) {
                 deltaSectorsRead = secondSectorsRead - firstSectorsRead;
@@ -858,17 +903,15 @@ std::map<std::string, std::pair<double, double>> StatisticsCollector::getDiskRea
     return diskRates;
 }
 
-std::map<std::string, double> StatisticsCollector::getDiskBlockSizeKB() {
-    std::map<std::string, double> diskBlockSizes;
+std::map<std::string, double, std::less<>> StatisticsCollector::getDiskBlockSizeKB() {
+    std::map<std::string, double, std::less<>> diskBlockSizes;
 
-    std::map<std::string, DiskStats> allStats;
+    std::map<std::string, DiskStats, std::less<>> allStats;
     if (!readDiskStats(allStats, "disk block size reading")) {
         return diskBlockSizes;
     }
 
-    for (const auto &kv : allStats) {
-        const std::string device = kv.first;
-        const DiskStats &ds = kv.second;
+    for (const auto& [device, ds] : allStats) {
         // dk_bsize = ((dk_rkb + dk_wkb) / dk_xfers) * 1024
         // where dk_rkb = sectors_read / 2, dk_wkb = sectors_written / 2
         // and dk_xfers = reads_completed + writes_completed
@@ -888,16 +931,17 @@ std::map<std::string, double> StatisticsCollector::getDiskBlockSizeKB() {
     return diskBlockSizes;
 }
 
-std::map<std::string, double> StatisticsCollector::getDiskTransfersPerSecond() {
-    std::map<std::string, double> diskTransferRates;
+std::map<std::string, double, std::less<>> StatisticsCollector::getDiskTransfersPerSecond() {
+    std::map<std::string, double, std::less<>> diskTransferRates;
 
-    struct timespec startTime, endTime;
+    struct timespec startTime;
+    struct timespec endTime;
 
     // Record start time
     clock_gettime(CLOCK_MONOTONIC, &startTime);
 
     // First reading - store total transfers (dk_xfers = dk_reads + dk_writes) for each device
-    std::map<std::string, DiskStats> firstReading;
+    std::map<std::string, DiskStats, std::less<>> firstReading;
     if (!readDiskStats(firstReading, "first reading")) {
         return diskTransferRates;
     }
@@ -908,10 +952,11 @@ std::map<std::string, double> StatisticsCollector::getDiskTransfersPerSecond() {
     }
 
     // Sleep for a short interval to get meaningful difference
-    usleep(1000000);  // 1 second
+    struct timespec sleepTime = {1, 0};  // 1 second
+    nanosleep(&sleepTime, nullptr);
 
     // Second reading
-    std::map<std::string, DiskStats> secondReading;
+    std::map<std::string, DiskStats, std::less<>> secondReading;
     if (!readDiskStats(secondReading, "second reading")) {
         return diskTransferRates;
     }
@@ -928,9 +973,8 @@ std::map<std::string, double> StatisticsCollector::getDiskTransfersPerSecond() {
     }
 
     // Calculate transfers per second for each device
-    for (const auto& entry : firstReading) {
-        const std::string& device = entry.first;
-        unsigned long firstTransfers = entry.second.reads_completed + entry.second.writes_completed;
+    for (const auto& [device, diskStats] : firstReading) {
+        unsigned long firstTransfers = diskStats.reads_completed + diskStats.writes_completed;
 
         if (secondReading.find(device) != secondReading.end()) {
             unsigned long secondTransfers = secondReading[device].reads_completed +

@@ -63,11 +63,11 @@ class StatisticsCollector {
     static std::vector<double> getLogicalCpuCoreThreadUsage();
     static double getProcessSwitchesPerSecond();
     static double getForkCallsPerSecond();
-    static std::map<std::string, std::pair<double, double>> getNetworkPacketsPerSecond();
-    static std::map<std::string, double> getDiskBusyPercentage();
-    static std::map<std::string, std::pair<double, double>> getDiskReadWriteKBPerSecond();
-    static std::map<std::string, double> getDiskBlockSizeKB();
-    static std::map<std::string, double> getDiskTransfersPerSecond();
+    static std::map<std::string, std::pair<double, double>, std::less<>> getNetworkPacketsPerSecond();
+    static std::map<std::string, double, std::less<>> getDiskBusyPercentage();
+    static std::map<std::string, std::pair<double, double>, std::less<>> getDiskReadWriteKBPerSecond();
+    static std::map<std::string, double, std::less<>> getDiskBlockSizeKB();
+    static std::map<std::string, double, std::less<>> getDiskTransfersPerSecond();
     static void logLoadAverage(std::string name);
     static double getMemoryUsagePercentage();
 };
