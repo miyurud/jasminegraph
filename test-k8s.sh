@@ -349,7 +349,6 @@ for test_file in "${TEST_LIST[@]}"; do
     fi
 done
 
-
 set +ex
 if [ "$exit_code" != '0' ]; then
     echo -e '\n\e[34;1m=== Pods Status ===\e[0m'
