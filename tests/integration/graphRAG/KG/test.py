@@ -195,7 +195,7 @@ def test_kg(text_folder, upload_file_script, host, port):
 
         entities = []
         for triple in triples :
-            entities.push(triple["head_entity"])
+            entities.append(triple["head_entity"])
 
         assert entities.index("Radio City") != -1
 
