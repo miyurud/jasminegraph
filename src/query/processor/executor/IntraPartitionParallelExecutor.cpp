@@ -29,7 +29,7 @@ DynamicThreadPool::DynamicThreadPool() : stop(false) {
 
 DynamicThreadPool::~DynamicThreadPool() {
     {
-        std::unique_lock<std::mutex> lock(queueMutex);
+        std::scoped_lock lock(queueMutex);
         stop = true;
     }
     condition.notify_all();
@@ -42,7 +42,7 @@ void DynamicThreadPool::workerFunction() {
     for (;;) {
         std::function<void()> task;
         {
-            std::unique_lock<std::mutex> lock(queueMutex);
+            std::unique_lock lock(queueMutex);
             condition.wait(lock, [this] { return stop || !tasks.empty(); });
             if (stop && tasks.empty()) {
                 return;

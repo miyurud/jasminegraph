@@ -54,37 +54,36 @@ class ThreadSafeBuffer {
 
  public:
     void push(const T& item) {
-        std::lock_guard<std::mutex> lock(bufferMutex);
+        std::scoped_lock lock(bufferMutex);
         buffer.push(item);
         cv.notify_one();
     }
 
     bool pop(T& item, std::chrono::milliseconds timeout = std::chrono::milliseconds(100)) {
-        std::unique_lock<std::mutex> lock(bufferMutex);
-
-        if (cv.wait_for(lock, timeout, [this] { return !buffer.empty() || finished; })) {
+        std::unique_lock lock(bufferMutex);
+        return cv.wait_for(lock, timeout, [this, &item] {
             if (!buffer.empty()) {
                 item = buffer.front();
                 buffer.pop();
                 return true;
             }
-        }
-        return false;
+            return finished;
+        });
     }
 
     void setFinished() {
-        std::lock_guard<std::mutex> lock(bufferMutex);
+        std::scoped_lock lock(bufferMutex);
         finished = true;
         cv.notify_all();
     }
 
     size_t size() const {
-        std::lock_guard<std::mutex> lock(bufferMutex);
+        std::scoped_lock lock(bufferMutex);
         return buffer.size();
     }
 
     bool empty() const {
-        std::lock_guard<std::mutex> lock(bufferMutex);
+        std::scoped_lock lock(bufferMutex);
         return buffer.empty() && finished;
     }
 };
@@ -210,7 +209,7 @@ auto DynamicThreadPool::enqueue(F&& f, Args&&... args)
 
     std::future<return_type> res = task->get_future();
     {
-        std::unique_lock<std::mutex> lock(queueMutex);
+        std::scoped_lock lock(queueMutex);
         if (stop)
             throw std::runtime_error("enqueue on stopped ThreadPool");
         tasks.emplace([task](){ (*task)(); });
