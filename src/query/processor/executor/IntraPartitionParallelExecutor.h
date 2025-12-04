@@ -25,7 +25,7 @@
 #include <future>
 #include <algorithm>
 #include <unordered_set>
-#include "../../../performance/metrics/StatisticCollector.h"
+#include "../../../performance/metrics/StatisticsCollector.h"
 
 /**
  * Thread-safe node data structure for parallel processing

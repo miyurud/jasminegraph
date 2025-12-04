@@ -16,7 +16,7 @@
 // DynamicThreadPool Implementation
 DynamicThreadPool::DynamicThreadPool() : stop(false) {
     // Auto-detect optimal worker count based on CPU cores
-    optimalWorkerCount = StatisticCollector::getTotalNumberofCores();
+    optimalWorkerCount = StatisticsCollector::getTotalNumberofCores();
     
     // Safety limits: minimum 1, maximum 32
     optimalWorkerCount = std::max(1, std::min(32, optimalWorkerCount));
