@@ -339,7 +339,7 @@ for test_file in "${TEST_LIST[@]}"; do
     echo "Running: $test_file"
     echo "--------------------------------------------------"
 
-    timeout "$TIMEOUT_SECONDS" python3 -u "$test_file" |& tee -a "$TEST_LOG"
+    timeout "$TIMEOUT_SECONDS" python3 -u "$test_file"  "$masterIP"|& tee -a "$TEST_LOG"
     test_exit=${PIPESTATUS[0]}
 
     if [ "$test_exit" != "0" ]; then
