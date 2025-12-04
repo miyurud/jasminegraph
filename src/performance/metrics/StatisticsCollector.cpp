@@ -152,7 +152,7 @@ static bool readCpuStats(std::vector<std::vector<long>> &readings, const std::st
     // Read per-CPU lines: cpu0, cpu1, cpu2, ...
     while (std::getline(file, line)) {
         if (line.rfind("cpu", 0) != 0 || !isdigit(line[3])) {
-            break; // No more cpuN lines
+            break;  // No more cpuN lines
         }
 
         std::istringstream iss(line);
@@ -166,7 +166,7 @@ static bool readCpuStats(std::vector<std::vector<long>> &readings, const std::st
         long value;
         for (int i = 0; i < 8; ++i) {
             if (!(iss >> value)) {
-                value = 0; // Default fallback if parsing fails
+                value = 0;  // Default fallback if parsing fails
             }
             cpuStats.push_back(value);
         }
