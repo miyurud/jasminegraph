@@ -35,9 +35,9 @@ struct PreloadedNodeData {
     std::string nodeId;
     std::string partitionId;
     std::map<std::string, std::string> properties;
-    
-    PreloadedNodeData(const std::string& id, const std::string& partId, 
-                      const std::map<std::string, std::string>& props) 
+
+    PreloadedNodeData(const std::string& id, const std::string& partId,
+                      const std::map<std::string, std::string>& props)
         : nodeId(id), partitionId(partId), properties(props) {}
 };
 
@@ -46,13 +46,13 @@ struct PreloadedNodeData {
  */
 template<typename T>
 class ThreadSafeBuffer {
-private:
+ private:
     std::queue<T> buffer;
     mutable std::mutex bufferMutex;
     std::condition_variable cv;
     bool finished = false;
 
-public:
+ public:
     void push(const T& item) {
         std::lock_guard<std::mutex> lock(bufferMutex);
         buffer.push(item);
@@ -61,7 +61,7 @@ public:
 
     bool pop(T& item, std::chrono::milliseconds timeout = std::chrono::milliseconds(100)) {
         std::unique_lock<std::mutex> lock(bufferMutex);
-        
+
         if (cv.wait_for(lock, timeout, [this] { return !buffer.empty() || finished; })) {
             if (!buffer.empty()) {
                 item = buffer.front();
@@ -96,8 +96,8 @@ struct WorkChunk {
     long startIndex;
     long endIndex;
     size_t estimatedSize;
-    
-    WorkChunk(long start, long end, size_t size) 
+
+    WorkChunk(long start, long end, size_t size)
         : startIndex(start), endIndex(end), estimatedSize(size) {}
 };
 
@@ -106,7 +106,7 @@ struct WorkChunk {
  * Automatically detects CPU core count and creates optimal number of workers
  */
 class DynamicThreadPool {
-private:
+ private:
     std::vector<std::thread> workers;
     std::queue<std::function<void()>> tasks;
     std::mutex queueMutex;
@@ -114,17 +114,17 @@ private:
     std::atomic<bool> stop;
     int optimalWorkerCount;
 
-public:
+ public:
     DynamicThreadPool();
     ~DynamicThreadPool();
 
     template<class F, class... Args>
-    auto enqueue(F&& f, Args&&... args) 
+    auto enqueue(F&& f, Args&&... args)
         -> std::future<typename std::result_of<F(Args...)>::type>;
 
     int getWorkerCount() const { return optimalWorkerCount; }
-    
-private:
+
+ private:
     void workerFunction();
 };
 
@@ -134,14 +134,14 @@ private:
  * Provides automatic hardware detection and adaptive execution
  */
 class IntraPartitionParallelExecutor {
-private:
+ private:
     std::unique_ptr<DynamicThreadPool> threadPool;
     int workerCount;
-    
+
     // Adaptive chunk size calculation based on data size and worker count
     size_t calculateOptimalChunkSize(size_t totalItems, int workers) const;
 
-public:
+ public:
     IntraPartitionParallelExecutor();
     ~IntraPartitionParallelExecutor() = default;
 
@@ -151,7 +151,7 @@ public:
      */
     template<typename TaskFunc, typename ResultType>
     std::vector<ResultType> executeChunkedTasks(
-        const std::vector<WorkChunk>& chunks, 
+        const std::vector<WorkChunk>& chunks,
         TaskFunc taskFunction);
 
     /**
@@ -160,7 +160,7 @@ public:
      */
     template<typename Processor, typename ResultType>
     std::vector<ResultType> processInParallel(
-        long totalItemCount, 
+        long totalItemCount,
         Processor processor);
 
     /**
@@ -201,18 +201,17 @@ public:
 // Template implementations
 
 template<class F, class... Args>
-auto DynamicThreadPool::enqueue(F&& f, Args&&... args) 
+auto DynamicThreadPool::enqueue(F&& f, Args&&... args)
     -> std::future<typename std::result_of<F(Args...)>::type> {
     using return_type = typename std::result_of<F(Args...)>::type;
 
     auto task = std::make_shared<std::packaged_task<return_type()>>(
-        std::bind(std::forward<F>(f), std::forward<Args>(args)...)
-    );
+        std::bind(std::forward<F>(f), std::forward<Args>(args)...));
 
     std::future<return_type> res = task->get_future();
     {
         std::unique_lock<std::mutex> lock(queueMutex);
-        if(stop)
+        if (stop)
             throw std::runtime_error("enqueue on stopped ThreadPool");
         tasks.emplace([task](){ (*task)(); });
     }
@@ -222,43 +221,42 @@ auto DynamicThreadPool::enqueue(F&& f, Args&&... args)
 
 template<typename TaskFunc, typename ResultType>
 std::vector<ResultType> IntraPartitionParallelExecutor::executeChunkedTasks(
-    const std::vector<WorkChunk>& chunks, 
+    const std::vector<WorkChunk>& chunks,
     TaskFunc taskFunction) {
-    
+
     std::vector<std::future<ResultType>> futures;
     futures.reserve(chunks.size());
-    
+
     // Submit all chunks to thread pool
     for (const auto& chunk : chunks) {
         futures.push_back(
             threadPool->enqueue([chunk, taskFunction]() -> ResultType {
                 return taskFunction(chunk);
-            })
-        );
+            }));
     }
-    
+
     // Collect results
     std::vector<ResultType> results;
     results.reserve(chunks.size());
-    
+
     for (auto& future : futures) {
         results.push_back(future.get());
     }
-    
+
     return results;
 }
 
 template<typename Processor, typename ResultType>
 std::vector<ResultType> IntraPartitionParallelExecutor::processInParallel(
-    long totalItemCount, 
+    long totalItemCount,
     Processor processor) {
-    
+
     // Calculate optimal chunk size
     size_t chunkSize = calculateOptimalChunkSize(totalItemCount, workerCount);
-    
+
     // Create work chunks
     std::vector<WorkChunk> chunks = createWorkChunks(totalItemCount, chunkSize);
-    
+
     // Execute in parallel
     return executeChunkedTasks<Processor, ResultType>(chunks, processor);
 }
@@ -266,22 +264,22 @@ std::vector<ResultType> IntraPartitionParallelExecutor::processInParallel(
 template<typename T>
 std::vector<T> IntraPartitionParallelExecutor::mergeResults(
     const std::vector<std::vector<T>>& chunkResults) const {
-    
+
     // Estimate total size for efficiency
     size_t totalSize = 0;
     for (const auto& chunk : chunkResults) {
         totalSize += chunk.size();
     }
-    
+
     std::vector<T> finalResult;
     finalResult.reserve(totalSize);
-    
+
     // Merge all chunk results
     for (const auto& chunk : chunkResults) {
         finalResult.insert(finalResult.end(), chunk.begin(), chunk.end());
     }
-    
+
     return finalResult;
 }
 
-#endif // INTRA_PARTITION_PARALLEL_EXECUTOR_H
+#endif  // INTRA_PARTITION_PARALLEL_EXECUTOR_H

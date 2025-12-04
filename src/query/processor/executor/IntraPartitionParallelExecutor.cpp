@@ -17,10 +17,10 @@
 DynamicThreadPool::DynamicThreadPool() : stop(false) {
     // Auto-detect optimal worker count based on CPU cores
     optimalWorkerCount = StatisticsCollector::getTotalNumberofCores();
-    
+
     // Safety limits: minimum 1, maximum 32
     optimalWorkerCount = std::max(1, std::min(32, optimalWorkerCount));
-    
+
     // Create worker threads
     for (int i = 0; i < optimalWorkerCount; ++i) {
         workers.emplace_back([this] { workerFunction(); });
@@ -63,12 +63,12 @@ IntraPartitionParallelExecutor::IntraPartitionParallelExecutor() {
 size_t IntraPartitionParallelExecutor::calculateOptimalChunkSize(size_t totalItems, int workers) const {
     // Target: 2-4 chunks per worker for load balancing
     size_t chunksPerWorker = 3;
-    size_t minChunkSize = 1000;   // Minimum to avoid overhead
-    size_t maxChunkSize = 100000; // Maximum to ensure parallelism
-    
+    size_t minChunkSize = 1000;    // Minimum to avoid overhead
+    size_t maxChunkSize = 100000;  // Maximum to ensure parallelism
+
     size_t targetChunks = workers * chunksPerWorker;
     size_t chunkSize = totalItems / targetChunks;
-    
+
     return std::max(minChunkSize, std::min(maxChunkSize, chunkSize));
 }
 
@@ -80,16 +80,16 @@ bool IntraPartitionParallelExecutor::shouldUseParallelProcessing(size_t dataSize
 
 std::vector<WorkChunk> IntraPartitionParallelExecutor::createWorkChunks(long totalItems, size_t chunkSize) const {
     std::vector<WorkChunk> chunks;
-    
+
     for (long start = 1; start <= totalItems; start += static_cast<long>(chunkSize)) {
         long end = std::min(start + static_cast<long>(chunkSize) - 1, totalItems);
         chunks.emplace_back(start, end, end - start + 1);
     }
-    
+
     return chunks;
 }
 
-IntraPartitionParallelExecutor::PerformanceMetrics 
+IntraPartitionParallelExecutor::PerformanceMetrics
 IntraPartitionParallelExecutor::getPerformanceMetrics(size_t dataSize) const {
     PerformanceMetrics metrics;
     metrics.workerCount = workerCount;
