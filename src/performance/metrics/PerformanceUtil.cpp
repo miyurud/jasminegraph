@@ -78,7 +78,8 @@ int PerformanceUtil::collectPerformanceStatistics() {
     double forkCallsPerSec = StatisticsCollector::getForkCallsPerSecond();
     Utils::send_job("", "fork_calls_per_sec", std::to_string(forkCallsPerSec));
 
-    std::map<std::string, std::pair<double, double>, std::less<>> networkPackets = StatisticsCollector::getNetworkPacketsPerSecond();
+    std::map<std::string, std::pair<double, double>, std::less<>> networkPackets =
+                StatisticsCollector::getNetworkPacketsPerSecond();
     for (const auto& [interface, packets] : networkPackets) {
         double rxPacketsPerSec = packets.first;
         double txPacketsPerSec = packets.second;
@@ -91,7 +92,8 @@ int PerformanceUtil::collectPerformanceStatistics() {
         Utils::send_job("", "disk_" + device + "_busy_percentage", std::to_string(busyPercentage));
     }
 
-    std::map<std::string, std::pair<double, double>, std::less<>> diskRates = StatisticsCollector::getDiskReadWriteKBPerSecond();
+    std::map<std::string, std::pair<double, double>, std::less<>> diskRates =
+                StatisticsCollector::getDiskReadWriteKBPerSecond();
     for (const auto& [device, rates] : diskRates) {
         double readKBPerSec = rates.first;
         double writeKBPerSec = rates.second;
