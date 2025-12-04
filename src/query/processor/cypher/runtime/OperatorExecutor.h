@@ -41,12 +41,12 @@ class OperatorExecutor {
     void Projection(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
     void Distinct(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
     void OrderBy(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
-    
+
     // Parallel processing methods (minimal addition)
     void AllNodeScanParallel(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
     void NodeScanByLabelParallel(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
     void DirectedAllRelationshipScanParallel(SharedBuffer &buffer, string jsonPlan, GraphConfig gc);
-    
+
     string masterIP;
     string  queryPlan;
     GraphConfig gc;
@@ -55,7 +55,7 @@ class OperatorExecutor {
             std::string, GraphConfig)>> methodMap;
     static void initializeMethodMap();
     static const int INTER_OPERATOR_BUFFER_SIZE = 5;
-    
+
  private:
     // Single shared parallel executor instance
     static std::unique_ptr<IntraPartitionParallelExecutor> parallelExecutor;

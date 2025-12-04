@@ -464,7 +464,8 @@ NodeBlock *NodeManager::get(unsigned int nodeIndex, std::string nodeId) {
     //                          std::to_string(nodeBlockPointer->edgeRef));
 
     if (nodeBlockPointer->edgeRef % RelationBlock::BLOCK_SIZE != 0) {
-        node_manager_logger.error("Exception: Invalid edge reference address = " + std::to_string(nodeBlockPointer->edgeRef));
+        node_manager_logger.error("Exception: Invalid edge reference address = " +
+                                  std::to_string(nodeBlockPointer->edgeRef));
     }
     return nodeBlockPointer;
 }
