@@ -73,8 +73,7 @@ size_t IntraPartitionParallelExecutor::calculateOptimalChunkSize(size_t totalIte
 }
 
 bool IntraPartitionParallelExecutor::shouldUseParallelProcessing(size_t dataSize) const {
-    // STEP 4: Lower threshold to 1K for better parallelism on medium datasets
-    // Use parallel processing for datasets > 1K items with multiple workers
+    // Use parallel processing for datasets > 1000 items with multiple workers
     return dataSize > 1000 && workerCount > 1;
 }
 

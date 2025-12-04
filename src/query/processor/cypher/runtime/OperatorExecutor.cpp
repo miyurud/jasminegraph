@@ -187,13 +187,11 @@ void OperatorExecutor::AllNodeScan(SharedBuffer &buffer, std::string jsonPlan, G
     json query = json::parse(jsonPlan);
     NodeManager nodeManager(gc);
 
-    // STEP 4: Aligned threshold with executor for consistent behavior
     size_t nodeCount = nodeManager.nodeIndex.size();
 
-    // Use parallel processing for datasets with 1000+ nodes (matches executor threshold)
+    // Use parallel processing for datasets with 1000+ nodes
     if (parallelExecutor && nodeCount > 1000 && parallelExecutor->shouldUseParallelProcessing(nodeCount)) {
         try {
-            // Use parallel processing with adaptive chunking
             AllNodeScanParallel(buffer, jsonPlan, gc);
             return;
         } catch (...) {
@@ -232,13 +230,11 @@ void OperatorExecutor::NodeScanByLabel(SharedBuffer &buffer, std::string jsonPla
     json query = json::parse(jsonPlan);
     NodeManager nodeManager(gc);
 
-    // STEP 4: Aligned threshold with executor for consistent behavior
     size_t nodeCount = nodeManager.nodeIndex.size();
 
-    // Use parallel processing for datasets with 1000+ nodes (matches executor threshold)
+    // Use parallel processing for datasets with 1000+ nodes
     if (parallelExecutor && nodeCount > 1000 && parallelExecutor->shouldUseParallelProcessing(nodeCount)) {
         try {
-            // Use parallel processing with adaptive chunking
             NodeScanByLabelParallel(buffer, jsonPlan, gc);
             return;
         } catch (...) {
@@ -312,9 +308,8 @@ void OperatorExecutor::Filter(SharedBuffer &buffer, std::string jsonPlan, GraphC
     auto condition = query["condition"];
     FilterHelper filterHelper(condition.dump());
 
-    // STEP 5: Batch processing for better cache utilization and potential parallelism
     std::vector<std::string> batch;
-    batch.reserve(100);  // Process in batches of 100 for better performance
+    batch.reserve(100);
 
     while (true) {
         string raw = sharedBuffer.get();
@@ -1718,21 +1713,6 @@ void OperatorExecutor::NodeScanByLabelParallel(SharedBuffer &buffer, std::string
     try {
         json query = json::parse(jsonPlan);
         NodeManager nodeManager(gc);
-        // Use "variable" or "variables" depending on query plan? Original code used "variable" in loop?
-        // Original NodeScanByLabel uses: string label = query["Label"];
-        // It doesn't seem to use "variable" to wrap the result?
-        // Wait, let's check original NodeScanByLabel.
-        // It does: nodeData["partitionID"] = ...; buffer.add(nodeData.dump());
-        // It does NOT wrap in "variable" key?
-        // Let's check AllNodeScan. It wraps: data[variable] = nodeData;
-        // Let's check NodeScanByLabel again.
-
-        // Original NodeScanByLabel (lines 170+):
-        // buffer.add(nodeData.dump());
-        // It does NOT wrap.
-
-        // So I should NOT wrap in variable.
-
         string targetLabel = query["Label"].get<std::string>();
 
         // Collect node indices (ID, AddressIndex)
