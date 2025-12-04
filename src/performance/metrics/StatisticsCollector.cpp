@@ -232,7 +232,8 @@ static bool readNetworkStats(std::map<std::string, NetworkStats, std::less<>> &o
     std::string line;
     std::string buffer(LINE_BUF_SIZE_LONG, '\0');
     // Skip header lines
-    if (fgets(&buffer[0], LINE_BUF_SIZE_LONG, file) == nullptr || fgets(&buffer[0], LINE_BUF_SIZE_LONG, file) == nullptr) {
+    if (fgets(&buffer[0], LINE_BUF_SIZE_LONG, file) == nullptr || fgets(&buffer[0], LINE_BUF_SIZE_LONG, file)
+                    == nullptr) {
         std::string msg = "Cannot read header lines from /proc/net/dev";
         if (!errorContext.empty()) {
             msg += " in " + errorContext;
