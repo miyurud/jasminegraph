@@ -16,13 +16,13 @@ limitations under the License.
 #include <unistd.h>
 
 #include <future>
-#include <iostream>
 
 #include "globals.h"
 #include "src/k8s/K8sWorkerController.h"
 #include "src/server/JasmineGraphInstance.h"
 #include "src/util/logger/Logger.h"
 #include "src/util/scheduler/SchedulerService.h"
+#include "src/util/telemetry/TelemetryInitializer.h"
 
 unsigned int microseconds = 10000000;
 JasmineGraphServer *server;
@@ -54,7 +54,10 @@ enum worker_mode_args {
     WORKER_ENABLE_NMON = 7
 };
 
-void fnExit3(void) { delete (server); }
+void fnExit3(void) {
+    shutdownOpenTelemetry();
+    delete (server);
+}
 
 int main(int argc, char *argv[]) {
     atexit(fnExit3);
@@ -65,7 +68,7 @@ int main(int argc, char *argv[]) {
             "<hostName> <serverPort> <serverDataPort> to start as worker");
         return -1;
     }
-    std::cout << argc << std::endl;
+    main_logger.info(std::to_string(argc));
 
     int mode = atoi(argv[args::MODE]);
     std::string JASMINEGRAPH_HOME = Utils::getJasmineGraphHome();
@@ -73,10 +76,13 @@ int main(int argc, char *argv[]) {
     std::string enableNmon = "false";
     main_logger.info("Using JASMINE_GRAPH_HOME=" + JASMINEGRAPH_HOME);
 
-    StatisticCollector::init();
+    StatisticsCollector::init();
     thread schedulerThread(SchedulerService::startScheduler);
 
     if (mode == Conts::JASMINEGRAPH_RUNTIME_PROFILE_MASTER) {
+        // Initialize OpenTelemetry for master process
+        initializeOpenTelemetry();
+
         std::string masterIp = argv[master_mode_args::MASTER_IP];
         int numberOfWorkers = atoi(argv[master_mode_args::NUMBER_OF_WORKERS]);
         std::string workerIps = argv[master_mode_args::WORKER_IPS];
@@ -97,6 +103,9 @@ int main(int argc, char *argv[]) {
     } else if (mode == Conts::JASMINEGRAPH_RUNTIME_PROFILE_WORKER) {
         main_logger.info(to_string(argc));
 
+        // Initialize OpenTelemetry for worker process
+        initializeWorkerTelemetry();
+
         if (argc < 8) {
             main_logger.info(
                 "Need 7 arguments. Use <mode> 2 <hostName> <masterIP> <serverPort> <serverDataPort> <enable-nmon> to "
@@ -113,7 +122,7 @@ int main(int argc, char *argv[]) {
         int serverDataPort = atoi(argv[worker_mode_args::SERVER_DATA_PORT]);
         enableNmon = argv[worker_mode_args::WORKER_ENABLE_NMON];
 
-        std::cout << "In worker mode" << std::endl;
+        main_logger.info("In worker mode");
         instance = new JasmineGraphInstance();
         instance->start_running(hostName, masterHost, serverPort, serverDataPort, enableNmon);
 

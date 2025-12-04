@@ -24,6 +24,7 @@ limitations under the License.
 #include <chrono>
 #include <ctime>
 #include <iomanip>
+#include <regex>
 #include <sstream>
 #include <vector>
 
@@ -618,7 +619,8 @@ std::string Utils::read_str_wrapper(int connFd, char *buf, size_t len, bool allo
     if (result < 0) {
         util_logger.error("Read failed: recv returned " + std::to_string((int)result));
         return "";
-    } else if (!allowEmpty && result == 0) {
+    }
+    if (!allowEmpty && result == 0) {
         util_logger.error("Read failed: recv empty string");
         return "";
     }
@@ -647,6 +649,14 @@ bool Utils::send_str_wrapper(int connFd, std::string str) {
 }
 
 bool Utils::send_int_wrapper(int connFd, int *value, size_t datalength) {
+    ssize_t sz = send(connFd, value, datalength, 0);
+    if (sz < datalength) {
+        util_logger.error("Send failed");
+        return false;
+    }
+    return true;
+}
+bool Utils::send_long_wrapper(int connFd, long  *value, size_t datalength) {
     ssize_t sz = send(connFd, value, datalength, 0);
     if (sz < datalength) {
         util_logger.error("Send failed");
@@ -683,6 +693,24 @@ bool Utils::sendExpectResponse(int sockfd, char *data, size_t data_length, std::
     }
     util_logger.info("Received: " + response);
     return true;
+}
+
+bool Utils::expect_str_wrapper(int sockfd, const std::string &expected) {
+    char buffer[1024] = {0};  // Adjust if you expect larger messages
+    ssize_t bytes_received = recv(sockfd, buffer, sizeof(buffer) - 1, 0);
+
+    if (bytes_received <= 0) {
+        // Connection closed or error
+        return false;
+    }
+
+    std::string received(buffer, bytes_received);
+
+    // Trim CR/LF if needed
+    received.erase(std::remove(received.begin(), received.end(), '\r'), received.end());
+    received.erase(std::remove(received.begin(), received.end(), '\n'), received.end());
+
+    return received == expected;
 }
 
 bool Utils::performHandshake(int sockfd, char *data, size_t data_length, std::string masterIP) {
@@ -943,6 +971,113 @@ std::map<std::string, std::string> Utils::getMetricMap(std::string metricName) {
     return map;
 }
 
+// collect history of metrics
+
+
+std::unordered_map<std::string, Utils::MetricHistory>
+Utils::getMetricsForHosts(const std::vector<std::string> &metricNames, int secondsBack) {
+    std::unordered_map<std::string, MetricHistory> hostMetrics;
+    CURL *curl;
+    CURLcode res;
+
+    std::string prometheusAddr;
+    if (jasminegraph_profile == PROFILE_K8S) {
+        std::unique_ptr<K8sInterface> interface(new K8sInterface());
+        prometheusAddr = interface->getJasmineGraphConfig("prometheus_address");
+    } else {
+        prometheusAddr = getJasmineGraphProperty("org.jasminegraph.collector.prometheus");
+    }
+
+    std::time_t endTime = std::time(nullptr);
+    std::time_t startTime = endTime - secondsBack;
+    std::string step = "15s";
+
+    for (const auto &metricName : metricNames) {
+        std::string response;
+        std::string prometheusQueryAddr =
+            prometheusAddr + "api/v1/query_range?query=" + metricName +
+            "&start=" + std::to_string(startTime) +
+            "&end=" + std::to_string(endTime) +
+            "&step=" + step;
+
+        curl = curl_easy_init();
+        if (!curl) continue;
+
+        curl_easy_setopt(curl, CURLOPT_URL, prometheusQueryAddr.c_str());
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+        curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_0);
+        curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
+        curl_easy_setopt(curl, CURLOPT_FORBID_REUSE, 1L);
+
+        res = curl_easy_perform(curl);
+        if (res != CURLE_OK) {
+            std::cerr << "cURL failed: " << curl_easy_strerror(res) << std::endl;
+            curl_easy_cleanup(curl);
+            continue;
+        }
+
+        Json::Value root;
+        Json::Reader reader;
+        if (!reader.parse(response, root)) {
+            std::cerr << "Failed to parse JSON for " << metricName << std::endl;
+            curl_easy_cleanup(curl);
+            continue;
+        }
+
+        const Json::Value results = root["data"]["result"];
+        for (const auto &result : results) {
+            std::string host = result["metric"].get("exported_job", "unknown").asString();
+            const Json::Value values = result["values"];
+
+            for (const auto &entry : values) {
+                std::string timestamp = entry[0].asString();
+                double val = atof(entry[1].asString().c_str());
+
+                // Store metric based on its type
+                if (metricName == "cpu_usage") {
+                    hostMetrics[host].cpu_usage.emplace_back(val);
+                } else if (metricName == "memory_usage") {
+                    hostMetrics[host].memory_usage.emplace_back(val);
+                } else if (metricName == "load_average") {
+                    hostMetrics[host].load_average.emplace_back(val);
+                }
+            }
+        }
+
+        curl_easy_cleanup(curl);
+    }
+
+    return hostMetrics;
+}
+
+
+double Utils:: exponentialWeightedMovingAverage(const std::deque<double>& vals, double alpha ) {
+    if (vals.empty()) return 0.0;
+    double ewma = vals[0];
+    for (size_t i = 1; i < vals.size(); i++) {
+        ewma = alpha * vals[i] + (1 - alpha) * ewma;
+    }
+    return ewma;
+}
+
+double Utils:: computeSlope(const std::deque<double>& vals) {
+    int n = vals.size();
+    if (n < 2) return 0.0;
+
+    double sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+    for (int i = 0; i < n; i++) {
+        sumX += i;
+        sumY += vals[i];
+        sumXY += i * vals[i];
+        sumXX += i * i;
+    }
+    double denom = n * sumXX - sumX * sumX;
+    if (denom == 0) return 0.0;
+    return (n * sumXY - sumX * sumY) / denom;
+}
+
+
 bool Utils::fileExistsWithReadPermission(const string &path) { return access(path.c_str(), R_OK) == 0; }
 
 std::fstream *Utils::openFile(const string &path, std::ios_base::openmode mode) {
@@ -1079,7 +1214,7 @@ bool Utils::uploadFileToWorker(std::string host, int port, int dataPort, int gra
 }
 
 bool Utils::sendFileChunkToWorker(std::string host, int port, int dataPort, std::string filePath, std::string masterIP,
-                                  std::string uploadType) {
+                                  std::string uploadType , bool isEmbedGraph) {
     util_logger.info("Host:" + host + " Port:" + to_string(port) + " DPort:" + to_string(dataPort));
     bool result = true;
     int sockfd;
@@ -1127,7 +1262,12 @@ bool Utils::sendFileChunkToWorker(std::string host, int port, int dataPort, std:
 
     std::string fileName = Utils::getFileName(filePath);
     int fileSize = Utils::getFileSize(filePath);
-
+    if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, std::to_string(isEmbedGraph),
+                                     JasmineGraphInstanceProtocol::HDFS_STREAM_IS_EMBED_ACK)) {
+        Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
+        close(sockfd);
+        return false;
+                                     }
     if (!Utils::sendExpectResponse(sockfd, data, INSTANCE_DATA_LENGTH, fileName,
                                    JasmineGraphInstanceProtocol::HDFS_STREAM_FILE_NAME_ACK)) {
         Utils::send_str_wrapper(sockfd, JasmineGraphInstanceProtocol::CLOSE);
@@ -1392,6 +1532,8 @@ void Utils::assignPartitionToWorker(int graphId, int partitionIndex, string  hos
     delete sqlite;
 }
 
+
+
 bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string masterIP,
                                   int graphID, int partitionId, std::string message, SharedBuffer &sharedBuffer) {
     util_logger.info("Host:" + host + " Port:" + to_string(port));
@@ -1503,7 +1645,7 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
         std::string start_msg(start);
         if (JasmineGraphInstanceProtocol::QUERY_DATA_START != start_msg) {
             util_logger.error("Error while receiving start command: " + start_msg);
-            continue;
+            break;
         }
         send(sockfd, JasmineGraphInstanceProtocol::QUERY_DATA_ACK.c_str(),
              JasmineGraphInstanceProtocol::QUERY_DATA_ACK.length(), 0);
@@ -1521,7 +1663,17 @@ bool Utils::sendQueryPlanToWorker(std::string host, int port, std::string master
              JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK.length(), 0);
 
         std::string data(content_length, 0);
-        return_status = recv(sockfd, &data[0], content_length, 0);
+
+        size_t received = 0;
+        while (received < content_length) {
+            ssize_t ret = recv(sockfd, &data[received], content_length - received, 0);
+            if (ret <= 0) {
+                util_logger.error("Error receiving request string");
+                break;
+            }
+            received += ret;
+        }
+
         if (return_status > 0) {
             send(sockfd, JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS.c_str(),
                  JasmineGraphInstanceProtocol::GRAPH_DATA_SUCCESS.length(), 0);
@@ -1714,6 +1866,7 @@ string Utils::getPartitionAlgorithm(std::string graphID, std::string host) {
         return "";
     }
 }
+
 
 string Utils::getGraphDirection(std::string graphID, std::string host) {
     util_logger.info("Host:" + host + " Port:" + to_string(Conts::JASMINEGRAPH_BACKEND_PORT));
@@ -1969,3 +2122,90 @@ bool Utils::sendDataFromWorkerToWorker(string masterIP, int graphID, string part
     util_logger.info(" Time Taken: " + std::to_string(elapsed.count()) + " seconds");
     return true;
 }
+
+
+float  Utils::cosineSimilarity(const std::vector<float>& a, const std::vector<float>& b) {
+    float dot = 0.0f, normA = 0.0f, normB = 0.0f;
+    for (size_t i = 0; i < a.size(); ++i) {
+        dot += a[i] * b[i];
+        normA += a[i] * a[i];
+        normB += b[i] * b[i];
+    }
+    if (normA == 0 || normB == 0) return 0.0f;
+    return dot / (std::sqrt(normA) * std::sqrt(normB));
+}
+
+string Utils:: canonicalize(const std::string& input) {
+    std::string result = input;
+
+    // Convert to lowercase
+    std::transform(result.begin(), result.end(), result.begin(),
+                   [](unsigned char c){ return std::tolower(c); });
+
+    // Replace non-alphanumeric characters with underscores
+    result = std::regex_replace(result, std::regex("[^a-z0-9]+"), "_");
+
+    // Remove leading/trailing underscores
+    result = std::regex_replace(result, std::regex("^_+|_+$"), "");
+
+    return result;
+}
+
+std::string Utils::normalizeURL(const std::string &server, const std::string &path = "") {
+    std::string url = server;
+
+    // Trim leading/trailing spaces (optional)
+    auto trim = [](std::string s) {
+        s.erase(0, s.find_first_not_of(" \t\r\n"));
+        s.erase(s.find_last_not_of(" \t\r\n") + 1);
+        return s;
+    };
+    url = trim(url);
+
+    // If protocol not provided, prepend "http://"
+    if (!(url.rfind("http://", 0) == 0 || url.rfind("https://", 0) == 0)) {
+        url = "http://" + url;
+    }
+
+    // Ensure we only append path if non-empty
+    if (!path.empty()) {
+        // Avoid double slashes
+        if (url.back() == '/' && path.front() == '/') {
+            url.pop_back();
+        } else if (url.back() != '/' && path.front() != '/') {
+            url += '/';
+        }
+        url += path;
+    }
+
+    return url;
+}
+
+
+std::vector<std::string> Utils::getUniqueLLMRunners(const std::string &hostnamePortS) {
+    std::vector<std::string> llmRunnerSockets;
+    std::unordered_set<std::string> seen;
+    std::stringstream ss(hostnamePortS);
+    std::string token;
+
+    while (std::getline(ss, token, ',')) {
+        // Trim spaces
+        token.erase(0, token.find_first_not_of(" \t\r\n"));
+        token.erase(token.find_last_not_of(" \t\r\n") + 1);
+
+        // Skip empty entries
+        if (token.empty()) continue;
+
+        // Convert to lowercase for case-insensitive uniqueness (optional)
+        std::string key = token;
+        std::transform(key.begin(), key.end(), key.begin(), ::tolower);
+
+        if (seen.find(key) == seen.end()) {
+            seen.insert(key);
+            llmRunnerSockets.push_back(token);
+        }
+    }
+
+    return llmRunnerSockets;
+}
+

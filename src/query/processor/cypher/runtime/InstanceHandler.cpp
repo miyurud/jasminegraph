@@ -49,11 +49,13 @@ void InstanceHandler::handleRequest(int connFd, bool *loop_exit_p,
 }
 
 void InstanceHandler::dataPublishToMaster(int connFd, bool *loop_exit_p, std::string message) {
+    instance_logger.debug("Inside dataPublishToMaster");
     if (!Utils::send_str_wrapper(connFd, JasmineGraphInstanceProtocol::QUERY_DATA_START)) {
         *loop_exit_p = true;
         return;
     }
 
+    instance_logger.debug("sent query-data-start successfully");
     std::string start_ack(JasmineGraphInstanceProtocol::QUERY_DATA_ACK.length(), 0);
     int return_status = recv(connFd, &start_ack[0], JasmineGraphInstanceProtocol::QUERY_DATA_ACK.length(), 0);
     if (return_status > 0) {
@@ -83,6 +85,8 @@ void InstanceHandler::dataPublishToMaster(int connFd, bool *loop_exit_p, std::st
     }
 
     if (!Utils::send_str_wrapper(connFd, message)) {
+        instance_logger.error("Error while sending message");
+
         *loop_exit_p = true;
         return;
     }

@@ -32,6 +32,8 @@ std::string Conts::GRAPH_WITH::TEXT_ATTRIBUTES = "1 : Graph with edge list + tex
 std::string Conts::GRAPH_WITH::JSON_ATTRIBUTES = "2 : Graph with edge list + JSON attributes list";
 std::string Conts::GRAPH_WITH::XML_ATTRIBUTES = "3 : Graph with edge list + XML attributes list";
 
+std::string Conts::KAFKA_GROUP_ID = "knnect";
+
 int Conts::JASMINEGRAPH_UI_FRONTEND_PORT = 7776;
 int Conts::JASMINEGRAPH_FRONTEND_PORT = 7777;
 int Conts::JASMINEGRAPH_BACKEND_PORT = 7778;
@@ -50,7 +52,7 @@ int Conts::JASMINEGRAPH_RUNTIME_PROFILE_MASTER = 1;
 int Conts::JASMINEGRAPH_RUNTIME_PROFILE_WORKER = 2;
 
 int Conts::RDF_NUM_OF_ATTRIBUTES = 7;
-int Conts::MAX_FE_SESSIONS = 20;
+int Conts::MAX_FE_SESSIONS = 100;
 int Conts::DEFAULT_THREAD_PRIORITY = 1;
 int Conts::HIGH_PRIORITY_DEFAULT_VALUE = 5;
 int Conts::THREAD_SLEEP_TIME = 30000;
@@ -101,6 +103,8 @@ const std::string Conts::PARAM_KEYS::LOOP_EXIT_POINTER = "loopExitPointer";
 const std::string Conts::PARAM_KEYS::CYPHER_QUERY::QUERY_STRING = "queryString";
 
 const std::string Conts::FLAGS::MODEL_ID = "model_id";
+
+
 
 const int Conts::HDFS::EDGE_SEPARATION_LAYER_THREAD_COUNT = 20;
 const int Conts::NUMBER_OF_PARTITION_DATA = 7;

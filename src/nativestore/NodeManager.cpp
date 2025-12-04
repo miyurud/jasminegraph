@@ -43,6 +43,7 @@ NodeManager::NodeManager(GraphConfig gConfig) {
     dbPrefix = graphPrefix + "_p" + std::to_string(partitionID);
     std::string nodesDBPath = dbPrefix + "_nodes.db";
     indexDBPath = dbPrefix + "_nodes.index.db";
+    edgeIndexDBPath = dbPrefix + "_edgeIndex.db";
     std::string propertiesDBPath = dbPrefix + "_properties.db";
     std::string metaPropertiesDBPath = dbPrefix + "_meta_properties.db";
     std::string edgePropertiesDBPath = dbPrefix + "_edge_properties.db";
@@ -54,6 +55,7 @@ NodeManager::NodeManager(GraphConfig gConfig) {
 
     node_manager_logger.info("Derived nodesDBPath: " + nodesDBPath);
     node_manager_logger.info("Derived index_db_loc: " + indexDBPath);
+    node_manager_logger.info("Derived Edge Index: " + edgeIndexDBPath);
 
     if (gConfig.maxLabelSize) {
         setIndexKeySize(gConfig.maxLabelSize);
@@ -66,6 +68,7 @@ NodeManager::NodeManager(GraphConfig gConfig) {
     std::ios_base::openmode openMode = std::ios::in | std::ios::out;  // Default mode
     if (gConfig.openMode == NodeManager::FILE_MODE) {
         this->nodeIndex = readNodeIndex();
+        this->edgeIndex = readEdgeIndex();
     } else {
         openMode |= std::ios::trunc;
     }
@@ -201,6 +204,47 @@ std::unordered_map<std::string, unsigned int> NodeManager::readNodeIndex() {
     index_db.close();
     return _nodeIndex;
 }
+std::unordered_map<std::string, unsigned int> NodeManager::readEdgeIndex() {
+    std::ifstream index_db(edgeIndexDBPath, std::ios::app | std::ios::binary);
+    std::unordered_map<std::string, unsigned int> _edgeIndex;  // temporary edge index data holder
+
+    if (index_db.is_open()) {
+        int iSize = dbSize(edgeIndexDBPath);
+        unsigned long dataWidth = NodeManager::INDEX_KEY_SIZE + sizeof(unsigned int);
+
+        if (iSize % dataWidth != 0) {
+            node_manager_logger.error("Index DB size does not comply to index block size. Path = " + edgeIndexDBPath);
+            node_manager_logger.error("Edge index DB in " + edgeIndexDBPath + " is corrupted!");
+        }
+
+        NodeManager::nextEdgeIndex = iSize / dataWidth;
+
+        char edgeKeyC[NodeManager::INDEX_KEY_SIZE];
+        bzero(edgeKeyC, NodeManager::INDEX_KEY_SIZE);
+        unsigned int edgeIndexId;
+
+        for (size_t i = 0; i < iSize / dataWidth; i++) {
+            if (!index_db.read(&edgeKeyC[0], NodeManager::INDEX_KEY_SIZE)) {
+                node_manager_logger.error("Error while reading index key data from block i = " + std::to_string(i));
+                break;
+            }
+            if (!index_db.read(reinterpret_cast<char *>(&edgeIndexId), sizeof(unsigned int))) {
+                node_manager_logger.error("Error while reading index ID data from block i = " + std::to_string(i));
+                break;
+            }
+
+            _edgeIndex[std::string(edgeKeyC)] = edgeIndexId;
+            bzero(edgeKeyC, NodeManager::INDEX_KEY_SIZE);  // clear buffer before next read
+        }
+
+        index_db.close();
+    } else {
+        std::string errorMessage = "Error while opening the edge index DB";
+        node_manager_logger.error(errorMessage);
+    }
+
+    return _edgeIndex;
+}
 
 RelationBlock *NodeManager::addLocalRelation(NodeBlock source, NodeBlock destination) {
     RelationBlock *newRelation = NULL;
@@ -273,7 +317,9 @@ RelationBlock *NodeManager::addLocalEdge(std::pair<std::string, std::string> edg
     if (newRelation) {
         newRelation->setDestination(destNode);
         newRelation->setSource(sourceNode);
+        this->nextEdgeIndex++;
     }
+
     pthread_mutex_unlock(&lockEdgeAdd);
 
     node_manager_logger.debug("DEBUG: Source DB block address " + std::to_string(sourceNode->addr) +
@@ -406,9 +452,10 @@ NodeBlock *NodeManager::get(unsigned int nodeIndex, std::string nodeId) {
         node_manager_logger.error("Error while reading label data from block " + std::to_string(blockAddress));
     }
     bool usage = usageBlock == '\1';
-    // node_manager_logger.debug("Label = " + std::string(label));
-    // node_manager_logger.debug("Length of label = " + std::to_string(strlen(label)));
-    // node_manager_logger.debug("DEBUG: raw edgeRef from DB (disk) " + std::to_string(edgeRef));
+    node_manager_logger.debug("Label = " + std::string(label));
+    node_manager_logger.debug("Length of label = " + std::to_string(strlen(label)));
+    node_manager_logger.debug("DEBUG: raw edgeRef from DB (disk) " + std::to_string(edgeRef));
+    node_manager_logger.debug("DEBUG: meta propoarty ref " + std::to_string(metaPropRef));
 
     nodeBlockPointer = new NodeBlock(nodeId, vertexId, blockAddress, propRef, metaPropRef, edgeRef,
                                      centralEdgeRef, edgeRefPID, label, usage);
@@ -441,6 +488,33 @@ void NodeManager::persistNodeIndex() {
                                       std::to_string(nodeBlockIndex));
         }
     }
+    index_db.close();
+}
+void NodeManager::persistEdgeIndex() {
+    std::ofstream index_db(edgeIndexDBPath, std::ios::trunc | std::ios::binary);
+    if (index_db.is_open()) {
+        if (this->edgeIndex.size() > 0 && (this->edgeIndex.begin()->first.length() > NodeManager::INDEX_KEY_SIZE)) {
+            node_manager_logger.error("Edge label/ID is longer ( " +
+                                      std::to_string(this->edgeIndex.begin()->first.length()) +
+                                      " ) than the index key size " + std::to_string(NodeManager::INDEX_KEY_SIZE));
+            node_manager_logger.error("Edge label/ID is longer than the index key size!");
+        }
+
+        for (const auto &edgeMap : this->edgeIndex) {
+            char edgeIDC[NodeManager::INDEX_KEY_SIZE] = {0};  // Initialize with null chars
+            std::strcpy(edgeIDC, edgeMap.first.c_str());
+            index_db.write(edgeIDC, sizeof(edgeIDC));
+
+            unsigned int edgeBlockIndex = edgeMap.second;
+            index_db.write(reinterpret_cast<char *>(&edgeBlockIndex), sizeof(unsigned int));
+
+            node_manager_logger.debug("Writing edge index --> Edge key = " + std::string(edgeIDC) +
+                                      " value = " + std::to_string(edgeBlockIndex));
+        }
+    } else {
+        node_manager_logger.error("Error while opening the edge index DB for writing: " + edgeIndexDBPath);
+    }
+
     index_db.close();
 }
 
@@ -502,10 +576,10 @@ std::map<long, std::unordered_set<long>> NodeManager::getAdjacencyList() {
         auto nodeId = it.first;
         NodeBlock *node = this->get(nodeId);
         std::unordered_set<long> neighbors;
-        std::list<NodeBlock*> neighborNodes = node->getAllEdgeNodes();
+        std::list<std::pair<NodeBlock*, RelationBlock*>> neighborNodes = node->getAllEdgeNodes();
 
         for (auto neighborNode : neighborNodes) {
-            neighbors.insert(neighborNode->nodeId);
+            neighbors.insert(neighborNode.first->nodeId);
         }
         adjacencyList.emplace((long)node->nodeId, neighbors);
     }
@@ -565,6 +639,7 @@ std::map<long, long> NodeManager::getDistributionMap() {
  * **/
 void NodeManager::close() {
     this->persistNodeIndex();
+    this->persistEdgeIndex();
     if (PropertyLink::propertiesDB) {
         PropertyLink::propertiesDB->flush();
         PropertyLink::propertiesDB->close();

@@ -19,19 +19,25 @@ class K8sInterfaceTest : public ::testing::Test {
  protected:
     K8sInterface *interface {};
 
-    void SetUp() override { interface = new K8sInterface(); }
+    void SetUp() override {
+        interface = new K8sInterface();
+    }
 
-    void TearDown() override { delete interface; }
+    void TearDown() override {
+        delete interface;
+    }
 };
 
 const int HTTP_OK = 200;
 const int HTTP_CREATED = 201;
 
-TEST_F(K8sInterfaceTest, TestConstructor) { ASSERT_NE(interface->apiClient, nullptr); }
+TEST_F(K8sInterfaceTest, TestConstructor) {
+    ASSERT_NE(interface->apiClient, nullptr);
+}
 
 TEST_F(K8sInterfaceTest, TestGetNodes) {
-    v1_node_list_t *nodes = interface->getNodes();
-    ASSERT_NE(nodes->items->count, 0);
+  v1_node_list_t *nodes = interface->getNodes();
+  ASSERT_NE(nodes->items->count, 0);
 }
 
 TEST_F(K8sInterfaceTest, TestGetDeploymentList) {
