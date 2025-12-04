@@ -132,8 +132,8 @@ static double measureProcStatRate(const char* prefix, int prefixLen, int sleepSe
 
 // CPU statistics operations
 static bool readCpuStats(std::vector<std::vector<long>> &readings, const std::string& errorContext = "") {
-    FILE *file = fopen("/proc/stat", "r");
-    if (!file) {
+    std::ifstream file("/proc/stat");
+    if (!file.is_open()) {
         std::string msg = "Cannot open /proc/stat";
         if (!errorContext.empty()) {
             msg += " for " + errorContext;
@@ -142,38 +142,38 @@ static bool readCpuStats(std::vector<std::vector<long>> &readings, const std::st
         return false;
     }
 
-    char line[LINE_BUF_SIZE];
-    // Skip the first line (total cpu stats)
-    if (fgets(line, sizeof(line), file) == nullptr) {
-        fclose(file);
-        return true;
+    std::string line;
+
+    // Skip the first "cpu" aggregate line
+    if (!std::getline(file, line)) {
+        return true;  // Nothing else to process
     }
 
-    // Read per-CPU stats
-    while (fgets(line, sizeof(line), file) != nullptr) {
-        if (strncmp(line, "cpu", 3) == 0 && line[3] >= '0' && line[3] <= '9') {
-            std::vector<long> cpuStats;
-            char *p = line;
-            // Skip "cpu" and cpu number
-            while (*p && *p != ' ') p++;
-            while (*p == ' ') p++;
-
-            // Parse CPU time values: user, nice, system, idle, iowait, irq, softirq, steal
-            for (int i = 0; i < 8; i++) {
-                long value = 0;
-                if (*p && (*p >= '0' && *p <= '9')) {
-                    value = strtoll(p, &p, 10);
-                    while (*p == ' ') p++;
-                }
-                cpuStats.push_back(value);
-            }
-            readings.push_back(cpuStats);
-        } else {
-            break;  // No more CPU lines
+    // Read per-CPU lines: cpu0, cpu1, cpu2, ...
+    while (std::getline(file, line)) {
+        if (line.rfind("cpu", 0) != 0 || !isdigit(line[3])) {
+            break; // No more cpuN lines
         }
+
+        std::istringstream iss(line);
+
+        std::string cpuLabel;
+        iss >> cpuLabel;  // e.g. "cpu0"
+
+        std::vector<long> cpuStats;
+        cpuStats.reserve(8);
+
+        long value;
+        for (int i = 0; i < 8; ++i) {
+            if (!(iss >> value)) {
+                value = 0; // Default fallback if parsing fails
+            }
+            cpuStats.push_back(value);
+        }
+
+        readings.push_back(std::move(cpuStats));
     }
 
-    fclose(file);
     return true;
 }
 
