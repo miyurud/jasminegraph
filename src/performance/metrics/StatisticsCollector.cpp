@@ -73,8 +73,7 @@ static long readProcStatValue(const char* prefix, int prefixLen) {
     while (fgets(&buffer[0], LINE_BUF_SIZE, file) != nullptr) {
         line = buffer.c_str();
         std::string_view lineView(line);
-        std::string_view prefixView(prefix, prefixLen);
-        if (lineView.substr(0, prefixLen) != prefixView) {
+        if (std::string_view prefixView(prefix, prefixLen); lineView.substr(0, prefixLen) != prefixView) {
             continue;
         }
         const char *p = line.c_str();
@@ -101,7 +100,8 @@ static double measureProcStatRate(const char* prefix, int prefixLen, int sleepSe
     }
 
     // Record start time
-    struct timespec startTime, endTime;
+    struct timespec startTime;
+    struct timespec endTime;
     clock_gettime(CLOCK_MONOTONIC, &startTime);
 
     // Sleep for measurement interval
@@ -347,7 +347,7 @@ static long getSwapSpace(int field) {
     fgets(line, LINE_BUF_SIZE, file);
 
     while (fgets(line, LINE_BUF_SIZE, file) != nullptr) {
-        char *value = nullptr;
+        const char *value = nullptr;
         char *save = nullptr;
         for (int i = 0; i < field; i++) {
             if (i == 0) {
@@ -355,6 +355,9 @@ static long getSwapSpace(int field) {
             } else {
                 value = strtok_r(nullptr, "\t", &save);
             }
+        }
+        if (value == nullptr) {
+            continue;
         }
         long used = strtol(value, nullptr, 10);
         if (used < 0 || used > 0xfffffffffffffffL) {
