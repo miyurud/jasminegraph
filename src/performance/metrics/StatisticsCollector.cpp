@@ -71,7 +71,7 @@ static long readProcStatValue(const char* prefix, int prefixLen) {
 
     while (fgets(line, LINE_BUF_SIZE, file) != nullptr) {
         if (strncmp(line, prefix, prefixLen) == 0) {
-            char *p = line;
+            const char *p = line;
             while (*p && (*p < '0' || *p > '9')) p++;  // Skip to first digit
             if (*p) {
                 value = strtoll(p, nullptr, 10);
