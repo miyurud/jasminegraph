@@ -67,24 +67,23 @@ static long readProcStatValue(const char* prefix, int prefixLen) {
     }
 
     std::string line;
-    char buffer[LINE_BUF_SIZE];
+    std::string buffer(LINE_BUF_SIZE, '\0');
     long value = -1;
 
-    while (fgets(buffer, LINE_BUF_SIZE, file) != nullptr) {
-        line = buffer;
-        if (strncmp(line.c_str(), prefix, prefixLen) != 0) {
+    while (fgets(&buffer[0], LINE_BUF_SIZE, file) != nullptr) {
+        line = buffer.c_str();
+        std::string_view lineView(line);
+        std::string_view prefixView(prefix, prefixLen);
+        if (lineView.substr(0, prefixLen) != prefixView) {
             continue;
         }
-        
         const char *p = line.c_str();
         while (*p && (*p < '0' || *p > '9')) p++;  // Skip to first digit
-        if (!*p) {
-            break;
-        }
-        
-        value = strtoll(p, nullptr, 10);
-        if (value < 0) {
-            value = -1;  // Invalid value
+        if (*p) {
+            value = strtoll(p, nullptr, 10);
+            if (value < 0) {
+                value = -1;  // Invalid value
+            }
         }
         break;
     }
@@ -218,7 +217,8 @@ static void getCpuCycles(long *totalp, long *idlep) {
 }
 
 // Network statistics operations
-static bool readNetworkStats(std::map<std::string, NetworkStats, std::less<>> &out, const std::string& errorContext = "") {
+static bool readNetworkStats(std::map<std::string, NetworkStats, std::less<>> &out,
+                const std::string& errorContext = "") {
     FILE *file = fopen("/proc/net/dev", "r");
     if (!file) {
         std::string msg = "Cannot open /proc/net/dev";
@@ -230,9 +230,9 @@ static bool readNetworkStats(std::map<std::string, NetworkStats, std::less<>> &o
     }
 
     std::string line;
-    char buffer[LINE_BUF_SIZE_LONG];
+    std::string buffer(LINE_BUF_SIZE_LONG, '\0');
     // Skip header lines
-    if (fgets(buffer, sizeof(buffer), file) == nullptr || fgets(buffer, sizeof(buffer), file) == nullptr) {
+    if (fgets(&buffer[0], LINE_BUF_SIZE_LONG, file) == nullptr || fgets(&buffer[0], LINE_BUF_SIZE_LONG, file) == nullptr) {
         std::string msg = "Cannot read header lines from /proc/net/dev";
         if (!errorContext.empty()) {
             msg += " in " + errorContext;
@@ -243,8 +243,8 @@ static bool readNetworkStats(std::map<std::string, NetworkStats, std::less<>> &o
     }
 
     // Read network interface statistics
-    while (fgets(buffer, sizeof(buffer), file) != nullptr) {
-        line = buffer;
+    while (fgets(&buffer[0], LINE_BUF_SIZE_LONG, file) != nullptr) {
+        line = buffer.c_str();
         std::string interface;
         unsigned long rx_bytes;
         unsigned long rx_packets;
@@ -267,14 +267,14 @@ static bool readNetworkStats(std::map<std::string, NetworkStats, std::less<>> &o
         const char *p = line.c_str();
         while (*p == ' ' || *p == '\t') p++;  // Skip leading whitespace
 
-        char interfaceBuffer[32];
+        std::string interfaceBuffer(32, '\0');
         int ret = sscanf(p, "%31[^:]: %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
-            interfaceBuffer,
+            &interfaceBuffer[0],
             &rx_bytes, &rx_packets, &rx_errs, &rx_drop, &rx_fifo, &rx_frame, &rx_compressed, &rx_multicast,
             &tx_bytes, &tx_packets, &tx_errs, &tx_drop, &tx_fifo, &tx_colls, &tx_carrier, &tx_compressed);
 
         if (ret == 17) {
-            interface = interfaceBuffer;
+            interface = interfaceBuffer.c_str();
             NetworkStats ns;
             ns.rx_packets = rx_packets;
             ns.tx_packets = tx_packets;
@@ -299,24 +299,24 @@ static bool readDiskStats(std::map<std::string, DiskStats, std::less<>> &out, co
     }
 
     std::string line;
-    char buffer[LINE_BUF_SIZE_LONG];
-    while (fgets(buffer, sizeof(buffer), file) != nullptr) {
-        line = buffer;
+    std::string buffer(LINE_BUF_SIZE_LONG, '\0');
+    while (fgets(&buffer[0], LINE_BUF_SIZE_LONG, file) != nullptr) {
+        line = buffer.c_str();
         int major = 0;
         int minor = 0;
         std::string device;
         DiskStats ds;
 
         // Parse up to 14 fields; sscanf will fill available values.
-        char deviceBuffer[32];
+        std::string deviceBuffer(32, '\0');
         int ret = sscanf(line.c_str(), "%d %d %31s %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
-                         &major, &minor, deviceBuffer,
+                         &major, &minor, &deviceBuffer[0],
                          &ds.reads_completed, &ds.reads_merged, &ds.sectors_read, &ds.time_reading,
                          &ds.writes_completed, &ds.writes_merged, &ds.sectors_written, &ds.time_writing,
                          &ds.ios_in_progress, &ds.io_time, &ds.weighted_io_time);
 
         if (ret >= 3) {
-            device = deviceBuffer;
+            device = deviceBuffer.c_str();
             // Skip loop and ram devices
             if (device.compare(0, 4, "loop") != 0 && device.compare(0, 3, "ram") != 0) {
                 out[device] = ds;
@@ -395,7 +395,6 @@ long StatisticsCollector::getMemoryUsageByProcess() {
         stat_logger.error("Cannot open /proc/self/status");
         return -1;
     }
-    
     long result = -1;
     char line[LINE_BUF_SIZE];
 
@@ -563,7 +562,7 @@ double StatisticsCollector::getCpuUsage() {
 
 double StatisticsCollector::getTotalCpuUsage() {
     std::string mpstatCommand = "mpstat";
-    char buffer[BUFFER_SIZE];
+    std::string buffer(BUFFER_SIZE, '\0');
     std::string result = "";
     std::vector<std::string>::iterator paramNameIterator;
     int count = 0;
@@ -574,8 +573,8 @@ double StatisticsCollector::getTotalCpuUsage() {
     if (input) {
         // read the input
         while (!feof(input)) {
-            if (fgets(buffer, BUFFER_SIZE, input) != nullptr) {
-                result.append(buffer);
+            if (fgets(&buffer[0], BUFFER_SIZE, input) != nullptr) {
+                result.append(buffer.c_str());
             }
         }
         if (!result.empty()) {
@@ -668,7 +667,7 @@ std::vector<double> StatisticsCollector::getLogicalCpuCoreThreadUsage() {
     // Calculate usage for each CPU
     size_t numCpus = std::min(firstReading.size(), secondReading.size());
     cpuUsages.reserve(numCpus);
-    
+
     for (size_t i = 0; i < numCpus; i++) {
         double usage = calculateSingleCoreUsage(firstReading[i], secondReading[i]);
         cpuUsages.push_back(usage);
@@ -727,7 +726,6 @@ std::map<std::string, std::pair<double, double>, std::less<>> StatisticsCollecto
 
     // Calculate packet differences and rates for each interface
     for (const auto& [ifName, firstStats] : firstReading) {
-
         // Check if we have second reading for this interface
         if (secondReading.find(ifName) != secondReading.end()) {
             const NetworkStats& secondStats = secondReading[ifName];
