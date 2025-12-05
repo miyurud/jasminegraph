@@ -182,14 +182,6 @@ failed_tests = []
 
 def test(host, port):
     """Test the JasmineGraph server by sending a series of commands and checking the responses."""
-    # --- REMOVE IMAGE BEFORE OLLAMA ---
-    try:
-        logging.info("Removing JasmineGraph Docker image to free space...")
-        subprocess.run(["docker", "rmi", "-f", "jasminegraph"], check=False)
-    except Exception as e:
-        logging.warning(f"Could not remove JasmineGraph image: {e}")
-    # ----------------------------------
-
     subprocess.run(['bash', OLLAMA_SETUP_SCRIPT], check=True)
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
