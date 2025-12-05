@@ -86,7 +86,9 @@ services:
       jasminenet:
         ipv4_address: 172.28.5.5
   grafana:
-    image: grafana/grafana-enterprise
+    build:
+      context: .
+      dockerfile: Dockerfile.grafana
     environment:
       - GF_FEATURE_TOGGLES_ENABLE=grafanaManagedRecordingRules
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
@@ -94,52 +96,8 @@ services:
       - GF_AUTH_BASIC_ENABLED=false
       - GF_SECURITY_ALLOW_EMBEDDING=true
       - GF_SECURITY_X_FRAME_OPTIONS=ALLOWALL
-    volumes:
-      - ./conf/grafana/dashboards:/var/lib/grafana/dashboards
-      - ./conf/grafana/provisioning:/etc/grafana/provisioning
     ports:
       - 3001:3000
-    entrypoint:
-      - sh
-      - -euc
-      - |
-        mkdir -p /etc/grafana/provisioning/datasources
-        cat <<EOF > /etc/grafana/provisioning/datasources/ds.yaml
-        apiVersion: 1
-        datasources:
-        - name: Loki
-          type: loki
-          access: proxy
-          orgId: 1
-          url: 'http://loki:3100'
-          basicAuth: false
-          isDefault: true
-          version: 1
-          editable: true 
-        - name: Tempo
-          type: tempo
-          access: proxy
-          orgId: 1
-          url: 'http://tempo:3200'
-          basicAuth: false
-          isDefault: false
-          version: 1
-          editable: true
-          jsonData:
-            httpMethod: GET
-            serviceMap:
-              datasourceUid: 'prometheus'
-        - name: Prometheus
-          type: prometheus
-          access: proxy
-          orgId: 1
-          url: 'http://prometheus:9090'
-          basicAuth: false
-          isDefault: false
-          version: 1
-          editable: true
-        EOF
-        /run.sh
     networks:
       jasminenet:
         ipv4_address: 172.28.5.6
