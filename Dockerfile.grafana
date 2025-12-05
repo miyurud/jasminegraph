@@ -1,4 +1,4 @@
-FROM grafana/grafana-enterprise:latest
+FROM grafana/grafana-enterprise:12.3.0
 
 COPY ./performance_tools/grafana_dashboard.json /var/lib/grafana/dashboards/
 
