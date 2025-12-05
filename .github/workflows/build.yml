@@ -55,6 +55,20 @@ jobs:
         ref: ${{github.head_ref}}
         repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
 
+    - uses: actions/setup-python@v4
+      with:
+        python-version: 3.11
+          - run: |
+              pip install fastapi uvicorn httpx
+
+          # 4. Start mock Ollama server in the background
+          - name: Start Mock LLM Server
+            run: |
+              nohup uvicorn mock_ollama_server:app --host 0.0.0.0 --port 11434 &
+
+          # 5. Wait a few seconds for server to be ready
+          - run: sleep 2
+
     - name: Docker Build
       run: docker build -t jasminegraph .
 
