@@ -65,7 +65,7 @@ jobs:
 
   docker-integration-tests-graph-rag:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     if: ${{!contains(github.event.pull_request.labels.*.name, 'Skip docker integration')}}
 
     steps:
