@@ -82,7 +82,6 @@ faiss::idx_t FaissIndex::add(const std::vector<float>& embedding,
       "[FaissIndex] Embedding added to index. Updating nodeEmbeddingMap.");
   nodeIdToEmbeddingIdMap.insert({nodeId, new_id});
   embeddingIdToNodeIdMap.insert({new_id, nodeId});
-  // nodeEmbeddingMap.insert( value_type(nodeId, new_id));
   return new_id;
 }
 

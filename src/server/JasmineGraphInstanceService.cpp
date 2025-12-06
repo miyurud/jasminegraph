@@ -4893,19 +4893,20 @@ static void semantic_beam_search(
     return;
   }
 
-  if (!Utils::send_str_wrapper(
-          connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK)) {
-    *loop_exit_p = true;
-    return;
-  }
+  // if (!Utils::send_str_wrapper(
+  //         connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK)) {
+  //   *loop_exit_p = true;
+  //   return;
+  // }
   // read workerIP:port in comma separated format
   string workersIP =
       Utils::read_str_trim_wrapper(connFd, data, INSTANCE_DATA_LENGTH);
   instance_logger.info("Received Worker IP: " + workersIP);
-  if (!Utils::send_str_wrapper(connFd, "HI")) {
-    *loop_exit_p = true;
-    return;
-  }
+    // if (!Utils::send_str_wrapper(
+    //         connFd, JasmineGraphInstanceProtocol::GRAPH_STREAM_C_length_ACK)) {
+    //     *loop_exit_p = true;
+    //     return;
+    //         }
   std::vector<string> workerSockets;
   stringstream wl(workersIP);
   string intermediate;

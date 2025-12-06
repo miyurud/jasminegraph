@@ -334,28 +334,34 @@ void SemanticBeamSearchExecutor::doSemanticBeamSearch(
     close(sockfd);
     return;
   }
+    semantic_beam_search_logger_executor.info(ack);
 
   semantic_beam_search_logger_executor.info("Received ACK after query ");
 
 
-  char start[ACK_MESSAGE_SIZE] = {0};
-  recv(sockfd, &start, sizeof(start), 0);
-  std::string start_msg(start);
-  char ack2[ACK_MESSAGE_SIZE] = {0};
-  recv(sockfd, &ack2, sizeof(start), 0);
-  std::string ack2_msg(ack2);
-  semantic_beam_search_logger_executor.info(start_msg);
+  // char start[ACK_MESSAGE_SIZE] = {0};
+  // recv(sockfd, &start, sizeof(start), 0);
+  // std::string start_msg(start);
+  // char ack2[ACK_MESSAGE_SIZE] = {0};
+  // recv(sockfd, &ack2, sizeof(start), 0);
+  // std::string ack2_msg(ack2);
+  // semantic_beam_search_logger_executor.info(start_msg);
   semantic_beam_search_logger_executor.info(
       "Semantic Beam Search request sent successfully");
   while (true) {
-    char start[ACK_MESSAGE_SIZE] = {0};
-    recv(sockfd, &start, sizeof(start), 0);
-    std::string start_msg(start);
-    if (JasmineGraphInstanceProtocol::QUERY_DATA_START != start_msg) {
+    char start2[ACK_MESSAGE_SIZE] = {0};
+    recv(sockfd, &start2, sizeof(start2), 0);
+    std::string start2_msg(start2);
+    if (JasmineGraphInstanceProtocol::QUERY_DATA_START != start2_msg) {
       semantic_beam_search_logger_executor.error(
-          "Error while receiving start command: " + start_msg);
+          "Error while receiving start command: " + start2_msg);
       break;
     }
+
+
+
+
+
     send(sockfd, JasmineGraphInstanceProtocol::QUERY_DATA_ACK.c_str(),
          JasmineGraphInstanceProtocol::QUERY_DATA_ACK.length(), 0);
 
