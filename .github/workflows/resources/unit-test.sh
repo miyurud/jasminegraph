@@ -12,7 +12,20 @@ check_pod_status() {
     fi
 }
 
-mkdir coverage
+# Clean up any existing test resources before starting
+echo "Cleaning up existing test resources..."
+kubectl delete pod jasminegraph-unit-test-pod --ignore-not-found=true
+kubectl delete pvc host-volume-claim --ignore-not-found=true
+kubectl delete pv host-volume --ignore-not-found=true
+kubectl delete deployment -l deployment=jasminegraph-worker --ignore-not-found=true
+kubectl delete service -l service=jasminegraph-worker --ignore-not-found=true
+kubectl delete service jasminegraph-master-service --ignore-not-found=true
+
+# Wait for resources to be fully deleted
+echo "Waiting for cleanup to complete..."
+sleep 10
+
+mkdir -p coverage
 kubectl apply -f ./k8s/configs.yaml
 kubectl apply -f ./.github/workflows/resources/unit-test-conf.yaml
 
@@ -42,5 +55,23 @@ if [[ $pod_status != "Running" && $pod_status != "Completed" ]]; then
     echo "Unit tests failed"
     echo "----------------------------- details --------------------------"
     kubectl describe pod jasminegraph-unit-test-pod
+    
+    # Cleanup on failure
+    kubectl delete pod jasminegraph-unit-test-pod --ignore-not-found=true
+    kubectl delete pvc host-volume-claim --ignore-not-found=true
+    kubectl delete pv host-volume --ignore-not-found=true
+    kubectl delete deployment -l deployment=jasminegraph-worker --ignore-not-found=true
+    kubectl delete service -l service=jasminegraph-worker --ignore-not-found=true
+    kubectl delete service jasminegraph-master-service --ignore-not-found=true
+    
     exit 1
 fi
+
+# Cleanup test resources after successful run
+echo "Cleaning up test resources..."
+kubectl delete pod jasminegraph-unit-test-pod --ignore-not-found=true
+kubectl delete pvc host-volume-claim --ignore-not-found=true
+kubectl delete pv host-volume --ignore-not-found=true
+kubectl delete deployment -l deployment=jasminegraph-worker --ignore-not-found=true
+kubectl delete service -l service=jasminegraph-worker --ignore-not-found=true
+kubectl delete service jasminegraph-master-service --ignore-not-found=true
