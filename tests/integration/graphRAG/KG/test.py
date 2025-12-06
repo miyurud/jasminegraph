@@ -22,7 +22,7 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 # JasmineGraph master config
 RESULT = subprocess.check_output(["hostname", "-I"]).decode().strip()
 SERVER_IP = RESULT.split()[0]
-HOST = "127.0.0.1"
+HOST = "10.8.100.248"
 HDFS_PORT = "9000"
 PORT = 7777
 LINE_END = b"\r\n"
@@ -31,7 +31,7 @@ LINE_END = b"\r\n"
 TEXT_FOLDER = "gold"
 
 # LLM runner configuration
-LLM_RUNNERS = f"http://{SERVER_IP}:11450," * 2
+LLM_RUNNERS = f"http://{SERVER_IP}:11450:2"
 RUNNER_URLS = [u.strip() for u in LLM_RUNNERS.split(",") if u.strip()]
 REASONING_MODEL_URI = RUNNER_URLS[0] if RUNNER_URLS else None
 LLM_MODEL = "gemma3:1b"

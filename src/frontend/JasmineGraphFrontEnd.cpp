@@ -1877,7 +1877,7 @@ bool JasmineGraphFrontEnd::constructKGStreamHDFSCommand(std::string masterIP, in
     std::string hostnamePortS(hostnamePort);
     hostnamePortS = Utils::trim_copy(hostnamePortS);
 
-    frontend_logger.info("Recieved LLM runnners: " + hostnamePortS);
+    frontend_logger.info("Received LLM runners: " + hostnamePortS);
 
     std::string llmInferenceMSG = "LLM inference engine? ollama/vllm? ";
     resultWr = write(connFd, llmInferenceMSG.c_str(), llmInferenceMSG.length());
